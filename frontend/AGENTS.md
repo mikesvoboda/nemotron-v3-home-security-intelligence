@@ -437,7 +437,10 @@ Track and optimize production bundle sizes:
 npm run analyze
 ```
 
-### Budgets (`.size-limit.json`, enforced by the `bundle-size.yml` CI job)
+### Budgets (`.size-limit.json`, reported nightly by `bundle-size.yml`)
+
+Report-only: the CI job runs nightly/on demand, its size-check step
+soft-fails by design (`|| true`), and nothing gates on it (owner ruling 100).
 
 | Check              | Limit  | Gzipped |
 | ------------------ | ------ | ------- |
