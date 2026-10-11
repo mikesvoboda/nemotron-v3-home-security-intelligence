@@ -387,3 +387,106 @@ def test_the_two_gates_differ_in_per_test_budget_not_subset_selection() -> None:
             if "fast_select" in line:
                 stripped = line.strip()
                 assert stripped.startswith("#") or "test_fast_select.py" in stripped, line
+
+
+# ---------------------------------------------------------------------------
+# Why 50 PR-gate jobs SKIP while this PR is a draft — and why that is not a
+# test result. The lane agent first explained the 50 skips as "fast_select
+# rendering"; the self-review disproved that, and the real mechanism turned out
+# to be bigger than the wrong guess: `detect-changes` is itself draft-gated, so on
+# a draft PR it publishes none of the outputs every test job consumes, and the
+# unit shard (the job that carries --timeout=60) never runs at all. Asserted here
+# because "CI Gate: success" is then an aggregate reading skipped inputs as
+# satisfied, and a reviewer must not read it as "the suite passed" (ruling 109's
+# pre-approval is conditioned on green CI).
+# ---------------------------------------------------------------------------
+
+_DRAFT_CLAUSE = "github.event_name != 'pull_request' || github.event.pull_request.draft != true"
+_DRAFT_IF_LINE = f"if: {_DRAFT_CLAUSE}"  # the flow-scalar form detect-changes uses
+
+
+def _job_block(ci: str, job_id: str, terminator: str) -> str:
+    """One job's definition, cut at its first structural child, so a sibling's
+    `if:` can never be credited to this job."""
+    head = f"\n  {job_id}:\n"
+    assert head in ci, f"job {job_id} moved/renamed — re-anchor before trusting this probe"
+    block = ci.split(head, 1)[1]
+    return block.split(terminator, 1)[0]
+
+
+def _normalize(expr: str) -> str:
+    return " ".join(expr.split())
+
+
+def _job_if_expr(block: str) -> str:
+    """The job's `if:` condition in EITHER YAML form, whitespace-normalized.
+
+    ci.yml uses both: a one-line flow scalar (`detect-changes`) and a block scalar
+    whose clause is wrapped in parens and split across lines (`unit-tests`). A
+    probe that only matched the first form would silently pass on a job that was
+    de-gated into the second — which is exactly how this helper was first written
+    wrong, and the failure is why it reads the expression instead of grepping.
+    """
+    lines = block.splitlines()
+    for i, ln in enumerate(lines):
+        stripped = ln.strip()
+        if not stripped.startswith("if:"):
+            continue
+        rest = stripped[len("if:") :].strip()
+        if rest not in {"|", "|-", ">", ">-"}:
+            return _normalize(rest)
+        body: list[str] = []
+        for cont in lines[i + 1 :]:
+            if cont.strip() and not cont.startswith("      "):
+                break  # dedent back to a job-level key ends the block scalar
+            body.append(cont)
+        return _normalize("\n".join(body))
+    raise AssertionError("job has no `if:` at all — the draft-gate claim is now wrong")
+
+
+def _is_draft_gated(block: str) -> bool:
+    return _DRAFT_CLAUSE in _job_if_expr(block)
+
+
+def _detect_changes_is_draft_gated(ci: str) -> bool:
+    return _is_draft_gated(_job_block(ci, "detect-changes", "\n    steps:"))
+
+
+def _unit_shard_waits_on_detect_changes(ci: str) -> bool:
+    block = _job_block(ci, "unit-tests", "\n    services:")
+    return "needs.detect-changes.outputs.backend == 'true'" in block
+
+
+def test_the_pr_gate_never_runs_the_unit_shard_while_the_pr_is_a_draft() -> None:
+    ci = (REPO / ".github/workflows/ci.yml").read_text()
+
+    assert _detect_changes_is_draft_gated(ci), (
+        "detect-changes is no longer draft-gated — then a draft PR DOES get change "
+        "outputs and #7003's CI-read section needs re-deriving"
+    )
+    assert _unit_shard_waits_on_detect_changes(ci), (
+        "the unit shard no longer consumes detect-changes outputs — the skip "
+        "explanation in the body needs re-deriving"
+    )
+    # The shard ALSO carries its own draft gate, so it is doubly conditional: even
+    # if someone de-gated detect-changes, the shard still would not run here.
+    assert _is_draft_gated(_job_block(ci, "unit-tests", "\n    services:"))
+
+    # Negative control: the helpers must be reading the GATE, not just finding the
+    # job name. De-gate detect-changes (keep a non-draft condition so the shape is
+    # still an `if:`) and the helper must go False.
+    anchor = (
+        "      should-run-all: ${{ github.ref == 'refs/heads/main' "
+        "|| steps.filter.outputs.workflow == 'true' }}\n    " + _DRAFT_IF_LINE + "\n"
+    )
+    mutant = ci.replace(
+        anchor,
+        anchor.replace(_DRAFT_IF_LINE, "if: github.event_name != 'pull_request'", 1),
+        1,
+    )
+    assert mutant != ci, "detect-changes draft-gate anchor moved — the control is vacuous"
+    assert not _detect_changes_is_draft_gated(mutant), (
+        "the helper does not actually track the draft gate — it is not a control"
+    )
+    # ...and the shard's own gate is a separate condition, so it still skips.
+    assert _is_draft_gated(_job_block(mutant, "unit-tests", "\n    services:"))
