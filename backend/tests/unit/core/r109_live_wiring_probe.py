@@ -42,14 +42,28 @@ _PROBE_LOGGER = "probe.r109.boundary"
 
 
 def test_1_arms_root_logging_like_a_lifespan_test() -> None:
-    """Arm root logging the way a lifespan-booting test does.
+    """Arm root logging the way a lifespan-booting test does — and pin WHAT it armed.
 
-    Asserts that it actually armed something: a pin that cannot arm is a pin
-    that proves nothing, so this FAILS rather than skips — a skipped child would
-    still print a green parent, which is the vacuous-green class this file
-    exists to catch. If this fires, root logging is disabled in this environment
-    (`data/logs` not writable, or a logging switch), and the fix is the
-    environment, not the assertion.
+    Asserts that it actually armed something *that stamps `asctime`*: a pin that
+    cannot arm is a pin that proves nothing, so this FAILS rather than skips — a
+    skipped child would still print a green parent, which is the vacuous-green
+    class this file exists to catch. If this fires, root logging is disabled in
+    this environment (`data/logs` not writable, or a logging switch), and the fix
+    is the environment, not the assertion.
+
+    The second half of the assertion is load-bearing for `test_2`, not decoration.
+    test_2's teeth come from a leaked `record.asctime`, and `asctime` is only ever
+    stamped when the attached formatter's format uses the record's creation time —
+    `logging.Formatter.format` calls `formatTime` only when `usesTime()` is true.
+    `CONSOLE_FORMAT` carries `%(asctime)s` today (backend/core/logging.py:416, no
+    env switch), but the only test that pins that fact outside this file is
+    `backend/tests/evidence/test_r109_nightly_gate_harness.py::test_setup_logging_arms_an_asctime_handler_that_leaks`,
+    which SKIPS unless `EVIDENCE_R109=1` and no workflow sets that (verified
+    2026-10-11: zero hits for `EVIDENCE_R109` outside that directory). Without the
+    assertion below, a future format change would leave this test green and quietly
+    disarm test_2 — vacuous green again, which is exactly what this file exists to
+    refuse. `usesTime()` is asked rather than pattern-matching the format string,
+    because it is the same predicate `Formatter.format` itself consults.
     """
     root = logging.getLogger()
     before = list(root.handlers)
@@ -59,14 +73,30 @@ def test_1_arms_root_logging_like_a_lifespan_test() -> None:
         "setup_logging() installed no root handlers, so this pair would be vacuous "
         f"(handlers before: {[type(h).__name__ for h in before]!r})"
     )
+    leakers = [h for h in installed if getattr(h.formatter, "usesTime", lambda: False)()]
+    assert leakers, (
+        "none of the handlers setup_logging() just armed formats with the record's "
+        f"creation time ({[f'{type(h).__name__}:{type(h.formatter).__name__}' for h in installed]!r}) "
+        "— test_2's asctime assertion would pass vacuously, because nothing attached "
+        "here could ever stamp a cached `asctime`. Either the shipped format changed "
+        "(re-derive the leak mechanism) or setup_logging() stopped arming its console "
+        "handler (this child no longer witnesses the real boot)."
+    )
 
 
 def test_2_sees_a_restored_root_logger(caplog: pytest.LogCaptureFixture) -> None:
     """The next test must see root as it found it, and an uncached record.
 
-    Handlers are compared by identity, the way `_root_logging_state()` does it:
-    `logging` defines no `__eq__`, so an app-installed look-alike cannot be
-    confused with one of pytest's own handlers.
+    This test asserts ONE thing: a record emitted here carries no cached
+    `asctime`. It does not compare handler lists itself — the identity comparison
+    that protects the boundary lives in the root conftest's
+    `_root_logging_state()`/`_restore_root_logging()` pair, which this child
+    exercises through pytest's own hook call rather than re-doing here. An earlier
+    revision of this docstring said "handlers are compared by identity, the way
+    `_root_logging_state()` does it", which read as a description of the code
+    below it and described code that is not below it (fresh-context review
+    `r109-delta-review`, observation 1). What the identity comparison buys is
+    stated where it happens; here the witness is the leaked key.
     """
     with caplog.at_level(logging.WARNING, logger=_PROBE_LOGGER):
         logging.getLogger(_PROBE_LOGGER).warning("emitted across the protocol boundary")

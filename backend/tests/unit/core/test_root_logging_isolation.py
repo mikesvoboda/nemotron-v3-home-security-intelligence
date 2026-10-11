@@ -197,11 +197,16 @@ class TestLiveWiring:
     * ``-p no:randomly`` / ``-p no:cacheprovider`` — order is the experiment, and
       a cache write would make the child dirty non-deterministically.
     * ``@pytest.mark.slow`` — the ini ``timeout = 5`` is repo-wide, and a child
-      pytest boot measured ~6 s here, so an unmarked parent is killed by its own
-      watchdog before the child finishes. Repo conftest rule 3 gives slow-marked
-      tests 30 s (backend/tests/conftest.py:472,:486); the inner wall is set to
-      20 s, BELOW pytest's, so a hung child fails with the child's captured
-      output rather than a bare SIGALRM with nothing in it.
+      pytest boot measured ~6 s here, so in a tier that passes no CLI
+      ``--timeout`` (the nightly's own shape, and ``scripts/validate.sh``) an
+      unmarked parent is killed by its own watchdog before the child finishes.
+      Named as tier-specific because the PR gate is NOT one of those tiers:
+      ``ci.yml:779`` passes ``--timeout=60`` to the unit shard, and repo conftest
+      ranks CLI ``--timeout`` ABOVE the slow marker (backend/tests/conftest.py:471,
+      ``:482`` before ``:486``/``:487``), so there the marker is moot and the CLI
+      cap governs. The inner wall is set to 20 s, BELOW the 30 s the marker buys,
+      so a hung child fails with the child's captured output rather than a bare
+      SIGALRM with nothing in it.
     """
 
     PROBE = Path(__file__).with_name("r109_live_wiring_probe.py")
