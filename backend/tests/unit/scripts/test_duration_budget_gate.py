@@ -37,11 +37,14 @@ the summary, and an unwritable summary path must not change the verdict.
 
 Tier classification is NOT reimplemented in either file: the gate calls the
 audit's ``categorize_test``, so the two can never disagree about what tier a
-test is. (This lane's measurement pass path-guessed tiers first and counted 63
-over-budget unit ids where the classifier counts 46 — it routes the
-``test_gpu_monitor_batch28_*`` cluster to ``integration`` on its "gpu"
-substring. That 17-id disagreement is why the reuse is itself a tested
-assertion.)
+test is. (The classifier's number is the one that re-measures: 46 unit ids over
+1.5 s in the three shipping corpora, because it routes the
+299-collected-test ``test_gpu_monitor_batch28_*`` cluster to ``integration`` on
+its "gpu" substring and the five over-1.5 s tracked-slow members to ``slow``.
+This lane's first path-guessing pass over-counted; self-review F4 showed a
+naive guesser's total depends on its own heuristic — two re-implementations
+produced two different totals from the same corpora — so the classifier-side
+number is the only one cited here.)
 
 **Fixture-path hazard, and why the corpus dir is named ``corpus``.**
 ``categorize_test`` classifies from the whole file path, and pytest's
@@ -726,11 +729,12 @@ def test_a_unit_breach_is_not_forgiven_by_a_looser_tier_budget(tmp_path: Path) -
 
 
 def test_the_gate_reuses_the_audits_classifier(tmp_path: Path) -> None:
-    """The classifier, not a path guess, decides the tier — 17 ids of proof.
+    """The classifier, not a path guess, decides the tier.
 
-    This lane's measurement pass path-guessed tiers and reported 63 over-budget
-    unit ids where the classifier reports 46, because ``categorize_test`` sends
-    any test with "gpu" in it to ``integration`` on its substring pattern. If
+    This lane's first path-guessing pass over-counted the subject set against
+    the classifier's re-measurable 46 over-1.5 s unit ids, because
+    ``categorize_test`` sends any test with "gpu" in it to ``integration`` on
+    its substring pattern. If
     the gate classified differently from the audit, the two would disagree
     about which tests are even subject to the 4.0 s line. Pinned on a case the
     classifier actually decides: a ``gpu``-named unit test gets the 10.0 s
@@ -754,8 +758,9 @@ def test_the_gate_reuses_the_audits_classifier(tmp_path: Path) -> None:
     run = _run(results)
     assert run.returncode == 0, (
         "categorize_test routes any 'gpu' test to integration (10.0 s limit); a "
-        "path-guessing gate would call this unit and red it at 4.0 — the 63-vs-46 "
-        f"disagreement this assertion exists to prevent\n{_out(run)}"
+        "path-guessing gate would call this unit and red it at 4.0 — the "
+        "classifier-vs-guess tier disagreement this assertion exists to "
+        f"prevent\n{_out(run)}"
     )
 
 
@@ -771,11 +776,15 @@ def test_the_tracked_slow_bucket_keeps_its_sixty_second_cap(tmp_path: Path) -> N
 
     Ruling 74 wanted exemptions in ONE shrink-only file, so the gate judged
     ``slow`` at the unit budget. Ruling 93 deleted the file, and with it the
-    only place those ids could live: the measured tracked-slow members
-    (``test_rtsp_test_service::test_connection_timeout`` 6.01 s — a real
-    socket timeout; the job_progress pair ~15.3 s; the error_handler
-    ~16.5 s) would be a PERMANENT false-red on main at a 4.0 s unit budget
-    with no exemption channel. The audit's ``SLOW_TEST_PATTERNS`` list is
+    only place those ids could live: five tracked-slow members sit over 1.5 s
+    in the three shipping corpora — re-measured maxima, NOT the audit's inline
+    comments, which are WP1.3-era fossils (self-review F3): rtsp socket
+    timeout 6.007 s, r8_s2b import sweep 4.641 s, job_progress
+    test_complete_calculates_duration 3.777 s, error_handler 3.474 s,
+    job_progress test_duration_after_start 3.430 s. Judged at the 4.0 s unit
+    budget the top two are a PERMANENT false-red on main with no exemption
+    channel (the three at 3.4-3.8 s would sit permanently in the WARN list).
+    The audit's ``SLOW_TEST_PATTERNS`` list is
     itself a human-adjudication channel — an entry needs a measured breach in
     the corpus AND a ``tpa_slow_list`` census entry — so it inherits its 60 s
     cap. Ruling 93 speaks about unit tests; it says nothing to undo the

@@ -64,10 +64,14 @@ I/O error must not become one.
 
 Tier classification is the AUDIT'S OWN ``categorize_test``, imported rather than
 reimplemented: the gate and the audit must never disagree about what tier a test
-is. (Measured on this lane's own first pass: path-guessing the tiers counted 63
-over-budget unit ids where the classifier counts 46 — it routes the ``test_gpu_
-monitor_batch28_*`` cluster to ``integration`` on its "gpu" substring, and the
-tracked-slow pair to ``slow``.)
+is. (This lane's first pass path-guessed tiers and over-counted the subject set
+-- the classifier's number is the one that re-measures: 46 unit ids over 1.5 s
+in the three shipping corpora, because ``categorize_test`` routes the
+299-collected-test ``test_gpu_monitor_batch28_*`` cluster to ``integration`` on
+its "gpu" substring and the five over-1.5 s tracked-slow members to ``slow``.
+The naive guess's total is deliberately NOT quoted: self-review F4 showed it
+depends on the guesser's own heuristic -- two re-implementations of "path only"
+got two different totals off the same corpora.)
 
 Fail-closed on zero evidence, copied reasoning from the audit's WP0.5 rule: both
 artifact downloads in the job this runs in carry ``continue-on-error: true``, so
