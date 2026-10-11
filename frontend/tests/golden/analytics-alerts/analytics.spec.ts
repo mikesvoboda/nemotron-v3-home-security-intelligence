@@ -9,30 +9,45 @@
  * vacuously passing on an empty store.
  *
  * What it proves per row, against the events and detections the fake stack
- * really produced (this drop's 1 detection plus the harness smoke run's):
+ * really produced (this drop's 1 detection, class `car`, confidence 0.77 —
+ * every number read from the book through h.scenario, never a literal):
  *  F-070  /analytics mounts; the default Grafana view embeds the hsi-analytics
- *         dashboard; the external link and refresh exist; refresh reloads the
- *         iframe (src re-set); the toggle switches to the Native view.
+ *         dashboard; the external link exists; refresh RELOADS the iframe —
+ *         pinned by watching a second request for the same dashboard URL land
+ *         after the click (the handler blanks src and restores it 100 ms later,
+ *         AnalyticsPage.tsx:82-96, so catching the empty attribute would be a
+ *         race, and asserting the src again afterwards is the reviewer's noted
+ *         stale-pass); the toggle switches to the Native view.
  *  F-071  Native: the camera selector offers the harness camera; selecting it
  *         filters GET /api/detections/stats by camera_id (observed on the
- *         network, not assumed) and the detail card shows THIS camera's
- *         single detection at the book's 0.91 confidence (UI renders 91%) with
- *         the person class row.
+ *         network, not assumed) and the detail card shows THIS camera's single
+ *         detection — bound element by element (the "Total Detections" value,
+ *         the "Average Confidence" value, the class row) instead of a loose
+ *         innerText regex.
  *  F-072  trends / donut / uptime cards resolve to data or their named empty
  *         state — a stranded skeleton is the failure F2.3 exists to catch.
  *  F-073  risk history / distribution / trend cards resolve the same way.
- *  F-074  week-over-week resolves and, when it has data, its three metric
- *         pairs (detections, high-risk, avg-risk) are present.
- *  F-075  latency panel: range selector + refresh exist; the stage bars come
- *         from GET /api/system/pipeline-latency observed on the network, and
- *         the pipeline that ran for the drop must have written the in-process
- *         ring, so watch_to_detect / detect_to_batch bars must show.
+ *  F-074  week-over-week resolves and, when it has data, its metric pairs exist.
+ *  F-075  latency panel: range selector + refresh exist; the pipeline that ran
+ *         for the drop must have written the in-process ring, so
+ *         watch_to_detect / detect_to_batch bars must show. (Both are recorded
+ *         unconditionally on the path the drop takes: file_watcher.py:829 and
+ *         pipeline_workers.py:529 — the latter records after _process_image_
+ *         detection returns, so it lands before the analyzer's verdict, which
+ *         is why a verdict that fails closed would still not have hidden it.)
  *
  * The API leg runs BEFORE the UI leg (the dashboard-drop discipline): an
  * aggregate the store cannot produce would otherwise pass as a rendered card.
  */
 import { expect, test } from '../guard';
-import { adminSession, assertGuardSurvives, authedFetch, login, readHarness } from './harness';
+import {
+  adminSession,
+  assertGuardSurvives,
+  authedFetch,
+  login,
+  readHarness,
+  type Harness,
+} from './harness';
 
 const harness = readHarness();
 test.skip(
@@ -58,6 +73,13 @@ const RESOLVING_CARDS = [
   'risk-score-trend',
   'week-over-week',
 ] as const;
+
+/** The percentage the detail card will render for a stored average: the
+ *  component's own rounding (CameraAnalyticsDetail.tsx:98-101), applied to the
+ *  book value the API leg just confirmed the store holds. */
+function bookConfidencePercent(h: Harness): number {
+  return Math.round(h.scenario.detections[0].confidence * 100);
+}
 
 test.describe('DO-1 golden path: /analytics surfaces over the batch data @critical', () => {
   test.setTimeout(90_000); // no pipeline wait here — the events already landed
@@ -92,10 +114,11 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
     expect(byClass, 'stats group by class for this camera').toEqual({
       [h.scenario.detections[0].class]: 1,
     });
+    const bookPercent = bookConfidencePercent(h);
     expect(
       Math.round(Number(stats.body?.average_confidence ?? 0) * 100),
-      'average confidence is the book value (0.91)'
-    ).toBe(Math.round(h.scenario.detections[0].confidence * 100));
+      'average confidence is the book value at UI rounding'
+    ).toBe(bookPercent);
 
     for (const path of [
       `/api/analytics/detection-trends?start_date=${weekAgo}&end_date=${today}`,
@@ -112,8 +135,14 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
     expect(latency.status, 'pipeline-latency answers').toBe(200);
 
     // 2. /analytics default view (F-070): page mounts, Grafana embeds, chrome
-    //    exists, refresh reloads the iframe src, toggle reaches Native.
+    //    exists, refresh RELOADS the iframe, toggle reaches Native.
     await login(page, h, session);
+    const dashboardRequests: string[] = [];
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname.includes('/d/hsi-analytics')) {
+        dashboardRequests.push(request.url());
+      }
+    });
     await page.goto(`${h.ui}/analytics`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('analytics-page'), 'analytics page mounts').toBeVisible({
       timeout: 30_000,
@@ -124,11 +153,29 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
       /hsi-analytics/
     );
     await expect(page.getByTestId('grafana-external-link')).toBeVisible();
+    // The embed really asked Grafana for the dashboard (it may still be loading
+    // — the fake stack ships no Grafana data — but the REQUEST is the pin).
+    await expect
+      .poll(() => dashboardRequests.length, {
+        message: 'the iframe requested the hsi-analytics dashboard',
+        timeout: 20_000,
+      })
+      .toBeGreaterThan(0);
 
-    // Refresh (F-070): the handler blanks the src then restores it — watch the
-    // attribute re-set to the same dashboard URL.
+    // Refresh (F-070): the handler blanks the src and restores it in a 100 ms
+    // setTimeout (AnalyticsPage.tsx:82-96). Re-asserting the src afterwards would
+    // pass on a dead button, and racing the empty attribute is flaky by design,
+    // so pin the reload by its observable: a SECOND request for the same
+    // dashboard URL, appearing only after the click.
+    const beforeRefresh = dashboardRequests.length;
     await page.getByTestId('analytics-refresh-button').click();
-    await expect(iframe, 'refresh reloads the iframe to the same dashboard').toHaveAttribute(
+    await expect
+      .poll(() => dashboardRequests.length, {
+        message: 'refresh re-requested the dashboard — the iframe actually reloaded',
+        timeout: 20_000,
+      })
+      .toBeGreaterThan(beforeRefresh);
+    await expect(iframe, 'and the src points at the dashboard again').toHaveAttribute(
       'src',
       /hsi-analytics/
     );
@@ -141,8 +188,8 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
     // 3. F-071: selecting the harness camera must REFILTER the stats call by
     //    camera_id (useCameraAnalytics passes selectedCameraId; observe it on
     //    the network) and the detail card then shows exactly this camera's one
-    //    detection: total 1, confidence 91% (0.91 at the component's rounding),
-    //    class row person (the book's detection).
+    //    detection: total 1, the book confidence at the component's rounding,
+    //    the class row named for the stored detection class.
     await expect(page.getByTestId('camera-analytics-selector')).toBeVisible();
     const cameraOption = page.getByTestId(`camera-option-${h.cameraId}`);
     await expect(cameraOption, 'the selector lists the harness camera').toBeVisible({
@@ -159,13 +206,42 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
     expect(filtered.status(), 'the camera-filtered stats call answers').toBe(200);
     const detail = page.getByTestId('camera-analytics-detail');
     await expect(detail, 'camera detail card renders').toBeVisible({ timeout: 20_000 });
+
+    // Bound per element (CameraAnalyticsDetail.tsx:151-173): each stat block is
+    //   <div> <div class="flex …"> <Icon/> <Text>{label}</Text> </div> <p>{value}</p> </div>
+    // so the value paragraph is a following sibling of the LABEL'S WRAPPER, not
+    // of the label itself. ancestor-or-self::div[1] is deliberate: Playwright's
+    // text engine matches the SMALLEST element containing the text — if that is
+    // the label paragraph, the walk lands on the flex wrapper; if it is the
+    // wrapper itself, ancestor-or-self keeps the same anchor. ancestor::div[1]
+    // would silently resolve to zero elements in the second case.
+    // Pinning the two value paragraphs directly beats regex-matching the card's
+    // whole innerText, where "1" would match any stray digit.
+    const statValueFor = (label: string) =>
+      detail
+        .getByText(label, { exact: true })
+        .locator('xpath=ancestor-or-self::div[1]/following-sibling::p');
     await expect(
-      page.getByTestId(`class-item-${h.scenario.detections[0].class}`),
-      'the class row is the stored detection class'
-    ).toBeVisible({ timeout: 15_000 });
-    const detailText = await detail.innerText();
-    expect(detailText, 'detail shows the stored detection count').toMatch(/\b1\b/);
-    expect(detailText, 'confidence renders at the UI rounding of the book value').toMatch(/91%/);
+      statValueFor('Total Detections'),
+      'detail shows the stored detection count'
+    ).toHaveText('1');
+    await expect(
+      statValueFor('Average Confidence'),
+      'confidence renders at the component rounding of the book value'
+    ).toHaveText(`${bookPercent}%`);
+    const classRow = page.getByTestId(`class-item-${h.scenario.detections[0].class}`);
+    await expect(classRow, 'the class row is the stored detection class').toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(classRow).toContainText('1');
+    // Scoped to THIS card on purpose: a page-wide "no person row" would be a
+    // false claim — the smoke camera's person detection exists store-wide and
+    // the all-camera cards may legitimately show it. The card's own refilter
+    // dropping the person row is the claim; the card owns its testids.
+    await expect(
+      detail.getByTestId('class-item-person'),
+      'the refiltered card lists only this camera class'
+    ).toHaveCount(0);
 
     // 4. F-072/073/074: every card resolves to data or its named empty state,
     //    and no skeleton strands (server data already exists — a loading card
@@ -188,9 +264,9 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
 
     // 5. F-075: latency chrome + the ring the pipeline filled. The drop's
     //    pipeline ran in THIS stack, so the file watcher's samples must put at
-    //    least watch_to_detect and detect_to_batch bars on screen; the batch
-    //    legs may or may not have completed within the panel's default window,
-    //    so assert the two guaranteed stages only.
+    //    least watch_to_detect and detect_to_batch bars on screen; the later
+    //    stages may or may not have completed within the panel's default
+    //    window, so assert the two guaranteed stages only.
     await expect(page.getByTestId('time-range-selector')).toBeVisible();
     const refresh = page.getByTestId('pipeline-latency-refresh-button');
     await expect(refresh).toBeVisible();

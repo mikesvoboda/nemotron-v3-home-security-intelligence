@@ -5,23 +5,42 @@
  *
  * The contract this module encodes is feature-check's own (scripts/
  * feature_check.py, read at this head): golden() exports the FEATURE_CHECK_*
- * env set, golden runs serial on one worker after smoke() already consumed
+ * env set, golden runs serial on one worker AFTER smoke() already dropped
  * harness-smoke.jpg, and the file watcher dedupes an image by sha256 stack-wide
  * for 300 s (backend/services/dedupe.py). Consequences baked in below:
  *
- * - Fixture choice is a shared resource. person-at-door.jpg belongs to F2.1's
- *   dashboard-drop spec (a second drop < 300 s later dedupes and its spec
- *   reddens), harness-smoke.jpg is already in the DB when golden starts. DO-1
- *   drops slow-reply.jpg: nobody else claims it, its verdict is confirmed, and
- *   risk_score 70 lands in the `high` band (backend/services/severity.py,
- *   settings defaults 29/59/84), which is exactly what /alerts lists.
- * - slow-reply delays the verdict 40 s, so the poll deadline adds that delay to
- *   the 150 s budget dashboard-drop proved against the same pipeline.
- * - analytics.spec.ts drops nothing and asserts these surfaces carry the alert
- *   spec's event. That order is Playwright's, not hope: workers=1 plus default
- *   sort order 'file' (playwright.config.ts sets neither) runs analytics.spec.ts
- *   after alerts.spec.ts. If that ever flips, assertEventOnAlerts fails with a
- *   named cause instead of silently passing on an empty list.
+ * - Fixture choice is a shared resource AND a semantic choice. The book
+ *   (backend/ai_contract/fake/scenario_fixtures/scenarios.json) ships five
+ *   images, each encoding a different outcome:
+ *     person-at-door  — claimed by F2.1's dashboard-drop.spec.ts; a second drop
+ *                       of the same bytes inside 300 s dedupes and reddens it.
+ *     harness-smoke   — consumed by the harness's own smoke() ~40 s before
+ *                       golden starts (measured in the 2026-10-11 CI run:
+ *                       dropped 07:42:18Z, golden launched 07:42:55Z), so its
+ *                       event is a fact of the stack, not something this spec
+ *                       may re-drop.
+ *     slow-reply      — NOT a slow success. Its reply_delay_seconds (40) is
+ *                       larger than the backend's ai_vlm_read_timeout default
+ *                       (25 s, backend/core/config.py:1180), so the analyzer
+ *                       abandons the reply and fails closed: the book's own
+ *                       module doc calls it "the slow-reply failure mode", and
+ *                       the run's backend log says `vlm assess failed - event
+ *                       records verification_failed`. The event then carries a
+ *                       NULL score (risk_score 0 over the API) and no risk tier
+ *                       — a negative fixture, not a positive one.
+ *     cat-on-porch    — verdict rejected, risk 4 → `low`.
+ *     car-in-driveway — nobody claims it, no reply delay, verdict `uncertain`,
+ *                       risk 45 → `medium` (backend/services/severity.py tiering
+ *                       against the settings defaults 29/59/84).
+ *   DO-1 claims car-in-driveway. Its tier is the point: /alerts pages only
+ *   `high` and `critical` (useAlertsQuery), so this drop is the NEGATIVE case
+ *   that proves the band filter end to end, and its detection is the positive
+ *   aggregate /analytics reads. The one alert the page must show is the
+ *   harness smoke event (61 → `high`), which is real stack state golden may
+ *   rely on but may not create.
+ * - analytics.spec.ts drops nothing; Playwright's serial file order runs it
+ *   after alerts.spec.ts. If that ever flips, its API leg fails with a named
+ *   cause instead of silently passing on an empty list.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -49,10 +68,31 @@ export interface Harness {
   scenario: Scenario;
   scenarioImagePath: string;
   cameraId: string;
+  /** The harness's own smoke scenario: its event is the one alert on the stack. */
+  smokeScenario: Scenario;
+  smokeCameraId: string;
 }
 
-/** The scenario DO-1 claims. The book, not this file, decides what it proves. */
-export const DO1_SCENARIO = 'slow-reply';
+/** The scenario DO-1 claims, and the harness's own. The book decides what each proves. */
+export const DO1_SCENARIO = 'car-in-driveway';
+export const SMOKE_SCENARIO = 'harness-smoke';
+
+/** Book scenarios are read as authored; the verdict word is never a gate here
+ *  because it is the TIER (low/medium/high/critical) that decides which
+ *  surfaces a drop may appear on, and every tier is a legitimate thing to pin. */
+function usableScenario(entry: Scenario | undefined, name: string): Scenario | string {
+  if (!entry) return `scenario book has no ${name}`;
+  const verdict = entry.verdict?.verdict;
+  if (typeof verdict !== 'string' || !verdict) return `${name} has no verdict in the book`;
+  if (!entry.detections?.length) return `${name} has no detections in the book`;
+  if (entry.reply_delay_seconds) {
+    // Any book delay outlasts the analyzer's 25 s read budget by construction
+    // (the mode exists to exercise that timeout), so it can never yield the
+    // confirmed verdict a golden aggregate needs.
+    return `${name} delays its reply ${entry.reply_delay_seconds}s — past the analyzer's read budget (the book's slow-reply failure mode)`;
+  }
+  return entry;
+}
 
 /** Read the harness contract defensively: any piece missing → {ready: false,
  *  why}. Collection-time code must not throw, or `--list` breaks outside the
@@ -82,13 +122,19 @@ export function readHarness(): Harness | { ready: false; why: string } {
   } catch (error) {
     return { ready: false, why: `harness JSON unreadable: ${String(error)}` };
   }
-  const scenario = scenarios.find((entry) => entry.name === DO1_SCENARIO);
-  if (!scenario) return { ready: false, why: `scenario book has no ${DO1_SCENARIO}` };
-  if (scenario.verdict.verdict !== 'confirmed') {
-    return { ready: false, why: `${DO1_SCENARIO} is no longer a confirmed scenario` };
-  }
+  const found = (name: string): Scenario | undefined =>
+    scenarios.find((entry) => entry.name === name);
+
+  const scenario = usableScenario(found(DO1_SCENARIO), DO1_SCENARIO);
+  if (typeof scenario === 'string') return { ready: false, why: scenario };
+  const smokeScenario = usableScenario(found(SMOKE_SCENARIO), SMOKE_SCENARIO);
+  if (typeof smokeScenario === 'string') return { ready: false, why: smokeScenario };
+
   const cameraId = cameras[scenario.name];
   if (!cameraId) return { ready: false, why: `harness seeded no camera named ${scenario.name}` };
+  const smokeCameraId = cameras[smokeScenario.name];
+  if (!smokeCameraId)
+    return { ready: false, why: `harness seeded no camera named ${smokeScenario.name}` };
   return {
     ready: true,
     api: String(process.env.FEATURE_CHECK_API_URL),
@@ -101,6 +147,8 @@ export function readHarness(): Harness | { ready: false; why: string } {
     scenario,
     scenarioImagePath: path.join(path.dirname(bookPath), scenario.image),
     cameraId,
+    smokeScenario,
+    smokeCameraId,
   };
 }
 
@@ -190,8 +238,8 @@ export function authedFetch(h: Harness, session: Session): AuthedFetch {
 
 /** Poll this camera's events until the fixture's verdict lands. Mirrors the
  *  harness's own smoke() predicate (5 s ticks; stop when verification.verdict
- *  appears). Deadline = dashboard-drop's proven 150 s + slow-reply's 40 s
- *  reply delay, both read from the sources that own them. */
+ *  appears). Deadline is dashboard-drop's proven 150 s with slack; this
+ *  scenario carries no reply delay (readHarness refuses a delayed one). */
 export async function awaitVerdictedEvents(
   h: Harness,
   api: AuthedFetch,
@@ -212,36 +260,79 @@ export async function awaitVerdictedEvents(
 
 /**
  * The backend fact every DO-1 UI assertion is a view of: exactly this camera's
- * one event, confirmed, score from the book (70), persisted risk_level 'high'
- * (severity.py against settings defaults 29/59/84 — the tier is measured
- * through risk_score_to_severity's implementation, not the docstring), and the
- * book's detection (class + rounded confidence) now stored — the rows /analytics
- * aggregates read. Callers assert non-emptiness first: an empty list is the
- * failure, never a vacuous pass.
+ * one event, the book's verdict and score, and the tier that score produces —
+ * car-in-driveway's 45 lands in `medium` (severity.py against the settings
+ * defaults 29/59/84, read at implementation, not docstring), which is what
+ * keeps it OFF /alerts. Callers assert non-emptiness first: an empty list is
+ * the failure, never a vacuous pass.
  */
-export function assertEventOnAlerts(items: Record<string, any>[], h: Harness): string {
+export function assertDropEventStored(items: Record<string, any>[], h: Harness): string {
   expect(items.length, `expected exactly one event for camera ${h.scenario.name}`).toBe(1);
   const event = items[0];
-  expect(String((event.verification ?? {}).verdict), 'the fake VLM confirmed the drop').toBe(
+  expect(String((event.verification ?? {}).verdict), 'the fake VLM answered the drop').toBe(
     h.scenario.verdict.verdict
   );
   expect(Number(event.risk_score), 'the score is the book value, not a placeholder').toBe(
     h.scenario.verdict.risk_score
   );
-  expect(String(event.risk_level), '70 persists as high — what /alerts pages').toBe('high');
+  expect(
+    String(event.risk_level),
+    `${h.scenario.verdict.risk_score} persists as ${expectedTier(h.scenario.verdict.risk_score)} — the tier that decides which pages may show it`
+  ).toBe(expectedTier(h.scenario.verdict.risk_score));
   return String(event.id);
 }
 
-export function assertStoredDetections(items: Record<string, any>[], h: Harness): void {
-  const expected = h.scenario.detections[0];
-  const stored = items[0]?.detections ?? [];
-  expect(stored.length, 'the drop stored its detection row').toBeGreaterThanOrEqual(1);
-  const match = stored.find((d: any) => String(d.object_type) === expected.class);
-  expect(match, `stored detections carry the book's class ${expected.class}`).toBeTruthy();
-  expect(
-    Math.round(Number(match.confidence) * 100),
-    'confidence round-trips at UI rounding (0.91)'
-  ).toBe(Math.round(expected.confidence * 100));
+/** The tier the analyzer persists for a score: severity.risk_score_to_severity
+ *  against settings defaults low_max 29 / medium_max 59 / high_max 84. DO-1's
+ *  fixture is 45 → medium; the harness smoke event is 61 → high. Written out
+ *  rather than imported because this is a browser-side spec — the numbers come
+ *  from the sources named in this file's header, and a change to the defaults
+ *  reddens the assert with this message. */
+export function expectedTier(score: number): 'low' | 'medium' | 'high' | 'critical' {
+  if (score <= 29) return 'low';
+  if (score <= 59) return 'medium';
+  if (score <= 84) return 'high';
+  return 'critical';
+}
+
+/**
+ * The event list from /api/events carries `detection_count` and
+ * `detection_ids`, NOT a `detections` array (EventResponse,
+ * backend/api/schemas/events.py — the live run's smoke-events.json shows the
+ * shape). So the drop's stored detection is pinned through those two fields
+ * here, and its class/confidence through the modal's own
+ * GET /api/events/<id>/detections leg, which really does return them.
+ */
+export function assertDropStoredItsDetection(items: Record<string, any>[], h: Harness): void {
+  const event = items[0];
+  expect(Number(event.detection_count ?? 0), 'the drop stored a detection row').toBe(
+    h.scenario.detections.length
+  );
+  const ids = Array.isArray(event.detection_ids) ? event.detection_ids : [];
+  expect(ids.length, 'the event names its detection ids').toBe(h.scenario.detections.length);
+}
+
+/** The alert the page must show: the harness smoke event, alone. Asserted
+ *  non-empty before any equality, and the drop's own event id is asserted ABSENT
+ *  — that absence is the band filter working (medium is not an alert). */
+export function assertSoleAlertIsSmoke(
+  high: Record<string, any>[],
+  h: Harness,
+  dropEventId: string
+): string {
+  expect(high.length, '/alerts pages only high+critical: the medium drop must stay off').toBe(1);
+  const alert = high[0];
+  expect(String(alert.id), 'the drop is not an alert').not.toBe(dropEventId);
+  expect(String(alert.camera_id), 'the one alert is the harness smoke camera').toBe(
+    h.smokeCameraId
+  );
+  expect(Number(alert.risk_score), 'the smoke event scores the book value').toBe(
+    h.smokeScenario.verdict.risk_score
+  );
+  expect(String(alert.risk_level), 'and the smoke tier is what /alerts lists').toBe(
+    expectedTier(h.smokeScenario.verdict.risk_score)
+  );
+  return String(alert.id);
 }
 
 /** End-of-spec honesty, the guard surviving the whole drive (F2.1's pin,
