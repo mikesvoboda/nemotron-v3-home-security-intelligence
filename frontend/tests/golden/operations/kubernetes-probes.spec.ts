@@ -15,9 +15,7 @@ const harness = readOpsHarness();
 test.describe('golden path: kubernetes probes @critical', () => {
   test.setTimeout(60_000);
 
-  test('liveness and readiness cards pass, matching the real probe endpoints', async ({
-    page,
-  }) => {
+  test('liveness and readiness cards pass, matching the real probe endpoints', async ({ page }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;

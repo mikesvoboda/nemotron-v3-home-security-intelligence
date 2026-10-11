@@ -37,7 +37,7 @@ test.describe('golden path: databases + redis debug block @critical', () => {
     const debug = await api<{ info?: { redis_version?: string } }>(
       h,
       session,
-      '/api/debug/redis/info',
+      '/api/debug/redis/info'
     );
     expect(typeof debug.info?.redis_version).toBe('string');
 

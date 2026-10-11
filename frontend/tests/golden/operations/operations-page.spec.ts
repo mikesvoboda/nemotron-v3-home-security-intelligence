@@ -33,7 +33,7 @@ test.describe('golden path: operations page opens @critical', () => {
     const telemetry = await api<{ queues?: Record<string, number> }>(
       h,
       session,
-      '/api/system/telemetry',
+      '/api/system/telemetry'
     );
     expect(telemetry.queues).toBeTruthy();
 

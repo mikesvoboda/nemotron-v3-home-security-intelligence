@@ -25,9 +25,7 @@ const harness = readOpsHarness();
 test.describe('golden path: audit log @critical', () => {
   test.setTimeout(90_000);
 
-  test('stats cards, action filter round trip, infinite scroll, detail modal', async ({
-    page,
-  }) => {
+  test('stats cards, action filter round trip, infinite scroll, detail modal', async ({ page }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
@@ -42,7 +40,7 @@ test.describe('golden path: audit log @critical', () => {
         session,
         '/api/audit?limit=1',
         (b) => (b.items?.length ?? 0) > 0,
-        15_000,
+        15_000
       );
     }
     expect((body.items?.length ?? 0) > 0).toBe(true);
@@ -84,7 +82,7 @@ test.describe('golden path: audit log @critical', () => {
         .poll(
           async () =>
             (await rows.count()) > before || !(await sentinel.isVisible().catch(() => false)),
-          { timeout: 15_000 },
+          { timeout: 15_000 }
         )
         .toBe(true);
     }

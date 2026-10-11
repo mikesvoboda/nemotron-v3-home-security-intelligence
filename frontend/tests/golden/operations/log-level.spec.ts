@@ -43,7 +43,10 @@ test.describe('golden path: log level control @critical', () => {
     const section = page.getByTestId('log-level-section');
     await expect(section).toContainText(new RegExp(`Current Level:\\s*${before}`));
 
-    await page.locator('button', { hasText: new RegExp(`^${target}$`) }).first().click();
+    await page
+      .locator('button', { hasText: new RegExp(`^${target}$`) })
+      .first()
+      .click();
     await expect(section).toContainText(new RegExp(`Current Level:\\s*${target}`), {
       timeout: 10_000,
     });
@@ -52,7 +55,10 @@ test.describe('golden path: log level control @critical', () => {
     expect(after).toBe(target);
 
     // Restore through the same control; leave no side effect for other specs.
-    await page.locator('button', { hasText: new RegExp(`^${before}$`) }).first().click();
+    await page
+      .locator('button', { hasText: new RegExp(`^${before}$`) })
+      .first()
+      .click();
     await expect(section).toContainText(new RegExp(`Current Level:\\s*${before}`), {
       timeout: 10_000,
     });

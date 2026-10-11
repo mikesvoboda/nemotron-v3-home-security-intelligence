@@ -30,7 +30,7 @@ test.describe('golden path: gpu history @critical', () => {
       history = await api<{ items?: unknown[]; count?: number }>(
         h,
         session,
-        '/api/system/gpu/history',
+        '/api/system/gpu/history'
       );
       const n = history.items?.length ?? history.count ?? 0;
       if (n > 0) break;

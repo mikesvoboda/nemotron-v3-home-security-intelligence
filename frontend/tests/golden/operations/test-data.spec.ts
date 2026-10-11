@@ -42,7 +42,15 @@ import { readFileSync } from 'node:fs';
 import type { Locator, Page } from '@playwright/test';
 
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, authPost, closedByGuard, loginAsAdmin, openSection, pollApi, readOpsHarness } from './harness';
+import {
+  api,
+  authPost,
+  closedByGuard,
+  loginAsAdmin,
+  openSection,
+  pollApi,
+  readOpsHarness,
+} from './harness';
 
 const harness = readOpsHarness();
 const CAMERAS_FILE = process.env.FEATURE_CHECK_CAMERAS ?? '';
@@ -60,7 +68,7 @@ async function pickSeedCount(
   page: Page,
   panel: Locator,
   row: 0 | 1 | 2, // SeedRow order in the panel: Cameras, Events, Pipeline Data
-  value: '5' | '50' | '7',
+  value: '5' | '50' | '7'
 ): Promise<void> {
   // Measured probe path (listbox_probe): this button click opens the Headless
   // UI list and the option click drives React state (POST then carried
@@ -97,8 +105,9 @@ test.describe('golden path: test data management @critical', () => {
     // rows (admin.py:341-366) — a re-run against a DB that already has the
     // five sample cameras honestly toasts "Created 0 cameras". The backend
     // leg below is what pins the contract; the toast pins the flow.
-    await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Created \d+ cameras/ }))
-      .toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.locator('[data-sonner-toast]').filter({ hasText: /Created \d+ cameras/ })
+    ).toBeVisible({ timeout: 15_000 });
 
     // Backend leg: the five sample cameras really exist now. Their ids are
     // the DASHED literals from _get_sample_cameras (admin.py:169-197, inserted
@@ -110,9 +119,9 @@ test.describe('golden path: test data management @critical', () => {
     const cameras = await api<{ items?: { id: string }[] } | { id: string }[]>(
       h,
       session,
-      '/api/cameras',
+      '/api/cameras'
     );
-    const ids = (Array.isArray(cameras) ? cameras : cameras.items ?? []).map((c) => c.id);
+    const ids = (Array.isArray(cameras) ? cameras : (cameras.items ?? [])).map((c) => c.id);
     for (const seeded of ['front-door', 'backyard', 'garage', 'driveway', 'side-gate']) {
       expect(ids).toContain(seeded);
     }
@@ -122,8 +131,9 @@ test.describe('golden path: test data management @critical', () => {
     // per iteration, admin.py:595), so the count stays exact across repeats.
     await pickSeedCount(page, panel, 1, '50');
     await panel.getByRole('button', { name: 'Seed Events' }).click();
-    await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Created 50 events/ }))
-      .toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.locator('[data-sonner-toast]').filter({ hasText: /Created 50 events/ })
+    ).toBeVisible({ timeout: 30_000 });
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
@@ -146,8 +156,9 @@ test.describe('golden path: test data management @critical', () => {
     // handleValueChange → SeedRow.selectedValue → onSeed.
     await pickSeedCount(page, panel, 2, '7');
     await panel.getByRole('button', { name: 'Seed Pipeline Data' }).click();
-    await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Pipeline latency data seeded/ }))
-      .toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.locator('[data-sonner-toast]').filter({ hasText: /Pipeline latency data seeded/ })
+    ).toBeVisible({ timeout: 20_000 });
 
     // Backend leg: the tracker accepted the same call (it only accumulates —
     // samples append to per-stage deques, admin.py:984 — so this re-POST is
@@ -178,7 +189,7 @@ test.describe('golden path: test data management @critical', () => {
       .info()
       .skip(
         !CAMERAS_FILE,
-        'destructive row needs FEATURE_CHECK_CAMERAS so it can restore afterwards',
+        'destructive row needs FEATURE_CHECK_CAMERAS so it can restore afterwards'
       );
     if (!harness.ready || !CAMERAS_FILE) return;
     const h = harness;
@@ -202,8 +213,9 @@ test.describe('golden path: test data management @critical', () => {
     await expect(confirmButton).toBeEnabled();
     await confirmButton.click();
 
-    await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Database reset complete/ }))
-      .toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.locator('[data-sonner-toast]').filter({ hasText: /Database reset complete/ })
+    ).toBeVisible({ timeout: 20_000 });
 
     // Restore leg (the contract that makes this row legal to run): recreate
     // each harness camera exactly as scripts/feature_check.py seed_cameras()
@@ -223,7 +235,7 @@ test.describe('golden path: test data management @critical', () => {
       session,
       '/api/events?limit=1',
       (b) => (b.pagination?.total ?? 0) === 0,
-      15_000,
+      15_000
     );
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);

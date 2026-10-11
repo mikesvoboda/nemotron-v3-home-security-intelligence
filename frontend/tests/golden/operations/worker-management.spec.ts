@@ -17,7 +17,15 @@
  * worker running again.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, openSection, panelRecovers, pollApi, readOpsHarness } from './harness';
+import {
+  api,
+  closedByGuard,
+  loginAsAdmin,
+  openSection,
+  panelRecovers,
+  pollApi,
+  readOpsHarness,
+} from './harness';
 
 const harness = readOpsHarness();
 
@@ -58,7 +66,7 @@ test.describe('golden path: worker management @critical', () => {
       page.getByTestId('worker-management-error'),
       page.getByTestId('worker-management-error'),
       page.getByTestId('worker-management-loading'),
-      { retryIntervalMs: 5_000 },
+      { retryIntervalMs: 5_000 }
     );
     const panel = page.getByTestId('worker-management-panel');
     await expect(panel).toBeVisible();
@@ -80,7 +88,7 @@ test.describe('golden path: worker management @critical', () => {
       session,
       '/api/system/supervisor',
       (b: SupervisorBody) => b.workers.find((w) => w.name === 'metrics')?.status === 'stopped',
-      20_000,
+      20_000
     );
     await page.getByTestId('worker-start-button-metrics').click({ timeout: 15_000 });
 
@@ -89,7 +97,7 @@ test.describe('golden path: worker management @critical', () => {
       session,
       '/api/system/supervisor',
       (b: SupervisorBody) => b.workers.every((w) => w.status === 'running'),
-      20_000,
+      20_000
     );
     await expect(page.getByTestId('worker-status-badge-metrics')).toHaveText(/running/i, {
       timeout: 15_000,

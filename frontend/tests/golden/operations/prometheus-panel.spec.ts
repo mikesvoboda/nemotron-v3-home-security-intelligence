@@ -22,9 +22,7 @@ const harness = readOpsHarness();
 test.describe('golden path: prometheus readiness panel @critical', () => {
   test.setTimeout(60_000);
 
-  test('the panel reports the real reachability of the prometheus endpoint', async ({
-    page,
-  }) => {
+  test('the panel reports the real reachability of the prometheus endpoint', async ({ page }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
@@ -35,7 +33,7 @@ test.describe('golden path: prometheus readiness panel @critical', () => {
     const health = await api<{ prometheus_reachable?: boolean; healthy?: boolean }>(
       h,
       session,
-      '/api/system/monitoring/health',
+      '/api/system/monitoring/health'
     );
     expect(typeof health.prometheus_reachable).toBe('boolean');
 

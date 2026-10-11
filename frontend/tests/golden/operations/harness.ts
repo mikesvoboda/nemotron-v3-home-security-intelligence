@@ -56,7 +56,10 @@ export async function adminSession(h: OpsHarness): Promise<Session> {
     body: JSON.stringify({ username: h.admin.username, password: h.admin.password }),
   });
   if (res.status !== 200) throw new Error(`admin login answered ${res.status}`);
-  const pair = res.headers.getSetCookie().map((c) => c.split(';')[0]).find((c) => c.includes('='));
+  const pair = res.headers
+    .getSetCookie()
+    .map((c) => c.split(';')[0])
+    .find((c) => c.includes('='));
   if (!pair) throw new Error('admin login set no session cookie');
   const i = pair.indexOf('=');
   return { name: pair.slice(0, i), value: pair.slice(i + 1) };
@@ -98,7 +101,8 @@ export function apiCookie(session: Session): Record<string, string> {
 export async function api<T>(h: OpsHarness, session: Session, path: string): Promise<T> {
   const res = await fetch(`${h.api}${path}`, { headers: apiCookie(session) });
   const body = (await res.json().catch(() => null)) as T | null;
-  if (res.status !== 200) throw new Error(`GET ${path} answered ${res.status}: ${JSON.stringify(body)?.slice(0, 200)}`);
+  if (res.status !== 200)
+    throw new Error(`GET ${path} answered ${res.status}: ${JSON.stringify(body)?.slice(0, 200)}`);
   return body as T;
 }
 
@@ -106,7 +110,7 @@ export async function authPost<T>(
   h: OpsHarness,
   session: Session,
   path: string,
-  body?: unknown,
+  body?: unknown
 ): Promise<T> {
   const res = await fetch(`${h.api}${path}`, {
     method: 'POST',
@@ -131,7 +135,7 @@ export async function authPostOk(
   h: OpsHarness,
   session: Session,
   path: string,
-  body?: unknown,
+  body?: unknown
 ): Promise<void> {
   const res = await fetch(`${h.api}${path}`, {
     method: 'POST',
@@ -147,7 +151,7 @@ export async function authDelete<T>(
   h: OpsHarness,
   session: Session,
   path: string,
-  body?: unknown,
+  body?: unknown
 ): Promise<T> {
   const res = await fetch(`${h.api}${path}`, {
     method: 'DELETE',
@@ -155,7 +159,10 @@ export async function authDelete<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const parsed = (await res.json().catch(() => null)) as T | null;
-  if (res.status !== 200) throw new Error(`DELETE ${path} answered ${res.status}: ${JSON.stringify(parsed)?.slice(0, 200)}`);
+  if (res.status !== 200)
+    throw new Error(
+      `DELETE ${path} answered ${res.status}: ${JSON.stringify(parsed)?.slice(0, 200)}`
+    );
   return parsed as T;
 }
 
@@ -165,7 +172,7 @@ export async function pollApi<T>(
   session: Session,
   path: string,
   done: (body: T) => boolean,
-  timeoutMs: number,
+  timeoutMs: number
 ): Promise<T> {
   const deadline = Date.now() + timeoutMs;
   let last: T | null = null;
@@ -240,7 +247,7 @@ export async function panelRecovers(
   root: Locator,
   error: Locator,
   loading?: Locator,
-  opts: { retryIntervalMs?: number } = {},
+  opts: { retryIntervalMs?: number } = {}
 ): Promise<void> {
   await expect
     .poll(
@@ -251,7 +258,7 @@ export async function panelRecovers(
         if (await retry.isVisible().catch(() => false)) await retry.click();
         return false;
       },
-      { timeout: 60_000, intervals: [opts.retryIntervalMs ?? 1_500] },
+      { timeout: 60_000, intervals: [opts.retryIntervalMs ?? 1_500] }
     )
     .toBe(true);
 }

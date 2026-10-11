@@ -30,7 +30,7 @@ test.describe('golden path: circuit breakers @critical', () => {
     const body = await api<{ circuit_breakers?: Record<string, { name?: string }> }>(
       h,
       session,
-      '/api/system/circuit-breakers',
+      '/api/system/circuit-breakers'
     );
     const breakers = Object.entries(body.circuit_breakers ?? {});
     expect(breakers.length).toBeGreaterThan(0);

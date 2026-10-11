@@ -48,7 +48,7 @@ test.describe('golden path: pipeline latency history @critical', () => {
     let body = await api<{ snapshots?: unknown[]; window_minutes?: number }>(
       h,
       session,
-      '/api/system/pipeline-latency/history',
+      '/api/system/pipeline-latency/history'
     );
     if ((body.snapshots?.length ?? 0) === 0) {
       await authPostOk(h, session, '/api/admin/seed/pipeline-latency', {
@@ -60,7 +60,7 @@ test.describe('golden path: pipeline latency history @critical', () => {
         session,
         '/api/system/pipeline-latency/history',
         (b) => (b.snapshots?.length ?? 0) > 0,
-        20_000,
+        20_000
       );
     }
     expect((body.snapshots?.length ?? 0) > 0).toBe(true);
@@ -78,19 +78,19 @@ test.describe('golden path: pipeline latency history @critical', () => {
     await panelRecovers(
       card,
       card.getByTestId('pipeline-latency-error'),
-      card.getByTestId('pipeline-latency-loading'),
+      card.getByTestId('pipeline-latency-loading')
     );
 
     // Percentiles view is the row's p50/p95/p99 surface; the toggle must
     // actually switch the pressed state.
     await expect(page.getByTestId('pipeline-latency-view-percentiles')).toHaveAttribute(
       'aria-pressed',
-      'false',
+      'false'
     );
     await page.getByTestId('pipeline-latency-view-percentiles').click();
     await expect(page.getByTestId('pipeline-latency-view-percentiles')).toHaveAttribute(
       'aria-pressed',
-      'true',
+      'true'
     );
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);

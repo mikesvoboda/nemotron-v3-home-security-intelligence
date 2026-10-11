@@ -34,7 +34,7 @@ test.describe('golden path: pipeline flow visualization @critical', () => {
     const pipeline = await api<{ batch_aggregator?: { active_batches?: number } }>(
       h,
       session,
-      '/api/system/pipeline',
+      '/api/system/pipeline'
     );
     expect(typeof pipeline.batch_aggregator?.active_batches).toBe('number');
 
