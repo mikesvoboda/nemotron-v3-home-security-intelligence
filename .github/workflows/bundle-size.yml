@@ -70,11 +70,14 @@ jobs:
         run: |
           cd frontend
           # Ruling 96 item 8 replaced `npx size-limit --json > size-report.json 2>&1 || true`.
-          # `|| true` laundered the verdict (see the job outputs comment). The
-          # capture shape keeps the step alive through the report and cat,
-          # then rethrows the true rc so the STEP records the verdict; the
-          # job-level COE keeps the RUN green, and later plain steps keep
-          # running (measured, probe run 38116237952).
+          # `|| true` laundered the verdict (see the job outputs comment): the
+          # rc IS the verdict, and size-limit --json exits non-zero precisely
+          # when a check is over limit. The capture keeps the step alive
+          # through the cat so the report still lands in the log, then
+          # rethrows the true rc so the STEP records the verdict; the job-level
+          # COE keeps the RUN green. This is accessibility-tests.yml's shape
+          # (a red step under a green run), so the three steps below need
+          # explicit if: always() -- see their comments.
           rc=0
           npx size-limit --json > size-report.json 2>&1 || rc=$?
           cat size-report.json
@@ -82,6 +85,23 @@ jobs:
 
       - name: Generate size report
         id: size-report
+        # if: always() is load-bearing, not decoration. The rethrow above
+        # makes this the first step AFTER a genuinely failing step, and here
+        # the failed step DID strand its successors: dispatch run 38116867530
+        # (bundle-size on this branch, three real over-limit checks) showed
+        #   Run size-limit check => failure
+        #   Generate size report => skipped
+        #   Create build stats JSON => skipped
+        #   Upload build stats artifact => skipped
+        # so the report, the artifact AND the `failed` output (which feeds the
+        # summary's exceeded== regression branch) all went missing -- a real
+        # regression would have been mislabelled "failed before deciding".
+        # always() is the same protection lighthouse.yml / accessibility-
+        # tests.yml / zap-security.yml already give their post-verdict steps,
+        # and the lighthouse half of the same proof run confirmed it works
+        # under a job-level COE (Run Lighthouse CI => failure, yet
+        # Generate Lighthouse Summary => success and both uploads => success).
+        if: always()
         run: |
           cd frontend
 
@@ -173,6 +193,9 @@ jobs:
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
 
       - name: Create build stats JSON
+        # if: always() — see Generate size report above; this is the same
+        # stranded-successor class (skipped in run 38116867530).
+        if: always()
         run: |
           cd frontend
           cat > build-stats.json << EOF
@@ -190,12 +213,19 @@ jobs:
               "css": 102400,
               "total_js": 1048576
             },
-            "passed": ${{ steps.size-report.outputs.failed != 'true' }}
+            "passed": ${{ steps.size-report.outputs.failed == 'false' }}
           }
           EOF
           cat build-stats.json
+        # Note the != 'true' -> == 'false' flip here (ruling 96 item 8, same
+        # class as the guards). Under the old expression a run where
+        # size-report never produced `failed` (cancelled, or it broke itself)
+        # emitted "passed": true into the archived artifact — a false green.
+        # An absent verdict is no longer evidence of success.
 
       - name: Upload build stats artifact
+        # if: always() — see Generate size report above (skipped in 38116867530).
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bundle-size-stats
