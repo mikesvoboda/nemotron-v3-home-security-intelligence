@@ -312,8 +312,12 @@ run_backend_validation() {
     # (which carries "-m 'not gpu'").
     print_step "Running pytest (Tests & Coverage)..."
     # D14 split (M1 Task 7 pre-authorized fix, applied 2026-09-13): mirror
-    # CI's shape — unit suite in one pytest process, integration suites in
-    # another. The single combined process OOM-killed xdist workers at
+    # CI's shape — unit suites in one pytest INVOCATION, integration suites
+    # in another. "One" is the process boundary the OOM split respects, not
+    # serial execution: each invocation fans out to pytest-xdist workers
+    # inside it (this script inherits addopts' -n 8; the nightly mirror pins
+    # -n auto explicitly — r109b). The single combined invocation OOM-killed
+    # xdist workers at
     # 30-50GB RSS (R-T7-OTEL-OOM class; workers running TestClient
     # lifespans accumulate ML-stack Rust state — tokenizers
     # pretty_env_logger init aborts on the second SetLoggerError) and the
