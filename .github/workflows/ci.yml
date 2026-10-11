@@ -3588,10 +3588,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Ruling 105's setup-uv: scripts/feature_check.py's golden() opens the
-      # BACKEND_GOLDEN guard whenever backend/tests/golden/**/test_*.py exist
-      # (since #6979) and invokes uv for the pytest leg. Same canonical
-      # invocation as every other backend job (version from the env block).
+      # Ruling 105's setup-uv: the harness payload feature_check.py's golden()
+      # opens the BACKEND_GOLDEN guard whenever backend/tests/golden/**/test_*.py
+      # exist (since #6979) and invokes uv for the pytest leg. It runs only via
+      # the shell wrapper (O2.3's entries rule: wrappers are not followed, so
+      # the path is deliberately un-prefixed here). Same canonical invocation as
+      # every other backend job (version from the env block).
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
