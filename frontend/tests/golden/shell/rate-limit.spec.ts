@@ -331,6 +331,18 @@ test.describe('golden path: rate-limit indicators @critical', () => {
 
     // Countdown ticks (useRateLimitCountdown's 1000 ms interval,
     // formatCountdown M:SS) — measured probe10: 0:53 -> 0:50 across 2.3 s.
+    // Sample only AFTER the drip is done: every fresh shed response writes a
+    // NEW reset (queryClient.ts:241-252 pushes 429s into the store; the fake
+    // 100/0 window carries reset = now + 60s), so a read taken while responses
+    // still land can legitimately show the label jump BACK to 0:59. CI head
+    // 68a6856dc measured exactly that — "countdown frozen at 0:59 / 0:59"
+    // across 2.3 s, three attempts, with a1 sampled mid-window (junit, run
+    // 38146684985). Once the flood is over nothing re-seeds and the 1 s
+    // interval's verdict is unambiguous. BURST+DRIPS = 105 requests: the 60
+    // req/s nginx bucket (rate 10/s, burst 20 — nginx.conf:24) drains the
+    // deficit in ~8.5 s, so the window expires BEFORE this await returns and
+    // the reload-clean tail below still exercises the restore path.
+    await Promise.all(drips);
     const a1 = await indicator.getAttribute('aria-label');
     await page.waitForTimeout(2_300);
     const a2 = await indicator.getAttribute('aria-label');

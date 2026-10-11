@@ -204,6 +204,12 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
       await expect(page.getByTestId('sidebar')).toHaveCount(0);
       await page.getByTestId('mobile-overlay').click();
       await expect(page.getByTestId('mobile-overlay')).toHaveCount(0);
+      // Fully shut before the next leg: the overlay's onClick (Layout.tsx:99)
+      // cleared the flag, but Sidebar.tsx:266 is transition-all duration-300 —
+      // the slide-out takes 300 ms, and the aside is fixed inset-y-0 left-0
+      // (full height), so a still-sliding drawer covers the hamburger's hit
+      // point for that window.
+      await page.waitForTimeout(600);
 
       // The same control WORKS one band up: at 700, isMobile is false ⇒ the
       // Sidebar (and its drawer) mounts, and md:hidden has not hidden the
@@ -214,7 +220,19 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
       const closedBox = await drawer.boundingBox();
       expect(closedBox, 'drawer has no box at 700px').not.toBeNull();
       expect(closedBox!.x).toBeLessThan(0); // -translate-x-full ⇒ off-canvas
-      await page.getByTestId('hamburger-menu').click();
+      // Keyboard activation, deliberately: React's onClick fires on KEYDOWN,
+      // click() fires on MOUSEUP — and Playwright hit-tests the pointer AGAIN
+      // at mouseup (actionability check, after the click() call itself). The
+      // aside's onClick at Layout.tsx:68 flips the flag on mousedown; while it
+      // slides in (duration-300) its left edge passes under the stationary
+      // pointer and the close button (Sidebar.tsx:276-284, in the md:hidden
+      // header, ~354px x on a 700px viewport) covers the hamburger's hit
+      // point. Locally the mouseup wins the race and lands on the hamburger;
+      // on CI's runner it consistently landed on the sliding aside — "the
+      // close-menu-button ... intercepts pointer events" × 3 attempts
+      // (junit, run 38146684985). A keyboard event has no second hit-test to
+      // lose; the poll below proves the open itself.
+      await page.getByTestId('hamburger-menu').press('Enter');
       await expect
         .poll(async () => (await drawer.boundingBox())?.x ?? null, {
           timeout: 10_000,
