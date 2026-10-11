@@ -26,8 +26,12 @@ import ts from 'typescript';
 
 import { normalisePath } from './api-contract-lib.mjs';
 
-/** The statuses a row may carry before F2.3 (README, "Vocabulary"). */
-export const STATUSES = new Set(['unverified', 'half-built', 'leftover']);
+/** The statuses a row may carry (README, "Vocabulary"; ruling 103 adds the F2.3 interim state). */
+export const STATUSES = new Set(['unverified', 'half-built', 'leftover', 'awaiting real tier']);
+
+/** The admitted statuses in prose ("a, b or c"), so the rejection message cannot drift from the Set. */
+const STATUS_NAMES = [...STATUSES];
+const STATUS_PROSE = `${STATUS_NAMES.slice(0, -1).join(', ')} or ${STATUS_NAMES.at(-1)}`;
 
 /** A `file.ext:line` cite, the evidence a half-built or leftover row needs. */
 const CITE = /[\w./-]+\.[a-z]+:\d+/;
@@ -213,7 +217,7 @@ export function reachableFiles({ root, entry }) {
 export function rowProblems(row) {
   const problems = [];
   if (!STATUSES.has(row.status))
-    problems.push(`${row.id}: status "${row.status}" is not unverified, half-built or leftover`);
+    problems.push(`${row.id}: status "${row.status}" is not ${STATUS_PROSE}`);
   if (!row.evidence.trim()) problems.push(`${row.id}: no evidence`);
   else if ((row.status === 'half-built' || row.status === 'leftover') && !CITE.test(row.evidence))
     problems.push(`${row.id}: ${row.status} evidence cites no file:line`);

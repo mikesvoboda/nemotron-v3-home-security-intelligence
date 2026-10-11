@@ -53,6 +53,7 @@ interface Inventory {
 }
 
 interface Lib {
+  STATUSES: Set<string>;
   parseInventory: (markdown: string) => Inventory;
   appRoutes: (source: string) => string[];
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
@@ -285,9 +286,29 @@ describe('rowProblems', () => {
     expect(lib.rowProblems(base)).toEqual([]);
   });
 
+  it('admits awaiting real tier (ruling 103)', () => {
+    expect([...lib.STATUSES]).toEqual([
+      'unverified',
+      'half-built',
+      'leftover',
+      'awaiting real tier',
+    ]);
+    expect(lib.rowProblems({ ...base, status: 'awaiting real tier' })).toEqual([]);
+    // Its evidence is the green spec: a cite is accepted but not demanded, because
+    // only a half-built or leftover row must cite its break or retirement.
+    expect(
+      lib.rowProblems({
+        ...base,
+        status: 'awaiting real tier',
+        evidence:
+          'golden path green: `frontend/tests/golden/a/A.spec.ts` (1 test); works waits on the real tier',
+      })
+    ).toEqual([]);
+  });
+
   it('rejects an unknown status', () => {
     expect(lib.rowProblems({ ...base, status: 'works?' })).toEqual([
-      'F-001: status "works?" is not unverified, half-built or leftover',
+      'F-001: status "works?" is not unverified, half-built, leftover or awaiting real tier',
     ]);
   });
 
