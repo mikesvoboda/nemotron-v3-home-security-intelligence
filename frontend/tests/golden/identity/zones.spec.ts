@@ -171,7 +171,7 @@ const MEMBER = 'Golden DO-3 Member';
 const VEHICLE = 'Golden DO-3 Vehicle';
 
 /** The schema demands >=3 points (min_length=3, backend/api/schemas/zone.py:180)
- *  and five geometry checks (_validate_polygon_geometry, :115-:134): 2 values per
+ *  and five geometry checks (_validate_polygon_geometry, :115-:155): 2 values per
  *  point, normalized 0-1, no duplicate neighbours, positive area, no self-cross. */
 const COORDS = [
   [0.1, 0.1],

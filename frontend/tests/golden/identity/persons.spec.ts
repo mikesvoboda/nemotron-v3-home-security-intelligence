@@ -320,10 +320,15 @@ test.describe('DO-3 known persons golden path', () => {
       expect(noop.status, 'an empty PATCH answers 200').toBe(200);
       expect(noop.body?.name, 'an empty PATCH leaves the name alone').toBe('Golden DO-3 Renamed');
     } finally {
-      // Mirror test 1's `createdId !== null` guard: when the POST never returned
-      // an id the expect() above THREW, so this finally is the only exit that
-      // runs — the afterDelete leg below is unreachable — and an unguarded send
-      // here is a real DELETE /api/known-persons/null on the wire.
+      // Mirror test 1's `createdId !== null` guard. The trigger is wider than "the
+      // POST failed": :283 learns the id from ANY response, so a 4xx, or a 201 whose
+      // body carries no numeric id, still leaves id null and :285 throws. On that
+      // throw this finally is the only exit that runs (a finally with no return of
+      // its own propagates it, so the afterDelete leg below is unreachable) and an
+      // unguarded send here is a real DELETE /api/known-persons/null on the wire.
+      // That request destroys nothing — `person_id: int` (backend/api/routes/
+      // face_recognition.py:256) makes FastAPI answer 422 before the service call at
+      // :269 — so the guard is wire hygiene, not damage control.
       if (id !== null) {
         await api.send(`/api/known-persons/${id}`, 'DELETE').catch(() => null);
       }
