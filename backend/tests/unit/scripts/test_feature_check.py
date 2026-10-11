@@ -1533,9 +1533,9 @@ def test_the_golden_step_installs_frontend_deps_only_when_absent(
 ) -> None:
     """Ruling 102: the operator's documented ``--real`` run died at
     ERR_MODULE_NOT_FOUND because nothing ever installed frontend/node_modules
-    on their tree (the harness builds no images for it; feature-check.yml's
-    ``npm ci`` step is not this process). golden() now installs when absent —
-    and an existing install is LEFT ALONE, because ``npm ci`` deletes
+    on their tree (the harness builds no images for it; the CI feature-check
+    job's ``npm ci`` step is not this process). golden() now installs when
+    absent — and an existing install is LEFT ALONE, because ``npm ci`` deletes
     node_modules on entry and would blow away an operator's (or a CI
     runner's) working install, its Playwright browsers included."""
     calls: list[tuple[list[str], dict[str, Any]]] = []
