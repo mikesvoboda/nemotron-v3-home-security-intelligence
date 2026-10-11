@@ -19,6 +19,45 @@ through the download route. The service writes the archive with pure
 ``zipfile`` — no ``pg_dump``, no subprocess — so this row is fully exercisable
 in ``--fake`` mode, which is what makes it a golden path rather than an
 operator-only row.
+
+Status: ``xfail(strict=True)``, because every one of these assertions is
+downstream of a backup reaching ``completed``, and none can while the
+backend defect below stands. Ruling 86: a path that cannot pass demotes its
+row to ``half-built`` with the failure cited as the evidence, so the row is
+demoted (inventory §3.6, grep anchor ``Backups (create, progress, list,
+download, delete)``) and this file stays as the executable pin.
+
+The break, root-caused in the run and mutation-checked: every
+``POST /api/backup`` fails as soon as one ``events`` row exists. The job
+reaches ``failed`` with ``greenlet_spawn has not been called`` because
+``BackupService._export_table`` walks ``mapper.columns`` and ``getattr``s each
+one (``backend/services/backup_service.py:331``, ``:336``), and
+``Event.reasoning`` / ``Event.llm_prompt`` are ``deferred()``
+(``backend/models/event.py:72``, ``:74``), so reading them is synchronous IO
+inside an ``AsyncSession``. The mutation control: the same walk with the two
+deferred columns skipped exports the seeded row successfully, which is what
+rules out "the loop is broken in general". The blast-radius control: no test in
+the repo exports a populated ``events`` table through ``BackupService`` --
+``backend/tests/unit/services/test_backup_service.py:249`` runs the real
+``create_backup`` against ``FakeDB([])`` and asserts at ``:264`` that the
+``events`` count is 0, ``backend/tests/integration/test_backup_service.py``
+seeds only a Camera (``:37``; no ``Event(`` anywhere in the file), and
+``backend/tests/integration/test_backup_restore.py`` does seed Events (``:381``)
+but exercises ``create_pg_backup`` (``:123``, pg_dump) — a different
+implementation. The cure this path never got is already in the
+repo: ``export_service.py:766`` does
+``select(Event).options(undefer(Event.reasoning))`` for the same column.
+
+Why ``strict``: a plain ``xfail`` goes green when the defect is fixed, which is
+the same silent-drift failure mode this whole inventory exists to catch. Strict
+means the day someone lands the fix, this file turns XPASS-red and the row gets
+promoted properly rather than quietly. One caveat that follows from the root
+cause, stated rather than hidden: on a stack whose ``events`` table is *empty*
+the loop body never runs, the backup succeeds, and these tests XPASS. The
+feature-check harness always has at least one event by the time golden paths run
+(the smoke step asserts its verdict), so CI is deterministic; a hand-run against
+a virgin database XPASSing is not a flake, it is the fresh-install health that
+kept this defect out of every unit test.
 """
 
 from __future__ import annotations
@@ -34,7 +73,24 @@ import pytest
 # Explicit timeout, not the ini default: pyproject.toml sets ``timeout = 5``, and
 # a job that creates a ZIP and polls to completion needs room. ``network`` is the
 # repo's marker for specs that talk HTTP to a live stack.
-pytestmark = [pytest.mark.network, pytest.mark.timeout(300)]
+#
+# ``xfail`` sits in ``pytestmark`` rather than on each test, because the failure
+# fires in the *module fixture* (the create-and-wait that all four tests consume)
+# and a per-test marker would have to be repeated four times to cover setup —
+# verified empirically that the module-level form reports ``x`` for a fixture
+# failure. ``strict`` is the load-bearing word: see the module docstring.
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.timeout(300),
+    pytest.mark.xfail(
+        strict=True,
+        reason="F-100 demoted to half-built: BackupService._export_table reads the "
+        "deferred Event.reasoning / Event.llm_prompt inside an AsyncSession "
+        "(backup_service.py:336, event.py:72) -> MissingGreenlet, so every backup "
+        "fails once an events row exists. XPASS here means the undefer fix landed "
+        "(precedent: export_service.py:766) and this row should be promoted.",
+    ),
+]
 
 POLL_INTERVAL_S = 2.0
 POLL_DEADLINE_S = 180.0
