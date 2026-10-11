@@ -342,9 +342,7 @@ test.describe('DO-2 access control golden path (F-240 to F-243)', () => {
     // there is no ORDER BY to appeal to. ---
     const cameras = await api.getJson('/api/cameras');
     expect(cameras.status).toBe(200);
-    const cameraIds = (cameras.body?.items ?? []).map((c: { id: string | number }) =>
-      String(c.id)
-    );
+    const cameraIds = (cameras.body?.items ?? []).map((c: { id: string | number }) => String(c.id));
     expect(cameraIds.length, 'feature_check seeds the scenario cameras').toBeGreaterThanOrEqual(2);
     const [firstCameraId, secondCameraId] = cameraIds;
 

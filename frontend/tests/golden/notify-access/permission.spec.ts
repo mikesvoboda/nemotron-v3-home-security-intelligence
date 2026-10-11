@@ -46,7 +46,14 @@
  *   not decoration.
  */
 import { expect, test } from '../guard';
-import { adminSession, assertGuardSurvives, grantNotifications, login, readHarness, type Harness } from './harness';
+import {
+  adminSession,
+  assertGuardSurvives,
+  grantNotifications,
+  login,
+  readHarness,
+  type Harness,
+} from './harness';
 
 const harness = readHarness();
 test.skip(
@@ -62,9 +69,7 @@ async function signIn(page: Parameters<typeof login>[0], h: Harness) {
  *  sits three divs below the justify-between row that also holds its badge
  *  (nesting read at NotificationSettings.tsx:624-675/:730-756). */
 function rowOf(page: import('@playwright/test').Page, label: string) {
-  return page
-    .getByText(label, { exact: true })
-    .locator('xpath=ancestor::div[3]');
+  return page.getByText(label, { exact: true }).locator('xpath=ancestor::div[3]');
 }
 
 test.describe('DO-2 browser permissions golden path (F-234)', () => {
@@ -94,7 +99,12 @@ test.describe('DO-2 browser permissions golden path (F-234)', () => {
 
     // The singleton law, un-granted side: push shows the SAME state string
     // because it reads the same Notification.permission (both hooks :210/:115).
-    await expect(pushRow.getByText(permission === 'granted' ? 'Enabled' : permission === 'denied' ? 'Denied' : 'Not Set', { exact: true })).toBeVisible();
+    await expect(
+      pushRow.getByText(
+        permission === 'granted' ? 'Enabled' : permission === 'denied' ? 'Denied' : 'Not Set',
+        { exact: true }
+      )
+    ).toBeVisible();
     if (permission !== 'granted') {
       await expect(page.getByText('Permission granted - push enabled')).toHaveCount(0);
     }
@@ -103,7 +113,9 @@ test.describe('DO-2 browser permissions golden path (F-234)', () => {
     // and Test only once granted (:663) — both checked against the runtime
     // value so no runner default is assumed.
     const enableCount = permission === 'default' ? 2 : 0; // desktop + push rows
-    await expect(page.getByRole('button', { name: 'Enable', exact: true })).toHaveCount(enableCount);
+    await expect(page.getByRole('button', { name: 'Enable', exact: true })).toHaveCount(
+      enableCount
+    );
     await expect(page.getByRole('button', { name: 'Test', exact: true })).toHaveCount(
       permission === 'granted' ? 1 : 0
     );

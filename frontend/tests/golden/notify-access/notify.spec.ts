@@ -68,7 +68,14 @@
  * its input round-trip is the next file's job; this one pins the routes).
  */
 import { expect, test } from '../guard';
-import { adminSession, assertGuardSurvives, authedFetch, login, readHarness, type Harness } from './harness';
+import {
+  adminSession,
+  assertGuardSurvives,
+  authedFetch,
+  login,
+  readHarness,
+  type Harness,
+} from './harness';
 
 const harness = readHarness();
 test.skip(
@@ -108,10 +115,9 @@ test.describe('DO-2 notifications golden path', () => {
       'shipped default enabled — see DEFAULT_ENABLED comment for the two failure readings'
     ).toBe(DEFAULT_ENABLED);
     expect(first.body?.sound, 'shipped default sound').toBe(DEFAULT_SOUND);
-    expect(
-      [...(first.body?.risk_filters ?? [])].sort(),
-      'shipped default risk filters'
-    ).toEqual([...DEFAULT_RISK_FILTERS].sort());
+    expect([...(first.body?.risk_filters ?? [])].sort(), 'shipped default risk filters').toEqual(
+      [...DEFAULT_RISK_FILTERS].sort()
+    );
 
     // --- UI leg on the SETTINGS tab mount ---
     await page.goto(`${h.ui}/settings/notifications`, { waitUntil: 'domcontentloaded' });
@@ -126,7 +132,9 @@ test.describe('DO-2 notifications golden path', () => {
     let flipped = false;
     try {
       const put = page
-        .waitForResponse((r) => r.url().endsWith('/api/notification-preferences') && r.request().method() === 'PUT')
+        .waitForResponse(
+          (r) => r.url().endsWith('/api/notification-preferences') && r.request().method() === 'PUT'
+        )
         .then(async (r) => ({ status: r.status(), body: await r.json().catch(() => null) }));
       await toggle.click();
       const res = await put;
@@ -138,13 +146,17 @@ test.describe('DO-2 notifications golden path', () => {
         String(!DEFAULT_ENABLED)
       );
       const after = await api.getJson('/api/notification-preferences');
-      expect(after.body?.enabled, 'the store carries the flip — the UI is a view, not a paint').toBe(
-        !DEFAULT_ENABLED
-      );
+      expect(
+        after.body?.enabled,
+        'the store carries the flip — the UI is a view, not a paint'
+      ).toBe(!DEFAULT_ENABLED);
     } finally {
       if (flipped) {
         const restore = page
-          .waitForResponse((r) => r.url().endsWith('/api/notification-preferences') && r.request().method() === 'PUT')
+          .waitForResponse(
+            (r) =>
+              r.url().endsWith('/api/notification-preferences') && r.request().method() === 'PUT'
+          )
           .then((r) => r.status());
         await toggle.click();
         expect(await restore, 'restoring the default PUTs 200').toBe(200);
@@ -327,7 +339,9 @@ test.describe('DO-2 notifications golden path', () => {
     } finally {
       // belt and braces: if an assert above threw before the DELETE landed,
       // do not leave a DO-2 period in the stack.
-      await api.send(`/api/notification-preferences/quiet-hours/${periodId}`, 'DELETE').catch(() => undefined);
+      await api
+        .send(`/api/notification-preferences/quiet-hours/${periodId}`, 'DELETE')
+        .catch(() => undefined);
     }
   });
 

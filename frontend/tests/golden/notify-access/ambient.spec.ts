@@ -43,7 +43,14 @@
  *   rows F-239 for retirement; do not grow its coverage).
  */
 import { expect, test } from '../guard';
-import { adminSession, assertGuardSurvives, login, readHarness, readV1Settings, type Harness } from './harness';
+import {
+  adminSession,
+  assertGuardSurvives,
+  login,
+  readHarness,
+  readV1Settings,
+  type Harness,
+} from './harness';
 
 const harness = readHarness();
 test.skip(
@@ -52,7 +59,9 @@ test.skip(
 );
 
 test.describe('DO-2 ambient status golden path (F-238)', () => {
-  test('the ambient toggles persist to the v1 key the app-wide provider reads', async ({ page }) => {
+  test('the ambient toggles persist to the v1 key the app-wide provider reads', async ({
+    page,
+  }) => {
     const h = harness as Harness;
     const session = await adminSession(h);
     await login(page, h, session);
@@ -113,7 +122,10 @@ test.describe('DO-2 ambient status golden path (F-238)', () => {
     // batch setters.
     await page.getByLabel('Enable ambient background effects').first().click();
     const soloed = await readV1Settings(page);
-    expect(soloed.ambientStatus?.ambient?.enabled, 'the ambient switch alone flips its own flag').toBe(false);
+    expect(
+      soloed.ambientStatus?.ambient?.enabled,
+      'the ambient switch alone flips its own flag'
+    ).toBe(false);
     expect(
       soloed.ambientStatus?.favicon?.enabled,
       'the favicon flag is untouched by the ambient switch (no clobber)'
@@ -122,7 +134,10 @@ test.describe('DO-2 ambient status golden path (F-238)', () => {
     // Restore for any same-context reader: switch back on.
     await page.getByLabel('Enable ambient background effects').first().click();
     const restored = await readV1Settings(page);
-    expect(restored.ambientStatus?.ambient?.enabled, 'switch restored to shipped default true').toBe(true);
+    expect(
+      restored.ambientStatus?.ambient?.enabled,
+      'switch restored to shipped default true'
+    ).toBe(true);
   });
 
   test('the guard survives the ambient drive', async ({ page }) => {
