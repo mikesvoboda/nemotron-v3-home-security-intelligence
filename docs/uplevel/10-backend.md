@@ -194,6 +194,26 @@ ruling's, verbatim: its package bullet first, then its **Why** bullet.
 >
 > **Why:** the backend runs OSNet-AIN x1.0 on CPU (`uv.lock`: `torch 2.14.0+cpu`; 2-CPU limit) on every event with person crops (`backend/services/vlm_specialists.py:754`), while the same network and weights sit resident and uncalled in Triton (ruling 67's facts).
 
+**Parked** (owner ruling 106, 2026-10-11): on the owner's GB300 host every gateway inference failed
+(`cudaErrorSymbolNotFound` in ONNX Runtime's CUDA execution provider), and the CPU path measured
+56.3 ms per crop (p95 59.0 ms) on two cores. The switch stays `local`, the cleanup is cancelled,
+and the merged switch, parity gate and provenance stay as a ready option.
+
+### B2.3 Re-ID model bake-off
+
+Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). Lane backend; flags
+`heavy`; label `cell:heavy-2`; depends on `O2.4` (its `RESULT: PASS` posted).
+
+- [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
+- [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
+      Rank-1, mAP, a calibrated match threshold per model, and GPU milliseconds per crop. The
+      labelled set (source, who labels, size) is settled with the owner as the package's first
+      question.
+
+**Done when:** the PR posts a recommendation with these numbers, for an owner ruling. Nothing in
+production changes: no `models.yml` swap and no switch flip. A swap, if ruled, is a new model ID
+with its calibrated threshold, and stored person vectors go to "unavailable (re-enroll)" by design.
+
 ---
 
 ## Phase 3 — The tree matches the rulings
