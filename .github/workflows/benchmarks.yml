@@ -1,18 +1,21 @@
 name: Benchmarks
 
 # Performance benchmarks for regression detection.
-# Runs pytest-benchmark on backend tests and fails on >20% regression from baseline.
+# Runs pytest-benchmark on backend tests and reports >20% regression from baseline.
 #
-# Main only: Runs post-merge to update baseline and track trends
-# Removed from PRs to reduce CI time - benchmarks are expensive and can run post-merge.
-# Creates Linear issue on failure for tracking and follow-up.
+# Nightly + manual only (owner ruling 100, following ruling 71's #6968 pattern):
+# no push trigger — the post-merge baseline/trend work runs on the schedule
+# below, and workflow_dispatch stays for on-demand runs.
+# Creates Linear issue on JOB failure for tracking and follow-up. The benchmark
+# verdict itself travels through steps.benchmarks.outputs.exit_code and the
+# uploaded artifacts, not the job result: the run step deliberately keeps the
+# job green on a regression (pre-existing design; see the step's comment).
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/benchmarks.yml'
+  schedule:
+    # Daily 04:47 UTC — off the :00 herd; 30+ min behind nightly-full-gate's
+    # 04:17 and done ~05:17 before visual-tests opens at 05:23 (owner ruling 100)
+    - cron: '47 4 * * *'
   # Manual trigger for on-demand benchmarking
   workflow_dispatch:
     inputs:
@@ -42,8 +45,11 @@ jobs:
   benchmarks:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
-    # PR Gate: Block PRs on >20% regression, non-blocking on main (informational)
-    continue-on-error: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    # No continue-on-error here since ruling 100 removed the push trigger: the
+    # old expression was push-only, so it evaluated false for every event this
+    # workflow can now start on. A setup failure (checkout, uv sync, cache)
+    # fails the job; a benchmark REGRESSION still does not — the run step
+    # reports it through steps.benchmarks.outputs.exit_code and artifacts.
     timeout-minutes: 15
 
     services:
@@ -122,6 +128,13 @@ jobs:
 
       - name: Run performance benchmarks
         id: benchmarks
+        # The trailing `|| echo "exit_code=$?"` is deliberate: under the
+        # runner's default `bash -eo pipefail` a --benchmark-compare-fail
+        # verdict (exit 1) would redden the job, and the `|| echo` is what
+        # keeps this job green while publishing the true exit code as
+        # steps.benchmarks.outputs.exit_code (the same soft-fail idiom as
+        # load-tests' k6 step). No consumer reads that output yet — wiring
+        # the summary/Linear guards to it is ruling 96 item 8 territory.
         run: |
           mkdir -p .benchmarks benchmark-results
 
@@ -216,7 +229,7 @@ jobs:
           fi
 
       - name: Save baseline for future comparisons
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .benchmarks
@@ -256,8 +269,12 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        # Create Linear issue for any failure (PRs and main pushes)
-        if: vars.LINEAR_ENABLED == 'true' && (needs.benchmarks.result == 'failure')
+        # Create a Linear issue when the benchmark JOB fails on main
+        # (nightly schedule or a manual run from main) — a setup/infra failure,
+        # not a regression verdict: the run step keeps regressions out of the
+        # job result, so the gate here reads needs.benchmarks.result honestly.
+        # Event key re-typed from `push` to the surviving triggers (ruling 100).
+        if: vars.LINEAR_ENABLED == 'true' && (needs.benchmarks.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -270,12 +287,12 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          # Determine context (PR or push)
-          if [ "$EVENT_NAME" == "pull_request" ]; then
-            CONTEXT="PR #$PR_NUMBER"
-            REF="$HEAD_REF"
+          # Determine context (nightly run vs manual dispatch)
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            CONTEXT="manual run ($REF_NAME)"
+            REF="$REF_NAME"
           else
-            CONTEXT="main branch push"
+            CONTEXT="nightly schedule ($REF_NAME)"
             REF="$REF_NAME"
           fi
 
@@ -340,8 +357,10 @@ jobs:
   memory-profiling:
     name: Memory Profiling
     runs-on: ubuntu-latest
-    # PR Gate: Block PRs on memory threshold violations
-    continue-on-error: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    # No continue-on-error since ruling 100: the old expression was push-only
+    # and therefore false for every event this workflow can now start on.
+    # Memory-threshold violations never reddened this job anyway — the run step
+    # below soft-fails by design, as in the benchmarks job.
     timeout-minutes: 15
 
     services:
@@ -434,52 +453,3 @@ jobs:
           name: memory-profiling-results
           path: memory-results/
           retention-days: 14
-
-  # ============================================================================
-  # CI Gate - Performance Testing Summary
-  # ============================================================================
-  performance-gate:
-    name: Performance Gate (Required Check)
-    runs-on: ubuntu-latest
-    needs: [benchmarks, memory-profiling]
-    if: always() && github.event_name == 'pull_request'
-    steps:
-      - name: Check performance test results
-        run: |
-          echo "## Performance Gate Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          FAILED=false
-
-          # Check benchmarks
-          if [ "${{ needs.benchmarks.result }}" == "failure" ]; then
-            echo "- Benchmarks: FAILED (>20% regression detected)" >> $GITHUB_STEP_SUMMARY
-            FAILED=true
-          elif [ "${{ needs.benchmarks.result }}" == "success" ]; then
-            echo "- Benchmarks: PASSED" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- Benchmarks: ${{ needs.benchmarks.result }}" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # Check memory profiling
-          if [ "${{ needs.memory-profiling.result }}" == "failure" ]; then
-            echo "- Memory Profiling: FAILED (memory limit exceeded)" >> $GITHUB_STEP_SUMMARY
-            FAILED=true
-          elif [ "${{ needs.memory-profiling.result }}" == "success" ]; then
-            echo "- Memory Profiling: PASSED" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- Memory Profiling: ${{ needs.memory-profiling.result }}" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$FAILED" == "true" ]; then
-            echo "**Status: BLOCKED** - One or more performance checks failed" >> $GITHUB_STEP_SUMMARY
-            echo ""
-            echo "To run locally:"
-            echo "  uv run pytest backend/tests/benchmarks/ --benchmark-only -v"
-            echo "  uv run pytest backend/tests/benchmarks/test_memory.py --memray -v"
-            exit 1
-          else
-            echo "**Status: PASSED** - All performance checks passed" >> $GITHUB_STEP_SUMMARY
-          fi

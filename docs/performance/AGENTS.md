@@ -24,8 +24,12 @@ This directory contains documentation for performance testing, monitoring, and o
 
 ### CI/CD Integration
 
-- **PR Gates:** Benchmark tests, memory profiling block PRs
-- **Main Gates:** k6 load tests block main branch
+- **Nightly + manual (report-only, owner ruling 100):** benchmarks and load
+  tests have no push or PR trigger; they run nightly and on demand, report
+  through summaries/artifacts/Linear, and gate nothing. (The former "block
+  PRs" / "block main" rows described triggers that never existed in these
+  files and a required-context set that only ever held
+  `CI Gate (Required Checks)`.)
 - **Thresholds:** 20% regression, 500MB memory, 50ms queries
 
 ## Related Files
