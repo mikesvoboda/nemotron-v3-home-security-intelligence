@@ -191,8 +191,23 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
     //    detection: total 1, the book confidence at the component's rounding,
     //    the class row named for the stored detection class.
     await expect(page.getByTestId('camera-analytics-selector')).toBeVisible();
+    // Tremor's Select is a headlessui Listbox, not a native <select>: its
+    // options are ListboxOption children of ListboxOptions, which headlessui
+    // renders ONLY while the dropdown is open (verified in the 2026-10-11 CI
+    // failure — the container was visible and the option testid never existed,
+    // because the Listbox button had never been opened). SelectItem does forward
+    // data-testid onto the option (read from @tremor/react 3.18.7, the
+    // package-lock pin), so opening the button is the whole fix. The button is
+    // addressed structurally, by role inside the selector container, because its
+    // accessible name is the placeholder and later becomes the camera's own
+    // name — a name-based locator would only work pre-selection.
+    const selectorButton = page.getByTestId('camera-analytics-selector').getByRole('button');
+    await expect(selectorButton, 'the camera dropdown renders its button').toBeVisible({
+      timeout: 15_000,
+    });
+    await selectorButton.click();
     const cameraOption = page.getByTestId(`camera-option-${h.cameraId}`);
-    await expect(cameraOption, 'the selector lists the harness camera').toBeVisible({
+    await expect(cameraOption, 'the OPEN selector lists the harness camera').toBeVisible({
       timeout: 15_000,
     });
     const filteredStats = page.waitForResponse(
