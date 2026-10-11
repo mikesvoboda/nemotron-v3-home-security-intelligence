@@ -5,7 +5,8 @@
   "properties": {
     "embedding": "array<number>",
     "embedding_dimension": "integer",
-    "inference_time_ms": "number"
+    "inference_time_ms": "number",
+    "model_id": "anyOf(null,string)"
   },
   "required": ["embedding", "embedding_dimension", "inference_time_ms"],
   "side": "response"

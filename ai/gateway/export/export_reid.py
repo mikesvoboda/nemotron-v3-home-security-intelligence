@@ -475,6 +475,38 @@ def load_pytorch_model(model_path: str) -> torch.nn.Module:
     return model
 
 
+#: The record written next to ``model.onnx``: which checkpoint the graph came
+#: from. The gateway reads it to label every embedding (B2.2, owner ruling 68:
+#: "the model ID on a gateway embedding comes from the source checkpoint's
+#: sha256, recorded at export and reported by the gateway").
+PROVENANCE_FILE = "provenance.json"
+
+#: The models.yml row these weights belong to; the backend's osnet_model_id()
+#: uses the same name, so both paths label the same weights alike.
+OSNET_ZOO_NAME = "osnet-ain-x1-0"
+
+
+def write_provenance(checkpoint_path: str, output_path: str) -> Path:
+    """Record the source checkpoint's name and sha256 beside the ONNX file."""
+    import hashlib
+    import json
+
+    checkpoint = Path(checkpoint_path)
+    digest = hashlib.sha256()
+    with checkpoint.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    record = {
+        "zoo_name": OSNET_ZOO_NAME,
+        "source_file": checkpoint.name,
+        "source_sha256": digest.hexdigest(),
+    }
+    target = Path(output_path).parent / PROVENANCE_FILE
+    target.write_text(json.dumps(record, indent=2) + "\n")
+    logger.info(f"Provenance recorded: {target} (sha256 {record['source_sha256'][:12]})")
+    return target
+
+
 def export_to_onnx(
     model: torch.nn.Module,
     output_path: str,
@@ -639,6 +671,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # A provenance record vouches for the model.onnx beside it (B2.2): drop any
+    # old one first, and write the new one only once the export is validated.
+    (Path(args.output_path).parent / PROVENANCE_FILE).unlink(missing_ok=True)
+
     try:
         model = load_pytorch_model(args.model_path)
         export_to_onnx(model, args.output_path)
@@ -648,6 +684,7 @@ def main() -> int:
                 logger.error("Validation failed — exported ONNX may produce incorrect results")
                 return 1
 
+        write_provenance(args.model_path, args.output_path)
         logger.info("Person Re-ID export complete")
         return 0
 
