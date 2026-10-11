@@ -360,6 +360,13 @@ def test_the_two_gates_differ_in_per_test_budget_not_subset_selection() -> None:
     pyproject = (REPO / "pyproject.toml").read_text()
 
     # Both tiers inherit the same parallel defaults: neither passes -n/-p no:randomly.
+    # Deliberate scope: this probe asserts the PER-TEST BUDGET (no --timeout on the
+    # nightly), which is r109's load-bearing claim. It does NOT assert that the nightly
+    # passes no `-n`, because ops-b's #7006 (ruling 113) adds `-n auto` to exactly this
+    # tier — an assertion on the worker count would go red on a merge that changes
+    # nothing about the 5 s deadline this package is about. Verified against #7006's
+    # patch: the two string splits below still resolve and the tier still passes no
+    # --timeout.
     assert 'addopts = "-n 8 --dist=worksteal' in pyproject
     assert "timeout = 5" in pyproject
 
