@@ -68,6 +68,11 @@ jobs:
 
       - name: Run TruffleHog
         id: trufflehog
+        # OB.2 reason: the action's own exit code is not the verdict — the
+        # check-results step below reads steps.trufflehog.outcome and the
+        # COE'd name is what keeps THAT step running to aggregate gitleaks +
+        # trufflehog into one verdict. Deleting the COE would kill the
+        # aggregator on any trufflehog error and fail the scan open.
         uses: trufflesecurity/trufflehog@main
         continue-on-error: true
         with:

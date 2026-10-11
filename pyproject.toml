@@ -266,7 +266,8 @@ mutation = [
 # Code Quality Analysis (complexity, dead code)
 quality = [
     # R-1 2026-09-23: wily dropped (see dev-extra note at its old site);
-    # radon declared directly — it is what ci.yml/weekly-audit actually run.
+    # radon declared directly — it is what ci.yml actually runs (OB.2 retired
+    # the second runner).
     "radon>=5.1.0",
     "vulture>=2.11",
 ]

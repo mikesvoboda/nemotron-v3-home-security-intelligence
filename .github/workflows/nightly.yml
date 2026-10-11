@@ -69,14 +69,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Audit Python dependencies
-        run: uv tool run pip-audit || true
-
-      - name: Audit Node dependencies
-        run: |
-          cd frontend
-          npm audit || true
-
+      # OB.2: the pip-audit and npm audit steps deleted here. They wrote no
+      # file (the upload below carries bandit-full.json only), their verdicts
+      # were swallowed by `|| true`, and no artifact or step consumed their
+      # stdout — phantom legs by measurement, not taste. Dependency auditing
+      # now runs in exactly one place: .github/workflows/dependency-audit.yml
+      # (weekly schedule + ci.yml's WP1.2 call job, registry checkers fail
+      # CLOSED there — a strictly stronger audit than two `|| true` prints).
       - name: Full Bandit scan
         run: uv tool run bandit -r backend/ -f json -o bandit-full.json || true
 
