@@ -104,12 +104,22 @@ def _iswebsocket_receiver(fn: ast.Attribute) -> bool:
 
 
 def test_the_accept_sweep_finds_the_known_sites() -> None:
-    """The sweep finds the 12 production accept sites B-1 counted on
-    2026-10-09 (7 in websocket_auth, 2 in auth.py — gate refuse + route-key
-    fallback, 1 route accept, 2 broadcaster connects) — if it finds fewer,
-    the sweep itself rotted and every other test here would pass vacuously."""
+    """The sweep finds the 10 production accept sites the tree holds as
+    re-counted on 2026-10-12 (5 in websocket_auth, 2 in auth.py — gate refuse
+    + route-key fallback, 1 route accept, 2 broadcaster connects) — if it
+    finds fewer, the sweep itself rotted and every other test here would pass
+    vacuously.
+
+    B-1 counted 12 on 2026-10-09. #6950 (`49dd54a90`) deleted two of them in
+    ``websocket_auth.py`` — one in ``authenticate_websocket_cookie``, one in
+    ``verify_websocket_auth``, both ``websocket.accept(subprotocol=…)`` lines
+    removed with the cookie/JWT legs they belonged to — so the FLOOR went
+    stale, not the sweep: the nightly's red is this arithmetic, and the two
+    deleted sites are gone on purpose. Re-count the sites here whenever accept
+    sites legitimately move; the floor's job is to notice a DELETION the sweep
+    did not mean, which is why it stays an exact count and not a loose bound."""
     sites = _production_accepts()
-    assert len(sites) >= 12, f"sweep found only {len(sites)} accept sites: {sites}"
+    assert len(sites) >= 10, f"sweep found only {len(sites)} accept sites: {sites}"
     files = {s.split(":")[0] for s in sites}
     for expected in (
         "backend/api/middleware/auth.py",
