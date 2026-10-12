@@ -7,13 +7,108 @@ This module tests:
 """
 
 import asyncio
+import os
 import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from backend.core import redis as redis_module
 from backend.core.logging import set_request_id
 from backend.main import app
+
+
+async def _no_redis_dependency():
+    """``get_redis_optional`` replacement that yields the degraded client.
+
+    Same shape as ``backend/tests/unit/api/routes/test_debug_api.py``'s
+    ``_mock_redis_none``: every other test of ``/api/debug/pipeline-state``
+    already answers the dependency this way.
+    """
+    yield None
+
+
+async def _get_pipeline_state(*, skip_redis: bool) -> tuple[int, dict]:
+    """Drive ``GET /api/debug/pipeline-state`` once with a correlation ID.
+
+    Shared by the propagation test and the two connection pins below so the
+    pins audit the very request the subject test makes, not a copy of it.
+    ``skip_redis=False`` keeps the real ``get_redis_optional`` dependency,
+    which is the cold-start path that cost this test 3.3 s.
+    """
+    from unittest.mock import AsyncMock, patch
+
+    from backend.core.config import Settings, get_settings
+    from backend.tests.unit.conftest import UNIT_TEST_API_KEY
+
+    test_correlation_id = "context-test-456"
+
+    # Ensure API key auth is enabled and settings cache is cleared
+    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
+    os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
+    get_settings.cache_clear()
+
+    # Enable debug mode for this test (required for debug endpoints)
+    mock_settings = Settings(debug=True, database_url="postgresql+asyncpg://test")
+
+    # Mock setup guard to return True (setup complete)
+    mock_check_setup = AsyncMock(return_value=True)
+
+    if skip_redis:
+        app.dependency_overrides[redis_module.get_redis_optional] = _no_redis_dependency
+
+    try:
+        with (
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+                mock_check_setup,
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers={"X-API-Key": UNIT_TEST_API_KEY},
+            ) as client:
+                response = await client.get(
+                    "/api/debug/pipeline-state",
+                    headers={"X-Correlation-ID": test_correlation_id},
+                )
+        return response.status_code, response.json()
+    finally:
+        if skip_redis:
+            app.dependency_overrides.pop(redis_module.get_redis_optional, None)
+
+
+@pytest.fixture
+def redis_connect_sentinel(monkeypatch):
+    """List of ``RedisClient.connect()`` calls made during the test.
+
+    Forces the cold path (``_redis_client`` is a module global a previous
+    test may have filled, which would make a zero-count assertion vacuous)
+    and zeroes connect's backoff so a surviving live attempt costs
+    milliseconds instead of the 1 s + 2 s the real path sleeps — the same
+    zeroing commit ``99394f95d`` applied to the ``get_redis_optional``
+    failure tests.
+    """
+    calls: list[str] = []
+    real_connect = redis_module.RedisClient.connect
+
+    async def counting_connect(self):
+        calls.append(self._redis_url)
+        return await real_connect(self)
+
+    monkeypatch.setattr(redis_module.RedisClient, "connect", counting_connect)
+    # Underscore-prefixed args are required by the call site's signature, not used.
+    monkeypatch.setattr(
+        redis_module.RedisClient,
+        "_calculate_backoff_delay",
+        lambda _self, _attempt: 0.0,
+    )
+    monkeypatch.setattr(redis_module, "_redis_client", None, raising=True)
+    return calls
 
 
 class TestCorrelationIdMiddleware:
@@ -51,52 +146,61 @@ class TestCorrelationIdMiddleware:
         assert response.headers.get("X-Correlation-ID") == test_correlation_id
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(30)  # This test is slow due to FastAPI app startup
+    @pytest.mark.timeout(30)
     async def test_correlation_id_available_in_context(self) -> None:
         """Verify correlation ID is available via get_request_id() during request."""
-        import os
-        from unittest.mock import AsyncMock, patch
-
-        from backend.core.config import Settings, get_settings
-        from backend.tests.unit.conftest import UNIT_TEST_API_KEY
-
         # This is tested implicitly by the middleware setting request_id
         # We can verify by checking the debug endpoint response
-        test_correlation_id = "context-test-456"
+        status_code, data = await _get_pipeline_state(skip_redis=False)
 
-        # Ensure API key auth is enabled and settings cache is cleared
-        os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
-        os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
-        get_settings.cache_clear()
+        assert status_code == 200
+        assert data.get("correlation_id") == "context-test-456"
 
-        # Enable debug mode for this test (required for debug endpoints)
-        mock_settings = Settings(debug=True, database_url="postgresql+asyncpg://test")
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
+    async def test_pipeline_state_propagation_never_opens_a_redis_connection(
+        self, redis_connect_sentinel
+    ) -> None:
+        """[r122]: the degraded-Redis path must be cheap, for the right reason.
 
-        # Mock setup guard to return True (setup complete)
-        mock_check_setup = AsyncMock(return_value=True)
+        This request answers a correlation-ID question, but its route resolves
+        the fail-soft ``get_redis_optional``, which on a machine without a
+        reachable Redis drives ``RedisClient.connect()`` through all three
+        attempts and sleeps connect's real backoff (1 s, then 2 s, plus
+        jitter) before reporting degraded status. That is 3.0-3.75 s per cold
+        request, and because a failed connect leaves ``_redis_client`` as
+        ``None``, the next request pays it again: 3.322 s measured here against
+        0.133 s with a live Redis on the default port, while the sibling
+        request to ``/`` on the same app costs 0.302 s. Neither the retry
+        schedule nor the degraded status is what this test is about, so the
+        dependency is answered the way ``test_debug_api.py`` already answers it
+        for every other test of this endpoint.
+        """
+        status_code, data = await _get_pipeline_state(skip_redis=False)
 
-        with (
-            patch(
-                "backend.api.routes.debug.get_settings", return_value=mock_settings, autospec=True
-            ),
-            patch(
-                "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
-                mock_check_setup,
-            ),
-        ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers={"X-API-Key": UNIT_TEST_API_KEY},
-            ) as client:
-                response = await client.get(
-                    "/api/debug/pipeline-state",
-                    headers={"X-Correlation-ID": test_correlation_id},
-                )
+        assert status_code == 200
+        assert data.get("correlation_id") == "context-test-456"
+        assert redis_connect_sentinel == [], (
+            "a correlation-ID assertion must not pay for a Redis connect; "
+            f"connect() was called for: {redis_connect_sentinel}"
+        )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data.get("correlation_id") == test_correlation_id
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
+    async def test_the_sentinel_sees_a_real_dependency_connection(self, redis_connect_sentinel):
+        """The zero above is a measurement, not a blind spot.
+
+        Same fixture, same request, real dependency left in place: the
+        sentinel must record the attempt. If this goes quiet, the pin above
+        proves nothing and both tests have to be rethought.
+        """
+        status_code, _data = await _get_pipeline_state(skip_redis=False)
+
+        assert status_code == 200
+        assert len(redis_connect_sentinel) == 1, (
+            "the un-overridden dependency must reach connect() once, or the "
+            "sentinel is blind and the == [] pin above is vacuous"
+        )
 
 
 class TestCorrelationIdPropagation:
