@@ -247,8 +247,9 @@ describe('declarationAt', () => {
     // `NaN` and `1.5` are `number` to the type system and pass both range
     // tests; `starts[NaN]` is undefined, and an undefined position compares
     // false against every statement — so an unguarded reader names the file's
-    // FIRST declaration for input that cannot bind. `lineCite` is always an
-    // integer, so this guards the next caller, not the current one.
+    // FIRST declaration for input that cannot bind. Every entry `lineCites`
+    // holds is an integer the regex matched, so this guards the next caller,
+    // not the current one.
     const root = tree({ 'c.ts': 'function first(): void {}\nfunction second(): void {}\n' });
     const f = path.join(root, 'c.ts');
     const notALine: unknown[] = [Number.NaN, 1.5, undefined, '2', null];

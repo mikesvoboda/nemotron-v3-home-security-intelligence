@@ -278,8 +278,8 @@ export function declarationAt(absFile, line) {
   // Non-integers fail both range tests below (`NaN < 1` and `NaN > length` are
   // both false), `starts[NaN]` is undefined, and an undefined `pos` compares
   // false against every statement — which would name the file's *first*
-  // declaration. Nothing reaches this from `lineCite` (the regex yields an
-  // integer), so it is a guard for the next caller, not a live bug.
+  // declaration. Nothing reaches this from `lineCites` (the regex yields an
+  // integer per match), so it is a guard for the next caller, not a live bug.
   if (!Number.isInteger(line)) return null;
   let text;
   try {
