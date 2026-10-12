@@ -568,54 +568,102 @@ test.describe('DO-3 zones golden path', () => {
     expect(Array.isArray(vehiclesBefore.body), 'vehicles is a BARE list').toBe(true);
     expect(vehiclesBefore.body, 'the stack seeds no vehicles').toHaveLength(0);
 
-    const member = await api.send('/api/household/members', 'POST', {
-      name: MEMBER,
-      role: 'resident',
-      trusted_level: 'full',
-    });
-    expect(member.status, 'POST member answers 201').toBe(201);
-    const memberId = member.body?.id as number;
-    expect(typeof memberId, 'member id is a server integer').toBe('number');
-
-    const vehicle = await api.send('/api/household/vehicles', 'POST', {
-      description: VEHICLE,
-      vehicle_type: 'car',
-    });
-    expect(vehicle.status, 'POST vehicle answers 201').toBe(201);
-    const vehicleId = vehicle.body?.id as number;
-
-    const cameras = await api.getJson('/api/cameras');
-    const cameraId = String(cameras.body?.items?.[0]?.id);
-    const zone = await api.send(
-      `/api/cameras/${cameraId}/zones`,
-      'POST',
-      newZone(ZONE_A, 'driveway', 7)
+    // --- Which camera will the PAGE resolve? Ask the page, not the list. ---
+    // list_cameras has no ORDER BY (the F-256 comment above documents the
+    // class), so this session's items[0] and the page's cameras[0]
+    // (ZonesPage.tsx:416) are legal answers that can DIFFER. Run 10 caught
+    // the split on a byte-identical blob: the API leg's zone existed and the
+    // page still rendered "No zones configured" (error-context.md), because
+    // the matrix only matrices zones of the camera the PAGE picked. So: goto
+    // first, read the camera the page's own zones GET names, then seed there.
+    await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
+    const zoneCameraOf = (u: string) => {
+      // Same matcher F-256 uses; duplicated rather than hoisted so the two
+      // tests' diffs stay independent.
+      const m = /^\/api\/cameras\/([^/]+)\/zones$/.exec(apiPath(u));
+      return m && !m[1].startsWith('placeholder-') ? decodeURIComponent(m[1]) : null;
+    };
+    const pageCamera = await page.waitForResponse(
+      (r) => zoneCameraOf(r.url()) !== null && r.status() === 200,
+      { timeout: 15_000 }
     );
-    expect(zone.status, 'POST zone answers 201').toBe(201);
-    const zoneId = String(zone.body?.id);
+    const cameraId = zoneCameraOf(pageCamera.url()) as string;
 
-    const noConfig = await api.getJson(`/api/zones/${zoneId}/household`);
-    expect(noConfig.status, 'GET /api/zones/{id}/household answers 200').toBe(200);
-    // A fresh zone has NO config, and the route says so with 200 + null body
-    // (zone_household.py:60-61) — NOT a 404. The matrix's "None" cells are
-    // built on exactly this null.
-    expect(
-      noConfig.body,
-      'GET /api/zones/{id}/household answers 200 null for a fresh zone'
-    ).toBeNull();
-
-    const cellButton = (entity: string, level: string) =>
-      page.getByRole('button', { name: `${entity} has ${level} trust in ${ZONE_A}`, exact: true });
-    const configOf = async () =>
-      (await api.getJson(`/api/zones/${zoneId}/household`)).body as {
-        owner_id: number | null;
-        allowed_member_ids: number[];
-        allowed_vehicle_ids: number[];
-        access_schedules: { member_ids: number[] }[];
-      };
+    // Ids live OUTSIDE try so the finally can see — and gate on — what was
+    // actually created (access.spec.ts:321-331 precedent). A create that never
+    // happened must not become a cleanup 404 that masks the body's real error.
+    let memberId: number | null = null;
+    let vehicleId: number | null = null;
+    let zoneId: string | null = null;
 
     try {
-      await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
+      const member = await api.send('/api/household/members', 'POST', {
+        name: MEMBER,
+        role: 'resident',
+        trusted_level: 'full',
+      });
+      // Capture the id BEFORE asserting its status: a create that answered
+      // something unexpected still has to be cleanable, or the gate below
+      // would skip the row it was made to protect.
+      memberId = (member.body?.id as number) ?? null;
+      expect(member.status, 'POST member answers 201').toBe(201);
+      expect(typeof memberId, 'member id is a server integer').toBe('number');
+
+      const vehicle = await api.send('/api/household/vehicles', 'POST', {
+        description: VEHICLE,
+        vehicle_type: 'car',
+      });
+      vehicleId = (vehicle.body?.id as number) ?? null;
+      expect(vehicle.status, 'POST vehicle answers 201').toBe(201);
+
+      const zone = await api.send(
+        `/api/cameras/${cameraId}/zones`,
+        'POST',
+        newZone(ZONE_A, 'driveway', 7)
+      );
+      expect(zone.status, 'POST zone answers 201').toBe(201);
+      const zid = String(zone.body?.id);
+      zoneId = zid;
+
+      const noConfig = await api.getJson(`/api/zones/${zid}/household`);
+      expect(noConfig.status, 'GET /api/zones/{id}/household answers 200').toBe(200);
+      // A fresh zone has NO config, and the route says so with 200 + null body
+      // (zone_household.py:60-61) — NOT a 404. The matrix's "None" cells are
+      // built on exactly this null.
+      expect(
+        noConfig.body,
+        'GET /api/zones/{id}/household answers 200 null for a fresh zone'
+      ).toBeNull();
+
+      const cellButton = (entity: string, level: string) =>
+        page.getByRole('button', {
+          name: `${entity} has ${level} trust in ${ZONE_A}`,
+          exact: true,
+        });
+      const configOf = async () =>
+        (await api.getJson(`/api/zones/${zid}/household`)).body as {
+          owner_id: number | null;
+          allowed_member_ids: number[];
+          allowed_vehicle_ids: number[];
+          access_schedules: { member_ids: number[] }[];
+        };
+
+      // The zone now exists ON THE PAGE'S CAMERA — reload and prove the page
+      // sees it before asserting a single cell. Run 10's failure mode was the
+      // page rendering zero zones while the API leg's zone existed; that
+      // positive control belongs BEFORE the matrix asserts.
+      const [, zonesResp] = await Promise.all([
+        page.reload({ waitUntil: 'domcontentloaded' }),
+        page.waitForResponse((r) => zoneCameraOf(r.url()) === cameraId && r.status() === 200, {
+          timeout: 15_000,
+        }),
+      ]);
+      const zonesSeen = (await zonesResp.json()) as { items?: { name?: string }[] };
+      expect(
+        (zonesSeen.items ?? []).some((z) => z.name === ZONE_A),
+        'the camera the page resolved now serves the zone this test created'
+      ).toBe(true);
+
       await expect(page.getByTestId('zones-page')).toBeVisible();
       const matrix = page.getByTestId('panel-trust');
       await expect(
@@ -710,15 +758,32 @@ test.describe('DO-3 zones golden path', () => {
         'vehicle partial ⇒ allowed_vehicle_ids = [vehicle]'
       ).toEqual([vehicleId]);
     } finally {
-      // Order matters: the config references member+vehicle ids.
-      const cfg = await api.send(`/api/zones/${zoneId}/household`, 'DELETE');
-      expect(cfg.status, 'DELETE the household config answers 204').toBe(204);
-      const dz = await api.send(`/api/cameras/${cameraId}/zones/${zoneId}`, 'DELETE');
-      expect(dz.status, 'DELETE the zone answers 204').toBe(204);
-      const dv = await api.send(`/api/household/vehicles/${vehicleId}`, 'DELETE');
-      expect(dv.status, 'DELETE the vehicle answers 204').toBe(204);
-      const dm = await api.send(`/api/household/members/${memberId}`, 'DELETE');
-      expect(dm.status, 'DELETE the member answers 204').toBe(204);
+      // Cleanup asserts existence-gated, NOT hard-status. A throw from inside
+      // `finally` REPLACES the body's error (verified by repro), so a strict
+      // `toBe(204)` here converts "the body died before it created anything"
+      // into a fake cleanup story — run 10's exact failure. Precedent:
+      // notify-access/access.spec.ts:321-331 gates the DELETE on the id and
+      // accepts [204, 404]. The leak witness is the re-read below, which stays
+      // a hard assert: a row that was really created and really not deleted
+      // still reddens the test, unmasked.
+      if (zoneId !== null) {
+        expect([204, 404]).toContain(
+          (await api.send(`/api/zones/${zoneId}/household`, 'DELETE')).status
+        );
+        expect([204, 404]).toContain(
+          (await api.send(`/api/cameras/${cameraId}/zones/${zoneId}`, 'DELETE')).status
+        );
+      }
+      if (vehicleId !== null) {
+        expect([204, 404]).toContain(
+          (await api.send(`/api/household/vehicles/${vehicleId}`, 'DELETE')).status
+        );
+      }
+      if (memberId !== null) {
+        expect([204, 404]).toContain(
+          (await api.send(`/api/household/members/${memberId}`, 'DELETE')).status
+        );
+      }
       const membersAfter = await api.getJson('/api/household/members');
       expect(membersAfter.body, 'members back to [] — proven by re-read').toHaveLength(0);
       const vehiclesAfter = await api.getJson('/api/household/vehicles');
