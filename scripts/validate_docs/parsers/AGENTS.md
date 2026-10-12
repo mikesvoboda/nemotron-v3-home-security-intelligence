@@ -21,12 +21,12 @@ Package exports:
 
 **Functions:**
 
-| Function                         | Description                                 |
-| -------------------------------- | ------------------------------------------- |
-| `extract_markdown_citations()`   | Main entry: extracts all markdown citations |
-| `parse_document()`               | Parse file and return (content, citations)  |
-| `_extract_frontmatter()`         | Split YAML frontmatter from body            |
-| `_parse_frontmatter_citations()` | Parse source_refs from frontmatter          |
+| Function                         | Description                                   |
+| -------------------------------- | --------------------------------------------- |
+| `extract_markdown_citations()`   | Main entry: extracts all markdown citations   |
+| `parse_document()`               | Parse file and return (content, citations)    |
+| `_extract_frontmatter()`         | Split YAML frontmatter from body              |
+| `_parse_frontmatter_citations()` | Parse source_refs from frontmatter            |
 | `_extract_symbol_from_context()` | Infer a symbol from a code span near the cite |
 
 **Supported Formats:**
@@ -115,6 +115,7 @@ class Citation:
     start_line: int     # Starting line number (1-indexed)
     end_line: int | None  # Optional ending line for ranges
     symbol_name: str | None  # Function/class name from context
+    symbol_inferred: bool  # True when symbol_name was inferred from prose, not typed by the author
     doc_file: str       # Source documentation file
     doc_line: int       # Line in documentation where citation appears
     raw_text: str       # Original citation text
