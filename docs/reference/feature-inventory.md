@@ -7,7 +7,7 @@
 > kept current.
 
 **Owner:** the frontend lane (`docs/uplevel/README.md`, "Lanes"). **Created by:** `F2.2`
-(`docs/uplevel/20-frontend.md`). **Traced at:** `main` `a890fd309`; `backend/` there is
+(`docs/uplevel/history/packages-done.md`). **Traced at:** `main` `a890fd309`; `backend/` there is
 byte-identical to the tree [`backend-entry-points.md`](backend-entry-points.md) traced, so its
 cites hold here. Re-checked after merging `main` `eafc7148f`: of the files the rows cite, only
 `backend/services/container_discovery.py` changed (`B1.6`), and F-140's two cites into it were
@@ -666,8 +666,8 @@ this list is measured at this head by the two methods above, which agree, and is
 ### Python
 
 The Python half of this list is the non-shipping output of the reachability check (`O2.3`,
-`docs/uplevel/30-ops.md`), minus every module a row claims; owner ruling 50 (issue #6854)
-pre-authorized this section to take that list when the check merged, and `O2.3b` (ruling 73)
+`docs/uplevel/history/packages-done.md`), minus every module a row claims; owner ruling 50 (issue
+#6854) pre-authorized this section to take that list when the check merged, and `O2.3b` (ruling 73)
 fixed the ancestor-package rule the list is measured under. Regenerate it after any change to
 the walker, its configs, or a row's `modules` column:
 `uv run python scripts/r2-python-dead-list.py`. The backend trace's

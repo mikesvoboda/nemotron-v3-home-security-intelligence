@@ -6,7 +6,7 @@ sandboxes from a manifest, and retire one without losing work.
     scripts/uplevel/launch.py retire <session> [--dry-run]
 
 A host-side tool: the owner runs it, from a clean host checkout of main, inside a herdr
-pane; no agent does (docs/uplevel/50-coordination.md, "Where agents run"). It drives
+pane; no agent does (docs/uplevel/rules.md, "Agents, sandboxes and models"). It drives
 `agent-dgx`, which gives each session its own clone of the host checkout, from
 scripts/uplevel/sandboxes.toml, so a phase boundary is one command.
 
@@ -32,15 +32,15 @@ copied to a host directory (a plain read of the mount, as synthbench's `down` do
 verified there (`git bundle verify` from the owner's checkout; the archive listed). Only
 then `agent-dgx stop <name>` and `agent-dgx session rm <name> --force`.
 
-The command vocabulary is what the repo already shows (30-ops.md §O0.1): `agent-dgx run
-[--agent --endpoint --mount] --split`, `agent-dgx inspect --json`, `agent-dgx stop`,
+The command vocabulary is what the repo already shows (history/packages-done.md §O0.1):
+`agent-dgx run [--agent --endpoint --mount] --split`, `agent-dgx inspect --json`, `agent-dgx stop`,
 `agent-dgx session rm --force`, and `sbx exec <sandbox> bash -lc <script>` - from
 synthbench/host/agent.py and docs/synthbench/operator-runbook.md. agent-dgx reads an
 unknown word as a new session's name, so every call names its subcommand, and nothing here
 runs `agent-dgx help` or `agent-dgx ls`.
 
-MEASURE, open (30-ops.md §O0.1): whether `sbx exec` still reaches the sandbox once the
-agent's session has ended. This order does not depend on the answer: the inspection and the
+MEASURE, open (history/packages-done.md §O0.1): whether `sbx exec` still reaches the sandbox
+once the agent's session has ended. This order does not depend on the answer: the inspection and the
 export run while the sandbox is still up, and `agent-dgx stop` comes after them. An
 inspection that fails still refuses, and the owner's `retire` run on a throwaway session
 posts the measurement.
@@ -120,7 +120,7 @@ class Host:
 
     def clone(self, session: Session) -> Path:
         """The host's view of the session's clone: a directory to read, never to run git
-        in (50-coordination.md, "Where agents run")."""
+        in (rules.md, "Agents, sandboxes and models")."""
         return self.agents_root / session.sandbox / "workspace"
 
 
@@ -191,7 +191,7 @@ def _in_sandbox(
 
 
 def _inspect_argv(session: Session) -> list[str]:
-    """The inspection, run inside the sandbox in the clone (30-ops.md §O0.1)."""
+    """The inspection, run inside the sandbox in the clone (history/packages-done.md §O0.1)."""
     script = f"cd {session.workspace} && " + _inspection_script(session.name)
     return ["sbx", "exec", session.sandbox, "bash", "-lc", script]
 
@@ -263,8 +263,8 @@ def _session_row(row: Mapping[str, Any], path: Path, where: str) -> Session:
         )
     mounts = tuple(str(m) for m in row.get("mount", ()))
     if gpu:
-        # 30-ops.md §O1.10, as the operator row's comment says: agent-dgx --gpu mounts
-        # /srv/agent-models itself and refuses any mount at or under it. A row that
+        # history/packages-done.md §O1.10, as the operator row's comment says: agent-dgx
+        # --gpu mounts /srv/agent-models itself and refuses any mount at or under it. A row that
         # collides with the library dies inside agent-dgx at create time; refusing the row
         # here is the launcher's own check, not a guess about agent-dgx's behaviour.
         for mount in mounts:
@@ -276,8 +276,8 @@ def _session_row(row: Mapping[str, Any], path: Path, where: str) -> Session:
                 raise Refused(
                     f"{label} has `gpu = true` and mounts {mount}, at or under "
                     "/srv/agent-models, which `agent-dgx --gpu` mounts itself and "
-                    f"refuses any mount at or under (30-ops.md §O1.10). Remove that mount "
-                    f"from {path}."
+                    "refuses any mount at or under (history/packages-done.md §O1.10). "
+                    f"Remove that mount from {path}."
                 )
     return Session(
         name=str(_required(row, "name", path, label)),
@@ -311,8 +311,8 @@ def run_args_for(data: Mapping[str, Any], manifest_path: Path, session: Session)
 
     Only two argument sets are known to exist: the fast model's, which the repo already
     shows, and whatever the owner posts for the strongest one on the O0.1 PR. The launcher
-    never invents a flag (30-ops.md §O0.1). `data` is the parsed file from the same read
-    `up` used for its phase list, so one run sees one content; `manifest_path` is named
+    never invents a flag (history/packages-done.md §O0.1). `data` is the parsed file from the
+    same read `up` used for its phase list, so one run sees one content; `manifest_path` is named
     only in the refusal, which has to say which file to edit.
     """
     models = {str(k): str(v) for k, v in data.get("models", {}).items()}
@@ -392,7 +392,7 @@ def _preflight(host: Host) -> str:
         where = "at a detached HEAD" if branch == "HEAD" else f"on branch {branch}"
         raise Refused(
             f"the host checkout is {where}, not on main. Every agent starts from a clean "
-            "checkout of main (50-coordination.md): `git checkout main`, then run this again."
+            "checkout of main (rules.md, UR-28): `git checkout main`, then run this again."
         )
     # The fetch is what makes the origin/main check worth running at all, and it moves only a
     # remote-tracking ref - never the worktree, never a branch. A failed fetch is refused, not
@@ -406,7 +406,7 @@ def _preflight(host: Host) -> str:
     if head != origin_main:
         raise Refused(
             f"the host checkout is at {head[:8]}, not origin/main ({origin_main[:8]}). "
-            "Every agent starts from a clean checkout of main (50-coordination.md): "
+            "Every agent starts from a clean checkout of main (rules.md, UR-28): "
             "`git pull --ff-only origin main`, then run this again."
         )
     return origin_main
@@ -442,7 +442,7 @@ def up(host: Host, *, phase: int) -> None:
             f"{', '.join(grant)} would be created with `--gpu`, but this shell has no "
             "AGENT_GPU_RUNNER_URL: that is how agent-gpu's runner - the only thing "
             "`--gpu`'s model library mounts from - reaches the launching shell "
-            "(30-ops.md §O1.10). Run this from the shell that has it, or start "
+            "(history/packages-done.md §O1.10). Run this from the shell that has it, or start "
             f"{grant[0]} by hand (UR-30: one GPU holder). No session in this phase was "
             "created."
         )
@@ -455,8 +455,9 @@ def up(host: Host, *, phase: int) -> None:
             run = ["agent-dgx", "run", session.name, *arguments[session.name]]
             run += [arg for mount in session.mounts for arg in ("--mount", mount)]
             # after the model arguments, before --split: the order the owner's hand-start
-            # line shows (30-ops.md §O1.10). No --mount is added for /srv/agent-models -
-            # agent-dgx --gpu mounts the library itself and refuses any mount at or under it.
+            # line shows (history/packages-done.md §O1.10). No --mount is added for
+            # /srv/agent-models - agent-dgx --gpu mounts the library itself and refuses any
+            # mount at or under it.
             if session.gpu:
                 run.append("--gpu")
             _do(
@@ -638,11 +639,11 @@ def assess_inspection(
             f"the inspection failed (no clean answer from: "
             f"{', '.join(dict.fromkeys(missing + failed))}). "
             + "".join(f"\n- {cause}" for cause in causes)
-            + " The likely cause, if none is shown, is the open MEASURE in 30-ops.md §O0.1 "
-            "- whether `sbx exec` still reaches the sandbox once the agent's session has "
-            f"ended. Retirement is the owner's manual call for {session}: read the "
-            "workspace's files and run git in it only through `sbx exec`, export a bundle "
-            "and a tree archive by hand, then remove the session."
+            + " The likely cause, if none is shown, is the open MEASURE in "
+            "history/packages-done.md §O0.1 - whether `sbx exec` still reaches the sandbox "
+            "once the agent's session has ended. Retirement is the owner's manual call for "
+            f"{session}: read the workspace's files and run git in it only through `sbx exec`, "
+            "export a bundle and a tree archive by hand, then remove the session."
         ]
 
     risks: list[str] = []
@@ -661,7 +662,8 @@ def assess_inspection(
     # `remote` asked the origin the AGENT's .git/config names - and the agent writes that
     # config. Work pushed to a local path or a sibling sandbox would answer "all pushed"
     # while GitHub never saw it, so the URL itself must match the host's before any of it
-    # counts (50-coordination.md: GitHub is the only channel between sandboxes).
+    # counts (rules.md, "Agents, sandboxes and models": GitHub is the only channel between
+    # sandboxes).
     origin, _ = sections["origin"]
     if expected_origin is not None and origin.strip() != expected_origin:
         risks.append(
@@ -784,7 +786,7 @@ def retire(host: Host, name: str) -> None:
         try:
             dest_dir.mkdir(parents=True, exist_ok=True)
             # reading the sandbox's files from the mount is what synthbench's `down` does;
-            # what the rule forbids is running the host's git there (50-coordination.md)
+            # what the rule forbids is running the host's git there (rules.md, UR-170)
             shutil.copy2(staged / f"{name}.bundle", bundle)
             shutil.copy2(staged / "worktree.tar.gz", tree)
         except OSError as error:
