@@ -1522,6 +1522,108 @@ def test_a_golden_suite_with_no_report_lists_no_specs(tmp_path: Path) -> None:
     assert fc.junit_results(broken) == {}
 
 
+# --- flaky-blindness (ruling 116 posture: the harness names the state it cannot see) ------------
+#
+# `junit_results` is the instrument lanes quote for "what did CI call this spec?" It is not a
+# record of what happened: Playwright collapses retries before a row exists, and the reporter
+# emits no marker at all for one real trajectory. These three tests are red-first pins written
+# against reports taken from CI's own `feature-check` artifacts, not from invented XML.
+
+
+WS_STATUS = "../golden/shell/ws-status.spec.ts"
+WS_F007 = "golden path: WebSocket status and disconnect banner @critical \u203a F-007"
+
+
+def _junit(tmp_path: Path, body: str, suite_attrs: str = "", root_attrs: str = "") -> Path:
+    path = tmp_path / "golden.xml"
+    path.write_text(
+        f'<?xml version="1.0"?><testsuites{root_attrs}><testsuite name="golden"{suite_attrs}>'
+        f"{body}</testsuite></testsuites>",
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_a_spec_that_struck_then_runtime_skipped_is_not_reported_as_passed(tmp_path: Path) -> None:
+    """A failed attempt followed by a self-skip prints neither `<failure>` nor `<skipped>`.
+
+    Observed live, same spec, in CI artifacts `11721450798` and `11718785897`: the partition
+    guard in `ws-status.spec.ts` skips at runtime when the host never tears the socket down
+    (ruling 86), and the vendored reporter only emits `<skipped>` for an `outcome()` of
+    `"skipped"` \u2014 which a fail-then-skip trajectory is not. The skip therefore lands in
+    `<properties>`, and a verdict ladder that reads only elements calls the spec **passed**.
+    "Unmeasurable on this host" is not "passed": a lane quoting this map as evidence would be
+    quoting the absence of a marker as the presence of a result.
+    """
+    junit = _junit(
+        tmp_path,
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}" time="81.64">'
+        "<properties>"
+        '<property name="skip" value="setOffline(true) never surfaced on the established '
+        'loopback WebSockets within 15 s; ruling 86: the leg is unexecutable here, not failed"/>'
+        "</properties>"
+        "<system-out>the struck attempt was collapsed by the reporter</system-out>"
+        "</testcase>",
+    )
+    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "skipped"}
+
+
+def test_repeated_rows_for_one_spec_never_yield_a_milder_verdict_than_the_worst(
+    tmp_path: Path,
+) -> None:
+    """If a reporter ever emits one row per attempt, the map must not keep the last one.
+
+    **Latent, not observed:** both CI reports inspected hold one row per spec (71 rows / 71
+    names; 101 / 101), so today nothing reaches this branch \u2014 the current code passes it by
+    accident only in the orderings where the last row is also the worst. The fragility is in the
+    code, not in today's input: `results[name] = ...` is a per-row assignment whose tie-break is
+    document order, and a reporter bump that starts emitting `<testcase>` per attempt would turn
+    it into silent flaky-green. Pinned so the day the rows appear, the verdict is a decision.
+    """
+    junit = _junit(
+        tmp_path,
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"><failure message="attempt 1"/></testcase>'
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"></testcase>',
+    )
+    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "failed"}, (
+        "last-wins dropped the failure"
+    )
+    retry_dir = tmp_path / "retry2"
+    retry_dir.mkdir()
+    junit2 = _junit(
+        retry_dir,
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"></testcase>'
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"><failure message="attempt 2"/></testcase>',
+    )
+    assert fc.junit_results(junit2) == {f"{WS_STATUS}::{WS_F007}": "failed"}
+
+
+def test_the_spec_map_never_disagrees_with_the_report_sown_totals(tmp_path: Path) -> None:
+    """A map whose tally drifts from the report's own counts means the parser missed rows.
+
+    This is a **drift alarm, not a flakiness detector**, and it is deliberately labelled so: the
+    suite attributes are final-outcome, so they *agree* even on the reports that carry the
+    fail-then-skip mislabel above. What it does catch is the silent failure mode that a regex
+    parser has and an XML parser does not \u2014 a row shape it cannot read is dropped without an
+    error, and a smaller-but-plausible total is the only symptom.
+    """
+    junit = _junit(
+        tmp_path,
+        f'<testcase classname="{WS_STATUS}" name="one"/>'
+        f'<testcase classname="{WS_STATUS}" name="two"><failure message="boom"/></testcase>'
+        f'<testcase classname="{WS_STATUS}" name="three"><skipped/></testcase>',
+        suite_attrs=' tests="3" failures="1" skipped="1" errors="0"',
+    )
+    verdicts = fc.junit_results(junit)
+    totals = fc.junit_totals(junit)
+    assert totals == {"tests": 3, "failed": 1, "skipped": 1}
+    assert {k: sum(1 for v in verdicts.values() if v == k) for k in ("failed", "skipped")} == {
+        "failed": totals["failed"],
+        "skipped": totals["skipped"],
+    }
+    assert len(verdicts) == totals["tests"]
+
+
 BROWSER_INSTALL = ["npx", "playwright", "install", "chromium"]
 
 
