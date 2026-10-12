@@ -1535,6 +1535,7 @@ WS_F007 = "golden path: WebSocket status and disconnect banner @critical \u203a 
 
 
 def _junit(tmp_path: Path, body: str, suite_attrs: str = "", root_attrs: str = "") -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     path = tmp_path / "golden.xml"
     path.write_text(
         f'<?xml version="1.0"?><testsuites{root_attrs}><testsuite name="golden"{suite_attrs}>'
@@ -1622,6 +1623,108 @@ def test_the_spec_map_never_disagrees_with_the_report_sown_totals(tmp_path: Path
         "skipped": totals["skipped"],
     }
     assert len(verdicts) == totals["tests"]
+
+
+def test_the_drift_alarm_fires_only_when_rows_or_failures_cannot_be_reconciled(
+    tmp_path: Path,
+) -> None:
+    """A positive witness that the alarm CAN fire, on each of its two checks.
+
+    Pinned as a pair with the clean-report test below so the alarm is proven to
+    have teeth and to have limits — an alarm that silently returned ``[]`` for
+    every input would pass the "green reports stay green" pin vacuously.
+    """
+    dropped = _junit(
+        tmp_path,
+        f'<testcase classname="{WS_STATUS}" name="one"/>',
+        suite_attrs=' tests="3" failures="0" skipped="0"',
+    )
+    _one_problem(
+        fc.junit_drift_problems("golden", dropped), "declares 3 tests", "only 1", "dropped"
+    )
+
+    miscounted = _junit(
+        tmp_path.parent / "miscounted",
+        f'<testcase classname="{WS_STATUS}" name="one"/>'
+        f'<testcase classname="{WS_STATUS}" name="two"/>',
+        suite_attrs=' tests="2" failures="1" skipped="0"',
+    )
+    _one_problem(
+        fc.junit_drift_problems("golden", miscounted), "declares 1 failures", "0 rows carry"
+    )
+
+
+def test_the_drift_alarm_stays_silent_on_the_shapes_the_parser_handles_well(
+    tmp_path: Path,
+) -> None:
+    """Two reports that a naive reconciliation would cry wolf on; both are clean.
+
+    These are the traps the alarm's two checks are written to avoid:
+
+    - **the worst-wins fold.** Repeat rows for one spec collapse to fewer
+      verdicts than the report holds rows; the row check must count raw
+      ``<testcase>`` rows, not ``len(results)``, or the day a reporter emits
+      per-attempt rows the alarm would red a report it parsed correctly.
+    - **a spec that prints its own verdict.** A passing spec's ``<system-out>``
+      may contain the literal text ``<failure``; counting failure markers over
+      the raw document (instead of per row body, CDATA stripped, exactly as
+      ``junit_results`` does) would read that printed string as a failure.
+    """
+    folded = _junit(
+        tmp_path,
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"><failure message="attempt 1"/></testcase>'
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"></testcase>',
+        suite_attrs=' tests="2" failures="1" skipped="0"',
+    )
+    assert len(fc.junit_results(folded)) == 1, "the two rows must fold to one verdict"
+    assert fc.junit_drift_problems("golden", folded) == []
+
+    printing = _junit(
+        tmp_path.parent / "printing",
+        f'<testcase classname="{WS_STATUS}" name="one"><system-out>'
+        f"<![CDATA[a spec that prints the string <failure in its own output]]></system-out>"
+        f"</testcase>",
+        suite_attrs=' tests="1" failures="0" skipped="0"',
+    )
+    assert fc.junit_results(printing) == {f"{WS_STATUS}::one": "passed"}
+    assert fc.junit_drift_problems("golden", printing) == []
+
+
+def test_the_golden_step_reports_junit_drift_as_a_problem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The alarm is wired into ``golden()``'s ``problems`` channel, not dead code.
+
+    The same Playwright leg, twice: a report the parser cannot reconcile makes
+    ``golden()`` name it, a consistent one leaves the step green. Without the
+    positive half the wiring could be missing and only the unit-level alarm
+    tests would pass.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    legs = {"drifting": tmp_path / "drifting", "consistent": tmp_path / "consistent"}
+
+    def golden_with(xml: str, leg: str) -> list[str]:
+        # A fresh tmp_path per leg: fc.Run creates its artifact dir, and the
+        # harness's own state (config text, module dirs) is per-run.
+        legs[leg].mkdir()
+        run = _golden_only_run(legs[leg], monkeypatch, True, calls)
+        (run.artifacts / "golden-playwright.xml").write_text(xml, encoding="utf-8")
+        return run.golden()
+
+    drifting = golden_with(
+        '<testsuites><testsuite name="golden" tests="2" failures="0" skipped="0">'
+        f'<testcase classname="{WS_STATUS}" name="one"/></testsuite></testsuites>',
+        "drifting",
+    )
+    _one_problem(drifting, "Playwright", "declares 2 tests", "dropped")
+
+    calls.clear()
+    consistent = golden_with(
+        '<testsuites><testsuite name="golden" tests="1" failures="0" skipped="0">'
+        f'<testcase classname="{WS_STATUS}" name="one"/></testsuite></testsuites>',
+        "consistent",
+    )
+    assert consistent == []
 
 
 BROWSER_INSTALL = ["npx", "playwright", "install", "chromium"]

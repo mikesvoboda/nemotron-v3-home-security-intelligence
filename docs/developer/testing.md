@@ -619,7 +619,28 @@ user that runs any live stack, or its checks see nothing to protect.
   outside the default test paths;
 - the `golden` Playwright project in `frontend/playwright.config.ts` (UI).
 
-It skips each one until it exists. Specs read the stack from these
+It skips each one until it exists.
+
+**What the per-spec map can and cannot say (ruling 116 posture).** `summary.json`
+carries `results.golden.backend_specs` and `results.golden.playwright_specs`, a
+verdict per spec parsed from the run's own JUnit report, and lanes quote it as
+evidence for what CI observed. Two limits are pinned by tests so neither is
+quietly read as the other. A spec that **struck and then skipped at runtime** —
+the `ws-status` partition leg under ruling 86, where the host never tears the
+socket down — is reported `skipped`, not `passed`: the reporter collapses the
+struck attempt and writes the skip as a `<property>`, with no `<skipped>`
+element to find. And a spec that **struck on one attempt and passed on the
+next** is reported `passed`, with no marker of its own, because the reporter
+collapses attempts before a JUnit row exists. Those strikes are recoverable only
+from the suite's console text (`golden-playwright.log`, the `N flaky` and `✘`
+marks), never from this map, so a `passed` here means "the last attempt
+passed", not "never struck". The gate is unaffected — it keys Playwright's own
+exit code, so a green `CI Gate` remains a valid merge witness whatever the map
+says. `junit_drift_problems` guards the separate pattern-parser risk (an
+unreadable row is dropped without an error) by reconciling the map against the
+report's own totals; it is a drift alarm, not a flakiness detector, and it
+deliberately never compares `skipped`, which the two views disagree on by
+design. Specs read the stack from these
 environment variables:
 
 | variable                                                       | value                                         |

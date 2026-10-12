@@ -827,8 +827,19 @@ def leftovers(before: Snapshot, after: Snapshot, *, project: str) -> list[str]:
 
 
 _TESTCASE = re.compile(r"<testcase\b([^>]*?)(?:/>|>(.*?)</testcase>)", re.DOTALL)
+_TESTSUITE = re.compile(r"<testsuite\b([^>]*?)(?:/>|>)", re.DOTALL)
 _ATTRIBUTE = re.compile(r'([\w:-]+)="([^"]*)"')
 _CDATA = re.compile(r"<!\[CDATA\[.*?\]\]>", re.DOTALL)
+_SKIP_PROPERTY = re.compile(r"<property\b[^>]*\bname=[\"']skip[\"']")
+_VERDICT_RANK = {"passed": 0, "skipped": 1, "failed": 2}
+
+
+def _junit_text(path: Path) -> str:
+    """A golden suite's JUnit report, or nothing when the step wrote none."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
 
 
 def junit_results(path: Path) -> dict[str, str]:
@@ -837,22 +848,51 @@ def junit_results(path: Path) -> dict[str, str]:
     The report is this run's own. It is read with patterns, not an XML
     parser, so no DTD or entity in it is ever processed; a spec's printed
     output (CDATA) is not mistaken for its outcome. No report, no specs.
+
+    Two properties here are load-bearing, because lanes quote this map as
+    evidence for what CI observed:
+
+    - **A spec that struck and then skipped at runtime is skipped, not
+      passed.** A failed attempt that is followed by a runtime self-skip (the
+      golden ``ws-status`` guard's ruling-86 path) collapses in the reporter
+      into one row that carries the skip in ``<property name="skip">`` and
+      emits NO ``<skipped>`` element — the element is written only for an
+      ``outcome()`` of ``"skipped"``, which a fail-then-skip trajectory is
+      not. A ladder that reads elements alone calls that spec ``passed``,
+      quoting the absence of a marker as the presence of a result.
+    - **The verdict for one spec is the worst its rows report, not the last
+      one.** Ties currently break by document order, which is safe only while
+      the reporter collapses attempts upstream of here. Both real reports
+      inspected hold exactly one row per spec (71/71 and 101/101 names), so
+      this fold changes no verdict today; it is the decision made in advance
+      for the reporter bump that would otherwise turn last-wins into silent
+      flaky-green.
+
+    Neither clause closes the deeper gap: a spec that struck on one attempt
+    and passed on the next is filed as ``passed`` here with no marker of its
+    own, because the reporter collapses attempts before a row exists. Those
+    strikes are visible only in the suite's console text — the
+    ``golden-playwright.log`` this step also writes — never in this map, so a
+    ``passed`` verdict here means "the last attempt passed", not "never
+    struck".
     """
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return {}
-    results = {}
-    for match in _TESTCASE.finditer(text):
+    results: dict[str, str] = {}
+    for match in _TESTCASE.finditer(_junit_text(path)):
         attributes = {key: html.unescape(value) for key, value in _ATTRIBUTE.findall(match[1])}
         body = _CDATA.sub("", match[2] or "")
         name = f"{attributes.get('classname', '')}::{attributes.get('name', '')}"
         if re.search(r"<(?:failure|error)\b", body):
-            results[name] = "failed"
-        elif re.search(r"<skipped\b", body):
-            results[name] = "skipped"
+            verdict = "failed"
+        elif re.search(r"<skipped\b", body) or _SKIP_PROPERTY.search(body):
+            # The element is a whole-spec skip (both attempts); the property is
+            # a struck attempt that a runtime skip collapsed onto (the reporter
+            # writes no element for that trajectory). Both mean not-executed.
+            verdict = "skipped"
         else:
-            results[name] = "passed"
+            verdict = "passed"
+        previous = results.get(name)
+        if previous is None or _VERDICT_RANK[verdict] > _VERDICT_RANK[previous]:
+            results[name] = verdict
     return results
 
 
@@ -883,6 +923,74 @@ def golden_execution_problems(leg: str, specs: Mapping[str, str]) -> list[str]:
         ]
     return []
 
+def junit_totals(path: Path) -> dict[str, int]:
+    """What a golden suite's JUnit report says it holds: tests, failed, skipped.
+
+    Read from the ``<testsuite>`` headers, summed, and never from the
+    ``<testsuites>`` root. Measured in CI's own artifacts, the two levels
+    disagree by design and only one is present in both families: Playwright
+    writes totals at BOTH levels and they differ (its root ``skipped`` counts
+    final outcomes, so a spec that struck then runtime-skipped is neither a
+    failure nor a skip there — while the per-row map above must, and does,
+    call it ``skipped``), and pytest writes them ONLY on its single
+    ``<testsuite>``, leaving the root a bare ``<testsuites name="pytest
+    tests">``. Summing headers is the only reading that answers for both.
+    """
+    totals = {"tests": 0, "failed": 0, "skipped": 0}
+    for match in _TESTSUITE.finditer(_junit_text(path)):
+        counted = {key: value for key, value in _ATTRIBUTE.findall(match[1]) if value.isdigit()}
+        attributes = {key: int(value) for key, value in counted.items()}
+        totals["tests"] += attributes.get("tests", 0)
+        totals["failed"] += attributes.get("failures", 0) + attributes.get("errors", 0)
+        totals["skipped"] += attributes.get("skipped", 0)
+    return totals
+
+
+def junit_drift_problems(label: str, path: Path) -> list[str]:
+    """Where a golden suite's JUnit report cannot be reconciled with itself.
+
+    A parser-drift alarm, NOT a flakiness detector, and labelled so wherever
+    it is quoted: suite attributes are final-outcome, so this fires on zero
+    real reports — measured at 0 across CI's artifacts, 102/102 suite headers
+    agreeing with their own rows. What it guards is the failure mode a
+    pattern-parser has and an XML parser does not: a row shape it cannot read
+    is dropped without an error, and a smaller-but-plausible total is the
+    only symptom.
+
+    Only the counters that survive a re-labelling are compared. ``skipped`` is
+    deliberately absent: junit_results re-labels a runtime-skipped strike as a
+    skip and the report's own attributes do not, so a skipped comparison would
+    red a golden leg whose every spec is fine.
+    """
+    text = _junit_text(path)
+    if not text:
+        return []
+    totals = junit_totals(path)
+    problems: list[str] = []
+    # Count the rows the parser REACHED, in the raw document — not len(results),
+    # which is deduped by name. A row this parser cannot read never reaches the
+    # map at all, so comparing the map's size to the declared total would both
+    # miss a dropped row and (once a reporter emits per-attempt rows, which the
+    # worst-wins fold above exists for) cry wolf on a report parsed correctly.
+    rows = list(_TESTCASE.finditer(text))
+    if len(rows) != totals["tests"]:
+        problems.append(
+            f"golden: {label} JUnit report declares {totals['tests']} tests but only "
+            f"{len(rows)} <testcase> rows were parsed from it — rows this parser "
+            "cannot read are being dropped"
+        )
+    # Counted per row body, not over the raw text: a spec's printed output is
+    # free to contain the literal string "<failure" and must not read as a
+    # verdict (the same reason junit_results strips CDATA).
+    struck = sum(
+        1 for row in rows if re.search(r"<(?:failure|error)\b", _CDATA.sub("", row[2] or ""))
+    )
+    if struck != totals["failed"]:
+        problems.append(
+            f"golden: {label} JUnit report declares {totals['failed']} failures but "
+            f"{struck} rows carry a failure or error element"
+        )
+    return problems
 
 def smoke_problems(
     events: Sequence[Mapping[str, Any]],
@@ -1614,6 +1722,7 @@ class Run:
             )
             results["backend"] = "ok" if result.returncode == 0 else f"exit {result.returncode}"
             results["backend_specs"] = junit_results(junit)
+            problems += junit_drift_problems("backend", junit)
             if result.returncode != 0:
                 problems.append(f"golden: backend/tests/golden exited {result.returncode}")
             # Ruling 114: the exit code above says the runner finished, not that a
@@ -1718,6 +1827,7 @@ class Run:
             )
             results["playwright"] = "ok" if result.returncode == 0 else f"exit {result.returncode}"
             results["playwright_specs"] = junit_results(junit)
+            problems += junit_drift_problems("Playwright", junit)
             if result.returncode != 0:
                 problems.append(f"golden: the golden Playwright project exited {result.returncode}")
             problems += golden_execution_problems("playwright", results["playwright_specs"])
