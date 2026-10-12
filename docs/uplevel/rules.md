@@ -66,7 +66,8 @@ Read this section before you take, claim, assign, park or release a package.
   cells included. On any tick where it has no open package, it claims the next package in its queue
   that is `not started`, unclaimed, not `heavy`, and whose dependencies have merged (UR-54). A
   ruling-ordered fix (`[rNNN]`) sits in the queue of the lane its ruling names, in the order the
-  roster gives. (owner design session 2026-10-12; lane kickoff prompts; rulings 82, 120)
+  roster gives. A package is claimed or unclaimed; "parked unchanged" is not a state. (owner design
+  session 2026-10-12; lane kickoff prompts; rulings 82, 120; record 6083435595)
 - **UR-53** Claim a package before writing any work: an empty commit on branch
   `uplevel/<package>-<slug>` from `main`, pushed, and a draft PR titled `[<package>] <name>` opened
   with the `uplevel.md` template and `lane:<lane>`. The open draft PR is the claim. (ruling 39 item
@@ -471,7 +472,8 @@ when a phase exits, are UR-10 (contract rule 5).
 - **UR-13** The owner rules per feature, from a verified feature inventory; modules follow their
   feature's ruling; modules serving no feature come to the owner as one list. (UR-13)
 - **UR-148** `R2` is held in two parts: `R2a` (the sheet as it stood) and `R2b` (after `F2.3`);
-  `R2b` runs in rounds, and `R2` is `done` only when `R2b`'s last round is recorded. (rulings 86, 127)
+  `R2b` runs in rounds, and `R2` is `done` only when `R2b`'s last round is recorded. `R2b` rules on
+  re-ID from the CPU evidence. (rulings 86, 117, 127)
 - **UR-149** The frontend lane records each `R2` session or round in one PR: the rulings and
   priorities into the inventory's ruling column, the OD rulings into
   `docs/vss-integration/17-action-plan.md`, and the recorded part's status row. (README "The path";

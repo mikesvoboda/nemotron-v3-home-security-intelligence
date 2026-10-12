@@ -6,7 +6,8 @@ history), `package <id>` (binds only while that package is open; its text is in 
 `packages-done.md`), or `superseded by <n>`. A ruling with several parts lists each. Rulings 118 and
 119 are coordinator decisions C-118 and C-119. Pass 2 merged rules that said the same thing into the
 lower number; the ruling and record rows name the rule that now holds each one, and "Merged rules"
-lists every number that left `rules.md`.
+lists every number that left `rules.md`. The owner design session of 2026-10-12 is ruling 147; a
+package tagged `[rNNN]` is a fix that ruling NNN ordered.
 
 ## Rulings
 
@@ -37,7 +38,7 @@ lists every number that left `rules.md`.
 | 23     | one-off (B1.1 owner run deferred)                                                                           |
 | 24     | UR-123; #6913 slot one-off                                                                                  |
 | 25     | one-off (ruling 13 covers #6867)                                                                            |
-| 26     | UR-105 (named place), UR-106 (ready time, as amended 2026-10-12)                                            |
+| 26     | UR-104 (named place), UR-106 (ready time, as amended 2026-10-12)                                            |
 | 27     | UR-102                                                                                                      |
 | 28     | one-off (heavy queue reordered; executed)                                                                   |
 | 29     | UR-25; batch 8 catch-up one-off                                                                             |
@@ -50,7 +51,7 @@ lists every number that left `rules.md`.
 | 36     | one-off (alloy ports in #6925)                                                                              |
 | 37     | one-off (#6925 approved)                                                                                    |
 | 38     | one-off (#6923 approved)                                                                                    |
-| 39     | UR-53 (item M), UR-93 (item G), UR-37 (item E); small packages C, D, I, J, L-i, L-ii one-off                |
+| 39     | UR-53 (item M), UR-91 (item G), UR-37 (item E); small packages C, D, I, J, L-i, L-ii one-off                |
 | 40     | UR-47, UR-92, UR-98                                                                                         |
 | 41     | UR-66; W3.1 parking one-off                                                                                 |
 | 42     | superseded by 49                                                                                            |
@@ -64,7 +65,7 @@ lists every number that left `rules.md`.
 | 50     | UR-59; F2.2 move one-off                                                                                    |
 | 51     | one-off (F2.2 Files line)                                                                                   |
 | 52     | one-off (banner spec red-main fix)                                                                          |
-| 53     | UR-60; assignments one-off                                                                                  |
+| 53     | UR-59; assignments one-off                                                                                  |
 | 54     | UR-67, UR-166; W3.3 parking one-off                                                                         |
 | 55     | UR-106 (approval across a merge-only head); R55 package one-off (done, #6950)                               |
 | 56     | UR-10 (contract rule 2), UR-156                                                                             |
@@ -74,7 +75,7 @@ lists every number that left `rules.md`.
 | 60     | package R60 API-key scopes (done, #6959)                                                                    |
 | 61     | one-off (#6947 approved; `braces` exemption); package R61 (done, #6960)                                     |
 | 62     | one-off (OD-36-38 to the R2 sheet; small findings routed)                                                   |
-| 63     | UR-103 (wait for `main`'s run after a merge); #6955 one-off                                                 |
+| 63     | dropped (pass 2 Q7: no wait for `main`'s run); #6955 one-off                                                |
 | 64     | UR-38, UR-162, UR-163                                                                                       |
 | 65     | one-off (#6957 approved; heartbeats issue created)                                                          |
 | 66     | UR-136                                                                                                      |
@@ -112,7 +113,7 @@ lists every number that left `rules.md`.
 | 98     | superseded by 101                                                                                           |
 | 99     | one-off (ops-b work order)                                                                                  |
 | 100    | package G2 nightly moves (done, #6992); G3 part superseded by 101                                           |
-| 101    | UR-103, UR-105; #6994/#6997 one-off                                                                         |
+| 101    | UR-104 (UR-103 part dropped, pass 2 Q7); #6994/#6997 one-off                                                |
 | 102    | package golden step `npm ci` (done); superseded by 143                                                      |
 | 103    | package F2.3 (row lifecycle)                                                                                |
 | 104    | package F2.3 (batch file rule)                                                                              |
@@ -152,29 +153,29 @@ lists every number that left `rules.md`.
 | 138    | UR-144                                                                                                      |
 | 139    | package R2a alert-rules (schedule end minute)                                                               |
 | 140    | UR-124; package W3.3 (Done-when gains the citation gate)                                                    |
-| 141    | one-off (O3.8 target met; `timeout(30)`)                                                                    |
+| 141    | one-off (O3.8 target met; `timeout(30)`); package `[r141]` follow-up                                        |
 | 142    | UR-130; verdict-spread check one-off                                                                        |
 | 143    | UR-131, UR-176; package `[r143]` (open, #7034 draft; `packages/ops.md`)                                     |
 | 144    | package O2.5 (not started; `packages/ops.md`); UR-10 (contract rule 5: does not gate Phase 2's exit)        |
-| 145    | UR-94, UR-29, UR-113, UR-122; freeze lift one-off                                                           |
+| 145    | UR-94, UR-29, UR-113, UR-122; freeze lift one-off; package `[r141]` follow-up                               |
 | 146    | UR-39, UR-42, UR-155; the `rules.md` ledger itself superseded by the plan rewrite (record 6128714278)       |
 
 ## Owner records
 
-| record                          | became                                                                                                     |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 6074248201                      | UR-62                                                                                                      |
-| 6083435595                      | UR-62                                                                                                      |
-| 6103795550                      | UR-160                                                                                                     |
-| 6109277356                      | superseded by 138 (UR-144)                                                                                 |
-| 6114826605                      | UR-43                                                                                                      |
-| 6116458014                      | UR-138                                                                                                     |
-| 6116476010                      | package B1.1 tail measurement                                                                              |
-| 6123811294                      | superseded by 143 (UR-176)                                                                                 |
-| 6126535946                      | one-off (#7029 approved head); amended by 6128195816                                                       |
-| 6128195816                      | UR-106, UR-29                                                                                              |
-| 6128714278                      | PROGRAMME PAUSE record; supersedes ruling 146's ledger by this rewrite                                     |
-| owner design session 2026-10-12 | UR-39, UR-40, UR-41, UR-106, UR-29, UR-162, UR-163; corrected lines in UR-45, UR-66, UR-10, UR-121, UR-144 |
+| record                          | became                                                                                                                                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 6074248201                      | UR-52                                                                                                                                                                                                                                      |
+| 6083435595                      | UR-52                                                                                                                                                                                                                                      |
+| 6103795550                      | UR-160                                                                                                                                                                                                                                     |
+| 6109277356                      | superseded by 138 (UR-144)                                                                                                                                                                                                                 |
+| 6114826605                      | UR-43                                                                                                                                                                                                                                      |
+| 6116458014                      | UR-138                                                                                                                                                                                                                                     |
+| 6116476010                      | package B1.1 tail measurement                                                                                                                                                                                                              |
+| 6123811294                      | superseded by 143 (UR-176)                                                                                                                                                                                                                 |
+| 6126535946                      | one-off (#7029 approved head); amended by 6128195816                                                                                                                                                                                       |
+| 6128195816                      | UR-106, UR-29                                                                                                                                                                                                                              |
+| 6128714278                      | PROGRAMME PAUSE record; supersedes ruling 146's ledger by this rewrite                                                                                                                                                                     |
+| owner design session 2026-10-12 | ruling 147. Pass 1: UR-39, UR-40, UR-41, UR-106, UR-29, UR-162, UR-163; corrected lines in UR-45, UR-66, UR-10, UR-121, UR-144. Pass 2: UR-24, UR-52, UR-59, UR-63, UR-25, UR-166, UR-168, UR-98, UR-125, UR-126, UR-151; package `[r147]` |
 
 ## Merged rules
 
@@ -224,7 +225,7 @@ number stays retired; it is never reused.
 
 Rules carried out or lapsed, removed from `rules.md` in pass 2 (owner design session 2026-10-12).
 Their numbers stay reserved, and code comments that cite them still resolve here. Reversing one is a
-ruling (UR-44; README "Considered and rejected" guards UR-11, UR-17 and UR-19).
+ruling (UR-44; README "Considered and rejected" guards UR-8, UR-11, UR-17 and UR-19).
 
 | rule  | original text                                                                                                                              | state                                                                       |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |

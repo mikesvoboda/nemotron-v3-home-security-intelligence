@@ -342,9 +342,9 @@ def test_sandbox_and_workspace_names_follow_agent_dgx() -> None:
 
 
 def test_split_lane_kickoff_carries_the_cell_sentence() -> None:
-    """roles/lane.md "Split lanes": a split lane's kickoff line carries one more
-    sentence, so an agent never claims a package outside its cell; every lane's line names
-    its lane, since all of them point at the one shared prompt in roles/lane.md."""
+    """roles/lane.md "Split lanes": a split lane's kickoff line names its cell, so the
+    agent claims from its cell's roster queue; every lane's line names its lane, since all
+    of them point at the one shared prompt in roles/lane.md."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     lines = {s.name: s.kickoff for s in phases[1]}
     for name, cell in ((OPS_A, "A"), (OPS_B, "B")):

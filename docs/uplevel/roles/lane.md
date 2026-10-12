@@ -150,8 +150,8 @@ docs/uplevel/roles/lane.md, which is your procedure, then your lane's line
 under "Kickoff prompt" in lane.md, then the packages file it names and the
 docs/uplevel/00-audit.md sections each package cites.
 
-Take the package the coordinator assigns you; otherwise claim one as lane.md,
-"Claiming a package", says, if your line lets you. Build it as lane.md,
+Claim the next package on your roster queue as lane.md, "Claiming a package",
+says; a heavy agent takes the package the coordinator assigns it. Build it as lane.md,
 "Building a package", says. Reviews come first, then the new comments on your
 own open PRs, then your package. Before each act, read the rules.md section the
 step names.
@@ -167,7 +167,7 @@ Then run the tick in lane.md, "The tick".
 - **"You are the frontend lane."** Your packages are in `docs/uplevel/packages/frontend.md`; your
   review label is `review:frontend`. You own `frontend/` and `docs/reference/feature-inventory.md`.
   The cross-lane rule (UR-9) governs every other file you touch.
-- **"You are cell A of the ops lane"** or **"You are cell B of the ops lane"**. Your packages are
+- **"You are cell A of the ops lane."** or **"You are cell B of the ops lane."** Your packages are
   in `docs/uplevel/packages/ops.md`; claim from your cell's roster queue (UR-52). Your review label
   is `review:ops-a` or `review:ops-b`. You own `ai/`, compose, `scripts/`, `.github/`, `setup.py`,
   `setup_lib/`, root config and `archive/`. The cross-lane rule (UR-9) governs every other file you

@@ -96,7 +96,7 @@ When the owner answers, in the same turn (UR-39):
 An owner approval of a PR is not plan text: post it on #6854 as "Owner approval, YYYY-MM-DD", naming the exact head SHA
 it approves, or the conditions the coordinator must check and quote before merging.
 
-An assignment to a lane is part of the ruling's text; the coordinator routes it on its next tick once the ruling binds.
+An assignment to a lane is part of the ruling's text; once the ruling binds, the named lane claims it from its roster queue (UR-52).
 If the owner wants an agent to start sooner, give the owner a prompt to paste into that agent's pane (see "Prompts").
 
 ## Owner PRs
@@ -112,10 +112,6 @@ bookkeeping the programme owes (for example, status rows).
 - Open the PR with a lane label, the ruling it implements, and `Plan text: …` in the body. Turn on auto-merge
   (`gh pr merge <n> --auto --merge`); the PR then queues as UR-108 and UR-104 say.
 - A plan PR that changes a hardcoded roster or command also changes `backend/tests/unit/scripts/test_uplevel_launch.py`.
-
-**Owed to the next owner plan PR** (as of 2026-10-11 14:30Z): nothing. The plan PR of 2026-10-11 afternoon carried
-rulings 103, 104, 106 (B2.2's parked note), 107, 109 and 111. Ruling 110 (docs' shared register) may add plan text once
-docs reports its facts.
 
 ## Stalls and recovery
 
@@ -154,7 +150,7 @@ the kickoff from `scripts/uplevel/sandboxes.toml` and `/loop` at the interval UR
 
 Check for these first; each has happened.
 
-- **`main` red from a slow test.** One breach of the sleep gate is red (UR-125); the cause has been a real sleep in the
+- **`main` red from a slow test.** A breach of the sleep gate that repeats on its re-run is red (UR-125); the cause has been a real sleep in the
   test (a poll waited out in real time, a real backoff with jitter), and the fix is in the test.
 - **A PR goes red after update-branch with an unchanged diff.** Something that merged meanwhile changed what the PR's own
   check reads. The author fixes it; the coordinator passes the merge slot on.

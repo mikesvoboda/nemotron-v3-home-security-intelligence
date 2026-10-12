@@ -32,7 +32,10 @@ tick".`
 4. Take the oldest README row on `main` that says `awaiting real tier` and run it: on the agent-gpu
    path below, or "A no-GPU run" where the row's PR says so. Runs the owner keeps (UR-30): say so on
    the row's PR; the coordinator lists them in its status comment on #6854.
-5. Otherwise say so in one line and end the turn (UR-38).
+5. Otherwise take the oldest open request for a run on your roster queue ([`lane.md`](lane.md),
+   "Who takes what"): an `F2.3` batch, ruling 142's verdict spread or an `O2.5` check, asked for on
+   its PR with the command to run. Run it the same way and post the output on that PR.
+6. Otherwise say so in one line and end the turn (UR-38).
 
 ## A test deployment, never the live stack
 

@@ -40,7 +40,7 @@ only because the CI stack cannot reach it is UR-153. The frontend lane records e
 **Phase 4 runs two tracks.** The **feature track** takes features in ruled priority, each as a
 design session, a test-only PR and a build PR with the feature and its golden path (UR-77, UR-79).
 The **background track** consolidates tests of modules no feature touches and deepens seams no
-feature has triggered. Seams are designed when reached (UR-11).
+feature has triggered. Seams are designed when reached.
 
 ## Cross-lane dependencies
 
@@ -227,7 +227,7 @@ UR-147.
   specifics, and the lane kickoff prompts.
 - [`roles/operator.md`](roles/operator.md): the operator's real-tier runbook and kickoff prompt.
 - [`roles/owner-partner.md`](roles/owner-partner.md): the owner's design partner — role, relay form
-  and handoff state.
+  and owner PRs.
 - [`packages/backend.md`](packages/backend.md), [`frontend.md`](packages/frontend.md),
   [`ops.md`](packages/ops.md), [`docs.md`](packages/docs.md): each lane's scope and open packages.
 - [`history/packages-done.md`](history/packages-done.md): finished packages, verbatim, by lane.

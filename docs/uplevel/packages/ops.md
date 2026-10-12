@@ -134,8 +134,8 @@ empty `agent-gpu ps` (`awaiting real tier` until then). `F2.1` then adds its gol
 ### O2.4 Re-ID on the GB300 GPU via TensorRT
 
 **Flags:** none: not heavy; not owner-tier at merge. **Depends on:** none named. Approved by owner
-ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). The coordinator assigns it to the first
-free ops cell; it edits `ai/gateway/` (cell A's files), so if ops cell B takes it, ops-a reviews.
+ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It is on ops-b's roster queue (UR-52);
+it edits `ai/gateway/` (cell A's files), so ops-a reviews.
 It may stay open past Phase 2's exit (UR-10, contract rule 5).
 
 - [ ] Serve the gateway's `reid` through TensorRT, a plan built for the serving GPU as `yolo26`'s
@@ -150,7 +150,8 @@ then. It does not flip `REID_BACKEND`; production stays `local`.
 ### O2.5 Production-shape real tier
 
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
-`feature_check.py --real` and ruling 143's Playwright container. The coordinator assigns the cell.
+`feature_check.py --real` and ruling 143's Playwright container. It is on ops-a's roster queue
+(UR-52); the operator runs its real-tier check.
 It gates only ruling 127's 12 real-tier rows, not Phase 2's exit (UR-10, contract rule 5).
 
 Both test tiers run `docker-compose.ci.yml` on Docker (`feature_check.py` `--engine` defaults to

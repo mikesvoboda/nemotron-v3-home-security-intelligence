@@ -148,7 +148,7 @@ Raise it only on the criteria in UR-25.
 1. Post it on #6854 as a new comment in the form UR-168 sets (first line starting `URGENT PATH`,
    no label, no @-mention), followed by the topic.
 2. State what you read this tick: for red `main`, the failing job and its log lines; for a stalled
-   agent, the agent and its open PRs; for an unclaimed package, the package and its agent.
+   agent, the agent and its open PRs.
 3. List every item still open at the top of the status comment until it closes (UR-166).
 
 ## Kickoff prompt

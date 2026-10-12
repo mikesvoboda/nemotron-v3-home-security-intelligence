@@ -3,7 +3,7 @@ title: The AGENTS.md Standard
 source_refs:
   - .agents-md-validator.yml:1
   - scripts/agents_md_validator.py:1
-  - docs/uplevel/packages/docs.md:23
+  - docs/uplevel/packages/docs.md:20
 ---
 
 # The AGENTS.md Standard

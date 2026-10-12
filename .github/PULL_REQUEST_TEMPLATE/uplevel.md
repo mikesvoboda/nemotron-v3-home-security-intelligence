@@ -1,4 +1,4 @@
-<!-- Uplevel package PR. The contract this follows: docs/uplevel/README.md, "The contract". -->
+<!-- Uplevel package PR. The contract this follows: docs/uplevel/rules.md, UR-10. -->
 
 ## Package
 
@@ -47,7 +47,7 @@ $ <command>
 
 ## Cross-lane parts
 
-<!-- Files outside your lane that this PR changes, and why (README cross-lane rule).
+<!-- Files outside your lane that this PR changes, and why (docs/uplevel/rules.md, UR-9).
      Delete if none. -->
 
 ## Review

@@ -1,7 +1,7 @@
 # The uplevel sandbox roster (O0.1, UR-26 and UR-28). scripts/uplevel/launch.py reads
 # this; the owner runs the launcher. The roster mirrors docs/uplevel/roles/lane.md ("Who
 # takes what"), docs/uplevel/roles/coordinator.md and docs/uplevel/roles/operator.md, and
-# the hand start of Phases 0 and 1 is docs/uplevel/rules.md UR-28 - when the coordinator
+# how the owner starts the sandboxes is docs/uplevel/rules.md UR-28 - when the coordinator
 # changes the plan, this file changes with it, in that PR.
 #
 # Each session: its name (agent-dgx's session; the sandbox is `agent-<name>`, its clone
@@ -40,7 +40,7 @@ name = "uplevel-ops-b"
 model = "fast"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/roles/lane.md. \
-You are cell B of the ops lane; take only packages the coordinator assigns to your cell."""
+You are cell B of the ops lane."""
 
 # Phase 1: the rest of the roster (roles/lane.md, "Who takes what"). The owner opened
 # `uplevel-heavy-2` on 2026-10-09; its row follows `uplevel-heavy`'s.
@@ -58,14 +58,14 @@ name = "uplevel-ops-a"
 model = "fast"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/roles/lane.md. \
-You are cell A of the ops lane; take only packages the coordinator assigns to your cell."""
+You are cell A of the ops lane."""
 
 [[phase.session]]
 name = "uplevel-ops-b"
 model = "fast"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/roles/lane.md. \
-You are cell B of the ops lane; take only packages the coordinator assigns to your cell."""
+You are cell B of the ops lane."""
 
 [[phase.session]]
 name = "uplevel-backend"
