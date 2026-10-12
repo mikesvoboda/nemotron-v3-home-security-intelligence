@@ -79,6 +79,8 @@ BACKEND_GOLDEN = REPO_ROOT / "backend" / "tests" / "golden"
 FRONTEND = REPO_ROOT / "frontend"
 FRONTEND_MODULES = FRONTEND / "node_modules"
 PLAYWRIGHT_CONFIG = FRONTEND / "playwright.config.ts"
+# The lock ruling 143 names as the golden image's version source.
+PACKAGE_LOCK = FRONTEND / "package-lock.json"
 
 # The services the golden paths need: the CI stack and the two fakes.
 FAKE_SERVICES = ("postgres", "redis", "backend", "frontend", "ai-vlm", "ai-gateway")
@@ -1074,25 +1076,105 @@ def compose_environment(caller: Mapping[str, str]) -> dict[str, str]:
     return {key: caller[key] for key in ENGINE_ENVIRONMENT if key in caller}
 
 
-# The caller-set variables the Playwright browser steps need beyond
-# ENGINE_ENVIRONMENT, and the only reason they get an env at all. The golden
-# TEST leg runs with the caller's whole environment, so it launches from a
-# moved cache; a probe judged at the default root would call that cache absent
-# (or, worse, call a stale default root present) and disagree with the runner.
-# Both of the variables that move that root are here: PLAYWRIGHT_BROWSERS_PATH
-# wins outright, else XDG_CACHE_HOME/ms-playwright (measured on the pinned
-# 1.63.0 CLI — with only XDG_CACHE_HOME set every "Install location:" line
-# moves under it, and chromium.executablePath() follows the same order, which
-# is what makes forwarding both safe: the probe reads the CLI's own answer).
-BROWSER_ENVIRONMENT = ("PLAYWRIGHT_BROWSERS_PATH", "XDG_CACHE_HOME")
+# Ruling 143: the golden Playwright leg runs inside Playwright's own image, so
+# the browser and its system libraries arrive with the runner instead of being
+# downloaded onto the host. The tag's VERSION never appears here — it comes from
+# frontend/package-lock.json (see playwright_image) — this is only the
+# repository and the Ubuntu release Playwright publishes images for.
+PLAYWRIGHT_IMAGE_REPOSITORY = "mcr.microsoft.com/playwright"
+PLAYWRIGHT_IMAGE_VARIANT = "noble"
+# The lock key whose version becomes the image tag: the package the golden specs
+# import, and the one `npm ci` installs from the same file.
+PLAYWRIGHT_LOCK_KEY = "@playwright/test"
+# The registry whose reachability ruling 116's firewall clause now governs. A
+# literal, not a parse of the ref, because the clause has to name a host at the
+# point where nothing else has run yet: when the pull fails there is no
+# engine-side fact to consult, only this string and the child's own tail. The
+# image's layer blobs live on a different host, so a block one hop past the
+# registry names itself in that tail — which is why the tail is kept.
+PLAYWRIGHT_IMAGE_REGISTRY = "mcr.microsoft.com"
+# The variables the containerized golden leg needs: exactly the ones the golden
+# specs read through process.env (grep of frontend/tests/golden/** for
+# FEATURE_CHECK_ returns API_URL, UI_URL, CAMERA_ROOT, CAMERAS, SCENARIOS,
+# ADMIN_USERNAME, ADMIN_PASSWORD — no MODE, no RUN_DIR) plus the junit path
+# golden() reads back. Names go to the engine; values never do.
+GOLDEN_CONTAINER_ENVIRONMENT = (
+    "FEATURE_CHECK_API_URL",
+    "FEATURE_CHECK_UI_URL",
+    "FEATURE_CHECK_CAMERA_ROOT",
+    "FEATURE_CHECK_CAMERAS",
+    "FEATURE_CHECK_SCENARIOS",
+    "FEATURE_CHECK_ADMIN_USERNAME",
+    "FEATURE_CHECK_ADMIN_PASSWORD",
+    "PLAYWRIGHT_JUNIT_OUTPUT_FILE",
+)
 
 
-def browser_environment(caller: Mapping[str, str]) -> dict[str, str]:
-    """``compose_environment`` plus the browser-cache location: the npm/npx
-    install steps' env. Still never the run env — no admin password."""
-    env = compose_environment(caller)
-    env.update({key: caller[key] for key in BROWSER_ENVIRONMENT if key in caller})
-    return env
+def playwright_image(lock_path: Path) -> str:
+    """The Playwright image ref for the version this repo's lock resolves.
+
+    Ruling 143: "where `<version>` comes from `frontend/package-lock.json`,
+    never hard-coded." The ref is `v<version>-<variant>` and the version is read
+    from the lock's own `packages["node_modules/@playwright/test"].version` — the
+    same entry `npm ci` installs, so the container's browser and the repo's
+    runner cannot disagree. A missing key RAISES instead of defaulting: a
+    defaulting version is a hard-coded version with extra steps, and the
+    Done-when for this package is a test that this function follows the lock.
+    """
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    packages = lock.get("packages") or {}
+    entry = packages.get(f"node_modules/{PLAYWRIGHT_LOCK_KEY}") or {}
+    version = entry.get("version")
+    if not isinstance(version, str) or not version:
+        raise HarnessError(
+            f"{lock_path} has no packages['node_modules/{PLAYWRIGHT_LOCK_KEY}'].version, "
+            f"so the golden image tag cannot be derived from it"
+        )
+    return f"{PLAYWRIGHT_IMAGE_REPOSITORY}:v{version}-{PLAYWRIGHT_IMAGE_VARIANT}"
+
+
+def golden_container_command(
+    *,
+    engine: str,
+    image: str,
+    inner: str,
+    read_only_mounts: Sequence[Path] = (),
+    mounts: Sequence[Path] = (),
+) -> list[str]:
+    """The `<engine> run` argv that runs `inner` inside the golden image.
+
+    Ruling 143's three requirements, one flag each: ``--network host`` is how the
+    container reaches the harness's stack on an engine-assigned port; every mount
+    is bound at its OWN absolute path, so a path recorded on the host names the
+    same file inside; and the engine is ``self.engine``, so ``--engine podman``
+    gets a podman invocation.
+
+    Two choices are load-bearing rather than stylistic:
+
+    * ``-e NAME`` with no ``=VALUE``. ``_run`` logs every argv it runs
+      (``shlex.join``), so ``-e FEATURE_CHECK_ADMIN_PASSWORD=…`` would write the
+      run's admin password into golden-playwright.log and the CI log. The
+      name-only form makes the engine read the value from ITS OWN environment,
+      which is the ``env=`` this command runs with.
+    * ``ro`` on the source tree. The leg has no reason to write into it — both
+      ``--output`` and the junit file live in the run dir — and a read-only bind
+      turns "the container wrote in the tree" from a quiet possibility into a
+      loud failure.
+
+    ``z`` (shared SELinux relabel) goes on the binds only under podman, matching
+    docker-compose.prod.yml's ``:z`` camera and data mounts: on an SELinux host a
+    podman bind without a relabel context reads Permission denied. Docker has no
+    relabel to do and rejects the option.
+    """
+    command = [engine, "run", "--rm", "--network", "host", "-w", str(FRONTEND)]
+    suffix = ",z" if engine == "podman" else ""
+    for path in read_only_mounts:
+        command += ["-v", f"{path}:{path}:ro{suffix}"]
+    for path in mounts:
+        command += ["-v", f"{path}:{path}{suffix}"]
+    for name in GOLDEN_CONTAINER_ENVIRONMENT:
+        command += ["-e", name]
+    return [*command, image, "sh", "-c", inner]
 
 
 # ---------------------------------------------------------------------------
@@ -1490,96 +1572,6 @@ class Run:
         self.summary["results"]["smoke"] = problems or "ok"
         return problems
 
-    # The install plan lines ruling 116's absence check parses: a header per
-    # build ("(playwright <browser> <vNNNN>)"), then its Install location and
-    # its Download url/fallback hosts. (playwright 1.63's shape, measured).
-    _PLAN_BUILD = re.compile(r"\(playwright (\S+) (v\d+)\)")
-    _PLAN_LOCATION = re.compile(r"^\s*Install location:\s+(\S+)")
-    _PLAN_URL = re.compile(r"^\s*Download (?:url|fallback \d+):\s+https://([^/:]+)/")
-    # A build directory counts as installed only when it carries the marker the
-    # CLI itself writes LAST, after extracting (1.63.0: browserFetcher's
-    # "already downloaded" early return tests <dir>/INSTALLATION_COMPLETE, and
-    # oopDownloadBrowserMain removes the dir → extractZip → chmod → writeFile
-    # (marker)). An interrupted download therefore leaves a directory WITHOUT
-    # it, which the runner cannot launch; is_dir() alone would call that
-    # "present" and skip the install, i.e. ruling 116's bug inside its own fix.
-    _BROWSER_MARKER = "INSTALLATION_COMPLETE"
-
-    def _ensure_chromium(self, results: dict[str, Any], problems: list[str]) -> None:
-        """Install Playwright Chromium when the lock-resolved runner's own dry
-        run names builds that are absent on disk (ruling 116). Accounted, never
-        raised — see the call site in golden() for the three measured facts
-        behind every choice here."""
-        env = browser_environment(os.environ)
-        plan = self._run(
-            ["npx", "playwright", "install", "--dry-run", "chromium"],
-            check=False,
-            cwd=FRONTEND,
-            env=env,
-        )
-        wanted: list[tuple[str, str, Path]] = []
-        hosts: set[str] = set()
-        pending: tuple[str, str] | None = None
-        for line in plan.stdout.splitlines():
-            build = self._PLAN_BUILD.search(line)
-            if build:
-                pending = (build.group(1), build.group(2))
-                continue
-            location = self._PLAN_LOCATION.match(line)
-            if location is not None and pending is not None:
-                wanted.append((pending[0], pending[1], Path(location.group(1))))
-                continue
-            url = self._PLAN_URL.match(line)
-            if url is not None:
-                hosts.add(url.group(1))
-        if plan.returncode != 0 or not wanted:
-            # An unreadable (or unparseable) plan means we cannot know which
-            # builds the locked runner wants; a speculative install could drag
-            # the wrong build down minutes of download. The test npx below
-            # still runs and names the launch failure in its own output.
-            # A stall reads as exit "timed out", not "exit 124": an operator
-            # comparing a summary against a firewall notice has to be able to
-            # tell "the probe never came back" from "the probe refused".
-            results["playwright_browsers"] = (
-                f"probe exit {_exit_word(plan)}" if plan.returncode != 0 else "probe empty"
-            )
-            return
-        missing = sorted(
-            f"{name} {version}"
-            for name, version, where in wanted
-            if not (where / self._BROWSER_MARKER).is_file()
-        )
-        if not missing:
-            results["playwright_browsers"] = "present"
-            return
-        _log(f"golden: chromium builds absent ({', '.join(missing)}); installing")
-        install = self._run(
-            ["npx", "playwright", "install", "chromium"],
-            check=False,
-            timeout=1800,
-            cwd=FRONTEND,
-            env=env,
-        )
-        if install.returncode == 0:
-            results["playwright_browsers"] = f"installed {' '.join(missing)}"
-            return
-        # "exit timed out" rather than "exit 124": see _exit_word -- a stalled
-        # download must not read like a refusal in summary.json.
-        results["playwright_browsers"] = f"exit {_exit_word(install)}"
-        # Ruling 116's firewall: the failure names the download hosts the plan
-        # offers, so the owner has something to allow; the harness does not work
-        # around a block. "named by" is load-bearing, not hedging -- the Chrome
-        # for Testing URLs 307 to storage.googleapis.com (measured 2026-10-11:
-        # cdn.playwright.dev/builds/cft/... -> storage.googleapis.com/
-        # chrome-for-testing-public/...), so a block can happen one hop past any
-        # host the plan prints, and the operator's own error tail (kept below)
-        # is what names the host that actually refused.
-        problems.append(
-            f"golden: npx playwright install chromium exited {install.returncode} "
-            f"(hosts named by the plan: {', '.join(sorted(hosts))}): "
-            f"{(install.stderr or install.stdout).strip()[-400:]}"
-        )
-
     def golden(self) -> list[str]:
         env = {
             **os.environ,
@@ -1655,63 +1647,99 @@ class Run:
                         f"golden: npm ci in frontend/ exited {install.returncode}: "
                         f"{(install.stderr or install.stdout).strip()[-400:]}"
                     )
-            # Ruling 116: npm ci brings the RUNNER, not Chromium. The operator's
-            # --real re-run then failed every spec in about 3 ms on
-            #   browserType.launch: Executable doesn't exist at
-            #   ~/.cache/ms-playwright/chromium_headless_shell-1243/…
-            # (testing.md, merged with #6999, predicts exactly this). So an
-            # absent browser set is installed once here. Three measured facts
-            # shape it (2026-10-11, this sandbox, the repo's own lock):
-            #   * the gate is node_modules/.bin/playwright, not node_modules --
-            #     `npx playwright` with the locked package missing resolves to
-            #     the LATEST package, whose plan names a DIFFERENT build (v1248
-            #     vs the lock's v1243), so a half-installed tree would install
-            #     browsers the locked runner cannot launch; a failed npm ci
-            #     therefore skips this block entirely (the named npm_ci step
-            #     above already says why);
-            #   * absence is read from the dry-run plan's own "Install
-            #     location:" lines rather than a hardcoded ~/.cache/... path:
-            #     that keeps the check version-aware (a Playwright bump changes
-            #     the build number) and follows a custom
-            #     PLAYWRIGHT_BROWSERS_PATH, because the plan prints the very
-            #     locations the install would use -- which is what the env bullet
-            #     below has to preserve. The dry-run is a PLAN printer --
-            #     identical output whether the builds exist or not -- so the
-            #     filesystem, not the probe's exit code, is the presence oracle;
-            #   * env: browser_environment(os.environ), not the default
-            #     compose_environment and not golden()'s run env. Ruling 102's
-            #     discipline still holds -- FEATURE_CHECK_ADMIN_PASSWORD never
-            #     reaches an npm/npx child -- but the bare engine view is not
-            #     enough here, because the TEST npx below runs with the caller's
-            #     WHOLE environment (the specs log in), so it honours a caller-set
-            #     PLAYWRIGHT_BROWSERS_PATH. Measured on this repo's own 1.63.0
-            #     CLI: with that variable set, every "Install location:" line in
-            #     the plan moves under it. Judged at the default root, a moved
-            #     cache would read absent and download builds the runner never
-            #     uses -- and a stale-but-complete default root would read
-            #     present and install nothing, which is ruling 116's own bug all
-            #     over again. So the two browser steps carry the engine's view
-            #     PLUS that one variable, and nothing else.
-            # A failure is ACCOUNTED, not worked around (the ruling's firewall:
-            # "If the operator sandbox cannot reach Playwright's download host,
-            # the PR names the host and the owner allows it. The harness does
-            # not work around a block."), and the test npx still runs so its own
-            # output carries Playwright's browser-missing message.
-            if (FRONTEND_MODULES / ".bin" / "playwright").exists():
-                self._ensure_chromium(results, problems)
-            result = self._run(
+            # Ruling 143 replaces ruling 116's browser install. The leg used to
+            # run `npx playwright test` on the HOST, which meant the host needed
+            # Chromium: npm ci brings the runner but not the browser, so the
+            # operator's --real run failed every spec in about 3 ms on
+            # "browserType.launch: Executable doesn't exist at
+            # ~/.cache/ms-playwright/chromium_headless_shell-1243/…" and a
+            # multi-minute `npx playwright install chromium` was bolted on to fix
+            # it. Now the leg runs inside Playwright's own image, which carries
+            # the browser AND the system libraries it links, so there is nothing
+            # to install and no exit-127 to recover from. The image tag's version
+            # comes from frontend/package-lock.json (playwright_image), never a
+            # literal here.
+            #
+            # Ruling 116's firewall clause survives, moved onto the thing that now
+            # has to be fetched: "if the registry is blocked, the failure names the
+            # host, and the harness does not work around it." So the pull is its
+            # own accounted step -- a problem naming the registry and the child's
+            # own tail -- rather than an error buried inside the test run's output.
+            #
+            # The pull is attempted only when the tag is absent locally, which is
+            # what `run` would do anyway. That ordering matters for the blocked
+            # case: a host that already has the image and cannot reach the registry
+            # stays green (correct -- a versioned tag is content, and a present
+            # copy of it IS the right browser), while a host with neither gets one
+            # named failure instead of two.
+            try:
+                image = playwright_image(PACKAGE_LOCK)
+            except HarnessError as lock_problem:
+                # Accounted, not raised: a raise flies past golden() to the
+                # harness's catch-all, which discards the results dict and every
+                # step after this one. The leg is genuinely red -- there is no
+                # image to run -- so it reads red here and says why.
+                results["playwright"] = "no image tag"
+                problems.append(f"golden: {lock_problem}")
+                problems += golden_execution_problems("playwright", {})
+                self.summary["results"]["golden"] = results
+                return problems
+            results["playwright_image"] = image
+            have = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+            available = have.returncode == 0
+            if available:
+                results["playwright_image_pull"] = "present"
+            else:
+                pull = self._run([self.engine, "pull", image], check=False, timeout=1800)
+                available = pull.returncode == 0
+                results["playwright_image_pull"] = (
+                    "pulled" if available else f"exit {_exit_word(pull)}"
+                )
+                if not available:
+                    problems.append(
+                        f"golden: {self.engine} pull of {image} exited {pull.returncode} "
+                        f"(registry: {PLAYWRIGHT_IMAGE_REGISTRY} — the host to allow; the "
+                        f"harness does not work around a block): "
+                        f"{(pull.stderr or pull.stdout).strip()[-400:]}"
+                    )
+            if not available:
+                # The leg cannot run and no image means no specs: that is exactly
+                # the evidential hole ruling 114 exists for, so it is reported as
+                # one rather than left as a silent gap. The named pull failure
+                # above already carries the host; this says the leg did not run.
+                results["playwright"] = "image unavailable"
+                results["playwright_specs"] = {}
+                problems += golden_execution_problems("playwright", {})
+                self.summary["results"]["golden"] = results
+                return problems
+            # The leg, in the image. Same argv as before -- --project=golden,
+            # --output=<run dir>, --reporter=list,junit -- because ruling 143's
+            # first Done-when is that the fake-tier golden passes "with the same
+            # counts"; only the wrapper changed. Both mounts are at their own
+            # absolute paths so `report` and `junit` name the same file on both
+            # sides, and the run dir is mounted rw because that is where the leg
+            # writes (junit, --output traces, .last-run.json under outputDir).
+            inner = " ".join(
                 [
                     "npx",
                     "playwright",
                     "test",
                     "--project=golden",
-                    f"--output={report}",
+                    shlex.quote(f"--output={report}"),
                     "--reporter=list,junit",
-                ],
+                ]
+            )
+            result = self._run(
+                golden_container_command(
+                    engine=self.engine,
+                    image=image,
+                    inner=inner,
+                    read_only_mounts=[FRONTEND],
+                    mounts=[self.dir],
+                ),
                 check=False,
                 timeout=1800,
                 env={**env, "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit)},
-                cwd=FRONTEND,
             )
             (self.artifacts / "golden-playwright.log").write_text(
                 result.stdout + result.stderr, encoding="utf-8"
