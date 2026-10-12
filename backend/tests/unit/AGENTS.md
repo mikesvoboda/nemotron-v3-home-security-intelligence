@@ -302,6 +302,20 @@ Fixtures defined locally in individual test files (copy the pattern, don't expec
 | `clean_env`         | Isolated environment for config tests | config/TLS tests                        |
 | `session`           | Database session with rollback        | `backend/tests/integration/conftest.py` |
 
+### Shipped state guards (autouse — know these exist before debugging)
+
+Addopts run the unit tier under xdist with randomized order, so a module global
+one test poisons outlives it and lands on a stranger. These sweeps run on every
+unit test; when a failure looks like "passes alone, red in the suite", check
+here first — and note which file each lives in, because they are not all in the
+root conftest above:
+
+| Guard                           | What it sweeps                                                                                                                                                                                                | Defined in                         |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `isolate_redis_module_global`   | `backend.core.redis` module globals before/after each test (a cached client bound to a closed loop answers 500 where the contract says 409)                                                                   | `backend/tests/unit/conftest.py`   |
+| `isolate_database_module_state` | `backend.core.database` engine/session globals (helper `_clear_database_module_state`; pinned by `core/test_database_state_isolation.py`)                                                                     | `backend/tests/unit/conftest.py`   |
+| root-logging restore            | `pytest_runtest_protocol` hookwrapper snapshots root logger state per test and restores it, so one lifespan-booting test's `setup_logging()` cannot leak `record.asctime` into later tests' `extra=` ratchets | `backend/tests/conftest.py` (root) |
+
 ## Mocking Patterns
 
 ### Redis Mocking
