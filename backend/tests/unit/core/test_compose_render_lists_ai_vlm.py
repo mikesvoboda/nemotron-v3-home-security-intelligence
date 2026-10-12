@@ -1,6 +1,6 @@
 """The Done-when for O1.3, executable: a default `config --services` render lists `ai-vlm`.
 
-`docs/uplevel/30-ops.md` O1.3 states its bar as a command an operator runs:
+`docs/uplevel/history/packages-done.md` O1.3 states its bar as a command an operator runs:
 "`podman compose -f docker-compose.prod.yml config --services` with no profile
 flag lists `ai-vlm`". The structural pin next door
 (`test_ai_vlm_compose_service.py::test_starts_by_default`) proves the same fact
