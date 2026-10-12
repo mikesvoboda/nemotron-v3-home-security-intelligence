@@ -1246,11 +1246,13 @@ def test_test_rule_against_events_rounds():
             "started_at": None,
         },
     ]
-    out2 = run(
-        engine.test_rule_against_events(
-            rule(id=6, schedule={"start_time": "00:00", "end_time": "23:59"}), [e1]
-        )
-    )
+    # m2 kill surface kept: current_time is deliberately omitted, so under mutant m2
+    # (the None-substitution dropped) the None reaches _check_schedule and crashes at
+    # the tz deref before any window logic. The schedule is {"days": []} - truthy (so it
+    # still derefs current_time) but with NO start_time/end_time, so _check_schedule
+    # returns True at EVERY wall-clock instant. The old {"00:00","23:59"} window made
+    # this assert red for 59 s a day (2026-10-11 23:59 red) without adding kill power.
+    out2 = run(engine.test_rule_against_events(rule(id=6, schedule={"days": []}), [e1]))
     assert out2[0]["matches"] is True  # m2: current_time=None crashes inside
 
 
