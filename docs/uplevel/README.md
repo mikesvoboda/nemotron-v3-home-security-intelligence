@@ -78,13 +78,13 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
 - **fake stack** — the CI compose stack plus a deterministic fake VLM and fake detector; runs
   anywhere, no GPU.
 - **real tier** — the same golden paths run by `scripts/feature-check.sh --real` on the GB300 with
-  real models (who runs it and where: UR-15, UR-132, UR-133).
+  real models (who runs it and where: UR-15, UR-133).
 - **test deployment** — a disposable stack created for one run: its own compose project, env file,
   host ports, volumes and camera directory, sharing only read-only model weights with anything
   else on the machine (`O2.2`). When one is required: UR-133.
 - **operator** — whoever runs real-tier commands: the `uplevel-operator` agent, whose sandbox
   reaches the GB300 through `agent-gpu`, or the owner for the runs that path cannot make (UR-30,
-  UR-132); its procedure is [`roles/operator.md`](roles/operator.md).
+  UR-15); its procedure is [`roles/operator.md`](roles/operator.md).
 - **feature inventory** — `docs/reference/feature-inventory.md` (created by `F2.2`): one row per
   feature with status, evidence, modules and ruling. Built in Phase 2, kept current after.
 - **interface bar**, **kill-loss**, **zero kill-loss**, **accepted survivor**, **scored set** —

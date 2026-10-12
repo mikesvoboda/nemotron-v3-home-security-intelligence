@@ -394,10 +394,9 @@ or write anything for the real tier. Who holds the GPU, and which runs the owner
   on the harness's engine, with no browser-install step. A blocked registry or download host is
   named in the failure, never worked around. (rulings 116, 143)
 - **UR-15** The real tier is operator-run on the GB300 by a committed script; no self-hosted runner.
-  Real-model checks run there through the operator, never from CI or GitHub (UR-132). (UR-15)
-- **UR-132** Real-model checks run on the GB300 by the operator, never from CI or GitHub. A lane
-  agent writes the real-tier command into its PR's "Real tier" section, and the operator runs it.
-  (README vocabulary "operator"; ops kickoff prompt; 30-ops.md `O2.2`)
+  Real-model checks run there through the operator, never from CI or GitHub: a lane agent writes the
+  real-tier command into its PR's "Real tier" section, and the operator runs it. (UR-15; README
+  vocabulary "operator"; ops kickoff prompt; 30-ops.md `O2.2`)
 - **UR-133** Every real-tier command runs on a test deployment, never the live stack: its own
   compose project, generated env file (never the checkout's `.env`), remapped ports, volumes and
   fresh camera directory, sharing only read-only model weights. A run that would touch the live

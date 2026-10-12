@@ -171,7 +171,7 @@ Then run the tick in lane.md, "The tick".
   in `docs/uplevel/packages/ops.md`; claim from your cell's roster queue (UR-52). Your review label
   is `review:ops-a` or `review:ops-b`. You own `ai/`, compose, `scripts/`, `.github/`, `setup.py`,
   `setup_lib/`, root config and `archive/`. The cross-lane rule (UR-9) governs every other file you
-  touch. Real-model checks are the operator's (UR-132).
+  touch. Real-model checks are the operator's (UR-15).
 - **"You are the docs lane."** Your packages are in `docs/uplevel/packages/docs.md`; your review
   label is `review:docs`. Read the AGENTS.md standard at `docs/developer/agents-md-standard.md`
   after the packages file, and apply it (UR-88). Start Phase 3 work as UR-68 allows. You own

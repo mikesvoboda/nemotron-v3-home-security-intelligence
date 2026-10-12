@@ -181,35 +181,44 @@ lists every number that left `rules.md`.
 Numbers removed from `rules.md` in pass 2 because a lower-numbered rule said the same thing. Each
 number stays retired; it is never reused.
 
-| rule   | became                              |
-| ------ | ----------------------------------- |
-| UR-49  | merged into UR-22                   |
-| UR-57  | merged into UR-52                   |
-| UR-71  | merged into UR-10 (contract rule 1) |
-| UR-72  | merged into UR-10 (contract rule 2) |
-| UR-73  | merged into UR-10 (contract rule 3) |
-| UR-74  | merged into UR-10 (contract rule 4) |
-| UR-75  | merged into UR-10 (contract rule 5) |
-| UR-80  | merged into UR-9                    |
-| UR-90  | merged into UR-32                   |
-| UR-97  | merged into UR-23                   |
-| UR-109 | merged into UR-94                   |
-| UR-110 | merged into UR-29                   |
-| UR-117 | merged into UR-34                   |
-| UR-118 | merged into UR-34                   |
-| UR-120 | merged into UR-37                   |
-| UR-139 | merged into UR-30                   |
-| UR-145 | merged into UR-46                   |
-| UR-150 | merged into UR-10                   |
-| UR-158 | merged into UR-38                   |
-| UR-159 | merged into UR-38                   |
-| UR-161 | merged into UR-38                   |
-| UR-164 | merged into UR-36                   |
-| UR-165 | merged into UR-25                   |
-| UR-167 | merged into UR-25                   |
-| UR-169 | merged into UR-28                   |
-| UR-171 | merged into UR-26                   |
-| UR-172 | merged into UR-30                   |
+| rule   | became                                                                       |
+| ------ | ---------------------------------------------------------------------------- |
+| UR-49  | merged into UR-22                                                            |
+| UR-57  | merged into UR-52                                                            |
+| UR-71  | merged into UR-10 (contract rule 1)                                          |
+| UR-72  | merged into UR-10 (contract rule 2)                                          |
+| UR-73  | merged into UR-10 (contract rule 3)                                          |
+| UR-74  | merged into UR-10 (contract rule 4)                                          |
+| UR-75  | merged into UR-10 (contract rule 5)                                          |
+| UR-80  | merged into UR-9                                                             |
+| UR-90  | merged into UR-32                                                            |
+| UR-97  | merged into UR-23                                                            |
+| UR-109 | merged into UR-94                                                            |
+| UR-110 | merged into UR-29                                                            |
+| UR-117 | merged into UR-34                                                            |
+| UR-118 | merged into UR-34                                                            |
+| UR-120 | merged into UR-37                                                            |
+| UR-139 | merged into UR-30                                                            |
+| UR-145 | merged into UR-46                                                            |
+| UR-150 | merged into UR-10                                                            |
+| UR-158 | merged into UR-38                                                            |
+| UR-159 | merged into UR-38                                                            |
+| UR-161 | merged into UR-38                                                            |
+| UR-164 | merged into UR-36                                                            |
+| UR-165 | merged into UR-25                                                            |
+| UR-167 | merged into UR-25                                                            |
+| UR-169 | merged into UR-28                                                            |
+| UR-171 | merged into UR-26                                                            |
+| UR-172 | merged into UR-30                                                            |
+| UR-50  | merged into UR-24 (pass 2 Q3, Q4)                                            |
+| UR-58  | merged into UR-52 (pass 2 Q4)                                                |
+| UR-60  | merged into UR-59 (pass 2 Q4)                                                |
+| UR-61  | merged into UR-59 (pass 2 Q4)                                                |
+| UR-62  | merged into UR-52 (pass 2 Q4)                                                |
+| UR-93  | merged into UR-91 (pass 2 Q7)                                                |
+| UR-103 | dropped by the owner: no wait for `main`'s own run after a merge (pass 2 Q7) |
+| UR-105 | merged into UR-104 (pass 2 Q7)                                               |
+| UR-132 | merged into UR-15 (pass 2 Q3)                                                |
 
 ## Retired rules
 
