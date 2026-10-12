@@ -1,9 +1,11 @@
-# `[r94]` mutation battery
+# `[r94]` evidence harness
 
-The harness behind `[r94]`'s mutation evidence (PR #7038). Contract rule 3 of
-`docs/uplevel/rules.md` (UR-10) — "tools live in the repo; work from `/tmp` or a home
-directory does not count as evidence" — so the driver lives here, not in `/tmp`.
-Precedent: `scripts/uplevel-f13-done-when/`, which cites `scripts/uplevel-real-tier/`.
+The harness behind `[r94]`'s evidence (PR #7038): `battery.py` scores mutants against
+this package's own suite, and `sourcing_shapes.py` measures how bash reads a converted
+`API_KEYS` line. Contract rule 3 of `docs/uplevel/rules.md` (UR-10) — "tools live in the
+repo; work from `/tmp` or a home directory does not count as evidence" — so both live
+here, not in `/tmp`. Precedent: `scripts/uplevel-f13-done-when/`, which cites
+`scripts/uplevel-real-tier/`.
 
 `setup.py` and `setup_lib/core.py` are **not** in mutmut's scored set (`pyproject.toml`
 → `[tool.mutmut] source_paths = ["backend/services", "backend/api/routes"]`), so the
@@ -63,7 +65,7 @@ mutated, so check `git diff` before trusting anything else.
 | M15    | `_value_of` takes the FIRST match, not the last   | a stale key gets the scope                 |
 | M16    | "keep no quote as found" (the pre-fix policy)     | a pre-R60 line comes out unquoted          |
 
-Three of these earned their place by finding something rather than confirming it. **M13
+Four of these earned their place by finding something rather than confirming it. **M13
 and M15 were QUIET on the first run** (13/15 caught at the time) — that is how the two
 missing pins were found. **M9** plants a defect that was genuinely in this code as first
 written here: the rewritten line dropped its own terminator, which joins two `.env`
@@ -72,3 +74,26 @@ before it ("keep the line's quote as found"), which is the defect worth pinning 
 because the affected population is exactly the one this ruling targets: a pre-R60 file,
 where `setup.py` wrote `API_KEYS` unquoted and a converted line would then come out
 unquoted and stop sourcing.
+
+## `sourcing_shapes.py` — the measurement behind the quote rule
+
+This package claims the single quote, not the compact separators, is what makes a
+converted `API_KEYS` line survive being sourced. That is a claim about bash, so it is
+measured rather than asserted:
+
+```bash
+uv run python scripts/uplevel-r94-mutation/sourcing_shapes.py
+```
+
+| shape            | rc  | the value that arrives           |
+| ---------------- | --- | -------------------------------- |
+| unquoted-compact | 0   | mangled — JSON readers reject it |
+| unquoted-spaced  | 127 | bash tries to _execute_ `{key::` |
+| quoted-compact   | 0   | parses, 2 entries                |
+| quoted-spaced    | 0   | parses, 2 entries                |
+
+The two quoted rows parse, so compactness is a consistency choice (match
+`merge_api_keys`, which writes `separators=(",", ":")`) and the quote is the
+correctness one. The dangerous row is `unquoted-compact`: it exits 0 and hands the
+operator a value that is silently not JSON. The probe exits 0 when exactly two rows fail
+to parse, which is the split the table shows.
