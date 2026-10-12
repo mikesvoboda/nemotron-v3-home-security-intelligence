@@ -50,6 +50,13 @@ class Citation:
         doc_file: Source documentation file containing this citation
         doc_line: Line number in documentation where citation appears
         raw_text: Original citation text as it appears in documentation
+        symbol_inferred: True when ``symbol_name`` was guessed from surrounding
+            prose rather than typed by the author. Only the prose-inference site
+            in ``parsers/markdown.py`` sets it; the declared forms (frontmatter
+            ``source_refs``, mermaid nodes, code-block ``# Source:`` comments)
+            leave it False. It carries the severity contract: a declared symbol
+            is a claim, so a miss is an ERROR; an inferred one was never written
+            and may only WARN.
     """
 
     file_path: str

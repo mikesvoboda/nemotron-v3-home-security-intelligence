@@ -16,12 +16,19 @@ cli.py keeps only the most severe result per citation (:261-267), the false
 error REPLACES that citation's healthy level-1 pass in the report: prose edits
 turn unrelated, correct citations red.
 
-Measured over docs/reference + docs/uplevel at 1980ae451: the whole AST tier
-emits 14 rows, of which 10 are these false positives and 4 are genuine line
-drift. Both halves are pinned here — the negatives per defect class, and
-positives so a filter that rejects everything cannot pass. Prose is verbatim
-from the shipped tree (feature-inventory.md rows F-033/F-125 at ca80efb2e;
-backend-entry-points.md lines 506/752/769/1274/1369/1422/1436/1533).
+Base evidence, reproduced two ways at this tree (the PR body originally quoted "9F/3P",
+which matches neither reading): reverting ALL of scripts/validate_docs/ to main gives
+10 failed / 3 passed; reverting only parsers/markdown.py (retaining the config fix)
+gives 6 failed / 7 passed. The suite is genuinely load-bearing either way.
+
+Census re-measured on THIS tree after the fix landed: over docs/reference +
+docs/uplevel the AST tier reports 5 rows, all warnings (pre-fix, at 1980ae451, the
+same command reported 14 rows, of which 10 were false positives — those 10 are the
+inferences this suite pins out). Negatives are pinned per defect class and positives
+so a filter that rejects everything cannot pass. Fixture prose is verbatim from the
+shipped tree (feature-inventory.md rows F-033/F-125 at ca80efb2e; backend-entry-points.md
+lines 506/752/769/1274/1369/1422/1436/1533) EXCEPT the `def fetch_state` positive
+control, whose name is constructed to fit the rule — marked at its test.
 """
 
 from __future__ import annotations
@@ -54,7 +61,10 @@ def infer(prose_before_cite: str) -> str | None:
 
 
 def test_midword_let_does_not_infer_a_symbol() -> None:
-    assert infer("instead of the SAME endpoint, and bullet TEXT is asserted ") is None
+    # Verbatim tail of feature-inventory.md row 159 (an earlier draft truncated the
+    # prefix and the header's "verbatim" claim was then only half true — the shipped
+    # row reads "…against a fresh Node read of the SAME endpoint, and bullet TEXT…").
+    assert infer("against a fresh Node read of the SAME endpoint, and bullet TEXT is asserted ") is None
 
 
 def test_pattern_anchors_the_keyword_at_a_word_boundary() -> None:
@@ -142,7 +152,42 @@ def test_class_inside_a_code_span_still_infers_its_symbol() -> None:
 
 
 def test_legit_def_still_infers_its_symbol() -> None:
+    # CONSTRUCTED control (name invented to fit the rule; NOT verbatim tree prose)
+    # — proves the rule accepts a backticked def at all. The verbatim positives are
+    # the two above them (`async def lifespan`, `class _ThreadWatchdog(...)`).
     assert infer("the route calls `def fetch_state` before returning ") == "fetch_state"
+
+
+def test_fenced_signature_after_a_cite_is_code_evidence() -> None:
+    # The architecture-doc convention is cite, then a fenced signature (390 cite→fence
+    # pairs across 70 docs). A fence is the author's STRONGEST code mark; a rule that
+    # accepts same-line backticks but not the fence below the cite silently retired
+    # real drift — e.g. docs/architecture/background-services/file-watcher.md:296
+    # cites file_watcher.py:257-288 while `def is_valid_video` is really at :306.
+    content = (
+        "Basic existence and size check (`backend/services/file_watcher.py:257-288`):\n"
+        "\n"
+        "```python\n"
+        "def is_valid_video(file_path: str) -> bool:\n"
+        '    """docstring"""\n'
+        "```\n"
+    )
+    cite = "`backend/services/file_watcher.py:257-288`"
+    assert _extract_symbol_from_context(content, content.index(cite)) == "is_valid_video"
+
+
+def test_prose_inside_a_fence_is_still_judged_by_the_same_rules() -> None:
+    # A fence is code evidence, not a licence: a keyword that only reads as English
+    # must not become a symbol just because a fence is nearby.
+    content = (
+        "See (`backend/services/file_watcher.py:257-288`):\n"
+        "\n"
+        "```\n"
+        "the class of service is selected by the router\n"
+        "```\n"
+    )
+    cite = "`backend/services/file_watcher.py:257-288`"
+    assert _extract_symbol_from_context(content, content.index(cite)) is None
 
 
 # ==========================================================================
@@ -193,6 +238,30 @@ def test_author_declared_symbol_mismatch_still_fails() -> None:
     )
     result = validate_python_ast(declared, PROJECT_ROOT)
     assert result.status == CitationStatus.ERROR
+
+
+def test_the_parser_itself_sets_the_inferred_flag_end_to_end() -> None:
+    # The severity contract above hands `symbol_inferred` to Citation by hand, so it
+    # pins how the VALIDATOR reacts to a flag and never pins the PARSER setting it.
+    # Mutation-proved: with markdown.py's `symbol_inferred=symbol_name is not None`
+    # replaced by False — or polarity-flipped — the whole suite still passed 13, while
+    # the shipped cite at docs/reference/backend-entry-points.md:1436 scored ERROR
+    # again, which is the exact defect this PR exists to close. This test runs the real
+    # document through the real parser, so deleting or inverting that one line REDS it.
+    from scripts.validate_docs.parsers.markdown import extract_markdown_citations
+
+    doc = "docs/reference/backend-entry-points.md"
+    content = (PROJECT_ROOT / doc).read_text(encoding="utf-8")
+    inferred = [
+        c
+        for c in extract_markdown_citations(content, doc)
+        if c.symbol_name and c.doc_line == 1436
+    ]
+    assert inferred, "fixture drifted: line 1436 no longer carries an inferred-symbol cite"
+    assert all(c.symbol_inferred for c in inferred), (
+        "a name the author never typed must arrive marked as inferred, or the "
+        "severity split silently reverts to ERROR-on-English"
+    )
 
 
 if __name__ == "__main__":

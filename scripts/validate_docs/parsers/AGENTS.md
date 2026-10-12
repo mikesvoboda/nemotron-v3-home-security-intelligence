@@ -21,13 +21,23 @@ Package exports:
 
 **Functions:**
 
-| Function                         | Description                                   |
-| -------------------------------- | --------------------------------------------- |
-| `extract_markdown_citations()`   | Main entry: extracts all markdown citations   |
-| `parse_document()`               | Parse file and return (content, citations)    |
-| `_extract_frontmatter()`         | Split YAML frontmatter from body              |
-| `_parse_frontmatter_citations()` | Parse source_refs from frontmatter            |
-| `_extract_symbol_from_context()` | Infer a symbol from a code span near the cite |
+| Function                         | Description                                     |
+| -------------------------------- | ----------------------------------------------- |
+| `extract_markdown_citations()`   | Main entry: extracts all markdown citations     |
+| `parse_document()`               | Parse file and return (content, citations)      |
+| `_extract_frontmatter()`         | Split YAML frontmatter from body                |
+| `_parse_frontmatter_citations()` | Parse source_refs from frontmatter              |
+| `_extract_symbol_from_context()` | Infer a symbol from code evidence near the cite |
+| `_fenced_ranges()`               | Bodies of code-tagged ``` fences in a doc       |
+| `_is_coded_reference()`          | Name inside a same-line backticked span         |
+| `_is_fenced_reference()`         | Name inside a fence opening after the cite      |
+
+**What counts as code evidence for an inferred symbol:** the NAME (not the keyword) must
+either sit inside a backticked span on its own line, or inside a ```-fence whose info string
+names a programming language (`python`, `ts`, `tsx`, …). Bare fences are excluded on purpose:
+they are the largest group in `docs/` (5,792 vs 1,369 `python`) and hold transcripts and logs.
+A name that fails both, runs on into path/member syntax, or was clipped by the ±100-char
+window is not inferred at all.
 
 **Supported Formats:**
 
