@@ -25,20 +25,40 @@ the composition, not just the count: 13 of the 15 are defect specimens ('with', 
 'docstring', 'ba', the two severity-flag asserts); the other 2 — the fence-performance pair —
 die as `AttributeError: no attribute '_fenced_ranges'` because main has no fences parameter at
 all. They are red for an API reason, not a defect reason, and a bare "15F" hides that.
-Reverting only parsers/markdown.py (retaining config's word-boundary anchor): 11 failed / 8
-passed. Removing ONLY the anchor from config's SYMBOL_CONTEXT_PATTERN: 1 failed
+Reverting only parsers/markdown.py (retaining config's word-boundary anchor): 10 failed / 9
+passed. Removing ONLY the anchor from config's SYMBOL_CONTEXT_PATTERN (delete the leading `\b`
+from the head's copy — NOT config.py wholesale, which also carries the severity split): 1 failed
 (test_pattern_anchors_the_keyword_at_a_word_boundary) — mid-word's own specimen stays green
 because the code-span rule now also refuses it, so that class has two guards over one example.
 The suite is load-bearing in every arm.
+
+How to rebuild an arm, because a bare count is not reproducible without it: take a worktree at
+this commit, overwrite the named file(s) with `git show <base>:<path>`, run `-p no:randomly`.
+All three arms above were re-measured that way at origin/main `9bc51ece0` (whose
+parsers/markdown.py blob `df01eb3a8` is identical to the merge-base's, and whose 6 commits since
+touch neither file — so "revert to main" and "revert to merge-base" are the SAME arm here).
+An earlier revision of this header said 11F/8P for the markdown-only arm; that count came from an
+intermediate build of the fence pair, before the equality guard was rewritten to pay its
+self-sweeping arm only where a citation actually reads the fence set. It is corrected, not
+defended — the reviewer's count (10F/9P) reproduced from the recipe above, name for name.
 
 Census re-measured on THIS tree after the fix landed: over docs/reference +
 docs/uplevel the AST tier reports 5 rows, all warnings (pre-fix, at 1980ae451, the
 same command reported 14 rows, of which 10 were false positives — those 10 are the
 inferences this suite pins out). Negatives are pinned per defect class and positives
 so a filter that rejects everything cannot pass. Fixture prose is verbatim from the
-shipped tree (feature-inventory.md rows F-033/F-125 at ca80efb2e; backend-entry-points.md
+shipped tree (feature-inventory.md rows F-033/F-125 at ca80efb2e — lines 159 and 291 of that
+blob, the same rows the per-test comments call "row 159"/"row 291"; backend-entry-points.md
 lines 506/752/769/1274/1369/1422/1436/1533) EXCEPT the `def fetch_state` positive
 control, whose name is constructed to fit the rule — marked at its test.
+
+Bound, and check it before calling these fabricated: on current main, `grep -F 'bullet TEXT'
+docs/reference/feature-inventory.md` finds nothing — the row was rewritten after ca80efb2e, and
+the phrase now lives only in `summary-cards.spec.ts:30` — while 'contract-drift class as OP-1'
+is gone from the tree entirely. The strings are quoted from the commit named above, not from
+today's file: `git show ca80efb2e:docs/reference/feature-inventory.md` reproduces both. These
+are NEGATIVE specimens — they assert the extractor infers NOTHING from them — so later edits to
+those rows cannot invalidate a passing test; they exist to keep a real regression red.
 """
 
 from __future__ import annotations
