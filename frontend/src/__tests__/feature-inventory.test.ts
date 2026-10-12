@@ -68,6 +68,7 @@ interface InventoryLib {
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
   rowProblems: (row: Row) => string[];
   rowCites: (row: Row) => { file: string; line: number }[];
+  lineCount: (text: string) => number;
   callCovers: (call: ApiCall, claim: Claim) => boolean;
 }
 
@@ -169,7 +170,7 @@ describe('feature inventory (F2.2)', () => {
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: repo-relative paths read from a committed doc
         if (!fs.existsSync(p)) return [`${r.id}: ${file} does not exist`];
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: as above
-        const lines = fs.readFileSync(p, 'utf8').split('\n').length;
+        const lines = lib.lineCount(fs.readFileSync(p, 'utf8'));
         return line <= lines ? [] : [`${r.id}: ${file}:${line} is past the end (${lines} lines)`];
       })
     );

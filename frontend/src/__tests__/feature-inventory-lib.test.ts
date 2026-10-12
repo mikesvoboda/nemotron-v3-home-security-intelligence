@@ -59,6 +59,7 @@ interface Lib {
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
   rowProblems: (row: Row) => string[];
   rowCites: (row: Row) => { file: string; line: number }[];
+  lineCount: (text: string) => number;
   callerChain: (options: { root: string; file: string; name: string }) => {
     mounted: boolean;
     lines: string[];
@@ -358,6 +359,34 @@ describe('rowCites', () => {
       { file: 'docker-compose.prod.yml', line: 989 },
       { file: 'pyproject.toml', line: 90 },
     ]);
+  });
+});
+
+describe('lineCount', () => {
+  // `text.split('\n').length` is the obvious way to count lines and it is one
+  // too many for any file ending in a newline, which is every non-empty file
+  // this repo tracks. The gate compared a cited line against that length, so a
+  // cite one past the end of a file passed; the printer indexed the phantom
+  // element and printed an empty line as if it were the cited source.
+  it('does not count the empty string after a trailing newline as a line', () => {
+    expect(lib.lineCount('a\nb\n')).toBe(2);
+    expect(lib.lineCount('a\nb')).toBe(2);
+    expect(lib.lineCount('a')).toBe(1);
+  });
+
+  it('counts a real blank line, but not one fabricated by the final newline', () => {
+    expect(lib.lineCount('a\n\n')).toBe(2); // line 2 genuinely exists, and is empty
+    expect(lib.lineCount('\n')).toBe(1);
+    expect(lib.lineCount('\n\n')).toBe(2);
+  });
+
+  it('counts no lines in a file with no bytes', () => {
+    // Without the empty-text guard `''` splits to `['']` and reads as one line.
+    expect(lib.lineCount('')).toBe(0);
+  });
+
+  it('keeps CRLF line endings at the same count as LF', () => {
+    expect(lib.lineCount('a\r\nb\r\n')).toBe(2);
   });
 });
 
