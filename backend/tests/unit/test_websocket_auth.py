@@ -541,6 +541,7 @@ class TestWebSocketAuthCloseCodes:
         # without a reachable Redis that is connect()'s full 3-attempt backoff
         # (3.28 s measured here; CI's WARN draws for this id are 3.22-3.65 s).
         # None of it belongs to the 4002 verdict, which comes from the JWT leg.
+        mock_websocket.cookies = {}
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 

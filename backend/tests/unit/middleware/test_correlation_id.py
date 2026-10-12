@@ -151,7 +151,7 @@ class TestCorrelationIdMiddleware:
         """Verify correlation ID is available via get_request_id() during request."""
         # This is tested implicitly by the middleware setting request_id
         # We can verify by checking the debug endpoint response
-        status_code, data = await _get_pipeline_state(skip_redis=False)
+        status_code, data = await _get_pipeline_state(skip_redis=True)
 
         assert status_code == 200
         assert data.get("correlation_id") == "context-test-456"
@@ -176,7 +176,7 @@ class TestCorrelationIdMiddleware:
         dependency is answered the way ``test_debug_api.py`` already answers it
         for every other test of this endpoint.
         """
-        status_code, data = await _get_pipeline_state(skip_redis=False)
+        status_code, data = await _get_pipeline_state(skip_redis=True)
 
         assert status_code == 200
         assert data.get("correlation_id") == "context-test-456"
