@@ -349,12 +349,16 @@ Read this section before you change a workflow, a CI job, a hook or the gate.
 Read this section when a test is slow, a timing gate is red, or you would change a test's timeout or
 the gates.
 
-- **UR-125** The real-sleep gate fails any unit test over 4.0 s, with no "healthy in the previous
-  run" downgrade, and lists any unit test over 1.5 s as a warning that never fails the run; it keeps
-  no baseline file. (rulings 93, 122; supersedes ruling 74)
-- **UR-126** One breach of the sleep gate is red, and the remedy is in the test, not the gate.
+- **UR-125** The real-sleep gate fails a unit test over 4.0 s only when the breach reproduces: the
+  gate re-runs that one test once, in the same job, and the run is red only if the re-run also
+  breaches; a test that passes on its re-run is listed as a warning with both timings. Any unit
+  test over 1.5 s is listed as a warning that never fails the run. There is no cross-run allowance
+  and no baseline file. (rulings 93, 122; owner design session 2026-10-12, pass 2 Q9; supersedes
+  ruling 74)
+- **UR-126** A reproduced breach is red, and the remedy is in the test, not the gate.
   `SLOW_TEST_PATTERNS`, each entry with its measured note, is the only channel for a genuinely slow
-  test; `@pytest.mark.slow` is read by neither gate. (ruling 122)
+  test; `@pytest.mark.slow` is read by neither gate. (ruling 122; owner design session 2026-10-12,
+  pass 2 Q9)
 
 ## Test tiers and the real tier
 

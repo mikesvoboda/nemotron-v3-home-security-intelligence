@@ -350,3 +350,17 @@ draft). The rule it builds is UR-131.
 
 **Done when** (rulings 141, 145): the shared step's argument list matches its shape before #7023,
 both tests carry `timeout(30)`, and `Collection Sanity` passes at the PR's head.
+
+### [r147] The real-sleep gate re-runs a breach before failing
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** none yet.
+Builds UR-125 as the owner amended it (owner design session 2026-10-12, pass 2 Q9).
+
+- [ ] When the Test Performance Audit finds a unit test over 4.0 s, it re-runs only that test, once,
+      in the same job, and fails the run only if the re-run also breaches.
+- [ ] A test that passes on its re-run is listed as a warning carrying both timings.
+- [ ] No baseline file and no cross-run allowance are added; `SLOW_TEST_PATTERNS` stays the only
+      exemption.
+
+**Done when:** a unit test pins each case (breach then pass on re-run is a warning; breach twice
+is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s current tests in CI.
