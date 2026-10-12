@@ -856,6 +856,34 @@ def junit_results(path: Path) -> dict[str, str]:
     return results
 
 
+def golden_execution_problems(leg: str, specs: Mapping[str, str]) -> list[str]:
+    """Ruling 114: a golden project that executed nothing is a Feature Check problem.
+
+    A leg's exit code is not evidence that it ran. The shape that hides is the
+    one that exits 0: a suite where every spec skipped — measured here, pytest
+    returns 0 for that, and 5 only when it COLLECTED nothing (which the leg's own
+    exit-code check already reddens). A report with no entries at all is the same
+    evidential hole: the runner finished, and the report the leg records proves
+    nothing either way. Both used to account as ``{"backend": "ok",
+    "backend_specs": {}}`` — the most expensive kind of green, because the section
+    the operator posts looks accounted for. An ABSENT golden project is a different
+    state and stays accounted as such by the leg itself ("no specs yet"), never as
+    a problem. Only ALL-skipped is a problem: specs that skip when their own
+    precondition is absent are honest, and a run with one executed spec is green.
+    """
+    if not specs:
+        return [
+            f"golden: the {leg} golden project executed no tests — its junit report"
+            " listed no spec at all (the project never started, or wrote no results)"
+        ]
+    if set(specs.values()) == {"skipped"}:
+        return [
+            f"golden: the {leg} golden project executed no tests — all"
+            f" {len(specs)} of its specs were skipped"
+        ]
+    return []
+
+
 def smoke_problems(
     events: Sequence[Mapping[str, Any]],
     *,
@@ -1588,6 +1616,9 @@ class Run:
             results["backend_specs"] = junit_results(junit)
             if result.returncode != 0:
                 problems.append(f"golden: backend/tests/golden exited {result.returncode}")
+            # Ruling 114: the exit code above says the runner finished, not that a
+            # spec ran. Judged on the report this run wrote, never on a previous one.
+            problems += golden_execution_problems("backend", results["backend_specs"])
         else:
             results["backend"] = "no specs yet"
         if PLAYWRIGHT_CONFIG.exists() and re.search(
@@ -1689,6 +1720,7 @@ class Run:
             results["playwright_specs"] = junit_results(junit)
             if result.returncode != 0:
                 problems.append(f"golden: the golden Playwright project exited {result.returncode}")
+            problems += golden_execution_problems("playwright", results["playwright_specs"])
         else:
             results["playwright"] = "no golden project yet"
         _log(f"golden paths: {results}")
