@@ -1035,10 +1035,16 @@ def junit_drift_problems(label: str, path: Path) -> list[str]:
     is dropped without an error, and a smaller-but-plausible total is the
     only symptom.
 
-    Only the counters that survive a re-labelling are compared. ``skipped`` is
-    deliberately absent: junit_results re-labels a runtime-skipped strike as a
-    skip and the report's own attributes do not, so a skipped comparison would
-    red a golden leg whose every spec is fine.
+    Both counters compared here are read from the RAW document — rows reached,
+    and rows carrying a failure element — so no re-labelling of the map can
+    move them. That is why there is no ``skipped`` comparison. The map now
+    classifies by TRAJECTORY (owner ruling 126: a struck leg is ``flaky``
+    whatever the reporter finally wrote) and a fail-then-runtime-skip row is
+    counted by the report's attributes as NEITHER skipped nor failed — measured
+    on CI's artifacts, where the declared skip totals equal the rows carrying a
+    real ``<skipped>`` element and the four property-only rows add nothing —
+    so any per-verdict comparison here would be auditing two documents that
+    were never meant to agree. This alarm guards row-dropping only.
     """
     text = _junit_text(path)
     if not text:

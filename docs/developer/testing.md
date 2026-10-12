@@ -649,9 +649,13 @@ valid merge witness whatever the map says (ruling 126: "the gate keeps reading
 Playwright's exit code"). `junit_drift_problems` guards the separate
 pattern-parser risk (an unreadable row is dropped without an error) by
 reconciling the map against the report's own totals; it is a drift alarm, not a
-flakiness detector, and it deliberately never compares `skipped`, which the two
-views disagree on by design. Specs read the stack from these
-environment variables:
+flakiness detector. Both counters it compares are read from the raw document
+(rows reached, rows carrying a failure element), so this map's re-labelling
+cannot move them — and it deliberately has no `skipped` comparison, because a
+fail-then-runtime-skip row is counted by the report's attributes as *neither*
+skipped nor failed (measured on CI's artifacts: declared skip totals equal the
+rows with a real `<skipped>` element, property-only rows add nothing). Specs
+read the stack from these environment variables:
 
 | variable                                                       | value                                         |
 | -------------------------------------------------------------- | --------------------------------------------- |
