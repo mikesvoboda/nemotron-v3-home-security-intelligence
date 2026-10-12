@@ -1517,15 +1517,18 @@ class TestEdgeCasesAndErrorHandling:
 class TestBatchAuditJobReadsDeferredColumns:
     """[r129] ruling 127: the batch-audit job must not report every event failed.
 
-    ``_run_batch_audit_job`` identity-loads the event with a plain
-    ``select(Event)`` (backend/api/routes/ai_audit.py:424) and then touches the
-    *deferred* ``event.llm_prompt`` (``:445``). Under an ``AsyncSession`` that
-    touch raises ``MissingGreenlet`` -- the same failure the backup export hits
-    (see ``test_backup_service.py::TestBackupExportsDeferredEventColumns``) --
-    and the per-event ``except Exception`` (``:462-467``) converts it into
-    ``failed_events += 1``. The job then CALLS ``complete_job`` with a payload
-    that looks like a normal result, so on a populated table 100 % of events
-    are reported failed while the endpoint, the job, and CI all stay green.
+    Pre-fix, ``_run_batch_audit_job`` identity-loaded the event with a plain
+    ``select(Event)`` and touched the *deferred* ``event.llm_prompt``, and under
+    an ``AsyncSession`` that touch raises ``MissingGreenlet`` -- the same failure
+    the backup export hits (see
+    ``test_backup_service.py::TestBackupExportsDeferredEventColumns``). The
+    per-event ``except Exception`` (backend/api/routes/ai_audit.py:475-480)
+    turned each one into ``failed_events += 1``, and the job still CALLED
+    ``complete_job`` with a payload that looks like a normal result, so on a
+    populated table 100 % of events were reported failed while the endpoint,
+    the job, and CI all stayed green. The head line cites below are this file's
+    own: ``ai_audit.py:433-437`` is the ``undefer`` that is the cure,
+    ``ai_audit.py:458`` the read that made it fatal.
 
     Why no existing test caught it: ``TestBatchAuditAdvanced`` asserts only the
     202 and ``total_events`` and never awaits the background coroutine, so the
@@ -1533,9 +1536,9 @@ class TestBatchAuditJobReadsDeferredColumns:
 
     Only ``_call_llm`` is stubbed -- the boundary this repo already uses for
     this service (``tests/unit/services/test_pipeline_quality_audit_service.py:707``)
-    -- so EVERY deferred read stays real: ``ai_audit.py:445`` and all four
-    evaluation modes (``pipeline_quality_audit_service.py:406-479``), which read
-    ``event.reasoning`` and ``event.llm_prompt`` themselves.
+    -- so EVERY deferred read stays real: the read at ``ai_audit.py:458`` and all
+    four evaluation modes (``pipeline_quality_audit_service.py:406-479``), which
+    read ``event.reasoning`` and ``event.llm_prompt`` themselves.
     """
 
     # One canned answer for all four evaluation modes; every mode runs
@@ -1614,7 +1617,7 @@ class TestBatchAuditJobReadsDeferredColumns:
 
         tracker = JobTracker()  # no broadcast, no redis: in-memory only
         # Mirror the endpoint's own precondition: trigger_batch_audit registers
-        # the job (ai_audit.py:562 create_job) BEFORE add_task schedules this
+        # the job (ai_audit.py:576 create_job) BEFORE add_task schedules this
         # coroutine, so start_job() inside it finds a live row.
         job_id = tracker.create_job("batch_audit")
 
@@ -1647,7 +1650,7 @@ class TestBatchAuditJobReadsDeferredColumns:
             f"still calling complete_job. The swallowed exception is "
             f"MissingGreenlet from reading a deferred Event column "
             f"(reasoning/llm_prompt) -- see the logger.exception at "
-            f"backend/api/routes/ai_audit.py:463-467."
+            f"backend/api/routes/ai_audit.py:475-480."
         )
         assert result["processed_events"] == self.N_EVENTS
         assert result["total_events"] == self.N_EVENTS
@@ -1697,7 +1700,7 @@ class TestBatchAuditJobReadsDeferredColumns:
         """Vacuity twin: failed_events can be nonzero, so the zero above is real.
 
         A nonexistent id takes the ``event is None`` branch
-        (backend/api/routes/ai_audit.py:427-433). Without this, a counter that
+        (backend/api/routes/ai_audit.py:440-446). Without this, a counter that
         could never move would make the Done-when (3) pin vacuously green.
         """
         missing_id = max(e.id for e in batch_events) + 100_000

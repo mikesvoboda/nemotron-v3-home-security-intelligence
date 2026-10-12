@@ -229,6 +229,7 @@ _BACKUP_TERMINAL = ("completed", "failed")
 
 
 @pytest.mark.asyncio
+@pytest.mark.timeout(30)  # matches this test's own 60 x 0.5 s poll ceiling below
 async def test_backup_with_events_completes_and_keeps_deferred_columns(
     client: AsyncClient,
     mock_redis,
@@ -254,8 +255,8 @@ async def test_backup_with_events_completes_and_keeps_deferred_columns(
     explicit ``Event.id`` (autoincrement Integer), ``flush()`` to get it back.
     """
     # Imported here, not at module scope: mirrors backup_service.py's own lazy
-    # ``from backend.models.event import Event`` (:170), which exists to dodge
-    # an import cycle this test module would otherwise inherit.
+    # ``from backend.models.event import Event`` (backup_service.py:170), which
+    # exists to dodge an import cycle this test module would otherwise inherit.
     from backend.models.camera import Camera
     from backend.models.event import Event
 

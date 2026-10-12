@@ -139,12 +139,16 @@ class TestBackupExportsDeferredEventColumns:
     ``Event.reasoning`` and ``Event.llm_prompt`` are ``deferred()``
     (backend/models/event.py:70-74), so ``select(Event)`` does not load them.
     ``_export_table`` then walks EVERY mapper column with ``getattr``
-    (backend/services/backup_service.py:336), and touching an unloaded
+    (backend/services/backup_service.py:353-354), and touching an unloaded
     deferred column makes SQLAlchemy issue a lazy load -- which raises
-    ``MissingGreenlet`` inside an ``AsyncSession``. Every backup therefore
-    fails as soon as one event exists, and every backup looks healthy on an
-    empty table. The whole existing suite seeds only ``cameras``, which is
-    why 100 % real-world failure passed CI.
+    ``MissingGreenlet`` inside an ``AsyncSession``. Pre-fix every backup failed
+    as soon as one event existed, and every backup looked healthy on an empty
+    table. No test ran THIS service's ``create_backup`` over a populated
+    ``events`` table: the unit tier drives it with a ``FakeDB`` whose ``events``
+    count it asserts is 0, and the one integration file that does seed events
+    (``test_backup_restore.py:381``) exercises ``create_pg_backup``
+    (``:123`` -- a pg_dump shell-out), a different implementation. That is why
+    a 100 % real-world failure passed CI.
 
     Asserting the VALUES, not just completion, is deliberate: the tempting
     fix is to skip deferred columns, which would make this backup "complete
