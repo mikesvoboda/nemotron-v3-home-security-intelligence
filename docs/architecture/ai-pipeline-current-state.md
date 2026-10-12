@@ -317,12 +317,20 @@ Branch protection requires exactly one context, `CI Gate (Required Checks)` (`st
 - the contract registry equals the schemas/ artifact count, plus a `DELETED_REGISTRY_OPS`
   ratchet of 28 ids that stay absent
 
-Two of the sharpest absence-pins in the repo are **not wired to any workflow** [V]:
-`scripts/test_ai_surface_census.py` — which pins the surviving-loads set to exactly the three
-lookup loaders, i.e. the guard against a specialist leg being quietly added or deleted — and
-`ai/tests/test_module_hygiene.py` (the `ai-tests` job runs only `pytest ai/ --collect-only` and
-`pytest ai/gateway`). Both are outside `testpaths` (`pyproject.toml:578`). This contradicts the
-repo's own doctrine quoted at `ci.yml:200`: "a gate with no CI is a gate that rots".
+Two of the sharpest absence-pins in the repo run in CI but sit **outside the default
+collection set** [V]: `scripts/test_ai_surface_census.py` — which pins the surviving-loads set to
+exactly the three lookup loaders, i.e. the guard against a specialist leg being quietly added or
+deleted — and `ai/tests/test_module_hygiene.py`. Neither matches a `testpaths` entry
+(`pyproject.toml`, `[tool.pytest.ini_options] testpaths`: `backend/tests`, `ai/*/tests`,
+`ai/*/test_*.py`, `setup_lib/tests` — `ai/tests` has no `test_*.py` sibling at that level and no
+`ai/tests` entry exists), so a bare `uv run pytest` collects neither. Both are nonetheless
+invoked by name: the census by `collection-sanity`'s "Run the anti-rot gates' own tests" step, and
+the hygiene probes by `ai-tests`' own third step, "Module hygiene probes" — alongside that job's
+`pytest ai/ --collect-only` and `pytest ai/gateway`. The real exposure is therefore the explicit
+list, not an absence: a suite named only in a battery `run:` disappears when someone re-wraps that
+step, and no `testpaths` widening catches it — which is why
+`scripts/test_check_gate_reachability.py` pins those step contents by name. Doctrine:
+"a gate with no CI is a gate that rots", quoted in `ci.yml`'s own comments.
 
 And `scripts/validate_docs` — the tool that catches dead `source_refs` — runs in CI, in the
 `Docs citation existence (level 1, scoped dirs)` step, over five dirs only and with `--no-ast

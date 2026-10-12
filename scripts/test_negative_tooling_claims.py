@@ -77,11 +77,24 @@ NEG_CLAIM = re.compile(
         # "nothing in CI", so the noun sits BEFORE the verb and there is no second `CI`
         # for the pattern below to anchor on. Added because branch 7 below needs TWO
         # mentions of CI; "nothing in CI runs X" says it once.
-      | nothing\ in\ (?:CI|any\ workflow)\b[^\n]*
+        # NO trailing `[^\n]*` here, and not for tidiness. In `flat` text (newlines
+        # joined to spaces) there is no `\n` left to stop at, so the quantifier greedily
+        # consumes the rest of the 3-line WINDOW: measured, a 2-line doc made this branch
+        # match 121 of 121 chars, and the claim's sentence span then ran into the NEXT
+        # sentence and adopted a path the claim never named. Detection is unaffected
+        # either way (an unanchored `search` with a `*` tail matches the same prefix), so
+        # the tail buys nothing and its cost is a false accusation — resolve() calls that
+        # the worse error. Pinned by test_a_claim_does_not_borrow_the_next_sentences_path.
+      | nothing\ in\ (?:CI|any\ workflow)\b
       | nothing\ (?:in\ CI\ )?(?:runs?|checks|verifies|calls)\b[^\n]{0,60}?\bCI\b
       | referenced\ by\ NO\ workflow
       | no\ CI\ job\ (?:validates|runs|checks|covers)?
-      | not\ wired\ into\ (?:any\ )?CI
+        # `to` as well as `into`, and `workflow` as well as `CI`. This branch used to
+        # read `not wired into (any )?CI`, which MISSES the corpus's own wording —
+        # `ai-pipeline-current-state.md` says two scripts are "**not wired to any
+        # workflow**", both of which CI runs, and the gate could not see it. A branch
+        # that matches one preposition and one noun is a branch with one arm.
+      | not\ wired\ (?:into|to)\ (?:any\ )?(?:workflow|CI)
       | never\ (?:runs?|wired|reached)\ in\ CI
       | isn['\u2019]t\ in\ CI
       | not\ (?:checked|run|verified)\ by\ CI
@@ -101,22 +114,28 @@ REPO_PATH = re.compile(
 WORKFLOWS_REL = ".github/workflows"
 
 
-# Cheap gate in front of NEG_CLAIM: the regex cost 3.85 s over the corpus while
-# firing 9 times in 149,430 in-frame 3-line windows, so >99.9% of its searches ran
-# on text that cannot match.
+# Cheap gate in front of NEG_CLAIM. ONE measurement, stated once, machine-dependent
+# by construction (re-measure before quoting it anywhere else): on 2026-10-12 over
+# the 406 in-frame docs, an ungated pass cost ~1.9 s and the gated pass ~0.4 s
+# (0.35 s of prefilter over every window + 0.06 s of regex on the ~1.1% it admits).
+# The regex fires 9 times in 149,438 in-frame 3-line windows, so >99.9% of its
+# searches ran on text that cannot match.
 #
-# The predicate is a SUPERSET argument, not a sampled one. Walking NEG_CLAIM's
-# alternatives one by one, each requires either the literal `workflow` or a
-# word-boundary `CI`:  #6 (`nothing … CI`) ends in `\bCI\b`; #8/#9/#10/#12 put `CI`
-# between spaces; the rest say `workflow`. So admitting every window that contains
+# The predicate is a SUPERSET argument, not a sampled one. Every top-level
+# alternation requires either the literal `workflow` or a word-boundary `CI` — see
+# branch_texts(), which enumerates them — so admitting every window that contains
 # `workflow` or `\bci\b` cannot drop a claim, whichever way the grammar grows.
+# Branch NUMBERS are deliberately not listed here: they moved the day `not wired
+# to any workflow` was added, and a stale `#6` in prose is indistinguishable from a
+# live one. `test_the_cheap_prefilter_admits_everything_the_regex_admits` checks the
+# property against the real corpus, so the argument above is a comment, not a gate.
 #
 # What I deliberately did NOT add: a second condition on the NEGATOR. An earlier
 # revision required `no` or `isn` as well, on the reasoning that every negator
 # contains `no` — which is false for `never … in CI`, so that branch would have been
 # silently dead forever, the exact failure this file's whole design is about. The
-# noun test alone already admits 1.1% of windows and takes 0.31 s against a 1.58 s
-# regex, so the extra condition bought nothing and could have cost a gate.
+# noun test alone already admits ~1.1% of windows, so the extra condition bought
+# nothing and could have cost a gate.
 def cheap_maybe(seg_lower: str) -> bool:
     return "workflow" in seg_lower or bool(re.search(r"\bci\b", seg_lower))
 
@@ -202,6 +221,51 @@ def branch_count(pattern: str | None = None) -> int:
     return pipes + 1
 
 
+def branch_texts(pattern: str | None = None) -> list[str]:
+    """NEG_CLAIM's top-level alternations, each independently compilable.
+
+    Splits at the SAME bars `branch_count` counts (depth 1, escapes and character
+    classes skipped), so the two can never disagree about what a branch is. Then the
+    grammar's own wrapper comes off — `(?:` from the first piece, the single trailing
+    `)` from the last — so every element compiles alone. The wrapper close is always
+    the pattern's final character, which is why dropping one char from the last piece
+    is exact even when that piece itself ends in a group.
+
+    Exists because a COUNT of branches and a LIST of probes prove different things:
+    with 13 of each, `assertEqual(n, len(probes))` passed while one branch had no
+    probe at all and two probes exercised the same branch. Only per-branch matching
+    can tell those situations apart.
+    """
+    pat = NEG_CLAIM.pattern if pattern is None else pattern
+    if not pat.lstrip().startswith("(?:") or not pat.rstrip().endswith(")"):
+        raise AssertionError(f"NEG_CLAIM is no longer a single (?:…) group: {pat[:40]!r}")
+    pieces: list[str] = []
+    buf: list[str] = []
+    depth = escapes = in_class = 0
+    for ch in pat:
+        if escapes:
+            escapes = False
+        elif ch == "\\":
+            escapes = True
+        elif in_class:
+            in_class = ch != "]"
+        elif ch == "[":
+            in_class = True
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif ch == "|" and depth == 1:
+            pieces.append("".join(buf))
+            buf = []
+            continue
+        buf.append(ch)
+    pieces.append("".join(buf))
+    pieces[0] = pieces[0].lstrip()[3:]  # the wrapper's `(?:`
+    pieces[-1] = pieces[-1].rstrip()[:-1]  # the wrapper's `)`
+    return [p.strip() for p in pieces]
+
+
 def doc_claims(text: str) -> list[tuple[int, str, str]]:
     """(0-based line, that line's text, claim's SENTENCE) for each NEG_CLAIM hit.
 
@@ -217,9 +281,16 @@ def doc_claims(text: str) -> list[tuple[int, str, str]]:
     joined with spaces, found 0 every time, and reported one claim three times. Two
     consequences of flat text, both handled here:
 
-      * `\\n` no longer exists, so the grammar's trailing `[^\n]*` would run to
-        END OF FILE. It was dropped for that reason, and is inert for detection anyway;
-        without this note its removal reads as sloppiness rather than a requirement.
+      * `\\n` no longer exists in `flat`, so a trailing `[^\n]*` matches everything to
+        the END OF THE SEARCH WINDOW (the 3 lines, not the file — `search` is bounded
+        by `b`). It has been removed from every branch, and that is load-bearing: a
+        greedy tail does not change WHETHER a claim matches but it does move `m.end()`,
+        which `sentence_span` uses as its right cut, so the span reaches into the next
+        sentence and can adopt a path the claim never named.
+        `test_a_claim_does_not_borrow_the_next_sentences_path` pins it; this note used
+        to claim the tail was already gone when branch 6 still had it, which is the
+        same defect (a comment asserting a property the code does not have) the test
+        now catches in the grammar.
       * Offsets are taken ONLY from searches of `flat`, never of its lowercase copy.
         `str.lower()` is not guaranteed length-preserving across Unicode, and an offset
         from a string of different length would slice the sentence at the wrong place —
@@ -461,16 +532,47 @@ def claims() -> list[dict]:
     ]
 
 
-def mentions(subject: str) -> list[str]:
-    """Where the workflows name `subject`, in any spelling it can take."""
+def executable_lines(text: str) -> list[tuple[int, str]]:
+    """(1-based line, text) for lines that can CARRY a command, comments dropped.
+
+    A `#` line is not a command — not to YAML, not to the shell inside a `run:`
+    block — so it cannot refute a doc that says CI never runs X. Without this the
+    probe read the prose around the wiring as evidence of the wiring: at this head
+    `mentions("docs-negative-claims")` returns `ci.yml:3711`, which is a comment
+    this very job's own header. Both directions of that error are live: a comment
+    clears a FALSE claim (the bug ships) and can also redden an HONEST one (some
+    unrelated comment names the subject). Measured over the current in-frame
+    subjects, dropping comments flips zero verdicts — so this is the rule that
+    should have been there, not a behaviour change.
+    """
+    out: list[tuple[int, str]] = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        out.append((n, line))
+    return out
+
+
+def mentions_in(subject: str, texts: dict[str, str]) -> list[str]:
+    """Where `texts` NAMES `subject` on a line that could run it.
+
+    Split out from `mentions()` so the comment rule is testable against a synthetic
+    corpus — the alternative is a fixture comment in ci.yml, i.e. shipping a decoy
+    in production config to keep a test green.
+    """
     hits: list[str] = []
     pats = [re.compile(rf"(?<![\w./-]){re.escape(s)}(?![\w-])") for s in spellings(subject)]
-    for name, text in workflow_texts().items():
-        for n, line in enumerate(text.splitlines(), 1):
+    for name, text in texts.items():
+        for n, line in executable_lines(text):
             if any(p.search(line) for p in pats):
                 hits.append(f"{name}:{n}")
                 break
     return hits
+
+
+def mentions(subject: str) -> list[str]:
+    """Where the workflows name `subject`, in any spelling it can take."""
+    return mentions_in(subject, workflow_texts())
 
 
 class NegativeToolingClaims(unittest.TestCase):
@@ -502,6 +604,35 @@ class NegativeToolingClaims(unittest.TestCase):
         """
         self.assertEqual([], mentions("scripts/zz_no_such_gate_zz.py"))
 
+    def test_a_comment_line_is_not_evidence_that_ci_runs_something(self) -> None:
+        """The refutation must come from a line that could EXECUTE the subject.
+
+        Synthetic corpus, deliberately: the alternative is a decoy comment parked in
+        ci.yml to keep this green, which trades one defect for another.
+        """
+        corpus = {
+            "a.yml": "\n".join(
+                [
+                    "# scripts/zz_comment_only_zz.py is mentioned here in prose",  # 1 comment
+                    "  - name: does not run it",  # 2
+                    "    run: echo hello",  # 3
+                ]
+            ),
+            "b.yml": "\n".join(
+                ["  steps:", "    run: pytest scripts/zz_real_run_zz.py -q"]  # 2 real command
+            ),
+        }
+        self.assertEqual(
+            [],
+            mentions_in("scripts/zz_comment_only_zz.py", corpus),
+            "a # comment cleared a claim — prose is not a command",
+        )
+        self.assertEqual(
+            ["b.yml:2"],
+            mentions_in("scripts/zz_real_run_zz.py", corpus),
+            "the real run: line must still count, or this 'fix' just blinded the probe",
+        )
+
     def test_the_claim_scanner_is_not_vacuous(self) -> None:
         """Collapse-to-zero guard. Deliberately a FLOOR, not a count.
 
@@ -530,9 +661,14 @@ class NegativeToolingClaims(unittest.TestCase):
         NEG_CLAIM — so editing or deleting a branch lands here rather than in a
         mystery — and (b) be admitted by `cheap_maybe`.
 
-        STATED LIMIT: a branch added WITHOUT a probe is not caught by the property
-        itself. `branch_count()` closes that, by failing when the grammar's top-level
-        alternations and this list drift apart.
+        A branch added WITHOUT a probe is caught by the PER-BRANCH assertion, not the
+        old `branch_count() == len(probes)` count-match. That count is a COVER proxy
+        and a weak one: 13 branches and 13 probes pass on ANY pairing of equal size,
+        so the list here — which double-probed branch 1 while branch 7 (`nothing … in
+        CI`) sat unprobed — was green while a whole branch could be edited or deleted
+        unnoticed. `branch_texts()` splits at the same bars `branch_count()` counts, so
+        a branch with no probe is now named by text, and a probe that matches two
+        branches no longer hides the gap it used to.
         """
         probes = [
             "the checker runs in **no** workflow today",
@@ -542,8 +678,10 @@ class NegativeToolingClaims(unittest.TestCase):
             "no workflow in `.github/workflows/` calls it",
             "nothing in CI runs that gate",
             "nothing in any workflow calls the validator",
+            "nothing checks that legacy gate in CI today",  # branch 7: `nothing … CI`, one CI
             "it is referenced by NO workflow",
             "there is no CI job to consult",
+            "the tool is not wired to any workflow",  # the `to`/`workflow` arm of `wired`
             "the hook is not wired into CI",
             "the scan never runs in CI",
             "the check isn't in CI yet",
@@ -554,20 +692,31 @@ class NegativeToolingClaims(unittest.TestCase):
             self.assertTrue(
                 cheap_maybe(p.lower()), f"prefilter rejects a claim the grammar matches: {p}"
             )
-        n = branch_count()
+        branches = branch_texts()
         self.assertEqual(
-            n,
-            len(probes),
-            f"NEG_CLAIM has {n} top-level branches but this test probes {len(probes)} — a "
-            "branch with no probe can be silently dropped by the prefilter",
+            branch_count(),
+            len(branches),
+            "branch_count() and branch_texts() disagree about what a branch is — the two "
+            "share a scanner and must not drift",
         )
+        for i, btext in enumerate(branches):
+            pat = re.compile(btext, re.VERBOSE | re.IGNORECASE)
+            hit = [p for p in probes if pat.search(p)]
+            self.assertTrue(
+                hit,
+                f"branch {i + 1} has NO probe that matches it alone: {btext[:60]!r} — a "
+                "branch with no probe can be edited or dropped with every gate green",
+            )
 
-    @pytest.mark.timeout(30)  # full re-scan of 406 docs by design; 1.7s local, >5s loaded
+    @pytest.mark.timeout(30)  # full re-scan of the 406 in-frame docs by design
     def test_the_cheap_prefilter_admits_everything_the_regex_admits(self) -> None:
         """The prefilter's superset property, checked against the REAL grammar.
 
-        `cheap_maybe` stands in front of a 1.6 s regex to save 1.3 s, which is a
-        trade that is only worth making if it cannot lose a claim — and a lost claim
+        `cheap_maybe` stands in front of a regex that costs seconds to skip most of
+        the corpus (one measurement, stated at its definition — not restated here,
+        because restating a number is how this file ended up citing the same cost as
+        three different values), which is a trade that is only worth making if it
+        cannot lose a claim — and a lost claim
         is not a loud failure, it is a green run over a false doc. Asserting it over
         the actual corpus (rather than trusting the comment above the function) makes
         the two stay welded together: widen NEG_CLAIM with a branch that needs
@@ -594,9 +743,10 @@ class NegativeToolingClaims(unittest.TestCase):
         """The other arm: a prefilter that admits EVERYTHING saves nothing.
 
         `cheap_maybe` returning True unconditionally would keep the suite green and
-        quietly restore the 1.6 s scan; at CI's ~2x runner factor that is how a gate
-        gets moved out of the battery. Measured selectivity, with a floor loose
-        enough not to break on prose edits (98.9% of windows are rejected today).
+        quietly restore the ungated scan — the slow path is measured at its
+        definition; at CI's ~2x runner factor that is how a gate gets moved out of
+        the battery. Measured selectivity, with a floor loose enough not to break on
+        prose edits (98.9% of windows are rejected today).
         """
         probes = [
             "the detector raises on a malformed frame here",  # no noun at all
@@ -693,6 +843,42 @@ class NegativeToolingClaims(unittest.TestCase):
         self.assertIsNone(resolve(".github/workflows", wf))
 
     # -- the gate --
+
+    def test_a_claim_does_not_borrow_the_next_sentences_path(self) -> None:
+        """A claim's sentence span must end at its own sentence.
+
+        Why this exists: branch 6 (`nothing in CI …`) used to end in `[^\n]*`, and in
+        `flat` text — newlines joined to spaces — there is no `\\n` left to stop the
+        quantifier at. Measured on a two-line doc it consumed the whole window (121 of
+        121 chars), so the claim's sentence ran past its own full stop and collected a
+        path from the NEXT sentence. If that path happens to be one CI runs, `mentions()`
+        returns hits and the gate goes red accusing the doc of a claim it never made —
+        resolve()'s self-declared worse error. The comment in NEG_CLAIM claimed this
+        tail had been dropped; it had not, which is the second reason for the test.
+        """
+        doc = "\n".join(
+            [
+                "Nothing in CI runs these legacy probes any more.",
+                # A path that DOES resolve in this repo, so the false accusation is the
+                # realistic shape rather than a synthetic one: the neighbour is a real
+                # suite, and the claim is about something else entirely.
+                "The census in scripts/test_ai_surface_census.py covers the loader set.",
+            ]
+        )
+        found = doc_claims(doc)
+        self.assertEqual(1, len(found), f"expected exactly one claim, got {found}")
+        _line, _raw, sentence = found[0]
+        self.assertNotIn(
+            "test_ai_surface_census",
+            sentence,
+            f"the claim's span borrowed the next sentence's path: {sentence!r}",
+        )
+        self.assertEqual(
+            "Nothing in CI runs these legacy probes any more.",
+            sentence,
+            "the span is no longer the claim's own sentence — check NEG_CLAIM's quantifiers "
+            "and sentence_span's right cut before changing this expectation",
+        )
 
     def test_no_doc_claims_a_path_ci_runs_is_unwired(self) -> None:
         """Every negative-CI claim naming a repo path must survive the grep it cites.
