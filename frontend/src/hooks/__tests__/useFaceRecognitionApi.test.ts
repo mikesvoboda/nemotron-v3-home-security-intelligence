@@ -162,10 +162,17 @@ const mockAppearance2: PersonAppearance = {
 // ============================================================================
 
 describe('useKnownPersonsQuery', () => {
+  // GET /api/known-persons answers the KNOWN_PERSON_LIST_RESPONSE envelope
+  // (`items`/`total`) — `backend/api/routes/face_recognition.py:132` and the same
+  // declaration in `docs/openapi.json`. The handlers below return the envelope the
+  // API returns, not the array this file used to mock, because the array shape is
+  // what let the hook's bad cast pass review: the object envelope reaches
+  // `(knownPersons ?? []).filter(...)` (`frontend/src/pages/HouseholdPage.tsx:273`,
+  // `:972`) and throws — `??` guards null, not type.
   beforeEach(() => {
     server.use(
       http.get(`${BASE_URL}/api/known-persons`, () => {
-        return HttpResponse.json([mockKnownPerson, mockKnownPerson2]);
+        return HttpResponse.json({ items: [mockKnownPerson, mockKnownPerson2], total: 2 });
       })
     );
   });
@@ -189,7 +196,7 @@ describe('useKnownPersonsQuery', () => {
   it('handles empty persons list', async () => {
     server.use(
       http.get(`${BASE_URL}/api/known-persons`, () => {
-        return HttpResponse.json([]);
+        return HttpResponse.json({ items: [], total: 0 });
       })
     );
 

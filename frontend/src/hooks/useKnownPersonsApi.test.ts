@@ -75,7 +75,11 @@ beforeEach(() => {
         headers: (init.headers ?? {}) as Record<string, string>,
         body: typeof init.body === 'string' ? init.body : undefined,
       });
-      const next = responses.shift() ?? jsonResponse([]);
+      // Over-drawn queues fall back to the SAME envelope the endpoint answers, not a
+      // bare array: a bare-array default here would re-pin the contract this file's
+      // list tests exist to kill, and would quietly pass on any test that draws too
+      // far (it asserts headers/call counts, not data).
+      const next = responses.shift() ?? jsonResponse({ items: [], total: 0 });
       return Promise.resolve({
         ok: next.ok,
         status: next.status,
@@ -102,10 +106,27 @@ describe('knownPersonsQueryKeys', () => {
 });
 
 describe('known-persons API functions (endpoint contract)', () => {
-  it('fetchKnownPersons GETs the collection', async () => {
-    responses = [jsonResponse([person])];
+  // The endpoint answers the KNOWN_PERSON_LIST_RESPONSE envelope
+  // (`items`/`total`), not a bare array: `backend/api/routes/face_recognition.py:132`
+  // returns `KnownPersonListResponse(items=items, total=len(items))`, and
+  // `docs/openapi.json` declares it at the same shape. The hook used to cast the
+  // body `KnownPerson[]` straight through `handleResponse` — a bare passthrough —
+  // so the object reached callers' `.filter`/`.find` and threw. HouseholdPage
+  // guards with `(knownPersons ?? [])` (`frontend/src/pages/HouseholdPage.tsx:273`,
+  // `:972`), and `??` guards null, NOT type, so it never caught it. These two
+  // tests pinned the wrong contract (they mocked `[person]`); the envelope is the
+  // shipped one.
+  it('fetchKnownPersons unwraps the items envelope the API actually returns', async () => {
+    responses = [jsonResponse({ items: [person], total: 1 })];
     await expect(fetchKnownPersons()).resolves.toEqual([person]);
     expect(calls[0]).toMatchObject({ url: '/api/known-persons', method: 'GET' });
+  });
+
+  it('fetchKnownPersons returns an empty array for an empty envelope, never the envelope', async () => {
+    responses = [jsonResponse({ items: [], total: 0 })];
+    const result = await fetchKnownPersons();
+    expect(result).toEqual([]);
+    expect(Array.isArray(result)).toBe(true);
   });
 
   it('fetchKnownPerson GETs the person path', async () => {
@@ -151,7 +172,9 @@ describe('known-persons API functions (endpoint contract)', () => {
 describe('ruling 44: every known-persons request is credential-free', () => {
   it('sends only Content-Type — no key header, from any source', async () => {
     responses = [
-      jsonResponse([person]),
+      // The list slot carries the envelope too: this test asserts headers, so a
+      // bare array here would pass either way and re-pin the wrong contract.
+      jsonResponse({ items: [person], total: 1 }),
       jsonResponse(person),
       jsonResponse(person),
       jsonResponse(undefined, 204),
@@ -189,7 +212,7 @@ describe('known-persons hooks', () => {
   }
 
   it('useKnownPersonsQuery resolves through the cache', async () => {
-    responses = [jsonResponse([person])];
+    responses = [jsonResponse({ items: [person], total: 1 })];
     const { result } = renderHook(() => useKnownPersonsQuery(), { wrapper: freshWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([person]);
@@ -211,7 +234,7 @@ describe('known-persons hooks', () => {
 
   it('useCreateKnownPerson refetches the list after success', async () => {
     const wrapper = freshWrapper();
-    responses = [jsonResponse([person])];
+    responses = [jsonResponse({ items: [person], total: 1 })];
     const list = renderHook(() => useKnownPersonsQuery(), { wrapper });
     await waitFor(() => expect(list.result.current.isSuccess).toBe(true));
 
@@ -230,7 +253,7 @@ describe('known-persons hooks', () => {
 
   it('useUpdateKnownPerson invalidates the list and the edited detail', async () => {
     const wrapper = freshWrapper();
-    responses = [jsonResponse([person]), jsonResponse(person)];
+    responses = [jsonResponse({ items: [person], total: 1 }), jsonResponse(person)];
     const list = renderHook(() => useKnownPersonsQuery(), { wrapper });
     const detail = renderHook(() => useKnownPersonQuery(3), { wrapper });
     await waitFor(() => expect(list.result.current.isSuccess).toBe(true));
