@@ -58,7 +58,7 @@ Read this section before you take, claim, assign, park or release a package.
 - **UR-50** `heavy` marks a package whose mistakes are costly and whose correctness turns on
   judgment: `B1.2`, `B1.5`, `B1.6`, `O2.2`, `B2.3`, `O3.6`, `F2.2`, `B3.1` with `F3.1`, `B3.2`, and
   every Phase 4 design session. With neither a strong model nor the owner free, a heavy package
-  waits; it never goes to a fast model by default. (50-coordination.md "Heavy packages")
+  waits (UR-24). (50-coordination.md "Heavy packages")
 - **UR-8** Targeted pause: VLM prompt and threshold selection waits for replay parity; synthbench
   continues; all other agents move to this programme. (UR-8)
   - **Lifted with `B1.2` (#6924); no pause is in force.** Replay now scores verdicts the way
@@ -156,7 +156,7 @@ Read this section while you write a package's code, tests, docs and PR.
   5. **One status table:** the PR that finishes a package sets its README row to `done` with the PR
      number and marks done any `17-action-plan.md` entry it closes. A package needing real-tier
      numbers merges with the operator's command in its body at `awaiting real tier`, and the
-     operator posts the output and sets `done`. A phase exits when all its rows say `done`, except
+     operator posts the output and sets `done` (UR-146). A phase exits when all its rows say `done`, except
      packages a ruling leaves open: `O2.4` and `B2.3` (ruling 117) and `O2.5` (ruling 144, which
      gates only ruling 127's twelve real-tier rows) do not gate Phase 2's exit and may finish
      alongside Phase 3; the coordinator does not hold Phase 3 for them, and `R2b` rules re-ID on
@@ -421,7 +421,7 @@ or write anything for the real tier. Who holds the GPU, and which runs the owner
   on the harness's engine, with no browser-install step. A blocked registry or download host is
   named in the failure, never worked around. (rulings 116, 143)
 - **UR-15** The real tier is operator-run on the GB300 by a committed script; no self-hosted runner.
-  (UR-15)
+  Real-model checks run there through the operator, never from CI or GitHub (UR-132). (UR-15)
 - **UR-132** Real-model checks run on the GB300 by the operator, never from CI or GitHub. A lane
   agent writes the real-tier command into its PR's "Real tier" section, and the operator runs it.
   (README vocabulary "operator"; ops kickoff prompt; 30-ops.md `O2.2`)
@@ -501,14 +501,13 @@ Read this section before you post any comment, review, heartbeat, batch or urgen
 
 - **UR-31** Every agent, not only the coordinator, states only what it has just read: each commit,
   PR, file, test result and question it cites comes from output it ran in the same turn. (UR-31)
-- **UR-29** The coordinator states only what a `gh` or `git` command it ran in the same turn shows.
-  Before each merge it re-reads the PR
+- **UR-29** The coordinator states only what it has just read (UR-31). Before each merge it re-reads the PR
   (`gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`). Whenever it acted
   on a PR (updated, re-ran or merged it) it posts one short merge comment quoting the merge rule's
   evidence: each check's conclusion, the approving review, any owner approval, the newest owner
   ruling it checked (or "no owner ruling names this PR"), and, after an update-branch of an owner
   PR, both diff hashes. An owner PR that auto-merges with no coordinator act gets no comment. An
-  owner approval given outside the batch counts once the coordinator quotes it on the batch issue.
+  owner approval given outside the batch counts as UR-100 says.
   (UR-29; rulings 17, 145; record 6128195816; owner design session 2026-10-12)
 - **UR-154** When a command fails or its answer is unclear, say that instead of stating a fact; read
   times from `date -u` or omit them, and treat GitHub's `created_at` as the record. (coordinator
