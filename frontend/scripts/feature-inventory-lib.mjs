@@ -307,6 +307,25 @@ export function declarationAt(absFile, line) {
 }
 
 /**
+ * How many lines `text` holds, so a `path:line` cite can be checked against it.
+ *
+ * `text.split('\n').length` — the obvious way to get this — is **one too many**
+ * for any text ending in a newline, which is every non-empty file in this repo:
+ * the split leaves an empty final element that no line occupies. A gate testing
+ * `line <= thatLength` therefore waves through a cite one past the end of the
+ * file, and a reader doing `lines[line - 1]` prints an empty string where the
+ * cited source should be. Both mistakes are invisible in a green run.
+ *
+ * One trailing newline is dropped before splitting, so a real blank line still
+ * counts and `'\n'` is one line; text with no bytes has none. CRLF counts the
+ * same as LF, because the terminator being counted is the newline either way.
+ */
+export function lineCount(text) {
+  if (text === '') return 0;
+  return text.replace(/\n$/, '').split('\n').length;
+}
+
+/**
  * Does an inventory API call account for a scanned client request?
  *
  * Paths compare after the contract scan's normalisation, so a parameter matches
