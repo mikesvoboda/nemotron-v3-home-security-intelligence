@@ -85,7 +85,9 @@ Read rules.md §Claiming and assigning work first.
 
 1. **Look for an assignment**: an open draft PR the coordinator created, labelled with your lane and
    cell (`heavy` for a heavy agent); continue on its branch. Heavy agents stop here (UR-59).
-2. **Choose** the next package in your roster queue as UR-52 and UR-65 say; a Phase 3 package only as UR-66 allows. Claim your
+2. **Choose** the next package in your roster queue as UR-52 and UR-65 say, or, when your queue has
+   nothing you can claim, from another queue in your lane's area as UR-52 says; a Phase 3 package
+   only as UR-66 allows. Claim your
    next package on the tick its dependency lands (UR-54).
 3. **Check** that nobody holds it: `gh pr list --state open --search "[<package>] in:title"`.
 4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from

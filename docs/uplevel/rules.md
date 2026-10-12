@@ -66,8 +66,11 @@ Read this section before you take, claim, assign, park or release a package.
   cells included. On any tick where it has no open package, it claims the next package in its queue
   that is `not started`, unclaimed, not `heavy`, and whose dependencies have merged (UR-54). A
   ruling-ordered fix (`[rNNN]`) sits in the queue of the lane its ruling names, in the order the
-  roster gives. A package is claimed or unclaimed; "parked unchanged" is not a state. (owner design
-  session 2026-10-12; lane kickoff prompts; rulings 82, 120; record 6083435595)
+  roster gives. A package is claimed or unclaimed; "parked unchanged" is not a state. When its own
+  queue has nothing it can claim, an agent claims the next such package from another queue whose
+  files all lie in its own lane's area (in practice, ops-a and ops-b from each other's queues); the
+  cell whose files it edits reviews it. Any other move between queues is the coordinator's or a
+  ruling's (UR-59). (owner design session 2026-10-12; lane kickoff prompts; rulings 82, 120; record 6083435595)
 - **UR-53** Claim a package before writing any work: an empty commit on branch
   `uplevel/<package>-<slug>` from `main`, pushed, and a draft PR titled `[<package>] <name>` opened
   with the `uplevel.md` template and `lane:<lane>`. The open draft PR is the claim. (ruling 39 item
@@ -80,7 +83,8 @@ Read this section before you take, claim, assign, park or release a package.
   (50-coordination.md "Claiming a package")
 - **UR-56** One package, one claim PR, except `F2.3`, where each agent carries all its area batches
   in one draft claim PR. (ruling 97; 50-coordination.md "Claiming a package")
-- **UR-59** The coordinator assigns only `heavy` packages and packages on no roster queue: it opens
+- **UR-59** The coordinator assigns only `heavy` packages, packages on no roster queue, and a package
+  it moves to an idle lane's queue (UR-52, UR-64): it opens
   the draft PR on a branch holding one empty commit, labelled `lane:<lane>` and, where they apply,
   `cell:<cell>`, `heavy` and `owner`. A `heavy` PR labelled `cell:heavy-2` belongs to
   `uplevel-heavy-2`; every other belongs to `uplevel-heavy`. To give a heavy agent a package the
