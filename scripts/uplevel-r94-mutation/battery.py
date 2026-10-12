@@ -192,6 +192,16 @@ def main() -> int:
     try:
         for label, rel, expected, old, new in MUTANTS:
             target = REPO / rel
+            if old == new:
+                # The count check below cannot catch this pair: a no-op pattern
+                # matches its declared count exactly, so it would run the UNCHANGED
+                # suite and report QUIET -- indistinguishable from a real pin gap.
+                # A careless edit that makes `new` equal `old` must fail here, not
+                # as a fake indictment of the suite. (Caught as a class by PR #7038's
+                # fresh-context self-review; its M14 example did not reproduce.)
+                print(f"PIN-ERROR {label}\n    new equals old -- the mutant cannot change behavior")
+                quiet.append(label)
+                continue
             hits = originals[rel].count(old)
             if hits != expected:
                 # A pattern that stopped matching would leave the mutant identical to
