@@ -4,8 +4,10 @@ The harness behind `[r94]`'s evidence (PR #7038): `battery.py` scores mutants ag
 this package's own suite, and `sourcing_shapes.py` measures how bash reads a converted
 `API_KEYS` line. Contract rule 3 of `docs/uplevel/rules.md` (UR-10) — "tools live in the
 repo; work from `/tmp` or a home directory does not count as evidence" — so both live
-here, not in `/tmp`. Precedent: `scripts/uplevel-f13-done-when/`, which cites
-`scripts/uplevel-real-tier/`.
+here, not in `/tmp`. Precedents in the same directory: `scripts/uplevel-f13-done-when/`
+(PR #6922's stack runs, `ef359d96f`) and `scripts/uplevel-real-tier/` (B1.4's real-tier
+deployment, `51d908d68`). Neither indexed itself in `scripts/README.md`, so neither does
+this one.
 
 `setup.py` and `setup_lib/core.py` are **not** in mutmut's scored set (`pyproject.toml`
 → `[tool.mutmut] source_paths = ["backend/services", "backend/api/routes"]`), so the

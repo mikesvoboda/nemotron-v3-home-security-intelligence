@@ -1,8 +1,9 @@
 """`[r94]` mutation battery: proves the pins in test_r94_env_preserving_reruns.py bite.
 
 Contract rule 3 (`docs/uplevel/rules.md`, UR-10): the harness a package's evidence
-relies on lives in the repo, not a home directory. Precedent:
-`scripts/uplevel-f13-done-when/` (which itself cites `scripts/uplevel-real-tier/`).
+relies on lives in the repo, not a home directory. Precedents:
+`scripts/uplevel-f13-done-when/` (`ef359d96f`) and `scripts/uplevel-real-tier/`
+(`51d908d68`) -- rule-3 harnesses for one package's evidence, in this directory.
 
 WHAT THIS IS. A list of mutants, each one a TRANSCRIBED shape from a site that exists
 in the product code today (`setup.py`, `setup_lib/core.py`) — never an invented
