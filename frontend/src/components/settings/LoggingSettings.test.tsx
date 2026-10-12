@@ -39,7 +39,7 @@ vi.mock('../../hooks/useToast', () => ({
 
 describe('LoggingSettings', () => {
   // Debug config response is flat Record<string, unknown>
-  const mockDebugConfig = {
+  const mockDebugSettings = {
     log_level: 'INFO',
     log_file_path: 'data/logs/security.log',
     log_file_max_bytes: 10485760,
@@ -50,6 +50,10 @@ describe('LoggingSettings', () => {
     database_url: '[REDACTED]',
     redis_url: '[REDACTED]',
     debug: true,
+  };
+  const mockDebugConfig = {
+    config: mockDebugSettings,
+    timestamp: '2026-10-12T22:55:38.840617+00:00',
   };
 
   const mockLogLevelResponse = {
@@ -189,7 +193,7 @@ describe('LoggingSettings', () => {
     it('shows DEBUG warning when DEBUG level is active', async () => {
       (api.fetchDebugConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...mockDebugConfig,
-        log_level: 'DEBUG',
+        config: { ...mockDebugSettings, log_level: 'DEBUG' },
       });
       (api.fetchLogLevel as ReturnType<typeof vi.fn>).mockResolvedValue({
         level: 'DEBUG',
@@ -264,7 +268,7 @@ describe('LoggingSettings', () => {
     it('displays database logging disabled status', async () => {
       (api.fetchDebugConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...mockDebugConfig,
-        log_db_enabled: false,
+        config: { ...mockDebugSettings, log_db_enabled: false },
       });
 
       renderWithProviders(<LoggingSettings />);
@@ -426,7 +430,7 @@ describe('LoggingSettings', () => {
     it('formats file size correctly for 1 MB', async () => {
       (api.fetchDebugConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...mockDebugConfig,
-        log_file_max_bytes: 1048576,
+        config: { ...mockDebugSettings, log_file_max_bytes: 1048576 },
       });
 
       renderWithProviders(<LoggingSettings />);
@@ -448,7 +452,7 @@ describe('LoggingSettings', () => {
     it('formats backup count with singular', async () => {
       (api.fetchDebugConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...mockDebugConfig,
-        log_file_backup_count: 1,
+        config: { ...mockDebugSettings, log_file_backup_count: 1 },
       });
 
       renderWithProviders(<LoggingSettings />);
