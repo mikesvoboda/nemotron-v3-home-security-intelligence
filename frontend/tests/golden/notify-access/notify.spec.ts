@@ -195,7 +195,8 @@ test.describe('DO-2 notifications golden path', () => {
     ).toHaveCount(0);
   });
 
-  test('F-235 channels: the no-env stack is not-configured end to end', async ({ page }) => {
+  // owner ruling 125 — quarantined until fixed, expires 2026-10-14T00:00Z
+  test.fixme('F-235 channels: the no-env stack is not-configured end to end', async ({ page }) => {
     const h = harness as Harness;
     const api = await signIn(page, h);
 
