@@ -262,9 +262,7 @@ class TestNegativeClaimsJobWired(_CiYml):
             "now running in no job at all (this pin lives in collection-sanity "
             "precisely so the deletion cannot be silent)"
         )
-        argv = " ".join(
-            str(step.get("run", "")) for step in job.get("steps", []) or []
-        )
+        argv = " ".join(str(step.get("run", "")) for step in job.get("steps", []) or [])
         assert self.SUITE in argv, f"{self.SUITE} no longer invoked by {self.JOB}"
         assert job.get("name") == self.LEG, (
             f"{self.JOB}'s leg name is {job.get('name')!r}, not {self.LEG!r} — "
@@ -275,8 +273,7 @@ class TestNegativeClaimsJobWired(_CiYml):
         # Both halves: a `needs:` edge alone is ORDERING, only a result read is
         # GATING (AUDIT §2.1).
         assert self.JOB in _needs_of(self.jobs["ci-gate"]), (
-            f"ci-gate no longer needs {self.JOB} — a red in it cannot flip the "
-            "required context"
+            f"ci-gate no longer needs {self.JOB} — a red in it cannot flip the required context"
         )
         gate_run = "\n".join(
             step.get("run", "") for step in self.jobs["ci-gate"]["steps"] if step.get("run")
@@ -289,11 +286,90 @@ class TestNegativeClaimsJobWired(_CiYml):
         gate_run = "\n".join(
             step.get("run", "") for step in self.jobs["ci-gate"]["steps"] if step.get("run")
         )
-        line = next(
-            (ln for ln in gate_run.splitlines() if f"needs.{self.JOB}.result" in ln), ""
-        )
+        line = next((ln for ln in gate_run.splitlines() if f"needs.{self.JOB}.result" in ln), "")
         assert f'"{self.LEG}"' in line, (
             f"ci-gate's check_job line for {self.JOB} does not print its "
             f"`name:` ({self.LEG!r}) — the aggregated report and the checks "
             f"list would disagree about what to look for:\n  {line.strip()}"
+        )
+
+
+class TestStepNamedSuitesStillWired(_CiYml):
+    """The doc's "two sharpest absence-pins": wired by step invocation only.
+
+    `docs/architecture/ai-pipeline-current-state.md` names these two suites and
+    claimed their explicit CI wiring was pinned "by name" in this file. It
+    wasn't — `git grep test_module_hygiene` returned ci.yml and prose only, so
+    deleting ci.yml's hygiene run-line reddened nothing anywhere. This class is
+    the assurance the doc promised, made true.
+
+    They need a different pin from every other suite here. The five anti-rot
+    gates above are pinned by SUITE PATH inside the battery's argv, which
+    catches a re-wrap that drops a path. These two have mirror-image
+    exposures:
+
+      * `ai/tests/test_module_hygiene.py` is matched by the testpaths glob
+        `ai/*/test_*.py` (measured: glob.glob returns 15 files, it is one; a
+        bare `--collect-only` collects its 3 functions), so a path assertion
+        proves nothing — deleting its step demotes a blocking probe to a
+        unit-tier test with every leg green. Its exposure is the STEP
+        disappearing, so the step NAME is the invariant.
+      * `scripts/test_ai_surface_census.py` is the reverse: the glob cannot
+        reach a `scripts/` path, the argv is the only thing that makes it run.
+        test_antrot_step_names_all_gate_suites already lists it; restated here
+        as a STEP-scoped assertion so a path relocated to another step of the
+        same job still reddens, and so both members of the pair the doc names
+        are covered by one class.
+
+    Teeth, measured on scratch copies (never this tree), 13 passed unchanged:
+    dropping ci.yml's hygiene run-line reddens 1 test
+    (test_hygiene_step_still_runs_the_probes); renaming the step reddens 2 —
+    the name is the shared handle, so _step() fails for both, which is the
+    honest statement (my first draft of this docstring promised the rename
+    reddened only the name test, and the mutant said otherwise); deleting the
+    census path reddens 1 (test_census_still_named_in_the_antirot_step).
+    """
+
+    HYGIENE_PATH = "ai/tests/test_module_hygiene.py"
+    HYGIENE_STEP = "Module hygiene probes"
+    CENSUS_PATH = "scripts/test_ai_surface_census.py"
+    ANTIROT_STEP = "Run the anti-rot gates' own tests"
+
+    def _step(self, job: str, prefix: str) -> dict:
+        for step in self.jobs[job].get("steps", []) or []:
+            if str(step.get("name", "")).startswith(prefix):
+                return step
+        raise AssertionError(
+            f"{job!r} has no step whose name starts {prefix!r} — the suite this "
+            f"class defends is now invoked by nothing that can be found by name"
+        )
+
+    def test_hygiene_step_still_runs_the_probes(self) -> None:
+        step = self._step("ai-tests", self.HYGIENE_STEP)
+        assert self.HYGIENE_PATH in step.get("run", ""), (
+            f"{self.HYGIENE_PATH} is no longer invoked by ai-tests' "
+            f"{self.HYGIENE_STEP!r} step. A bare `uv run pytest` DOES still "
+            "collect it (testpaths glob ai/*/test_*.py), so this suite can be "
+            "silently demoted from a blocking probe to a unit-tier test and "
+            "every leg stays green."
+        )
+
+    def test_hygiene_step_keeps_its_name(self) -> None:
+        # The step name is the only addressable handle on this suite's CI
+        # presence — the path proves nothing (see class docstring) — so the
+        # name is what a re-wrap can quietly change.
+        step = self._step("ai-tests", self.HYGIENE_STEP)
+        assert step.get("name") == (
+            "Module hygiene probes (import-time poisoning + triton shadow)"
+        ), f"ai-tests hygiene step renamed: {step.get('name')!r}"
+
+    def test_census_still_named_in_the_antirot_step(self) -> None:
+        # Asserted on the STEP's run, not the job's concatenation: the path
+        # could survive a re-wrap by landing in any other step of the same job,
+        # which is a different exposure than the one the doc names.
+        step = self._step("collection-sanity", self.ANTIROT_STEP)
+        assert self.CENSUS_PATH in step.get("run", ""), (
+            f"{self.CENSUS_PATH} dropped from collection-sanity's "
+            f"{self.ANTIROT_STEP!r} step — it matches no testpaths entry, so "
+            "outside that argv it runs nowhere."
         )
