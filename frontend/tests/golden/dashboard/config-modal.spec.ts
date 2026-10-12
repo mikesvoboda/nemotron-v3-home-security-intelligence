@@ -47,6 +47,7 @@ import {
   closedByGuard,
   loginAsAdmin,
   quietBoot,
+  settledReload,
   readDashboardHarness,
   seedTourDismissed,
   type DashboardHarness,
@@ -222,8 +223,7 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
     expect(savedRaw).not.toEqual(jarBefore); // save really wrote
 
     // THE ROW'S CLAUSE: reload — same context, same jar — layout persists.
-    await quietBoot(page, h);
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await settledReload(page);
     await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId('pipeline-queues')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('gpu-device-name')).toBeVisible({ timeout: 15_000 });
@@ -315,8 +315,7 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
     await expect(page.getByTestId('pipeline-queues')).toHaveCount(0);
 
     // Reload lands on the shipped layout too.
-    await quietBoot(page, h);
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await settledReload(page);
     await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId('pipeline-queues')).toHaveCount(0);
     await expect(page.getByTestId('camera-grid')).toBeVisible();

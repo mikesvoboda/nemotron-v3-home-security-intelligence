@@ -285,8 +285,9 @@ test.describe('golden path: dashboard pipeline telemetry widget @critical', () =
     if (!harness.ready) return;
     const h = harness;
     // Headroom for the documented worst case: 3 re-drives of the modal path
-    // (each ≤ ~19 s of latch/jar polls) + boot + reload + the 45 s paint wait.
-    test.setTimeout(150_000);
+    // (each ≤ ~19 s of latch/jar polls) + boot + the settled reload (quietBoot's
+    // 4 shed drives, ≤ ~40 s) + the 45 s paint wait.
+    test.setTimeout(180_000);
 
     await openDashboard(page, h);
     const widget = await enableWidget(page, 'pipeline-telemetry');
@@ -307,10 +308,19 @@ test.describe('golden path: dashboard pipeline telemetry widget @critical', () =
     expect(telemetry?.visible, 'enable persisted in the jar').toBe(true);
 
     // THE ROW'S CLAUSE, second half: the enable survives a reload in the same
-    // context (batch 1's proven form — same jar, page.reload()).
+    // context (batch 1's proven form — SAME jar: quietBoot navigates the same
+    // page, so localStorage and cookies ride along exactly as page.reload()
+    // did). quietBoot now settles the boot: a boot SHED by the nginx api
+    // bucket (rate=10r/s burst=20; measured ~18 req/s per boot in the frontend
+    // access log) renders a coat, not the dashboard — /setup "First Time
+    // Setup" (shed setup-status, ProtectedRoute.tsx:79 fail-close) or the
+    // Error Loading Dashboard 429 card. Both were read from aria snapshots:
+    // local --repeat-each=4 (4/4 landed on /setup) and CI run 38189450762
+    // ("HTTP 429" snapshot + a mid-boot shed that UNMOUNTED the Configure
+    // modal, the attempt-1 "toggle not found"). A shed boot is instrument
+    // noise and gets re-driven; what stays RED is a dashboard that paints
+    // without the committed widget — the persistence clause proper.
     await quietBoot(page, h);
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
     // Event-driven, not a fixed guess: the rehydrate→paint gap is exactly the
     // interval that produced the measured flake. If a jar-committed enable
     // still fails to paint, that is the persistence clause failing — said here.

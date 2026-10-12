@@ -89,6 +89,7 @@ import {
   closedByGuard,
   loginAsAdmin,
   quietBoot,
+  settledReload,
   readDashboardHarness,
   seedTourDismissed,
   type DashboardHarness,
@@ -569,10 +570,12 @@ test.describe('golden path: dashboard hourly and daily summary cards @critical',
       }
     });
 
-    // quietBoot already drained the burst once; wait again so this reload's wave
-    // arrives at a refill rather than at the tail of the boot's.
-    await page.waitForTimeout(2_000);
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    // Settled reload: quiet (drain the burst), reload the SAME page (the jar
+    // and cookies ride along — that IS the clause), and if the nginx api
+    // bucket sheds this reload's boot wave, re-drive it instead of failing on
+    // a coat (harness settledReload; the 2026-10-12 regression proved a bare
+    // reload paints the 429 card often enough to matter).
+    await settledReload(page);
     // Same ordering rule as bootDashboard: the shed page and the layout are
     // polled together, because a shed REPLACES the layout rather than failing
     // inside it.
