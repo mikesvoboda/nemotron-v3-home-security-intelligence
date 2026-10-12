@@ -8,36 +8,25 @@
 
 ## Who takes what
 
-**The roster.** The sandboxes of the programme and the queue each was given. The coordinator
-assigns from it (rules.md §Claiming and assigning work: an assignment-only agent's "next roster
-package"), and `scripts/uplevel/sandboxes.toml` declares the same sessions.
+**The roster.** Each sandbox and its queue, in order. An agent claims the next package in its own
+queue (UR-52); the coordinator assigns only `heavy` packages and packages on no queue (UR-59).
+`scripts/uplevel/sandboxes.toml` declares the same sessions. Phase 3 entries wait as UR-66 says.
+The owner sets these queues; a change is a ruling.
 
-| sandbox               | model     | Phase 0              | Phase 1 queue                                                                                                               | kickoff prompt                    |
-| --------------------- | --------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `uplevel-coordinator` | fast      | labels, pinned issue | assignments, reviews, merges, the daily batch                                                                               | `roles/coordinator.md`            |
-| `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.9`, `O1.12`, `O1.10`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                                                    | this file + cell B                |
-| `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`), `O1.11` (after `O1.6`); then `O2.3`, `O2.3b`, and `F2.3` UI batches                          | this file + cell A                |
-| `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1`, the inventory's backend tracing, `F2.3`'s API batches and `B2.2`'s cleanup             | this file, backend line           |
-| `uplevel-frontend`    | fast      | —                    | `F1.1`; `F1.2` after `B1.4`; `F1.3` after `B1.5`                                                                            | this file, frontend line          |
-| `uplevel-docs`        | fast      | —                    | `W1.1`, `W1.3`, `W1.2`; then `F2.3` UI batches                                                                              | this file, docs line              |
-| `uplevel-heavy`       | strongest | —                    | `B1.5`, `B1.2`, `B1.6`; then `O2.1`, `O2.2`; paused from 2026-10-10 (owner ruling 88)                                       | this file, `uplevel-heavy` line   |
-| `uplevel-operator`    | fast      | —                    | real-tier runs: `B1.2`, and `B1.1`'s reply-length tail (its S4 p95 stays the owner's, on the A5500); then `O2.2`'s `--real` | `roles/operator.md`               |
-| `uplevel-heavy-2`     | strongest | —                    | `F2.2`, the inventory, from mid-Phase 1; then `B2.2`; paused from 2026-10-10 (owner ruling 88)                              | this file, `uplevel-heavy-2` line |
+| sandbox               | model     | queue                                                                                                                                                  | review label      |
+| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                       | none              |
+| `uplevel-backend`     | fast      | `[r129]` (#7031), `[r122]` (#7027), `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                     | `review:backend`  |
+| `uplevel-frontend`    | fast      | `[r130f]`, `F2.3` UI batches (FE-3, FE-4), each `R2b` round's record, `F3.2`, `F3.3`                                                                   | `review:frontend` |
+| `uplevel-ops-a`       | fast      | `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`, `OB.3`                                                                                                     | `review:ops-a`    |
+| `uplevel-ops-b`       | fast      | `O2.4` (#7002), `[r143]` (#7034), `[r141]` follow-up (ruling 145), `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                       | `review:ops-b`    |
+| `uplevel-docs`        | fast      | `F2.3` UI batches (DO-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                               | `review:docs`     |
+| `uplevel-heavy`       | strongest | assigned `heavy` PRs without `cell:heavy-2`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused until Phase 3 opens (ruling 88)       | none              |
+| `uplevel-heavy-2`     | strongest | assigned `heavy` PRs labelled `cell:heavy-2`: `B2.3` after `O2.4`; paused until then (ruling 88)                                                       | none              |
+| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5` | none              |
 
-**How each takes work:**
-
-| sandbox            | model     | takes work                                             | review label      |
-| ------------------ | --------- | ------------------------------------------------------ | ----------------- |
-| `uplevel-backend`  | fast      | its assignment, otherwise claims its own               | `review:backend`  |
-| `uplevel-frontend` | fast      | its assignment, otherwise claims its own               | `review:frontend` |
-| `uplevel-ops-a`    | fast      | only packages the coordinator assigns to `cell:a`      | `review:ops-a`    |
-| `uplevel-ops-b`    | fast      | only packages the coordinator assigns to `cell:b`      | `review:ops-b`    |
-| `uplevel-docs`     | fast      | its assignment, otherwise claims its own               | `review:docs`     |
-| `uplevel-heavy`    | strongest | only draft PRs labelled `heavy` without `cell:heavy-2` | none              |
-| `uplevel-heavy-2`  | strongest | only draft PRs labelled `heavy` and `cell:heavy-2`     | none              |
-
-**Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. An
-agent in a split lane takes only assignments (UR-58).
+**Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. Each
+cell claims from its own roster queue (UR-52).
 
 | lane    | cell A                                                                                                        | cell B                                                           |
 | ------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -94,10 +83,9 @@ says. The owner restarts the coordinator
 
 Read rules.md §Claiming and assigning work first.
 
-1. **Look for an assignment** (UR-52): an open draft PR the coordinator created, labelled with your
-   lane and cell (`heavy` for a heavy agent); continue on its branch. Split lanes and heavy agents
-   stop here (UR-58, UR-59).
-2. **Choose** a package as UR-52 and UR-65 say; a Phase 3 package only as UR-66 allows. Claim your
+1. **Look for an assignment**: an open draft PR the coordinator created, labelled with your lane and
+   cell (`heavy` for a heavy agent); continue on its branch. Heavy agents stop here (UR-59).
+2. **Choose** the next package in your roster queue as UR-52 and UR-65 say; a Phase 3 package only as UR-66 allows. Claim your
    next package on the tick its dependency lands (UR-54).
 3. **Check** that nobody holds it: `gh pr list --state open --search "[<package>] in:title"`.
 4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from
@@ -180,7 +168,7 @@ Then run the tick in lane.md, "The tick".
   review label is `review:frontend`. You own `frontend/` and `docs/reference/feature-inventory.md`.
   The cross-lane rule (UR-9) governs every other file you touch.
 - **"You are cell A of the ops lane"** or **"You are cell B of the ops lane"**. Your packages are
-  in `docs/uplevel/packages/ops.md`; take only your cell's assignments (UR-58). Your review label
+  in `docs/uplevel/packages/ops.md`; claim from your cell's roster queue (UR-52). Your review label
   is `review:ops-a` or `review:ops-b`. You own `ai/`, compose, `scripts/`, `.github/`, `setup.py`,
   `setup_lib/`, root config and `archive/`. The cross-lane rule (UR-9) governs every other file you
   touch. Real-model checks are the operator's (UR-132).

@@ -337,3 +337,16 @@ draft). The rule it builds is UR-131.
 2. One real-tier run by the operator passes its golden stage through the container.
 3. A unit test pins that the image tag follows `package-lock.json`.
 4. A sandbox with no Chromium libraries installed runs the golden stage green.
+
+### [r141] Retired-paths timing guard
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** none yet. #7023
+(O3.8) merged before ruling 141's changes were made (ruling 145).
+
+- [ ] Remove `--durations=20` from the shared anti-rot pytest command in `.github/workflows/ci.yml`
+      (the `collection-sanity` step).
+- [ ] Set `@pytest.mark.timeout(30)` on both retired-paths tests in `scripts/test_retired_paths.py`
+      (today `timeout(120)`), with their comment updated to the measured CI time.
+
+**Done when** (rulings 141, 145): the shared step's argument list matches its shape before #7023,
+both tests carry `timeout(30)`, and `Collection Sanity` passes at the PR's head.

@@ -8,7 +8,8 @@
 
 You route work, within the remit UR-22 sets, and nothing beyond it:
 
-- Assign packages by opening their draft PRs (UR-24, UR-61; "Assigning a package" below).
+- Assign `heavy` packages and packages on no roster queue by opening their draft PRs (UR-59;
+  "Assigning a package" below). Every other package is claimed by the agent whose queue holds it (UR-52).
 - Assign each PR's reviewing lane, name it in a comment when you assign the package, and label the
   PR for review (UR-32).
 - Merge PRs one at a time ("Merging a PR" below; rules.md §Merging, UR-83's hot files).
@@ -52,11 +53,10 @@ The owner arms it with `/loop 5m Run the coordinator tick in docs/uplevel/roles/
    schedule, read the latest Nightly Full Gate conclusion and raise and route a red one, with the
    failing tests you read (UR-116). Raise the urgent path for a time-boxed quarantine mark still on
    `main` at its expiry (UR-114).
-7. **Assign.** After any merge, give each assignment-only agent with no open package its next
-   roster package ([`lane.md`](lane.md), "Who takes what"; UR-62; "Assigning a package" below).
-8. **Ready but unclaimed.** Post the ready-but-unclaimed comments on the batch issue, addressed to
-   each package's agent, and raise the urgent path for one still unclaimed two ticks later (UR-63;
-   Phase 3 packages only as UR-66 allows).
+7. **Assign.** Assign any `heavy` package whose dependencies have merged, and any package on no
+   roster queue (UR-59; "Assigning a package" below).
+8. **Ready but unclaimed.** Note each package ready and unclaimed for two ticks for the daily batch
+   (UR-63; Phase 3 packages only as UR-66 allows).
 9. **Park.** Check open claims against the phase column and park each Phase 3 claim UR-66 does not
    yet allow (UR-67).
 10. **Route.** Answer what needs routing; point out a fold (UR-78).
@@ -78,10 +78,10 @@ within the post budget (UR-155).
 2. Open the draft PR titled `[<package>] <name>` with
    `gh pr create --draft --template uplevel.md`, labelled `lane:<lane>` and `cell:<cell>`, plus
    `heavy` and `owner` where the status table's flags say so.
-3. For a heavy agent, label the PR as UR-59 and UR-60 say.
+3. For a heavy agent, label the PR as UR-59 says.
 4. Comment on the PR naming its reviewing lane (UR-32).
 
-A heavy package with no strong model or owner free waits (UR-50). Heavy work that appears while
+A heavy package with no strong model or owner free waits (UR-24). Heavy work that appears while
 both heavy agents are `paused` goes on the urgent path (UR-174).
 
 ## Merging a PR

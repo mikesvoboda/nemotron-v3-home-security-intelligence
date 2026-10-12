@@ -54,29 +54,19 @@ Read this section before you take, claim, assign, park or release a package.
   (UR-45). The coordinator acts on nothing beyond that remit and never provisions a sandbox. (UR-22;
   50-coordination.md "Roles"; coordinator kickoff prompt; ruling 120)
 - **UR-24** `heavy` packages go only to the strongest available model or to an owner pairing; the
-  fast local model takes the rest. (UR-24)
-- **UR-50** `heavy` marks a package whose mistakes are costly and whose correctness turns on
-  judgment: `B1.2`, `B1.5`, `B1.6`, `O2.2`, `B2.3`, `O3.6`, `F2.2`, `B3.1` with `F3.1`, `B3.2`, and
-  every Phase 4 design session. With neither a strong model nor the owner free, a heavy package
-  waits (UR-24). (50-coordination.md "Heavy packages")
-- **UR-8** Targeted pause: VLM prompt and threshold selection waits for replay parity; synthbench
-  continues; all other agents move to this programme. (UR-8)
-  - **Lifted with `B1.2` (#6924); no pause is in force.** Replay now scores verdicts the way
-    production does and feeds production's key-frame selection wherever the corpus names each
-    detection's frame, so VLM prompt and threshold selection (the prompt programme, OD-26, OD-29)
-    may resume on replay numbers. The register's OD-29 entry says which earlier results the change
-    affects (OD-29's own operating point is not one of them) and where frame parity stops. UR-8's
-    number stays reserved. (README "The Phase 1 pause has lifted")
+  fast local model takes the rest. The status table's `heavy` flag marks them, and every Phase 4
+  design session is heavy; with neither a strong model nor the owner free, a heavy package waits.
+  (UR-24; 50-coordination.md "Heavy packages")
 - **UR-35** Agents read the new comments on their own open PRs before resuming a package; an owner
   ruling or a requested change there comes before new work. (UR-35)
 - **UR-51** Work the phases in order. Inside a phase, packages are independent unless a package
   names a dependency; the ops background packages (`OB.n`) may run in any phase after Phase 1.
   (10-backend.md, 20-frontend.md, 30-ops.md headers)
-- **UR-52** Take the package the coordinator assigns you (an open draft PR it created, labelled with
-  your lane and cell; continue on its branch). Otherwise claim the lowest-numbered package in your
-  current phase that is `not started`, not flagged `heavy`, unclaimed and whose dependencies are
-  merged. A lane agent claims only packages the status table does not mark `heavy`; the coordinator
-  assigns the `heavy` ones. (lane kickoff prompts; 50-coordination.md "Claiming a package"; UR-24)
+- **UR-52** Each agent works its own queue in the roster (`roles/lane.md` "Who takes what"), the ops
+  cells included. On any tick where it has no open package, it claims the next package in its queue
+  that is `not started`, unclaimed, not `heavy`, and whose dependencies have merged (UR-54). A
+  ruling-ordered fix (`[rNNN]`) sits in the queue of the lane its ruling names, in the order the
+  roster gives. (owner design session 2026-10-12; lane kickoff prompts; rulings 82, 120)
 - **UR-53** Claim a package before writing any work: an empty commit on branch
   `uplevel/<package>-<slug>` from `main`, pushed, and a draft PR titled `[<package>] <name>` opened
   with the `uplevel.md` template and `lane:<lane>`. The open draft PR is the claim. (ruling 39 item
@@ -89,28 +79,17 @@ Read this section before you take, claim, assign, park or release a package.
   (50-coordination.md "Claiming a package")
 - **UR-56** One package, one claim PR, except `F2.3`, where each agent carries all its area batches
   in one draft claim PR. (ruling 97; 50-coordination.md "Claiming a package")
-- **UR-58** An agent in a split lane (the ops cells, and the backend cells from Phase 3) takes only
-  packages the coordinator assigns to its cell and never claims one itself. (50-coordination.md
-  "Split lanes")
-- **UR-59** A heavy agent takes only the draft PRs labelled `heavy` that the coordinator assigns it,
-  and follows the owning lane's package text, file ownership and kickoff rules. A `heavy` PR
-  labelled `cell:heavy-2` belongs to `uplevel-heavy-2`; every other belongs to `uplevel-heavy`.
-  (ruling 50; 50-coordination.md "Two heavy sandboxes")
-- **UR-60** To give a heavy agent a package the status table does not mark `heavy`, the coordinator
-  labels its PR `heavy` with no cell label, so no ops or backend cell takes it; the status row keeps
-  its flags. (ruling 53; 50-coordination.md "Two heavy sandboxes")
-- **UR-61** The coordinator assigns a package by opening its draft PR, on a branch holding one empty
-  commit, with labels `lane:<lane>`, `cell:<cell>` and, where they apply, `heavy` and `owner`.
-  (50-coordination.md "Where agents run")
-- **UR-62** After any merge the coordinator checks every roster agent for an open package; an
-  assignment-only agent (`uplevel-heavy`, `uplevel-heavy-2`, ops-a, ops-b) with none gets its next
-  roster package (the roster: `roles/lane.md` "Who takes what") on the same tick once that
-  package's dependencies have merged. Idle is not blocked,
-  and "parked unchanged" is not a state. (records 6074248201, 6083435595)
-- **UR-63** Each coordinator tick finds the packages whose dependencies have landed, whose row is
-  not `done` or `awaiting real tier`, and that have no claim PR or assignment; for each it posts one
-  batch-issue comment naming the package, its agent and the dependency that landed, addressed to
-  that agent, and raises the urgent path if it is still unclaimed two ticks later. (ruling 82)
+- **UR-59** The coordinator assigns only `heavy` packages and packages on no roster queue: it opens
+  the draft PR on a branch holding one empty commit, labelled `lane:<lane>` and, where they apply,
+  `cell:<cell>`, `heavy` and `owner`. A `heavy` PR labelled `cell:heavy-2` belongs to
+  `uplevel-heavy-2`; every other belongs to `uplevel-heavy`. To give a heavy agent a package the
+  status table does not mark `heavy`, label its PR `heavy` with no cell label; the row keeps its
+  flags. A heavy agent takes only the PRs assigned to it and follows the owning lane's package text,
+  file ownership and kickoff line. (rulings 50, 53; owner design session 2026-10-12;
+  50-coordination.md "Two heavy sandboxes", "Where agents run")
+- **UR-63** The daily batch lists every package whose dependencies have merged, whose row is not
+  `done` or `awaiting real tier`, and that has stayed unclaimed for two coordinator ticks, with the
+  agent whose queue holds it. (ruling 82; owner design session 2026-10-12)
 - **UR-64** A lane with no work keeps ticking, says so in one line and ends the turn; the
   coordinator lists idle lanes in each daily batch and says when one has work again. (ruling 43;
   50-coordination.md "The tick")
@@ -184,8 +163,7 @@ Read this section while you write a package's code, tests, docs and PR.
   it in the same PR; docs reviews such edits against the standard only if asked. The docs lane owns
   every `AGENTS.md` except those lines. (README "Lanes"; ruling 121)
 - **UR-82** Touch `synthbench/` only under the cross-lane rule, when a deletion removes something
-  synthbench imports; the synthbench workstream continues alongside this programme. (README "Lanes";
-  UR-8)
+  synthbench imports; the synthbench workstream continues alongside this programme. (README "Lanes")
 - **UR-83** Hot files; the coordinator sequences their merges: (50-coordination.md "Hot files")
   - `docs/openapi.json`, `frontend/src/types/generated/api.ts`: regenerate after rebasing, never
     hand-merge;
@@ -476,7 +454,7 @@ when a phase exits, are UR-10 (contract rule 5).
   (ruling 138; README "Status")
 - **UR-146** The operator sets a row from `awaiting real tier` to `done` in a one-line follow-up PR,
   or asks the lane agent to. (operator.md "Posting results")
-- **UR-147** Flags: `heavy` (UR-24, UR-50) and `owner` (the owner's approval before merge, UR-23,
+- **UR-147** Flags: `heavy` (UR-24) and `owner` (the owner's approval before merge, UR-23,
   UR-98). A Phase 4 package gets its own row when it opens: the PR that opens it adds the row under
   the matching `*` line. (README "Status")
 - **UR-13** The owner rules per feature, from a verified feature inventory; modules follow their
