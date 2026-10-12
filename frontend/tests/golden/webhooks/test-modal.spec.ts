@@ -34,7 +34,10 @@
  * the network first.
  *
  * Event-picker contract: the picker is a NATIVE <select id="test-event-type">
- * (WebhookTestModal.tsx:202-213), not a listbox, defaulting to 'alert_fired' (:140), and
+ * (WebhookTestModal.tsx:202-213), not a listbox, initialised to 'alert_fired' (:140) —
+ * initialised PER PAGE MOUNT, not per open, because the component is mounted
+ * unconditionally and never unmounts (see the last leg, which pins what that means for a
+ * reopening user) — and
  * the option text comes from WEBHOOK_EVENT_LABELS (:322-323) — so the spec selects by
  * LABEL ('Alert Dismissed') and asserts the request BODY carries the wire value
  * ('alert_dismissed'). That label→value translation is a UI-only contract: the API-only
@@ -84,7 +87,6 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
     const h = harness as Harness;
     const api = await signIn(page, h);
     const before = await webhookIds(api);
-    const sendPath = `POST ${WEBHOOKS_URL}/`;
 
     let id = '';
     try {
@@ -119,10 +121,19 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
         )
         .then(async (r) => ({
           status: r.status(),
-          body: await r
-            .request()
-            .postDataJSON()
-            .catch(() => null),
+          method: r.request().method(),
+          path: apiPath(r.url()),
+          // postDataJSON() IS NOT A PROMISE — it is `postDataJSON(): null|Serializable`
+          // (playwright-core types.d.ts:22369), and the returned value is what the
+          // browser actually sent. An earlier draft wrote `.postDataJSON().catch(()=>null)`
+          // and it typechecked clean under this repo's strict tsc, because
+          // `Serializable` is declared `export type Serializable = any` (types/structs.d.ts:22),
+          // so `null | any` collapses to any and `.catch` on it is legal. At runtime it
+          // threw `TypeError: … .catch is not a function` and took the test down. Two
+          // lessons, both kept here deliberately: a promise-shaped chain is not proof of
+          // a promise, and strict mode cannot see through a `= any` alias. So: no
+          // `.catch`, and nothing that could turn "no body" into a silent undefined.
+          body: r.request().postDataJSON() as { event_type?: string } | null,
           json: await r.json().catch(() => null),
         }));
 
@@ -138,8 +149,14 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
       expect(res.body?.event_type, 'label → wire value reaches the body').toBe('alert_dismissed');
       // This literal is the whole point of the leg: a page-wide request counter
       // matching only "POST /api/outbound-webhooks/" would also be satisfied by an
-      // enable or a delete, so the witness below names the suffix.
-      expect(res.status, `the witnessed request was a test (${sendPath}…/test)`).toBe(200);
+      // enable or a delete, so the witness names the suffix. Asserted on the
+      // WITNESSED REQUEST's own method+path, not on res.status again: the previous line
+      // here re-asserted the 200 while its message claimed to be checking which request
+      // it was — an assert message is a comment, not a gate, so the claim went
+      // unmeasured. `path`/`method` are what make it one.
+      expect(`${res.method} ${res.path}`, 'the witnessed request was a test send').toBe(
+        `POST ${TEST_PATH(id)}`
+      );
 
       // The refusal, reported rather than swallowed.
       expect(res.json?.success, 'a refused target is not a pass').toBe(false);
@@ -166,8 +183,8 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
       // skipped loop.
       expect(await deliveriesOf(api, id), 'a test POST creates no delivery row').toBe(0);
 
-      // Close unmounts the modal (isOpen is testingWebhook !== null, WebhooksPage.tsx:371)
-      // and handleClose clears the result state (:146-151) — so reopening is clean.
+      // Close hides the modal and clears the RESULT state, so no stale verdict
+      // survives — measured, and true.
       await dialog.getByRole('button', { name: 'Close', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Test Webhook', exact: true })).toHaveCount(0);
       await row.getByRole('button', { name: `Test ${ROW_NAME}`, exact: true }).click();
@@ -176,7 +193,21 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
       await expect(page.getByTestId('test-result'), 'no stale result survives Close').toHaveCount(
         0
       );
-      await expect(again.getByLabel('Event Type', { exact: true })).toHaveValue('alert_fired');
+      // BUT THE PICK DOES NOT RESET, and this assertion pins that — not the
+      // 'alert_fired' this leg originally expected, which the first live run refuted
+      // (`Expected: "alert_fired"  Received: "alert_dismissed"`). The mechanism is
+      // structural: WebhookTestModal is mounted UNCONDITIONALLY (WebhooksPage.tsx:369;
+      // `isOpen={testingWebhook !== null}` gates only rendering inside, so the component
+      // never unmounts), and `useState('alert_fired')` (:140) therefore initialises once
+      // per PAGE mount. handleClose (:146-151) resets testResult/testError/isTesting and
+      // its comment claims "Reset state when modal opens/closes", but it never touches
+      // selectedEventType and the file has no useEffect at all. So the comment
+      // overreaches and the shipped behaviour is: the event type sticks until reload.
+      // Pinning the real behaviour rather than the wished-for one, because a golden path
+      // records what the app does — and if frontend later adds the reset the comment
+      // promises, THIS line goes red, which is the loud signal that a documented
+      // behaviour changed. Discrepancy reported to the reviewing lane in the PR body.
+      await expect(again.getByLabel('Event Type', { exact: true })).toHaveValue('alert_dismissed');
     } finally {
       if (id) await deleteWebhook(api, id);
     }

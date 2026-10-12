@@ -6,14 +6,14 @@
  *
  * THE DIALOG IS NATIVE, AND THAT IS A FIRST IN THIS TREE.
  * WebhooksPage.tsx:200 confirms with `window.confirm(...)`, not an in-app modal.
- * Measured at this head: `grep -rn "on('dialog'|waitForEvent('dialog'|
- * runAndWaitForDialog" frontend/tests/golden/` → 0, and the same search over
- * frontend/tests/e2e/ → 0 — the e2e tree's `confirmDelete()` page-object methods
- * (AlertRulesPage.ts:441, ZonesPage.ts:351) click an in-APP modal button, so there is
- * no precedent to copy here and no prior art to trust. What this file uses is
- * `page.waitForEvent('dialog')`: Playwright's own event for the browser dialog the page
- * raises, awaited rather than handled fire-and-forget (see ARM 1 for why — the read of
- * the captured message must not be able to win a race against the handler). That is the
+ * Measured at the BASELINE this batch branches from (`git grep -n -E
+ * "on\('dialog'|waitForEvent\('dialog'|runAndWaitForDialog" origin/main --
+ * frontend/tests/` → no hits; the same search over frontend/tests/e2e/ → none), so
+ * there is no precedent to copy here and no prior art to trust. (Stated against the
+ * baseline, not "this head", because this file is the first hit — a census quoted at
+ * your own head is measuring your own edit.) What this file uses is one answering
+ * `page.on('dialog')` handler — see `answerConfirm` for why a *waiter* deadlocks and
+ * only a handler works. That is the
  * golden contract intact — the F2.1 guard blocks ROUTE
  * INTERCEPTION (route/unroute/routeFromHAR/routeWebSocket, guard.ts:46) and
  * `assertGuardSurvives` is re-armed at the end of this file to prove it still bites;
@@ -70,6 +70,43 @@ test.skip(
 
 const ROW_NAME = 'DO-4 f248 delete row';
 
+/** Answer the page's native confirm AND capture what it said, in one handler.
+ *
+ * WHY THIS SHAPE, MEASURED (local --fake run hsi-check-20261012232348-cd7908). My first
+ * version used `page.waitForEvent('dialog')` and awaited the click, then dismissed. That
+ * DEADLOCKS, and the reason is the thing to know about native dialogs:
+ * registering ANY dialog listener suppresses Playwright's auto-dismiss, and
+ * `window.confirm` blocks the page's JS main thread until it is answered. So the confirm
+ * sat open, the click could never finish dispatching, and the click timed out at 5000 ms
+ * (`locator.click: Timeout … performing click action`) BEFORE the line that would have
+ * dismissed it ever ran. The waiter observes the dialog; only a handler ANSWERS it.
+ *
+ * That also retires the race an earlier draft of this file worried about (that a
+ * fire-and-forget handler might not have recorded its message before the next line read
+ * it): the capture happens inside the handler, synchronously, and the page thread cannot
+ * resume until the handler has answered — so by the time the click resolves, the message
+ * is already recorded. No race to lose, and nothing is read fire-and-forget.
+ *
+ * The decision is mutable because the arms differ (dismiss, then accept). A stray dialog
+ * would get the currently-armed answer instead of Playwright's default, which is why each
+ * arm asserts the running TOTAL (`toHaveLength(1)`, then `toHaveLength(2)`): an
+ * unexpected confirm shows up as a wrong count rather than being silently absorbed, and a
+ * handler that never fired fails the first arm loudly instead of letting the DELETE-
+ * absence assertion pass for no reason at all. */
+function answerConfirm(page: Parameters<typeof login>[0]): {
+  prompts: { type: string; message: string }[];
+  setDecision: (d: 'dismiss' | 'accept') => void;
+} {
+  const prompts: { type: string; message: string }[] = [];
+  let decision: 'dismiss' | 'accept' = 'dismiss';
+  page.on('dialog', (dialog) => {
+    prompts.push({ type: dialog.type(), message: dialog.message() });
+    // Deliberately not awaited: answering IS what unblocks the click we are awaiting.
+    void (decision === 'dismiss' ? dialog.dismiss() : dialog.accept());
+  });
+  return { prompts, setDecision: (d) => (decision = d) };
+}
+
 async function signIn(page: Parameters<typeof login>[0], h: Harness) {
   const session = await adminSession(h);
   await login(page, h, session);
@@ -117,23 +154,25 @@ test.describe('DO-4 delete a webhook through the native confirm (F-248)', () => 
       await expect(row).toBeVisible();
 
       // ---- ARM 1: dismiss. The contract is an ABSENCE, anchored three ways. ----
-      // waitForEvent, NOT page.once('dialog', async d => …): the click resolves as
-      // soon as the pointer action lands, so a fire-and-forget handler may not have
-      // run yet when the next line reads its capture — and an empty captured message
-      // would then read as "the app never asked", i.e. a false accusation against the
-      // page for a race in the spec. Awaiting the event makes the message a fact.
-      const dismissPrompt = page.waitForEvent('dialog');
+      const confirm = answerConfirm(page);
       await (await openDeleteItem(page, id)).click();
-      const dismissed = await dismissPrompt;
 
+      // Asserted from the handler's capture, which is already complete (the handler
+      // answered, so the page thread resumed, so the click resolved). A non-null check
+      // comes FIRST because the arms below are ABSENCES: if the handler never fired
+      // there was no prompt, and `0 DELETEs` would pass for the wrong reason — a spec
+      // bug reading as the feature working. This is the vacuity the notify-access
+      // harness warns about (notify-access/harness.ts:240-251): an absence needs a
+      // positive anchor that cannot hold when the cause is missing.
+      expect(confirm.prompts, 'the page raised exactly one prompt').toHaveLength(1);
+      const [dismissed] = confirm.prompts;
       // The exact shipped template (WebhooksPage.tsx:200), carrying THIS row's stored
-      // name. If the app ever switched to an in-app modal there is no dialog and
-      // waitForEvent times out naming exactly that — loud, never vacuous.
-      expect(dismissed.type(), 'the prompt is the browser-native confirm').toBe('confirm');
-      expect(dismissed.message(), 'the native prompt carries the row name').toBe(
+      // name. If the app ever switched to an in-app modal there is no dialog and the
+      // line above fails naming exactly that — loud, never vacuous.
+      expect(dismissed.type, 'the prompt is the browser-native confirm').toBe('confirm');
+      expect(dismissed.message, 'the native prompt carries the row name').toBe(
         `Are you sure you want to delete "${storedName}"?`
       );
-      await dismissed.dismiss();
       const deletePath = `DELETE ${WEBHOOKS_URL}/${id}`;
       expect(countOf(log, deletePath), 'a dismissed confirm sends no DELETE').toBe(0);
       await expect(row, 'the row survives a dismissed confirm').toBeVisible();
@@ -143,22 +182,25 @@ test.describe('DO-4 delete a webhook through the native confirm (F-248)', () => 
       const listGetsBefore = countOf(log, `GET ${WEBHOOKS_URL}`);
       const healthGetsBefore = countOf(log, `GET ${WEBHOOKS_URL}/health`);
 
-      const acceptPrompt = page.waitForEvent('dialog');
-      await (await openDeleteItem(page, id)).click();
-      const accepted = await acceptPrompt;
-      expect(accepted.message(), 'the prompt is the same template the first time').toBe(
-        `Are you sure you want to delete "${storedName}"?`
-      );
-
-      // Armed BEFORE accept(): the DELETE goes out the instant the page's await of
-      // confirm() resolves, so a matcher armed after accept() can already have missed
-      // it and waitForResponse then fails for the wrong reason.
+      // Armed BEFORE THE CLICK — the earlier "arm before accept()" ordering is a
+      // leftover of the waitForEvent shape and is now WRONG: the handler calls accept()
+      // itself, mid-click, so the DELETE is in flight before this line could run in the
+      // old position. Same rule, one step earlier: arm the matcher before the thing that
+      // releases the request.
       const deleted = page
         .waitForResponse(
           (r) => apiPath(r.url()) === `${WEBHOOKS_URL}/${id}` && r.request().method() === 'DELETE'
         )
         .then((r) => r.status());
-      await accepted.accept();
+
+      confirm.setDecision('accept');
+      await (await openDeleteItem(page, id)).click();
+      confirm.setDecision('dismiss');
+
+      expect(confirm.prompts, 'the second attempt also prompted').toHaveLength(2);
+      expect(confirm.prompts[1].message, 'the prompt is the same template the first time').toBe(
+        `Are you sure you want to delete "${storedName}"?`
+      );
 
       // 204 with NO body (outbound_webhooks.py:500-502): webhookApi.ts:103-105 must
       // return before parsing, so a naive response.json() here surfaces as this leg.
