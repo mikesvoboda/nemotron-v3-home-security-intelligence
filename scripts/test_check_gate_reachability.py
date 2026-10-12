@@ -126,7 +126,14 @@ class TestWalkOnRealData(_CiYml):
     def test_gate_direct_needs_count_is_reported(self) -> None:
         direct = _needs_of(self.jobs["ci-gate"])
         # adding 3 edges is the fix; the count must not silently balloon
-        assert len(direct) <= 30, f"ci-gate has {len(direct)} direct needs — review"
+        # 30 -> 31 adjudicated in the DOCS-NJT commit that pressed it: the
+        # negative-tooling-claims gate moved into ci.yml as its OWN job per the
+        # hot-file rule (50-coordination.md:400), and a direct need is the only
+        # edge WP0.6 accepts for a red-able job — a bare `needs:` an
+        # intermediate never reads carries no red (see result_checked_needs in
+        # test_ci_job_graph.py). Same doctrine as the suppression ratchet: a
+        # rise moves here, in the reviewed commit that causes it, never silently.
+        assert len(direct) <= 31, f"ci-gate has {len(direct)} direct needs — review"
 
 
 class TestRunStepCommentSwallow(_CiYml):

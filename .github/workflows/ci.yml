@@ -286,7 +286,7 @@ jobs:
           scripts/audit/test_literal_groups.py
           scripts/test_shard_durations.py
           scripts/test_reachability.py
-          scripts/test_r2_python_dead_list.py scripts/test_negative_tooling_claims.py
+          scripts/test_r2_python_dead_list.py
           --durations=20
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
@@ -3692,6 +3692,41 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  # DOCS-NJT: the negative-tooling-claim gate as ITS OWN job, per the hot-file
+  # rule (50-coordination.md:400 — a new check on ci.yml is its own job or its
+  # own workflow file, never an edit to a shared one). It ran here as a path
+  # appended to collection-sanity's battery line; that was the shape :400
+  # forbids, and it was also the only entry in that list not on its own line
+  # (git blame over the 13 lines 275-287: all 12 neighbours are each their own
+  # line; mine alone shared a neighbour's).
+  # Why a job here and not its own workflow file: branch protection requires
+  # exactly one context, `CI Gate (Required Checks)` (read live from
+  # /branches/main/protection), so a red in a standalone file gates nothing —
+  # the class WP1.2 fixed by pulling ten standalone security jobs into ci.yml's
+  # gate graph. Own job + direct need + check_job is the wiring the WP0.6
+  # invariant accepts.
+  # Placed last in the job block but BEFORE ci-gate, which stays the file's
+  # final job. The insertion sits at ci.yml:3692 and measured repo-wide NOTHING
+  # cites a ci.yml line above 3676, so this job drifts zero of the 143 `ci.yml:N`
+  # cites in the tree — the cite-neutrality I wrongly claimed only the forbidden
+  # append bought.
+  # The step mirrors collection-sanity's battery invocation exactly — same uv
+  # project env, same `-m pytest … -q` shape — because this suite's
+  # @pytest.mark.timeout needs the project's pytest-timeout, and because this
+  # is the recipe that actually runs, not one I guessed.
+  docs-negative-claims:
+    name: Negative Tooling Claims in Docs (DOCS-NJT)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Every "no CI runs X" in docs/ must be true
+        run: >-
+          uv run python -m pytest scripts/test_negative_tooling_claims.py
+          -q
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -3787,6 +3822,11 @@ jobs:
       # scripts/test_check_gate_reachability.py pins; the next edge is a
       # review, not a silent edit.
       - feature-check
+      # DOCS-NJT: docs' negative-tooling-claim gate. Own job per the hot-file
+      # rule (50-coordination.md:400: a new check is its own job, never an edit
+      # to a shared one) — direct need + check_job below, the only wiring
+      # scripts/test_ci_job_graph.py's WP0.6 invariant accepts for a red-able job.
+      - docs-negative-claims
     if: always()
     steps:
       - name: Check required job results
@@ -3843,6 +3883,9 @@ jobs:
           check_job "Frontend Coverage Floors" "${{ needs.frontend-coverage-merge.result }}"
           # Ruling 105: the golden paths' verdict, first time inside the gate.
           check_job "Feature Check (Fake AI)" "${{ needs.feature-check.result }}"
+          # DOCS-NJT: a docs claim that no CI runs a tool is a claim this gate
+          # now disproves on every PR. Own need + own line (WP0.6 wiring).
+          check_job "Negative Tooling Claims in Docs (DOCS-NJT)" "${{ needs.docs-negative-claims.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
