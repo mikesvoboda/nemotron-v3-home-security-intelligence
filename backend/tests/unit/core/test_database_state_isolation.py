@@ -130,8 +130,9 @@ class TestTheMainRedMechanism:
     """The shipped code's behavior under the leak — true before AND after the fix.
 
     These pin the MECHANISM the sweep removes (per this repo's negative-control
-    convention, cf. test_root_logging_isolation.py:121): if they ever stop raising,
-    the product changed and the sweep's docstring claim goes stale.
+    convention, cf. ``test_control_the_same_boot_does_stamp_asctime`` in
+    test_root_logging_isolation.py): if they ever stop raising, the product
+    changed and the sweep's docstring claim goes stale.
     """
 
     async def test_leaked_bare_mock_engine_reaches_dispose_and_raises_main_red(self) -> None:
