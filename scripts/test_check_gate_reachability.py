@@ -22,6 +22,7 @@ This test IS the required reachability walk, pinned as an invariant:
 from __future__ import annotations
 
 import re
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -163,3 +164,42 @@ class TestRunStepCommentSwallow(_CiYml):
             "scripts/test_agents_md_validator.py",
         ):
             assert suite in joined, f"{suite} dropped from the anti-rot CI step"
+
+
+class TestAntiRotBatteryHasAFloor(_CiYml):
+    """A FLOOR ratchet on the anti-rot battery, sibling to the `<=31` needs cap.
+
+    WHY A FLOOR AND NOT A SET. The silent mutant in this file's own class is not
+    deleting a suite's file — pytest reddens that loudly (measured: `-n 8`
+    xdist rc=5 "no tests ran", serial rc=4 "file or directory not found", and
+    the step has no `||`/`tee`/`continue-on-error` to absorb either). The silent
+    one is dropping the PATH FROM ARGV while the file stays on disk: nothing in
+    the repo reddens, because `test_reachability.py`'s entries-pin deliberately
+    scans non-test script paths only. A literal set would teeth that but
+    false-reds on every merge that adds a gate, so it is not shippable; a floor
+    teeths any count-reducing edit and names no path, so a merge that ADDS one
+    (this very commit: 32 -> 33) stays green.
+
+    33 is `git rev-list`-measured at the live main this branch cut from
+    (`2079e4a21`, 32 paths) plus the one path this branch adds — not an
+    estimate. Raising it is a one-line reviewed edit in the commit that adds a
+    suite; lowering it must come with a reason.
+    """
+
+    ANTIROT_STEP = "Run the anti-rot gates' own tests"
+
+    def test_antirot_battery_keeps_at_least_its_suite_floor(self) -> None:
+        runs = [
+            step.get("run", "")
+            for job in self.jobs.values()
+            for step in job.get("steps", []) or []
+            if step.get("name") == self.ANTIROT_STEP
+        ]
+        assert len(runs) == 1, f"expected exactly one {self.ANTIROT_STEP!r} step, found {len(runs)}"
+        paths = [a for a in shlex.split(runs[0]) if a.endswith(".py")]
+        assert paths, f"{self.ANTIROT_STEP} yielded no .py argv — parse failure, not a pass"
+        assert len(paths) >= 33, (
+            f"anti-rot battery holds {len(paths)} suites, floor is 33 — a suite "
+            "left the battery. A missing FILE already reddens pytest; a dropped "
+            "ARGV entry is invisible, which is what this floor is for."
+        )
