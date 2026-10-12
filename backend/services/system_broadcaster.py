@@ -30,6 +30,7 @@ from typing import Any
 import httpx
 from fastapi import WebSocket
 from redis.asyncio.client import PubSub
+from redis.exceptions import RedisError
 from sqlalchemy import func, select
 
 # Runtime imports: PubSub/AsyncSession/RedisClient/PerformanceCollector all
@@ -984,8 +985,11 @@ class SystemBroadcaster:
                 "pending": detection_queue_len,
                 "processing": analysis_queue_len,
             }
-        except (ConnectionError, TimeoutError, OSError) as e:
-            # Redis connection failures
+        except (ConnectionError, TimeoutError, OSError, RedisError) as e:
+            # Redis connection failures. RedisError covers redis.exceptions.TimeoutError,
+            # which is NOT the builtin TimeoutError and otherwise propagates out of
+            # _get_system_status (this call is awaited outside its guarded try) and loses
+            # the whole status tick.
             logger.error(f"Failed to get queue stats: {e}", exc_info=True)
             return {
                 "pending": 0,
@@ -1003,8 +1007,10 @@ class SystemBroadcaster:
             if redis_client:
                 await redis_client.health_check()
                 return True
-        except (ConnectionError, TimeoutError, OSError) as e:
-            # Redis connection failures
+        except (ConnectionError, TimeoutError, OSError, RedisError) as e:
+            # Redis connection failures. RedisError covers redis.exceptions.TimeoutError,
+            # which is not a builtin subclass; without it a timeout under load escapes
+            # this helper (and the call site in _get_system_status is outside its guard).
             logger.debug(f"Redis health check failed: {e}")
         return False
 
@@ -1226,8 +1232,19 @@ class SystemBroadcaster:
                 await asyncio.sleep(interval)
             except asyncio.CancelledError:
                 break
-            except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
-                # Broadcast failures - continue after sleep
+            except Exception as e:
+                # Broadcast failures - continue after sleep.
+                #
+                # Deliberately broader than (ConnectionError, TimeoutError, OSError,
+                # RuntimeError): that tuple names only builtins, and the exceptions this
+                # loop actually meets are not builtins - redis.exceptions.TimeoutError
+                # (MRO: TimeoutError -> RedisError -> Exception) and
+                # sqlalchemy.exc.TimeoutError both escape it. An escaped exception ends
+                # the task while _running stays True, so start_broadcasting() refuses to
+                # respawn it and every later reconnect accepts a socket that never
+                # receives another broadcast - and the death logs nothing, because
+                # nothing ever reads task.exception(). CancelledError derives from
+                # BaseException, so the clause above still owns shutdown.
                 logger.error(f"Error in broadcast loop: {e}", exc_info=True)
                 await asyncio.sleep(interval)
 
