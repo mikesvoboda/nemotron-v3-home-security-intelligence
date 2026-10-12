@@ -6,7 +6,7 @@ Unit tests for `setup_lib/` - the Python utilities behind `setup.py` and the dep
 
 ## Directory Structure
 
-15 test files, each named test_<module>.py after its twin module in `setup_lib/`:
+Test files, each named test_<module>.py after its twin module in `setup_lib/`:
 
 | Test file                                                                                        | Under test (`setup_lib/`)             |
 | ------------------------------------------------------------------------------------------------ | ------------------------------------- |
@@ -28,7 +28,7 @@ uv run pytest backend/tests/unit/setup_lib/test_deploy.py -v
 ## Patterns and Gotchas
 
 - Tests are pure-mock: `unittest.mock` + subprocess fakes; no real network, GPU, podman or filesystem side effects outside tmp fixtures.
-- **Module coverage is 1:1 for the 15 files here.** `setup_lib`'s `core.py`, `credentials.py`, `models_config.py`, `rootful_services.py` are NOT tested in this directory - `credentials.py` lives in `setup_lib/tests/`; the other three have no unit tests.
+- **Most files here are 1:1 with a `setup_lib/` module**, and the rule has two exceptions to check before adding a test: `test_setup.py`/`test_setup_core.py` cover the root `setup.py` and `setup_lib/core.py` through the live-suite `_load_setup()` convention (function-level import, so setup.py stays out of the `mypy backend/ synthbench/` follow-graph), and `test_r94_env_preserving_reruns.py` is named after a ruling because that behaviour spans `setup.py` and `setup_lib/core.py`. `setup_lib`'s `credentials.py`, `models_config.py`, `rootful_services.py` are NOT tested in this directory - `credentials.py` lives in `setup_lib/tests/`; the other two have no unit tests.
 - `backend/tests/unit/test_deploy_phases.py` (root of the unit dir) predates this directory and overlaps `test_deploy_phases.py` here - check both when touching deploy-phase behavior.
 
 ## Related
