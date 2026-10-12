@@ -15,6 +15,9 @@
 //   imports, re-exports and `import()` — the lazy routes are all `import()`.
 // - `rowProblems`, `rowCites` and `callCovers` are the row rules, the cite
 //   reader and the request matcher.
+// - `declarationAt` names the top-level declaration enclosing a line of one
+//   file, which is how a `line N` cite in a why cell gets checked against the
+//   symbol the row names rather than against hope.
 //
 // Requests are not scanned here: the gate takes them from api-contract-lib.mjs's
 // `scanClient`, so the inventory gate and the endpoint-contract gate cannot
@@ -121,7 +124,17 @@ export function parseInventory(markdown) {
       if (!call) continue;
       const [fn] = codeSpans(get('function'));
       const [file] = codeSpans(get('file'));
-      noFeatureCalls.push({ ...call, fn: fn ?? '', file: file ?? '' });
+      // The why cell is prose, but it leads with `line N` cites pointing at the
+      // function the row names. Keep every one of them: they are the part of
+      // the cell a gate can check, against `declarationAt` below. An empty list
+      // means the row cites nothing — which is not a cite of line 0.
+      const lineCites = [...get('why').matchAll(/\bline (\d+)\b/g)].map((m) => Number(m[1]));
+      noFeatureCalls.push({
+        ...call,
+        fn: fn ?? '',
+        file: file ?? '',
+        lineCites,
+      });
     }
   }
   return { rows, noFeature, noFeatureCalls };
@@ -242,6 +255,55 @@ export function rowCites(row) {
     for (const m of cell.matchAll(REPO_CITE)) out.push({ file: m[1], line: Number(m[3] ?? m[2]) });
   }
   return out;
+}
+
+/**
+ * The name of the top-level declaration enclosing `line` (1-based) of `absFile`.
+ *
+ * Reads one file with the same parser `callerChain` uses, so a cite checked here
+ * is checked against what TypeScript sees, not against a regex over source text.
+ * `null` means the line binds no top-level declaration: it is between
+ * declarations, past the end of the file, not a line number at all, or the file
+ * could not be read — the caller reports a missing file itself, so this says
+ * "nothing" rather than throwing or naming a neighbour. It also names nothing
+ * for two declarations of the same name: a file with two top-level `function
+ * dup()` cannot tell a cite in the second from one in the first, which is the
+ * caller's business, not something to paper over here.
+ *
+ * The name is the *enclosing* declaration, not the nearest one above: a line
+ * inside a function body names that function. A `const` line with several
+ * declarators names the one the line falls in, falling back to the first.
+ */
+export function declarationAt(absFile, line) {
+  // Non-integers fail both range tests below (`NaN < 1` and `NaN > length` are
+  // both false), `starts[NaN]` is undefined, and an undefined `pos` compares
+  // false against every statement — which would name the file's *first*
+  // declaration. Nothing reaches this from `lineCite` (the regex yields an
+  // integer), so it is a guard for the next caller, not a live bug.
+  if (!Number.isInteger(line)) return null;
+  let text;
+  try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: a repo-relative path from a committed doc, resolved by the caller
+    text = fs.readFileSync(absFile, 'utf8');
+  } catch {
+    return null;
+  }
+  const sf = ts.createSourceFile(absFile, text, ts.ScriptTarget.Latest, true);
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === '\n') starts.push(i + 1);
+  if (line < 1 || line > starts.length) return null;
+  const pos = starts[line - 1];
+  for (const st of sf.statements) {
+    if (pos < st.getStart(sf) || pos >= st.end) continue;
+    if ((ts.isFunctionDeclaration(st) || ts.isClassDeclaration(st)) && st.name) return st.name.text;
+    if (ts.isVariableStatement(st)) {
+      const ds = st.declarationList.declarations;
+      for (const d of ds) if (pos >= d.getStart(sf) && pos < d.end) return d.name.getText(sf);
+      return ds[0]?.name.getText(sf) ?? null;
+    }
+    return null;
+  }
+  return null;
 }
 
 /**

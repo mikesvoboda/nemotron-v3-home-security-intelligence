@@ -62,12 +62,13 @@ interface InventoryLib {
   parseInventory: (markdown: string) => {
     rows: Row[];
     noFeature: { module: string; lane: string }[];
-    noFeatureCalls: (ApiCall & { fn: string; file: string })[];
+    noFeatureCalls: (ApiCall & { fn: string; file: string; lineCites: number[] })[];
   };
   appRoutes: (source: string) => string[];
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
   rowProblems: (row: Row) => string[];
   rowCites: (row: Row) => { file: string; line: number }[];
+  declarationAt: (absFile: string, line: number) => string | null;
   callCovers: (call: ApiCall, claim: Claim) => boolean;
 }
 
@@ -173,6 +174,38 @@ describe('feature inventory (F2.2)', () => {
         return line <= lines ? [] : [`${r.id}: ${file}:${line} is past the end (${lines} lines)`];
       })
     );
+    expect(problems).toEqual([]);
+  });
+
+  it('cites, in the why cell, the line its own function is on', () => {
+    // `rowCites` reads the backend and evidence cells of feature rows, and the
+    // Python validator's cite grammar wants a backticked `path:line`. Neither
+    // can see a bare `line 179;` in the last cell of
+    // "Client requests no feature reaches", so 77 rows carried a number no gate
+    // checked — and a commit that grows one of the cited files moves every
+    // declaration below it and falsifies the cite without touching this file:
+    // that is how the row came to cite a line inside `updateKnownPerson`, when
+    // the envelope fix `a51a3aad9` grew the hook file under it.
+    // The check is the enclosing declaration, not an offset: at this head the
+    // 77 rows sit at +1, +2, +3 … out to +39 from their declaration line, so a
+    // "+1" rule would have failed 33 of them.
+    const problems = inv.noFeatureCalls.flatMap((n) => {
+      const p = path.join(REPO, n.file);
+      // A row whose why cell cites no line is out of scope here: this test
+      // checks cites that exist, and requires nothing of a row that makes no
+      // position claim. Measured at this head all 77 rows do cite exactly one.
+      if (n.lineCites.length === 0) return [];
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: repo-relative path read from a committed doc
+      if (!fs.existsSync(p)) return [`${n.method} ${n.path}: ${n.file} does not exist`];
+      return n.lineCites.flatMap((line) => {
+        const at = lib.declarationAt(p, line);
+        if (at === n.fn) return [];
+        const inside = at === null ? 'no declaration' : `\`${at}\``;
+        return [
+          `${n.method} ${n.path} (${n.file}, ${n.fn}): line ${line} is inside ${inside}, not \`${n.fn}\``,
+        ];
+      });
+    });
     expect(problems).toEqual([]);
   });
 

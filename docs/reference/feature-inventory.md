@@ -871,6 +871,13 @@ They are dead code in live files, not features; `F3.2` removes them with the res
 code. F1.1's known-missing entry for `GET /api/prompts/history/{model}` points here: the function
 that sends it, `fetchModelHistory`, is one of them.
 
+The `line N` in a why cell cites a line **inside** the function named in the row, and
+`src/__tests__/feature-inventory.test.ts` checks that it still does, by asking the TypeScript
+parser which top-level declaration encloses the number. A change that grows one of these files
+moves every declaration below it, so a row can go stale without the change touching this file;
+that is how `deleteKnownPerson` came to cite a line inside `updateKnownPerson`, when `a51a3aad9`
+grew `useFaceRecognitionApi.ts` by 13 lines under a row this document had already written.
+
 <!-- prettier-ignore -->
 | request | function | file | why |
 | --- | --- | --- | --- |
@@ -917,7 +924,7 @@ that sends it, `fetchModelHistory`, is one of them.
 | `GET /api/plate-reads/{}` | `fetchPlateReadById` | `frontend/src/services/plateReadsApi.ts` | line 203; knip --production: unused export |
 | `GET /api/outbound-webhooks/deliveries/{}` | `getDelivery` | `frontend/src/services/webhookApi.ts` | line 367; knip --production: unused export |
 | `GET /api/analytics-zones/polygon-zones/{}/approach-vectors` | `fetchZoneApproachVectors` | `frontend/src/hooks/useApproachVectors.ts` | line 114; referenced only by `useZoneApproachVectors`, which no rendered component reaches |
-| `DELETE /api/known-persons/{}` | `deleteKnownPerson` | `frontend/src/hooks/useFaceRecognitionApi.ts` | line 179; referenced only by `useDeleteKnownPerson`, `useFaceRecognitionApi`, which no rendered component reaches |
+| `DELETE /api/known-persons/{}` | `deleteKnownPerson` | `frontend/src/hooks/useFaceRecognitionApi.ts` | line 192; referenced only by `useDeleteKnownPerson`, `useFaceRecognitionApi`, which no rendered component reaches |
 | `GET /api/heatmaps/camera/{}/merged` | `fetchMergedHeatmapData` | `frontend/src/hooks/useHeatmapQuery.ts` | line 154; referenced only by `useMergedHeatmapQuery`, which no rendered component reaches |
 | `POST /api/v1/households` | `createHousehold` | `frontend/src/hooks/useHouseholdApi.ts` | line 364; built by `useHouseholdApi`, but neither consumer takes it: `HouseholdSettings` (`frontend/src/components/settings/HouseholdSettings.tsx:232`) and `ZoneAccessSettings` (`frontend/src/components/settings/ZoneAccessSettings.tsx:173`) |
 | `DELETE /api/v1/households/{}` | `deleteHousehold` | `frontend/src/hooks/useHouseholdApi.ts` | line 388; built by `useHouseholdApi`, but neither consumer takes it: `HouseholdSettings` (`frontend/src/components/settings/HouseholdSettings.tsx:232`) and `ZoneAccessSettings` (`frontend/src/components/settings/ZoneAccessSettings.tsx:173`) |
