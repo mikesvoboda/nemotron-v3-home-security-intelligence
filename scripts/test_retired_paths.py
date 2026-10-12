@@ -952,6 +952,7 @@ def test_cost_guards_are_still_in_the_source() -> None:
     being grepped is this file, so a needle written here also occurs here, and an
     uncut count would be satisfied by the pin itself after production moved.
     """
+    # nosemgrep: path-traversal-open - reads this file's own path, not input
     src = Path(__file__).read_text(encoding="utf-8")
     src = src[: src.index("def test_cost_guards_are_still_in_the_source")]
     assert src.count(
