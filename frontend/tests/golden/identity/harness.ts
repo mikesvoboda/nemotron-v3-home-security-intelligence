@@ -238,9 +238,33 @@ export async function assertGuardSurvives(page: Page, h: Harness): Promise<void>
  *     `View details for …`}) — accessible, and it also pins the a11y surface.
  *
  *  Naming it after the two rows that need it keeps a later DO-3 spec from
- *  reaching for XPath where a real testid exists. */
+ *  reaching for XPath where a real testid exists.
+ *
+ *  `exact: true` is load-bearing, not tidiness. getByRole's accessible-name
+ *  match is a CASE-INSENSITIVE SUBSTRING by default, and this page renders
+ *  member and vehicle <h3>s in the same role+level, so any pair of titles in a
+ *  substring relation makes one call resolve to two cards — Playwright then
+ *  fails the assert as a strict-mode violation while BOTH cards are on screen
+ *  and correct. That is not hypothetical: F-271's owner fixture is a MEMBER
+ *  named `${VEHICLE} Owner` (household.spec.ts:376), so the vehicle's own title
+ *  is a prefix of the member's and the F-271 card lookup matched both — red at
+ *  cc445f775 on the original plus both retries. The collision is a fixture
+ *  choice, but the LANDMINE is the loose match: a real user may name a member
+ *  "Bob" and register a vehicle "Bob's Truck", and renaming fixtures would fix
+ *  one spec while leaving the next one to trip on it. Hence the fix sits here,
+ *  for every caller. Mechanism measured, not assumed — playwright-core 1.63.0,
+ *  two cards on one page exactly as HouseholdPage.tsx renders them:
+ *    name='Golden DO-3 Sedan'                -> count=2   (the failure)
+ *    name='Golden DO-3 Sedan', exact: true   -> count=1   (the fix)
+ *    vehicle card alone, no exact            -> count=1   (proves the second
+ *                                                         match was the member)
+ *    member card alone, exact: true          -> count=1   (exact still finds a
+ *                                                         legitimate match, so
+ *                                                         F-270 stays green)
+ *    newline-padded <h3>, exact: true        -> count=1   (accessible-name
+ *                                                         whitespace is fine) */
 export function householdCard(page: Page, title: string): Locator {
   return page
-    .getByRole('heading', { name: title, level: 3 })
+    .getByRole('heading', { name: title, level: 3, exact: true })
     .locator('xpath=ancestor::div[contains(@class,"rounded-lg")][1]');
 }
