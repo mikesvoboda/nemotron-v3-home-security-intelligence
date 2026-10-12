@@ -21,13 +21,29 @@ Package exports:
 
 **Functions:**
 
-| Function                         | Description                                 |
-| -------------------------------- | ------------------------------------------- |
-| `extract_markdown_citations()`   | Main entry: extracts all markdown citations |
-| `parse_document()`               | Parse file and return (content, citations)  |
-| `_extract_frontmatter()`         | Split YAML frontmatter from body            |
-| `_parse_frontmatter_citations()` | Parse source_refs from frontmatter          |
-| `_extract_symbol_from_context()` | Extract symbol name from text near citation |
+| Function                         | Description                                     |
+| -------------------------------- | ----------------------------------------------- |
+| `extract_markdown_citations()`   | Main entry: extracts all markdown citations     |
+| `parse_document()`               | Parse file and return (content, citations)      |
+| `_extract_frontmatter()`         | Split YAML frontmatter from body                |
+| `_parse_frontmatter_citations()` | Parse source_refs from frontmatter              |
+| `_extract_symbol_from_context()` | Infer a symbol from code evidence near the cite |
+| `_fenced_ranges()`               | Bodies of code-tagged ``` fences in a doc       |
+| `_is_coded_reference()`          | Name inside a same-line backticked span         |
+| `_is_fenced_reference()`         | Name inside a fence opening after the cite      |
+
+**What counts as code evidence for an inferred symbol:** the NAME (not the keyword) must
+either sit inside a backticked span on its own line, or inside a ```-fence whose info string
+names a programming language (`python`, `ts`, `tsx`, …). Bare fences are excluded on purpose:
+they are the largest group in `docs/` (5,792 vs 1,369 `python`) and hold transcripts and logs.
+A name that fails both, runs on into path/member syntax, or was clipped by the ±100-char
+window is not inferred at all.
+
+**Fences are scanned once per document, not once per citation:** `extract_markdown_citations()`
+calls `_fenced_ranges()` once and passes the result down as `fences=`. The set is a property of
+the document, and `_extract_symbol_from_context()` is called per citation, so sweeping inside it
+is O(citations × document): `docs/reference/backend-entry-points.md` has 1,207 inline citations
+and made CI's own gate test exceed the root `timeout = 5`. Keep the sweep in the caller.
 
 **Supported Formats:**
 
@@ -115,6 +131,7 @@ class Citation:
     start_line: int     # Starting line number (1-indexed)
     end_line: int | None  # Optional ending line for ranges
     symbol_name: str | None  # Function/class name from context
+    symbol_inferred: bool  # True when symbol_name was inferred from prose, not typed by the author
     doc_file: str       # Source documentation file
     doc_line: int       # Line in documentation where citation appears
     raw_text: str       # Original citation text

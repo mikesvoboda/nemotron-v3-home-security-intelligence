@@ -62,12 +62,15 @@ Validates that cited symbols (functions, classes) exist at the specified lines.
 
 - If `symbol_name` is specified: Verifies symbol exists and citation points to it
 - If no `symbol_name`: Reports symbols found at the cited line
+- A missing symbol is judged by where the name came from (`citation.symbol_inferred`): a name the author
+  typed in `path:symbol:line` form is a claim and fails, a name inferred from surrounding prose was never
+  typed and only warns
 
 **Returns:**
 
 - `VALID` - Symbol found or line is valid code
-- `WARNING` - tree-sitter not installed or symbol at different line
-- `ERROR` - Symbol not found in file
+- `WARNING` - tree-sitter not installed, symbol at different line, or an INFERRED symbol not found
+- `ERROR` - Symbol not found in file, when the author declared that symbol
 
 **Dependencies:** `tree-sitter`, `tree-sitter-python` (optional)
 

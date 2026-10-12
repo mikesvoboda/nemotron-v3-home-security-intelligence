@@ -544,13 +544,13 @@ def test_real_tree_matches_spec_baselines():
     precedent. The PR's own verification missed it the same way d8482861 did: it ran
     backend/tests/unit, not the repo-root scripts/ gate.
     pytest_skipif 57→58 (2026-10-08): O0.1's follow-up #6864 — the roster
-    cross-check in test_uplevel_launch.py reads docs/uplevel/50-coordination.md,
+    cross-check in test_uplevel_launch.py reads docs/uplevel/roles/lane.md,
     outside mutmut's also_copy, so it skips (never aborts) when the docs tree is
     absent. Same layout-guard shape as the #46 row above: every CI checkout HAS
     docs/ and RUNS the test; only the mutant home skips. Classified todo by the
     generator; registry row + baseline raised the same commit (the same recipe).
     pytest_skipif 58→59 (2026-10-08): O1.10 #6867 — the operator-line cross-check in
-    test_uplevel_launch.py reads docs/uplevel/operator.md, outside mutmut's also_copy,
+    test_uplevel_launch.py reads docs/uplevel/roles/operator.md, outside mutmut's also_copy,
     so it skips (never aborts) when the docs tree is absent. Same layout-guard shape as
     the #46 row above: every CI checkout HAS docs/ and RUNS the test; only the mutant
     home skips. Classified todo by the generator; registry row + baseline raised the

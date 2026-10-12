@@ -1,6 +1,6 @@
 // feature-inventory-lib.mjs — read the feature inventory and the code it maps.
 //
-// Part of F2.2 (Feature inventory, docs/uplevel/20-frontend.md). The inventory
+// Part of F2.2 (Feature inventory, docs/uplevel/history/packages-done.md). The inventory
 // at docs/reference/feature-inventory.md is what the owner rules from in R2, so
 // src/__tests__/feature-inventory.test.ts checks it against the code rather than
 // trusting it. This file holds the readers that gate needs:

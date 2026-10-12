@@ -273,6 +273,7 @@ jobs:
           scripts/test_check_npm_audit_exemptions.py
           scripts/test_check_pip_audit_exemptions.py
           scripts/test_agents_md_validator.py
+          scripts/test_validate_docs_symbol_context.py
           scripts/test_retired_paths.py
           scripts/test_check_coe_reasons.py
           scripts/test_workflow_paths.py
@@ -285,6 +286,7 @@ jobs:
           scripts/test_shard_durations.py
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py
+          --durations=20
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref

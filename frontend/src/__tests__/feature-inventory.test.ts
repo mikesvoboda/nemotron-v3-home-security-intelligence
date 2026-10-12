@@ -1,5 +1,5 @@
 /**
- * The feature inventory covers the product: F2.2, docs/uplevel/20-frontend.md.
+ * The feature inventory covers the product: F2.2, docs/uplevel/history/packages-done.md.
  *
  * docs/reference/feature-inventory.md is the map the owner rules from in R2
  * (UR-13). A map that silently misses a page or an API call would let a feature

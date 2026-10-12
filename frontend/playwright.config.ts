@@ -40,7 +40,7 @@ import { defineConfig, devices } from '@playwright/test';
  * @see https://playwright.dev/docs/test-configuration
  */
 /**
- * F2.1 golden-path mode (20-frontend.md §F2.1).
+ * F2.1 golden-path mode (docs/uplevel/history/packages-done.md §F2.1).
  *
  * The `golden` project drives the real stack the feature-check harness brings
  * up (scripts/feature-check.sh, O2.2) with NO API mocking. Detection is either
@@ -267,7 +267,7 @@ export default defineConfig({
       // Only run specs, exclude visual tests
       testMatch: /specs\/.*\.spec\.ts$/,
     },
-    // Golden-path harness (F2.1, 20-frontend.md §F2.1).
+    // Golden-path harness (F2.1, docs/uplevel/history/packages-done.md §F2.1).
     // scripts/feature_check.py detects this project by TEXT (a regex for
     // `name: 'golden'` over this file) and then runs `--project=golden`; the
     // literal above stays present so detection works. It is only ADDED to the
