@@ -836,7 +836,7 @@ _SKIP_PROPERTY = re.compile(r"<property\b[^>]*\bname=[\"']skip[\"']")
 # 'retain-on-failure'). A trace.zip alone is not one — trace is
 # 'on-first-retry', so it marks a retry without a second failure.
 _FAILURE_ARTIFACTS = ("test-failed", "video.webm", "error-context.md")
-_VERDICT_RANK = {"passed": 0, "skipped": 1, "failed": 2}
+_VERDICT_RANK = {"passed": 0, "skipped": 1, "flaky": 2, "failed": 3}
 
 
 def _junit_text(path: Path) -> str:
@@ -847,56 +847,86 @@ def _junit_text(path: Path) -> str:
         return ""
 
 
+def _failed_attempt_dirs(body: str) -> set[str]:
+    """Artifact directories this row retains because an attempt FAILED.
+
+    One reader for both consumers (``junit_results``' flaky verdict and
+    ``junit_strikes``' count) so the two summary views cannot drift apart on
+    what counts as a retained failure. The golden project's config writes a
+    screenshot and a video only for a failed attempt (``screenshot:
+    'only-on-failure'``, ``video: 'retain-on-failure'``), so a directory
+    holding a ``test-failed*``, ``video.webm`` or ``error-context.md`` names
+    one failed attempt; a directory naming only a ``trace.zip`` does not
+    (``trace: 'on-first-retry'`` marks a retry, not a failure). The refs live
+    in ``<system-out>`` CDATA — so, unlike the verdict elements, these are
+    matched in the RAW body: a spec that PRINTED a forged ``[[ATTACHMENT|…]]``
+    line would read as struck, the same trust the report is already given (it
+    is this run's own file).
+    """
+    retained: set[str] = set()
+    for reference in re.findall(r"\[\[ATTACHMENT\|([^\]]*)\]\]", body):
+        directory, _, artifact = reference.rpartition("/")
+        if any(artifact.startswith(marker) for marker in _FAILURE_ARTIFACTS):
+            retained.add(directory)
+    return retained
+
+
 def junit_results(path: Path) -> dict[str, str]:
-    """Each spec of a golden suite's JUnit report: passed, failed or skipped.
+    """Each spec of a golden suite's JUnit report: passed, flaky, skipped or failed.
 
     The report is this run's own. It is read with patterns, not an XML
     parser, so no DTD or entity in it is ever processed; a spec's printed
     output (CDATA) is not mistaken for its outcome. No report, no specs.
 
-    Two properties here are load-bearing, because lanes quote this map as
-    evidence for what CI observed:
+    The ladder implements owner ruling 126 (``#6854`` ``6116438330``): a spec
+    is ``passed`` only if its final attempt passed and was not skipped; ANY
+    attempt that failed makes the spec ``flaky``, whatever the final outcome.
+    Three rules carry it, each pinned by its own fixture:
 
-    - **A spec that struck and then skipped at runtime is skipped, not
-      passed.** A failed attempt that is followed by a runtime self-skip (the
-      golden ``ws-status`` guard's ruling-86 path) collapses in the reporter
-      into one row that carries the skip in ``<property name="skip">`` and
-      emits NO ``<skipped>`` element — the element is written only for an
-      ``outcome()`` of ``"skipped"``, which a fail-then-skip trajectory is
-      not. A ladder that reads elements alone calls that spec ``passed``,
-      quoting the absence of a marker as the presence of a result.
-    - **The verdict for one spec is the worst its rows report, not the last
-      one.** Ties currently break by document order, which is safe only while
-      the reporter collapses attempts upstream of here. Both real reports
-      inspected hold exactly one row per spec (71/71 and 101/101 names), so
-      this fold changes no verdict today; it is the decision made in advance
-      for the reporter bump that would otherwise turn last-wins into silent
-      flaky-green.
+    - ``failed`` — the final attempt itself went red (a ``<failure>``/
+      ``<error>`` element). The ruling's target is struck legs recorded as
+      *passed*; a red final attempt keeps the verdict the gate and every lane
+      key on, and its extra strikes stay countable in ``junit_strikes``.
+    - ``flaky`` — an attempt failed but the row's final outcome did not
+      record it. Two shapes, both produced by the reporter collapsing
+      attempts before a row exists: a runtime self-skip after a failed
+      attempt carries ``<property name="skip">`` with NO ``<skipped>``
+      element (the golden ``ws-status`` guard's ruling-86 path), and a
+      fail-then-pass leaves no outcome trace at all but retains the failed
+      attempt's screenshot/video — which is why the verdict also reads
+      ``_failed_attempt_dirs``. Measured over 6 real reports, the artifact
+      rule reproduces the console's per-attempt ``✘`` counts exactly, so the
+      flaky verdict here and the strike count beside it come from one reader.
+    - ``skipped`` — a TRUE skip: the ``<skipped>`` element is present (both
+      element and property; the census measured), and no failed-attempt
+      artifact was retained. The owner's first clause ("passed only if … not
+      skipped") needs this to stay distinct from ``flaky``.
 
-    Neither clause closes the deeper gap: a spec that struck on one attempt
-    and passed on the next is filed ``passed`` here, because the reporter
-    collapses attempts before a row exists and files the outcome as final. It
-    is not, however, unmarked. The golden project's own Playwright config
-    retains artifacts only on failure (``screenshot: 'only-on-failure'``,
-    ``video: 'retain-on-failure'``) and writes a trace only on a retry
-    (``trace: 'on-first-retry'``), so a row that names a ``test-failed*``
-    attachment or a ``-retryN`` directory while carrying no outcome element
-    is a struck-then-recovered spec — ``junit_strikes`` reads exactly that,
-    from this same file. So a ``passed`` verdict here means "the last attempt
-    passed", not "never struck", and the strikes are countable without the
-    console.
+    **The verdict for one spec is the worst its rows report, not the last
+    one.** Ties currently break by document order, which is safe only while
+    the reporter collapses attempts upstream of here. Both real reports
+    inspected hold exactly one row per spec (71/71 and 101/101 names), so
+    this fold changes no verdict today; it is the decision made in advance
+    for the reporter bump that would otherwise turn last-wins into silent
+    flaky-green.
     """
     results: dict[str, str] = {}
     for match in _TESTCASE.finditer(_junit_text(path)):
         attributes = {key: html.unescape(value) for key, value in _ATTRIBUTE.findall(match[1])}
-        body = _CDATA.sub("", match[2] or "")
+        raw = match[2] or ""
+        body = _CDATA.sub("", raw)
         name = f"{attributes.get('classname', '')}::{attributes.get('name', '')}"
         if re.search(r"<(?:failure|error)\b", body):
             verdict = "failed"
-        elif re.search(r"<skipped\b", body) or _SKIP_PROPERTY.search(body):
-            # The element is a whole-spec skip (both attempts); the property is
-            # a struck attempt that a runtime skip collapsed onto (the reporter
-            # writes no element for that trajectory). Both mean not-executed.
+        elif _SKIP_PROPERTY.search(body) and not re.search(r"<skipped\b", body):
+            # Property WITHOUT the element: the reporter's own trace of a failed
+            # attempt collapsed onto a runtime skip (ruling 126's fail-then-skip).
+            verdict = "flaky"
+        elif _failed_attempt_dirs(raw):
+            # A retained failed-attempt artifact with no surviving outcome
+            # element: fail-then-pass (ruling 126's other named fixture).
+            verdict = "flaky"
+        elif re.search(r"<skipped\b", body):
             verdict = "skipped"
         else:
             verdict = "passed"
@@ -941,10 +971,11 @@ def junit_totals(path: Path) -> dict[str, int]:
     disagree by design and only one is present in both families: Playwright
     writes totals at BOTH levels and they differ (its root ``skipped`` counts
     final outcomes, so a spec that struck then runtime-skipped is neither a
-    failure nor a skip there — while the per-row map above must, and does,
-    call it ``skipped``), and pytest writes them ONLY on its single
-    ``<testsuite>``, leaving the root a bare ``<testsuites name="pytest
-    tests">``. Summing headers is the only reading that answers for both.
+    failure nor a skip there — while the per-row map above must, under owner
+    ruling 126, call that trajectory ``flaky``), and pytest writes them ONLY
+    on its single ``<testsuite>``, leaving the root a bare ``<testsuites
+    name="pytest tests">``. Summing headers is the only reading that answers
+    for both.
     """
     totals = {"tests": 0, "failed": 0, "skipped": 0}
     for match in _TESTSUITE.finditer(_junit_text(path)):
@@ -959,12 +990,11 @@ def junit_totals(path: Path) -> dict[str, int]:
 def junit_strikes(path: Path) -> dict[str, int]:
     """Specs whose JUnit row carries retained failure artifacts, and how many.
 
-    The report cannot tell a struck-then-recovered spec from a clean one by
-    OUTCOME (the reporter files attempts as final), but it can tell it by
-    ARTIFACT, and the golden project's own Playwright config makes that sound:
-    the screenshot and the video are retained only for a failed attempt
-    (``screenshot: 'only-on-failure'``, ``video: 'retain-on-failure'``), so a
-    row naming one failed at least once whatever its element says.
+    Since owner ruling 126 the verdict map itself promotes a struck spec to
+    ``flaky``, so this map answers the *other* question: not which specs were
+    struck but **how many times**, which the verdict cannot say. Both read one
+    helper (``_failed_attempt_dirs``), so the two views cannot drift on what
+    counts as a retained failure.
 
     Counted by retained FAILURE set: an artifact directory holding a
     ``test-failed*`` screenshot, a ``video.webm`` or an ``error-context.md``.
@@ -980,20 +1010,15 @@ def junit_strikes(path: Path) -> dict[str, int]:
     ``failed`` appears here too (it struck on every attempt it ran), so read it
     beside ``junit_results`` rather than instead of it. The references are
     printed in ``<system-out>`` CDATA by the reporter, so — unlike the verdict
-    ladder, which strips CDATA precisely so printed output cannot read as an
-    outcome — these are matched in the raw body; a spec that PRINTED a forged
-    ``[[ATTACHMENT|…test-failed-1.png]]`` line would read as struck, which is
-    the same trust the report is already given (it is this run's own file).
+    elements, which are read from CDATA-stripped bodies precisely so printed
+    output cannot fake an outcome — these are matched in the raw body; see
+    ``_failed_attempt_dirs`` for the forged-line caveat.
     """
     strikes: dict[str, int] = {}
     for match in _TESTCASE.finditer(_junit_text(path)):
         attributes = {key: html.unescape(value) for key, value in _ATTRIBUTE.findall(match[1])}
         name = f"{attributes.get('classname', '')}::{attributes.get('name', '')}"
-        retained: set[str] = set()
-        for reference in re.findall(r"\[\[ATTACHMENT\|([^\]]*)\]\]", match[2] or ""):
-            directory, _, artifact = reference.rpartition("/")
-            if any(artifact.startswith(marker) for marker in _FAILURE_ARTIFACTS):
-                retained.add(directory)
+        retained = _failed_attempt_dirs(match[2] or "")
         if retained:
             strikes[name] = len(retained)
     return strikes

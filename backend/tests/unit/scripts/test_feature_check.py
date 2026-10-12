@@ -1545,16 +1545,18 @@ def _junit(tmp_path: Path, body: str, suite_attrs: str = "", root_attrs: str = "
     return path
 
 
-def test_a_spec_that_struck_then_runtime_skipped_is_not_reported_as_passed(tmp_path: Path) -> None:
-    """A failed attempt followed by a self-skip prints neither `<failure>` nor `<skipped>`.
+def test_a_spec_that_struck_then_runtime_skipped_is_flaky(tmp_path: Path) -> None:
+    """Owner ruling 126: a failed attempt followed by a self-skip is **flaky**.
 
     Observed live, same spec, in CI artifacts `11721450798` and `11718785897`: the partition
     guard in `ws-status.spec.ts` skips at runtime when the host never tears the socket down
     (ruling 86), and the vendored reporter only emits `<skipped>` for an `outcome()` of
     `"skipped"` \u2014 which a fail-then-skip trajectory is not. The skip therefore lands in
-    `<properties>`, and a verdict ladder that reads only elements calls the spec **passed**.
-    "Unmeasurable on this host" is not "passed": a lane quoting this map as evidence would be
-    quoting the absence of a marker as the presence of a result.
+    `<properties>`. Owner ruling 126 (`#6854` `6116438330`) names this fixture explicitly:
+    "any spec with a failed attempt is recorded as `flaky`, whatever its final outcome" \u2014
+    so the property-without-element trajectory that my first cut called `skipped` is
+    `flaky` under the owner's semantics: the property is the reporter's own trace that an
+    attempt failed, and hiding that behind `skipped` still buries the strike.
     """
     junit = _junit(
         tmp_path,
@@ -1566,7 +1568,102 @@ def test_a_spec_that_struck_then_runtime_skipped_is_not_reported_as_passed(tmp_p
         "<system-out>the struck attempt was collapsed by the reporter</system-out>"
         "</testcase>",
     )
+    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "flaky"}
+
+
+def test_a_spec_that_struck_then_passed_is_flaky_not_passed(tmp_path: Path) -> None:
+    """Ruling 126's second named fixture: fail-then-PASS maps to `flaky` too.
+
+    FE-2's F-040 row is the production shape (#7014 `6116330046`, run `38189450762`): one
+    row, no outcome element, a retained screenshot naming the failed first attempt. Before
+    ruling 126 this map filed it `passed`; the owner's rule \u2014 passed ONLY if the final
+    attempt passed and was not skipped, any failed attempt \u21d2 flaky \u2014 reads the retained
+    artifact as what it is: proof an attempt went red. This is the shape the coordinator's
+    dispatch assumed "junit can't see"; the artifact channel sees it, measured 6/6 real
+    reports against the console.
+    """
+    junit = _junit(
+        tmp_path,
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"><system-out>'
+        "[[ATTACHMENT|golden-playwright/ws-status-f007-golden/test-failed-1.png]]"
+        "</system-out></testcase>",
+    )
+    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "flaky"}
+
+
+def test_a_true_skip_stays_skipped_under_the_flaky_rule(tmp_path: Path) -> None:
+    """The retarget's boundary witness: NO failed attempt \u21d2 no `flaky`.
+
+    A true whole-spec skip carries the `<skipped>` element AND the skip property (measured
+    census \u2014 it is the property WITHOUT the element that marks a collapsed failed attempt).
+    Ruling 126 promotes rows that had a failed attempt; a leg that never struck and never
+    ran is `skipped`, which is exactly the outcome the owner's first clause distinguishes
+    ("passed only if \u2026 not skipped"). Without this pin, a retarget could swallow every
+    skip into flaky and still pass the two fixtures above.
+    """
+    junit = _junit(
+        tmp_path,
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"><properties>'
+        '<property name="skip" value="skipped by config"/></properties><skipped/>'
+        "</testcase>",
+    )
     assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "skipped"}
+    # The element-present skip that ALSO retains a failed-attempt artifact is
+    # flaky, not skipped: ruling 126's "any failed attempt" clause outranks the
+    # final outcome, which is what "whatever its final outcome" is for. Today's
+    # reporter collapses this trajectory into the property-only row above, so
+    # this half is a decision made in advance, like the worst-wins fold.
+    struck_then_skipped = _junit(
+        tmp_path.parent / "struck-then-skipped",
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}"><properties>'
+        '<property name="skip" value="skipped by config"/></properties><skipped/>'
+        "<system-out><![CDATA["
+        "[[ATTACHMENT|golden-playwright/ws-status-f007-golden/test-failed-1.png]]"
+        "]]></system-out></testcase>",
+    )
+    assert fc.junit_results(struck_then_skipped) == {f"{WS_STATUS}::{WS_F007}": "flaky"}
+
+
+def test_a_leg_that_failed_every_attempt_stays_failed_not_flaky(tmp_path: Path) -> None:
+    """`failed` is not consumed by `flaky`: a red final attempt still reads `failed`.
+
+    Ruling 126's literal tail \u2014 "any failed attempt \u21d2 flaky, whatever
+    its outcome" \u2014 could also be read to relabel a leg that failed EVERY
+    attempt (rate-limit's 3-strike legs in the real reports). This pin holds
+    the reading consistent with the ruling's own "Why"
+    (the defect is a struck leg recorded as *passed*): a leg whose final attempt went red
+    keeps the verdict the gate and every lane already key on, and the extra strikes it
+    carried stay countable in `junit_strikes`. The edge is flagged to the owner; if they
+    meant the literal reading, this fixture flips and nothing else moves.
+    """
+    junit = _junit(
+        tmp_path,
+        f'<testcase classname="{WS_STATUS}" name="{WS_F007}">'
+        "<system-out><![CDATA["
+        "[[ATTACHMENT|golden-playwright/rate-limit-f007-golden/test-failed-1.png]]\n"
+        "[[ATTACHMENT|golden-playwright/rate-limit-f007-golden-retry1/test-failed-1.png]]\n"
+        "]]></system-out>"
+        '<failure message="attempt 2 red too"/>'
+        "</testcase>",
+    )
+    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "failed"}, (
+        "a red final attempt must not be relabelled flaky"
+    )
+    assert fc.junit_strikes(junit) == {f"{WS_STATUS}::{WS_F007}": 2}
+
+
+def test_repeat_rows_fold_flaky_over_a_later_clean_pass(tmp_path: Path) -> None:
+    """With `flaky` in the codomain the worst-wins rank must order it correctly.
+
+    A struck row and a later clean row for one spec fold to `flaky`, not `passed` \u2014 the
+    rank table, not document order, decides.
+    """
+    junit = _junit(
+        tmp_path,
+        _struck_row(WS_STATUS, WS_F007, (("f007-golden", FAILED_ATTEMPT),))
+        + f'<testcase classname="{WS_STATUS}" name="{WS_F007}"/>',
+    )
+    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "flaky"}
 
 
 def test_repeated_rows_for_one_spec_never_yield_a_milder_verdict_than_the_worst(
@@ -1719,23 +1816,18 @@ def _struck_row(
     )
 
 
-def test_a_struck_then_recovered_spec_is_counted_as_struck_even_though_it_passed(
+def test_a_struck_then_recovered_spec_is_flaky_and_counted_as_struck(
     tmp_path: Path,
 ) -> None:
-    """The flaky-green shape FE-2 named: no failure element, yet not clean.
+    """Ruling 126's shape in one row: verdict `flaky`, strike count 1.
 
-    This is the row the console would show as one ``✘`` then a green retry. The
-    verdict map files it ``passed`` (the reporter collapses attempts to a final
-    outcome, so no ``<failure>`` survives to an element), but the retained
-    screenshot/video/error-context of the first attempt are still named in
-    ``<system-out>``. Reading the failure-bearing dirs recovers the strike the
-    outcome element hides — this is exactly the datum that makes "passed" mean
-    "the last attempt passed", not "never struck".
-
-    Two clauses ride on the single-strike count being exactly 1, not 2: the
-    ``-retry1`` directory is named ONLY a ``trace.zip`` (``trace:
-    'on-first-retry'`` marks a retry, not a second failure), so a naive
-    one-artifact-per-directory count would over-read it as two strikes.
+    The row the console would show as one ``✘`` then a green retry. Under the owner's
+    semantics the verdict itself is now ``flaky`` (the retained screenshot proves the red
+    attempt), and the strike stays countable in its own map — the two views answer
+    different questions: 126 says WHICH SPECS were struck, ``junit_strikes`` says HOW
+    OFTEN. Two clauses ride on the count being exactly 1, not 2: the ``-retry1`` directory
+    is named ONLY a ``trace.zip`` (``trace: 'on-first-retry'`` marks a retry, not a second
+    failure), so a naive one-artifact-per-directory count would over-read two strikes.
     """
     junit = _junit(
         tmp_path,
@@ -1748,8 +1840,8 @@ def test_a_struck_then_recovered_spec_is_counted_as_struck_even_though_it_passed
             ),
         ),
     )
-    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "passed"}, (
-        "the fixture must model the row the verdict map calls passed"
+    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "flaky"}, (
+        "ruling 126: a retained failed-attempt artifact makes the spec flaky, not passed"
     )
     assert fc.junit_strikes(junit) == {f"{WS_STATUS}::{WS_F007}": 1}, (
         "a trace-only retry directory is not a second strike"

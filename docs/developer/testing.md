@@ -621,34 +621,36 @@ user that runs any live stack, or its checks see nothing to protect.
 
 It skips each one until it exists.
 
-**What the per-spec map can and cannot say (ruling 116 posture).** `summary.json`
-carries `results.golden.backend_specs` and `results.golden.playwright_specs`, a
-verdict per spec parsed from the run's own JUnit report, and lanes quote it as
-evidence for what CI observed. Two limits are pinned by tests so neither is
-quietly read as the other. A spec that **struck and then skipped at runtime** —
-the `ws-status` partition leg under ruling 86, where the host never tears the
-socket down — is reported `skipped`, not `passed`: the reporter collapses the
-struck attempt and writes the skip as a `<property>`, with no `<skipped>`
-element to find. And a spec that **struck on one attempt and passed on the
-next** is reported `passed`, because the reporter collapses attempts before a
-JUnit row exists — no outcome element marks the strike. It is not, however,
-unmarked: the golden project's config retains artifacts only on failure
-(`screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`, `trace:
-'on-first-retry'`), so the row still names a `test-failed*` screenshot for each
-attempt that failed, and `junit_strikes` counts them into
-`results.golden.backend_strikes` / `results.golden.playwright_strikes` from that
-same report. A `-retryN` directory naming only a `trace.zip` is excluded (a trace
-marks a retry, not a second failure), and the count was measured to reproduce the
-console's per-attempt `✘` totals row for row on six real reports. So a `passed`
-here means "the last attempt passed", not "never struck" — and the strikes are
-countable without the console, which stands as the cross-check rather than the
-only source. The gate is unaffected — it keys Playwright's own
-exit code, so a green `CI Gate` remains a valid merge witness whatever the map
-says. `junit_drift_problems` guards the separate pattern-parser risk (an
-unreadable row is dropped without an error) by reconciling the map against the
-report's own totals; it is a drift alarm, not a flakiness detector, and it
-deliberately never compares `skipped`, which the two views disagree on by
-design. Specs read the stack from these
+**What the per-spec map can and cannot say (owner ruling 126).**
+`summary.json` carries `results.golden.backend_specs` and
+`results.golden.playwright_specs`, a verdict per spec parsed from the run's own
+JUnit report, and lanes quote it as evidence for what CI observed. The ladder
+implements the owner's rule — a spec is `passed` only if its final attempt
+passed and was not skipped; **any failed attempt makes it `flaky`**. Two
+fail-then-not-passed shapes exist because the reporter collapses attempts
+before a JUnit row is written, and each is pinned by its own fixture: a
+**fail-then-runtime-skip** (the `ws-status` partition leg under ruling 86)
+carries `<property name="skip">` with no `<skipped>` element, and a
+**fail-then-pass** leaves no outcome trace at all — but both retain the failed
+attempt's artifacts (`screenshot: 'only-on-failure'`, `video:
+'retain-on-failure'`), so the row still names a `test-failed*` screenshot per
+failed attempt and the map files it `flaky`. A **true** skip — `<skipped>`
+element present, no retained artifact — stays `skipped`; a leg whose final
+attempt itself failed stays `failed`, with its earlier strikes countable
+beside it. `junit_strikes` answers the quantity the verdict cannot: **how many
+times** each spec struck, into `results.golden.backend_strikes` /
+`results.golden.playwright_strikes`, read from the same helper so the two views
+cannot drift. A `-retryN` directory naming only a `trace.zip` is excluded there
+(a trace marks a retry, not a second failure), and the count was measured to
+reproduce the console's per-attempt `✘` totals row for row on six real reports;
+the console stands as the cross-check rather than the only source. The gate is
+unaffected — it keys Playwright's own exit code, so a green `CI Gate` remains a
+valid merge witness whatever the map says (ruling 126: "the gate keeps reading
+Playwright's exit code"). `junit_drift_problems` guards the separate
+pattern-parser risk (an unreadable row is dropped without an error) by
+reconciling the map against the report's own totals; it is a drift alarm, not a
+flakiness detector, and it deliberately never compares `skipped`, which the two
+views disagree on by design. Specs read the stack from these
 environment variables:
 
 | variable                                                       | value                                         |
