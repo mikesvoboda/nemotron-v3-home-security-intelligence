@@ -816,6 +816,12 @@ The logic is `feature_check.py`, standard library only:
   number. Forward `XDG_CACHE_HOME` beside `PLAYWRIGHT_BROWSERS_PATH` — both move
   the browser root and both are read at launch, so a probe that drops either one
   judges a cache the runner will not use;
+- a golden project that executed nothing is a problem, not a pass (ruling 114):
+  a leg whose junit report lists no spec, or lists only skips, reddens Feature
+  Check. A leg's exit code says the runner finished, not that a spec ran; a
+  suite whose every spec skipped exits 0 (measured). An absent golden project is
+  a different state and stays "no specs yet"; a run with one executed spec is
+  green, because specs that skip on their own absent precondition are honest.
 - `--real` (owner ruling 66) serves the real VLM through `agent-gpu` in place
   of the fake one (`AgentGpu`): the weights' pin first, the runner's port as
   the only host address the run may reach, and the VLM removed after the run.
