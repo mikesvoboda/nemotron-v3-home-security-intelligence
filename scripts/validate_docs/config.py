@@ -59,6 +59,7 @@ class Citation:
     doc_file: str = ""
     doc_line: int = 0
     raw_text: str = ""
+    symbol_inferred: bool = False
 
     @property
     def is_range(self) -> bool:
@@ -240,9 +241,11 @@ MERMAID_REFERENCE_PATTERN: Pattern[str] = re.compile(
     r"(?:Note|note).*?`([a-zA-Z0-9_/.-]+\.[a-zA-Z]+):(\d+)(?:-(\d+))?`"
 )
 
-# Pattern to extract function/class name from text near citation
+# Pattern to extract function/class name from text near citation.
+# The leading \b is load-bearing: without it the keyword matches INSIDE a word,
+# so "bullet TEXT" matched "let TEXT" and inferred a required symbol TEXT.
 SYMBOL_CONTEXT_PATTERN: Pattern[str] = re.compile(
-    r"(?:function|class|method|def|const|var|let)\s+[`\"]?([a-zA-Z_][a-zA-Z0-9_]*)[`\"]?"
+    r"\b(?:function|class|method|def|const|var|let)\s+[`\"]?([a-zA-Z_][a-zA-Z0-9_]*)[`\"]?"
 )
 
 

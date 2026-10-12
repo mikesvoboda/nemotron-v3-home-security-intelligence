@@ -27,7 +27,7 @@ Package exports:
 | `parse_document()`               | Parse file and return (content, citations)  |
 | `_extract_frontmatter()`         | Split YAML frontmatter from body            |
 | `_parse_frontmatter_citations()` | Parse source_refs from frontmatter          |
-| `_extract_symbol_from_context()` | Extract symbol name from text near citation |
+| `_extract_symbol_from_context()` | Infer a symbol from a code span near the cite |
 
 **Supported Formats:**
 

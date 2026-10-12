@@ -114,8 +114,28 @@ def _parse_frontmatter_citations(frontmatter: str, doc_file: str) -> list[Citati
     return citations
 
 
+_CODE_SPAN_PATTERN = re.compile(r"`[^`\n]+`")
+
+
+def _is_coded_reference(line: str, name_offset: int) -> bool:
+    """True if the offset falls inside a backticked code span on ``line``.
+
+    Backticks are the author's own mark that a token is code. Requiring them is
+    what separates "class ``_ThreadWatchdog``" (a symbol reference) from
+    "a class docstring" (English) without maintaining a list of English words.
+    """
+    return any(
+        span.start() <= name_offset < span.end() - 1 for span in _CODE_SPAN_PATTERN.finditer(line)
+    )
+
+
 def _extract_symbol_from_context(content: str, position: int, window: int = 100) -> str | None:
     """Try to extract a symbol name from the context around a citation.
+
+    Only code-evidenced candidates are accepted: the keyword+name pair must sit
+    inside a backticked span, the name must not run on into path or member
+    syntax, and the name must be intact in the FULL content — a candidate the
+    window clipped is not evidence of anything.
 
     Args:
         content: Document content
@@ -129,9 +149,27 @@ def _extract_symbol_from_context(content: str, position: int, window: int = 100)
     end = min(len(content), position + window)
     context = content[start:end]
 
-    # Look for function/class/method mentions
-    match = SYMBOL_CONTEXT_PATTERN.search(context)
-    if match:
+    # Look for function/class/method mentions; keep scanning past prose hits.
+    for match in SYMBOL_CONTEXT_PATTERN.finditer(context):
+        name_start = start + match.start(1)
+        name_end = start + match.end(1)
+
+        # Judge the word against the full document, never the window: the
+        # window's own edge otherwise reads as a word boundary, so the clipped
+        # tail of a path ("bac", "b") becomes a required symbol.
+        tail = content[name_end : name_end + 1]
+        if re.match(r"[A-Za-z0-9_]", tail) or tail in ("/", "."):
+            continue
+        if content[name_start - 1 : name_start] == "/":
+            continue
+
+        line_start = content.rfind("\n", 0, name_start) + 1
+        line_end = content.find("\n", name_start)
+        if line_end == -1:
+            line_end = len(content)
+        if not _is_coded_reference(content[line_start:line_end], name_start - line_start):
+            continue
+
         return match.group(1)
 
     return None
@@ -188,6 +226,9 @@ def extract_markdown_citations(content: str, doc_file: str = "") -> list[Citatio
                 doc_file=doc_file,
                 doc_line=doc_line,
                 raw_text=match.group(0),
+                # This name was guessed from surrounding prose; the author
+                # never typed it, so it may inform but must not block.
+                symbol_inferred=symbol_name is not None,
             )
         )
 
