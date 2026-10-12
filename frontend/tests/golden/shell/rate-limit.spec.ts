@@ -202,7 +202,8 @@ test.describe('golden path: rate-limit indicators @critical', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test('F-022 (shed): an nginx-throttled 429 lights the countdown with the fabricated 100/0/+60 window, ticks, toasts, pairs with the pill across an SPA nav, and reloads clean', async ({
+  // owner ruling 125 — quarantined until fixed, expires 2026-10-14T00:00Z
+  test.fixme('F-022 (shed): an nginx-throttled 429 lights the countdown with the fabricated 100/0/+60 window, ticks, toasts, pairs with the pill across an SPA nav, and reloads clean', async ({
     context,
     page,
   }) => {

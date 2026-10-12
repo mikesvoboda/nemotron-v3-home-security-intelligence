@@ -605,7 +605,12 @@ def test_real_tree_matches_spec_baselines():
         # corpus breaches (4.40s PR #6826 head run 37560500061, 4.116s main
         # junit 37541671553 = the WP1.3 baseline denial; 5.28s solo — O(all
         # tracked test files), grows with the suite), registry entry same commit.
-        "tpa_slow_list": 9,
+        # 9→10 (2026-10-11): TestLiveWiring child-session probe admitted with
+        # measured CI breaches (6.05s run 38177621922, 5.56s run 38179109729 —
+        # two heads of #7003; 6.92s local): it boots a real child pytest session
+        # and the ~6s interpreter+plugin boot is the mechanism, not noise. The
+        # file is absent at main, so no corpus entry existed to pre-admit it.
+        "tpa_slow_list": 10,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
     assert not stale, "census vs spec baseline drift: " + ", ".join(
