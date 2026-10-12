@@ -23,30 +23,23 @@ owner unblocked.
 - The packages files (`packages/backend.md`, `packages/frontend.md`, `packages/ops.md`, `packages/docs.md`) and
   [`r2-sheet.md`](../r2-sheet.md) when a question touches a package or an open owner decision (OD-n).
 
-A ruling binds as rules.md §Authority: rulings, plan text and IDs says. Treat every ruling as settled; reopening one is
-a question for the owner, never your call.
+A ruling binds as UR-39 and UR-40 say. Treat every ruling as settled (UR-44).
 
 ## Guardrails
 
-- **State only what you just read** (UR-29, UR-31). Every SHA, PR number, time and count in what you tell the owner or
-  post comes from a `gh`, `git` or `date -u` call in the same turn. Never write a guessed time; read `date -u` or omit
-  it. GitHub's `created_at` is the record.
+- **State only what you just read** (UR-31, UR-154), in everything you tell the owner or post.
 - **One question at a time.** Each question carries its facts, two or three lettered options, and your recommendation
   first, marked "Recommended". The owner usually answers with a letter.
-- **Never wait inside a turn** on CI, a check run or a watcher (UR-38). Read once, report, end the turn.
+- **Never wait inside a turn** (UR-38).
 - **Commit and push only when the owner asks.** Commit as
-  `git -c user.name="Mike Svoboda" -c user.email=mikesvoboda@users.noreply.github.com`. Never bypass hooks (no
+  `git -c user.name="Mike Svoboda" -c user.email=mikesvoboda@users.noreply.github.com`. Never bypass hooks (UR-69: no
   `--no-verify`, no `SKIP=`).
-- **Agents' sandboxes are theirs.** Never run git on the host inside an agent's workspace (`core.fsmonitor`; see
-  `docs/synthbench/operator-runbook.md`). You never reach into a sandbox; recovery is the owner pressing keys in a pane.
-- **`agent-dgx`:** never run `agent-dgx help` or `agent-dgx ls` (an unknown word starts a session). New sandboxes clone
-  the owner's host checkout, so the owner pulls it before any `agent-dgx run`.
-- **Real tier:** it never touches the live stack; only the pinned q4km VLM is served; no `--mount` at or under
-  `/srv/agent-models`.
+- **Agents' sandboxes are theirs** (UR-163, UR-170; `docs/synthbench/operator-runbook.md`).
+- **`agent-dgx`** (UR-26, UR-28).
+- **Real tier** (UR-133, UR-137).
 - **On maui, never `find /`** (it hangs on the ZFS tree). Start from `zfs list` and search a named dataset.
-- **Third-party prompts and tools:** read them in full before adopting any; agents hold the owner's token (UR-27).
-  `mcp_agent_mail_rust` was assessed and declined: its licence rider grants no rights to Anthropic or OpenAI, and
-  GitHub stays the only channel between sandboxes (UR-26).
+- **Third-party prompts and tools** (UR-177). `mcp_agent_mail_rust` was assessed and declined: its licence rider grants
+  no rights to Anthropic or OpenAI, and GitHub stays the only channel between sandboxes (UR-26).
 
 ## The check-in
 
@@ -72,8 +65,7 @@ names its owner (an agent, the coordinator or the owner).
 
 ## Relaying a ruling
 
-A ruling binds when it is merged into the plan files, and its #6854 comment is only a pointer (rules.md §Authority:
-rulings, plan text and IDs). When the owner answers, in the same turn:
+When the owner answers, in the same turn (UR-39):
 
 1. Read the last ruling number on #6854 and use the next one.
 2. Draft the ruling into the plan files on an owner plan PR ("Owner PRs" below): the rule under its `rules.md` section
@@ -89,9 +81,8 @@ rulings, plan text and IDs). When the owner answers, in the same turn:
 
 3. Post the one-line pointer on #6854: `Ruling NN, in PR #M: <one line>` (write the body to a file and pass it with
    `-F body=@<file>`).
-4. **Urgent cases.** When the ruling must bind before its plan PR can merge, post it on #6854 as an owner record whose
-   first line carries `BINDING NOW`, followed by the ruling in the form above. It binds at once and lapses 48 hours
-   after posting unless a merged PR carries it, so open the plan PR in the same turn.
+4. **Urgent cases.** When the ruling must bind before its plan PR can merge, post it on #6854 as a `BINDING NOW` owner
+   record (UR-40), followed by the ruling in the form above, and open the plan PR in the same turn.
 5. Post a short pointer on each affected PR, linking the plan PR (or the `BINDING NOW` record).
 6. Update your own notes (the next ruling number, and the plan PR that carries it).
 
@@ -112,8 +103,7 @@ bookkeeping the batch owes (for example, status rows).
   (`uv run python scripts/suppression-census.py --expect "$(cat .github/suppression-baseline.json)"`; a `patch()`
   without `autospec=True` raises `unspecced_patch`).
 - Open the PR with a lane label, the ruling it implements, and `Plan text: …` in the body. Turn on auto-merge
-  (`gh pr merge <n> --auto --merge`); owner PRs join the coordinator's one-at-a-time queue (ruling 15), and only a
-  ruling moves one ahead of it (ruling 65 did).
+  (`gh pr merge <n> --auto --merge`); the PR then queues as UR-108 and UR-104 say.
 - A plan PR that changes a hardcoded roster or command also changes `backend/tests/unit/scripts/test_uplevel_launch.py`.
 
 **Owed to the next owner plan PR** (as of 2026-10-11 14:30Z): nothing. The plan PR of 2026-10-11 afternoon carried
@@ -126,16 +116,11 @@ An agent **stalls** when its turn waits on something (usually CI or a background
 turns, so it never ticks again and looks exactly like an idle agent. 10-10 lost about six hours this way. UR-38's
 heartbeats make it visible.
 
-- **Stall test** (rules.md §Posting, heartbeats and the urgent path): heartbeat older than 45 minutes for lanes and heavy agents
-  (90 for the operator) **and** no push or comment in that window. The coordinator raises it on the urgent path; recovery
-  is the owner's.
+- **Stall test:** UR-38. Recovery is the owner's (UR-163).
 - A heartbeat is written as the tick's first step, before the agent reads anything, so its text lags one tick. Judge a
   stale **status** only after a second beat.
-- **Recovery** is the owner's: Esc in the pane, then a catch-up prompt. The agent lists its scheduled tasks first and
-  re-arms its loop only if none is listed (a second loop doubles every tick).
-- **Keeping ticks alive.** A recurring `/loop` expires seven days after it is armed, and a restarted or resumed session
-  drops it. The owner re-arms each tick weekly, and after a restart or a `/clear`, the same way: list scheduled tasks
-  first, arm only if none is listed.
+- **Recovery** (UR-163): Esc in the pane, then a catch-up prompt ("Prompts" below).
+- **Keeping ticks alive** (UR-36).
 
 ## Prompts
 
@@ -154,32 +139,22 @@ You stopped ticking at about <HH:MMZ>. Your open work: <#n (package), #m ...>. R
 Owner ruling <NN> (merged in PR #<M>, or its BINDING NOW record on #6854) assigns you <package>. Read it in full first and quote it (UR-29). <order, labels, claim PR contents>. Never wait inside a turn (UR-38); update your heartbeat each tick.
 ```
 
-Launching a sandbox, from a clean host checkout of `main` (UR-169): `agent-dgx run <name> --agent claude [--endpoint dgx] [--mount <host>:ro] [--gpu] --split`, then
-the kickoff from `scripts/uplevel/sandboxes.toml` and `/loop` at the interval UR-36 sets (coordinator 5m, lanes and
-heavy 15m, operator 30m). The strongest model is `--agent claude` with no endpoint (heavy, heavy-2). Only the operator
-has `--gpu` and the `/synthbench` mounts.
+Launching a sandbox, from a clean host checkout of `main` (UR-28): `agent-dgx run <name> --agent claude [--endpoint dgx] [--mount <host>:ro] [--gpu] --split`, then
+the kickoff from `scripts/uplevel/sandboxes.toml` and `/loop` at the interval UR-36 sets. The strongest model is
+`--agent claude` with no endpoint (heavy, heavy-2). Only the operator has `--gpu` and the `/synthbench` mounts (UR-30).
 
 ## What has gone wrong before
 
 Check for these first; each has happened.
 
-- **`main` red from a slow unit or e2e test.** The Test Performance Audit's limits are 4.0 s (unit) and 10.0 s (e2e). It
-  forgives a breach only when the test was healthy on the previous `main` run and under 3× the limit, so a test
-  steadily over the limit is permanent red. Twice on 10-09 and 10-10 the cause was a real sleep: a banner spec waiting
-  through a 15 s poll (fixed with Playwright's `page.clock`), and redis `connect()`'s real backoff with jitter (fixed by
-  patching `_calculate_backoff_delay` to zero). Ruling 74 adds a gate for this class.
+- **`main` red from a slow test.** One breach of the sleep gate is red (UR-125); the cause has been a real sleep in the
+  test (a poll waited out in real time, a real backoff with jitter), and the fix is in the test.
 - **A PR goes red after update-branch with an unchanged diff.** Something that merged meanwhile changed what the PR's own
-  check reads (10-10: O1.8 added a CI-named script that O2.3's reachability test then required). The author fixes it;
-  the coordinator passes the merge slot on.
-- **The coordinator drifts.** It has: stopped assigning idle agents; misread a slow test as runner load; posted the
-  batch hours late; overwritten its own heartbeat marker. Correct it with a ruling that names the rule in
-  `rules.md` or the step in `roles/coordinator.md`; plan text changes only when the plan is actually wrong.
-- **The fast model confabulates.** A status quoting a SHA, PR or file it did not just read is the reason UR-29 exists.
-  Verify any surprising claim yourself before passing it to the owner.
-- **Status rows lag.** The batch owns row edits, and PRs often omit them. The batch lists rows owed; an owner PR sets
-  them.
-- **Owner tier is missed.** A PR becomes owner-tier when it changes plan text of the kinds rules.md §Authority: rulings, plan text and IDs lists or
-  carries an entry under "Questions for the owner" (contract rule 4), not only by its flags.
+  check reads. The author fixes it; the coordinator passes the merge slot on.
+- **The coordinator drifts.** It has stopped assigning idle agents, misread a slow test as runner load, posted the
+  batch hours late, reported a merge before it happened, and overwritten its own heartbeat marker. Correct it with a
+  ruling that names the rule in `rules.md` or the step in `roles/coordinator.md`.
+- **Status rows lag.** PRs often omit their row edit. The batch lists rows owed; an owner PR sets them.
 - **Two PRs updated onto the same `main` race.** The first to go green merges and the other needs another
   update-branch and CI run. It costs CI minutes, not wall time.
 
@@ -187,39 +162,15 @@ Check for these first; each has happened.
 
 - **Merges** take about 16 to 20 minutes each, one at a time: `main` protection is `strict: true`, there is no merge
   queue (user-owned repo), and the coordinator updates branches with
-  `gh api -X PUT repos/$R/pulls/<n>/update-branch`. An update-branch keeps the queue place, the approving review and
-  the owner's approval when the PR's own diff (`git diff <merge-base>..<head> -- <the PR's files>`) is byte-identical
-  before and after; an author commit resets all three (rules.md §Merging; ruling 59).
+  `gh api -X PUT repos/$R/pulls/<n>/update-branch`. What an update-branch keeps: UR-106.
 - **Labels:** `lane:<lane>`, `heavy`, `owner`, `cell:a` / `cell:b` (ops-a / ops-b), `cell:heavy-2` (a `heavy` PR with
   it is heavy-2's; without it, `uplevel-heavy`'s), `review:<lane>`.
-- **Daily batch** at 09:00 ET: 13:00Z until 2026-10-31, 14:00Z from 2026-11-01.
+- **Daily batch** time: UR-25.
 - **maui (the GPU host):** each sandbox's `$AGENT_GPU_DIR` is `/agents/<sandbox>/gpu`; `/var/lib/agent-gpu` is the
   `agent-gpu` user's home. `/synthbench/corpus` is a nested ZFS dataset, so mount it explicitly. The B1.2 eval store
   copy is `/synthbench/eval/dogfood-2026-10-06/eval.sqlite`. A SQLite file in `journal_mode delete` with no `-wal`
   copies safely with `cp`; read it with `file:…?mode=ro`.
-- **The R2 chain** (what Phase 3 waits on): `O2.1` → `O2.2` → `F2.1` → `R2a` (recorded, #6980) → `F2.3` → `R2b`.
-  Ruling 86: a Phase 3 package scoped to `R2a`-ruled features and modules may start now, and one scoped to an `R2b`
-  round's rulings may start once that round's record merges (ruling 135); whole-tree work waits for `R2b`, and the
-  coordinator parks the rest.
+- **The R2 chain** (what Phase 3 waits on): README "Cross-lane dependencies"; the Phase 3 start rule is UR-66.
 - **AI stack facts behind rulings 66 to 68:** Triton (`ai-gateway`) serves `yolo26` (used), `reid` (resident; the backend
   will call it under B2.2) and `threat` (off; OD-7). The backend's torch is the CPU wheel. The `agent-gpu` library holds
   only the VLM, so the real tier runs a fake detector.
-
-## State at handoff — 2026-10-11 14:30Z
-
-`main` is at `33735c95f`. Rulings run to 111. Batch 11 posted 12:46Z; every item in it is answered (rulings 108–111).
-
-| Agent       | On                                                              | Next                                                      |
-| ----------- | --------------------------------------------------------------- | --------------------------------------------------------- |
-| coordinator | merge queue: #7000, #6998, #6979; assigning `O2.4` (ruling 107) | the nightly read (ruling 109)                             |
-| backend     | #6979 BE-1, about to merge                                      | `[r109]` Nightly Full Gate fixes; more `F2.3` API batches |
-| frontend    | #6978 FE-1 (F-017, F-020 demoted, ruling 108); #6998 status     | `F2.3` UI batches                                         |
-| ops-a       | #6986 OP-1 to OP-4                                              | `O2.4` if it is free first                                |
-| ops-b       | ruling 105 (feature check feeds `CI Gate`)                      | `O2.4` if it is free first                                |
-| docs        | DO-2; ruling 110's register report                              | `F2.3` UI batches                                         |
-| operator    | O2.2 `--real` re-run after #6999 merged                         | per-batch real-tier dates (ruling 103)                    |
-| heavy       | paused (ruling 90)                                              | restart for Phase 3 heavy packages                        |
-| heavy-2     | paused (ruling 90)                                              | restart for `B2.3` when `O2.4` passes                     |
-
-**Waiting on the owner:** the `O2.4` parity re-run (`dist/b22-owner-run.sh`, `--sha <head>`); Phase 1's real-tier runs
-(B1.1 S4, F1.2, O1.11); ruling 110's follow-up once docs answers.

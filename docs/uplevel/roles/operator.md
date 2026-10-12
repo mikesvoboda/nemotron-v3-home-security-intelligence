@@ -30,18 +30,16 @@ tick".`
    minutes, follow `lane.md`, "Stale coordinator".
 3. Read the new comments on your own open PRs.
 4. Take the oldest README row on `main` that says `awaiting real tier` and run it: on the agent-gpu
-   path below, or "A no-GPU run" where the row's PR says so. Runs the owner keeps go to the daily
-   batch, not to you.
-5. Otherwise say so in one line and end the turn. Never wait inside a turn on CI, a check run or a
-   watcher (rules.md §Posting, heartbeats and the urgent path).
+   path below, or "A no-GPU run" where the row's PR says so. Runs the owner keeps (UR-30) go to the
+   daily batch.
+5. Otherwise say so in one line and end the turn (UR-38).
 
 ## A test deployment, never the live stack
 
-Every real-tier command runs on a **test deployment** (rules.md §Test tiers and the real tier). The
-prod compose file is built to be the only stack on a machine — no project name, seven fixed
-container names, the live camera folder `/export/foscam`, Postgres in a named volume — so a command
-that skips its own compose project, env file, host ports, volumes or camera directory lands on
-production.
+Every real-tier command runs on a **test deployment** (UR-133, UR-134). The prod compose file is
+built to be the only stack on a machine — no project name, seven fixed container names, the live
+camera folder `/export/foscam`, Postgres in a named volume — so a command that skips its own compose
+project, env file, host ports, volumes or camera directory lands on production.
 
 ## The agent-gpu path
 
@@ -80,8 +78,8 @@ above the 4 GiB floor. Its watchdog kills a container that uses more than it dec
    c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd  mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
    ```
 
-   The library also holds `qwen3vl-8b-instruct-q8_0/`, a Q8_0 build of the model itself. It is not
-   the pin; serve only `qwen3vl-8b-instruct-q4km/`.
+   The library also holds `qwen3vl-8b-instruct-q8_0/`, a Q8_0 build of the model itself; serve the
+   pin UR-137 names.
 
 2. **Build the image.** Check out the commit the PR names. Builds never pull, so first
    `agent-gpu pull` each `FROM` image in `ai/vlm/Dockerfile`. Build once per state of `ai/vlm/`,
@@ -102,25 +100,22 @@ above the 4 GiB floor. Its watchdog kills a container that uses more than it dec
    The runner publishes the port on the host from the pool 18100–18199. Read it from the line
    `run` prints, `port 8098 -> http://host.docker.internal:<hostport>`, and set `VLM_URL` to that
    URL. Wait for `$VLM_URL/health` to return 200, then record `/props`' `build_info` and
-   `model_path`; stop unless `model_path` names the Q4_K_M file above. If the runner refuses
-   admission, the run waits: post the `status` output and report it in the daily batch (rules.md
-   §Test tiers and the real tier). Library files are readable by any container user, so add
+   `model_path`; stop unless `model_path` names the Q4_K_M file above (UR-137). If the runner
+   refuses admission, act as UR-138 says. Library files are readable by any container user, so add
    `--user 0` only for a container that writes to `out/`. This config measured 9,056 MiB actual
    against 14 GiB declared.
 
-4. **Bring up the test deployment in the sandbox's Docker,** with its own project
-   (`docker compose -p <run project>`), its own env file, `ORCHESTRATOR_ENABLED=false` and no
-   engine socket, and the backend's VLM URL set to `$VLM_URL`. Render the configuration first
-   (`docker compose -p <run project> … config`) and refuse to start when any value points at
-   `host.docker.internal` or another host address on any port but the one `agent-gpu run` printed.
+4. **Bring up the test deployment in the sandbox's Docker** (UR-133, UR-134), with
+   `docker compose -p <run project>` and the backend's VLM URL set to `$VLM_URL`. Render the
+   configuration first (`docker compose -p <run project> … config`) and refuse to start when any
+   value points at `host.docker.internal` or another host address on any port but the one
+   `agent-gpu run` printed.
 5. **Run the PR's command** as written, with `VLM_URL` set.
-6. **Tear down, also after a failure:** `docker compose -p <run project> down -v`, then
-   `agent-gpu stop vlm` and `agent-gpu rm vlm`. `agent-gpu ps` must list none of your containers.
+6. **Tear down** (UR-135): `docker compose -p <run project> down -v`, then `agent-gpu stop vlm` and
+   `agent-gpu rm vlm`, until `agent-gpu ps` lists none of your containers.
 
-**Runs the owner keeps,** following "The owner on the host" below: a run that must exercise the
-deployed compose `ai-vlm` service itself; a run the runner will not admit; and latency claims for
-S1 and S4, which are defined on 24 GB-class hardware (`docs/vss-integration/README.md`), so GB300
-numbers do not make them.
+**Runs the owner keeps** (UR-30; S1 and S4 are defined in `docs/vss-integration/README.md`) follow
+"The owner on the host" below.
 
 ## The owner on the host
 
@@ -135,19 +130,14 @@ hand-written command yourself:
    `config` in place of `up`. Send it back if any writable bind mount points outside a directory
    made for this run — the prod file bind-mounts the checkout's `./backend/data` with `U`, which
    re-owns live files (`docker-compose.prod.yml:459`) — or if any service mounts the Podman socket
-   (`:473`). The backend's orchestrator is on by default. Since `B1.6` it adopts only containers in
-   its own compose project (`container_discovery.py:732`) and nothing when it cannot resolve one
-   (`:721`) — but your test stack _is_ its own project, and a failing health check restarts that
-   container with backoff, so a test stack must still run with `ORCHESTRATOR_ENABLED=false` and no
-   socket.
+   (`:473`), or if it does not set `ORCHESTRATOR_ENABLED=false` (UR-134).
 3. **Check GPU headroom.** Run `nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv`.
    If a live `ai-vlm` runs on the GPU the command would use and a second engine would not fit
    beside it, stop: running anyway is a **RULING** for the owner (another GPU, a maintenance
    window, or calling the live engine read-only).
 4. **Snapshot before:** `podman ps -a --format '{{.Names}} {{.Status}} {{.StartedAt}}'` and
    `podman volume ls -q`, each into a file.
-5. **Run the command.** Tear down only with `podman compose -p <project> down -v`, never a bare
-   `down`.
+5. **Run the command.** Tear down with `podman compose -p <project> down -v` (UR-135).
 6. **Snapshot after and diff.** Every container and volume from the first snapshot must still
    exist, and every container that was running must still be running with the same start time.
    Live data is protected by step 2, not by this diff: live files change all the time (camera
@@ -235,28 +225,19 @@ Docker socket reachable from the checkout, stop and post that instead of adaptin
 1. Paste the command's output, verbatim, as a comment on the PR, headed with the date, the commit,
    and the hardware: for the agent-gpu path, "GB300 through agent-gpu", the image tag,
    `build_info`, `model_path`, the weights' `sha256sum` output, and VRAM declared and actual; on the
-   host, the GPU and host (GB300 or A5500). Latency numbers such as S4's p95 belong to the hardware
-   that produced them. Every number in the comment comes from output in the comment.
-2. Add the teardown evidence: on the agent-gpu path, the empty `agent-gpu ps`; on the host, the
-   before/after snapshot diff.
-3. Name every store or file the result was read from by its path and its `sha256sum`. When it lives
-   only in a sandbox's broker directory (`/agents/<sandbox>/gpu/out` on the host), say so on the PR:
-   the owner copies it to a durable path under `/synthbench` before a report depends on it. Copy
-   nothing yourself (rules.md §Test tiers and the real tier).
-4. Set the package's README status row from `awaiting real tier` to `done` in a one-line follow-up
-   PR, or ask the lane agent to.
+   host, the GPU and host (GB300 or A5500) (UR-141; latency numbers: UR-30).
+2. Add the teardown evidence (UR-141): on the agent-gpu path, the empty `agent-gpu ps`; on the
+   host, the before/after snapshot diff.
+3. Name and flag every store or file the result was read from as UR-142 says.
+4. Set the package's README status row to `done` as UR-146 says.
 
 ## When something goes wrong
 
 - **A container of yours outlived the run:** `agent-gpu rm` it, and say so on the PR.
-- **A live container stopped or restarted (its start time changed), or a volume vanished:** start
-  what stopped (`podman start <name>`), say so on the PR, raise it with the owner on the urgent
-  path, and leave the row at `awaiting real tier`. The package is not done until a clean run.
-- **Live data looks wrong after a run:** report it on the urgent path and investigate with the
-  owner. Restore nothing on your own — live data changes during every run for ordinary reasons,
-  and a restore would discard real footage.
-- **The command fails for reasons the PR did not anticipate:** post the output and the exit code.
-  Do not adapt the command yourself; the lane agent revises it.
+- **A live container stopped or restarted (its start time changed), or a volume vanished:** act as
+  UR-143 says, starting what stopped with `podman start <name>`.
+- **Live data looks wrong after a run:** act as UR-143 says.
+- **The command fails for reasons the PR did not anticipate:** act as UR-140 says.
 
 ## Kickoff prompt
 
@@ -274,10 +255,9 @@ tier", and the PR each row names. For each, follow "The agent-gpu path" step by
 step, post the results comment, and set the row to done in a one-line
 follow-up PR. Runs the owner keeps go to the daily batch, not to you.
 
-You write no product code and change no command; when a command fails for a
-reason its PR did not anticipate, post the output and the exit code and move
-on. Always tear down, also after a failure. Before each new run, read the new
-comments on your own open PRs.
+Follow rules.md UR-140 (no product code, no changed command) and UR-135
+(always tear down). Before each new run, read the new comments on your own
+open PRs.
 
 Then run the tick in operator.md, "The tick". Before each act, read the
 rules.md section the step names.

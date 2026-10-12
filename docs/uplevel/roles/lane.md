@@ -37,8 +37,7 @@ package"), and `scripts/uplevel/sandboxes.toml` declares the same sessions.
 | `uplevel-heavy-2`  | strongest | only draft PRs labelled `heavy` and `cell:heavy-2`     | none              |
 
 **Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. An
-agent in a split lane takes only packages the coordinator assigns to its cell and never claims one
-itself.
+agent in a split lane takes only assignments (UR-58).
 
 | lane    | cell A                                                                                                        | cell B                                                           |
 | ------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -49,35 +48,31 @@ Ops runs as two cells. Backend runs as one agent until Phase 3 and splits into c
 Phase 3's deletions. Frontend and docs run as one cell each; in Phase 3 the frontend may split into
 retirement (`F3.1`) and reachability (`F3.2`, `F3.3`).
 
-**Heavy agents.** The coordinator assigns you packages by draft PRs labelled `heavy`; the label
-`cell:heavy-2` addresses `uplevel-heavy-2`, its absence `uplevel-heavy` (rules.md §Claiming
-and assigning work). For each package, read and follow the packages file of the lane that owns
-it — its package text, its file ownership and its kickoff line below — and the `00-audit.md`
-sections it cites. You have no review label.
+**Heavy agents.** Take the `heavy` draft PRs the coordinator assigns you, and follow the owning
+lane's package text, file ownership and kickoff line below (UR-59), and the `00-audit.md` sections
+the package cites. You have no review label.
 
 ## The tick
 
 The owner arms it with `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
-Run these steps in order. Long work inside a turn is fine; waiting is not: read CI once per tick,
-report what you see and end the turn (rules.md §Posting, heartbeats and the urgent path).
+Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
 2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below). Read the coordinator's; if it is older
    than 20 minutes, follow "Stale coordinator" below.
-3. **Reviews first:** clear the PRs labelled with your review label ("Reviewing another lane's PR"
-   below). Heavy agents skip this step.
-4. **Your own open PRs:** read the new comments and reviews on each (`gh pr view <n> --comments`).
-   An owner ruling or a requested change there comes before new work; nobody tells you about a
-   comment except by writing it. Read CI at the head once, fix what is red, answer what is
-   requested, and rebase what conflicts with `main` (rules.md §Merging says what a new head resets).
+3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
+   lane's PR" below). Heavy agents skip this step.
+4. **Your own open PRs** (UR-35): read the new comments and reviews on each
+   (`gh pr view <n> --comments`). Read CI at the head once, fix what is red, answer what is
+   requested, and rebase what conflicts with `main` (what a new head resets: UR-106).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. If none of these has work, say so in one line and end the turn.
 
 ## Heartbeat
 
-The pinned issue "Uplevel heartbeats" holds one comment per agent. Edit yours in place on every
-tick, never post a new one; post it once if you have none. It is two lines:
+Keep your heartbeat comment on the pinned issue "Uplevel heartbeats" as UR-38 says; post it once
+if you have none. It is two lines:
 
 ```text
 <!-- heartbeat:<sandbox> -->
@@ -88,69 +83,54 @@ Find the issue with `gh issue list --state open --search "Uplevel heartbeats in:
 comment by its first line, and edit it with
 `gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`.
 
-**Stale coordinator.** When the coordinator's heartbeat is older than 20 minutes, read #6854 for a
-comment from the last hour whose first line starts `URGENT PATH · coordinator stale`. If there is
-none, post one: that first line, the heartbeat's age and the time you read it, nothing more, and no
-@-mention. The owner restarts the coordinator; no agent reaches into another's sandbox.
+**Stale coordinator.** When the coordinator's heartbeat is older than 20 minutes, act as UR-162
+says. The owner restarts the coordinator
+(UR-163).
 
-**Paused.** A heavy agent whose queue is empty posts a final heartbeat
-`paused · queue empty (ruling 88)` and ends its turn; the owner stops its loop (rules.md §Posting,
-heartbeats and the urgent path). When the owner
-restarts it, it runs its kickoff line from `scripts/uplevel/sandboxes.toml` and `/loop 15m` as
-usual (rules.md §Agents, sandboxes and models).
+**Paused.** A heavy agent whose queue is empty posts the final `paused` heartbeat and ends its turn
+(UR-160). When the owner restarts it, it runs its kickoff line and `/loop 15m` (UR-174).
 
 ## Claiming a package
 
 Read rules.md §Claiming and assigning work first.
 
-1. **Look for an assignment:** an open draft PR the coordinator created, labelled with your lane
-   and cell (`heavy` for a heavy agent). It is yours; continue on its branch. Split lanes and heavy
-   agents stop here: they take only assignments.
-2. **Choose:** the lowest-numbered package in your current phase that is `not started`, not
-   flagged `heavy`, unclaimed and whose dependencies are merged. If every remaining package in your
-   phase waits on another lane, take the next phase's first ready package. Start a Phase 3 package
-   only as rules.md §Claiming and assigning work allows (`R2` done, or the `R2a` and `R2b`-round
-   exceptions). Claim your next package on the tick its dependency lands.
+1. **Look for an assignment** (UR-52): an open draft PR the coordinator created, labelled with your
+   lane and cell (`heavy` for a heavy agent); continue on its branch. Split lanes and heavy agents
+   stop here (UR-58, UR-59).
+2. **Choose** a package as UR-52 and UR-65 say; a Phase 3 package only as UR-66 allows. Claim your
+   next package on the tick its dependency lands (UR-54).
 3. **Check** that nobody holds it: `gh pr list --state open --search "[<package>] in:title"`.
-4. **Claim** it before writing any code: branch `uplevel/<package>-<slug>` from `main`, commit
-   nothing but an empty commit (`git commit --allow-empty -m "[<package>] claim"`), push it, and
-   open a draft PR titled `[<package>] <name>` with
-   `gh pr create --draft --template uplevel.md --label lane:<lane>`. The open draft PR is the
-   claim. Branch from `main`, never from another agent's open branch.
-5. **Release** a claim you abandon: close the draft PR with a comment saying why.
+4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from
+   `main`, commit nothing but an empty commit (`git commit --allow-empty -m "[<package>] claim"`),
+   push it, and open a draft PR titled `[<package>] <name>` with
+   `gh pr create --draft --template uplevel.md --label lane:<lane>`.
+5. **Release** a claim you abandon by closing its draft PR with a comment saying why (UR-55).
 
 ## Building a package
 
 Read rules.md §Building a package first: one package per PR, the hot-file rules, and the contract.
 
-1. Write the failing test first.
-2. Build until the package's Done when holds. Push your branch after every commit: your clone keeps
-   commits until they are pushed, and the draft PR makes the branch visible to everyone.
-3. Fill the PR body from the template: each command and its output. Keep commit subjects at 72
-   characters or fewer. Edit the `AGENTS.md` lines that describe what you changed.
-4. Set the package's README status row in the same PR: `done` with the PR number, or
-   `awaiting real tier` with the operator's command in the PR's "Real tier" section (rules.md
-   §Statuses, rows, the inventory and R2).
-5. When the plan does not answer a question, stop and report the question, under "Questions for the
-   owner" in the PR body.
+1. Write the failing test first (UR-69).
+2. Build until the package's Done when holds. Push your branch after every commit (UR-28).
+3. Fill the PR body from the template and write commit subjects as UR-10 (contract rule 2) says.
+   Edit the `AGENTS.md` lines that describe what you changed (UR-81).
+4. Set the package's README status row in the same PR, with the operator's command in the PR's
+   "Real tier" section if it needs one (UR-10, contract rule 5).
+5. When the plan does not answer a question, stop and report it under "Questions for the owner" in
+   the PR body (UR-10, contract rule 4).
 6. Authors of `F2.2`, `O2.3` and R2's list of modules serving no feature dispatch
-   `codebase-archaeologist` on their scope, and quote only the findings they reproduced (rules.md
-   §Reviewing).
+   `codebase-archaeologist` on their scope (UR-95).
 
-**Self-review.** Before marking the PR ready, dispatch a fresh-context subagent given only the
-package text, the diff and the PR body. It checks each Done-when clause against the evidence, the
-contract, the cross-lane parts and the hot-file rules. Fix what it finds or answer it, record the
-findings in the PR, then mark the PR ready.
+**Self-review.** Run the fresh-context self-review UR-89 describes, record its findings in the PR,
+then mark the PR ready.
 
 ## Reviewing another lane's PR
 
 Read rules.md §Reviewing first.
 
 1. List your queue: `gh pr list --state open --label review:<your label>`.
-2. Review each PR independently against its package's Done when, the contract and the hot-file
-   rules. Read every `docs/uplevel/` hunk before you write its `Plan text:` line. For a
-   security-and-auth package, dispatch `security-auditor` on the diff, and quote only the findings
-   you reproduced, saying which you set aside and why.
+2. Review each PR independently (UR-91). Write its `Plan text:` line as UR-92 says. For a
+   security-and-auth package, dispatch `security-auditor` on the diff (UR-95, UR-96).
 3. Post the review as a PR comment in this form:
 
    ```text
@@ -166,10 +146,8 @@ Read rules.md §Reviewing first.
 
 ## Posting
 
-Every comment, PR body and review carries only your own text, never the framing your harness wraps
-around a subagent's output. State only what you have just read: every commit, PR, file, test result
-and question you cite comes from output you ran in the same turn. Keep heartbeats and lane notes
-within the post budget (rules.md §Posting, heartbeats and the urgent path).
+Every comment, PR body and review follows UR-10 (contract rule 2: your own text only), UR-31
+(state only what you have just read) and UR-155 (the post budget).
 
 ## Kickoff prompt
 
@@ -196,23 +174,21 @@ Then run the tick in lane.md, "The tick".
 **Per-lane lines.** Find the sentence your kickoff line carries and follow its paragraph.
 
 - **"You are the backend lane."** Your packages are in `docs/uplevel/packages/backend.md`; your
-  review label is `review:backend`. You own `backend/`. The cross-lane rule (rules.md §Building a
-  package) governs every other file you touch.
+  review label is `review:backend`. You own `backend/`. The cross-lane rule (UR-9) governs every
+  other file you touch.
 - **"You are the frontend lane."** Your packages are in `docs/uplevel/packages/frontend.md`; your
   review label is `review:frontend`. You own `frontend/` and `docs/reference/feature-inventory.md`.
-  The cross-lane rule (rules.md §Building a package) governs every other file you touch.
+  The cross-lane rule (UR-9) governs every other file you touch.
 - **"You are cell A of the ops lane"** or **"You are cell B of the ops lane"**. Your packages are
-  in `docs/uplevel/packages/ops.md`; take only packages the coordinator assigns to your cell. Your
-  review label is `review:ops-a` or `review:ops-b`. You own `ai/`, compose, `scripts/`, `.github/`,
-  `setup.py`, `setup_lib/`, root config and `archive/`. The cross-lane rule (rules.md §Building a
-  package) governs every other file you touch. Real-model checks run on the GB300 by the operator,
-  never from CI.
+  in `docs/uplevel/packages/ops.md`; take only your cell's assignments (UR-58). Your review label
+  is `review:ops-a` or `review:ops-b`. You own `ai/`, compose, `scripts/`, `.github/`, `setup.py`,
+  `setup_lib/`, root config and `archive/`. The cross-lane rule (UR-9) governs every other file you
+  touch. Real-model checks are the operator's (UR-132).
 - **"You are the docs lane."** Your packages are in `docs/uplevel/packages/docs.md`; your review
   label is `review:docs`. Read the AGENTS.md standard at `docs/developer/agents-md-standard.md`
-  after the packages file. Start Phase 3 work on a lane's directories only after that lane's
-  Phase 3 is `done`. You own `docs/`, every `AGENTS.md`, `llms.txt`, `mkdocs.yml`, the root
-  markdown files and the AGENTS.md validator. Write what an agent cannot find by looking; leave
-  inventories to the code.
+  after the packages file, and apply it (UR-88). Start Phase 3 work as UR-68 allows. You own
+  `docs/`, every `AGENTS.md` (UR-81), `llms.txt`, `mkdocs.yml`, the root markdown files and the
+  AGENTS.md validator.
 - **"You are uplevel-heavy."** You run on the strongest available model and take only `heavy` PRs
   without `cell:heavy-2` ("Heavy agents" above). For each package, read the packages file and the
   line above of the lane that owns it, and follow them. You have no review label.

@@ -10,24 +10,20 @@ packages are in [`../history/packages-done.md`](../history/packages-done.md).
 - The lane owns `docs/` (except `docs/reference/feature-inventory.md`, which the frontend lane owns,
   and `docs/uplevel/`, which is shared), every `AGENTS.md`, `llms.txt`, `mkdocs.yml`, the root
   `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md` and `SECURITY.md`, and the AGENTS.md validator
-  (`scripts/agents_md_validator.py`, `.agents-md-validator.yml`). A lane whose change updates an
-  `AGENTS.md` line edits it itself (ruling 121; README "Lanes").
+  (`scripts/agents_md_validator.py`, `.agents-md-validator.yml`), except the `AGENTS.md` lines
+  UR-81 gives to the lane whose change updates them.
 - The AGENTS.md files are the map agents trust most, and at the audit it was the least accurate
   one: 77 of 244 files cited 213 files that exist nowhere in the repo, and 57 described retired
   components. `W1.1` gave the validator ratchet baselines and real exit codes. This lane makes the
   map true and keeps it true.
-- Its heavy work waits for the other lanes' Phase 3: rewriting docs before the code they describe
-  is deleted would be wasted. Phase 1 stopped active misdirection; Phase 3 rewrites to the
-  standard.
-- **The AGENTS.md standard** lives at
-  [`docs/developer/agents-md-standard.md`](../../developer/agents-md-standard.md), its single home
-  (`UR-21`, moved there by `W2.1`). Every package in this lane applies it, `W3.2` rewrites the
-  boundary files to it, and the plan restates none of it.
+- The lane's phases: UR-20; when its Phase 3 work starts: UR-68.
+- **The AGENTS.md standard** is
+  [`docs/developer/agents-md-standard.md`](../../developer/agents-md-standard.md) (UR-88, moved
+  there by `W2.1`); `W3.2` rewrites the boundary files to it.
 
 ## Phase 3 — Make the map true
 
-Each package here starts on a lane's directories only after that lane's Phase 3 packages are
-`done`, so the docs describe the code that remains.
+Each package here starts on a lane's directories as UR-68 allows.
 
 ### W3.1 Boundaries only
 
@@ -74,8 +70,8 @@ agent has approved its own files.
 - [ ] Rebuild the mkdocs nav to cover every living doc.
 - [ ] Fix the dead citations outside the scoped `validate_docs` gate (`ci.yml:298-304` runs level 1
       over `docs/decisions`, `docs/deployment`, `docs/getting-started`, `docs/operations` and
-      `docs/ui` only), adding each directory to `ci.yml`'s scoped list in the PR that fixes its
-      citations, never before. Ops reviews the `ci.yml` list entries (ruling 140).
+      `docs/ui` only), widening `ci.yml`'s scoped list as UR-124 says. Ops reviews the `ci.yml` list
+      entries (ruling 140).
 
 **Done when:** a grep for `florence`, `nemotron` and `enrichment` in living docs finds only explicit
 history notes (the PR reports before/after counts from `O1.7`'s script), every living doc is in
@@ -106,6 +102,5 @@ list covers them, each directory added in the PR that fixes its citations (owner
 
 **Flags:** none. **Depends on:** a trigger: a validator failure, or a report of a stale claim.
 
-The ratchets hold the map true; the lane whose PR changes behaviour updates the boundary file whose
-invariants it changes (ruling 121). This lane reviews those edits against the standard when asked
-(ruling 121), and opens a package only on a trigger.
+The ratchets hold the map true; who updates a boundary file's lines, and when this lane reviews
+them, is UR-81. This lane opens a package only on a trigger (UR-68).

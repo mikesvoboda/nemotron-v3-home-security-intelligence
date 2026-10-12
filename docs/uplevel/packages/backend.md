@@ -10,8 +10,7 @@ packages are in [`../history/packages-done.md`](../history/packages-done.md).
 - The lane owns `backend/`, except `backend/tests/unit/setup_lib/` (ops). Evidence for every package
   is in [`00-audit.md`](../00-audit.md); `00 §n` cites its sections.
 - The feature inventory's ruling column is the input to every Phase 3 package.
-- External-interface golden paths are pytest specs in `backend/tests/golden/`. They sit outside the
-  default test paths and run through `scripts/feature-check.sh` (`O2.2`).
+- External-interface golden paths: UR-127 (`O2.2`'s harness runs them).
 - Phase 4 runs in the priority order the inventory's priority column records: `R2a`'s tiers P1–P4
   (ruling 89) and `R2b` round 1's (ruling 135).
 - On next touch: the module docstring of `backend/services/batch_aggregator.py` says batches go to
@@ -44,7 +43,7 @@ temperature 0, and charges the circuit breaker twice (`00 §3` D1).
       measures the tail on the GB300 ([`roles/operator.md`](../roles/operator.md), "The agent-gpu
       path"); S4's p95 is defined on 24 GB-class hardware, so the owner measures it on the A5500.
       Until `O2.2` exists, put both commands in the PR, using `$VLM_URL` and written to run against
-      a test deployment (README vocabulary), never the live stack.
+      a test deployment (UR-133).
   - The tail measurement runs `latency_tail.py` on synthbench stills from `/synthbench/corpus`,
     which the operator mounts read-only; no camera stills are needed. Pick at least the script's
     minimum number of stills with a `--pattern`, preferring event scenes (people, vehicles). The post
@@ -62,8 +61,8 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 ### B2.3 Re-ID model bake-off
 
 **Flags:** `heavy`; label `cell:heavy-2`. **Depends on:** `O2.4` (its `RESULT: PASS` posted).
-Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It does not gate Phase
-2's exit and may finish alongside Phase 3 (ruling 117).
+Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
+Phase 2's exit (UR-10, contract rule 5).
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -202,14 +201,12 @@ it), and the module's tests pass through its interface.
 ## Ruling-ordered fixes
 
 Fixes an owner ruling ordered outside the phase order. Each keeps the ruling's tag as its id, queues
-where its ruling says, and takes the normal queue and review: a ruling-ordered follow-up is not a
-red-`main` fix (rules.md §Red main and the nightly). None has a README status row; the PR that
-finishes one updates its row in [`../history/ruling-map.md`](../history/ruling-map.md).
+where its ruling says, and takes the normal queue and review (UR-113). None has a README status row;
+the PR that finishes one updates its row in [`../history/ruling-map.md`](../history/ruling-map.md).
 
 ### [r94] `setup.py` re-runs keep the existing configuration; `--convert-monitoring-key`
 
-**Flags:** owner tier (security and auth), pre-approved: merges on lane review and green CI; the
-lane review states the diff does what ruling 94 specifies and nothing more (rulings 84, 94).
+**Flags:** owner tier (security and auth), pre-approved by ruling 94 (UR-101).
 **Assigned:** `uplevel-backend`, test-first; `setup.py` is ops's file, so the PR lists it as a
 cross-lane part. **Depends on:** none named. **PR:** none yet.
 
@@ -232,8 +229,7 @@ already scoped is left alone; and the docs line is updated (ruling 94).
 
 ### [r95] Close both monitoring-key gaps (S1, S4)
 
-**Flags:** owner tier (security and auth), pre-approved: merges on lane review and green CI; ops-b's
-review states the diff does what ruling 95 specifies and nothing more (rulings 84, 95).
+**Flags:** owner tier (security and auth), pre-approved by ruling 95 (UR-101); ops-b reviews.
 **Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** none yet.
 
 - [ ] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
@@ -254,7 +250,7 @@ and still accept an unscoped key, and a test pins the narrowed `monitoring` gran
 
 ### [r122] WARN-band unit tests made cheaper in the tests
 
-**Flags:** pre-approved under ruling 83's limits (rules.md §Red main and the nightly). **Assigned:**
+**Flags:** pre-approved under ruling 83's limits (UR-112). **Assigned:**
 backend. **Depends on:** queues behind #7003 (merged). **PR:** #7027 (open).
 
 - [ ] The unit tests that land in the 1.5–4.0 s WARN band every run (about 10 ids, mostly

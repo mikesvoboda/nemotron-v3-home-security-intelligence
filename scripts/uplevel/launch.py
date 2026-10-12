@@ -392,7 +392,7 @@ def _preflight(host: Host) -> str:
         where = "at a detached HEAD" if branch == "HEAD" else f"on branch {branch}"
         raise Refused(
             f"the host checkout is {where}, not on main. Every agent starts from a clean "
-            "checkout of main (rules.md, UR-169): `git checkout main`, then run this again."
+            "checkout of main (rules.md, UR-28): `git checkout main`, then run this again."
         )
     # The fetch is what makes the origin/main check worth running at all, and it moves only a
     # remote-tracking ref - never the worktree, never a branch. A failed fetch is refused, not
@@ -406,7 +406,7 @@ def _preflight(host: Host) -> str:
     if head != origin_main:
         raise Refused(
             f"the host checkout is at {head[:8]}, not origin/main ({origin_main[:8]}). "
-            "Every agent starts from a clean checkout of main (rules.md, UR-169): "
+            "Every agent starts from a clean checkout of main (rules.md, UR-28): "
             "`git pull --ff-only origin main`, then run this again."
         )
     return origin_main

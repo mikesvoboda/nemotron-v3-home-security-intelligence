@@ -12,7 +12,7 @@ packages are in [`../history/packages-done.md`](../history/packages-done.md).
   (`backend/tests/unit/setup_lib/`), root config files, `archive/`, and the root `tests/`,
   `monitoring/`, `docker/`, `config/`, `env-templates/`, `data/` and `certs/`. Evidence for every
   package is in [`00-audit.md`](../00-audit.md); `00 §n` cites its sections.
-- The background packages (`OB.n`) may run in any phase after Phase 1.
+- When the background packages (`OB.n`) may run: UR-51.
 - On next touch: the comment at `docker-compose.prod.yml:952` says "SSL enabled by default", but
   the default on `:954` is `false`. The PR that next touches those lines fixes the comment
   (ruling 133).
@@ -84,10 +84,8 @@ refused.
     per-run copy or a read-only share;
   - has no control over other containers. The backend mounts the host Podman socket (`:468`) and
     its orchestrator — on by default — restarts containers it matches by name substring across
-    every compose project (`container_discovery.py:647-656,713-715`). A test deployment **always**
-    runs with `ORCHESTRATOR_ENABLED=false` and no container-engine socket in any container, before
-    and after `B1.6`: scoping discovery hardens production, but any process holding the socket can
-    still drive the raw engine API.
+    every compose project (`container_discovery.py:647-656,713-715`). Every run applies UR-134,
+    before and after `B1.6`.
 - [ ] **Preflight.** Render the run's effective configuration
       (`docker compose -p <run project> ... config`) and refuse to start when any writable bind
       mount points outside the run's own directory, or when any service mounts a container-engine
@@ -102,12 +100,12 @@ refused.
       ([`roles/operator.md`](../roles/operator.md), "The agent-gpu path").
 - [ ] **In-run check.** Once the stack is up, assert that no container in it holds an engine socket
       and that its orchestrator reports disabled.
-- [ ] **Teardown and postflight.** Tear down with `docker compose -p <run project> down -v` only,
-      never a bare `down`. Then assert that every container and volume in the preflight snapshot
+- [ ] **Teardown and postflight.** Tear down with `docker compose -p <run project> down -v`
+      (UR-135). Then assert that every container and volume in the preflight snapshot
       still exists, and that every container that was running still is, with the **same start
       time** (a restart that already finished leaves a container running but changes its start
-      time). An unexplained change in live data is reported on the urgent path and investigated;
-      the harness never restores files on its own.
+      time). An unexplained change in live data goes on the urgent path (UR-143); the harness never
+      restores files on its own.
 - [ ] Commit tests for the preflight and postflight logic, run against fixture snapshots and
       fixture rendered configs: an overlapping port, container name, volume or camera path, a
       writable bind mount outside the run directory, and a mounted engine socket each make the run
@@ -117,7 +115,7 @@ refused.
       sandbox's own Docker, with the VLM served through `agent-gpu` and reached at the port `run`
       prints ([`roles/operator.md`](../roles/operator.md), "The agent-gpu path"); the detector
       stays the fake one (owner ruling 66). **DECIDE** the VLM's image and VRAM declaration,
-      within the runner's 40 GiB cap, which every GPU session on the host shares. The preflight
+      within the runner's 40 GiB cap (UR-30). The preflight
       also refuses any configured host address but that port. It prints a summary (date, commit,
       image tags and `build_info`, VRAM declared and actual, per-spec result, the preflight
       snapshot, the postflight result) for the operator to paste into the PR or the inventory, and
@@ -126,8 +124,7 @@ refused.
       every PR, a paths filter, or `main` plus a label. (Ruling 105 settled it: the fake-stack
       feature check is a `ci.yml` job that `CI Gate` needs, skipped by the `detect-changes` filter
       on PRs that cannot affect it.)
-- [ ] The golden stage runs inside the official Playwright container (ruling 143; rules.md §Test
-      tiers and the real tier).
+- [ ] The golden stage runs inside the official Playwright container (UR-131).
 
 **Done when:** CI runs `--fake` green with the harness smoke check; the preflight and postflight
 tests pass; and the operator has run `--real` once on the GB300, with its summary posted on the PR,
@@ -139,7 +136,7 @@ empty `agent-gpu ps` (`awaiting real tier` until then). `F2.1` then adds its gol
 **Flags:** none: not heavy; not owner-tier at merge. **Depends on:** none named. Approved by owner
 ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). The coordinator assigns it to the first
 free ops cell; it edits `ai/gateway/` (cell A's files), so if ops cell B takes it, ops-a reviews.
-It does not gate Phase 2's exit and may finish alongside Phase 3 (ruling 117).
+It may stay open past Phase 2's exit (UR-10, contract rule 5).
 
 - [ ] Serve the gateway's `reid` through TensorRT, a plan built for the serving GPU as `yolo26`'s
       is, not ONNX Runtime's CUDA execution provider, which fails on GB300 (owner ruling 106).
@@ -154,8 +151,7 @@ then. It does not flip `REID_BACKEND`; production stays `local`.
 
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
 `feature_check.py --real` and ruling 143's Playwright container. The coordinator assigns the cell.
-It gates only ruling 127's 12 real-tier rows, not Phase 2's exit (ruling 144, as ruling 117 did for
-`O2.4` and `B2.3`).
+It gates only ruling 127's 12 real-tier rows, not Phase 2's exit (UR-10, contract rule 5).
 
 Both test tiers run `docker-compose.ci.yml` on Docker (`feature_check.py` `--engine` defaults to
 `docker`, `:2189`). Production runs `docker-compose.prod.yml` on Podman (root `README.md:279-307`),
@@ -164,7 +160,7 @@ and no test runs that file. Its own surface goes unchecked: Grafana and the moni
 nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 
 - [ ] **Step 1, a spike, time-boxed to one session.** Does rootless Podman run inside an uplevel
-      sandbox (`sudo` is available, ruling 143)? Can `docker-compose.prod.yml` come up as a
+      sandbox (`sudo` is available, UR-176)? Can `docker-compose.prod.yml` come up as a
       disposable project, with its own project name, ports, volumes, env file and camera directory
       (the README's **test deployment**), and with GPU services pointed at `agent-gpu`'s `ai-vlm`
       instead of CDI? The spike posts yes or no, the minimal override file it needed, and every
@@ -172,9 +168,8 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes.** `feature_check.py --real --prod-shape` (the flag's name is the package's
       call) brings up that stack and runs the golden suite against it, using the Playwright
-      container from ruling 143. The operator runs it nightly or on demand, not for every batch.
-      The live deployment is never touched: a run that would reach its database, camera folder or
-      containers stops instead.
+      container from ruling 143. The operator runs it nightly or on demand, not for every batch,
+      on a test deployment (UR-133).
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
 - [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
@@ -200,9 +195,8 @@ blocker (ruling 144).
       stage. **MEASURE** the image size before and after.
 - [ ] Apply the `R2` ruling on OD-17: the Triton `reid`/`threat` models, `/enrich-lt`, and
       `ai-llm-vllm`. `R2a` ruled it (ruling 89): `ai-llm-vllm` is removed — the service, its `vllm`
-      profile and every setting that names it; the re-ID half is `B2.2` (ruling 68); and Triton
-      stays the one model server, any new GPU-served model joins it, and its `nv_*` metrics stay
-      (OD-39).
+      profile and every setting that names it; the re-ID half is `B2.2` (ruling 68); and Triton's
+      role is UR-86.
 
 **Done when:** `O2.3` reports no non-shipping module under `ai/` outside `keep.toml`, the gateway
 image builds, and the golden paths stay green.
@@ -307,9 +301,8 @@ one that declares its cross-lane parts.
 ## Ruling-ordered fixes
 
 Fixes an owner ruling ordered outside the phase order. Each keeps the ruling's tag as its id, queues
-where its ruling says, and takes the normal queue and review: a ruling-ordered follow-up is not a
-red-`main` fix (rules.md §Red main and the nightly). None has a README status row; the PR that
-finishes one updates its row in [`../history/ruling-map.md`](../history/ruling-map.md).
+where its ruling says, and takes the normal queue and review (UR-113). None has a README status row;
+the PR that finishes one updates its row in [`../history/ruling-map.md`](../history/ruling-map.md).
 
 ### [r96i11] The Python 2–shaped `except` in the fake VLM
 
@@ -326,7 +319,7 @@ tests pass (ruling 96).
 ### [r143] The golden stage runs inside the Playwright container
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** #7034 (open,
-draft). The rule it builds is in rules.md §Test tiers and the real tier.
+draft). The rule it builds is UR-131.
 
 - [ ] `scripts/feature_check.py`'s golden stage runs `npx playwright test --project=golden` inside
       `mcr.microsoft.com/playwright:v<version>-noble`, where `<version>` is read from
@@ -334,9 +327,8 @@ draft). The rule it builds is in rules.md §Test tiers and the real tier.
       host network, with the repo's `frontend/` mounted, and runs on the same engine
       `feature_check.py` uses (`--engine`, default `docker`).
 - [ ] The browser-install step (`feature_check.py:1555-1580`) and its exit-127 failure mode go: the
-      image carries the browser builds and their system libraries. If the registry is blocked, the
-      failure names the host, and the harness does not work around it (ruling 116's firewall
-      clause).
+      image carries the browser builds and their system libraries. A blocked registry fails as
+      UR-131 says.
 
 **Done when** (ruling 143):
 

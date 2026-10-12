@@ -7,8 +7,7 @@ programme was designed with the owner on 2026-10-07 at `main` tip `d6ba78d5`, fr
 packages, phase by phase, with one or two agents per lane by phase; a coordinator routes work and
 an operator runs the real-tier checks. The owner gives the rulings, holds the Phase 4 design
 sessions, reviews owner-tier PRs and has the final say on merges, once a day, in the batch.
-Out of scope: rewriting git history, renaming `setup.py`, and widening frontend Stryker (it stays
-on three utility files).
+What is out of scope is UR-84.
 
 Every standing rule is in [`rules.md`](rules.md), grouped by the act it governs, including the
 contract every package inherits and the `UR-n` rulings of record. Each role's procedure is in
@@ -24,9 +23,8 @@ a file under `roles/` (see [Files](#files)).
 | 3     | **The tree matches the rulings** | retired features are gone end to end; only shipping code remains             | retired features absent from UI, API, services, tables, settings and docs; reachability gates green in CI; mutation scored set switched                  |
 | 4     | **Complete the product**         | half-built features become features that work, in the owner's priority order | per feature: golden path green on the fake stack, real-tier check recorded, inventory row says **works**                                                 |
 
-**A phase exits** when every one of its rows in the status table says `done`, except the packages a
-ruling lets stay open past the boundary: `O2.4` and `B2.3` (ruling 117) and `O2.5` (ruling 144)
-do not gate Phase 2's exit and may finish alongside Phase 3.
+**When a phase exits**, and which packages may stay open past the Phase 2 boundary, is UR-10
+(contract rule 5).
 
 Lanes move through the phases independently, with two shared gates: **Phase 2's RULING session
 gates Phase 3 in every lane** (deletion follows rulings), and Phase 4's order comes from that same
@@ -34,19 +32,15 @@ session. When a lane may start the next phase's work is in rules.md §Claiming a
 
 **`R2`, the Phase 2 RULING session.** The owner walks the sheet `F2.2` prepares: each half-built or
 leftover feature is ruled **complete** or **retire**, the completes get a priority order, the list
-of modules serving no feature is approved, and OD-7 and OD-17 are ruled. Ruling 86 split it: `R2a`
-ruled the sheet as it stood (recorded #6980, 2026-10-10); `R2b` runs in rounds as `F2.3` demotes
-rows, and a row demoted only because the CI stack cannot reach it returns to `unverified`, and
-`F2.3` reaches it by real tier or a seeded golden path (owner ruling 127). The frontend lane
-records each half (`packages/frontend.md`, `R2b`); `R2` is `done` when `R2b`'s last round is
-recorded.
+of modules serving no feature is approved, and OD-7 and OD-17 are ruled. Its two parts, `R2a`
+(recorded #6980, 2026-10-10) and `R2b`'s rounds, and when `R2` is `done`, are UR-148; a row demoted
+only because the CI stack cannot reach it is UR-153. The frontend lane records each part (UR-149;
+`packages/frontend.md`, `R2b`).
 
-**Phase 4 runs two tracks.** The **feature track** takes features in ruled priority: a design
-session, a test-only PR that consolidates the tests of the modules the feature touches under `01`'s
-zero kill-loss protocol, then a build PR with the feature and its golden path. The **background
-track** consolidates tests of modules no feature touches and deepens seams no feature has
-triggered. Every seam is designed when it is reached, against the code that remains — never in
-advance.
+**Phase 4 runs two tracks.** The **feature track** takes features in ruled priority, each as a
+design session, a test-only PR and a build PR with the feature and its golden path (UR-77, UR-79).
+The **background track** consolidates tests of modules no feature touches and deepens seams no
+feature has triggered. Seams are designed when reached (UR-11).
 
 ## Cross-lane dependencies
 
@@ -60,7 +54,7 @@ advance.
 - `O2.4` → `B2.3` (TensorRT re-ID, then the bake-off; ruling 107).
 - `O2.5` → ruling 127's 12 real-tier rows in `F2.3` (ruling 144).
 - `B3.1` and `F3.1` land each retired feature in one PR.
-- The docs lane's Phase 3 starts on a lane's directories only after that lane's Phase 3 is `done`.
+- Each lane's Phase 3 → the docs lane's Phase 3 on that lane's directories (UR-68).
 
 ## Vocabulary
 
@@ -76,8 +70,7 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
   no golden path yet; `F2.3` promotes it to **works** or demotes it to **half-built**.
 - **half-built** — the surface exists, but the backend is a stub, missing, or reports success it
   did not achieve; or the break is at the UI end: a control wired to nothing, a success message
-  over a write that never happens, a component wired to the API that no route renders (owner,
-  2026-10-10).
+  over a write that never happens, a component wired to the API that no route renders (UR-152).
 - **leftover** — a surface for a capability that was retired (R8 and earlier).
 - **complete** / **retire** — the owner's two rulings on a feature that does not work.
 - **golden path** — one unmocked spec that drives a feature end to end against a running stack: a
@@ -85,16 +78,13 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
 - **fake stack** — the CI compose stack plus a deterministic fake VLM and fake detector; runs
   anywhere, no GPU.
 - **real tier** — the same golden paths run by `scripts/feature-check.sh --real` on the GB300 with
-  real models, always on a test deployment; operator-run, never from CI.
+  real models (who runs it and where: UR-15, UR-132, UR-133).
 - **test deployment** — a disposable stack created for one run: its own compose project, env file,
   host ports, volumes and camera directory, sharing only read-only model weights with anything
-  else on the machine (`O2.2`). Every real-tier command runs against one, including Phase 1's
-  hand-written commands. A run that would touch the live deployment's database, camera folder or
-  containers stops instead.
+  else on the machine (`O2.2`). When one is required: UR-133.
 - **operator** — whoever runs real-tier commands: the `uplevel-operator` agent, whose sandbox
-  reaches the GB300 through `agent-gpu` (UR-30), or the owner for the runs that path cannot make.
-  A lane agent writes the command into its PR and the operator runs it, following
-  [`roles/operator.md`](roles/operator.md).
+  reaches the GB300 through `agent-gpu`, or the owner for the runs that path cannot make (UR-30,
+  UR-132); its procedure is [`roles/operator.md`](roles/operator.md).
 - **feature inventory** — `docs/reference/feature-inventory.md` (created by `F2.2`): one row per
   feature with status, evidence, modules and ruling. Built in Phase 2, kept current after.
 - **interface bar**, **kill-loss**, **zero kill-loss**, **accepted survivor**, **scored set** —
@@ -110,8 +100,7 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
 - **boundary** — a directory that keeps an `AGENTS.md`: the root, a lane root, or a package with
   real invariants or traps; listed with a reason in `.agents-md-validator.yml` (UR-21,
   [`packages/docs.md`](packages/docs.md)).
-- **MEASURE** / **DECIDE** / **RULING** — package markers in the house plan format: produce the
-  number and put it in the PR; choose on evidence and record why in the PR; stop and ask the owner.
+- **MEASURE** / **DECIDE** / **RULING** — the package markers of the house plan format (UR-76).
 
 ## Lanes and ownership
 
@@ -122,19 +111,16 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
   `setup.py`, `setup_lib/` and its tests, root config files, `archive/`, and the root directories
   `tests/`, `monitoring/`, `docker/`, `config/`, `env-templates/`, `data/`, `certs/`.
 - **docs:** `docs/` (except the feature inventory and `docs/uplevel/`), every `AGENTS.md` except
-  the lines a lane's own change updates (owner ruling 121), `llms.txt`, `mkdocs.yml`, the root
+  the lines a lane's own change updates (UR-81), `llms.txt`, `mkdocs.yml`, the root
   `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md` and `SECURITY.md`, and the AGENTS.md validator
   (`scripts/agents_md_validator.py`, `.agents-md-validator.yml`).
 
-`docs/uplevel/` is shared; who may change which part is in rules.md §Authority: rulings, plan text
-and IDs. `synthbench/` belongs to the synthbench workstream, which continues alongside this
-programme (UR-8); a package touches it only under the cross-lane rule (rules.md §Building a
-package), when a deletion removes something synthbench imports.
+`docs/uplevel/` is shared; who may change which part is UR-46 and UR-47. `synthbench/` belongs to
+the synthbench workstream; when a package may touch it is UR-82.
 
 ## Considered and rejected
 
-Alternatives the design session weighed and turned down. Reopening one is a **RULING**; bring the
-new evidence that would change the reason.
+Alternatives the design session weighed and turned down. Reopening one: UR-44.
 
 | alternative                                                                | why not                                                                                                                                                                 | instead |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
@@ -156,15 +142,10 @@ new evidence that would change the reason.
 
 ## Status
 
-The single status table. Update your row in the PR that finishes the package, and change only that
-line: prettier skips this table, so a longer cell never re-pads the other rows. Statuses:
-`not started`; `in progress`: only for a package the owner has ruled to span several PRs, such as
-`F2.3` or `R2b`'s rounds (ruling 138), every other package showing work in progress as an open
-draft PR titled `[<package>] …`; `awaiting real tier`; `done`. Flags: `heavy` — assigned by the
-coordinator to the strongest available model or an owner pairing (UR-24); `owner` — needs the
-owner's approval before merge (UR-23). Phase 4 packages get their own row when they open: the PR
-that opens `B4.2` or `FB.1` adds its row under the matching `*` line. `O2.4`, `B2.3` (ruling 117)
-and `O2.5` (ruling 144) may stay open past the Phase 2 boundary.
+The single status table. Who edits which row: UR-46. The row a finishing PR sets, and the packages
+that may stay open past the Phase 2 boundary: UR-10 (contract rule 5). Statuses: UR-144. Flags, and
+the rows Phase 4 packages add when they open (`B4.2` or `FB.1` under the matching `*` line):
+UR-147.
 
 <!-- prettier-ignore -->
 | package | lane                    | phase      | name                                           | flags         | status      | PR  |

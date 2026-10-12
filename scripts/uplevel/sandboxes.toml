@@ -11,7 +11,7 @@
 #
 # Network profiles, allow-lists and secrets are deliberately NOT declared here: no shown
 # `agent-dgx` flag takes them (history/packages-done.md §O0.1). Provisioning stays the
-# owner's: tokens via `sbx secret set github --sandbox agent-<session>` (rules.md, UR-171).
+# owner's: tokens via `sbx secret set github --sandbox agent-<session>` (rules.md, UR-26).
 
 # The fast model's arguments are the pair the repo already shows (synthbench/host/agent.py,
 # docs/synthbench/operator-runbook.md). The strongest model's are the owner's ruling, posted
@@ -111,7 +111,7 @@ You are uplevel-heavy-2; take only heavy PRs labelled cell:heavy-2."""
 
 # UR-30: the only GPU holder. The owner hand-started it for Phase 1; this row lets the
 # launcher create it from the next phase boundary. gpu = true makes `up` add --gpu after
-# the model arguments (the order in rules.md UR-172's hand-start line) and requires
+# the model arguments (the order in rules.md UR-30's hand-start line) and requires
 # AGENT_GPU_RUNNER_URL in the launching shell. No mount for /srv/agent-models: agent-dgx
 # --gpu mounts that library itself and refuses any mount at or under it.
 # Name the prompt as a section, never by position: `up` prints this line verbatim, and a

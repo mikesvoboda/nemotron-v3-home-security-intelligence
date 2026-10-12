@@ -35,7 +35,7 @@ stopped and started on a running stack.
 ### F2.3 Golden paths for every working feature
 
 **Flags:** none; the heavy agents take none of it (ruling 87). **Depends on:** `F2.1`. Its status is
-`in progress`: the owner ruled it to span several PRs (ruling 138).
+`in progress` (UR-144).
 
 - [ ] Write a golden path for every **unverified** row. A green golden path moves the row to
       **awaiting real tier**, citing the spec (owner ruling 103), and the real tier promotes it to
@@ -43,8 +43,7 @@ stopped and started on a running stack.
       as its evidence, and adds it to the `R2` sheet.
 - [ ] The operator runs the real tier (`scripts/feature-check.sh --real`) and the inventory records
       the date per row.
-- [ ] A row demoted only because the CI stack cannot reach it returns to **unverified**, its note
-      saying why, and `F2.3` reaches it (ruling 127):
+- [ ] Rows demoted only because the CI stack cannot reach them (UR-153) are reached this way:
   - **Real tier:** the Grafana and GPU rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176,
     F-178, F-182) get their witness from the `O2.5` run. If `O2.5`'s spike says no, they are
     checked on the test deployment in the per-batch real-tier runs, and ops adds what they need to
@@ -53,8 +52,6 @@ stopped and started on a running stack.
     request recorder; a fault seed behind the debug guard that trips a breaker and a threshold; a
     fixture that plants an orphan file; and a writable `runtime.env` in the CI compose. Ops-b owns
     the compose and harness changes; the lane that owns each row writes its spec (ruling 127).
-  - A row is ruled only if it fails once the stack can reach it; that failure is a demotion in a
-    later `R2b` round (ruling 127).
 - [ ] Which runs count as a witness for a row: rules.md §Test tiers and the real tier.
 
 **Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents.
@@ -65,19 +62,18 @@ stopped and started on a running stack.
 - **Backend** takes the rows whose evidence is an external API behaviour, as pytest specs in
   `backend/tests/golden/` (the contract in `O2.2`'s PR body, #6961).
 - **ops-a** (after `O2.3b`) and **docs** take UI batches as `golden` Playwright specs.
-- **One claim PR per agent** (owner ruling 97): each agent carries all its batches in one draft
-  claim PR.
+- **One claim PR per agent** (UR-56).
 - **Files:** a batch touches only `frontend/tests/golden/<area>/` or `backend/tests/golden/<area>/`
   and its own rows in the inventory. Frontend reviews every batch; a batch that needs a harness
   change asks frontend for it. For its own skips and `xfail`s only, a batch may also touch the
   suppression files they require — `.github/suppression-baseline.json`,
-  `.github/suppression-registry.yml` and `.secrets.baseline` (regenerated, never hand-merged),
+  `.github/suppression-registry.yml` and `.secrets.baseline` (UR-83),
   one `HOST_JUSTIFIED` entry per skip site in `scripts/suppression-registry-gen.py`, and the
   matching count in `scripts/test_suppression_census.py` — and the shared
   `backend/tests/golden/__init__.py` (owner rulings 104 and 111). A batch touching `scripts/` or
   `.github/` also gets ops-b's review of those hunks.
-- **The guard stands:** `F2.1`'s no-mocking guard applies to every batch. A path that cannot pass
-  demotes its row as above, for `R2b`.
+- **The guard stands:** `F2.1`'s no-mocking guard (UR-127) applies to every batch. A path that
+  cannot pass demotes its row as above, for `R2b`.
 - **Operator:** records real-tier dates per batch as batches merge, under `O2.2`'s `--real` (the
   real VLM, a fake detector; owner ruling 66).
 
@@ -89,28 +85,21 @@ real-tier date; the `R2` sheet is final.
 **Flags:** `owner`; the owner rules, the frontend lane records. **Depends on:** `F2.3`'s demotions,
 round by round.
 
-After each of the owner's ruling sessions or rounds, this lane writes the record in one PR: each
-ruling and priority into the inventory's ruling column, the OD rulings it carries (OD-7 and OD-17,
-and OD-33 – OD-39, for `R2a`) into `docs/vss-integration/17-action-plan.md`, and the recorded
-part's row in the README status table; `R2` is `done` when `R2b`'s last round is recorded. No
-Phase 3 package starts before `R2` is `done`, except a package scoped only to `R2a`-ruled features
-and modules (once #6980 and the plan PR carrying ruling 86 have merged) or to an `R2b` round's
-rulings (once that round's record merges) (rules.md §Claiming and assigning work; rulings 86, 135).
+After each of the owner's ruling sessions or rounds, this lane writes the record as UR-149 says;
+the OD rulings it carries are OD-7 and OD-17, and OD-33 – OD-39 for `R2a`. When `R2` is `done`:
+UR-148.
 
 **Ruling 86 split the session into `R2a` and `R2b`.** `R2a` — the sheet as it stood — was recorded
 on 2026-10-10 (#6980). `R2b` rules the rows `F2.3` demotes plus the sheet's §3, and is recorded the
-same way after the owner's `R2b` session; `R2` is `done` only when both records are.
+same way after the owner's `R2b` session.
 
-- **Rounds** (ruling 127). `R2b` runs in rounds as `F2.3` demotes rows. Round 1 ruled the 41
-  `half-built` rows with an empty ruling column at `9bc51ece0`; rows `F2.3` demotes later are ruled
-  in a later round. The lane records each round as above; `R2b` is `done` when the last round is
-  recorded.
+- **Rounds** (UR-148). Round 1 ruled the 41 `half-built` rows with an empty ruling column at
+  `9bc51ece0`; rows `F2.3` demotes later are ruled in a later round, each recorded as above.
 - **Round 1's record** (ruling 135): one PR writes rulings 127–135 into the inventory's ruling and
   priority columns for the 41 rows, returns ruling 127's 22 rows to **unverified** with their
   reachability notes, sets `R2b` to `in progress` in the README status table, and carries no code
   change.
-- Which Phase 3 packages may start after a round's record merges: rules.md §Claiming and assigning
-  work (rulings 86, 135).
+- Which Phase 3 packages may start after a round's record merges: UR-66.
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).
 
@@ -212,9 +201,8 @@ Each package opens with a design session against the code that remains.
 ## Ruling-ordered fixes
 
 Fixes an owner ruling ordered outside the phase order. Each keeps the ruling's tag as its id, queues
-where its ruling says, and takes the normal queue and review: a ruling-ordered follow-up is not a
-red-`main` fix (rules.md §Red main and the nightly). None has a README status row; the PR that
-finishes one updates its row in [`../history/ruling-map.md`](../history/ruling-map.md).
+where its ruling says, and takes the normal queue and review (UR-113). None has a README status row;
+the PR that finishes one updates its row in [`../history/ruling-map.md`](../history/ruling-map.md).
 
 ### [r130f] Small bugs from `F2.3`'s demotions, frontend half
 
