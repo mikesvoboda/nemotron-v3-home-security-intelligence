@@ -3697,12 +3697,19 @@ jobs:
   # file is hot prose and renumbers every owner plan PR. A new check on ci.yml
   # is its own job or its own workflow file, never an edit to a shared one).
   # It ran here as a path appended to collection-sanity's battery line; that was
-  # the shape the rule forbids. It was also the only entry in that list that did
-  # not have its own line: the list is 31 entries at origin/main and a per-line
-  # count of `.py` paths finds exactly one path per line in all 31 — mine alone
-  # doubled up on a neighbour's. (Cited by structure, not by line range: a
-  # `ci.yml:N` cite in this file drifts the moment anyone inserts a line above
-  # it.)
+  # the shape the rule forbids. It was also the only entry that did not have its
+  # own line, and that doubling lived in THIS branch, not in main: at `da350bd4c`
+  # the battery is 38 argv / 32 `.py` paths with `test_r2_python_dead_list.py
+  # scripts/test_negative_tooling_claims.py` sharing one line. Everywhere else a
+  # per-line count finds exactly one path per line — measured 31 at `4a83b61a1`
+  # and `9bc51ece0`, 32 at `2079e4a21` (MAIN's own addition), 31 at this head
+  # (mine moved out to the job below). A bare "at origin/main" version of this
+  # sentence went stale in review, so each figure names the SHA it was read at.
+  # If you re-verify a per-line count, use a DIGIT-INCLUSIVE class: `[a-z_]`
+  # skips `test_r2_python_dead_list.py` and manufactures a contradiction that is
+  # your regex, not the file. (Cited by structure, not by line range: a `ci.yml:N`
+  # cite drifts the moment anyone inserts a line above it — and so does any count
+  # quoted against a ref-name.)
   # Why the JOB lives here, not in its own workflow file: `needs:` is file-local,
   # so ci-gate can only need a job declared in this file, and branch protection
   # requires exactly one context, `CI Gate (Required Checks)` (read live from
