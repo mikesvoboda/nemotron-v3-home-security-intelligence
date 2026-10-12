@@ -2149,7 +2149,10 @@ def _golden_only_run(
         # Without this the pins below would each carry a vacuity problem the
         # npm ci question never meant to assert about.
         report = kwargs.get("env", {}).get("PLAYWRIGHT_JUNIT_OUTPUT_FILE")
-        if report:
+        if report and not Path(report).exists():
+            # A test that pre-seeded its own report means "THIS is what the leg
+            # left behind" (the strikes and drift pins do exactly that); the
+            # stand-in only supplies the ran-spec default when none exists.
             Path(report).write_text(_RAN_JUNIT, encoding="utf-8")
         return subprocess.CompletedProcess(command, rc, "", "")
 
@@ -2195,15 +2198,24 @@ def test_the_golden_step_installs_frontend_deps_only_when_absent(
 # Ruling 114: a golden run that executes nothing is a Feature Check problem
 # ---------------------------------------------------------------------------
 
-_EMPTY_JUNIT = '<?xml version="1.0"?><testsuites><testsuite name="golden"/></testsuites>'
+_EMPTY_JUNIT = (
+    '<?xml version="1.0"?><testsuites><testsuite name="golden" tests="0" failures="0" '
+    'skipped="0"/></testsuites>'
+)
+# Ruling 114's fixtures state their totals the way BOTH real reporters do —
+# pytest on its single ``<testsuite>``, Playwright at both levels — because a
+# report that declares nothing is not a shape either family produces, and the
+# drift alarm's own justification is that 102/102 CI suite headers carry them.
 _SKIPPED_JUNIT = (
-    '<?xml version="1.0"?><testsuites><testsuite name="golden">'
+    '<?xml version="1.0"?><testsuites>'
+    '<testsuite name="golden" tests="2" failures="0" skipped="2">'
     '<testcase classname="golden" name="one"><skipped/></testcase>'
     '<testcase classname="golden" name="two"><skipped/></testcase>'
     "</testsuite></testsuites>"
 )
 _RAN_JUNIT = (
-    '<?xml version="1.0"?><testsuites><testsuite name="golden">'
+    '<?xml version="1.0"?><testsuites>'
+    '<testsuite name="golden" tests="1" failures="0" skipped="0">'
     '<testcase classname="golden" name="one"/>'
     "</testsuite></testsuites>"
 )
