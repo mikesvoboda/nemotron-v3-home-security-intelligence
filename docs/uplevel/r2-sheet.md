@@ -857,8 +857,14 @@ family to `docs/archive/`, citing it as "the in-repo precedent for retired docs 
 the validator's `no_agents_md_required` list. Both halves were true at the measured commit and are
 foreclosed by a standing ruling the draft had not read: **UR-19** (`docs/uplevel/README.md`) is
 "`archive/` and `docs/archive/` are deleted … git history is not rewritten", **`O1.5`** (`docs/uplevel/30-ops.md:125-137`) executes it — "`git rm -r archive docs/archive`. Remove the archive excludes from
-… `.agents-md-validator.yml`" — and its status row is still `not started` (`README.md:246` at this
-head, :243 before the merge — the table shifted, the row did not). README's
+… `.agents-md-validator.yml`" — and it has since **executed**: `O1.5`'s row in
+`docs/uplevel/README.md` reads `done` / `#6931` (merged 2026-10-09), and the deletion is measurable
+rather than promised — `ls-tree` counts `docs/archive` 53 files and `archive` 2,927 at `53b311195`,
+**0 and 0 at this head**. So the precedent the draft saw was real then and is gone now, which closes
+this move harder than a pending row would. (That row sat at `:243` at `10ab08e8` and `:246` at
+`2a558bdb`/`53b311195` and is `:254` here — so this sentence names the row rather than citing a
+line, deliberately: a status row drifts by merge like any coordinate, _and_ it changes content when
+another lane lands its package, which no re-anchor inside this file can detect.) README's
 "Considered and rejected" table then rejects this row's exact move: "Moving dead code into `archive/` |
 relocates sediment; git history already keeps every deleted file | UR-19". Recommending it again would
 be reopening a settled ruling inside a ruling request. UR-19's stated reason is also the direct answer
