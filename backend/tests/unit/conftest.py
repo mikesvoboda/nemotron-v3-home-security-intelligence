@@ -78,6 +78,79 @@ def isolate_redis_module_global() -> Generator[None]:
         redis_module._redis_init_lock = None
 
 
+def _clear_database_module_state() -> None:
+    """Null every ``backend.core.database`` singleton the shipped code owns.
+
+    Same sweep as :func:`isolate_redis_module_global`, for the engine singletons:
+    ``init_db()`` caches ``_engine``/``_async_session_factory``/``_bound_loop_id``
+    (and the read-replica pair) as module globals, which under xdist persist across
+    test MODULES on a worker. ``TestPgbouncerDatabaseInit``
+    (core/test_pgbouncer_config.py:128-195) calls the real ``init_db()`` with only
+    ``create_async_engine`` patched to a bare ``MagicMock``; ``with patch(...)``
+    restores the function but not the globals, so the mock engine survives. The next
+    test that calls ``get_session()`` hits ``_check_loop_mismatch()`` (the leaked
+    ``_bound_loop_id`` no longer matches its fresh loop), which awaits ``init_db()``
+    → ``old_engine.dispose()`` on that mock → main run 38162912077's
+    ``TypeError: 'MagicMock' object can't be awaited``. A LEAK/INHERIT probe of the
+    full unit tier recorded the triple surviving into 1,278 later tests on one worker
+    (gw7, of 1,279 INHERIT lines in the whole run; ≈32 % of that worker's ~3,964
+    tests — not "most of its tier". 778 of the 1,278 carried ``_bound_loop_id`` as a
+    real int; the other 500 inherited ``loop=None`` and cannot fire the predicate).
+
+    Unconditional at BOTH ends, like the redis sweep: entry, so residue can never
+    reach a unit test, and exit, so no unit test can poison the next module. Safe to
+    clear rather than snapshot-restore because nothing in this tier can leave a live
+    pool behind: no unit test boots a real engine. The call-site audit is the
+    evidence, not the probe: every hit of
+    ``grep -rn "create_async_engine(" backend/tests/unit/`` (and of the same for
+    ``AsyncEngine(``) is itself a docstring line containing ``grep -rn`` — a citation
+    of this command, never a construction. Check it with ``grep -v grep`` rather than
+    trusting a hit COUNT, which grows every time a docstring cites the command (that
+    fragility already bit this file twice). The unit-tier lines that do name
+    ``create_async_engine`` outside a citation are ``patch(...)`` targets and prose,
+    e.g. core/test_pgbouncer_config.py:144. And none of the tier's coarse fixtures touches
+    these five globals: ``grep -rE '@pytest\\.fixture\\(scope="(session|module)"'``
+    over the tier gives 29 (the escaped paren matters — the repo's grep is ugrep and
+    the bare one errors), and of those 29 the only one defined in this file is
+    ``enable_api_key_auth_for_unit_tests``, which is env-only. A naive ``scope=``
+    grep without the ``@pytest.fixture`` anchor over-counts, because it also matches
+    five gpu_monitor docstrings that *argue against* coarse fixtures plus this very
+    sentence. So there is no coarser-scoped consumer whose engine the sweep could
+    strand. The probe
+    corroborates but cannot establish this: its LEAK arm is a before/after delta, so
+    a test that boots a real engine and restores the previous value leaves zero delta
+    (and on a tree WITH this sweep, an autouse-fixture probe reports zero for every
+    test — see the docstring of backend/tests/evidence/r109c_leakprobe.py, which is
+    why the probe is a hook wrapper, not a fixture). And no unit test requests
+    backend/tests/conftest.py's ``isolated_db``, which legitimately holds REAL engines in
+    the tiers this file does not govern. Nulling without disposing cannot leak a pool for a mock, and the
+    shipped ``get_session()`` answers ``RuntimeError("Database not initialized")``
+    rather than serving a stale engine, which is the honest failure for a unit test.
+    """
+    import backend.core.database as db_module
+
+    db_module._engine = None
+    db_module._async_session_factory = None
+    db_module._read_engine = None
+    db_module._read_session_factory = None
+    db_module._bound_loop_id = None
+
+
+@pytest.fixture(autouse=True)
+def isolate_database_module_state() -> Generator[None]:
+    """Sweep backend.core.database module globals before and after every unit test.
+
+    See :func:`_clear_database_module_state` for the mechanism and provenance. Kept
+    a thin fixture over a named helper so the pinned behavior is directly testable
+    (core/test_database_state_isolation.py) without driving the fixture layer.
+    """
+    _clear_database_module_state()
+    try:
+        yield
+    finally:
+        _clear_database_module_state()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def enable_api_key_auth_for_unit_tests() -> Generator[None]:
     """Enable API key authentication for all unit tests.

@@ -556,8 +556,9 @@ reason.
 
 ### OB.4 Lane map and cross-lane check
 
-**Trigger:** the first merge conflict between lanes, or a PR found touching another lane's files
-without listing them as cross-lane parts. Until then, the README's Lanes table is enough.
+**Trigger:** a PR found touching another lane's files without listing them as cross-lane parts.
+A merge conflict between rows each lane owns in a shared file is not a trigger (owner ruling 115).
+Until then, the README's Lanes table is enough.
 
 - [ ] `docs/uplevel/lanes.toml` maps path patterns to lanes, generated from the README's Lanes
       table.

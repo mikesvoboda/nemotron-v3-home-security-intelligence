@@ -57,6 +57,7 @@ SLOW_TEST_PATTERNS = [
     r"TestHandleUnhealthy::test_handle_unhealthy_stamps",  # persistent x7/17, 18.2s peak (WP1.3)
     r"test_enrichment_pipeline_household_matching.*test_vehicle_household_matching_via_license_plate",  # 4.18s x2 + 4.297s main corpus, 1.20s alone — -n8 contention (2026-09-23)
     r"test_r8_s2b_nemotron_deletion.*test_no_test_module_imports_a_name_that_no_longer_exists",  # 4.40s PR head (run 37560500061) + 4.116s main junit 37541671553, 5.28s solo — full-tree import sweep, grows with the suite (2026-10-06)
+    r"TestLiveWiring.*test_child_session_restores_root_logging_between_tests",  # 6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots a real child pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked, 20s child wall) (2026-10-11)
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely

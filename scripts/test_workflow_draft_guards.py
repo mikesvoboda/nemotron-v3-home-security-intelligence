@@ -141,10 +141,15 @@ def check_triggers() -> list[str]:
     # now runs only through ci.yml's security-dependency-audit call job
     # (WP1.2: a standalone PR run raced the parent inside the shared
     # concurrency group). Moving a workflow off the PR fleet moves this pin;
-    # that is the tripwire's design, not an exemption.
-    if seen != 7:
+    # that is the tripwire's design, not an exemption. 7 until ruling 105:
+    # the standalone Feature Check workflow's pull_request trigger left the
+    # fleet with it — the run moved into ci.yml's feature-check job, whose
+    # PR handling is the guarded job's own `if` + the detect-changes
+    # `feature` filter, so the fleet shrank by one FILE (ci.yml's own count
+    # is unchanged — it carried the trigger before and does now).
+    if seen != 6:
         failures.append(
-            f"expected 7 workflows with a pull_request trigger, found {seen} — "
+            f"expected 6 workflows with a pull_request trigger, found {seen} — "
             "a new PR-triggered workflow needs the guard and ready_for_review too"
         )
     return failures

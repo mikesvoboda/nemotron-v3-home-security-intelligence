@@ -467,20 +467,71 @@ asserts through `/api/events` that exactly one event arrives carrying the
 scenario's verdict and risk score. The smoke scenario has image bytes of its
 own, so the backend's content dedupe never swallows a golden path's image.
 
+**Where CI runs it (ruling 105).** The `--fake` tier runs as the
+`Feature check (fake AI)` job in `ci.yml`, which `CI Gate (Required Checks)`
+needs: a red golden path blocks a merge like any other required verdict. The
+job is skipped on a PR whose diff cannot affect the run (the `detect-changes`
+`feature` filter — Markdown-only among them) and runs on `main` after every
+merge. The operator's and owner's manual run stays available: dispatch `CI`
+with `workflow_dispatch` and the feature-check job runs regardless of the
+filter. The check previously lived in a standalone `Feature Check` workflow;
+ruling 105 moved it into `ci.yml` and retired the standalone file, so it does
+not run twice. The `--real` tier never runs from GitHub (UR-15) — that is the
+operator's `--real` on the GPU sandbox.
+
 **Frontend dependencies (ruling 102).** The golden step runs the Playwright
 `golden` project with `npx playwright test --project=golden` from `frontend/`.
 An operator's tree has no `frontend/node_modules` — the harness builds the
-images but installs no dependencies into the checkout, and the `Feature Check`
-workflow's `npm ci` step is a different process — so on such a tree the harness
+images but installs no dependencies into the checkout, and the CI feature-check
+job's `npm ci` step is a different process — so on such a tree the harness
 now runs `npm ci` in `frontend/` itself first, and the documented command runs
 unchanged. An existing install is never touched: `npm ci` deletes
 `node_modules` on entry, so it runs only where there is nothing to delete. The
 install is reported in `summary.json` as its own `npm_ci` result, and it is not
 given the run's admin password. A Playwright browser binary is a further
 precondition the install does not fetch — `@playwright/test` has no install
-script, so `npm ci` brings the runner, not Chromium — so a tree that has never
-run `npx playwright install chromium` still fails, now with Playwright's own
-browser-missing message rather than a module error.
+script, so `npm ci` brings the runner, not Chromium.
+
+**Chromium browsers (ruling 116).** That missing binary is the next thing an
+operator's tree hits, so the golden step now installs it. It asks the
+lock-resolved runner — `frontend/node_modules/.bin/playwright`, never a bare
+`npx` that would resolve the _latest_ package and plan a build the locked
+runner cannot launch — what `install chromium` would do, and treats the
+`Install location:` paths in that plan as the answer to "is it there?", counting
+a path installed only when it carries the `INSTALLATION_COMPLETE` marker the CLI
+writes last (its own "already downloaded" test is that marker, not the
+directory — so a download killed mid-extract is re-installed rather than
+believed): `--dry-run` prints the same plan whether the builds exist or not, so
+the filesystem decides, and reading the paths instead of hardcoding
+`~/.cache/ms-playwright/...` keeps the check correct across a Playwright bump
+(a bump changes the build number) and honours a browser root the caller moved
+with `PLAYWRIGHT_BROWSERS_PATH` or `XDG_CACHE_HOME`. When every path carries the
+marker nothing is installed or re-downloaded. When one lacks it the step runs
+`npx playwright install chromium` once, up to 1800 s, and reports the outcome
+in `summary.json` as its own `playwright_browsers` result — `present`,
+`installed chromium v1243 …`, `exit <n>` (or `exit timed out` when the step hit
+its deadline), or `probe exit <n>` / `probe exit timed out` — under the engine's
+environment plus the two browser-root variables, so it is never given the run's
+admin password. A step that stalls is accounted, never raised: the download
+getting its timeout is an outcome the step reads and names, so the whole golden
+section (ruling 102's `npm_ci` entry included) survives in `summary.json` and
+the test command still runs. Judging absence at the path the runner will launch
+from matters: the test command runs with the caller's whole environment, so a
+moved cache that the probe judged at the default root would either be
+re-downloaded needlessly or, if the default root happened to look complete, be
+declared present and left uninstalled — which is why both variables that move
+that root are forwarded (measured: the CLI reads `PLAYWRIGHT_BROWSERS_PATH`
+first, else `XDG_CACHE_HOME/ms-playwright`, the same order at launch). A failed
+install is a named problem that lists
+the hosts the plan named (`cdn.playwright.dev` and its
+`playwright.download.prss.microsoft.com` fallback) and keeps the tail of the
+installer's own output — not a workaround: if the sandbox cannot reach them,
+the owner allows the host. Note the plan is not the whole network story: the
+Chrome-for-testing URLs answer `307` and the bytes come from
+`storage.googleapis.com`, so a block can land one hop past any host the plan
+prints, and the installer's own message is what names the host that refused.
+The test command runs either way, so Playwright's browser-missing message is
+still in the output when the install did not happen.
 
 **Isolation.** A run touches nothing else on the machine, so it is safe beside
 a live stack.
