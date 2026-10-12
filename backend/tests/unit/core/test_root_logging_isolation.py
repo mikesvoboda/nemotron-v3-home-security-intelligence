@@ -29,6 +29,7 @@ import pytest
 
 import backend.tests.conftest as root_conftest
 from backend.tests.conftest import _restore_root_logging, _root_logging_state
+from backend.tests.unit.core.r109_live_wiring_probe import asctime_leakers
 
 # A logger name nothing ships: the pin's records must not be anyone else's.
 PIN_LOGGER = "r109.root.logging.isolation.pin"
@@ -150,6 +151,108 @@ class TestTheR109FailureMode:
             "later record — this file's asctime mechanism claim is false and "
             "the pin above proves nothing"
         )
+
+
+class TestTheProbePreconditionPredicate:
+    """Pin the probe's leaker predicate (finding N1) against synthetic handlers.
+
+    `r109_live_wiring_probe.py`'s test_1 refuses to arm a pair that could only
+    be vacuously green, and N1 (adjudicated in 6115313529) found that predicate
+    consulted ONE of the two knobs that decide whether a handler can stamp
+    `record.asctime` on test_2's WARNING record: the FORMAT (`usesTime()`) but
+    not the LEVEL (`Handler.emit` drops `record.levelno < handler.level` before
+    the formatter runs). Under an inherited `LOG_LEVEL=ERROR`, setup_logging()
+    arms every handler at 40 > 30 (backend/core/logging.py:878/:894/:906) and
+    test_2 can never go red — measured at this head before the fix: restore
+    mutated + LOG_LEVEL=ERROR printed `2 passed`, the exact vacuous green this
+    file exists to refuse.
+
+    The predicate is a module helper precisely so this class can pin it without
+    booting a child session or mutating the root conftest (a committed test
+    can't do either). Each synthetic handler here pairs with a real
+    `logging.Handler` decision: level 30 emits a WARNING, level 40 drops it.
+    """
+
+    @staticmethod
+    def _handler(level: int, *, asctime: bool) -> logging.Handler:
+        h = logging.StreamHandler()
+        h.setLevel(level)
+        h.setFormatter(logging.Formatter("%(asctime)s | %(message)s" if asctime else "%(message)s"))
+        return h
+
+    def test_predicate_accepts_the_shipped_shape(self) -> None:
+        # The default settings.log_level is WARNING (backend/core/config.py:2206)
+        # and setup_logging sets handler level = that, so the handler the probe
+        # must accept is exactly (asctime format, level 30): 30 >= 30 emits.
+        # This is the OLD-green half of the N1 control: the new predicate must
+        # not break the case the old one accepted.
+        h = self._handler(logging.WARNING, asctime=True)
+        try:
+            assert asctime_leakers([h]) == [h]
+        finally:
+            h.close()
+
+    def test_predicate_refuses_a_handler_the_record_can_never_reach(self) -> None:
+        # The new-red half: an ERROR-level asctime handler passes usesTime() but
+        # drops test_2's WARNING in emit() before formatting. A predicate that
+        # counts it is the N1 vacuity. This is a mutation of the PREDICATE, not
+        # of production code, and it goes red the moment someone re-narrows the
+        # helper to usesTime-only.
+        h = self._handler(logging.ERROR, asctime=True)
+        try:
+            assert asctime_leakers([h]) == []
+        finally:
+            h.close()
+
+    def test_predicate_refuses_a_handler_that_never_formats_time(self) -> None:
+        # The format knob the predicate already had, pinned so a fix for the
+        # level knob cannot regress it: level 30 emits, but usesTime() is False
+        # so formatTime never runs and no asctime is ever cached.
+        h = self._handler(logging.WARNING, asctime=False)
+        try:
+            assert asctime_leakers([h]) == []
+        finally:
+            h.close()
+
+    def test_a_warning_record_is_actually_dropped_below_handler_level(self) -> None:
+        # Negative control for the control above: the level knob is real, not a
+        # convention. The runtime drops the record (no formatter call) when
+        # handler.level exceeds the record's, and formats it when equal — the
+        # boundary the predicate keys on (Handler.filter is level-gated inside
+        # handle()). Without this, the ERROR-handler test could be pinning a
+        # predicate no runtime behaviour matches.
+        seen: list[str] = []
+
+        class Recorder(logging.Formatter):
+            def format(self, record: logging.LogRecord) -> str:
+                seen.append(record.getMessage())
+                return super().format(record)
+
+        # Distinct literal messages (not formatted ones) so `seen` can be
+        # attributed to a level: UP031 forbids eager %-format and the emit
+        # itself stays lazy %-style, which is what logging wants.
+        for level, message, expect_emitted in (
+            (logging.ERROR, "rec-error", False),
+            (logging.WARNING, "rec-warning", True),
+        ):
+            h = logging.StreamHandler()
+            h.setLevel(level)
+            h.setFormatter(Recorder("%(message)s"))
+            logger = logging.getLogger(PIN_LOGGER + ".emit.gate")
+            logger.handlers = [h]
+            logger.setLevel(logging.DEBUG)
+            logger.propagate = False
+            try:
+                logger.warning(message)
+            finally:
+                logger.handlers = []
+                logger.propagate = True
+                h.close()
+            assert (message in seen) is expect_emitted, (
+                f"handler level {level}: emitted={message in seen}, "
+                f"expected {expect_emitted} — the level-gating this predicate "
+                "keys on is not the runtime behaviour assumed"
+            )
 
 
 class TestFixtureWiring:

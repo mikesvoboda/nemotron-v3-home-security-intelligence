@@ -41,6 +41,46 @@ from backend.core.logging import setup_logging
 _PROBE_LOGGER = "probe.r109.boundary"
 
 
+def asctime_leakers(handlers: list(logging.Handler)) -> list[logging.Handler]:
+    """Which of these handlers could actually stamp `asctime` on test_2's record.
+
+    TWO independent knobs decide that, and the pin must consult both — N1
+    (fresh-context auditor `r109-fix-review`, adjudicated in 6115313529):
+
+    * FORMAT — `Formatter.format` calls `formatTime` (which caches
+      `record.asctime`) only when `usesTime()` is true; this is the knob the
+      original predicate checked, and the same predicate `Formatter.format`
+      itself consults rather than a pattern-matched format string.
+    * LEVEL — `Handler.emit` drops the record before the formatter ever runs
+      when `record.levelno < handler.level`. test_2 emits at WARNING, so a
+      handler armed above WARNING can never stamp the record this pair exists
+      to witness. `setup_logging()` sets console/file/db handler levels from
+      `settings.log_level` (backend/core/logging.py:878/:894/:906), so an
+      inherited `LOG_LEVEL=ERROR` puts every armed handler at 40 > 30 —
+      measured 2026-10-12 at this head: with the hook's restore call deleted,
+      a child run at `LOG_LEVEL=ERROR` printed `2 passed` (test_1's
+      format-only pin green over a dead restore; test_2 vacuous because its
+      WARNING record was never formatted), while the same mutated tree at the
+      default level went `1 failed, 1 passed`. Refusing vacuity-by-format
+      while accepting vacuity-by-level is the same overreach the F1 docstring
+      fix corrected: this file exists to refuse BOTH.
+
+    Kept as a module-level helper (not inlined in test_1) so the predicate is
+    directly testable in-process — `test_root_logging_isolation.py` imports it
+    and pins both halves against synthetic handlers, the same reason
+    `_clear_database_module_state` is a named helper at
+    backend/tests/unit/conftest.py:81. A committed test cannot mutate the
+    root conftest, so the child-level mutation control stays a development
+    measurement (the grid above lives in the commit message); this helper is
+    what makes the pin itself ratchet-tested.
+    """
+    return [
+        h
+        for h in handlers
+        if getattr(h.formatter, "usesTime", lambda: False)() and h.level <= logging.WARNING
+    ]
+
+
 def test_1_arms_root_logging_like_a_lifespan_test() -> None:
     """Arm root logging the way a lifespan-booting test does — and pin WHAT it armed.
 
@@ -63,7 +103,11 @@ def test_1_arms_root_logging_like_a_lifespan_test() -> None:
     assertion below, a future format change would leave this test green and quietly
     disarm test_2 — vacuous green again, which is exactly what this file exists to
     refuse. `usesTime()` is asked rather than pattern-matching the format string,
-    because it is the same predicate `Formatter.format` itself consults.
+    because it is the same predicate `Formatter.format` itself consults. The
+    predicate lives in :func:`asctime_leakers` and consults the handler LEVEL as
+    well — a handler armed above WARNING (an inherited `LOG_LEVEL=ERROR`) can
+    never format test_2's record, which is vacuity by a second knob; the helper's
+    docstring carries that mechanism and its measurement.
     """
     root = logging.getLogger()
     before = list(root.handlers)
@@ -73,14 +117,17 @@ def test_1_arms_root_logging_like_a_lifespan_test() -> None:
         "setup_logging() installed no root handlers, so this pair would be vacuous "
         f"(handlers before: {[type(h).__name__ for h in before]!r})"
     )
-    leakers = [h for h in installed if getattr(h.formatter, "usesTime", lambda: False)()]
+    leakers = asctime_leakers(installed)
     assert leakers, (
-        "none of the handlers setup_logging() just armed formats with the record's "
-        f"creation time ({[f'{type(h).__name__}:{type(h.formatter).__name__}' for h in installed]!r}) "
-        "— test_2's asctime assertion would pass vacuously, because nothing attached "
-        "here could ever stamp a cached `asctime`. Either the shipped format changed "
-        "(re-derive the leak mechanism) or setup_logging() stopped arming its console "
-        "handler (this child no longer witnesses the real boot)."
+        "none of the handlers setup_logging() just armed could stamp test_2's WARNING "
+        "record — neither of the two knobs permits it "
+        f"({[f'{type(h).__name__}:{type(h.formatter).__name__}:L{h.level}' for h in installed]!r}). "
+        "test_2's asctime assertion would pass vacuously, because nothing attached here "
+        "could ever cache `asctime` on its record. Either the shipped format changed "
+        "(re-derive the leak mechanism), setup_logging() stopped arming its console "
+        "handler (this child no longer witnesses the real boot), or the environment's "
+        "LOG_LEVEL is above WARNING (the test needs a level that formats the record it "
+        "emits — this pin refuses that vacuity too; see asctime_leakers)."
     )
 
 
