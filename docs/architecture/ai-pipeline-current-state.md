@@ -324,9 +324,11 @@ lookup loaders, i.e. the guard against a specialist leg being quietly added or d
 `pytest ai/gateway`). Both are outside `testpaths` (`pyproject.toml:578`). This contradicts the
 repo's own doctrine quoted at `ci.yml:200`: "a gate with no CI is a gate that rots".
 
-And `scripts/validate_docs` — the tool that catches dead `source_refs` — runs in **no** workflow
-either (`grep -rn validate_docs .github/workflows/` returns nothing). It is what found the 3 dead
-citations in `ai-pipeline.md`.
+And `scripts/validate_docs` — the tool that catches dead `source_refs` — runs in CI, in the
+`Docs citation existence (level 1, scoped dirs)` step, over five dirs only and with `--no-ast
+--no-code-match --no-cross-ref --no-staleness --errors-only`. **[V]** The tiers those flags turn off
+are wired into no gate at all, and the five dirs are a floor, not `docs/`: a dead `source_ref` outside
+them is unchecked. That is the gap worth knowing; the tool is not missing, its coverage is.
 
 ## 8. What monitoring can and cannot see today
 
