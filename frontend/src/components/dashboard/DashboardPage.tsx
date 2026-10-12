@@ -217,6 +217,19 @@ export default function DashboardPage() {
         // and says renderers must branch on null — so pass the null through.
         risk_score: event.risk_score ?? null,
         risk_level: (event.risk_level as SecurityEvent['risk_level']) ?? null,
+        // F-031 (witnessed red, run 38176486293): the six-field literal ended
+        // here, and both downstream readers read through the hole —
+        // activityEvents maps `verdict: event.verification?.verdict` and
+        // `notify: event.notify` (below), so REST events rendered NO verdict
+        // chip and NO notify chip. SecurityEventData declares both (its own
+        // comment: verification "was simply never declared here, so 1.6's
+        // verdict badge could not read it off a live event" — this mapper was
+        // the other half); the generated REST EventResponse sends both, absent
+        // by contract when no decision exists. Absence is NOT coalesced: an
+        // explicit `undefined` keeps the key's absence, so `notify: false`
+        // can never be fabricated for a silent event.
+        verification: event.verification,
+        notify: event.notify,
         summary: event.summary ?? '',
         started_at: event.started_at,
       }));
