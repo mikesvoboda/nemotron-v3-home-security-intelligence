@@ -90,8 +90,7 @@ Read rules.md §Merging first: it defines ready time, queue order, the owner tie
 and which PRs may jump the queue, and names the merge rules that sit elsewhere.
 
 1. **Pick** the oldest ready PR (UR-104, UR-106).
-2. **Wait for `main`** (UR-103).
-3. **Update** the PR when it is behind `main`, one at a time (UR-102):
+2. **Update** the PR when it is behind `main`, one at a time (UR-102):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
    (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | sha256sum`,
@@ -99,14 +98,16 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    `FETCH_HEAD`), with `<merge-base>` from `git merge-base origin/main <head>` and the files from
    `gh pr view <n> --json files`. Conflicts go to the author (UR-102). End the turn; the next tick
    reads its CI.
-4. **Re-read** the PR (UR-29): `gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`,
+3. **Re-read** the PR (UR-29): `gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`,
    and `gh run list --commit <head>`; merge only on green (UR-34).
-5. **Read the owner's word on it** (UR-94). Merge an owner-tier PR only on an owner approval UR-100
+4. **Read the owner's word on it** (UR-94). Merge an owner-tier PR only on an owner approval UR-100
    accepts.
-6. **Merge** in the repository's existing merge style (UR-23). An owner PR carries auto-merge
-   (UR-108): GitHub merges it once the gate passes after your update.
-7. **Comment** as UR-29 says, quoting the newest owner ruling you checked in step 5 and, after an
-   update-branch of an owner PR, the two diff hashes from step 3. The batch lists auto-merged owner
+5. **Merge** in the repository's existing merge style (UR-23). An owner PR carries auto-merge
+   (UR-108): GitHub merges it once the gate passes after your update. Read the PR back
+   (`gh pr view <n> --json state,mergeCommit`) and call it merged only when `state` is `MERGED`,
+   quoting the merge commit (UR-31).
+6. **Comment** as UR-29 says, quoting the newest owner ruling you checked in step 4 and, after an
+   update-branch of an owner PR, the two diff hashes from step 2. The batch lists auto-merged owner
    PRs (UR-166).
 
 **Red `main`.** On the first red `CI Gate` run on `main`, raise the urgent path with the failing

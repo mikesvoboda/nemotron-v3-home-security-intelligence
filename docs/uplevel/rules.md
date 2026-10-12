@@ -211,13 +211,12 @@ Read this section before you self-review your own PR or review another lane's.
   and records them in the PR. (50-coordination.md §1)
 - **UR-91** The reviewer runs the same checks independently, posts the review as a PR comment in the
   form `roles/lane.md` gives (the owner's account cannot approve its own PRs), and removes the
-  label. (50-coordination.md §2)
+  label. Each new head's merge resolution is reviewed again. (50-coordination.md §2; ruling 39 item
+  G)
 - **UR-92** Every review carries `Plan text: none | <which kind in UR-47 it changes, and where>`,
   written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it
   (anything but `none` makes the PR owner-tier) and asks the reviewer for a missing line rather than
   judging the diff. (ruling 40)
-- **UR-93** Review each new head's merge resolution; the audit of a PR's merge resolution is a
-  per-head review convention. (ruling 39 item G)
 - **UR-94** Before merging a PR or posting a verdict on it, the coordinator and every reviewer open
   every owner ruling, record and pointer that names it, on the PR and on #6854, not only approval
   comments; if any bars the head, the merge or verdict waits. (ruling 145)
@@ -242,12 +241,13 @@ and the re-read and merge comment are UR-29.
   the owner tier, the owner has approved, keeping the repository's existing merge style. (UR-23;
   50-coordination.md §4)
 - **UR-98** Owner tier: these PRs also need the owner's approval, given in the daily batch; the
-  status table marks the fixed ones `owner`. (50-coordination.md "Review and merge" §3; ruling 40)
-  - security and auth: `B1.5`, `B1.6`, `F1.3`, `O1.6`;
-  - risk acceptance: `O1.8`'s alert dismissals;
-  - production safety: `O2.2`, `B2.2`;
-  - privileged host tooling: `O0.1`, the launcher;
-  - destructive work: `B3.1` with `F3.1`, `B3.2`;
+  status table's `owner` flag marks the packages that carry it. (50-coordination.md "Review and
+  merge" §3; ruling 40)
+  - security and auth;
+  - risk acceptance (dismissing an alert or a finding);
+  - production safety;
+  - privileged host tooling (the launcher and anything run with host privileges);
+  - destructive work;
   - plan text, as UR-47 defines it;
   - any PR with an entry under "Questions for the owner".
 - **UR-99** Once the owner answers a PR's "Questions for the owner" and they leave its body, they no
@@ -267,15 +267,13 @@ and the re-read and merge comment are UR-29.
   one PR at a time; authors rebase their own PRs to resolve conflicts. The owner revisits the
   requirement if the open-PR count in the daily batch keeps growing. (rulings 19, 27;
   50-coordination.md §4)
-- **UR-103** After each merge, the next merge waits until `main`'s own CI run on the new tip is
-  green. GitHub's merge queue is unavailable on this user-owned repository, so one-at-a-time merging
-  stands. (rulings 63, 101)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
-  the batch with the reason. (rulings 21, 83)
-- **UR-105** A ruling's order for an agent's work is not a merge order. A PR's named place in a
-  ruling lasts only until its head moves, unless the owner names it again. (rulings 26, 101)
+  the batch with the reason. A ruling's order for an agent's work is not a merge order, and a PR's
+  named place in a ruling lasts only until its head moves, unless the owner names it again. GitHub's
+  merge queue is unavailable on this user-owned repository. (rulings 21, 26, 83, 101; owner design
+  session 2026-10-12 dropped the wait for `main`'s own run after each merge, rulings 63 and 101)
 - **UR-106** A PR is ready at the latest of: `CI Gate` passing at its head, the approving review of
   that head, and, in the owner tier, the owner's approval. An update-branch with `main` keeps the
   queue place, the review and the owner's approval if the PR's own diff
