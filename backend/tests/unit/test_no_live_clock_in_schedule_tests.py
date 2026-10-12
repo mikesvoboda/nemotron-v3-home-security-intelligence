@@ -39,14 +39,26 @@ and `test_rule_against_events` take the rule as a real argument (per-CALL: was T
 call's rule given a window?), while `evaluate_event` loads rules from the mocked
 session -- the rule never appears at the call site -- so its attribution is
 per-FUNCTION (does this test set up ANY schedule-bearing rule?). Coarser for
-`evaluate_event` by necessity; measured over the whole suite it costs no false
-positive (see test_the_scanner_is_wolf_free), and a per-function false positive would
-be the correct time to care anyway.
+`evaluate_event` by necessity; the whole-suite scan named at the end of this docstring
+measured it at zero false positives, and a per-function false positive would be the
+correct time to care anyway. Where the rule IS an argument the attribution is finer,
+and `test_attribution_is_per_call_when_the_rule_is_an_argument` enforces that.
 
 Red-first at this branch's base 31b3e08ea (the linenos below are that commit's): the
 scanner flags exactly three calls --
 test_alert_engine.py:1029, :1839 and test_alert_engine_batch38_ae.py:1250 -- the
 three the 23:59 red exposed. After pinning all three: 0 offenders.
+
+KNOWN LIMIT -- 0 offenders means "no test spells it this way", not "impossible". The
+rule reads literal syntax, so a defect escapes when either half arrives indirectly: the
+CLOCK through a variable/helper/fixture (`t = datetime.now(UTC)`, then pass `t`), or the
+SCHEDULE through a helper-built rule or a post-hoc `.update()`. Widening it to real
+dataflow was weighed and not done here: a partial tracker false-positives on the many
+legitimate live-clock uses the two hazards above name, and a guard that cries wolf is a
+guard people mute -- the exact failure this file cites from
+scripts/test_workflow_uv_hygiene.py. So the ratchet holds the line at the spelled form,
+which is the form all three real defects took, and the residual is stated rather than
+papered over. Raised as reviewer finding R4 on #7017.
 """
 
 from __future__ import annotations
@@ -75,9 +87,19 @@ SCHEDULE_METHODS: dict[str, tuple[int, bool, bool]] = {
     "test_rule_against_events": (2, True, False),  # (rule, events, current_time=None)
 }
 LIVE_CLOCKS = {"datetime.now", "datetime.utcnow", "utc_now_naive", "utc_now"}
-# HH:MM or HH:MM:SS -- what alert_engine._parse_time can actually turn into a time().
-# A value like "invalid" makes _check_schedule return False deterministically, so a
-# test using it is NOT clock-dependent and must not be flagged (cf. :1296).
+# HH:MM or HH:MM:SS -- the shape _check_schedule actually compares (see the regex
+# caveat on _parseable_window for why "the shape the engine parses" is NOT the right
+# rule here, and why this one over-flags on purpose).
+# A non-time value like "invalid" must not be flagged, but NOT for the reason an
+# earlier draft of this file gave: it does not make _check_schedule return False. It
+# raises inside _parse_time, and the except at alert_engine.py:954 RETURNS True at
+# :956 -- "if parsing fails, allow the rule" -- so the window is active at EVERY
+# instant. Same for a half-window: :941 requires BOTH bounds, so a lone start_time
+# skips the comparison and falls through to :958 `return True`. Unparseable and
+# half-open windows are therefore clock-INDEPENDENT (always active), which is why the
+# scanner stays quiet about them; the quiet is right, the old stated reason was
+# backwards. Witness in the repo already: test_alert_engine_batch38_ae.py:967 asserts
+# _check_schedule({"start_time": "90:00", "end_time": "17:00"}, ...) IS True.
 _TIME_RE = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
 
 
@@ -104,7 +126,19 @@ def _parseable_window(node: ast.expr) -> bool:
     live clock is red on six days a week -- worse than the 59-second-a-day case that
     motivated this file. `{"days": []}` fails the `if days and len(days) > 0` guard at
     `:932` and so constrains nothing (documented all-days), and must stay quiet: that
-    empty-days shape is what the dead-minute fix pins site 3 to."""
+    empty-days shape is what the dead-minute fix pins site 3 to.
+
+    KNOWN OVER-FLAG, kept on purpose: this gate keys on `_TIME_RE`, which is NOT
+    `_parse_time` equivalence. `24:00` and `90:00` match the regex but `time()`
+    rejects them, so such a window is always-active (see the `_TIME_RE` comment above)
+    and can never be clock-dependent -- yet a literal of that shape AT A LIVE CLOCK
+    would be flagged. Relaxing the gate to `_parse_time` equivalence is the wrong fix:
+    the class this file prevents is a test reading a schedule outcome off an unpinned
+    clock, and a test that does that with a garbage bound is still the bad test even
+    though its verdict happens to be deterministic. A false positive here costs a
+    one-line pin; a false negative costs a silent 23:59 red for whoever didn't write
+    it. No live instance today: the one `90:00` literal (batch38_ae.py:968) sits at a
+    FIXED clock, so the scanner does not fire on it."""
     if not isinstance(node, ast.Dict):
         return False
     for key, val in zip(node.keys, node.values, strict=False):
@@ -211,7 +245,7 @@ def clock_dependent_schedule_calls(tree: ast.AST) -> list[tuple[int, str]]:
     return hits
 
 
-def _candidate_files() -> list[Path]:
+def _candidate_files(root: Path | None = None) -> list[Path]:
     """backend/tests/**/test_*.py that could host the class, chosen by a cheap text
     prefilter so the guard parses a handful of files, not 1135.
 
@@ -233,9 +267,13 @@ def _candidate_files() -> list[Path]:
     had to join here too, or a day-only schedule in a file that never spells
     'start_time' would go unscanned and the guard would read green while the class it
     exists to prevent sat right there. Measured cost of the wider net: 8 candidate
-    files, 0.044s to parse (the narrow net's 5 files are a subset)."""
+    files, 0.044s to parse (the narrow net's 5 files are a subset).
+
+    `root` is injectable so a control can plant a days-only file the real tree cannot
+    hold (see test_the_prefilter_selects_a_days_only_file); the ratchet passes nothing
+    and still scans the real backend/tests."""
     out: list[Path] = []
-    for path in TESTS.rglob("test_*.py"):
+    for path in (root if root is not None else TESTS).rglob("test_*.py"):
         if "__pycache__" in path.parts:
             continue
         try:
@@ -332,14 +370,89 @@ def test_the_scanner_stays_quiet_on_an_empty_days_list() -> None:
 
 
 def test_the_scanner_ignores_an_unparseable_window() -> None:
-    """Negative control C: {'start_time': 'invalid'} makes _check_schedule return
-    False deterministically -> not clock-dependent (cf. test_alert_engine.py:1296)."""
+    """Negative control C: {'start_time': 'invalid'} is not clock-dependent -> not
+    flagged. NOT because the engine rejects the window -- it allows it at every
+    instant (`:954` except returns True at `:956`) -- but because an always-active
+    window cannot go red at a boundary. Cf. test_alert_engine.py::
+    test_handles_rule_evaluation_error, which sets exactly this shape and asserts the
+    rule still runs; named, not cited by line number, because this very file's line
+    drift moved the number an earlier draft gave."""
     sample = (
         "async def test_v():\n"
         "    rule.schedule = {'start_time': 'invalid'}\n"
         "    await engine.evaluate_event(event, detections)\n"
     )
     assert clock_dependent_schedule_calls(ast.parse(sample)) == []
+
+
+def test_a_required_time_argument_beats_a_window() -> None:
+    """Negative control E: gate (b)'s `time_required` flag is load-bearing.
+    _evaluate_rule's current_time has NO default (alert_engine.py:437), so omitting it
+    is a TypeError -- the call never runs, so no live clock can reach it and there is
+    nothing to pin. Dropping the flag (the M8 mutation, time_required True->False)
+    makes this red: it would flag a call that crashes instead of a clock dependency,
+    and a ratchet that cries wolf here is a ratchet people learn to ignore."""
+    sample = (
+        "async def test_r():\n"
+        "    rule.schedule = {'start_time': '00:00', 'end_time': '23:59'}\n"
+        "    await engine._evaluate_rule(rule, event, detections)\n"
+    )
+    assert clock_dependent_schedule_calls(ast.parse(sample)) == []
+
+
+def test_attribution_is_per_call_when_the_rule_is_an_argument() -> None:
+    """Positive control E: for a per-CALL method the window must come from THIS call's
+    rule. test_rule_against_events' battery calls it twice, schedule-bearing rule(id=6)
+    then schedule-free rule(id=5); per-function attribution (the M9 mutation) would
+    report both. The offender set must stay {the one line}, or the guard would flag the
+    very call that documents why per-call attribution is there."""
+    # Same inline-call shape the real battery uses (batch38_ae.py:1228 schedule-free,
+    # :1255 schedule-bearing), so this control tests the attribution, not a shape only
+    # this file invents.
+    sample = (
+        "async def test_b():\n"
+        "    await engine.test_rule_against_events(rule(id=5, object_types=['car']), events)\n"
+        "    await engine.test_rule_against_events(\n"
+        "        rule(id=6, schedule={'start_time': '00:00', 'end_time': '23:59'}), events)\n"
+    )
+    hits = clock_dependent_schedule_calls(ast.parse(sample))
+    assert [ln for ln, _ in hits] == [3], hits
+
+
+def test_the_prefilter_selects_a_days_only_file(tmp_path: Path) -> None:
+    """The prefilter's stated invariant -- a strict superset of what the AST rule can
+    flag -- was prose-only, and nothing tested it (M11: narrow the net to 'start_time'
+    and the guard reads GREEN with a day-only live-clock defect sitting in
+    backend/tests/). It is only checkable against a synthetic file: no real candidate
+    is days-only, because gate (a) already keeps every days-only live-clock call out of
+    the tree -- a planted one would red the ratchet the moment it landed and could not
+    be committed. So the scan root is injected. What is under test is the substring
+    net, not the repo's contents.
+
+    Both halves are load-bearing. Without the first assertion the file could be one the
+    AST rule ignores anyway, and 'the net selected it' would prove nothing; without the
+    second, a net that selected EVERYTHING would pass, which is the cost side of the
+    same invariant."""
+    offender = (
+        "async def test_days_only():\n"
+        "    rule = make_rule(schedule={'days': ['saturday']})\n"
+        "    await engine.evaluate_event(event, detections)\n"
+    )
+    # Half 1: the fixture IS a defect the AST rule flags -- so the net MUST see it.
+    assert len(clock_dependent_schedule_calls(ast.parse(offender))) == 1
+    (tmp_path / "test_days_only.py").write_text(offender, encoding="utf-8")
+    # A file that spells a trigger word but has no schedule method: out of the net, and
+    # staying out of it is the cost side of the superset claim.
+    (tmp_path / "test_benign.py").write_text(
+        "def test_benign():\n    assert 'days' in {'days': 1}\n", encoding="utf-8"
+    )
+    # A file with the method but no schedule key: also correctly out.
+    (tmp_path / "test_no_window.py").write_text(
+        "async def test_nw():\n    await engine.evaluate_event(event, detections)\n",
+        encoding="utf-8",
+    )
+    picked = {p.name for p in _candidate_files(tmp_path)}
+    assert picked == {"test_days_only.py"}, picked
 
 
 # ---------------------------------------------------------------- the ratchet itself
