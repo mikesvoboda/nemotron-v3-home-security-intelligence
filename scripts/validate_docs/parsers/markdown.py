@@ -114,13 +114,105 @@ def _parse_frontmatter_citations(frontmatter: str, doc_file: str) -> list[Citati
     return citations
 
 
-def _extract_symbol_from_context(content: str, position: int, window: int = 100) -> str | None:
+_CODE_SPAN_PATTERN = re.compile(r"`[^`\n]+`")
+_FENCE_LINE_PATTERN = re.compile(r"^```[ \t]*([A-Za-z0-9_+-]*)[ \t]*$", re.MULTILINE)
+
+# Fence info strings whose body is real code the author meant as code. Closed to
+# what `docs/` actually uses for code; `bash`/`yaml`/`toml`/`json`/`text`/`markdown`
+# and an empty tag are excluded on purpose — a transcript or a config sample is not
+# a signature, and a name lifted out of one is a guess about someone else's log.
+CODE_FENCE_LANGUAGES = frozenset(
+    {
+        "python",
+        "py",
+        "typescript",
+        "ts",
+        "tsx",
+        "javascript",
+        "js",
+        "jsx",
+        "mjs",
+    }
+)
+
+
+def _fenced_ranges(content: str) -> list[tuple[int, int]]:
+    """``(body_start, close_start)`` for each code-fenced block in ``content``.
+
+    Only a fence with a CODE info string counts. Bare fences are the largest group
+    in ``docs/`` (5,792 of them, against 1,369 ```python) and they hold transcripts,
+    logs and quoted English — accepting them would hand the keyword pattern prose to
+    infer from, which is the defect this tier exists to close. An unlisted tag misses
+    rather than misfires.
+
+    Fence lines pair up: the line after an opener begins a block and the next fence
+    line ends it. A trailing opener with no closer is no block at all.
+    """
+    ranges: list[tuple[int, int]] = []
+    open_body: int | None = None
+    for marker in _FENCE_LINE_PATTERN.finditer(content):
+        tag = marker.group(1).lower()
+        if open_body is None:
+            if tag in CODE_FENCE_LANGUAGES:
+                open_body = marker.end()
+        else:
+            ranges.append((open_body, marker.start()))
+            open_body = None
+    return ranges
+
+
+def _is_coded_reference(line: str, name_offset: int) -> bool:
+    """True if the offset falls inside a backticked code span on ``line``.
+
+    Backticks are the author's own mark that a token is code. Requiring them is
+    what separates "class ``_ThreadWatchdog``" (a symbol reference) from
+    "a class docstring" (English) without maintaining a list of English words.
+    """
+    return any(
+        span.start() <= name_offset < span.end() - 1 for span in _CODE_SPAN_PATTERN.finditer(line)
+    )
+
+
+def _is_fenced_reference(fences: list[tuple[int, int]], name_offset: int, cite_offset: int) -> bool:
+    """True if the name sits inside a fenced block that OPENS AFTER the citation.
+
+    The architecture-doc convention is cite, then a fenced signature — 390 such
+    cite/fence pairs across 70 documents. A fence is the author's strongest code
+    mark, so a rule that accepts the same-line backtick but refuses the fence below
+    the cite quietly retires the drift those pairs were written to catch. Requiring
+    that the block open after this citation stops a fence belonging to an earlier
+    passage from vouching for this one.
+    """
+    return any(
+        body_start > cite_offset and body_start <= name_offset < body_end
+        for body_start, body_end in fences
+    )
+
+
+def _extract_symbol_from_context(
+    content: str,
+    position: int,
+    window: int = 100,
+    fences: list[tuple[int, int]] | None = None,
+) -> str | None:
     """Try to extract a symbol name from the context around a citation.
+
+    Only code-evidenced candidates are accepted. Evidence is about the NAME, not the
+    keyword: the name must sit inside a backticked span on its own line, or inside a
+    fenced block that opens after this citation; the name must not run on into path
+    or member syntax; and the name must be intact in the FULL content — a candidate
+    the window clipped is not evidence of anything.
 
     Args:
         content: Document content
         position: Position of the citation in the content
         window: Number of characters to look before and after
+        fences: The document's code-fence ranges, precomputed by the caller. The
+            fence set is a property of the DOCUMENT, so a caller parsing many
+            citations computes it once and passes it — computing it here instead
+            is O(citations x document) and timed this suite out against the root
+            pytest ``timeout = 5`` (1,207 cites in one reference doc). Computed on
+            demand only when a caller has none to give.
 
     Returns:
         Symbol name if found, None otherwise
@@ -128,10 +220,33 @@ def _extract_symbol_from_context(content: str, position: int, window: int = 100)
     start = max(0, position - window)
     end = min(len(content), position + window)
     context = content[start:end]
+    if fences is None:
+        fences = _fenced_ranges(content)
 
-    # Look for function/class/method mentions
-    match = SYMBOL_CONTEXT_PATTERN.search(context)
-    if match:
+    # Look for function/class/method mentions; keep scanning past prose hits.
+    for match in SYMBOL_CONTEXT_PATTERN.finditer(context):
+        name_start = start + match.start(1)
+        name_end = start + match.end(1)
+
+        # Judge the word against the full document, never the window: the
+        # window's own edge otherwise reads as a word boundary, so the clipped
+        # tail of a path ("bac", "b") becomes a required symbol.
+        tail = content[name_end : name_end + 1]
+        if re.match(r"[A-Za-z0-9_]", tail) or tail in ("/", "."):
+            continue
+        if content[name_start - 1 : name_start] == "/":
+            continue
+
+        line_start = content.rfind("\n", 0, name_start) + 1
+        line_end = content.find("\n", name_start)
+        if line_end == -1:
+            line_end = len(content)
+        if not (
+            _is_coded_reference(content[line_start:line_end], name_start - line_start)
+            or _is_fenced_reference(fences, name_start, position)
+        ):
+            continue
+
         return match.group(1)
 
     return None
@@ -161,6 +276,11 @@ def extract_markdown_citations(content: str, doc_file: str = "") -> list[Citatio
     # Calculate line number offset for body content
     frontmatter_lines = content.count("\n", 0, len(content) - len(body))
 
+    # The fence set belongs to the document, not to the citation: one sweep here,
+    # passed to every per-citation judgement below. Sweeping inside the extractor
+    # made this loop O(citations x document) and timed the gate's own suite out.
+    body_fences = _fenced_ranges(body)
+
     # Extract inline citations from body
     for match in INLINE_CITATION_PATTERN.finditer(body):
         file_path = match.group(1)
@@ -177,7 +297,7 @@ def extract_markdown_citations(content: str, doc_file: str = "") -> list[Citatio
         doc_line = body[: match.start()].count("\n") + frontmatter_lines + 1
 
         # Try to extract symbol name from context
-        symbol_name = _extract_symbol_from_context(body, match.start())
+        symbol_name = _extract_symbol_from_context(body, match.start(), fences=body_fences)
 
         citations.append(
             Citation(
@@ -188,6 +308,9 @@ def extract_markdown_citations(content: str, doc_file: str = "") -> list[Citatio
                 doc_file=doc_file,
                 doc_line=doc_line,
                 raw_text=match.group(0),
+                # This name was guessed from surrounding prose; the author
+                # never typed it, so it may inform but must not block.
+                symbol_inferred=symbol_name is not None,
             )
         )
 
