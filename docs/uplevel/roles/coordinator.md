@@ -124,20 +124,23 @@ on #6854, never by replying to it.
    oldest and delete the others.
 2. **Edit it in place every tick**
    (`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -F body=@<file>`), never repost it,
-   as with your heartbeat (UR-38). Keep it within the post budget (UR-155, about 1,500 characters):
-   link to PRs and comments instead of quoting them.
+   as with your heartbeat (UR-38). Its length is what its items need (UR-166); link to PRs and
+   comments for evidence instead of quoting them.
 3. **Write its contents in this order** (UR-166), each item only as you read it this tick (UR-29):
    1. the live `BINDING NOW` records (UR-40), or "BINDING NOW: none live", then every open
       `URGENT PATH` item, each with its link;
-   2. open questions for the owner, each with its PR or comment link, and proposed queue jumps with
-      their reason (UR-104);
-   3. owner-tier PRs waiting for the owner, each with its link;
-   4. real-tier runs only the owner can make (UR-30), already vetted against
-      [`operator.md`](operator.md);
-   5. packages ready but unclaimed, with the agent whose queue holds each (UR-63); idle lanes, and
+   2. `main`'s state: green, or red with the failing job and its link;
+   3. open questions for the owner, each with its facts, lettered options, your recommendation and
+      its PR or comment link, and proposed queue jumps with their reason (UR-104);
+   4. owner-tier PRs ready for the owner's approval, each with its link and its reviewer's verdict;
+   5. real-tier runs only the owner can make (UR-30), already vetted against
+      [`operator.md`](operator.md), and operator results waiting on the owner;
+   6. status rows owed, each with the PR that owes it;
+   7. stalled agents and heartbeats older than 20 minutes;
+   8. packages ready but unclaimed, with the agent whose queue holds each (UR-63); idle lanes, and
       any that has work again (UR-64); parked claims (UR-67);
-   6. one closing line of counts: open programme PRs, and PRs merged since the newest owner ruling pointer or owner record on #6854,
-      auto-merged ones included.
+   9. one closing line of counts: open programme PRs, and PRs merged since the newest owner ruling
+      pointer or owner record on #6854, auto-merged ones included.
 4. **Drop what is settled.** An answered question leaves the comment; its answer lives in the
    ruling's PR. A decided ruling is never asked again (UR-25).
 

@@ -549,8 +549,7 @@ Read this section before you post any comment, review, heartbeat, status comment
   path is for what cannot wait for it. (UR-25; owner design session 2026-10-12, pass 2 Q8)
   - **The status comment** is one comment on the pinned issue #6854 whose first line is
     `<!-- status:uplevel-coordinator -->`. The coordinator edits it in place every tick, like a
-    heartbeat, and never reposts it; it stays within the post budget (UR-155), linking rather than
-    quoting. It carries every open question, owner-tier PR and owner-kept real-tier run (UR-166),
+    heartbeat, and never reposts it, linking rather than quoting. It carries UR-166's list
     and never re-asks a decided ruling. It has no fixed posting time. The owner answers questions
     and approves owner-tier PRs through the design partner, as a ruling or an owner record on
     #6854, never by replying to the status comment. (ruling 29; owner design session 2026-10-12,
@@ -559,13 +558,18 @@ Read this section before you post any comment, review, heartbeat, status comment
     deployment, `main` red (`CI` or `Deploy` failing, from the first red `CI Gate` run), a stalled
     agent, or another case a rule here sends to it. (UR-38; ruling 83)
 - **UR-166** The status comment (UR-25; procedure in `roles/coordinator.md`, "The status comment")
-  holds, in this order: the live `BINDING NOW` records (UR-40) and every open `URGENT PATH` item;
-  open questions for the owner, each with its PR or comment link; owner-tier PRs waiting for the
-  owner; real-tier runs only the owner can make (UR-30); packages ready but unclaimed (UR-63), idle
-  lanes (UR-64) and parked claims (UR-67); and one closing line of counts: open programme PRs, and
-  PRs merged since the newest owner ruling pointer or owner record on #6854, auto-merged ones included. An answered question leaves
-  the comment; its answer lives in the ruling's PR. (rulings 17, 19, 43, 54, 81; owner design
-  session 2026-10-12, pass 2 Q8)
+  holds what needs the owner or signals trouble, in this order: the live `BINDING NOW` records
+  (UR-40) and every open `URGENT PATH` item; `main`'s state (green, or red with the failing job);
+  open questions for the owner, each with its facts, its lettered options and the coordinator's
+  recommendation; owner-tier PRs ready for the owner's approval, each with its reviewer's verdict;
+  real-tier runs only the owner can make (UR-30) and operator results waiting on the owner; status
+  rows owed; stalled agents and heartbeats older than 20 minutes; packages ready but unclaimed
+  (UR-63), idle lanes (UR-64) and parked claims (UR-67); and one closing line of counts: open
+  programme PRs, and PRs merged since the newest owner ruling pointer or owner record on #6854,
+  auto-merged ones included. Merges stay a count and claims in flight are not listed. The comment
+  is edited in place, so UR-155's length does not bind it. An answered question leaves the
+  comment; its answer lives in the ruling's PR. (rulings 17, 19, 43, 54, 81; owner design session
+  2026-10-12, pass 2 Q8 and the final-verify follow-up)
 - **UR-168** The urgent path stays on GitHub: a plain comment on #6854 whose first line starts
   `URGENT PATH`, with no label and no @-mention (agents post with the owner's own token, so neither
   would notify the owner). There is no push channel and no second account; the owner's design

@@ -157,7 +157,7 @@ Check for these first; each has happened.
 - **The coordinator drifts.** It has stopped assigning idle agents, misread a slow test as runner load, left its status
   comment unedited for hours, reported a merge before it happened, and overwritten its own heartbeat marker. Correct it
   with a ruling that names the rule in `rules.md` or the step in `roles/coordinator.md`.
-- **Status rows lag.** PRs often omit their row edit. The check-in spots rows owed; an owner PR sets them.
+- **Status rows lag.** PRs often omit their row edit. The status comment lists rows owed (UR-166); an owner PR sets them.
 - **Two PRs updated onto the same `main` race.** The first to go green merges and the other needs another
   update-branch and CI run. It costs CI minutes, not wall time.
 
