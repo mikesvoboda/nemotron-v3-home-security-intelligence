@@ -483,18 +483,23 @@ def test_retired_list_is_committed_and_nonempty() -> None:
     assert read_retired_paths(RETIRED_LIST), "the retired-paths list is empty — a gate with nothing on it"
 
 
-# Both scan tests keep a 120s mark (the suite's default timeout is 5s) even
-# though each now measures ~1.8s on this tree — the prefilter's win is
-# input-dependent: a tree where most files name a retired path gets almost no
-# skipping and costs what it always cost. The margin is free; the number in the
-# comment is the measured current cost, so a reader sees both.
-@pytest.mark.timeout(120)  # measured 1.77s here (was ~11s clean / ~33s live); margin above
+# Both scan tests carry a 30s mark (owner ruling 141; the suite's default
+# timeout is 5s). The number is the Done-when's own budget: in CI (job
+# 114837162590, 359 items) test_no_living_reference_names_a_retired_path took
+# 9.15s and test_retired_paths_are_gone 8.60s — 17.75s together, which is how
+# O3.8's ≤30s target is proven met. Marking each test at 30s means either one
+# alone can never creep past the whole target unnoticed: as the tree grows, a
+# slow scan fails loudly by itself. (Locally the same pair measures ~1.8s; the
+# prefilter's win is input-dependent — a tree where most files name a retired
+# path gets almost no skipping and costs what it always cost — so a breach here
+# is a signal to read the scan, not to raise the mark.)
+@pytest.mark.timeout(30)  # CI-measured 8.60s (ruling 141); ~1.8s on a local tree
 def test_retired_paths_are_gone() -> None:
     violations = [v for v in find_violations(REPO_ROOT) if v.endswith("retired path exists again")]
     assert not violations, "retired paths must stay gone:\n" + "\n".join(violations)
 
 
-@pytest.mark.timeout(120)  # same full-tree scan; see the pin above
+@pytest.mark.timeout(30)  # CI-measured 9.15s (ruling 141); see the pin above
 def test_no_living_reference_names_a_retired_path() -> None:
     violations = [v for v in find_violations(REPO_ROOT) if not v.endswith("retired path exists again")]
     assert not violations, (
