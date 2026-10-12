@@ -34,6 +34,17 @@
  *   all five harness cameras came back with identical ids), so the restore
  *   leg below leaves dashboard-drop's camera-id polling intact even on retry.
  *
+ * BOOT-WIDE consequence, stated because the boot is serial (workers: 1) and
+ * this file's reset row is marker 58 of 104 — every file that sorts after
+ * operations/ runs on the database this row emptied. After this marker the
+ * invariant is: harness cameras restored with stable ids; events/detections
+ * zero. That holds for dashboard-drop (the file named above) and for the shell
+ * lane and every later file alike; a spec added after this marker must not
+ * depend on boot-seeded events or detections. (From FE-2's advisory on
+ * #6986 `6115604182`; they hold the matching fold into the golden-project
+ * comment in playwright.config.ts — their file, so this stays rule-87-clean
+ * on both sides.)
+ *
  * Destructive-row discipline: this spec only runs the reset when the harness
  * exported FEATURE_CHECK_CAMERAS — the restore contract is not optional.
  */
