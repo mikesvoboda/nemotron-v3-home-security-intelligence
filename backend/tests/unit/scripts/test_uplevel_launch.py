@@ -1,7 +1,7 @@
 """Uplevel O0.1: scripts/uplevel/launch.py, the sandbox launcher (UR-26, UR-28).
 
-The owner creates agent sandboxes with `agent-dgx` (docs/uplevel/50-coordination.md,
-"Where agents run"), which gives each session its own clone of the host checkout. This
+The owner creates agent sandboxes with `agent-dgx` (docs/uplevel/rules.md,
+"Agents, sandboxes and models"), which gives each session its own clone of the host checkout. This
 launcher drives `agent-dgx` from scripts/uplevel/sandboxes.toml so a phase boundary is one
 command, and retires sandboxes without losing work. It follows synthbench/host/agent.py,
 which already drives agent-dgx from the host: every command goes through a Host seam,
@@ -9,7 +9,7 @@ which already drives agent-dgx from the host: every command goes through a Host 
 refusal exits 2 naming the next step. The tests run against a fake host, as
 backend/tests/unit/synthbench/test_host_agent.py does.
 
-The command vocabulary is fixed by what the repo already shows (30-ops.md §O0.1:
+The command vocabulary is fixed by what the repo already shows (history/packages-done.md §O0.1:
 synthbench/host/agent.py and docs/synthbench/operator-runbook.md): `agent-dgx run <name>
 [--agent --endpoint --mount] --split`, `agent-dgx inspect <name> --json`, `agent-dgx stop
 <name>`, `agent-dgx session rm <name> --force`, and `sbx exec <sandbox> bash -lc <script>`.
@@ -295,8 +295,8 @@ def host(
     if herdr:
         env["HERDR_PANE_ID"] = "w1:p1"
     if gpu_runner:
-        # the shell's handle on `agent-gpu`'s runner (30-ops.md §O1.10 names the
-        # variable; 50-coordination.md, "Where agents run", is where the runner
+        # the shell's handle on `agent-gpu`'s runner (history/packages-done.md §O1.10 names the
+        # variable; rules.md §Agents, sandboxes and models is where the runner
         # itself is described); O1.10 makes the launcher require it before it hands
         # any sandbox `--gpu`
         env["AGENT_GPU_RUNNER_URL"] = "http://127.0.0.1:8100"
@@ -316,8 +316,8 @@ def host(
 
 
 def test_manifest_declares_the_roster() -> None:
-    """sandboxes.toml declares each phase's sessions as 50-coordination.md's roster does.
-    Later phases are the coordinator's to add; the launcher reads what is declared."""
+    """sandboxes.toml declares each phase's sessions as the roster in roles/lane.md ("Who takes
+    what") does. Later phases are the coordinator's to add; the launcher reads what is declared."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     assert sorted(phases) == [0, 1]
     assert [s.name for s in phases[0]] == [CO, OPS_B]
@@ -342,14 +342,18 @@ def test_sandbox_and_workspace_names_follow_agent_dgx() -> None:
 
 
 def test_split_lane_kickoff_carries_the_cell_sentence() -> None:
-    """50-coordination.md "Split lanes": a split lane's kickoff line carries one more
-    sentence, so an agent never claims a package outside its cell."""
+    """roles/lane.md "Split lanes": a split lane's kickoff line carries one more
+    sentence, so an agent never claims a package outside its cell; every lane's line names
+    its lane, since all of them point at the one shared prompt in roles/lane.md."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     lines = {s.name: s.kickoff for s in phases[1]}
     for name, cell in ((OPS_A, "A"), (OPS_B, "B")):
-        assert lines[name].startswith("Follow the kickoff prompt in docs/uplevel/30-ops.md.")
+        assert lines[name].startswith("Follow the kickoff prompt in docs/uplevel/roles/lane.md.")
         assert f"You are cell {cell} of the ops lane" in lines[name]
-    assert lines[CO].startswith("Follow the kickoff prompt in docs/uplevel/50-coordination.md.")
+    assert lines[CO].startswith("Follow the kickoff prompt in docs/uplevel/roles/coordinator.md.")
+    for name, lane in ((BACKEND, "backend"), (FRONTEND, "frontend"), (DOCS, "docs")):
+        assert lines[name].startswith("Follow the kickoff prompt in docs/uplevel/roles/lane.md.")
+        assert f"You are the {lane} lane." in lines[name]
     assert "cell" not in lines[BACKEND]
 
 
@@ -381,7 +385,7 @@ def test_the_operator_row_mounts_only_synthbench_read_only() -> None:
 
 def test_the_second_heavy_kickoff_names_itself_and_its_label() -> None:
     """Both heavy agents paste the same prompt, so heavy-2's line carries the sentence
-    that tells it which heavy PRs are its (50-coordination.md, "Two heavy sandboxes")."""
+    that tells it which heavy PRs are its (roles/lane.md, "Heavy agents")."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     lines = {s.name: (s.model, s.kickoff) for s in phases[1]}
     assert lines[HEAVY_2][0] == "strongest"
@@ -392,30 +396,29 @@ def test_the_second_heavy_kickoff_names_itself_and_its_label() -> None:
 
 
 def test_operator_kickoff_names_the_prompt_section_not_a_position() -> None:
-    """30-ops.md §O1.10 wrote this line positionally ("at the end of the file"). #6864's
+    """The operator's line once pointed positionally ("at the end of the file"). #6864's
     ruling applies unchanged - `up` prints the line verbatim, so it names its section,
-    never a position - and operator.md has one kickoff prompt in its own file, which the
-    cross-check below pins. Ruling 13 (2026-10-08) routes the plan-text correction into
-    this PR: the 30-ops.md line now names the section too, same wording as this row."""
+    never a position - and roles/operator.md has one kickoff prompt in its own file, which
+    the cross-check below pins (ruling 13, 2026-10-08)."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     line = {s.name: s.kickoff for s in phases[1]}[OPERATOR]
-    assert line.startswith("Follow the kickoff prompt in docs/uplevel/operator.md.")
+    assert line.startswith("Follow the kickoff prompt in docs/uplevel/roles/operator.md.")
     assert "Kickoff prompt" in line
     assert "end of" not in line
 
 
 @pytest.mark.skipif(
-    # operator.md is a docs/ path, outside mutmut's also_copy: in the mutant home the
+    # roles/operator.md is a docs/ path, outside mutmut's also_copy: in the mutant home the
     # read would raise and abort the -x stats gather (the also_copy abort family).
     # Skip, never abort - the doctrine test_check_vss_docs_currency.py:508 states and
     # test_notify_reachability_guard.py's mutant-home skipif argues at length.
-    not (REPO_ROOT / "docs" / "uplevel" / "operator.md").exists(),
+    not (REPO_ROOT / "docs" / "uplevel" / "roles" / "operator.md").exists(),
     reason="docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against",
 )
 def test_operator_md_holds_the_section_the_line_names() -> None:
     """the section the operator line names exists - the drift a positional pointer hid
     for the heavy sandbox (#6864): rename it, and the printed line points at nothing."""
-    doc = (REPO_ROOT / "docs" / "uplevel" / "operator.md").read_text(encoding="utf-8")
+    doc = (REPO_ROOT / "docs" / "uplevel" / "roles" / "operator.md").read_text(encoding="utf-8")
     assert "## Kickoff prompt" in doc
 
 
@@ -499,10 +502,10 @@ def test_a_non_boolean_gpu_flag_refuses_naming_the_row(tmp_path: Path) -> None:
 
 
 def test_a_gpu_row_mounting_the_model_library_refuses(tmp_path: Path) -> None:
-    """30-ops.md §O1.10 states agent-dgx's rule: --gpu mounts /srv/agent-models itself
-    and refuses any mount at or under it. A hand-written row that collides with the
-    library fails at create time inside agent-dgx; the launcher's doctrine is to refuse
-    first, naming the row."""
+    """history/packages-done.md §O1.10 states agent-dgx's rule: --gpu mounts
+    /srv/agent-models itself and refuses any mount at or under it. A hand-written row that
+    collides with the library fails at create time inside agent-dgx; the launcher's doctrine
+    is to refuse first, naming the row."""
     manifest = tmp_path / "m.toml"
     manifest.write_text(
         "[[phase]]\nnumber = 0\n"
@@ -614,36 +617,44 @@ def test_the_same_name_may_reappear_in_different_phases(tmp_path: Path) -> None:
 
 
 def test_heavy_kickoff_names_the_heavy_prompt_instead_of_a_position() -> None:
-    """50-coordination.md holds TWO prompts and ends with the coordinator's, so a heavy line
-    pointing at "the prompt at the end of that file" hands uplevel-heavy the coordinator's job
-    - route work, write no product code - the opposite of the UR-24 package it is started for.
-    `up` prints the line verbatim, so it has to name the section it means."""
+    """A heavy line pointing at "the prompt at the end of that file" once handed
+    uplevel-heavy the coordinator's job - route work, write no product code - the opposite of
+    the UR-24 package it is started for. `up` prints the line verbatim, so it names the file
+    that holds the lane prompt (roles/lane.md, never the coordinator's file) and the
+    per-lane line it follows there, never a position."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     line = {s.name: s.kickoff for s in phases[1]}[HEAVY]
-    assert "The heavy sandbox's kickoff prompt" in line
+    assert line.startswith("Follow the kickoff prompt in docs/uplevel/roles/lane.md.")
+    assert "You are uplevel-heavy." in line
     assert "end of that file" not in line
 
 
 @pytest.mark.skipif(
-    # the roster is a docs/ path and docs/uplevel/ sits outside mutmut's also_copy (its
+    # roles/lane.md is a docs/ path and docs/uplevel/ sits outside mutmut's also_copy (its
     # comment: docs/ as a whole is never copied): in the mutant home this read would raise
     # and abort the -x stats gather - the also_copy abort family, pyproject.toml. Skip,
     # never abort, as test_check_vss_docs_currency.py and test_mutation_hold_banner.py do.
-    not (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").exists(),
+    not (REPO_ROOT / "docs" / "uplevel" / "roles" / "lane.md").exists(),
     reason="docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against",
 )
-def test_the_roster_holds_both_prompts_the_heavy_line_points_between() -> None:
-    """the sections the heavy line names all exist, and there are TWO kickoff prompts in the
-    file - which is exactly why the line has to name its section instead of a position."""
-    roster = (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").read_text(encoding="utf-8")
-    assert "### The roster" in roster
-    assert "**The heavy sandbox's kickoff prompt:**" in roster
-    assert "## Coordinator kickoff prompt" in roster
+def test_lane_md_holds_the_prompt_and_the_line_each_lane_kickoff_names() -> None:
+    """the file every lane and heavy line points at holds the shared kickoff prompt and the
+    per-lane line for each sentence a kickoff line carries - rename one, and the printed
+    line points at nothing (the drift #6864 found)."""
+    doc = (REPO_ROOT / "docs" / "uplevel" / "roles" / "lane.md").read_text(encoding="utf-8")
+    assert "## Kickoff prompt" in doc
+    prose = " ".join(doc.split())  # prettier may wrap a sentence across lines
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    for session in phases[1]:
+        if "roles/lane.md" not in session.kickoff:
+            continue
+        sentence = session.kickoff.split("lane.md. ", 1)[1].split(";", 1)[0]
+        assert sentence in prose, session.name
 
 
 def test_an_unnamed_model_refuses_and_names_the_owners_next_step(tmp_path: Path) -> None:
     """The strongest model's run arguments are the owner's to post (PR #6855). The launcher
-    refuses naming that, and never invents a flag (30-ops.md §O0.1, first item)."""
+    refuses naming that, and never invents a flag (history/packages-done.md §O0.1, first item)."""
     manifest = tmp_path / "m.toml"
     manifest.write_text(
         "[[phase]]\nnumber = 9\n"
@@ -725,7 +736,8 @@ def test_up_outside_herdr_refuses_before_anything(tmp_path: Path) -> None:
 
 
 def test_up_refuses_a_dirty_host_checkout(tmp_path: Path) -> None:
-    """agent-dgx copies uncommitted changes into the clone (50-coordination.md)."""
+    """agent-dgx copies uncommitted changes into the clone
+    (rules.md §Agents, sandboxes and models)."""
     fake = FakeHost(checkout_dirty=" M setup.py")
     with pytest.raises(launch.Refused, match="uncommitted"):
         launch.up(host(tmp_path, fake), phase=0)
@@ -733,7 +745,8 @@ def test_up_refuses_a_dirty_host_checkout(tmp_path: Path) -> None:
 
 
 def test_up_refuses_a_stale_host_checkout(tmp_path: Path) -> None:
-    """Every agent starts from a clean host checkout of main (50-coordination.md)."""
+    """Every agent starts from a clean host checkout of main
+    (rules.md §Agents, sandboxes and models)."""
     fake = FakeHost(checkout_head=BASE_SHA)
     with pytest.raises(launch.Refused, match=BASE_SHA[:8]):
         launch.up(host(tmp_path, fake), phase=0)
@@ -763,8 +776,9 @@ def test_up_refuses_when_the_fetch_fails(tmp_path: Path) -> None:
 def test_up_refuses_a_host_checkout_on_another_branch(
     tmp_path: Path, branch: str, wording: str
 ) -> None:
-    """Every agent starts from a clean host checkout of *main* (50-coordination.md) - the
-    branch is part of the rule, not only its commit."""
+    """Every agent starts from a clean host checkout of *main*
+    (rules.md §Agents, sandboxes and models) - the branch is part of the rule, not only its
+    commit."""
     fake = FakeHost(checkout_branch=branch, checkout_head=MAIN_SHA)
     with pytest.raises(launch.Refused, match=wording):
         launch.up(host(tmp_path, fake), phase=0)
@@ -824,8 +838,8 @@ def test_up_creates_each_missing_session_from_the_checkout(
 
 
 def test_up_passes_a_declared_mount_to_agent_dgx(tmp_path: Path) -> None:
-    """50-coordination.md gives the backend sandbox Docker "for the fake stack"; if a
-    session needs a host path agent-dgx mounts it with --mount (shown at
+    """rules.md §Agents, sandboxes and models gives the backend sandbox Docker "for the fake
+    stack"; if a session needs a host path agent-dgx mounts it with --mount (shown at
     synthbench/host/agent.py:248). The launcher passes each declared mount through, in
     order, before --split. sandboxes.toml declares none today - no shown flag takes a
     network profile or a secret, so nothing invents one."""
@@ -862,7 +876,8 @@ def test_up_adds_gpu_to_the_operator_and_no_other_session(
 ) -> None:
     """The Done-when, run the way the owner runs it: `up --phase 1 --dry-run` against the
     real roster. `--gpu` goes after the model arguments and before --split - the order
-    30-ops.md's hand-start line shows the owner use - and it appears on exactly one line.
+    O1.10's hand-start line (history/packages-done.md) shows the owner use - and it
+    appears on exactly one line.
     --dry-run because the flag must be visible in what the command would run, and a dry
     run changes nothing on a machine that may have real sessions up."""
     fake = FakeHost()
@@ -993,8 +1008,8 @@ def test_up_refuses_a_session_cloned_from_the_wrong_commit(tmp_path: Path) -> No
 
 
 def test_up_leaves_an_existing_session_at_an_older_commit_alone(tmp_path: Path) -> None:
-    """The commit check is for what `up` creates (30-ops.md §O0.1): an agent keeps its
-    session while main moves on. `up` neither recreates it nor removes it - retirement
+    """The commit check is for what `up` creates (history/packages-done.md §O0.1): an agent
+    keeps its session while main moves on. `up` neither recreates it nor removes it - retirement
     goes through `retire`, which checks for work first."""
     fake = FakeHost(sessions={CO: {"head": BASE_SHA, "sandbox": "running"}})
     launch.up(host(tmp_path, fake), phase=0)
@@ -1089,8 +1104,8 @@ def test_retire_refuses_and_changes_nothing(tmp_path: Path, ws: dict, says: str)
 
 
 def test_a_failed_inspection_refuses_and_names_the_open_measurement(tmp_path: Path) -> None:
-    """MEASURE (30-ops.md §O0.1): whether `sbx exec` still reaches the sandbox once the
-    agent's session has ended. The step order never depends on the answer - inspect and
+    """MEASURE (history/packages-done.md §O0.1): whether `sbx exec` still reaches the sandbox
+    once the agent's session has ended. The step order never depends on the answer - inspect and
     export happen while the sandbox is still up - but an inspection that fails is still a
     refusal, and retirement is then the owner's manual call."""
     for failed in ("dirty", "remote"):
@@ -1150,7 +1165,8 @@ def test_clean_retire_exports_verifies_then_removes(tmp_path: Path) -> None:
 
 
 def test_the_export_is_verified_from_the_owners_checkout(tmp_path: Path) -> None:
-    """`git bundle verify` from the owner's checkout; the archive listed (30-ops.md §O0.1)."""
+    """`git bundle verify` from the owner's checkout; the archive listed
+    (history/packages-done.md §O0.1)."""
     fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws())
     h = host(tmp_path, fake)
     launch.retire(h, SCRATCH)
@@ -1273,8 +1289,8 @@ def test_main_turns_a_refusal_into_exit_two(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Everything asserts `Refused` is raised; `main()` is what turns that into exit 2
-    (30-ops.md §O0.1's contract, and the exit code the owner's shell sees). Patching the
-    class `main()` looks up is what keeps this off the machine: `main()` builds its own
+    (history/packages-done.md §O0.1's contract, and the exit code the owner's shell sees).
+    Patching the class `main()` looks up is what keeps this off the machine: `main()` builds its own
     Host from the cwd, so without this the test would run real git and real agent-dgx,
     and its result would depend on which of those happen to be installed here. The patch
     forwards the arguments it is given - a lambda that dropped `dry_run` would answer a
@@ -1402,7 +1418,8 @@ def test_a_redirected_origin_refuses_even_with_everything_pushed(tmp_path: Path)
     """`remote` asks the origin the agent's own .git/config names, and the agent writes
     that config. Push everything to a second repo, repoint origin at it, and every
     `pushed` answer is true of a remote the team never sees - the one assurance retire
-    must never give falsely (50-coordination.md: GitHub is the only channel)."""
+    must never give falsely (rules.md §Agents, sandboxes and models: GitHub is the only
+    channel)."""
     workspace = _scratch_repo(tmp_path)
     elsewhere = _redirect_origin(workspace)
     sections = _run_inspection(workspace)

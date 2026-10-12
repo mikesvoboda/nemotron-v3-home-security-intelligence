@@ -11,17 +11,20 @@ owner unblocked.
 
 ## Read first
 
-- [`README.md`](README.md): rulings UR-1 to UR-38, the contract, the phases and exit gates, and the status table.
-- [`50-coordination.md`](50-coordination.md): roles, the roster, the tick, claiming, review and merge, the owner tier
-  (§3), heartbeats and stalled agents (UR-38), and the daily batch.
+- [`README.md`](../README.md): the programme, the phases and exit gates, the vocabulary, and the status table.
+- [`rules.md`](../rules.md): every standing rule (UR-1 onward), grouped by situation: the owner tier (§Merging),
+  heartbeats and stalled agents (§Posting, heartbeats and the urgent path), and the rest.
+- [`lane.md`](lane.md) "Who takes what": the roster. [`coordinator.md`](coordinator.md) and [`lane.md`](lane.md): the
+  tick, claiming, review and merge, and the daily batch.
 - [`operator.md`](operator.md): the real tier, `agent-gpu`, and "The owner on the host".
-- The pinned issues: **#6854 "Uplevel daily batch"**, where every owner ruling lives (numbered; 77 by 2026-10-10), and
+- The pinned issues: **#6854 "Uplevel daily batch"**, which holds rulings 1-146, each later ruling's one-line pointer
+  and every `BINDING NOW` record, and
   **#6958 "Uplevel heartbeats"**, one comment per agent.
-- The lane files (`10-backend.md`, `20-frontend.md`, `30-ops.md`, `40-docs.md`) and [`r2-sheet.md`](r2-sheet.md) when a
-  question touches a package or an open owner decision (OD-n).
+- The packages files (`packages/backend.md`, `packages/frontend.md`, `packages/ops.md`, `packages/docs.md`) and
+  [`r2-sheet.md`](../r2-sheet.md) when a question touches a package or an open owner decision (OD-n).
 
-Rulings on #6854 override plan text until a plan PR writes them in. Treat every ruling as settled; reopening one is a
-question for the owner, never your call.
+A ruling binds as rules.md §Authority: rulings, plan text and IDs says. Treat every ruling as settled; reopening one is
+a question for the owner, never your call.
 
 ## Guardrails
 
@@ -69,28 +72,34 @@ names its owner (an agent, the coordinator or the owner).
 
 ## Relaying a ruling
 
-When the owner answers, in the same turn:
+A ruling binds when it is merged into the plan files, and its #6854 comment is only a pointer (rules.md §Authority:
+rulings, plan text and IDs). When the owner answers, in the same turn:
 
 1. Read the last ruling number on #6854 and use the next one.
-2. Post it on #6854 in this form (write the body to a file and pass it with `-F body=@<file>`):
+2. Draft the ruling into the plan files on an owner plan PR ("Owner PRs" below): the rule under its `rules.md` section
+   with its source, or the package text in `packages/<lane>.md`, plus its row in `history/ruling-map.md`. The PR body
+   carries the ruling in this form:
 
    ```
-   **Owner ruling, YYYY-MM-DD** (relayed from the owner's design session, for quoting under UR-29; the owner's answer was "a"):
-
    NN. **One bold sentence that is the decision.**
        - the facts it rests on, with `file:line`;
        - who acts (by sandbox name), in what order, and the Done when;
-       - **Plan text:** none, or which of §3's four kinds it changes, and that this ruling approves it.
+       - **Plan text:** which kind of plan text it changes (rules.md §Authority: rulings, plan text and IDs), and that this ruling approves it.
    ```
 
-   Use "Owner approval and ruling" when it approves a PR, and name the exact head SHA it approves, or the conditions
-   the coordinator must check and quote before merging.
+3. Post the one-line pointer on #6854: `Ruling NN, in PR #M: <one line>` (write the body to a file and pass it with
+   `-F body=@<file>`).
+4. **Urgent cases.** When the ruling must bind before its plan PR can merge, post it on #6854 as an owner record whose
+   first line carries `BINDING NOW`, followed by the ruling in the form above. It binds at once and lapses 48 hours
+   after posting unless a merged PR carries it, so open the plan PR in the same turn.
+5. Post a short pointer on each affected PR, linking the plan PR (or the `BINDING NOW` record).
+6. Update your own notes (the next ruling number, and the plan PR that carries it).
 
-3. Post a short pointer on each affected PR, linking the full ruling.
-4. Update your own notes (the next ruling number, and any plan text it owes).
+An owner approval of a PR is not plan text: post it on #6854 as "Owner approval, YYYY-MM-DD", naming the exact head SHA
+it approves, or the conditions the coordinator must check and quote before merging.
 
-An assignment to a lane is part of the ruling's text; the coordinator routes it on its next tick. If the owner wants an
-agent to start sooner, give the owner a prompt to paste into that agent's pane (see "Prompts").
+An assignment to a lane is part of the ruling's text; the coordinator routes it on its next tick once the ruling binds.
+If the owner wants an agent to start sooner, give the owner a prompt to paste into that agent's pane (see "Prompts").
 
 ## Owner PRs
 
@@ -117,13 +126,16 @@ An agent **stalls** when its turn waits on something (usually CI or a background
 turns, so it never ticks again and looks exactly like an idle agent. 10-10 lost about six hours this way. UR-38's
 heartbeats make it visible.
 
-- **Stall test** (`50-coordination.md`, "Stalled agents"): heartbeat older than 45 minutes for lanes and heavy agents
+- **Stall test** (rules.md §Posting, heartbeats and the urgent path): heartbeat older than 45 minutes for lanes and heavy agents
   (90 for the operator) **and** no push or comment in that window. The coordinator raises it on the urgent path; recovery
   is the owner's.
 - A heartbeat is written as the tick's first step, before the agent reads anything, so its text lags one tick. Judge a
   stale **status** only after a second beat.
 - **Recovery** is the owner's: Esc in the pane, then a catch-up prompt. The agent lists its scheduled tasks first and
   re-arms its loop only if none is listed (a second loop doubles every tick).
+- **Keeping ticks alive.** A recurring `/loop` expires seven days after it is armed, and a restarted or resumed session
+  drops it. The owner re-arms each tick weekly, and after a restart or a `/clear`, the same way: list scheduled tasks
+  first, arm only if none is listed.
 
 ## Prompts
 
@@ -139,7 +151,7 @@ You stopped ticking at about <HH:MMZ>. Your open work: <#n (package), #m ...>. R
 **Start an assignment now:**
 
 ```
-Owner ruling <NN> on #6854 assigns you <package>. Read it in full first and quote it (UR-29). <order, labels, claim PR contents>. Never wait inside a turn (UR-38); update your heartbeat each tick.
+Owner ruling <NN> (merged in PR #<M>, or its BINDING NOW record on #6854) assigns you <package>. Read it in full first and quote it (UR-29). <order, labels, claim PR contents>. Never wait inside a turn (UR-38); update your heartbeat each tick.
 ```
 
 Launching a sandbox: `agent-dgx run <name> --agent claude [--endpoint dgx] [--mount <host>:ro] [--gpu] --split`, then
@@ -161,13 +173,13 @@ Check for these first; each has happened.
   the coordinator passes the merge slot on.
 - **The coordinator drifts.** It has: stopped assigning idle agents; misread a slow test as runner load; posted the
   batch hours late; overwritten its own heartbeat marker. Correct it with a ruling that names the rule in
-  `50-coordination.md`; plan text changes only when the plan is actually wrong.
+  `rules.md` or the step in `roles/coordinator.md`; plan text changes only when the plan is actually wrong.
 - **The fast model confabulates.** A status quoting a SHA, PR or file it did not just read is the reason UR-29 exists.
   Verify any surprising claim yourself before passing it to the owner.
 - **Status rows lag.** The batch owns row edits, and PRs often omit them. The batch lists rows owed; an owner PR sets
   them.
-- **Owner tier is missed.** A PR becomes owner-tier when it changes plan text of §3's four kinds or carries an entry
-  under "Questions for the owner" (contract rule 4), not only by its flags.
+- **Owner tier is missed.** A PR becomes owner-tier when it changes plan text of the kinds rules.md §Authority: rulings, plan text and IDs lists or
+  carries an entry under "Questions for the owner" (contract rule 4), not only by its flags.
 - **Two PRs updated onto the same `main` race.** The first to go green merges and the other needs another
   update-branch and CI run. It costs CI minutes, not wall time.
 
@@ -175,8 +187,9 @@ Check for these first; each has happened.
 
 - **Merges** take about 16 to 20 minutes each, one at a time: `main` protection is `strict: true`, there is no merge
   queue (user-owned repo), and the coordinator updates branches with
-  `gh api -X PUT repos/$R/pulls/<n>/update-branch`. A coordinator merge commit with no new author content keeps an
-  approval (ruling 27).
+  `gh api -X PUT repos/$R/pulls/<n>/update-branch`. An update-branch keeps the queue place, the approving review and
+  the owner's approval when the PR's own diff (`git diff <merge-base>..<head> -- <the PR's files>`) is byte-identical
+  before and after; an author commit resets all three (rules.md §Merging; ruling 59).
 - **Labels:** `lane:<lane>`, `heavy`, `owner`, `cell:a` / `cell:b` (ops-a / ops-b), `cell:heavy-2` (a `heavy` PR with
   it is heavy-2's; without it, `uplevel-heavy`'s), `review:<lane>`.
 - **Daily batch** at 09:00 ET: 13:00Z until 2026-10-31, 14:00Z from 2026-11-01.
@@ -185,8 +198,9 @@ Check for these first; each has happened.
   copy is `/synthbench/eval/dogfood-2026-10-06/eval.sqlite`. A SQLite file in `journal_mode delete` with no `-wal`
   copies safely with `cp`; read it with `file:…?mode=ro`.
 - **The R2 chain** (what Phase 3 waits on): `O2.1` → `O2.2` → `F2.1` → `R2a` (recorded, #6980) → `F2.3` → `R2b`.
-  Ruling 86: a Phase 3 package scoped to `R2a`-ruled features and modules may start now; whole-tree work waits for
-  `R2b`, and the coordinator parks the rest.
+  Ruling 86: a Phase 3 package scoped to `R2a`-ruled features and modules may start now, and one scoped to an `R2b`
+  round's rulings may start once that round's record merges (ruling 135); whole-tree work waits for `R2b`, and the
+  coordinator parks the rest.
 - **AI stack facts behind rulings 66 to 68:** Triton (`ai-gateway`) serves `yolo26` (used), `reid` (resident; the backend
   will call it under B2.2) and `threat` (off; OD-7). The backend's torch is the CPU wheel. The `agent-gpu` library holds
   only the VLM, so the real tier runs a fake detector.

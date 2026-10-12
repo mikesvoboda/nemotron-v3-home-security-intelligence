@@ -29,7 +29,7 @@ $ <command>
 <!-- Delete this section if the package needs no real-tier numbers. -->
 
 - [ ] The command below runs in the operator's sandbox against a test deployment, with the VLM at
-      `$VLM_URL`, which the operator serves through `agent-gpu` (`docs/uplevel/operator.md`).
+      `$VLM_URL`, which the operator serves through `agent-gpu` (`docs/uplevel/roles/operator.md`).
 - [ ] The README status row is set to `awaiting real tier` until the operator posts the output.
 
 ```text
@@ -52,7 +52,7 @@ $ <command>
 
 ## Review
 
-<!-- docs/uplevel/50-coordination.md, "Review and merge". -->
+<!-- docs/uplevel/rules.md, "Reviewing" and "Merging". -->
 
 - [ ] **Self-review done:** a fresh-context subagent, given only the package text, this diff and this
       PR body, checked every Done-when clause, the contract, the cross-lane parts and the hot-file

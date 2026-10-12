@@ -1,9 +1,10 @@
-# Operator Runbook — the Real Tier
+# Operator — the real tier
 
-> For the **operator** (README vocabulary): the `uplevel-operator` agent, whose sandbox reaches the
-> GB300 through the `agent-gpu` broker (UR-30), and the owner for the runs that path cannot make.
-> Lane agents have no GPU; when a package needs real-model numbers, its PR carries a command and the
-> operator runs it. This file is everything that role needs.
+> For the **operator**: the `uplevel-operator` agent, whose sandbox reaches the GB300 through the
+> `agent-gpu` broker, and the owner for the runs that path cannot make. Lane agents have no GPU;
+> when a package needs real-model numbers, its PR carries a command and the operator runs it. This
+> file is your procedure. The rules each step obeys live in [`rules.md`](../rules.md) §Test tiers
+> and the real tier.
 
 ## What you are asked to run
 
@@ -15,15 +16,31 @@
 | Phase 2 | the real-tier date for every inventory row (`F2.3`)                         | `F2.3`'s PR                  |
 | Phase 4 | each completed feature's real-tier check                                    | that feature's build PR      |
 
-A package waiting on you shows `awaiting real tier` in the README status table on `main`. Work
-those rows oldest first; each names the PR whose "Real tier" section holds the command.
+A package waiting on you shows `awaiting real tier` in the README status table on `main`; the row
+names the PR whose "Real tier" section holds the command.
 
-## The one rule: a test deployment, never the live stack
+## The tick
 
-Every real-tier command runs on a **test deployment** — a disposable stack with its own compose
-project, env file, host ports, volumes and camera directory. The prod compose file is built to be
-the only stack on a machine (no project name, seven fixed container names, the live camera folder
-`/export/foscam`, Postgres in a named volume), so a command that skips any of these lands on
+The owner arms it with `/loop 30m Run the operator tick in docs/uplevel/roles/operator.md, "The
+tick".`
+
+1. `git fetch origin`, then read this file and `rules.md` from `origin/main`
+   (`git show origin/main:docs/uplevel/roles/operator.md`).
+2. Edit your heartbeat ([`lane.md`](lane.md), "Heartbeat"). If the coordinator's is older than 20
+   minutes, follow `lane.md`, "Stale coordinator".
+3. Read the new comments on your own open PRs.
+4. Take the oldest README row on `main` that says `awaiting real tier` and run it: on the agent-gpu
+   path below, or "A no-GPU run" where the row's PR says so. Runs the owner keeps go to the daily
+   batch, not to you.
+5. Otherwise say so in one line and end the turn. Never wait inside a turn on CI, a check run or a
+   watcher (rules.md §Posting, heartbeats and the urgent path).
+
+## A test deployment, never the live stack
+
+Every real-tier command runs on a **test deployment** (rules.md §Test tiers and the real tier). The
+prod compose file is built to be the only stack on a machine — no project name, seven fixed
+container names, the live camera folder `/export/foscam`, Postgres in a named volume — so a command
+that skips its own compose project, env file, host ports, volumes or camera directory lands on
 production.
 
 ## The agent-gpu path
@@ -63,8 +80,8 @@ above the 4 GiB floor. Its watchdog kills a container that uses more than it dec
    c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd  mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
    ```
 
-   The library also holds `qwen3vl-8b-instruct-q8_0/`, a Q8_0 build of the model itself. It is
-   not the pin; serve only `qwen3vl-8b-instruct-q4km/`.
+   The library also holds `qwen3vl-8b-instruct-q8_0/`, a Q8_0 build of the model itself. It is not
+   the pin; serve only `qwen3vl-8b-instruct-q4km/`.
 
 2. **Build the image.** Check out the commit the PR names. Builds never pull, so first
    `agent-gpu pull` each `FROM` image in `ai/vlm/Dockerfile`. Build once per state of `ai/vlm/`,
@@ -86,9 +103,10 @@ above the 4 GiB floor. Its watchdog kills a container that uses more than it dec
    `run` prints, `port 8098 -> http://host.docker.internal:<hostport>`, and set `VLM_URL` to that
    URL. Wait for `$VLM_URL/health` to return 200, then record `/props`' `build_info` and
    `model_path`; stop unless `model_path` names the Q4_K_M file above. If the runner refuses
-   admission, the run waits: report it in the daily batch with the `status` output. Library files
-   are readable by any container user, so add `--user 0` only for a container that writes to
-   `out/`. This config measured 9,056 MiB actual against 14 GiB declared.
+   admission, the run waits: post the `status` output and report it in the daily batch (rules.md
+   §Test tiers and the real tier). Library files are readable by any container user, so add
+   `--user 0` only for a container that writes to `out/`. This config measured 9,056 MiB actual
+   against 14 GiB declared.
 
 4. **Bring up the test deployment in the sandbox's Docker,** with its own project
    (`docker compose -p <run project>`), its own env file, `ORCHESTRATOR_ENABLED=false` and no
@@ -137,24 +155,18 @@ hand-written command yourself:
 
 ## A no-GPU run: `ORCHESTRATOR-01` (`B1.6`'s two stacks)
 
-`B1.6` scoped the orchestrator to its own compose project, and its row reads `awaiting real tier`
-because the scoping was proven on Docker while production runs rootless podman. Ruling 75's branch 1
-(`6100322952` on #6854) rules the answer to whether that needs podman — it does not: every scoping
-site is shared Engine-API surface, so the lane writes this form and the operator runs it against the
-sandbox's own Docker. That is the **one real-tier run that needs no GPU and no `agent-gpu`**: the
-engine under your feet is the subject. Run it before any GPU step, and run it wherever you are —
-this is the sandbox's Docker, not the deployment, so nothing on the GB300 or the host is involved.
+`B1.6` scoped the orchestrator to its own compose project; the scoping was proven on Docker while
+production runs rootless podman. Every scoping site is shared Engine-API surface, so the operator
+runs this form against the sandbox's own Docker (ruling 75, `6100322952` on #6854). It is the one
+real-tier run that needs no GPU and no `agent-gpu`: the engine under your feet is the subject. Run
+it before any GPU step, wherever you are; nothing on the GB300 or the host is involved.
 
-**Why this satisfies "a test deployment, never the live stack."** The command starts two throwaway
-compose projects on the engine in front of you, each holding two `alpine` containers running
-`sleep infinity`, and hands the shipped orchestrator one of them as its own. It touches no stack
-that was already running, mounts nothing, and needs no `.env`, no published port and no camera
-directory, so the one rule's hazards cannot arise here. It needs no `ORCHESTRATOR_ENABLED=false`
-guard either — this run's whole point is the shipped default, and post-`B1.6` a backend adopts only
-its own project (step 2 of "The owner on the host" explains the residual hazard).
-
-**Read the command before running it,** as usual: if your engine has no Docker socket reachable from
-the checkout, stop and post that instead of adapting anything.
+It satisfies "a test deployment, never the live stack": the command starts two throwaway compose
+projects, each holding two `alpine` containers running `sleep infinity`, and hands the shipped
+orchestrator one of them as its own. It touches no stack that was already running, mounts nothing,
+and needs no `.env`, no published port, no camera directory and no `ORCHESTRATOR_ENABLED=false`
+guard — the run tests the shipped default. Read the command before running it; if your engine has no
+Docker socket reachable from the checkout, stop and post that instead of adapting anything.
 
 1. **Snapshot before:**
 
@@ -165,23 +177,14 @@ the checkout, stop and post that instead of adapting anything.
    docker volume ls -q > /tmp/orch01-vols-before.txt
    ```
 
-   Snapshot with `docker inspect`, not with a `docker ps` template: `docker ps` has no `{{.StartedAt}}`
-   placeholder (that one is podman's, and step 4 of "The owner on the host" uses it correctly), and a
-   bad template exits 1 while the redirect still leaves a **0-byte** file — which then diffs clean, so
-   the snapshot would certify nothing. Check the capture: `wc -l < /tmp/orch01-before.txt` must equal
-   `docker ps -aq | wc -l` **and that number must be non-zero** — on a fresh sandbox with no bystander
-   containers both files are 0 bytes, `0 == 0` passes, and the diff is clean because nothing was
-   observed. Say so in that case and post the run as vacuous: there were no containers to protect, so
-   the diff proves nothing about them. Each half of that guard is load-bearing against a different
-   failure: a `docker inspect` that fails mid-loop (measured: it emits one **blank** line and exits 1),
-   so a dead id in the loop makes the capture disagree with the fresh `docker ps -aq` count, and a
-   failure against a container that still exists writes a blank line where a populated one belongs —
-   which the before/after diff catches because the other file's line has text. What neither half
-   catches is everything-empty-at-once (daemon unreachable while you snapshot, or no bystanders), and
-   that is exactly what the non-zero clause is for.
-   The run must leave every line of both files identical — a changed line, a
-   **missing** line (a container or volume removed) and a new line are all findings. Containers it does
-   not own are not its to touch, which is exactly what this run claims.
+   Snapshot with `docker inspect`, never a `docker ps` template: `docker ps` has no
+   `{{.StartedAt}}` (that is podman's), and a bad template leaves a 0-byte file that diffs clean.
+   Check the capture: `wc -l < /tmp/orch01-before.txt` must equal `docker ps -aq | wc -l`, **and
+   that number must be non-zero**. A `docker inspect` that fails mid-loop writes a blank line and
+   breaks the count or the diff; an unreachable daemon or an engine with no bystander containers
+   gives two empty files that agree. With no containers, say so and post the run as vacuous: the
+   diff proves nothing about containers that were not there. The run must leave every line of both
+   files identical: a changed, missing or new line is a finding.
 
 2. **Run it,** from the checkout at the commit the PR names:
 
@@ -190,33 +193,24 @@ the checkout, stop and post that instead of adapting anything.
      -n0 --timeout=120 --log-cli-level=INFO -q
    ```
 
-   Expect `1 passed`. The first run pulls `alpine:latest`, so allow for the pull; the test itself
-   measured 13.29 s and 12.94 s on the sandbox's Docker (daemon 29.8.1) at `ad9d187c6`, and it needs
-   no database and no Redis service — its state store is a mock. The `--timeout=120` on that line is
-   not the ceiling you are actually held to: the test carries `@pytest.mark.timeout(60)`
-   (`test_orchestrator_integration.py:1187`) and a marker overrides the CLI flag, so 60 s governs.
+   Expect `1 passed`. The first run pulls `alpine:latest`; the test needs no database and no Redis
+   (its state store is a mock). Its `@pytest.mark.timeout(60)`
+   (`test_orchestrator_integration.py:1187`) overrides the CLI flag, so 60 s governs.
 
-3. **Read the two assertions the test makes** (they are the Done-when, not a summary you write):
-   `adopted == stack_a` — the orchestrator adopted exactly its own project's two services, so it
-   adopted nothing from the second project or from any container that was already running; and
-   `restarted == {own project's postgres}`, with every one of the four containers still present and
-   not `removed` — the recovery restarted the one service in place and left the other project's
-   containers and start times alone.
+3. **Read the two assertions the test makes** (they are the Done when, not a summary you write):
+   `adopted == stack_a` — the orchestrator adopted exactly its own project's two services; and
+   `restarted == {own project's postgres}`, with all four containers still present and not
+   `removed` — recovery restarted the one service in place and left the other project alone.
 4. **Tear down and prove it:** the fixture removes its own four containers, so
    `docker ps -a --filter 'name=^b16-' --format '{{.Names}} {{.Status}}'` must print nothing. Anchor
-   the filter with `^`: `--filter name=` is a **substring** match (measured here: with `b16-probe-own`
-   and `host-b16-probe-stranger` present, `name=b16-` printed both and `name=^b16-` printed only the
-   owned one), and this section's only destructive command is the `docker rm -f` below — an unanchored
-   filter there could force-delete a stranger whose name merely contains `b16-`. Re-run step 1's two
-   snapshot
-   commands into `/tmp/orch01-after.txt` and `/tmp/orch01-vols-after.txt` (same pipeline, including
-   `sort`, so the diff is order-stable) and diff both pairs; both must be empty. Confirm the after-file
-   captured as much as the engine holds and that the engine held something:
-   `wc -l < /tmp/orch01-after.txt` must equal `docker ps -aq | wc -l`, and that count must be non-zero
-   for the same reason as step 1. If a `b16-*` container outlived the run, `docker rm -f` **it by
-   name** and say so on the PR.
-5. **Post it** under "Posting results", with one addition: quote the two assertion lines from the
-   test file, and paste the log lines the command prints, of which these are the shape to expect —
+   the filter with `^`: `--filter name=` is a substring match, and an unanchored filter on the
+   `docker rm -f` below could delete a stranger whose name contains `b16-`. Re-run step 1's two
+   snapshot commands into `/tmp/orch01-after.txt` and `/tmp/orch01-vols-after.txt` (same pipeline,
+   including `sort`) and diff both pairs; both must be empty. `wc -l < /tmp/orch01-after.txt` must
+   equal `docker ps -aq | wc -l`, and that count must be non-zero. If a `b16-*` container outlived
+   the run, `docker rm -f` it by name and say so on the PR.
+5. **Post it** under "Posting results", quoting the two assertion lines from the test file and the
+   log lines the command prints, of this shape:
 
    ```text
    INFO backend.services.container_discovery:container_discovery.py:752 Discovered 2 containers in compose project 'b16-stacka-<run-id>'
@@ -225,33 +219,30 @@ the checkout, stop and post that instead of adapting anything.
    INFO backend.services.lifecycle_manager:lifecycle_manager.py:266 Recovered postgres in place
    ```
 
-   The first names **one** project and the last two name one service, which is what "touches only its
-   own project's containers" has to look like. Count the discovery lines by their **module**, not by
-   the sentence: `container_orchestrator.py:541` logs the same words verbatim, so two `Discovered`
-   lines are not two projects seen — only the `container_discovery` one is the adoption count. If you
-   see `Discovered … 'b16-stackb-…'`, or a `Recovering` line for anything outside `b16-stacka-…`, that
-   is a finding: post the output and stop.
+   The first names one project and the last two name one service. Count discovery lines by module:
+   `container_orchestrator.py:541` logs the same words, and only the `container_discovery` line is
+   the adoption count. A `Discovered … 'b16-stackb-…'` line, or a `Recovering` line for anything
+   outside `b16-stacka-…`, is a finding: post the output and stop.
 
-6. **What this run does not close.** `B1.6`'s row also asks that the backend's hostname resolve its
-   own container on the podman deployment, and `#6929`'s "Real tier" block (`podman exec`,
+6. **What this run does not close.** `B1.6` also asks that the backend's hostname resolve its own
+   container on the podman deployment; `#6929`'s "Real tier" block (`podman exec`,
    `podman inspect`, `podman logs`) is that check, on the deployment, which stays with you (or the
-   owner for the runs `agent-gpu` cannot make). `ORCHESTRATOR-01` proves the shared-API behavior on
-   Docker; it does not make the podman hostname premise true. Keep the row at `awaiting real tier`
-   until both are posted.
+   owner for the runs `agent-gpu` cannot make). Keep the row at `awaiting real tier` until both are
+   posted.
 
 ## Posting results
 
 1. Paste the command's output, verbatim, as a comment on the PR, headed with the date, the commit,
-   and the hardware: for the agent-gpu path, "GB300 through agent-gpu", the image tag, `build_info`,
-   `model_path`, the weights' `sha256sum` output, and VRAM declared and actual; on the host, the GPU and host (GB300 or A5500). Latency numbers
-   such as S4's p95 belong to the hardware that produced them. Every number in the comment comes
-   from output in the comment (UR-29).
+   and the hardware: for the agent-gpu path, "GB300 through agent-gpu", the image tag,
+   `build_info`, `model_path`, the weights' `sha256sum` output, and VRAM declared and actual; on the
+   host, the GPU and host (GB300 or A5500). Latency numbers such as S4's p95 belong to the hardware
+   that produced them. Every number in the comment comes from output in the comment.
 2. Add the teardown evidence: on the agent-gpu path, the empty `agent-gpu ps`; on the host, the
    before/after snapshot diff.
-3. Name every store or file the result was read from by its path and its `sha256sum`. When it
-   lives only in a sandbox's broker directory (`/agents/<sandbox>/gpu/out` on the host), say so on
-   the PR: the owner copies it to a durable path under `/synthbench` before a report depends on it
-   (owner, 2026-10-10). Copy nothing yourself.
+3. Name every store or file the result was read from by its path and its `sha256sum`. When it lives
+   only in a sandbox's broker directory (`/agents/<sandbox>/gpu/out` on the host), say so on the PR:
+   the owner copies it to a durable path under `/synthbench` before a report depends on it. Copy
+   nothing yourself (rules.md §Test tiers and the real tier).
 4. Set the package's README status row from `awaiting real tier` to `done` in a one-line follow-up
    PR, or ask the lane agent to.
 
@@ -269,12 +260,14 @@ the checkout, stop and post that instead of adapting anything.
 
 ## Kickoff prompt
 
-Paste this to the operator agent, in the `uplevel-operator` sandbox.
+Paste this to the operator agent, in the `uplevel-operator` sandbox, then arm its tick with
+`/loop 30m Run the operator tick in docs/uplevel/roles/operator.md, "The tick".`
 
 ```text
 You are the operator of the uplevel programme: you run real-tier commands on
 the GB300 through agent-gpu. Read docs/uplevel/README.md, then
-docs/uplevel/operator.md, which is your whole role.
+docs/uplevel/rules.md, then docs/uplevel/roles/operator.md, which is your whole
+role.
 
 Work oldest first: the README status rows on main that say "awaiting real
 tier", and the PR each row names. For each, follow "The agent-gpu path" step by
@@ -283,10 +276,9 @@ follow-up PR. Runs the owner keeps go to the daily batch, not to you.
 
 You write no product code and change no command; when a command fails for a
 reason its PR did not anticipate, post the output and the exit code and move
-on. Every number you post comes from output in the same comment. Always tear
-down, also after a failure. Before each new run, read the new comments on your
-own open PRs (UR-35).
+on. Always tear down, also after a failure. Before each new run, read the new
+comments on your own open PRs.
 
-Never wait inside a turn on CI, a check run or a background watcher: read it
-once, report what you see and end the turn; your next tick re-reads (UR-38).
+Then run the tick in operator.md, "The tick". Before each act, read the
+rules.md section the step names.
 ```
