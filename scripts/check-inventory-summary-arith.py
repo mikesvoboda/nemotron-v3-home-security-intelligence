@@ -120,11 +120,21 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
         status_i = cols["status"]
         tally: dict[str, int] = {}
         rows = 0
+        unrowed: list[str] = []
         for line in table[1:]:
             cells = split_row(line)
             if is_separator(cells):
                 continue
             if not ROW_ID.match(cells[0]):
+                # NOT a silent skip. A row in an id table whose first cell is not an
+                # `F-nnn` is either a malformed id or a prose line that got absorbed
+                # into the table; counting it would invent a row, but SKIPPING it is
+                # worse -- it drops one from BOTH denominators this gate compares, so
+                # §2 and a re-derived §3 go stale together and the checker exits 0 on
+                # the very arithmetic it exists to police. Measured on the real
+                # document: 294 rows, 0 skipped, so this can only fire on content that
+                # is already wrong.
+                unrowed.append(cells[0][:40] or "<empty first cell>")
                 continue
             rows += 1
             row_id = cells[0]
@@ -140,6 +150,13 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
             status = cells[status_i]
             tally[status] = tally.get(status, 0) + 1
             vocab[status] = vocab.get(status, 0) + 1
+        if unrowed:
+            shown = ", ".join(unrowed[:3])
+            more = f" (+{len(unrowed) - 3} more)" if len(unrowed) > 3 else ""
+            raise InventoryError(
+                f"section {num}: {len(unrowed)} table line(s) are not `F-nnn` rows and would "
+                f"be dropped from BOTH denominators: {shown}{more}"
+            )
         per_section[num] = {"rows": rows, **tally}
     return per_section, vocab
 

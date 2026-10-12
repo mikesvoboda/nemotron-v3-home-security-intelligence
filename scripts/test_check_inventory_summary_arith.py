@@ -190,6 +190,24 @@ def test_section_losing_its_id_column_is_refused(tmp_path):
     assert rc == 2, f"a section whose table lost `id` was skipped: {out}"
 
 
+def test_non_row_line_in_a_table_is_refused_not_dropped(tmp_path):
+    """A `|`-led line whose first cell is not an `F-nnn` used to be skipped in
+    silence, and silence here is the gate's worst failure: the skip removes the
+    line from §3's tally while §2 keeps whatever it published, so a stale §2 and a
+    shrunken §3 agree and the checker exits 0 on the arithmetic it exists to
+    police. Refusing is the only honest option — the checker cannot know whether
+    the line was meant to be a row."""
+    text = doc(TWO)
+    intruder = "| see the note below | prose | absorbed | — | — | half-built | — | — | — | — | — |\n"
+    anchor = row(TWO["1"][0]) + "\n"
+    assert anchor in text, "fixture row anchor missing — the mutation would be a no-op"
+    text = text.replace(anchor, anchor + intruder, 1)
+    assert intruder in text, "intruder line not inserted — arm is a no-op"
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"a non-row table line was dropped from both denominators: {out}"
+    assert "would be dropped from BOTH denominators" in out, out
+
+
 def test_reordered_columns_still_score_the_right_column(tmp_path):
     """Columns resolve by NAME, so a reordered §3 table must still agree. A
     split-index parser would tally the `evidence` column and print plausible
