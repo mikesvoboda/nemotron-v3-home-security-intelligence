@@ -167,7 +167,8 @@ class TestRunStepCommentSwallow(_CiYml):
 
 
 class TestAntiRotBatteryHasAFloor(_CiYml):
-    """A FLOOR ratchet on the anti-rot battery, sibling to the `<=31` needs cap.
+    """A FLOOR ratchet on the anti-rot battery, sibling to the direct-needs cap
+    in ``TestWalkOnRealData``.
 
     WHY A FLOOR AND NOT A SET. The silent mutant in this file's own class is not
     deleting a suite's file — pytest reddens that loudly (measured: `-n 8`
@@ -180,22 +181,38 @@ class TestAntiRotBatteryHasAFloor(_CiYml):
     teeths any count-reducing edit and names no path, so a merge that ADDS one
     (this very commit: 32 -> 33) stays green.
 
-    33 is `git rev-list`-measured at the live main this branch cut from
-    (`2079e4a21`, 32 paths) plus the one path this branch adds — not an
-    estimate. Raising it is a one-line reviewed edit in the commit that adds a
-    suite; lowering it must come with a reason.
+    33 is measured, not estimated: `shlex.split` over this step's `run:` counts
+    32 `.py` paths at `2079e4a21` (the live main this branch cut from) plus the
+    one path this branch adds. Raising it is a one-line reviewed edit in the
+    commit that adds a suite; lowering it must come with a reason.
+
+    The lookup is pinned to a JOB, not just a step name: the step is collected
+    from `collection-sanity` only, so a later edit that gives another job a
+    step of the same name reddens THAT job's owner rather than silently
+    comparing the wrong `run:`. The sibling name-pin above has no job identity
+    to share — it joins every `run:` in the file and substring-searches — so
+    this test states its scope explicitly instead of converging on one.
     """
 
+    ANTIROT_JOB = "collection-sanity"
     ANTIROT_STEP = "Run the anti-rot gates' own tests"
 
     def test_antirot_battery_keeps_at_least_its_suite_floor(self) -> None:
+        job = self.jobs.get(self.ANTIROT_JOB)
+        assert job is not None, (
+            f"job {self.ANTIROT_JOB!r} is gone from ci.yml — the anti-rot "
+            "battery it carries would go unwatched; update this test with the "
+            "rename."
+        )
         runs = [
             step.get("run", "")
-            for job in self.jobs.values()
             for step in job.get("steps", []) or []
             if step.get("name") == self.ANTIROT_STEP
         ]
-        assert len(runs) == 1, f"expected exactly one {self.ANTIROT_STEP!r} step, found {len(runs)}"
+        assert len(runs) == 1, (
+            f"expected exactly one {self.ANTIROT_STEP!r} step inside job "
+            f"{self.ANTIROT_JOB!r}, found {len(runs)}"
+        )
         paths = [a for a in shlex.split(runs[0]) if a.endswith(".py")]
         assert paths, f"{self.ANTIROT_STEP} yielded no .py argv — parse failure, not a pass"
         assert len(paths) >= 33, (
