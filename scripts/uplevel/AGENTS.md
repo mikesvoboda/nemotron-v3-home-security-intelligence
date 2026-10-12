@@ -2,11 +2,13 @@
 
 ## Purpose
 
-The uplevel programme's host-side tooling. Today one tool: `launch.py`, the sandbox
-launcher (package `O0.1`, rulings UR-26 and UR-28 in `docs/uplevel/`). It is a **host tool
-for the owner** - no agent runs it. The programme itself is planned in `docs/uplevel/`
-(start at its `README.md`); this module only automates what `docs/uplevel/rules.md`
-("Agents, sandboxes and models") describes the owner doing by hand at a phase boundary.
+The uplevel programme's tooling. `launch.py` is the sandbox launcher (package `O0.1`, rulings
+UR-26 and UR-28 in `docs/uplevel/`) and is a **host tool for the owner** - no agent runs it.
+`prod-shape-probe.sh` and its override file are different: an agent runs those, inside a
+sandbox, as the `O2.5` Step 1 spike (ruling 144). The programme itself is planned in
+`docs/uplevel/` (start at its `README.md`); this module only automates what
+`docs/uplevel/rules.md` ("Agents, sandboxes and models") describes the owner doing by hand at a
+phase boundary.
 
 ## Files
 
@@ -42,6 +44,28 @@ host, plus the inspection script executed against throwaway real git repos).
 unknown word as a new session's name, so never run `agent-dgx help` or `agent-dgx ls`, and
 never invent a flag; the strongest model's run arguments come from the owner into
 `sandboxes.toml`'s `[models]`.
+
+### prod-shape-probe.sh + prod-shape-override.yml
+
+The `O2.5` Step 1 spike (ruling 144): does `docker-compose.prod.yml` come up as a disposable
+test deployment under **rootless** Podman inside an uplevel sandbox? `prod-shape-probe.sh`
+prints `OBSERVED` for each claim its answer rests on - the four sandbox mechanisms that decide
+rootless storage and limits, the differential control that isolates resource limits as the
+blocker (same image, `--entrypoint` overridden, limits off vs `--memory` vs `--cpus`), then the
+bring-up of the image services the override covers, each checked (`redis-cli ping`,
+`pg_isready`). Exit 0 both services answered; 2 a prerequisite is missing; 3 the bring-up
+failed.
+
+`prod-shape-override.yml` is the spike's answer to "the minimal override file it needed":
+`deploy: !reset null` (a rootless container that asks for limits cannot start where no cgroup
+controllers are delegated) and `ports: !override` (UR-133 remaps). Both tags are moby
+docker-compose syntax - `podman-compose` cannot express the empty mapping - so the probe drives
+the moby CLI against podman's Docker-compatible API socket. Storage is the other half of the
+answer and cannot live in that file: this sandbox cannot mount overlayfs even as root and
+`/dev/fuse` is `EPERM`, so the only working driver is `vfs`, set through
+`CONTAINERS_STORAGE_CONF` rather than `--storage-driver` (the flag is refused on an existing
+database). The probe is a test deployment in every sense UR-133/134 require and tears itself
+down with `down -v` only (UR-135).
 
 ### sandboxes.toml
 
