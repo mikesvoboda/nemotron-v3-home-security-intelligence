@@ -195,6 +195,9 @@ Constraints on what you build; reopening one is a ruling (UR-44).
   and a dated plan created anywhere else is a violation (OD-33). (ruling 89)
 - **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason; the validator fails on
   dead references and on files outside the list. (UR-21)
+- **UR-12** Inbound webhooks: **implement** (an arming module with webhook and MQTT adapters,
+  designed after Phase 3); until then they answer `501` and validate keys against
+  `settings.api_keys`. (UR-12)
 
 ## Reviewing
 
@@ -365,6 +368,8 @@ the gates.
 Read this section when you write, consolidate or delete tests, flip a row on test evidence, or run
 or write anything for the real tier. Who holds the GPU, and which runs the owner keeps, is UR-30.
 
+### Mutation testing
+
 - **UR-1** The mutation score is a diagnostic with a no-regression floor on shipping code. The 85%
   target is retired. (UR-1)
 - **UR-2** The mutation campaign holds after M54 (PR #6844). (UR-2)
@@ -379,6 +384,9 @@ or write anything for the real tier. Who holds the GPU, and which runs the owner
   accepted-survivors file; the L ledger takes no new mutation rows. (UR-7)
 - **UR-16** Test consolidation is just in time inside feature packages, plus a background track.
   (UR-16)
+
+### Golden paths and witnesses
+
 - **UR-14** "Works" is proven by golden paths: green on the fake stack in CI, then confirmed on the
   real tier. (UR-14)
 - **UR-127** Golden paths mock nothing: a guard fails any `golden` Playwright spec that calls
@@ -399,6 +407,9 @@ or write anything for the real tier. Who holds the GPU, and which runs the owner
   (`mcr.microsoft.com/playwright:v<version>-noble`), its tag read from `frontend/package-lock.json`,
   on the harness's engine, with no browser-install step. A blocked registry or download host is
   named in the failure, never worked around. (rulings 116, 143)
+
+### The real tier
+
 - **UR-15** The real tier is operator-run on the GB300 by a committed script; no self-hosted runner.
   Real-model checks run there through the operator, never from CI or GitHub: a lane agent writes the
   real-tier command into its PR's "Real tier" section, and the operator runs it. (UR-15; README
@@ -466,7 +477,7 @@ when a phase exits, are UR-10 (contract rule 5).
   `docs/vss-integration/17-action-plan.md`, and the recorded part's status row. (README "The path";
   20-frontend.md "Record R2"; ruling 135)
 - **UR-151** A `half-built` row goes to the `R2b` list, and the owner decides at `R2b` whether and
-  when it is fixed; nobody else creates a fix package for it. (ruling 120)
+  when it is fixed; nobody else creates a fix package for it unless the owner orders the fix (as rulings 129 and 130 did). (ruling 120)
 - **UR-152** "Half-built" includes a break at the UI end. The `R2` sheet's §1 rules by cause, each
   row's id cell listing its inventory ids. (ruling 59; README vocabulary "half-built")
 - **UR-153** A row demoted only because the CI stack cannot reach it returns to `unverified`, its
@@ -572,8 +583,7 @@ or an agent's memory.
   always name the subcommand. (UR-26; 50-coordination.md "Where agents run"; 30-ops.md `O0.1`;
   owner-partner.md "Guardrails")
 - **UR-28** Sandboxes come from `agent-dgx`, which gives each agent its own clone of the host
-  checkout. The owner starts Phases 0 and 1 by hand; `O0.1` builds the launcher around `agent-dgx`,
-  used from the Phase 2 boundary. Each agent runs in the sandbox `agent-<session>` on its own clone
+  checkout; the owner starts them, by hand or with the launcher (`O0.1`). Each agent runs in the sandbox `agent-<session>` on its own clone
   at `/agents/agent-<session>/workspace`. Start every agent from a clean, freshly pulled host
   checkout of `main` (`agent-dgx` copies uncommitted changes into the clone;
   `agent-dgx inspect <session> --json` shows the commit it cloned), and push your branch after every
@@ -626,6 +636,3 @@ the shared GitHub token.
 - **UR-179** A browser bundle never carries an API key: browsers authenticate only through the
   cookie login, API keys are for non-browser clients, and a CI guard fails if `frontend/src` reads
   `VITE_API_KEY`. (ruling 44)
-- **UR-12** Inbound webhooks: **implement** (an arming module with webhook and MQTT adapters,
-  designed after Phase 3); until then they answer `501` and validate keys against
-  `settings.api_keys`. (UR-12)
