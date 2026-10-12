@@ -14,9 +14,17 @@ nothing in CI executed the command: the sentence was proofread for grammar and
 the command for plausibility, which is exactly how a claim and its disproof stay
 mutually invisible.
 
-The class is not hypothetical and it is not one sentence. A census over `docs/`
-at `origin/main` `9bc51ece0` finds 53 lines making a negative CI/gate claim.
-Most are legitimately unfalsifiable-about-this-repo (a platform fact — "GitHub
+The class is not hypothetical, and it is not one sentence — but no headline count of
+it survives contact with an instrument, so none is printed here. An earlier revision of
+this docstring claimed "53 lines making a negative CI/gate claim" at `origin/main`
+`9bc51ece0`; fifteen predicate sweeps over `docs/` yield 27 / 32 / 43 / 50 / 55 and
+never 53, because every sweep changes the definition on the way (per line vs per
+3-line window, in-frame vs whole tree, matched vs decided), and the frame matters more
+than it looks: this module's own frame excludes `docs/vss-integration`, which alone
+holds 7 of the 10 anchor lines a looser frame counts. `anchor_census()` is now the
+instrument for that figure and `test_the_class_census_keeps_its_relations` re-derives
+it — a headline number nobody can regenerate is the defect this gate exists to retire.
+Most of the class is legitimately unfalsifiable-about-this-repo (a platform fact — "GitHub
 Actions has no workflow-level `if`"; a missing FEATURE — "no workflow to add
 faces"; synthbench's "no gate", where *gate* names a JSON file, not CI). Those
 must NOT be scanned: a checker that flags them gets its findings ignored, and a
@@ -532,6 +540,54 @@ def claims() -> list[dict]:
     ]
 
 
+def anchor_census() -> dict[str, object]:
+    """How big the class is, counted by THIS module's grammar over THIS module's frame.
+
+    The module docstring used to print "53 lines making a negative CI/gate claim" and
+    nothing in the repo could reproduce it. A fresh-context review ran ~15 predicate
+    sweeps over `docs/` and reported 27 / 32 / 43 / 50 / 55 — never 53 (that list is
+    the reviewer's measurement, quoted as such; three of my own frames appear below and
+    none of them is 53 either). Sweeps drift because each quietly changes the definition
+    (per-line vs per-window, in-frame vs whole tree, mentions vs decides). A headline
+    number with no instrument behind it is the same defect this gate exists to retire —
+    a claim nobody ran — so the count lives HERE, and its own test re-derives it.
+
+    Definitions, because the frame is the whole argument:
+      anchors   in-frame `.md` LINES the grammar matches at all (the class's outer edge)
+      docs      how many in-frame docs hold at least one anchor
+      decided   rows from `claims()` — anchors whose sentence names a resolvable path,
+                i.e. the subset this gate can actually rule on
+      counted   the in-frame docs holding an anchor, by path, so a reader can audit the
+                frame by hand and the test can check it against `scanned()`
+
+    Per LINE, not per 3-line search window: windows overlap, so a window census
+    multi-counts one sentence, and a reader repeating the count with `grep -c` gets the
+    line figure and calls this file wrong.
+
+    The frame is the whole argument, and these are three true figures for ONE grammar
+    over ONE tree (`origin/main` `9bc51ece0`): every `.md` in the repo, 27 lines in 19
+    files; `docs/` minus this module's exclusions, 8 in 7; the 406 in-frame paths that
+    also exist at main, 5 in 4. A "class size" without its frame is not one number — it
+    is one number per frame, and 53 is a number none of them produces. A count names a
+    grammar AND a tree: run this widened grammar over main and you get the figures
+    above, run main's own grammar and you get another pair. Quote this dict with its
+    frame, or quote nothing.
+    """
+    anchors = 0
+    counted: list[str] = []
+    for rel in doc_paths():
+        text = (REPO / rel).read_text(encoding="utf-8", errors="replace")
+        hits = sum(1 for ln in text.splitlines() if NEG_CLAIM.search(ln))
+        if hits:
+            counted.append(rel)
+            anchors += hits
+    # `counted` is returned so the frame can be checked against `scanned()` — a
+    # separate implementation. A census that reports only a COUNT cannot be audited
+    # for frame errors at all, and the obvious relation (count <= frame size) is
+    # satisfied by every mutant short of a catastrophe.
+    return {"anchors": anchors, "docs": len(counted), "decided": len(claims()), "counted": counted}
+
+
 def executable_lines(text: str) -> list[tuple[int, str]]:
     """(1-based line, text) for lines that can CARRY a command, comments dropped.
 
@@ -650,6 +706,54 @@ class NegativeToolingClaims(unittest.TestCase):
             2,
             "negative-CI claim scanner found almost nothing — the pattern or the scan "
             "frame broke (a silent zero reads identical to a clean docs/)",
+        )
+
+    def test_the_class_census_keeps_its_relations(self) -> None:
+        """The census figure is computed here, and its parts must stay consistent.
+
+        Deliberately NOT an exact count, and not a number pasted into the docstring:
+        an exact pin reddens the moment anyone honestly deletes a claim sentence — a
+        gate that punishes a fix gets routed around (the note in
+        `test_the_claim_scanner_is_not_vacuous` reaches the same call for the same
+        reason). Two floors and two relations, each with its own failure direction:
+
+          anchors >= decided   every ruled-on row sits on a line the grammar matched;
+                               decided > anchors means the census and `claims()` are no
+                               longer the same scan.
+          docs    <= len(doc_paths())  a doc counted that the frame excludes — the
+                               silent-growth half of the same defect.
+          anchors >= 2         below today's measured population, so it catches collapse
+                               (0 anchors reads identical to clean docs/) without
+                               punishing honest repair.
+
+        The relation that does the real work is the frame check: `claims()` rows and
+        the census must read the SAME corpus, or a published count and the running gate
+        describe different trees while both looking green.
+
+        Known blind spot, measured rather than assumed: a mutant that counts anchors
+        PER DOC instead of per line stays green, because at this head every in-frame
+        doc holds exactly one anchor line (3 / 3 / 3), so no relation between these
+        three figures can tell the two definitions apart. Closing it would need a
+        second, independent definition of "line count" — re-running this predicate is
+        not one. It is listed here so nobody reads the four assertions as coverage of
+        every way a census can be wrong.
+        """
+        c = anchor_census()
+        self.assertGreaterEqual(c["anchors"], 2, "class collapsed: pattern or scan frame broke")
+        self.assertGreaterEqual(c["anchors"], c["decided"], "decided rows exceed anchor lines")
+        # The frame check is an INDEPENDENT predicate (`scanned`), not a count
+        # comparison — measured: a mutant that replaces `doc_paths()` with an unframed
+        # `docs/**/*.md` walk passes `docs <= len(doc_paths())` (7 <= 406) and reports
+        # GREEN while describing a corpus this gate does not scan.
+        strays = [d for d in c["counted"] if not scanned(d)]
+        self.assertEqual(strays, [], f"census counted docs outside the frame: {strays}")
+        in_frame = set(doc_paths())
+        strays2 = [r["doc"] for r in claims() if r["doc"] not in in_frame]
+        self.assertEqual(strays2, [], f"claims() rows outside the census frame: {strays2}")
+        self.assertEqual(
+            c["decided"],
+            len(claims()),
+            "the census's `decided` is not `claims()` — two definitions of the same count",
         )
 
     def test_the_prefilter_admits_a_probe_for_every_grammar_branch(self) -> None:
