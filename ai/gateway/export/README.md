@@ -124,13 +124,27 @@ says which one it hit:
 
 Two more things the bake does, both because an engine is GPU-specific:
 
-- **It records which GPU built the plan** (`model.plan.device`, beside the plan).
-  A cache copied from a different card still has a `.plan`, and Triton cannot
-  load it; the bake calls that `STALE … rebuilding` instead of `CACHED`.
-- **`REID_PLAN_PRECISION`** selects the compile precision (`fp16` default, like
-  yolo26's shipped engine). If the owner's parity run lands just under the 0.999
-  gate, `REID_PLAN_PRECISION=fp32` is the one-flag retry — the gate was proven
-  against an FP32 path.
+- **It records what the plan was built against** (`model.plan.device`, beside the
+  plan: GPU name on line 1, precision on line 2). A cache copied from a different
+  card — or compiled at a different precision — still has a `.plan`, and Triton
+  cannot load the first; the bake calls both `STALE … rebuilding` instead of
+  `CACHED`. A plan with NO sidecar is unverifiable, so it is rebuilt when a
+  builder exists and kept (never silently deleted) when one does not — and a host
+  whose `nvidia-smi` probe FAILS is told so (`this host is 'GPU PROBE FAILED'`)
+  rather than having its empty probe answer compare equal to a missing record.
+  Either way the verdict then reads `the GPU step is unverified, not passed` —
+  never `All exports succeeded`.
+- **The sidecar is written by the bake, not by `export_reid.py`.** Baking a plan
+  by hand with the CLI (below) leaves none, so the next bake cannot vouch for it —
+  it will rebuild where a builder exists, and keep it unverified where one does
+  not. Prefer running `export_all.sh` on the serving GPU.
+- **`REID_PLAN_PRECISION`** selects the compile precision (`fp16` default — the
+  idiom ruling 107 names, though no shipped engine in this repo is a trtexec
+  fp16 plan yet; see the reid config.pbtxt note). If the owner's parity run
+  lands just under the 0.999 gate, `REID_PLAN_PRECISION=fp32` is the one-flag
+  retry — the gate was proven against an FP32 path. The precision rides in the
+  sidecar, so a retry on the SAME card actually rebuilds instead of printing
+  `CACHED` and keeping the fp16 plan.
 
 One limit of the guard, stated so nobody assumes more than it does: the record
 proves the ONNX was exported from THESE weights, and `validate_onnx` proves that

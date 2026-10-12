@@ -771,9 +771,10 @@ Both shipped Triton inference models (`yolo26`, `threat`) run
 `backend: "onnxruntime"` on GPU; the reasons are recorded in the files
 themselves, where they were discovered. `reid` no longer belongs to that group:
 since O2.4 (owner ruling 107) it runs `backend: "tensorrt"`, because ONNX
-Runtime's CUDA execution provider cannot load it on the GB300 at all (ruling 106) — the reasons below never applied to re-ID, which has no INT8 export, no
-Ultralytics envelope, and a 9 MB graph that builds inside the same 1 GB
-workspace the others use.
+Runtime's CUDA execution provider cannot load it on the GB300 at all (ruling 106). Reasons 1 and 3 below do not apply to re-ID — it has no INT8 export
+and no Ultralytics envelope. Reason 2 DOES apply, and is now a cost actually
+paid rather than a default nobody used: re-ID's plan is a 9 MB graph built
+inside the same 1 GB workspace on the second card that the others compete for.
 
 1. **INT8 `ConvInteger` is CPU-only in ONNX Runtime.** The quantized YOLO26
    export inserted `ConvInteger` nodes the CUDA EP cannot run, so the config

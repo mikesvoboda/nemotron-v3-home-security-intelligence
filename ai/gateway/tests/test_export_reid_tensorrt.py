@@ -107,12 +107,24 @@ class TestReidServesThroughTensorRT:
         assert "gpus: [ 0 ]" in patched
 
     def test_entrypoint_links_the_version_dir_untouched(self) -> None:
-        """§0c symlinks whatever version dir the cache holds and its header
-        already names .plan — pin the model-agnostic shape so the plan drop-in
-        needs no entrypoint edit."""
+        """§0c symlinks whatever version dir the cache holds — pin the LINK
+        COMMAND, not a substring.
+
+        The first version of this test asserted `".plan" in entrypoint`, which
+        the fresh-context review killed: that substring is satisfied by the
+        file's comment header (`# Exported model files (.onnx, .plan, .data)`),
+        so deleting the actual `ln -sf` line left the test green — a name that
+        promises a pin and holds none. What the plan drop-in actually depends on
+        is that §0c links the whole version dir (so `model.plan` and its
+        `.device` sidecar arrive with no entrypoint edit) and does NOT filter by
+        extension.
+        """
         entrypoint = ENTRYPOINT.read_text()
         assert 'cache_version="${model_dir}1"' in entrypoint
-        assert ".plan" in entrypoint
+        assert 'ln -sf "$cache_version" "${repo_model}/1"' in entrypoint
+        # Model-agnostic: the loop iterates the cache, so no per-model case list
+        # may grow a "reid" special case that could disagree with the bake.
+        assert re.search(r'for model_dir in "\$MODEL_CACHE"/\*/;', entrypoint)
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +171,11 @@ class TestPlanBuilder:
         assert "--minShapes=input:1x3x256x128" in cmd
         assert "--optShapes=input:8x3x256x128" in cmd
         assert "--maxShapes=input:16x3x256x128" in cmd
-        assert "--fp16" in cmd  # yolo26's shipped engine is fp16; so is this one by default
+        # fp16 is the idiom ruling 107 names. It is NOT "because yolo26's engine
+        # is fp16": yolo26 still serves backend "onnxruntime" and its .engine
+        # comes from Ultralytics (copy_yolo26_engine.py), so there is no shipped
+        # trtexec plan in this tree to inherit a default from — this is the first.
+        assert "--fp16" in cmd
         assert plan.exists()
 
     def test_fp32_precision_omits_the_fp16_flag(self, tmp_path: Path) -> None:
@@ -215,6 +231,86 @@ class TestPlanBuilder:
         with pytest.raises(RuntimeError):
             export_reid.build_tensorrt_engine(
                 str(onnx), str(plan), trtexec="/usr/bin/trtexec", run=failing_run
+            )
+        assert not plan.exists()
+
+    def test_a_builder_that_reports_success_but_wrote_no_plan_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """The exit code of a subprocess is the one signal that cannot be trusted
+        alone: trtexec can return 0 and write nothing (disk full, OOM-killed
+        child, a flag it parses but cannot act on). `export_all.sh` counts a
+        builder success as PASS and writes the `.device` sidecar from it, so a
+        returncode-only path would record "this card built the plan" for a card
+        that built nothing — and Triton then has no `model.plan` to load.
+
+        Every OTHER fixture in this file that yields returncode 0 also writes the
+        file, which is exactly why this case had no coverage: deleting the
+        `engine.is_file()` guard left the whole suite green. This is that mutant.
+        """
+        def lying_run(cmd: list[str], *args: object, **kwargs: object) -> SimpleNamespace:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        onnx = tmp_path / "model.onnx"
+        onnx.write_bytes(b"fake onnx")
+        plan = tmp_path / "model.plan"
+        with pytest.raises(RuntimeError, match="wrote no plan"):
+            export_reid.build_tensorrt_engine(
+                str(onnx), str(plan), trtexec="/usr/bin/trtexec", run=lying_run
+            )
+        assert not plan.exists()
+
+    def test_no_builder_on_this_host_names_where_it_looked(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The skip-vs-fail split in export_all.sh turns on whether a builder
+        exists, so the finder's own refusal has to be legible: an operator told
+        only "trtexec not found" cannot tell a PATH problem from an uninstalled
+        toolkit, and the shell gate mirrors this same candidate list (F7).
+
+        Hermetic by construction: the candidate list is repointed at paths that
+        cannot exist, so the test does not assume the runner lacks TensorRT.
+        """
+        missing = (str(tmp_path / "nowhere" / "trtexec"), str(tmp_path / "alsonowhere" / "trtexec"))
+        monkeypatch.setattr(export_reid, "TRTEXEC_CANDIDATES", missing)
+        monkeypatch.setattr(export_reid.shutil, "which", lambda _n: None)
+        onnx = tmp_path / "model.onnx"
+        onnx.write_bytes(b"fake onnx")
+        with pytest.raises(RuntimeError, match="not found") as excinfo:
+            export_reid.build_tensorrt_engine(
+                str(onnx),
+                str(tmp_path / "model.plan"),
+                trtexec=None,
+                run=lambda *a, **k: SimpleNamespace(returncode=0, stdout="", stderr=""),
+            )
+        for candidate in missing:
+            assert candidate in str(excinfo.value)
+
+    def test_a_kill_during_the_build_leaves_no_husk(self, tmp_path: Path) -> None:
+        """A build that never reported an exit code — the 600s timeout, SIGKILL,
+        Ctrl-C at the worst moment — can leave a HALF-WRITTEN plan at the
+        destination, and entrypoint §0c links the whole version dir, so Triton
+        would be handed a husk as a model.
+
+        The cleanup has to live in the frame that STARTED the build: an earlier
+        shape put it in main()'s exception handler, which also runs for the
+        provenance refusals — and those run BEFORE any build, when
+        `--output-path` may be the plan a serving gateway is linked to right now.
+        A guard trip then destroyed a healthy artifact instead of declining to
+        touch it. That asymmetry is what this test and
+        `test_a_guard_refusal_leaves_an_existing_plan_alone` pin together.
+        """
+        def timing_out(cmd: list[str], *args: object, **kwargs: object) -> SimpleNamespace:
+            out = next(a for a in cmd if a.startswith("--saveEngine="))[len("--saveEngine=") :]
+            Path(out).write_bytes(b"half a plan")  # what the kernel had flushed
+            raise subprocess.TimeoutExpired(cmd=cmd, timeout=kwargs.get("timeout", 600))  # type: ignore[arg-type]
+
+        onnx = tmp_path / "model.onnx"
+        onnx.write_bytes(b"fake onnx")
+        plan = tmp_path / "model.plan"
+        with pytest.raises(subprocess.TimeoutExpired):
+            export_reid.build_tensorrt_engine(
+                str(onnx), str(plan), trtexec="/usr/bin/trtexec", run=timing_out
             )
         assert not plan.exists()
 
@@ -481,20 +577,76 @@ class TestPlanModeKeepsProvenanceVouching:
     def test_a_plan_the_builder_failed_to_write_does_not_ship(
         self, version_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Nothing half-built lands in the version dir the entrypoint will link."""
+        """Nothing half-built lands in the version dir the entrypoint will link.
+
+        The injection point here is the SUBPROCESS boundary, not the builder
+        function. The cleanup lives inside `build_tensorrt_engine` (the only
+        frame that knows a build started — see
+        `test_a_guard_refusal_leaves_an_existing_plan_alone` for why it cannot
+        live in `main()`), so stubbing the builder out would test a fake that
+        never had the contract, and passing on it would prove nothing. The real
+        builder runs against a `trtexec` that leaves a husk and reports failure.
+        """
         ckpt = self._write_checkpoint(tmp_path / "osnet_ain_x1_0_msmt17.pth")
         self._write_record_for(version_dir / "model.onnx", ckpt)
+        real_builder = export_reid.build_tensorrt_engine
+        builds: list = []
 
-        def failing_builder(onnx: str, plan: str, **kw: object) -> str:
-            Path(plan).write_bytes(b"partial garbage")  # trtexec can leave a husk
-            raise RuntimeError("trtexec failed")
+        def failing_run(cmd: list, *a: object, **k: object) -> SimpleNamespace:
+            builds.append(list(cmd))
+            out = next(x for x in cmd if x.startswith("--saveEngine="))[len("--saveEngine=") :]
+            Path(out).write_bytes(b"partial garbage")  # trtexec can leave a husk
+            return SimpleNamespace(returncode=1, stdout="", stderr="ERR")
 
-        monkeypatch.setattr(export_reid, "build_tensorrt_engine", failing_builder)
+        def real_builder_with_failing_subprocess(onnx: str, plan: str, **kw: object) -> str:
+            return real_builder(onnx, plan, trtexec="/usr/bin/trtexec", run=failing_run)
+
+        monkeypatch.setattr(
+            export_reid, "build_tensorrt_engine", real_builder_with_failing_subprocess
+        )
         self._argv(monkeypatch, ckpt, version_dir / "model.plan")
 
         assert export_reid.main() == 1
-        assert not (version_dir / "model.plan").exists()  # main() must clean the husk
+        # Witness that a build ACTUALLY started, so this cannot pass by refusing:
+        # every guard raises before this point, so a guard trip would leave
+        # `builds` empty and the "no plan shipped" assertion below would be the
+        # vacuous shape the fresh-context review flagged.
+        assert len(builds) == 1, builds
+        assert not (version_dir / "model.plan").exists()  # the builder cleaned its own husk
         assert (version_dir / "provenance.json").exists()  # the ONNX's record stands
+
+    def test_a_guard_refusal_leaves_an_existing_plan_alone(
+        self, version_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The other half of the rollback contract, and the defect F3 found.
+
+        Every guard in plan mode raises BEFORE a build starts, and a rerun of the
+        bake over a cache that already has a working `model.plan` is the ordinary
+        case — the checkpoint got replaced, or a record was hand-edited, and the
+        operator reruns to find out it does not match. The refuse-then-unlink
+        shape that `main()`'s handler used to have deleted the plan the gateway
+        is linked to at that moment: entrypoint §0c points Triton at the version
+        dir, so a guard trip took a serving model offline. Declining to build is
+        not the same operation as destroying what is already there.
+
+        The refusal tests above assert `not plan.exists()` against a fixture that
+        never created a plan, so they cannot tell "refused cleanly" from "refused
+        by deleting the previous artifact". This one puts a plan there first.
+        """
+        ckpt = self._write_checkpoint(tmp_path / "osnet_ain_x1_0_msmt17.pth")
+        other = self._write_checkpoint(
+            tmp_path / "replaced.pth", content=b"a NEWER checkpoint"
+        )
+        self._write_record_for(version_dir / "model.onnx", other)  # record: the OTHER weights
+        live_plan = version_dir / "model.plan"
+        live_plan.write_bytes(b"the plan the gateway is serving right now")
+        built = self._builder_available(monkeypatch)
+
+        self._argv(monkeypatch, ckpt, live_plan)
+        assert export_reid.main() == 1
+        assert built == [], "the guard let a build start"
+        assert live_plan.read_bytes() == b"the plan the gateway is serving right now"
+        assert (version_dir / "provenance.json").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -639,8 +791,11 @@ class TestExportAllOnAHost:
         assert r.rc == 0, r.out
         assert host["plan"].is_file(), "the bake produced no plan"
         assert "TensorRT plan" in r.out and "     OK" in r.out, r.out
-        # The sidecar records WHICH GPU the engine was compiled for (F6).
-        assert host["sidecar"].read_text().strip() == self.HOST_GPU
+        # The sidecar records what the plan was built against: GPU name on line 1,
+        # precision on line 2. Both are needed — a record with only a GPU name
+        # cannot tell an fp16 plan from the fp32 one an REID_PLAN_PRECISION=fp32
+        # rerun asked for, and would call the fp16 build CACHED forever.
+        assert host["sidecar"].read_text().splitlines() == [self.HOST_GPU, "fp16"]
         # The captured argv is the real command line the owner's bake runs.
         argv = host["argv"].read_text()
         assert "--fp16" in argv
@@ -656,6 +811,15 @@ class TestExportAllOnAHost:
         assert r.rc == 0, r.out
         assert "TensorRT plan... CACHED" in r.out
         assert host["argv"].read_text() == argv_before, "a cached plan was rebuilt"
+        # ...and the TALLY it just printed. The self-review's mutation battery
+        # found this as its one surviving gap: a cache hit that incremented
+        # PASS_COUNT instead of SKIP_COUNT left 26 of 27 tests green, because the
+        # rerun test checked the echo, the exit code and "no rebuild" but never
+        # the numbers — and the exit code is gated on FAIL_COUNT alone, so the
+        # mutant degrades the report the operator acts on, not the return code.
+        # A CACHED GPU step is skipped work: it belongs in Skipped, never Passed.
+        assert "  Passed: 0" in r.out, r.out
+        assert "  Skipped: 4" in r.out, r.out  # 3 seeded ONNXes + the cached plan
 
     def test_a_plan_from_a_different_gpu_is_stale_not_cached(self, host: dict) -> None:
         assert self._run(host).rc == 0
@@ -667,7 +831,154 @@ class TestExportAllOnAHost:
         # The sidecar names the card that built the plan that EXISTS now — the
         # rebuild happened on the second card, so that is what it must say, or
         # the next run on either host mis-classifies the artifact again.
-        assert host["sidecar"].read_text().strip() == "GB300-second-card"
+        assert host["sidecar"].read_text().splitlines() == ["GB300-second-card", "fp16"]
+
+    def test_a_probe_failure_does_not_read_a_copied_plan_as_cached(self, host: dict) -> None:
+        """F2: the GPU probe is a `|| true`-style swallow, so its failure and a
+        host with no record disagreeing are DIFFERENT events that must not collapse.
+
+        A driver/toolkit skew, a container started without the nvidia runtime hook,
+        or an nvidia-smi that exists but errors all yield an empty probe result —
+        and an empty result compares equal to a missing sidecar's empty record.
+        Under the first shape of this block, that made any plan ever copied into
+        the cache read `CACHED` on exactly the hosts that cannot prove anything
+        about it: the same silent-survival-different-hardware defect the sidecar
+        exists to close, arriving through the probe instead of through the record.
+
+        A failed probe is now reported as one (`GPU PROBE FAILED`), which puts the
+        plan on the stale/rebuild path — and on a host that cannot build, the plan
+        is KEPT with a warning rather than deleted, because deleting it there
+        trades an unverifiable artifact for a definitely-missing one.
+        """
+        assert self._run(host).rc == 0
+        assert host["plan"].is_file() and host["sidecar"].is_file()
+
+        # Every shape the probe fails in: errors, or prints nothing, or no
+        # nvidia-smi at all. All three used to read CACHED.
+        # (broken probe, sidecar content). The sidecar variants matter as much as
+        # the probe variants: the `[ -n "$GPU_NAME" ]` clause is only load-bearing
+        # when the record's GPU line is EMPTY too, because "" vs a real name
+        # already fails the comparison. An empty-named record is therefore a shape
+        # the classifier must never bless even though it is not one the current
+        # script writes — `test_a_build_on_a_probe_failed_host_records_nothing`
+        # pins that the writer stopped producing it.
+        empty_gpu = "\nfp16\n"
+        for broken, recorded in (
+            ("#!/bin/bash\necho 'NVIDIA-SMI has failed because it could not communicate' >&2\nexit 9\n",
+             "NVIDIA GB200\nfp16\n"),
+            ("#!/bin/bash\nexit 0\n", "NVIDIA GB200\nfp16\n"),
+            (None, "NVIDIA GB200\nfp16\n"),
+            ("#!/bin/bash\nexit 0\n", empty_gpu),   # the mutant-killer leg
+            (None, empty_gpu),
+            ("#!/bin/bash\nexit 0\n", ""),          # sidecar exists but is empty
+        ):
+            host["plan"].write_bytes(b"a plan copied from another card")
+            host["sidecar"].write_text(recorded)
+            host["argv"].unlink(missing_ok=True)
+            stub = host["stubs"] / "nvidia-smi"
+            if broken is None:
+                stub.unlink()
+            else:
+                stub.write_text(broken)
+                stub.chmod(0o755)
+            r = self._run(host, trtexec=False)  # a host that cannot rebuild
+            assert r.rc == 0, r.out
+            # Scoped to the PLAN step's own line: the three seeded ONNX exports
+            # print CACHED legitimately, so an unscoped assertion here would fail
+            # for a reason that has nothing to do with the defect under test.
+            assert "TensorRT plan... CACHED" not in r.out, r.out
+            assert "GPU PROBE FAILED" in r.out, r.out
+            # No builder here, so the plan survives — but it is NOT counted as
+            # verified, and the summary still says the GPU step is pending.
+            assert host["plan"].is_file(), r.out
+            assert "the GPU step is unverified, not passed." in r.out, r.out
+            stub.write_text(f"#!/bin/bash\necho '{self.HOST_GPU}'\n")
+            stub.chmod(0o755)
+
+    def test_a_sidecar_less_plan_is_not_verified_but_is_not_deleted(self, host: dict) -> None:
+        """A plan the owner baked by hand (export_reid.py direct, per the README
+        recipe) has no sidecar, so nothing here can say which card built it. The
+        old block `rm -f`'d it on the way through; with no builder on the host that
+        turned a maybe-fine artifact into a missing one that host can never
+        regenerate. Keep it, say it is unverifiable, do not claim CACHED."""
+        assert self._run(host).rc == 0
+        host["plan"].write_bytes(b"hand-baked plan, no sidecar")
+        host["sidecar"].unlink()
+        r = self._run(host, trtexec=False)
+        assert r.rc == 0, r.out
+        assert host["plan"].is_file(), r.out
+        assert "TensorRT plan... CACHED" not in r.out, r.out
+        assert "cannot verify: this host is" in r.out, r.out
+        assert "the GPU step is unverified, not passed." in r.out, r.out
+
+    def test_a_build_on_a_probe_failed_host_records_nothing(self, host: dict) -> None:
+        """The write side of the same rule the CACHED condition enforces.
+
+        A build that succeeds on a host whose `nvidia-smi` cannot answer is real
+        work done in front of us — so this run's verdict may say the exports
+        succeeded, and Triton will load the plan. What it must NOT do is write a
+        sidecar whose GPU-name line is empty: the NEXT bake's failed probe would
+        compare `""` to `""` and call the plan verified-built-here, which is the
+        exact equality the CACHED condition refuses on the read side. No record
+        beats a record that vouches for nothing — and a STALE record left over
+        from an earlier card must be removed too, or it vouches for a plan it did
+        not build.
+
+        (This is why the empty-named record in
+        `test_a_probe_failure_does_not_read_a_copied_plan_as_cached` is treated as
+        hostile input rather than a normal artifact.)
+        """
+        stub = host["stubs"] / "nvidia-smi"
+        stub.write_text("#!/bin/bash\nexit 0\n")  # present, answers, answers nothing
+        stub.chmod(0o755)
+        host["sidecar"].write_text("NVIDIA GB200\nfp16\n")  # stale from an earlier card
+
+        r = self._run(host)
+        assert r.rc == 0, r.out
+        assert host["plan"].is_file(), r.out
+        assert not host["sidecar"].exists(), (
+            "a stale or empty-named sidecar is a false vouch for this plan"
+        )
+        assert "UNRECORDED" in r.out, r.out
+        # The step itself succeeded and we watched it happen; only the audit
+        # trail is missing. That is a different claim from the KEPT branch, where
+        # the plan came from a host nobody here saw.
+        assert "All exports succeeded." in r.out, r.out
+
+        # And the next bake here cannot read what it just built as CACHED: no
+        # record means unverifiable, so it recompiles. Wasteful on an anomalous
+        # host, and wasteful is the correct trade against a false vouch.
+        argv_after_first = host["argv"].read_text()
+        r2 = self._run(host)
+        assert r2.rc == 0, r2.out
+        assert "TensorRT plan... CACHED" not in r2.out, r2.out
+        assert "STALE" in r2.out and "rebuilding" in r2.out, r2.out
+        assert host["argv"].read_text() != argv_after_first, "nothing actually rebuilt"
+
+    def test_the_precision_rerun_rebuilds_on_the_same_card(self, host: dict) -> None:
+        """F4: the body advertises `REID_PLAN_PRECISION=fp32` as the one-flag
+        retry if the owner's parity run lands just under the gate. A GPU-name-only
+        cache test silently makes that advice a no-op: the rerun on the SAME card
+        would print CACHED and keep the fp16 plan, and the operator would report
+        the parity result of a build they never ran.
+
+        `test_the_precision_lever_reaches_the_builder` only exercises a FRESH
+        cache, which is why the interaction went unnoticed.
+        """
+        assert self._run(host).rc == 0
+        argv_fp16 = host["argv"].read_text()
+        assert "--fp16" in argv_fp16
+
+        host["argv"].unlink()
+        r = self._run(host, REID_PLAN_PRECISION="fp32")
+        assert r.rc == 0, r.out
+        assert "STALE" in r.out and "rebuilding" in r.out, r.out
+        argv = host["argv"].read_text()
+        assert "--fp16" not in argv, "the fp32 rerun kept the fp16 plan"
+        assert host["sidecar"].read_text().splitlines() == [self.HOST_GPU, "fp32"], (
+            "the sidecar must record the precision of the plan that EXISTS now, or "
+            "the next run mis-classifies it in the other direction"
+        )
 
     def test_without_tensorrt_the_skip_says_reid_will_not_load(self, host: dict) -> None:
         r = self._run(host, trtexec=False)
@@ -724,6 +1035,24 @@ class TestExportAllNamesThePlanStep:
         plan_at = text.index('REID_PLAN="${CACHE_DIR}/reid/1/model.plan"')
         assert onnx_at < plan_at
 
+    def test_the_shell_gate_mirrors_the_builder_finder(self) -> None:
+        """F7: the skip-vs-fail decision is made by the SHELL, but the builder it
+        is deciding about has its own finder. Two lists, one truth: while
+        `export_all.sh` gated on PATH + /usr/src/tensorrt only, a host whose sole
+        trtexec sat at /usr/local/bin/trtexec got `SKIPPED - no trtexec` from a
+        gate the builder would have contradicted — a silent skip in exactly the
+        regime where the config now demands a plan.
+
+        Textual because the paths are absolute system locations this repo cannot
+        create in a sandbox; the failure mode is a list drifting, and a shared
+        source of truth is what the pin demands.
+        """
+        text = EXPORT_ALL.read_text()
+        gate = text[text.index("have_trtexec()") : text.index("if [ -f \"$REID_PLAN\" ]")]
+        for candidate in export_reid.TRTEXEC_CANDIDATES:
+            assert candidate in gate, f"the shell gate cannot see {candidate}"
+        assert "command -v trtexec" in gate  # PATH, like shutil.which("trtexec")
+
     def test_plan_step_reports_a_host_with_no_tensorrt(self) -> None:
         """A CPU bake (and CI) has no trtexec. It must skip LOUDLY — the config
         now needs a plan to serve reid at all, and a silent skip would leave an
@@ -740,4 +1069,11 @@ class TestExportAllNamesThePlanStep:
         text = EXPORT_ALL.read_text()
         plan_block = text[text.index("REID_PLAN=") : text.index("# Phase 3")]
         assert "FAIL_COUNT=$((FAIL_COUNT + 1))" in plan_block
-        assert plan_block.count("SKIP_COUNT=$((SKIP_COUNT + 1))") == 2  # cached + no-trtexec
+        # cached + kept-unverifiable + no-trtexec. The third site arrived with
+        # F2's fix: a plan this host cannot verify and cannot rebuild is skipped,
+        # not failed — but it is also NOT counted as a pass, which is the mutant
+        # class this line exists to catch (PASS-instead-of-SKIP degrades the
+        # printed tally while leaving the exit code alone). The behavioural pin
+        # for that mutant is the `Skipped: 4` assertion in
+        # test_reruns_skip_a_plan_built_on_this_gpu; this one is its text twin.
+        assert plan_block.count("SKIP_COUNT=$((SKIP_COUNT + 1))") == 3

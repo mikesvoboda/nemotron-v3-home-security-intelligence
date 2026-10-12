@@ -804,7 +804,16 @@ def build_tensorrt_engine(
 
     logger.info("Building the reid TensorRT plan: %s", " ".join(cmd))
     started = time.time()
-    result = runner(cmd, check=False, capture_output=True, text=True, timeout=600)
+    try:
+        result = runner(cmd, check=False, capture_output=True, text=True, timeout=600)
+    except BaseException:
+        # A build that never reported an exit code (600s timeout, SIGKILL,
+        # KeyboardInterrupt) can leave a HALF-WRITTEN plan at the destination,
+        # and the entrypoint links the whole version dir — Triton would be
+        # handed a husk. This is the only place that knows a build was actually
+        # started, so it is the only place that may delete what it started.
+        engine.unlink(missing_ok=True)
+        raise
     if getattr(result, "returncode", 1) != 0:
         engine.unlink(missing_ok=True)
         stdout = getattr(result, "stdout", "") or ""
@@ -961,8 +970,15 @@ def main() -> int:
             logger.info("Person Re-ID TensorRT plan complete")
             return 0
         except Exception as e:
-            # Never leave a partial plan for the entrypoint to link.
-            Path(args.output_path).unlink(missing_ok=True)
+            # Do NOT unlink here. Every guard in compile_plan_from_validated_onnx
+            # raises BEFORE any build starts (wrong filename, no ONNX, no
+            # provenance, zoo/weights mismatch), and at that moment
+            # args.output_path may be the HEALTHY plan the gateway is serving
+            # right now — deleting it turns a refusal into an outage. A build
+            # that actually started cleans up its own husk inside
+            # build_tensorrt_engine, which is the only frame that knows a build
+            # began. (Review F3: the blanket unlink here destroyed the live plan
+            # on a replaced-checkpoint refusal.)
             logger.error(f"Plan build failed: {e}", exc_info=True)
             return 1
 

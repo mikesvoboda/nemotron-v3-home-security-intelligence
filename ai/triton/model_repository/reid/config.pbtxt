@@ -5,6 +5,11 @@
 #   1/model.plan is compiled on the serving host by
 #   ai/gateway/export/export_reid.py --output-path .../model.plan (trtexec), and
 #   entrypoint.sh §0c links it in from /models/cache like every exported model.
+#   "as yolo26's is" is the ruling's INTENT, not a build to copy: yolo26 still
+#   runs backend "onnxruntime" (yolo26/config.pbtxt:14) and its .engine is
+#   produced by Ultralytics and placed by copy_yolo26_engine.py — never by
+#   trtexec. This config is the first dynamic-shape trtexec plan in the repo, so
+#   there is no existing engine in the tree to diff a build against.
 # Upgraded from OSNet-x0.25 to OSNet-AIN x1.0 for 4x better accuracy (NEM-5562)
 # NEM-5551: Promoted from CPU to GPU (~2x speedup, ~9MB on GPU)
 # Input: preprocessed person crop (B, 3, 256, 128) FP32

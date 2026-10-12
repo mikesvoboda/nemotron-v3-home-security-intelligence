@@ -184,24 +184,76 @@ skip_reid_plan() {
     SKIP_COUNT=$((SKIP_COUNT + 1))
 }
 
-if [ -f "$REID_PLAN" ] && [ "$(cat "${REID_PLAN}.device" 2>/dev/null || true)" = "$GPU_NAME" ]; then
+# The sidecar records WHAT the plan was built against, on two lines: the GPU
+# name, then the precision. A cache copied from another card — or another
+# precision — must rebuild, so CACHED requires both to match. An empty
+# GPU_NAME means the probe FAILED (no driver, no nvidia runtime hook, toolkit
+# skew): "" would then equal a missing sidecar's "" and read any plan ever
+# copied in as built-here, forever — the exact silent-survival this file
+# exists to prevent, so CACHED additionally requires a probe that answered.
+SIDECAR="${REID_PLAN}.device"
+REC_GPU="$(sed -n '1p' "$SIDECAR" 2>/dev/null || true)"
+REC_PREC="$(sed -n '2p' "$SIDECAR" 2>/dev/null || true)"
+# One spelling of "what this host is", so no branch can quietly treat a FAILED
+# probe as a host whose GPU name happens to be the empty string (review F2).
+THIS_HOST="${GPU_NAME:-GPU PROBE FAILED}"
+RECORDED="${REC_GPU:-unrecorded GPU}/${REC_PREC:-unrecorded}"
+
+# Same candidate set as export_reid.TRTEXEC_CANDIDATES — a gate narrower than
+# the builder's own finder skips hosts the builder would have served.
+have_trtexec() {
+    command -v trtexec > /dev/null 2>&1 \
+        || [ -x /usr/src/tensorrt/bin/trtexec ] \
+        || [ -x /usr/local/bin/trtexec ]
+}
+
+# What the summary is allowed to claim about the plan step: verified (built
+# here or recorded as such), unverified (a plan is present that this host
+# cannot vouch for), or nothing (no plan at all). Default unset = no plan.
+REID_PLAN_STATE=""
+
+if [ -f "$REID_PLAN" ] && [ -n "$GPU_NAME" ] \
+        && [ "$REC_GPU" = "$GPU_NAME" ] && [ "$REC_PREC" = "$REID_PLAN_PRECISION" ]; then
     echo "  -> OSNet-AIN Re-ID -> TensorRT plan... CACHED (skipping)"
+    REID_PLAN_STATE=verified
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+elif [ -f "$REID_PLAN" ] && ! have_trtexec; then
+    # No builder to replace what we would delete: leave the plan and say what
+    # we cannot verify. Deleting here (the old shape) turned an unverifiable
+    # cache into a definitely-missing one on hosts that can never rebuild.
+    echo "  -> OSNet-AIN Re-ID -> TensorRT plan... KEPT (no builder here; cannot verify: this host is '${THIS_HOST}', the plan records '${RECORDED}')"
+    REID_PLAN_STATE=unverified
     SKIP_COUNT=$((SKIP_COUNT + 1))
 else
     if [ -f "$REID_PLAN" ]; then
-        # A plan built for a different card: Triton cannot load it, and leaving
-        # it "cached" would make a GPU migration fail silently.
-        echo "  -> OSNet-AIN Re-ID -> TensorRT plan... STALE (built for '$(cat "${REID_PLAN}.device" 2>/dev/null || echo 'unrecorded GPU')', this host is '${GPU_NAME:-no GPU}') — rebuilding"
+        # Stale by GPU, by precision, or unverifiable (probe failed / no
+        # sidecar): Triton cannot load a plan from a different card, and an
+        # fp16 plan is not what an REID_PLAN_PRECISION=fp32 rerun asked for.
+        echo "  -> OSNet-AIN Re-ID -> TensorRT plan... STALE (built for '${RECORDED}', this host is '${THIS_HOST}' at ${REID_PLAN_PRECISION}) — rebuilding"
         rm -f "$REID_PLAN"
     else
         echo "  -> OSNet-AIN Re-ID -> TensorRT plan..."
     fi
     mkdir -p "$(dirname "$REID_PLAN")"
-    if ! command -v trtexec > /dev/null 2>&1 && [ ! -x /usr/src/tensorrt/bin/trtexec ]; then
+    if ! have_trtexec; then
         skip_reid_plan
     elif build_reid_plan; then
         echo "     OK"
-        echo "$GPU_NAME" > "${REID_PLAN}.device"
+        if [ -n "$GPU_NAME" ]; then
+            printf '%s\n%s\n' "$GPU_NAME" "$REID_PLAN_PRECISION" > "$SIDECAR"
+        else
+            # The build happened HERE, in front of us — but we cannot record
+            # WHICH GPU did it, and a sidecar whose name line is empty is worse
+            # than no sidecar: the next bake's failed probe would compare "" to
+            # "" and read this plan as verified-here, which is the very equality
+            # the CACHED condition above refuses. Write no record, and drop any
+            # stale one so it cannot vouch for a plan it did not build. The next
+            # bake then handles this plan the way it handles any unrecorded one.
+            rm -f "$SIDECAR"
+            echo "     WARNING: GPU probe failed — the plan is built but UNRECORDED;" \
+                 "the next bake here cannot tell which GPU built it."
+        fi
+        REID_PLAN_STATE=verified
         PASS_COUNT=$((PASS_COUNT + 1))
     else
         echo "     FAILED"
@@ -267,15 +319,26 @@ if [ "$FAIL_COUNT" -gt 0 ]; then
     exit 1
 fi
 
-if [ ! -f "${CACHE_DIR}/reid/1/model.plan" ]; then
+if [ "$REID_PLAN_STATE" = verified ]; then
+    echo "  All exports succeeded."
+elif [ "$REID_PLAN_STATE" = unverified ]; then
+    # A plan is present, so Triton may well load it — but THIS host could not
+    # establish which GPU built it (probe failed, or no sidecar), and it had no
+    # builder to rebuild with. The step line said so; the verdict must not erase
+    # it, for the same reason the plan-less case below prints "pending": this
+    # file's own rule is that a skipped GPU step is not a passed one, and a
+    # GPU step this host could only take on faith is further from passed than a
+    # skipped one.
+    echo "  WARNING: the reid plan is present but UNVERIFIED on this host" \
+         "(no builder, and no sidecar match to prove which GPU built it)."
+    echo "  ONNX exports complete; the GPU step is unverified, not passed."
+else
     # The step line warned; the VERDICT must not erase it. A plan-less cache is
     # not "all exports succeeded" — reid/config.pbtxt loads backend "tensorrt"
     # and has nothing to load (O2.4, ruling 107).
     echo "  WARNING: no reid plan in this cache — reid will NOT load" \
          "(backend \"tensorrt\" needs 1/model.plan built ON the serving GPU)."
     echo "  ONNX exports complete; the GPU step is pending, not passed."
-else
-    echo "  All exports succeeded."
 fi
 echo "  Run 'tritonserver --model-repository=${REPO_DIR}' to load models."
 echo ""
