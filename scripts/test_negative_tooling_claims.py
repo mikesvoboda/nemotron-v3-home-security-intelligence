@@ -695,7 +695,7 @@ class NegativeToolingClaims(unittest.TestCase):
         The failure mode is a broken pattern or a broken scan frame producing zero
         claims, which reads identical to a clean docs/. An exact count would make an
         honest docs deletion red, so the floor sits below the measured population at
-        this head (4 claims in scope). The real teeth are in the two synthetic tests
+        this head (3 claims in scope, per `anchor_census()["decided"]`). The real teeth are in the two synthetic tests
         below: they prove the pipeline has teeth without depending on a defect
         surviving in the tree — a gate that asserts its own bug is still present is a
         gate that has to be weakened the moment the bug is fixed.
