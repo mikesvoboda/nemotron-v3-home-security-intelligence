@@ -128,7 +128,9 @@ class TestWalkOnRealData(_CiYml):
         # adding 3 edges is the fix; the count must not silently balloon
         # 30 -> 31 adjudicated in the DOCS-NJT commit that pressed it: the
         # negative-tooling-claims gate moved into ci.yml as its OWN job per the
-        # hot-file rule (50-coordination.md:400), and a direct need is the only
+        # hot-file rule (50-coordination.md, "Hot files" row — cited by row,
+        # not line: that file is hot prose and renumbers every owner plan PR),
+        # and a direct need is the only
         # edge WP0.6 accepts for a red-able job — a bare `needs:` an
         # intermediate never reads carries no red (see result_checked_needs in
         # test_ci_job_graph.py). Same doctrine as the suppression ratchet: a
@@ -226,4 +228,72 @@ class TestAntiRotBatteryHasAFloor(_CiYml):
             f"anti-rot battery holds {len(paths)} suites, floor is 33 — a suite "
             "left the battery. A missing FILE already reddens pytest; a dropped "
             "ARGV entry is invisible, which is what this floor is for."
+        )
+
+
+class TestNegativeClaimsJobWired(_CiYml):
+    """DOCS-NJT's own wiring, pinned from OUTSIDE the job it defends.
+
+    The gate test (scripts/test_negative_tooling_claims.py) cannot self-pin: a
+    job that is deleted runs nothing, so an assertion living inside it fails to
+    fire on the exact edit it is meant to catch. This file is the assertion's
+    only sound home — it runs in `collection-sanity`, which has no `needs:` and
+    no path filter, so it executes on every non-draft PR (a ci.yml-only edit
+    included) whatever else is deleted.
+
+    Teeth, measured rather than asserted: deleting the job + its `needs:` entry
+    + its check_job line leaves `test_ci_job_graph.py` GREEN (it reported "42
+    jobs, gate reaches 38" on that mutant — a closed-world checker cannot see a
+    whole-gate deletion, only a half-delete). These three assertions close
+    exactly that gap.
+    """
+
+    JOB = "docs-negative-claims"
+    SUITE = "scripts/test_negative_tooling_claims.py"
+    # The published leg name — what a reviewer must type into the checks list.
+    # GitHub publishes a leg under the job's `name:`, never its YAML key, so a
+    # drift between the two strings below is the "I can't find the check" bug.
+    LEG = "Negative Tooling Claims in Docs (DOCS-NJT)"
+
+    def test_the_job_still_exists_and_runs_the_suite(self) -> None:
+        job = self.jobs.get(self.JOB)
+        assert job is not None, (
+            f"{self.JOB} has vanished from ci.yml — the negative-claim gate is "
+            "now running in no job at all (this pin lives in collection-sanity "
+            "precisely so the deletion cannot be silent)"
+        )
+        argv = " ".join(
+            str(step.get("run", "")) for step in job.get("steps", []) or []
+        )
+        assert self.SUITE in argv, f"{self.SUITE} no longer invoked by {self.JOB}"
+        assert job.get("name") == self.LEG, (
+            f"{self.JOB}'s leg name is {job.get('name')!r}, not {self.LEG!r} — "
+            "docs and PR bodies tell reviewers to search for the leg name"
+        )
+
+    def test_ci_gate_needs_it_and_reads_its_result(self) -> None:
+        # Both halves: a `needs:` edge alone is ORDERING, only a result read is
+        # GATING (AUDIT §2.1).
+        assert self.JOB in _needs_of(self.jobs["ci-gate"]), (
+            f"ci-gate no longer needs {self.JOB} — a red in it cannot flip the "
+            "required context"
+        )
+        gate_run = "\n".join(
+            step.get("run", "") for step in self.jobs["ci-gate"]["steps"] if step.get("run")
+        )
+        assert f"needs.{self.JOB}.result" in gate_run, (
+            f"ci-gate needs {self.JOB} but never reads its result"
+        )
+
+    def test_check_job_line_names_the_leg_the_job_publishes(self) -> None:
+        gate_run = "\n".join(
+            step.get("run", "") for step in self.jobs["ci-gate"]["steps"] if step.get("run")
+        )
+        line = next(
+            (ln for ln in gate_run.splitlines() if f"needs.{self.JOB}.result" in ln), ""
+        )
+        assert f'"{self.LEG}"' in line, (
+            f"ci-gate's check_job line for {self.JOB} does not print its "
+            f"`name:` ({self.LEG!r}) — the aggregated report and the checks "
+            f"list would disagree about what to look for:\n  {line.strip()}"
         )

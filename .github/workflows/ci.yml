@@ -3693,20 +3693,29 @@ jobs:
           if-no-files-found: warn
 
   # DOCS-NJT: the negative-tooling-claim gate as ITS OWN job, per the hot-file
-  # rule (50-coordination.md:400 — a new check on ci.yml is its own job or its
-  # own workflow file, never an edit to a shared one). It ran here as a path
-  # appended to collection-sanity's battery line; that was the shape :400
-  # forbids. It was also the only entry in that list that did not have its own
-  # line: the list is 31 entries at origin/main and a per-line count of `.py`
-  # paths finds exactly one path per line in all 31 — mine alone doubled up on a
-  # neighbour's. (Cited by structure, not by line range: a `ci.yml:N` cite in
-  # this file drifts the moment anyone inserts a line above it.)
-  # Why a job here and not its own workflow file: branch protection requires
-  # exactly one context, `CI Gate (Required Checks)` (read live from
-  # /branches/main/protection), so a red in a standalone file gates nothing —
-  # the class WP1.2 fixed by pulling ten standalone security jobs into ci.yml's
-  # gate graph. Own job + direct need + check_job is the wiring the WP0.6
-  # invariant accepts.
+  # rule (50-coordination.md, "Hot files" row — cited by row, not line: that
+  # file is hot prose and renumbers every owner plan PR. A new check on ci.yml
+  # is its own job or its own workflow file, never an edit to a shared one).
+  # It ran here as a path appended to collection-sanity's battery line; that was
+  # the shape the rule forbids. It was also the only entry in that list that did
+  # not have its own line: the list is 31 entries at origin/main and a per-line
+  # count of `.py` paths finds exactly one path per line in all 31 — mine alone
+  # doubled up on a neighbour's. (Cited by structure, not by line range: a
+  # `ci.yml:N` cite in this file drifts the moment anyone inserts a line above
+  # it.)
+  # Why the JOB lives here, not in its own workflow file: `needs:` is file-local,
+  # so ci-gate can only need a job declared in this file, and branch protection
+  # requires exactly one context, `CI Gate (Required Checks)` (read live from
+  # /branches/main/protection). A second workflow file would have to make its OWN
+  # check name required to gate anything — which is the shape WP1.2 removed. Note
+  # this is about the job's DECLARATION site, not its body: six jobs here already
+  # delegate their work to a reusable file with job-level
+  # `uses: ./.github/workflows/x.yml` and are still gated — the four security-*
+  # (gitleaks/sast/trivy/dependency-audit) are DIRECT ci-gate needs, the two
+  # integration-shard callers reach it transitively through
+  # integration-coverage-merge / integration-tests-summary. Gating follows the
+  # need+result-read edge, not the file the body sits in. This suite needs no
+  # reuse, so it takes the plain job here, where a direct need is one line.
   # Placed last in the job block but BEFORE ci-gate, which stays the file's
   # final job. Deliberately no `ci.yml:N` cite anywhere in this block: this
   # package's own gate class is stale line numbers, and a comment citing its own
@@ -3715,14 +3724,20 @@ jobs:
   # cite-neutrality argument lives in the PR instead (measured there: no document
   # cites a ci.yml line above 3676 at origin/main, so a job placed here re-anchors
   # nothing).
-  # The step mirrors collection-sanity's battery invocation exactly — same uv
-  # project env, same `-m pytest … -q` shape — because this suite's
+  # The step mirrors collection-sanity's battery INVOCATION (same `uv run python
+  # -m pytest … -q` shape, same project env) — because this suite's
   # @pytest.mark.timeout needs the project's pytest-timeout, and because this
-  # is the recipe that actually runs, not one I guessed.
+  # is the recipe that actually runs, not one I guessed. It does NOT mirror the
+  # timeout. `uv run` syncs the project env on first use and setup-uv caches
+  # nothing unless `enable-cache: true` is passed (neither job passes it), so the
+  # job's floor is that sync, not the suite's measured 3.4 s — and 5 was the
+  # repo's cheap-job timeout, chosen for a job whose whole cost is one suite.
+  # collection-sanity gets 15 for the same sync plus 31 suites; 10 is sync plus
+  # one with room for a slow runner.
   docs-negative-claims:
     name: Negative Tooling Claims in Docs (DOCS-NJT)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -3828,9 +3843,11 @@ jobs:
       # review, not a silent edit.
       - feature-check
       # DOCS-NJT: docs' negative-tooling-claim gate. Own job per the hot-file
-      # rule (50-coordination.md:400: a new check is its own job, never an edit
-      # to a shared one) — direct need + check_job below, the only wiring
-      # scripts/test_ci_job_graph.py's WP0.6 invariant accepts for a red-able job.
+      # rule (50-coordination.md, "Hot files" row — cited by row, not line: the
+      # file is edited by every owner plan PR, so a line cite here drifts while
+      # still looking plausible) — direct need + check_job below, the only
+      # wiring scripts/test_ci_job_graph.py's WP0.6 invariant accepts for a
+      # red-able job.
       - docs-negative-claims
     if: always()
     steps:
