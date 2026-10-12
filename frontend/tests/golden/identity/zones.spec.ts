@@ -234,18 +234,53 @@ test.describe('DO-3 zones golden path', () => {
     const h = harness as Harness;
     const api = await signIn(page, h);
 
-    // --- API leg first, so a blank screen cannot pass as "renders". ---
-    const cameras = await api.getJson('/api/cameras');
-    expect(cameras.status, 'GET /api/cameras answers 200').toBe(200);
-    const items = cameras.body?.items;
+    // --- Which camera does the PAGE use? Observed, not assumed. ---
+    // The page hardcodes it: `const firstCameraId = cameras[0]?.id`
+    // (ZonesPage.tsx:416) with no selector anywhere on /zones, so a spec cannot
+    // choose — it can only learn. Taking items[0] from the spec's own GET is
+    // what this file used to do, and golden run 8 (hsi-check-20261012001430-
+    // 93da95) falsified that: the page read `cat_on_porch` and the spec wrote to
+    // another camera, so the cards leg timed out against an honest empty page.
+    // The list route has no ORDER BY (list_cameras,
+    // backend/api/routes/cameras.py:151), so two unordered scans of one table
+    // are free to disagree; spec and page DO share the cache key
+    // (CacheKeys.cameras_list_by_status at cameras.py:194), which is
+    // why the fix is to READ the page's choice rather than to re-derive it.
+    const apiCams = await api.getJson('/api/cameras');
+    expect(apiCams.status, 'GET /api/cameras answers 200').toBe(200);
+    const seeded = (apiCams.body?.items ?? []).map((c: { id: unknown }) => String(c.id));
     expect(
-      Array.isArray(items) && items.length > 0,
-      `the stack seeds cameras, got ${JSON.stringify(cameras.body)}`
-    ).toBe(true);
-    // ASSUMED, not pinned: the page reads cameras[0]?.id (ZonesPage.tsx:416) —
-    // same endpoint and index, unordered at the source (cameras.py:151). Run 8
-    // falsified it: this file's :279 saw the empty-state copy (want 0, got 1).
-    const cameraId = String(items[0].id);
+      seeded.length,
+      `the stack seeds cameras, got ${JSON.stringify(apiCams.body)}`
+    ).toBeGreaterThan(0);
+
+    // The page's own zones fetch, captured before the navigation that triggers
+    // it. The matcher must EXCLUDE the TanStack placeholder cameras — it is the
+    // same /api/cameras/{id}/zones shape, and it answers 404 (6 times per run in
+    // BOTH the green and the red run, so it discriminates nothing; run 7 and run
+    // 8 compose.log both grep -c 6). A predicate that can never fire is worse
+    // than a wrong assert, so this one is pinned by apiPath equality, the
+    // harness's own rule (harness.ts:198-212).
+    const pageZonesCall = page
+      .waitForResponse((r) => {
+        const m = /^\/api\/cameras\/([^/]+)\/zones$/.exec(apiPath(r.url()));
+        return !!m && !m[1].startsWith('placeholder-') && r.status() === 200;
+      })
+      .catch(() => null);
+
+    await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
+    const firstMount = await pageZonesCall;
+    expect(firstMount, 'the page fetches its camera zones on mount').not.toBeNull();
+    const cameraId = decodeURIComponent(
+      /^\/api\/cameras\/([^/]+)\/zones$/.exec(apiPath(firstMount!.url()))![1]
+    );
+    // The observation is cross-checked against the spec's own camera list, so a
+    // matcher that bound to something other than a seeded camera fails HERE,
+    // where the reason is legible, instead of at a card count five seconds later.
+    expect(
+      seeded,
+      `the page's camera ${cameraId} is one the stack seeded (${seeded.join(', ')})`
+    ).toContain(cameraId);
 
     const before = await api.getJson(`/api/cameras/${cameraId}/zones`);
     expect(before.status, 'GET /api/cameras/{id}/zones answers 200').toBe(200);
@@ -270,9 +305,30 @@ test.describe('DO-3 zones golden path', () => {
     expect(createdB.status, 'POST zone B answers 201').toBe(201);
     const zoneB = String(createdB.body?.id);
 
+    // Second mount, second observation. The page re-reads /api/cameras on every
+    // mount and the scan is unordered, so mount 2 is free to resolve a DIFFERENT
+    // cameras[0] than mount 1 did — and then the cards leg would fail against an
+    // honest empty page for the same reason run 8 did. Capturing this fetch
+    // first means that scenario fails here, naming the two cameras, instead of
+    // timing out on a card count.
+    const secondMountCall = page
+      .waitForResponse((r) => {
+        const m = /^\/api\/cameras\/([^/]+)\/zones$/.exec(apiPath(r.url()));
+        return !!m && !m[1].startsWith('placeholder-') && r.status() === 200;
+      })
+      .catch(() => null);
+
     try {
       await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('zones-page')).toBeVisible();
+      const secondMount = await secondMountCall;
+      expect(secondMount, 'the page fetches its camera zones again on remount').not.toBeNull();
+      expect(
+        decodeURIComponent(
+          /^\/api\/cameras\/([^/]+)\/zones$/.exec(apiPath(secondMount!.url()))![1]
+        ),
+        `the page resolved camera ${cameraId} at first mount and a different one at remount`
+      ).toBe(cameraId);
 
       // 1. Cards: the empty copy is gone, and both cards show the three
       //    fields the row promises.
