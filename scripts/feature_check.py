@@ -831,6 +831,11 @@ _TESTSUITE = re.compile(r"<testsuite\b([^>]*?)(?:/>|>)", re.DOTALL)
 _ATTRIBUTE = re.compile(r'([\w:-]+)="([^"]*)"')
 _CDATA = re.compile(r"<!\[CDATA\[.*?\]\]>", re.DOTALL)
 _SKIP_PROPERTY = re.compile(r"<property\b[^>]*\bname=[\"']skip[\"']")
+# Artifacts the golden Playwright project retains only for a FAILED attempt
+# (frontend/playwright.config.ts: screenshot 'only-on-failure', video
+# 'retain-on-failure'). A trace.zip alone is not one — trace is
+# 'on-first-retry', so it marks a retry without a second failure.
+_FAILURE_ARTIFACTS = ("test-failed", "video.webm", "error-context.md")
 _VERDICT_RANK = {"passed": 0, "skipped": 1, "failed": 2}
 
 
@@ -869,12 +874,17 @@ def junit_results(path: Path) -> dict[str, str]:
       flaky-green.
 
     Neither clause closes the deeper gap: a spec that struck on one attempt
-    and passed on the next is filed as ``passed`` here with no marker of its
-    own, because the reporter collapses attempts before a row exists. Those
-    strikes are visible only in the suite's console text — the
-    ``golden-playwright.log`` this step also writes — never in this map, so a
-    ``passed`` verdict here means "the last attempt passed", not "never
-    struck".
+    and passed on the next is filed ``passed`` here, because the reporter
+    collapses attempts before a row exists and files the outcome as final. It
+    is not, however, unmarked. The golden project's own Playwright config
+    retains artifacts only on failure (``screenshot: 'only-on-failure'``,
+    ``video: 'retain-on-failure'``) and writes a trace only on a retry
+    (``trace: 'on-first-retry'``), so a row that names a ``test-failed*``
+    attachment or a ``-retryN`` directory while carrying no outcome element
+    is a struck-then-recovered spec — ``junit_strikes`` reads exactly that,
+    from this same file. So a ``passed`` verdict here means "the last attempt
+    passed", not "never struck", and the strikes are countable without the
+    console.
     """
     results: dict[str, str] = {}
     for match in _TESTCASE.finditer(_junit_text(path)):
@@ -944,6 +954,49 @@ def junit_totals(path: Path) -> dict[str, int]:
         totals["failed"] += attributes.get("failures", 0) + attributes.get("errors", 0)
         totals["skipped"] += attributes.get("skipped", 0)
     return totals
+
+
+def junit_strikes(path: Path) -> dict[str, int]:
+    """Specs whose JUnit row carries retained failure artifacts, and how many.
+
+    The report cannot tell a struck-then-recovered spec from a clean one by
+    OUTCOME (the reporter files attempts as final), but it can tell it by
+    ARTIFACT, and the golden project's own Playwright config makes that sound:
+    the screenshot and the video are retained only for a failed attempt
+    (``screenshot: 'only-on-failure'``, ``video: 'retain-on-failure'``), so a
+    row naming one failed at least once whatever its element says.
+
+    Counted by retained FAILURE set: an artifact directory holding a
+    ``test-failed*`` screenshot, a ``video.webm`` or an ``error-context.md``.
+    A ``-retryN`` directory holding only a ``trace.zip`` is excluded — it says
+    the spec was retried (``trace: 'on-first-retry'``) without that attempt
+    failing again. Measured against the suite's own console (its per-attempt
+    ``✘`` lines) over 6 real CI reports — 23 failed-attempt marks across 12
+    struck specs — this rule reproduces the count on every one, including the
+    three-strike rate-limit legs and the trace-only retry directories that the
+    naive "one artifact directory per strike" count over-reads.
+
+    This is a record of strikes, not a verdict: a spec whose final outcome is
+    ``failed`` appears here too (it struck on every attempt it ran), so read it
+    beside ``junit_results`` rather than instead of it. The references are
+    printed in ``<system-out>`` CDATA by the reporter, so — unlike the verdict
+    ladder, which strips CDATA precisely so printed output cannot read as an
+    outcome — these are matched in the raw body; a spec that PRINTED a forged
+    ``[[ATTACHMENT|…test-failed-1.png]]`` line would read as struck, which is
+    the same trust the report is already given (it is this run's own file).
+    """
+    strikes: dict[str, int] = {}
+    for match in _TESTCASE.finditer(_junit_text(path)):
+        attributes = {key: html.unescape(value) for key, value in _ATTRIBUTE.findall(match[1])}
+        name = f"{attributes.get('classname', '')}::{attributes.get('name', '')}"
+        retained: set[str] = set()
+        for reference in re.findall(r"\[\[ATTACHMENT\|([^\]]*)\]\]", match[2] or ""):
+            directory, _, artifact = reference.rpartition("/")
+            if any(artifact.startswith(marker) for marker in _FAILURE_ARTIFACTS):
+                retained.add(directory)
+        if retained:
+            strikes[name] = len(retained)
+    return strikes
 
 
 def junit_drift_problems(label: str, path: Path) -> list[str]:
@@ -1722,6 +1775,7 @@ class Run:
             )
             results["backend"] = "ok" if result.returncode == 0 else f"exit {result.returncode}"
             results["backend_specs"] = junit_results(junit)
+            results["backend_strikes"] = junit_strikes(junit)
             problems += junit_drift_problems("backend", junit)
             if result.returncode != 0:
                 problems.append(f"golden: backend/tests/golden exited {result.returncode}")
@@ -1827,6 +1881,7 @@ class Run:
             )
             results["playwright"] = "ok" if result.returncode == 0 else f"exit {result.returncode}"
             results["playwright_specs"] = junit_results(junit)
+            results["playwright_strikes"] = junit_strikes(junit)
             problems += junit_drift_problems("Playwright", junit)
             if result.returncode != 0:
                 problems.append(f"golden: the golden Playwright project exited {result.returncode}")

@@ -1690,6 +1690,156 @@ def test_the_drift_alarm_stays_silent_on_the_shapes_the_parser_handles_well(
     assert fc.junit_drift_problems("golden", printing) == []
 
 
+# The reporter prints each retained artifact as ``[[ATTACHMENT|<path>]]`` inside
+# the row's ``<system-out>`` CDATA (measured verbatim in CI artifact
+# 11721450798). The golden project's config retains a screenshot + video +
+# error-context for every FAILED attempt and a trace for the first retry, so the
+# failure-bearing dirs are the countable record of strikes. These spell exactly
+# that shape; nothing here is invented.
+FAILED_ATTEMPT = ("test-failed-1.png", "video.webm", "error-context.md")
+RETRY_TRACE_ONLY = ("trace.zip",)
+
+
+def _struck_row(
+    classname: str, name: str, attempts: tuple[tuple[str, tuple[str, ...]], ...]
+) -> str:
+    """One ``<testcase>`` whose ``<system-out>`` lists ``attempts``' artifacts.
+
+    ``attempts`` is ``(artifact-directory, file-names)`` per retained folder, in
+    the reporter's own path layout ``golden-playwright/<dir>/<file>``.
+    """
+    refs = "".join(
+        f"[[ATTACHMENT|golden-playwright/{directory}/{artifact}]]\n"
+        for directory, artifacts in attempts
+        for artifact in artifacts
+    )
+    return (
+        f'<testcase classname="{classname}" name="{name}"><system-out><![CDATA[\n'
+        f"{refs}]]></system-out></testcase>"
+    )
+
+
+def test_a_struck_then_recovered_spec_is_counted_as_struck_even_though_it_passed(
+    tmp_path: Path,
+) -> None:
+    """The flaky-green shape FE-2 named: no failure element, yet not clean.
+
+    This is the row the console would show as one ``✘`` then a green retry. The
+    verdict map files it ``passed`` (the reporter collapses attempts to a final
+    outcome, so no ``<failure>`` survives to an element), but the retained
+    screenshot/video/error-context of the first attempt are still named in
+    ``<system-out>``. Reading the failure-bearing dirs recovers the strike the
+    outcome element hides — this is exactly the datum that makes "passed" mean
+    "the last attempt passed", not "never struck".
+
+    Two clauses ride on the single-strike count being exactly 1, not 2: the
+    ``-retry1`` directory is named ONLY a ``trace.zip`` (``trace:
+    'on-first-retry'`` marks a retry, not a second failure), so a naive
+    one-artifact-per-directory count would over-read it as two strikes.
+    """
+    junit = _junit(
+        tmp_path,
+        _struck_row(
+            WS_STATUS,
+            WS_F007,
+            (
+                ("ws-status-ws-status-f007-golden", FAILED_ATTEMPT),
+                ("ws-status-ws-status-f007-golden-retry1", RETRY_TRACE_ONLY),
+            ),
+        ),
+    )
+    assert fc.junit_results(junit) == {f"{WS_STATUS}::{WS_F007}": "passed"}, (
+        "the fixture must model the row the verdict map calls passed"
+    )
+    assert fc.junit_strikes(junit) == {f"{WS_STATUS}::{WS_F007}": 1}, (
+        "a trace-only retry directory is not a second strike"
+    )
+
+
+def test_the_strike_count_tracks_the_number_of_failure_bearing_attempts(tmp_path: Path) -> None:
+    """A three-attempt leg counts three, matching the console's three ✘ lines.
+
+    The rate-limit leg in the real reports strikes three times before recovering;
+    each strike retains its own screenshot, so the count is the failed-attempt
+    count row for row. Measured against the console 6/6 real reports; pinned here
+    on a synthesized three-failure row.
+    """
+    junit = _junit(
+        tmp_path,
+        _struck_row(
+            WS_STATUS,
+            WS_F007,
+            tuple(
+                (f"rate-limit-f007-golden{'' if i == 0 else f'-retry{i}'}", FAILED_ATTEMPT)
+                for i in range(3)
+            ),
+        ),
+    )
+    assert fc.junit_strikes(junit) == {f"{WS_STATUS}::{WS_F007}": 3}
+
+
+def test_a_retry_dir_holding_only_a_trace_is_not_counted_as_a_strike(tmp_path: Path) -> None:
+    """A spec retried by policy that never failed twice adds nothing.
+
+    ``trace: 'on-first-retry'`` writes a trace whenever an attempt is retried,
+    including the one that then passed. If the count keyed on any directory, a
+    single legitimate retry would inflate a clean spec to one strike. This is the
+    negative witness paired with the two positive counts above.
+    """
+    junit = _junit(
+        tmp_path,
+        _struck_row(
+            WS_STATUS,
+            WS_F007,
+            (("ws-status-f007-golden-retry1", RETRY_TRACE_ONLY),),
+        ),
+    )
+    assert fc.junit_strikes(junit) == {}
+
+
+def test_a_clean_spec_carries_no_strikes(tmp_path: Path) -> None:
+    """The empty case: a passed spec that never struck names no artifacts."""
+    junit = _junit(tmp_path, f'<testcase classname="{WS_STATUS}" name="{WS_F007}"/>')
+    assert fc.junit_strikes(junit) == {}
+
+
+def test_the_strikes_are_reported_as_summary_data_not_a_problem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``golden()`` records strikes but does not fail on them.
+
+    This is the load-bearing choice, not a detail. r116's posture is that
+    flaky-green is *handled where it is recoverable*, and the strikes are now
+    recoverable from the report itself — but turning them into a gate would make
+    a spec that struck-then-recovered redden CI, which is a policy change the
+    coordinator has not ruled on (and would reset a queued PR's position for a
+    new class of red). So the strike map is written to ``summary`` as evidence a
+    lane can quote, while ``golden()`` still returns ``[]``. The positive half
+    (the map is populated) and the negative half (the return stays empty) are
+    both asserted, or the wiring could be a gate in disguise.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    leg = tmp_path / "struck"
+    leg.mkdir()
+    run = _golden_only_run(leg, monkeypatch, True, calls)
+    xml = (
+        '<testsuites><testsuite name="golden" tests="1" failures="0" skipped="0">'
+        + _struck_row(
+            WS_STATUS,
+            WS_F007,
+            (("ws-status-f007-golden", FAILED_ATTEMPT),),
+        )
+        + "</testsuite></testsuites>"
+    )
+    (run.artifacts / "golden-playwright.xml").write_text(xml, encoding="utf-8")
+    problems = run.golden()
+    assert problems == [], "a strike must not become a gate consequence"
+    strikes = run.summary["results"]["golden"]["playwright_strikes"]
+    assert strikes == {f"{WS_STATUS}::{WS_F007}": 1}, (
+        "the strike map must actually reach the summary, not be dead code"
+    )
+
+
 def test_the_golden_step_reports_junit_drift_as_a_problem(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

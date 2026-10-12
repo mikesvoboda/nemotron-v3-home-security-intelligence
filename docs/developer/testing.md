@@ -630,11 +630,19 @@ the `ws-status` partition leg under ruling 86, where the host never tears the
 socket down — is reported `skipped`, not `passed`: the reporter collapses the
 struck attempt and writes the skip as a `<property>`, with no `<skipped>`
 element to find. And a spec that **struck on one attempt and passed on the
-next** is reported `passed`, with no marker of its own, because the reporter
-collapses attempts before a JUnit row exists. Those strikes are recoverable only
-from the suite's console text (`golden-playwright.log`, the `N flaky` and `✘`
-marks), never from this map, so a `passed` here means "the last attempt
-passed", not "never struck". The gate is unaffected — it keys Playwright's own
+next** is reported `passed`, because the reporter collapses attempts before a
+JUnit row exists — no outcome element marks the strike. It is not, however,
+unmarked: the golden project's config retains artifacts only on failure
+(`screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`, `trace:
+'on-first-retry'`), so the row still names a `test-failed*` screenshot for each
+attempt that failed, and `junit_strikes` counts them into
+`results.golden.backend_strikes` / `results.golden.playwright_strikes` from that
+same report. A `-retryN` directory naming only a `trace.zip` is excluded (a trace
+marks a retry, not a second failure), and the count was measured to reproduce the
+console's per-attempt `✘` totals row for row on six real reports. So a `passed`
+here means "the last attempt passed", not "never struck" — and the strikes are
+countable without the console, which stands as the cross-check rather than the
+only source. The gate is unaffected — it keys Playwright's own
 exit code, so a green `CI Gate` remains a valid merge witness whatever the map
 says. `junit_drift_problems` guards the separate pattern-parser risk (an
 unreadable row is dropped without an error) by reconciling the map against the
