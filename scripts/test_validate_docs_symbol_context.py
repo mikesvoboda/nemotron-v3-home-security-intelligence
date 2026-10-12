@@ -16,10 +16,16 @@ cli.py keeps only the most severe result per citation (:261-267), the false
 error REPLACES that citation's healthy level-1 pass in the report: prose edits
 turn unrelated, correct citations red.
 
-Base evidence, reproduced two ways at this tree (the PR body originally quoted "9F/3P",
-which matches neither reading): reverting ALL of scripts/validate_docs/ to main gives
-10 failed / 3 passed; reverting only parsers/markdown.py (retaining the config fix)
-gives 6 failed / 7 passed. The suite is genuinely load-bearing either way.
+Base evidence, measured against origin/main with THIS 17-test suite (the PR body first
+quoted "9F/3P", which reproduces no arm; an earlier note said "10F/3P", which the suite has
+since outgrown — these counts move with the test count, so they are bound to THIS revision,
+not a standing property). Reverting BOTH config.py and parsers/markdown.py to main: 13 failed
+/ 4 passed, the 4 green being exactly the positive controls (legit_def, def_inside_a_code_span,
+class_inside_a_code_span, fenced_signature). Reverting only parsers/markdown.py (retaining
+config's word-boundary anchor): 8 failed / 9 passed. Removing ONLY the anchor from config's
+SYMBOL_CONTEXT_PATTERN: 1 failed (test_pattern_anchors_the_keyword_at_a_word_boundary) —
+mid-word's own specimen stays green because the code-span rule now also refuses it, so that
+class has two guards over one example. The suite is load-bearing in every arm.
 
 Census re-measured on THIS tree after the fix landed: over docs/reference +
 docs/uplevel the AST tier reports 5 rows, all warnings (pre-fix, at 1980ae451, the
@@ -261,6 +267,36 @@ def test_the_parser_itself_sets_the_inferred_flag_end_to_end() -> None:
     assert all(c.symbol_inferred for c in inferred), (
         "a name the author never typed must arrive marked as inferred, or the "
         "severity split silently reverts to ERROR-on-English"
+    )
+
+
+def test_frontmatter_source_refs_arrive_declared_not_inferred() -> None:
+    # The companion to the test above, and the one it does NOT cover. That test pins the
+    # PROSE producer (markdown.py's `symbol_inferred=symbol_name is not None`). Declared
+    # symbols come from a different producer — YAML `source_refs:` in frontmatter, whose
+    # `path:symbol:line` entries the parser builds WITHOUT passing symbol_inferred at all,
+    # so they ride the Citation dataclass DEFAULT of False. Nothing pinned that default.
+    # Mutation-proved the hole: flipping `Citation.symbol_inferred: bool = False` to True
+    # left this whole suite green, while across docs/ it silently downgraded 2 REAL
+    # author-declared AST errors (docs/architecture/overview.md:21 `AuditService` and
+    # docs/developer/resilience-patterns.md:8 `DANGEROUS_PATTERNS`) from ERROR to WARNING.
+    # A declared symbol is the tier's one legitimate hard failure; its severity must not
+    # depend on a default nobody asserted. This test runs a real document through the real
+    # parser, so flipping that default REDS it.
+    from scripts.validate_docs.parsers.markdown import extract_markdown_citations
+
+    doc = "docs/developer/resilience-patterns.md"
+    content = (PROJECT_ROOT / doc).read_text(encoding="utf-8")
+    declared = [
+        c
+        for c in extract_markdown_citations(content, doc)
+        if c.file_path.endswith("prompt_sanitizer.py") and c.symbol_name == "DANGEROUS_PATTERNS"
+    ]
+    assert declared, "fixture drifted: DANGEROUS_PATTERNS is no longer a frontmatter source_ref"
+    assert all(c.symbol_inferred is False for c in declared), (
+        "a frontmatter source_ref is a name the author typed; if it arrives marked as "
+        "inferred, every declared-symbol miss is downgraded to a warning and the tier "
+        "stops failing anything the author actually claimed"
     )
 
 
