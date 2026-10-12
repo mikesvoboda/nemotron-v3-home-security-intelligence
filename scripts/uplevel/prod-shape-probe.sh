@@ -89,11 +89,38 @@ start_one ""              "no limits     :"
 start_one "--memory=512m" "with --memory :"
 start_one "--cpus=1"      "with --cpus=1 :"
 
-# --- the bring-up the override makes possible ----------------------------------------
-note "bring-up: docker-compose.prod.yml + prod-shape-override.yml, rootless"
 DC=(docker compose)
 command -v docker >/dev/null || DC=(podman-compose)
 obs "compose CLI: ${DC[*]}"
+
+# --- the negative control: limits kept, ports remapped -------------------------------
+# The spike's headline claim is that the file's resource limits block a rootless bring-up,
+# so a reviewer can watch exactly that fail. The control keeps the prod file's
+# `deploy.resources.limits` and remaps ONLY its ports: publishing the production ports
+# (5432/6379) from a test deployment would be both a UR-133 violation and a collision
+# hazard on a host that runs the live stack, and it would confound the answer with a
+# port error. This is the ports half of prod-shape-override.yml without the deploy reset.
+note "negative control: prod file with ports remapped but limits KEPT"
+cat > "$RUNDIR/ports-only.yml" <<'EOF'
+services:
+  postgres:
+    ports: !override
+      - "15432:5432"
+  redis:
+    ports: !override
+      - "16379:6379"
+EOF
+CTL="$PROJECT-ctl"
+CTLARGS=(-p "$CTL" -f "$COMPOSE" -f "$RUNDIR/ports-only.yml" --env-file "$ENVF")
+if "${DC[@]}" "${CTLARGS[@]}" up -d postgres redis >"$RUNDIR/ctl.log" 2>&1; then
+  obs "limits kept: came up -- the limits are NOT the blocker"
+else
+  obs "limits kept: FAILED -> $(grep -m1 -oE 'rootless needs no limits[^\"]*|Error response from daemon: [^\"]*' "$RUNDIR/ctl.log" | cut -c1-150)"
+fi
+"${DC[@]}" "${CTLARGS[@]}" down -v >/dev/null 2>&1
+
+# --- the bring-up the override makes possible ----------------------------------------
+note "bring-up: docker-compose.prod.yml + prod-shape-override.yml, rootless"
 DUP=1
 # pipefail is on, so the pipeline's status is compose's, not tail's.
 if ! "${DC[@]}" -p "$PROJECT" -f "$COMPOSE" -f "$OVERRIDE" --env-file "$ENVF" up -d postgres redis >"$RUNDIR/up.log" 2>&1; then
