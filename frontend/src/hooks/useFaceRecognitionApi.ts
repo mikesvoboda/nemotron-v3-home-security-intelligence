@@ -45,6 +45,18 @@ import type {
   BulkEnrollmentRequest,
   BulkEnrollmentResponse,
 } from '../types/faceRecognition';
+import type { components } from '../types/generated';
+
+/**
+ * The list endpoint answers this envelope, not a bare array:
+ * `backend/api/routes/face_recognition.py:132` returns
+ * `KnownPersonListResponse(items=items, total=len(items))` and `docs/openapi.json`
+ * declares the same shape (`required: ['items','total']`). `handleResponse` passes a
+ * successful body through untouched, so the envelope has to be unwrapped here —
+ * callers type the result `KnownPerson[]` and call `.filter`/`.find` on it
+ * (`frontend/src/pages/HouseholdPage.tsx:273`, `:972`), which throws on the object.
+ */
+type KnownPersonListResponse = components['schemas']['KnownPersonListResponse'];
 
 // ============================================================================
 // Query Keys
@@ -134,7 +146,8 @@ export async function fetchKnownPersons(): Promise<KnownPerson[]> {
     method: 'GET',
     headers: buildHeaders(),
   });
-  return handleResponse<KnownPerson[]>(response);
+  const body = await handleResponse<KnownPersonListResponse>(response);
+  return body?.items ?? [];
 }
 
 /**
