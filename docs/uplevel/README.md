@@ -67,12 +67,15 @@ landed — except that no Phase 3 package starts before `R2` is `done` (`R2a` an
 start once the owner’s plan PR carrying ruling 86 merges; `R2` is `done` when `R2b` is recorded).
 
 **`R2`, the Phase 2 RULING session.** Ruling 86 split it: `R2a` ran after `F2.1`, over the sheet as it
-stood (recorded #6980, 2026-10-10); `R2b` runs after `F2.3`, so features its golden paths demoted are
-ruled too. The owner walks the sheet `F2.2` prepares. Each half-built or leftover feature is ruled
-**complete** or **retire**; the completes get a priority order; the list of modules serving no
-feature is approved; OD-7 and OD-17 are ruled. **The frontend lane records the session:** one PR
+stood (recorded #6980, 2026-10-10); `R2b` runs in rounds as `F2.3` demotes rows, so features its
+golden paths demoted are ruled too (round 1: owner rulings 127–135, 2026-10-12). A row demoted only
+because the CI stack cannot reach it returns to `unverified`, and `F2.3` reaches it by real tier or
+a seeded golden path (owner ruling 127). The owner walks the sheet `F2.2` prepares. Each half-built
+or leftover feature is ruled **complete** or **retire**; the completes get a priority order; the
+list of modules serving no feature is approved; OD-7 and OD-17 are ruled. **The frontend lane records the session:** one PR
 writes the rulings into the inventory's ruling column and the OD rulings into
-`docs/vss-integration/17-action-plan.md`, and sets the recorded half (`R2a`, then `R2b`) to `done`.
+`docs/vss-integration/17-action-plan.md`, and sets the recorded half (`R2a`, then `R2b`) to `done`;
+`R2b` is `done` when its last round is recorded.
 
 **Phase 4 runs two tracks.** The **feature track** takes features in ruled priority. Each feature
 package opens with a design session for that feature; then a **test-only PR** consolidates the
@@ -92,12 +95,12 @@ continued throughout; it ships no production code.
 
 ## Lanes
 
-| lane         | owns                                                                                                                                                                                                                                                                           |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **backend**  | `backend/` (except `backend/tests/unit/setup_lib/`)                                                                                                                                                                                                                            |
-| **frontend** | `frontend/` (including `frontend/docker-entrypoint.sh`, the nginx config) and the feature inventory                                                                                                                                                                            |
-| **ops**      | `ai/`, compose files, `scripts/` (except the AGENTS.md validator), `.github/`, `setup.py`, `setup_lib/` and its tests, root config files, `archive/`, and the root directories `tests/`, `monitoring/`, `docker/`, `config/`, `env-templates/`, `data/`, `certs/`              |
-| **docs**     | `docs/` (except the feature inventory and `docs/uplevel/`), every `AGENTS.md`, `llms.txt`, `mkdocs.yml`, the root `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md` and `SECURITY.md`, and the AGENTS.md validator (`scripts/agents_md_validator.py`, `.agents-md-validator.yml`) |
+| lane         | owns                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **backend**  | `backend/` (except `backend/tests/unit/setup_lib/`)                                                                                                                                                                                                                                                                                                                            |
+| **frontend** | `frontend/` (including `frontend/docker-entrypoint.sh`, the nginx config) and the feature inventory                                                                                                                                                                                                                                                                            |
+| **ops**      | `ai/`, compose files, `scripts/` (except the AGENTS.md validator), `.github/`, `setup.py`, `setup_lib/` and its tests, root config files, `archive/`, and the root directories `tests/`, `monitoring/`, `docker/`, `config/`, `env-templates/`, `data/`, `certs/`                                                                                                              |
+| **docs**     | `docs/` (except the feature inventory and `docs/uplevel/`), every `AGENTS.md` (except the lines a lane's own change updates, per the cross-lane rule below, owner ruling 121), `llms.txt`, `mkdocs.yml`, the root `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md` and `SECURITY.md`, and the AGENTS.md validator (`scripts/agents_md_validator.py`, `.agents-md-validator.yml`) |
 
 `docs/uplevel/` is shared: each PR updates its own package's status row, and changes to plan text
 are made by the owner or with the owner's approval.
@@ -301,6 +304,9 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
 | W3.3    | docs                    | 3          | Living docs truth                              |               | not started |     |
 | W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | not started |     |
+
+`O2.4` and `B2.3` may stay open past the Phase 2 boundary and finish alongside Phase 3; neither
+gates Phase 2's exit (owner ruling 117).
 
 ## Files
 

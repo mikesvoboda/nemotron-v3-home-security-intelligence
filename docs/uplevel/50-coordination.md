@@ -23,6 +23,10 @@
 - keep the README status table accurate, and watch the CI queue;
 - collect every question, owner-tier PR and owner-kept real-tier run into the daily batch (UR-25);
 - raise the urgent path when its criteria hold;
+- write its queue calls (merge order, rolls, when a branch may be cut, labels, review routing) as
+  "coordinator decision", with no number. Only the owner issues and numbers rulings; anything
+  beyond queue mechanics (a package's scope, a new package, a row's ruling, a verdict's meaning)
+  goes to the owner as an ask (owner ruling 120);
 - state only what it has just read (UR-29): every commit, PR, issue, label, file and check it cites
   comes from `gh` or `git` output it ran in the same turn.
 
