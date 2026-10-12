@@ -138,8 +138,7 @@ Read this section while you write a package's code, tests, docs and PR.
      operator posts the output and sets `done` (UR-146). A phase exits when all its rows say `done`, except
      packages a ruling leaves open: `O2.4` and `B2.3` (ruling 117) and `O2.5` (ruling 144, which
      gates only ruling 127's twelve real-tier rows) do not gate Phase 2's exit and may finish
-     alongside Phase 3; the coordinator does not hold Phase 3 for them, and `R2b` rules re-ID on
-     the CPU evidence. (rulings 117, 144)
+     alongside Phase 3; the coordinator does not hold Phase 3 for them. (rulings 117, 144)
 - **UR-76** Mark package steps the house way: **MEASURE** produces the number and puts it in the PR;
   **DECIDE** chooses on evidence and records why in the PR; **RULING** stops and asks the owner.
   (README "The contract")
@@ -153,8 +152,7 @@ Read this section while you write a package's code, tests, docs and PR.
 - **UR-79** Each Phase 4 package opens with a design session against the code that remains; a
   feature package's design goes to `docs/uplevel/4n-<feature>.md`, copied from
   `templates/feature-design.md`. (README "The path"; 10-backend.md, 20-frontend.md "Phase 4")
-- **UR-11** One plan per lane; seams are designed when reached. (UR-11)
-- **UR-9** Lanes that own files (four since UR-20), under the cross-lane rule: the PR that removes
+- **UR-9** Lanes that own files (four), under the cross-lane rule: the PR that removes
   or changes a thing does so everywhere at once, whichever lane owns the files (a dead setting
   leaves `config.py`, `.env.example` and the compose `environment:` block in one PR). The lane
   owning the primary change leads; a package spanning lanes names its parts and their order. (UR-9;
@@ -176,12 +174,16 @@ Read this section while you write a package's code, tests, docs and PR.
   - `.github/suppression-baseline.json`, `.secrets.baseline`: regenerate after rebasing, immediately
     before merge; never hand-merge a count (two PRs adding one marker each write the same number,
     and git merges them silently).
-- **UR-17** The ghcr install path is retired; local build plus the prod compose file is the one
-  supported install. (UR-17)
+- **UR-88** The AGENTS.md standard has one home, `docs/developer/agents-md-standard.md`; apply it
+  and restate none of it elsewhere. In an `AGENTS.md`, write what an agent cannot find by looking
+  and leave inventories to the code. (40-docs.md "The AGENTS.md standard"; docs kickoff prompt)
+
+### Product decisions in force
+
+Constraints on what you build; reopening one is a ruling (UR-44).
+
 - **UR-18** `ai-vlm` starts by default; backend readiness and a UI banner report the engine's
   runtime state; GPU-less development uses the fake VLM through an explicit overlay. (UR-18)
-- **UR-19** `archive/` and `docs/archive/` are deleted; the two `setup.py` test files return to the
-  live suite; git history is not rewritten. (UR-19)
 - **UR-84** Out of scope: rewriting git history, renaming `setup.py`, and widening frontend Stryker
   beyond its three utility files. (README "Rulings of record")
 - **UR-85** Production re-ID stays OSNet-AIN on the CPU (`REID_BACKEND=local`) until a later ruling.
@@ -191,13 +193,8 @@ Read this section while you write a package's code, tests, docs and PR.
   metrics stay (OD-39). (ruling 89)
 - **UR-87** Future plans go in `docs/superpowers/<date>-<slug>/`; `docs/plans/` is frozen history,
   and a dated plan created anywhere else is a violation (OD-33). (ruling 89)
-- **UR-20** A fourth lane, docs, owns the documentation and makes it true: Phase 1 stops active
-  misdirection, Phase 3 rewrites after the deletions. (UR-20)
 - **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason; the validator fails on
   dead references and on files outside the list. (UR-21)
-- **UR-88** The AGENTS.md standard has one home, `docs/developer/agents-md-standard.md`; apply it
-  and restate none of it elsewhere. In an `AGENTS.md`, write what an agent cannot find by looking
-  and leave inventories to the code. (40-docs.md "The AGENTS.md standard"; docs kickoff prompt)
 
 ## Reviewing
 

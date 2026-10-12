@@ -210,3 +210,17 @@ number stays retired; it is never reused.
 | UR-169 | merged into UR-28                   |
 | UR-171 | merged into UR-26                   |
 | UR-172 | merged into UR-30                   |
+
+## Retired rules
+
+Rules carried out or lapsed, removed from `rules.md` in pass 2 (owner design session 2026-10-12).
+Their numbers stay reserved, and code comments that cite them still resolve here. Reversing one is a
+ruling (UR-44; README "Considered and rejected" guards UR-11, UR-17 and UR-19).
+
+| rule  | original text                                                                                                                              | state                                                                       |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| UR-8  | Targeted pause: VLM prompt and threshold selection waits for replay parity; synthbench continues; all other agents move to this programme. | lapsed: lifted with `B1.2` (#6924)                                          |
+| UR-11 | One plan per lane; seams are designed when reached.                                                                                        | carried out: the plan files are per lane; README states the seams principle |
+| UR-17 | The ghcr install path is retired; local build plus the prod compose file is the one supported install.                                     | carried out: `O1.2` (#6907)                                                 |
+| UR-19 | `archive/` and `docs/archive/` are deleted; the two `setup.py` test files return to the live suite; git history is not rewritten.          | carried out: `O1.5`                                                         |
+| UR-20 | A fourth lane, docs, owns the documentation and makes it true: Phase 1 stops active misdirection, Phase 3 rewrites after the deletions.    | carried out: the docs lane exists (README "Lanes and ownership")            |

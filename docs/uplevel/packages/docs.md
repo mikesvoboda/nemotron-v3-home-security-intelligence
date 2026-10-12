@@ -16,7 +16,7 @@ packages are in [`../history/packages-done.md`](../history/packages-done.md).
   one: 77 of 244 files cited 213 files that exist nowhere in the repo, and 57 described retired
   components. `W1.1` gave the validator ratchet baselines and real exit codes. This lane makes the
   map true and keeps it true.
-- The lane's phases: UR-20; when its Phase 3 work starts: UR-68.
+- When its Phase 3 work starts: UR-68.
 - **The AGENTS.md standard** is
   [`docs/developer/agents-md-standard.md`](../../developer/agents-md-standard.md) (UR-88, moved
   there by `W2.1`); `W3.2` rewrites the boundary files to it.
