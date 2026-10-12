@@ -604,9 +604,11 @@ or an agent's memory.
   `agent-dgx --gpu`, runs every real-tier command through the `agent-gpu` broker
   (`roles/operator.md`).
   The owner keeps the runs that path cannot make. (UR-30)
-- **UR-169** Start every agent from a clean, freshly pulled host checkout of `main` (`agent-dgx`
-  copies uncommitted changes into the clone), and push your branch after every commit, since a clone
-  keeps unpushed commits to itself. (50-coordination.md "Where agents run")
+- **UR-169** Each agent runs in the sandbox `agent-<session>` on its own clone at
+  `/agents/agent-<session>/workspace`. Start every agent from a clean, freshly pulled host checkout of
+  `main` (`agent-dgx` copies uncommitted changes into the clone; `agent-dgx inspect <session> --json`
+  shows the commit it cloned), and push your branch after every commit, since a clone keeps unpushed
+  commits to itself. (50-coordination.md "Where agents run")
 - **UR-170** On the host, read an agent's workspace but run git in it only through `sbx exec`: its
   `.git/config` is the agent's to write, and settings such as `core.fsmonitor` run commands when the
   host's git opens it. (50-coordination.md "Where agents run"; 30-ops.md `O0.1`)

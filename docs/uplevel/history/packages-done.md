@@ -2,9 +2,8 @@
 
 Definitions of the packages whose row in the [README status table](../README.md#status) reads
 `done`, copied verbatim from the lane plans as they stood when the plan was reorganised, grouped by
-lane. They are reference only: open packages live in `docs/uplevel/packages/`. Paths in them
-are relative to `docs/uplevel/` (for example `README.md`, `01-mutation-policy.md`,
-`templates/r2-sheet.md`), and the lane-plan files they cite (`10-backend.md`, `30-ops.md`,
+lane. They are reference only: open packages live in `docs/uplevel/packages/`. Their links
+were rewritten to resolve from this file (`../README.md`, `../01-mutation-policy.md`), and the lane-plan files they cite (`10-backend.md`, `30-ops.md`,
 `50-coordination.md`, `operator.md`) have been replaced by `packages/`, `rules.md` and `roles/`.
 
 ## Backend

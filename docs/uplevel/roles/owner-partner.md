@@ -154,7 +154,7 @@ You stopped ticking at about <HH:MMZ>. Your open work: <#n (package), #m ...>. R
 Owner ruling <NN> (merged in PR #<M>, or its BINDING NOW record on #6854) assigns you <package>. Read it in full first and quote it (UR-29). <order, labels, claim PR contents>. Never wait inside a turn (UR-38); update your heartbeat each tick.
 ```
 
-Launching a sandbox: `agent-dgx run <name> --agent claude [--endpoint dgx] [--mount <host>:ro] [--gpu] --split`, then
+Launching a sandbox, from a clean host checkout of `main` (UR-169): `agent-dgx run <name> --agent claude [--endpoint dgx] [--mount <host>:ro] [--gpu] --split`, then
 the kickoff from `scripts/uplevel/sandboxes.toml` and `/loop` at the interval UR-36 sets (coordinator 5m, lanes and
 heavy 15m, operator 30m). The strongest model is `--agent claude` with no endpoint (heavy, heavy-2). Only the operator
 has `--gpu` and the `/synthbench` mounts.
