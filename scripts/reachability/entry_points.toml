@@ -34,7 +34,6 @@ entries = [
   "scripts/check-docs-drift.py",
   "scripts/check-flake-allowlist.py",
   "scripts/check-integration-tests.py",
-  "scripts/check-inventory-summary-arith.py",
   "scripts/check-npm-audit-exemptions.py",
   "scripts/check-pip-audit-exemptions.py",
   "scripts/check-test-collection.py",
