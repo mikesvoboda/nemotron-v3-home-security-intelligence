@@ -20,21 +20,21 @@
  * empty-mount asserts — zones [] (F-256's leg, `pagination.total` 0) and
  * members [] / vehicles [] (F-258's leg, both bare lists: household.py:61 and
  * household.py:218) — are ALSO the proof that no earlier golden spec leaked
- * rows into this stack. The vehicles GET is declared as a bare list too
- * (list_vehicles, household.py:218-221) and the F-258 leg below is what pins
- * its 200 and its emptiness — run 4 never issued this GET, so nothing above
- * this line had measured it. The seeding absence is measured, not assumed
- * (harness.ts:15-24 carries the controls).
+ * rows into this stack; run 4 never issued the vehicles GET, so the F-258 leg
+ * below is what first measured its 200 and its emptiness. HONEST SCOPE: the
+ * proof covers a leaked MEMBER or ZONE, which the teardown re-reads to [], NOT
+ * a leaked VEHICLE — that DELETE is trusted on its 204 with no list re-read.
+ * The seeding absence is measured, not assumed (harness.ts:15-24, controls).
  *
  * Which camera: the page shows ONE camera's zones — `const firstCameraId =
  * cameras[0]?.id` (ZonesPage.tsx:416) — and the inventory's own F-256 evidence
  * says so ("Only the first camera's zones are shown"). feature_check seeds one
- * camera per scenario folder (seed_cameras, scripts/feature_check.py:1284),
- * their ids are server-minted UUIDs, and GET /api/cameras has no ORDER BY
- * (list_cameras at backend/api/routes/cameras.py:151 — the file's only
- * order_by calls are :568 and :1798, other routes). So the spec must not fix
- * an id or a name: it takes items[0].id from the same endpoint the client
- * reads, which pins SPEC-PAGE AGREEMENT without assuming any order.
+ * camera per scenario folder (seed_cameras, scripts/feature_check.py:1284); their
+ * ids are SLUGS (`cat-on-porch` answers `cat_on_porch`), not UUIDs — zones.py:89
+ * uuid4 is the ZONE id — and GET /api/cameras has no ORDER BY (list_cameras,
+ * backend/api/routes/cameras.py:151; the file's order_by calls :568/:1798 are
+ * other routes). So items[0].id shares the client's endpoint and INDEX, which
+ * ASSUMES spec-page agreement. Run 8 broke it: see the `const cameraId` bind.
  *
  * Locator ground truth (every cite re-read at the head this file lands in;
  * this repo mixes frameworks per-element, harness.ts:40-64, so each was
@@ -105,8 +105,8 @@
  *    which :455 only consumes. Cell = <button> aria-label
  *    `${entityName} has ${Label} trust
  *    in ${zoneName}` :172-177 — the whole pin rides on that string; labels
- *    are Full/Partial/Monitor/None (:78-:126), member entityName is
- *    member.name and vehicle's is vehicle.description (useZoneTrustMatrix
+ *    are Full/Partial/Monitor/None — TRUST_LEVEL_CONFIGS :78-:110, NOT :126
+ *    (TRUST_LEVELS) — entityName is member.name or vehicle.description (useZoneTrustMatrix
  *    .ts:454,:478). Editor on click: "Select Trust Level" + one button per
  *    level (TrustEditor, ZoneTrustMatrix.tsx:198-239); VEHICLES get only
  *    Partial/None (:199-:202) — shipped limitation, pinned as shipped.
@@ -128,8 +128,8 @@
  *    same key the matrix's configs query reads (:391), so the button's
  *    aria-label changing is an honest assert, not a prayer.
  *  - /api/household/members returns a BARE LIST (response_model=list[...]
- *    household.py:61) and the client's fetchMembers returns it verbatim
- *    (useHouseholdApi.ts:250-251) — client and server AGREE here, so the
+ *    household.py:61) and fetchMembers returns the list verbatim — the
+ *    return is useHouseholdApi.ts:255, not the :250 signature — AGREE, so the
  *    trust matrix is NOT a second instance of the F-275 envelope-`.length`
  *    break (ruling 118). That falsification was run before writing this and
  *    came back clean; the spec still asserts the bare shape so a future
@@ -242,9 +242,9 @@ test.describe('DO-3 zones golden path', () => {
       Array.isArray(items) && items.length > 0,
       `the stack seeds cameras, got ${JSON.stringify(cameras.body)}`
     ).toBe(true);
-    // items[0] is the camera the PAGE will show (cameras[0] at
-    // ZonesPage.tsx:416) — same endpoint, same index, no ORDER BY anywhere
-    // in the route (cameras.py:151), so agreement is by construction.
+    // ASSUMED, not pinned: the page reads cameras[0]?.id (ZonesPage.tsx:416) —
+    // same endpoint and index, unordered at the source (cameras.py:151). Run 8
+    // falsified it: this file's :279 saw the empty-state copy (want 0, got 1).
     const cameraId = String(items[0].id);
 
     const before = await api.getJson(`/api/cameras/${cameraId}/zones`);
@@ -390,7 +390,7 @@ test.describe('DO-3 zones golden path', () => {
     const api = await signIn(page, h);
 
     // --- API leg. Bare lists here, and asserted BARE: household.py:61 ships
-    //     list[...], useHouseholdApi.ts:250 consumes it verbatim — if either
+    //     list[...], useHouseholdApi.ts:255 returns it verbatim — if either
     //     ever moves to an envelope, these toHaveLength(0) asserts break
     //     loudly instead of the matrix silently losing every column. ---
     const membersBefore = await api.getJson('/api/household/members');
