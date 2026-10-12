@@ -92,7 +92,7 @@
  * runs sequentially in ONE stack, and collection is alphabetical —
  * household.spec.ts runs BEFORE persons.spec.ts and zones.spec.ts. My own
  * zones.spec.ts test 'F-258 …' asserts `expect(membersBefore.body).toHaveLength(0)`
- * (zones.spec.ts:399) and the same for vehicles (:408), and
+ * (zones.spec.ts:560/:569 at head 913e23cea; anchors: grep "the stack seeds no") and
  * notify-access/access.spec.ts creates its own rows under a per-process MARK
  * (:81) and deletes them (:324/:329, :497). A row leaked by THIS file does not
  * just fail my later legs — it indicts the zones F-258 row and possibly access.
