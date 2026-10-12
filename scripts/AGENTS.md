@@ -801,21 +801,40 @@ The logic is `feature_check.py`, standard library only:
   `frontend/node_modules` is absent (`npm ci` in `frontend/`, ruling 102), so
   an operator's tree runs the documented command unchanged; an existing
   install is never touched;
-- the same step installs Playwright's Chromium when the locked runner's own
-  `install --dry-run` plan names a build whose directory lacks the CLI's
-  `INSTALLATION_COMPLETE` marker (ruling 116) — `npm ci` brings the runner, not
-  the browser, and the marker (not the directory) is how the CLI itself tells a
-  finished download from a killed one — accounted as `playwright_browsers`,
-  once, never over a completed install, and a failed download is a named
-  problem listing the hosts to allow rather than a workaround. A download that
-  STALLS is accounted too, and that needs code: `check=False` does not cover a
-  timeout (`subprocess.run` raises `TimeoutExpired` whatever `check` says, and
-  `golden()` commits its results only on the way out, so a raised stall erases
-  every golden entry), so `_run` turns it into an ordinary `124` result whose
-  stderr starts `timed out`, and `_exit_word` prints that word instead of the
-  number. Forward `XDG_CACHE_HOME` beside `PLAYWRIGHT_BROWSERS_PATH` — both move
-  the browser root and both are read at launch, so a probe that drops either one
-  judges a cache the runner will not use;
+- the golden leg runs inside `mcr.microsoft.com/playwright:v<version>-noble`
+  (ruling 143, UR-131) on the harness's own engine, and there is NO browser
+  install step: the image carries the browser builds and the system libraries
+  they link, so the host never downloads a browser and the missing-library
+  exit-127 cannot happen. `<version>` is READ from
+  `frontend/package-lock.json` (`packages['node_modules/@playwright/test'].version`
+  — the entry `npm ci` installs), never written: `playwright_image()` keeps only
+  the repository and the Ubuntu release as literals, and a lock that cannot
+  answer RAISES rather than defaulting, because a defaulting version is a
+  hard-coded version with extra steps. The raise is caught inside `golden()` and
+  accounted (`playwright: "no image tag"`), never raised past it — `golden()`
+  commits its results only on the way out. `--network host` is how the container
+  reaches the stack on an engine-assigned port; `frontend/` mounts READ-ONLY at
+  its own path (the leg writes nothing there) and the run dir writable; podman
+  adds `,z` to each mount. Pass environment NAMES to the engine (`-e NAME`),
+  never values — `_run` logs every argv and the log is a CI artifact, so a value
+  there is a password in an artifact. Keep `npx --no-install` on the inner
+  command: without the flag a bare `npx` on a tree whose `npm ci` failed FETCHES
+  the newest `playwright` off the network and exits 0 (measured: 1.64.0 fetched
+  on a 1.63.0 image), so the leg would run an unlocked runner against a
+  mismatched browser and still print a spec count. Ruling 116's firewall clause
+  moved onto the image pull, which is its own accounted step
+  (`playwright_image_pull`) attempted only when `image inspect` says the tag is
+  absent: a failed pull names `mcr.microsoft.com` as the host to allow, carries
+  the child's own tail (a blob fetch redirects one hop further — measured, to
+  `eastus.data.mcr.microsoft.com` — so the engine's message is what names the
+  endpoint that refused), and works around nothing: no host fallback, no second
+  tag, no `latest`. A pull that STALLS is accounted too, and that needs code:
+  `check=False` does not cover a timeout (`subprocess.run` raises
+  `TimeoutExpired` whatever `check` says, and `golden()` commits its results
+  only on the way out, so a raised stall erases every golden entry), so `_run`
+  turns it into an ordinary `124` result whose stderr starts `timed out`, and
+  `_exit_word` prints that word instead of the number — a stall must not read as
+  a refusal the owner should answer with an allow;
 - a golden project that executed nothing is a problem, not a pass (ruling 114):
   a leg whose junit report lists no spec, or lists only skips, reddens Feature
   Check. A leg's exit code says the runner finished, not that a spec ran; a

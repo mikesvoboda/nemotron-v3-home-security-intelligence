@@ -480,58 +480,89 @@ not run twice. The `--real` tier never runs from GitHub (UR-15) — that is the
 operator's `--real` on the GPU sandbox.
 
 **Frontend dependencies (ruling 102).** The golden step runs the Playwright
-`golden` project with `npx playwright test --project=golden` from `frontend/`.
-An operator's tree has no `frontend/node_modules` — the harness builds the
-images but installs no dependencies into the checkout, and the CI feature-check
-job's `npm ci` step is a different process — so on such a tree the harness
-now runs `npm ci` in `frontend/` itself first, and the documented command runs
+`golden` project with `npx --no-install playwright test --project=golden` from
+`frontend/`. An operator's tree has no `frontend/node_modules` — the harness
+builds the images but installs no dependencies into the checkout, and the CI
+feature-check job's `npm ci` step is a different process — so on such a tree the
+harness now runs `npm ci` in `frontend/` itself first, and the documented command runs
 unchanged. An existing install is never touched: `npm ci` deletes
 `node_modules` on entry, so it runs only where there is nothing to delete. The
 install is reported in `summary.json` as its own `npm_ci` result, and it is not
-given the run's admin password. A Playwright browser binary is a further
-precondition the install does not fetch — `@playwright/test` has no install
-script, so `npm ci` brings the runner, not Chromium.
+given the run's admin password. `@playwright/test` has no install script, so
+`npm ci` brings the runner, not Chromium — but no host browser install follows,
+because the leg runs in an image that carries the browser (ruling 143, next).
 
-**Chromium browsers (ruling 116).** That missing binary is the next thing an
-operator's tree hits, so the golden step now installs it. It asks the
-lock-resolved runner — `frontend/node_modules/.bin/playwright`, never a bare
-`npx` that would resolve the _latest_ package and plan a build the locked
-runner cannot launch — what `install chromium` would do, and treats the
-`Install location:` paths in that plan as the answer to "is it there?", counting
-a path installed only when it carries the `INSTALLATION_COMPLETE` marker the CLI
-writes last (its own "already downloaded" test is that marker, not the
-directory — so a download killed mid-extract is re-installed rather than
-believed): `--dry-run` prints the same plan whether the builds exist or not, so
-the filesystem decides, and reading the paths instead of hardcoding
-`~/.cache/ms-playwright/...` keeps the check correct across a Playwright bump
-(a bump changes the build number) and honours a browser root the caller moved
-with `PLAYWRIGHT_BROWSERS_PATH` or `XDG_CACHE_HOME`. When every path carries the
-marker nothing is installed or re-downloaded. When one lacks it the step runs
-`npx playwright install chromium` once, up to 1800 s, and reports the outcome
-in `summary.json` as its own `playwright_browsers` result — `present`,
-`installed chromium v1243 …`, `exit <n>` (or `exit timed out` when the step hit
-its deadline), or `probe exit <n>` / `probe exit timed out` — under the engine's
-environment plus the two browser-root variables, so it is never given the run's
-admin password. A step that stalls is accounted, never raised: the download
-getting its timeout is an outcome the step reads and names, so the whole golden
-section (ruling 102's `npm_ci` entry included) survives in `summary.json` and
-the test command still runs. Judging absence at the path the runner will launch
-from matters: the test command runs with the caller's whole environment, so a
-moved cache that the probe judged at the default root would either be
-re-downloaded needlessly or, if the default root happened to look complete, be
-declared present and left uninstalled — which is why both variables that move
-that root are forwarded (measured: the CLI reads `PLAYWRIGHT_BROWSERS_PATH`
-first, else `XDG_CACHE_HOME/ms-playwright`, the same order at launch). A failed
-install is a named problem that lists
-the hosts the plan named (`cdn.playwright.dev` and its
-`playwright.download.prss.microsoft.com` fallback) and keeps the tail of the
-installer's own output — not a workaround: if the sandbox cannot reach them,
-the owner allows the host. Note the plan is not the whole network story: the
-Chrome-for-testing URLs answer `307` and the bytes come from
-`storage.googleapis.com`, so a block can land one hop past any host the plan
-prints, and the installer's own message is what names the host that refused.
-The test command runs either way, so Playwright's browser-missing message is
-still in the output when the install did not happen.
+**The golden leg runs in Playwright's own image (ruling 143, UR-131).** The leg
+used to run on the host, which meant the host needed a browser: `npm ci` brings
+the runner, not Chromium, so an operator's `--real` run failed every spec in
+about 3 ms on `browserType.launch: Executable doesn't exist at
+~/.cache/ms-playwright/…`, and ruling 116 bolted a browser-install step onto
+fix it. Ruling 143 removes that step: the leg now runs inside
+`mcr.microsoft.com/playwright:v<version>-noble`, which ships the browser builds
+AND the system libraries they link, so nothing is installed, nothing is
+downloaded to the host, and the exit-127 that a missing library produced is
+gone. Three properties the pins hold:
+
+- **The tag's version is read, never written.** `playwright_image()` takes it
+  from `frontend/package-lock.json` — the resolved version of
+  `packages['node_modules/@playwright/test']`, the package the specs import —
+  and the repository (`mcr.microsoft.com/playwright`) and variant (`noble`) are
+  the only literals. A Playwright bump therefore moves the image with the
+  lockfile; a lock that cannot answer (no file, no entry, unparseable JSON)
+  refuses with a `HarnessError` naming the file rather than defaulting to a tag
+  — defaulting would run some other version's browser against this version's
+  runner and still print a spec count. The refusal is an accounted step
+  (`playwright: "no image tag"`, plus ruling 114's "executed no tests"), and it
+  is caught inside `golden()`, not raised past it, because `golden()` commits
+  its results dict only on the way out — a raw raise would erase the golden
+  entries already recorded, which is ruling 116's finding about a stalled
+  download wearing a different costume.
+- **The engine is the harness's engine** (`--engine`, default `docker`), with
+  `--network host` so the container reaches the stack on an engine-assigned
+  port, `frontend/` mounted READ-ONLY at its own absolute path (the leg writes
+  nothing there; the report and junit names then match on both sides), the run
+  dir mounted writable (that is where junit and `--output` land), and `--rm`.
+  On podman each mount also carries `,z`, the relabel a SELinux engine wants.
+  The environment reaches the container as NAMES ONLY (`-e
+FEATURE_CHECK_ADMIN_PASSWORD`, never `-e …=<value>`): `_run` logs every argv
+  it issues and the log is uploaded as a CI artifact, so a value in the argv is
+  a password in an artifact.
+- **The inner command is the one the host leg ran** — same `--project=golden`,
+  `--output=<run dir>`, `--reporter=list,junit` — so a spec count from before
+  ruling 143 is still comparable, which is Done-when 1's "same counts as
+  before". The one addition is `--no-install`, and it is load-bearing rather
+  than tidy: measured on this image with the mount stripped of `node_modules`, a
+  bare `npx playwright --version` printed `will be installed: playwright@1.64.0`
+  and exited **0** — on a `v1.63.0` image, whose browser builds are 1.63.0's.
+  So on a tree whose `npm ci` failed, a bare `npx` does not fail; it fetches an
+  unlocked runner off the network, runs it against a mismatched browser, and
+  can report a golden pass that witnesses nothing (UR-128) — while on a host
+  where the npm registry is blocked, that same fetch fails inside the leg's own
+  output instead of at the `npm_ci` step that already named the block. With
+  `--no-install` the refusal is immediate and legible (`npx canceled due to
+missing packages and no YES option`, exit 1). With a real install the flag is
+  inert: the same tree mounted `:ro` printed `Version 1.63.0`.
+
+Ruling 116's firewall clause ("a blocked registry or download host is named in
+the failure, never worked around") survives, moved onto the thing that now has
+to be fetched: the image. The pull is its own accounted step
+(`playwright_image_pull`: `present`, `pulled`, `exit <n>`, `exit timed out`) and
+is attempted only when `image inspect` says the tag is absent locally — which
+keeps a host that already has the image green even with the registry blocked,
+correctly, since a versioned tag is content and a present copy of it IS the
+right browser. A failed pull is a problem naming `mcr.microsoft.com` as "the
+host to allow", saying the harness does not work around a block, and carrying
+the tail of the child's own output — no fallback to a host run, no second tag,
+no `latest`. The tail is not decoration: measured, a blob fetch redirects one
+hop off that host, to `eastus.data.mcr.microsoft.com`, so the engine's own
+message is what names the endpoint that refused, exactly as ruling 116 found
+with the browser CDN. And a pull that STALLS rather than refuses — a proxy that
+accepts the connection and then streams nothing — is still accounted, because
+the machinery ruling 116 needed is generic: `check=False` does not cover a
+timeout (`subprocess.run` raises `TimeoutExpired` whatever `check` says), so
+`_run` converts one into an ordinary exit-124 result whose stderr starts `timed
+out`, and `_exit_word` prints that word where a number would go, so summary.json
+never reads a stall as a refusal the owner should answer with an allow.
 
 **A golden run that executes nothing (ruling 114).** A leg's exit code says the
 runner finished, not that a spec ran. The shape that hides is the one that exits

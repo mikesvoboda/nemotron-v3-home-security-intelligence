@@ -1120,11 +1120,24 @@ def playwright_image(lock_path: Path) -> str:
     runner cannot disagree. A missing key RAISES instead of defaulting: a
     defaulting version is a hard-coded version with extra steps, and the
     Done-when for this package is a test that this function follows the lock.
+
+    Every way the version source can fail becomes THIS error type, including a
+    lock that is absent or is not JSON. `golden()` catches `HarnessError` around
+    this call precisely so the failure is accounted in summary.json, and it
+    commits its results only on the way out — a raw `OSError`/`JSONDecodeError`
+    would fly past that handler to the harness's catch-all and erase every golden
+    step already recorded, which is ruling 116's finding about a raised timeout.
     """
-    lock = json.loads(lock_path.read_text(encoding="utf-8"))
-    packages = lock.get("packages") or {}
-    entry = packages.get(f"node_modules/{PLAYWRIGHT_LOCK_KEY}") or {}
-    version = entry.get("version")
+    try:
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as unreadable:
+        raise HarnessError(
+            f"{lock_path} cannot be read ({type(unreadable).__name__}: {unreadable}), "
+            f"so the golden image tag cannot be derived from it"
+        ) from unreadable
+    packages = lock.get("packages") if isinstance(lock, dict) else None
+    entry = (packages or {}).get(f"node_modules/{PLAYWRIGHT_LOCK_KEY}") or {}
+    version = entry.get("version") if isinstance(entry, dict) else None
     if not isinstance(version, str) or not version:
         raise HarnessError(
             f"{lock_path} has no packages['node_modules/{PLAYWRIGHT_LOCK_KEY}'].version, "
@@ -1301,8 +1314,9 @@ class Run:
             # able to read, and raising here is strictly worse than returning:
             # the raise flies past golden() to the harness's catch-all, which
             # discards golden()'s results dict (it is only committed on the way
-            # out) and skips every step after the stall — so a stalled browser
-            # download would also erase ruling 102's npm_ci entry. A caller who
+            # out) and skips every step after the stall — so a stalled fetch
+            # (ruling 116's browser download, now ruling 143's image pull) would
+            # also erase ruling 102's npm_ci entry. A caller who
             # asked check=True wants the exception; a caller who said
             # check=False gets _stalled_result, which says WHAT happened in the
             # stderr instead of just a number.
@@ -1719,9 +1733,27 @@ class Run:
             # absolute paths so `report` and `junit` name the same file on both
             # sides, and the run dir is mounted rw because that is where the leg
             # writes (junit, --output traces, .last-run.json under outputDir).
+            # ``--no-install`` because a bare ``npx`` fetches. Measured on this
+            # image with the mount stripped of node_modules: ``npx playwright
+            # --version`` printed "npm warn exec The following package was not
+            # found and will be installed: playwright@1.64.0" and exited 0, on a
+            # 1.63.0 image whose browser builds are 1.63.0's. So a tree whose
+            # ``npm ci`` above failed does not fail loudly -- it runs a runner
+            # the repo does not lock, against browsers it does not match, and the
+            # report reads as a golden pass that witnesses nothing (UR-128). On a
+            # host where npm registry is blocked the same fetch instead fails
+            # inside the leg's output, where ruling 116's firewall clause cannot
+            # name it, while the npm_ci step already said "exit 243". With the
+            # flag the refusal is immediate and legible: "npx canceled due to
+            # missing packages and no YES option" (measured, exit 1), which is
+            # ruling 116's own reason for asking the lock-resolved runner, now
+            # enforced at the place ruling 143 moved the leg to. With a real
+            # install the flag is inert -- same tree, mounted :ro, it printed
+            # "Version 1.63.0".
             inner = " ".join(
                 [
                     "npx",
+                    "--no-install",
                     "playwright",
                     "test",
                     "--project=golden",
