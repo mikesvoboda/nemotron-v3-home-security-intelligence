@@ -55,12 +55,12 @@
 >   same-line drift (the draft's :229 pointed inside the step's run block even at the draft commit;
 >   OD-33's row carries the decomposition); `docs/uplevel/40-docs.md:176` →
 >   **:156** (W2.1 rewrote that file); `README.md:243` → **:246** (same rewrite); the validator's `≥2`
->   test `agents_md_validator.py:619` → **:702** (W2.1 grew the validator +186/−6); and inside the
+>   test `scripts/agents_md_validator.py:619` → **:702** (W2.1 grew the validator +186/−6); and inside the
 >   register itself, `## Intake log` 7096 → **7143**, OD-24's log line L7150 → **L7197**, "§5 … at
 >   708" → **744** — those three moved by prefix-sum arithmetic, not page counts: main's B1.2 hunks
 >   added +36 lines at 708 and +11 at 3232, so everything below 708 held (the `Ruled 2026` hits at
 >   578–603 did not move) while §5 moved +36 and the log moved +47. Two of these are the lesson of the
->   round: `docs-scan-findings.md:311` was re-checked and _did not_ move (blob `e4597283` identical at
+>   round: `docs/plans/2026-09-22-docs-scan-findings.md:311` was re-checked and _did not_ move (blob `e4597283` identical at
 >   both commits) — a line cite is only as stable as the merge above it, and you cannot tell which
 >   without opening both. The second merge moved no other number: the census (11/12/1 + 44/36/32,
 >   136 mentions / 104 citers), the tree counts (93/37/26), the ERR leg re-run at this head (385
@@ -690,11 +690,14 @@ paths: `.claude/skills/synthbench-generation/SKILL.md` and `reference.md`,
 doc files under the 4 paths it listed" — the inverse of what the enumeration shows: a path under
 those 4 dirs is by definition inside the scope, so 6 files that all sit outside it cannot be "under"
 them.) And **no CI gate would catch a mis-move**: the
-level-1 citation job (`ci.yml:230` at this head — the step's name line; the draft cited `:229`, which
-was never the name line at any measured commit: it was :225 at the draft (the first merge's +1 hunk
-made it :226, this merge's +3/+1 hunks made it :230) and :229 sat inside the step's own run block,
-4 lines below the name — so this cite is now correct for the first time, by re-anchoring, not drift;
-the prose name + the step's `run:` block are the stable way to re-find it), "Docs citation existence")
+level-1 citation job (`.github/workflows/ci.yml:296` at this head — the step's name line; the draft
+cited `:229`, which was never the name line at any measured commit: it was :225 at the draft (the first
+merge's +1 hunk made it :226, this merge's +3/+1 hunks made it :230) and :229 sat inside the step's own
+run block, 4 lines below the name — so it WAS correct when written (`53b311195`, `:230` there is the
+name line) and is stale here by drift, not by error: main's later merges moved the name line
+`:230 → :296` (+66 lines above it; :296 at both `54c4993e5` and this head, measured by grepping the
+name), and a cite whose path never resolved could not be LINE_BOUNDS-checked, which is why the drift
+sat. The prose name + the step's `run:` block are the stable way to re-find it), "Docs citation existence")
 validates citations _authored inside_
 exactly `docs/decisions deployment getting-started operations ui` — 43 citations across all five, every
 one ERR-free today — and of the citers **exactly 2 sit inside those five directories**
@@ -853,8 +856,7 @@ occurrences.
 family to `docs/archive/`, citing it as "the in-repo precedent for retired docs material", already in
 the validator's `no_agents_md_required` list. Both halves were true at the measured commit and are
 foreclosed by a standing ruling the draft had not read: **UR-19** (`docs/uplevel/README.md`) is
-"`archive/` and `docs/archive/` are deleted … git history is not rewritten", **`O1.5`** (
-`30-ops.md:125-137`) executes it — "`git rm -r archive docs/archive`. Remove the archive excludes from
+"`archive/` and `docs/archive/` are deleted … git history is not rewritten", **`O1.5`** (`docs/uplevel/30-ops.md:125-137`) executes it — "`git rm -r archive docs/archive`. Remove the archive excludes from
 … `.agents-md-validator.yml`" — and its status row is still `not started` (`README.md:246` at this
 head, :243 before the merge — the table shifted, the row did not). README's
 "Considered and rejected" table then rejects this row's exact move: "Moving dead code into `archive/` |
@@ -864,7 +866,7 @@ to this row's own argument against deletion — "git history already keeps every
 deleting the family does not throw away the record. (The `no_agents_md_required` fact the draft leaned
 on does no work either way: `check_missing_agents_md` fires on directories holding ≥`min_code_files: 2`
 files matching `code_extensions` — `.md` is not among them — so 26 markdown files could not trip
-`missing_agents_md` wherever they sat. Its `≥2` test lives at `agents_md_validator.py:702` at this
+`missing_agents_md` wherever they sat. Its `≥2` test lives at `scripts/agents_md_validator.py:702` at this
 head (the draft's :619, moved by W2.1's +186/−6 growth of the validator), not in
 `find_directories_with_code`.)
 
