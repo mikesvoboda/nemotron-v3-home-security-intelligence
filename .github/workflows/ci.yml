@@ -3696,9 +3696,11 @@ jobs:
   # rule (50-coordination.md:400 — a new check on ci.yml is its own job or its
   # own workflow file, never an edit to a shared one). It ran here as a path
   # appended to collection-sanity's battery line; that was the shape :400
-  # forbids, and it was also the only entry in that list not on its own line
-  # (git blame over the 13 lines 275-287: all 12 neighbours are each their own
-  # line; mine alone shared a neighbour's).
+  # forbids. It was also the only entry in that list that did not have its own
+  # line: the list is 31 entries at origin/main and a per-line count of `.py`
+  # paths finds exactly one path per line in all 31 — mine alone doubled up on a
+  # neighbour's. (Cited by structure, not by line range: a `ci.yml:N` cite in
+  # this file drifts the moment anyone inserts a line above it.)
   # Why a job here and not its own workflow file: branch protection requires
   # exactly one context, `CI Gate (Required Checks)` (read live from
   # /branches/main/protection), so a red in a standalone file gates nothing —
@@ -3706,10 +3708,13 @@ jobs:
   # gate graph. Own job + direct need + check_job is the wiring the WP0.6
   # invariant accepts.
   # Placed last in the job block but BEFORE ci-gate, which stays the file's
-  # final job. The insertion sits at ci.yml:3692 and measured repo-wide NOTHING
-  # cites a ci.yml line above 3676, so this job drifts zero of the 143 `ci.yml:N`
-  # cites in the tree — the cite-neutrality I wrongly claimed only the forbidden
-  # append bought.
+  # final job. Deliberately no `ci.yml:N` cite anywhere in this block: this
+  # package's own gate class is stale line numbers, and a comment citing its own
+  # line number is the one cite GUARANTEED to drift — any insert above it moves
+  # it. Cite the job name (`docs-negative-claims`), which cannot drift. The
+  # cite-neutrality argument lives in the PR instead (measured there: no document
+  # cites a ci.yml line above 3676 at origin/main, so a job placed here re-anchors
+  # nothing).
   # The step mirrors collection-sanity's battery invocation exactly — same uv
   # project env, same `-m pytest … -q` shape — because this suite's
   # @pytest.mark.timeout needs the project's pytest-timeout, and because this
