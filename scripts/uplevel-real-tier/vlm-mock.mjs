@@ -6,7 +6,7 @@
 // /v1/chat/completions (a canned completion, in case a rehearsal wants a request through).
 //
 // IT IS NOT THE PRODUCTION PIN. The real tier is about the sha256-pinned Q4_K_M pair that
-// `agent-gpu run` serves (docs/uplevel/operator.md step 1); this answers with constants.
+// `agent-gpu run` serves (docs/uplevel/roles/operator.md step 1); this answers with constants.
 // A run against this mock is a rehearsal of the commands and must be posted as such, never
 // as the real tier.
 //

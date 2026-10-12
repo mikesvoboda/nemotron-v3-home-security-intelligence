@@ -1,7 +1,7 @@
 /**
  * useVerdictEngineStatus tests (F1.2, UR-18).
  *
- * Pins the two-state contract from 20-frontend.md F1.2:
+ * Pins the two-state contract from docs/uplevel/packages/frontend.md F1.2:
  * - initial state comes from B1.4's readiness field (GET /api/system/health/ready
  *   -> verdict_engine), NOT from the socket (the WS event fires only on
  *   transitions and can never supply first-paint state);

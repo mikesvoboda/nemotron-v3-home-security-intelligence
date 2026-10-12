@@ -3,7 +3,7 @@
 # Apply AFTER the prod file, with its own project, env file and directories:
 #   scripts/uplevel-real-tier/render-test-compose.sh --project <run project> --runner-url <URL>
 # renders the combination, REFUSES anything unsafe, and prints the up/down commands.
-# Read docs/uplevel/operator.md first; scripts/uplevel-real-tier/README.md walks the run.
+# Read docs/uplevel/roles/operator.md first; scripts/uplevel-real-tier/README.md walks the run.
 #
 # Line refs are to docker-compose.prod.yml at 3bf7d972 (origin/main at writing). The prod
 # `backend:` block is :441-677.

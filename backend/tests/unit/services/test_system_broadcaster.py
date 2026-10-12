@@ -783,6 +783,48 @@ async def test_system_broadcaster_broadcast_loop_handles_error():
 
 
 @pytest.mark.asyncio
+async def test_system_broadcaster_broadcast_loop_survives_redis_timeout():
+    """A redis timeout in the broadcast loop must not stop the loop.
+
+    ``redis.exceptions.TimeoutError`` is NOT the builtin ``TimeoutError`` (its MRO is
+    ``[TimeoutError, RedisError, Exception]``), so the builtin-only except tuple in
+    ``_broadcast_loop`` cannot catch it: one read timeout ends the task, ``_running``
+    stays True, and ``start_broadcasting()`` refuses to respawn it on every later
+    reconnect - the socket keeps accepting and heartbeating but never broadcasts again.
+    That is the F2.3 golden-spec red: the page received its one accept-time
+    ``system_status`` and zero ``performance_update`` for the rest of the run.
+    """
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+
+    broadcaster = SystemBroadcaster()
+    broadcaster._running = True
+
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    call_count = 0
+
+    async def mock_get_status():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RedisTimeoutError("Timeout reading from socket")
+        broadcaster._running = False
+        return {"test": "data"}
+
+    with (
+        patch.object(broadcaster, "_get_system_status", side_effect=mock_get_status, autospec=True),
+        patch.object(broadcaster, "broadcast_status", autospec=True),
+        patch.object(broadcaster, "broadcast_performance", autospec=True),
+    ):
+        await broadcaster._broadcast_loop(interval=0.01)
+
+    # The loop must still be broadcasting on iteration 2: a redis timeout on call 1 is a
+    # transient, not a reason to stop the only broadcast task in the process.
+    assert call_count >= 2, f"loop died after a redis timeout (iterations: {call_count})"
+
+
+@pytest.mark.asyncio
 async def test_system_broadcaster_broadcast_loop_cancelled():
     """Test _broadcast_loop exits on CancelledError."""
     broadcaster = SystemBroadcaster()
@@ -1300,6 +1342,114 @@ async def test_system_broadcaster_check_redis_health_failure():
 
 
 @pytest.mark.asyncio
+async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeout_storm():
+    """The loop keeps delivering status + performance while redis keeps timing out.
+
+    This is the F2.3 golden-spec red as an observable. The three red specs assert on DOM that
+    only a ``performance_update`` can fill, and the run's page received exactly one message -
+    the accept-time ``system_status`` from ``connect()`` - for 31s on a 5s cadence. Redis was
+    timing out repeatedly the whole run (1433 in the failing log). So the contract under test
+    is not "the task survives" (the loop-level catch gives that, but would still lose every
+    tick, because _get_system_status raises before broadcast_status is reached) - it is that a
+    tick COMPLETES while redis is unhealthy, degrading queue counts to zeros instead of
+    dropping the broadcast.
+    """
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+
+    redis = AsyncMock()
+    redis.get_queue_length.side_effect = RedisTimeoutError("Timeout reading from redis:6379")
+    redis.health_check.side_effect = RedisTimeoutError("Timeout reading from redis:6379")
+    broadcaster = SystemBroadcaster(redis_client=redis)
+    broadcaster._running = True
+
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar_one.return_value = 0
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    status_ticks = 0
+    perf_ticks = 0
+
+    async def count_status(status_data):
+        nonlocal status_ticks
+        status_ticks += 1
+        if status_ticks >= 3:
+            broadcaster._running = False
+
+    async def count_performance():
+        nonlocal perf_ticks
+        perf_ticks += 1
+
+    # Hard bound: if a regression stops the broadcasts, count_status never flips
+    # _running and the loop would spin forever. Same guard the calls_performance test uses.
+    original_sleep = asyncio.sleep
+    sleeps = 0
+
+    async def bounded_sleep(delay):
+        nonlocal sleeps
+        sleeps += 1
+        if sleeps >= 20:
+            broadcaster._running = False
+        await original_sleep(0)
+
+    with (
+        patch("asyncio.sleep", side_effect=bounded_sleep, autospec=True),
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(
+            broadcaster,
+            "_check_ai_health",
+            return_value={
+                "all_healthy": True,
+                "any_healthy": True,
+                "yolo26": True,
+                "ai-vlm": True,
+            },
+            autospec=True,
+        ),
+        patch.object(broadcaster, "broadcast_status", side_effect=count_status, autospec=True),
+        patch.object(
+            broadcaster, "broadcast_performance", side_effect=count_performance, autospec=True
+        ),
+    ):
+        await broadcaster._broadcast_loop(interval=0.01)
+
+    assert status_ticks >= 3, f"status broadcast stopped after {status_ticks} ticks"
+    # The message type the golden specs wait on: reached on every tick, redis or not.
+    assert perf_ticks >= 3, (
+        f"performance broadcast ran on {perf_ticks} of {status_ticks} ticks while redis timed out"
+    )
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_redis_health_timeout_is_unhealthy():
+    """A redis timeout during the health check reports unhealthy, it does not propagate.
+
+    Mirrors ``test_system_broadcaster_check_redis_health_failure``, which uses the builtin
+    ``ConnectionError`` - but the failure redis actually raises under load is
+    ``redis.exceptions.TimeoutError``, which is not a builtin subclass and so escaped the
+    handler. Like ``_get_queue_stats`` this is awaited outside ``_get_system_status``'s
+    guarded try, so an escape there costs the whole broadcast tick.
+    """
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+
+    mock_redis = AsyncMock()
+    mock_redis.health_check.side_effect = RedisTimeoutError("Timeout reading from redis:6379")
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    result = await broadcaster._check_redis_health()
+
+    assert result is False
+
+
+@pytest.mark.asyncio
 async def test_system_broadcaster_check_redis_health_no_client():
     """Test _check_redis_health returns False when no Redis client."""
     broadcaster = SystemBroadcaster()  # No Redis client
@@ -1307,6 +1457,53 @@ async def test_system_broadcaster_check_redis_health_no_client():
     result = await broadcaster._check_redis_health()
 
     assert result is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_system_status_survives_redis_queue_stats_timeout():
+    """A redis timeout on the queue-stats read must not lose the whole status payload.
+
+    ``_get_queue_stats`` is awaited OUTSIDE ``_get_system_status``'s guarded try, and its
+    own except tuple names only builtins - so a ``redis.exceptions.TimeoutError`` (not a
+    builtin subclass) propagates out of the status builder. The loop-level handler then
+    skips the entire tick: ``broadcast_status`` and ``broadcast_performance`` are both
+    lost for that interval. A degraded queue count is the honest answer; no data at all is
+    not.
+    """
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+
+    mock_redis = AsyncMock()
+    mock_redis.get_queue_length.side_effect = RedisTimeoutError("Timeout reading from redis:6379")
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar_one.return_value = 0
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(
+            broadcaster,
+            "_check_ai_health",
+            return_value={
+                "all_healthy": True,
+                "any_healthy": True,
+                "yolo26": True,
+                "ai-vlm": True,
+            },
+            autospec=True,
+        ),
+    ):
+        status = await broadcaster._get_system_status()
+
+    assert status["type"] == "system_status"
+    assert status["data"]["queue"] == {"pending": 0, "processing": 0}
 
 
 @pytest.mark.asyncio

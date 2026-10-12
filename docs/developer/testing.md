@@ -649,7 +649,7 @@ To drop a fixture image into a camera folder, run
 **`--real`** (owner ruling 66) runs the same test deployment with the real VLM
 in place of the fake one, and keeps the fake detector. It serves the VLM only
 through `agent-gpu`, so it runs in the `uplevel-operator` sandbox
-(`docs/uplevel/operator.md`, "The agent-gpu path"). Elsewhere it exits 4, and
+(`docs/uplevel/roles/operator.md`, "The agent-gpu path"). Elsewhere it exits 4, and
 it never runs from GitHub. Run it from the checkout at the sandbox's workspace
 root, since `agent-gpu build` reads `workspace:ai/vlm`. The images at
 `--image-tag` are the ones `deploy.yml` publishes for a `main` commit, or ones
