@@ -157,9 +157,11 @@ recommendation is the drafting agent's; the ruling is the owner's.
 ## 1. Features to rule
 
 132 of the inventory's 172 **half-built** and **leftover** rows, in 46 rows by cause. Core-loop
-rows first. Re-measured 2026-10-12 at `31eab5e46` — the counts bind the inventory, which the commit
-adding this line does not touch, so they hold at its own head too: **172** live, **132** enumerated
-here, **40** not — `F-256` (the exception below), the six already unlisted at the prior measurement (`F-017`,
+rows first. Re-measured 2026-10-12, each figure bound to the artifact it derives from: **172** live
+binds the inventory (byte-identical since `31eab5e46`, which the fold commits do not touch); **132**
+enumerated here and **40** not bind **this sheet** at `9a66cfffc` — the F-270/F-271 fold commit; at
+`31eab5e46` they read **130/42**, and this line's earlier blanket attribution to that tree was the
+misbinding `do3-review` caught — `F-256` (the exception below), the six already unlisted at the prior measurement (`F-017`,
 `F-020`, `F-021`, `F-022`, `F-023`, `F-100` — each carries its demotion evidence in its inventory
 row), and the 33 rows their own batches have demoted on `main` since it: `F-087`, `F-089`, `F-102`,
 `F-106`, `F-108`, `F-115`, `F-117`, `F-125`, `F-129`, `F-133`, `F-135`, `F-138`, `F-154`, `F-155`,
