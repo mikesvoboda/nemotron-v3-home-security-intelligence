@@ -39,6 +39,12 @@ they are the largest group in `docs/` (5,792 vs 1,369 `python`) and hold transcr
 A name that fails both, runs on into path/member syntax, or was clipped by the ±100-char
 window is not inferred at all.
 
+**Fences are scanned once per document, not once per citation:** `extract_markdown_citations()`
+calls `_fenced_ranges()` once and passes the result down as `fences=`. The set is a property of
+the document, and `_extract_symbol_from_context()` is called per citation, so sweeping inside it
+is O(citations × document): `docs/reference/backend-entry-points.md` has 1,207 inline citations
+and made CI's own gate test exceed the root `timeout = 5`. Keep the sweep in the caller.
+
 **Supported Formats:**
 
 ```markdown

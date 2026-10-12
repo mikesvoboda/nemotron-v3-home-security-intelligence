@@ -189,7 +189,12 @@ def _is_fenced_reference(fences: list[tuple[int, int]], name_offset: int, cite_o
     )
 
 
-def _extract_symbol_from_context(content: str, position: int, window: int = 100) -> str | None:
+def _extract_symbol_from_context(
+    content: str,
+    position: int,
+    window: int = 100,
+    fences: list[tuple[int, int]] | None = None,
+) -> str | None:
     """Try to extract a symbol name from the context around a citation.
 
     Only code-evidenced candidates are accepted. Evidence is about the NAME, not the
@@ -202,6 +207,12 @@ def _extract_symbol_from_context(content: str, position: int, window: int = 100)
         content: Document content
         position: Position of the citation in the content
         window: Number of characters to look before and after
+        fences: The document's code-fence ranges, precomputed by the caller. The
+            fence set is a property of the DOCUMENT, so a caller parsing many
+            citations computes it once and passes it — computing it here instead
+            is O(citations x document) and timed this suite out against the root
+            pytest ``timeout = 5`` (1,207 cites in one reference doc). Computed on
+            demand only when a caller has none to give.
 
     Returns:
         Symbol name if found, None otherwise
@@ -209,7 +220,8 @@ def _extract_symbol_from_context(content: str, position: int, window: int = 100)
     start = max(0, position - window)
     end = min(len(content), position + window)
     context = content[start:end]
-    fences = _fenced_ranges(content)
+    if fences is None:
+        fences = _fenced_ranges(content)
 
     # Look for function/class/method mentions; keep scanning past prose hits.
     for match in SYMBOL_CONTEXT_PATTERN.finditer(context):
@@ -264,6 +276,11 @@ def extract_markdown_citations(content: str, doc_file: str = "") -> list[Citatio
     # Calculate line number offset for body content
     frontmatter_lines = content.count("\n", 0, len(content) - len(body))
 
+    # The fence set belongs to the document, not to the citation: one sweep here,
+    # passed to every per-citation judgement below. Sweeping inside the extractor
+    # made this loop O(citations x document) and timed the gate's own suite out.
+    body_fences = _fenced_ranges(body)
+
     # Extract inline citations from body
     for match in INLINE_CITATION_PATTERN.finditer(body):
         file_path = match.group(1)
@@ -280,7 +297,7 @@ def extract_markdown_citations(content: str, doc_file: str = "") -> list[Citatio
         doc_line = body[: match.start()].count("\n") + frontmatter_lines + 1
 
         # Try to extract symbol name from context
-        symbol_name = _extract_symbol_from_context(body, match.start())
+        symbol_name = _extract_symbol_from_context(body, match.start(), fences=body_fences)
 
         citations.append(
             Citation(

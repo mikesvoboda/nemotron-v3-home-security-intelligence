@@ -16,16 +16,20 @@ cli.py keeps only the most severe result per citation (:261-267), the false
 error REPLACES that citation's healthy level-1 pass in the report: prose edits
 turn unrelated, correct citations red.
 
-Base evidence, measured against origin/main with THIS 17-test suite (the PR body first
-quoted "9F/3P", which reproduces no arm; an earlier note said "10F/3P", which the suite has
-since outgrown — these counts move with the test count, so they are bound to THIS revision,
-not a standing property). Reverting BOTH config.py and parsers/markdown.py to main: 13 failed
-/ 4 passed, the 4 green being exactly the positive controls (legit_def, def_inside_a_code_span,
-class_inside_a_code_span, fenced_signature). Reverting only parsers/markdown.py (retaining
-config's word-boundary anchor): 8 failed / 9 passed. Removing ONLY the anchor from config's
-SYMBOL_CONTEXT_PATTERN: 1 failed (test_pattern_anchors_the_keyword_at_a_word_boundary) —
-mid-word's own specimen stays green because the code-span rule now also refuses it, so that
-class has two guards over one example. The suite is load-bearing in every arm.
+Base evidence, measured against origin/main with THIS 19-test suite (the PR body first quoted
+"9F/3P", which reproduces no arm; a later note said 13F/4P at 17 tests — these counts move with
+the test count, so they are bound to THIS revision, not a standing property). Both fix-carrying
+files at origin/main, THIS suite: 15 failed / 4 passed, the 4 green being exactly the positive
+controls (legit_def, def_inside_a_code_span, class_inside_a_code_span, fenced_signature). Read
+the composition, not just the count: 13 of the 15 are defect specimens ('with', 'as', 'of' x2,
+'docstring', 'ba', the two severity-flag asserts); the other 2 — the fence-performance pair —
+die as `AttributeError: no attribute '_fenced_ranges'` because main has no fences parameter at
+all. They are red for an API reason, not a defect reason, and a bare "15F" hides that.
+Reverting only parsers/markdown.py (retaining config's word-boundary anchor): 11 failed / 8
+passed. Removing ONLY the anchor from config's SYMBOL_CONTEXT_PATTERN: 1 failed
+(test_pattern_anchors_the_keyword_at_a_word_boundary) — mid-word's own specimen stays green
+because the code-span rule now also refuses it, so that class has two guards over one example.
+The suite is load-bearing in every arm.
 
 Census re-measured on THIS tree after the fix landed: over docs/reference +
 docs/uplevel the AST tier reports 5 rows, all warnings (pre-fix, at 1980ae451, the
@@ -267,6 +271,95 @@ def test_the_parser_itself_sets_the_inferred_flag_end_to_end() -> None:
     assert all(c.symbol_inferred for c in inferred), (
         "a name the author never typed must arrive marked as inferred, or the "
         "severity split silently reverts to ERROR-on-English"
+    )
+
+
+def test_one_document_scans_for_fences_once_not_once_per_citation() -> None:
+    # CI reddened THIS suite at 681228d49: `Failed: Timeout (>5.0s) from pytest-timeout`, stack
+    # ending in markdown.py's `_fenced_ranges(content)` — my own fence-evidence commit. The scan
+    # lived INSIDE `_extract_symbol_from_context`, which the citation loop calls once per
+    # citation, so a document with N citations paid N full-document regex sweeps: 1,207 cites in
+    # docs/reference/backend-entry-points.md, measured 1.80s locally and over 5s on a CI runner
+    # against the root `timeout = 5` (pyproject sets timeout_func_only=false, so the budget covers
+    # the whole test). A correctness fix that makes the gate's own test suite unrunnable is not a
+    # fix — the fence set is a property of the document, so the document computes it once.
+    # Counted, not timed: a duration assert would be a flake that inherits the very variance that
+    # caused this.
+    import scripts.validate_docs.parsers.markdown as md
+
+    doc = "docs/reference/backend-entry-points.md"
+    content = (PROJECT_ROOT / doc).read_text(encoding="utf-8")
+    calls: list[int] = []
+    original = md._fenced_ranges
+
+    def counting(text: str) -> list[tuple[int, int]]:
+        calls.append(len(text))
+        return original(text)
+
+    md._fenced_ranges = counting
+    try:
+        citations = md.extract_markdown_citations(content, doc)
+    finally:
+        md._fenced_ranges = original
+    # A floor, not `assert citations`: with 2 citations "at most one sweep" is nearly free to
+    # satisfy, and the quantity under guard is sweeps PER CITATION.
+    assert len(citations) >= 100, (
+        f"this document yielded {len(citations)} citations; the O(cites x doc) guard needs a "
+        "document with enough cites for one-sweep-per-document to be a real claim"
+    )
+    assert len(calls) <= 1, (
+        f"parsed {len(citations)} citations and re-scanned the document for fences "
+        f"{len(calls)} times — that is O(cites x doc) and it is what blew CI's 5s timeout"
+    )
+
+
+def test_the_hoisted_fence_scan_still_judges_every_citation() -> None:
+    # The guard that keeps the count fix honest: computing fences once and passing them in must not
+    # change any ANSWER. Both arms take the parser's OWN route — the inline pattern over the
+    # frontmatter-stripped body — so the offsets and the fence set share one coordinate system. The
+    # first draft of this test sampled the first 300 citations of backend-entry-points.md; its own
+    # non-empty floor caught it, because 0 of those 300 infer a symbol. Measured instead of sampled:
+    # 62 citations in docs/ infer a symbol, and 50 of them are fence-dependent (their answer changes
+    # with fences=[]), all concentrated in the docs/architecture/ cite-then-fenced-signature
+    # convention. Comparing only the arm that differs is what makes the test able to fail.
+    import scripts.validate_docs.parsers.markdown as md
+
+    # The expensive arm — asking the extractor to sweep for itself — is paid ONLY on citations that
+    # depend on the fence set. That is not a shortcut: a citation that answers the same with fences
+    # and without them cannot care WHICH sweep produced the set, so skipping it there costs no
+    # coverage. Running it everywhere is required, though, and cannot be done cheaply: my first
+    # version did, over all 6,936 citations in docs/, and this test then died of
+    # `Failed: Timeout (>5.0s) from pytest-timeout` — the guard test reproduced the very O(cites x
+    # doc) defect it exists to police. A guard must fit the budget it guards.
+    # Frame matters as much as pattern: PROJECT_ROOT.rglob("docs/**/*.md") is really
+    # glob("**/docs/**/*.md"), which matches EVERY directory named docs at any depth — measured
+    # 1,448 files, 875 of them outside docs/, including .pytest_cache/main-wt/docs/, a stale
+    # 573-file copy of docs/ from another tree. It doubles the counts and quietly measures a tree
+    # that no longer exists. The frame is docs/, so the frame is spelled as a directory.
+    diffs: list[tuple[str, int, object, object]] = []
+    checked = dependents = 0
+    for doc in sorted((PROJECT_ROOT / "docs").rglob("*.md")):
+        content = doc.read_text(encoding="utf-8")
+        _, body = md._extract_frontmatter(content)
+        positions = [m.start() for m in md.INLINE_CITATION_PATTERN.finditer(body)]
+        if not positions or "```" not in body:
+            continue
+        checked += len(positions)
+        fences = md._fenced_ranges(body)
+        for pos in positions:
+            passed = md._extract_symbol_from_context(body, pos, fences=fences)  # shipped route
+            bare = md._extract_symbol_from_context(body, pos, fences=[])
+            if passed == bare:
+                continue  # this citation does not read the fence set at all
+            dependents += 1
+            own = md._extract_symbol_from_context(body, pos)  # extractor sweeps for itself
+            if own != passed:
+                diffs.append((str(doc.relative_to(PROJECT_ROOT)), pos, own, passed))
+    assert not diffs, f"hoisting changed answers: {diffs[:5]}"
+    assert dependents >= 10, (
+        f"only {dependents} of {checked} citations read the fence set, so the equality above "
+        "could have passed without testing the hoist at all "
+        "(assert the arm that must be non-empty)"
     )
 
 
