@@ -1,5 +1,5 @@
 /**
- * F2.1 golden-path guard (20-frontend.md §F2.1).
+ * F2.1 golden-path guard (docs/uplevel/history/packages-done.md §F2.1).
  *
  * A golden path is an unmocked spec that drives a feature end to end against
  * the stack the feature-check harness (scripts/feature-check.sh, O2.2) brings
@@ -40,7 +40,7 @@ import { test as base, type BrowserContext, type Page } from '@playwright/test';
 
 /** Exact message the guard throws. Tests name it; drift here fails them loudly. */
 export const GUARD_MESSAGE =
-  'golden paths are unmocked: route interception is blocked in the golden project (20-frontend.md F2.1)';
+  'golden paths are unmocked: route interception is blocked in the golden project (history/packages-done.md F2.1)';
 
 /** Every entry point that can install an interception on live traffic. */
 const INTERCEPTION_METHODS = ['route', 'unroute', 'routeFromHAR', 'routeWebSocket'] as const;

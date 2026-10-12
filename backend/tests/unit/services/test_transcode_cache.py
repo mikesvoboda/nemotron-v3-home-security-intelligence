@@ -329,34 +329,105 @@ async def test_cache_put_disabled_returns_original_path(
 
 
 @pytest.mark.asyncio
-async def test_cache_cleanup_removes_lru_entries(cache, temp_dir):
-    """Test cleanup removes least recently used entries."""
+async def test_cleanup_evicts_from_size_metadata_without_stat_the_files(cache):
+    """Pinned cause (r109): cleanup() sizes the cache from entry.size_bytes.
+
+    cleanup() sums size_bytes from metadata (transcode_cache.py:302) and unlinks
+    with missing_ok=True (:318); it never stats a file. So "the cache is 1.2 GB"
+    is a metadata fact, not a disk fact -- which is why the LRU eviction test
+    below declares sizes in metadata instead of writing real 400 MB files. Those
+    writes cost 2.01s of CPU when this test ran alone on a 2-CPU budget (and
+    more under the nightly's 8 workers on 4 hosted cores), putting the test
+    inside reach of the 5s pytest-timeout lottery while testing nothing that a
+    metadata stub does not.
+
+    This test is its own mutation control: cached_path points at a file that is
+    never written. If cleanup() were changed to size the cache with
+    cached_path.stat().st_size, current_size would be 0 (or raise), nothing
+    would be over target, and `removed == 1` would fail.
+    """
     await cache.initialize()
 
-    # Create cached files
     now = time.time()
-    total_size = 0
+    cache._metadata["big"] = CacheEntry(
+        source_path="/video/big.mp4",
+        source_mtime=1234567890.0,
+        cached_path=str(cache.cache_dir / "big.mp4"),
+        cached_at=now - 100,
+        last_accessed=now - 100,
+        size_bytes=1_200_000_000,
+    )
+
+    removed = await cache.cleanup()
+
+    assert removed == 1
+    assert cache._metadata == {}
+
+
+@pytest.mark.asyncio
+async def test_cache_cleanup_removes_lru_entries(cache):
+    """Test cleanup removes least recently used entries.
+
+    The cache is made "large" the same way test_get_stats_returns_correct_values
+    does: size_bytes in metadata. cleanup() never stats the files (see the pin
+    above), so writing real 400 MB files tested nothing and burned ~2s of CPU
+    per run -- under the nightly's 8 xdist workers on 4 hosted cores that put
+    this test inside reach of the 5s timeout.
+    """
+    await cache.initialize()
+
+    now = time.time()
 
     for i, age_offset in enumerate([1000, 500, 100]):  # Oldest to newest
         cached_path = cache.cache_dir / f"entry{i}.mp4"
-        content = b"x" * 400_000_000  # 400 MB each
-        cached_path.write_bytes(content)
-        total_size += len(content)
-
         cache._metadata[f"entry{i}"] = CacheEntry(
             source_path=f"/video/{i}.mp4",
             source_mtime=1234567890.0 + i,
             cached_path=str(cached_path),
             cached_at=now - age_offset,
             last_accessed=now - age_offset,
-            size_bytes=len(content),
+            size_bytes=400_000_000,
         )
 
-    # Total: ~1.2 GB, target is 0.8 GB (80% of 1 GB max)
+    # Total: 1.2 GB declared, target is 0.8 GB (80% of 1 GB max)
     removed = await cache.cleanup()
 
-    # Should remove at least one entry
-    assert removed >= 1
+    # Eviction is LRU and stops as soon as declared size is back under target:
+    # 1.2e9 - 4.0e8 = 8.0e8 <= int(0.8 * 1024**3) = 858993459, so exactly the
+    # oldest entry goes -- tighter than the "at least one" this test used to
+    # assert, and the arithmetic is the code's (cleanup() at :302-314).
+    assert removed == 1
+    assert list(cache._metadata) == ["entry1", "entry2"]
+
+
+@pytest.mark.asyncio
+async def test_cache_cleanup_never_writes_real_cache_bytes(cache):
+    """A cleanup run must not write cache payloads (r109 timeout-cause pin).
+
+    The nightly's 5s timeout lottery hit this module because the LRU test
+    wrote 1.2 GB of real bytes before calling cleanup(). cleanup() itself only
+    unlinks; anything larger than the metadata file appearing is a regression
+    toward that failure.
+    """
+    await cache.initialize()
+
+    now = time.time()
+    cache._metadata["entry0"] = CacheEntry(
+        source_path="/video/0.mp4",
+        source_mtime=1234567890.0,
+        cached_path=str(cache.cache_dir / "entry0.mp4"),
+        cached_at=now,
+        last_accessed=now,
+        size_bytes=2_000_000_000,
+    )
+
+    removed = await cache.cleanup()
+
+    assert removed == 1
+    payloads = [p for p in cache.cache_dir.iterdir() if p != cache.metadata_file]
+    assert payloads == []
+    written = cache.metadata_file.stat().st_size if cache.metadata_file.exists() else 0
+    assert written < 1_048_576  # metadata.json only, never cache payloads
 
 
 @pytest.mark.asyncio

@@ -23,6 +23,7 @@ prose is the point of a regression pin.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -172,20 +173,35 @@ def _is_history(rel: Path) -> bool:
 
 
 def _living_surfaces() -> list[Path]:
-    """Every doc, config and tool file the check reads."""
+    """Every doc, config and tool file the check reads.
+
+    The descent is pruned at directory names before entering them, then
+    ``_is_history`` still decides every file. That ordering is an optimization,
+    not a scope change: pruning skips only trees whose every member the
+    component test excluded anyway, so the returned set is identical to a full
+    walk that filtered afterwards (measured identical, 1,700 files, both ways).
+    It is not cosmetic: the unpruned ``rglob`` walks .git/.venv/node_modules and
+    costs 2.8 s of this package's 5 s pytest-timeout budget
+    (``pyproject.toml:546``), and the three tests whose setup calls it were
+    ``ERROR``-ing at setup on the Nightly Full Gate (r109, ruling 109's
+    "5 s timeouts" class — measured 2.83 s warm-cache here, and the nightly runs
+    with coverage tracing on).
+    """
     candidates: list[Path] = []
-    for path in REPO_ROOT.rglob("*"):
-        if not path.is_file():
-            continue
-        rel = path.relative_to(REPO_ROOT)
-        if _is_history(rel):
-            continue
-        # Every dot-directory that survives the exclusion above stays in
-        # scope: .github carries workflows this package may edit, and
-        # nothing in .claude currently matches, so the wider net costs no
-        # false failures today.
-        if path.suffix in SCANNED_SUFFIXES or path.name == ".env.example":
-            candidates.append(path)
+    for root, dirnames, filenames in os.walk(REPO_ROOT):
+        # Prune in place so os.walk never descends into an excluded tree.
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIR_NAMES]
+        for name in filenames:
+            path = Path(root) / name
+            rel = path.relative_to(REPO_ROOT)
+            if _is_history(rel):
+                continue
+            # Every dot-directory that survives the exclusion above stays in
+            # scope: .github carries workflows this package may edit, and
+            # nothing in .claude currently matches, so the wider net costs no
+            # false failures today.
+            if path.suffix in SCANNED_SUFFIXES or path.name == ".env.example":
+                candidates.append(path)
     return sorted(candidates)
 
 
@@ -339,8 +355,9 @@ def test_the_census_walks_the_surface_it_exists_for(surfaces: list[Path]) -> Non
 
 
 def test_history_is_out_of_scope(surfaces: list[Path]) -> None:
-    """Dated plans and the programme's own audit keep their references (30-ops,
-    O1.2: "Dated plans and specs keep their references; they are history")."""
+    """Dated plans and the programme's own audit keep their references
+    (history/packages-done.md, O1.2: "Dated plans and specs keep their references; they are
+    history")."""
     rels = {str(p.relative_to(REPO_ROOT)) for p in surfaces}
     assert not any(r.startswith("docs/plans/") for r in rels)
     assert not any(r.startswith("docs/uplevel/") for r in rels)
