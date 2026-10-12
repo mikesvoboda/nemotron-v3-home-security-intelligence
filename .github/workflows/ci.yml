@@ -269,6 +269,7 @@ jobs:
           scripts/test_mutation_score.py
           scripts/test_check_ai_provider_parity.py
           scripts/test_check_gate_reachability.py
+          scripts/test_check_inventory_summary_arith.py
           scripts/test_ai_surface_census.py
           scripts/test_check_npm_audit_exemptions.py
           scripts/test_check_pip_audit_exemptions.py
