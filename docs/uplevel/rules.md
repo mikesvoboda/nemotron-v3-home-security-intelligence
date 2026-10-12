@@ -17,7 +17,7 @@ give work a number.
   one-line pointer: "Ruling N, in PR #M: one line". (owner design session 2026-10-12; ruling 146)
 - **UR-40** An owner record on #6854 whose first line carries `BINDING NOW` binds at once and lapses
   48 hours after posting unless a merged PR carries it. The coordinator lists the live `BINDING NOW`
-  records at the top of each beat. (owner design session 2026-10-12)
+  records at the top of its status comment (UR-166). (owner design session 2026-10-12)
 - **UR-41** Rulings 1-146 bind only through the plan files once the plan rewrite that adds this file
   merges; `history/ruling-map.md` shows where each one landed. (owner design session 2026-10-12)
 - **UR-42** Where this file and an older line in another plan file disagree, this file wins until
@@ -49,10 +49,10 @@ Read this section before you take, claim, assign, park or release a package.
 
 - **UR-22** Agents claim packages themselves through draft PRs; a coordinator agent routes work and
   writes no product code (`roles/coordinator.md`). Routing is: assigning packages and reviewing
-  lanes, merging, keeping the README status table accurate, watching the CI queue, writing the daily
-  batch, raising the urgent path, and making unnumbered coordinator decisions on queue mechanics
-  (UR-45). The coordinator acts on nothing beyond that remit and never provisions a sandbox. (UR-22;
-  50-coordination.md "Roles"; coordinator kickoff prompt; ruling 120)
+  lanes, merging, keeping the README status table accurate, watching the CI queue, keeping the
+  status comment, raising the urgent path, and making unnumbered coordinator decisions on queue
+  mechanics (UR-45). The coordinator acts on nothing beyond that remit and never provisions a
+  sandbox. (UR-22; 50-coordination.md "Roles"; coordinator kickoff prompt; ruling 120)
 - **UR-24** `heavy` packages go only to the strongest available model or to an owner pairing; the
   fast local model takes the rest. The status table's `heavy` flag marks them, and every Phase 4
   design session is heavy; with neither a strong model nor the owner free, a heavy package waits.
@@ -87,23 +87,23 @@ Read this section before you take, claim, assign, park or release a package.
   flags. A heavy agent takes only the PRs assigned to it and follows the owning lane's package text,
   file ownership and kickoff line. (rulings 50, 53; owner design session 2026-10-12;
   50-coordination.md "Two heavy sandboxes", "Where agents run")
-- **UR-63** The daily batch lists every package whose dependencies have merged, whose row is not
+- **UR-63** The status comment lists every package whose dependencies have merged, whose row is not
   `done` or `awaiting real tier`, and that has stayed unclaimed for two coordinator ticks, with the
   agent whose queue holds it. (ruling 82; owner design session 2026-10-12)
 - **UR-64** A lane with no work keeps ticking, says so in one line and ends the turn; the
-  coordinator lists idle lanes in each daily batch and says when one has work again. (ruling 43;
+  coordinator lists idle lanes in the status comment and says when one has work again. (ruling 43;
   50-coordination.md "The tick")
 - **UR-65** When every remaining package in a lane's current phase waits on another lane, the lane
   takes the next phase's first package whose dependencies have landed. (README "The path"; lane
   kickoff prompts)
 - **UR-66** No Phase 3 package starts before `R2` is `done`, except a package scoped only to
   `R2a`-ruled features and modules (once #6980 and the plan PR carrying ruling 86 have merged) or to
-  an `R2b` round's rulings (once that round's record PR merges). A lane out of other work reports
-  that in the batch and does not start Phase 3. (rulings 41, 86, 135; corrects the kickoff prompts'
-  "never start Phase 3 before R2 is done")
+  an `R2b` round's rulings (once that round's record PR merges). A lane out of other work says so in
+  its heartbeat (the status comment lists it, UR-64) and does not start Phase 3. (rulings 41, 86,
+  135; corrects the kickoff prompts' "never start Phase 3 before R2 is done")
 - **UR-67** Each coordinator tick parks any open Phase 3 claim the rule above does not allow (draft,
-  first body line "Parked by owner ruling 54 until R2 is done.") and lists it in the batch. (rulings
-  54, 86)
+  first body line "Parked by owner ruling 54 until R2 is done.") and lists it in the status comment.
+  (rulings 54, 86)
 - **UR-68** The docs lane starts Phase 3 work on a lane's directories only after that lane's Phase 3
   packages are `done`. In Phase 4 it opens a package only on a trigger: a validator failure, or a
   report of a stale claim. (README "Lanes"; 40-docs.md "Phase 3", "Phase 4")
@@ -240,9 +240,9 @@ and the re-read and merge comment are UR-29.
   merges: when `CI Gate (Required Checks)` is green at its head, its review says approve and, in
   the owner tier, the owner has approved, keeping the repository's existing merge style. (UR-23;
   50-coordination.md §4)
-- **UR-98** Owner tier: these PRs also need the owner's approval, given in the daily batch; the
-  status table's `owner` flag marks the packages that carry it. (50-coordination.md "Review and
-  merge" §3; ruling 40)
+- **UR-98** Owner tier: these PRs also need an owner approval recorded on #6854 (a ruling or owner
+  record); the status table's `owner` flag marks the packages that carry it. (50-coordination.md
+  "Review and merge" §3; ruling 40)
   - security and auth;
   - risk acceptance (dismissing an alert or a finding);
   - production safety;
@@ -254,8 +254,9 @@ and the re-read and merge comment are UR-29.
   longer make it owner-tier; it merges on lane review and green CI unless another owner-tier trigger
   applies. (rulings 4, 8, 10, 11, 108)
 - **UR-100** An agent writes approvals only in its own role. The coordinator merges an owner-tier PR
-  only on the owner's approval in the daily batch, or one given elsewhere once quoted on the batch
-  issue with the owner's words and the time. (50-coordination.md "Trust model"; UR-27, UR-29)
+  only on an owner approval recorded on #6854 (a ruling or owner record), or one given elsewhere
+  once quoted in the status comment with the owner's words and time. (50-coordination.md "Trust
+  model"; UR-27, UR-29)
 - **UR-101** A ruling ending with the exact line "Pre-approved: merges on lane review and green CI."
   pre-approves the follow-up it specifies: the coordinator merges it without the owner when the lane
   review states the diff does that and nothing more and `CI Gate` is green at its head; if the
@@ -265,15 +266,16 @@ and the re-read and merge comment are UR-29.
 - **UR-102** `main` keeps "require branches to be up to date". Only the coordinator updates a queued
   PR, one at a time, with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`, and merges
   one PR at a time; authors rebase their own PRs to resolve conflicts. The owner revisits the
-  requirement if the open-PR count in the daily batch keeps growing. (rulings 19, 27;
+  requirement if the open-PR count in the status comment keeps growing. (rulings 19, 27;
   50-coordination.md §4)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
-  the batch with the reason. A ruling's order for an agent's work is not a merge order, and a PR's
-  named place in a ruling lasts only until its head moves, unless the owner names it again. GitHub's
-  merge queue is unavailable on this user-owned repository. (rulings 21, 26, 83, 101; owner design
-  session 2026-10-12 dropped the wait for `main`'s own run after each merge, rulings 63 and 101)
+  the status comment with the reason. A ruling's order for an agent's work is not a merge order, and
+  a PR's named place in a ruling lasts only until its head moves, unless the owner names it again.
+  GitHub's merge queue is unavailable on this user-owned repository. (rulings 21, 26, 83, 101; owner
+  design session 2026-10-12 dropped the wait for `main`'s own run after each merge, rulings 63
+  and 101)
 - **UR-106** A PR is ready at the latest of: `CI Gate` passing at its head, the approving review of
   that head, and, in the owner tier, the owner's approval. An update-branch with `main` keeps the
   queue place, the review and the owner's approval if the PR's own diff
@@ -416,9 +418,9 @@ or write anything for the real tier. Who holds the GPU, and which runs the owner
   stop unless its `sha256sum` and `/props`' `model_path` match the pin; add no `--mount` at or under
   `/srv/agent-models`. (operator.md "The agent-gpu path"; 30-ops.md `O1.10`; owner-partner.md
   "Guardrails")
-- **UR-138** When the `agent-gpu` runner refuses a run, post the `agent-gpu status` output (in the
-  daily batch) and stop; never lower `--vram` to get admitted. (record 6116458014; operator.md "The
-  agent-gpu path")
+- **UR-138** When the `agent-gpu` runner refuses a run, post the `agent-gpu status` output on the
+  row's PR (the coordinator lists the run in the status comment) and stop; never lower `--vram` to
+  get admitted. (record 6116458014; operator.md "The agent-gpu path")
 - **UR-140** The operator writes no product code and changes no command. When a command fails for a
   reason its PR did not anticipate, post the output and the exit code; the lane agent revises it.
   (ruling 22; operator.md "When something goes wrong", kickoff prompt)
@@ -469,18 +471,18 @@ when a phase exits, are UR-10 (contract rule 5).
 
 ## Posting, heartbeats and the urgent path
 
-Read this section before you post any comment, review, heartbeat, batch or urgent item.
+Read this section before you post any comment, review, heartbeat, status comment or urgent item.
 
 - **UR-31** Every agent, not only the coordinator, states only what it has just read: each commit,
   PR, file, test result and question it cites comes from output it ran in the same turn. (UR-31)
-- **UR-29** The coordinator states only what it has just read (UR-31). Before each merge it re-reads the PR
-  (`gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`). Whenever it acted
-  on a PR (updated, re-ran or merged it) it posts one short merge comment quoting the merge rule's
-  evidence: each check's conclusion, the approving review, any owner approval, the newest owner
-  ruling it checked (or "no owner ruling names this PR"), and, after an update-branch of an owner
-  PR, both diff hashes. An owner PR that auto-merges with no coordinator act gets no comment. An
-  owner approval given outside the batch counts as UR-100 says.
-  (UR-29; rulings 17, 145; record 6128195816; owner design session 2026-10-12)
+- **UR-29** The coordinator states only what it has just read (UR-31). Before each merge it re-reads
+  the PR (`gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`). Whenever it
+  acted on a PR (updated, re-ran or merged it) it posts one short merge comment quoting the merge
+  rule's evidence: each check's conclusion, the approving review, any owner approval, the newest
+  owner ruling it checked (or "no owner ruling names this PR"), and, after an update-branch of an
+  owner PR, both diff hashes. An owner PR that auto-merges with no coordinator act gets no comment.
+  An owner approval counts as UR-100 says. (UR-29; rulings 17, 145; record 6128195816; owner design
+  session 2026-10-12)
 - **UR-154** When a command fails or its answer is unclear, say that instead of stating a fact; read
   times from `date -u` or omit them, and treat GitHub's `created_at` as the record. (coordinator
   kickoff prompt; owner-partner.md "Guardrails")
@@ -520,31 +522,38 @@ Read this section before you post any comment, review, heartbeat, batch or urgen
   reads `paused` is not stalled and gets no assignment. (ruling 88; record 6103795550)
 - **UR-162** A lane that reads the coordinator's heartbeat older than 20 minutes checks #6854 for an
   `URGENT PATH · coordinator stale` comment in the last hour; if there is none, it posts one
-  (heartbeat age, read time, nothing more), with no @-mention. (rulings 64, 81; owner design session
-  2026-10-12; corrects 50-coordination.md "Stalled agents")
+  (heartbeat age, read time, nothing more) in UR-168's form. (rulings 64, 81; owner design session
+  2026-10-12, pass 2 Q8; corrects 50-coordination.md "Stalled agents")
 - **UR-163** Recovery of a stalled agent is the owner's, with no watchdog agent: Esc in the agent's
   pane, a catch-up prompt that names its open work, and a new tick only if the agent lists none
   scheduled. No agent reaches into another's sandbox. (ruling 64; 50-coordination.md "Stalled
   agents"; owner design session 2026-10-12)
-- **UR-25** The owner works from one daily batch at a fixed time; the urgent path interrupts
-  between batches. (UR-25)
-  - **The batch** is one comment on the pinned "Uplevel daily batch" issue (#6854) at 09:00 US
-    Eastern (13:00Z through 2026-10-31, 14:00Z from 2026-11-01), on the first tick at or after that
-    time. It carries every question, owner-tier PR and owner-kept real-tier run, and never re-asks a
-    decided ruling. (ruling 29)
-  - **The urgent path** interrupts the owner between batches only for a security exposure,
-    anything touching or threatening the live deployment, `main` red (`CI` or `Deploy` failing,
-    from the first red `CI Gate` run), a stalled agent, or another case a rule here sends to it.
-    (UR-38; ruling 83)
-- **UR-166** The batch (format in `roles/coordinator.md`) repeats every open urgent item at its top,
-  lists every PR that reached `main` since the last batch (auto-merged ones included), idle lanes
-  and parked claims, and ends with one line: open programme PRs and PRs merged since the last batch.
-  (rulings 17, 19, 43, 54, 81)
-- **UR-168** The urgent path stays on GitHub: a comment on #6854 with the `urgent` label and an
-  @-mention of the owner, its first line starting `URGENT PATH`, except the stale-coordinator post
-  (UR-162), which has none. There is no push channel and no
-  second account, and the owner reads #6854 on their own schedule. (ruling 81; 50-coordination.md
-  "Where agents run")
+- **UR-25** The owner works from one status comment the coordinator keeps on #6854; the urgent
+  path is for what cannot wait for it. (UR-25; owner design session 2026-10-12, pass 2 Q8)
+  - **The status comment** is one comment on the pinned issue #6854 whose first line is
+    `<!-- status:uplevel-coordinator -->`. The coordinator edits it in place every tick, like a
+    heartbeat, and never reposts it; it stays within the post budget (UR-155), linking rather than
+    quoting. It carries every open question, owner-tier PR and owner-kept real-tier run (UR-166),
+    and never re-asks a decided ruling. It has no fixed posting time. The owner answers questions
+    and approves owner-tier PRs through the design partner, as a ruling or an owner record on
+    #6854, never by replying to the status comment. (ruling 29; owner design session 2026-10-12,
+    pass 2 Q8)
+  - **The urgent path** is only for a security exposure, anything touching or threatening the live
+    deployment, `main` red (`CI` or `Deploy` failing, from the first red `CI Gate` run), a stalled
+    agent, or another case a rule here sends to it. (UR-38; ruling 83)
+- **UR-166** The status comment (UR-25; procedure in `roles/coordinator.md`, "The status comment")
+  holds, in this order: the live `BINDING NOW` records (UR-40) and every open `URGENT PATH` item;
+  open questions for the owner, each with its PR or comment link; owner-tier PRs waiting for the
+  owner; real-tier runs only the owner can make (UR-30); packages ready but unclaimed (UR-63), idle
+  lanes (UR-64) and parked claims (UR-67); and one closing line of counts: open programme PRs, and
+  PRs merged since the newest owner ruling pointer or owner record on #6854, auto-merged ones included. An answered question leaves
+  the comment; its answer lives in the ruling's PR. (rulings 17, 19, 43, 54, 81; owner design
+  session 2026-10-12, pass 2 Q8)
+- **UR-168** The urgent path stays on GitHub: a plain comment on #6854 whose first line starts
+  `URGENT PATH`, with no label and no @-mention (agents post with the owner's own token, so neither
+  would notify the owner). There is no push channel and no second account; the owner's design
+  partner checks #6854 for `URGENT PATH` comments at the start of every session. (ruling 81;
+  50-coordination.md "Where agents run"; owner design session 2026-10-12, pass 2 Q8)
 
 ## Agents, sandboxes and models
 
@@ -581,9 +590,9 @@ or an agent's memory.
   `.git/config` is the agent's to write, and settings such as `core.fsmonitor` run commands when the
   host's git opens it. (50-coordination.md "Where agents run"; 30-ops.md `O0.1`)
 - **UR-173** The coordinator stays on the fast model on a 5-minute loop; the owner may reopen this
-  if it stops assigning, posts the batch over an hour late, or states a fact it did not read. Its
-  sandbox is disposable: restarted, it rebuilds its state from PRs, labels and the pinned issues.
-  (ruling 85; 50-coordination.md "Where agents run")
+  if it stops assigning, leaves the status comment unedited for over an hour, or states a fact it
+  did not read. Its sandbox is disposable: restarted, it rebuilds its state from PRs, labels and the
+  pinned issues. (ruling 85; 50-coordination.md "Where agents run")
 - **UR-174** Heavy work that appears while both heavy agents are paused goes on the urgent path; the
   owner restarts the agent with `agent-dgx run <name> --agent claude --split`, its kickoff from
   `scripts/uplevel/sandboxes.toml`, and `/loop 15m`. (ruling 88; 50-coordination.md "Paused")

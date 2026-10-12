@@ -73,8 +73,8 @@ comment by its first line, and edit it with
 `gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`.
 
 **Stale coordinator.** When the coordinator's heartbeat is older than 20 minutes, act as UR-162
-says. The owner restarts the coordinator
-(UR-163).
+says: one plain `URGENT PATH` comment on #6854 per hour, no label and no @-mention (UR-168). The
+owner restarts the coordinator (UR-163).
 
 **Paused.** A heavy agent whose queue is empty posts the final `paused` heartbeat and ends its turn
 (UR-160). When the owner restarts it, it runs its kickoff line and `/loop 15m` (UR-174).

@@ -57,8 +57,9 @@ stopped and started on a running stack.
 **Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents.
 
 - **Frontend** owns `F2.3`: the shared harness, the split and the UI batches it keeps. On `F2.1`'s
-  merge it posts the split on the batch issue: the **unverified** rows grouped into area batches,
-  each named with its rows and its agent.
+  merge it posted the split on #6854 (comment `6103539478`): the **unverified** rows grouped into
+  area batches, each named with its rows and its agent. A change to the split goes as a comment on
+  each affected agent's own `F2.3` claim PR (UR-157).
 - **Backend** takes the rows whose evidence is an external API behaviour, as pytest specs in
   `backend/tests/golden/` (the contract in `O2.2`'s PR body, #6961).
 - **ops-a** (after `O2.3b`) and **docs** take UI batches as `golden` Playwright specs.

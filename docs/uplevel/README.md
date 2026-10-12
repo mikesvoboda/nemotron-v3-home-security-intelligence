@@ -4,10 +4,10 @@
 only code that ships, and the tests protect behaviour instead of pinning implementation. The
 programme was designed with the owner on 2026-10-07 at `main` tip `d6ba78d5`, from the evidence in
 [`00-audit.md`](00-audit.md). Four lanes (backend, frontend, ops, docs) each work through their own
-packages, phase by phase, with one or two agents per lane by phase; a coordinator routes work and
-an operator runs the real-tier checks. The owner gives the rulings, holds the Phase 4 design
-sessions, reviews owner-tier PRs and has the final say on merges, once a day, in the batch.
-What is out of scope is UR-84.
+packages, phase by phase, with one or two agents per lane by phase; a coordinator routes work and an
+operator runs the real-tier checks. The owner gives the rulings, holds the Phase 4 design sessions,
+reviews owner-tier PRs and has the final say on merges, through rulings and owner records on #6854,
+working from the coordinator's status comment there. What is out of scope is UR-84.
 
 Every standing rule is in [`rules.md`](rules.md), grouped by the act it governs, including the
 contract every package inherits and the `UR-n` rulings of record. Each role's procedure is in
@@ -221,8 +221,8 @@ UR-147.
 - [`README.md`](README.md): the goal, phases, dependencies, vocabulary, lanes, the alternatives
   considered and rejected, status and this map.
 - [`rules.md`](rules.md): every standing rule, grouped by situation, with its source.
-- [`roles/coordinator.md`](roles/coordinator.md): the coordinator's remit, tick, daily batch and
-  kickoff prompt.
+- [`roles/coordinator.md`](roles/coordinator.md): the coordinator's remit, tick, status comment
+  and kickoff prompt.
 - [`roles/lane.md`](roles/lane.md): the lane and heavy agents' tick, split-lane and heavy-sandbox
   specifics, and the lane kickoff prompts.
 - [`roles/operator.md`](roles/operator.md): the operator's real-tier runbook and kickoff prompt.

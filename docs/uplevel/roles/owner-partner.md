@@ -15,10 +15,11 @@ owner unblocked.
 - [`rules.md`](../rules.md): every standing rule (UR-1 onward), grouped by situation: the owner tier (§Merging),
   heartbeats and stalled agents (§Posting, heartbeats and the urgent path), and the rest.
 - [`lane.md`](lane.md) "Who takes what": the roster. [`coordinator.md`](coordinator.md) and [`lane.md`](lane.md): the
-  tick, claiming, review and merge, and the daily batch.
+  tick, claiming, review and merge, and the coordinator's status comment.
 - [`operator.md`](operator.md): the real tier, `agent-gpu`, and "The owner on the host".
-- The pinned issues: **#6854 "Uplevel daily batch"**, which holds rulings 1-146, each later ruling's one-line pointer
-  and every `BINDING NOW` record, and
+- The pinned issues: **#6854**, which holds rulings 1-146, each later ruling's one-line pointer, every `BINDING NOW`
+  record, every `URGENT PATH` comment and the coordinator's status comment (first line
+  `<!-- status:uplevel-coordinator -->`, edited in place each tick; UR-25, UR-166), and
   **#6958 "Uplevel heartbeats"**, one comment per agent.
 - The packages files (`packages/backend.md`, `packages/frontend.md`, `packages/ops.md`, `packages/docs.md`) and
   [`r2-sheet.md`](../r2-sheet.md) when a question touches a package or an open owner decision (OD-n).
@@ -43,6 +44,10 @@ A ruling binds as UR-39 and UR-40 say. Treat every ruling as settled (UR-44).
 
 ## The check-in
 
+**Start every session** by reading the coordinator's status comment on #6854 (the comment whose first line is
+`<!-- status:uplevel-coordinator -->`) and every `URGENT PATH` comment on #6854 since your last check (UR-168). Put
+any open `URGENT PATH` item to the owner first.
+
 When the owner asks "status update", "are we stuck?" or "are we tracking?", do these in order.
 
 1. **Read the state.** With `R=mikesvoboda/nemotron-v3-home-security-intelligence`:
@@ -52,7 +57,9 @@ When the owner asks "status update", "are we stuck?" or "are we tracking?", do t
    - open PRs with their merge state and checks:
      `gh pr list -R $R --state open --json number,title,isDraft,mergeStateStatus,statusCheckRollup`;
    - heartbeats: `gh api "repos/$R/issues/6958/comments?per_page=100"`;
-   - the coordinator's record and any urgent path: `gh api "repos/$R/issues/6854/comments?since=<last check>"`.
+   - the coordinator's status comment and any `URGENT PATH` comment:
+     `gh api "repos/$R/issues/6854/comments?since=<last check>"` (the status comment is edited in place, so `since`
+     returns it whenever it changed).
 2. **Diagnose before reporting.** For a red check, read the job log
    (`gh api repos/$R/actions/jobs/<id>/logs | grep -iE "error|fail|mismatch"`) and name the cause. For a quiet agent,
    apply the stall test below. For an idle agent, find what it is waiting on (the plan's dependency chain, an owner
@@ -95,7 +102,7 @@ If the owner wants an agent to start sooner, give the owner a prompt to paste in
 ## Owner PRs
 
 You open these when the owner asks: plan PRs (writing rulings into the plan), urgent fixes when `main` is red, and
-bookkeeping the batch owes (for example, status rows).
+bookkeeping the programme owes (for example, status rows).
 
 - Branch from a fresh `origin/main` as `uplevel/<topic>`, keep the diff to what the ruling says, and run the checks the
   gate runs on those files before pushing: prettier on Markdown (a Markdown table pads to its widest cell, so size new
@@ -151,10 +158,10 @@ Check for these first; each has happened.
   test (a poll waited out in real time, a real backoff with jitter), and the fix is in the test.
 - **A PR goes red after update-branch with an unchanged diff.** Something that merged meanwhile changed what the PR's own
   check reads. The author fixes it; the coordinator passes the merge slot on.
-- **The coordinator drifts.** It has stopped assigning idle agents, misread a slow test as runner load, posted the
-  batch hours late, reported a merge before it happened, and overwritten its own heartbeat marker. Correct it with a
-  ruling that names the rule in `rules.md` or the step in `roles/coordinator.md`.
-- **Status rows lag.** PRs often omit their row edit. The batch lists rows owed; an owner PR sets them.
+- **The coordinator drifts.** It has stopped assigning idle agents, misread a slow test as runner load, left its status
+  comment unedited for hours, reported a merge before it happened, and overwritten its own heartbeat marker. Correct it
+  with a ruling that names the rule in `rules.md` or the step in `roles/coordinator.md`.
+- **Status rows lag.** PRs often omit their row edit. The check-in spots rows owed; an owner PR sets them.
 - **Two PRs updated onto the same `main` race.** The first to go green merges and the other needs another
   update-branch and CI run. It costs CI minutes, not wall time.
 
@@ -165,7 +172,7 @@ Check for these first; each has happened.
   `gh api -X PUT repos/$R/pulls/<n>/update-branch`. What an update-branch keeps: UR-106.
 - **Labels:** `lane:<lane>`, `heavy`, `owner`, `cell:a` / `cell:b` (ops-a / ops-b), `cell:heavy-2` (a `heavy` PR with
   it is heavy-2's; without it, `uplevel-heavy`'s), `review:<lane>`.
-- **Daily batch** time: UR-25.
+- **Status comment:** edited every tick, no fixed time (UR-25); the urgent path is UR-168.
 - **maui (the GPU host):** each sandbox's `$AGENT_GPU_DIR` is `/agents/<sandbox>/gpu`; `/var/lib/agent-gpu` is the
   `agent-gpu` user's home. `/synthbench/corpus` is a nested ZFS dataset, so mount it explicitly. The B1.2 eval store
   copy is `/synthbench/eval/dogfood-2026-10-06/eval.sqlite`. A SQLite file in `journal_mode delete` with no `-wal`

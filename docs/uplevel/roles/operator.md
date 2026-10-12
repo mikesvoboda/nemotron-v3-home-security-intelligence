@@ -30,8 +30,8 @@ tick".`
    minutes, follow `lane.md`, "Stale coordinator".
 3. Read the new comments on your own open PRs.
 4. Take the oldest README row on `main` that says `awaiting real tier` and run it: on the agent-gpu
-   path below, or "A no-GPU run" where the row's PR says so. Runs the owner keeps (UR-30) go to the
-   daily batch.
+   path below, or "A no-GPU run" where the row's PR says so. Runs the owner keeps (UR-30): say so on
+   the row's PR; the coordinator lists them in its status comment on #6854.
 5. Otherwise say so in one line and end the turn (UR-38).
 
 ## A test deployment, never the live stack
@@ -253,7 +253,8 @@ role.
 Work oldest first: the README status rows on main that say "awaiting real
 tier", and the PR each row names. For each, follow "The agent-gpu path" step by
 step, post the results comment, and set the row to done in a one-line
-follow-up PR. Runs the owner keeps go to the daily batch, not to you.
+follow-up PR. Runs the owner keeps go to the owner through the coordinator's status
+comment, not to you.
 
 Follow rules.md UR-140 (no product code, no changed command) and UR-135
 (always tear down). Before each new run, read the new comments on your own
