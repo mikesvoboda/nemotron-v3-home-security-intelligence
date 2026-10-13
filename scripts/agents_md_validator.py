@@ -78,9 +78,10 @@ class ConfigError(RuntimeError):
     """
 
 
-# The package's retired names, in 40-docs.md's order MINUS pose: the owner
-# ruled pose out of the ratchet on 2026-10-08 (answers on #6870) because the
-# name is dominated by the LIVE Triton model actually named `pose`, so the
+# The package's retired names, in W1.1's order (docs/uplevel/history/packages-done.md)
+# MINUS pose: the owner ruled pose out of the ratchet on 2026-10-08 (answers on
+# #6870) because the name is dominated by the LIVE Triton model actually named
+# `pose`, so the
 # count mixes live and retired usage. Measured 37 whole-word at the head it
 # shipped; it comes back if R2 retires the pose features. The loader requires
 # ALL FIVE keys in retired_name_baseline: a missing key is neither 0 (would
@@ -103,10 +104,10 @@ RETIRED_NAMES: tuple[str, ...] = (
 RETIRED_NAME_PATTERNS = {name: re.compile(rf"\b{name}\b") for name in RETIRED_NAMES}
 
 # W2.1 cap tiers (DECIDE; the numbers live in the config, this is the shape).
-# root: the single root file; lane_root: the seven directories 40-docs.md
-# names as lane roots; package: every other boundary file. The loader requires
-# all three — a missing tier is the config dropping the arm, not a tier with
-# no cap.
+# root: the single root file; lane_root: the seven directories the standard
+# (docs/developer/agents-md-standard.md) names as lane roots; package: every
+# other boundary file. The loader requires all three — a missing tier is the
+# config dropping the arm, not a tier with no cap.
 CAP_TIERS: tuple[str, ...] = ("root", "lane_root", "package")
 LANE_ROOTS: frozenset[str] = frozenset(
     {"backend", "frontend", "ai", "scripts", ".github", "synthbench", "monitoring"}
@@ -816,8 +817,8 @@ def boundary_tier(dir_path: str) -> str:
     """The cap tier a boundary directory falls in (W2.1, DECIDE).
 
     'root' is the project root ('.'); 'lane_root' is one of the seven lane
-    roots 40-docs.md names; everything else in the boundary list is
-    'package'. Compared on the POSIX-style relative dir, so Windows-style
+    roots docs/developer/agents-md-standard.md names; everything else in the
+    boundary list is 'package'. Compared on the POSIX-style relative dir, so Windows-style
     separators never reach here (pathlib str() on the gate's platforms uses
     '/', and the config's paths are committed with '/').
     """

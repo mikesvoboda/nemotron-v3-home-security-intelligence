@@ -1542,13 +1542,13 @@ pytest_skipif:
     tracking: null
     expires: null
     reason: fakeredis not installed
-  - id: backend/tests/unit/scripts/test_uplevel_launch.py::test_operator_md_holds_the_section_the_line_names
+  - id: backend/tests/unit/scripts/test_uplevel_launch.py::test_lane_md_holds_the_prompt_and_the_line_each_lane_kickoff_names
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: "docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against"
-  - id: backend/tests/unit/scripts/test_uplevel_launch.py::test_the_roster_holds_both_prompts_the_heavy_line_points_between
+  - id: backend/tests/unit/scripts/test_uplevel_launch.py::test_operator_md_holds_the_section_the_line_names
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL

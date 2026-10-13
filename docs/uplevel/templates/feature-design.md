@@ -1,8 +1,8 @@
 # 4n — <Feature> Design
 
-> Template for step 1 of every Phase 4 feature package (`10-backend.md`, feature track). Copy it to
-> `docs/uplevel/4n-<feature>.md`, then fill it during the design session with the owner. A section
-> that does not apply says so in one line.
+> Template for step 1 of every Phase 4 feature package (`packages/backend.md`, "B4.\* Feature
+> track"). Copy it to `docs/uplevel/4n-<feature>.md`, then fill it during the design session with
+> the owner. A section that does not apply says so in one line.
 
 **Package:** `B4.n` / `F4.n` · **Inventory row:** `F-0xx` · **R2 ruling:** complete, priority n ·
 **Designed:** <date>, with the owner
@@ -14,7 +14,7 @@ Two to four sentences, in the user's words. This becomes the golden path.
 ## Decisions
 
 The feature's open questions and how the session settled each. Questions listed in the lane plan
-(arming's are in `10-backend.md`) all appear here.
+(arming's are in `packages/backend.md`) all appear here.
 
 | question | decision | why |
 | -------- | -------- | --- |

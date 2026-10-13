@@ -139,6 +139,128 @@ run_export "OSNet-AIN x1.0 Re-ID -> ONNX" "${CACHE_DIR}/reid/1/model.onnx" \
         --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
         --output-path "${CACHE_DIR}/reid/1/model.onnx"
 
+# Person Re-ID -> TensorRT plan (O2.4, owner ruling 107)
+#
+# The gateway's `reid` config asks for backend "tensorrt" now: the ONNX Runtime
+# CUDA execution provider fails on the GB300 (ruling 106), so the GPU path is a
+# plan compiled ON the serving GPU. Engines are architecture-specific, so this is
+# a per-host bake, never an image build or CI step.
+#
+# It COMPILES the model.onnx above and refuses to run unless that ONNX's
+# provenance record vouches for these exact weights (B2.2), which is also why it
+# must come after the ONNX export. A host with no TensorRT skips it (the CPU bake
+# still produces every ONNX, and that is the point of those runs) but says out
+# loud that reid will not load without the plan; a host that HAS trtexec and fails
+# the compile counts as a failed export, because a stale/unvouched ONNX is exactly
+# what #6970's precondition warns about and a quiet skip would hide it.
+REID_PLAN="${CACHE_DIR}/reid/1/model.plan"
+# fp16 is the shipped default (yolo26's engine idiom); the owner's parity gate
+# is cosine >= 0.999 (scripts/reid_parity_check.py) and was proven against an
+# FP32 path, so the bake exposes the lever: REID_PLAN_PRECISION=fp32 rebuilds
+# the plan at full precision — a one-flag retry, not a new package, if the
+# owner's run lands just under the gate.
+REID_PLAN_PRECISION="${REID_PLAN_PRECISION:-fp16}"
+# Engines are architecture-specific (copy_yolo26_engine.py's warning; the B2.2
+# note in export_reid.py). A cache copied from a DIFFERENT card still has a
+# .plan — but for the wrong GPU, and Triton will not load it. Record which GPU
+# built the plan and treat a mismatch as stale instead of cached. (The sidecar
+# rides inside the version dir; §0c links it and Triton ignores extras, exactly
+# like provenance.json.)
+GPU_NAME="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 || true)"
+
+# Build the plan from the vouched ONNX on THIS GPU. Returns 0/1; the caller
+# classifies the outcome into PASS/FAIL/SKIP exactly once.
+build_reid_plan() {
+    python3 "${SCRIPT_DIR}/export_reid.py" \
+        --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
+        --output-path "$REID_PLAN" \
+        --precision "$REID_PLAN_PRECISION"
+}
+
+skip_reid_plan() {
+    echo "     SKIPPED - no trtexec on this host (no GPU bake here)"
+    echo "     WARNING: reid/config.pbtxt serves backend \"tensorrt\"; without a"
+    echo "     plan built ON the serving GPU, reid will not load."
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+}
+
+# The sidecar records WHAT the plan was built against, on two lines: the GPU
+# name, then the precision. A cache copied from another card — or another
+# precision — must rebuild, so CACHED requires both to match. An empty
+# GPU_NAME means the probe FAILED (no driver, no nvidia runtime hook, toolkit
+# skew): "" would then equal a missing sidecar's "" and read any plan ever
+# copied in as built-here, forever — the exact silent-survival this file
+# exists to prevent, so CACHED additionally requires a probe that answered.
+SIDECAR="${REID_PLAN}.device"
+REC_GPU="$(sed -n '1p' "$SIDECAR" 2>/dev/null || true)"
+REC_PREC="$(sed -n '2p' "$SIDECAR" 2>/dev/null || true)"
+# One spelling of "what this host is", so no branch can quietly treat a FAILED
+# probe as a host whose GPU name happens to be the empty string (review F2).
+THIS_HOST="${GPU_NAME:-GPU PROBE FAILED}"
+RECORDED="${REC_GPU:-unrecorded GPU}/${REC_PREC:-unrecorded}"
+
+# Same candidate set as export_reid.TRTEXEC_CANDIDATES — a gate narrower than
+# the builder's own finder skips hosts the builder would have served.
+have_trtexec() {
+    command -v trtexec > /dev/null 2>&1 \
+        || [ -x /usr/src/tensorrt/bin/trtexec ] \
+        || [ -x /usr/local/bin/trtexec ]
+}
+
+# What the summary is allowed to claim about the plan step: verified (built
+# here or recorded as such), unverified (a plan is present that this host
+# cannot vouch for), or nothing (no plan at all). Default unset = no plan.
+REID_PLAN_STATE=""
+
+if [ -f "$REID_PLAN" ] && [ -n "$GPU_NAME" ] \
+        && [ "$REC_GPU" = "$GPU_NAME" ] && [ "$REC_PREC" = "$REID_PLAN_PRECISION" ]; then
+    echo "  -> OSNet-AIN Re-ID -> TensorRT plan... CACHED (skipping)"
+    REID_PLAN_STATE=verified
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+elif [ -f "$REID_PLAN" ] && ! have_trtexec; then
+    # No builder to replace what we would delete: leave the plan and say what
+    # we cannot verify. Deleting here (the old shape) turned an unverifiable
+    # cache into a definitely-missing one on hosts that can never rebuild.
+    echo "  -> OSNet-AIN Re-ID -> TensorRT plan... KEPT (no builder here; cannot verify: this host is '${THIS_HOST}', the plan records '${RECORDED}')"
+    REID_PLAN_STATE=unverified
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+else
+    if [ -f "$REID_PLAN" ]; then
+        # Stale by GPU, by precision, or unverifiable (probe failed / no
+        # sidecar): Triton cannot load a plan from a different card, and an
+        # fp16 plan is not what an REID_PLAN_PRECISION=fp32 rerun asked for.
+        echo "  -> OSNet-AIN Re-ID -> TensorRT plan... STALE (built for '${RECORDED}', this host is '${THIS_HOST}' at ${REID_PLAN_PRECISION}) — rebuilding"
+        rm -f "$REID_PLAN"
+    else
+        echo "  -> OSNet-AIN Re-ID -> TensorRT plan..."
+    fi
+    mkdir -p "$(dirname "$REID_PLAN")"
+    if ! have_trtexec; then
+        skip_reid_plan
+    elif build_reid_plan; then
+        echo "     OK"
+        if [ -n "$GPU_NAME" ]; then
+            printf '%s\n%s\n' "$GPU_NAME" "$REID_PLAN_PRECISION" > "$SIDECAR"
+        else
+            # The build happened HERE, in front of us — but we cannot record
+            # WHICH GPU did it, and a sidecar whose name line is empty is worse
+            # than no sidecar: the next bake's failed probe would compare "" to
+            # "" and read this plan as verified-here, which is the very equality
+            # the CACHED condition above refuses. Write no record, and drop any
+            # stale one so it cannot vouch for a plan it did not build. The next
+            # bake then handles this plan the way it handles any unrecorded one.
+            rm -f "$SIDECAR"
+            echo "     WARNING: GPU probe failed — the plan is built but UNRECORDED;" \
+                 "the next bake here cannot tell which GPU built it."
+        fi
+        REID_PLAN_STATE=verified
+        PASS_COUNT=$((PASS_COUNT + 1))
+    else
+        echo "     FAILED"
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+    fi
+fi
+
 # ---------------------------------------------------------------------------
 # Phase 3: Verify config files
 # ---------------------------------------------------------------------------
@@ -173,6 +295,10 @@ check_file "${CACHE_DIR}/yolo26/1/model.onnx"                 "yolo26"          
 check_file "${CACHE_DIR}/threat/1/model.onnx"                 "threat"              || true
 check_file "${CACHE_DIR}/reid/1/model.onnx"                   "reid"                || true
 
+echo ""
+echo "  TensorRT plans (.plan, built ON the serving GPU — O2.4):"
+check_file "${CACHE_DIR}/reid/1/model.plan"                   "reid (tensorrt)"     || true
+
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
@@ -183,6 +309,7 @@ echo "================================================================"
 echo ""
 echo "  Passed: ${PASS_COUNT}"
 echo "  Failed: ${FAIL_COUNT}"
+echo "  Skipped: ${SKIP_COUNT}"
 echo "  Finished at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo ""
 
@@ -192,7 +319,27 @@ if [ "$FAIL_COUNT" -gt 0 ]; then
     exit 1
 fi
 
-echo "  All exports succeeded."
+if [ "$REID_PLAN_STATE" = verified ]; then
+    echo "  All exports succeeded."
+elif [ "$REID_PLAN_STATE" = unverified ]; then
+    # A plan is present, so Triton may well load it — but THIS host could not
+    # establish which GPU built it (probe failed, or no sidecar), and it had no
+    # builder to rebuild with. The step line said so; the verdict must not erase
+    # it, for the same reason the plan-less case below prints "pending": this
+    # file's own rule is that a skipped GPU step is not a passed one, and a
+    # GPU step this host could only take on faith is further from passed than a
+    # skipped one.
+    echo "  WARNING: the reid plan is present but UNVERIFIED on this host" \
+         "(no builder, and no sidecar match to prove which GPU built it)."
+    echo "  ONNX exports complete; the GPU step is unverified, not passed."
+else
+    # The step line warned; the VERDICT must not erase it. A plan-less cache is
+    # not "all exports succeeded" — reid/config.pbtxt loads backend "tensorrt"
+    # and has nothing to load (O2.4, ruling 107).
+    echo "  WARNING: no reid plan in this cache — reid will NOT load" \
+         "(backend \"tensorrt\" needs 1/model.plan built ON the serving GPU)."
+    echo "  ONNX exports complete; the GPU step is pending, not passed."
+fi
 echo "  Run 'tritonserver --model-repository=${REPO_DIR}' to load models."
 echo ""
 echo "=== Export complete ==="

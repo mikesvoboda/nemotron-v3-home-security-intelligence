@@ -1,6 +1,6 @@
 /**
  * Shared harness plumbing for the F2.3 DO-1 golden paths (docs batches,
- * 20-frontend.md §F2.3; claim #6996). DO-1 covers the Analytics and Alerts
+ * docs/uplevel/packages/frontend.md §F2.3; claim #6996). DO-1 covers the Analytics and Alerts
  * surfaces: inventory rows F-070 to F-075, F-077 and F-080.
  *
  * The contract this module encodes is feature-check's own (scripts/

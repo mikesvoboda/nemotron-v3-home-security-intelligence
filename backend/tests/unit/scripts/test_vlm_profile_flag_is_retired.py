@@ -355,8 +355,9 @@ def test_the_census_walks_the_surface_it_exists_for(surfaces: list[Path]) -> Non
 
 
 def test_history_is_out_of_scope(surfaces: list[Path]) -> None:
-    """Dated plans and the programme's own audit keep their references (30-ops,
-    O1.2: "Dated plans and specs keep their references; they are history")."""
+    """Dated plans and the programme's own audit keep their references
+    (history/packages-done.md, O1.2: "Dated plans and specs keep their references; they are
+    history")."""
     rels = {str(p.relative_to(REPO_ROOT)) for p in surfaces}
     assert not any(r.startswith("docs/plans/") for r in rels)
     assert not any(r.startswith("docs/uplevel/") for r in rels)
