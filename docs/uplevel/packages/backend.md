@@ -208,7 +208,7 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 
 **Flags:** owner tier (security and auth), pre-approved by ruling 94 (UR-101).
 **Assigned:** `uplevel-backend`, test-first; `setup.py` is ops's file, so the PR lists it as a
-cross-lane part. **Depends on:** none named. **PR:** none yet.
+cross-lane part. **Depends on:** none named. **PR:** #7038 (merged).
 
 - [ ] **The defect:** on a re-run, the LAN-exposure prompt defaults to `n` (`setup.py:685` quick
       path, `:900` guided), and that answer drives `EXPOSE_LAN`, `FRONTEND_BIND_ADDRESS` and the
