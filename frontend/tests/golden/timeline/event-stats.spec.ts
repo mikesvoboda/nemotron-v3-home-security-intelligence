@@ -132,6 +132,10 @@ const statsTruth = (session: Session, range = ''): Promise<StatsBody> =>
 const stat = (page: Page, id: string) => page.getByTestId(id).locator('span').first();
 
 test.beforeAll(async () => {
+  // The fixture may wait out the camera list's 60 s cache entry on a fresh
+  // stack; inside beforeAll test.setTimeout sets the HOOK's timeout, not the
+  // tests'. See waitForCameraInList in ./harness.ts.
+  test.setTimeout(120_000);
   const session = await adminSession(harness);
   fx = await createStatsFixture(harness, session);
 });

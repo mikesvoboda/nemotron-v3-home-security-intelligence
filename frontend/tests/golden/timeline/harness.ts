@@ -382,6 +382,8 @@ interface CameraListBody {
 interface CameraCreated {
   id: string;
   name: string;
+  /** Present on the route's 409, where the existing id travels (`ensureCamera`). */
+  detail?: string;
 }
 interface BulkResult {
   index: number;
@@ -394,6 +396,134 @@ interface BulkBody {
   succeeded: number;
   failed: number;
   results: BulkResult[];
+}
+
+/**
+ * A camera this file just created is INVISIBLE to `GET /api/cameras` for up to a
+ * minute, and that is a backend cache contract rather than a UI bug — so FE-3
+ * waits it out instead of pretending it isn't there. Measured twice at head
+ * `82f79a4f4`, which is what turned CI's `Feature check (fake AI)` red here:
+ *
+ *  - CI's own artifact: `#camera-filter` reported `""` where the fixture id was
+ *    expected, and the run's aria snapshot lists the select's ONLY options as
+ *    the five cameras the harness seeds (`person-at-door … harness-smoke`, which
+ *    is exactly what the run's own `cameras.json` names). The DOM faithfully
+ *    reported the response it got.
+ *  - the probe stack, by hand: prime `GET /api/cameras` → `POST /api/cameras`
+ *    (201; `GET /api/cameras/{id}` answers 200 for it, `status:"online"`) → poll
+ *    the plain list: absent for ~15 s, then present once the key's TTL expired.
+ *
+ * Why waiting is the only lever this batch has (each fact measured; the fix
+ * would live in `backend/`, which ruling 87 keeps out of this PR):
+ *  - `list_cameras` is cache-aside on a 60 s entry and a HIT never touches the DB
+ *    (`cameras.py:194-217`; `SHORT_TTL = 60` at `cache_service.py:60`).
+ *  - The camera invalidation cannot fire: `CacheKeys` bakes the *global* prefix
+ *    into the key (`hsi:cache:cameras:list:all`, `cache_service.py:752-762`)
+ *    while `invalidate_pattern` prepends only `cache:` to `"cameras:*"` (`:486`,
+ *    `:577`), so the SCAN pattern can never match it. Confirmed against Redis in
+ *    the probe stack: exactly one key, `cache:hsi:cache:cameras:list:all`. The
+ *    same mismatch defeats the product's own escape hatch — `POST
+ *    /api/admin/maintenance/clear-cache` answered `{"keys_cleared":0,
+ *    "cache_types":[]}` and left that key sitting at `ttl=60`.
+ *  - A cache hit does NOT refresh the TTL (`redis_cluster.py:316-333` is a bare
+ *    GET), which is what makes a bounded poll converge instead of livelocking:
+ *    the entry expires, the next read misses, and the refill comes from the DB,
+ *    which already has the row.
+ *
+ * Cost: one extra GET on a stack that already has the camera (the first poll
+ * passes); on a fresh stack, at most one TTL window, once per file. The wait must
+ * happen BEFORE the boot because `useCamerasQuery` defaults `refetchInterval` to
+ * `false` (`hooks/useCamerasQuery.ts:150`) — a page booted inside the window
+ * never corrects itself, which is why the failure surfaced as a locator timeout
+ * and not as a recoverable re-render.
+ */
+const CAMERA_LIST_WAIT_BUDGET_MS = 90_000; // > SHORT_TTL (60 s) + margin
+const CAMERA_LIST_POLL_MS = 3_000;
+
+export async function waitForCameraInList(
+  h: TimelineHarness,
+  session: Session,
+  name: string
+): Promise<void> {
+  const deadline = Date.now() + CAMERA_LIST_WAIT_BUDGET_MS;
+  let polls = 0;
+  for (;;) {
+    polls += 1;
+    const list = await api<CameraListBody>(h, session, '/api/cameras');
+    if ((list.items ?? []).some((cam) => cam.name === name)) return;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `fixture: '${name}' never appeared in GET /api/cameras within ` +
+          `${CAMERA_LIST_WAIT_BUDGET_MS}ms (${polls} polls). That list is a 60 s ` +
+          `cache entry that is not converging — see waitForCameraInList's note: ` +
+          `the stack's cache, not the timeline UI.`
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, CAMERA_LIST_POLL_MS));
+  }
+}
+
+/**
+ * Find FE-3's own camera by name, creating it when the stack has never seen it.
+ *
+ * A 409 is a ROUTINE outcome here, not a failure, and must never take the file
+ * down: the list read below can be the stale cached answer above, so "not in the
+ * list" does not mean "not in the DB". CI's red is exactly that sequence — a
+ * retry POSTed the camera its first attempt had already created, died on
+ * `Camera with name 'fe3-timeline-probe' already exists (id:
+ * fe3_timeline_probe)`, and every remaining test in the file reported as
+ * not-run. The id travels inside that 409's own `detail` (measured) and it is
+ * the DB's id, so a conflict is parsed rather than thrown and then confirmed
+ * against `GET /api/cameras/{id}` — which is NOT cache-aside (`cameras.py:683-
+ * 720` reads the DB). A 409 whose detail cannot be parsed still fails loudly,
+ * with the route's own body in the message.
+ */
+async function ensureCamera(
+  h: TimelineHarness,
+  session: Session,
+  name: string,
+  folderPath: string
+): Promise<string> {
+  const list = await api<CameraListBody>(h, session, '/api/cameras');
+  const known = (list.items ?? []).find((cam) => cam.name === name);
+  if (known) return known.id;
+
+  // Deliberately NOT apiWrite: its documented contract is "a non-2xx THROWS",
+  // and that contract is what makes other specs' failures name the endpoint.
+  // Here a 409 is an EXPECTED answer, so this one call reads its own status and
+  // every other non-2xx still surfaces with the route's body in the message.
+  const res = await fetch(`${h.api}/api/cameras`, {
+    method: 'POST',
+    headers: {
+      Cookie: `${session.name}=${session.value}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name, folder_path: folderPath }),
+  });
+  const created = (await res.json().catch(() => null)) as CameraCreated | null;
+  if (res.status >= 200 && res.status < 300) {
+    const id = created?.id;
+    if (!id) throw new Error(`fixture: POST /api/cameras for '${name}' 2xx had no id`);
+    return id;
+  }
+  if (res.status !== 409) {
+    throw new Error(
+      `fixture: POST /api/cameras for '${name}' answered ${res.status}: ` +
+        JSON.stringify(created).slice(0, 200)
+    );
+  }
+  const detail = created?.detail ?? '';
+  const found = detail.match(/already exists \(id: ([^)]+)\)/);
+  const id = found ? found[1] : null;
+  if (!id) {
+    throw new Error(
+      `fixture: POST /api/cameras for '${name}' answered 409 with an unparseable ` +
+        `detail: ${detail.slice(0, 200)}`
+    );
+  }
+  // Confirm the recovered id is real (an uncached read) before the file builds on it.
+  await api<{ id: string }>(h, session, `/api/cameras/${encodeURIComponent(id)}`);
+  return id;
 }
 
 export interface TimelineFixture {
@@ -440,16 +570,17 @@ export async function createTimelineFixture(
   h: TimelineHarness,
   session: Session
 ): Promise<TimelineFixture> {
-  const list = await api<CameraListBody>(h, session, '/api/cameras');
-  const existing = (list.items ?? []).find((c) => c.name === FIXTURE_CAMERA_NAME);
-  const cameraId = existing
-    ? existing.id
-    : (
-        await apiWrite<CameraCreated>(h, session, 'POST', '/api/cameras', {
-          name: FIXTURE_CAMERA_NAME,
-          folder_path: '/cameras/fe3_timeline_probe',
-        })
-      ).id;
+  const cameraId = await ensureCamera(
+    h,
+    session,
+    FIXTURE_CAMERA_NAME,
+    '/cameras/fe3_timeline_probe'
+  );
+  // The UI's camera select is built from GET /api/cameras, whose answer can be a
+  // stale cache entry (see waitForCameraInList). The page must not boot before it
+  // names this camera, or F-043's deep-link legs assert against a select that
+  // legitimately never saw it — which is the CI red this note records.
+  await waitForCameraInList(h, session, FIXTURE_CAMERA_NAME);
 
   // Re-runs on a persistent stack must not accumulate rows on THIS camera, or a
   // row-count mirror would compare the DOM against a number that grew between
@@ -577,16 +708,11 @@ export async function createStatsFixture(
   h: TimelineHarness,
   session: Session
 ): Promise<StatsFixture> {
-  const list = await api<CameraListBody>(h, session, '/api/cameras');
-  const existing = (list.items ?? []).find((c) => c.name === STATS_CAMERA_NAME);
-  const cameraId = existing
-    ? existing.id
-    : (
-        await apiWrite<CameraCreated>(h, session, 'POST', '/api/cameras', {
-          name: STATS_CAMERA_NAME,
-          folder_path: '/cameras/fe3_stats_probe',
-        })
-      ).id;
+  const cameraId = await ensureCamera(h, session, STATS_CAMERA_NAME, '/cameras/fe3_stats_probe');
+  // Same contract as the browse fixture: F-047's three legs all navigate with
+  // ?camera=<id>, and a select that cannot name the camera is a boot the panel
+  // never recovers from (refetchInterval is false).
+  await waitForCameraInList(h, session, STATS_CAMERA_NAME);
 
   // Residue from an earlier run would inflate every count this file asserts.
   // Live rows first (cheap, single read), then anything already in the trash on

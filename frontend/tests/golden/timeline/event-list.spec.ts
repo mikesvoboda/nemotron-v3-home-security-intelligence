@@ -123,6 +123,10 @@ let highestRiskId = 0;
 let newestId = 0;
 
 test.beforeAll(async () => {
+  // This hook can legitimately wait out the camera list's 60 s cache entry on a
+  // FRESH stack (see waitForCameraInList in ./harness.ts); the config's 15 s is a
+  // test timeout, and inside a beforeAll test.setTimeout sets the HOOK's.
+  test.setTimeout(120_000);
   const session = await adminSession(harness);
   fx = await createTimelineFixture(harness, session);
   // Derived from the fixture's own row table, not from a re-read, so a typo in
