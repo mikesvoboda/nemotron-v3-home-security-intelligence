@@ -950,6 +950,243 @@ export async function createDetailFixture(
   return { cameraId, eventIds };
 }
 
+/* -------------------------------------------------------------------------- */
+/* The SEARCH fixture (F-048) — a FOURTH camera, on purpose.                    */
+/*                                                                              */
+/* It cannot share FIXTURE_CAMERA_NAME: F-043's legs mirror DOM card counts     */
+/* against that camera's rows, and F-048's purge HARD-deletes 25 rows on boot.   */
+/* It also cannot reuse the DETAIL camera, whose legs assert "starts unreviewed" */
+/* and "starts note-free" — a search fixture that later marks rows reviewed      */
+/* would make that file's precondition a function of file order.                */
+/*                                                                              */
+/* TWENTY-FIVE rows is not a taste number. The search panel's own pagination    */
+/* (`SearchResultsPanel.tsx:57` totalPages = ceil(total/limit)) renders its      */
+/* Next/Previous buttons ONLY while totalPages > 1, and the page size is the     */
+/* component's defaultLimit = 20 (EventTimeline.tsx:163-170). Twenty-five is the */
+/* smallest count above 20 whose second page is non-empty, so the paging clause */
+/* can be driven at all — and the second page holds exactly 5 rows, which is a   */
+/* count a leg asserts rather than a count it hopes for.                        */
+/*                                                                              */
+/* THE VICTIM ROW IS THE POINT OF THIS FIXTURE. One extra row is SOFT-deleted    */
+/* after seeding, which is a state no other fixture wants and F-048's own        */
+/* "clicks a result to open its detail" clause needs to be measured honestly.    */
+/* Measured on the probe stack, same camera, same run:                           */
+/*   GET /api/events/search?q=…  → total 4, victim PRESENT                      */
+/*   GET /api/events?camera_id=… → total 3, victim ABSENT                       */
+/*   GET /api/events/{victim}    → 404                                           */
+/* The asymmetry is structural, not a race: the search route builds no          */
+/* `deleted_at` predicate (search.py:281-304) while the browse list excludes     */
+/* soft-deleted rows. So a clicked victim result CAN be a search hit that can    */
+/* NEVER be in `filteredEvents`, which the modal's lookup requires              */
+/* (EventTimeline.tsx:1059-1090) — the defect leg becomes deterministic instead  */
+/* of depending on whether the user happened to scroll while browsing.          */
+/* -------------------------------------------------------------------------- */
+
+/** FE-3's search camera: distinct from the browse, stats and detail cameras. */
+export const SEARCH_CAMERA_NAME = 'fe3-search-probe';
+
+/** Live rows the search legs page through. See the block comment for why 25. */
+export const SEARCH_FIXTURE_SIZE = 25;
+
+/**
+ * The shared token every fixture row's summary carries. A leg narrows to ONE row
+ * with `${SEARCH_QUERY_TOKEN} alpha <i>`, and every locator derives from the
+ * fixture rather than hardcoding a name — an accessible-name assertion written
+ * against a literal is one summary edit away from silently matching a different
+ * widget (the sidebar's "Recent threats indicator" is also a role=button).
+ */
+export const SEARCH_QUERY_TOKEN = 'fe3f048searchtoken';
+
+/**
+ * The victim's summary. It carries SEARCH_QUERY_TOKEN (so the query matches it)
+ * but NOT the `alpha <i>` form (so no live-row locator can ever aim at it by
+ * accident, and a leg can name it out loud). Declared AFTER the token it
+ * interpolates: these are `const`s, so the order is a TDZ error, not a style
+ * preference.
+ */
+export const SEARCH_VICTIM_SUMMARY = `${SEARCH_QUERY_TOKEN} deleted-but-still-listed`;
+
+/**
+ * Rows actually seeded: the 25 live ones plus the soft-deleted victim. The victim
+ * is given the OLDEST `started_at` deliberately: search's tie-break is
+ * `started_at DESC` (search.py:432), so the stale row lands at the BOTTOM of the
+ * result set — on page 2 — which leaves page 1 identical to the browse list's page
+ * 1. That is what keeps the modal's positive control honest: a page-1 click opens
+ * the modal because the row really is in the cached list, not by luck.
+ */
+export const SEARCH_SEED_ROWS = SEARCH_FIXTURE_SIZE + 1;
+
+export interface SearchFixture {
+  cameraId: string;
+  /** The 25 live rows, in seed order. `alpha <i>` in the summary is this index. */
+  eventIds: number[];
+  /** The soft-deleted row: returned by search, absent from browse, 404 by id. */
+  victimId: number;
+  /** What the SEARCH route calls the total for this token — the victim included. */
+  searchTotal: number;
+  /** What the BROWSE route calls the total — the victim excluded. */
+  browseTotal: number;
+  /** Rows the server calls `high`, so the severity leg asserts a measured number. */
+  highTotal: number;
+}
+
+/**
+ * One camera, SEARCH_FIXTURE_SIZE live rows, and one soft-deleted row.
+ *
+ * `risk_score` alternates 91/45 so `risk_level` alternates high/medium — that is
+ * what makes the severity filter leg an ASSERTION (13 of 25 high) instead of a
+ * restatement of the fixture. `started_at` is spread one minute apart over 3 h
+ * ending now, because search's tie-break is `started_at DESC` (search.py:432) and
+ * identical timestamps would make page contents arbitrary.
+ *
+ * The purge is HARD (`soft_delete:false`) and it asks the SEARCH route as well as
+ * the browse list for this camera's ids, because the two disagree by design: if a
+ * previous run died between the soft-delete and `afterAll`, the orphan is invisible
+ * to `GET /api/events` but PRESENT in search results, so a browse-only purge would
+ * leave it behind and the run would seed 26 rows and read "of 26" where it asserts
+ * "of 25" — a red that has nothing to do with the product.
+ */
+export async function createSearchFixture(
+  h: TimelineHarness,
+  session: Session
+): Promise<SearchFixture> {
+  const cameraId = await ensureCamera(h, session, SEARCH_CAMERA_NAME, '/cameras/fe3_search_probe');
+  // The camera <select> and the camera chip are built from the cached list, so a
+  // just-created camera must age out of that 60 s entry before any boot.
+  await waitForCameraInList(h, session, SEARCH_CAMERA_NAME);
+
+  const salt = Date.now();
+  const purge = async (path: string) => {
+    // Best-effort on purpose: an unexpected extra row must not turn the fixture
+    // red before it has tried to remove it. The count assertions below are the
+    // place that mismatch becomes visible, with the number in the message.
+    const stale = await api<{ items?: { id: number }[]; results?: { id: number }[] }>(
+      h,
+      session,
+      path
+    ).catch(() => null);
+    const ids = (stale?.items ?? stale?.results ?? []).map((row) => row.id);
+    await hardDeleteFixtureRows(h, session, ids);
+  };
+  await purge(`/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`);
+  await purge(
+    `/api/events/search?q=${encodeURIComponent(SEARCH_QUERY_TOKEN)}&limit=100&camera_id=${encodeURIComponent(
+      cameraId
+    )}`
+  );
+
+  // Row 0 is the victim: the OLDEST timestamp in the set (see SEARCH_SEED_ROWS)
+  // and a summary no live-row locator aims at. It is deliberately MEDIUM so the
+  // live set is exactly HALF-1 high, which makes the severity leg's expectation
+  // a number rather than a hope.
+  const windowStart = Date.now() - 3 * 3_600_000;
+  const events = Array.from({ length: SEARCH_SEED_ROWS }, (_, i) =>
+    i === 0
+      ? {
+          batch_id: `fe3s-${salt}-victim`,
+          camera_id: cameraId,
+          started_at: new Date(windowStart).toISOString(),
+          risk_score: 45,
+          risk_level: 'medium',
+          summary: SEARCH_VICTIM_SUMMARY,
+        }
+      : {
+          batch_id: `fe3s-${salt}-${i}`, // events.batch_id is UNIQUE (measured)
+          camera_id: cameraId,
+          started_at: new Date(windowStart + i * 60_000).toISOString(),
+          // 72 and 45, NOT 91: `risk_level` is a stored column (event.py:63) but
+          // every reader reports `computed_risk_level`, a CASE over risk_score
+          // (:393-424, ≤29 low / ≤59 medium / ≤84 high / else critical). A row
+          // declared `high` with score 91 therefore REPORTS `critical` while the
+          // filter still matches it as `high` — measured — which makes the count
+          // this file asserts depend on which of the two you ask. These scores
+          // agree with their labels, so the severity leg measures the filter
+          // instead of that disagreement. The disagreement itself is F-048's own
+          // `test.fixme` leg, where both fields are named on purpose.
+          risk_score: i % 2 === 0 ? 72 : 45,
+          risk_level: i % 2 === 0 ? 'high' : 'medium',
+          summary: `${SEARCH_QUERY_TOKEN} alpha ${i - 1}`,
+        }
+  );
+  const bulk = await apiWrite<BulkBody>(h, session, 'POST', '/api/events/bulk', { events });
+  if (bulk.succeeded !== events.length) {
+    throw new Error(
+      `search fixture: bulk create succeeded ${bulk.succeeded}/${events.length}; first ` +
+        `error: ${String(bulk.results.find((r) => r.status !== 'success')?.error).slice(0, 200)}`
+    );
+  }
+  const allIds = bulk.results.map((r) => r.id).filter((id): id is number => id !== null);
+  if (allIds.length !== events.length) {
+    throw new Error(
+      `search fixture: got ${allIds.length} ids for ${events.length} rows — the legs name ` +
+        'rows positionally by their `alpha <i>` summary, so a missing id must fail here.'
+    );
+  }
+
+  // The victim is seeded at index 0 and carries its own summary, so the live rows
+  // keep the contiguous `alpha 0 … alpha 24` naming the legs use. `results` comes
+  // back in request order (the assumption createDetailFixture already makes), so
+  // index 0 IS the victim.
+  const victimId = allIds[0];
+  await apiWrite<{ succeeded: number }>(h, session, 'DELETE', '/api/events/bulk', {
+    event_ids: [victimId],
+    soft_delete: true,
+  });
+
+  // The fixture's own premises, asserted at creation: if the server ever starts
+  // agreeing with itself about the victim, the defect leg's claim stops meaning
+  // what it says and this is the place that becomes obvious.
+  const searchTruth = await api<{
+    total_count: number;
+    results: { id: number; risk_level: string }[];
+  }>(
+    h,
+    session,
+    `/api/events/search?q=${encodeURIComponent(SEARCH_QUERY_TOKEN)}&limit=100&camera_id=${encodeURIComponent(
+      cameraId
+    )}`
+  );
+  const browseTruth = await api<{ items: { id: number }[] }>(
+    h,
+    session,
+    `/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`
+  );
+  const liveIds = browseTruth.items.map((row) => row.id);
+  // Plain throws, not `expect`: this file is a harness, and "the stack cannot
+  // supply the fixture this file needs" must never be reported as a product
+  // failure. Same idiom as createDetailFixture's precondition checks.
+  const requireFixture = (premise: boolean, why: string): void => {
+    if (!premise) throw new Error(`search fixture: ${why}`);
+  };
+  requireFixture(
+    searchTruth.results.some((row) => row.id === victimId),
+    'search must still RETURN the soft-deleted row (the search route builds no ' +
+      'deleted_at predicate, search.py:281-304) — without that asymmetry the defect ' +
+      'leg has nothing to measure'
+  );
+  requireFixture(
+    !liveIds.includes(victimId),
+    'the browse list must EXCLUDE it, or getModalEvent could find it and the defect ' +
+      'leg would be measuring something else'
+  );
+  requireFixture(
+    liveIds.length === SEARCH_FIXTURE_SIZE,
+    `the camera must hold exactly ${SEARCH_FIXTURE_SIZE} live rows after seeding, or ` +
+      `every "of ${SEARCH_FIXTURE_SIZE}" this file asserts is wrong (got ${liveIds.length})`
+  );
+  // Report the server's own numbers rather than the fixture's arithmetic: the
+  // severity and total assertions then mirror the DOM against the instrument that
+  // produced them, which is the difference between a checked count and a guess.
+  return {
+    cameraId,
+    eventIds: allIds.slice(1), // index 0 is the victim, not a live row
+    victimId,
+    searchTotal: searchTruth.total_count, // includes the victim → SEEDED rows
+    browseTotal: liveIds.length, // excludes it → SEARCH_FIXTURE_SIZE
+    highTotal: searchTruth.results.filter((row) => row.risk_level === 'high').length,
+  };
+}
+
 /** The tripwire closing every golden spec (F2.1's; OP-1 calls it closedByGuard). */
 export function closedByGuard(page: Page): void {
   void page.route('**/api/**', () => undefined);
