@@ -24,8 +24,11 @@
  *   webhook and no delivery (grep -rin webhook docker-compose.fake-ai.yml docker/fake-ai:
  *   empty). So `No deliveries` is the only reachable state here, and the guard makes
  *   stubbing it away illegal (guard.ts:46). The 24 h tile likewise shows `No
- *   deliveries` and Avg Response `N/A` (WebhookHealthCard.tsx:157-184) — those are
- *   pinned too, because they are what a clean stack really shows.
+ *   deliveries` and Avg Response `N/A` (the two StatItems are at
+ *   WebhookHealthCard.tsx:157-184, but the `N/A` VALUE those tiles reach is formatted
+ *   earlier, at :108-111 — a range cite that names the render site silently excludes the
+ *   expression it is quoting) — and those are pinned too, because they are what a clean
+ *   stack really shows.
  * - ABSENT, and this is a claim repair: the row says the user sees "last delivery",
  *   but `last_delivery_at`/`last_delivery_status` are never rendered on this surface.
  *   Measured at this head: `grep -rn last_delivery frontend/src/components/webhooks/

@@ -35,7 +35,8 @@
  * the network first.
  *
  * Event-picker contract: the picker is a NATIVE <select id="test-event-type">
- * (WebhookTestModal.tsx:202-213), not a listbox, initialised to 'alert_fired' (:140) —
+ * (WebhookTestModal.tsx:202-214, the closing tag included), not a listbox, initialised
+ * to 'alert_fired' (:140) —
  * initialised PER PAGE MOUNT, not per open, because the component is mounted
  * unconditionally and never unmounts (see the last leg, which pins what that means for a
  * reopening user) — and
