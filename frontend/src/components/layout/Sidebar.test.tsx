@@ -5,6 +5,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import Sidebar from './Sidebar';
 import { navGroups, navItems, STORAGE_KEY } from './sidebarNav';
 
+import type { ViewportInfo } from '../../hooks/useViewport';
+
 // Mock the useSidebarContext hook
 const mockSetMobileMenuOpen = vi.fn();
 const menuState = vi.hoisted(() => ({ current: false }));
@@ -21,13 +23,13 @@ vi.mock('../../hooks/useSidebarContext', () => ({
 // literal because the [r130f] F-017 drawer gate reads `breakpoint` (NOT isMobile):
 // with a constant 'lg' the inert behaviour is invisible to this tier, and this tier
 // is the only one CI runs without a live stack. Tests that care assign it.
-const viewportState = vi.hoisted(() => ({
+const viewportState = vi.hoisted((): { current: ViewportInfo } => ({
   current: {
     isMobile: false,
     isTablet: false,
     isDesktop: true,
     width: 1200,
-    breakpoint: 'lg' as 'sm' | 'md' | 'lg' | 'xl' | '2xl',
+    breakpoint: 'lg',
   },
 }));
 
