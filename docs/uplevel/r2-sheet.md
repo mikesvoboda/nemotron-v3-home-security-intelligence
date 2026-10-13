@@ -181,7 +181,7 @@ demoted by _this_ sheet's own batch for a reason §1 does not rule on: its golde
 `frontend/tests/golden/identity/zones.spec.ts` is byte-identical to **that run's own commit `913e23cea`** — NOT to this head's: `1fca79003` rewrote +240/−68 of that file after the run, so the blob is `d1fbaea25` at the witness and `53bb94417` here. The green binds `913e23cea`'s spec and `:231:3` there, which is what this row claims) and its
 chain is intact, but the row's "filters by … time range" is a clause the page does not implement, so
 what needs a ruling is the inventory's action text, not a complete-vs-retire call — see #7011
-Question 3. (An earlier draft of this sentence also pointed at "the `R2b` note in that PR's Real tier section"; that pointer was wrong twice over — the note was in the Questions, not the Real tier section, and owner ruling 148 has since ruled there is **no `R2b` entry** for this row and no `half-built` either, so the pointer is retired rather than re-aimed.) **Re-tied 2026-10-12 at this tree** (inventory blob `bd0ef7be8`, after review `6133132964`), because the four-row status move above and two `main` demotions both change the pool: **171** live, **129** enumerated, **42** not. 171 = 172 − 3 + 2: `F-270`, `F-271` and `F-275` left the **half-built**/**leftover** pool for `awaiting real tier` on that run's green first attempts (ruling 103 — the move the review asked for; all three stay §1 rows because their fold, Break (B), is still unruled), and `F-034` (`69931c5db`) and `F-038` (`890c4df67`) joined it on `main`'s FE-2 commits by the mechanism this sentence already narrates. 129 = 132 − 3, 42 = the 40 named above + `F-034` + `F-038`, and 129 + 42 = 171. `F-258` is in none of it: it moved `awaiting real tier` → `unverified`, and neither is a pool status. The **46** rows by cause is unchanged — no fold was added or removed. **And the parenthetical above is now false as written:** the inventory is _not_ byte-identical to `31eab5e46` at `main` — `main` reads `b5d51e8a36`, `31eab5e46` reads `a388fb5d5` — so **172** binds that tree's blob and not `main`'s file; 16 commits touched it since.
+Question 3. (An earlier draft of this sentence also pointed at "the `R2b` note in that PR's Real tier section"; that pointer was wrong twice over — the note was in the Questions, not the Real tier section, and owner ruling 148 has since ruled there is **no `R2b` entry** for this row and no `half-built` either, so the pointer is retired rather than re-aimed.) **Re-tied 2026-10-12 at this tree** (inventory blob `bd0ef7be8`, after review `6133132964`), because the four-row status move above and two `main` demotions both change the pool: **171** live, **129** enumerated, **42** not. 171 = 172 − 3 + 2: `F-270`, `F-271` and `F-275` left the **half-built**/**leftover** pool for `awaiting real tier` on that run's green first attempts (ruling 103 — the move the review asked for; all three stay §1 rows because their fold, Break (B), is still unruled), and `F-034` (`69931c5db`) and `F-038` (`890c4df67`) joined it on `main`'s FE-2 commits by the mechanism this sentence already narrates. 129 = 132 − 3, 42 = the 40 named above + `F-034` + `F-038`, and 129 + 42 = 171. `F-258` is in none of it: it moved `awaiting real tier` → `unverified`, and neither is a pool status. **Re-tied again 2026-10-13 at head `ad8e35966` (inventory blob `aa5a31afc`), because THIS branch merged `main` at `ad8e35966` and that merge is a pool event: the two ends above bind blob `bd0ef7be8` (true there: 294 rows, pool 171), not this tree.** Measured at this head with the same escape-aware split: pool **149** (`half-built` 132 + `leftover` 17), enumerated **129** (identical — §1's 132 first-cell ids did not move), not enumerated **20**; **129 + 20 = 149**. The delta is **22** rows, all `half-built` → `unverified`, all zero of them §1-enumerated, and all 22 sit inside the 33-row list named above (22 of the 33) — they are the `main` returns this merge imported, whose rule is **UR-153** ("a row demoted only because the CI stack cannot reach it returns to `unverified`", ruling 127). The mechanism sentence above is unchanged and still right; only the two totals and the tree they bind moved. My pre-merge head `bad236bbb` reproduces the old pair exactly (pool 171, not-enumerated 42), so nothing above is being quietly rewritten — it is being bound to the tree it was measured on. The **46** rows by cause is unchanged — no fold was added or removed. **And the parenthetical above is now false as written:** the inventory is _not_ byte-identical to `31eab5e46` at `main` — `main` reads `b5d51e8a36`, `31eab5e46` reads `a388fb5d5` — so **172** binds that tree's blob and not `main`'s file; 16 commits touched it since.
 
 <!-- prettier-ignore -->
 | id | feature | status | what the user sees | evidence | core loop | privacy | to complete | to retire | recommendation | ruling | priority |
@@ -693,14 +693,20 @@ paths: `.claude/skills/synthbench-generation/SKILL.md` and `reference.md`,
 doc files under the 4 paths it listed" — the inverse of what the enumeration shows: a path under
 those 4 dirs is by definition inside the scope, so 6 files that all sit outside it cannot be "under"
 them.) And **no CI gate would catch a mis-move**: the
-level-1 citation job (`.github/workflows/ci.yml:296` at this head — the step's name line; the draft
+level-1 citation job (the step named `Docs citation existence (level 1, scoped dirs)` in
+`.github/workflows/ci.yml` — the name, not a line cite, is how to re-find it; `:296` held at `bad236bbb`
+and is `:299` at this head, tracked below; the draft
 cited `:229`, which was never the name line at any measured commit: it was :225 at the draft (the first
 merge's +1 hunk made it :226, this merge's +3/+1 hunks made it :230) and :229 sat inside the step's own
 run block, 4 lines below the name — so it WAS correct when written (`53b311195`, `:230` there is the
 name line) and is stale here by drift, not by error: main's later merges moved the name line
-`:230 → :296` (+66 lines above it; :296 at both `54c4993e5` and this head, measured by grepping the
-name), and a cite whose path never resolved could not be LINE_BOUNDS-checked, which is why the drift
-sat. The prose name + the step's `run:` block are the stable way to re-find it), "Docs citation existence")
+`:230 → :296` (+66 lines above it; :296 at both `54c4993e5` and, at the time this sentence was
+written, `bad236bbb`), and a cite whose path never resolved could not be LINE_BOUNDS-checked, which is
+why the drift
+sat. **It has drifted again on this very branch: at head `ad8e35966` the name line is `:299`** (+3 above
+it from the merge, measured by grepping the name at `53b311195`=230, `54c4993e5`=296,
+`bad236bbb`=296, `ad8e35966`=299) — which is the sentence's own point proven twice over, and why the
+number below is no longer the load-bearing part. The prose name + the step's `run:` block are the stable way to re-find it), "Docs citation existence")
 validates citations _authored inside_
 exactly `docs/decisions deployment getting-started operations ui` — 43 citations across all five, every
 one ERR-free today — and of the citers **exactly 2 sit inside those five directories**
@@ -875,9 +881,18 @@ to this row's own argument against deletion — "git history already keeps every
 deleting the family does not throw away the record. (The `no_agents_md_required` fact the draft leaned
 on does no work either way: `check_missing_agents_md` fires on directories holding ≥`min_code_files: 2`
 files matching `code_extensions` — `.md` is not among them — so 26 markdown files could not trip
-`missing_agents_md` wherever they sat. Its `≥2` test lives at `scripts/agents_md_validator.py:702` at this
-head (the draft's :619, moved by W2.1's +186/−6 growth of the validator), not in
-`find_directories_with_code`.)
+`missing_agents_md` wherever they sat. Its `≥2` test is the guard `if len(code_files) <
+config.min_code_files:` in `check_missing_agents_md` — the code, not a line cite, is how to re-find it,
+since that threshold was parameterized into `min_code_files` — found by its assignment,
+`config.min_code_files = data["min_code_files"]`, and here I decline to make a line number load-bearing
+for the reason this very paragraph gives: `docs/uplevel/` is on no citation job's path list, so a number
+I put here would drift ungated (position for the record only: that assignment was at `:230` at head
+`ad8e35966`) — and no literal `>= 2` survives in the file: `grep -n '>= *2'` over the
+whole script at this head returns **0**, so a reader who takes the number as the needle finds nothing and
+concludes the guard is gone. Line position for the record: the draft's :619, `:702` at `bad236bbb`
+(moved by W2.1's +186/−6 growth of the validator), `:703` at this head `ad8e35966` (+1 more from this
+branch's merge) — drifted again while this sentence sat in a PR, which is the same hazard the ci.yml
+cite above documents. Not in `find_directories_with_code`.)
 
 **Options.** (a) keep in place as history; (b) delete. (The archive move is not on the list because
 UR-19 removed its destination.)
