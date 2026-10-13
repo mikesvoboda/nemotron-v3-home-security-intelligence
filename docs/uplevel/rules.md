@@ -271,11 +271,15 @@ and the re-read and merge comment are UR-29.
   reviewer cannot state that, the PR comes to the owner. Never pre-approved: destructive work
   (`B3.1`, `F3.1`, `B3.2`), security or auth or plan text beyond the ruling, or a PR with owner
   questions. (ruling 84)
-- **UR-102** `main` keeps "require branches to be up to date". Only the coordinator updates a queued
-  PR, one at a time, with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`, and merges
-  one PR at a time; authors rebase their own PRs to resolve conflicts. The owner revisits the
-  requirement if the open-PR count in the status comment keeps growing. (rulings 19, 27;
-  50-coordination.md §4)
+- **UR-102** `main` requires `CI Gate (Required Checks)` but not "branches up to date". The
+  coordinator merges one PR at a time. A ready PR merges without an update-branch when its green
+  `CI Gate` ran on a `main` at most 3 merges behind the tip, no PR merged since that base changed a
+  file it changes (`git diff --name-only <its base>..origin/main` shares no path with its files),
+  and `main`'s latest CI run is not red. Otherwise only the coordinator updates it, one at a time,
+  with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`; authors rebase their own PRs
+  to resolve conflicts. A red `main` from a merge interaction is a red-`main` fix (UR-111); after
+  two in one UTC day the coordinator turns "require branches to be up to date" back on and raises
+  the urgent path. (rulings 19, 27; owner record 6135991251)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
