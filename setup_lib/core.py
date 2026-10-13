@@ -259,8 +259,14 @@ def merge_api_keys(existing: str, new_key: str, new_key_scope: str | None = None
       every one of those readers and sources in bash (single quotes cannot
       nest; double quotes expand ``$`` and backticks; unquoted breaks on both)
       — the generated monitoring key comes from ``secrets.token_urlsafe`` so
-      it never hits this, and a hand-added apostrophe in an operator key
-      breaks the line under the old unquoted emission exactly as it does now.
+      it never hits this. Precise about the pre-existing line, though (measured,
+      r94 self-review): an UNQUOTED list of PLAIN strings holding an apostrophe
+      sources at rc 0, because JSON's own ``"`` wrap each entry — so a key with
+      an apostrophe does NOT break the file until something adds a ``{...}``
+      object, which no unquoted form survives (brace expansion). That object is
+      exactly what this flag adds, which is why the emission is single-quoted
+      and an apostrophe entry is refused as ``not-quotable`` rather than emitted
+      into a line that would break.
 
     Args:
         existing: the current ``API_KEYS`` value ("" when absent); one
