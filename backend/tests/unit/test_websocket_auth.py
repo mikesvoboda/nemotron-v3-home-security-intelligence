@@ -534,17 +534,34 @@ class TestWebSocketAuthCloseCodes:
         """
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.query_params = {"token": "expired_but_valid_signature"}
+        # A query-param connection carries no session cookie. Left as the bare
+        # spec mock, ``.cookies.get(SESSION_COOKIE_NAME)`` answers a truthy
+        # auto-child, so verify_websocket_auth's cookie-priority leg runs the
+        # REAL session lookup through the REAL get_redis_optional: on a runner
+        # without a reachable Redis that is connect()'s full 3-attempt backoff
+        # (3.28 s measured here; CI's WARN draws for this id are 3.22-3.65 s).
+        # None of it belongs to the 4002 verdict, which comes from the JWT leg.
+        mock_websocket.cookies = {}
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        with patch(
-            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
-        ) as mock_validate:
+        with (
+            patch(
+                "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+            ) as mock_validate,
+            # The failure boundary this file's own
+            # test_validate_session_cookie_swallows_gate_failures names: if the
+            # cookie leg ran, this would be awaited — the pin below turns the
+            # fixture truth into an assertion, so re-introducing the phantom
+            # cookie goes red instead of silently 3.2 s.
+            patch("backend.api.middleware.auth.get_redis_optional", autospec=True) as mock_redis,
+        ):
             mock_validate.return_value = {"sub": "user_123", "exp": 0}  # Expired
 
             result, method = await verify_websocket_auth(mock_websocket)
 
             assert result is False
+            mock_redis.assert_not_awaited()
             mock_websocket.close.assert_called_once()
             # Verify close code is 4002
             call_args = mock_websocket.close.call_args
