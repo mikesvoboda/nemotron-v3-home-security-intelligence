@@ -1362,6 +1362,19 @@ def main() -> None:
     # rest of the operator's file alone. Handled here — before platform detection and
     # the install steps — because scoping a key needs no podman, no GPU and no apt.
     if args.convert_monitoring_key:
+        if args.command:
+            # An early exit makes every OTHER argv moot, and `deploy` is the one
+            # position whose promise this handler breaks: `setup.py deploy
+            # --convert-monitoring-key` would convert, print success, exit 0, and
+            # NEVER DEPLOY (measured: rc 0, file converted, zero deploy output —
+            # r94 self-review F6). Refuse the combination instead of silently
+            # dropping the half the operator asked for.
+            print(
+                f"! --convert-monitoring-key cannot be combined with `{args.command}`: "
+                "the conversion runs first and exits, so the command would never run. "
+                "Run the conversion, then run the command."
+            )
+            sys.exit(1)
         env_target = Path(args.output_dir) / ".env"
         if not env_target.exists():
             print(f"! No .env at {env_target} — nothing to convert.")

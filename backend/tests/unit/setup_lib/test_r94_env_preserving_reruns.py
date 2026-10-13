@@ -22,6 +22,7 @@ import json
 import socket
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -716,11 +717,22 @@ def test_convert_refuses_and_writes_nothing(env_text: str, expected_outcome: str
     assert after == env_text
 
 
-def _run_flag(setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> int:
-    """Drive `main()` down the flag path only, with the install steps silenced."""
-    monkeypatch.setattr(
-        sys, "argv", ["setup.py", "--convert-monitoring-key", "--output-dir", str(tmp_path)]
-    )
+def _run_flag(
+    setup,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str | None = None,
+) -> int:
+    """Drive `main()` down the flag path only, with the install steps silenced.
+
+    `command` puts a positional command on the argv (`setup.py deploy
+    --convert-monitoring-key`), which is the combination the F6 refusal exists for.
+    """
+    argv = ["setup.py"]
+    if command:
+        argv.append(command)
+    argv += ["--convert-monitoring-key", "--output-dir", str(tmp_path)]
+    monkeypatch.setattr(sys, "argv", argv)
     # Nothing but the flag may run: platform detection and the install steps reach
     # podman/apt on a real machine.
     monkeypatch.setattr(setup, "get_platform_info", lambda: None)
@@ -803,6 +815,47 @@ def test_flag_refuses_an_apostrophe_key_and_tells_the_operator_to_rekey(
     assert "not-quotable" in out, f"the refusal must name the case: {out!r}"
     assert "apostrophe" in out.lower(), f"the remedy must name the cause: {out!r}"
     assert "re-key" in out.lower(), f"the remedy must be actionable: {out!r}"
+
+
+def test_flag_refuses_to_eclipse_a_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`setup.py deploy --convert-monitoring-key` must NOT exit 0 without deploying.
+
+    The flag handler runs before everything else and exits, so any positional command
+    on the same argv is silently dropped. `deploy` is the position that matters: the
+    operator asks for a conversion AND a deploy, gets a conversion and a success code,
+    and the deploy never runs — measured at HEAD before this test existed (rc 0, the
+    file converted, zero deploy output; r94 self-review F6). A wrapper script that
+    checks `$?` reports success on a half-run.
+
+    So the combination is refused rather than honoured: the whole invocation fails,
+    the file is untouched (even the half that works does not run — a partial action
+    behind a refused exit code is the same silent-partial in a different costume), and
+    the message names both halves and the order to run them in.
+    """
+    setup = _load_setup()
+    # Belt for a future refactor that moves the flag handler below the dispatch: a
+    # stubbed deploy path that LOUDS rather than reaching podman from a unit test.
+    stub = types.ModuleType("setup_lib.deploy")
+
+    def _no_deploy(*_args, **_kwargs):
+        raise AssertionError("the refusal must stop before the deploy path")
+
+    stub.DeployConfig = stub.detect_compose_command = stub.load_env = stub.run_deploy = _no_deploy
+    monkeypatch.setitem(sys.modules, "setup_lib.deploy", stub)
+
+    (tmp_path / ".env").write_text(LAN_ENV, encoding="utf-8")
+
+    assert _run_flag(setup, tmp_path, monkeypatch, command="deploy") == 1
+
+    assert (tmp_path / ".env").read_text(encoding="utf-8") == LAN_ENV, (
+        "a refused invocation must do nothing, not half of what was asked"
+    )
+    out = capsys.readouterr().out.lower()
+    assert "cannot be combined" in out, f"the refusal must name the combination: {out!r}"
+    assert "deploy" in out, f"the refusal must name the half that would be dropped: {out!r}"
+    assert "+ converted" not in out, "a refusal must not report success"
 
 
 # --------------------------------------------------------------------------
