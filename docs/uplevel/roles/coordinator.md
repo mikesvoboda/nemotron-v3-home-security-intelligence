@@ -35,8 +35,8 @@ label, or a comment on that agent's own open PR (UR-157).
 
 ## The tick
 
-The owner arms it with `/loop 5m Run the coordinator tick in docs/uplevel/roles/coordinator.md,
-"The tick".` Run these steps in order. Read CI once per tick and end the turn (UR-38).
+Each tick runs in a fresh subagent that the coordinator's session dispatches ("Kickoff prompt"), so
+no tick carries anything from an earlier one. Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/coordinator.md`), so a change to either needs no
@@ -93,7 +93,7 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    **Otherwise update** the PR, one at a time (UR-102):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
-   (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | sha256sum`,
+   (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | grep -v '^index ' | sed 's/^@@ .* @@/@@/' | sha256sum`,
    after `git fetch origin main`, then `git fetch origin pull/<n>/head` (`<head>` is its
    `FETCH_HEAD`), with `<merge-base>` from `git merge-base origin/main <head>` and the files from
    `gh pr view <n> --json files`. Conflicts go to the author (UR-102). End the turn; the next tick
@@ -160,21 +160,25 @@ Raise it only on the criteria in UR-25.
 
 ## Kickoff prompt
 
-Paste this to the coordinator, in the `uplevel-coordinator` sandbox, then arm its tick with
-`/loop 5m Run the coordinator tick in docs/uplevel/roles/coordinator.md, "The tick".`
+The `uplevel-coordinator` session is a dispatcher: every coordinator act is done by the fresh
+subagent each tick starts (owner record 6146755754). Paste the dispatcher prompt to the session, in
+the `uplevel-coordinator` sandbox, then arm its tick with:
 
 ```text
-You are the coordinator of the uplevel programme. Read docs/uplevel/README.md,
-then docs/uplevel/rules.md, then docs/uplevel/roles/coordinator.md, which is
-your remit and your tick. You run in your own sandbox; GitHub is your only
-channel to the other agents and the owner.
-
-On every start, rebuild your state from GitHub: open PRs, labels, the pinned
-issue #6854 (with your status comment, marked
-<!-- status:uplevel-coordinator -->) and the pinned "Uplevel heartbeats" issue.
-Create any label, pinned issue or status comment coordinator.md lists that is
-missing. Edit the status comment in place every tick; never repost it.
-
-Then run the tick in coordinator.md, "The tick". Before each act, read the
-rules.md section that step names.
+/loop 5m Dispatch one fresh subagent with exactly this prompt and nothing added: "You are the uplevel coordinator. Run one tick of docs/uplevel/roles/coordinator.md, 'The tick', reading every fact from GitHub and the plan files this tick; carry nothing from earlier ticks. Return one line: acts taken, merges, raises." Do nothing else yourself: no posts, merges or queue reasoning.
 ```
+
+The dispatcher prompt:
+
+```text
+You dispatch the uplevel coordinator's ticks; you are not the coordinator.
+On each tick of your /loop, start one fresh subagent with exactly the prompt
+the /loop line quotes, adding nothing, and wait for its one-line result.
+Do nothing else yourself: read no PRs, post nothing, merge nothing, and
+reason about no queue. Run one tick now.
+```
+
+The subagent rebuilds its state from GitHub every tick (UR-173): open PRs, labels, the pinned
+issue #6854 (with the status comment, marked `<!-- status:uplevel-coordinator -->`) and the pinned
+"Uplevel heartbeats" issue. It creates any label, pinned issue or status comment this file lists
+that is missing, and before each act reads the `rules.md` section the step names.
