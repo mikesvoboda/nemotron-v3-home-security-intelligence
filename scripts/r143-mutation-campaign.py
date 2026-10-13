@@ -117,6 +117,38 @@ MUTANTS: list[tuple[str, str, str]] = [
 ]
 
 
+def executed_count(summary: str) -> int:
+    """How many tests a pytest summary line says RAN, from its real numbers.
+
+    ``1 failed, 189 passed, 8 warnings in 8.34s`` is 190, not 8: warnings and
+    the timing are not executions, and counting them would let a suite that
+    collected nothing look measured. This is the quantity every ESCAPED verdict
+    in this driver is a claim about, so ``--self-test`` pins it against the
+    strings pytest actually prints -- the first version of this line crashed on
+    ``re.findall`` returning strings rather than tuples, which no mutant run
+    ever reached because the guard exited before it.
+    """
+    return sum(int(count) for count in re.findall(r"\b(\d+) (?:passed|failed|errors?)\b", summary))
+
+
+def self_test() -> int:
+    """Pin executed_count against real summary lines; non-zero if the parse drifted."""
+    cases = [
+        ("======================== 190 passed, 8 warnings in 8.34s ========================", 190),
+        ("=================== 1 failed, 189 passed, 8 warnings in 8.31s ===================", 190),
+        ("============ 11 failed, 178 passed, 1 xfailed in 3.66s ============", 189),
+        ("============================ no tests ran in 0.02s =============================", 0),
+        ("========================= 3 errors in 0.41s =========================", 3),
+    ]
+    bad = [
+        (line, executed_count(line), want) for line, want in cases if executed_count(line) != want
+    ]
+    for line, got, want in bad:
+        print(f"SELFTEST | executed_count({line!r}) = {got}, want {want}", file=sys.stderr)
+    print(f"self-test: {len(cases) - len(bad)}/{len(cases)} summary shapes parse correctly")
+    return 1 if bad else 0
+
+
 def run_suite(worktree: pathlib.Path, suite: str, python: str) -> tuple[set[str], int, str]:
     """FAILED test ids, executed count, and the summary line for one run in WORKTREE.
 
@@ -155,7 +187,7 @@ def run_suite(worktree: pathlib.Path, suite: str, python: str) -> tuple[set[str]
         ),
         "",
     )
-    executed = sum(int(n) for n, _ in re.findall(r"(\d+) (?:passed|failed|errors?)", summary))
+    executed = executed_count(summary)
     if not summary:  # pytest never got to reporting: surface its output, not silence
         summary = (result.stderr or result.stdout).strip().splitlines()[-1:] or ["<no output>"]
         summary = summary[0]
@@ -173,7 +205,14 @@ def main() -> int:
         "--python",
         help="interpreter to run the suite with; defaults to the first candidate that can import pytest",
     )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="check the driver's own summary parsing and exit",
+    )
     args = parser.parse_args()
+    if args.self_test:
+        return self_test()
 
     root = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True
