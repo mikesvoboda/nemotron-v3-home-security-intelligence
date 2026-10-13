@@ -48,7 +48,8 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    not re-read what it reports. It prints, in order: the cursor and `now`; the comments since the
    cursor, with `BINDING NOW` and `URGENT PATH` flagged, and the live `BINDING NOW` records on #6854
    (UR-40); the open PRs, each with its `CI Gate` at the head and whether its newest
-   `Review: approve` names that head (UR-106); UR-102's three legs for each green non-draft PR;
+   `Review: approve` names that head (UR-106); UR-102's three legs for each green non-draft PR,
+   measured from the `main` its gate's run tested;
    `main`'s CI, Deploy, Nightly Full Gate and flaky-test runs; and every heartbeat with its age.
    Read a PR's whole thread only for a PR you are about to merge, route or label this tick. An
    `ERROR <section>` line means that section was not read: read it yourself or state that it is

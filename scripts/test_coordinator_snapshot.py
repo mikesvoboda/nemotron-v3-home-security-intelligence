@@ -37,8 +37,11 @@ snap = _load()
 NOW = datetime(2026, 10, 13, 15, 0, 0, tzinfo=UTC)
 REPO = "o/r"
 HEAD = "a1b2c3d" + "e" * 33  # a full sha whose 7-char prefix the reviews below name
-BASE = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-TIP = "ffffffffffffffffffffffffffffffffffffffff"
+BASE = "b" * 40  # the PR's merge-base with origin/main
+RUN_BASE = "d" * 40  # the main the gate's run merged the head into
+TIP = "f" * 40
+GATE_RUN = 900
+CHECKOUT_JOB = 77
 
 
 def t(delta: timedelta) -> str:
@@ -70,7 +73,15 @@ def gate(conclusion="SUCCESS", status="COMPLETED"):
         "status": status,
         "conclusion": conclusion,
         "startedAt": t(-timedelta(hours=1)),
+        "detailsUrl": f"https://github.com/{REPO}/actions/runs/{GATE_RUN}/job/5",
     }
+
+
+def checkout_log(head=HEAD, base=RUN_BASE):
+    return (
+        "2026-10-13T15:13:40Z ##[group]Checking out the ref\n"
+        f"2026-10-13T15:13:41Z HEAD is now at 0a1b2c3 Merge {head} into {base}\n"
+    )
 
 
 def run(conclusion, status="completed", head=TIP, minutes=10):
@@ -154,9 +165,12 @@ class FakeRunner:
             {"id": 30, "created_at": t(-timedelta(hours=2)), "user": "ops-b", "body": "Review: approve\nHead: `a1b2c3d`"}
         ]  # fmt: skip
         self.ci_runs = [run("", status="in_progress", minutes=1), run("success", minutes=30)]
-        self.merges_behind = "3"
-        self.main_files = "docs/a.md\n"
+        # The run base is 3 merges behind the tip; the older merge-base is 10 behind.
+        self.merges_behind = {RUN_BASE: "3", BASE: "10"}
+        self.main_files = {RUN_BASE: "docs/a.md\n", BASE: "docs/a.md\ndocs/b.md\n"}
         self.pr_files = "docs/b.md\n"
+        self.checkout_jobs = [{"id": 99, "steps": 40}, {"id": CHECKOUT_JOB, "steps": 5}]
+        self.log = checkout_log()
 
     def fail(self, needle: str, message: str = "HTTP 504") -> None:
         self.rules[needle] = snap.CommandError(message)
@@ -183,6 +197,10 @@ class FakeRunner:
                 return json.dumps(self.repo_comments)
             if "/issues/7001/comments" in path:
                 return json.dumps(self.reviews)
+            if path.startswith(f"repos/{REPO}/actions/runs/{GATE_RUN}/jobs"):
+                return json.dumps(self.checkout_jobs)
+            if path == f"repos/{REPO}/actions/jobs/{CHECKOUT_JOB}/logs":
+                return self.log
         if cmd[:3] == ["gh", "run", "list"]:
             if "ci.yml" in joined:
                 return json.dumps(self.ci_runs)
@@ -196,9 +214,12 @@ class FakeRunner:
         if cmd[:2] == ["git", "merge-base"]:
             return BASE + "\n"
         if cmd[:2] == ["git", "rev-list"]:
-            return self.merges_behind + "\n"
+            return self.merges_behind[cmd[-1].split("..")[0]] + "\n"
         if cmd[:2] == ["git", "diff"]:
-            return self.main_files if cmd[-1] == "origin/main" else self.pr_files
+            if cmd[-1] == "origin/main":
+                return self.main_files[cmd[-2]]
+            # From the run base (not an ancestor of the head) the diff would carry main's file too.
+            return self.pr_files if cmd[-2] == BASE else "docs/a.md\n" + self.pr_files
         raise AssertionError(f"unexpected command {cmd}")
 
 
@@ -326,20 +347,74 @@ def test_gate_states():
 # --- 4. UR-102 legs ----------------------------------------------------------------------
 
 
-def test_all_three_legs_pass_at_three_merges_behind():
-    p = pr(build(FakeRunner()))
+def test_legs_measure_from_the_run_base_not_the_merge_base():
+    """The run base is 3 merges behind (pass) while the merge-base is 10 behind; the main file
+    the merge-base diff would share with the PR landed before the run, so it is no overlap."""
+    fake = FakeRunner()
+    p = pr(build(fake))
+    assert p["gate_run"] == GATE_RUN
+    assert p["leg_base"] == {
+        "run_id": GATE_RUN,
+        "merge_base": BASE,
+        "run_base": RUN_BASE,
+        "used": "run",
+    }
     assert p["legs"]["behind"] == {"merges": 3, "pass": True}
     assert p["legs"]["overlap"] == {"paths": [], "pass": True}
     assert p["legs"]["main_ci"] == {"conclusion": "success", "pass": True}
     assert p["merge_without_update"] is True
+    assert [
+        "git",
+        "rev-list",
+        "--count",
+        "--first-parent",
+        f"{RUN_BASE}..origin/main",
+    ] in fake.calls
+    assert ["git", "diff", "--name-only", RUN_BASE, "origin/main"] in fake.calls
+    assert ["git", "diff", "--name-only", BASE, HEAD] in fake.calls  # the PR's own files
+    logs = [c for c in fake.calls if c[:2] == ["gh", "api"] and c[2].endswith("/logs")]
+    assert logs == [["gh", "api", f"repos/{REPO}/actions/jobs/{CHECKOUT_JOB}/logs"]]
+    text = snap.render_text(build(FakeRunner()))
+    assert f"base: run {RUN_BASE[:9]} (run {GATE_RUN}) · merge-base {BASE[:9]}" in text
 
 
-def test_four_merges_behind_fails_the_first_leg():
+def test_four_merges_behind_the_run_base_fails_the_first_leg():
     fake = FakeRunner()
-    fake.merges_behind = "4"
+    fake.merges_behind[RUN_BASE] = "4"
     p = pr(build(fake))
     assert p["legs"]["behind"] == {"merges": 4, "pass": False}
     assert p["merge_without_update"] is False
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        ("no_run_id", "no run id"),
+        ("no_checkout_job", "no successful checkout job"),
+        ("no_merge_line", "names no checkout merge"),
+        ("other_head", "not the head"),
+        ("log_fails", "HTTP 404"),
+    ],
+)
+def test_an_unreadable_run_base_falls_back_to_the_merge_base(change, reason):
+    fake = FakeRunner()
+    if change == "no_run_id":
+        fake.prs[0]["statusCheckRollup"][0].pop("detailsUrl")
+    elif change == "no_checkout_job":
+        fake.checkout_jobs = []
+    elif change == "no_merge_line":
+        fake.log = "no checkout here\n"
+    elif change == "other_head":
+        fake.log = checkout_log(head="9" * 40)
+    else:
+        fake.fail("/logs", "HTTP 404")
+    data = build(fake)
+    p = pr(data)
+    assert p["leg_base"]["used"] == "merge-base fallback"
+    assert reason in p["leg_base"]["error"]
+    assert p["legs"]["behind"] == {"merges": 10, "pass": False}
+    assert p["legs"]["overlap"] == {"paths": ["docs/b.md"], "pass": False}
+    assert "(base: merge-base fallback" in snap.render_text(data)
 
 
 def test_a_shared_path_fails_the_overlap_leg():
