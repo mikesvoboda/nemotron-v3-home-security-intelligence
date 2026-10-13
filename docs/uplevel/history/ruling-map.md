@@ -1,6 +1,6 @@
 # Ruling map
 
-One row per owner ruling 1-148 on #6854, and one per owner record that set a rule, showing what each
+One row per owner ruling 1-149 on #6854, and one per owner record that set a rule, showing what each
 became: the [`rules.md`](../rules.md) rule (`UR-n`), `one-off` (one PR, row, fold or order, now
 history), `package <id>` (binds only while that package is open; its text is in `packages/` or
 `packages-done.md`), or `superseded by <n>`. A ruling with several parts lists each. Rulings 118 and
@@ -161,6 +161,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 146    | UR-39, UR-42, UR-155; the `rules.md` ledger itself superseded by the plan rewrite (record 6128714278)       |
 | 147    | the plan rewrite (owner design session 2026-10-12; see "Owner records")                                     |
 | 148    | packages `[r148a]`, `[r148b]`, `[r148c]`; F-278 under UR-153 one-off (record 6136930446)                    |
+| 149    | UR-106, UR-91, UR-116; packages `[r149b]`, `[r149d]`, `[r149e]`, `[r149f]` (record 6146380050)              |
 
 ## Owner records
 
