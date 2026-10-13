@@ -234,9 +234,10 @@ Read this section before you self-review your own PR or review another lane's.
   will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing another lane's PR";
   ruling 39 item G; ruling 149)
 - **UR-92** Every review carries `Plan text: none | <which kind in UR-47 it changes, and where>`,
-  written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it
-  (anything but `none` makes the PR owner-tier) and asks the reviewer for a missing line rather than
-  judging the diff. (ruling 40)
+  written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it: the PR
+  is owner-tier only when the named kind is one of UR-47's owner kinds, and a lane-review kind
+  merges on lane review. It asks the reviewer for a missing line rather than judging the diff.
+  (rulings 40, 153)
 - **UR-94** Before merging a PR or posting a verdict on it, the coordinator and every reviewer open
   every owner ruling, record and pointer that names it, on the PR and on #6854, not only approval
   comments; if any bars the head, the merge or verdict waits. (ruling 145)
@@ -381,9 +382,10 @@ the gates.
 - **UR-125** The real-sleep gate fails a unit test over 4.0 s only when the breach reproduces: the
   gate re-runs that one test once, in the same job, and the run is red only if the re-run also
   breaches; a test that passes on its re-run is listed as a warning with both timings. Any unit
-  test over 1.5 s is listed as a warning that never fails the run. There is no cross-run allowance
-  and no baseline file. (rulings 93, 122; owner design session 2026-10-12, pass 2 Q9; supersedes
-  ruling 74)
+  test over 1.5 s is listed as a warning that never fails the run. An integration test over its
+  10.0 s budget gets the same single re-run, and is red only if the re-run also breaches; at most 5
+  re-runs per job in each tier. There is no cross-run allowance and no baseline file. (rulings 93,
+  122, 151; owner design session 2026-10-12, pass 2 Q9; supersedes ruling 74)
 - **UR-126** A reproduced breach is red, and the remedy is in the test, not the gate.
   `SLOW_TEST_PATTERNS`, each entry with its measured note, is the only channel for a genuinely slow
   test; `@pytest.mark.slow` is read by neither gate. (ruling 122; owner design session 2026-10-12,
