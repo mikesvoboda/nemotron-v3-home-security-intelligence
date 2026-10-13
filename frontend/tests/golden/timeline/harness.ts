@@ -1187,6 +1187,175 @@ export async function createSearchFixture(
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* F-060 FEEDBACK FIXTURE                                                       */
+/*                                                                              */
+/* Its OWN camera, for the reason the block above states about the search       */
+/* camera: this feature WRITES A ROW PER EVENT, and the mutation's success path */
+/* invalidates `['feedbackStats']` — a count every other FE-3 file ignores but  */
+/* one they would all disturb if feedback rows accumulated on a shared camera.  */
+/*                                                                              */
+/* THE CASCADE IS THE WHOLE CLEANUP STRATEGY, and it is declared, not assumed:  */
+/* `event_feedback.event_id` is `ForeignKey("events.id", ondelete="CASCADE")`   */
+/* (backend/models/event_feedback.py:77-78), so the hard purge that             */
+/* `hardDeleteFixtureRows` already performs also removes each row's feedback.   */
+/* Measured on the probe stack, same run: POST /api/feedback → 201, then        */
+/* DELETE /api/events/bulk {soft_delete:false} → 207 succeeded:1, then          */
+/* GET /api/feedback/event/<id> → 404 and GET /api/feedback/stats               */
+/* → {total_feedback: 0}. There is NO feedback-delete endpoint, and none is     */
+/* needed — which matters because a fixture that could not clear its feedback   */
+/* would be unrunnable here, not merely untidy: the same UNIQUE(event_id)       */
+/* (:78) that makes the second POST a 409 would make the second RUN a 409.     */
+/*                                                                              */
+/* FOUR ROWS, ONE PER LEG. UNIQUE(event_id) means one feedback per event, so    */
+/* legs cannot share a row the way read-only legs can; the fourth is seeded     */
+/* WITH feedback by this fixture so the row's "sees the saved feedback when     */
+/* reopening" clause can be measured with NO UI action at all — if a leg had to */
+/* POST through the UI first, a broken read-back would be indistinguishable     */
+/* from a broken write, and this file needs to tell those two apart.            */
+/* -------------------------------------------------------------------------- */
+
+/** FE-3's feedback camera: distinct from the browse, stats, detail, search. */
+export const FEEDBACK_CAMERA_NAME = 'fe3-feedback-probe';
+
+/** One row per leg: quick path, notes form, derived notes, pre-seeded read-back. */
+export const FEEDBACK_FIXTURE_SIZE = 4;
+
+/** Every fixture row carries this, so a purge or a count can name the set. */
+export const FEEDBACK_SUMMARY_TOKEN = 'fe3f060feedback';
+
+/**
+ * The score every row is seeded with. 45 is `medium` under BOTH implementations
+ * of `risk_level` (stored column, and `computed_risk_level`'s ≤59 branch,
+ * backend/models/event.py:393-424), which matters here for a reason unrelated to
+ * severity: the panel renders `currentRiskScore={event.risk_score ?? undefined}`
+ * (EventDetailModal.tsx:543 → :1146) and `handleSubmitWithNotes` PREFIXES the
+ * typed notes with `Current score: ${currentRiskScore}. ` (:207-213). A leg that
+ * asserts the STORED string therefore needs a score that is unambiguous in the
+ * fixture — not one whose label another reader would contradict.
+ */
+export const FEEDBACK_RISK_SCORE = 45;
+
+/** What the notes-form leg types. Kept out of the token so it is findable. */
+export const FEEDBACK_TYPED_NOTES = 'the garden hose looked like a person';
+
+/** What the fixture seeds on the read-back row, before any UI action. */
+export const FEEDBACK_SEEDED_NOTES = 'seeded before this run opened the modal';
+
+/** The calibration value seeded on that row, rendered by NO part of the card. */
+export const FEEDBACK_SEEDED_THREAT_LEVEL = 'no_threat';
+
+export interface FeedbackFixture {
+  cameraId: string;
+  /** The four rows in seed order; legs name them by the constants in the spec. */
+  eventIds: number[];
+  /** Row 3: has a feedback row already, written by the fixture rather than the UI. */
+  seededEventId: number;
+  /** Notes exactly as the server stored them (read back, not echoed by memory). */
+  seededNotes: string;
+}
+
+/**
+ * One camera, FEEDBACK_FIXTURE_SIZE rows at FEEDBACK_RISK_SCORE, and a feedback
+ * row on the LAST one.
+ *
+ * The purge is hard and runs before seeding (a previous run that died mid-leg
+ * leaves a feedback row that would 409 this run's POST), and it relies on the
+ * CASCADE documented above — there is no other door.
+ *
+ * `requireFixture` (plain throws, same idiom as the search fixture) checks the
+ * two premises the legs cannot see: that the seeded feedback is REALLY there and
+ * that row 0 really has none. Without the second premise the quick leg's
+ * "buttons appeared" would be a card that was already there.
+ */
+export async function createFeedbackFixture(
+  h: TimelineHarness,
+  session: Session
+): Promise<FeedbackFixture> {
+  const cameraId = await ensureCamera(
+    h,
+    session,
+    FEEDBACK_CAMERA_NAME,
+    '/cameras/fe3_feedback_probe'
+  );
+  // The camera <select> is built from the 60 s cached list; see the search fixture.
+  await waitForCameraInList(h, session, FEEDBACK_CAMERA_NAME);
+
+  const stale = await api<{ items?: { id: number }[] }>(
+    h,
+    session,
+    `/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`
+  ).catch(() => null);
+  await hardDeleteFixtureRows(
+    h,
+    session,
+    (stale?.items ?? []).map((row) => row.id)
+  );
+
+  const salt = Date.now();
+  const windowStart = Date.now() - 3 * 3_600_000;
+  const bulk = await apiWrite<BulkBody>(h, session, 'POST', '/api/events/bulk', {
+    events: Array.from({ length: FEEDBACK_FIXTURE_SIZE }, (_, i) => ({
+      batch_id: `fe3fb-${salt}-${i}`, // events.batch_id is UNIQUE (measured)
+      camera_id: cameraId,
+      started_at: new Date(windowStart + i * 60_000).toISOString(),
+      risk_score: FEEDBACK_RISK_SCORE,
+      risk_level: 'medium',
+      summary: `${FEEDBACK_SUMMARY_TOKEN} ${i}`,
+    })),
+  });
+  const eventIds = bulk.results.map((r) => r.id).filter((id): id is number => id !== null);
+  if (eventIds.length !== FEEDBACK_FIXTURE_SIZE) {
+    throw new Error(
+      `feedback fixture: got ${eventIds.length} ids for ${FEEDBACK_FIXTURE_SIZE} rows; ` +
+        `succeeded ${bulk.succeeded}/${FEEDBACK_FIXTURE_SIZE}; first error: ` +
+        String(bulk.results.find((r) => r.status !== 'success')?.error).slice(0, 200)
+    );
+  }
+
+  const seededEventId = eventIds[FEEDBACK_FIXTURE_SIZE - 1];
+  await apiWrite<{ id: number }>(h, session, 'POST', '/api/feedback', {
+    event_id: seededEventId,
+    feedback_type: 'false_positive',
+    notes: FEEDBACK_SEEDED_NOTES,
+    actual_threat_level: FEEDBACK_SEEDED_THREAT_LEVEL,
+  });
+
+  const requireFixture = (premise: boolean, why: string): void => {
+    if (!premise) throw new Error(`feedback fixture: ${why}`);
+  };
+  const live = await api<{ items: { id: number }[] }>(
+    h,
+    session,
+    `/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`
+  );
+  requireFixture(
+    live.items.length === FEEDBACK_FIXTURE_SIZE,
+    `the camera must hold exactly ${FEEDBACK_FIXTURE_SIZE} rows after seeding ` +
+      `(got ${live.items.length})`
+  );
+  // Read the seeded row back through the SAME endpoint the panel calls, so the
+  // read-back leg is measuring the panel's data source rather than the POST's
+  // own response. Notes come from here, not from the constant, so a server that
+  // normalises the string shows up as a leg failure with the real value in it.
+  const seeded = await api<{
+    notes: string | null;
+    feedback_type: string;
+    actual_threat_level: string | null;
+  }>(h, session, `/api/feedback/event/${seededEventId}`);
+  requireFixture(
+    seeded.notes === FEEDBACK_SEEDED_NOTES,
+    `the seeded feedback must be readable at the endpoint the panel uses ` +
+      `(got ${JSON.stringify(seeded.notes)})`
+  );
+  requireFixture(
+    seeded.actual_threat_level === FEEDBACK_SEEDED_THREAT_LEVEL,
+    'the calibration field must survive the round trip, or the card-omission ' +
+      'leg has nothing to omit'
+  );
+  return { cameraId, eventIds, seededEventId, seededNotes: seeded.notes ?? '' };
+}
+
 /** The tripwire closing every golden spec (F2.1's; OP-1 calls it closedByGuard). */
 export function closedByGuard(page: Page): void {
   void page.route('**/api/**', () => undefined);
