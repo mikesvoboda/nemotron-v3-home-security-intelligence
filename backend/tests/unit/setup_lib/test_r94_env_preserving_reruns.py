@@ -496,6 +496,91 @@ def test_convert_identifies_the_key_from_the_last_monitoring_line() -> None:
     assert stale_key not in after.split("API_KEYS=")[1]
 
 
+def test_convert_of_a_double_quoted_line_emits_single_quotes(tmp_path: Path) -> None:
+    """A double-quoted input must come out SINGLE-quoted, not keep its own character.
+
+    Keeping a quoted line's own quote character is what the first version of this flag
+    did, and it is a silent-corruption path: `json.dumps` output always contains `"`
+    (the object keys), and python-dotenv — the backend's reader — abandons a value whose
+    closing quote lands after an inner `"`, returning None for the WHOLE key. So the
+    converted line sources at rc 0 while every API key vanishes from the gate's view, and
+    the flag reports success. Single-quote emission is the only form both readers parse,
+    which is why setup.py's own writer uses it (setup.py:559-566).
+
+    The double-quoted input here was ALREADY invisible to dotenv before the flag ran
+    (measured, and stated in the PR: this is not a regression the flag introduces into a
+    healthy file) — what this pin holds is that the flag never LEAVES a file in that
+    shape while reporting `+ converted`.
+    """
+    double = LAN_ENV.replace(
+        API_KEYS_PLAIN,
+        'API_KEYS="' + json.dumps(PLAIN_ENTRIES, separators=(",", ":")) + '"',
+    )
+
+    after, outcome = _convert(double)
+
+    assert outcome == "converted"
+    line = _env_line(after, "API_KEYS")
+    assert line.startswith("'[") and line.endswith("]'"), (
+        f"a double-quoted line must be re-emitted single-quoted, not keep its own "
+        f"quote character: {line!r}"
+    )
+    assert _api_keys(after) == CONVERTED_KEYS
+
+    import dotenv
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(after, encoding="utf-8")
+    parsed = dotenv.dotenv_values(env_file).get("API_KEYS")
+    assert parsed is not None, "the converted line is invisible to the backend's reader"
+    assert json.loads(parsed) == CONVERTED_KEYS, (
+        f"dotenv read a different value than was written: {parsed!r}"
+    )
+
+
+def test_convert_refuses_an_apostrophe_key_as_not_quotable() -> None:
+    """An entry holding a literal `'` has NO survivable emission, so refuse it.
+
+    Single quotes cannot nest, so the line would ship unterminated: `source` under
+    `set -e` exits 2 and the scripts that read the file stop at that line, while
+    python-dotenv silently drops the key — and a double-quoted workaround expands `$`
+    and backticks inside the value. Emitting any of those shapes would take a file that
+    sources and parses fine today to unreadable-by-both while exiting 0, so the only
+    correct move is to refuse and leave the file alone. (setup.py mints keys with
+    `secrets.token_urlsafe`, whose alphabet excludes `'` — this is the hand-edited or
+    third-party key case.)
+    """
+    apos = LAN_ENV.replace(
+        API_KEYS_PLAIN,
+        _keys_line(["ops's-laptop-key", MONITORING_KEY]),
+    )
+
+    after, outcome = _convert(apos)
+
+    assert outcome == "not-quotable"
+    assert after == apos, "a refusal must leave the file byte-identical"
+
+
+def test_an_already_scoped_file_with_an_apostrophe_key_stays_a_no_op() -> None:
+    """The quotability check runs only when a rewrite is about to happen.
+
+    An apostrophe key minted by ANOTHER tool is none of this flag's business when the
+    monitoring entry is already scoped: running the flag twice is "the operator's normal
+    mistake" and must stay a silent success. Refusing there would report a re-key
+    demand about a line the flag never touched, training the operator to distrust the
+    refusals that do matter.
+    """
+    scoped = LAN_ENV_SCOPED.replace(
+        '"ops-laptop-key"',
+        '"ops\'s-laptop-key"',
+    )
+
+    after, outcome = _convert(scoped)
+
+    assert outcome == "unchanged"
+    assert after == scoped
+
+
 @pytest.mark.parametrize(
     ("env_text", "expected_outcome"),
     [
@@ -622,6 +707,31 @@ def test_flag_refusal_exits_nonzero_without_writing(
     out = capsys.readouterr().out.lower()
     assert "! not converted" in out, f"a refusal must report the refusal: {out!r}"
     assert "+ converted" not in out, "a refusal must not report success"
+
+
+def test_flag_refuses_an_apostrophe_key_and_tells_the_operator_to_rekey(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The one refusal whose remedy is NOT "run the heavier thing instead".
+
+    Every other refusal can be resolved by a full interactive re-run; this one cannot,
+    because setup.py's own writer wraps the value in the same single quotes
+    (`API_KEYS='" + merge_api_keys(...) + "'"`, setup.py:559-566) and would ship the same
+    unterminated line. So the printed reason has to name the re-key — pointing an
+    operator at a re-run here sends them into the same wall (docs/operator/admin/
+    security.md carries the same distinction).
+    """
+    setup = _load_setup()
+    apos = LAN_ENV.replace(API_KEYS_PLAIN, _keys_line(["ops's-laptop-key", MONITORING_KEY]))
+    (tmp_path / ".env").write_text(apos, encoding="utf-8")
+
+    assert _run_flag(setup, tmp_path, monkeypatch) == 1
+
+    assert (tmp_path / ".env").read_text(encoding="utf-8") == apos
+    out = capsys.readouterr().out
+    assert "not-quotable" in out, f"the refusal must name the case: {out!r}"
+    assert "apostrophe" in out.lower(), f"the remedy must name the cause: {out!r}"
+    assert "re-key" in out.lower(), f"the remedy must be actionable: {out!r}"
 
 
 # --------------------------------------------------------------------------

@@ -359,7 +359,10 @@ def convert_monitoring_key(env_text: str) -> tuple[str, str]:
           repaired by a narrow rewrite — a re-run regenerates the file);
         - ``"duplicate-line"`` — two ``API_KEYS`` lines (setup.py's own readers take
           the last, but a byte-preserving rewrite of an ambiguous file is where silent
-          damage happens).
+          damage happens);
+        - ``"not-quotable"`` — an entry holds a literal ``'``, so no emission of the
+          converted value survives the file's readers (see the serialization note);
+          the file stands exactly as it was.
 
         Serialization note: the ONE line is re-emitted the way ``setup.py``'s own
         writer emits it — compact separators (``merge_api_keys``) inside the caller's
@@ -372,9 +375,21 @@ def convert_monitoring_key(env_text: str) -> tuple[str, str]:
         ``setup.py`` wrote BEFORE the quote existed, GETS the single quote here: a
         converted line always holds a scoped object, and a scoped object in an
         unquoted line is a state ``setup.py`` never writes. A line that already has a
-        matching quote pair keeps its own quote character. Compactness matches the
-        writer so a converted file reads the same as a freshly generated one. Every
-        other line, including its line endings, is returned untouched.
+        matching quote pair is EMITTED with the single quote — including a double-quoted
+        input, which is NOT kept (r94 follow-up, measured): ``json.dumps`` output always
+        contains ``"``, and python-dotenv — the backend's reader — abandons a value
+        whose closing quote landed after an inner ``"`` (it returns ``None`` for the
+        whole key, so every API key vanishes from the gate's view while the file
+        sources at rc 0: brace-expansion mangles it for bash). Keeping a double-quoted
+        line's own character preserved exactly that unreadable shape and reported
+        success. Single-quote emission is the only form the backend's reader parses.
+        A value that cannot be single-quoted at all — any entry holding a literal
+        ``'`` — is REFUSED as ``"not-quotable"`` (single quotes cannot nest), because
+        emitting it anyway produces a line bash refuses to source (rc 2) that
+        python-dotenv silently drops, with the flag exiting 0: the file goes from
+        sourcing and parsing fine to unreadable by both readers. Compactness matches
+        the writer so a converted file reads the same as a freshly generated one.
+        Every other line, including its line endings, is returned untouched.
     """
     lines = env_text.splitlines(keepends=True)
 
@@ -414,10 +429,16 @@ def convert_monitoring_key(env_text: str) -> tuple[str, str]:
     body = line.rstrip("\r\n")
     terminator = line[len(body) :]
     prefix, _, raw_value = body.partition("=")
-    quote = "'"
     value = raw_value.strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
-        quote, value = value[0], value[1:-1]
+        # Strip any existing matching pair, but EMIT the single quote (r94 follow-up):
+        # json.dumps output always holds `"` (object keys), and a double-quoted line
+        # is invisible to python-dotenv — the reader closes the value at the first
+        # inner `"`, so it abandons the whole statement (measured: dotenv returns
+        # None, the backend loses every key) while bash brace-expands it at rc 0.
+        # Keeping the line's own `"` preserved that unreadable shape and reported
+        # success. The single quote is what every reader of this file strips.
+        value = value[1:-1]
 
     try:
         entries = json.loads(value)
@@ -425,7 +446,6 @@ def convert_monitoring_key(env_text: str) -> tuple[str, str]:
         return env_text, "not-a-list"
     if not isinstance(entries, list):
         return env_text, "not-a-list"
-
     plain_at = [i for i, e in enumerate(entries) if isinstance(e, str) and e == monitoring_key]
     object_at = [
         i
@@ -443,8 +463,22 @@ def convert_monitoring_key(env_text: str) -> tuple[str, str]:
         # would be the opposite of what this ruling does.
         return env_text, "unchanged" if "scope" in entries[object_at[0]] else "not-plain"
 
+    # Past this point a rewrite WILL happen, so the emission has to be quotable. A
+    # literal ' inside any entry cannot be single-quoted at all — single quotes do not
+    # nest — so the line would ship unterminated: bash refuses to source it (rc 2)
+    # and python-dotenv silently drops it, while a double-quoted workaround expands
+    # $ and backticks. Refuse loudly; the file stays exactly as readable as it was.
+    # Checked HERE, not before identification, so a file that is already converted
+    # stays a silent "unchanged" no-op even when some other tool minted an
+    # apostrophe key into it. (setup.py's own keys are secrets.token_urlsafe, whose
+    # alphabet excludes ' — only a hand-edited or third-party key can reach here.)
+    if any("'" in (e if isinstance(e, str) else json.dumps(e)) for e in entries):
+        return env_text, "not-quotable"
+
     entries[plain_at[0]] = {"key": monitoring_key, "scope": "monitoring"}
-    rewritten = f"{prefix}={quote}{json.dumps(entries, separators=(',', ':'))}{quote}{terminator}"
+    # The single quote is emitted unconditionally (see the serialization note): a
+    # double-quoted emission is invisible to python-dotenv, a $-expanding one to bash.
+    rewritten = f"{prefix}='{json.dumps(entries, separators=(',', ':'))}'{terminator}"
     lines[indices[0]] = rewritten
     return "".join(lines), "converted"
 

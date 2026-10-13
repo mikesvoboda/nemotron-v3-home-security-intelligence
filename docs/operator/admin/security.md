@@ -27,10 +27,14 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   again. It refuses, changes nothing, and prints which case it hit when it cannot tell
   which entry is the monitoring key: no `MONITORING_API_KEY` to identify it by, the key
   not listed as a plain entry, its value listed twice, the only entry for it already an
-  object with no scope, `API_KEYS` not a JSON list, or two `API_KEYS` lines. A full
-  interactive `python setup.py` still works and converts it as a side effect;
-  `--yes` and `--defaults` skip that reuse, minting a second key and leaving the old
-  plain entry live. Recreate the backend to apply it:
+  object with no scope, `API_KEYS` not a JSON list, two `API_KEYS` lines, or an entry
+  containing a literal apostrophe — single quotes cannot nest and double quotes expand
+  `$` and backticks, so no quoting of that line survives both readers; re-key that
+  entry without the apostrophe, then run the flag again. Only that case needs the
+  re-key: for every other one a full interactive `python setup.py` still works and
+  converts it as a side effect (`--yes` and `--defaults` skip that reuse, minting a
+  second key and leaving the old plain entry live), because the re-run writes the same
+  quoted form and would hit the same wall. Recreate the backend to apply it:
   `podman compose -f docker-compose.prod.yml up -d --force-recreate backend` — a plain
   `restart` keeps serving the old value. `/grafana/` moves from anonymous Admin to
   `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one

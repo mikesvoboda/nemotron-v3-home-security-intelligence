@@ -137,10 +137,10 @@ MUTANTS: list[tuple[str, str, int, str, str]] = [
         "json.dumps(entries)",
     ),
     (
-        "M14 the quote pair is dropped from the rewritten line",
+        "M14 the single quote is dropped from the rewritten line",
         "setup_lib/core.py",
         1,
-        """f"{prefix}={quote}{json.dumps(entries, separators=(',', ':'))}{quote}{terminator}\"""",
+        """f"{prefix}='{json.dumps(entries, separators=(',', ':'))}'{terminator}\"""",
         """f"{prefix}={json.dumps(entries, separators=(',', ':'))}{terminator}\"""",
     ),
     (
@@ -151,11 +151,25 @@ MUTANTS: list[tuple[str, str, int, str, str]] = [
         "                found = found if found is not None else value",
     ),
     (
-        "M16 emission keeps 'no quote as found' (the pre-fix policy)",
+        "M16 only a single-quoted line is recognized as quoted (a double-quoted input stops converting)",
         "setup_lib/core.py",
         1,
-        '    quote = "\'"',
-        '    quote = ""',
+        # Anchored on the preceding line: the same 4-space pattern is a SUBSTRING of
+        # _value_of's 16-space twin, which would make this match 2x (the count check
+        # refuses it) and would mutate the wrong site if the count were raised.
+        """    value = raw_value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):""",
+        """    value = raw_value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] == "'":""",
+    ),
+    (
+        "M17 an entry holding a literal apostrophe is emitted anyway (no not-quotable guard)",
+        "setup_lib/core.py",
+        1,
+        """    if any("'" in (e if isinstance(e, str) else json.dumps(e)) for e in entries):
+        return env_text, "not-quotable"
+""",
+        "",
     ),
 ]
 

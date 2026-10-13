@@ -1428,6 +1428,13 @@ def main() -> None:
                 "the file has two API_KEYS lines, so which one is authoritative is "
                 "ambiguous. Collapse them to one, then run this flag again."
             ),
+            "not-quotable": (
+                "an API_KEYS entry contains a literal apostrophe, which no quoting "
+                "of this line survives (single quotes cannot nest; double quotes "
+                "expand $ and backticks). The file was left exactly as it was — "
+                "it still sources and loads. Re-key that entry without the "
+                "apostrophe, then run this flag again."
+            ),
         }
         print(f"! Not converted ({outcome}): {reasons.get(outcome, outcome)}")
         print(f"  {env_target} is unchanged.")
