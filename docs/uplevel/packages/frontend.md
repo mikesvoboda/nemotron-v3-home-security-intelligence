@@ -169,7 +169,7 @@ paths; the inventory row reads **works** once the operator records the real-tier
 
 - **Trash** (F-087 with R2a's F-088; P1; one package): a Delete action in the event detail modal and
   a bulk Delete on the timeline, both calling the existing soft-delete routes
-  (`DELETE /api/events/{id}`, `routes/events.py:2713`, and the bulk delete, `:1780`), so deleted
+  (`DELETE /api/events/{id}`, `routes/events.py:2726`, and the bulk delete, `:1793`), so deleted
   events land in `/trash`; no backend change is expected. Golden path: delete an event from the UI,
   find it in `/trash`, restore it, then delete it permanently; it replaces the spec's API-side
   seeding (rulings 131, 135).

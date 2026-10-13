@@ -312,7 +312,7 @@ on the CI compose before their save leg can go green; until then they flip on th
 **Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** none yet. (ruling
 149, record 6146380050)
 
-- [ ] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:498-523`)
+- [ ] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
       and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
       `GET /api/events`.
 - [ ] When it merges, frontend flips the read-back `test.fixme` in
