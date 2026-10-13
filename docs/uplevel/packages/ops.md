@@ -365,3 +365,25 @@ Builds UR-125 as the owner amended it (owner design session 2026-10-12, pass 2 Q
 
 **Done when:** a unit test pins each case (breach then pass on re-run is a warning; breach twice
 is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s current tests in CI.
+
+### [r149b] Retire `Nightly Analysis`'s Complexity Trends job
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling
+149, record 6146380050)
+
+- [ ] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed
+      on every run since at least 10-03 and nothing reads its report. Security Audit stays.
+
+**Done when:** the next `Nightly Analysis` run is green, or `nightly.yml` holds only Security Audit.
+
+### [r149f] Flaky Test Detection reports to its run summary
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling 149)
+
+- [ ] Remove the issue-creation step from `.github/workflows/flaky-test-detection.yml`; the Analyze
+      Flaky Tests job writes its flaky list (test id, pass/fail count over the runs) to the run
+      summary instead, and goes green when the analysis itself succeeds. The coordinator routes the
+      list (UR-116).
+
+**Done when:** a `workflow_dispatch` run's Analyze job is green and its summary lists the flaky
+tests.
