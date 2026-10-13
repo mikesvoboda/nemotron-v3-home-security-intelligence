@@ -230,6 +230,165 @@ def test_reordered_columns_still_score_the_right_column(tmp_path):
                                    "awaiting real tier": 0}, payload
 
 
+# ------------------------------------------------- guards that must stay REACHABLE
+#
+# Every test below exists because a branch-deletion campaign said it did not: with
+# this guard's body replaced by `pass`, the shipped suite still went green, which
+# means the guard could be deleted from the file and nothing would notice. The
+# campaign is the only honest census of a gate's reach — running the suite after
+# each `raise -> pass` and listing the survivors — and it found 13 of 26 guards
+# unpinned. These are those guards, one arm each.
+
+
+def test_unrowed_short_row_is_a_refusal_not_a_wrong_answer(tmp_path):
+    """A row shorter than the `status` column index must refuse, not report the
+    wrong count. A stale §2 has to stay visible in that case."""
+    text = doc(TWO)
+    anchor = row(TWO["1"][0]) + "\n"
+    assert anchor in text, "fixture row anchor missing — arm is a no-op"
+    short = "| F-001 | Some surface | views the panel |\n"
+    text = text.replace(anchor, short, 1)
+    assert short in text, "short row not substituted — arm is a no-op"
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"a row shorter than its status column was mis-scored: {out}"
+    assert "column" in out, out
+
+
+def test_orphan_section_row_is_drift(tmp_path):
+    """§2 listing a section that has no §3 table is the SOLE signal for a zero-cell
+    orphan row; the campaign's worst survivor, because gutting it let a ghost
+    section pass rc=0 while every real cell still agreed."""
+    text = doc(TWO) + "\n| [3.99 Ghost](#ghost) | **0** | **0** | **0** | **0** | **0** |\n"
+    anchor = "| **all** | "
+    i = text.index(anchor)
+    text = text[:i] + "| [3.99 Ghost](#ghost) | 0 | 0 | 0 | 0 | 0 |\n" + text[i:]
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 1, f"a §2 row for a section that does not exist was tolerated: {out}"
+    # --json escapes the section sign, so the needle is the §-free half of the message
+    assert "lists sections with no" in out and "3.99" in out, out
+
+
+def test_two_all_rows_are_refused(tmp_path):
+    """Two `all` rows must never be adjudicated by which one came last. The
+    original bound `all_row` only if it was None at the END of the loop body, so a
+    second copy routed to the same dict: wrong-then-correct passed rc=0 with the
+    wrong copy never compared at all."""
+    text = doc(TWO)
+    all_line = next((ln for ln in text.splitlines() if ln.startswith("| **all**")), "")
+    assert all_line, "fixture has no `all` row — arm is a no-op"
+    wrong = all_line.replace("**5**", "**4**", 1)
+    assert wrong != all_line, "mutant all-row identical — arm is a no-op"
+    text = text.replace(all_line, wrong + "\n" + all_line, 1)
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"two contradictory `all` rows were resolved silently: {out}"
+    assert "two `all` rows" in out, out
+
+
+def test_duplicate_section_row_is_refused(tmp_path):
+    """The same overwrite hazard on a section row: `setdefault` merged two rows for
+    one section, so last copy won and one of them was never scored."""
+    text = doc(TWO)
+    sec_line = next((ln for ln in text.splitlines() if ln.startswith("| [3.1")), "")
+    assert sec_line, "fixture has no 3.1 row — arm is a no-op"
+    text = text.replace(sec_line, sec_line + "\n" + sec_line, 1)
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"a section listed twice in §2 was merged silently: {out}"
+    assert "twice" in out, out
+
+
+def test_blank_table_line_is_refused_not_dropped(tmp_path):
+    """`is_separator` filtered empty cells before `all()`, so an all-blank line
+    satisfied all() over an EMPTY GENERATOR and vanished from both denominators —
+    the exact silent skip the previous commit existed to close, reached by a line
+    with no non-empty cell to trigger it."""
+    text = doc(TWO)
+    anchor = row(TWO["1"][0]) + "\n"
+    blank = "|  |  |  |  |  |  |  |  |  |  |\n"
+    text = text.replace(anchor, anchor + blank, 1)
+    assert blank in text, "blank line not inserted — arm is a no-op"
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"an all-blank table line was dropped from both denominators: {out}"
+    assert "would be dropped from BOTH denominators" in out, out
+
+
+def test_unreadable_summary_cell_is_refused(tmp_path):
+    """A non-integer in a published cell is UNSCOREABLE, not a zero. Scoring it 0
+    would turn a typo into a drift claim about the rows instead of the table."""
+    text = doc(TWO).replace("| [3.1 Section 1](#31-section-1) | 3 |", "| [3.1 Section 1](#31-section-1) | three |", 1)
+    assert "| three |" in text, "cell mutation did not land — arm is a no-op"
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"a non-integer summary cell was scored: {out}"
+    assert "unreadable cell" in out, out
+
+
+def test_section_row_that_is_neither_id_nor_all_is_refused(tmp_path):
+    """A stray label in §2's first column must name itself, not fall through."""
+    text = doc(TWO).replace("| [3.1 Section 1](#31-section-1) |", "| subtotal |", 1)
+    assert "| subtotal |" in text, "arm is a no-op"
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"an unlabelled §2 row was tolerated: {out}"
+    assert "neither a section nor" in out, out
+
+
+def test_summary_missing_rows_column_is_refused(tmp_path):
+    """The header check names the column it wanted; without it the table would
+    resolve `rows` to an arbitrary index."""
+    rc, out, _ = run(write(tmp_path, doc(TWO).replace(SUMMARY_HEADER, "| section | unverified | half-built | leftover | awaiting real tier |", 1)))
+    assert rc == 2, f"a §2 table with no `rows` column was scored: {out}"
+    assert "lacks `rows`" in out, out
+
+
+def test_section_table_without_status_column_is_refused(tmp_path):
+    """A §3 table whose header lost `status` has nothing to tally; silently
+    tallying zero statuses would agree with a zeroed §2."""
+    rc, out, _ = run(write(tmp_path, doc(TWO).replace(ROW_HEADER, "| id | surface | action | API calls | backend | state | evidence | modules | real tier | ruling | priority |", 1)))
+    assert rc == 2, f"a §3 table with no `status` column was tallied anyway: {out}"
+    assert "no `status` column" in out, out
+
+
+def test_summary_with_no_status_columns_is_refused(tmp_path):
+    rc, out, _ = run(write(tmp_path, doc(TWO).replace(SUMMARY_HEADER, "| section | rows |", 1)
+                                   .replace(SUMMARY_SEP, "| --- | --- |", 1)
+                                   .replace("| 3 | 2 | 0 | 0 | 1 |", "| 3 |", 1)))
+    assert rc == 2, f"a §2 table declaring no vocabulary was accepted: {out}"
+    assert "no status columns" in out, out
+
+
+def test_summary_without_an_all_row_is_refused(tmp_path):
+    """The `all` row is the column-sum denominator; without it the sums are vacuous."""
+    text = "\n".join(ln for ln in doc(TWO).splitlines() if not ln.startswith("| **all**"))
+    assert "| **all**" not in text, "arm is a no-op"
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"a §2 table with no `all` row passed: {out}"
+    assert "no `all` row" in out, out
+
+
+def test_two_summary_tables_are_refused(tmp_path):
+    text = doc(TWO)
+    second = "\n" + SUMMARY_HEADER + "\n" + SUMMARY_SEP + "\n| all | 0 | 0 | 0 | 0 | 0 |\n"
+    marker = "\n## 3. Sections"
+    assert marker in text, "arm is a no-op"
+    # inside §2's body — after the last `## ` heading it is no longer a candidate
+    text = text.replace(marker, second + marker, 1)
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"two candidate §2 tables were scored: {out}"
+    assert "found 2" in out, out
+
+
+def test_no_sections_at_all_is_refused(tmp_path):
+    rc, out, _ = run(write(tmp_path, doc(TWO).replace("### 3.1 Section 1", "### Section 1", 1)
+                                   .replace("### 3.2 Section 2", "### Section 2", 1)))
+    assert rc == 2, f"a doc with no `### 3.x` heading passed: {out}"
+    assert "no corpus" in out, out
+
+
+def test_duplicate_column_name_in_a_header_is_refused(tmp_path):
+    rc, out, _ = run(write(tmp_path, doc(TWO).replace(ROW_HEADER, ROW_HEADER.replace("| evidence |", "| evidence |", 1)
+                                   .replace("| modules |", "| evidence |", 1), 1)))
+    assert rc == 2, f"a header naming one column twice was resolved: {out}"
+    assert "duplicate column name" in out, out
+
+
 # --------------------------------------------- the mutant that must stay GREEN
 
 
@@ -243,3 +402,31 @@ def test_escaped_pipe_inside_a_cell_is_not_a_column(tmp_path):
     assert rc == 0, f"an escaped pipe was read as a column break: {out}"
     assert payload["statuses"] == {"unverified": 0, "half-built": 1, "leftover": 0,
                                    "awaiting real tier": 0}, payload
+
+
+def test_a_later_section_may_own_its_own_id_table(tmp_path):
+    """The last `### 3.x` section's corpus ends at the next `## `, not at EOF.
+
+    It used to run to EOF, which today is harmless only because §4..§8 of the real
+    inventory carry no `id` column — the tally stayed right while the slice held 7
+    tables and 414 pipe lines. The cliff was one legitimate edit away: the moment a
+    later section gained an `id`-headed table, the last section would raise
+    "expected exactly 1 id-headed table". The bound is the fix; this arm is the
+    control that proves it — the same doc reddens on the unbounded slice.
+    """
+    later = ("\n## 4. Not a feature section\n\n" + ROW_HEADER + "\n" + ROW_SEP + "\n"
+             + row(("F-900", "leftover")) + "\n")
+    # Insert at the END of the LAST section's slice, so the `## 4.` table sits inside
+    # the window the unbounded slice used to take (last `### 3.x` -> EOF) and outside
+    # the bounded one (last `### 3.x` -> next `## `). Appending after the whole doc
+    # would land in the same window again and prove nothing.
+    anchor = row(TWO["2"][-1]) + "\n"
+    text = doc(TWO)
+    assert anchor in text, "anchor not in fixture doc — arm is a no-op"
+    text = text.replace(anchor, anchor + later, 1)
+    rc, out, payload = run(write(tmp_path, text))
+    assert rc == 0, f"a table in a later `## ` section was pulled into §3's tally: {out}"
+    # TWO carries 5 rows; the unbounded slice found TWO id-headed tables in §3.2 and
+    # raised rc=2. If F-900 leaked into the tally instead, rows would read 6.
+    assert payload["rows"] == 5, f"F-900 leaked into §3's tally: {payload}"
+    assert payload["statuses"]["leftover"] == 1, payload

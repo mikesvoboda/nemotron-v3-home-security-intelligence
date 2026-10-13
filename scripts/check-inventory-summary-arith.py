@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Re-derive feature-inventory.md's §2 summary table from the §3 rows it summarizes.
 
-    uv run python -m scripts.check-inventory-summary-arith [PATH] [--json]
+    uv run python scripts/check-inventory-summary-arith.py [PATH] [--json]
+
+(the module name contains hyphens, so `-m scripts.check-inventory-summary-arith`
+raises ModuleNotFoundError; it is called by path, which is how CI calls it)
 
 Section 2 publishes, per `### 3.x` section, a row count and a per-status count, plus
 an `all` row. Until this checker existed NOTHING compared those numbers to the rows
@@ -43,6 +46,7 @@ ESCAPED_PIPE = "\x00PIPE\x00"
 ROW_ID = re.compile(r"^F-\d+$")
 SECTION_HEAD = re.compile(r"^### (3\.\d+) ")
 SEP_CELL = re.compile(r":?-{3,}:?")
+H2_HEAD = re.compile(r"^## ")
 
 
 class InventoryError(Exception):
@@ -57,7 +61,9 @@ def split_row(line: str) -> list[str]:
 
 def is_separator(cells: list[str]) -> bool:
     """A GFM table IS header + separator + rows: this line is what ADMITS a table."""
-    return bool(cells) and all(SEP_CELL.fullmatch(c) for c in cells if c)
+    # `if c` would let an ALL-BLANK line satisfy all() over an empty generator, so a
+    # blanked-out table line vanished from both denominators instead of being refused.
+    return bool(cells) and all(SEP_CELL.fullmatch(c) for c in cells)
 
 
 def tables(lines: list[str]) -> list[list[str]]:
@@ -105,6 +111,7 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
     """
     lines = text.splitlines()
     heads = [i for i, ln in enumerate(lines) if SECTION_HEAD.match(ln)]
+    h2_heads = [i for i, ln in enumerate(lines) if H2_HEAD.match(ln)]
     if not heads:
         raise InventoryError("no '### 3.x' headings — the parser found no corpus to count")
     per_section: dict[str, dict[str, int]] = {}
@@ -112,7 +119,12 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
     vocab: dict[str, int] = {}
     for n, start in enumerate(heads):
         num = SECTION_HEAD.match(lines[start]).group(1)
-        end = heads[n + 1] if n + 1 < len(heads) else len(lines)
+        # The section's corpus ends at the next `### 3.x` AND at the next `## ` — the
+        # last section's next `### 3.x` does not exist, and an unbounded slice handed
+        # §4..§8 (7 tables, 414 pipe lines) to this section's tally.
+        bounds = [b for b in (heads[n + 1] if n + 1 < len(heads) else None,) if b is not None]
+        bounds += [i for i in h2_heads if i > start]
+        end = min(bounds) if bounds else len(lines)
         table = id_tables(lines[start:end], f"section {num}")[0]
         cols = header_columns(table)
         if "status" not in cols:
@@ -182,6 +194,7 @@ def parse_summary(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int],
 
     per_section: dict[str, dict[str, int]] = {}
     all_row: dict[str, int] | None = None
+    seen: set[str] = set()
     for line in table[1:]:
         cells = split_row(line)
         if is_separator(cells):
@@ -189,11 +202,27 @@ def parse_summary(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int],
         first = cells[0].strip("* ").strip()
         label = first.split("]")[0].strip("[* ") if first.startswith("[") else first
         nums = re.match(r"^(3\.\d+)", label)
-        target = None
         if nums:
-            target = per_section.setdefault(nums.group(1), {})
+            key = nums.group(1)
+            if key in seen:
+                raise InventoryError(
+                    f"§2 summary lists section {key} twice — the later copy would silently "
+                    f"overwrite the earlier, and one of them is wrong"
+                )
+            seen.add(key)
+            target = per_section.setdefault(key, {})
         elif label.lower().strip("* ") == "all":
-            target = all_row if all_row is not None else {}
+            # Bound HERE, on first sight. The old form bound `all_row` only if it was
+            # still None at the end of the loop body, so a SECOND `all` row routed to
+            # the same dict and last copy won: wrong-first-then-correct passed rc=0
+            # with the wrong copy never compared. Two `all` rows is the rot this gate
+            # exists to police, so it is refused, not adjudicated.
+            if "all" in seen:
+                raise InventoryError("§2 summary has two `all` rows — nothing may silently "
+                                     "pick which one the rows have to match")
+            seen.add("all")
+            all_row = {}
+            target = all_row
         else:
             raise InventoryError(f"§2 summary row is neither a section nor `all`: {first!r}")
         try:
@@ -202,8 +231,6 @@ def parse_summary(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int],
                 target[status] = int(cells[cols[status]].strip("* "))
         except (KeyError, ValueError) as exc:
             raise InventoryError(f"§2 summary row {first!r}: unreadable cell: {exc}") from exc
-        if not nums and all_row is None:
-            all_row = target
     if all_row is None:
         raise InventoryError("§2 summary has no `all` row to check the column sums against")
     return per_section, all_row, vocabulary
