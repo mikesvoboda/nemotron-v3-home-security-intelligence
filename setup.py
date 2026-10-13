@@ -30,7 +30,9 @@ from typing import Any, TypedDict
 # Import core utilities from the setup_lib package
 from setup_lib.core import (
     WEAK_PASSWORDS,
+    _expose_lan_is_truthy,
     check_port_available,
+    convert_monitoring_key,
     derive_alert_sink_url,
     derive_frontend_bind_address,
     derive_grafana_anonymous_enabled,
@@ -130,6 +132,38 @@ def load_ports_from_env_example(env_example_path: Path | None = None) -> dict[st
     return ports
 
 
+# Map from internal service name to the .env variable that records its port.
+# .env.example is the source of truth for the VALUES; this is the single link
+# between a SERVICES key and the name it is stored under, shared by
+# get_default_ports (a first run) and saved_port (a re-run's defaults, ruling 94).
+# Defined here rather than beside SERVICES because get_default_ports runs at
+# import time, through build_services_dict().
+PORT_ENV_KEYS: dict[str, str] = {
+    "backend": "API_PORT",
+    "frontend": "FRONTEND_PORT",
+    "frontend_https": "FRONTEND_HTTPS_PORT",
+    "frontend_http": "FRONTEND_HTTP_PORT",
+    "postgres": "POSTGRES_PORT",
+    "redis": "REDIS_PORT",
+    "go2rtc_api": "GO2RTC_API_PORT",
+    "go2rtc_webrtc": "GO2RTC_WEBRTC_PORT",
+    # AI models are served by ai-gateway at AI_GATEWAY_PORT; no per-model host
+    # ports are probed (see generate_env_content below).
+    "grafana": "GRAFANA_PORT",
+    "prometheus": "PROMETHEUS_PORT",
+    "alertmanager": "ALERTMANAGER_PORT",
+    "loki": "LOKI_PORT",
+    "pyroscope": "PYROSCOPE_PORT",
+    "alloy_ui": "ALLOY_UI_PORT",
+    "node_exporter": "NODE_EXPORTER_PORT",
+    "redis_exporter": "REDIS_EXPORTER_PORT",
+    "json_exporter": "JSON_EXPORTER_PORT",
+    "blackbox_exporter": "BLACKBOX_EXPORTER_PORT",
+    "cadvisor": "CADVISOR_PORT",
+    "dcgm_exporter": "DCGM_EXPORTER_PORT",
+}
+
+
 def get_default_ports() -> dict[str, int]:
     """Get default port values from .env.example.
 
@@ -138,32 +172,9 @@ def get_default_ports() -> dict[str, int]:
     """
     env_ports = load_ports_from_env_example()
 
-    # Map from internal service name to .env.example variable name
-    # .env.example is the source of truth - these mappings define the relationship
-    port_mappings = {
-        "backend": "API_PORT",
-        "frontend": "FRONTEND_PORT",
-        "frontend_https": "FRONTEND_HTTPS_PORT",
-        "frontend_http": "FRONTEND_HTTP_PORT",
-        "postgres": "POSTGRES_PORT",
-        "redis": "REDIS_PORT",
-        "go2rtc_api": "GO2RTC_API_PORT",
-        "go2rtc_webrtc": "GO2RTC_WEBRTC_PORT",
-        # AI models are served by ai-gateway at AI_GATEWAY_PORT; no per-model
-        # host ports are probed (see generate_env_content below).
-        "grafana": "GRAFANA_PORT",
-        "prometheus": "PROMETHEUS_PORT",
-        "alertmanager": "ALERTMANAGER_PORT",
-        "loki": "LOKI_PORT",
-        "pyroscope": "PYROSCOPE_PORT",
-        "alloy_ui": "ALLOY_UI_PORT",
-        "node_exporter": "NODE_EXPORTER_PORT",
-        "redis_exporter": "REDIS_EXPORTER_PORT",
-        "json_exporter": "JSON_EXPORTER_PORT",
-        "blackbox_exporter": "BLACKBOX_EXPORTER_PORT",
-        "cadvisor": "CADVISOR_PORT",
-        "dcgm_exporter": "DCGM_EXPORTER_PORT",
-    }
+    # .env.example is the source of truth - PORT_ENV_KEYS is the one place that
+    # names the relationship between a service and the variable holding its port.
+    port_mappings = PORT_ENV_KEYS
 
     # Hardcoded fallbacks only used if .env.example is missing or malformed
     fallbacks = {
@@ -321,6 +332,81 @@ def prompt_with_default(prompt: str, default: str) -> str:
     except EOFError, KeyboardInterrupt:
         print()
         return default
+
+
+def saved_or(existing_env: dict[str, str], saved_key: str, fallback: str) -> str:
+    """A prompt's default on a RE-RUN: the value already in `.env` (ruling 94).
+
+    `fallback` is today's first-run default, returned unchanged when the key is
+    absent — so a first run offers exactly what it offers now. This is the general
+    form of the reuse the file already practised for passwords since NEM-3141
+    ("preserve existing passwords when re-running"), which stopped at passwords:
+    every other prompt kept its first-run default, so an Enter-only re-run of a
+    configured install silently rewrote the settings it never asked about.
+
+    Args:
+        existing_env: the dict from load_existing_env()
+        saved_key: the .env variable this prompt's answer is written to
+        fallback: today's first-run default
+
+    Returns:
+        The saved value, or `fallback` when there is none
+    """
+    saved = (existing_env.get(saved_key) or "").strip()
+    return saved if saved else fallback
+
+
+def saved_answer(existing_env: dict[str, str], saved_key: str, fallback: str) -> str:
+    """`saved_or` for a yes/no prompt, translated into the prompt's OWN vocabulary.
+
+    The translation is the part that matters. `.env` stores the STATE word
+    ("true"/"false") and this prompt consumes an ANSWER word ("y"/"n"), so handing
+    the raw saved value to a `[y/n]` prompt reintroduces the defect this exists to
+    fix: Enter returns "true", `"true".lower() in ("y", "yes")` is False at
+    `run_quick_mode`'s expose_lan line, and a LAN-exposed install lands on loopback
+    anyway — silently, which is the whole bug.
+
+    Only the SAVED value is translated. A typed answer is still judged by today's
+    narrow predicate, deliberately: `_expose_lan_is_truthy` treats anything outside
+    its vocabulary as un-exposed so a typo fails safe, and widening what a keystroke
+    can accept would let an ambiguous typo OPEN the LAN. Preserving a setting and
+    widening an accept-set are different changes; only the first is ruled.
+
+    Args:
+        existing_env: the dict from load_existing_env()
+        saved_key: the .env variable this prompt's answer is written to
+        fallback: today's first-run default ("n" for every prompt using this)
+
+    Returns:
+        "y" or "n" reflecting the saved state, or `fallback` when nothing is saved
+    """
+    if not (existing_env.get(saved_key) or "").strip():
+        return fallback
+    return "y" if _expose_lan_is_truthy(existing_env[saved_key]) else "n"
+
+
+def saved_port(existing_env: dict[str, str], service: str, fallback: int) -> int:
+    """A service's starting port on a re-run: the one this install already uses.
+
+    Feeds the SAME slot `SERVICES[service]["port"]` feeds today, so the conflict
+    probe downstream is untouched: a saved port something else now holds still loses
+    to the probe and moves. Preserving a setting must not mean binding a port out
+    from under whoever grabbed it.
+
+    Args:
+        existing_env: the dict from load_existing_env()
+        service: the SERVICES key
+        fallback: the .env.example default behind that service
+
+    Returns:
+        The saved port, or `fallback` when absent or unparseable
+    """
+    env_key = PORT_ENV_KEYS.get(service)
+    saved = (existing_env.get(env_key) or "").strip() if env_key else ""
+    try:
+        return int(saved) if saved else fallback
+    except ValueError:
+        return fallback
 
 
 def prompt_for_password(prompt_text: str, default: str | None = None) -> str:
@@ -573,7 +659,9 @@ def run_quick_mode() -> dict:
     ports = {}
     assigned_ports: set[int] = set()
     for service, info in SERVICES.items():
-        default_port = info["port"]
+        # Ruling 94: on a re-run the saved port is the starting point. The probe
+        # below stays as it is, so a saved port something else now holds still moves.
+        default_port = saved_port(existing_env, service, info["port"])
         if check_port_available(default_port) and default_port not in assigned_ports:
             ports[service] = default_port
         else:
@@ -592,7 +680,9 @@ def run_quick_mode() -> dict:
 
     # Paths
     print("-- Paths " + "-" * 52)
-    foscam_base_path = prompt_with_default("Foscam upload path", "/export/foscam")
+    foscam_base_path = prompt_with_default(
+        "Foscam upload path", saved_or(existing_env, "FOSCAM_BASE_PATH", "/export/foscam")
+    )
 
     # Validate Foscam path exists
     if Path(foscam_base_path).exists():
@@ -609,7 +699,9 @@ def run_quick_mode() -> dict:
                 print("! Permission denied - create it manually before starting containers:")
                 print(f"    sudo mkdir -p {foscam_base_path}")
 
-    ai_models_path = prompt_with_default("AI models path", "/export/ai_models")
+    ai_models_path = prompt_with_default(
+        "AI models path", saved_or(existing_env, "AI_MODELS_PATH", "/export/ai_models")
+    )
     print()
 
     # Credentials - use existing .env values or generate new unique passwords
@@ -678,11 +770,20 @@ def run_quick_mode() -> dict:
     # Network exposure (O1.6, OD-12): one switch, loopback by default. setup.py
     # derives FRONTEND_BIND_ADDRESS from the answer (compose has no
     # conditionals); EXPOSE_LAN=true also arms the backend's auth gate.
+    #
+    # Ruling 94: on a re-run the default is the state already in .env, translated
+    # into this prompt's y/n vocabulary by saved_answer (pressing Enter used to
+    # answer "don't expose" and silently re-bind a LAN-exposed install to loopback,
+    # disarming the derives the monitoring-key scoping depends on). A first run still
+    # defaults to "n".
     print("Frontend published ports bind 127.0.0.1 by default (localhost still")
     print("works). true publishes them on 0.0.0.0 and arms the backend's auth")
     print("gate — set true whenever the LAN, a tunnel or a port forward reaches")
     print("the UI (a host-run tunnel works through the loopback bind unguarded).")
-    expose_answer = prompt_with_default("Expose the UI beyond this machine?", "n")
+    expose_answer = prompt_with_default(
+        "Expose the UI beyond this machine?",
+        saved_answer(existing_env, "EXPOSE_LAN", "n"),
+    )
     expose_lan = expose_answer.lower() in ("y", "yes")
     print()
 
@@ -747,7 +848,10 @@ def run_guided_mode() -> dict:
     print("  * Recommended: SSD or fast storage for real-time processing")
     print("  * Typical size: 10-50GB depending on camera count/retention")
     print()
-    foscam_base_path = prompt_with_default("Enter Foscam upload path", "/export/foscam")
+    foscam_base_path = prompt_with_default(
+        "Enter Foscam upload path",
+        saved_or(existing_env, "FOSCAM_BASE_PATH", "/export/foscam"),
+    )
 
     # Validate path exists
     if Path(foscam_base_path).exists():
@@ -779,7 +883,10 @@ def run_guided_mode() -> dict:
     print("  * Requires ~15GB of disk space for all models")
     print("  * Must be readable by Docker containers")
     print()
-    ai_models_path = prompt_with_default("Enter AI models path", "/export/ai_models")
+    ai_models_path = prompt_with_default(
+        "Enter AI models path",
+        saved_or(existing_env, "AI_MODELS_PATH", "/export/ai_models"),
+    )
 
     # Check disk space
     try:
@@ -848,7 +955,9 @@ def run_guided_mode() -> dict:
     assigned_ports: set[int] = set()
     conflicts = []
     for service, info in SERVICES.items():
-        default_port = info["port"]
+        # Ruling 94: the saved port is the starting point; the probe below is kept,
+        # so a saved port something else now holds still moves.
+        default_port = saved_port(existing_env, service, info["port"])
         if check_port_available(default_port) and default_port not in assigned_ports:
             ports[service] = default_port
         else:
@@ -892,12 +1001,16 @@ def run_guided_mode() -> dict:
                 ports[service] = suggested
     print()
 
-    # Network exposure (O1.6, OD-12): same single switch as quick mode.
+    # Network exposure (O1.6, OD-12): same single switch as quick mode, and the
+    # same ruling 94 default — on a re-run the saved state is what Enter keeps.
     print("Frontend published ports bind 127.0.0.1 by default (localhost still")
     print("works). true publishes them on 0.0.0.0 and arms the backend's auth")
     print("gate — set true whenever the LAN, a tunnel or a port forward reaches")
     print("the UI (a host-run tunnel works through the loopback bind unguarded).")
-    expose_answer = prompt_with_default("Expose the UI beyond this machine?", "n")
+    expose_answer = prompt_with_default(
+        "Expose the UI beyond this machine?",
+        saved_answer(existing_env, "EXPOSE_LAN", "n"),
+    )
     expose_lan = expose_answer.lower() in ("y", "yes")
     print()
 
@@ -1173,6 +1286,14 @@ def main() -> None:
         help="Also create Docker secrets files in secrets/ directory",
     )
     parser.add_argument(
+        "--convert-monitoring-key",
+        action="store_true",
+        help=(
+            "Rewrite only the plain monitoring-key entry in --output-dir's .env as a "
+            "scoped entry, change nothing else in the file, and exit"
+        ),
+    )
+    parser.add_argument(
         "--dev",
         action="store_true",
         help="Developer mode: install pre-commit hooks for code contributions",
@@ -1233,6 +1354,77 @@ def main() -> None:
         help="(deploy) Do not write output to a log file",
     )
     args = parser.parse_args()
+
+    # Ruling 94 Fix 2: the narrow alternative to a full re-run. A pre-R60 .env
+    # mirrors MONITORING_API_KEY into API_KEYS as a PLAIN entry, which the gate reads
+    # as unscoped; until now the only cure was re-running setup.py, which makes every
+    # other decision in the file again. This rewrites that one entry and leaves the
+    # rest of the operator's file alone. Handled here — before platform detection and
+    # the install steps — because scoping a key needs no podman, no GPU and no apt.
+    if args.convert_monitoring_key:
+        env_target = Path(args.output_dir) / ".env"
+        if not env_target.exists():
+            print(f"! No .env at {env_target} — nothing to convert.")
+            sys.exit(1)
+        try:
+            original = env_target.read_text(encoding="utf-8")
+        except OSError as exc:
+            print(f"! Cannot read {env_target}: {exc}")
+            sys.exit(1)
+        rewritten, outcome = convert_monitoring_key(original)
+
+        if outcome == "converted":
+            # Write the whole file back only because exactly one line inside it
+            # changed; the byte-compare test pins that nothing else did.
+            env_target.write_text(rewritten, encoding="utf-8")
+            print(
+                "+ Converted the monitoring key's API_KEYS entry to the scoped form "
+                '{"key": ..., "scope": "monitoring"}. Nothing else in the file changed.'
+            )
+            print(
+                "! Recreate the backend to apply it: podman compose "
+                "-f docker-compose.prod.yml up -d --force-recreate backend"
+            )
+            sys.exit(0)
+
+        if outcome == "unchanged":
+            # Already scoped is the wanted end state, so this succeeds: an operator
+            # who runs the flag twice, or over an install R60 already wrote, must see
+            # 0 — a tool that reports failure for "nothing to do" trains people to
+            # ignore its exit status, which is the one thing refusals rely on.
+            print("+ Already scoped: the monitoring key's API_KEYS entry needs no change.")
+            sys.exit(0)
+
+        reasons = {
+            "no-monitoring-key": (
+                "the file has no MONITORING_API_KEY to identify the entry by, so no "
+                "key was narrowed (guessing which of your keys is the monitoring one "
+                "could break whatever uses it)."
+            ),
+            "not-listed": (
+                "the monitoring key is not listed as a plain API_KEYS entry, so there "
+                "is nothing to scope."
+            ),
+            "ambiguous-duplicate": (
+                "the monitoring key's value appears more than once in API_KEYS. Edit "
+                "the file by hand: this flag never deletes or merges an entry."
+            ),
+            "not-plain": (
+                "the only API_KEYS entry for the monitoring key is an object with no "
+                "scope, which already grants nothing — scoping it here would widen it."
+            ),
+            "not-a-list": (
+                "API_KEYS is not a JSON list, so it was left alone. A corrupt value "
+                "needs a full setup.py run to regenerate."
+            ),
+            "duplicate-line": (
+                "the file has two API_KEYS lines, so which one is authoritative is "
+                "ambiguous. Collapse them to one, then run this flag again."
+            ),
+        }
+        print(f"! Not converted ({outcome}): {reasons.get(outcome, outcome)}")
+        print(f"  {env_target} is unchanged.")
+        sys.exit(1)
 
     # Deploy mode: delegate to setup_lib.deploy
     if args.command == "deploy":

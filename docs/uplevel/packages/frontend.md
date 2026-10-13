@@ -165,7 +165,7 @@ inventory row.
 
 The frontend parts of each feature package in the backend lane's feature track
 ([`backend.md`](backend.md), `B4.*`), running the same six steps. This lane writes the UI golden
-paths and sets the inventory row to **works**. Features rulings have already shaped:
+paths; the inventory row reads **works** once the operator records the real-tier check. Features rulings have already shaped:
 
 - **Trash** (F-087 with R2a's F-088; P1; one package): a Delete action in the event detail modal and
   a bulk Delete on the timeline, both calling the existing soft-delete routes
@@ -229,3 +229,51 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 
 **Done when:** for each row, its golden spec, already written to pin the broken behaviour, is
 flipped to assert the fix and passes (ruling 130).
+
+### [r144n] Route notes for ruling 127's real-tier rows
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 (R2b round 1 record) merged. **PR:**
+none yet. Ordered by the owner's approval of #7030 (record 6136889433).
+
+- [ ] Rewrite the route notes of ruling 127's 12 real-tier rows in
+      `docs/reference/feature-inventory.md` to ruling 144's route: the row gets its witness from the
+      `O2.5` run, falling back to ruling 127's route if `O2.5` cannot deliver it. Grafana rows F-102,
+      F-115, F-117, F-164–F-167, F-169, F-174; GPU rows F-176, F-178, F-182. Statuses, ruling cells
+      and priorities stay as #7030 records them.
+
+**Done when:** none of the 12 notes names the per-batch real tier (ruling 103) or an ops-b
+owner-tier ruling as its route.
+
+### [r148a] One shared golden harness
+
+**Flags:** none; test-only. **Assigned:** frontend. **Depends on:** `F2.3`'s last batch merged.
+**PR:** none yet. (ruling 148, record 6136930446)
+
+- [ ] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
+      `frontend/tests/golden/harness.ts`, keeping every comment that explains a fix, and repoint each
+      spec's import. Until `F2.3`'s last batch merges, each batch keeps its own copy.
+
+**Done when:** one `harness.ts` remains under `frontend/tests/golden/`, and the golden project is
+green on it.
+
+### [r148b] F-256's action text
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+
+- [ ] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
+      feed's lookback": the time range drives `<ZoneAnomalyFeed>` (`ZonesPage.tsx:660`, `:789-790`),
+      not the card grid (`:507-512`). F-256 is judged on that text; it takes no `half-built` status
+      and no `R2b` entry.
+
+**Done when:** the row's action text says what the page does, and its golden path cites it.
+
+### [r148c] `works` in the inventory
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+
+- [ ] Add `works` to the inventory legend, to `STATUSES` in
+      `frontend/scripts/feature-inventory-lib.mjs`, and as a column in the §2 count table, with its
+      README meaning (UR-14). A lane whose golden path is green on the fake stack sets
+      `awaiting real tier`; the operator's real-tier confirmation sets `works`.
+
+**Done when:** the inventory gate accepts a `works` row and the §2 table counts it.
