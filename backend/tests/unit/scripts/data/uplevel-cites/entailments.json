@@ -1,0 +1,160 @@
+[
+  {
+    "rule": "UR-91-c4",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Reviewing another lane's PR",
+    "needles": ["reviewed again", "merge resolution"],
+    "expect_present": false,
+    "note": "ops-b approve 6142441382: UR-91 clause 4's only live home is rules.md itself. This pin FIRES the day that text is written here — forcing the cite to move with it. First test case, assigned by the reviewer."
+  },
+  {
+    "rule": "UR-32-old-home",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Reviewing another lane's PR",
+    "needles": ["rotation", "labels the pr", "marks a head ready"],
+    "expect_present": false,
+    "note": "the circular home #7054 round 3 moved UR-32 OFF (opens 'Read rules.md §Reviewing first', states none of it). Pinned empty so a future edit cannot point the cite back here and score green."
+  },
+  {
+    "rule": "UR-83-hot",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Merging a PR",
+    "needles": ["hot files", "actionlint", "openapi"],
+    "expect_present": false,
+    "note": "round-1 finding: the section opens 'Read rules.md §Merging first' and carried none of UR-83's claim. Stays empty-pinned; UR-83 takes provenance."
+  },
+  {
+    "rule": "UR-32a",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Remit",
+    "needles": ["reviewing lane", "name it"]
+  },
+  {
+    "rule": "UR-32b",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Label for review",
+    "needles": ["review:", "ready"]
+  },
+  {
+    "rule": "UR-32c",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "The tick",
+    "item": 3,
+    "needles": ["review"]
+  },
+  {
+    "rule": "UR-32d",
+    "ref": "snap",
+    "file": "50-coordination.md",
+    "section": "Roles",
+    "needles": ["rotation", "never the author"]
+  },
+  {
+    "rule": "UR-32e",
+    "ref": "snap",
+    "file": "50-coordination.md",
+    "section": "Review and merge",
+    "needles": ["consumes the change", "names it"]
+  },
+  {
+    "rule": "UR-51a",
+    "ref": "snap",
+    "file": "10-backend.md",
+    "section": "",
+    "needles": ["work the phases in order"],
+    "note": "header = first 12 lines: an unquoted 'headers' provenance cites the top of the file."
+  },
+  {
+    "rule": "UR-51b",
+    "ref": "snap",
+    "file": "20-frontend.md",
+    "section": "",
+    "needles": ["work the phases in order"]
+  },
+  {
+    "rule": "UR-51c",
+    "ref": "snap",
+    "file": "30-ops.md",
+    "section": "",
+    "needles": ["work the phases in order", "may run in any phase"],
+    "note": "sole header carrying the OB.n half (ops-b census: 40-docs.md carries NEITHER — the non-vacuity control)."
+  },
+  {
+    "rule": "UR-51d-control",
+    "ref": "snap",
+    "file": "40-docs.md",
+    "section": "",
+    "needles": ["work the phases in order", "may run in any phase"],
+    "expect_present": false,
+    "note": "THE census control: if the matcher ever says True for all four headers it is matching nothing."
+  },
+  {
+    "rule": "UR-91",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Reviewing another lane's PR",
+    "needles": ["independently"]
+  },
+  {
+    "rule": "UR-89",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Building a package",
+    "needles": ["fresh-context", "self-review", "subagent"]
+  },
+  {
+    "rule": "UR-53",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Claiming a package",
+    "needles": ["claim", "empty commit"]
+  },
+  {
+    "rule": "UR-59",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Who takes what",
+    "needles": ["assigns only", "heavy"]
+  },
+  {
+    "rule": "UR-22",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Remit",
+    "needles": ["coordinator decisions", "channel"]
+  },
+  {
+    "rule": "UR-24",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Assigning a package",
+    "needles": ["heavy"]
+  },
+  {
+    "rule": "UR-174",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Paused",
+    "needles": ["paused"]
+  },
+  {
+    "rule": "UR-140",
+    "ref": "live",
+    "file": "roles/operator.md",
+    "section": "When something goes wrong",
+    "needles": ["wrong"]
+  },
+  {
+    "rule": "UR-168",
+    "ref": "live",
+    "file": "roles/owner-partner.md",
+    "section": "The check-in",
+    "needles": ["urgent path", "every session"]
+  }
+]

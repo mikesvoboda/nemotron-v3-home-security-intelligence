@@ -39,6 +39,14 @@ What is NOT living text (records keep their references — the package says so:
       Their own historical prose is preserved as a dated note in the file that
       mentioned them, not as a tree the scanner never looks at.
     - Files named ``docs/goal-prompt-*.txt`` — dated goal prompts, records.
+    - The six ``backend/tests/unit/scripts/data/uplevel-cites/*.md`` — byte-frozen
+      snapshots of the pre-reorg plan tree (``git show de661e070^``), committed by the
+      #7064 cite gate because a CI checkout has no history to read. They are records by
+      the same right as ``docs/uplevel/`` itself — they ARE that tree at an earlier commit
+      — and their historical prose is exactly what the cite gate proves cites against.
+      Prettier could not reflow them and the gate could not quote them if they were
+      rewritten "clean". Listed per-file, not by directory: the sibling
+      ``entailments.json`` in that tree is hand-authored LIVING text and stays policed.
     - ``scripts/retired_paths.txt`` and this file — the gate lists the paths.
     - ``.secrets.baseline`` — generated, and its keys are file paths by design.
     - In a ``.py`` file only: a line carrying a dated decision-log tag,
@@ -131,6 +139,15 @@ EXCLUDED_FILES = {
     "scripts/retired_paths.txt",
     "scripts/test_retired_paths.py",
     ".secrets.baseline",
+    # byte-frozen pre-reorg snapshots the #7064 cite gate proves provenance cites
+    # against; records per the docstring, listed per-file so the sibling
+    # entailments.json (living hand-authored text) stays scanned.
+    "backend/tests/unit/scripts/data/uplevel-cites/README.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/50-coordination.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/10-backend.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/20-frontend.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/30-ops.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/40-docs.md",
 }
 
 # Dated decision-log tag: [V 2026-09-28], [P 2026-10-03] — short word, ISO date.
