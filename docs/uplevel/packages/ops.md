@@ -308,7 +308,7 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 ### [r96i11] The Python 2–shaped `except` in the fake VLM
 
 **Flags:** none. **Assigned:** `uplevel-ops-a` (ruling 96, item 11). **Depends on:** none. **PR:**
-none yet; item 8 of the same ruling merged as #6993.
+#7052 (open, draft); item 8 of the same ruling merged as #6993.
 
 - [ ] `backend/ai_contract/fake/app.py:115` becomes `except (binascii.Error, ValueError):`,
       behaviour-identical on 3.14 and parseable on older Pythons, so the reachability toolchain is
