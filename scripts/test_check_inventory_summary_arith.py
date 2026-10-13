@@ -153,7 +153,7 @@ def test_stale_all_row_is_caught(tmp_path):
 def test_summary_row_for_a_deleted_section_is_caught(tmp_path):
     """§2 advertising a section §3 no longer has must not tally silently."""
     base = doc(TWO)
-    broken = "\n".join(l for l in base.splitlines() if "(#32-section-2)" not in l)
+    broken = "\n".join(ln for ln in base.splitlines() if "(#32-section-2)" not in ln)
     assert "(#32-section-2)" not in broken.split("## 3.")[0], "fixture edit missed"
     rc, out, payload = run(write(tmp_path, broken))
     assert rc == 1, f"an orphan §2 row was accepted: {out}"

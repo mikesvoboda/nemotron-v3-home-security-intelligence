@@ -180,7 +180,7 @@ def parse_summary(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int],
     match = re.search(r"^## 2\. Summary\s*$", text, re.M)
     if not match:
         raise InventoryError("no '## 2. Summary' heading — nothing to check the rows against")
-    body = text[match.end():].split("\n## ")[0]
+    body = text[match.end():].split("\n## ", maxsplit=1)[0]
     candidates = [t for t in tables(body.splitlines()) if len(t) > 2 and is_separator(split_row(t[1]))]
     if len(candidates) != 1:
         raise InventoryError(f"§2: expected exactly 1 summary table, found {len(candidates)}")
