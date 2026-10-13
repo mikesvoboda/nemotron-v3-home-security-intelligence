@@ -251,6 +251,15 @@ jobs:
       # scripts/test_reachability.py scans THIS file's comments for non-test
       # script paths and demands each be a declared entry point, and naming
       # it would change the tool-inputs stamp for a walk-neutral reason.
+      # #7064 (UR-89 follow-up): the uplevel cite gate's own suite joined the
+      # list. It lives in the unit tier, but on a docs-only PR the unit shards
+      # never run: ci.yml gates them on backend/should-run-all and the summary
+      # job exit-0s on that skip — measured at #7054's be801744d (shards
+      # skipped, "Backend Unit Tests" success, CI Gate green: vacuous green).
+      # The cite gate reads only docs/uplevel/** and its committed snapshot
+      # data, so this step is the tier that reaches its subject — a cite
+      # otherwise rots with every check green. Drafts stay uncovered:
+      # detect-changes skips on drafts, so no docs-only condition can see one.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -279,6 +288,7 @@ jobs:
           scripts/test_retired_paths.py
           scripts/test_check_coe_reasons.py
           scripts/test_workflow_paths.py
+          backend/tests/unit/scripts/test_check_uplevel_cites.py
           scripts/test_workflow_draft_guards.py
           scripts/audit/test_retired_names.py
           scripts/audit/test_settings_orphans.py
@@ -288,6 +298,7 @@ jobs:
           scripts/test_shard_durations.py
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py
+          scripts/test_coordinator_snapshot.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
