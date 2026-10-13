@@ -234,9 +234,10 @@ Read this section before you self-review your own PR or review another lane's.
   will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing another lane's PR";
   ruling 39 item G; ruling 149)
 - **UR-92** Every review carries `Plan text: none | <which kind in UR-47 it changes, and where>`,
-  written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it
-  (anything but `none` makes the PR owner-tier) and asks the reviewer for a missing line rather than
-  judging the diff. (ruling 40)
+  written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it: the PR
+  is owner-tier only when the named kind is one of UR-47's owner kinds, and a lane-review kind
+  merges on lane review. It asks the reviewer for a missing line rather than judging the diff.
+  (rulings 40, 153)
 - **UR-94** Before merging a PR or posting a verdict on it, the coordinator and every reviewer open
   every owner ruling, record and pointer that names it, on the PR and on #6854, not only approval
   comments; if any bars the head, the merge or verdict waits. (ruling 145)
