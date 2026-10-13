@@ -825,6 +825,131 @@ export async function waitForEventCards(page: Page): Promise<number> {
   return cards.count();
 }
 
+/* -------------------------------------------------------------------------- */
+/* The detail fixture (F-056, F-057) — a THIRD camera, on purpose.             */
+/*                                                                             */
+/* These two rows mutate the row itself (`reviewed`, `notes`), so they cannot   */
+/* share FIXTURE_CAMERA_NAME: F-043's legs mirror DOM card COUNTS against that  */
+/* camera's rows, and a row this file marks reviewed is still a row — but a     */
+/* later F2.3 spec that filters by `reviewed` would find this camera's rows     */
+/* carrying state its own fixture never wrote. A separate camera keeps every    */
+/* file's ground truth its own. (Ruling 87 also forbids touching the shared     */
+/* harness the OTHER areas use, which is why each area has its own file.)       */
+/*                                                                             */
+/* FIVE rows, not one, and the last two are the point: `mark-reviewed` renders  */
+/* only while `!event.reviewed` (EventDetailModal.tsx:1337, EventListView.tsx:  */
+/* 408), so "the event shows reviewed" is a count that must go DOWN BY ONE, not  */
+/* to zero. Asserting a disappearance of the whole set would pass on a UI that   */
+/* blanked the list, and the untouched rows are the negative control that stops  */
+/* that. Each leg owns its OWN row because the golden project is one serial      */
+/* worker over a per-file fixture: a PATCH from an earlier test is still on the  */
+/* row when a later test starts, so shared rows make a leg's starting state a    */
+/* function of test order. The fifth row belongs to the `test.fixme` reopen leg — */
+/* it stays note-free today, and when the read-back defect is repaired and the   */
+/* fixme lifted that leg must still begin with nothing stored.                   */
+/* -------------------------------------------------------------------------- */
+
+/** FE-3's detail camera: distinct from the browse and stats cameras (see above). */
+export const DETAIL_CAMERA_NAME = 'fe3-detail-probe';
+
+/**
+ * Rows for the detail-modal paths. Five, deliberately: four get exercised and one
+ * is never touched, so a leg that marks one reviewed can assert the other rows'
+ * affordances SURVIVED. `notes: null` is not settable here — the bulk route never
+ * passes `notes` (events.py:1551-1560 builds Event(...) without it) and the column
+ * defaults to NULL (models/event.py:78) — which is exactly the starting state
+ * F-057 needs, measured: a fresh row reads `notes: None`.
+ */
+export const DETAIL_ROWS: ReadonlyArray<{ riskScore: number; riskLevel: string }> = [
+  { riskScore: 88, riskLevel: 'critical' },
+  { riskScore: 72, riskLevel: 'high' },
+  { riskScore: 51, riskLevel: 'medium' },
+  { riskScore: 18, riskLevel: 'low' },
+  { riskScore: 33, riskLevel: 'low' },
+];
+
+export interface DetailFixture {
+  cameraId: string;
+  /** Row ids in request order; the spec names which leg uses which. */
+  eventIds: number[];
+}
+
+/**
+ * One dedicated camera plus DETAIL_ROWS on it, for the two PATCH-backed detail
+ * rows. Same idempotence as the other two fixtures — `ensureCamera` absorbs the
+ * name-unique 409, and `waitForCameraInList` waits out the 60 s camera-list
+ * cache BEFORE any boot, because the modal's camera chip and the filter select
+ * are both built from that cached list.
+ *
+ * Cleanup is the HARD delete: these rows accumulate mutations (`reviewed: true`,
+ * a note) across re-runs, and a re-run needs its rows UNreviewed and note-free
+ * for the transition to be a transition. A soft delete would leave them in the
+ * trash but leave `reviewed: true` on the row a restore brings back.
+ */
+export async function createDetailFixture(
+  h: TimelineHarness,
+  session: Session
+): Promise<DetailFixture> {
+  const cameraId = await ensureCamera(h, session, DETAIL_CAMERA_NAME, '/cameras/fe3_detail_probe');
+  await waitForCameraInList(h, session, DETAIL_CAMERA_NAME);
+
+  // Purge this camera's residue from an earlier run, hard, for the reason in the
+  // block comment: only the bulk hard delete clears the mutated flags by removing
+  // the row outright (events.py:1733-1803, `soft_delete:false`).
+  const stale = await api<{ items: { id: number }[] }>(
+    h,
+    session,
+    `/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`
+  );
+  await hardDeleteFixtureRows(
+    h,
+    session,
+    stale.items.map((row) => row.id)
+  );
+
+  const salt = Date.now();
+  const events = DETAIL_ROWS.map((row, i) => ({
+    batch_id: `fe3d-${salt}-${i}`, // events.batch_id is UNIQUE (measured)
+    camera_id: cameraId,
+    started_at: new Date(Date.UTC(2026, 9, 13, 5, i * 11)).toISOString(),
+    risk_score: row.riskScore,
+    risk_level: row.riskLevel,
+    summary: `FE-3 detail fixture row ${i} (${row.riskLevel})`,
+  }));
+  const bulk = await apiWrite<BulkBody>(h, session, 'POST', '/api/events/bulk', { events });
+  if (bulk.succeeded !== events.length) {
+    throw new Error(
+      `detail fixture: bulk create succeeded ${bulk.succeeded}/${events.length}; first ` +
+        `error: ${String(bulk.results.find((r) => r.status !== 'success')?.error).slice(0, 200)}`
+    );
+  }
+  const eventIds = bulk.results.map((r) => r.id).filter((id): id is number => id !== null);
+  if (eventIds.length !== DETAIL_ROWS.length) {
+    throw new Error(
+      `detail fixture: got ${eventIds.length} ids for ${DETAIL_ROWS.length} rows — ` +
+        'the legs index these positionally, so a missing id must fail here.'
+    );
+  }
+  // Every row must arrive UNreviewed and note-free, or the "transition" these two
+  // rows claim is a no-op against state a previous run left behind. Asserted
+  // against the uncached single-read route (`events.py:1870` takes no cache dep).
+  for (const id of eventIds) {
+    const row = await api<{ reviewed: boolean; notes: string | null }>(
+      h,
+      session,
+      `/api/events/${id}`
+    );
+    if (row.reviewed || row.notes !== null) {
+      throw new Error(
+        `detail fixture: row ${id} arrived reviewed=${row.reviewed} notes=${String(
+          row.notes
+        )} — F-056/F-057 assert a TRANSITION, so the fixture must start clean.`
+      );
+    }
+  }
+  return { cameraId, eventIds };
+}
+
 /** The tripwire closing every golden spec (F2.1's; OP-1 calls it closedByGuard). */
 export function closedByGuard(page: Page): void {
   void page.route('**/api/**', () => undefined);
