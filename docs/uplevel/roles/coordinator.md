@@ -39,26 +39,34 @@ Each tick runs in a fresh subagent that the coordinator's session dispatches ("K
 no tick carries anything from an earlier one except the `read-through` cursor in your heartbeat (owner
 record 6148551105). Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
-1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
+1. **Fetch.** `git fetch origin` and check out `origin/main` (`git checkout --detach origin/main`),
+   then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/coordinator.md`), so a change to either needs no
    rebase.
-2. **Heartbeat.** Read your heartbeat's `read-through: <UTC>` line (the cursor), then edit the
-   heartbeat in place (UR-38; [`lane.md`](lane.md), "Heartbeat"), keeping that line unchanged.
-3. **Rebuild state** with one PR read:
-   `gh pr list --state open --json number,title,isDraft,labels,headRefOid,mergeStateStatus,statusCheckRollup`,
-   plus the labels, your status comment and the heartbeats issue.
-4. **Read what is new since the cursor**, in one repo-wide call:
-   `gh api "repos/<owner>/<repo>/issues/comments?since=<read-through>&per_page=100" --paginate`.
-   Read a PR's whole thread only for a PR you are about to merge, route or label this tick. List
-   the live `BINDING NOW` records (UR-40). Ask the author of a comment that carries harness wrapper
-   text to edit it (UR-156).
-5. **Read every heartbeat.** Raise the urgent path for each stalled agent (UR-38); a `paused` agent
-   is not stalled (UR-160).
-6. **Read `main`.** Read the latest `CI` and `Deploy` runs on `main` (`gh run list --branch main`).
-   On the first red `CI Gate` run, follow "Red `main`" below. On the first tick after the nightly
-   schedule, read the latest Nightly Full Gate conclusion and raise and route a red one, with the
-   failing tests you read (UR-116). Raise the urgent path for a time-boxed quarantine mark still on
-   `main` at its expiry (UR-114).
+2. **Read** everything the tick acts on in one call, from that checkout:
+   `uv run python scripts/uplevel/coordinator_snapshot.py` (ruling 152). Act on its report and do
+   not re-read what it reports. It prints, in order: the cursor and `now`; the comments since the
+   cursor, with `BINDING NOW` and `URGENT PATH` flagged, and the live `BINDING NOW` records on #6854
+   (UR-40); the open PRs, each with its `CI Gate` at the head and whether its newest
+   `Review: approve` names that head (UR-106); UR-102's three legs for each green non-draft PR;
+   `main`'s CI, Deploy, Nightly Full Gate and flaky-test runs; and every heartbeat with its age.
+   Read a PR's whole thread only for a PR you are about to merge, route or label this tick. An
+   `ERROR <section>` line means that section was not read: read it yourself or state that it is
+   unread, and never fill it from an earlier tick (UR-29).
+3. **Heartbeat.** Edit your heartbeat in place (UR-38; [`lane.md`](lane.md), "Heartbeat"), keeping
+   its `read-through:` line unchanged. Your heartbeat lives on #6958, and the cursor lives only in
+   its `read-through: <UTC>` line, never in a local file.
+4. **New comments.** Act on the report's comments: list the live `BINDING NOW` records (UR-40),
+   carry each open `URGENT PATH` item (UR-166), and ask the author of a comment that carries
+   harness wrapper text to edit it (UR-156).
+5. **Heartbeats.** Raise the urgent path for each stalled agent the report's heartbeats show
+   (UR-38); a `paused` agent is not stalled (UR-160). A heartbeat older than 20 minutes goes in the
+   status comment (UR-166).
+6. **`main`.** On the first red `CI Gate` run the report shows on `main`, follow "Red `main`" below;
+   a cancelled run is not red. On the first tick after the nightly schedule, raise and route a red
+   Nightly Full Gate with the failing tests you read, and on the first tick after the 02:00Z flaky
+   run, route each flaky test in its summary (UR-116). Raise the urgent path for a time-boxed
+   quarantine mark still on `main` at its expiry (UR-114).
 7. **Assign.** Assign any `heavy` package whose dependencies have merged, and any package on no
    roster queue (UR-59; "Assigning a package" below).
 8. **Ready but unclaimed.** Note each package ready and unclaimed for two ticks for the status
@@ -69,10 +77,12 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
 11. **Label for review.** When an author marks a head ready, add `review:<lane>` for the lane you
     assigned (UR-32). Route on each review's `Plan text:` line, and send a review without it back
     to its reviewer (UR-92).
-12. **Merge** what meets the merge rule, one PR at a time ("Merging a PR" below).
+12. **Merge** what meets the merge rule, one PR at a time ("Merging a PR" below); the report's
+    merge legs answer UR-102's three conditions.
 13. **Edit the status comment** in place with what this tick read ("The status comment" below).
-14. **Advance the cursor:** set your heartbeat's `read-through:` to the time you made the step 4
-    call. Do this last, so a tick that stops early leaves the old cursor and the next one re-reads.
+14. **Advance the cursor:** set your heartbeat's `read-through:` to the report's `now` (the time of
+    its comments call in step 2). Do this last, so a tick that stops early leaves the old cursor and
+    the next one re-reads.
 15. **Return** a summary of at most five lines: PRs merged (numbers), other acts, raises, owner
     questions, `main`'s CI state. The dispatcher passes it to the owner word for word.
 
