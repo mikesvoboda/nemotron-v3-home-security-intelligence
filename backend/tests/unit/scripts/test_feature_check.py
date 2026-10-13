@@ -1803,6 +1803,91 @@ def test_the_container_sees_ci_so_the_config_branches_as_they_did_on_the_host(
     assert kwargs["env"].get("CI") == "true", "name-only: the value comes from the harness env"
 
 
+def _mount_sources(argv: list[str]) -> list[Path]:
+    """The host paths the leg binds, from its own ``-v`` tokens."""
+    return [Path(token.split(":")[0]) for token in _argv_values(argv, "-v")]
+
+
+def _argv_values(argv: list[str], flag: str) -> list[str]:
+    return [argv[i + 1] for i, token in enumerate(argv) if token == flag]
+
+
+def test_every_path_the_container_is_told_to_read_is_inside_a_mount(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A path the leg EXPORTS but does not MOUNT is read as absent, silently.
+
+    The self-review found the shape by accident: ``FEATURE_CHECK_SCENARIOS``
+    names ``backend/ai_contract/fake/scenario_fixtures/scenarios.json`` and the
+    leg mounted only ``frontend/`` and the run dir, so inside the image the file
+    is not there — and a spec whose readiness check starts with
+    ``if (!existsSync(bookPath)) return { ready: false }`` does not error. It
+    SKIPS, at collection, with a reason nobody prints, in a leg that exits 0 and
+    whose ``--list`` still counts it. Measured at the head this PR fixes, on the
+    CI leg itself: ``playwright_specs`` read 115 passed / 11 skipped where
+    main's host leg read 118 / 8, and the three newly-skipped specs are exactly
+    the three that read the book (dashboard-drop, analytics, alerts). The
+    container mount set is the whole diff between those two tallies.
+
+    Pinned as the INVARIANT rather than the three paths, because the next
+    exported path is the one that breaks: containment is checked for every
+    ``-e`` value that looks like a filesystem path (the URL-typed names are
+    skipped — ``--network host`` serves those, and they were never mounts).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.golden()
+    argv, kwargs = _golden_container(calls)
+    sources = _mount_sources(argv)
+    path_typed = {
+        name: value
+        for name, value in kwargs["env"].items()
+        if name.startswith("FEATURE_CHECK_") and value.startswith("/")
+    }
+    unmounted = {
+        name: value
+        for name, value in path_typed.items()
+        if not any(value == str(src) or Path(value).is_relative_to(src) for src in sources)
+    }
+    assert not unmounted, f"exported but not mounted, so the leg reads it missing: {unmounted}"
+    assert kwargs["env"]["FEATURE_CHECK_SCENARIOS"].startswith(str(fc.SCENARIO_DIR)), (
+        "the fixture still models the book under SCENARIO_DIR (positive control: an empty "
+        "unmounted set proves nothing if the env stopped naming paths)"
+    )
+
+
+def test_the_scenario_book_and_the_drop_shim_are_mounted_into_the_leg(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The two host paths the golden specs read must be bound, at their own paths.
+
+    Both mounts are ``:ro``: the book and the shim are inputs, and the leg's
+    writes belong in the run dir. The shim is ``scripts/feature-check.sh``, which
+    ``dropDo1Fixture`` (analytics-alerts/harness.ts:179) execs as
+    ``repoRoot/scripts/feature-check.sh`` — with only ``backend/`` mounted that
+    exec raised ``spawnSync …/scripts/feature-check.sh ENOENT``, so the fix is
+    TWO mounts, not one. It is the DIRECTORY and not just the shim, because the
+    shim's last line is ``exec python3 "$(dirname …)/feature_check.py"``, so the
+    sibling module has to be in the container too.
+
+    Measured, not inferred: with both mounts the three specs get past readiness
+    and past the drop — the run dir came back holding
+    ``cameras/car-in-driveway/car-in-driveway.jpg`` and
+    ``cameras/person-at-door/person-at-door.jpg`` (``drop()`` is a
+    ``shutil.copyfile`` into ``FEATURE_CHECK_CAMERA_ROOT``, which is inside the
+    rw-mounted run dir, so no compose or docker client is needed, and the image
+    does ship python3). The scratch arms then failed only on ``fetch failed`` /
+    ``bad port``, because an arm run outside the harness has no stack; under CI,
+    which does, these specs execute.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.golden()
+    argv = _golden_container(calls)[0]
+    assert f"{fc.SCENARIO_DIR}:{fc.SCENARIO_DIR}:ro" in argv, "the book the specs read"
+    assert f"{fc.SCRIPTS_DIR}:{fc.SCRIPTS_DIR}:ro" in argv, "the shim the specs exec"
+
+
 @pytest.mark.parametrize("engine", ["docker", "podman"])
 def test_the_leg_runs_on_the_engine_the_harness_runs_on(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, engine: str

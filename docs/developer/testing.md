@@ -519,9 +519,20 @@ gone. Three properties the pins hold:
   download wearing a different costume.
 - **The engine is the harness's engine** (`--engine`, default `docker`), with
   `--network host` so the container reaches the stack on an engine-assigned
-  port, `frontend/` mounted READ-ONLY at its own absolute path (the leg writes
-  nothing there; the report and junit names then match on both sides), the run
+  port, `frontend/`, the scenario-fixtures dir and `scripts/` mounted READ-ONLY
+  at their own absolute paths (the leg writes nothing there; the report and junit
+  names then match on both sides), the run
   dir mounted writable (that is where junit and `--output` land), and `--rm`.
+  Those two extra read-only binds are load-bearing, not tidiness: a path the leg
+  EXPORTS but does not mount is not an error inside the container, it is an
+  absent file, and the golden specs test their readiness with `existsSync`, so an
+  unmounted input makes them SKIP at collection — quietly, in a leg that exits 0,
+  while `--list` still counts them. Measured on CI: with only `frontend/` mounted
+  the leg read 115 passed / 11 skipped where the host leg read 118 / 8, and the
+  three newly-skipped specs were exactly the three that read the scenario book
+  (`dashboard-drop`, `analytics`, `alerts`). `scripts/` is a DIRECTORY mount
+  rather than the one shim because `scripts/feature-check.sh` ends with
+  `exec python3 "$(dirname …)/feature_check.py"`, which needs its sibling too.
   On podman each mount also carries `,z`, the relabel a SELinux engine wants.
   The environment reaches the container as NAMES ONLY (`-e
 FEATURE_CHECK_ADMIN_PASSWORD`, never `-e …=<value>`): `_run` logs every argv

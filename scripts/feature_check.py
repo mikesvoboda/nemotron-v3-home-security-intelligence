@@ -75,6 +75,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CI_STACK = REPO_ROOT / "docker-compose.ci.yml"
 FAKE_OVERLAY = REPO_ROOT / "docker-compose.fake-ai.yml"
 SCENARIO_DIR = REPO_ROOT / "backend" / "ai_contract" / "fake" / "scenario_fixtures"
+SCRIPTS_DIR = REPO_ROOT / "scripts"
 BACKEND_GOLDEN = REPO_ROOT / "backend" / "tests" / "golden"
 FRONTEND = REPO_ROOT / "frontend"
 FRONTEND_MODULES = FRONTEND / "node_modules"
@@ -1781,7 +1782,21 @@ class Run:
                     engine=self.engine,
                     image=image,
                     inner=inner,
-                    read_only_mounts=[FRONTEND],
+                    # Three read-only binds, not one. A path this leg EXPORTS but
+                    # does not MOUNT is not an error inside the container — it is
+                    # an absent file, and the golden specs read their readiness
+                    # with `if (!existsSync(bookPath)) return { ready: false }`,
+                    # so an unmounted input silently SKIPS at collection in a leg
+                    # that exits 0. Measured on CI: this branch shipped 115
+                    # passed / 11 skipped where main's host leg read 118 / 8, and
+                    # the three newly-skipped specs are the three that read the
+                    # scenario book. SCENARIO_DIR is what they read; SCRIPTS_DIR
+                    # is what dashboard-drop's helper execs
+                    # (`repoRoot/scripts/feature-check.sh`, harness.ts:179), whose
+                    # last line execs its sibling feature_check.py — hence the
+                    # directory, not the single file. Both are :ro because both
+                    # are inputs; the leg's writes stay in the run dir below.
+                    read_only_mounts=[FRONTEND, SCENARIO_DIR, SCRIPTS_DIR],
                     mounts=[self.dir],
                 ),
                 check=False,
