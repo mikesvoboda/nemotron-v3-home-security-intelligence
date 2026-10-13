@@ -9,7 +9,8 @@
  *   `200 <= status_code < 300` on the real outbound POST (webhook_service.py:589); a
  *   connection that never established raises httpx.RequestError and returns
  *   success=false with status_code=None and response_time_ms=None (:599-603), which the
- *   modal paints as the literal `N/A` in BOTH detail cells (WebhookTestModal.tsx:89, :101).
+ *   modal paints as the literal `N/A` in BOTH detail cells (WebhookTestModal.tsx:89, :99 —
+ *   not :101, which is the closing `</div>` two lines below the second one).
  * - The SUCCESS arm needs an HTTP 2xx target the fake stack does not have: compose
  *   publishes only ai-vlm:8098 and ai-gateway:8090 (docker-compose.fake-ai.yml:69-70,
  *   :97-98), there is no webhook seeding anywhere in it (grep -rin webhook
@@ -108,7 +109,8 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
       await expect(row).toBeVisible();
 
       // Open through the ROW's icon button — accessible name is the shipped template
-      // `Test ${webhook.name}` (WebhookList.tsx:378), which makes it row-unique.
+      // `Test ${webhook.name}` (aria-label at WebhookList.tsx:376 — not :378, which is the
+      // <Play> icon inside the same button), which makes it row-unique.
       await row.getByRole('button', { name: `Test ${ROW_NAME}`, exact: true }).click();
 
       const dialog = page.getByRole('dialog', { name: 'Test Webhook', exact: true });

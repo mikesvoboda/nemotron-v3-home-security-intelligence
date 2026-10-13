@@ -188,7 +188,9 @@ export const REFUSED_URL = 'http://127.0.0.1:1/golden-do4-refused';
  *  defaults: the default IS true (schema :152) but a spec that flips it must not
  *  depend on that, and max_retries defaults to 4 (:158), which would make any
  *  delivery from this row retry for minutes. The backend golden spec pins the
- *  same reasoning at test_webhook_deliveries.py:116. */
+ *  same reasoning at test_webhook_deliveries.py:119 (`"max_retries": 0`, whose
+ *  :118 comment says "0 retries is what makes the row terminal on the first
+ *  attempt") — not :116, which is the unrelated `"url": REFUSED_URL` line. */
 export async function createWebhook(
   api: AuthedFetch,
   name: string,

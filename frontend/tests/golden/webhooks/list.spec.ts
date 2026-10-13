@@ -33,13 +33,18 @@
  *   token appears ONLY in types/generated/api.ts and types/webhook.ts:133,135 — i.e.
  *   it is on the wire type and nowhere in the markup. The control in the same grep
  *   family: `total_deliveries` returns 5 matching LINES in that same scope
- *   (WebhookList.tsx:356,360 + WebhookHealthCard.tsx:103,104,160 — lines, per
- *   `grep -rn | wc -l`; :104 holds the token twice, so an OCCURRENCE count is 6), so the
- *   instrument demonstrably
- *   fires when a token IS rendered there. (An earlier revision of this line said 9 and
- *   was never reproducible — the number drifted from a different scope than the one the
- *   sentence names. A control you cannot re-run in the scope it is quoted in is not a
- *   control.) The leg below pins the absence so the inventory cannot drift back.
+ *   (WebhookList.tsx:356,360 + WebhookHealthCard.tsx:103,104,160, per
+ *   `grep -rn | wc -l`) and 5 OCCURRENCES (`grep -rho | wc -l`) — the two units agree
+ *   here, and an earlier revision of this paragraph claimed they didn't, asserting ":104
+ *   holds the token twice, so an OCCURRENCE count is 6." It does not: :104 reads
+ *   `Math.round((health.successful_deliveries_24h / health.total_deliveries_24h) * 100)`,
+ *   and `successful_deliveries_24h` is not a substring of `total_deliveries`, so the line
+ *   carries the needle exactly once. The mechanism sounded right and was never tested —
+ *   which is the same sin as counting lines in a paragraph about occurrences. Either way
+ *   the instrument demonstrably fires when a token IS rendered there. (A second earlier
+ *   revision said 9 and was never reproducible — the number drifted from a different scope
+ *   than the one the sentence names. A control you cannot re-run in the scope it is quoted
+ *   in is not a control.) The leg below pins the absence so the inventory cannot drift back.
  *
  * Locator cardinality, counted on this mount before writing (grep -o over
  * WebhooksPage.tsx + WebhookList.tsx + WebhookHealthCard.tsx + WebhookTestModal.tsx —

@@ -44,19 +44,24 @@
  *   follow the 204, and only then asserts absence.
  *
  * Locator cardinality counted on this mount: 'More actions' is 1× per row (the trigger's
- * aria-label, WebhookList.tsx:175) and `Delete` is one of THREE bare dropdown buttons
- * (:196-232 holds exactly three <button>s — View Deliveries / Edit / Delete — none with
- * its own accessible name, so an unnamed button label is the only handle).
- * A grep over the mounted files finds 'Delete' 14× (WebhookList.tsx 8 + WebhooksPage.tsx
- * 6) — but do NOT read that as the strict-mode risk, because an earlier revision of this
- * sentence did and labelled those hits "mostly JSDoc", which the count refutes: 1 of the
- * 14 is in a comment and 11 are identifier SUBSTRINGS (`onDelete`, `useDeleteWebhook`,
- * `handleDelete`). A substring match in code is invisible to getByText. The number that
- * actually governs is rendered text: 'Delete' renders exactly ONCE per row, as a JSX text
- * child (:220, beside a <Trash2> icon) — so a page-wide getByText('Delete') binds one node
- * per visible row and strict-modes the moment the table has two. That, not the grep
- * total, is why every locator in this file is row-scoped. Count in the unit the instrument
- * reads: grep counts occurrences in source, getByText counts nodes in the DOM.
+ * aria-label, WebhookList.tsx:175), and the menu it opens holds FOUR <button>s in the div
+ * at :188-222 — Test Webhook (:189), View Deliveries (:197), Edit (:205), Delete (:214) —
+ * each named by its own text child, which is why :141's
+ * `getByRole('button', { name: 'Delete', exact: true })` resolves at all. An earlier
+ * revision of this paragraph said "three", and the count agreed with it because the window
+ * it quoted started at :196 — Test Webhook's CLOSING tag — so the grep silently dropped
+ * that item's opening tag. A window cite agrees with its own prose by construction; print
+ * the span. A grep over the two mounted files that render the surface finds 'Delete' 14×
+ * (WebhookList.tsx 8 + WebhooksPage.tsx 6) — but do NOT read that as the strict-mode risk,
+ * because an earlier revision did and labelled those hits "mostly JSDoc", which the
+ * enumeration refutes: 12 are identifier SUBSTRINGS (`onDelete`, `useDeleteWebhook`,
+ * `handleDelete`), 1 is a comment (WebhooksPage.tsx:197), and 1 is rendered text. A
+ * substring match in source is invisible to getByText. The number that actually governs is
+ * that last one: 'Delete' renders exactly ONCE per row, as a JSX text child (:220, beside
+ * a <Trash2> icon) — so a page-wide getByText('Delete') binds one node per visible row and
+ * strict-modes the moment the table has two. That, not the grep total, is why every locator
+ * in this file is row-scoped. Count in the unit the instrument reads: grep counts
+ * occurrences in source, getByText counts nodes in the DOM.
  */
 import { expect, test } from '../guard';
 import {
