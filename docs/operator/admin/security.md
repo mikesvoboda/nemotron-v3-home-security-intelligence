@@ -34,7 +34,15 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   re-key: for every other one a full interactive `python setup.py` still works and
   converts it as a side effect (`--yes` and `--defaults` skip that reuse, minting a
   second key and leaving the old plain entry live), because the re-run writes the same
-  quoted form and would hit the same wall. Recreate the backend to apply it:
+  quoted form and would hit the same wall. That is why the flag exists, and the
+  difference is not only effort: `setup.py` regenerates the file from the keys it owns,
+  so a re-run drops any line it does not write — measured on a 10-key file, an
+  Enter-through re-run removed `PODMAN_SOCKET` and a hand-added flag while carrying
+  `JWT_SECRET`, `GRAFANA_PORT` and the paths over. `PODMAN_SOCKET` comes back on the
+  next deploy only because `deploy_phases._ensure_podman_socket` appends its own
+  detected value when the line is absent, so what you actually lose is your CHOICE of
+  that path (and anything of yours the deploy phases never learned to write). Back up
+  the file before a re-run that is not just the flag. Recreate the backend to apply it:
   `podman compose -f docker-compose.prod.yml up -d --force-recreate backend` — a plain
   `restart` keeps serving the old value. `/grafana/` moves from anonymous Admin to
   `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one

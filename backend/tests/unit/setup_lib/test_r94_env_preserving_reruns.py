@@ -873,6 +873,57 @@ def test_security_docs_point_the_conversion_at_the_flag() -> None:
     )
 
 
+def test_the_docs_regen_warning_matches_what_a_rerun_actually_drops(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`security.md` tells the operator a re-run drops lines setup.py does not write.
+
+    That sentence is the F5 finding, and this test is what keeps it from becoming a
+    comfortable lie: it runs the real pipeline and checks the doc's claim against what
+    the file actually lost. Pinning the limitation is not endorsing it — the carry-over
+    assertions are the second half of the pin, so a writer that dropped EVERYTHING
+    would go red here too, and so would one that started preserving hand-kept lines
+    (at which point the doc's warning must be deleted, deliberately, not by drift).
+
+    The two dropped keys are different cases and the doc names both: `PODMAN_SOCKET`
+    IS product-written, just not by the config writer — `deploy_phases`
+    `_ensure_podman_socket` appends its own DETECTED value when the line is missing, so
+    surviving a re-run costs the operator their choice of path. An arbitrary hand-added
+    key has no such rescue and is simply gone.
+    """
+    setup = _load_setup()
+    hand = LAN_ENV + "MY_HAND_KEEPED_FLAG=please-keep-me\n"
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(hand, encoding="utf-8")
+    _enter_only(monkeypatch)
+
+    config = setup.run_quick_mode()
+    env_path, _, _ = setup.write_config_files(config, str(tmp_path))
+    after = env_path.read_text(encoding="utf-8")
+
+    # The doc's claim: lines setup.py does not write do not survive.
+    assert _env_line(after, "PODMAN_SOCKET") is None, (
+        "a re-run started preserving PODMAN_SOCKET — security.md's regen warning is "
+        "now wrong and must be updated in the same change"
+    )
+    assert _env_line(after, "MY_HAND_KEEPED_FLAG") is None
+    # The other half: this is a regeneration, not a wipe — the carried-over keys prove
+    # the two asserts above are about a specific class of line.
+    assert _env_line(after, "JWT_SECRET") == "aaaa.bbbb.cccc"
+    assert _env_line(after, "GRAFANA_PORT") == "3002"
+
+    # Match against whitespace-normalized text: this doc wraps its prose, so a
+    # literal substring assert would key on where the line breaks fall — the first
+    # such assert here failed on "Back up\n  the file" within minutes of being
+    # written. Phrases are what the doc commits to; the wrapping is formatting.
+    doc_text = (REPO_ROOT / "docs/operator/admin/security.md").read_text(encoding="utf-8")
+    doc = " ".join(doc_text.split())
+    assert "drops any line it does not write" in doc, (
+        "the paragraph must keep naming the regeneration cost of a re-run"
+    )
+    assert "Back up the file before a re-run" in doc, "and must keep the remedy"
+
+
 def test_defaults_mode_still_mints_its_own_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
