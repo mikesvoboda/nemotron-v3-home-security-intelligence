@@ -6,7 +6,7 @@
  * tooltips, click-to-scroll behavior, and responsive layout.
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
@@ -92,6 +92,41 @@ describe('AIPerformanceSummaryRow', () => {
       expect(screen.getByTestId('queues-indicator')).toBeInTheDocument();
       expect(screen.getByTestId('throughput-indicator')).toBeInTheDocument();
       expect(screen.getByTestId('errors-indicator')).toBeInTheDocument();
+    });
+
+    it('keeps the desktop grid and the rendered card count in step', () => {
+      render(
+        <AIPerformanceSummaryRow
+          rtdetr={healthyRtdetr}
+          nemotron={healthyNemotron}
+          detectionLatency={fastDetectionLatency}
+          analysisLatency={fastAnalysisLatency}
+          detectionQueueDepth={0}
+          analysisQueueDepth={0}
+          totalDetections={100}
+          totalEvents={50}
+          totalErrors={0}
+        />
+      );
+      const row = screen.getByTestId('ai-summary-row');
+      // Every rendered card is an IndicatorCard button carrying data-status;
+      // counting them (rather than hardcoding 6) is the point — adding a card
+      // must break this by changing the count, not by needing an edit here.
+      const cardCount = within(row)
+        .getAllByRole('button')
+        .filter((b) => b.hasAttribute('data-status')).length;
+      expect(cardCount, 'the row renders no cards to divide into columns').toBeGreaterThan(0);
+      const lg = Array.from(row.classList)
+        .map((c) => /^lg:grid-cols-(\d+)$/.exec(c))
+        .find(Boolean);
+      const cols = lg ? Number(lg[1]) : 0;
+
+      expect(
+        cardCount % cols,
+        `${cardCount} cards in a ${cols}-column desktop grid orphans ` +
+          `${cardCount % cols} card(s) on a trailing row at 1/${cols} width. ` +
+          'When a card is added or removed, the lg:grid-cols-* class must move with it.'
+      ).toBe(0);
     });
 
     it('applies custom className', () => {

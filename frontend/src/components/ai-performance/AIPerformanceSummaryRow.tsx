@@ -363,7 +363,7 @@ export default function AIPerformanceSummaryRow({
   return (
     <div
       data-testid="ai-summary-row"
-      className={clsx('grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5', className)}
+      className={clsx('grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6', className)}
     >
       {/* RT-DETRv2 Indicator */}
       <IndicatorCard

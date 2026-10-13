@@ -8,7 +8,7 @@ This directory contains the AI Performance Summary Row component, which provides
 
 | File                               | Purpose                                 |
 | ---------------------------------- | --------------------------------------- |
-| `AIPerformanceSummaryRow.tsx`      | Summary row with 5 clickable indicators |
+| `AIPerformanceSummaryRow.tsx`      | Summary row with 6 clickable indicators |
 | `AIPerformanceSummaryRow.test.tsx` | Test suite for AIPerformanceSummaryRow  |
 | `AGENTS.md`                        | This documentation file                 |
 
@@ -16,15 +16,16 @@ This directory contains the AI Performance Summary Row component, which provides
 
 ### AIPerformanceSummaryRow.tsx
 
-Displays 5 key indicators in a horizontal row at the top of the AI Performance page:
+Displays 6 key indicators in a horizontal row at the top of the AI Performance page:
 
-| Indicator  | Description                                 | Status Logic                                     |
-| ---------- | ------------------------------------------- | ------------------------------------------------ |
-| YOLO26     | Object detection model status and latency   | Green: <50ms, Yellow: 50-200ms, Red: >200ms/down |
-| Nemotron   | LLM analysis model status and latency       | Green: <5s, Yellow: 5-15s, Red: >15s/down        |
-| Queues     | Combined queue depth (detection + analysis) | Green: <5, Yellow: 5-20, Red: >20                |
-| Throughput | Events processed per minute                 | Color based on processing rate                   |
-| Errors     | Total pipeline errors                       | Green: 0, Yellow: 1-5, Red: >5                   |
+| Indicator  | Description                                   | Status Logic                                      |
+| ---------- | --------------------------------------------- | ------------------------------------------------- |
+| YOLO26     | Object detection model status and latency     | Green: <50ms, Yellow: 50-200ms, Red: >200ms/down  |
+| Nemotron   | LLM analysis model status and latency         | Green: <5s, Yellow: 5-15s, Red: >15s/down         |
+| Queues     | Combined queue depth (detection + analysis)   | Green: <5, Yellow: 5-20, Red: >20                 |
+| Throughput | Events processed per minute                   | Color based on processing rate                    |
+| Errors     | Total pipeline errors                         | Green: 0, Yellow: 1-5, Red: >5                    |
+| DLQ        | Jobs parked in the dead-letter queues (F-038) | Green: 0, Yellow: 1-9, Red: >=10 (`getDlqStatus`) |
 
 **Props Interface:**
 
