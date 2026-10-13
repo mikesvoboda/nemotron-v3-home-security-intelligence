@@ -100,9 +100,35 @@ async def camera(db_session):
     return cam
 
 
+# Spacing between synthetic detections in _mk_detections, in seconds. Chosen
+# so the two key-frame tests land on OPPOSITE sides of
+# settings.key_frame_spread_seconds (default 10): the coalescing pair is
+# count=2 and spans SPACING_S (=6 s, UNDER the threshold, so it coalesces to
+# one frame), the dwelling pair is count=3 and spans 2*SPACING_S (=12 s,
+# OVER it, so ISS-005 grants it companion stills). 6 and 12 straddle 10 with
+# room on both sides; a threshold moved inside that band flips one of the two
+# tests red, which is the point of pinning both sides here.
+SPACING_S = 6
+
+
 async def _mk_detections(db_session, camera, count: int = 2) -> list[int]:
     """Synthetic detection rows (fake paths, no file IO anywhere on this
-    tier - the fake client never reads them)."""
+    tier - the fake client never reads them).
+
+    Rows land `SPACING_S` apart, deliberately INSIDE
+    `settings.key_frame_spread_seconds` (default 10, ISS-005). The key-frame
+    assertion in TestScoredEventOnLiveSchema is a coalescing claim, and the
+    span is what decides it: a (camera, class) pair whose members are more
+    than the threshold apart is a DWELLING pair, and ISS-005 lets it spend a
+    spare slot on its temporally farthest distinct still - so 2 members on
+    distinct files yield 2 key frames by design. The original fixture spaced
+    rows a MINUTE apart (60 s >> 10 s), which is exactly the spanning case,
+    while asserting the non-spanning outcome; that is why the nightly turned
+    red here and why the fix is the fixture's clocks, not the `== 1`. Keep
+    `SPACING_S * (count - 1)` under the threshold, or the pair spans and the
+    count legitimately rises - see
+    TestScoredEventOnLiveSchema.test_a_dwelling_pair_widens_the_key_frames_on_the_live_pipe
+    below, which pins the spanning side on purpose."""
     ids: list[int] = []
     for i in range(count):
         det = Detection(
@@ -110,7 +136,7 @@ async def _mk_detections(db_session, camera, count: int = 2) -> list[int]:
             file_path=f"/export/foscam/vlm/det_{uuid.uuid4().hex[:6]}.jpg",
             object_type="person",
             confidence=0.91,
-            detected_at=datetime(2026, 9, 25, 10, i, tzinfo=UTC),
+            detected_at=datetime(2026, 9, 25, 10, 0, i * SPACING_S, tzinfo=UTC),
         )
         db_session.add(det)
         await db_session.flush()
@@ -169,6 +195,51 @@ class TestScoredEventOnLiveSchema:
         # llm_prompt references images BY PATH (D10) - never base64
         assert "/export/foscam/vlm/det_" in event.llm_prompt
         assert "data:image" not in event.llm_prompt
+
+    async def test_a_dwelling_pair_widens_the_key_frames_on_the_live_pipe(
+        self, db_session, camera, real_redis
+    ):
+        """The OTHER side of the spread threshold, on the real schema. The
+        coalescing test above proves a pair INSIDE `key_frame_spread_seconds`
+        collapses to one frame; this proves a DWELLING pair (3 rows, 2 x
+        SPACING_S = 12 s apart > the 10 s default) is granted ISS-005's spare
+        slots — the same analyzer call, the same table, only the clocks
+        differ. Without this half, a future "fix" that disabled spread
+        entirely would leave the coalescing test green and silently drop the
+        dwelling behaviour the spec §2 asks for.
+
+        The count is the SELECTOR's, capped at MAX_KEY_FRAMES=4; 3 distinct
+        files across one dwelling pair all fit, so the expectation is 3 (not
+        ">= 2", which would also pass a broken selector that picks 2)."""
+        from backend.core.config import get_settings
+        from backend.services.event_broadcaster import reset_broadcaster_state
+
+        settings = get_settings()
+        # Precondition the whole point rests on: the pair spans the threshold.
+        assert settings.key_frame_spread_seconds < 2 * SPACING_S, (
+            f"fixture no longer spans: 2*{SPACING_S} s vs threshold "
+            f"{settings.key_frame_spread_seconds} s — move SPACING_S or skip "
+            "this assertion, but do NOT leave a vacuous dwelling case"
+        )
+
+        det_ids = await _mk_detections(db_session, camera, count=3)
+        reset_broadcaster_state()
+        analyzer = VlmAnalyzer(
+            vlm_client=FakeClient(verdict=make_verdict()), redis_client=real_redis
+        )
+        event = await analyzer.analyze_batch(
+            f"batch-{uuid.uuid4().hex[:8]}", camera_id=camera.id, detection_ids=det_ids
+        )
+        reset_broadcaster_state()
+        stored = await db_session.scalar(
+            select(EventVerification).where(EventVerification.event_id == event.id)
+        )
+        assert stored is not None
+        assert set(stored.key_frame_detection_ids) <= set(det_ids)
+        assert len(stored.key_frame_detection_ids) == 3, (
+            f"a dwelling pair should widen to its distinct stills, got "
+            f"{stored.key_frame_detection_ids}"
+        )
 
     async def test_rest_renders_the_analyzer_event(self, client, db_session, camera, real_redis):
         """The composition the UI consumes on a REAL analyzer-written row:
