@@ -87,7 +87,10 @@ Read rules.md §Merging first: it defines ready time, queue order, the owner tie
 and which PRs may jump the queue, and names the merge rules that sit elsewhere.
 
 1. **Pick** the oldest ready PR (UR-104, UR-106).
-2. **Update** the PR when it is behind `main`, one at a time (UR-102):
+2. **Skip the update** when UR-102's three conditions hold: its green `CI Gate` ran on a `main` at
+   most 3 merges behind the tip, `git diff --name-only <its base>..origin/main` shares no path with
+   `gh pr view <n> --json files`, and `main`'s latest CI run is not red. Go to step 3.
+   **Otherwise update** the PR, one at a time (UR-102):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
    (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | sha256sum`,
