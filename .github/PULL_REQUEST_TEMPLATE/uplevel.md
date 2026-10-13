@@ -65,7 +65,7 @@ $ <command>
 - [ ] README status row updated: `done` with this PR's number, or `awaiting real tier`
 - [ ] Every `docs/vss-integration/17-action-plan.md` entry this PR closes is marked done
 - [ ] Docs and `AGENTS.md` lines that describe what changed are updated
-- [ ] Tests written first; hooks not bypassed; commit subjects at 72 characters or fewer
+- [ ] Tests written first; hooks not bypassed; commit subjects at 100 characters or fewer
 
 ## Questions for the owner
 

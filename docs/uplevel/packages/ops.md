@@ -449,3 +449,28 @@ merged. **PR:** none yet. (ruling 162)
 
 **Done when:** a production config rendered with the orchestrator off mounts no engine socket, one
 with it on mounts it as before, and `O2.5`'s override drift test still passes.
+
+### [r164a] The coordinator's paperwork moves into scripts
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, next on its queue after `O2.5`; ops-b reviews.
+**Depends on:** none. **PR:** none yet. (ruling 164)
+
+The coordinator re-derives by hand what a script can compute, and that is where today's misses came
+from: hand-typed UR-106 hashes, ruling 156's auto-merge audit, and #7037's owner questions absent
+from the status comment for 25 hours.
+
+- [ ] `coordinator_snapshot.py` also prints, per open PR: the UR-106 own-diff hash at its head and
+      at its approved head, with `carry: yes | no`; whether auto-merge is armed on a head that is
+      neither approved nor carried (the disable list, UR-108); and, per PR merged since the
+      cursor, the audit verdict (merged head is the approved head or a carry; owner comments naming
+      it) with a pre-filled UR-29 merge comment.
+- [ ] A new `scripts/uplevel/status_draft.py` writes the status comment's body in UR-166's order
+      from the snapshot's data, listing every open PR, drafts included, with a non-empty "Questions
+      for the owner" section, and warns above about 4,000 characters. The coordinator edits the
+      draft's judgement lines (options, recommendations) and posts it.
+- [ ] `roles/coordinator.md` shrinks to match: "Merging a PR" step 2's hash pipeline, "Auditing an
+      auto-merge" and "The status comment" step 3 become one-line pointers to the scripts.
+
+**Done when:** unit tests pin each new field on recorded fixtures (a carried and an uncarried roll,
+an armed unapproved head, a draft with owner questions), and one coordinator tick runs on the new
+output with its status comment drafted by `status_draft.py`.
