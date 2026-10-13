@@ -115,8 +115,16 @@ test.describe('golden path: admin logging level control and retention save @crit
     // DOM clamp (native range inputs clamp `value` to [min,max] on render) while
     // `saved = found ± 1` keeps the raw number, so the leg would red on the
     // persistence assertion for a reason that has nothing to do with persistence.
-    // Not API-reachable today — PATCH answered 422 for 500/0/-5 — but nothing
-    // pins max="90", so a future max change would silently re-open the arm.
+    // The arm is API-reachable, not merely hypothetical: the PATCH request model
+    // bounds this field ge=1/le=365 (backend/api/schemas/system.py:554-559,
+    // ConfigUpdateRequest — measured by calling the model directly: 91/120/365
+    // ACCEPT, 366/0/-5/500 reject), so 91..365 is a value the backend will store
+    // and the slider cannot render. The 422 this leg first measured was for 500,
+    // which is outside 365 — it proved the SCHEMA bound, not a clamp at 90, so
+    // the earlier note here declared the arm dead on a probe that never tested
+    // the window in question. Nothing in this repo PATCHes above 90, which makes
+    // it reachable rather than current; nothing pins max="90" against le=365
+    // either, so this guard is what keeps the two windows from diverging quietly.
     expect(found).toBeGreaterThanOrEqual(1); // backend field default 7; slider min 1
     expect(found).toBeLessThanOrEqual(90); // slider max; keeps `saved` DOM-representable
     await expect(slider).toHaveValue(String(found));
