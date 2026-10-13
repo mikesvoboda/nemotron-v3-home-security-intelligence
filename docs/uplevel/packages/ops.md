@@ -368,7 +368,7 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 ### [r149b] Retire `Nightly Analysis`'s Complexity Trends job
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7067 (open). (ruling
 149, record 6146380050)
 
 - [ ] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed

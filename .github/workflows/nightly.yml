@@ -12,39 +12,14 @@ jobs:
   # NOTE 2026-09-15: extended-benchmarks (self-hosted gpu, rtx-a5500) removed
   # while that runner is offline (queued to 60m timeout nightly). Restore from git
   # history when the GPU box comes back online.
-  complexity-trends:
-    name: Complexity Trends
-    runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # Full history for wily
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install 3.14
-
-      - name: Build wily cache
-        run: uv tool run wily build backend/
-
-      - name: Generate complexity report
-        run: |
-          uv tool run wily report backend/ --format html -o wily-report.html
-          uv tool run wily diff backend/ -r HEAD~10..HEAD
-
-      - name: Upload wily report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: wily-report
-          path: wily-report.html
-
+  # NOTE 2026-10-13: complexity-trends (wily) removed by owner ruling 149(b) —
+  # it had failed on every run since at least 10-03 and nothing read its report.
+  # It survived that long because this workflow is report-only: a red here is
+  # triaged, never merge-blocking. Complexity gating lives in ci.yml's
+  # `uv run radon cc` / `uv run radon mi` step (a hard gate, not a report), and
+  # wily itself left the project env under R-1 (2026-09-23) — these `uv tool run`
+  # steps were its last consumer, so nothing else here needs to change.
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest

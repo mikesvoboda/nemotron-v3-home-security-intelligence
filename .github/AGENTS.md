@@ -225,8 +225,7 @@ those floors, so review such hunks by hand.
 
 **Jobs:**
 
-1. **Complexity Trends** (ubuntu) - Wily code complexity reports
-2. **Security Audit** (ubuntu) - pip-audit, npm audit, Bandit
+1. **Security Audit** (ubuntu) - pip-audit, npm audit, Bandit
 
 ### Additional Workflows
 

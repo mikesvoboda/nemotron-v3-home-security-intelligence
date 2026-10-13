@@ -289,14 +289,16 @@ npm run docs:watch  # Watch mode
 | Job                 | Runner          | Purpose                                                             |
 | ------------------- | --------------- | ------------------------------------------------------------------- |
 | extended-benchmarks | self-hosted GPU | **skipped** — runner offline; job no-ops by design                  |
-| complexity-trends   | ubuntu-latest   | Wily code complexity reports                                        |
 | security-audit      | ubuntu-latest   | Bandit full scan (OB.2: dep audits left — see dependency-audit.yml) |
 
 **Artifacts Generated:**
 
 - `memory-profile` - Memray profiling data
-- `wily-report` - HTML complexity report
 - `security-audit` - Bandit JSON report
+
+> **Removed 2026-10-13:** `complexity-trends` (wily complexity reports, owner ruling 149(b)) —
+> red on every run since at least 10-03, nothing read its report. Complexity gating is
+> ci.yml's `uv run radon cc`/`mi` step, which gates. See the note in `nightly.yml`.
 
 > **Removed 2026-09-15:** `gpu-tests.yml` queued to its 6h timeout on every
 > push to main because `rtx-a5500-runner` (labels `self-hosted, gpu,
