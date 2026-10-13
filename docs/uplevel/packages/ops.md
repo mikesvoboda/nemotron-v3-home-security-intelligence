@@ -170,7 +170,13 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 - [ ] **Step 2, if yes.** `feature_check.py --real --prod-shape` (the flag's name is the package's
       call) brings up that stack and runs the golden suite against it, using the Playwright
       container from ruling 143. The operator runs it nightly or on demand, not for every batch,
-      on a test deployment (UR-133).
+      on a test deployment (UR-133), in the operator's sandbox (ruling 162).
+- [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
+      and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
+      record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
+      handled by the runner's own test override, never by editing `docker-compose.prod.yml`; a
+      CPU-only CI test renders `docker compose config` for both and fails on any difference not
+      listed.
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
 - [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
@@ -180,7 +186,7 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
 deployment and the operator's run witnesses ruling 127's 12 rows; on no, the owner has ruled on the
-blocker (ruling 144). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
+blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
 (#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
 deployment, in a comment on each PR (ruling 154).
 
@@ -430,3 +436,16 @@ Triton, so CI never checks the model half.
 **Done when:** the owner's one diagnostic run on maui is posted on this PR, and O2.4's command
 (#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
 is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
+
+### [r162] The engine socket follows the orchestrator setting
+
+**Flags:** owner (production safety). **Assigned:** `uplevel-ops-a`. **Depends on:** `O2.5`
+merged. **PR:** none yet. (ruling 162)
+
+- [ ] `backend` and `alloy` mount `${PODMAN_SOCKET}` only when the orchestrator is enabled
+      (`docker-compose.prod.yml:473`, `:1584` at ruling 162), not unconditionally; the `:?`
+      interpolation no longer demands a value when nothing uses it.
+- [ ] A migration note for the live deployment's next redeploy.
+
+**Done when:** a production config rendered with the orchestrator off mounts no engine socket, one
+with it on mounts it as before, and `O2.5`'s override drift test still passes.
