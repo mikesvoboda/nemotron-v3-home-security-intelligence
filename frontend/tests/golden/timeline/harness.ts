@@ -1356,6 +1356,205 @@ export async function createFeedbackFixture(
   return { cameraId, eventIds, seededEventId, seededNotes: seeded.notes ?? '' };
 }
 
+/* -------------------------------------------------------------------------- */
+/* The AUDIT fixture (F-061 / F-062) — a SIXTH camera.                          */
+/*                                                                              */
+/* Same isolation rule as the search fixture's block above: these legs read     */
+/* counts and states that a foreign row could falsify, and this fixture's purge */
+/* HARD-deletes its own rows on boot. It also cannot share the feedback camera, */
+/* whose precondition is "row 0 has NO feedback row" — a shared camera would    */
+/* make that a function of file order.                                          */
+/* -------------------------------------------------------------------------- */
+
+/** FE-3's audit camera: distinct from the browse, stats, detail, search, feedback. */
+export const AUDIT_CAMERA_NAME = 'fe3-audit-probe';
+
+/**
+ * THE ONE NUMBER THIS FIXTURE EXISTS TO OWN.
+ *
+ * `POST /api/ai-audit/batch` has NO camera filter — `BatchAuditRequest`
+ * (backend/api/schemas/ai_audit.py:524-526) offers only `limit`,
+ * `min_risk_score`, `force_reevaluate` — so a spec that wanted to aim a batch
+ * at ITS OWN row had no lever… until it counted the other rows. Every other
+ * FE-3 fixture row tops out at 91 (the maximum over `FIXTURE_ROWS`,
+ * `STATS_FIXTURE_ROWS`, `DETAIL_ROWS` and `FEEDBACK_RISK_SCORE`, derived below as
+ * `SIBLING_MAX_RISK_SCORE`; the search fixture's inline scores max at 72), so a
+ * fixture row at 99 sits strictly above every one of them and
+ * `min_risk_score: 99, limit: 1` selects exactly that row.
+ * Measured on the probe stack: the batch answered `total_events: 1` and NO
+ * other stack row gained an audit. This constant is the whole targeting
+ * mechanism, which is why it is exported and why a leg that changes it breaks
+ * the isolation the fixture bought.
+ */
+export const AUDIT_TARGET_RISK_SCORE = 99;
+
+/** What the fixture row's summary carries, so a purge or a count can name it. */
+export const AUDIT_SUMMARY_TOKEN = 'fe3f061audit';
+
+/**
+ * The highest risk score any OTHER FE-3 fixture row carries, DERIVED from the
+ * sibling fixtures' own exports rather than hard-coded, so a leg's targeting
+ * bound cannot go stale when a sibling edits its rows. The search fixture's
+ * scores are inline (`:1106`, `i % 2 === 0 ? 72 : 45`) and its max of 72 is below
+ * every maximum below, which is why it needs no export to be covered here.
+ */
+const SIBLING_MAX_RISK_SCORE = Math.max(
+  ...FIXTURE_ROWS.map((r) => r.riskScore),
+  ...STATS_FIXTURE_ROWS.map((r) => r.riskScore),
+  ...DETAIL_ROWS.map((r) => r.riskScore),
+  FEEDBACK_RISK_SCORE
+);
+
+/**
+ * A 404 from `/api/ai-audit/**` that the UI is documented to render verbatim.
+ * Kept in the harness because BOTH spec files assert it and they must not drift
+ * apart: F-061 shows the server's own string (`auditApi.ts:249` lifts FastAPI's
+ * `detail` into `AuditApiError.message`, `EventDetailModal.tsx:327` renders it),
+ * F-062 shows the component's OWN sentence for the same status
+ * (`EventAuditDetail.tsx:186-187`), and a leg that conflated the two would pass
+ * on either UI while asserting neither.
+ */
+export const AUDIT_NOT_FOUND_DETAIL = (eventId: number): string =>
+  `No audit found for event ${eventId}`;
+
+export interface AuditFixture {
+  cameraId: string;
+  /** The row at AUDIT_TARGET_RISK_SCORE — the only one any leg clicks. */
+  targetEventId: number;
+  /** A second row, never audited and never clicked: the negative control. */
+  controlEventId: number;
+}
+
+/**
+ * A raw GET that TOLERATES a 404, because `api`'s contract is "non-200 throws"
+ * and this fixture's premise is a 404. The distinction is the point: `api` is
+ * what a leg uses to demand success; this is what a fixture uses to record an
+ * absence. Status AND body come back so the caller can check the shape too —
+ * the same event id answers "No audit found for event N" here but
+ * "Event with id N not found" for an id no row has, and the legs depend on
+ * that pair being different.
+ */
+export async function readAuditLookup(
+  h: TimelineHarness,
+  session: Session,
+  eventId: number
+): Promise<{ status: number; detail?: string; body?: Record<string, unknown> }> {
+  const res = await fetch(`${h.api}/api/ai-audit/events/${eventId}`, {
+    headers: { Cookie: `${session.name}=${session.value}` },
+  });
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  return {
+    status: res.status,
+    detail: body?.detail as string | undefined,
+    body: body ?? undefined,
+  };
+}
+
+/**
+ * One camera, one row at AUDIT_TARGET_RISK_SCORE and one control row, and a
+ * PROVEN ABSENCE of `event_audits` rows for both.
+ *
+ * The premise check is not decoration. F-061's clause is a DISJUNCTION — "sees
+ * 'Re-evaluation triggered successfully', OR 'No audit found for event N' for an
+ * event no batch audit has covered" — and the half this fixture sets up is the
+ * one that depends on stored state. The tier holds ZERO audit rows in the normal
+ * case (measured: `GET /api/ai-audit/stats` answers `total_events: 0`), but a
+ * sibling spec can drive `POST /api/ai-audit/batch` (`tests/golden/data-ui/
+ * jobs-page.spec.ts:127` does exactly that, with `{limit: 1}`), and the golden
+ * project is ONE serial worker over per-file fixtures — so "my row has no audit"
+ * is a fact to re-assert per run, never to assume from a past measurement.
+ *
+ * The purge is HARD and precedes seeding: `event_audits.event_id` is
+ * `ForeignKey(..., ondelete="CASCADE")` (backend/models/event_audit.py:27-28),
+ * so removing the row removes its audit — and there is no audit-delete endpoint,
+ * so the cascade is the only door.
+ */
+export async function createAuditFixture(
+  h: TimelineHarness,
+  session: Session
+): Promise<AuditFixture> {
+  const cameraId = await ensureCamera(h, session, AUDIT_CAMERA_NAME, '/cameras/fe3_audit_probe');
+  // The camera <select> and the modal's camera chip are built from the 60 s
+  // cached list; see waitForCameraInList.
+  await waitForCameraInList(h, session, AUDIT_CAMERA_NAME);
+
+  const stale = await api<{ items?: { id: number }[] }>(
+    h,
+    session,
+    `/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`
+  ).catch(() => null);
+  await hardDeleteFixtureRows(
+    h,
+    session,
+    (stale?.items ?? []).map((row) => row.id)
+  );
+
+  const salt = Date.now();
+  // 99 first: AUDIT_TARGET_RISK_SCORE must be the STRICT max of the fixture set,
+  // and asserting that is cheaper than trusting the ordering below.
+  const rows = [
+    { risk_score: AUDIT_TARGET_RISK_SCORE, risk_level: 'critical' },
+    { risk_score: 44, risk_level: 'medium' },
+  ];
+  const bulk = await apiWrite<BulkBody>(h, session, 'POST', '/api/events/bulk', {
+    events: rows.map((row, i) => ({
+      batch_id: `fe3au-${salt}-${i}`, // events.batch_id is UNIQUE (measured)
+      camera_id: cameraId,
+      started_at: new Date(Date.now() - 3_600_000 * (i + 1)).toISOString(),
+      risk_score: row.risk_score,
+      risk_level: row.risk_level,
+      summary: `${AUDIT_SUMMARY_TOKEN} ${i}`,
+    })),
+  });
+  const eventIds = bulk.results.map((r) => r.id).filter((id): id is number => id !== null);
+  if (eventIds.length !== rows.length) {
+    throw new Error(
+      `audit fixture: got ${eventIds.length} ids for ${rows.length} rows; succeeded ` +
+        `${bulk.succeeded}/${rows.length}; first error: ` +
+        String(bulk.results.find((r) => r.status !== 'success')?.error).slice(0, 200)
+    );
+  }
+  const [targetEventId, controlEventId] = eventIds;
+
+  const requireFixture = (premise: boolean, why: string): void => {
+    if (!premise) throw new Error(`audit fixture: ${why}`);
+  };
+  // The bound is checked HERE, at fixture time, rather than in a standalone
+  // `test()` asserting a constant: a pure-logic test would (a) still appear in
+  // CI's `golden paths:` dict as a "leg" that is not a feature path, and (b) keep
+  // passing if a sibling fixture later raised its own rows — this throw fires the
+  // moment the isolation stops being true, in the file that depends on it.
+  requireFixture(
+    AUDIT_TARGET_RISK_SCORE > SIBLING_MAX_RISK_SCORE,
+    `the target score ${AUDIT_TARGET_RISK_SCORE} must stay STRICTLY above every ` +
+      `other FE-3 fixture score (derived maximum ${SIBLING_MAX_RISK_SCORE}) or ` +
+      '`min_risk_score` targeting could select a foreign row'
+  );
+  // The score is the batch-targeting lever (see AUDIT_TARGET_RISK_SCORE), so a
+  // server that clamped or defaulted it silently disarms the isolation.
+  const storedTarget = await api<{ risk_score: number | null }>(
+    h,
+    session,
+    `/api/events/${targetEventId}`
+  );
+  requireFixture(
+    storedTarget.risk_score === AUDIT_TARGET_RISK_SCORE,
+    `the target row must store risk_score ${AUDIT_TARGET_RISK_SCORE} for ` +
+      `min_risk_score targeting to be exclusive (got ${String(storedTarget.risk_score)})`
+  );
+  for (const id of eventIds) {
+    const probe = await readAuditLookup(h, session, id);
+    requireFixture(
+      probe.status === 404 && probe.detail === AUDIT_NOT_FOUND_DETAIL(id),
+      `row ${id} must start with NO audit row, answered 404 with the ` +
+        `"no audit" detail (got ${probe.status} ` +
+        `${JSON.stringify(probe.detail)?.slice(0, 120)}) — F-061/F-062 assert the ` +
+        `not-found branch, so a row that already HAS an audit makes the leg vacuous`
+    );
+  }
+  return { cameraId, targetEventId, controlEventId };
+}
+
 /** The tripwire closing every golden spec (F2.1's; OP-1 calls it closedByGuard). */
 export function closedByGuard(page: Page): void {
   void page.route('**/api/**', () => undefined);
