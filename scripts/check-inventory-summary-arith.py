@@ -3,8 +3,10 @@
 
     uv run python scripts/check-inventory-summary-arith.py [PATH] [--json]
 
-(the module name contains hyphens, so `-m scripts.check-inventory-summary-arith`
-raises ModuleNotFoundError; it is called by path, which is how CI calls it)
+by path, as CI calls it. `-m scripts.check-inventory-summary-arith` happens to
+work from the repo root — `scripts/` has no `__init__.py`, so it resolves as a
+namespace package — and fails from any other cwd with ModuleNotFoundError, so the
+by-path form is the one worth printing here.
 
 Section 2 publishes, per `### 3.x` section, a row count and a per-status count, plus
 an `all` row. Until this checker existed NOTHING compared those numbers to the rows
