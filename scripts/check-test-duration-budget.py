@@ -206,10 +206,19 @@ MAX_RERUNS = 5
 # (integration). Deliberately an explicit set and NOT "any tier but unit".
 #
 # ``e2e`` stays out because the audit job has no browser and no ``npm ci``, so a
-# Playwright re-run there is a doomed subprocess rather than a measurement — and
-# the job DOES download Playwright's junit (``ci.yml``'s
-# ``playwright-test-results-*`` pattern), so e2e ids really are in the corpus this
-# reads and a complement-style filter would reach them. ``slow`` stays out
+# Playwright re-run there is a doomed subprocess rather than a measurement. That
+# reason is nearly dormant, and the exact numbers matter here. Measured on
+# ``main``'s newest green CI run (``38457693762``), all three
+# ``playwright-test-results-*`` artifacts: 961 testcases, of which 960 are skips
+# carrying ``time="0"`` ("E2E tests flaky in CI - run locally") — and
+# ``worst_durations`` drops zero-duration rows, so those 960 never enter this
+# corpus. But ONE id is live and timed: F1.2's ``verdict-engine banner`` spec at
+# 2.441 s, which classifies ``e2e`` and sits under the 10.0 s budget, so today it
+# produces no breach. That is a one-regression margin, not a stable state: the
+# same spec is on record (ruling 93) at 23.1 s, which WOULD breach, and a
+# complement-style filter would then spawn a browser-less doomed subprocess in
+# the audit job and call its non-zero exit "verified". Spelling the set out is
+# what keeps that path from opening silently. ``slow`` stays out
 # because its members are slow by measured census, not by one starved run: a
 # re-run there buys a 60 s-class sleep and returns the same verdict. Neither
 # reason is weakened by ruling 151, which named only the integration tier.
@@ -648,6 +657,19 @@ def main(argv: list[str] | None = None) -> int:
     # integration ids.
     tier_counts = {tier: sum(1 for b in breaches if b[2] == tier) for tier in RERUN_TIERS}
     eligible_count = sum(tier_counts.values())
+    # The number of re-runs is read BACK from ``states``, not recomputed from the
+    # cap: `reproduce()` is the only thing that knows what it actually ran, and a
+    # second slice here would be a second place to be wrong. The distinction is
+    # load-bearing at an over-cap corpus — "6 eligible get one re-run each (max
+    # 5)" is a sentence the run does not honour (it re-runs 5), and that
+    # overstatement predates ruling 151; this is the commit that rewrites the
+    # line, so the line has to carry both numbers now.
+    tier_by_id = {b[1]: b[2] for b in breaches}
+    rerun_counts = {
+        tier: sum(1 for test_id in states if tier_by_id.get(test_id) == tier)
+        for tier in RERUN_TIERS
+    }
+    re_run_count = sum(rerun_counts.values())
 
     if not rerun_enabled():
         if eligible_count:
@@ -659,10 +681,14 @@ def main(argv: list[str] | None = None) -> int:
             print("Re-run of a breach: not enabled (no eligible breach to reproduce anyway).")
     else:
         per_tier = ", ".join(f"{n} {tier}" for tier, n in tier_counts.items())
+        # Both counts, named by what they are. "N eligible get one re-run each"
+        # lied whenever N > the per-tier cap (it re-ran fewer), and the old
+        # single-count line could not express the difference at all; see the
+        # pin at test_the_header_names_eligible_and_re_run_counts_separately.
         print(
             f"Re-run of a breach: ENABLED — {eligible_count} eligible breach(es) "
-            f"({per_tier}) get one re-run each (max {MAX_RERUNS} per tier); only a "
-            "reproduced breach is RED."
+            f"({per_tier}); {re_run_count} get one re-run each (cap {MAX_RERUNS} "
+            "per tier); only a reproduced breach is RED."
         )
     print("No previous-run downgrade and no exemption file.")
     print()

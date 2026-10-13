@@ -75,6 +75,7 @@ import ast
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import textwrap
@@ -2116,6 +2117,68 @@ def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
     assert "test_u0_slow" not in unit_names, (
         f"u0 is the SHORTEST unit breach (4.4 s); dropping anything else would "
         f"make the cap lenient instead of strict; saw {unit_names}"
+    )
+
+
+def test_the_header_names_eligible_and_re_run_counts_separately(tmp_path: Path) -> None:
+    """At an over-cap corpus the ENABLED line must not call the cap "one each".
+
+    Six breaches per eligible tier, so 12 are eligible and only 2 x MAX_RERUNS
+    are actually re-run. ``main``'s line already reads "6 unit breach(es) get one
+    re-run each (max 5)" while it re-runs 5, so the overstatement predates ruling
+    151 — but widening the tiers widens the lie to 12-while-10, and this package
+    is the one that ships the sentence. A breach the cap cannot reach is NOT
+    re-run; telling the reader otherwise is the same "off reads as the rule"
+    shape, just wearing the leniency's clothes.
+
+    Asserted on whole integer tokens, not substrings: at one breach the digit 1
+    appears inside "6 unit, 1 integration" whatever the line means, so a
+    substring check passes for a reason that does not generalise. Both counts
+    must appear, and they must differ — which is only true of this corpus.
+    """
+    calls = tmp_path / "calls.jsonl"
+    unit_cases = [
+        (f"backend.tests.unit.capcount.test_u{i}", f"test_u{i}_slow", 4.4 + 0.1 * i)
+        for i in range(MAX_RERUNS + 1)
+    ]
+    integration_cases = [
+        (
+            f"backend.tests.integration.capcount.test_i{i}",
+            f"test_i{i}_slow",
+            10.4 + 1.1 * i,
+        )
+        for i in range(MAX_RERUNS + 1)
+    ]
+    durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml(unit_cases)),
+        ("integration.xml", _xml(integration_cases)),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls)},
+    )
+    out = _out(run)
+    invoked = len(_calls(calls))
+    eligible = 2 * (MAX_RERUNS + 1)
+    header = next(line for line in out.splitlines() if "ENABLED" in line)
+    tokens = {int(n) for n in re.findall(r"\d+", header)}
+
+    assert invoked == 2 * MAX_RERUNS, (
+        f"the corpus has to be over the cap in BOTH tiers for this to bite; "
+        f"{invoked} re-runs\n{out}"
+    )
+    assert invoked in tokens, (
+        f"the ENABLED line must state how many breaches it actually re-runs "
+        f"({invoked}); saw: {header!r}"
+    )
+    assert eligible in tokens, (
+        f"the line still has to say how many were eligible ({eligible}); saw: {header!r}"
+    )
+    assert eligible != invoked, (
+        f"this corpus must separate the two counts, else the pin above is "
+        f"vacuous: eligible={eligible} invoked={invoked}"
     )
 
 
