@@ -380,6 +380,7 @@ describe('rowProblems', () => {
       'half-built',
       'leftover',
       'awaiting real tier',
+      'works',
     ]);
     expect(lib.rowProblems({ ...base, status: 'awaiting real tier' })).toEqual([]);
     // Its evidence is the green spec: a cite is accepted but not demanded, because
@@ -394,9 +395,24 @@ describe('rowProblems', () => {
     ).toEqual([]);
   });
 
+  it('admits works (ruling 148; README "Vocabulary")', () => {
+    expect(lib.rowProblems({ ...base, status: 'works' })).toEqual([]);
+    // The README meaning: golden green on the fake stack AND confirmed on the
+    // real tier. Like awaiting real tier, its evidence is the spec/run cite,
+    // accepted but not demanded — only half-built or leftover must cite a break.
+    expect(
+      lib.rowProblems({
+        ...base,
+        status: 'works',
+        evidence:
+          'golden path green: `frontend/tests/golden/a/A.spec.ts` (1 test); O2.5 real-tier run confirms it',
+      })
+    ).toEqual([]);
+  });
+
   it('rejects an unknown status', () => {
     expect(lib.rowProblems({ ...base, status: 'works?' })).toEqual([
-      'F-001: status "works?" is not unverified, half-built, leftover or awaiting real tier',
+      'F-001: status "works?" is not unverified, half-built, leftover, awaiting real tier or works',
     ]);
   });
 

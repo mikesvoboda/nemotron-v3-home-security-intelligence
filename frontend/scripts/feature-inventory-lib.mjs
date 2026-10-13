@@ -29,8 +29,15 @@ import ts from 'typescript';
 
 import { normalisePath } from './api-contract-lib.mjs';
 
-/** The statuses a row may carry (README, "Vocabulary"; ruling 103 adds the F2.3 interim state). */
-export const STATUSES = new Set(['unverified', 'half-built', 'leftover', 'awaiting real tier']);
+/** The statuses a row may carry (README, "Vocabulary"; ruling 103 adds the F2.3 interim state,
+ *  ruling 148 adds `works` — the terminal state, set by the operator's real-tier confirmation). */
+export const STATUSES = new Set([
+  'unverified',
+  'half-built',
+  'leftover',
+  'awaiting real tier',
+  'works',
+]);
 
 /** The admitted statuses in prose ("a, b or c"), so the rejection message cannot drift from the Set. */
 const STATUS_NAMES = [...STATUSES];
