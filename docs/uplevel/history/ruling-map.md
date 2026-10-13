@@ -1,6 +1,6 @@
 # Ruling map
 
-One row per owner ruling 1-151 on #6854, and one per owner record that set a rule, showing what each
+One row per owner ruling 1-153 on #6854, and one per owner record that set a rule, showing what each
 became: the [`rules.md`](../rules.md) rule (`UR-n`), `one-off` (one PR, row, fold or order, now
 history), `package <id>` (binds only while that package is open; its text is in `packages/` or
 `packages-done.md`), or `superseded by <n>`. A ruling with several parts lists each. Rulings 118 and
@@ -164,6 +164,8 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 149    | UR-106, UR-91, UR-116; packages `[r149b]`, `[r149d]`, `[r149e]`, `[r149f]` (record 6146380050)              |
 | 150    | packages `[r132]`, `[r133]`, `[r134]`; ops F2.3 batches; `OB.3` (record 6147963319)                         |
 | 151    | UR-125 (integration re-run); package `[r151]` (record 6149020713)                                           |
+| 152    | `scripts/uplevel/coordinator_snapshot.py` and the tick steps, PR #7078 (record 6149140632)                  |
+| 153    | UR-92 (owner tier only for UR-47's owner kinds) (record 6151644378)                                         |
 
 ## Owner records
 
