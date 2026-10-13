@@ -341,8 +341,8 @@ draft). The rule it builds is UR-131.
 
 ### [r141] Retired-paths timing guard
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** none yet. #7023
-(O3.8) merged before ruling 141's changes were made (ruling 145).
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** #7032 (open).
+#7023 (O3.8) merged before ruling 141's changes were made (ruling 145).
 
 - [ ] Remove `--durations=20` from the shared anti-rot pytest command in `.github/workflows/ci.yml`
       (the `collection-sanity` step).
