@@ -524,6 +524,151 @@ export async function softDeleteFixtureRows(
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* The stats fixture (F-047) — a SECOND camera, on purpose.                    */
+/*                                                                             */
+/* F-043 may soft-delete its own rows, and GET /api/events/stats has NO        */
+/* deleted_at predicate (events.py:609-623 filters dates + camera only), so    */
+/* trash on a shared camera would be counted into F-047's totals. Measured:    */
+/* after soft-deleting 1 of 2 rows, GET /api/events said total:1 while a stats */
+/* read on a cache key never used before the delete said total_events:2. A     */
+/* separate camera is therefore the cheap fix; the mismatch itself is recorded */
+/* in the PR body and the inventory row's Notes, not hidden by the fixture.    */
+/*                                                                             */
+/* Cleanup is a HARD delete here for the same reason: `soft_delete:false` on   */
+/* DELETE /api/events/bulk (events.py:1733-1803) removes the row outright, so  */
+/* a later run's totals start from this file's own rows only. F-043 keeps the  */
+/* reversible soft delete — its mirrors count LIVE rows, which excludes trash.  */
+/* -------------------------------------------------------------------------- */
+
+/** FE-3's stats camera: distinct from FIXTURE_CAMERA_NAME for the reason above. */
+export const STATS_CAMERA_NAME = 'fe3-stats-probe';
+
+/**
+ * Rows for the stats panel: one per risk level, so the panel's four level cards
+ * and the chart's bar set are each individually checkable (a fixture with two
+ * `low` rows cannot tell a mislabelled card from a mislabelled bar).
+ */
+export const STATS_FIXTURE_ROWS: ReadonlyArray<{
+  riskScore: number;
+  riskLevel: 'critical' | 'high' | 'medium' | 'low';
+}> = [
+  { riskScore: 91, riskLevel: 'critical' },
+  { riskScore: 70, riskLevel: 'high' },
+  { riskScore: 45, riskLevel: 'medium' },
+  { riskScore: 10, riskLevel: 'low' },
+];
+
+export interface StatsFixture {
+  cameraId: string;
+  eventIds: number[];
+}
+
+/**
+ * One dedicated camera plus STATS_FIXTURE_ROWS on it, anchored to NOW rather
+ * than to a calendar date: F-047's date-filter leg asserts "today holds them
+ * all", which a hardcoded date would break the moment CI runs at another hour
+ * (the golden suite's clock is the runner's, not this file's).
+ *
+ * Idempotent the same way createTimelineFixture is, but the purge is a HARD one
+ * — see the block header for why soft is not enough for a counts fixture.
+ */
+export async function createStatsFixture(
+  h: TimelineHarness,
+  session: Session
+): Promise<StatsFixture> {
+  const list = await api<CameraListBody>(h, session, '/api/cameras');
+  const existing = (list.items ?? []).find((c) => c.name === STATS_CAMERA_NAME);
+  const cameraId = existing
+    ? existing.id
+    : (
+        await apiWrite<CameraCreated>(h, session, 'POST', '/api/cameras', {
+          name: STATS_CAMERA_NAME,
+          folder_path: '/cameras/fe3_stats_probe',
+        })
+      ).id;
+
+  // Residue from an earlier run would inflate every count this file asserts.
+  // Live rows first (cheap, single read), then anything already in the trash on
+  // THIS camera — which only this file's own cleanup could have put there, since
+  // no other spec names this camera.
+  const stale = await api<{ items: { id: number }[] }>(
+    h,
+    session,
+    `/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`
+  );
+  await hardDeleteFixtureRows(
+    h,
+    session,
+    stale.items.map((row) => row.id)
+  );
+  // Trash on this camera, from the route ops-a's spec uses. NOTE: GET
+  // /api/events/deleted takes NO limit/start param (events.py:1411-1413 — its
+  // only argument is the db) and reports `pagination.limit: 1000` while ignoring
+  // any query string, so this read returns the WHOLE trash and the camera filter
+  // below is client-side, not a server narrowing.
+  const trashed = await api<{ items: { id: number; camera_id: string }[] }>(
+    h,
+    session,
+    '/api/events/deleted'
+  );
+  await hardDeleteFixtureRows(
+    h,
+    session,
+    trashed.items.filter((row) => row.camera_id === cameraId).map((row) => row.id)
+  );
+
+  const salt = Date.now();
+  const now = Date.now();
+  const events = STATS_FIXTURE_ROWS.map((row, i) => ({
+    batch_id: `fe3s-${salt}-${i}`, // UNIQUE per row (measured UniqueViolationError)
+    camera_id: cameraId,
+    // 40..55 minutes ago: inside the last hour, inside today, and inside the
+    // scrubber's default 24 h window (measured: it spans now-24 h → now).
+    started_at: new Date(now - (40 + i * 5) * 60_000).toISOString(),
+    risk_score: row.riskScore,
+    risk_level: row.riskLevel,
+    summary: `FE-3 stats fixture row ${i} (${row.riskLevel})`,
+  }));
+  const bulk = await apiWrite<BulkBody>(h, session, 'POST', '/api/events/bulk', { events });
+  if (bulk.succeeded !== events.length) {
+    throw new Error(
+      `stats fixture: bulk create succeeded ${bulk.succeeded}/${events.length}; first error: ` +
+        String(bulk.results.find((r) => r.status !== 'success')?.error).slice(0, 200)
+    );
+  }
+  const eventIds = bulk.results.map((r) => r.id).filter((id): id is number => id !== null);
+  return { cameraId, eventIds };
+}
+
+/**
+ * Permanent delete via DELETE /api/events/bulk {soft_delete:false} (measured:
+ * 207, `succeeded: 2, failed: 0`, and the rows disappear from stats too).
+ * Chosen over the per-row soft delete ONLY where a spec asserts COUNTS, because
+ * soft-deleted rows keep counting there (see the block header).
+ */
+export async function hardDeleteFixtureRows(
+  h: TimelineHarness,
+  session: Session,
+  eventIds: number[]
+): Promise<void> {
+  if (eventIds.length === 0) return;
+  // The route caps a request at 100 ids (schemas/bulk.py:182-187).
+  for (let i = 0; i < eventIds.length; i += 100) {
+    const chunk = eventIds.slice(i, i + 100);
+    // Settle, don't throw: cleanup must not turn a green run red. A failure
+    // here leaks rows into the NEXT run, where the purge above removes them.
+    await fetch(`${h.api}/api/events/bulk`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `${session.name}=${session.value}`,
+      },
+      body: JSON.stringify({ event_ids: chunk, soft_delete: false }),
+    }).catch(() => undefined);
+  }
+}
+
 /**
  * Wait for the timeline's first event page to LAND, i.e. for the shipped
  * infinite query (EventTimeline.tsx:182 → useEventsQuery → GET /api/events,
