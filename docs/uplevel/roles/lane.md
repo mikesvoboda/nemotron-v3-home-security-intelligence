@@ -48,6 +48,10 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
+   Then read the `BINDING NOW` records on #6854 posted since your last tick
+   (`gh api "repos/<owner>/<repo>/issues/6854/comments?since=<your last heartbeat time>" --paginate`, keeping
+   those whose first line starts `BINDING NOW`) and follow each that names your lane or all agents; it
+   binds before the plan files catch up (UR-40, ruling 163).
 2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below). Read the coordinator's; if it is older
    than 20 minutes, follow "Stale coordinator" below.
 3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
@@ -113,7 +117,9 @@ Read rules.md §Building a package first: one package per PR, the hot-file rules
    `codebase-archaeologist` on their scope (UR-95).
 
 **Self-review.** Run the fresh-context self-review UR-89 describes, record its findings in the PR,
-then mark the PR ready.
+then mark the PR ready once its code is complete. A Done-when clause that only a CI run shows (a
+draft skips every job but the gate) is ticked from the first ready run, naming it; a red run is
+fixed on the ready PR, and the reviewer approves only with those clauses green (ruling 161).
 
 ## Reviewing another lane's PR
 
