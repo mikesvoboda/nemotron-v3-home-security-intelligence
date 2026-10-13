@@ -62,7 +62,7 @@ Read this section before you take, claim, assign, park or release a package.
   ruling or a requested change there comes before new work. (UR-35)
 - **UR-51** Work the phases in order. Inside a phase, packages are independent unless a package
   names a dependency; the ops background packages (`OB.n`) may run in any phase after Phase 1. (the
-  deleted 10-backend.md and the deleted 20-frontend.md headers)
+  deleted 10-backend.md, the deleted 20-frontend.md and the deleted 30-ops.md headers)
 - **UR-52** Each agent works its own queue in the roster (`roles/lane.md` "Who takes what"), the ops
   cells included. On any tick where it has no open package, it claims the next package in its queue
   that is `not started`, unclaimed, not `heavy`, and whose dependencies have merged (UR-54). A
@@ -220,7 +220,8 @@ Read this section before you self-review your own PR or review another lane's.
   the author's own, preferring the lane that consumes the change, and names it when it assigns the
   package. It labels the PR `review:<lane>` (`review:ops-a`/`review:ops-b` for ops) each time the
   author marks a head ready; a lane agent clears its label's PRs before starting or resuming a
-  package. (UR-32; roles/lane.md "Reviewing another lane's PR")
+  package. (UR-32; roles/coordinator.md "Remit", "Label for review"; roles/lane.md "The tick" §3;
+  the deleted 50-coordination.md "Roles", "Review and merge")
 - **UR-89** Before marking a PR ready, the author dispatches a fresh-context subagent given only the
   package text, the diff and the PR body, to check each Done-when clause against the evidence, the
   contract, the cross-lane parts and the hot-file rules; the author fixes or answers each finding
