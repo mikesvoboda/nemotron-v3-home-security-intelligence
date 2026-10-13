@@ -357,9 +357,6 @@ export type {
   UseCameraStatusWebSocketReturn,
 } from './useCameraStatusWebSocket';
 
-export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
-export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
-
 // Optimistic locking hook (NEM-3626)
 export { useOptimisticLocking } from './useOptimisticLocking';
 export type {

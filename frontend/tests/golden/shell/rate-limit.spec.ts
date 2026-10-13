@@ -1,95 +1,104 @@
 /**
- * FE-1 golden path (F2.3): F-022 rate-limit indicator + retrying pill.
+ * FE-1 golden path (F2.3, then [r132] ruling 132): the rate-limit RETRYING PILL.
  *
- * Row claim: "after a 429, sees a countdown overlay until the limit resets,
- * and a 'retrying' pill while requests are in flight". Both components mount
- * app-wide OUTSIDE <Routes> (App.tsx:346/:348), fed by ONE zustand store with
- * TWO writers:
+ * ROW (F-022) as it now reads after ruling 132's split — "the retrying pill is
+ * kept; the countdown overlay and its invented defaults retire":
+ *   - KEPT: RetryingIndicator (data-testid="retrying-indicator", text
+ *     "Retrying request..."), which renders only when the store says
+ *     isLimited AND react-query has work in flight.
+ *   - RETIRED (this PR deletes them): common/RateLimitIndicator.tsx (the
+ *     "Rate Limited / Retry in M:SS" overlay + the <=50% quota bar + the
+ *     "API quota running low" toast), useRateLimitCountdown, and
+ *     updateRateLimitStoreFromError with DEFAULT_RATE_LIMIT_RETRY_SECONDS —
+ *     the fabricated limit=100 / remaining=0 / reset=now+60 window that
+ *     QueryCache/MutationCache onError used to write on ANY ApiError 429.
  *
- *   1. HEADER feed — api.ts handleResponse :1203-1206 calls
- *      extractRateLimitInfo, which needs ALL THREE X-RateLimit-{Limit,
- *      Remaining,Reset} headers. The FastAPI tier emits them ONLY on its 429
- *      (success responses carry NO rate headers at all, measured 2026-10-11
- *      in test 3 below), so the "quota low" (<=50%) progress band is
- *      producible by no shipped path. Failure-as-evidence, row note.
- *   2. ERROR-DEFAULTS feed — QueryCache/MutationCache onError
- *      (queryClient.ts:795-804) -> updateRateLimitStoreFromError (:249-297):
- *      an ApiError with status 429 — the SHAPE the frontend's own nginx
- *      throttle produces (limit_req zone=api burst=20 nodelay,
- *      limit_req_status 429, docker-entrypoint.sh:166-169, text/html body ->
- *      problemDetails undefined) — sets the store to the FABRICATED defaults
- *      limit=100, remaining=0, reset=now+60 (DEFAULT_RATE_LIMIT_RETRY_SECONDS
- *      :64). The countdown the user sees is that invented window, not nginx's
- *      real one — the spec pins "Retry in 1:0X", never a server-true reset.
+ * WHAT THE STORE CAN NOW BE FED BY, post-deletion — exactly one writer:
+ * api.ts handleResponse -> extractRateLimitInfo -> update(). And that writer
+ * is gated on ALL THREE X-RateLimit-{Limit,Remaining,Reset} headers
+ * (api.ts:1060-1062 returns null otherwise; handleResponse:1203-1206 checks
+ * the null before calling update()). Consequences, each pinned below:
+ *   1. The frontend nginx throttle (`limit_req zone=api burst=20 nodelay`,
+ *      limit_req_status 429 — docker-entrypoint.sh:166-169) emits NO
+ *      X-RateLimit-* at all, so the throttle that used to light the overlay
+ *      through the invented defaults now feeds NOTHING. That is the point of
+ *      the retirement, and test 2 is its leg.
+ *   2. The FastAPI tier's 429 DOES carry the full header set
+ *      (backend/api/middleware/rate_limit.py:530-534) but is reachable from
+ *      the UI only through fetchApi — and every fetchApi-wired tier control
+ *      on a feature-check stack is dead or gated:
+ *      useBulkDetectionMutations has ZERO importers; PromptPlayground's
+ *      testPrompt (the one AI_INFERENCE-tier control) renders only when
+ *      stats.audited_events > 0 (AIAuditPage.tsx:193-195, gate :349) and these
+ *      stacks seed 0; EventTimeline's bulk path loops per-id UN-tiered
+ *      PATCHes; ExportButton uses raw fetch. Test 3 pins the header math and
+ *      the raw-fetch bypass live.
  *
- * WHY THE nginx SHED IS THE GOLDEN TRIGGER: every fetchApi-wired FastAPI-tier
- * control is dead or gated on a golden stack (all measured this pass):
- * useBulkDetectionMutations has ZERO importers; PromptPlayground's fetchApi
- * testPrompt — the one AI_INFERENCE-tier UI control — renders only when
- * audited_events>0 (AIAuditPage.tsx:193-195/:349; feature-check stacks seed
- * 0 → the tab never mounts); EventTimeline's bulk path loops per-id
- * UN-tiered PATCHes; ExportButton uses raw fetch. Test 3 pins the other half
- * of that honesty: the tier IS real (BULK = 10 rpm + burst 2 → 12 accepts
- * then header-complete 429s at PATCH /api/events/bulk) yet the indicators
- * stay DARK for it — a raw fetch bypasses fetchApi, so the store never sees
- * a tier denial.
+ * WHY F-022 IS STILL half-built AND NOT flipped: the pill's POSITIVE leg (lit
+ * while limited) needs isLimited=true, and per 1 + 2 no shipped control on
+ * this tier can set it. So the pill is exercised in the component tier only
+ * (RetryingIndicator.test.tsx, 14 cases) — which rulings 114/128 do not
+ * accept as a publishable flip. What this file CAN publish is the NEGATIVE
+ * leg: real throttled 429s riding fetchApi, and the retired surface provably
+ * absent. A reachability change that would make the positive leg golden is a
+ * backend/UI change outside frontend/ (ruling 87), filed as an owner question
+ * on the PR rather than graded into existence here.
+ *
+ * HISTORY, so the deletions below read as intent and not as drift: this file
+ * previously carried a shed leg asserting "Rate Limited / Retry in 1:0X", the
+ * aria tick 0:53 -> 0:50, and the 0-of-100 toast. Owner ruling 125 quarantined
+ * that leg as test.fixme (expiry 2026-10-14T00:00Z) after CI head 68a6856dc
+ * measured "countdown frozen at 0:59 / 0:59" across 2.3 s on three attempts
+ * (junit, run 38146684985) — every fresh 429 re-seeded reset=now+60, so a
+ * sample taken mid-drip could legitimately show the label jump back up. This
+ * PR does not re-enable that leg; it DELETES it, along with the code it
+ * asserted, and its replacement asserts the opposite surface. The flood's
+ * bucket calibration is inherited from it verbatim (see BURST/DRIP_MS below).
  *
  * THE BUCKET MATH the flood respects (nginx ngx_http_limit_req @10r/s: each
- * request costs 100 ms of excess, burst=20 nodelay): a 60-request burst
- * parks stored excess AT the ceiling (rejections add nothing back — probes
- * 9/10 measured a single burst draining in ~2 s, too short to click inside);
- * a drip every 80 ms (12.5 r/s > 10 r/s refill) pins excess >= burst for the
- * drip's whole span, making a click inside it deterministic 429. Measured
+ * request costs 100 ms of excess, burst=20 nodelay): a 60-request burst parks
+ * stored excess AT the ceiling (rejections add nothing back — probes 9/10
+ * measured a single burst draining in ~2 s, too short to click inside); a drip
+ * every 80 ms (12.5 r/s > the 10 r/s refill) pins excess >= burst for the
+ * drip's whole span, making a click inside it a deterministic 429. Measured
  * 2026-10-11 probes 10/12 on the live stack: POST 429 (Server: nginx, no
- * X-RateLimit-*, no Retry-After) -> "Rate Limited / Retry in 1:00", aria
- * ticking 0:53 -> 0:50 across 2.3 s; sonner toast "API quota running low —
- * Only 0 of 100 requests remaining" at +1.7 s (the fabricated defaults at
- * 0% < 20% threshold, duration 6000); reload clears the store (per-document
- * — persistOptions cover query state, not this store) and no shed ever
- * failed closed to /setup.
+ * X-RateLimit-*, no Retry-After).
  *
- * Instrument choices, each measured against a failed alternative:
+ * INSTRUMENT CHOICES, each measured against a failed alternative:
  * - Flood rides context.request (Node-side): the probes' ONE in-main-page
  *   fetch storm (929 fetches) crushed the renderer until no click could run
  *   (probe7), and a drip inside a NON-active page would hit Chromium's
  *   hidden-page timer throttling (~1/s) and clump instead of pinning.
  *   context.request hits the same nginx $binary_remote_addr bucket for free.
- * - Clicks go through el.click() inside page.evaluate after an enabled-button
- *   waitForFunction: with the bucket dirty the panel's query churn made
- *   Playwright actionability retries drift past the drip boundary (probe10/
- *   11 measured 3 s timeouts on an enabled+visible button, probe12's DOM dump
- *   proved dis:false vis:true); the trusted click on the SAME button React
- *   listens to lands the shed every run.
- * - The pill (isLimited AND isFetching/isMutating, ~650 ms wide in probe12's
- *   trace — too narrow to await with a locator, so it is SAMPLED with an rAF
- *   frame trace) is lit by a sidebar-link click: a client-side navigation
- *   KEEPS the limited store (SPA) while the destination's cold queries fire
- *   -> isFetching > 0 -> pill. Probe12 reached the same frame through a
- *   second shed mutation (PI +1535 ms, -I +2182 ms), but a shed-driven pill
- *   additionally needs an ENABLED level button, and all five are disabled
- *   while ANY level mutation is pending — luck-shaped. The nav pill needs
- *   only in-flight queries, which a shed flood guarantees; it counts traffic,
- *   whatever status that traffic lands on.
- * - Shed honesty: run-to-run, either click (or the panel's own refetch
- *   wave) can be the request the final-error feed sees (probe11 measured a
- *   429 POST list of [200] yet the store still lit from a query final
- *   error). So the spec asserts the posts list contains at least one 429 and
- *   otherwise asserts ONLY store-visible outcomes.
+ * - Clicks go through el.click() inside page.evaluate after an
+ *   enabled-button waitForFunction: with the bucket dirty the panel's query
+ *   churn made Playwright actionability retries drift past the drip boundary
+ *   (probe10/11 measured 3 s timeouts on an enabled+visible button, probe12's
+ *   DOM dump proved dis:false vis:true); the trusted click on the SAME button
+ *   React listens to lands the shed every run.
+ * - The level button is the control because a MUTATION never retries 429
+ *   (utils shouldRetryMutation covers timeouts only) so the shed POST is
+ *   FINAL and rides handleResponse — queries, by contrast, DO retry 429
+ *   (RETRYABLE_HTTP_STATUS_CODES, utils/error-handling.ts:588) and their ~1 s
+ *   backoff usually lands after the bucket drains.
+ * - Shed honesty: run to run, either click (or the panel's own refetch wave)
+ *   can be the request the error feed sees (probe11 measured a 429 POST list
+ *   of [200] while a query final error still lit the old store). So the spec
+ *   asserts the posts list contains at least one 429 and otherwise asserts
+ *   ONLY store-visible outcomes.
  *
  * SIDE EFFECTS owned by this file: the clicked control is the Operations
  * page's Log Level panel (SystemMonitoringPage.tsx:751 -> POST
- * /api/debug/log-level via useSetLogLevelMutation; mutations never retry 429
- * — utils shouldRetryMutation covers timeouts only — so a shed POST is FINAL
- * and writes the store). A shed POST cannot change the level; an unsent one
- * can, so the level is restored before the spec ends, over h.api DIRECT
- * (the backend's published port — no nginx throttle there, same leg
- * harness.adminSession/api ride; WARNING is the stack default, so the
- * restore is idempotent even if the read failed). The flood (~105 /api
- * requests) is the golden project's one deliberate throttle consumer —
- * serial golden worker (playwright.config.ts:287-288), BOOT_QUIET_MS drain
- * before every navigation AND before the reload; test 3 warms the bucket and
- * then paces its PATCH loop at 120 ms (~8.3 r/s < 10 r/s) so nginx never
- * sheds inside the tier measurement.
+ * /api/debug/log-level via useSetLogLevelMutation). A shed POST cannot change
+ * the level; an unsent one can, so the level is restored before the spec
+ * ends, over h.api DIRECT (the backend's published port — no nginx throttle
+ * there, same leg harness.adminSession/api ride; WARNING is the stack
+ * default, so the restore is idempotent even if the read failed). The flood
+ * (~105 /api requests) is the golden project's one deliberate throttle
+ * consumer — serial golden worker (playwright.config.ts:287-288),
+ * BOOT_QUIET_MS drain before every navigation AND before the reload; test 3
+ * warms the bucket and then paces its PATCH loop at 120 ms (~8.3 r/s < 10 r/s)
+ * so nginx never sheds inside the tier measurement.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
@@ -112,7 +121,34 @@ test.skip(
 /** nginx /api throttle geometry (docker-entrypoint.sh:166-169; nginx.conf zones). */
 const BURST = 60; // >> burst=20 -> rejections pin stored excess at the ceiling
 const DRIP_MS = 80; // 12.5 req/s > the 10 r/s refill -> excess never drains
-const DRIPS = 45; // ~3.5 s of pinned window; all three clicks land inside it
+const DRIPS = 45; // ~3.5 s of pinned window; both clicks land inside it
+
+/**
+ * Copy that ONLY the retired overlay produced. Deliberately narrow: it must
+ * NOT match 'Rate limit exceeded. Please try again later.'
+ * (utils/error-handling.ts:349-352, ErrorCode.RATE_LIMIT_EXCEEDED) — that
+ * toast is the error mapper's own copy and ruling 132 does not retire it, so
+ * a shed mutation error surfacing it is CORRECT behaviour, not a failure.
+ * A match here means a countdown/quota surface came back.
+ */
+const RETIRED_SURFACE = /rate limited|retry in \d|requests? remaining|quota running low/i;
+
+/**
+ * Whole-document scan for the retired surface: visible text AND any aria-label,
+ * so a re-introduction under a NEW testid is still caught. A toHaveCount(0) on
+ * the deleted data-testid alone would be vacuous-by-construction (nothing in
+ * src/ emits it any more) — it stays below only as a reintroduction tripwire,
+ * and this scan is the assertion that actually has reach.
+ */
+async function retiredSurface(page: import('@playwright/test').Page): Promise<string> {
+  return page.evaluate(() => {
+    const text = document.body.innerText ?? '';
+    const labelled = [...document.querySelectorAll('[aria-label]')]
+      .map((n) => (n as HTMLElement).getAttribute('aria-label') ?? '')
+      .join('\n');
+    return `${text}\n${labelled}`;
+  });
+}
 
 /**
  * Authenticate ONLY if the stack demands it (feature-check stacks run
@@ -187,30 +223,68 @@ async function clickLevel(page: import('@playwright/test').Page, level: string) 
   );
 }
 
-test.describe('golden path: rate-limit indicators @critical', () => {
-  test('F-022 (calm): a healthy stack mounts neither indicator', async ({ page }) => {
+/**
+ * rAF trace of pill presence over `windowMs`. The pill was ~650 ms wide when
+ * the store could light it (probe12's trace) — too narrow to await with a
+ * locator — so presence is SAMPLED per frame and only transitions recorded.
+ */
+function pillTrace(page: import('@playwright/test').Page, windowMs: number) {
+  return page
+    .evaluate(
+      ([ms]) =>
+        new Promise<Array<{ k: string; atMs: number }>>((res) => {
+          const t0 = performance.now();
+          const out: Array<{ k: string; atMs: number }> = [];
+          let last = '';
+          const tick = () => {
+            const k = document.querySelector('[data-testid="retrying-indicator"]') ? 'P' : '-';
+            if (k !== last) {
+              out.push({ k, atMs: Math.round(performance.now() - t0) });
+              last = k;
+            }
+            if (performance.now() - t0 < ms) requestAnimationFrame(tick);
+            else res(out);
+          };
+          requestAnimationFrame(tick);
+        }),
+      [windowMs]
+    )
+    .catch((e) => {
+      // Navigation would destroy the context; the leg never navigates inside
+      // the window — fail LOUD rather than lose the evidence.
+      throw new Error(`pill tracer died: ${String(e).slice(0, 120)}`);
+    });
+}
+
+test.describe('golden path: rate-limit pill @critical', () => {
+  test('F-022 (calm): a healthy stack renders no pill and no rate-limit surface', async ({
+    page,
+  }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
     test.setTimeout(90_000);
     await openOperations(page, h);
-    // Both components render NULL with an empty store (the `if (!current)` /
-    // `isLimited &&` returns) — the shed test's "lit" needs this baseline.
-    await expect(page.getByTestId('rate-limit-indicator')).toHaveCount(0);
+    // The pill's own gate (isLimited AND in-flight) renders NULL on a quiet
+    // store — the lit case needs this baseline, and the retired overlay must
+    // be absent from the whole document, not just from its old testid.
     await expect(page.getByTestId('retrying-indicator')).toHaveCount(0);
+    expect(await retiredSurface(page)).not.toMatch(RETIRED_SURFACE);
+    // Tripwire, not proof: nothing in src/ emits this testid any more, so a
+    // pass here is only meaningful if the id comes back under new code.
+    await expect(page.getByTestId('rate-limit-indicator')).toHaveCount(0);
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  // owner ruling 125 — quarantined until fixed, expires 2026-10-14T00:00Z
-  test.fixme('F-022 (shed): an nginx-throttled 429 lights the countdown with the fabricated 100/0/+60 window, ticks, toasts, pairs with the pill across an SPA nav, and reloads clean', async ({
+  test('F-022 (post-retirement): a real fetchApi-routed 429 lights NOTHING — the overlay is gone and a header-less shed cannot feed the store', async ({
     context,
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
-    test.setTimeout(120_000); // flood + tick + reload + restore; measured ~30 s
+    test.setTimeout(120_000); // flood + clicks + reload + restore; measured ~30 s pre-retirement
 
     // BEFORE anything else: catch every log-level POST, shed or not.
     const posts: number[] = [];
@@ -232,34 +306,7 @@ test.describe('golden path: rate-limit indicators @critical', () => {
       .then((b: { level?: string } | null) => b?.level ?? null)
       .catch(() => null);
 
-    // rAF trace of (pill, indicator) presence — the pill is ~650 ms wide when
-    // pill-driven, so it is SAMPLED, not awaited after the fact.
-    const trace: Promise<Array<{ k: string; atMs: number }>> = page
-      .evaluate(
-        () =>
-          new Promise<Array<{ k: string; atMs: number }>>((res) => {
-            const t0 = performance.now();
-            const out: Array<{ k: string; atMs: number }> = [];
-            let last = '';
-            const tick = () => {
-              const p = !!document.querySelector('[data-testid="retrying-indicator"]');
-              const i = !!document.querySelector('[data-testid="rate-limit-indicator"]');
-              const k = `${p ? 'P' : '-'}${i ? 'I' : '-'}`;
-              if (k !== last) {
-                out.push({ k, atMs: Math.round(performance.now() - t0) });
-                last = k;
-              }
-              if (performance.now() - t0 < 10_000) requestAnimationFrame(tick);
-              else res(out);
-            };
-            requestAnimationFrame(tick);
-          })
-      )
-      .catch((e) => {
-        // Navigation would destroy the context; the test never navigates
-        // inside the window — fail LOUD rather than lose the evidence.
-        throw new Error(`pill tracer died: ${String(e).slice(0, 120)}`);
-      });
+    const trace = pillTrace(page, 10_000);
 
     // FLOOD from Node (context.request): same nginx client-IP bucket, zero
     // renderer load, no hidden-page timer throttling (probe7/probe10).
@@ -293,6 +340,10 @@ test.describe('golden path: rate-limit indicators @critical', () => {
     await page.waitForTimeout(900); // still mid-drip
     await clickLevel(page, 'INFO');
 
+    // THE WITNESS LEG — the throttle really fired, and this time it rode
+    // fetchApi (a mutation, which never retries a 429, so the denial is FINAL
+    // and reaches handleResponse). Pre-retirement this exact status was what
+    // updateRateLimitStoreFromError turned into limit=100/remaining=0/reset+60.
     await expect
       .poll(() => posts.includes(429), {
         timeout: 5_000,
@@ -300,71 +351,28 @@ test.describe('golden path: rate-limit indicators @critical', () => {
       })
       .toBe(true);
 
-    const indicator = page.getByTestId('rate-limit-indicator');
-    await expect(indicator).toBeVisible({ timeout: 3_000 });
-    await expect(indicator).toHaveText(/Rate Limited/);
-    await expect(indicator).toHaveText(/Retry in \d:\d{2}/);
-    await expect(indicator).toHaveAttribute('role', 'status');
-    await expect(indicator).toHaveAttribute('aria-label', /^Rate limited\. Retry in \d:\d{2}$/);
-
-    // The low-quota toast (<20% branch fired by the FABRICATED 0-of-100
-    // defaults; sonner duration 6000 ms — read while still on screen).
-    await expect(
-      page.locator('[data-sonner-toast]').filter({ hasText: 'API quota running low' }).first()
-    ).toBeVisible();
-    await expect(
-      page.locator('[data-sonner-toast]').filter({ hasText: 'Only 0 of 100 requests' }).first()
-    ).toBeVisible();
-
-    // The pill (isLimited AND (isFetching || isMutating)): click a sidebar
-    // link — a client-side navigation that KEEPS the store (SPA, no reload)
-    // while the destination page's cold queries fire -> isFetching > 0 ->
-    // RetryingIndicator. This is deliberate over probe12's second-shed route
-    // (which also worked, PI at +1535 ms): a shed-driven pill needs a third
-    // click inside the pinned drip AND an enabled button (all five are
-    // disabled while ANY level mutation is pending), so its window is
-    // luck-shaped; the nav pill needs only that react-query has work to do —
-    // which the shed flood guarantees in abundance. Shed luck plays no part:
-    // the pill counts IN-FLIGHT queries, whatever status they land on.
-    // Scoped to the sidebar: MobileBottomNav renders a same-named link that
-    // is display-none at desktop widths, and getByRole sees hidden nodes.
-    await page.getByTestId('sidebar').getByRole('link', { name: 'Dashboard' }).first().click();
-
-    // Countdown ticks (useRateLimitCountdown's 1000 ms interval,
-    // formatCountdown M:SS) — measured probe10: 0:53 -> 0:50 across 2.3 s.
-    // Sample only AFTER the drip is done: every fresh shed response writes a
-    // NEW reset (queryClient.ts:241-252 pushes 429s into the store; the fake
-    // 100/0 window carries reset = now + 60s), so a read taken while responses
-    // still land can legitimately show the label jump BACK to 0:59. CI head
-    // 68a6856dc measured exactly that — "countdown frozen at 0:59 / 0:59"
-    // across 2.3 s, three attempts, with a1 sampled mid-window (junit, run
-    // 38146684985). Once the flood is over nothing re-seeds and the 1 s
-    // interval's verdict is unambiguous. BURST+DRIPS = 105 requests: the 60
-    // req/s nginx bucket (rate 10/s, burst 20 — nginx.conf:24) drains the
-    // deficit in ~8.5 s, so the window expires BEFORE this await returns and
-    // the reload-clean tail below still exercises the restore path.
+    // THE NEGATIVE LEG — and it must stay negative for the whole flood tail.
     await Promise.all(drips);
-    const a1 = await indicator.getAttribute('aria-label');
-    await page.waitForTimeout(2_300);
-    const a2 = await indicator.getAttribute('aria-label');
-    expect(a1).toMatch(/^Rate limited\. Retry in \d:\d{2}$/);
-    expect(a2).toMatch(/^Rate limited\. Retry in \d:\d{2}$/);
-    expect(a2, `countdown frozen at ${a1} / ${a2}`).not.toBe(a1);
-
     const frames = await trace;
-    const states = frames.map((f) => f.k);
-    expect(states, `no pill frame in ${JSON.stringify(frames)}`).toContain('PI');
-    await expect(page.getByTestId('retrying-indicator')).toHaveCount(0, { timeout: 8_000 });
+    expect(
+      frames.some((f) => f.k === 'P'),
+      `the pill lit without a header-fed store: ${JSON.stringify(frames)}`
+    ).toBe(false);
+    await expect(page.getByTestId('retrying-indicator')).toHaveCount(0);
+    expect(await retiredSurface(page)).not.toMatch(RETIRED_SURFACE);
+    // Tripwire for the retired testid (see the calm leg for why this is not
+    // the load-bearing assertion).
+    await expect(page.getByTestId('rate-limit-indicator')).toHaveCount(0);
 
     // Reload: the store is per-document JS state (NOT the persisted query
-    // cache), so the overlay cannot survive navigation — and the shed never
+    // cache), so nothing here can survive navigation — and the shed never
     // bounced the app to /setup. Drain first (a reload IS a boot wave).
     await Promise.allSettled(drips);
     await page.waitForTimeout(BOOT_QUIET_MS);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId('rate-limit-indicator')).toHaveCount(0);
     await expect(page.getByTestId('retrying-indicator')).toHaveCount(0);
+    expect(await retiredSurface(page)).not.toMatch(RETIRED_SURFACE);
     expect(page.url()).not.toContain('/setup');
 
     // Restore over h.api DIRECT (no nginx throttle on that leg, so the
@@ -391,7 +399,7 @@ test.describe('golden path: rate-limit indicators @critical', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test('F-022 (bypass): the FastAPI tier 429 is real and header-complete, yet the indicators stay dark because the store is only fed through fetchApi', async ({
+  test('F-022 (bypass): the FastAPI tier 429 is real and header-complete, yet nothing mounts — the tier is reached only by raw fetch, which never feeds the store', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -469,8 +477,8 @@ test.describe('golden path: rate-limit indicators @critical', () => {
     expect(tierDenied.length, `no tier denial in ${JSON.stringify(rows)}`).toBeGreaterThan(0);
     // The tier's OWN header set (rate_limit.py :531-534): total_limit =
     // 10 rpm + burst 2 = 12, remaining 0, Retry-After 60, reset inside the
-    // window — and NO accepted response carries any of them, which is why
-    // the "<=50% quota" progress band has no producer.
+    // window — and NO accepted response carries any of them, which is why the
+    // retired overlay's "<=50% quota" progress band never had a producer.
     const d = tierDenied[0];
     expect(d.limit).toBe('12');
     expect(d.remaining).toBe('0');
@@ -478,12 +486,13 @@ test.describe('golden path: rate-limit indicators @critical', () => {
     expect(Number(d.reset)).toBeGreaterThan(Math.floor(Date.now() / 1000) + 30);
     expect(accepted.every((r) => r.limit === null)).toBe(true);
 
-    // And the mounted indicators stayed DARK the whole time: these 429s
-    // never rode fetchApi, so neither store feed fired. The row's honest
-    // shape — the countdown surface exists and works (test 2), but as
-    // shipped only the frontend's OWN throttle 429 can ever light it.
-    await expect(page.getByTestId('rate-limit-indicator')).toHaveCount(0);
+    // And nothing mounted the whole time: these 429s never rode fetchApi, so
+    // the one surviving store feed never saw them. Post-retirement this leg
+    // carries a SECOND truth — even a tier denial that DID ride fetchApi could
+    // now only set isLimited (pill), because the surface that displayed the
+    // reset window no longer exists.
     await expect(page.getByTestId('retrying-indicator')).toHaveCount(0);
+    expect(await retiredSurface(page)).not.toMatch(RETIRED_SURFACE);
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });

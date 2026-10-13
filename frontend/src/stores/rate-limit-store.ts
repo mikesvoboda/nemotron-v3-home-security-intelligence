@@ -77,8 +77,12 @@ export interface RateLimitState {
  *   reset: Math.floor(Date.now() / 1000) + 60,
  * });
  *
- * if (isLimited) {
- *   return <div>Rate limited. Retry in {secondsUntilReset}s</div>;
+ * // `isLimited` is the only display-facing flag: it drives the retrying pill
+ * // (RetryingIndicator) and clears itself when the reset timestamp passes.
+ * // `secondsUntilReset` is internal bookkeeping for that timer — do NOT render
+ * // a countdown from it (ruling 132 retired the countdown overlay).
+ * if (isLimited && hasInFlightRequests) {
+ *   return <div>Retrying request...</div>;
  * }
  * ```
  */

@@ -160,7 +160,6 @@ Reusable UI components and utilities:
 **Performance:**
 
 - `ProfiledComponent.tsx` - Profiled component wrapper
-- `RateLimitIndicator.tsx` - Rate limit indicator
 
 **Ambient:**
 
