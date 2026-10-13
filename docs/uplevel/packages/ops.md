@@ -387,3 +387,15 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 **Done when:** a `workflow_dispatch` run's Analyze job is green and its summary lists the flaky
 tests.
+
+### [r151] The integration tier re-runs a breach before failing
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling 151,
+record 6149020713)
+
+- [ ] Extend `[r147]`'s re-run to the integration tier: an integration test over 10.0 s is re-run
+      once in the same job, and the run is red only if the re-run also breaches; a test that passes
+      on its re-run is listed as a warning with both timings. At most 5 re-runs per job.
+
+**Done when:** a unit test pins each integration case (breach then pass on re-run is a warning;
+breach twice is red), and the audit passes on `main`'s current tests in CI.

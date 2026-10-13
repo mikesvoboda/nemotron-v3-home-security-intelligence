@@ -19,7 +19,7 @@ The owner sets these queues; a change is a ruling.
 | `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                    | `review:backend`  |
 | `uplevel-frontend`    | fast      | `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-3, FE-4), `[r148a]`, `R2b` records, `F3.2`, `F3.3`  | `review:frontend` |
 | `uplevel-ops-a`       | fast      | `OB.3`, an `F2.3` UI batch, `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`                                                                                 | `review:ops-a`    |
-| `uplevel-ops-b`       | fast      | `[r141]` follow-up (ruling 145), `[r149b]`, `[r149f]`, an `F2.3` UI batch, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                               | `review:ops-b`    |
+| `uplevel-ops-b`       | fast      | `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, an `F2.3` UI batch, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                     | `review:ops-b`    |
 | `uplevel-docs`        | fast      | `F2.3` UI batches (DO-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                               | `review:docs`     |
 | `uplevel-heavy`       | strongest | assigned `heavy` PRs without `cell:heavy-2`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused until Phase 3 opens (ruling 88)       | none              |
 | `uplevel-heavy-2`     | strongest | assigned `heavy` PRs labelled `cell:heavy-2`: `B2.3` after `O2.4`; paused until then (ruling 88)                                                       | none              |
