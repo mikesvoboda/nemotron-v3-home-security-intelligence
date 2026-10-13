@@ -87,6 +87,24 @@ LAN_ENV_UNQUOTED = LAN_ENV.replace(API_KEYS_PLAIN, _keys_line(PLAIN_ENTRIES, quo
 
 CONVERTED_KEYS = ["ops-laptop-key", {"key": MONITORING_KEY, "scope": "monitoring"}]
 
+# The SAME install NOT exposed — the majority case, and the one every exposure test
+# above omits because they all save `true`. Built from `LAN_ENV` so the two fixtures
+# differ only in the exposure vocabulary. It exists because a saved-value default
+# that answered "y" whenever ANY value was saved leaves every saved-`true` pin green
+# (r94 self-review F3, battery M18): the preserve-on-rerun claim is two-sided, and a
+# pin that exercises only one side cannot see the fail-open.
+LOOPBACK_ENV = (
+    LAN_ENV.replace("EXPOSE_LAN=true", "EXPOSE_LAN=false")
+    .replace("FRONTEND_BIND_ADDRESS=0.0.0.0", "FRONTEND_BIND_ADDRESS=127.0.0.1")
+    .replace("GRAFANA_ANONYMOUS_ENABLED=false", "GRAFANA_ANONYMOUS_ENABLED=true")
+    .replace("GRAFANA_AUTH_PROXY_ENABLED=true", "GRAFANA_AUTH_PROXY_ENABLED=false")
+    .replace("GRAFANA_AUTH_PROXY_AUTO_SIGN_UP=true", "GRAFANA_AUTH_PROXY_AUTO_SIGN_UP=false")
+    .replace(
+        "ALERT_SINK_URL=http://frontend:8081/api/webhooks/alerts",
+        "ALERT_SINK_URL=http://backend:8000/api/webhooks/alerts",
+    )
+)
+
 
 def _load_setup():
     """Import the root setup.py, repo root on sys.path first (dir convention)."""
@@ -188,6 +206,59 @@ def test_enter_only_rerun_guided_keeps_lan_exposure(
     after = env_path.read_text(encoding="utf-8")
     assert _env_line(after, "EXPOSE_LAN") == "true"
     assert _env_line(after, "FRONTEND_BIND_ADDRESS") == "0.0.0.0"  # noqa: S104
+
+
+def test_enter_only_rerun_keeps_loopback_when_that_was_saved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fix 1 is bidirectional: a saved `false` must keep the install on loopback.
+
+    The tests above all save `EXPOSE_LAN=true`, so they pin only one direction of the
+    reuse — and a `saved_answer` that answered `"y"` whenever the key was merely
+    PRESENT would pass every one of them (r94 self-review F3; battery M18 makes that
+    mutant red here and nowhere else). That fail-open is the dangerous direction: the
+    saved value is `false`, Enter opens the LAN, and nothing visible says so. The
+    fail-SAFE direction (saved `true` -> Enter keeps it exposed) is what the package
+    was written for; this is the half that has to be pinned on purpose.
+    """
+    setup = _load_setup()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(LOOPBACK_ENV, encoding="utf-8")
+    _enter_only(monkeypatch)
+
+    config = setup.run_quick_mode()
+    env_path, _, _ = setup.write_config_files(config, str(tmp_path))
+
+    after = env_path.read_text(encoding="utf-8")
+    assert _env_line(after, "EXPOSE_LAN") == "false", (
+        "an Enter-only re-run opened a loopback install to the LAN: "
+        + repr(_env_line(after, "EXPOSE_LAN"))
+    )
+    assert _env_line(after, "FRONTEND_BIND_ADDRESS") == "127.0.0.1"
+    # The un-exposed derives, each written from its own line — the same vocabulary
+    # `test_first_run_keeps_todays_defaults` asserts, which is the point: a re-run of
+    # this file must land where the file already says it is.
+    assert _env_line(after, "GRAFANA_ANONYMOUS_ENABLED") == "true"
+    assert _env_line(after, "GRAFANA_AUTH_PROXY_ENABLED") == "false"
+    assert _env_line(after, "GRAFANA_AUTH_PROXY_AUTO_SIGN_UP") == "false"
+    assert _env_line(after, "ALERT_SINK_URL") == "http://backend:8000/api/webhooks/alerts"
+
+
+def test_enter_only_rerun_guided_keeps_loopback_when_that_was_saved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Guided mode carries the same fail-open, so it gets the same opposite-side pin."""
+    setup = _load_setup()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(LOOPBACK_ENV, encoding="utf-8")
+    _enter_only(monkeypatch)
+
+    config = setup.run_guided_mode()
+    env_path, _, _ = setup.write_config_files(config, str(tmp_path))
+
+    after = env_path.read_text(encoding="utf-8")
+    assert _env_line(after, "EXPOSE_LAN") == "false"
+    assert _env_line(after, "FRONTEND_BIND_ADDRESS") == "127.0.0.1"
 
 
 def test_enter_only_rerun_keeps_paths_and_ports(
