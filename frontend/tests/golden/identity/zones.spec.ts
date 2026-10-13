@@ -367,11 +367,40 @@ test.describe('DO-3 zones golden path', () => {
     // (a gate keyed on a flag set after an await can time out on a response that
     // legitimately arrived first, which is not a product failure).
     let navResolved = false;
+    // WATCHED WINDOW, measured. `timeout: 15_000` is what this leg was ASKED to
+    // watch, not what it got: the test body can die first (its own budget expires,
+    // the page closes) and the leg dies with it mid-flight. Measured in run
+    // hsi-check-20261013010810-48eedc's trace (test.trace/1-trace.trace; the clock
+    // field is `startTime`/`endTime`, and this run's own numbers are there to be
+    // re-grepped): the leg armed at startTime 435432.780, 3354.7 ms after the
+    // test's first trace entry (Before Hooks, 432078.074 -- the clock the 15 s
+    // budget runs on: After Hooks opens at 447178.405, start + 15.1 s, and the
+    // error record says "Test timeout of 15000ms exceeded"); the body died there,
+    // 11745.6 ms after this arm; and the pending matcher only REJECTED when
+    // teardown closed the context -- the warn's stderr record carries timestamp
+    // 448102.732, 12669.9 ms after the arm. So the report this leg prints, in
+    // exactly this failure shape, describes a ~12.7 s window -- yet the text it
+    // printed said "within 15 s", a duration it never observed. Same family as a
+    // cite that prints a range it did not scan. So: stamp the arm, stamp the
+    // settle, and let the printout carry the difference. The .then body is pure
+    // arithmetic on two numbers and CANNOT throw -- that matters because a .then
+    // placed in front of a .catch widens what that .catch can swallow, and a leg
+    // whose whole job is to
+    // report an absence must not have a throw turned into one.
+    const armedAt = Date.now();
+    let legMs = -1;
     const reRead = page
       .waitForResponse((r) => zoneCameraOf(r.url()) !== null && r.status() === 200, {
         timeout: 15_000,
       })
-      .catch(() => null);
+      .then((r) => {
+        legMs = Date.now() - armedAt;
+        return r;
+      })
+      .catch(() => {
+        legMs = Date.now() - armedAt;
+        return null;
+      });
 
     try {
       await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
@@ -391,9 +420,15 @@ test.describe('DO-3 zones golden path', () => {
             `when column does not promise a reload, so this gates nothing.`
         );
       } else {
+        // The window printed here is MEASURED, and it is not the configured 15 s:
+        // legMs is arm-to-settle, so when the test body dies before the matcher's
+        // own timeout expires the number is the shorter window this leg actually
+        // saw. Printing 15_000 here would re-assert the constant that was never
+        // observed -- which is precisely the defect this line used to have.
         console.warn(
-          `[F-256] no real /api/cameras/{id}/zones response within 15 s of the ` +
-            `remount (camera this spec wrote to: ${cameraId}). REPORT ONLY.`
+          `[F-256] no real /api/cameras/{id}/zones response while this remount leg ` +
+            `watched ${legMs} ms (budget 15 s; camera this spec wrote to: ${cameraId}). ` +
+            `REPORT ONLY.`
         );
       }
 
