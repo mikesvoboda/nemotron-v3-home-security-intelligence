@@ -1,6 +1,6 @@
 # Ruling map
 
-One row per owner ruling 1-146 on #6854, and one per owner record that set a rule, showing what each
+One row per owner ruling 1-148 on #6854, and one per owner record that set a rule, showing what each
 became: the [`rules.md`](../rules.md) rule (`UR-n`), `one-off` (one PR, row, fold or order, now
 history), `package <id>` (binds only while that package is open; its text is in `packages/` or
 `packages-done.md`), or `superseded by <n>`. A ruling with several parts lists each. Rulings 118 and
@@ -106,7 +106,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 91     | one-off (#6980 approved)                                                                                    |
 | 92     | one-off (F2.2 follow-up to frontend)                                                                        |
 | 93     | UR-125; package real-sleep gate (done, #6972)                                                               |
-| 94     | package `[r94]` `setup.py` re-runs and `--convert-monitoring-key` (open; `packages/backend.md`)             |
+| 94     | package `[r94]` `setup.py` re-runs and `--convert-monitoring-key` (done, #7038)                             |
 | 95     | package `[r95]` monitoring-key gaps S1, S4 (open; `packages/backend.md`)                                    |
 | 96     | item 8: package dead CI failure guards (done, #6993); item 11: package `[r96i11]` (open; `packages/ops.md`) |
 | 97     | UR-56 (F2.3 claim PR), UR-107 (never combine queued PRs); package draft-skip workflows (done, #6989)        |
@@ -159,6 +159,8 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 144    | package O2.5 (not started; `packages/ops.md`); UR-10 (contract rule 5: does not gate Phase 2's exit)        |
 | 145    | UR-94, UR-29, UR-113, UR-122; freeze lift one-off; package `[r141]` follow-up                               |
 | 146    | UR-39, UR-42, UR-155; the `rules.md` ledger itself superseded by the plan rewrite (record 6128714278)       |
+| 147    | the plan rewrite (owner design session 2026-10-12; see "Owner records")                                     |
+| 148    | packages `[r148a]`, `[r148b]`, `[r148c]`; F-278 under UR-153 one-off (record 6136930446)                    |
 
 ## Owner records
 
@@ -175,7 +177,9 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 6126535946                      | one-off (#7029 approved head); amended by 6128195816                                                                                                                                                                                       |
 | 6128195816                      | UR-106, UR-29                                                                                                                                                                                                                              |
 | 6128714278                      | PROGRAMME PAUSE record; supersedes ruling 146's ledger by this rewrite                                                                                                                                                                     |
+| 6135991251                      | UR-102 (merge without update-branch when safe)                                                                                                                                                                                             |
 | owner design session 2026-10-12 | ruling 147. Pass 1: UR-39, UR-40, UR-41, UR-106, UR-29, UR-162, UR-163; corrected lines in UR-45, UR-66, UR-10, UR-121, UR-144. Pass 2: UR-24, UR-52, UR-59, UR-63, UR-25, UR-166, UR-168, UR-98, UR-125, UR-126, UR-151; package `[r147]` |
+| 6135935339                      | UR-166 (status comment shows current state only, about 4,000 characters)                                                                                                                                                                   |
 
 ## Merged rules
 

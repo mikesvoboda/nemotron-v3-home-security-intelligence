@@ -87,7 +87,10 @@ Read rules.md §Merging first: it defines ready time, queue order, the owner tie
 and which PRs may jump the queue, and names the merge rules that sit elsewhere.
 
 1. **Pick** the oldest ready PR (UR-104, UR-106).
-2. **Update** the PR when it is behind `main`, one at a time (UR-102):
+2. **Skip the update** when UR-102's three conditions hold: its green `CI Gate` ran on a `main` at
+   most 3 merges behind the tip, `git diff --name-only <its base>..origin/main` shares no path with
+   `gh pr view <n> --json files`, and `main`'s latest CI run is not red. Go to step 3.
+   **Otherwise update** the PR, one at a time (UR-102):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
    (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | sha256sum`,
@@ -124,8 +127,9 @@ on #6854, never by replying to it.
    oldest and delete the others.
 2. **Edit it in place every tick**
    (`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -F body=@<file>`), never repost it,
-   as with your heartbeat (UR-38). Its length is what its items need (UR-166); link to PRs and
-   comments for evidence instead of quoting them.
+   as with your heartbeat (UR-38). Show current state only, in about 4,000 characters (UR-166):
+   your beat's history and corrections go in your heartbeat or on the PR they concern; link to PRs
+   and comments for evidence instead of quoting them.
 3. **Write its contents in this order** (UR-166), each item only as you read it this tick (UR-29):
    1. the live `BINDING NOW` records (UR-40), or "BINDING NOW: none live", then every open
       `URGENT PATH` item, each with its link;
