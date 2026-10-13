@@ -1024,10 +1024,14 @@ class TestEvaluateRule:
         """Test schedule condition matches when within schedule."""
         sample_rule.risk_threshold = None
         sample_rule.schedule = {"start_time": "00:00", "end_time": "23:59"}
+        # Pin the clock: _check_schedule compares at HH:MM resolution, so
+        # 23:59:01-23:59:59 UTC falls OUTSIDE an "all day" 00:00-23:59 window and
+        # this assert is red for 59 s a day no matter what shipped (2026-10-11 23:59 red).
+        current_time = datetime(2025, 1, 6, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
 
         engine = AlertRuleEngine(mock_session)
         matches, conditions, _ = await engine._evaluate_rule(
-            sample_rule, sample_event, sample_detections, datetime.now(UTC)
+            sample_rule, sample_event, sample_detections, current_time
         )
         assert matches is True
         assert "within_schedule" in conditions
@@ -1836,7 +1840,12 @@ class TestEdgeCases:
         ]
 
         engine = AlertRuleEngine(mock_session)
-        result = await engine.evaluate_event(sample_event, sample_detections)
+        # Pin the clock: this rule's "all day" 00:00-23:59 schedule would drop the
+        # within_schedule condition during 23:59:01-23:59:59 UTC, making the 5-condition
+        # count below flaky for 59 s a day (see test_no_live_clock_in_schedule_tests.py).
+        result = await engine.evaluate_event(
+            sample_event, sample_detections, datetime(2025, 1, 6, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
+        )
 
         assert len(result.triggered_rules) == 1
         assert len(result.triggered_rules[0].matched_conditions) == 5

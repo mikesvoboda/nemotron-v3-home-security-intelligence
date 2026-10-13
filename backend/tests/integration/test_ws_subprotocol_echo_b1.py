@@ -104,20 +104,57 @@ def _iswebsocket_receiver(fn: ast.Attribute) -> bool:
 
 
 def test_the_accept_sweep_finds_the_known_sites() -> None:
-    """The sweep finds the 12 production accept sites B-1 counted on
-    2026-10-09 (7 in websocket_auth, 2 in auth.py — gate refuse + route-key
-    fallback, 1 route accept, 2 broadcaster connects) — if it finds fewer,
-    the sweep itself rotted and every other test here would pass vacuously."""
+    """The sweep finds the 10 production accept sites the tree holds as
+    re-counted on 2026-10-12 (5 in websocket_auth, 2 in auth.py — gate refuse
+    + route-key fallback, 1 route accept, 2 broadcaster connects) — if it
+    finds fewer, the sweep itself rotted and every other test here would pass
+    vacuously.
+
+    B-1 counted 12 on 2026-10-09. #6950 (`49dd54a90`) deleted two of them in
+    ``websocket_auth.py`` — one in ``authenticate_websocket_cookie``, one in
+    ``verify_websocket_auth``, both ``websocket.accept(subprotocol=…)`` lines
+    removed with the cookie EXPIRY legs they belonged to (the accept-then-
+    ``close(4002)`` pair that ran when a cookie parsed but its claims were
+    expired; ruling 55 moved expiry to the Redis session TTL, so the accept
+    and the 4002 both went away). The name "JWT" was in the old wording here
+    and is wrong: ``authenticate_websocket_jwt`` keeps both of its accepts
+    (``:262``, ``:267``) at this head, untouched by that commit. So the FLOOR
+    went stale, not the sweep: the nightly's red is this arithmetic, and the
+    two deleted sites are gone on purpose. Re-count the sites here whenever
+    accept sites legitimately move. The floor's job is to notice a DELETION
+    the sweep did not mean, which is what the bound above is for — it is a
+    BOUND (``>=``), not an exact count, exactly as the retired floor was
+    (``>= 12``). The per-file floors below are the half a total cannot cover.
+
+    They replaced a bare NAME-membership loop, which looked like a per-file
+    guard but was not one: name presence is itself a total in disguise. A
+    mutation moved one accept from ``websocket_auth.py`` (5 -> 4) into
+    ``event_broadcaster.py`` (1 -> 2) and the old guard passed — total still
+    10, all five names still present. A floor set AT today's count per file
+    closes that: because every file sits exactly at its floor, taking a site
+    out of ANY listed file breaks that file's floor, so a move between two
+    listed files can no longer hide. Additions still never redden, which is
+    what the ``>=`` shape buys — a new accept belongs in this tuple only when
+    someone re-counts, and tier 2 is what forces ``subprotocol=`` on it now."""
     sites = _production_accepts()
-    assert len(sites) >= 12, f"sweep found only {len(sites)} accept sites: {sites}"
-    files = {s.split(":")[0] for s in sites}
-    for expected in (
-        "backend/api/middleware/auth.py",
-        "backend/api/middleware/websocket_auth.py",
-        "backend/services/event_broadcaster.py",
-        "backend/services/system_broadcaster.py",
-    ):
-        assert expected in files, f"sweep missed {expected}: {sorted(files)}"
+    assert len(sites) >= 10, f"sweep found only {len(sites)} accept sites: {sites}"
+    counts: dict[str, int] = {}
+    for site in sites:
+        counts[site.split(":")[0]] = counts.get(site.split(":")[0], 0) + 1
+    # Floor per file the docstring above counts, set AT today's count so a
+    # deletion in any one of them trips THIS file's floor rather than hiding
+    # inside the total. ``got`` prints the whole census so a red says which
+    # file moved, not just which floor broke.
+    floors = {
+        "backend/api/middleware/auth.py": 2,
+        "backend/api/middleware/websocket_auth.py": 5,
+        "backend/api/routes/websocket.py": 1,
+        "backend/services/event_broadcaster.py": 1,
+        "backend/services/system_broadcaster.py": 1,
+    }
+    for expected, floor in floors.items():
+        got = counts.get(expected, 0)
+        assert got >= floor, f"{expected} has {got} accept site(s), floor {floor}: {counts}"
 
 
 def test_every_production_accept_passes_subprotocol() -> None:

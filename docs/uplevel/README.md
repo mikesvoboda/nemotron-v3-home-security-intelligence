@@ -185,7 +185,7 @@ UR-147.
 | O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | awaiting real tier | #7002 |
 | O2.5    | ops                     | 2          | Production-shape real tier                     |               | not started |     |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
-| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | not started |     |
+| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | in progress | #7030 |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | not started |     |
