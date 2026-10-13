@@ -36,6 +36,7 @@ PR's own body.
 from __future__ import annotations
 
 import argparse
+import ast
 import pathlib
 import re
 import subprocess
@@ -264,7 +265,12 @@ def main() -> int:
                     continue
                 target.write_text(pristine.replace(old, new), encoding="utf-8")
                 try:
-                    compile(target.read_text(encoding="utf-8"), "mutant.py", "exec")
+                    # ast.parse, not compile(): this is a SYNTAX pre-check only, and
+                    # the point is that the mutant is never run by this process —
+                    # pytest runs it. compile() would build a code object for no
+                    # reason and read (to semgrep's rule, correctly) as dynamic
+                    # execution of a file this script just rewrote.
+                    ast.parse(target.read_text(encoding="utf-8"), filename="mutant.py")
                 except SyntaxError as error:
                     print(f"  SYNTAX   | {description}: {error}")
                     failures += 1
