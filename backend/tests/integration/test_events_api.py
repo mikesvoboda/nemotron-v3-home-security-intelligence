@@ -372,6 +372,67 @@ class TestListEvents:
                 )
                 assert current >= next_event
 
+    async def test_list_events_returns_a_saved_note(self, async_client, sample_event):
+        """F-057 read-back: a note saved by the product's own PATCH comes back
+        from ``GET /api/events``, in both the full and the sparse projection.
+
+        No schema test can catch this one. ``list_events`` hand-builds each
+        response dict, and ``EventResponse`` declares ``notes`` with a ``None``
+        default and no ``exclude_if``, so revalidation *fills* a key the route
+        never wrote: the row reports ``notes: null`` for text the database
+        holds. The contract is satisfied either way, so the only question that
+        distinguishes the two states is whether the stored value returns.
+        """
+        notes_text = "F-057 read-back: saved via PATCH, must return in the list"
+        save = await async_client.patch(
+            f"/api/events/{sample_event.id}", json={"notes": notes_text}
+        )
+        assert save.status_code == 200, "the save leg is green today"
+        assert save.json()["notes"] == notes_text
+        detail = await async_client.get(f"/api/events/{sample_event.id}")
+        assert detail.json()["notes"] == notes_text, "the single-row reader already works"
+
+        listing = await async_client.get("/api/events")
+        assert listing.status_code == 200
+        rows = {row["id"]: row for row in listing.json()["items"]}
+        assert sample_event.id in rows, "the fixture row must be in the default page"
+        assert rows[sample_event.id]["notes"] == notes_text, (
+            "the key is always present; the VALUE is the defect "
+            f"(got {rows[sample_event.id]['notes']!r})"
+        )
+
+        # The sparse projection has to carry it too. Requested WITH the three
+        # required fields, because a subset that omits one 500s at base for a
+        # reason unrelated to notes (measured on unmodified origin/main:
+        # ?fields=id -> 500, ?fields=id,camera_id,started_at -> 200; the row
+        # dict is re-validated against EventResponse, whose camera_id and
+        # started_at are required). Before this PR the same request 400s:
+        # validate_fields rejects any field the allowlist omits.
+        sparse = await async_client.get("/api/events?fields=id,camera_id,started_at,notes")
+        assert sparse.status_code == 200, "notes was not a selectable list field"
+        sparse_rows = {row["id"]: row for row in sparse.json()["items"]}
+        assert sparse_rows[sample_event.id]["notes"] == notes_text
+        # A field NOT asked for comes back as a null-valued key, not an absent
+        # one: filter_fields drops the key, then EventListResponse revalidation
+        # re-adds it from the schema default. So sparse fieldsets trim VALUES,
+        # never KEYS -- which is the same revalidation-fills-the-default
+        # mechanism this PR fixes for `notes`. Measured, not assumed: the whole
+        # row's keys at this request were every EventResponse field. Fixing
+        # that is out of scope here (it would change every list consumer's
+        # payload shape); pinned so a later change to it is a deliberate act.
+        assert "summary" in sparse_rows[sample_event.id], (
+            "sparse trimming is by value, not by key -- if this flips, every "
+            "list consumer's payload shape changed and the pin must be updated "
+            "on purpose, not by accident"
+        )
+        assert sparse_rows[sample_event.id]["summary"] is None
+        # The two exclude_if-guarded fields DO vanish, which is what makes the
+        # contrast real: a key the route never writes disappears only if the
+        # schema guards it. notes has no guard, so "route forgot to write it"
+        # and "the value really is null" produced the same payload forever.
+        assert "verification" not in sparse_rows[sample_event.id]
+        assert "notify" not in sparse_rows[sample_event.id]
+
 
 class TestGetEvent:
     """Tests for GET /api/events/{event_id} endpoint."""

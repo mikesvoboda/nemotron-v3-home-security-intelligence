@@ -150,6 +150,7 @@ VALID_EVENT_LIST_FIELDS = frozenset(
         "summary",
         "reasoning",
         "reviewed",
+        "notes",
         "detection_count",
         "thumbnail_url",
         # P0.4 (spec §4): the verification object is selectable like any other
@@ -301,7 +302,7 @@ async def list_events(
         None,
         description="Comma-separated list of fields to include in response (sparse fieldsets). "
         "Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, "
-        "reasoning, reviewed, detection_count, detection_ids, thumbnail_url, verification",
+        "reasoning, reviewed, notes, detection_count, detection_ids, thumbnail_url, verification",
     ),
     include_deleted: bool = Query(
         False,
@@ -507,6 +508,16 @@ async def list_events(
             "summary": event.summary,
             "reasoning": event.reasoning,
             "reviewed": event.reviewed,
+            # F-057: this key must be WRITTEN, not merely declared. The dict is
+            # re-validated against EventResponse, whose `notes` defaults to None
+            # with no exclude_if, so omitting it here reports notes: null for
+            # text the database holds -- a contract test cannot tell the two
+            # states apart. The note's only other reader is GET /events/{id},
+            # which the running UI never calls (inventory row F-057,
+            # docs/reference/feature-inventory.md:191). Not deferred in
+            # models/event.py:78, so this read stays eager (contrast the
+            # reasoning/llm_prompt reads above, which need undefer at :405).
+            "notes": event.notes,
             "detection_count": detection_count,
             "detection_ids": parsed_detection_ids,
             "thumbnail_url": thumbnail_url,

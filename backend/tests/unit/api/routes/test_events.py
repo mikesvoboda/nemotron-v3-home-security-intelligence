@@ -233,6 +233,10 @@ class TestConstantsAndValidation:
             "summary",
             "reasoning",
             "reviewed",
+            # F-057: the note is selectable like any other list field. It was
+            # absent from both the allowlist and the hand-built row dict, so
+            # ?fields=notes 400'd and the full projection reported null.
+            "notes",
             "detection_count",
             "thumbnail_url",
             # P0.4 (spec §4): the verification object is selectable like any
