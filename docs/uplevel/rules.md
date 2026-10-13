@@ -570,10 +570,12 @@ Read this section before you post any comment, review, heartbeat, status comment
   rows owed; stalled agents and heartbeats older than 20 minutes; packages ready but unclaimed
   (UR-63), idle lanes (UR-64) and parked claims (UR-67); and one closing line of counts: open
   programme PRs, and PRs merged since the newest owner ruling pointer or owner record on #6854,
-  auto-merged ones included. Merges stay a count and claims in flight are not listed. The comment
-  is edited in place, so UR-155's length does not bind it. An answered question leaves the
-  comment; its answer lives in the ruling's PR. (rulings 17, 19, 43, 54, 81; owner design session
-  2026-10-12, pass 2 Q8 and the final-verify follow-up)
+  auto-merged ones included. Merges stay a count and claims in flight are not listed. It shows
+  current state only, in about 4,000 characters: no beat history, summaries, method notes,
+  retractions or corrections, which go in the coordinator's heartbeat or on the PR they concern;
+  each owner question gives its facts, lettered options and recommendation, with evidence as a link.
+  An answered question leaves the comment; its answer lives in the ruling's PR. (rulings 17, 19, 43,
+  54, 81; owner design session 2026-10-12, pass 2 Q8; owner record 6135935339)
 - **UR-168** The urgent path stays on GitHub: a plain comment on #6854 whose first line starts
   `URGENT PATH`, with no label and no @-mention (agents post with the owner's own token, so neither
   would notify the owner). There is no push channel and no second account; the owner's design
