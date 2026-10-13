@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -61,8 +62,10 @@ def make_tree(tmp_path: Path) -> Path:
 
 class TestRealTree:
     def test_the_shipped_corpus_passes(self) -> None:
-        """The gate every CI shard runs: rules.md's cites resolve and their homes carry
-        the claim, at the head under test. Green here is what #7054 rounds 1-3 earned."""
+        """The gate's green arm: rules.md's cites resolve and their homes carry the claim,
+        at the head under test. Green here is what #7054 rounds 1-3 earned. (On docs-only
+        PRs the unit shards skip — see test_ci_runs_the_gate_on_docs_only_diffs for the
+        step that actually runs this file there.)"""
         result = run_gate(REPO_ROOT)
         assert result.returncode == 0, result.stdout + result.stderr
         assert "ALL ULEVEL CITES RESOLVE AND ENTAIL" in result.stdout
@@ -99,12 +102,49 @@ class TestRealTree:
         assert set(found) == {"live sections", "claims", "snapshot sections"}, found
         assert all(int(n) > 0 for n in found.values()), f"resolver located 0 of a kind: {found}"
 
-    def test_gate_is_collected_by_ci(self) -> None:
-        """The green arm only gates if CI runs this file. ci.yml shards backend/tests/unit/,
-        which collects it; if that shard step is removed the pin must say so in the one
-        place a reader of ci.yml cannot miss (this test itself then stops running)."""
-        ci = (REPO_ROOT / ".github/workflows/ci.yml").read_text()
-        assert "pytest backend/tests/unit/ \\" in ci
+    @pytest.mark.timeout(10)
+    def test_ci_runs_the_gate_on_docs_only_diffs(self) -> None:
+        """Self-review #7064 (reviewer finding #1): the old pin grepped ci.yml for
+        "pytest backend/tests/unit/ \\" — TRUE even in runs where that step never
+        executes, because the shard job is gated on backend/should-run-all and a docs-only
+        PR makes both false (measured at #7054's be801744d: shards skipped, "Backend Unit
+        Tests" success). A grep-true-but-never-executed pin is the vacuous-green class.
+        Parse the real workflow instead: this file's path must be a literal argv token of
+        a step in the unfiltered collection-sanity job — the tier that DOES run on docs
+        diffs, which is exactly the corpus this gate reads."""
+        import yaml  # local: the pin's authority IS the parse, not a fallback grep
+
+        ci = yaml.safe_load((REPO_ROOT / ".github/workflows/ci.yml").read_text())
+        step = next(
+            s
+            for s in ci["jobs"]["collection-sanity"]["steps"]
+            if "anti-rot gates" in (s.get("name") or "")
+        )
+        rel = "backend/tests/unit/scripts/test_check_uplevel_cites.py"
+        assert rel in shlex.split(step["run"]), f"{rel} absent from the step argv"
+        # the step must survive the tier's own skip paths: any real path filter here
+        # would make the join vacuous again
+        assert "paths" not in ci["jobs"]["collection-sanity"]
+        # and no condition on the STEP itself — the vacuous-green class recurses:
+        # the join line survives while a re-added backend/detect-changes `if:` makes
+        # the step skip on exactly the docs-only diffs it exists for (measured on
+        # this file as a mutation plant: rc=1 with the message below)
+        assert "if" not in step, f"the join step grew a skip condition: {step['if']!r}"
+
+    @pytest.mark.timeout(10)
+    def test_collection_step_fires_despite_the_backend_path_gates(self) -> None:
+        """The negative half: prove WHERE the vacuous green was. The unit shard's if-clause
+        must stay gated on backend/should-run-all (a docs-only PR skips it — the #7054
+        shape), while collection-sanity's if-clause must stay draft-only. Asserting BOTH
+        sides keeps this test from going vacuous if someone un-gates the shards: it would
+        then fail here and force a deliberate re-read of what the join is for."""
+        import yaml
+
+        ci = yaml.safe_load((REPO_ROOT / ".github/workflows/ci.yml").read_text())
+        shard_if = ci["jobs"]["unit-tests"]["if"]
+        assert "backend" in shard_if and "should-run-all" in shard_if
+        sanity_if = ci["jobs"]["collection-sanity"]["if"]
+        assert "draft" in sanity_if and "backend" not in sanity_if
 
 
 class TestFixtureRegister:
