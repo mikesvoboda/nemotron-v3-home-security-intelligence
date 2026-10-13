@@ -1,6 +1,6 @@
 /**
  * F2.3 DO-3 golden path — the zones surface. Inventory rows
- * docs/reference/feature-inventory.md:462 (F-256) and :464 (F-258).
+ * docs/reference/feature-inventory.md rows F-256 and F-258 (ids, not line numbers: a table coordinate drifts under merges).
  * Route: /zones (`path="/zones"` frontend/src/App.tsx:312).
  *
  * What the rows promise, verbatim, and what this file does about it:
