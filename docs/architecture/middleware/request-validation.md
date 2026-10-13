@@ -307,11 +307,12 @@ def validate_date_range(
 The field filter utilities (`backend/api/utils/field_filter.py`) validate sparse fieldsets:
 
 ```python
-# Example usage from backend/api/routes/events.py:89-106
+# Example usage from backend/api/routes/events.py:142-163
 VALID_EVENT_LIST_FIELDS = frozenset({
     "id", "camera_id", "started_at", "ended_at",
     "risk_score", "risk_level", "summary", "reasoning",
-    "reviewed", "detection_count", "thumbnail_url",
+    "reviewed", "notes", "detection_count", "thumbnail_url",
+    "verification", "notify",
 })
 
 @router.get("/events")

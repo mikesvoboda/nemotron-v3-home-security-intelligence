@@ -23,7 +23,7 @@ GET /api/events
 
 List security events with optional filtering and pagination.
 
-**Source:** `backend/api/routes/events.py:224-468`
+**Source:** `backend/api/routes/events.py:225-469`
 
 #### Query Parameters
 
@@ -103,7 +103,7 @@ GET /api/events/stats
 
 Get aggregated event statistics including risk distribution and per-camera counts.
 
-**Source:** `backend/api/routes/events.py:471-603`
+**Source:** `backend/api/routes/events.py:472-616`
 
 #### Query Parameters
 
@@ -157,7 +157,7 @@ GET /api/events/timeline-summary
 
 Get bucketed event data for timeline visualization. Supports different zoom levels with varying bucket sizes.
 
-**Source:** `backend/api/routes/events.py:621-779`
+**Source:** `backend/api/routes/events.py:634-792`
 
 #### Query Parameters
 
@@ -202,7 +202,7 @@ GET /api/events/search
 
 Full-text search across events using PostgreSQL text search.
 
-**Source:** `backend/api/routes/events.py:782-892`
+**Source:** `backend/api/routes/events.py:795-905`
 
 #### Query Parameters
 
@@ -230,7 +230,7 @@ GET /api/events/export
 
 Export events as CSV or Excel file.
 
-**Source:** `backend/api/routes/events.py:895-999`
+**Source:** `backend/api/routes/events.py:908-1012`
 
 #### Query Parameters
 
