@@ -1742,9 +1742,18 @@ tpa_slow_list:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason:
-      6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots
-      a real child pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked,
-      20s child wall) (2026-10-11)
+      6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots a real child
+      pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked, 20s child wall) (2026-10-11)
+  - id: test_compose_render_lists_ai_vlm.*test_default_services_render_lists_ai_vlm
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason:
+      '4.93s + isolated re-run 8.12s on PR 7083 head 961ddc956 (job 115516785427) vs ABSENT from main WARN list
+      (job 115580950780, under 1.5s) — spawns a real compose binary; the CLI boot IS the Done-when, not a sleep. Moving
+      it to the integration tier would UNEXECUTE it: all 3 integration jobs pass -k allowlists. No slow marker added
+      (conftest.py:486 gives 30s, its own timeout(120) outranks it) (2026-10-13)'
   - id: test_enrichment_pipeline_household_matching.*test_vehicle_household_matching_via_license_plate
     kind: todo
     owner: mikesvoboda
