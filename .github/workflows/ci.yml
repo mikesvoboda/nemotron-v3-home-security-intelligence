@@ -274,6 +274,7 @@ jobs:
           scripts/test_check_pip_audit_exemptions.py
           scripts/test_agents_md_validator.py
           scripts/test_validate_docs_symbol_context.py
+          scripts/test_pipeline_vs_independent_arm.py
           scripts/test_retired_paths.py
           scripts/test_check_coe_reasons.py
           scripts/test_workflow_paths.py
@@ -286,7 +287,6 @@ jobs:
           scripts/test_shard_durations.py
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py
-          --durations=20
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
@@ -3070,6 +3070,15 @@ jobs:
           SLEEP_GATE_INTEGRATION_BUDGET: '10.0'
           SLEEP_GATE_E2E_BUDGET: '10.0'
           SLEEP_GATE_WARN_BUDGET: '1.5'
+          # UR-125 as amended: a unit-tier breach re-runs once before it can
+          # redden the run. The script ships this OFF, because a junit corpus
+          # describes the machine that wrote it and replaying one on a laptop
+          # compares two boxes — it could clear a genuine breach. This job is
+          # the one place the checkout IS the tree that produced these XMLs
+          # (same commit, same runner class, same job), which is what the
+          # ruling's "re-runs only that test, once, in the same job" means. The
+          # key needs the dev extra, which the uv sync above already installs.
+          SLEEP_GATE_RERUN: '1'
 
       - name: Create Linear issue on failure
         # WP0.5: the job now gates PRs too — a PR failure is a red check the
@@ -3691,6 +3700,69 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  # DOCS-NJT: the negative-tooling-claim gate as ITS OWN job, per the hot-file
+  # rule UR-121 (rules.md, cited by rule id, never by line: that file renumbers
+  # with every ruling, so a line cite drifts while still looking plausible. A
+  # new check on ci.yml is its own job or its own workflow file, never an edit
+  # to a shared one).
+  # It ran here as a path appended to collection-sanity's battery line; that was
+  # the shape the rule forbids. It was also the only entry that did not have its
+  # own line, and that doubling lived in THIS branch, not in main: at `da350bd4c`
+  # the battery is 38 argv / 32 `.py` paths with `test_r2_python_dead_list.py
+  # scripts/test_negative_tooling_claims.py` sharing one line. Everywhere else a
+  # per-line count finds exactly one path per line — measured 31 at `4a83b61a1`
+  # and `9bc51ece0`, 32 at `2079e4a21` (MAIN's own addition), 31 at this head
+  # (mine moved out to the job below). A bare "at origin/main" version of this
+  # sentence went stale in review, so each figure names the SHA it was read at.
+  # If you re-verify a per-line count, use a DIGIT-INCLUSIVE class: `[a-z_]`
+  # skips `test_r2_python_dead_list.py` and manufactures a contradiction that is
+  # your regex, not the file. (Cited by structure, not by line range: a `ci.yml:N`
+  # cite drifts the moment anyone inserts a line above it — and so does any count
+  # quoted against a ref-name.)
+  # Why the JOB lives here, not in its own workflow file: `needs:` is file-local,
+  # so ci-gate can only need a job declared in this file, and branch protection
+  # requires exactly one context, `CI Gate (Required Checks)` (read live from
+  # /branches/main/protection). A second workflow file would have to make its OWN
+  # check name required to gate anything — which is the shape WP1.2 removed. Note
+  # this is about the job's DECLARATION site, not its body: six jobs here already
+  # delegate their work to a reusable file with job-level
+  # `uses: ./.github/workflows/x.yml` and are still gated — the four security-*
+  # (gitleaks/sast/trivy/dependency-audit) are DIRECT ci-gate needs, the two
+  # integration-shard callers reach it transitively through
+  # integration-coverage-merge / integration-tests-summary. Gating follows the
+  # need+result-read edge, not the file the body sits in. This suite needs no
+  # reuse, so it takes the plain job here, where a direct need is one line.
+  # Placed last in the job block but BEFORE ci-gate, which stays the file's
+  # final job. Deliberately no `ci.yml:N` cite anywhere in this block: this
+  # package's own gate class is stale line numbers, and a comment citing its own
+  # line number is the one cite GUARANTEED to drift — any insert above it moves
+  # it. Cite the job name (`docs-negative-claims`), which cannot drift. The
+  # cite-neutrality argument lives in the PR instead (measured there: no document
+  # cites a ci.yml line above 3676 at origin/main, so a job placed here re-anchors
+  # nothing).
+  # The step mirrors collection-sanity's battery INVOCATION (same `uv run python
+  # -m pytest … -q` shape, same project env) — because this suite's
+  # @pytest.mark.timeout needs the project's pytest-timeout, and because this
+  # is the recipe that actually runs, not one I guessed. It does NOT mirror the
+  # timeout. `uv run` syncs the project env on first use and setup-uv caches
+  # nothing unless `enable-cache: true` is passed (neither job passes it), so the
+  # job's floor is that sync, not the suite's measured 3.4 s — and 5 was the
+  # repo's cheap-job timeout, chosen for a job whose whole cost is one suite.
+  # collection-sanity gets 15 for the same sync plus 31 suites; 10 is sync plus
+  # one with room for a slow runner.
+  docs-negative-claims:
+    name: Negative Tooling Claims in Docs (DOCS-NJT)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Every "no CI runs X" in docs/ must be true
+        run: >-
+          uv run python -m pytest scripts/test_negative_tooling_claims.py
+          -q
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -3786,6 +3858,12 @@ jobs:
       # scripts/test_check_gate_reachability.py pins; the next edge is a
       # review, not a silent edit.
       - feature-check
+      # DOCS-NJT: docs' negative-tooling-claim gate. Own job per the hot-file
+      # rule UR-121 (rules.md, cited by rule id, never by line: that file
+      # renumbers with every ruling) — direct need + check_job below, the only
+      # wiring scripts/test_ci_job_graph.py's WP0.6 invariant accepts for a
+      # red-able job.
+      - docs-negative-claims
     if: always()
     steps:
       - name: Check required job results
@@ -3842,6 +3920,9 @@ jobs:
           check_job "Frontend Coverage Floors" "${{ needs.frontend-coverage-merge.result }}"
           # Ruling 105: the golden paths' verdict, first time inside the gate.
           check_job "Feature Check (Fake AI)" "${{ needs.feature-check.result }}"
+          # DOCS-NJT: a docs claim that no CI runs a tool is a claim this gate
+          # now disproves on every PR. Own need + own line (WP0.6 wiring).
+          check_job "Negative Tooling Claims in Docs (DOCS-NJT)" "${{ needs.docs-negative-claims.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 

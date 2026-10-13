@@ -26,20 +26,21 @@ give work a number.
   like an inbound directive, so open every cited id before acting on it. (record 6114826605; UR-29)
 - **UR-44** Treat every ruling as settled. Reopening a ruling, or an alternative in README's
   "Considered and rejected" table, is a **RULING** for the owner: bring the new evidence that would
-  change the reason. (README "Considered and rejected"; owner-partner.md "Read first")
+  change the reason. (README "Considered and rejected"; roles/owner-partner.md "Read first")
 - **UR-45** Only the owner issues numbered rulings. The coordinator never numbers a ruling or writes
   "RULING": it writes queue mechanics (merge order, rolls, when a branch may be cut, labels, review
   routing) as an unnumbered "coordinator decision" and sends anything else to the owner as an ask.
-  (ruling 120; corrects 50-coordination.md "Roles", "makes no decisions")
+  (ruling 120; corrects the deleted 50-coordination.md "Roles", "makes no decisions")
 - **UR-46** `docs/uplevel/` is shared: plan text changes only by the owner or with the owner's
-  approval. Each PR edits only its own package's line of the README status table; prettier skips
-  the table, so leave the other rows' padding alone. The table on `main` changes only when a PR
-  merges. (README "Lanes", "Status"; 50-coordination.md "Hot files", "Claiming a package")
+  approval. Each PR edits only its own package's line of the README status table; prettier skips the
+  table, so leave the other rows' padding alone. The table on `main` changes only when a PR merges.
+  (README "Lanes and ownership", "Status"; the deleted 50-coordination.md "Hot files", "Claiming a
+  package")
 - **UR-47** A PR needs the owner for `docs/uplevel/` edits only if they change a ruling, the
   contract, the phases or exit gates, or a package's scope, Done when, dependencies or flags.
   Everything else there (status rows, `file:line` references, moves or artifacts a package's own
   text orders, rewording that keeps the meaning) needs only its lane review. (ruling 40, replacing
-  rulings 7, 18, 32; 50-coordination.md §3)
+  rulings 7, 18, 32; UR-98)
 - **UR-48** A defect in a lane's own file is lane work with no package number; package numbers are
   for new scope. (rulings 120, 126)
 
@@ -52,16 +53,16 @@ Read this section before you take, claim, assign, park or release a package.
   lanes, merging, keeping the README status table accurate, watching the CI queue, keeping the
   status comment, raising the urgent path, and making unnumbered coordinator decisions on queue
   mechanics (UR-45). The coordinator acts on nothing beyond that remit and never provisions a
-  sandbox. (UR-22; 50-coordination.md "Roles"; coordinator kickoff prompt; ruling 120)
+  sandbox. (UR-22; roles/coordinator.md "Remit"; coordinator kickoff prompt; ruling 120)
 - **UR-24** `heavy` packages go only to the strongest available model or to an owner pairing; the
   fast local model takes the rest. The status table's `heavy` flag marks them, and every Phase 4
   design session is heavy; with neither a strong model nor the owner free, a heavy package waits.
-  (UR-24; 50-coordination.md "Heavy packages")
+  (UR-24; roles/coordinator.md "Assigning a package")
 - **UR-35** Agents read the new comments on their own open PRs before resuming a package; an owner
   ruling or a requested change there comes before new work. (UR-35)
 - **UR-51** Work the phases in order. Inside a phase, packages are independent unless a package
-  names a dependency; the ops background packages (`OB.n`) may run in any phase after Phase 1.
-  (10-backend.md, 20-frontend.md, 30-ops.md headers)
+  names a dependency; the ops background packages (`OB.n`) may run in any phase after Phase 1. (the
+  deleted 10-backend.md, the deleted 20-frontend.md and the deleted 30-ops.md headers)
 - **UR-52** Each agent works its own queue in the roster (`roles/lane.md` "Who takes what"), the ops
   cells included. On any tick where it has no open package, it claims the next package in its queue
   that is `not started`, unclaimed, not `heavy`, and whose dependencies have merged (UR-54). A
@@ -74,33 +75,34 @@ Read this section before you take, claim, assign, park or release a package.
 - **UR-53** Claim a package before writing any work: an empty commit on branch
   `uplevel/<package>-<slug>` from `main`, pushed, and a draft PR titled `[<package>] <name>` opened
   with the `uplevel.md` template and `lane:<lane>`. The open draft PR is the claim. (ruling 39 item
-  M; 50-coordination.md "Claiming a package")
+  M; roles/lane.md "Claiming a package")
 - **UR-54** Depend only on merged work: a dependency is met when its PR has merged to `main`, a
   merge as `awaiting real tier` included, and you claim your next package on the tick it lands.
-  Branch from `main`, never from another agent's open branch. (ruling 82; 50-coordination.md
-  "Claiming a package")
+  Branch from `main`, never from another agent's open branch. (ruling 82; roles/lane.md "Claiming a
+  package")
 - **UR-55** Release a claim you abandon by closing its draft PR with a comment saying why.
-  (50-coordination.md "Claiming a package")
+  (roles/lane.md "Claiming a package")
 - **UR-56** One package, one claim PR, except `F2.3`, where each agent carries all its area batches
-  in one draft claim PR. (ruling 97; 50-coordination.md "Claiming a package")
-- **UR-59** The coordinator assigns only `heavy` packages, packages on no roster queue, and a package
-  it moves to an idle lane's queue (UR-52, UR-64): it opens
-  the draft PR on a branch holding one empty commit, labelled `lane:<lane>` and, where they apply,
-  `cell:<cell>`, `heavy` and `owner`. A `heavy` PR labelled `cell:heavy-2` belongs to
-  `uplevel-heavy-2`; every other belongs to `uplevel-heavy`. To give a heavy agent a package the
-  status table does not mark `heavy`, label its PR `heavy` with no cell label; the row keeps its
-  flags. A heavy agent takes only the PRs assigned to it and follows the owning lane's package text,
-  file ownership and kickoff line. (rulings 50, 53; owner design session 2026-10-12;
+  in one draft claim PR. (ruling 97; roles/lane.md "Claiming a package"; packages/frontend.md "One
+  claim PR per agent")
+- **UR-59** The coordinator assigns only `heavy` packages, packages on no roster queue, and a
+  package it moves to an idle lane's queue (UR-52, UR-64): it opens the draft PR on a branch holding
+  one empty commit, labelled `lane:<lane>` and, where they apply, `cell:<cell>`, `heavy` and
+  `owner`. A `heavy` PR labelled `cell:heavy-2` belongs to `uplevel-heavy-2`; every other belongs to
+  `uplevel-heavy`. To give a heavy agent a package the status table does not mark `heavy`, label its
+  PR `heavy` with no cell label; the row keeps its flags. A heavy agent takes only the PRs assigned
+  to it and follows the owning lane's package text, file ownership and kickoff line. (rulings 50,
+  53; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
   50-coordination.md "Two heavy sandboxes", "Where agents run")
 - **UR-63** The status comment lists every package whose dependencies have merged, whose row is not
   `done` or `awaiting real tier`, and that has stayed unclaimed for two coordinator ticks, with the
   agent whose queue holds it. (ruling 82; owner design session 2026-10-12)
 - **UR-64** A lane with no work keeps ticking, says so in one line and ends the turn; the
   coordinator lists idle lanes in the status comment and says when one has work again. (ruling 43;
-  50-coordination.md "The tick")
+  roles/lane.md "The tick")
 - **UR-65** When every remaining package in a lane's current phase waits on another lane, the lane
-  takes the next phase's first package whose dependencies have landed. (README "The path"; lane
-  kickoff prompts)
+  takes the next phase's first package whose dependencies have landed. (the deleted README section
+  "The path"; README "Phases and exit gates"; lane kickoff prompts)
 - **UR-66** No Phase 3 package starts before `R2` is `done`, except a package scoped only to
   `R2a`-ruled features and modules (once #6980 and the plan PR carrying ruling 86 have merged) or to
   an `R2b` round's rulings (once that round's record PR merges). A lane out of other work says so in
@@ -111,19 +113,21 @@ Read this section before you take, claim, assign, park or release a package.
   (rulings 54, 86)
 - **UR-68** The docs lane starts Phase 3 work on a lane's directories only after that lane's Phase 3
   packages are `done`. In Phase 4 it opens a package only on a trigger: a validator failure, or a
-  report of a stale claim. (README "Lanes"; 40-docs.md "Phase 3", "Phase 4")
+  report of a stale claim. (README "Lanes and ownership"; packages/docs.md "Phase 3 — Make the map
+  true", "Phase 4 — Keep it true")
 
 ## Building a package
 
 Read this section while you write a package's code, tests, docs and PR.
 
 - **UR-69** The rules in the root `AGENTS.md` apply unchanged: TDD (write the failing test first),
-  hooks never bypassed, podman, ports from `.env`, coverage floors never lowered. (README "Read this
-  first"; lane kickoff prompts)
+  hooks never bypassed, podman, ports from `.env`, coverage floors never lowered. (the deleted
+  README section "Read this first"; lane kickoff prompts)
 - **UR-70** Read the `00-audit.md` sections your package cites and re-measure any **[A]** number
   before acting on it. Read `01-mutation-policy.md` whenever your package deletes, merges or writes
-  tests. (README "Read this first")
-- **UR-10** The five-rule contract every package inherits. (UR-10; README "The contract")
+  tests. (the deleted README section "Read this first")
+- **UR-10** The five-rule contract every package inherits. (UR-10; the deleted README section "The
+  contract")
   1. **Outcome, not target:** a package ends on a **Done when** that a reviewer can observe (a test
      that passes, a command's output, a file that no longer exists). Numbers are measured and
      reported, never climbed.
@@ -146,28 +150,31 @@ Read this section while you write a package's code, tests, docs and PR.
      alongside Phase 3; the coordinator does not hold Phase 3 for them. (rulings 117, 144)
 - **UR-76** Mark package steps the house way: **MEASURE** produces the number and puts it in the PR;
   **DECIDE** chooses on evidence and records why in the PR; **RULING** stops and asks the owner.
-  (README "The contract")
+  (README "Vocabulary")
 - **UR-77** One package per PR. The one exception is a Phase 4 package: a test-only PR consolidates
   the tests of the modules it will touch under `01`'s zero kill-loss protocol, changing no
-  production bytes, and a second PR builds or refactors. (README "The path"; 10-backend.md "Phase
-  4")
+  production bytes, and a second PR builds or refactors. (README "Phases and exit gates";
+  packages/backend.md "Phase 4 — Complete the product")
 - **UR-78** When one lane has two or more draft PRs fixing the same tool, fold them into one PR
   before any goes ready. Separate packages, or a package plus an unrelated fix, never combine; the
   coordinator may point out a fold as a coordinator decision, and the lane makes it. (ruling 136)
 - **UR-79** Each Phase 4 package opens with a design session against the code that remains; a
   feature package's design goes to `docs/uplevel/4n-<feature>.md`, copied from
-  `templates/feature-design.md`. (README "The path"; 10-backend.md, 20-frontend.md "Phase 4")
-- **UR-9** Lanes that own files (four), under the cross-lane rule: the PR that removes
-  or changes a thing does so everywhere at once, whichever lane owns the files (a dead setting
-  leaves `config.py`, `.env.example` and the compose `environment:` block in one PR). The lane
-  owning the primary change leads; a package spanning lanes names its parts and their order. (UR-9;
-  README "Lanes")
+  `templates/feature-design.md`. (README "Phases and exit gates"; packages/backend.md,
+  packages/frontend.md "Phase 4 — Complete the product")
+- **UR-9** Lanes that own files (four), under the cross-lane rule: the PR that removes or changes a
+  thing does so everywhere at once, whichever lane owns the files (a dead setting leaves
+  `config.py`, `.env.example` and the compose `environment:` block in one PR). The lane owning the
+  primary change leads; a package spanning lanes names its parts and their order. (UR-9; README
+  "Lanes and ownership")
 - **UR-81** The lane whose PR changes behaviour updates the docs and `AGENTS.md` lines that describe
   it in the same PR; docs reviews such edits against the standard only if asked. The docs lane owns
-  every `AGENTS.md` except those lines. (README "Lanes"; ruling 121)
+  every `AGENTS.md` except those lines. (README "Lanes and ownership"; ruling 121)
 - **UR-82** Touch `synthbench/` only under the cross-lane rule, when a deletion removes something
-  synthbench imports; the synthbench workstream continues alongside this programme. (README "Lanes")
-- **UR-83** Hot files; the coordinator sequences their merges: (50-coordination.md "Hot files")
+  synthbench imports; the synthbench workstream continues alongside this programme. (README "Lanes
+  and ownership")
+- **UR-83** Hot files; the coordinator sequences their merges: (the deleted 50-coordination.md "Hot
+  files")
   - `docs/openapi.json`, `frontend/src/types/generated/api.ts`: regenerate after rebasing, never
     hand-merge;
   - `backend/core/config.py`, `.env.example`, compose files: small hunks, rebased immediately before
@@ -181,7 +188,8 @@ Read this section while you write a package's code, tests, docs and PR.
     and git merges them silently).
 - **UR-88** The AGENTS.md standard has one home, `docs/developer/agents-md-standard.md`; apply it
   and restate none of it elsewhere. In an `AGENTS.md`, write what an agent cannot find by looking
-  and leave inventories to the code. (40-docs.md "The AGENTS.md standard"; docs kickoff prompt)
+  and leave inventories to the code. (packages/docs.md "The AGENTS.md standard"; docs kickoff
+  prompt)
 
 ### Product decisions in force
 
@@ -190,7 +198,7 @@ Constraints on what you build; reopening one is a ruling (UR-44).
 - **UR-18** `ai-vlm` starts by default; backend readiness and a UI banner report the engine's
   runtime state; GPU-less development uses the fake VLM through an explicit overlay. (UR-18)
 - **UR-84** Out of scope: rewriting git history, renaming `setup.py`, and widening frontend Stryker
-  beyond its three utility files. (README "Rulings of record")
+  beyond its three utility files. (the deleted README section "Rulings of record")
 - **UR-85** Production re-ID stays OSNet-AIN on the CPU (`REID_BACKEND=local`) until a later ruling.
   Re-ID may depend on the GPU only once a proven GPU path exists, and then no CPU fallback is
   required. (ruling 107)
@@ -212,15 +220,19 @@ Read this section before you self-review your own PR or review another lane's.
   the author's own, preferring the lane that consumes the change, and names it when it assigns the
   package. It labels the PR `review:<lane>` (`review:ops-a`/`review:ops-b` for ops) each time the
   author marks a head ready; a lane agent clears its label's PRs before starting or resuming a
-  package. (UR-32; 50-coordination.md §2)
+  package. (UR-32; roles/coordinator.md "Remit", "Label for review"; roles/lane.md "The tick" §3;
+  the deleted 50-coordination.md "Roles", "Review and merge")
 - **UR-89** Before marking a PR ready, the author dispatches a fresh-context subagent given only the
   package text, the diff and the PR body, to check each Done-when clause against the evidence, the
   contract, the cross-lane parts and the hot-file rules; the author fixes or answers each finding
-  and records them in the PR. (50-coordination.md §1)
+  and records them in the PR. (roles/lane.md "Building a package")
 - **UR-91** The reviewer runs the same checks independently, posts the review as a PR comment in the
   form `roles/lane.md` gives (the owner's account cannot approve its own PRs), and removes the
-  label. Each new head's merge resolution is reviewed again. (50-coordination.md §2; ruling 39 item
-  G)
+  label. Each new head's merge resolution is reviewed again. A PR may merge with a Done-when box
+  unticked only when the approving review names the box, says why this PR cannot tick it (it
+  depends on another PR or a later run, or it is stale) and, if the clause still matters, where it
+  will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing another lane's PR";
+  ruling 39 item G; ruling 149)
 - **UR-92** Every review carries `Plan text: none | <which kind in UR-47 it changes, and where>`,
   written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it
   (anything but `none` makes the PR owner-tier) and asks the reviewer for a missing line rather than
@@ -245,12 +257,12 @@ and the re-read and merge comment are UR-29.
 
 - **UR-23** A PR merges on green CI plus an approving review from another lane's agent, after the
   author's own fresh-context self-review; owner-tier PRs also need the owner. The coordinator
-  merges: when `CI Gate (Required Checks)` is green at its head, its review says approve and, in
-  the owner tier, the owner has approved, keeping the repository's existing merge style. (UR-23;
-  50-coordination.md §4)
+  merges: when `CI Gate (Required Checks)` is green at its head, its review says approve and, in the
+  owner tier, the owner has approved, keeping the repository's existing merge style. (UR-23;
+  roles/coordinator.md "Merging a PR")
 - **UR-98** Owner tier: these PRs also need an owner approval recorded on #6854 (a ruling or owner
-  record); the status table's `owner` flag marks the packages that carry it. (50-coordination.md
-  "Review and merge" §3; ruling 40)
+  record); the status table's `owner` flag marks the packages that carry it. (roles/coordinator.md
+  "Merging a PR"; ruling 40)
   - security and auth;
   - risk acceptance (dismissing an alert or a finding);
   - production safety;
@@ -263,19 +275,23 @@ and the re-read and merge comment are UR-29.
   applies. (rulings 4, 8, 10, 11, 108)
 - **UR-100** An agent writes approvals only in its own role. The coordinator merges an owner-tier PR
   only on an owner approval recorded on #6854 (a ruling or owner record), or one given elsewhere
-  once quoted in the status comment with the owner's words and time. (50-coordination.md "Trust
-  model"; UR-27, UR-29)
+  once quoted in the status comment with the owner's words and time. (the deleted
+  50-coordination.md "Trust model"; UR-27, UR-29)
 - **UR-101** A ruling ending with the exact line "Pre-approved: merges on lane review and green CI."
   pre-approves the follow-up it specifies: the coordinator merges it without the owner when the lane
   review states the diff does that and nothing more and `CI Gate` is green at its head; if the
   reviewer cannot state that, the PR comes to the owner. Never pre-approved: destructive work
   (`B3.1`, `F3.1`, `B3.2`), security or auth or plan text beyond the ruling, or a PR with owner
   questions. (ruling 84)
-- **UR-102** `main` keeps "require branches to be up to date". Only the coordinator updates a queued
-  PR, one at a time, with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`, and merges
-  one PR at a time; authors rebase their own PRs to resolve conflicts. The owner revisits the
-  requirement if the open-PR count in the status comment keeps growing. (rulings 19, 27;
-  50-coordination.md §4)
+- **UR-102** `main` requires `CI Gate (Required Checks)` but not "branches up to date". The
+  coordinator merges one PR at a time. A ready PR merges without an update-branch when its green
+  `CI Gate` ran on a `main` at most 3 merges behind the tip, no PR merged since that base changed a
+  file it changes (`git diff --name-only <its base>..origin/main` shares no path with its files),
+  and `main`'s latest CI run is not red. Otherwise only the coordinator updates it, one at a time,
+  with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`; authors rebase their own PRs
+  to resolve conflicts. A red `main` from a merge interaction is a red-`main` fix (UR-111); after
+  two in one UTC day the coordinator turns "require branches to be up to date" back on and raises
+  the urgent path. (rulings 19, 27; owner record 6135991251)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
@@ -287,10 +303,11 @@ and the re-read and merge comment are UR-29.
 - **UR-106** A PR is ready at the latest of: `CI Gate` passing at its head, the approving review of
   that head, and, in the owner tier, the owner's approval. An update-branch with `main` keeps the
   queue place, the review and the owner's approval if the PR's own diff
-  (`git diff <merge-base>..<head> -- <the PR's files>`) is byte-identical before and after; an
+  is unchanged before and after: every added, removed and context line matches, ignoring `index`
+  hashes and hunk line numbers (command in `roles/coordinator.md`, "Merging a PR" step 2); an
   author commit, a conflict fix included, resets all three. A red run or re-opened review takes the
-  PR out, and the gate must be green at the new head before merge. (rulings 26, 55, 59; record 6128195816; owner design
-  session 2026-10-12)
+  PR out, and the gate must be green at the new head before merge. (rulings 26, 55, 59, 149; record 6128195816;
+  owner design session 2026-10-12)
 - **UR-107** Never combine PRs already in the queue: reviews and carry proofs are keyed to heads.
   (ruling 97)
 - **UR-108** Owner PRs carry auto-merge and join the same queue; the coordinator updates one in its
@@ -319,7 +336,10 @@ fixing either.
   not cover it: the nightly runs `-n auto` like PR CI, and `pyproject.toml`'s `-n 8` stays. (ruling 113)
 - **UR-116** On the first tick after the nightly schedule, the coordinator reads the latest Nightly
   Full Gate conclusion; a red one is raised and routed like red `main`, fixed within the same
-  limits, and does not freeze the merge queue. (ruling 109)
+  limits, and does not freeze the merge queue. On its first tick after the 02:00Z flaky-test run
+  (`flaky-test-detection.yml`) it reads the flaky list in that run's summary and routes each flaky
+  test the same way, to the lane that owns its file. `Nightly Analysis` (`nightly.yml`) is
+  report-only and outside this rule. (rulings 109, 149)
 
 ## CI and shared jobs
 
@@ -331,7 +351,8 @@ Read this section before you change a workflow, a CI job, a hook or the gate.
   Before pushing a change to `.github/workflows/*.yml`, run
   `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest -shellcheck= -pyflakes= .github/workflows/*.yml`
   and compare its findings with `main`'s; a YAML parse does not check GitHub's expressions. (UR-34;
-  50-coordination.md "Review and merge" §4, "Hot files"; coordinator kickoff prompt)
+  roles/coordinator.md "Merging a PR"; the deleted 50-coordination.md "Review and merge" §4, "Hot
+  files"; coordinator kickoff prompt)
 - **UR-119** Branch protection keeps one required check, `CI Gate (Required Checks)`; a new check
   runs inside it rather than becoming a separate required check. (ruling 9)
 - **UR-37** The gate checks what the hooks check: the repository's pre-commit hooks run on each PR's
@@ -342,8 +363,8 @@ Read this section before you change a workflow, a CI job, a hook or the gate.
 - **UR-121** In a shared job of `.github/workflows/ci.yml`, the only allowed edit is appending a
   single entry, such as one test-script path, to an existing list in a step. Anything else (a new
   step, new logic, or a changed flag, condition or command) goes in its own job or its own workflow
-  file; review enforces this until a check exists. (ruling 137; corrects 50-coordination.md "Hot
-  files", `ci.yml` row)
+  file; review enforces this until a check exists. (ruling 137; corrects the deleted
+  50-coordination.md "Hot files", `ci.yml` row)
 - **UR-122** An edit an owner ruling orders is never barred by UR-121. (ruling 145)
 - **UR-123** The repository uses one prettier version, the one `frontend/package-lock.json`
   resolves. The gate's hooks job reports a formatting disagreement as a named finding listing the
@@ -397,7 +418,7 @@ or write anything for the real tier. Who holds the GPU, and which runs the owner
 - **UR-127** Golden paths mock nothing: a guard fails any `golden` Playwright spec that calls
   `page.route` on `/api` or `/ws`. External-interface golden paths are pytest specs in
   `backend/tests/golden/`, outside the default test paths, run by `scripts/feature-check.sh`.
-  (20-frontend.md `F2.1`; 10-backend.md "Phase 4")
+  (history/packages-done.md `F2.1`; packages/backend.md "Phase 4 — Complete the product")
 - **UR-128** A test witnesses only if it executed and passed: a golden run with zero tests turns
   Feature Check red, and a skipped or quarantined spec, or a CI log that cannot contain the run, is
   no witness. An inventory row flips only on a run where its test executed and passed. (rulings 114,
@@ -418,44 +439,44 @@ or write anything for the real tier. Who holds the GPU, and which runs the owner
 - **UR-15** The real tier is operator-run on the GB300 by a committed script; no self-hosted runner.
   Real-model checks run there through the operator, never from CI or GitHub: a lane agent writes the
   real-tier command into its PR's "Real tier" section, and the operator runs it. (UR-15; README
-  vocabulary "operator"; ops kickoff prompt; 30-ops.md `O2.2`)
+  vocabulary "operator"; ops kickoff prompt; packages/ops.md `O2.2`)
 - **UR-133** Every real-tier command runs on a test deployment, never the live stack: its own
   compose project, generated env file (never the checkout's `.env`), remapped ports, volumes and
   fresh camera directory, sharing only read-only model weights. A run that would touch the live
-  database, camera folder or containers stops instead. (ruling 22; README vocabulary; operator.md
-  "The one rule")
+  database, camera folder or containers stops instead. (ruling 22; README vocabulary;
+  roles/operator.md "A test deployment, never the live stack")
 - **UR-134** A test deployment always runs with `ORCHESTRATOR_ENABLED=false` and no container-engine
-  socket in any container, and no writable bind mount outside the run's own directory. (30-ops.md
-  `O2.2`; operator.md "The owner on the host")
+  socket in any container, and no writable bind mount outside the run's own directory.
+  (packages/ops.md `O2.2`; roles/operator.md "The owner on the host")
 - **UR-135** Tear down every run, also after a failure, only with
   `<compose> -p <run project> down -v`, never a bare `down`; on the `agent-gpu` path also
-  `agent-gpu stop` and `agent-gpu rm` your containers until `agent-gpu ps` lists none. (operator.md
-  "The agent-gpu path", "The owner on the host"; 30-ops.md `O2.2`)
+  `agent-gpu stop` and `agent-gpu rm` your containers until `agent-gpu ps` lists none.
+  (roles/operator.md "The agent-gpu path", "The owner on the host"; packages/ops.md `O2.2`)
 - **UR-136** The real tier (`--real`) serves the real VLM, the production q4km pin, through
   `agent-gpu` with the fake detector; it refuses where `agent-gpu` is absent and takes
   `FEATURE_CHECK_ENGINE=docker` or `podman`. (ruling 66)
 - **UR-137** Serve only the production pin, `qwen3vl-8b-instruct-q4km/` from the model library, and
   stop unless its `sha256sum` and `/props`' `model_path` match the pin; add no `--mount` at or under
-  `/srv/agent-models`. (operator.md "The agent-gpu path"; 30-ops.md `O1.10`; owner-partner.md
-  "Guardrails")
+  `/srv/agent-models`. (roles/operator.md "The agent-gpu path"; history/packages-done.md `O1.10`;
+  roles/owner-partner.md "Guardrails")
 - **UR-138** When the `agent-gpu` runner refuses a run, post the `agent-gpu status` output on the
   row's PR (the coordinator lists the run in the status comment) and stop; never lower `--vram` to
-  get admitted. (record 6116458014; operator.md "The agent-gpu path")
+  get admitted. (record 6116458014; roles/operator.md "The agent-gpu path")
 - **UR-140** The operator writes no product code and changes no command. When a command fails for a
   reason its PR did not anticipate, post the output and the exit code; the lane agent revises it.
-  (ruling 22; operator.md "When something goes wrong", kickoff prompt)
+  (ruling 22; roles/operator.md "When something goes wrong", kickoff prompt)
 - **UR-141** Every number in a real-tier results comment comes from output in that comment, headed
-  with the date, the commit and the hardware, with the teardown evidence. (operator.md "Posting
-  results"; UR-29)
+  with the date, the commit and the hardware, with the teardown evidence. (roles/operator.md
+  "Posting results"; UR-29)
 - **UR-142** Name every store a result depends on by path and `sha256sum`; a store only in a
   sandbox's broker directory (`/agents/<sandbox>/gpu/out` on the host) is flagged on the PR for the
   owner to copy to a durable path under `/synthbench` before a report depends on it. Agents never
   copy a store or re-root `SYNTHBENCH_ROOT` around a mount; they post the error and stop. (rulings
-  49, 57; operator.md "Posting results")
+  49, 57; roles/operator.md "Posting results")
 - **UR-143** Restore no live data yourself. If a live container stopped or restarted or a volume
   vanished, start what stopped, say so on the PR, raise the urgent path and leave the row
   `awaiting real tier`; the package is not done until a clean run. Live data that looks wrong goes
-  on the urgent path, and you investigate it with the owner. (operator.md "When something goes
+  on the urgent path, and you investigate it with the owner. (roles/operator.md "When something goes
   wrong")
 
 ## Statuses, rows, the inventory and R2
@@ -469,7 +490,7 @@ when a phase exits, are UR-10 (contract rule 5).
   progress shows as an open draft PR titled `[<package>] …`, and its row reads `not started`.
   (ruling 138; README "Status")
 - **UR-146** The operator sets a row from `awaiting real tier` to `done` in a one-line follow-up PR,
-  or asks the lane agent to. (operator.md "Posting results")
+  or asks the lane agent to. (roles/operator.md "Posting results")
 - **UR-147** Flags: `heavy` (UR-24) and `owner` (the owner's approval before merge, UR-23,
   UR-98). A Phase 4 package gets its own row when it opens: the PR that opens it adds the row under
   the matching `*` line. (README "Status")
@@ -480,8 +501,8 @@ when a phase exits, are UR-10 (contract rule 5).
   re-ID from the CPU evidence. (rulings 86, 117, 127)
 - **UR-149** The frontend lane records each `R2` session or round in one PR: the rulings and
   priorities into the inventory's ruling column, the OD rulings into
-  `docs/vss-integration/17-action-plan.md`, and the recorded part's status row. (README "The path";
-  20-frontend.md "Record R2"; ruling 135)
+  `docs/vss-integration/17-action-plan.md`, and the recorded part's status row. (README "Phases and
+  exit gates"; packages/frontend.md `R2b`; ruling 135)
 - **UR-151** A `half-built` row goes to the `R2b` list, and the owner decides at `R2b` whether and
   when it is fixed; nobody else creates a fix package for it unless the owner orders the fix (as rulings 129 and 130 did). (ruling 120)
 - **UR-152** "Half-built" includes a break at the UI end. The `R2` sheet's §1 rules by cause, each
@@ -506,7 +527,7 @@ Read this section before you post any comment, review, heartbeat, status comment
   session 2026-10-12)
 - **UR-154** When a command fails or its answer is unclear, say that instead of stating a fact; read
   times from `date -u` or omit them, and treat GitHub's `created_at` as the record. (coordinator
-  kickoff prompt; owner-partner.md "Guardrails")
+  kickoff prompt; roles/owner-partner.md "Guardrails")
 - **UR-155** Heartbeats, beats, verdicts and lane notes run about 1,500 characters: what I read,
   what I did, what comes next. Evidence goes in a collapsed `<details>` block or a link to the job
   log, not in the body. (ruling 146)
@@ -520,15 +541,15 @@ Read this section before you post any comment, review, heartbeat, status comment
   tick"). GitHub stays the only channel between agents; the owner re-arms ticks weekly and after a
   restart. Before arming a tick, list the agent's scheduled tasks and arm a new one only if none is
   listed, so ticks never run twice; a recurring `/loop` expires after seven days and a restart,
-  resume or `/clear` drops it. (UR-36; 50-coordination.md "Keeping ticks alive")
+  resume or `/clear` drops it. (UR-36; the deleted 50-coordination.md "Keeping ticks alive")
 - **UR-38** No agent waits inside a turn on CI, a check run, a watcher or a sleep: it reads once,
   reports and ends the turn. Each tick edits its own heartbeat on the pinned "Uplevel heartbeats"
   issue; a stalled agent goes to the owner on the urgent path (`roles/lane.md`, "The tick").
   (UR-38; ruling 64)
   - **Ticks.** Long work inside a turn is fine; waiting is not. A `/loop` tick's prompt re-runs
-    verbatim and fires only between turns: a busy agent gets it once, when its turn ends, and
-    missed ticks do not pile up. Read CI once per tick, report what you see and end the turn; the
-    next tick reads it again. (50-coordination.md "The tick")
+    verbatim and fires only between turns: a busy agent gets it once, when its turn ends, and missed
+    ticks do not pile up. Read CI once per tick, report what you see and end the turn; the next tick
+    reads it again. (roles/lane.md "The tick")
   - **Heartbeat.** Each agent keeps one heartbeat comment on that issue (first line
     `<!-- heartbeat:<sandbox> -->`, then the one-line status `roles/lane.md` gives), edited in place
     each tick, never reposted; extras are deleted, and the coordinator creates and pins the issue
@@ -536,7 +557,7 @@ Read this section before you post any comment, review, heartbeat, status comment
   - **Stalled.** An agent is stalled when its heartbeat is older than three of its intervals (45
     minutes for lane and heavy agents, 90 for the operator) and it has pushed no commit and posted
     no comment since. The coordinator raises the urgent path for it, naming the agent and its open
-    PRs. (ruling 64; 50-coordination.md "Stalled agents")
+    PRs. (ruling 64; roles/coordinator.md "The urgent path")
 - **UR-160** A heavy agent whose queue is empty posts a final heartbeat
   `paused · queue empty (ruling 88)` and ends its turn, and the owner stops its loop. When the owner
   stops an agent, the owner's session may write its `paused` heartbeat. An agent whose heartbeat
@@ -544,11 +565,11 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-162** A lane that reads the coordinator's heartbeat older than 20 minutes checks #6854 for an
   `URGENT PATH · coordinator stale` comment in the last hour; if there is none, it posts one
   (heartbeat age, read time, nothing more) in UR-168's form. (rulings 64, 81; owner design session
-  2026-10-12, pass 2 Q8; corrects 50-coordination.md "Stalled agents")
+  2026-10-12, pass 2 Q8; corrects the deleted 50-coordination.md "Stalled agents")
 - **UR-163** Recovery of a stalled agent is the owner's, with no watchdog agent: Esc in the agent's
   pane, a catch-up prompt that names its open work, and a new tick only if the agent lists none
-  scheduled. No agent reaches into another's sandbox. (ruling 64; 50-coordination.md "Stalled
-  agents"; owner design session 2026-10-12)
+  scheduled. No agent reaches into another's sandbox. (ruling 64; roles/owner-partner.md "Stalls and
+  recovery"; owner design session 2026-10-12)
 - **UR-25** The owner works from one status comment the coordinator keeps on #6854; the urgent
   path is for what cannot wait for it. (UR-25; owner design session 2026-10-12, pass 2 Q8)
   - **The status comment** is one comment on the pinned issue #6854 whose first line is
@@ -570,15 +591,18 @@ Read this section before you post any comment, review, heartbeat, status comment
   rows owed; stalled agents and heartbeats older than 20 minutes; packages ready but unclaimed
   (UR-63), idle lanes (UR-64) and parked claims (UR-67); and one closing line of counts: open
   programme PRs, and PRs merged since the newest owner ruling pointer or owner record on #6854,
-  auto-merged ones included. Merges stay a count and claims in flight are not listed. The comment
-  is edited in place, so UR-155's length does not bind it. An answered question leaves the
-  comment; its answer lives in the ruling's PR. (rulings 17, 19, 43, 54, 81; owner design session
-  2026-10-12, pass 2 Q8 and the final-verify follow-up)
+  auto-merged ones included. Merges stay a count and claims in flight are not listed. It shows
+  current state only, in about 4,000 characters: no beat history, summaries, method notes,
+  retractions or corrections, which go in the coordinator's heartbeat or on the PR they concern;
+  each owner question gives its facts, lettered options and recommendation, with evidence as a link.
+  An answered question leaves the comment; its answer lives in the ruling's PR. (rulings 17, 19, 43,
+  54, 81; owner design session 2026-10-12, pass 2 Q8; owner record 6135935339)
 - **UR-168** The urgent path stays on GitHub: a plain comment on #6854 whose first line starts
   `URGENT PATH`, with no label and no @-mention (agents post with the owner's own token, so neither
   would notify the owner). There is no push channel and no second account; the owner's design
   partner checks #6854 for `URGENT PATH` comments at the start of every session. (ruling 81;
-  50-coordination.md "Where agents run"; owner design session 2026-10-12, pass 2 Q8)
+  roles/owner-partner.md "The check-in"; roles/coordinator.md "The urgent path"; owner design
+  session 2026-10-12, pass 2 Q8)
 
 ## Agents, sandboxes and models
 
@@ -590,36 +614,39 @@ or an agent's memory.
   UR-28 says how. Provisioning stays with the owner: no agent holds `agent-dgx` or `sbx`, and the
   sandbox launcher (`scripts/uplevel/launch.py`) is a host-side tool only the owner runs. Never run
   `agent-dgx help` or `agent-dgx ls`; `agent-dgx` reads an unknown word as a new session's name, so
-  always name the subcommand. (UR-26; 50-coordination.md "Where agents run"; 30-ops.md `O0.1`;
-  owner-partner.md "Guardrails")
+  always name the subcommand. (UR-26; the deleted 50-coordination.md "Where agents run";
+  history/packages-done.md `O0.1`; roles/owner-partner.md "Guardrails")
 - **UR-28** Sandboxes come from `agent-dgx`, which gives each agent its own clone of the host
-  checkout; the owner starts them, by hand or with the launcher (`O0.1`). Each agent runs in the sandbox `agent-<session>` on its own clone
-  at `/agents/agent-<session>/workspace`. Start every agent from a clean, freshly pulled host
-  checkout of `main` (`agent-dgx` copies uncommitted changes into the clone;
-  `agent-dgx inspect <session> --json` shows the commit it cloned), and push your branch after every
-  commit, since a clone keeps unpushed commits to itself. (UR-28; 50-coordination.md "Where agents
-  run")
+  checkout; the owner starts them, by hand or with the launcher (`O0.1`). Each agent runs in the
+  sandbox `agent-<session>` on its own clone at `/agents/agent-<session>/workspace`. Start every
+  agent from a clean, freshly pulled host checkout of `main` (`agent-dgx` copies uncommitted changes
+  into the clone; `agent-dgx inspect <session> --json` shows the commit it cloned), and push your
+  branch after every commit, since a clone keeps unpushed commits to itself. (UR-28; the deleted
+  50-coordination.md "Where agents run")
 - **UR-30** The operator role goes to an agent: `uplevel-operator`, the only sandbox started with
   `agent-dgx --gpu`, runs every real-tier command through the `agent-gpu` broker
   (`roles/operator.md`). (UR-30)
   - **The GPU.** Only `uplevel-operator` holds the GPU and the `/synthbench` mounts: the owner
     starts it with `agent-dgx run uplevel-operator --agent claude --endpoint dgx --gpu --split`, no
     lane sandbox gets `--gpu`, and real-tier runs go one at a time through that session under the
-    runner's 40 GiB cap, which every GPU session on the host shares. (ruling 2; 50-coordination.md
-    "Where agents run"; 30-ops.md `O1.10`; owner-partner.md "Prompts")
+    runner's 40 GiB cap, which every GPU session on the host shares. (ruling 2; the deleted
+    50-coordination.md "Where agents run"; history/packages-done.md `O1.10`; roles/owner-partner.md
+    "Prompts")
   - **The owner's runs.** The owner keeps the runs that path cannot make: those that must exercise
     the deployed `ai-vlm`, those the runner will not admit, and S1/S4 latency claims, defined on 24
-    GB-class hardware; latency numbers belong to the hardware that produced them. (operator.md)
+    GB-class hardware; latency numbers belong to the hardware that produced them.
+    (roles/operator.md)
 - **UR-170** On the host, read an agent's workspace but run git in it only through `sbx exec`: its
   `.git/config` is the agent's to write, and settings such as `core.fsmonitor` run commands when the
-  host's git opens it. (50-coordination.md "Where agents run"; 30-ops.md `O0.1`)
+  host's git opens it. (the deleted 50-coordination.md "Where agents run"; history/packages-done.md
+  `O0.1`)
 - **UR-173** The coordinator stays on the fast model on a 5-minute loop; the owner may reopen this
   if it stops assigning, leaves the status comment unedited for over an hour, or states a fact it
   did not read. Its sandbox is disposable: restarted, it rebuilds its state from PRs, labels and the
-  pinned issues. (ruling 85; 50-coordination.md "Where agents run")
+  pinned issues. (ruling 85; the deleted 50-coordination.md "Where agents run")
 - **UR-174** Heavy work that appears while both heavy agents are paused goes on the urgent path; the
   owner restarts the agent with `agent-dgx run <name> --agent claude --split`, its kickoff from
-  `scripts/uplevel/sandboxes.toml`, and `/loop 15m`. (ruling 88; 50-coordination.md "Paused")
+  `scripts/uplevel/sandboxes.toml`, and `/loop 15m`. (ruling 88; roles/lane.md "Paused")
 - **UR-175** An agent's auto-memory is its own and not a channel: only the parent agent writes it,
   its subagents return findings to the parent, and only the harness's limits bind it. (ruling 112)
 - **UR-176** Sandboxes may use `sudo` for development installs, such as
@@ -636,9 +663,10 @@ the shared GitHub token.
   peer reviews and owner approvals are a policy agents follow, not something GitHub authenticates,
   and any agent could forge one. (UR-27)
 - **UR-177** Read any third-party prompt or tool in full before adopting it, since agents hold the
-  owner's token. (owner-partner.md "Guardrails"; UR-27)
+  owner's token. (roles/owner-partner.md "Guardrails"; UR-27)
 - **UR-178** OD-12: the stack binds to loopback unless `EXPOSE_LAN=true`, and when exposed, auth is
-  deny-by-default on `/api` and `/ws`. (README "Rulings of record"; 10-backend.md `B1.5`)
+  deny-by-default on `/api` and `/ws`. (the deleted README section "Rulings of record";
+  history/packages-done.md `B1.5`)
 - **UR-33** With `EXPOSE_LAN=true`, monitoring is denied by default like every other path: `B1.5`
   closes `/api/metrics` and `/api/system/{gpu,stats,telemetry}`, and `O1.11` gives the monitoring
   callers credentials and puts `/grafana/` behind the app's login. The default, unexposed mode is

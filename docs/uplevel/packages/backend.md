@@ -208,7 +208,7 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 
 **Flags:** owner tier (security and auth), pre-approved by ruling 94 (UR-101).
 **Assigned:** `uplevel-backend`, test-first; `setup.py` is ops's file, so the PR lists it as a
-cross-lane part. **Depends on:** none named. **PR:** none yet.
+cross-lane part. **Depends on:** none named. **PR:** #7038 (merged).
 
 - [ ] **The defect:** on a re-run, the LAN-exposure prompt defaults to `n` (`setup.py:685` quick
       path, `:900` guided), and that answer drives `EXPOSE_LAN`, `FRONTEND_BIND_ADDRESS` and the
@@ -306,3 +306,17 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
 flipped to assert the fix and passes. F-190 and F-191 also need ruling 127's writable `runtime.env`
 on the CI compose before their save leg can go green; until then they flip on the read leg only
 (ruling 130).
+
+### [r149d] F-057: the event list returns `notes`
+
+**Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** none yet. (ruling
+149, record 6146380050)
+
+- [ ] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:498-523`)
+      and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
+      `GET /api/events`.
+- [ ] When it merges, frontend flips the read-back `test.fixme` in
+      `frontend/tests/golden/timeline/event-detail.spec.ts`; that golden path rules F-057. No `R2b`
+      entry.
+
+**Done when:** `GET /api/events` returns a saved note, and F-057's read-back golden leg passes.
