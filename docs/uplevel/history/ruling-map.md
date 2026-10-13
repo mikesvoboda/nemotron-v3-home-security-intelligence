@@ -167,6 +167,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 152    | `scripts/uplevel/coordinator_snapshot.py` and the tick steps, PR #7078 (record 6149140632)                  |
 | 153    | UR-92 (owner tier only for UR-47's owner kinds) (record 6151644378)                                         |
 | 154    | real-tier run owners for B1.1, F1.2, O1.11, O2.2, O2.4; `O2.5`'s Done-when (record 6152457996)              |
+| 155    | package `[r132]` pill text and nginx-429 note; ruling 125's quarantine ends (6153625662)                    |
 
 ## Owner records
 
