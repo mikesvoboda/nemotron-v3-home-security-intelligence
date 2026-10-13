@@ -360,13 +360,13 @@ test.describe('DO-3 zones golden path', () => {
       const m = /^\/api\/cameras\/([^/]+)\/zones$/.exec(apiPath(u));
       return m && !m[1].startsWith('placeholder-') ? decodeURIComponent(m[1]) : null;
     };
-    // The matcher is armed BEFORE the goto -- a listener cannot catch a response
-    // that already flew -- so the timing word in the report is CARRIED IN A
-    // FLAG, not assumed from the arm point. That flag is annotation only: the
-    // predicate never consults it, so no matching response can be skipped by it
-    // (a gate keyed on a flag set after an await can time out on a response that
-    // legitimately arrived first, which is not a product failure).
-    let navResolved = false;
+    // The matcher is armed BEFORE the goto -- a listener cannot catch a
+    // response that already flew. An earlier draft kept a `navResolved` flag
+    // and printed AFTER/BEFORE from it, arguing the timing word was CARRIED
+    // IN A FLAG, not assumed from the arm point. It never was: the flag was
+    // set after the awaited goto and read only at the print site below that
+    // same await, so it was true on every path and BEFORE was unreachable --
+    // the print asserted an ordering nothing measured. The flag is removed.
     // WATCHED WINDOW, measured. `timeout: 15_000` is what this leg was ASKED to
     // watch, not what it got: the test body can die first (its own budget expires,
     // the page closes) and the leg dies with it mid-flight. Measured in run
@@ -404,7 +404,7 @@ test.describe('DO-3 zones golden path', () => {
 
     try {
       await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
-      navResolved = true;
+      // navigation resolved; order is NOT inferred from that downstream
       await expect(page.getByTestId('zones-page')).toBeVisible();
       // The report. Exactly one warn line from this test either way — the if
       // and the else both print — so absence of a re-read is as visible in
@@ -414,8 +414,8 @@ test.describe('DO-3 zones golden path', () => {
       if (reReadCall) {
         console.warn(
           `[F-256] the page re-read zones for camera ` +
-            `${zoneCameraOf(reReadCall.url())} ${navResolved ? 'AFTER' : 'BEFORE'} the ` +
-            `remount navigation resolved; this spec wrote to ${cameraId}. ` +
+            `${zoneCameraOf(reReadCall.url())} ${legMs} ms after this leg armed ` +
+            `(armed BEFORE the goto, so this is NOT an after-navigation claim). ` +
             `GET /api/cameras is unordered (cameras.py:152). REPORT ONLY: F-256's ` +
             `when column does not promise a reload, so this gates nothing.`
         );
