@@ -321,6 +321,134 @@ def merge_api_keys(existing: str, new_key: str, new_key_scope: str | None = None
     return json.dumps(unique, separators=(",", ":"))
 
 
+def convert_monitoring_key(env_text: str) -> tuple[str, str]:
+    """Scope the plain ``API_KEYS`` entry that mirrors ``MONITORING_API_KEY``.
+
+    Ruling 94 Fix 2. An install whose ``.env`` was last written by ``setup.py``
+    between `O1.11` and R60 lists the monitoring key as a PLAIN ``API_KEYS`` entry,
+    which the gate reads as UNSCOPED — the key can read operator-only paths. Until
+    now the only cure was a full re-run (docs/operator/admin/security.md), which
+    makes every other decision in the file again. This rewrites that ONE entry as
+    ``{"key": ..., "scope": "monitoring"}`` (#6959's format, the same object
+    ``merge_api_keys`` emits) and leaves the rest of the file alone.
+
+    Scope discipline, because the file is the operator's own and the only copy of
+    these keys: the entry is identified by the value in ``MONITORING_API_KEY`` and by
+    nothing else. A plain entry is never narrowed on a guess — narrowing a scope this
+    tool did not mint breaks whatever uses that key — and no entry is ever deleted,
+    added or reordered. Anything ambiguous is REFUSED, byte-for-byte unchanged, with
+    the reason returned for the caller to print.
+
+    Returns:
+        ``(text, outcome)``. ``text`` equals the input on every outcome except
+        ``"converted"``. Outcomes:
+
+        - ``"converted"`` — the plain entry became a scoped one, in place;
+        - ``"unchanged"`` — it is already scoped (idempotent: running it twice is
+          safe, which is the operator's normal mistake);
+        - ``"no-monitoring-key"`` — no usable ``MONITORING_API_KEY`` to identify the
+          entry by;
+        - ``"not-listed"`` — no ``API_KEYS`` line, or the key is not in it;
+        - ``"ambiguous-duplicate"`` — the value appears more than once, or appears
+          plainly AND as an object (the plain entry is what keeps it unscoped, but
+          deleting an entry is beyond a flag that "touches nothing else");
+        - ``"not-plain"`` — the only entry for the value is an object with no
+          ``scope``, which is fail-closed (no grant at all); adding a scope here would
+          WIDEN it, the opposite of this ruling's direction of travel;
+        - ``"not-a-list"`` — the value is not a JSON list (a corrupt value is not
+          repaired by a narrow rewrite — a re-run regenerates the file);
+        - ``"duplicate-line"`` — two ``API_KEYS`` lines (setup.py's own readers take
+          the last, but a byte-preserving rewrite of an ambiguous file is where silent
+          damage happens).
+
+        Serialization note: the ONE line is re-emitted the way ``setup.py``'s own
+        writer emits it — compact separators (``merge_api_keys``) inside the caller's
+        single quote. Both halves matter for the scripts that ``source`` this file
+        under ``set -e`` (measured here): an unquoted value holding a scoped object
+        word-splits and brace-expands when spaced (exit 127) and loses its JSON
+        quoting when compact (exit 0 but mangled); the single quote is what keeps the
+        sourced value parseable. It is load-bearing, and R60 (422b92e9b) introduced it
+        alongside the object form for exactly this reason — so a pre-R60 file, which
+        ``setup.py`` wrote BEFORE the quote existed, GETS the single quote here: a
+        converted line always holds a scoped object, and a scoped object in an
+        unquoted line is a state ``setup.py`` never writes. A line that already has a
+        matching quote pair keeps its own quote character. Compactness matches the
+        writer so a converted file reads the same as a freshly generated one. Every
+        other line, including its line endings, is returned untouched.
+    """
+    lines = env_text.splitlines(keepends=True)
+
+    def _value_of(key: str) -> str | None:
+        """The last ``KEY=value`` in the file, one matching quote pair stripped.
+
+        "Last" is what this file's raw read-back and ``load_existing_env`` both do,
+        so a re-run of this tool agrees with a re-run of setup.py.
+        """
+        found: str | None = None
+        for raw in env_text.splitlines():
+            stripped = raw.strip()
+            if stripped.startswith(f"{key}="):
+                value = stripped.partition("=")[2].strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                    value = value[1:-1]
+                found = value
+        return found
+
+    monitoring_key = _value_of("MONITORING_API_KEY")
+    if not monitoring_key:
+        return env_text, "no-monitoring-key"
+
+    indices = [i for i, raw in enumerate(lines) if raw.strip().startswith("API_KEYS=")]
+    if not indices:
+        return env_text, "not-listed"
+    if len(indices) > 1:
+        return env_text, "duplicate-line"
+
+    line = lines[indices[0]]
+    # Keep the line's own terminator and its own quote CHARACTER so the rewrite changes
+    # only the JSON, never the file's shape (line endings included, "\r\n" and a missing
+    # final newline both intact). The default is the single quote, not "no quote": the
+    # converted value holds a {"key":…,"scope":…} object, which needs quoting to survive
+    # a `source` under `set -e` (see the serialization note), and a pre-R60 line is
+    # unquoted because setup.py added the quote only with R60's object form.
+    body = line.rstrip("\r\n")
+    terminator = line[len(body) :]
+    prefix, _, raw_value = body.partition("=")
+    quote = "'"
+    value = raw_value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        quote, value = value[0], value[1:-1]
+
+    try:
+        entries = json.loads(value)
+    except ValueError:
+        return env_text, "not-a-list"
+    if not isinstance(entries, list):
+        return env_text, "not-a-list"
+
+    plain_at = [i for i, e in enumerate(entries) if isinstance(e, str) and e == monitoring_key]
+    object_at = [
+        i
+        for i, e in enumerate(entries)
+        if isinstance(e, dict) and isinstance(e.get("key"), str) and e["key"] == monitoring_key
+    ]
+
+    if len(plain_at) > 1 or (plain_at and object_at):
+        return env_text, "ambiguous-duplicate"
+    if not plain_at:
+        if not object_at:
+            return env_text, "not-listed"
+        # The value only ever appears as an object: the conversion is already done,
+        # or the object carries no scope at all — fail-closed, and widening it here
+        # would be the opposite of what this ruling does.
+        return env_text, "unchanged" if "scope" in entries[object_at[0]] else "not-plain"
+
+    entries[plain_at[0]] = {"key": monitoring_key, "scope": "monitoring"}
+    rewritten = f"{prefix}={quote}{json.dumps(entries, separators=(',', ':'))}{quote}{terminator}"
+    lines[indices[0]] = rewritten
+    return "".join(lines), "converted"
+
+
 def is_weak_password(password: str) -> bool:
     """Check if a password is considered weak.
 

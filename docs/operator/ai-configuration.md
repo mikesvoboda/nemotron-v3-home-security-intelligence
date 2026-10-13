@@ -176,7 +176,9 @@ When using PyTorch models (not TensorRT engines), torch.compile provides 15-30% 
 #### Exporting TensorRT Engines
 
 Host-side engine building runs through the prebuild script (the gateway's Triton export
-pipeline `ai/gateway/export/export_all.sh` produces the ONNX path Triton serves):
+pipeline `ai/gateway/export/export_all.sh` produces the ONNX path Triton serves;
+since O2.4 it also builds the `reid` TensorRT plan, which is the file `reid`
+actually loads — see `ai/gateway/export/README.md`):
 
 ```bash
 # Build the FP16 engine for the local GPU (ultralytics .pt -> TensorRT .engine)

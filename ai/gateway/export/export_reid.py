@@ -31,15 +31,30 @@ Usage:
     python export_reid.py \
         --model-path /models/zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth \
         --output-path /models/repository/reid/1/model.onnx
+
+    # O2.4 (owner ruling 107): compile the TensorRT plan the gateway's `reid`
+    # serves. Run ON the serving GPU — engines are architecture-specific — and
+    # it COMPILES the model.onnx beside the target rather than re-deriving it,
+    # refusing unless that ONNX's provenance record vouches for THESE bytes.
+    python export_reid.py \
+        --model-path /models/zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth \
+        --output-path /models/cache/reid/1/model.plan
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import logging
 import os
+import shutil
+import subprocess
 import sys
+import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -597,7 +612,15 @@ def validate_onnx(
     onnx.checker.check_model(onnx_model)
     logger.info("ONNX model structure check passed")
 
-    providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    # CPU EP, explicitly. This session is the graph-fidelity proof — cosine
+    # similarity of the ONNX's embeddings against PyTorch's — and the image
+    # ships onnxruntime-gpu (ai/gateway/Dockerfile:32), so an implicit provider
+    # list would ride CUDAExecutionProvider whenever a GPU is merely visible.
+    # On the GB300 that is the provider ruling 106 proved cannot run this graph
+    # (cudaErrorSymbolNotFound), which would turn the export's own validation
+    # step into the very failure TensorRT was ordered to replace. The plan's
+    # numeric proof is a separate matter: the owner's reid_parity_check.py run.
+    providers = ["CPUExecutionProvider"]
     session = ort.InferenceSession(onnx_path, providers=providers)
 
     test_batch_sizes = [1, 2, 4, 8]
@@ -650,8 +673,265 @@ def validate_onnx(
     return all_passed
 
 
+# =============================================================================
+# O2.4 (owner ruling 107): the TensorRT plan the gateway's `reid` serves.
+#
+# Ruling 106 closed the ONNX Runtime CUDA execution provider on the GB300
+# (`cudaErrorSymbolNotFound` on Blackwell/aarch64, Triton 26.01-py3), so the
+# GPU path IS a TensorRT plan now: "a plan built for the serving GPU as yolo26's
+# is". Two consequences shape the code below:
+#
+#   * An engine is GPU-architecture-specific (the warning at the top of
+#     copy_yolo26_engine.py), so this step runs ON the serving host and is never
+#     part of an image build or CI. Nothing here is importable-safe for a GPU:
+#     `trtexec` is a subprocess, exactly as export_fashion_clip.py does it.
+#   * This step COMPILES the model.onnx the ONNX pass already exported and
+#     already validated against PyTorch (CPU EP — no GPU needed), per the
+#     pipeline in export/README.md. It does not re-derive the ONNX and it does
+#     not run inference on the engine: there is no GPU to run it on, and the
+#     plan is a deterministic compile of an already-vouched graph. The numeric
+#     proof of the PLAN is the owner's scripts/reid_parity_check.py run on the
+#     GB300 (ruling 107's Done when), never a check invented here.
+#
+# What this step DOES enforce is B2.2's provenance rule at the new seam: a plan
+# may only be compiled from an ONNX a provenance record vouches for, and that
+# record's `source_sha256` must be the bytes of the checkpoint named on the
+# command line. Without it, `export_all.sh`'s skip-if-present behaviour (an
+# existing model.onnx is never re-exported, and its check already accepts a
+# .plan) would let a stale pre-B2.2 ONNX — or a plan built from different
+# weights than the record claims — become the model the gateway reports an ID
+# for.
+# =============================================================================
+
+#: The Triton `tensorrt` backend's fixed filename inside the version dir.
+PLAN_FILE = "model.plan"
+
+#: The gateway config's `max_batch_size` for `reid`
+#: (ai/triton/model_repository/reid/config.pbtxt). The plan must carry profiles
+#: up to it or Triton refuses to load the engine.
+MAX_BATCH = 16
+
+#: Builder workspace. 1 GB is the value every export helper in this directory
+#: defaults to because it is what fits beside the other residents on the small
+#: second card (export/README.md "Notes").
+DEFAULT_WORKSPACE_GB = 1
+
+#: trtexec is pre-installed in the NVIDIA serving container but not on PATH
+#: there; the same candidate list export_fashion_clip.py uses.
+TRTEXEC_CANDIDATES = ("/usr/src/tensorrt/bin/trtexec", "/usr/local/bin/trtexec")
+
+
+def find_trtexec() -> str | None:
+    """Locate the TensorRT engine builder, or None if this host has no TensorRT."""
+    found = shutil.which("trtexec")
+    if found:
+        return found
+    for candidate in TRTEXEC_CANDIDATES:
+        if Path(candidate).is_file():
+            return candidate
+    return None
+
+
+def build_tensorrt_engine(
+    onnx_path: str,
+    engine_path: str,
+    *,
+    precision: str = "fp16",
+    max_batch: int = MAX_BATCH,
+    workspace_gb: int = DEFAULT_WORKSPACE_GB,
+    trtexec: str | None = None,
+    run: Callable[..., Any] | None = None,
+) -> str:
+    """Compile the exported ONNX into a TensorRT plan for THIS GPU.
+
+    The batch profiles are the config's: min 1, opt max_batch//2, max
+    max_batch, on the ONNX's real input name, so the `dynamic_batching` block
+    the config declares stays satisfiable inside the engine.
+
+    Args:
+        onnx_path: The already-validated ONNX to compile.
+        engine_path: Destination for the plan (Triton wants ``model.plan``).
+        precision: ``fp16`` (what yolo26's shipped engine is) or ``fp32``.
+        max_batch: Upper bound of the dynamic batch profile.
+        workspace_gb: Builder workspace, in GB.
+        trtexec: Builder binary; auto-detected when omitted.
+        run: Subprocess runner; ``subprocess.run`` when omitted. Injectable so
+            the command shape is testable without a GPU or TensorRT.
+
+    Returns:
+        ``engine_path``, after confirming the builder actually wrote it.
+
+    Raises:
+        RuntimeError: No builder on this host, or the builder failed. A partial
+            file left by a failed build is removed — a husk in the version dir
+            would be linked by the entrypoint and served as a model.
+    """
+    builder = trtexec if trtexec is not None else find_trtexec()
+    if builder is None:
+        raise RuntimeError(
+            "trtexec not found — a TensorRT plan must be built on the serving "
+            f"host (looked for PATH plus {', '.join(TRTEXEC_CANDIDATES)})"
+        )
+
+    runner = run if run is not None else subprocess.run
+
+    opt_batch = max(1, max_batch // 2)
+    shape = f"3x{INPUT_HEIGHT}x{INPUT_WIDTH}"
+    engine = Path(engine_path)
+    engine.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        builder,
+        f"--onnx={onnx_path}",
+        f"--saveEngine={engine_path}",
+        f"--minShapes=input:1x{shape}",
+        f"--optShapes=input:{opt_batch}x{shape}",
+        f"--maxShapes=input:{max_batch}x{shape}",
+        # ``--memPoolSize=workspace:<MiB>``, NOT the ``--workspace=<MiB>``
+        # spelling export_fashion_clip.py carries: that flag was deprecated in
+        # TensorRT 8 and is GONE in TensorRT 10, which is what the serving base
+        # image ships (nvcr.io/nvidia/tritonserver:26.01-py3,
+        # ai/gateway/Dockerfile:1), and trtexec rejects unknown arguments. The
+        # fashion_clip helper is never wired into export_all.sh, so no command
+        # line in this repo has ever executed either flag — the owner's step 2b
+        # is the first. memPoolSize is accepted by TRT 8 and 10 alike.
+        f"--memPoolSize=workspace:{workspace_gb * 1024}",
+    ]
+    if precision == "fp16":
+        cmd.append("--fp16")
+    elif precision != "fp32":
+        raise ValueError(f"unknown precision {precision!r} (expected fp16 or fp32)")
+
+    logger.info("Building the reid TensorRT plan: %s", " ".join(cmd))
+    started = time.time()
+    try:
+        result = runner(cmd, check=False, capture_output=True, text=True, timeout=600)
+    except BaseException:
+        # A build that never reported an exit code (600s timeout, SIGKILL,
+        # KeyboardInterrupt) can leave a HALF-WRITTEN plan at the destination,
+        # and the entrypoint links the whole version dir — Triton would be
+        # handed a husk. This is the only place that knows a build was actually
+        # started, so it is the only place that may delete what it started.
+        engine.unlink(missing_ok=True)
+        raise
+    if getattr(result, "returncode", 1) != 0:
+        engine.unlink(missing_ok=True)
+        stdout = getattr(result, "stdout", "") or ""
+        stderr = getattr(result, "stderr", "") or ""
+        logger.error("trtexec stdout:\n%s", stdout[-2000:])
+        logger.error("trtexec stderr:\n%s", stderr[-2000:])
+        raise RuntimeError(f"trtexec failed with return code {result.returncode}")
+
+    if not engine.is_file():
+        raise RuntimeError(f"trtexec reported success but wrote no plan at {engine_path}")
+
+    size_mb = engine.stat().st_size / (1024 * 1024)
+    logger.info("reid plan built in %.1fs (%.1f MB) -> %s", time.time() - started, size_mb, engine)
+    return engine_path
+
+
+def read_provenance(version_dir: Path) -> dict[str, str] | None:
+    """The provenance record beside the model files, or None if there is none.
+
+    The same path `reid_model_id()` reads in the running gateway
+    (ai/gateway/adapters/enrichment_light.py:197), which is the point: what the
+    export refuses to build without and what the gateway reports as the model ID
+    are the same record, read the same way.
+    """
+    record_path = version_dir / PROVENANCE_FILE
+    if not record_path.is_file():
+        return None
+    try:
+        loaded = json.loads(record_path.read_text())
+    except (OSError, ValueError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def sha256_of(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def compile_plan_from_validated_onnx(
+    checkpoint_path: str,
+    plan_path: str,
+    *,
+    precision: str = "fp16",
+) -> str:
+    """Compile the plan beside ``plan_path`` from the ONNX vouched for by provenance.
+
+    Refuses (raises ``RuntimeError``) unless:
+      * the sibling ``model.onnx`` exists — this step compiles, it does not re-export;
+      * a provenance record stands beside it — #6970's precondition, stated as a
+        stop instead of a paragraph an operator has to remember;
+      * that record names this zoo model and its ``source_sha256`` is the bytes of
+        ``checkpoint_path`` — so a plan can never ship labelled with weights that
+        are not the ones its record vouches for.
+
+    The record itself is never rewritten: it was written beside the ONNX after
+    that ONNX was validated, and the plan inherits it (entrypoint.sh §0c links
+    the whole version dir, which is why the plan is placed beside the ONNX
+    rather than instead of it).
+    """
+    plan = Path(plan_path)
+    version_dir = plan.parent
+    onnx = version_dir / "model.onnx"
+
+    if plan.name != PLAN_FILE:
+        # Triton's tensorrt backend loads exactly ``1/model.plan`` — it takes the
+        # filename as given, so a plan written as ``reid.plan`` or ``model.planx``
+        # exits 0, export_all.sh reports OK, and Triton then finds no model at
+        # all. Refuse the destination instead of shipping an invisible no-op.
+        raise RuntimeError(
+            f"a TensorRT plan must be named {PLAN_FILE} (Triton's fixed filename "
+            f"for the tensorrt backend), not {plan.name!r}"
+        )
+
+    if not onnx.is_file():
+        raise RuntimeError(
+            f"no {onnx} to compile a plan from — run the ONNX export first "
+            "(export_all.sh phase 2); the plan is a compile step, not an export"
+        )
+
+    record = read_provenance(version_dir)
+    if record is None:
+        raise RuntimeError(
+            f"no {PROVENANCE_FILE} beside {onnx} — that ONNX predates B2.2's "
+            "provenance write (or was never validated), so it must not seed a "
+            "plan. Delete it and re-run the ONNX export with this head."
+        )
+
+    if record.get("zoo_name") != OSNET_ZOO_NAME:
+        raise RuntimeError(
+            f"provenance names {record.get('zoo_name')!r}, not {OSNET_ZOO_NAME!r} — "
+            f"refusing to build a plan for weights recorded as something else"
+        )
+
+    checkpoint = Path(checkpoint_path)
+    if not checkpoint.is_file():
+        raise RuntimeError(f"checkpoint not found: {checkpoint}")
+
+    actual = sha256_of(checkpoint)
+    recorded = str(record.get("source_sha256", ""))
+    if actual != recorded:
+        raise RuntimeError(
+            f"checkpoint {checkpoint.name} is not the recorded weights: sha256 "
+            f"{actual[:12]}… but {PROVENANCE_FILE} says {recorded[:12] or '<missing>'}… — "
+            "a plan must be compiled from the same weights the ONNX and its "
+            "model ID came from"
+        )
+
+    return build_tensorrt_engine(str(onnx), str(plan), precision=precision)
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Export Person Re-ID (OSNet-AIN x1.0) to ONNX")
+    parser = argparse.ArgumentParser(
+        description="Export Person Re-ID (OSNet-AIN x1.0) to ONNX, or compile its TensorRT plan"
+    )
     parser.add_argument(
         "--model-path",
         type=str,
@@ -662,7 +942,14 @@ def main() -> int:
         "--output-path",
         type=str,
         default="reid/1/model.onnx",
-        help="Output path for the ONNX model file",
+        help="Output path: model.onnx to export, model.plan to compile (O2.4, on the serving GPU)",
+    )
+    parser.add_argument(
+        "--precision",
+        type=str,
+        default="fp16",
+        choices=["fp16", "fp32"],
+        help="Plan precision (plan mode only); yolo26's shipped engine is fp16",
     )
     parser.add_argument(
         "--skip-validation",
@@ -670,6 +957,30 @@ def main() -> int:
         help="Skip ONNX validation step",
     )
     args = parser.parse_args()
+
+    # Plan mode (O2.4): a compile over the ONNX pass that already ran, guarded by
+    # provenance. It loads no model and runs no inference — there is no GPU in
+    # the places that run this file's tests, and a plan's numeric proof is the
+    # owner's GB300 run, not a check fabricated here.
+    if args.output_path.endswith(".plan"):
+        try:
+            compile_plan_from_validated_onnx(
+                args.model_path, args.output_path, precision=args.precision
+            )
+            logger.info("Person Re-ID TensorRT plan complete")
+            return 0
+        except Exception as e:
+            # Do NOT unlink here. Every guard in compile_plan_from_validated_onnx
+            # raises BEFORE any build starts (wrong filename, no ONNX, no
+            # provenance, zoo/weights mismatch), and at that moment
+            # args.output_path may be the HEALTHY plan the gateway is serving
+            # right now — deleting it turns a refusal into an outage. A build
+            # that actually started cleans up its own husk inside
+            # build_tensorrt_engine, which is the only frame that knows a build
+            # began. (Review F3: the blanket unlink here destroyed the live plan
+            # on a replaced-checkpoint refusal.)
+            logger.error(f"Plan build failed: {e}", exc_info=True)
+            return 1
 
     # A provenance record vouches for the model.onnx beside it (B2.2): drop any
     # old one first, and write the new one only once the export is validated.
