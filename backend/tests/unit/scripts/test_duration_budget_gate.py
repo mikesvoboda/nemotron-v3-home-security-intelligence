@@ -73,9 +73,11 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import json
 import os
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -1155,3 +1157,646 @@ def test_an_untracked_tier_falls_to_the_strictest_budget() -> None:
     assert 'budgets["unit"]' in fallback, (
         f"the fallback target must be the unit budget in the source; saw: {fallback.strip()}"
     )
+
+
+# ==========================================================================
+# UR-125 AS AMENDED (owner design session 2026-10-12, pass 2 Q9): a unit-tier
+# breach must REPRODUCE before it goes red.
+#
+# Verbatim: "The real-sleep gate fails a unit test over 4.0 s only when the
+# breach reproduces: the gate re-runs that one test once, in the same job, and
+# the run is red only if the re-run also breaches; a test that passes on its
+# re-run is listed as a warning with both timings."
+#
+# The package's three Done-when cases are the first three tests below, plus the
+# 1.5-4.0 s clause. Everything after them is the machinery's FAILURE shapes —
+# the cases where adding a re-run can make the gate weaker than ruling 93
+# left it, which is the only way this amendment can hurt.
+#
+# **How the re-run is driven without paying a real sleep.** The gate re-invokes
+# one test by argv; ``SLEEP_GATE_PYTEST`` replaces that argv prefix (default
+# ``<sys.executable> -m pytest``) and each test below points it at a stub
+# pytest written into ``tmp_path``, which records every invocation and prints a
+# canned duration in the one format the gate parses. The gate's own argv
+# construction, junit temp-file handling, parsing and verdict path all still
+# run end to end — only the process on the other end of the pipe is canned.
+# ``test_the_default_rerun_is_live_and_names_this_interpreter`` then pins the
+# DEFAULT against a real test in this repo, because a stubbed seam proves
+# nothing about the runner production uses.
+#
+# **Why the re-run is OFF until the env turns it on, and why that is not the
+# downgrade returning through a flag.** ``SLEEP_GATE_RERUN`` can name no test,
+# widen no budget and read no previous run, so it is not an exemption channel;
+# unset, the gate is ruling 93 byte for byte (breach = red, nothing spawned).
+# It exists because a re-run is only meaningful where the checked-out tree is
+# the tree that produced the junit: the audit job is that place (same commit,
+# same runner, same job — the package's "in the same job"), whereas a junit
+# artifact replayed on a laptop would compare two machines and could CLEAR a
+# genuine breach. The step sets it and
+# ``test_the_gate_step_enables_the_re_run`` makes dropping it an alarm instead
+# of a silent reversion. Two more rules the pins below hold: a re-run the gate
+# CANNOT complete stays RED (unverified is not passed), and the report says
+# which of the three states it is in, so "off" and "broken" never read as "the
+# rule".
+# ==========================================================================
+
+RERUN_ON = {"SLEEP_GATE_RERUN": "1"}
+
+# A corpus id with NO module behind it: the re-run can never accidentally
+# execute something real while these pins are checking the machinery.
+SLEEPER = ("backend.tests.unit.slow.test_sleeper", "test_a")
+SLEEPER_ID = f"{SLEEPER[0]}::{SLEEPER[1]}"
+SLEEPER_TARGET = "backend/tests/unit/slow/test_sleeper.py::test_a"
+
+
+def _stub_pytest(
+    tmp_path: Path,
+    durations: dict[str, str],
+    *,
+    exit_codes: dict[str, int] | None = None,
+    collect_zero: set[str] | None = None,
+    calls_file: Path,
+) -> str:
+    """A stand-in for ``python -m pytest``: canned duration, canned exit code.
+
+    ``durations`` maps the re-run test's NAME to the seconds its canned junit
+    reports, and a name in ``collect_zero`` exits 5 (pytest's real "no tests
+    collected"); a name in neither exits 4 with no junit — the "could not run
+    it" shape.
+
+    **Keyed by name, deliberately not by the path target.** Keying by target
+    would mean the helper has to build the expected ``path::name`` itself, and
+    a helper that re-derives the path re-implements the very inversion
+    ``test_the_re_run_names_the_breaching_test_as_a_path`` exists to check —
+    an inverted id would then match the fixture's own wrong spelling and every
+    machinery pin below would go green on a gate that can never re-run
+    anything. So the stub answers "whatever you asked for, this is how long it
+    took" and leaves the target string as data only that one pin reads. A
+    target whose name the stub does not know still exits 4, so the fail-closed
+    arms keep their teeth.
+
+    It writes its junit to whatever ``--junit-xml=`` the gate passed, so the
+    gate's temp-file handling is on the path under test, and appends every
+    invocation to ``calls_file`` so a pin can assert *once*, and with what.
+    """
+
+    def name_of(key: str) -> str:
+        """``a.b.c::test_x`` and ``path::Class::test_x`` both → ``test_x``."""
+        return key.rsplit("::", maxsplit=1)[-1]
+
+    # Projected HERE rather than inside the f-string: an f-string replacement
+    # field parses its expression as real Python, where ``{{}}`` is not an
+    # escaped empty dict but a set literal holding one (TypeError: unhashable).
+    by_name = {name_of(k): v for k, v in durations.items()}
+    by_exit = {name_of(k): v for k, v in (exit_codes or {}).items()}
+    by_zero = sorted(name_of(k) for k in (collect_zero or set()))
+    script = tmp_path / "stub-pytest.py"
+    script.write_text(
+        textwrap.dedent(
+            f"""\
+            import json, os, sys
+            argv = sys.argv[1:]
+            D = {by_name!r}
+            EXIT = {by_exit!r}
+            ZERO = {by_zero!r}
+            target = next((a for a in argv if "::" in a), "")
+            name = target.split("::")[-1]
+            xml = next((a.split("=", 1)[1] for a in argv if a.startswith("--junit-xml=")), "")
+            with open({str(calls_file)!r}, "a", encoding="utf-8") as h:
+                h.write(json.dumps({{"argv": argv, "cwd": os.getcwd()}}) + "\\n")
+            if name in ZERO:
+                sys.exit(5)
+            if name not in D:
+                print(f"ERROR: no tests ran for {{target}}", file=sys.stderr)
+                sys.exit(4)
+            t = D[name]
+            if xml:
+                with open(xml, "w", encoding="utf-8") as h:
+                    h.write(
+                        '<?xml version="1.0" encoding="utf-8"?>'
+                        '<testsuites name="pytest tests"><testsuite name="pytest" tests="1" '
+                        'failures="0" errors="0" skipped="0" time="' + t + '">'
+                        '<testcase classname="" name="x" time="' + t + '" /></testsuite>'
+                        "</testsuites>"
+                    )
+            sys.exit(EXIT.get(name, 0))
+            """
+        ),
+        encoding="utf-8",
+    )
+    return f"{sys.executable} {script}"
+
+
+def _calls(calls_file: Path) -> list[dict]:
+    """Every recorded stub invocation, as ``{"argv": [...], "cwd": "..."}``.
+
+    A dict and not a bare argv because the child's working directory is
+    load-bearing (the re-run target is repo-relative) and nothing else
+    observes it.
+    """
+    if not calls_file.exists():
+        return []
+    return [
+        json.loads(line)
+        for line in calls_file.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def _argvs(calls_file: Path) -> list[list[str]]:
+    return [rec["argv"] for rec in _calls(calls_file)]
+
+
+def test_a_breach_that_passes_its_re_run_is_a_warning_not_red(tmp_path: Path) -> None:
+    """Done-when case 1 — "the run is red only if the re-run also breaches".
+
+    4.5 s in the corpus, 0.4 s on the re-run: the runner-starvation shape the
+    amendment exists to forgive. GREEN, and listed.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        f"a breach that does NOT reproduce is a warning, not a red — that IS the amendment\n{out}"
+    )
+    assert "BREACH" not in run.stdout, f"a non-reproducing breach must not print as one\n{out}"
+    assert "WARN" in out and SLEEPER[1] in out, (
+        f"the non-reproducing breach must be listed as a warning\n{out}"
+    )
+    invoked = _calls(calls)
+    assert len(invoked) == 1, (
+        "exactly ONE re-run of the one breaching test — 're-runs that one test "
+        f"once' is the ruling's word; a retry loop is a different rule: {invoked}"
+    )
+
+
+def test_the_warning_row_after_a_clean_re_run_carries_both_timings(tmp_path: Path) -> None:
+    """Done-when case 2 — "a warning WITH BOTH TIMINGS", not the flattering one.
+
+    A row showing only ``0.40s`` reads as "this test is fine" and the 4.5 s
+    event leaves the record, which is the downgrade the owner did not grant.
+    Both numbers, in stdout and in ``$GITHUB_STEP_SUMMARY``, beside the same id.
+    """
+    calls = tmp_path / "calls.jsonl"
+    summary = tmp_path / "step-summary.md"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+            "GITHUB_STEP_SUMMARY": str(summary),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, f"expected green; got\n{out}"
+    row = next(line for line in out.splitlines() if SLEEPER[1] in line)
+    assert "4.50" in row and "0.40" in row, (
+        f"the row must carry the corpus AND the re-run timing; saw: {row!r}"
+    )
+    written = summary.read_text(encoding="utf-8")
+    line2 = next((line for line in written.splitlines() if SLEEPER_ID in line), "")
+    assert "4.50" in line2 and "0.40" in line2, (
+        "both timings belong in the step summary too — that is where the owner "
+        f"reads the numbers\n{written}"
+    )
+
+
+def test_a_breach_that_breaches_again_is_red(tmp_path: Path) -> None:
+    """Done-when case 3 (UR-125 + UR-126) — the reproduced breach is RED.
+
+    Durations are the redis backoff's own recorded pair (4.31 s on main, 4.68 s
+    locally), the test the amendment was argued over. UR-126: the remedy is in
+    the test, so the verdict must still name and size it and show both
+    measurements.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "4.7"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, f"a reproduced breach is red, UR-126\n{out}"
+    assert "BREACH" in run.stdout and SLEEPER[1] in run.stdout, (
+        f"the confirmed breach must still be named\n{out}"
+    )
+    assert "4.50" in out and "4.70" in out, (
+        f"a confirmed breach should show both measurements; the remedy needs them\n{out}"
+    )
+    assert len(_calls(calls)) == 1, f"one re-run, then the verdict: {_calls(calls)}"
+
+
+def test_a_1p5_to_4p0_second_unit_test_warns_only_and_is_never_re_run(tmp_path: Path) -> None:
+    """Done-when case 4 — "any unit test over 1.5 s is listed as a warning that
+    never fails the run", and the re-run must not touch it.
+
+    The re-run is a defence against a FALSE breach; a warn-band test is not a
+    breach. Re-running the warn tier would (a) pay a real sleep per warning —
+    the shipping corpora hold dozens of ids over 1.5 s — and (b) hand those ids
+    a channel to be *erased* from the list by a fast re-run, which is the
+    exemption the ruling refuses to grant. So the load-bearing assert is on the
+    calls file, not the verdict.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml([("backend.tests.unit.band.test_mid", "test_mid", 2.5)])),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
+    )
+    out = _out(run)
+    assert run.returncode == 0, f"a 2.5 s unit test is warn-only\n{out}"
+    assert "WARN" in out and "test_mid" in out, f"and it must be listed\n{out}"
+    assert _calls(calls) == [], (
+        "a WARN-band test must not be re-run — a fast re-run would delete a "
+        f"warning the ruling says must stay listed: {_calls(calls)}"
+    )
+
+
+def test_the_re_run_names_the_breaching_test_as_a_path(tmp_path: Path) -> None:
+    """The id must be inverted correctly, or the whole mechanism is inert.
+
+    junit's classname is dotted (``backend.tests.unit.slow.test_sleeper``) and
+    a pytest target is a path (``backend/tests/unit/slow/test_sleeper.py``). An
+    inversion bug makes every re-run fail with "no tests ran", so the gate
+    reports "could not verify" forever, looks rigorous, and never downgrades a
+    thing. That failure mode is otherwise indistinguishable from a working gate
+    that simply has no flukes; this pin sees the target string itself.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+        },
+    )
+    assert run.returncode == 0, _out(run)
+    argv = _argvs(calls)[0]
+    target = next(a for a in argv if "::" in a)
+    assert target == SLEEPER_TARGET, (
+        f"target must be the corpus id inverted to path::name; saw {target!r}"
+    )
+
+
+def test_the_re_run_clears_addopts_and_sets_its_own_timeout(tmp_path: Path) -> None:
+    """The re-run must measure what the budget speaks about.
+
+    ``pyproject.toml``'s ``addopts`` carries ``-n 8 --dist=worksteal`` and
+    ``timeout = 5``. Inheriting them would (a) time the sleep under 8-way
+    runner contention — the exact starvation the amendment forgives, so a
+    genuine breach would be *confirmed* by the contention that disguised it —
+    and (b) let pytest-timeout kill any re-run over 5 s and report that as the
+    verdict, making the plugin's ceiling, not the owner's 4.0 s, the thing that
+    decides red.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "4.7"}, calls_file=calls),
+        },
+    )
+    assert run.returncode != 0, _out(run)
+    argv = _argvs(calls)[0]
+    joined = " ".join(argv)
+    assert "-n 8" not in joined and "--dist" not in joined, (
+        "the re-run must not inherit the parallel addopts — it would measure "
+        f"contention, not the test: {argv}"
+    )
+    assert any(a.startswith("--timeout=") for a in argv), (
+        f"the re-run needs an explicit timeout, else addopts' timeout=5 decides the verdict: {argv}"
+    )
+    timeout = next(a for a in argv if a.startswith("--timeout=")).split("=", 1)[1]
+    assert float(timeout) > 4.0, f"the timeout must not undercut the budget: {timeout}"
+
+
+def test_a_re_run_the_gate_cannot_start_stays_red(tmp_path: Path) -> None:
+    """Fail closed on the re-run: "could not check" is not "passed".
+
+    The test is not in the tree (exit 4 — what a renamed or deleted test looks
+    like). Nothing about this run says the duration was a fluke. A gate that
+    turns unverifiable breaches green has been switched off by the machinery
+    meant to explain them — the same WP0.5 doctrine the corpus-level pins apply
+    to zero evidence. And the report must say WHY it stayed red.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        "an unverifiable breach is RED; the alternative is a gate that goes "
+        f"green because its own re-run is broken\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach is still the headline\n{out}"
+    assert SLEEPER[1] in out and "not verified" in out.lower(), (
+        f"the report must say why it stayed red, not just that it did\n{out}"
+    )
+
+
+def test_a_re_run_that_collects_nothing_stays_red(tmp_path: Path) -> None:
+    """pytest's "no tests collected" (exit 5) is the same non-witness.
+
+    A target that selects zero tests exits successfully while executing
+    nothing; counting that as clean would clear every breach whose path
+    inversion is subtly wrong.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {}, collect_zero={SLEEPER_ID}, calls_file=calls
+            ),
+        },
+    )
+    assert run.returncode != 0, (
+        f"a re-run that collected nothing measured nothing — red, not a downgrade\n{_out(run)}"
+    )
+    assert len(_calls(calls)) == 1, "it did try once; the verdict is still red"
+
+
+def test_a_re_run_that_reports_no_duration_stays_red(tmp_path: Path) -> None:
+    """A runner that exits 0 but records 0 s has not measured anything.
+
+    The corpus side already treats a zero-duration testcase as "not a fast
+    test, a skipped one" and fails closed on it; the re-run arm must apply the
+    same rule to itself, or "no number" silently means "under budget" and every
+    re-run becomes a clearance.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0"}, calls_file=calls),
+        },
+    )
+    assert run.returncode != 0, (
+        f"a re-run that reported no duration cannot certify a pass\n{_out(run)}"
+    )
+
+
+def test_the_re_run_happens_once_per_breach_not_once_per_run(tmp_path: Path) -> None:
+    """Three breaches → three re-runs, one each, three distinct targets.
+
+    The ruling says "that one test once", per breach. One shared re-run would
+    clear tests it never ran or red tests that were clean; a loop that retried
+    until green would be ``pytest-rerunfailures``, which this repo already
+    ships and which the owner did not ask the gate to become.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        (
+            "unit.xml",
+            _xml(
+                [
+                    ("backend.tests.unit.multi", "test_a", 4.5),
+                    ("backend.tests.unit.multi", "test_b", 5.5),
+                    ("backend.tests.unit.multi", "test_c", 6.5),
+                ]
+            ),
+        ),
+    )
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path,
+                {
+                    "backend.tests.unit.multi::test_a": "0.3",
+                    "backend.tests.unit.multi::test_b": "0.3",
+                    "backend.tests.unit.multi::test_c": "0.3",
+                },
+                calls_file=calls,
+            ),
+        },
+    )
+    assert run.returncode == 0, f"all three came back clean; none is a breach\n{_out(run)}"
+    targets = sorted(next(a for a in argv if "::" in a) for argv in _argvs(calls))
+    assert len(targets) == 3 and len(set(targets)) == 3, (
+        f"one re-run per breaching id, three distinct targets; got {targets}"
+    )
+
+
+def test_the_rerun_is_off_unless_the_env_turns_it_on(tmp_path: Path) -> None:
+    """The knob's ABSENCE must not be the downgrade wearing a different hat.
+
+    Two arms on one corpus. Off: ruling 93 exactly — red, and nothing spawned —
+    plus a report that SAYS the breach went unreproduced, so the off state
+    never reads as the rule. On: the clean re-run downgrades it. If the two
+    arms agree in either direction, the knob is not what implements the
+    amendment and this pin cannot tell.
+    """
+    off_calls = tmp_path / "off.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    off = _run(
+        results,
+        {
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=off_calls),
+        },
+    )
+    assert off.returncode != 0, (
+        "with the re-run not enabled the gate is ruling 93: breach = red. If "
+        f"this went green the knob silently IS an exemption channel\n{_out(off)}"
+    )
+    assert _calls(off_calls) == [], f"nothing spawns while off: {_calls(off_calls)}"
+    assert "not enabled" in _out(off).lower(), (
+        "a breach the gate did not attempt to reproduce must say so\n" + _out(off)
+    )
+
+    on_calls = tmp_path / "on.jsonl"
+    on = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=on_calls),
+        },
+    )
+    assert on.returncode == 0, (
+        "same corpus, knob on: the clean re-run downgrades it — the two arms "
+        f"must disagree\n{_out(on)}"
+    )
+
+
+def test_a_non_unit_breach_is_red_without_a_re_run(tmp_path: Path) -> None:
+    """The re-run clause speaks about UNIT tests; every other tier keeps 93.
+
+    The audit job has no browser and no ``npm ci``, so re-running an e2e id
+    there cannot work, and a 23 s Playwright spec is not runner starvation. If
+    the implementation ever offered a re-run to a non-unit breach it would spawn
+    a doomed subprocess per e2e failure; the stub knows no target here, so an
+    attempt is visible in the calls file.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        ("e2e.xml", _xml([("specs/edge_case_matrix.spec.ts", "test_slow_spec", 23.1)])),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
+    )
+    out = _out(run)
+    assert run.returncode != 0, f"23.1 s over the 10.0 s e2e limit\n{out}"
+    assert _calls(calls) == [], (
+        "the re-run is unit-tier only; an e2e breach cannot be re-run in this "
+        f"job and must not try: {_calls(calls)}"
+    )
+
+
+def test_the_default_rerun_is_live_and_names_this_interpreter(tmp_path: Path) -> None:
+    """The stubbed seam proves nothing about PRODUCTION's runner, so pin that.
+
+    The failure mode this exists to catch is UR-125 being merged while inert: a
+    default argv that cannot start would satisfy every stub pin above, report
+    "could not verify" on every breach forever, and read exactly like a working
+    gate that happens to see no flakes. Three limbs, each cheap.
+
+    (a) The default argv is ``<this interpreter> -m pytest`` — not a bare
+        ``pytest`` that could resolve to something off PATH. The audit job gets
+        pytest from ``uv sync --extra dev``, so the gate must re-run with the
+        interpreter already running it.
+    (b) That interpreter can actually IMPORT pytest, proved by running it
+        (``--version``, ~0.2 s). Deliberately not a full in-repo collection:
+        measured here, ``pytest --collect-only`` on one tiny in-repo file costs
+        3.81 s and running it 5.82 s, because this repo's conftest chain is
+        heavy — a live arm that pays that would breach this very gate's 4.0 s
+        unit budget (and pytest's own ``timeout = 5``) to prove a point, and
+        duration gates here are marker-blind, so ``@pytest.mark.slow`` would not
+        save it. What a laptop cannot measure honestly, CI measures for real:
+        ``test_the_gate_step_enables_the_re_run`` pins that the job which
+        enables the re-run is the job that installs the dev extra.
+    (c) The child runs with cwd at the repo root, because the re-run target is
+        a repo-RELATIVE path — spawn it from anywhere else and every target
+        misses, which is limb (b)'s inert-gate shape arriving by a different
+        route.
+    """
+    direct = _gate.rerun_command()
+    assert direct[:2] == [sys.executable, "-m"], (
+        f"the default must re-run with THIS interpreter, not PATH's: {direct}"
+    )
+    assert direct[2] == "pytest", f"…invoked as a module, not an executable: {direct}"
+
+    # Real on purpose: this IS the sanity check — it must actually spawn our own
+    # interpreter to prove the re-run's default runner resolves. Fixed argv list,
+    # no shell; the check-test-timeouts hook's "# real" token exempts it, and
+    # ruff's S603 is ignored for backend/tests/ in pyproject.toml.
+    probe = subprocess.run(  # real
+        [sys.executable, "-m", "pytest", "--version"],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=_gate.REPO_ROOT,
+    )
+    assert probe.returncode == 0, (
+        "the default runner's pytest must be importable by the interpreter that "
+        f"runs the gate; otherwise every re-run is 'could not verify' and "
+        f"UR-125 is inert while reading implemented\n{probe.stderr}"
+    )
+
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+        },
+    )
+    cwd = _calls(calls)[0]["cwd"]
+    assert Path(cwd).resolve() == _gate.REPO_ROOT.resolve(), (
+        f"the target is repo-relative, so the spawn must happen at the repo root; "
+        f"saw cwd={cwd!r} root={_gate.REPO_ROOT}"
+    )
+
+
+def test_a_breach_whose_re_run_fails_stays_red(tmp_path: Path) -> None:
+    """The downgrade is for a test that PASSES on its re-run (UR-125's words).
+
+    A re-run that finishes under budget but exits non-zero — it now fails, or
+    errors in its fixture — has not been exonerated, it has been caught. This
+    is the shape a "fast" reading could wave through: the gate parses a
+    duration, sees 0.9 s < 4.0 s, and if it looked only at the number it would
+    call a red test a flake that got lucky. The exit code is part of the
+    verdict, not noise around it.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {SLEEPER_ID: "0.9"}, exit_codes={SLEEPER_ID: 1}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        "a re-run that FAILS fast did not clear the breach — 'passes on its "
+        f"re-run' is the only exoneration the ruling grants\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
+    assert len(_calls(calls)) == 1, "one re-run; a failing test is not retried for luck"
+
+
+def test_a_class_based_breach_is_re_run_with_the_colon_spelling(tmp_path: Path) -> None:
+    """junit spells a class member ``Class.method``; pytest wants ``Class::method``.
+
+    junit's own ids are joined with ``::`` for display, but the classname itself
+    can carry a class (``test_file.py::TestLedgerWindow::test_window_stamps`` is
+    how pytest writes a class member, and the ledger's ``TestDurationTracking``
+    row shows those ids really reach the corpora). A target built by splitting
+    on the first dot would produce ``…/test_ledger.py.TestLedgerWindow::…`` and
+    select nothing — and per the inert-inversion argument above the gate would
+    then look permanently unverifiable rather than obviously broken. (The class
+    here is deliberately NOT ``TestDurationTracking``, which is a live
+    ``SLOW_TEST_PATTERNS`` member and would classify as ``slow``, not ``unit``.)
+    """
+    calls = tmp_path / "calls.jsonl"
+    classname = "backend.tests.unit.tracked.test_ledger.TestLedgerWindow"
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml([(classname, "test_window_stamps", 4.5)])),
+    )
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path,
+                {f"{classname}::test_window_stamps": "0.4"},
+                calls_file=calls,
+            ),
+        },
+    )
+    assert run.returncode == 0, _out(run)
+    target = next(a for a in _argvs(calls)[0] if "::" in a)
+    assert target == (
+        "backend/tests/unit/tracked/test_ledger.py::TestLedgerWindow::test_window_stamps"
+    ), f"class members need the :: spelling; saw {target!r}"

@@ -3070,6 +3070,15 @@ jobs:
           SLEEP_GATE_INTEGRATION_BUDGET: '10.0'
           SLEEP_GATE_E2E_BUDGET: '10.0'
           SLEEP_GATE_WARN_BUDGET: '1.5'
+          # UR-125 as amended: a unit-tier breach re-runs once before it can
+          # redden the run. The script ships this OFF, because a junit corpus
+          # describes the machine that wrote it and replaying one on a laptop
+          # compares two boxes — it could clear a genuine breach. This job is
+          # the one place the checkout IS the tree that produced these XMLs
+          # (same commit, same runner class, same job), which is what the
+          # ruling's "re-runs only that test, once, in the same job" means. The
+          # key needs the dev extra, which the uv sync above already installs.
+          SLEEP_GATE_RERUN: '1'
 
       - name: Create Linear issue on failure
         # WP0.5: the job now gates PRs too — a PR failure is a red check the

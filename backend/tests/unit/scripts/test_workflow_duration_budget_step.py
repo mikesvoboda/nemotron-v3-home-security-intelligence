@@ -119,14 +119,59 @@ def test_the_gate_states_its_budgets_in_ci() -> None:
     budgets EQUAL the audit's CI-set limits and the WARN is 1.5 s; a step that
     set them to anything else (the old 1.5/6.0/5.0, or nothing at all) would
     look wired while gating a different rule than the one the owner ruled.
+
+    The budgets are compared as THEIR OWN SUBSET rather than as the whole env
+    because the step now also carries the UR-125 re-run enable, whose reason is
+    ``test_the_gate_step_enables_the_re_run``. Exact-dict on the whole env made
+    those two unrelated rules share one failure: dropping the re-run enable and
+    mis-stating a budget produced the same "budgets are the ruling-93 record"
+    message, which would have sent the next reader hunting for a wrong number.
     """
     env = _step(STEP_NAME).get("env") or {}
-    assert env == {
+    budgets = {k: v for k, v in env.items() if k.endswith("_BUDGET")}
+    assert budgets == {
         "SLEEP_GATE_UNIT_BUDGET": "4.0",
         "SLEEP_GATE_INTEGRATION_BUDGET": "10.0",
         "SLEEP_GATE_E2E_BUDGET": "10.0",
         "SLEEP_GATE_WARN_BUDGET": "1.5",
-    }, f"budgets are the ruling-93 record; got {env}"
+    }, f"budgets are the ruling-93 record; got {budgets}"
+
+
+def test_the_gate_step_enables_the_re_run() -> None:
+    """UR-125's re-run is only real if the step turns it on — pinned at the step.
+
+    The script defaults the re-run OFF, deliberately: a junit corpus describes
+    the machine that wrote it, so replaying one on a laptop would compare two
+    boxes and could clear a genuine breach (see the block comment in
+    ``test_duration_budget_gate.py``). The audit job is the one place the
+    checkout IS the tree that produced the junit — same commit, same runner,
+    same job, which is the package's "re-runs only that test, once, in the same
+    job" — so the enable belongs here and nowhere else.
+
+    This is also the alarm for the one way the amendment could vanish quietly:
+    the gate step is a one-hunk addition to a file sibling lanes rewrite
+    wholesale, and a merge that dropped this key would leave the script passing
+    every one of its own tests while gating ruling 93's superseded text. A
+    missing enable is indistinguishable from the amendment working, which is
+    exactly why it is asserted in the workflow instead of trusted.
+
+    The edit is an env key on an existing step of a shared job: UR-121 would
+    ordinarily route this to its own job, and UR-122 ("an edit an owner ruling
+    orders is never barred by UR-121") is what licenses it here, because the
+    package text puts the mechanism in this job.
+    """
+    env = _step(STEP_NAME).get("env") or {}
+    assert env.get("SLEEP_GATE_RERUN") == "1", (
+        "without this key the gate never reproduces a breach and UR-125's "
+        f"downgrade fires in zero runs: got {env}"
+    )
+    # The re-run needs the dev extra's pytest; the job's install step is what
+    # puts it there, and a re-run that cannot start is a silent reversion.
+    install = [s for s in _audit_job_steps() if "uv sync" in str(s.get("run", ""))]
+    assert install and all("--extra dev" in str(s["run"]) for s in install), (
+        "the re-run's default runner is `python -m pytest`, which only exists "
+        f"because this job installs the dev extra: {install}"
+    )
 
 
 def test_the_gate_is_the_only_added_step_in_the_audit_job() -> None:
