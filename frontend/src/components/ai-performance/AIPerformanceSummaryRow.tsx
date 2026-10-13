@@ -1,37 +1,56 @@
 /**
  * AIPerformanceSummaryRow - Summary row for AI Performance page
  *
- * Displays 5 key indicators in a horizontal row:
+ * Displays 6 key indicators in a horizontal row:
  * - RT-DETRv2: Object detection model status and latency
  * - Nemotron: LLM analysis model status and latency
  * - Queues: Combined queue depth (detection + analysis)
  * - Throughput: Events processed per minute
  * - Errors: Total pipeline errors
+ * - DLQ: Jobs currently parked in the dead-letter queues (F-038)
  *
  * Features:
  * - Color-coded status indicators (green/yellow/red)
  * - Click-to-scroll to relevant sections
  * - Hover tooltips with additional detail
  * - Real-time updates via props
- * - Responsive: 5 columns desktop, 2x3 grid mobile
+ * - Responsive: 6 columns desktop, 2x3 grid mobile (three rows of two, so
+ *   the sixth card closes a pair rather than orphaning one)
  */
 
 import { clsx } from 'clsx';
-import { CheckCircle, XCircle, AlertCircle, Layers, TrendingUp, AlertTriangle } from 'lucide-react';
+import {
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Layers,
+  TrendingUp,
+  AlertTriangle,
+  Archive,
+} from 'lucide-react';
 import { useState, useCallback, type RefObject } from 'react';
 
 import type { AIModelStatus } from '../../hooks/useAIMetrics';
 import type { AILatencyMetrics } from '../../services/metricsParser';
 
-export type IndicatorType = 'rtdetr' | 'nemotron' | 'queues' | 'throughput' | 'errors';
+export type IndicatorType = 'rtdetr' | 'nemotron' | 'queues' | 'throughput' | 'errors' | 'dlq';
 export type StatusColor = 'green' | 'yellow' | 'red' | 'gray';
 
+/**
+ * Scroll targets for the click-to-scroll behaviour. `dlq` is optional and
+ * deliberately has no target on the dashboard today: no dashboard route
+ * renders a DLQ section (see `dlqCounts` below for why the count needed its
+ * own card instead). Adding the key keeps `sectionRefs?.[indicator]` inside
+ * `handleIndicatorClick` type-checked now that 'dlq' is an IndicatorType —
+ * without it, indexing by the wider union would not compile.
+ */
 export interface SectionRefs {
   rtdetr?: RefObject<HTMLElement | null>;
   nemotron?: RefObject<HTMLElement | null>;
   queues?: RefObject<HTMLElement | null>;
   throughput?: RefObject<HTMLElement | null>;
   errors?: RefObject<HTMLElement | null>;
+  dlq?: RefObject<HTMLElement | null>;
 }
 
 export interface AIPerformanceSummaryRowProps {
@@ -55,6 +74,17 @@ export interface AIPerformanceSummaryRowProps {
   totalErrors: number;
   /** Throughput per minute (optional - can be calculated) */
   throughputPerMinute?: number;
+  /**
+   * Current dead-letter queue counts by queue name, keyed as the hook builds
+   * them (`dlq:detection_queue`, `dlq:analysis_queue`). This is what makes the
+   * inventory row's "DLQ error count" clause true: before F-038 the hook
+   * fetched GET /api/dlq/stats into `dlqItems` and no rendered component read
+   * it — its only reader, ai/PipelineHealthPanel.tsx, has zero render sites.
+   * Optional so existing callers keep compiling; the card renders the zero
+   * state rather than disappearing, because a hidden card is indistinguishable
+   * from a broken fetch.
+   */
+  dlqCounts?: Record<string, number>;
   /** Refs to section elements for scroll-to behavior */
   sectionRefs?: SectionRefs;
   /** Callback when an indicator is clicked */
@@ -143,6 +173,18 @@ function getThroughputStatus(perMinute: number): StatusColor {
 function getErrorStatus(errorCount: number): StatusColor {
   if (errorCount >= 50) return 'red';
   if (errorCount > 0) return 'yellow';
+  return 'green';
+}
+
+/**
+ * DLQ status. Stricter than getErrorStatus on purpose: a parked job is a
+ * CURRENT condition that needs a decision, not a cumulative counter, so the
+ * first one is already worth a colour. One parked job is yellow; a backlog
+ * that keeps growing is red.
+ */
+function getDlqStatus(parkedCount: number): StatusColor {
+  if (parkedCount >= 10) return 'red';
+  if (parkedCount > 0) return 'yellow';
   return 'green';
 }
 
@@ -280,12 +322,16 @@ export default function AIPerformanceSummaryRow({
   totalEvents,
   totalErrors,
   throughputPerMinute,
+  dlqCounts = {},
   sectionRefs,
   onIndicatorClick,
   className,
 }: AIPerformanceSummaryRowProps) {
   // Calculate derived values
   const totalQueueDepth = detectionQueueDepth + analysisQueueDepth;
+  // Summed here, not passed in, so the card follows the same shape as the
+  // Errors card (a total the component derives from a per-queue map).
+  const totalDlqItems = Object.values(dlqCounts).reduce((sum, count) => sum + count, 0);
 
   // Calculate throughput if not provided (events per minute)
   // Default to a reasonable value based on total events
@@ -442,6 +488,31 @@ export default function AIPerformanceSummaryRow({
             </div>
             <div className="mt-1 text-xs italic text-gray-500">
               These are cumulative counters, not active errors
+            </div>
+          </div>
+        }
+      />
+
+      {/* DLQ Indicator (F-038) */}
+      <IndicatorCard
+        testId="dlq-indicator"
+        label="DLQ"
+        value={totalDlqItems === 0 ? 'None' : `${totalDlqItems} parked`}
+        status={getDlqStatus(totalDlqItems)}
+        icon={<Archive className="h-3.5 w-3.5 text-red-400" aria-hidden="true" />}
+        onClick={() => handleIndicatorClick('dlq')}
+        ariaLabel={`Dead-letter queues: ${totalDlqItems} jobs parked. Jobs land here after their final retry fails.`}
+        tooltipContent={
+          <div className="space-y-1">
+            <div className="font-medium text-white">Dead-Letter Queues</div>
+            <div>Total Parked: {totalDlqItems}</div>
+            {Object.entries(dlqCounts).map(([queue, count]) => (
+              <div key={queue}>
+                {queue.replace(/^dlq:/, '')}: {count}
+              </div>
+            ))}
+            <div className="mt-1 text-xs italic text-gray-500">
+              Current counts, unlike the cumulative Errors card
             </div>
           </div>
         }
