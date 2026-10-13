@@ -106,9 +106,14 @@ async def camera(db_session):
 # count=2 at SPACING_S (=6 s, UNDER the threshold, so it coalesces to one
 # frame), and every spanning case uses 2*SPACING_S (=12 s, OVER it, so ISS-005
 # grants companion stills) whether by three rows a spacing apart or two rows
-# two spacings apart. 6 and 12 straddle 10 with room on both sides; a
-# threshold moved inside that band flips one of them red, which is the point of
-# pinning both sides here. `_mk_detections` takes `spacing_s` so one test can
+# two spacings apart. 6 and 12 straddle the default 10 with room on both sides,
+# and the integer thresholds that keep ALL the key-frame tests green are exactly
+# 6..11 (the config field is an int, gt=0, so that band is closed). Move it OUT
+# of the band and the time-based canary below reddens ALONGSIDE one pair test,
+# and WHICH pair test joins the canary names the broken side: under 6 the
+# coalescing pair itself starts spanning (2 frames, not 1); at 12 or over the
+# dwelling pair stops spanning. Pinning both sides is the point.
+# `_mk_detections` takes `spacing_s` so one test can
 # hold BOTH sides in a single batch — see
 # test_the_spread_gate_is_time_based_not_file_based.
 SPACING_S = 6
