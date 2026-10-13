@@ -648,6 +648,36 @@ class TestScopeClaimArms:
         assert result.returncode == 1, result.stdout
         assert "absent from the pre-reorg snapshot" in result.stdout, result.stdout
 
+    def test_live_scope_claim_unlocatable_section_message_pinned(self, tmp_path: Path) -> None:
+        """L183 — the ONE scope_claim return that no test asserted, found by the UR-89 fresh-context
+        review and re-measured here. It is reachable because `heads()` and `section()` disagree:
+        heads() collects bare `N.` item numbers (re.findall r"^\\s*(\\d+)\\.\\s"), so `rules.md "3"`
+        passes the live-section guard at :310, while section() matches only headings and bold
+        labels and finds nothing. The gate then prints the message and rc=1 — a green suite said
+        nothing about it, so any reword of this dead-letter text could silently break the report.
+
+        Assert the WHOLE span: the fixture arm at L390 prints `section 'X' not located in ...` too,
+        so the bare substring `not located` would pass on the wrong emitter."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(rules.read_text() + '\nSee rules.md "3" §2.\n')
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "\"3\" §2 section '3' not located" in result.stdout, result.stdout
+
+    def test_scope_claim_two_return_arms_do_not_share_a_string(self, tmp_path: Path) -> None:
+        """The discriminator for the test above. scope_claim has two exits — L183 (section never
+        located) and L187 (located, but `has no item N`). A pin that only demanded rc=1 plus
+        `not located` could be satisfied by either, so plant the OTHER arm and require that it
+        prints its own message WITHOUT the first one's."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(rules.read_text() + '\nPer roles/lane.md "The tick" §99.\n')
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "has no item 99" in result.stdout, result.stdout
+        assert "not located" not in result.stdout, result.stdout
+
     def test_deleted_section_live_again_fires(self, tmp_path: Path) -> None:
         """:210 — the dead-SECTION branch (a dead heading in a live file). The sibling arm
         test_deleted_file_alive_again_fires covers the dead-FILE branch only, and the two
