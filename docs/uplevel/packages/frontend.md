@@ -62,7 +62,10 @@ stopped and started on a running stack.
   each affected agent's own `F2.3` claim PR (UR-157).
 - **Backend** takes the rows whose evidence is an external API behaviour, as pytest specs in
   `backend/tests/golden/` (the contract in `O2.2`'s PR body, #6961).
-- **ops-a** (after `O2.3b`) and **docs** take UI batches as `golden` Playwright specs.
+- **ops-a** (after `O2.3b`), **ops-b** and **docs** take UI batches as `golden` Playwright specs. An
+  ops cell with no batch opens its claim PR, `[F2.3] claim: <cell> golden UI batch`, and frontend
+  names the batch's `unverified` rows, from rows no open batch holds, in a comment on that PR within
+  its next tick (ruling 150).
 - **One claim PR per agent** (UR-56).
 - **Files:** a batch touches only `frontend/tests/golden/<area>/` or `backend/tests/golden/<area>/`
   and its own rows in the inventory. Frontend reviews every batch; a batch that needs a harness
@@ -288,3 +291,41 @@ green on it.
       `dashboard/activity-feed.spec.ts:80`, so that spec checks the guard.
 
 **Done when:** the type-check step runs in CI and is green.
+
+### [r132] F-022: retire the rate-limit countdown
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged (UR-66's R2b-round exception).
+**PR:** none yet. (rulings 132, 150, 155)
+
+- [ ] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
+      (`frontend/src/services/queryClient.ts:249-297`) and every store field only they read.
+- [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time
+      (`RetryingIndicator.tsx` is renamed to this text; ruling 155).
+- [ ] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no
+      `isLimited` and shows no pill; only the backend's header-complete 429 does (ruling 155).
+
+**Done when:** F-022's flipped golden spec asserts the pill's exact text and that no countdown or
+number renders, and passes. Ruling 125's quarantine of F-022 ends with this PR (ruling 155).
+After it merges, frontend deletes the dead `secondsUntilReset` store field in its own one-commit
+PR (UR-48).
+
+### [r133] F-023: retire the in-page PWA install prompt
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 133, 150)
+
+- [ ] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
+      dismissal store and its tests, `frontend/tests/golden/shell/pwa-install.spec.ts` included.
+- [ ] Keep `frontend/public/manifest.json`, `/sw.js` and their registration.
+
+**Done when:** nothing imports `InstallPrompt`, and the golden project and unit tests are green.
+
+### [r134] F-135: retire the batch-history views
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 134, 150)
+
+- [ ] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
+      `frontend/src/components/batch/BatchStatisticsDashboard.tsx`, and any hook or type only they
+      use. The active-batches view stays.
+
+**Done when:** F-135's row reads "expands the section; sees active batches", its golden path covers
+that, and nothing renders the three history views.

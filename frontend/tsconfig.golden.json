@@ -1,0 +1,39 @@
+{
+  // [r149e] Type-check the golden specs (docs/uplevel/packages/frontend.md).
+  //
+  // WHY A SECOND CONFIG INSTEAD OF WIDENING tsconfig.json's `include`.
+  // tsconfig.json declares `"include": ["src"]`, so `npm run typecheck` — and
+  // therefore CI's `Frontend Type Check (TypeScript)` job — never opened a file
+  // under tests/golden/. The golden specs are executed by CI's
+  // `Feature check (fake AI)` job and feed `CI Gate` (ruling 114), so CI was
+  // running ~15 spec files it had never type-checked. The package names this
+  // file, and a separate config is also the honest scope: `include` is not
+  // additive across `extends`, so a child config that declares its own
+  // `include` REPLACES the base list rather than appending to it — widening
+  // tsconfig.json to ["src", "tests/golden"] would additionally pull every
+  // golden spec into the app build (`npm run build` runs bare `tsc`), which is
+  // a bigger decision than this package.
+  //
+  // WHAT IS INHERITED. `extends` copies compilerOptions only; `include`,
+  // `files` and `references` are replaced when the child declares them. So this
+  // config keeps strict, noUnusedLocals, noUnusedParameters, the `paths` map and
+  // the `types` list from tsconfig.json — including "node", which specs that
+  // read process.env and use Node timers depend on — and swaps only the file
+  // set. `references` (tsconfig.node.json, for vite.config.ts) is deliberately
+  // NOT repeated: golden specs import no config file.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // This config is a checker, never a builder. tsconfig.json already sets
+    // noEmit, and `tsc -p` would honor it, but stating it here means a future
+    // edit to the base config's emit settings cannot turn this into a build step
+    // that silently writes .js next to the specs.
+    "noEmit": true
+  },
+  // The package text says `tests/golden/**`; that literal is a tsc ERROR
+  // (TS5010: "File specification cannot end in a recursive directory wildcard
+  // ('**')"), measured with tsc 6.0.3. `**/*` is the same set, expressed so the
+  // compiler accepts it. A bare "tests/golden" would also work — a directory in
+  // `include` is already recursive — but the explicit glob says out loud that
+  // the whole subtree is in scope, which is the point of this file.
+  "include": ["tests/golden/**/*"]
+}

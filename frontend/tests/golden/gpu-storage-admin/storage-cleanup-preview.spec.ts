@@ -90,8 +90,11 @@ test.describe('golden path: storage run-cleanup preview modal @critical', () => 
     // Mirror: the modal must show exactly the body the UI received. The row
     // regexes keep each value attached to its own label (the same \s* idiom
     // OP-1's spec used) so a shuffled or duplicated number cannot pass.
-    await expect.poll(() => uiPreview, { timeout: 10_000 }).not.toBeNull();
-    const got = uiPreview as CleanupPreview;
+    // Declared-return reader, not a bare cast: see the [r149e] note in
+    // admin-cache-clear.spec.ts (TS narrows the closure-assigned `let` to `null`).
+    const capturedPreview = (): CleanupPreview | null => uiPreview;
+    await expect.poll(capturedPreview, { timeout: 10_000 }).not.toBeNull();
+    const got = capturedPreview() as CleanupPreview;
     const n = (v: number) => v.toLocaleString();
     await expect(modal).toContainText(new RegExp(`Events:\\s*${n(got.events_deleted)} events`));
     await expect(modal).toContainText(

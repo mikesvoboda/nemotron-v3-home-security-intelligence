@@ -1,0 +1,173 @@
+[
+  {
+    "rule": "UR-91-c4",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Reviewing another lane's PR",
+    "needles": ["reviewed again", "merge resolution"],
+    "expect_present": false,
+    "note": "ops-b approve 6142441382: UR-91 clause 4's only live home is rules.md itself. This pin FIRES the day that text is written here \u2014 forcing the cite to move with it. First test case, assigned by the reviewer."
+  },
+  {
+    "rule": "UR-32-old-home",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Reviewing another lane's PR",
+    "needles": ["rotation", "labels the pr", "marks a head ready"],
+    "expect_present": false,
+    "note": "the circular home #7054 round 3 moved UR-32 OFF (opens 'Read rules.md \u00a7Reviewing first', states none of it). Pinned empty so a future edit cannot point the cite back here and score green."
+  },
+  {
+    "rule": "UR-83-hot",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Merging a PR",
+    "needles": ["hot files", "actionlint", "openapi"],
+    "expect_present": false,
+    "note": "round-1 finding: the section opens 'Read rules.md \u00a7Merging first' and carried none of UR-83's claim. Stays empty-pinned; UR-83 takes provenance."
+  },
+  {
+    "rule": "UR-32a",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Remit",
+    "needles": ["reviewing lane", "name it"]
+  },
+  {
+    "rule": "UR-32b",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Label for review",
+    "needles": ["review:", "ready"]
+  },
+  {
+    "rule": "UR-32c",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "The tick",
+    "item": 3,
+    "needles": ["clear the PRs", "Heavy agents skip"],
+    "note": "strengthened at the #7064 fix head: the needle was \"review\", satisfied by item 3's own label **Reviews first** \u2014 a pin answered by the heading it points at. These two are the step's content: what it clears, and who skips it."
+  },
+  {
+    "rule": "UR-32d",
+    "ref": "snap",
+    "file": "50-coordination.md",
+    "section": "Roles",
+    "needles": ["rotation", "never the author"]
+  },
+  {
+    "rule": "UR-32e",
+    "ref": "snap",
+    "file": "50-coordination.md",
+    "section": "Review and merge",
+    "needles": ["consumes the change", "names it"]
+  },
+  {
+    "rule": "UR-51a",
+    "ref": "snap",
+    "file": "10-backend.md",
+    "section": "",
+    "needles": ["work the phases in order"],
+    "note": "header = first 12 lines: an unquoted 'headers' provenance cites the top of the file."
+  },
+  {
+    "rule": "UR-51b",
+    "ref": "snap",
+    "file": "20-frontend.md",
+    "section": "",
+    "needles": ["work the phases in order"]
+  },
+  {
+    "rule": "UR-51c",
+    "ref": "snap",
+    "file": "30-ops.md",
+    "section": "",
+    "needles": ["work the phases in order", "may run in any phase"],
+    "note": "sole header carrying the OB.n half (ops-b census: 40-docs.md carries NEITHER \u2014 the non-vacuity control)."
+  },
+  {
+    "rule": "UR-51d-control",
+    "ref": "snap",
+    "file": "40-docs.md",
+    "section": "",
+    "needles": ["work the phases in order", "may run in any phase"],
+    "expect_present": false,
+    "note": "THE census control: if the matcher ever says True for all four headers it is matching nothing."
+  },
+  {
+    "rule": "UR-91",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Reviewing another lane's PR",
+    "needles": ["independently"]
+  },
+  {
+    "rule": "UR-89",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Building a package",
+    "needles": ["run the fresh-context self-review"],
+    "note": "strengthened at the #7064 fix head: `have` is a filter, so a needle list is an OR ('lacks any of'), not a conjunction. Two of the three old needles were fragments of the same sentence and 'subagent' is rules.md's word for UR-89, never lane.md's (measured: absent from the whole file) \u2014 it had never matched anything and could not have. One needle now pins the step's own phrase, which is the whole claim."
+  },
+  {
+    "rule": "UR-53",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Claiming a package",
+    "needles": ["claim", "empty commit"]
+  },
+  {
+    "rule": "UR-59",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Who takes what",
+    "needles": ["assigns only", "heavy"]
+  },
+  {
+    "rule": "UR-22",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Remit",
+    "needles": ["coordinator decisions", "channel"]
+  },
+  {
+    "rule": "UR-24",
+    "ref": "live",
+    "file": "roles/coordinator.md",
+    "section": "Assigning a package",
+    "needles": ["heavy"]
+  },
+  {
+    "rule": "UR-174",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "Paused",
+    "needles": ["restarts it", "/loop 15m"],
+    "note": "strengthened at the #7064 fix head: the only needle was \"paused\", which the section's OWN NAME supplies \u2014 an entailment that cannot fail. These two are UR-174's actual claim: a restart runs the kickoff line and re-arms /loop."
+  },
+  {
+    "rule": "UR-140",
+    "ref": "live",
+    "file": "roles/operator.md",
+    "section": "When something goes wrong",
+    "needles": ["wrong"]
+  },
+  {
+    "rule": "UR-168",
+    "ref": "live",
+    "file": "roles/owner-partner.md",
+    "section": "The check-in",
+    "needles": ["urgent path", "every session"]
+  },
+  {
+    "rule": "UR-32c-widen",
+    "ref": "live",
+    "file": "roles/lane.md",
+    "section": "The tick",
+    "item": 3,
+    "needles": ["git fetch"],
+    "expect_present": false,
+    "note": "\u00a7-narrowing negative: 'git fetch' lives in item 1 (Fetch), item 3 (Reviews first) must NOT carry it \u2014 MEASURED absent before shipping. The selftest's toy section pins section(); this pins the call site: widen the narrowing in resolve/entail and the whole tick is read as step 3, so this fires. UR-32c reads this same item for its claim; a widened block would let step 1 satisfy a \u00a73 cite."
+  }
+]

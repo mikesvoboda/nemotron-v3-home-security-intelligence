@@ -180,7 +180,9 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
 deployment and the operator's run witnesses ruling 127's 12 rows; on no, the owner has ruled on the
-blocker (ruling 144).
+blocker (ruling 144). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
+(#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
+deployment, in a comment on each PR (ruling 154).
 
 ## Phase 3 — The tree matches the rulings
 
@@ -368,10 +370,10 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 ### [r149b] Retire `Nightly Analysis`'s Complexity Trends job
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7067 (open). (ruling
 149, record 6146380050)
 
-- [ ] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed
+- [x] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed
       on every run since at least 10-03 and nothing reads its report. Security Audit stays.
 
 **Done when:** the next `Nightly Analysis` run is green, or `nightly.yml` holds only Security Audit.
@@ -387,3 +389,15 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 **Done when:** a `workflow_dispatch` run's Analyze job is green and its summary lists the flaky
 tests.
+
+### [r151] The integration tier re-runs a breach before failing
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling 151,
+record 6149020713)
+
+- [ ] Extend `[r147]`'s re-run to the integration tier: an integration test over 10.0 s is re-run
+      once in the same job, and the run is red only if the re-run also breaches; a test that passes
+      on its re-run is listed as a warning with both timings. At most 5 re-runs per job.
+
+**Done when:** a unit test pins each integration case (breach then pass on re-run is a warning;
+breach twice is red), and the audit passes on `main`'s current tests in CI.

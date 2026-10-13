@@ -251,6 +251,15 @@ jobs:
       # scripts/test_reachability.py scans THIS file's comments for non-test
       # script paths and demands each be a declared entry point, and naming
       # it would change the tool-inputs stamp for a walk-neutral reason.
+      # #7064 (UR-89 follow-up): the uplevel cite gate's own suite joined the
+      # list. It lives in the unit tier, but on a docs-only PR the unit shards
+      # never run: ci.yml gates them on backend/should-run-all and the summary
+      # job exit-0s on that skip — measured at #7054's be801744d (shards
+      # skipped, "Backend Unit Tests" success, CI Gate green: vacuous green).
+      # The cite gate reads only docs/uplevel/** and its committed snapshot
+      # data, so this step is the tier that reaches its subject — a cite
+      # otherwise rots with every check green. Drafts stay uncovered:
+      # detect-changes skips on drafts, so no docs-only condition can see one.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -269,6 +278,7 @@ jobs:
           scripts/test_mutation_score.py
           scripts/test_check_ai_provider_parity.py
           scripts/test_check_gate_reachability.py
+          scripts/test_check_inventory_summary_arith.py
           scripts/test_ai_surface_census.py
           scripts/test_check_npm_audit_exemptions.py
           scripts/test_check_pip_audit_exemptions.py
@@ -278,6 +288,7 @@ jobs:
           scripts/test_retired_paths.py
           scripts/test_check_coe_reasons.py
           scripts/test_workflow_paths.py
+          backend/tests/unit/scripts/test_check_uplevel_cites.py
           scripts/test_workflow_draft_guards.py
           scripts/audit/test_retired_names.py
           scripts/audit/test_settings_orphans.py
@@ -287,6 +298,7 @@ jobs:
           scripts/test_shard_durations.py
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py
+          scripts/test_coordinator_snapshot.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
@@ -3763,6 +3775,84 @@ jobs:
           uv run python -m pytest scripts/test_negative_tooling_claims.py
           -q
 
+  # [r149e]: type-check the golden specs — ITS OWN job, per the hot-file rule
+  # UR-121 (rules.md, cited by rule id, never by line: that file renumbers with
+  # every ruling). UR-121 allows exactly one shape of edit to a shared job in
+  # this file — one appended entry to a list a step already reads — and there is
+  # no such list to append to here: `npm run typecheck` is a `run:` command
+  # (this file's only occurrence), not an item in a list, so a `tsc -p` step
+  # added to frontend-typecheck would be a new step, which is what the rule
+  # sends to its own job. docs-negative-claims above is the in-repo precedent
+  # for exactly this move, and the wiring below (direct need + check_job line)
+  # is the only shape scripts/test_ci_job_graph.py's WP0.6 invariant accepts for
+  # a red-able job: bare `needs:` membership is ORDERING, not gating.
+  #
+  # WHY THIS JOB EXISTS AT ALL. ci.yml's Frontend Type Check runs
+  # `cd frontend && npm run typecheck` = `tsc --noEmit`, and frontend/tsconfig.json
+  # declares `"include": ["src"]`. Everything under frontend/tests/golden/ was
+  # therefore opened by CI's Feature check job and by nothing that ever
+  # type-checked it: ~15 spec files, executed on every PR that touches the
+  # feature tier, were never parsed by the compiler that would have caught a
+  # wrong event name, a stray unused import, or a cast that checks nothing. The
+  # first run of frontend/tsconfig.golden.json over that tree found 9 real
+  # errors (the package's own count, reproduced exactly), so the gap was not
+  # theoretical. The 9 are fixed in this PR; see the PR body for what each one
+  # was silently doing.
+  #
+  # WHY `npx tsc -p` AND NOT A NEW npm SCRIPT. Adding `typecheck:golden` to
+  # frontend/package.json is a second change to a file this package does not
+  # name, and the package's CI clause says `tsc --noEmit` — which is the
+  # command, not the script name. One line here keeps the diff to the two files
+  # the package asks for (the config and this job).
+  #
+  # WHY THE SAME FILTER AS ITS SIBLING. The checked tree is frontend/tests/golden/,
+  # so `frontend` is the right path filter, and should-run-all covers main pushes
+  # and workflow edits — a spec that drifts past the compiler on a docs-only PR
+  # is not possible (the tree is only reachable through `frontend`). Same guard,
+  # same shape as frontend-typecheck: the draft clause must stay the LEFT operand
+  # of the top-level &&, because GitHub's expressions bind && tighter than ||,
+  # and a guard appended after a || gates only the last disjunct (pinned by
+  # scripts/test_workflow_draft_guards.py).
+  #
+  # timeout-minutes: 10, the same figure as frontend-typecheck, which runs the
+  # same `npm ci` against the same lockfile. The step itself is not the cost:
+  # `time -p npx tsc -p tsconfig.golden.json --noEmit` on the current tree,
+  # three consecutive warm runs in frontend/, real = 2.96 / 2.95 / 3.02 s. So
+  # the job is install-bound like its sibling and inherits its headroom rather
+  # than a number guessed here.
+  frontend-golden-typecheck:
+    name: Golden Spec Type Check (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [detect-changes]
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
+      needs.detect-changes.outputs.should-run-all == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true'
+      )
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: TypeScript check (golden specs)
+        # -p is the whole contract: it resolves tsconfig.golden.json from the
+        # CWD (frontend/), which inherits tsconfig.json's compilerOptions and
+        # REPLACES its `include` with the golden subtree. `--noEmit` is restated
+        # on the command line so the step says out loud what the package asked
+        # for, even though the config already sets it.
+        run: cd frontend && npx tsc -p tsconfig.golden.json --noEmit
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -3783,6 +3873,7 @@ jobs:
       - integration-tests-summary
       - frontend-lint
       - frontend-typecheck
+      - frontend-golden-typecheck
       - frontend-tests-summary
       - frontend-e2e-summary
       - api-types-check
@@ -3892,6 +3983,7 @@ jobs:
           check_job "Backend Integration Tests" "${{ needs.integration-tests-summary.result }}"
           check_job "Frontend Lint (ESLint)" "${{ needs.frontend-lint.result }}"
           check_job "Frontend Type Check (TypeScript)" "${{ needs.frontend-typecheck.result }}"
+          check_job "Golden Spec Type Check (TypeScript)" "${{ needs.frontend-golden-typecheck.result }}"
           check_job "Frontend Tests (Vitest)" "${{ needs.frontend-tests-summary.result }}"
           check_job "E2E Tests (Chromium)" "${{ needs.frontend-e2e-summary.result }}"
           check_job "API Types Contract Check" "${{ needs.api-types-check.result }}"
