@@ -277,3 +277,14 @@ green on it.
       `awaiting real tier`; the operator's real-tier confirmation sets `works`.
 
 **Done when:** the inventory gate accepts a `works` row and the §2 table counts it.
+
+### [r149e] Type-check the golden specs
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 149, record 6146380050)
+
+- [ ] Add `frontend/tsconfig.golden.json` (extends `tsconfig.json`, includes `tests/golden/**`) and a
+      `tsc --noEmit` step over it in CI, appended as one entry (ruling 137).
+- [ ] Fix the 9 errors it finds today in the same PR, including the unused `closedByGuard` in
+      `dashboard/activity-feed.spec.ts:80`, so that spec checks the guard.
+
+**Done when:** the type-check step runs in CI and is green.

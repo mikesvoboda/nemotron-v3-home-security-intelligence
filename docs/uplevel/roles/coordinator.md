@@ -93,7 +93,7 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    **Otherwise update** the PR, one at a time (UR-102):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
-   (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | sha256sum`,
+   (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | grep -v '^index ' | sed 's/^@@ .* @@/@@/' | sha256sum`,
    after `git fetch origin main`, then `git fetch origin pull/<n>/head` (`<head>` is its
    `FETCH_HEAD`), with `<merge-base>` from `git merge-base origin/main <head>` and the files from
    `gh pr view <n> --json files`. Conflicts go to the author (UR-102). End the turn; the next tick

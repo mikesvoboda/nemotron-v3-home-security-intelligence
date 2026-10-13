@@ -228,8 +228,11 @@ Read this section before you self-review your own PR or review another lane's.
   and records them in the PR. (roles/lane.md "Building a package")
 - **UR-91** The reviewer runs the same checks independently, posts the review as a PR comment in the
   form `roles/lane.md` gives (the owner's account cannot approve its own PRs), and removes the
-  label. Each new head's merge resolution is reviewed again. (roles/lane.md "Reviewing another
-  lane's PR"; ruling 39 item G)
+  label. Each new head's merge resolution is reviewed again. A PR may merge with a Done-when box
+  unticked only when the approving review names the box, says why this PR cannot tick it (it
+  depends on another PR or a later run, or it is stale) and, if the clause still matters, where it
+  will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing another lane's PR";
+  ruling 39 item G; ruling 149)
 - **UR-92** Every review carries `Plan text: none | <which kind in UR-47 it changes, and where>`,
   written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it
   (anything but `none` makes the PR owner-tier) and asks the reviewer for a missing line rather than
@@ -300,10 +303,11 @@ and the re-read and merge comment are UR-29.
 - **UR-106** A PR is ready at the latest of: `CI Gate` passing at its head, the approving review of
   that head, and, in the owner tier, the owner's approval. An update-branch with `main` keeps the
   queue place, the review and the owner's approval if the PR's own diff
-  (`git diff <merge-base>..<head> -- <the PR's files>`) is byte-identical before and after; an
+  is unchanged before and after: every added, removed and context line matches, ignoring `index`
+  hashes and hunk line numbers (command in `roles/coordinator.md`, "Merging a PR" step 2); an
   author commit, a conflict fix included, resets all three. A red run or re-opened review takes the
-  PR out, and the gate must be green at the new head before merge. (rulings 26, 55, 59; record 6128195816; owner design
-  session 2026-10-12)
+  PR out, and the gate must be green at the new head before merge. (rulings 26, 55, 59, 149; record 6128195816;
+  owner design session 2026-10-12)
 - **UR-107** Never combine PRs already in the queue: reviews and carry proofs are keyed to heads.
   (ruling 97)
 - **UR-108** Owner PRs carry auto-merge and join the same queue; the coordinator updates one in its
@@ -332,7 +336,10 @@ fixing either.
   not cover it: the nightly runs `-n auto` like PR CI, and `pyproject.toml`'s `-n 8` stays. (ruling 113)
 - **UR-116** On the first tick after the nightly schedule, the coordinator reads the latest Nightly
   Full Gate conclusion; a red one is raised and routed like red `main`, fixed within the same
-  limits, and does not freeze the merge queue. (ruling 109)
+  limits, and does not freeze the merge queue. On its first tick after the 02:00Z flaky-test run
+  (`flaky-test-detection.yml`) it reads the flaky list in that run's summary and routes each flaky
+  test the same way, to the lane that owns its file. `Nightly Analysis` (`nightly.yml`) is
+  report-only and outside this rule. (rulings 109, 149)
 
 ## CI and shared jobs
 
