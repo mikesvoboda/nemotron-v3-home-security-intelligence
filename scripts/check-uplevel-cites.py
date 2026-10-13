@@ -78,9 +78,19 @@ ARTIFACTS = {
 # the chain by CITE_NAME_RE instead, which is separately testable.
 CITE_UNIT = r'"[^"]+"(?:\s*§\s*\d+)?'
 CITE_NAME_RE = re.compile(r'"([^"]+)"(?:\s*§\s*(\d+))?')
+# The chain separator is every joiner the corpus actually uses (peer arm-audit's Task D, re-
+# measured here: `per X.md "real" and "bogus".` was rc=0 — the `and`-joined name never entered
+# group 4, so it was never checked, while the same bogus name comma-joined was rc=1). Control
+# for how wide to go: prose quotes in docs/uplevel join with `,` `;` bare `and`/`or` and oxford
+# `, or` (roles/owner-partner.md:51 has all three shapes in one line). A bare `and|or` cannot
+# misfire on prose ("coordinator decision" and sends…): the branch only extends when another
+# CITE_UNIT follows the joiner, and no corpus line has one. Narrowing this class can NEVER be
+# caught through the corpus — fewer names checked is always greener — so the pin is the pair of
+# selftest arms below, which feed the REAL parse.
+CITE_JOIN = rf'(?:[;,]\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)\s*{CITE_UNIT}'
 CITE_RE = re.compile(
     r'(the deleted\s+)?((?:docs/uplevel/)?[\w./-]*\.md|README)( \s*section)?'
-    rf'((?:\s*{CITE_UNIT})(?:\s*[;,]\s*{CITE_UNIT})*)?'
+    rf'((?:\s*{CITE_UNIT})(?:\s*{CITE_JOIN})*)?'
 )
 DEAD_NAMES = {"50-coordination.md", "10-backend.md", "20-frontend.md", "30-ops.md", "40-docs.md"}
 # A bold LABEL line start, list markers allowed — `**Remit.**` and `3. **Fetch.**` both count.
@@ -425,6 +435,26 @@ def selftest() -> list[tuple[bool, str]]:
     snap_like = "# Roles\n\ntext\n"
     checks.append((section(snap_like, "Sect That Never Was") is None,
                    "selftest: locator matched a heading that is not there"))
+    # Joiner arms — the comma arm above proves the machinery; these pin the WIDENING, both ways.
+    # An `and`-joined name that is never captured ships unchecked (peer arm-audit's Task D,
+    # re-measured: `"real" and "bogus"` was rc=0 while the same bogus name comma-joined was
+    # rc=1). But a joiner that over-extends turns ordinary prose into a cite and manufactures
+    # REDS, so the negative arm is the one that lets the widening ship at all.
+    def _names(s):
+        return [n for _d, _f, _s, ns in citations(s) for n, _i in ns]
+    for join, label in (("and", "and"), (", or", "oxford-or"), ("or", "bare-or")):
+        got = _names(f'the deleted 50-coordination.md "Roles" {join} '
+                     f'"Sect That Never Was"\n')
+        checks.append((got == ["Roles", "Sect That Never Was"],
+                       f"selftest: a {label}-joined cite name is dropped — the name after "
+                       f"`{join}` is never checked"))
+    # Negative: `and` + prose + a later quote. The joiner must stop when no CITE_UNIT follows it,
+    # or `"coordinator decision" and sends anything else`-shaped prose (rules.md:32) starts
+    # swallowing the next quoted phrase as a second cite name.
+    prose = _names('per rules.md "Claiming and assigning work" and sends "status update" on.\n')
+    checks.append((prose == ["Claiming and assigning work"],
+                   "selftest: the cite joiner over-extends — it captured a quoted phrase that "
+                   "prose, not a cite, put after the joiner"))
     # § scope: the parse must DELIVER the item, and the claim must be checkable both ways.
     itemized = "## T\n\n1. a\n2. b\n3. c\n"
     parsed = [ns for _d, _f, _s, ns in citations('per x.md "T" §3.')]

@@ -369,6 +369,56 @@ class TestPlantedDefects:
         assert "UR-32c-widen" in result.stdout
 
 
+class TestCiteJoiners:
+    """`per X.md "a", "b"` was checked; `… "a" and "b"` was silently unchecked (peer arm-audit's
+    Task D, reproduced on this tree: same bogus name, same sentence, only the joiner differed —
+    `and` rc=0 with the name never printed, `,` rc=1 naming it). The gate-level pair below pins
+    both directions of the widening; the selftest arms inside the script pin the parse itself."""
+
+    BOGUS = "Zqxj No Such Joined Section"
+
+    def test_and_joined_bogus_name_fires(self, tmp_path: Path) -> None:
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        text = rules.read_text()
+        plant = f'\nProbe: per rules.md "Claiming and assigning work" and "{self.BOGUS}".\n'
+        assert text.count(self.BOGUS) == 0
+        rules.write_text(text + plant)
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert self.BOGUS in result.stdout, result.stdout
+
+    def test_oxford_or_joined_bogus_name_fires(self, tmp_path: Path) -> None:
+        # roles/owner-partner.md:51 uses the `", X" or "Y"` shape in prose; the cite form must
+        # capture its tail name too, not just the first.
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        text = rules.read_text()
+        plant = f'\nProbe: per rules.md "Claiming and assigning work", or "{self.BOGUS}".\n'
+        assert text.count(self.BOGUS) == 0
+        rules.write_text(text + plant)
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert self.BOGUS in result.stdout, result.stdout
+
+    def test_and_followed_by_prose_does_not_swallow_a_later_quote(self, tmp_path: Path) -> None:
+        # The other direction: a joiner that reaches to the next quote turns rules.md:32-shaped
+        # prose (`… as an unnumbered "coordinator decision" and sends anything else …`) into a
+        # two-name cite and manufactures reds. Chain must stop when no cite unit follows.
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        text = rules.read_text()
+        plant = (
+            '\nProbe: per rules.md "Claiming and assigning work" and sends '
+            '"Zqxj Mere Prose Quote" home.\n'
+        )
+        assert text.count("Zqxj Mere Prose Quote") == 0
+        rules.write_text(text + plant)
+        result = run_gate(root)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "Zqxj Mere Prose Quote" not in result.stdout, result.stdout
+
+
 def _point_gate_at(tmp_path: Path) -> Path:
     """Copy the gate INTO the throwaway tree so a test can mutate the SCRIPT.
 
@@ -469,7 +519,9 @@ class TestEntailmentArmEdges:
         assert result.returncode == 1, result.stdout
         assert "absent at" in result.stdout, result.stdout
 
-    def test_fixture_naming_a_moved_section_reports_blind_not_entailed(self, tmp_path: Path) -> None:
+    def test_fixture_naming_a_moved_section_reports_blind_not_entailed(
+        self, tmp_path: Path
+    ) -> None:
         """:352 + :375 — the section can't be located. Two branches must BOTH speak: the miss
         itself, and the floor that refuses to let an unlocated section count as an entailment.
         Without the floor a gate can 'pass' while judging none of the register."""
@@ -560,7 +612,9 @@ class TestScopeClaimArms:
         corpus has no § on this branch at all, so the branch could invert and stay green."""
         root = make_tree(tmp_path)
         rules = root / "docs/uplevel/rules.md"
-        rules.write_text(rules.read_text() + '\nCorrects the deleted 50-coordination.md "Roles" §4.\n')
+        rules.write_text(
+            rules.read_text() + '\nCorrects the deleted 50-coordination.md "Roles" §4.\n'
+        )
         result = run_gate(root)
         assert result.returncode == 1, result.stdout
         assert "§4 has no item 4" in result.stdout, result.stdout
@@ -600,7 +654,7 @@ class TestScopeClaimArms:
         print different messages, so pinning rc would let one stand in for the other."""
         root = make_tree(tmp_path)
         readme = root / "docs/uplevel/README.md"
-        readme.write_text(readme.read_text() + '\n## The path\n\nBack from the dead.\n')
+        readme.write_text(readme.read_text() + "\n## The path\n\nBack from the dead.\n")
         result = run_gate(root)
         assert result.returncode == 1, result.stdout
         assert "is live in README.md again" in result.stdout, result.stdout
@@ -681,9 +735,10 @@ class TestSelftestWitness:
         # phrases" pin for. `fired == total` is vacuous by construction (the witness prints
         # len(st)/len(st)), so the ONLY real signal here is that the arm population cannot silently
         # SHRINK; equality on the count adds a second failure mode that fires for legitimate work.
-        assert total >= 13, (
+        assert total >= 17, (
             f"selftest arms fell to {total}: an arm was deleted or stopped being reached, and the "
-            "witness would still print N/N green")
+            "witness would still print N/N green"
+        )
 
     def _run_script(self, script: Path, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(  # noqa: S603  # intentional - tests our own mutated copy
