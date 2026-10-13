@@ -1456,13 +1456,23 @@ def test_the_re_run_names_the_breaching_test_as_a_path(tmp_path: Path) -> None:
 def test_the_re_run_clears_addopts_and_sets_its_own_timeout(tmp_path: Path) -> None:
     """The re-run must measure what the budget speaks about.
 
-    ``pyproject.toml``'s ``addopts`` carries ``-n 8 --dist=worksteal`` and
-    ``timeout = 5``. Inheriting them would (a) time the sleep under 8-way
-    runner contention — the exact starvation the amendment forgives, so a
-    genuine breach would be *confirmed* by the contention that disguised it —
-    and (b) let pytest-timeout kill any re-run over 5 s and report that as the
-    verdict, making the plugin's ceiling, not the owner's 4.0 s, the thing that
-    decides red.
+    Two ini settings would poison a re-run, from two different places, cleared
+    by two different mechanisms — and an earlier revision of this docstring
+    credited both to ``addopts``, which is wrong twice over. ``addopts``
+    (``pyproject.toml:545``) carries ``-n 8 --dist=worksteal``; inheriting that
+    would time the sleep under 8-way runner contention — the exact starvation
+    the amendment forgives, so a genuine breach would be *confirmed* by the
+    contention that disguised it. ``timeout = 5`` is its OWN ini key
+    (``pyproject.toml:546``, not inside ``addopts``); inherited, pytest-timeout
+    kills any re-run over 5 s and reports that as the verdict, making the
+    plugin's ceiling, not the owner's 4.0 s, the thing that decides red.
+
+    What clears them must therefore be asserted as what it is: ``-o addopts=``
+    present in the argv (the cause of the parallelism being gone — an
+    absence-only assertion could not tell "override present" from "override
+    deleted", since under the stub nothing re-adds ``-n 8`` on its own), and an
+    explicit ``--timeout=`` above the budget (the cause of the ini key being
+    overridden — a command-line flag outranks an ini value only by being there).
     """
     calls = tmp_path / "calls.jsonl"
     results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
@@ -1476,12 +1486,18 @@ def test_the_re_run_clears_addopts_and_sets_its_own_timeout(tmp_path: Path) -> N
     assert run.returncode != 0, _out(run)
     argv = _argvs(calls)[0]
     joined = " ".join(argv)
+    assert any(argv[i : i + 2] == ["-o", "addopts="] for i in range(len(argv) - 1)), (
+        "the re-run must carry the addopts override as a PAIR, not merely look "
+        f"unparallelised (nor hold its two tokens apart, which pytest would "
+        f"read as one -o value and a stray test path): {argv}"
+    )
     assert "-n 8" not in joined and "--dist" not in joined, (
         "the re-run must not inherit the parallel addopts — it would measure "
         f"contention, not the test: {argv}"
     )
     assert any(a.startswith("--timeout=") for a in argv), (
-        f"the re-run needs an explicit timeout, else addopts' timeout=5 decides the verdict: {argv}"
+        "the re-run needs an explicit timeout — timeout=5 is its own ini key "
+        f"(pyproject.toml:546), not part of addopts: {argv}"
     )
     timeout = next(a for a in argv if a.startswith("--timeout=")).split("=", 1)[1]
     assert float(timeout) > 4.0, f"the timeout must not undercut the budget: {timeout}"

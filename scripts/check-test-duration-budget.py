@@ -184,11 +184,13 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 # hundreds. Breaches past the cap stay RED — the cap can only ever be strict.
 MAX_RERUNS = 5
 
-# The re-run's own per-test ceiling. Inherited ``addopts`` carries
-# ``timeout = 5``, which is UNDER the 4.0 s budget it is supposed to adjudicate:
-# a 4.5 s test would be killed by pytest-timeout at 5 s and the plugin's
-# ceiling, not the owner's number, would decide the verdict. Generous on
-# purpose — the budget still decides; this only decides "did not finish".
+# The re-run's own per-test ceiling. Inherited ``timeout = 5``
+# (pyproject.toml:546 — its OWN ini key, not part of ``addopts``) is UNDER the
+# 4.0 s budget it is supposed to adjudicate: a 4.5 s test would be killed by
+# pytest-timeout at 5 s and the plugin's ceiling, not the owner's number, would
+# decide the verdict. This --timeout overrides it by being on the command line;
+# ``-o addopts=`` does not touch it. Generous on purpose — the budget still
+# decides; this only decides "did not finish".
 DEFAULT_RERUN_TIMEOUT = 120.0
 
 
@@ -242,12 +244,14 @@ def _repro_timeout() -> float:
 def _rerun_duration(target: str) -> tuple[float | None, int]:
     """Re-run one test once; return ``(seconds or None, pytest exit code)``.
 
-    The argv is deliberately not the job's: ``-o addopts=`` clears
-    ``pyproject.toml``'s ``-n 8 --dist=worksteal`` (re-measuring a sleep under
-    8-way contention would CONFIRM a breach using the very starvation the
-    amendment forgives) and its ``timeout = 5``, which this replaces with an
-    explicit ``--timeout``. ``cwd`` is the repo root because the target is a
-    repo-relative path.
+    The argv is deliberately not the job's, and the two poisonings it clears
+    come from two ini places: ``-o addopts=`` clears ``pyproject.toml``'s
+    ``addopts`` (``:545`` — ``-n 8 --dist=worksteal``; re-measuring a sleep
+    under 8-way contention would CONFIRM a breach using the very starvation the
+    amendment forgives), while the ini's separate ``timeout = 5`` (``:546``,
+    NOT inside ``addopts`` — ``-o addopts=`` cannot touch it) is outranked only
+    by the explicit ``--timeout`` below. ``cwd`` is the repo root because the
+    target is a repo-relative path.
 
     Returns ``None`` for the duration whenever there is no usable number — no
     junit, an unparseable one, or a zero-duration testcase, which junit emits
