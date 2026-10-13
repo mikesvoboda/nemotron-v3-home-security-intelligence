@@ -43,9 +43,20 @@
  *   setQueryData in that file). So the spec witnesses the list AND health GETs that
  *   follow the 204, and only then asserts absence.
  *
- * Locator cardinality counted on this mount: 'More actions' is 1× per row and `Delete`
- * is one of four bare dropdown buttons; page-wide 'Delete' occurs 14× across the mounted
- * files (mostly JSDoc), which is exactly why nothing here uses a page-wide Delete.
+ * Locator cardinality counted on this mount: 'More actions' is 1× per row (the trigger's
+ * aria-label, WebhookList.tsx:175) and `Delete` is one of THREE bare dropdown buttons
+ * (:196-232 holds exactly three <button>s — View Deliveries / Edit / Delete — none with
+ * its own accessible name, so an unnamed button label is the only handle).
+ * A grep over the mounted files finds 'Delete' 14× (WebhookList.tsx 8 + WebhooksPage.tsx
+ * 6) — but do NOT read that as the strict-mode risk, because an earlier revision of this
+ * sentence did and labelled those hits "mostly JSDoc", which the count refutes: 1 of the
+ * 14 is in a comment and 11 are identifier SUBSTRINGS (`onDelete`, `useDeleteWebhook`,
+ * `handleDelete`). A substring match in code is invisible to getByText. The number that
+ * actually governs is rendered text: 'Delete' renders exactly ONCE per row, as a JSX text
+ * child (:220, beside a <Trash2> icon) — so a page-wide getByText('Delete') binds one node
+ * per visible row and strict-modes the moment the table has two. That, not the grep
+ * total, is why every locator in this file is row-scoped. Count in the unit the instrument
+ * reads: grep counts occurrences in source, getByText counts nodes in the DOM.
  */
 import { expect, test } from '../guard';
 import {

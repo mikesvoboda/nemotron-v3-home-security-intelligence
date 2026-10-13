@@ -80,6 +80,14 @@ async function deliveriesOf(api: Awaited<ReturnType<typeof authedFetch>>, id: st
   return Number(res.body?.total_deliveries ?? -1);
 }
 
+function watchRequests(page: Parameters<typeof login>[0]): string[] {
+  const log: string[] = [];
+  page.on('request', (req) => log.push(`${req.method()} ${apiPath(req.url())}`));
+  return log;
+}
+
+const countOf = (log: string[], entry: string) => log.filter((e) => e === entry).length;
+
 test.describe('DO-4 Test webhook modal (F-249)', () => {
   test('the modal sends the picked event type, reports a refused target honestly, and records nothing', async ({
     page,
@@ -87,6 +95,8 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
     const h = harness as Harness;
     const api = await signIn(page, h);
     const before = await webhookIds(api);
+    // Independent channel for "which request went out" — see the assert below.
+    const log = watchRequests(page);
 
     let id = '';
     try {
@@ -115,14 +125,18 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
       await picker.selectOption({ label: 'Alert Dismissed' });
       await expect(picker).toHaveValue('alert_dismissed');
 
+      // NB: `method`/`path` are NOT harvested here any more, and that is deliberate.
+      // The predicate below is what `waitForResponse` resolves on, so every value the
+      // predicate compared is a CONSTANT by the time the `.then` runs — an assertion on
+      // `res.method`/`res.path` can only ever pass. An earlier revision of this leg did
+      // exactly that while its message claimed to be "checking which request it was".
+      // Which request went out is measured independently, from `log` below.
       const sent = page
         .waitForResponse(
           (r) => apiPath(r.url()) === TEST_PATH(id) && r.request().method() === 'POST'
         )
         .then(async (r) => ({
           status: r.status(),
-          method: r.request().method(),
-          path: apiPath(r.url()),
           // postDataJSON() IS NOT A PROMISE — it is `postDataJSON(): null|Serializable`
           // (playwright-core types.d.ts:22369), and the returned value is what the
           // browser actually sent. An earlier draft wrote `.postDataJSON().catch(()=>null)`
@@ -149,14 +163,15 @@ test.describe('DO-4 Test webhook modal (F-249)', () => {
       expect(res.body?.event_type, 'label → wire value reaches the body').toBe('alert_dismissed');
       // This literal is the whole point of the leg: a page-wide request counter
       // matching only "POST /api/outbound-webhooks/" would also be satisfied by an
-      // enable or a delete, so the witness names the suffix. Asserted on the
-      // WITNESSED REQUEST's own method+path, not on res.status again: the previous line
-      // here re-asserted the 200 while its message claimed to be checking which request
-      // it was — an assert message is a comment, not a gate, so the claim went
-      // unmeasured. `path`/`method` are what make it one.
-      expect(`${res.method} ${res.path}`, 'the witnessed request was a test send').toBe(
-        `POST ${TEST_PATH(id)}`
-      );
+      // enable or a delete, so the witness names the suffix. It is counted from `log`
+      // — the browser's own request stream — and NOT from the response the matcher
+      // resolved on: `waitForResponse` only resolves when its predicate holds, so
+      // method+path read off that response are constants and a count-free assert on them
+      // is a tautology wearing a message. (An earlier revision did exactly that; the
+      // comment above the retired line already recorded the same class of bug one level
+      // down, which is the tell that reading your own assert messages is not the same as
+      // reading your own asserts.) Exactly one test send, and the log can show zero.
+      expect(countOf(log, `POST ${TEST_PATH(id)}`), 'exactly one test send went out').toBe(1);
 
       // The refusal, reported rather than swallowed.
       expect(res.json?.success, 'a refused target is not a pass').toBe(false);

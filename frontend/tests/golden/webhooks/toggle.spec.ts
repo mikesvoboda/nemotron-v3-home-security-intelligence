@@ -14,9 +14,14 @@
  *   asserts the collision (count 2) instead of working around it silently. Every
  *   toggle locator in this file is row-scoped for exactly that reason.
  * - NOTHING MOVES UNTIL THE REFETCH COMES BACK. There are no optimistic updates on
- *   this page: `grep -n "onMutate|cancelQueries|setQueryData|rollbackOn"
+ *   this page: `grep -nE "onMutate|cancelQueries|setQueryData|rollbackOn"
  *   frontend/src/hooks/useWebhooks.ts` → 0 hits, while the file's own header comment
- *   (:25) claims "Optimistic updates where appropriate". The mutation's onSuccess only
+ *   (:25) claims "Optimistic updates where appropriate". (-nE, not -n: without -E the
+ *   pipe is a LITERAL and the command returns 0 whatever the file contains, so the
+ *   original form of this command could not have failed. Both forms give 0 here and the
+ *   positive control in the same file is `grep -cE invalidateQueries` → 18, so the
+ *   failable instrument really is reading the file. Conclusion unchanged; the quoted
+ *   command was not evidence for it.) The mutation's onSuccess only
  *   invalidates ['webhooks','list'], ['webhooks','detail',id] and ['webhooks','health']
  *   (useWebhooks.ts:789-802). So the visible flip is a re-render off a fresh GET, and
  *   this file WITNESSES that GET after the POST rather than trusting the mutation
@@ -24,12 +29,13 @@
  *   repaint.
  * - THE DISPATCH IS DIRECTIONAL. mutationFn sends enable when the requested `enabled`
  *   is true and disable when false (useWebhooks.ts:787-788), and the page always passes
- *   `!webhook.enabled` (WebhooksPage.tsx:341 via onToggle), so clicking an ENABLED row
+ *   `!webhook.enabled` (WebhookList.tsx:337, wired to handleToggle at
+ *   WebhooksPage.tsx:310), so clicking an ENABLED row
  *   must produce a `/disable` and never a `/enable`. Both verbs are witnessed with
- *   apiPath EQUALITY (harness.ts:236-255): a suffix match would let a `/enable` satisfy
+ *   apiPath EQUALITY (`apiPath`, harness.ts:155-158): a suffix match would let a `/enable` satisfy
  *   an expectation about `/disable`'s prefix and the test would measure nothing.
  *
- * The row is created enabled (harness.ts:216-235) so the flip direction is fixed by
+ * The row is created enabled (`createWebhook`, harness.ts:192-209) so the direction is fixed by
  * construction rather than by whatever the API default happens to be — the schema
  * default IS true (api/schemas/outbound_webhook.py:152) but a spec that leans on an
  * unasserted default is how a silent inversion survives review.

@@ -9,13 +9,13 @@
  * What this file proves, and the one thing it proves ABSENT:
  *
  * - The list renders a row the BACKEND has, not one the spec imagined: the API leg
- *   creates the row first (harness.ts:216-235) and the row's own fields are read off
+ *   creates the row first (`createWebhook`, harness.ts:192-209) and the row's own fields read off
  *   the create response — the DOM is asserted against the API's echo, never against
  *   the literal I typed, because `url` is a pydantic `HttpUrl`
  *   (api/schemas/outbound_webhook.py:145) and whatever normalization it applies is
  *   exactly the kind of assumption a golden path must not carry silently.
  * - Both GETs the row names are WITNESSED on the browser's own network, with apiPath
- *   EQUALITY (harness.ts:236-255 — a matcher that cannot match is worse than a wrong
+ *   EQUALITY (`apiPath`, harness.ts:155-158 — a matcher that cannot match is worse than a wrong
  *   assert: it makes a "requested" list empty for the wrong reason and then
  *   toEqual([...]) passes vacuously).
  * - Success rate renders its EMPTY form. `webhook.total_deliveries > 0` gates the
@@ -32,11 +32,21 @@
  *   frontend/src/pages/WebhooksPage.tsx` → 0 hits, and across all of frontend/src the
  *   token appears ONLY in types/generated/api.ts and types/webhook.ts:133,135 — i.e.
  *   it is on the wire type and nowhere in the markup. The control in the same grep
- *   family: `total_deliveries` returns 9 hits, so the instrument fires when the token
- *   IS rendered. The leg below pins the absence so the inventory cannot drift back.
+ *   family: `total_deliveries` returns 5 matching LINES in that same scope
+ *   (WebhookList.tsx:356,360 + WebhookHealthCard.tsx:103,104,160 — lines, per
+ *   `grep -rn | wc -l`; :104 holds the token twice, so an OCCURRENCE count is 6), so the
+ *   instrument demonstrably
+ *   fires when a token IS rendered there. (An earlier revision of this line said 9 and
+ *   was never reproducible — the number drifted from a different scope than the one the
+ *   sentence names. A control you cannot re-run in the scope it is quoted in is not a
+ *   control.) The leg below pins the absence so the inventory cannot drift back.
  *
  * Locator cardinality, counted on this mount before writing (grep -o over
- * WebhooksPage.tsx + WebhookList.tsx + WebhookHealthCard.tsx + EmptyState.tsx):
+ * WebhooksPage.tsx + WebhookList.tsx + WebhookHealthCard.tsx + WebhookTestModal.tsx —
+ * the modal counts because it is mounted UNCONDITIONALLY, and it is the fourth file the
+ * /webhooks route renders; the file named here in an earlier revision, `EmptyState.tsx`,
+ * is not in components/webhooks/ at all — it is components/common/EmptyState.tsx, so that
+ * grep silently read a nonexistent path):
  * "No deliveries" occurs 2× (the row cell AND the health card) and "N/A" 3× (twice in
  * the test modal, once as Avg Response) — so EVERY one of those strings is scoped here
  * (row testid / card testid), never page-wide, or Playwright strict mode kills the
@@ -168,13 +178,25 @@ test.describe('DO-4 webhook list + health card (F-245)', () => {
       // 24 h summary + latency in their reachable forms (WebhookHealthCard.tsx:157-184),
       // card-scoped because the row cell paints the same "No deliveries" (census: 2×).
       await expect(health.getByText('No deliveries', { exact: true })).toBeVisible();
+      // CONDITIONAL, so the condition was measured rather than assumed: an `if` that
+      // never holds turns the assert inside it into dead code that reports as a pass.
+      // Read at this head on the feature-check stack: the route returns
+      // average_response_time_ms = null (JSON null, typeof "object"), so this branch
+      // DOES execute — the `N/A` below really runs. If a future seed gives the stack a
+      // real delivery, this branch stops running and the pin silently retires; that is
+      // why the guard is here and not a bare unconditional assert.
       if (healthBody.body?.average_response_time_ms === null) {
         await expect(
           health.getByText('Avg Response', { exact: true }).locator('xpath=following-sibling::p[1]')
         ).toHaveText('N/A');
       }
 
-      // CLAIM REPAIR: "last delivery" is not on this surface at all.
+      // CLAIM REPAIR: "last delivery" is not on this surface at all. An absence assert
+      // is only a guard if it can fire, so this one was put to a live-stack control at
+      // this head: plant `<div>Last delivery: 3 minutes ago</div>` into the real DOM and
+      // re-count the SAME locator -> matched=1. The locator binds the text when the text
+      // exists, so the 0 below is a measurement and not an untestable regex. (The plant
+      // lived in a throwaway spec, run once, deleted; it asserts nothing about the app.)
       await expect(page.getByText(/last delivery/i)).toHaveCount(0);
     } finally {
       if (id) await deleteWebhook(api, id);
