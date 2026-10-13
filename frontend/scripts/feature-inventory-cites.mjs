@@ -14,7 +14,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { parseInventory, rowCites } from './feature-inventory-lib.mjs';
+import { parseInventory, rowCites, lineCount } from './feature-inventory-lib.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const inventory = path.join(REPO, 'docs/reference/feature-inventory.md');
@@ -26,11 +26,16 @@ const lineOf = (file, n) => {
   if (!cache.has(file)) {
     const p = path.join(REPO, file);
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: repo-relative path read from the committed inventory
-    cache.set(file, fs.existsSync(p) ? fs.readFileSync(p, 'utf8').split('\n') : null);
+    const text = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+    cache.set(file, text === null ? null : { lines: text.split('\n'), count: lineCount(text) });
   }
-  const lines = cache.get(file);
-  if (!lines) return '<file missing>';
-  return n <= lines.length ? lines[n - 1].trim() : '<past end of file>';
+  const entry = cache.get(file);
+  if (!entry) return '<file missing>';
+  // `count`, not `lines.length`: the split has an empty final element on every
+  // file that ends in a newline, so indexing by it would print a blank line for
+  // a cite just past the end and let `n === 0` index `lines[-1]` and throw.
+  if (n < 1 || n > entry.count) return '<past end of file>';
+  return entry.lines[n - 1].trim();
 };
 
 for (const row of rows) {
