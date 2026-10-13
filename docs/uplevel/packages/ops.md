@@ -401,3 +401,28 @@ record 6149020713)
 
 **Done when:** a unit test pins each integration case (breach then pass on re-run is a warning;
 breach twice is red), and the audit passes on `main`'s current tests in CI.
+
+### [r157] O2.4: find the re-ID parity failure, and gate the model half in CI
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, ahead of its F2.3 batch; ops-a
+reviews. **Depends on:** none. **PR:** none yet. (ruling 157)
+
+The owner's O2.4 run at `3e0183e9f` (#7002, result `6154659954`) gave cosine min 0.230, mean 0.331,
+against the 0.999 gate on 36 real crops, with build, flags, checkpoint SHA and model IDs all
+passing: the embeddings are unrelated, not FP16-imprecise. `test_reid_path_parity.py` mocks
+Triton, so CI never checks the model half.
+
+- [ ] O2.4's README row goes back from `awaiting real tier` to `in progress` in this claim PR.
+- [ ] A diagnostic script feeds the same crops through each stage and prints cosine per crop and
+      per stage against the backend's CPU OSNet vector: PyTorch on the production checkpoint; ONNX
+      Runtime on CPU on the exported ONNX; the TensorRT plan called directly in FP32 and in FP16,
+      printing Triton's bound input and output names, shapes and layout; and the gateway's
+      `/enrich-lt/person-reid`. It runs under UR-133/UR-134: a fresh worktree, a loopback port, a
+      read-only cache, and teardown on exit.
+- [ ] A CPU-only CI test of the model half: exported ONNX against PyTorch, cosine at least 0.999 on
+      fixed crops, using a seeded, randomly initialised OSNet-AIN where the checkpoint is not in CI.
+- [ ] The fix for the first stage under 0.999, here or in a follow-up PR this one names.
+
+**Done when:** the owner's one diagnostic run on maui is posted on this PR, and O2.4's command
+(#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
+is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
