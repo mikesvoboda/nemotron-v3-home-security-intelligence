@@ -405,7 +405,7 @@ breach twice is red), and the audit passes on `main`'s current tests in CI.
 ### [r157] O2.4: find the re-ID parity failure, and gate the model half in CI
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, ahead of its F2.3 batch; ops-a
-reviews. **Depends on:** none. **PR:** none yet. (ruling 157)
+reviews. **Depends on:** none. **PR:** #7087. (rulings 157, 159)
 
 The owner's O2.4 run at `3e0183e9f` (#7002, result `6154659954`) gave cosine min 0.230, mean 0.331,
 against the 0.999 gate on 36 real crops, with build, flags, checkpoint SHA and model IDs all
@@ -421,6 +421,10 @@ Triton, so CI never checks the model half.
       read-only cache, and teardown on exit.
 - [ ] A CPU-only CI test of the model half: exported ONNX against PyTorch, cosine at least 0.999 on
       fixed crops, using a seeded, randomly initialised OSNet-AIN where the checkpoint is not in CI.
+- [ ] One committed runner, `scripts/uplevel/reid_real_tier.sh`, built from `o24.sh` and the owner's
+      maui adaptations (both posted on #7087): port, checkpoint directory, GPU and crops directory as
+      arguments; the parity check as its default mode and the diagnostic as a second mode; UR-133 and
+      UR-134 kept (ruling 159).
 - [ ] The fix for the first stage under 0.999, here or in a follow-up PR this one names.
 
 **Done when:** the owner's one diagnostic run on maui is posted on this PR, and O2.4's command
