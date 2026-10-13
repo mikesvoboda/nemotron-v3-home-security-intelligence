@@ -16,7 +16,7 @@
  * WHAT THE STORE CAN NOW BE FED BY, post-deletion — exactly one writer:
  * api.ts handleResponse -> extractRateLimitInfo -> update(). And that writer
  * is gated on ALL THREE X-RateLimit-{Limit,Remaining,Reset} headers
- * (api.ts:1060-1062 returns null otherwise; handleResponse:1203-1206 checks
+ * (api.ts:1060-1061 returns null otherwise; handleResponse:1203-1206 checks
  * the null before calling update()). Consequences, each pinned below:
  *   1. The frontend nginx throttle (`limit_req zone=api burst=20 nodelay`,
  *      limit_req_status 429 — docker-entrypoint.sh:166-169) emits NO
@@ -24,25 +24,37 @@
  *      through the invented defaults now feeds NOTHING. That is the point of
  *      the retirement, and test 2 is its leg.
  *   2. The FastAPI tier's 429 DOES carry the full header set
- *      (backend/api/middleware/rate_limit.py:530-534) but is reachable from
- *      the UI only through fetchApi — and every fetchApi-wired tier control
- *      on a feature-check stack is dead or gated:
+ *      (backend/api/middleware/rate_limit.py:531-534) and one shipped control
+ *      does ride fetchApi on a tiered route: /operations mounts
+ *      WebSocketHealthPanel OPEN BY DEFAULT (useSystemPageSections.ts:74, a
+ *      defaults-map entry, not a user toggle), which fetches in a mount effect
+ *      (WebSocketHealthPanel.tsx:190 -> :170 -> api.ts:2165) at
+ *      GET /api/system/health/websocket — a tiered route
+ *      (system.py:1626, RateLimitTier.DEFAULT). So a header-complete 429 IS
+ *      producible from the UI; what it is NOT is aimable. The golden UI sits
+ *      behind the same nginx $binary_remote_addr bucket as everything else
+ *      (@10r/s, BURST MATH below), so the traffic that lights the panel's own
+ *      error branch arrives nginx-shed and header-less first, and the panel
+ *      fetches on mount — once, before any click can aim it — while the DEFAULT
+ *      tier's own per-minute budget is far above what one page's mount fetches
+ *      spend. The other fetchApi-wired tier controls are dead or gated outright:
  *      useBulkDetectionMutations has ZERO importers; PromptPlayground's
  *      testPrompt (the one AI_INFERENCE-tier control) renders only when
- *      stats.audited_events > 0 (AIAuditPage.tsx:193-195, gate :349) and these
- *      stacks seed 0; EventTimeline's bulk path loops per-id UN-tiered
- *      PATCHes; ExportButton uses raw fetch. Test 3 pins the header math and
- *      the raw-fetch bypass live.
+ *      stats.audited_events > 0 (components/ai/AIAuditPage.tsx:195, gate :349)
+ *      and these stacks seed 0; EventTimeline's bulk path loops per-id
+ *      UN-tiered PATCHes; ExportButton uses raw fetch. Test 3 pins the header
+ *      math and the raw-fetch bypass live.
  *
  * WHY F-022 IS STILL half-built AND NOT flipped: the pill's POSITIVE leg (lit
- * while limited) needs isLimited=true, and per 1 + 2 no shipped control on
- * this tier can set it. So the pill is exercised in the component tier only
- * (RetryingIndicator.test.tsx, 14 cases) — which rulings 114/128 do not
- * accept as a publishable flip. What this file CAN publish is the NEGATIVE
- * leg: real throttled 429s riding fetchApi, and the retired surface provably
- * absent. A reachability change that would make the positive leg golden is a
- * backend/UI change outside frontend/ (ruling 87), filed as an owner question
- * on the PR rather than graded into existence here.
+ * while limited) needs isLimited=true, and per 1 + 2 no shipped control on this
+ * tier can be MADE to set it on demand — the panel above can 429, but not at a
+ * moment a spec chooses. So the pill is exercised in the component tier only
+ * (RetryingIndicator.test.tsx, 12 cases) — which rulings 114/128 do not accept
+ * as a publishable flip. What this file CAN publish is the NEGATIVE leg: real
+ * throttled 429s riding fetchApi, and the retired surface provably absent. A
+ * reachability change that would make the positive leg golden is a backend/UI
+ * change outside frontend/ (ruling 87), filed as an owner question on the PR
+ * rather than graded into existence here.
  *
  * HISTORY, so the deletions below read as intent and not as drift: this file
  * previously carried a shed leg asserting "Rate Limited / Retry in 1:0X", the
