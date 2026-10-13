@@ -192,6 +192,20 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
         if text is None:
             fails.append(f"scanned source {fname} missing")
             continue
+        # A cite whose target IS the file it is written in cannot be evidence by quoting itself.
+        # resolve() tested the phrase fallback against joined(target), and target already contains
+        # the citing sentence — so `per rules.md "Some Phrase"` went GREEN on a phrase that exists
+        # nowhere except inside its own quotes (measured on 2e80eca72/8ed70fd3c: plant lands, rc=0,
+        # tally prints `+ 1 verbatim phrases`, i.e. the gate CERTIFIES the count it just invented).
+        # Blank every cite-shaped token out of the file's own text and verify a self-cite against
+        # what is left: the cite still passes when the phrase is real prose elsewhere, and fails when
+        # the only occurrence is the cite. Blanking ALL cite tokens (not just this one) also closes
+        # cite-to-cite laundering, where one cite's quote vouches for another's.
+        # Matched-then-blanked over the SAME fold citations() searches (`\n[ ]+` -> " "), because
+        # blanking in raw-text space would put every span on the wrong bytes when a cite follows a
+        # wrapped line — a fix that no-ops exactly as quietly as the bug it replaces.
+        own_blank = CITE_RE.sub(lambda m: " " * (m.end() - m.start()),
+                                re.sub(r"\n[ ]+", " ", text))
         for deleted, f, sec_marker, names in citations(text):
             qnames = [n for n, _ in names]  # for messages: the names, not the (name, item) pairs
             base = f.split("/")[-1]  # citations() already normalised bare README → README.md
@@ -287,7 +301,16 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
                         bad = scope_claim(target, q, item)
                         if bad:
                             fails.append(f"{fname}: {f} \"{q}\" §{item} {bad}")
-                elif q in joined(target):
+                elif q in joined(own_blank if matches == [fname] else target):
+                    # `own_blank`, not `target`, when the cite points into its OWN file: the citing
+                    # sentence is part of target, so a phrase that exists only inside this cite's
+                    # quotes used to satisfy the test and the gate printed `+ 1 verbatim phrases`
+                    # for a count it had just authored (peer arm-audit's Task C, re-measured on
+                    # 8ed70fd3c). A phrase that is real prose elsewhere in the file still passes —
+                    # only the self-quoting occurrence stops counting. The heads() branch above is
+                    # deliberately NOT self-blanked: a bold label is real structure, so a cite at
+                    # its own label is a degenerate pointer, not a false claim, and the gate
+                    # verifies truth rather than usefulness.
                     tall["live_phrases"] += 1
                     if item is not None:
                         fails.append(f"{fname}: {f} \"{q}\" §{item} scopes a § to a prose "
@@ -442,6 +465,23 @@ def selftest() -> list[tuple[bool, str]]:
     checks.append((bool(absent),
                    "selftest: an emptiness pin with a sentence-case needle can never fire — the "
                    "check that text is GONE reports green whether or not it is"))
+    # A self-cite must not be its own evidence. resolve() checked the phrase fallback against the
+    # target file, which CONTAINS the citing sentence, so a phrase that exists only inside the
+    # cite's own quotes satisfied it (peer arm-audit's Task C; re-measured on 8ed70fd3c: plant
+    # landed, rc=0, tally printed `+ 1 verbatim phrases` — a count the gate had just authored).
+    # These two fixtures differ ONLY in whether the phrase is real prose elsewhere in the file, so
+    # together they pin both directions: a revert of the self-blank un-fails the circular one (arm
+    # 1 goes blind), and an over-blanking that rejects true cites fails the evidenced one (arm 2).
+    _sc = "Heavy Agents Skip This Step Zqxj"
+    circ = resolve({"rules.md": f'Prose. per rules.md "{_sc}".\n'}, {})[0]
+    evidenced = resolve({"rules.md": f'Body says {_sc} somewhere.\n\n'
+                                     f'Also: per rules.md "{_sc}".\n'}, {})[0]
+    checks.append((bool(circ),
+                   "selftest: a self-cite is satisfying itself — a phrase quoted only inside the "
+                   "cite's own quotes is being counted as proof it exists"))
+    checks.append((not evidenced,
+                   "selftest: the self-cite blank over-reaches — it rejects a self-cite whose "
+                   "phrase IS real prose elsewhere in the same file"))
     return checks
 
 

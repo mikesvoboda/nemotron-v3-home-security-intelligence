@@ -606,6 +606,65 @@ class TestScopeClaimArms:
         assert "is live in README.md again" in result.stdout, result.stdout
 
 
+class TestSelfCiteCannotQuoteItself:
+    """A cite written IN rules.md pointing AT rules.md used to be proved by its own sentence.
+
+    resolve() checked the phrase fallback with `q in joined(target)`, and `target` is the file's
+    own text — which contains the citing sentence. So `per rules.md "Some Phrase"` passed on a
+    phrase that exists nowhere except inside the cite's own quotes, and the witness line printed
+    `+ 1 verbatim phrases` for a count the gate had just invented. Found by peer arm-audit (Task
+    C) and re-measured on this branch: plant lands, rc=0, tally inflates.
+
+    These two tests are a PAIR on purpose — one plant that must now fail, one that must stay
+    green — because a fix that merely rejects every self-cite would look equally "working" while
+    deleting a legitimate cite form. Same two-sided shape as the case-fold arms."""
+
+    PHRASE = "Zqxj Self Cite Sentinel"
+
+    def _plant(self, root: Path, decoy: bool) -> Path:
+        rules = root / "docs/uplevel/rules.md"
+        text = rules.read_text()
+        if decoy:
+            # real prose elsewhere in the file: the phrase is evidence independent of the cite
+            anchor = "\n\n## Claiming and assigning work"
+            assert text.count(anchor) == 1, "rules.md anchor moved — plant would be a no-op"
+            text = text.replace(
+                anchor, f"\nAn ordinary sentence that says {self.PHRASE} for real.{anchor}", 1
+            )
+        rules.write_text(text + f'\nProbe: per rules.md "{self.PHRASE}".\n')
+        body = rules.read_text()
+        assert body.count(self.PHRASE) == (2 if decoy else 1), "plant did not land"
+        return rules
+
+    def test_self_cite_quoting_only_itself_fires(self, tmp_path: Path) -> None:
+        root = make_tree(tmp_path)
+        self._plant(root, decoy=False)
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "not found in live rules.md" in result.stdout, result.stdout
+
+    def test_self_cite_with_real_prose_elsewhere_still_passes(self, tmp_path: Path) -> None:
+        root = make_tree(tmp_path)
+        self._plant(root, decoy=True)
+        result = run_gate(root)
+        assert result.returncode == 0, result.stdout
+        assert "ALL ULEVEL CITES RESOLVE" in result.stdout, result.stdout
+        # and it is counted as a phrase, not silently skipped — the tally is the witness that the
+        # branch ran, not just that nothing complained.
+        assert "1 verbatim phrases" in result.stdout, result.stdout
+
+    def test_the_shipped_corpus_has_no_self_cite_to_begin_with(self) -> None:
+        """The fix is prospective: no cite in rules.md points AT rules.md today (gate parser, raw
+        `.count("rules.md")`, and a grep all agree: 0). Pinned on the CITE SHAPE the guard
+        governs — a self-target plus a quoted name — not on every prose mention, which would red
+        a legitimate `rules.md:419` cross-reference the gate itself is content to pass. If this
+        trips, the new cite is being judged by the self-cite rule now: make sure its phrase is
+        real prose outside the cite, not just quoted."""
+        text = (REPO_ROOT / "docs/uplevel/rules.md").read_text()
+        self_cites = re.findall(r'rules\.md(?:\s+section)?\s+"[^"]+"', text)
+        assert not self_cites, f"new self-cites in rules.md: {self_cites[:3]}"
+
+
 class TestSelftestWitness:
     """main() prints `selftest: N/N arms fired`. At 2e80eca72 that number was the literal 4, so
     `st = selftest()` -> `st = []` left rc=0, the suite green, and stdout still complimenting
@@ -616,7 +675,15 @@ class TestSelftestWitness:
         m = re.search(r"selftest: (\d+)/(\d+) arms fired", out)
         assert m, f"the derived witness line is gone: {out.splitlines()[:2]!r}"
         fired, total = int(m.group(1)), int(m.group(2))
-        assert fired == total == 11, f"witness drifted: {fired}/{total} (9 §/case arms + join)"
+        assert fired == total, f"{fired}/{total}: a blind arm must never reach this line"
+        # FLOOR, not equality. This pin was `== 11`, which reddened the moment the self-cite arms
+        # (13) were added — the exact brittleness this file's own rule retired the "1 verbatim
+        # phrases" pin for. `fired == total` is vacuous by construction (the witness prints
+        # len(st)/len(st)), so the ONLY real signal here is that the arm population cannot silently
+        # SHRINK; equality on the count adds a second failure mode that fires for legitimate work.
+        assert total >= 13, (
+            f"selftest arms fell to {total}: an arm was deleted or stopped being reached, and the "
+            "witness would still print N/N green")
 
     def _run_script(self, script: Path, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(  # noqa: S603  # intentional - tests our own mutated copy
