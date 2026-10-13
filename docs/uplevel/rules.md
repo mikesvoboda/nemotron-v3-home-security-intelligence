@@ -34,7 +34,8 @@ give work a number.
 - **UR-46** `docs/uplevel/` is shared: plan text changes only by the owner or with the owner's
   approval. Each PR edits only its own package's line of the README status table; prettier skips the
   table, so leave the other rows' padding alone. The table on `main` changes only when a PR merges.
-  (README "Lanes and ownership", "Status"; UR-83; roles/lane.md "Claiming a package")
+  (README "Lanes and ownership", "Status"; the deleted 50-coordination.md "Hot files", "Claiming a
+  package")
 - **UR-47** A PR needs the owner for `docs/uplevel/` edits only if they change a ruling, the
   contract, the phases or exit gates, or a package's scope, Done when, dependencies or flags.
   Everything else there (status rows, `file:line` references, moves or artifacts a package's own
@@ -60,8 +61,8 @@ Read this section before you take, claim, assign, park or release a package.
 - **UR-35** Agents read the new comments on their own open PRs before resuming a package; an owner
   ruling or a requested change there comes before new work. (UR-35)
 - **UR-51** Work the phases in order. Inside a phase, packages are independent unless a package
-  names a dependency; the ops background packages (`OB.n`) may run in any phase after Phase 1.
-  (README "Phases and exit gates"; packages/backend.md, packages/frontend.md, packages/ops.md)
+  names a dependency; the ops background packages (`OB.n`) may run in any phase after Phase 1. (the
+  deleted 10-backend.md and the deleted 20-frontend.md headers)
 - **UR-52** Each agent works its own queue in the roster (`roles/lane.md` "Who takes what"), the ops
   cells included. On any tick where it has no open package, it claims the next package in its queue
   that is `not started`, unclaimed, not `heavy`, and whose dependencies have merged (UR-54). A
@@ -82,7 +83,8 @@ Read this section before you take, claim, assign, park or release a package.
 - **UR-55** Release a claim you abandon by closing its draft PR with a comment saying why.
   (roles/lane.md "Claiming a package")
 - **UR-56** One package, one claim PR, except `F2.3`, where each agent carries all its area batches
-  in one draft claim PR. (ruling 97; roles/lane.md "Claiming a package")
+  in one draft claim PR. (ruling 97; roles/lane.md "Claiming a package"; packages/frontend.md "One
+  claim PR per agent")
 - **UR-59** The coordinator assigns only `heavy` packages, packages on no roster queue, and a
   package it moves to an idle lane's queue (UR-52, UR-64): it opens the draft PR on a branch holding
   one empty commit, labelled `lane:<lane>` and, where they apply, `cell:<cell>`, `heavy` and
@@ -90,7 +92,8 @@ Read this section before you take, claim, assign, park or release a package.
   `uplevel-heavy`. To give a heavy agent a package the status table does not mark `heavy`, label its
   PR `heavy` with no cell label; the row keeps its flags. A heavy agent takes only the PRs assigned
   to it and follows the owning lane's package text, file ownership and kickoff line. (rulings 50,
-  53; owner design session 2026-10-12; roles/lane.md "Who takes what")
+  53; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
+  50-coordination.md "Two heavy sandboxes", "Where agents run")
 - **UR-63** The status comment lists every package whose dependencies have merged, whose row is not
   `done` or `awaiting real tier`, and that has stayed unclaimed for two coordinator ticks, with the
   agent whose queue holds it. (ruling 82; owner design session 2026-10-12)
@@ -98,8 +101,8 @@ Read this section before you take, claim, assign, park or release a package.
   coordinator lists idle lanes in the status comment and says when one has work again. (ruling 43;
   roles/lane.md "The tick")
 - **UR-65** When every remaining package in a lane's current phase waits on another lane, the lane
-  takes the next phase's first package whose dependencies have landed. (README "Phases and exit
-  gates"; lane kickoff prompts)
+  takes the next phase's first package whose dependencies have landed. (the deleted README section
+  "The path"; README "Phases and exit gates"; lane kickoff prompts)
 - **UR-66** No Phase 3 package starts before `R2` is `done`, except a package scoped only to
   `R2a`-ruled features and modules (once #6980 and the plan PR carrying ruling 86 have merged) or to
   an `R2b` round's rulings (once that round's record PR merges). A lane out of other work says so in
@@ -170,7 +173,8 @@ Read this section while you write a package's code, tests, docs and PR.
 - **UR-82** Touch `synthbench/` only under the cross-lane rule, when a deletion removes something
   synthbench imports; the synthbench workstream continues alongside this programme. (README "Lanes
   and ownership")
-- **UR-83** Hot files; the coordinator sequences their merges: (roles/coordinator.md "Merging a PR")
+- **UR-83** Hot files; the coordinator sequences their merges: (the deleted 50-coordination.md "Hot
+  files")
   - `docs/openapi.json`, `frontend/src/types/generated/api.ts`: regenerate after rebasing, never
     hand-merge;
   - `backend/core/config.py`, `.env.example`, compose files: small hunks, rebased immediately before
@@ -267,7 +271,8 @@ and the re-read and merge comment are UR-29.
   applies. (rulings 4, 8, 10, 11, 108)
 - **UR-100** An agent writes approvals only in its own role. The coordinator merges an owner-tier PR
   only on an owner approval recorded on #6854 (a ruling or owner record), or one given elsewhere
-  once quoted in the status comment with the owner's words and time. (UR-27, UR-29)
+  once quoted in the status comment with the owner's words and time. (the deleted
+  50-coordination.md "Trust model"; UR-27, UR-29)
 - **UR-101** A ruling ending with the exact line "Pre-approved: merges on lane review and green CI."
   pre-approves the follow-up it specifies: the coordinator merges it without the owner when the lane
   review states the diff does that and nothing more and `CI Gate` is green at its head; if the
@@ -338,7 +343,8 @@ Read this section before you change a workflow, a CI job, a hook or the gate.
   Before pushing a change to `.github/workflows/*.yml`, run
   `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest -shellcheck= -pyflakes= .github/workflows/*.yml`
   and compare its findings with `main`'s; a YAML parse does not check GitHub's expressions. (UR-34;
-  roles/coordinator.md "Merging a PR"; UR-83; coordinator kickoff prompt)
+  roles/coordinator.md "Merging a PR"; the deleted 50-coordination.md "Review and merge" §4, "Hot
+  files"; coordinator kickoff prompt)
 - **UR-119** Branch protection keeps one required check, `CI Gate (Required Checks)`; a new check
   runs inside it rather than becoming a separate required check. (ruling 9)
 - **UR-37** The gate checks what the hooks check: the repository's pre-commit hooks run on each PR's
@@ -488,7 +494,7 @@ when a phase exits, are UR-10 (contract rule 5).
 - **UR-149** The frontend lane records each `R2` session or round in one PR: the rulings and
   priorities into the inventory's ruling column, the OD rulings into
   `docs/vss-integration/17-action-plan.md`, and the recorded part's status row. (README "Phases and
-  exit gates"; history/packages-done.md "R2a — Record `R2`, part 1"; ruling 135)
+  exit gates"; packages/frontend.md `R2b`; ruling 135)
 - **UR-151** A `half-built` row goes to the `R2b` list, and the owner decides at `R2b` whether and
   when it is fixed; nobody else creates a fix package for it unless the owner orders the fix (as rulings 129 and 130 did). (ruling 120)
 - **UR-152** "Half-built" includes a break at the UI end. The `R2` sheet's §1 rules by cause, each
@@ -587,7 +593,8 @@ Read this section before you post any comment, review, heartbeat, status comment
   `URGENT PATH`, with no label and no @-mention (agents post with the owner's own token, so neither
   would notify the owner). There is no push channel and no second account; the owner's design
   partner checks #6854 for `URGENT PATH` comments at the start of every session. (ruling 81;
-  roles/coordinator.md "The urgent path"; owner design session 2026-10-12, pass 2 Q8)
+  roles/owner-partner.md "The check-in"; roles/coordinator.md "The urgent path"; owner design
+  session 2026-10-12, pass 2 Q8)
 
 ## Agents, sandboxes and models
 
@@ -631,8 +638,7 @@ or an agent's memory.
   pinned issues. (ruling 85; the deleted 50-coordination.md "Where agents run")
 - **UR-174** Heavy work that appears while both heavy agents are paused goes on the urgent path; the
   owner restarts the agent with `agent-dgx run <name> --agent claude --split`, its kickoff from
-  `scripts/uplevel/sandboxes.toml`, and `/loop 15m`. (ruling 88; the deleted 50-coordination.md
-  "Paused")
+  `scripts/uplevel/sandboxes.toml`, and `/loop 15m`. (ruling 88; roles/lane.md "Paused")
 - **UR-175** An agent's auto-memory is its own and not a channel: only the parent agent writes it,
   its subagents return findings to the parent, and only the harness's limits bind it. (ruling 112)
 - **UR-176** Sandboxes may use `sudo` for development installs, such as
