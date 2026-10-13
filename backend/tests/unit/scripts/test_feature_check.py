@@ -1637,7 +1637,6 @@ def _golden_container(
 # ---------------------------------------------------------------------------
 # Ruling 143 Done when 1/2: the leg's wrapper, and what reaches it
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("node_modules", [False, True])
@@ -1833,7 +1832,6 @@ def test_the_leg_runs_on_the_engine_the_harness_runs_on(
 # ---------------------------------------------------------------------------
 # Ruling 143 Done when 3: the image tag follows package-lock.json
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
 
 
 def test_the_image_tag_follows_the_version_the_lock_resolves(tmp_path: Path) -> None:
@@ -1930,7 +1928,6 @@ def test_an_unparseable_lock_is_the_same_refusal(tmp_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # Ruling 143's firewall clause: a blocked registry is named, never worked around
-# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
 
