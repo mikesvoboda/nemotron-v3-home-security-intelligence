@@ -538,6 +538,42 @@ def test_list_entries_stay_inside_the_repo(tmp_path: Path) -> None:
             read_retired_paths(bad)
 
 
+def test_cite_gate_snapshot_exemption_is_per_file(tmp_path: Path) -> None:
+    """The #7064 snapshot exemption must exempt six record files and NOTHING else.
+
+    ``EXCLUDED_FILES`` lists the six byte-frozen snapshots per-file, so a future
+    edit that swaps in a directory prefix would silence the two SIBLINGS that are
+    living text — the hand-authored fixture and the integrity manifest — while
+    every existing test stayed green. So this plants the same retired-path
+    sentence at three paths under that directory and requires three different
+    outcomes: the per-file names silent, each sibling flagged. Measured, not
+    assumed: ``entailments.json`` (.json) and ``SHA256SUMS`` (no extension) are
+    both in ``iter_scanned_files``' yield — 1,445 .json and 686 extensionless
+    files are scanned tree-wide — so the sibling arms are real, not vacuous.
+    """
+    data = "backend/tests/unit/scripts/data/uplevel-cites"
+    exempt = sorted(f"{data}/{Path(e).name}" for e in EXCLUDED_FILES if e.startswith(data))
+    assert len(exempt) == 6, exempt  # the six, or this test checks the wrong set
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "retired_paths.txt").write_text("gone.txt\n", encoding="utf-8")
+    for rel in [*exempt, f"{data}/entailments.json", f"{data}/SHA256SUMS"]:
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("Run it with gone.txt today.\n", encoding="utf-8")
+    flagged = find_violations(tmp_path, tmp_path / "scripts" / "retired_paths.txt")
+    assert any("gone.txt" in v for v in flagged), (
+        f"the planted reference flagged NOTHING — every arm below is vacuous: {flagged}")
+    for rel in exempt:
+        assert not any(v.startswith(rel + ":") for v in flagged), (
+            f"snapshot record {rel} is being flagged — the per-file exemption broke:\n"
+            + "\n".join(flagged))
+    for rel in (f"{data}/entailments.json", f"{data}/SHA256SUMS"):
+        assert any(v.startswith(rel + ":") for v in flagged), (
+            f"living text {rel} named a retired path and was NOT flagged — the "
+            "exemption widened to a directory, which is exactly what per-file "
+            "listing exists to prevent")
+
+
 def test_selftest_discriminates(tmp_path: Path) -> None:
     """The gate catches living references AND a resurrected path, and exempts
     exactly the two record kinds and nothing else.

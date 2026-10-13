@@ -27,6 +27,7 @@ Exit: 0 clean; 1 with every failure named; 2 on setup problems (missing corpus, 
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -56,7 +57,12 @@ def load_tree(root: Path):
 # not found live" (all four exist at the repo root; verified by hand, not by a watcher — no
 # drift rule covers docs/uplevel). Every live docs/uplevel file, README included, stays a TARGET.
 SCAN = ["rules.md"]
-# Tokens that look like file cites but are not: artifacts, templates, placeholders.
+# Names that look like file cites but are not cites INTO this corpus: root files (AGENTS.md,
+# CHANGELOG), historical plans (17-action-plan.md), code/config (.env.example). The skip is
+# CONDITIONAL on liveness (live_bases below): 00-audit.md, 01-mutation-policy.md, r2-sheet.md
+# and feature-design.md ARE live docs/uplevel files, and an unconditional name skip would
+# silently stop checking every cite to one the day it was named here. Skipped mentions print
+# as a witness count — the skip-set must never be an invisible coverage hole.
 ARTIFACTS = {
     "uplevel.md", "AGENTS.md", "00-audit.md", "feature-design.md", "17-action-plan.md",
     "feature-inventory.md", "agents-md-standard.md", "01-mutation-policy.md", "r2-sheet.md",
@@ -120,16 +126,15 @@ def section(text: str, name: str, item: int | None = None) -> str | None:
 
 
 def citations(text: str):
-    """Yield (deleted, file, section_marker, item, quoted_names) skipping artifact and
-    mid-token matches — the offset test keys on the file token itself, group(2)."""
+    """Yield (deleted, file, section_marker, item, quoted_names) for every cite-shaped token,
+    skipping only mid-token matches — the offset test keys on the file token itself, group(2).
+    What is an artifact vs a cite is POLICY (the corpus decides), so it lives in resolve()."""
     j = re.sub(r"\n[ ]+", " ", text)
     for m in CITE_RE.finditer(j):
         deleted, f, sec_marker, sec_n, quotes = m.groups()
         f = f.replace("docs/uplevel/", "")
         if f == "README":  # bare "README" in prose means docs/uplevel/README.md
             f = "README.md"
-        if f.split("/")[-1] in ARTIFACTS and not deleted:
-            continue
         pre = j[m.start(2) - 1] if m.start(2) else ""
         if re.match(r"[\w./<>-]", pre):  # e.g. `4n-<feature>.md` placeholder text
             continue
@@ -142,9 +147,10 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
     """Run the resolver over every scanned file. Returns (fails, tallies)."""
     fails: list[str] = []
     tall = {"live_sections": 0, "live_phrases": 0, "dead_ok": 0,
-            "snap_sections": 0, "snap_phrases": 0}
+            "snap_sections": 0, "snap_phrases": 0, "artifacts_skipped": 0}
     # SOURCES are the rule files whose cites must be true (history records what died — scanning
     # it as a source would red on legitimate tombstones); TARGETS are every live file.
+    live_bases = {k.split("/")[-1] for k in live_text}
     for fname in SCAN:
         text = live_text.get(fname)
         if text is None:
@@ -152,6 +158,9 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
             continue
         for deleted, f, sec_marker, _item, names in citations(text):
             base = f.split("/")[-1]  # citations() already normalised bare README → README.md
+            if base in ARTIFACTS and not deleted and base not in live_bases:
+                tall["artifacts_skipped"] += 1  # witness: the skip-set is counted, never silent
+                continue
             if deleted and sec_marker:
                 # the deleted README section "X": a dead SECTION of a STILL-LIVE file. Two-sided:
                 # absent now (else the provenance is a lie), present in the snapshot (else the
@@ -200,7 +209,21 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
                         if q in heads(now):
                             fails.append(f"{fname}: provenance \"{q}\" is live in {base} again")
                 continue
-            target = live_text.get(f if "/" in f else _short(live_text, f))
+            if "/" in f:
+                matches = [f] if f in live_text else []
+            else:
+                matches = sorted(k for k in live_text
+                                 if k.endswith("/" + f) or k == f)
+                # A bare cite with QUOTED claims must not check those claims against a
+                # possibly-wrong same-named file (r2-sheet.md collides with
+                # templates/r2-sheet.md TODAY). A bare cite with NO names only asserts
+                # existence — both candidates satisfy that, so any pick is true; silence is
+                # only unsafe where claims ride on it (memory: nonunique-join-binds-wrong).
+                if len(matches) > 1 and names:
+                    fails.append(f"{fname}: bare cite {f!r} is ambiguous "
+                                 f"({', '.join(matches[:4])}) and quotes {names} — cite a path")
+                    continue
+            target = live_text.get(matches[0]) if matches else None
             if target is None:
                 fails.append(f"{fname}: cite target {f} not found live")
                 continue
@@ -220,6 +243,45 @@ def _short(live_text: dict[str, str], f: str) -> str | None:
         if k.endswith("/" + f) or k == f:
             return k
     return None
+
+
+def snapshot_sums(root: Path) -> tuple[list[str], int]:
+    """Verify the committed snapshots against the SHA256SUMS manifest, (fails, n_verified).
+
+    The provenance instrument reads these bytes as the RECORD of what existed pre-reorg; silent
+    drift here rewrites that record under every verdict. The manifest pins no-drift-since-
+    certification in a history-less CI checkout (scripts/retired_paths.txt pattern); the claim
+    that those bytes equal `git show de661e070^` needs full history and stays prose.
+    A manifest that lists no file verifies nothing — so n prints as a witness and an empty
+    manifest is a fail, never a pass.
+    """
+    man = root / DATA / "SHA256SUMS"
+    if not man.is_file():
+        return [f"SETUP: {DATA}/SHA256SUMS missing — snapshot integrity unchecked"], -1
+    listed: dict[str, str] = {}
+    for line in man.read_text().splitlines():
+        if line.startswith("#") or not line.strip():
+            continue
+        digest, _, name = line.partition("  ")
+        listed[name.strip()] = digest.strip()
+    if not listed:
+        return ["SHA256SUMS lists 0 files — the integrity arm is vacuous"], 0
+    fails: list[str] = []
+    have = sorted(p.name for p in (root / DATA).glob("*.md"))
+    if sorted(listed) != have:
+        fails.append(f"SHA256SUMS lists {sorted(listed)} but the data dir has {have} "
+                     "— a snapshot entered or left without the manifest")
+    n = 0
+    for name, digest in listed.items():
+        p = root / DATA / name
+        if not p.is_file():
+            continue  # already failed above
+        got = hashlib.sha256(p.read_bytes()).hexdigest()
+        if got != digest:
+            fails.append(f"snapshot {name} DRIFTED from SHA256SUMS ({got[:10]}… != {digest[:10]}…)")
+        else:
+            n += 1
+    return fails, n
 
 
 def entail(live_text: dict[str, str], snap_text: dict[str, str], fixture: list[dict]):
@@ -287,13 +349,17 @@ def main(argv: list[str]) -> int:
     print(f"selftest: 4 arms fired; corpus {len(live_text)} live files "
           f"({sum(len(t) for t in live_text.values())} chars), snapshot {len(snap_text)} files")
 
+    sums_fails, n_sums = snapshot_sums(root)
     fails, tall = resolve(live_text, snap_text)
     fails += entail(live_text, snap_text, fixture)
+    fails += sums_fails
     print(f"resolver: {tall['live_sections']} live sections + {tall['live_phrases']} verbatim "
           f"phrases; provenance: {tall['dead_ok']} claims, {tall['snap_sections']} snapshot "
-          f"sections + {tall['snap_phrases']} phrases")
+          f"sections + {tall['snap_phrases']} phrases; "
+          f"{tall['artifacts_skipped']} non-corpus mentions skipped")
     pins = sum(1 for c in fixture if not c.get("expect_present", True))
-    print(f"entailment: {len(fixture) - pins} present-claims + {pins} emptiness pins")
+    print(f"entailment: {len(fixture) - pins} present-claims + {pins} emptiness pins; "
+          f"integrity: {n_sums} snapshots match SHA256SUMS")
     if fails:
         print("FAILS:")
         [print("  -", x) for x in fails]
