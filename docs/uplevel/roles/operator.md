@@ -26,6 +26,10 @@ tick".`
 
 1. `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/operator.md`).
+   Then read the `BINDING NOW` records on #6854 posted since your last tick
+   (`gh api "repos/<owner>/<repo>/issues/6854/comments?since=<your last heartbeat time>" --paginate`, keeping
+   those whose first line starts `BINDING NOW`) and follow each that names the operator or all agents; it
+   binds before the plan files catch up (UR-40, ruling 163).
 2. Edit your heartbeat ([`lane.md`](lane.md), "Heartbeat"). If the coordinator's is older than 20
    minutes, follow `lane.md`, "Stale coordinator".
 3. Read the new comments on your own open PRs.
