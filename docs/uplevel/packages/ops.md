@@ -180,7 +180,9 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
 deployment and the operator's run witnesses ruling 127's 12 rows; on no, the owner has ruled on the
-blocker (ruling 144).
+blocker (ruling 144). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
+(#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
+deployment, in a comment on each PR (ruling 154).
 
 ## Phase 3 — The tree matches the rulings
 
