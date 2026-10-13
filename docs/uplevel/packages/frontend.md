@@ -261,7 +261,7 @@ green on it.
 
 ### [r148b] F-256's action text
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7050 (draft). (ruling 148)
 
 - [ ] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
       feed's lookback": the time range drives `<ZoneAnomalyFeed>` (`ZonesPage.tsx:660`, `:789-790`),
