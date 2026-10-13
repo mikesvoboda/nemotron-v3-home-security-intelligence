@@ -93,9 +93,16 @@ test.describe('golden path: admin logging level control and retention save @crit
     const slider = retention.getByLabel('Log retention period in days');
     const found = Number(await slider.inputValue());
     expect(found).toBeGreaterThanOrEqual(1); // slider min=1, max=90
+    // Step INWARD from whichever end the value sits at. At max=90 ArrowRight is
+    // a native no-op, and a value that did not move leaves hasRetentionChanges
+    // false — the Save button would stay disabled and the leg would fail for a
+    // reason that has nothing to do with persistence. Measured default is 7
+    // (LoggingSettings.tsx:117), so this arm is belt-and-braces, not a hunch
+    // about the current stack.
+    const dir = found >= 90 ? 'ArrowLeft' : 'ArrowRight';
+    const saved = found >= 90 ? found - 1 : found + 1;
     await slider.focus();
-    await page.keyboard.press('ArrowRight'); // native range input: +1 step (1 day)
-    const saved = found + 1;
+    await page.keyboard.press(dir); // native range input: +/-1 step (1 day)
     await expect(retention.getByTestId('retention-save-button')).toBeEnabled();
     await retention.getByTestId('retention-save-button').click();
 
@@ -116,9 +123,12 @@ test.describe('golden path: admin logging level control and retention save @crit
 
     // Restore through the same control: this save PERSISTS for the container's
     // life (unlike the log level), so leaving it changed would hand the next
-    // spec a different retention. Same witness, same path.
+    // spec a different retention. Same witness, same path. The key is the
+    // INVERSE of the save's, which is why the save's direction is stored rather
+    // than inlined: at found=90 the save stepped LEFT, so restoring LEFT again
+    // would save 88 and the assertion below would be checking the wrong number.
     await slider.focus();
-    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press(dir === 'ArrowRight' ? 'ArrowLeft' : 'ArrowRight');
     await expect(retention.getByTestId('retention-save-button')).toBeEnabled();
     await retention.getByTestId('retention-save-button').click();
     // No toast assertion here: a success toast from save #1 may still be on
