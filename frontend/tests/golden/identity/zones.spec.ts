@@ -547,6 +547,23 @@ test.describe('DO-3 zones golden path', () => {
   test('F-258 trust matrix: None by default, cell editor writes Full/Partial/None, vehicles cap at Partial', async ({
     page,
   }) => {
+    // NO test.setTimeout here — deliberately, and it is worth the paragraph.
+    // Being indifferent to the page's camera pick costs one zone POST per seeded
+    // camera (5 on the current stack), and the cleanup pays back 2 DELETEs plus a
+    // re-read per copy, so this test does ~20 more round trips than it did. That
+    // is why a raise looked reasonable, and an earlier revision of this line had
+    // `setTimeout(60_000)` with a measurement attached to it. The measurement was
+    // of the BROKEN test and is retired. Measured on THIS revision, three back-to-
+    // back live-stack runs: the whole test — seed, matrix, cell editor, cleanup,
+    // leak witnesses — reports **3.2 s, 3.5 s, 3.2 s** (Playwright's own per-test
+    // duration, which includes `finally`, so the cleanup cost is inside the number).
+    // Well inside the project's 15 s default (`playwright.config.ts:112`).
+    // Keeping the default is the stronger choice, not the optimistic one: a future
+    // starved wait then reddens at 15 s instead of hiding for 60, and a timeout
+    // ABANDONS `finally` without running it, which is how a household member leaked
+    // in CI at 3377684a6 and reddened both retries on their own fresh-state gate.
+    // If this goes red on a slow runner, the evidence to post is the wall-clock from
+    // golden-playwright.log next to 4.2 s here — not a silent bump.
     const h = harness as Harness;
     const api = await signIn(page, h);
 
@@ -568,33 +585,72 @@ test.describe('DO-3 zones golden path', () => {
     expect(Array.isArray(vehiclesBefore.body), 'vehicles is a BARE list').toBe(true);
     expect(vehiclesBefore.body, 'the stack seeds no vehicles').toHaveLength(0);
 
-    // --- Which camera will the PAGE resolve? Ask the page, not the list. ---
-    // list_cameras has no ORDER BY (the F-256 comment above documents the
-    // class), so this session's items[0] and the page's cameras[0]
-    // (ZonesPage.tsx:416) are legal answers that can DIFFER. Run 10 caught
-    // the split on a byte-identical blob: the API leg's zone existed and the
-    // page still rendered "No zones configured" (error-context.md), because
-    // the matrix only matrices zones of the camera the PAGE picked. So: goto
-    // first, read the camera the page's own zones GET names, then seed there.
-    await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
+    // --- The page's camera pick is NOT stable, so this test refuses to depend
+    //     on it. ---
+    // list_cameras is an unordered scan (the F-256 comment above documents it,
+    // backend/api/routes/cameras.py:152) served behind a Redis cache
+    // (CacheKeys.cameras_list_by_status, :194), and the page hardcodes
+    // `cameras[0]?.id` (ZonesPage.tsx:416) with no selector on /zones. F-256
+    // treats the spec-vs-page split as REPORT ONLY precisely because it cannot
+    // be pinned. Run hsi-check-20261012223338-cc1f98 showed the sharper edge: the
+    // page re-draws cameras[0] on EVERY mount, so a gate shaped like "wait for a
+    // zones GET for the camera I learned at goto" can watch real traffic fly by
+    // for a DIFFERENT camera and burn the whole 15 s. Attempt 1's own snapshot is
+    // the proof: it shows "Zone Intelligence / Monitor and manage 0 zones" and
+    // "No zones configured" — the page had fully RENDERED, on a camera that had
+    // no zones, while that waitForResponse was still armed. The timeout aborts
+    // the finally, so the member the body had already created LEAKS, and retries
+    // #1 and #2 then die on this test's own `the stack seeds no household
+    // members` gate with that leaked row (golden-playwright.log #55-57): one
+    // draw, three reds. The same byte-identical blob passed at 911db9144 and
+    // fails here, which is what a draw-dependent gate looks like.
+    // So: seed the zone on EVERY seeded camera — the seeded SET is deterministic,
+    // only its ORDER is not — then take the page's pick from the single zones GET
+    // this test makes and never navigate again. The positive control survives intact
+    // (the page must still name this test's zone in its own response); what goes
+    // away is the assumption about WHICH camera answers. Head's shape was the
+    // invertible one: learn the camera at goto, seed it, RELOAD, then wait for that
+    // same camera's zones GET — but a reload re-draws `cameras[0]`, so the wait is
+    // for a camera the page may no longer be on. Learning the pick from the one
+    // navigation, after it, leaves nothing that has to survive anything.
+    const camerasBefore = await api.getJson('/api/cameras');
+    expect(camerasBefore.status, 'GET /api/cameras answers 200').toBe(200);
+    const allCameras = (camerasBefore.body?.items ?? []).map((c: { id: unknown }) => String(c.id));
+    expect(
+      allCameras.length,
+      `the stack seeds cameras, got ${JSON.stringify(camerasBefore.body)}`
+    ).toBeGreaterThan(0);
+
     const zoneCameraOf = (u: string) => {
       // Same matcher F-256 uses; duplicated rather than hoisted so the two
       // tests' diffs stay independent.
       const m = /^\/api\/cameras\/([^/]+)\/zones$/.exec(apiPath(u));
       return m && !m[1].startsWith('placeholder-') ? decodeURIComponent(m[1]) : null;
     };
-    const pageCamera = await page.waitForResponse(
-      (r) => zoneCameraOf(r.url()) !== null && r.status() === 200,
-      { timeout: 15_000 }
-    );
-    const cameraId = zoneCameraOf(pageCamera.url()) as string;
 
     // Ids live OUTSIDE try so the finally can see — and gate on — what was
     // actually created (access.spec.ts:321-331 precedent). A create that never
     // happened must not become a cleanup 404 that masks the body's real error.
+    // Zones are keyed by camera because a create can fail partway through the
+    // seed-every-camera loop, and the rows written BEFORE that failure still
+    // have to be cleaned.
     let memberId: number | null = null;
     let vehicleId: number | null = null;
-    let zoneId: string | null = null;
+    const zoneIds: Record<string, string> = {};
+    // NB: no `cameraId` here any more, deliberately. This test USED to carry one
+    // (`''` until the page's camera was learned) and the `finally` built a
+    // leak-witness URL from it — so any early body failure turned the cleanup into
+    // a `/api/cameras//zones` 404 whose Matcher error replaced the body's real one.
+    // Every URL in F-258 is now keyed off `zoneIds` (complete from the seed loop
+    // onward) or off `zid`, so there is no camera-scoped value that can be read
+    // before it exists. F-256 has its own `cameraId` (:274), bound before use.
+    // The body's first error, recorded so `finally` can never bury it. A throw
+    // inside `finally` REPLACES the body's error, and that is not a theory: five
+    // consecutive runs of this test reported "received value must have a length
+    // property" from the cleanup re-read while the body had in fact died earlier,
+    // because the cleanup's own 404 threw first. The message you read was the
+    // second error. This makes the first one legible even when cleanup goes wrong.
+    let bodyError: unknown = null;
 
     try {
       const member = await api.send('/api/household/members', 'POST', {
@@ -616,14 +672,21 @@ test.describe('DO-3 zones golden path', () => {
       vehicleId = (vehicle.body?.id as number) ?? null;
       expect(vehicle.status, 'POST vehicle answers 201').toBe(201);
 
-      const zone = await api.send(
-        `/api/cameras/${cameraId}/zones`,
-        'POST',
-        newZone(ZONE_A, 'driveway', 7)
-      );
-      expect(zone.status, 'POST zone answers 201').toBe(201);
-      const zid = String(zone.body?.id);
-      zoneId = zid;
+      // Seed on EVERY camera, keeping each id: the page's pick is unknowable in
+      // advance (unordered, cached `GET /api/cameras` + `cameras[0]` in the page),
+      // so the zone has to exist wherever it lands. This is not hedging the assert —
+      // the assert below still requires the PAGE to name this test's zone in its own
+      // response, so a page that rendered nothing cannot pass.
+      for (const cam of allCameras) {
+        const zone = await api.send(
+          `/api/cameras/${cam}/zones`,
+          'POST',
+          newZone(ZONE_A, 'driveway', 7)
+        );
+        expect(zone.status, `POST zone answers 201 on camera ${cam}`).toBe(201);
+        zoneIds[cam] = String(zone.body?.id);
+      }
+      let zid = String(Object.values(zoneIds)[0]);
 
       const noConfig = await api.getJson(`/api/zones/${zid}/household`);
       expect(noConfig.status, 'GET /api/zones/{id}/household answers 200').toBe(200);
@@ -648,21 +711,68 @@ test.describe('DO-3 zones golden path', () => {
           access_schedules: { member_ids: number[] }[];
         };
 
-      // The zone now exists ON THE PAGE'S CAMERA — reload and prove the page
-      // sees it before asserting a single cell. Run 10's failure mode was the
-      // page rendering zero zones while the API leg's zone existed; that
-      // positive control belongs BEFORE the matrix asserts.
-      const [, zonesResp] = await Promise.all([
-        page.reload({ waitUntil: 'domcontentloaded' }),
-        page.waitForResponse((r) => zoneCameraOf(r.url()) === cameraId && r.status() === 200, {
-          timeout: 15_000,
-        }),
-      ]);
-      const zonesSeen = (await zonesResp.json()) as { items?: { name?: string }[] };
-      expect(
-        (zonesSeen.items ?? []).some((z) => z.name === ZONE_A),
-        'the camera the page resolved now serves the zone this test created'
-      ).toBe(true);
+      // Navigate to /zones and prove the PAGE serves this test's zone before
+      // asserting a single cell — the positive control run 10 asked for. TWO
+      // things this shape gets right that its predecessor got wrong:
+      //  * The matcher is armed BEFORE the navigation. A listener cannot catch a
+      //    response that already arrived (this file's own note at :363), and the
+      //    zones GET this waits for is issued by the app during boot.
+      //  * It is a `goto`, not a `reload`, and there is nothing to reload.
+      //    `login()` seeds a cookie and then goes to /login (`harness.ts:144-158`,
+      //    the goto at :157),
+      //    so a bare `reload` here reloads the LOGIN page: measured, it issues
+      //    exactly two API calls and bounces —
+      //      url=/login traffic=["200 /api/auth/setup-status","200 /api/rum"]
+      //    and no zones GET is ever coming. An earlier revision of this leg deleted
+      //    the goto and kept a reload plus everything that depended on the page
+      //    being on /zones; it starved for the full wait, which LOOKED like the
+      //    original flake and was not it.
+      //    To keep the two straight: the failure in CI at `3377684a6` had this goto
+      //    and starved LATER, on a second matcher that waited for the zones GET of
+      //    one specific camera after a reload — the page re-draws `cameras[0]` on
+      //    every mount, so that camera is often not the one the page is on. This
+      //    version has one navigation and no reload, so neither starvation is
+      //    available: nothing has to survive a re-mount, and the page cannot be on
+      //    a camera this test did not seed.
+      // Any real camera's zones GET satisfies the wait — that is the point, since
+      // the page's pick is not knowable in advance — and the zone-name assert below
+      // still refuses to pass on a page that rendered nothing. `zid` is then REBOUND
+      // to the zone belonging to the camera the page actually named, so every later
+      // leg (the cell editor's PUT, configOf, every assert) addresses the row the
+      // matrix really renders.
+      // 8 s, not the 15 s the committed matcher used, and the reason is a race
+      // between two equal numbers. The project test budget is 15 s
+      // (`playwright.config.ts:112`) and a matcher given 15 s can consume ALL of it,
+      // so a starved wait and the test timeout fire at the same instant — and a
+      // timeout ABANDONS `finally` rather than running it. That is the exact CI
+      // cascade at 3377684a6: attempt 1 timed out, cleanup never ran, the household
+      // member leaked, retries 1-2 died on the fresh-state gate. Leaving the inner
+      // wait strictly SHORTER than the budget makes an unsatisfiable wait report
+      // here, as one named line with a readable message, with ~7 s of budget left to
+      // run the cleanup. Same failure, two outcomes, and the difference is which
+      // timeout wins. No timing figure quoted here on purpose, because an earlier
+      // revision of this line said "this leg is 4.2 s end to end" and that sentence
+      // was a UNIT ERROR of the instructive kind: 4.2 s was a real measurement, but
+      // of the WHOLE TEST (Playwright's per-test duration, `diag4.log` at an earlier
+      // revision of this file), and I pasted it onto a sentence about ONE WAIT inside
+      // that test. Playwright reports per-test durations only — there is no per-statement
+      // number to read — so any figure attached to a single statement here would be
+      // invented. Scope your measurement to the thing you are quoting a number about.
+      const zonesCall = page.waitForResponse(
+        (r) => zoneCameraOf(r.url()) !== null && r.status() === 200,
+        { timeout: 8_000 }
+      );
+      await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
+      const zonesResp = await zonesCall;
+      const pageCamera = zoneCameraOf(zonesResp.url()) as string;
+      const zonesSeen = (await zonesResp.json()) as { items?: { id?: string; name?: string }[] };
+      const rendered = (zonesSeen.items ?? []).find((z) => z.name === ZONE_A);
+      expect(rendered, 'the camera the page resolved now serves this test zone').toBeDefined();
+      // The page named its camera on this response; that name is the KEY into the
+      // map this test seeded, which is the only reason the camera is needed at all.
+      const bound = zoneIds[pageCamera];
+      expect(bound, 'the page named a camera this test seeded').toBeDefined();
+      zid = bound;
 
       await expect(page.getByTestId('zones-page')).toBeVisible();
       const matrix = page.getByTestId('panel-trust');
@@ -679,17 +789,17 @@ test.describe('DO-3 zones golden path', () => {
       // same null the API leg proved.
       await Promise.all([
         page.waitForResponse(
-          (r) => apiPath(r.url()) === `/api/zones/${zoneId}/household` && r.status() === 200
+          (r) => apiPath(r.url()) === `/api/zones/${zid}/household` && r.status() === 200
         ),
         cellButton(MEMBER, 'None').click(),
       ]);
       await expect(page.getByText('Select Trust Level')).toBeVisible();
 
-      // 2. FULL ⇒ owner_id. (hook case 'full' :543-544)
+      // 2. FULL ⇒ owner_id. (useZoneTrustMatrix.ts:543-544, case 'full')
       await Promise.all([
         page.waitForResponse(
           (r) =>
-            apiPath(r.url()) === `/api/zones/${zoneId}/household` && r.request().method() === 'PUT'
+            apiPath(r.url()) === `/api/zones/${zid}/household` && r.request().method() === 'PUT'
         ),
         page.getByRole('button', { name: 'Full', exact: true }).click(),
       ]).then(async ([put]) => expect(put.status(), 'the trust PUT answers 200').toBe(200));
@@ -737,7 +847,7 @@ test.describe('DO-3 zones golden path', () => {
       expect(config.access_schedules, 'none clears the schedule monitor wrote').toHaveLength(0);
 
       // 6. Vehicles view: same grid shape, and the editor OFFERS ONLY
-      //    Partial/None (:199-202) — the shipped cap, pinned as shipped.
+      //    Partial/None (ZoneTrustMatrix.tsx:199-202) — the shipped cap, as shipped.
       await matrix.getByRole('button', { name: 'Vehicles', exact: true }).click();
       await expect(cellButton(VEHICLE, 'None')).toBeVisible();
       await cellButton(VEHICLE, 'None').click();
@@ -757,39 +867,101 @@ test.describe('DO-3 zones golden path', () => {
         config.allowed_vehicle_ids,
         'vehicle partial ⇒ allowed_vehicle_ids = [vehicle]'
       ).toEqual([vehicleId]);
+    } catch (err) {
+      // Record, then rethrow: the body's error is still the error Playwright
+      // reports. This exists so `finally` can name it — see the cleanup catch.
+      bodyError = err;
+      throw err;
     } finally {
-      // Cleanup asserts existence-gated, NOT hard-status. A throw from inside
-      // `finally` REPLACES the body's error (verified by repro), so a strict
-      // `toBe(204)` here converts "the body died before it created anything"
-      // into a fake cleanup story — run 10's exact failure. Precedent:
-      // notify-access/access.spec.ts:321-331 gates the DELETE on the id and
-      // accepts [204, 404]. The leak witness is the re-read below, which stays
-      // a hard assert: a row that was really created and really not deleted
-      // still reddens the test, unmasked.
-      if (zoneId !== null) {
-        expect([204, 404]).toContain(
-          (await api.send(`/api/zones/${zoneId}/household`, 'DELETE')).status
-        );
-        expect([204, 404]).toContain(
-          (await api.send(`/api/cameras/${cameraId}/zones/${zoneId}`, 'DELETE')).status
-        );
+      // Every cleanup step is individually guarded, and that is the load-bearing
+      // design, not decoration. Three separate reasons, all learned the hard way
+      // in this file:
+      //  1. A throw from inside `finally` REPLACES the body's error. A strict
+      //     `toBe(204)` converts "the body died before it created anything" into
+      //     a fake cleanup story (run 10). Precedent: access.spec.ts:321-331
+      //     gates the DELETE on the id and accepts [204, 404].
+      //  2. First-error-wins in an unguarded `finally` means one bad DELETE hides
+      //     every later leak, so the report under-reports the damage.
+      //  3. A cleanup failure that is silently SWALLOWED leaves the state dirty
+      //     for the next test — and this suite runs serial on one stack, so that
+      //     poison is the next test's "fresh state" red. (This is precisely what
+      //     happened in CI at 3377684a6: the timeout abandoned `finally`, the
+      //     member row leaked, and both retries died on the seed-census gate.)
+      // So: collect, never throw early; report everything, including the body's
+      // error that `finally` is about to overwrite.
+      const cleanup: string[] = [];
+      const step = async (label: string, fn: () => Promise<unknown>) => {
+        try {
+          await fn();
+        } catch (e) {
+          cleanup.push(`${label}: ${(e as Error).message.split('\n')[0]}`);
+        }
+      };
+      // Every camera got a copy, so every camera's copy is deleted — including
+      // copies on cameras the page never picked. Iterating the MAP (not the camera
+      // list) means a create that failed partway through the seed loop still
+      // cleans the rows written before the failure.
+      for (const [cam, zidRow] of Object.entries(zoneIds)) {
+        await step(`drop config on ${cam}`, async () => {
+          expect([204, 404]).toContain(
+            (await api.send(`/api/zones/${zidRow}/household`, 'DELETE')).status
+          );
+        });
+        await step(`delete zone on ${cam}`, async () => {
+          expect([204, 404]).toContain(
+            (await api.send(`/api/cameras/${cam}/zones/${zidRow}`, 'DELETE')).status
+          );
+        });
       }
       if (vehicleId !== null) {
-        expect([204, 404]).toContain(
-          (await api.send(`/api/household/vehicles/${vehicleId}`, 'DELETE')).status
-        );
+        await step('delete vehicle', async () => {
+          expect([204, 404]).toContain(
+            (await api.send(`/api/household/vehicles/${vehicleId}`, 'DELETE')).status
+          );
+        });
       }
       if (memberId !== null) {
-        expect([204, 404]).toContain(
-          (await api.send(`/api/household/members/${memberId}`, 'DELETE')).status
+        await step('delete member', async () => {
+          expect([204, 404]).toContain(
+            (await api.send(`/api/household/members/${memberId}`, 'DELETE')).status
+          );
+        });
+      }
+      // Leak witnesses. These stay asserts, now collected rather than thrown, so a
+      // real leftover still reddens — and the zones witness is keyed off `zoneIds`
+      // (complete from the seed loop onward) instead of the page's camera, which
+      // the body only learns partway through. Keying it off that variable meant
+      // that whenever the body died early this fetched `/api/cameras//zones`, took a
+      // 404 (verified: detail="Not Found", instance="/api/cameras//zones"), and
+      // threw a Matcher error on `body?.items === undefined` that REPLACED the
+      // body's real error — five consecutive runs reported the cleanup's confusion
+      // while the actual bug stayed hidden. A cleanup that builds a URL from a
+      // variable the body may never have reached is not a witness, it is a second
+      // failure wearing the first one's clothes.
+      await step('members back to []', async () => {
+        expect((await api.getJson('/api/household/members')).body).toHaveLength(0);
+      });
+      await step('vehicles back to []', async () => {
+        expect((await api.getJson('/api/household/vehicles')).body).toHaveLength(0);
+      });
+      for (const cam of Object.keys(zoneIds)) {
+        await step(`zones back to [] on ${cam}`, async () => {
+          const reRead = await api.getJson(`/api/cameras/${cam}/zones`);
+          expect(reRead.body?.items, `status ${reRead.status}`).toHaveLength(0);
+        });
+      }
+      if (cleanup.length > 0) {
+        // Include the body's error verbatim: throwing here overwrites it, and an
+        // unreported first error is how a cleanup bug becomes a permanent
+        // misdiagnosis. `bodyError` is null on the happy path, so a genuine
+        // cleanup leak on a green body still reads as exactly that.
+        throw new Error(
+          `DO-3 F-258 CLEANUP FAILED (${cleanup.length}): ${cleanup.join(' | ')}\n` +
+            (bodyError
+              ? `⚠ THE BODY HAD ALREADY FAILED — fix that first: ${(bodyError as Error).message}`
+              : 'the body itself passed, so this is a cleanup/leak problem on its own')
         );
       }
-      const membersAfter = await api.getJson('/api/household/members');
-      expect(membersAfter.body, 'members back to [] — proven by re-read').toHaveLength(0);
-      const vehiclesAfter = await api.getJson('/api/household/vehicles');
-      expect(vehiclesAfter.body, 'vehicles back to [] — proven by re-read').toHaveLength(0);
-      const zonesAfter = await api.getJson(`/api/cameras/${cameraId}/zones`);
-      expect(zonesAfter.body?.items, 'zones back to [] — proven by re-read').toHaveLength(0);
     }
 
     await assertGuardSurvives(page, h);
