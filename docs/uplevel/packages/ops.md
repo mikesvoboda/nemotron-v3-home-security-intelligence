@@ -371,7 +371,7 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 **Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7067 (open). (ruling
 149, record 6146380050)
 
-- [ ] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed
+- [x] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed
       on every run since at least 10-03 and nothing reads its report. Security Audit stays.
 
 **Done when:** the next `Nightly Analysis` run is green, or `nightly.yml` holds only Security Audit.
