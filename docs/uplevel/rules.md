@@ -271,11 +271,15 @@ and the re-read and merge comment are UR-29.
   reviewer cannot state that, the PR comes to the owner. Never pre-approved: destructive work
   (`B3.1`, `F3.1`, `B3.2`), security or auth or plan text beyond the ruling, or a PR with owner
   questions. (ruling 84)
-- **UR-102** `main` keeps "require branches to be up to date". Only the coordinator updates a queued
-  PR, one at a time, with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`, and merges
-  one PR at a time; authors rebase their own PRs to resolve conflicts. The owner revisits the
-  requirement if the open-PR count in the status comment keeps growing. (rulings 19, 27;
-  50-coordination.md §4)
+- **UR-102** `main` requires `CI Gate (Required Checks)` but not "branches up to date". The
+  coordinator merges one PR at a time. A ready PR merges without an update-branch when its green
+  `CI Gate` ran on a `main` at most 3 merges behind the tip, no PR merged since that base changed a
+  file it changes (`git diff --name-only <its base>..origin/main` shares no path with its files),
+  and `main`'s latest CI run is not red. Otherwise only the coordinator updates it, one at a time,
+  with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`; authors rebase their own PRs
+  to resolve conflicts. A red `main` from a merge interaction is a red-`main` fix (UR-111); after
+  two in one UTC day the coordinator turns "require branches to be up to date" back on and raises
+  the urgent path. (rulings 19, 27; owner record 6135991251)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
@@ -570,10 +574,12 @@ Read this section before you post any comment, review, heartbeat, status comment
   rows owed; stalled agents and heartbeats older than 20 minutes; packages ready but unclaimed
   (UR-63), idle lanes (UR-64) and parked claims (UR-67); and one closing line of counts: open
   programme PRs, and PRs merged since the newest owner ruling pointer or owner record on #6854,
-  auto-merged ones included. Merges stay a count and claims in flight are not listed. The comment
-  is edited in place, so UR-155's length does not bind it. An answered question leaves the
-  comment; its answer lives in the ruling's PR. (rulings 17, 19, 43, 54, 81; owner design session
-  2026-10-12, pass 2 Q8 and the final-verify follow-up)
+  auto-merged ones included. Merges stay a count and claims in flight are not listed. It shows
+  current state only, in about 4,000 characters: no beat history, summaries, method notes,
+  retractions or corrections, which go in the coordinator's heartbeat or on the PR they concern;
+  each owner question gives its facts, lettered options and recommendation, with evidence as a link.
+  An answered question leaves the comment; its answer lives in the ruling's PR. (rulings 17, 19, 43,
+  54, 81; owner design session 2026-10-12, pass 2 Q8; owner record 6135935339)
 - **UR-168** The urgent path stays on GitHub: a plain comment on #6854 whose first line starts
   `URGENT PATH`, with no label and no @-mention (agents post with the owner's own token, so neither
   would notify the owner). There is no push channel and no second account; the owner's design
