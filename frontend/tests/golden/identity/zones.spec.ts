@@ -32,7 +32,7 @@
  * camera per scenario folder (seed_cameras, scripts/feature_check.py:1284); their
  * ids are SLUGS (`cat-on-porch` answers `cat_on_porch`), not UUIDs — zones.py:89
  * uuid4 is the ZONE id — and GET /api/cameras has no ORDER BY (list_cameras,
- * backend/api/routes/cameras.py:151; the file's order_by calls :568/:1798 are
+ * backend/api/routes/cameras.py:152; the file's order_by calls :568/:1798 are
  * other routes). So items[0].id shares the client's endpoint and INDEX, which
  * ASSUMES spec-page agreement. Run 8 broke it: see the `const cameraId` bind.
  *
@@ -242,7 +242,7 @@ test.describe('DO-3 zones golden path', () => {
     // 93da95) falsified that: the page read `cat_on_porch` and the spec wrote to
     // another camera, so the cards leg timed out against an honest empty page.
     // The list route has no ORDER BY (list_cameras,
-    // backend/api/routes/cameras.py:151), so two unordered scans of one table
+    // backend/api/routes/cameras.py:152), so two unordered scans of one table
     // are free to disagree; spec and page DO share the cache key
     // (CacheKeys.cameras_list_by_status at cameras.py:194), which is
     // why the fix is to READ the page's choice rather than to re-derive it.
@@ -528,8 +528,8 @@ test.describe('DO-3 zones golden path', () => {
       }
 
       // 5. Time range: the pressed state moves (aria-pressed, :248) and the
-      //    overview grid deliberately does NOT care (hoursLookback feeds only
-      //    the analytics panel, :660/:790). Pinned as shipped — see header.
+      //    overview grid deliberately does NOT care (hoursLookback feeds the
+      //    alerts feed in the OVERVIEW panel, :660/:790). Pinned as shipped.
       const range = page.getByRole('group', { name: 'Time range selection' });
       await expect(range.getByRole('button', { name: '24h', exact: true })).toHaveAttribute(
         'aria-pressed',
