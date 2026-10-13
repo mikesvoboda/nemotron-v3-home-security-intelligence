@@ -221,6 +221,115 @@ async def test_create_backup_with_mocked_service(client: AsyncClient, mock_redis
 
 
 # =============================================================================
+# Backup with a populated events table (r129 / owner ruling 127)
+# =============================================================================
+
+# Terminal statuses the POST /api/backup background job can settle on.
+_BACKUP_TERMINAL = ("completed", "failed")
+
+
+@pytest.mark.asyncio
+@pytest.mark.timeout(30)  # matches this test's own 60 x 0.5 s poll ceiling below
+async def test_backup_with_events_completes_and_keeps_deferred_columns(
+    client: AsyncClient,
+    mock_redis,
+    integration_db,
+    db_session: AsyncSession,
+):
+    """[r129] ``POST /api/backup`` completes once an ``events`` row exists.
+
+    Every other test in this file either mocks ``BackupService.create_backup``
+    or runs it against an ``events`` table with zero rows, and the external
+    golden path ``backend/tests/golden/external/test_backup.py`` was
+    ``xfail(strict=True)`` for this same defect -- so before [r129] the HTTP
+    layer had never carried a backup of a populated ``events`` table. That is
+    how a 100%-real-world failure stayed green: the deferred-column
+    ``getattr`` in ``_export_table`` (models/event.py:70-74 are ``deferred()``)
+    only fires when the loop body runs, i.e. only when a row exists.
+
+    Asserting through the download route rather than the service, because this
+    is the tier CI always runs (the golden needs a live stack) and because
+    "completed" alone is not the claim: the manifest count and the archive
+    contents are what restore reads. Seeding follows
+    ``test_backup_service.py::TestBackupExportsDeferredEventColumns`` -- no
+    explicit ``Event.id`` (autoincrement Integer), ``flush()`` to get it back.
+    """
+    # Imported here, not at module scope: mirrors backup_service.py's own lazy
+    # ``from backend.models.event import Event`` (backup_service.py:170), which
+    # exists to dodge an import cycle this test module would otherwise inherit.
+    from backend.models.camera import Camera
+    from backend.models.event import Event
+
+    camera_id = f"r129-api-cam-{uuid4()}"
+    db_session.add(
+        Camera(
+            id=camera_id,
+            name="R129 API Camera",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
+    )
+    await db_session.flush()
+
+    seeded_ids: list[int] = []
+    for i in range(3):
+        event = Event(
+            batch_id=str(uuid4()),
+            camera_id=camera_id,
+            started_at=datetime(2026, 2, i + 1, 9, 30, 0, tzinfo=UTC),
+            risk_score=40 + i * 10,
+            risk_level="medium",
+            summary=f"R129 api event {i}",
+            # The two deferred columns, with values to prove they survived.
+            reasoning=f"R129-API-REASONING-{i}",
+            llm_prompt=f"R129-API-LLMPROMPT-{i}",
+        )
+        db_session.add(event)
+        await db_session.flush()
+        seeded_ids.append(event.id)
+    await db_session.commit()
+
+    response = await client.post("/api/backup", json={})
+    assert response.status_code == 202, response.text[:500]
+    job_id = response.json()["job_id"]
+
+    # Bounded poll, not a fixed sleep: the background task shares this event
+    # loop, so the asserts below have to wait for it to yield. A ceiling keeps
+    # a hang loud instead of eating the ini timeout silently.
+    status_data: dict = {}
+    for _ in range(60):
+        status_response = await client.get(f"/api/backup/{job_id}")
+        assert status_response.status_code == 200, status_response.text[:500]
+        status_data = status_response.json()
+        if status_data.get("status") in _BACKUP_TERMINAL:
+            break
+        await asyncio.sleep(0.5)
+
+    assert status_data.get("status") == "completed", (
+        f"[r129] backup of a populated events table ended "
+        f"{status_data.get('status')!r}: {status_data.get('error_message')!r}"
+    )
+    manifest = status_data.get("manifest") or {}
+    assert manifest.get("contents", {}).get("events", {}).get("count") == len(seeded_ids), (
+        f"[r129] manifest events count is "
+        f"{manifest.get('contents', {}).get('events')!r}, wanted {len(seeded_ids)}"
+    )
+
+    download = await client.get(f"/api/backup/{job_id}/download")
+    assert download.status_code == 200, download.text[:300]
+    archive = zipfile.ZipFile(io.BytesIO(download.content))
+    events_data = json.loads(archive.read("events.json").decode("utf-8"))
+
+    assert sorted(e["id"] for e in events_data) == sorted(seeded_ids)
+    by_id = {e["id"]: e for e in events_data}
+    for i, event_id in enumerate(seeded_ids):
+        # Values, not just rows: a fix that skipped the deferred columns to
+        # dodge MissingGreenlet would complete with every row present and drop
+        # two columns of every backup ever taken afterwards.
+        assert by_id[event_id]["reasoning"] == f"R129-API-REASONING-{i}"
+        assert by_id[event_id]["llm_prompt"] == f"R129-API-LLMPROMPT-{i}"
+
+
+# =============================================================================
 # Backup Listing Tests
 # =============================================================================
 

@@ -724,6 +724,10 @@ class TestListEventsRouteComprehensive:
         mock_event1.summary = "Test event"
         mock_event1.reasoning = "Test reasoning"
         mock_event1.reviewed = False
+        # F-057: list_events now reads event.notes into the row; an unset
+        # attribute on a spec'd Mock auto-fabricates a Mock, which fails
+        # EventResponse's `str | None` validation.
+        mock_event1.notes = None
         mock_event1.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
         mock_event1.detection_id_list = [1, 2, 3]
         mock_event1.camera = Mock(name="Front Door")

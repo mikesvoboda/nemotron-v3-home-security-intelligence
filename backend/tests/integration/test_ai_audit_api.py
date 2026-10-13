@@ -1512,3 +1512,203 @@ class TestEdgeCasesAndErrorHandling:
         assert data["improvements"]["unused_data"] == []
         assert data["improvements"]["format_suggestions"] == []
         assert data["improvements"]["model_gaps"] == []
+
+
+class TestBatchAuditJobReadsDeferredColumns:
+    """[r129] ruling 127: the batch-audit job must not report every event failed.
+
+    Pre-fix, ``_run_batch_audit_job`` identity-loaded the event with a plain
+    ``select(Event)`` and touched the *deferred* ``event.llm_prompt``, and under
+    an ``AsyncSession`` that touch raises ``MissingGreenlet`` -- the same failure
+    the backup export hits (see
+    ``test_backup_service.py::TestBackupExportsDeferredEventColumns``). The
+    per-event ``except Exception`` (backend/api/routes/ai_audit.py:475-480)
+    turned each one into ``failed_events += 1``, and the job still CALLED
+    ``complete_job`` with a payload that looks like a normal result, so on a
+    populated table 100 % of events were reported failed while the endpoint,
+    the job, and CI all stayed green. The head line cites below are this file's
+    own: ``ai_audit.py:433-437`` is the ``undefer`` that is the cure,
+    ``ai_audit.py:458`` the read that made it fatal.
+
+    Why no existing test caught it: ``TestBatchAuditAdvanced`` asserts only the
+    202 and ``total_events`` and never awaits the background coroutine, so the
+    result payload is never read. These tests call the job coroutine directly.
+
+    Only ``_call_llm`` is stubbed -- the boundary this repo already uses for
+    this service (``tests/unit/services/test_pipeline_quality_audit_service.py:707``)
+    -- so EVERY deferred read stays real: the read at ``ai_audit.py:458`` and all
+    four evaluation modes (``pipeline_quality_audit_service.py:406-479``), which
+    read ``event.reasoning`` and ``event.llm_prompt`` themselves.
+    """
+
+    # One canned answer for all four evaluation modes; every mode runs
+    # ``extract_json_from_llm_response`` over it and ignores keys it doesn't use.
+    LLM_ANSWER = json.dumps(
+        {
+            "context_usage": 4.0,
+            "reasoning_coherence": 4.5,
+            "risk_justification": 3.5,
+            "actionability": 4.0,
+            "risk_score": 70,
+            "risk_level": "high",
+            "missing_context": [],
+            "confusing_sections": [],
+            "unused_data": [],
+            "format_suggestions": [],
+            "model_gaps": [],
+        }
+    )
+
+    N_EVENTS = 4
+    PROMPT_BODY = "R129 prompt body -- a deferred column with real length behind it."
+
+    @pytest.fixture
+    async def batch_events(
+        self,
+        integration_db: str,
+        sample_camera_for_audit: Camera,
+    ) -> list[Event]:
+        """Seed events whose deferred columns carry real, measurable payloads.
+
+        ``llm_prompt`` length is asserted later, so it must be nonzero and
+        known -- that is what distinguishes "undefer the load" from "read it as
+        None and keep going".
+        """
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        events: list[Event] = []
+        async with get_session() as db:
+            for i in range(self.N_EVENTS):
+                event = Event(
+                    batch_id=str(uuid.uuid4()),
+                    camera_id=sample_camera_for_audit.id,
+                    started_at=datetime(2026, 1, i + 1, 9, 0, 0, tzinfo=UTC),
+                    ended_at=datetime(2026, 1, i + 1, 9, 2, 30, tzinfo=UTC),
+                    risk_score=20 + i * 20,
+                    risk_level="medium",
+                    summary=f"R129 batch event {i}",
+                    reasoning=f"R129 reasoning for event {i}",
+                    llm_prompt=f"{self.PROMPT_BODY} event {i}",
+                    reviewed=False,
+                )
+                db.add(event)
+                await db.flush()
+                events.append(event)
+            await db.commit()
+            for event in events:
+                await db.refresh(event)
+        return events
+
+    async def _run_job(self, event_ids: list[int]) -> dict:
+        """Await the job coroutine directly with a memory-only tracker.
+
+        No existing test does this, which is exactly why the defect survived:
+        the endpoint fires the coroutine as a BackgroundTask and the tests stop
+        at the 202.
+        """
+        from unittest.mock import AsyncMock, patch
+
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+        from backend.services.job_tracker import JobTracker
+        from backend.services.pipeline_quality_audit_service import (
+            PipelineQualityAuditService,
+        )
+
+        tracker = JobTracker()  # no broadcast, no redis: in-memory only
+        # Mirror the endpoint's own precondition: trigger_batch_audit registers
+        # the job (ai_audit.py:576 create_job) BEFORE add_task schedules this
+        # coroutine, so start_job() inside it finds a live row.
+        job_id = tracker.create_job("batch_audit")
+
+        with patch.object(
+            PipelineQualityAuditService,
+            "_call_llm",
+            new_callable=AsyncMock,
+            return_value=self.LLM_ANSWER,
+        ):
+            await _run_batch_audit_job(job_id, event_ids, False, tracker)
+
+        job = tracker.get_job(job_id)
+        assert job is not None, "job never registered -- the coroutine did not run"
+        return job
+
+    @pytest.mark.asyncio
+    async def test_the_job_processes_every_event_it_was_given(
+        self, batch_events: list[Event]
+    ) -> None:
+        """Done-when (3): processed_events == event count, failed_events == 0."""
+        job = await self._run_job([e.id for e in batch_events])
+
+        assert job["status"] == "completed", (
+            f"[r129] job did not complete: {job['status']} / {job.get('error')}"
+        )
+        result = job["result"]
+        assert result["failed_events"] == 0, (
+            f"[r129] the job swallowed a per-event exception for "
+            f"{result['failed_events']} of {result['total_events']} events while "
+            f"still calling complete_job. The swallowed exception is "
+            f"MissingGreenlet from reading a deferred Event column "
+            f"(reasoning/llm_prompt) -- see the logger.exception at "
+            f"backend/api/routes/ai_audit.py:475-480."
+        )
+        assert result["processed_events"] == self.N_EVENTS
+        assert result["total_events"] == self.N_EVENTS
+
+    @pytest.mark.asyncio
+    async def test_the_audit_row_carries_the_deferred_prompt_length(
+        self, batch_events: list[Event]
+    ) -> None:
+        """The deferred VALUE must reach the service, not arrive as None.
+
+        This is the half that separates "undefer the load" from "let the read
+        fail soft to None". A fix that swallows and nulls would still report
+        processed_events == N (create_partial_audit sets prompt_length=0 and
+        run_full_evaluation then early-returns -- pipeline_quality_audit_service
+        .py:367-369), passing Done-when (3) while auditing nothing at all.
+        """
+        await self._run_job([e.id for e in batch_events])
+
+        from sqlalchemy import select
+
+        from backend.core.database import get_session
+        from backend.models.event_audit import EventAudit
+
+        expected = len(f"{self.PROMPT_BODY} event 0")
+        async with get_session() as db:
+            result = await db.execute(
+                select(EventAudit).where(EventAudit.event_id.in_([e.id for e in batch_events]))
+            )
+            audits = list(result.scalars())
+
+        assert len(audits) == self.N_EVENTS, (
+            f"[r129] expected one audit row per event, got {len(audits)}"
+        )
+        assert sorted(a.prompt_length for a in audits) == sorted(
+            len(f"{self.PROMPT_BODY} event {i}") for i in range(self.N_EVENTS)
+        ), (
+            "[r129] audits were written with a prompt_length that does not "
+            "match the seeded llm_prompt -- the deferred column reached the "
+            "service as None/empty, so no evaluation actually ran on it."
+        )
+        assert all(a.prompt_length == expected or a.prompt_length > 0 for a in audits)
+
+    @pytest.mark.asyncio
+    async def test_the_failure_counter_is_live_when_an_event_is_really_missing(
+        self, batch_events: list[Event]
+    ) -> None:
+        """Vacuity twin: failed_events can be nonzero, so the zero above is real.
+
+        A nonexistent id takes the ``event is None`` branch
+        (backend/api/routes/ai_audit.py:440-446). Without this, a counter that
+        could never move would make the Done-when (3) pin vacuously green.
+        """
+        missing_id = max(e.id for e in batch_events) + 100_000
+        job = await self._run_job([e.id for e in batch_events] + [missing_id])
+
+        result = job["result"]
+        assert result["failed_events"] == 1, (
+            "the failure counter never moved even for a genuinely missing "
+            "event -- a pin reading failed_events == 0 would be vacuous"
+        )
+        assert result["processed_events"] == self.N_EVENTS
