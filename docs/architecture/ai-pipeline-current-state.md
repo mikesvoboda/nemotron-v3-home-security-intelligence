@@ -317,16 +317,33 @@ Branch protection requires exactly one context, `CI Gate (Required Checks)` (`st
 - the contract registry equals the schemas/ artifact count, plus a `DELETED_REGISTRY_OPS`
   ratchet of 28 ids that stay absent
 
-Two of the sharpest absence-pins in the repo are **not wired to any workflow** [V]:
-`scripts/test_ai_surface_census.py` — which pins the surviving-loads set to exactly the three
-lookup loaders, i.e. the guard against a specialist leg being quietly added or deleted — and
-`ai/tests/test_module_hygiene.py` (the `ai-tests` job runs only `pytest ai/ --collect-only` and
-`pytest ai/gateway`). Both are outside `testpaths` (`pyproject.toml:578`). This contradicts the
-repo's own doctrine quoted at `ci.yml:200`: "a gate with no CI is a gate that rots".
+Two of the sharpest absence-pins in the repo run in CI while sitting **outside pytest's default
+collection set** in opposite directions [V]. `scripts/test_ai_surface_census.py` — which pins the
+surviving-loads set to exactly the three lookup loaders, i.e. the guard against a specialist leg
+being quietly added or deleted — matches no `testpaths` entry
+(`pyproject.toml`, `[tool.pytest.ini_options] testpaths`: `backend/tests`, `ai/*/tests`,
+`ai/*/test_*.py`, `setup_lib/tests`; a bare `uv run pytest --collect-only` does not collect it),
+so an explicit argv is the only thing that makes it run. `ai/tests/test_module_hygiene.py` is the
+mirror image: the `ai/*/test_*.py` glob does match it, and a bare collect does collect its three
+functions — but only as ordinary unit tests, so losing its dedicated step demotes a blocking
+probe silently instead of redden anything. Both are nonetheless invoked explicitly: the census by
+`collection-sanity`'s "Run the anti-rot gates' own tests" step, the hygiene probes by `ai-tests`'
+"Module hygiene probes" step — that job's third `pytest` step of seven named ones — alongside its
+`pytest ai/ --collect-only` and `pytest ai/gateway`. The real exposure is therefore the explicit
+list, not an absence: a suite named only in a battery `run:` disappears when someone re-wraps
+that step — which is why `scripts/test_check_gate_reachability.py`
+(`TestStepNamedSuitesStillWired`) now pins both suite paths and the hygiene step's name:
+deleting the hygiene run-line, renaming its step, or moving the census path out of that argv each
+reddens `collection-sanity` on every PR. The census has one consumer that is not that argv:
+`backend/tests/unit/test_r8_s3_florence_provider_retirement.py` reads the census's source text
+and asserts a tombstone string, so one census assertion also runs in the unit tier. Doctrine:
+"a gate with no CI is a gate that rots", quoted in `ci.yml`'s own comments.
 
-And `scripts/validate_docs` — the tool that catches dead `source_refs` — runs in **no** workflow
-either (`grep -rn validate_docs .github/workflows/` returns nothing). It is what found the 3 dead
-citations in `ai-pipeline.md`.
+And `scripts/validate_docs` — the tool that catches dead `source_refs` — runs in CI, in the
+`Docs citation existence (level 1, scoped dirs)` step, over five dirs only and with `--no-ast
+--no-code-match --no-cross-ref --no-staleness --errors-only`. **[V]** The tiers those flags turn off
+are wired into no gate at all, and the five dirs are a floor, not `docs/`: a dead `source_ref` outside
+them is unchecked. That is the gap worth knowing; the tool is not missing, its coverage is.
 
 ## 8. What monitoring can and cannot see today
 

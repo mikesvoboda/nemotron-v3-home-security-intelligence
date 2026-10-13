@@ -259,8 +259,14 @@ def merge_api_keys(existing: str, new_key: str, new_key_scope: str | None = None
       every one of those readers and sources in bash (single quotes cannot
       nest; double quotes expand ``$`` and backticks; unquoted breaks on both)
       — the generated monitoring key comes from ``secrets.token_urlsafe`` so
-      it never hits this, and a hand-added apostrophe in an operator key
-      breaks the line under the old unquoted emission exactly as it does now.
+      it never hits this. Precise about the pre-existing line, though (measured,
+      r94 self-review): an UNQUOTED list of PLAIN strings holding an apostrophe
+      sources at rc 0, because JSON's own ``"`` wrap each entry — so a key with
+      an apostrophe does NOT break the file until something adds a ``{...}``
+      object, which no unquoted form survives (brace expansion). That object is
+      exactly what this flag adds, which is why the emission is single-quoted
+      and an apostrophe entry is refused as ``not-quotable`` rather than emitted
+      into a line that would break.
 
     Args:
         existing: the current ``API_KEYS`` value ("" when absent); one
@@ -319,6 +325,168 @@ def merge_api_keys(existing: str, new_key: str, new_key_scope: str | None = None
             seen.add(marker)
             unique.append(entry)
     return json.dumps(unique, separators=(",", ":"))
+
+
+def convert_monitoring_key(env_text: str) -> tuple[str, str]:
+    """Scope the plain ``API_KEYS`` entry that mirrors ``MONITORING_API_KEY``.
+
+    Ruling 94 Fix 2. An install whose ``.env`` was last written by ``setup.py``
+    between `O1.11` and R60 lists the monitoring key as a PLAIN ``API_KEYS`` entry,
+    which the gate reads as UNSCOPED — the key can read operator-only paths. Until
+    now the only cure was a full re-run (docs/operator/admin/security.md), which
+    makes every other decision in the file again. This rewrites that ONE entry as
+    ``{"key": ..., "scope": "monitoring"}`` (#6959's format, the same object
+    ``merge_api_keys`` emits) and leaves the rest of the file alone.
+
+    Scope discipline, because the file is the operator's own and the only copy of
+    these keys: the entry is identified by the value in ``MONITORING_API_KEY`` and by
+    nothing else. A plain entry is never narrowed on a guess — narrowing a scope this
+    tool did not mint breaks whatever uses that key — and no entry is ever deleted,
+    added or reordered. Anything ambiguous is REFUSED, byte-for-byte unchanged, with
+    the reason returned for the caller to print.
+
+    Returns:
+        ``(text, outcome)``. ``text`` equals the input on every outcome except
+        ``"converted"``. Outcomes:
+
+        - ``"converted"`` — the plain entry became a scoped one, in place;
+        - ``"unchanged"`` — it is already scoped (idempotent: running it twice is
+          safe, which is the operator's normal mistake);
+        - ``"no-monitoring-key"`` — no usable ``MONITORING_API_KEY`` to identify the
+          entry by;
+        - ``"not-listed"`` — no ``API_KEYS`` line, or the key is not in it;
+        - ``"ambiguous-duplicate"`` — the value appears more than once, or appears
+          plainly AND as an object (the plain entry is what keeps it unscoped, but
+          deleting an entry is beyond a flag that "touches nothing else");
+        - ``"not-plain"`` — the only entry for the value is an object with no
+          ``scope``, which is fail-closed (no grant at all); adding a scope here would
+          WIDEN it, the opposite of this ruling's direction of travel;
+        - ``"not-a-list"`` — the value is not a JSON list (a corrupt value is not
+          repaired by a narrow rewrite — a re-run regenerates the file);
+        - ``"duplicate-line"`` — two ``API_KEYS`` lines (setup.py's own readers take
+          the last, but a byte-preserving rewrite of an ambiguous file is where silent
+          damage happens);
+        - ``"not-quotable"`` — an entry holds a literal ``'``, so no emission of the
+          converted value survives the file's readers (see the serialization note);
+          the file stands exactly as it was.
+
+        Serialization note: the ONE line is re-emitted the way ``setup.py``'s own
+        writer emits it — compact separators (``merge_api_keys``) inside the caller's
+        single quote. Both halves matter for the scripts that ``source`` this file
+        under ``set -e`` (measured here): an unquoted value holding a scoped object
+        word-splits and brace-expands when spaced (exit 127) and loses its JSON
+        quoting when compact (exit 0 but mangled); the single quote is what keeps the
+        sourced value parseable. It is load-bearing, and R60 (422b92e9b) introduced it
+        alongside the object form for exactly this reason — so a pre-R60 file, which
+        ``setup.py`` wrote BEFORE the quote existed, GETS the single quote here: a
+        converted line always holds a scoped object, and a scoped object in an
+        unquoted line is a state ``setup.py`` never writes. A line that already has a
+        matching quote pair is EMITTED with the single quote — including a double-quoted
+        input, which is NOT kept (r94 follow-up, measured): ``json.dumps`` output always
+        contains ``"``, and python-dotenv — the backend's reader — abandons a value
+        whose closing quote landed after an inner ``"`` (it returns ``None`` for the
+        whole key, so every API key vanishes from the gate's view while the file
+        sources at rc 0: brace-expansion mangles it for bash). Keeping a double-quoted
+        line's own character preserved exactly that unreadable shape and reported
+        success. Single-quote emission is the only form the backend's reader parses.
+        A value that cannot be single-quoted at all — any entry holding a literal
+        ``'`` — is REFUSED as ``"not-quotable"`` (single quotes cannot nest), because
+        emitting it anyway produces a line bash refuses to source (rc 2) that
+        python-dotenv silently drops, with the flag exiting 0: the file goes from
+        sourcing and parsing fine to unreadable by both readers. Compactness matches
+        the writer so a converted file reads the same as a freshly generated one.
+        Every other line, including its line endings, is returned untouched.
+    """
+    lines = env_text.splitlines(keepends=True)
+
+    def _value_of(key: str) -> str | None:
+        """The last ``KEY=value`` in the file, one matching quote pair stripped.
+
+        "Last" is what this file's raw read-back and ``load_existing_env`` both do,
+        so a re-run of this tool agrees with a re-run of setup.py.
+        """
+        found: str | None = None
+        for raw in env_text.splitlines():
+            stripped = raw.strip()
+            if stripped.startswith(f"{key}="):
+                value = stripped.partition("=")[2].strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                    value = value[1:-1]
+                found = value
+        return found
+
+    monitoring_key = _value_of("MONITORING_API_KEY")
+    if not monitoring_key:
+        return env_text, "no-monitoring-key"
+
+    indices = [i for i, raw in enumerate(lines) if raw.strip().startswith("API_KEYS=")]
+    if not indices:
+        return env_text, "not-listed"
+    if len(indices) > 1:
+        return env_text, "duplicate-line"
+
+    line = lines[indices[0]]
+    # Keep the line's own terminator and its own quote CHARACTER so the rewrite changes
+    # only the JSON, never the file's shape (line endings included, "\r\n" and a missing
+    # final newline both intact). The default is the single quote, not "no quote": the
+    # converted value holds a {"key":…,"scope":…} object, which needs quoting to survive
+    # a `source` under `set -e` (see the serialization note), and a pre-R60 line is
+    # unquoted because setup.py added the quote only with R60's object form.
+    body = line.rstrip("\r\n")
+    terminator = line[len(body) :]
+    prefix, _, raw_value = body.partition("=")
+    value = raw_value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        # Strip any existing matching pair, but EMIT the single quote (r94 follow-up):
+        # json.dumps output always holds `"` (object keys), and a double-quoted line
+        # is invisible to python-dotenv — the reader closes the value at the first
+        # inner `"`, so it abandons the whole statement (measured: dotenv returns
+        # None, the backend loses every key) while bash brace-expands it at rc 0.
+        # Keeping the line's own `"` preserved that unreadable shape and reported
+        # success. The single quote is what every reader of this file strips.
+        value = value[1:-1]
+
+    try:
+        entries = json.loads(value)
+    except ValueError:
+        return env_text, "not-a-list"
+    if not isinstance(entries, list):
+        return env_text, "not-a-list"
+    plain_at = [i for i, e in enumerate(entries) if isinstance(e, str) and e == monitoring_key]
+    object_at = [
+        i
+        for i, e in enumerate(entries)
+        if isinstance(e, dict) and isinstance(e.get("key"), str) and e["key"] == monitoring_key
+    ]
+
+    if len(plain_at) > 1 or (plain_at and object_at):
+        return env_text, "ambiguous-duplicate"
+    if not plain_at:
+        if not object_at:
+            return env_text, "not-listed"
+        # The value only ever appears as an object: the conversion is already done,
+        # or the object carries no scope at all — fail-closed, and widening it here
+        # would be the opposite of what this ruling does.
+        return env_text, "unchanged" if "scope" in entries[object_at[0]] else "not-plain"
+
+    # Past this point a rewrite WILL happen, so the emission has to be quotable. A
+    # literal ' inside any entry cannot be single-quoted at all — single quotes do not
+    # nest — so the line would ship unterminated: bash refuses to source it (rc 2)
+    # and python-dotenv silently drops it, while a double-quoted workaround expands
+    # $ and backticks. Refuse loudly; the file stays exactly as readable as it was.
+    # Checked HERE, not before identification, so a file that is already converted
+    # stays a silent "unchanged" no-op even when some other tool minted an
+    # apostrophe key into it. (setup.py's own keys are secrets.token_urlsafe, whose
+    # alphabet excludes ' — only a hand-edited or third-party key can reach here.)
+    if any("'" in (e if isinstance(e, str) else json.dumps(e)) for e in entries):
+        return env_text, "not-quotable"
+
+    entries[plain_at[0]] = {"key": monitoring_key, "scope": "monitoring"}
+    # The single quote is emitted unconditionally (see the serialization note): a
+    # double-quoted emission is invisible to python-dotenv, a $-expanding one to bash.
+    rewritten = f"{prefix}='{json.dumps(entries, separators=(',', ':'))}'{terminator}"
+    lines[indices[0]] = rewritten
+    return "".join(lines), "converted"
 
 
 def is_weak_password(password: str) -> bool:

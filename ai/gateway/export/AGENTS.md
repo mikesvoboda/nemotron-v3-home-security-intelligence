@@ -18,7 +18,7 @@ Scripts that convert HuggingFace/PyTorch models into Triton-servable artifacts: 
 | `export_depth.py`        | Depth Anything V2 Tiny                                      | ONNX            |
 | `export_pet.py`          | Pet Classifier (ResNet-18)                                  | ONNX            |
 | `export_vehicle.py`      | Vehicle Classifier (ResNet-50)                              | ONNX            |
-| `export_reid.py`         | Person Re-ID (OSNet-AIN x1.0)                               | ONNX            |
+| `export_reid.py`         | Person Re-ID (OSNet-AIN x1.0)                               | ONNX / TensorRT |
 | `export_stgcn.py`        | ST-GCN++ action recognition                                 | ONNX            |
 | `export_yolo_pose.py`    | YOLOv8n-pose                                                | TensorRT / ONNX |
 | `export_yolo_threat.py`  | YOLOv8n threat detection                                    | TensorRT / ONNX |

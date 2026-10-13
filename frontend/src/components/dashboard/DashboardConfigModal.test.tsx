@@ -464,4 +464,61 @@ describe('DashboardConfigModal', () => {
       expect(statsRow?.visible).toBe(false);
     });
   });
+
+  // The edit state is seeded on the closed→open EDGE. DashboardLayout.tsx:268 builds
+  // `config` as a fresh `{ widgets, version }` literal on every render and the dashboard
+  // repaints on each WebSocket frame, so a reset keyed on `config` identity erased
+  // unsaved input mid-edit. Golden run 38450973581 is that erasure: two toggles and six
+  // move-up clicks vanished between the last click and the assert, on all three attempts.
+  describe('parent re-renders while open', () => {
+    it('keeps unsaved edits when the parent repaints with an equal-valued config', async () => {
+      const { user, rerender } = renderWithProviders(<DashboardConfigModal {...defaultProps} />);
+
+      await user.click(screen.getByTestId('widget-toggle-gpu-stats')); // show a hidden widget
+      await user.click(screen.getByTestId('widget-move-up-ai-summary-row')); // reorder
+
+      // Three repaints: new object identity, same values — what the live page does.
+      const repaint = () =>
+        rerender(
+          <DashboardConfigModal
+            {...defaultProps}
+            config={{ widgets: DEFAULT_CONFIG.widgets, version: DEFAULT_CONFIG.version }}
+          />
+        );
+      repaint();
+      repaint();
+      repaint();
+
+      await user.click(screen.getByTestId('save-button'));
+      await waitFor(() => {
+        expect(mockOnConfigChange).toHaveBeenCalled();
+      });
+
+      const savedConfig = mockOnConfigChange.mock.calls[0][0] as DashboardConfig;
+      // Both edits survived the repaints: the order change and the visibility change.
+      expect(savedConfig.widgets[0].id).toBe('ai-summary-row');
+      expect(savedConfig.widgets.find((w) => w.id === 'gpu-stats')?.visible).toBe(true);
+    });
+
+    it('still seeds from a config that changed while the modal was closed', async () => {
+      // The other half of the contract: the seed must not freeze stale values.
+      const hiddenThenShown: DashboardConfig = {
+        widgets: DEFAULT_CONFIG.widgets.map((w) =>
+          w.id === 'gpu-stats' ? { ...w, visible: true } : w
+        ),
+        version: DEFAULT_CONFIG.version,
+      };
+      const { rerender } = renderWithProviders(
+        <DashboardConfigModal {...defaultProps} isOpen={false} />
+      );
+
+      rerender(<DashboardConfigModal {...defaultProps} isOpen={false} config={hiddenThenShown} />);
+      rerender(<DashboardConfigModal {...defaultProps} isOpen config={hiddenThenShown} />);
+
+      const gpuRow = screen.getByTestId('widget-row-gpu-stats');
+      await waitFor(() => {
+        expect(gpuRow).toHaveClass('border-[#76B900]/30'); // rendered as VISIBLE
+      });
+    });
+  });
 });

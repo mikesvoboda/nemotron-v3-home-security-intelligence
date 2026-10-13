@@ -230,7 +230,7 @@ self._client_acks: dict[WebSocket, int] = {}
 ### Review Flow
 
 "Viewing" an event has no backend effect; the dashboard marks events reviewed
-by PATCHing the event itself (`backend/api/routes/events.py:1909-2110`):
+by PATCHing the event itself (`backend/api/routes/events.py:1922-2123`):
 
 ```mermaid
 sequenceDiagram

@@ -21,10 +21,28 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   Alertmanager and Grafana's backend API each present it, so scraping and alert
   delivery keep working with the gate on. Any install whose `.env` `API_KEYS` list
   was last written by `setup.py` between `O1.11` and R60 still lists that key as a plain
-  entry, which the gate reads as unscoped. Re-running
-  `python setup.py` interactively converts it — the key value is kept and only its
-  `API_KEYS` entry becomes scoped; `--yes` and `--defaults` skip that reuse, minting a
-  second key and leaving the old plain entry live. Recreate the backend to apply it:
+  entry, which the gate reads as unscoped. `python setup.py --convert-monitoring-key`
+  converts it — the key value is kept, only that one `API_KEYS` entry becomes scoped,
+  and every other byte of your `.env` is left alone, so no other setting is decided
+  again. It refuses, changes nothing, and prints which case it hit when it cannot tell
+  which entry is the monitoring key: no `MONITORING_API_KEY` to identify it by, the key
+  not listed as a plain entry, its value listed twice, the only entry for it already an
+  object with no scope, `API_KEYS` not a JSON list, two `API_KEYS` lines, or an entry
+  containing a literal apostrophe — single quotes cannot nest and double quotes expand
+  `$` and backticks, so no quoting of that line survives both readers; re-key that
+  entry without the apostrophe, then run the flag again. Only that case needs the
+  re-key: for every other one a full interactive `python setup.py` still works and
+  converts it as a side effect (`--yes` and `--defaults` skip that reuse, minting a
+  second key and leaving the old plain entry live), because the re-run writes the same
+  quoted form and would hit the same wall. That is why the flag exists, and the
+  difference is not only effort: `setup.py` regenerates the file from the keys it owns,
+  so a re-run drops any line it does not write — measured on a 10-key file, an
+  Enter-through re-run removed `PODMAN_SOCKET` and a hand-added flag while carrying
+  `JWT_SECRET`, `GRAFANA_PORT` and the paths over. `PODMAN_SOCKET` comes back on the
+  next deploy only because `deploy_phases._ensure_podman_socket` appends its own
+  detected value when the line is absent, so what you actually lose is your CHOICE of
+  that path (and anything of yours the deploy phases never learned to write). Back up
+  the file before a re-run that is not just the flag. Recreate the backend to apply it:
   `podman compose -f docker-compose.prod.yml up -d --force-recreate backend` — a plain
   `restart` keeps serving the old value. `/grafana/` moves from anonymous Admin to
   `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one

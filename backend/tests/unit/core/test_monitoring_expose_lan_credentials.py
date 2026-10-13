@@ -1009,6 +1009,7 @@ def _grafana_env(env_overrides: dict[str, str]) -> dict[str, str]:
     return {ln.split("=", 1)[0]: ln.split("=", 1)[1] for ln in lines if "=" in ln}
 
 
+@pytest.mark.timeout(120)  # 3 real compose renders; see the floor's rationale in the pin below
 def test_anonymous_admin_render_respects_legacy_and_derived_channels() -> None:
     """The composed line: unset → true (today); legacy hand-set false → false
     (never resurrected by the new channel); derived false → false (exposure
@@ -1024,6 +1025,7 @@ def test_anonymous_admin_render_respects_legacy_and_derived_channels() -> None:
     )
 
 
+@pytest.mark.timeout(120)  # 1 real compose render; reddened nightly red 3
 def test_derived_channels_render_end_to_end() -> None:
     """setup.py's exposed-mode values reach Grafana through compose: anonymous
     off, auth-proxy on, sign-up landing on Viewer."""
@@ -1041,6 +1043,68 @@ def test_derived_channels_render_end_to_end() -> None:
         env.get("GF_AUTH_PROXY_ORG_ROLE") == "Viewer"
         or env.get("GF_AUTH_PROXY_AUTO_SIGN_UP_ORG_ROLE") == "Viewer"
     )
+
+
+def test_every_compose_rendering_node_carries_an_explicit_timeout_mark() -> None:
+    """Red 3's regression pin: nightly run `38338440530` stalled
+    ``test_derived_channels_render_end_to_end`` on ``Timeout (>5.0s)`` — the
+    render helpers below shell out to a REAL ``docker compose config``
+    (``# real`` at the subprocess call), while this tier's default budget is
+    5 s for setup+call+teardown combined (conftest's hierarchy: an explicit
+    ``@pytest.mark.timeout`` is the ONLY thing that outranks it). Two nodes
+    reach the compose-config render, and both must stay marked, or the fix is
+    one refactor away from being an intermittent nightly red that ALSO skips
+    the integration tier behind the failed unit tier. AST, not string matching:
+    the mark must sit on the def that calls the helper, wherever it moves.
+
+    Floor 120, not the ``test_expose_lan_routes.py`` 30 used for the
+    "many-requests" shape. Two reasons, both measured in this file:
+    ``_render_env_lines`` gives each ``docker compose config`` subprocess
+    ``timeout=120`` of its own, so a 30 s node cap can kill a render that is
+    still legal by its own budget; and an explicit mark BEATS the CLI
+    ``--timeout``, so a low mark silently *lowers* tiers that pass a higher one
+    (ci.yml's unit tier runs ``--timeout=60``) and *arms* a cap where
+    flaky-test-detection's ``--timeout=0`` left the node deliberately untimed.
+    120 matches this file's own real-compose precedent at
+    ``test_prometheus_boot_loads_every_committed_rule_file``.
+    """
+    import ast as _ast
+
+    # nosemgrep: path-traversal-open - this module's own path, not user input
+    tree = _ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    offenders: list[str] = []
+    # ast.walk, not tree.body: python_classes = ["Test*"] means a refactor can
+    # move these nodes into a class and they are STILL collected, and a
+    # top-level-only walk would then certify an unmarked node as safe.
+    for node in _ast.walk(tree):
+        if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            continue
+        if not node.name.startswith("test_"):
+            continue
+        spawns = [
+            c
+            for c in _ast.walk(node)
+            if isinstance(c, _ast.Call)
+            and isinstance(c.func, _ast.Name)
+            and c.func.id in {"_grafana_env", "_render_env_lines"}
+        ]
+        if not spawns:
+            continue
+        seconds = [
+            d.args[0].value
+            for d in node.decorator_list
+            if isinstance(d, _ast.Call)
+            and isinstance(d.func, _ast.Attribute)
+            and d.func.attr == "timeout"
+            and d.args
+            and isinstance(d.args[0], _ast.Constant)
+            and isinstance(d.args[0].value, int | float)
+        ]
+        if not seconds or min(seconds) < 120:
+            where = sorted(c.lineno for c in spawns)
+            offenders.append(f"{node.name}: spawns at {where}, marks={seconds}")
+    msg = "compose-rendering node without @pytest.mark.timeout(>=120): " + "; ".join(offenders)
+    assert offenders == [], msg
 
 
 # ---------------------------------------------------------------------------

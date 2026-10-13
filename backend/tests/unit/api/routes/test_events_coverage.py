@@ -240,6 +240,10 @@ class TestListEventsFilters:
                 summary=f"Event {i}",
                 reasoning=f"Reasoning {i}",
                 reviewed=False,
+                # F-057: list_events now reads event.notes into the response
+                # row; an unset attribute on a spec'd Mock auto-fabricates a
+                # Mock, which fails EventResponse's `str | None` validation.
+                notes=None,
                 detection_id_list=[i],
                 detections=[],
             )
@@ -275,6 +279,7 @@ class TestListEventsFilters:
                 summary=f"Event {i}",
                 reasoning=f"Reasoning {i}",
                 reviewed=False,
+                notes=None,
                 detection_id_list=[i],
                 detections=[],
             )

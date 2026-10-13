@@ -51754,7 +51754,7 @@ export interface operations {
                 offset?: number;
                 /** @description Pagination cursor from previous response */
                 cursor?: string | null;
-                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url, verification */
+                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, notes, detection_count, detection_ids, thumbnail_url, verification */
                 fields?: string | null;
                 /** @description Include soft-deleted events in results. Default is False to hide deleted events. */
                 include_deleted?: boolean;

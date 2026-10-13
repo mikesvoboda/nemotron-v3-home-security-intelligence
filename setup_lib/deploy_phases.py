@@ -581,16 +581,58 @@ CORE_MODELS = [
     "threat",
 ]
 
+#: Where the shipped Triton configs live in a checkout (baked into the
+#: ai-gateway image at /models/repository, which is what the bake loads).
+_TRITON_REPO = Path("ai") / "triton" / "model_repository"
+
+
+def _served_artifact(config: DeployConfig, model: str) -> str | None:
+    """The filename Triton needs for ``model``, read from its shipped config.
+
+    The sufficiency test used to be "an ONNX or a plan exists", which stopped
+    being true the moment a model moved to the ``tensorrt`` backend: since O2.4
+    (owner ruling 107) `reid` declares ``backend: "tensorrt"`` and loads only
+    ``1/model.plan``, so a cache holding just the ONNX — exactly what a CPU bake
+    produces — is NOT a complete cache for it. Asking the config rather than
+    hard-coding the model keeps the next flip (yolo26, threat) correct by
+    construction.
+
+    Returns None when the config cannot be read, which the caller treats as
+    "not cached": running the bake again is harmless (``export_all.sh`` skips
+    every artifact it finds), whereas guessing ``model.onnx`` for a tensorrt
+    model would declare an unusable cache ready and ship a gateway that cannot
+    serve person re-identification.
+    """
+    cfg = config.project_root / _TRITON_REPO / model / "config.pbtxt"
+    try:
+        text = cfg.read_text()
+    except OSError:
+        return None
+    return "model.plan" if 'backend: "tensorrt"' in text else "model.onnx"
+
+
+def _model_is_cached(config: DeployConfig, model: str, model_dir: Path) -> bool:
+    """True when the cache holds the artifact THIS model's backend loads.
+
+    This also invalidates an ONNX-only cache for a backend-flipped model:
+    entrypoint.sh §0c symlinks the whole version dir, so a stale ONNX keeps
+    sitting beside the version dir forever, and the deployer must not read its
+    presence as "cached" once the config asks for a plan.
+    """
+    artifact = _served_artifact(config, model)
+    return artifact is not None and (model_dir / artifact).exists()
+
 
 def phase_export(config: DeployConfig) -> DeployResult:
     """Export ONNX/TensorRT models for Triton Inference Server."""
     triton_cache = config.env.get("AI_MODELS_PATH", "/export/ai_models") + "/triton"
 
-    # Count missing models
+    # Count missing models (against each model's OWN served artifact — see
+    # _served_artifact: for a tensorrt-backend model only a .plan counts).
     missing = 0
     for model in CORE_MODELS:
         model_dir = Path(triton_cache) / model / "1"
-        if not (model_dir / "model.onnx").exists() and not (model_dir / "model.plan").exists():
+        if not _model_is_cached(config, model, model_dir):
             missing += 1
 
     # Handle skip/force logic
@@ -800,7 +842,19 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
         print("  Waiting for model export to complete...")
         config._export_process.wait()
         if config._export_process.returncode != 0:
-            print("  WARNING: Model export had failures (check logs)")
+            # This used to print a WARNING and return success. Since O2.4 the
+            # bake can fail for a reason no later stage surfaces: `reid` serves
+            # backend "tensorrt" (ruling 107), so a failed plan compile leaves
+            # the gateway coming up "degraded", the compose healthcheck passing
+            # anyway (curl -f http://localhost:8090/health answers 200 with
+            # status degraded, ai/gateway/main.py), and /enrich-lt/person-reid
+            # returning 503 forever while the deploy reports success. A failed
+            # export is a failed deploy.
+            return DeployResult(
+                False,
+                "Model export failed (check logs) — a missing TensorRT plan means "
+                "reid will not load; see ai/gateway/export/README.md",
+            )
 
     print("  Infrastructure + observability up.")
     return DeployResult(True, "Infrastructure and monitoring started")

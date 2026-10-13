@@ -14,6 +14,8 @@ ai/gateway/tests/
 ├── test_metrics_middleware.py         # hsi_ai_inference_* duration/error observation + labels
 ├── test_triton_client.py              # gRPC wrapper: pooling, timeouts, error paths
 ├── test_patch_triton_configs.py       # models.yml -> config.pbtxt rewriting
+├── test_export_reid.py                # OSNet-AIN port vs torchreid, key-for-key + numerically
+├── test_export_reid_tensorrt.py       # O2.4: reid serves a TensorRT plan; bake/provenance contracts
 ├── test_adapters_yolo26.py            # /yolo26 endpoints
 ├── test_adapters_clip.py              # /clip endpoints
 ├── test_adapters_florence.py          # /florence endpoints

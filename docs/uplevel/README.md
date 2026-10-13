@@ -179,13 +179,13 @@ UR-147.
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | done        | #6941 |
 | F2.3    | frontend                | 2          | Golden paths for every working feature         |               | in progress | #6997 |
 | O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
-| O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | awaiting real tier | #6961 |
+| O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | done        | #6961 |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
 | O2.3b   | ops                     | 2          | Reachability: ancestor packages ship           |               | done        | #6973 |
-| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | not started |     |
+| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | awaiting real tier | #7002 |
 | O2.5    | ops                     | 2          | Production-shape real tier                     |               | not started |     |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
-| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | not started |     |
+| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | in progress | #7030 |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | not started |     |

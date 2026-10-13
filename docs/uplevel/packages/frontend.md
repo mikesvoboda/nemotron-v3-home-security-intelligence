@@ -62,7 +62,10 @@ stopped and started on a running stack.
   each affected agent's own `F2.3` claim PR (UR-157).
 - **Backend** takes the rows whose evidence is an external API behaviour, as pytest specs in
   `backend/tests/golden/` (the contract in `O2.2`'s PR body, #6961).
-- **ops-a** (after `O2.3b`) and **docs** take UI batches as `golden` Playwright specs.
+- **ops-a** (after `O2.3b`), **ops-b** and **docs** take UI batches as `golden` Playwright specs. An
+  ops cell with no batch opens its claim PR, `[F2.3] claim: <cell> golden UI batch`, and frontend
+  names the batch's `unverified` rows, from rows no open batch holds, in a comment on that PR within
+  its next tick (ruling 150).
 - **One claim PR per agent** (UR-56).
 - **Files:** a batch touches only `frontend/tests/golden/<area>/` or `backend/tests/golden/<area>/`
   and its own rows in the inventory. Frontend reviews every batch; a batch that needs a harness
@@ -165,11 +168,11 @@ inventory row.
 
 The frontend parts of each feature package in the backend lane's feature track
 ([`backend.md`](backend.md), `B4.*`), running the same six steps. This lane writes the UI golden
-paths and sets the inventory row to **works**. Features rulings have already shaped:
+paths; the inventory row reads **works** once the operator records the real-tier check. Features rulings have already shaped:
 
 - **Trash** (F-087 with R2a's F-088; P1; one package): a Delete action in the event detail modal and
   a bulk Delete on the timeline, both calling the existing soft-delete routes
-  (`DELETE /api/events/{id}`, `routes/events.py:2713`, and the bulk delete, `:1780`), so deleted
+  (`DELETE /api/events/{id}`, `routes/events.py:2726`, and the bulk delete, `:1793`), so deleted
   events land in `/trash`; no backend change is expected. Golden path: delete an event from the UI,
   find it in `/trash`, restore it, then delete it permanently; it replaces the spec's API-side
   seeding (rulings 131, 135).
@@ -229,3 +232,100 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 
 **Done when:** for each row, its golden spec, already written to pin the broken behaviour, is
 flipped to assert the fix and passes (ruling 130).
+
+### [r144n] Route notes for ruling 127's real-tier rows
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 (R2b round 1 record) merged. **PR:**
+none yet. Ordered by the owner's approval of #7030 (record 6136889433).
+
+- [ ] Rewrite the route notes of ruling 127's 12 real-tier rows in
+      `docs/reference/feature-inventory.md` to ruling 144's route: the row gets its witness from the
+      `O2.5` run, falling back to ruling 127's route if `O2.5` cannot deliver it. Grafana rows F-102,
+      F-115, F-117, F-164–F-167, F-169, F-174; GPU rows F-176, F-178, F-182. Statuses, ruling cells
+      and priorities stay as #7030 records them.
+
+**Done when:** none of the 12 notes names the per-batch real tier (ruling 103) or an ops-b
+owner-tier ruling as its route.
+
+### [r148a] One shared golden harness
+
+**Flags:** none; test-only. **Assigned:** frontend. **Depends on:** `F2.3`'s last batch merged.
+**PR:** none yet. (ruling 148, record 6136930446)
+
+- [ ] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
+      `frontend/tests/golden/harness.ts`, keeping every comment that explains a fix, and repoint each
+      spec's import. Until `F2.3`'s last batch merges, each batch keeps its own copy.
+
+**Done when:** one `harness.ts` remains under `frontend/tests/golden/`, and the golden project is
+green on it.
+
+### [r148b] F-256's action text
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+
+- [ ] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
+      feed's lookback": the time range drives `<ZoneAnomalyFeed>` (`ZonesPage.tsx:660`, `:789-790`),
+      not the card grid (`:507-512`). F-256 is judged on that text; it takes no `half-built` status
+      and no `R2b` entry.
+
+**Done when:** the row's action text says what the page does, and its golden path cites it.
+
+### [r148c] `works` in the inventory
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+
+- [ ] Add `works` to the inventory legend, to `STATUSES` in
+      `frontend/scripts/feature-inventory-lib.mjs`, and as a column in the §2 count table, with its
+      README meaning (UR-14). A lane whose golden path is green on the fake stack sets
+      `awaiting real tier`; the operator's real-tier confirmation sets `works`.
+
+**Done when:** the inventory gate accepts a `works` row and the §2 table counts it.
+
+### [r149e] Type-check the golden specs
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 149, record 6146380050)
+
+- [ ] Add `frontend/tsconfig.golden.json` (extends `tsconfig.json`, includes `tests/golden/**`) and a
+      `tsc --noEmit` step over it in CI, appended as one entry (ruling 137).
+- [ ] Fix the 9 errors it finds today in the same PR, including the unused `closedByGuard` in
+      `dashboard/activity-feed.spec.ts:80`, so that spec checks the guard.
+
+**Done when:** the type-check step runs in CI and is green.
+
+### [r132] F-022: retire the rate-limit countdown
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged (UR-66's R2b-round exception).
+**PR:** none yet. (rulings 132, 150, 155)
+
+- [ ] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
+      (`frontend/src/services/queryClient.ts:249-297`) and every store field only they read.
+- [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time
+      (`RetryingIndicator.tsx` is renamed to this text; ruling 155).
+- [ ] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no
+      `isLimited` and shows no pill; only the backend's header-complete 429 does (ruling 155).
+
+**Done when:** F-022's flipped golden spec asserts the pill's exact text and that no countdown or
+number renders, and passes. Ruling 125's quarantine of F-022 ends with this PR (ruling 155).
+After it merges, frontend deletes the dead `secondsUntilReset` store field in its own one-commit
+PR (UR-48).
+
+### [r133] F-023: retire the in-page PWA install prompt
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 133, 150)
+
+- [ ] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
+      dismissal store and its tests, `frontend/tests/golden/shell/pwa-install.spec.ts` included.
+- [ ] Keep `frontend/public/manifest.json`, `/sw.js` and their registration.
+
+**Done when:** nothing imports `InstallPrompt`, and the golden project and unit tests are green.
+
+### [r134] F-135: retire the batch-history views
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 134, 150)
+
+- [ ] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
+      `frontend/src/components/batch/BatchStatisticsDashboard.tsx`, and any hook or type only they
+      use. The active-batches view stays.
+
+**Done when:** F-135's row reads "expands the section; sees active batches", its golden path covers
+that, and nothing renders the three history views.
