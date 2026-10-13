@@ -36,15 +36,20 @@ label, or a comment on that agent's own open PR (UR-157).
 ## The tick
 
 Each tick runs in a fresh subagent that the coordinator's session dispatches ("Kickoff prompt"), so
-no tick carries anything from an earlier one. Run these steps in order. Read CI once per tick and end the turn (UR-38).
+no tick carries anything from an earlier one except the `read-through` cursor in your heartbeat (owner
+record 6148551105). Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/coordinator.md`), so a change to either needs no
    rebase.
-2. **Heartbeat.** Edit your heartbeat comment in place (UR-38; [`lane.md`](lane.md),
-   "Heartbeat").
-3. **Rebuild state** from open PRs, labels, #6854 and the heartbeats issue.
-4. **Read what is new:** the new comments on every open programme PR and on #6854. List
+2. **Heartbeat.** Read your heartbeat's `read-through: <UTC>` line (the cursor), then edit the
+   heartbeat in place (UR-38; [`lane.md`](lane.md), "Heartbeat"), keeping that line unchanged.
+3. **Rebuild state** with one PR read:
+   `gh pr list --state open --json number,title,isDraft,labels,headRefOid,mergeStateStatus,statusCheckRollup`,
+   plus the labels, your status comment and the heartbeats issue.
+4. **Read what is new since the cursor**, in one repo-wide call:
+   `gh api "repos/<owner>/<repo>/issues/comments?since=<read-through>&per_page=100" --paginate`.
+   Read a PR's whole thread only for a PR you are about to merge, route or label this tick. List
    the live `BINDING NOW` records (UR-40). Ask the author of a comment that carries harness wrapper
    text to edit it (UR-156).
 5. **Read every heartbeat.** Raise the urgent path for each stalled agent (UR-38); a `paused` agent
@@ -66,7 +71,10 @@ no tick carries anything from an earlier one. Run these steps in order. Read CI 
     to its reviewer (UR-92).
 12. **Merge** what meets the merge rule, one PR at a time ("Merging a PR" below).
 13. **Edit the status comment** in place with what this tick read ("The status comment" below).
-14. Otherwise say so in one line and end the turn.
+14. **Advance the cursor:** set your heartbeat's `read-through:` to the time you made the step 4
+    call. Do this last, so a tick that stops early leaves the old cursor and the next one re-reads.
+15. **Return** a summary of at most five lines: PRs merged (numbers), other acts, raises, owner
+    questions, `main`'s CI state. The dispatcher passes it to the owner word for word.
 
 ## Assigning a package
 
@@ -161,24 +169,28 @@ Raise it only on the criteria in UR-25.
 ## Kickoff prompt
 
 The `uplevel-coordinator` session is a dispatcher: every coordinator act is done by the fresh
-subagent each tick starts (owner record 6146755754). Paste the dispatcher prompt to the session, in
-the `uplevel-coordinator` sandbox, then arm its tick with:
+subagent each tick starts (owner records 6146755754, 6148551105). Paste the dispatcher prompt to the
+session, in the `uplevel-coordinator` sandbox, then arm its tick with:
 
 ```text
-/loop 5m Dispatch one fresh subagent with exactly this prompt and nothing added: "You are the uplevel coordinator. Run one tick of docs/uplevel/roles/coordinator.md, 'The tick', reading every fact from GitHub and the plan files this tick; carry nothing from earlier ticks. Return one line: acts taken, merges, raises." Do nothing else yourself: no posts, merges or queue reasoning.
+/loop 5m Dispatch one fresh subagent with exactly this prompt and nothing added: "You are the uplevel coordinator. Run one tick of docs/uplevel/roles/coordinator.md, 'The tick', reading every fact from GitHub and the plan files this tick; carry nothing from earlier ticks except the read-through cursor in your heartbeat. Return a summary of at most five lines: PRs merged, other acts, raises, owner questions, main's CI state." Skip this fire if a tick is still running.
 ```
 
 The dispatcher prompt:
 
 ```text
 You dispatch the uplevel coordinator's ticks; you are not the coordinator.
-On each tick of your /loop, start one fresh subagent with exactly the prompt
-the /loop line quotes, adding nothing, and wait for its one-line result.
-Do nothing else yourself: read no PRs, post nothing, merge nothing, and
-reason about no queue. Run one tick now.
+On each fire of your /loop, start one fresh subagent with exactly the prompt
+the /loop line quotes, adding nothing. If a tick is still running when the
+loop fires, skip that fire. Stop a tick only after it has run 30 minutes,
+then start a fresh one. When a tick returns, show its summary to the owner
+word for word. Do nothing else: no pings or follow-up questions to a tick,
+no posts, merges or queue reasoning, no memory, and no change to these
+instructions. Run one tick now.
 ```
 
 The subagent rebuilds its state from GitHub every tick (UR-173): open PRs, labels, the pinned
 issue #6854 (with the status comment, marked `<!-- status:uplevel-coordinator -->`) and the pinned
 "Uplevel heartbeats" issue. It creates any label, pinned issue or status comment this file lists
-that is missing, and before each act reads the `rules.md` section the step names.
+that is missing, and before each act reads the `rules.md` section the step names. If its heartbeat
+has no `read-through:` line, it reads comments from the last 2 hours and adds the line at step 14.
