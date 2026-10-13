@@ -54,7 +54,8 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
    lane's PR" below). Heavy agents skip this step.
 4. **Your own open PRs** (UR-35): read the new comments and reviews on each
    (`gh pr view <n> --comments`). Read CI at the head once, fix what is red, answer what is
-   requested, and rebase what conflicts with `main` (what a new head resets: UR-106).
+   requested, and rebase what conflicts with `main` (what a new head resets: UR-106). Before you
+   push to a PR on auto-merge, run `gh pr merge <n> --disable-auto` (UR-108).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. If none of these has work, say so in one line and end the turn.
 
@@ -132,7 +133,10 @@ Read rules.md §Reviewing first.
    Notes:
    ```
 
-4. Remove the review label.
+4. On `approve` of a lane-tier PR (its `Plan text:` is `none` or a UR-47 lane-review kind, and no
+   other UR-98 trigger applies), run `gh pr merge <n> --auto --merge` and add `Auto-merge: on` to the
+   review's `Notes:` (UR-108, ruling 156). Owner-tier PRs get no auto-merge from you.
+5. Remove the review label.
 
 ## Posting
 
