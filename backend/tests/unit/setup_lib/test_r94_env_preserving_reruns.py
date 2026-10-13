@@ -22,6 +22,7 @@ import json
 import socket
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -86,6 +87,24 @@ LAN_ENV_SCOPED = LAN_ENV.replace(
 LAN_ENV_UNQUOTED = LAN_ENV.replace(API_KEYS_PLAIN, _keys_line(PLAIN_ENTRIES, quote=""))
 
 CONVERTED_KEYS = ["ops-laptop-key", {"key": MONITORING_KEY, "scope": "monitoring"}]
+
+# The SAME install NOT exposed — the majority case, and the one every exposure test
+# above omits because they all save `true`. Built from `LAN_ENV` so the two fixtures
+# differ only in the exposure vocabulary. It exists because a saved-value default
+# that answered "y" whenever ANY value was saved leaves every saved-`true` pin green
+# (r94 self-review F3, battery M18): the preserve-on-rerun claim is two-sided, and a
+# pin that exercises only one side cannot see the fail-open.
+LOOPBACK_ENV = (
+    LAN_ENV.replace("EXPOSE_LAN=true", "EXPOSE_LAN=false")
+    .replace("FRONTEND_BIND_ADDRESS=0.0.0.0", "FRONTEND_BIND_ADDRESS=127.0.0.1")
+    .replace("GRAFANA_ANONYMOUS_ENABLED=false", "GRAFANA_ANONYMOUS_ENABLED=true")
+    .replace("GRAFANA_AUTH_PROXY_ENABLED=true", "GRAFANA_AUTH_PROXY_ENABLED=false")
+    .replace("GRAFANA_AUTH_PROXY_AUTO_SIGN_UP=true", "GRAFANA_AUTH_PROXY_AUTO_SIGN_UP=false")
+    .replace(
+        "ALERT_SINK_URL=http://frontend:8081/api/webhooks/alerts",
+        "ALERT_SINK_URL=http://backend:8000/api/webhooks/alerts",
+    )
+)
 
 
 def _load_setup():
@@ -188,6 +207,59 @@ def test_enter_only_rerun_guided_keeps_lan_exposure(
     after = env_path.read_text(encoding="utf-8")
     assert _env_line(after, "EXPOSE_LAN") == "true"
     assert _env_line(after, "FRONTEND_BIND_ADDRESS") == "0.0.0.0"  # noqa: S104
+
+
+def test_enter_only_rerun_keeps_loopback_when_that_was_saved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fix 1 is bidirectional: a saved `false` must keep the install on loopback.
+
+    The tests above all save `EXPOSE_LAN=true`, so they pin only one direction of the
+    reuse — and a `saved_answer` that answered `"y"` whenever the key was merely
+    PRESENT would pass every one of them (r94 self-review F3; battery M18 makes that
+    mutant red here and nowhere else). That fail-open is the dangerous direction: the
+    saved value is `false`, Enter opens the LAN, and nothing visible says so. The
+    fail-SAFE direction (saved `true` -> Enter keeps it exposed) is what the package
+    was written for; this is the half that has to be pinned on purpose.
+    """
+    setup = _load_setup()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(LOOPBACK_ENV, encoding="utf-8")
+    _enter_only(monkeypatch)
+
+    config = setup.run_quick_mode()
+    env_path, _, _ = setup.write_config_files(config, str(tmp_path))
+
+    after = env_path.read_text(encoding="utf-8")
+    assert _env_line(after, "EXPOSE_LAN") == "false", (
+        "an Enter-only re-run opened a loopback install to the LAN: "
+        + repr(_env_line(after, "EXPOSE_LAN"))
+    )
+    assert _env_line(after, "FRONTEND_BIND_ADDRESS") == "127.0.0.1"
+    # The un-exposed derives, each written from its own line — the same vocabulary
+    # `test_first_run_keeps_todays_defaults` asserts, which is the point: a re-run of
+    # this file must land where the file already says it is.
+    assert _env_line(after, "GRAFANA_ANONYMOUS_ENABLED") == "true"
+    assert _env_line(after, "GRAFANA_AUTH_PROXY_ENABLED") == "false"
+    assert _env_line(after, "GRAFANA_AUTH_PROXY_AUTO_SIGN_UP") == "false"
+    assert _env_line(after, "ALERT_SINK_URL") == "http://backend:8000/api/webhooks/alerts"
+
+
+def test_enter_only_rerun_guided_keeps_loopback_when_that_was_saved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Guided mode carries the same fail-open, so it gets the same opposite-side pin."""
+    setup = _load_setup()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(LOOPBACK_ENV, encoding="utf-8")
+    _enter_only(monkeypatch)
+
+    config = setup.run_guided_mode()
+    env_path, _, _ = setup.write_config_files(config, str(tmp_path))
+
+    after = env_path.read_text(encoding="utf-8")
+    assert _env_line(after, "EXPOSE_LAN") == "false"
+    assert _env_line(after, "FRONTEND_BIND_ADDRESS") == "127.0.0.1"
 
 
 def test_enter_only_rerun_keeps_paths_and_ports(
@@ -352,7 +424,16 @@ def test_convert_keeps_the_lines_own_terminator(shape: str) -> None:
     ``str.partition("\\n")``, which DISCARDS the separator and so dropped a line on
     every conversion. The byte-compare test above caught that only because its
     fixture ends with a newline and its line count was checked; these are the shapes
-    where a dropped or rewritten terminator is the only visible damage.
+    where line endings are the only thing left to check.
+
+    Each shape needs its OWN mutant, and the r94 self-review flagged the docstring
+    here for claiming a single mutant covered them. ``partition("\\n")`` (battery M9)
+    only bites the shape whose line ENDS CRLF — it swallows the separator and
+    re-emits LF, which the `\\r` census catches. On the two shapes whose API_KEYS line
+    has NO terminator it is exactly ``rstrip("\\r\\n")`` and changes nothing, so those
+    need the terminator-ADDING mutant: M20 writes ``terminator = "\\n"`` instead of
+    keeping the line's own, and gains the file a newline. Run the battery; both must
+    be caught.
     """
     base = _env_with_api_keys_at(shape)
 
@@ -496,6 +577,91 @@ def test_convert_identifies_the_key_from_the_last_monitoring_line() -> None:
     assert stale_key not in after.split("API_KEYS=")[1]
 
 
+def test_convert_of_a_double_quoted_line_emits_single_quotes(tmp_path: Path) -> None:
+    """A double-quoted input must come out SINGLE-quoted, not keep its own character.
+
+    Keeping a quoted line's own quote character is what the first version of this flag
+    did, and it is a silent-corruption path: `json.dumps` output always contains `"`
+    (the object keys), and python-dotenv — the backend's reader — abandons a value whose
+    closing quote lands after an inner `"`, returning None for the WHOLE key. So the
+    converted line sources at rc 0 while every API key vanishes from the gate's view, and
+    the flag reports success. Single-quote emission is the only form both readers parse,
+    which is why setup.py's own writer uses it (setup.py:559-566).
+
+    The double-quoted input here was ALREADY invisible to dotenv before the flag ran
+    (measured, and stated in the PR: this is not a regression the flag introduces into a
+    healthy file) — what this pin holds is that the flag never LEAVES a file in that
+    shape while reporting `+ converted`.
+    """
+    double = LAN_ENV.replace(
+        API_KEYS_PLAIN,
+        'API_KEYS="' + json.dumps(PLAIN_ENTRIES, separators=(",", ":")) + '"',
+    )
+
+    after, outcome = _convert(double)
+
+    assert outcome == "converted"
+    line = _env_line(after, "API_KEYS")
+    assert line.startswith("'[") and line.endswith("]'"), (
+        f"a double-quoted line must be re-emitted single-quoted, not keep its own "
+        f"quote character: {line!r}"
+    )
+    assert _api_keys(after) == CONVERTED_KEYS
+
+    import dotenv
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(after, encoding="utf-8")
+    parsed = dotenv.dotenv_values(env_file).get("API_KEYS")
+    assert parsed is not None, "the converted line is invisible to the backend's reader"
+    assert json.loads(parsed) == CONVERTED_KEYS, (
+        f"dotenv read a different value than was written: {parsed!r}"
+    )
+
+
+def test_convert_refuses_an_apostrophe_key_as_not_quotable() -> None:
+    """An entry holding a literal `'` has NO survivable emission, so refuse it.
+
+    Single quotes cannot nest, so the line would ship unterminated: `source` under
+    `set -e` exits 2 and the scripts that read the file stop at that line, while
+    python-dotenv silently drops the key — and a double-quoted workaround expands `$`
+    and backticks inside the value. Emitting any of those shapes would take a file that
+    sources and parses fine today to unreadable-by-both while exiting 0, so the only
+    correct move is to refuse and leave the file alone. (setup.py mints keys with
+    `secrets.token_urlsafe`, whose alphabet excludes `'` — this is the hand-edited or
+    third-party key case.)
+    """
+    apos = LAN_ENV.replace(
+        API_KEYS_PLAIN,
+        _keys_line(["ops's-laptop-key", MONITORING_KEY]),
+    )
+
+    after, outcome = _convert(apos)
+
+    assert outcome == "not-quotable"
+    assert after == apos, "a refusal must leave the file byte-identical"
+
+
+def test_an_already_scoped_file_with_an_apostrophe_key_stays_a_no_op() -> None:
+    """The quotability check runs only when a rewrite is about to happen.
+
+    An apostrophe key minted by ANOTHER tool is none of this flag's business when the
+    monitoring entry is already scoped: running the flag twice is "the operator's normal
+    mistake" and must stay a silent success. Refusing there would report a re-key
+    demand about a line the flag never touched, training the operator to distrust the
+    refusals that do matter.
+    """
+    scoped = LAN_ENV_SCOPED.replace(
+        '"ops-laptop-key"',
+        '"ops\'s-laptop-key"',
+    )
+
+    after, outcome = _convert(scoped)
+
+    assert outcome == "unchanged"
+    assert after == scoped
+
+
 @pytest.mark.parametrize(
     ("env_text", "expected_outcome"),
     [
@@ -560,11 +726,22 @@ def test_convert_refuses_and_writes_nothing(env_text: str, expected_outcome: str
     assert after == env_text
 
 
-def _run_flag(setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> int:
-    """Drive `main()` down the flag path only, with the install steps silenced."""
-    monkeypatch.setattr(
-        sys, "argv", ["setup.py", "--convert-monitoring-key", "--output-dir", str(tmp_path)]
-    )
+def _run_flag(
+    setup,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str | None = None,
+) -> int:
+    """Drive `main()` down the flag path only, with the install steps silenced.
+
+    `command` puts a positional command on the argv (`setup.py deploy
+    --convert-monitoring-key`), which is the combination the F6 refusal exists for.
+    """
+    argv = ["setup.py"]
+    if command:
+        argv.append(command)
+    argv += ["--convert-monitoring-key", "--output-dir", str(tmp_path)]
+    monkeypatch.setattr(sys, "argv", argv)
     # Nothing but the flag may run: platform detection and the install steps reach
     # podman/apt on a real machine.
     monkeypatch.setattr(setup, "get_platform_info", lambda: None)
@@ -624,6 +801,72 @@ def test_flag_refusal_exits_nonzero_without_writing(
     assert "+ converted" not in out, "a refusal must not report success"
 
 
+def test_flag_refuses_an_apostrophe_key_and_tells_the_operator_to_rekey(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The one refusal whose remedy is NOT "run the heavier thing instead".
+
+    Every other refusal can be resolved by a full interactive re-run; this one cannot,
+    because setup.py's own writer wraps the value in the same single quotes
+    (`API_KEYS='" + merge_api_keys(...) + "'"`, setup.py:559-566) and would ship the same
+    unterminated line. So the printed reason has to name the re-key — pointing an
+    operator at a re-run here sends them into the same wall (docs/operator/admin/
+    security.md carries the same distinction).
+    """
+    setup = _load_setup()
+    apos = LAN_ENV.replace(API_KEYS_PLAIN, _keys_line(["ops's-laptop-key", MONITORING_KEY]))
+    (tmp_path / ".env").write_text(apos, encoding="utf-8")
+
+    assert _run_flag(setup, tmp_path, monkeypatch) == 1
+
+    assert (tmp_path / ".env").read_text(encoding="utf-8") == apos
+    out = capsys.readouterr().out
+    assert "not-quotable" in out, f"the refusal must name the case: {out!r}"
+    assert "apostrophe" in out.lower(), f"the remedy must name the cause: {out!r}"
+    assert "re-key" in out.lower(), f"the remedy must be actionable: {out!r}"
+
+
+def test_flag_refuses_to_eclipse_a_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`setup.py deploy --convert-monitoring-key` must NOT exit 0 without deploying.
+
+    The flag handler runs before everything else and exits, so any positional command
+    on the same argv is silently dropped. `deploy` is the position that matters: the
+    operator asks for a conversion AND a deploy, gets a conversion and a success code,
+    and the deploy never runs — measured at HEAD before this test existed (rc 0, the
+    file converted, zero deploy output; r94 self-review F6). A wrapper script that
+    checks `$?` reports success on a half-run.
+
+    So the combination is refused rather than honoured: the whole invocation fails,
+    the file is untouched (even the half that works does not run — a partial action
+    behind a refused exit code is the same silent-partial in a different costume), and
+    the message names both halves and the order to run them in.
+    """
+    setup = _load_setup()
+    # Belt for a future refactor that moves the flag handler below the dispatch: a
+    # stubbed deploy path that LOUDS rather than reaching podman from a unit test.
+    stub = types.ModuleType("setup_lib.deploy")
+
+    def _no_deploy(*_args, **_kwargs):
+        raise AssertionError("the refusal must stop before the deploy path")
+
+    stub.DeployConfig = stub.detect_compose_command = stub.load_env = stub.run_deploy = _no_deploy
+    monkeypatch.setitem(sys.modules, "setup_lib.deploy", stub)
+
+    (tmp_path / ".env").write_text(LAN_ENV, encoding="utf-8")
+
+    assert _run_flag(setup, tmp_path, monkeypatch, command="deploy") == 1
+
+    assert (tmp_path / ".env").read_text(encoding="utf-8") == LAN_ENV, (
+        "a refused invocation must do nothing, not half of what was asked"
+    )
+    out = capsys.readouterr().out.lower()
+    assert "cannot be combined" in out, f"the refusal must name the combination: {out!r}"
+    assert "deploy" in out, f"the refusal must name the half that would be dropped: {out!r}"
+    assert "+ converted" not in out, "a refusal must not report success"
+
+
 # --------------------------------------------------------------------------
 # The docs line (Done when clause 4): ruling 79's advice pointed at a full re-run,
 # which after Fix 2 is the heavier action where the flag is the narrow one.
@@ -637,6 +880,57 @@ def test_security_docs_point_the_conversion_at_the_flag() -> None:
         "the paragraph telling an operator how to scope a legacy monitoring key "
         "still names a full re-run as the way to do it"
     )
+
+
+def test_the_docs_regen_warning_matches_what_a_rerun_actually_drops(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`security.md` tells the operator a re-run drops lines setup.py does not write.
+
+    That sentence is the F5 finding, and this test is what keeps it from becoming a
+    comfortable lie: it runs the real pipeline and checks the doc's claim against what
+    the file actually lost. Pinning the limitation is not endorsing it — the carry-over
+    assertions are the second half of the pin, so a writer that dropped EVERYTHING
+    would go red here too, and so would one that started preserving hand-kept lines
+    (at which point the doc's warning must be deleted, deliberately, not by drift).
+
+    The two dropped keys are different cases and the doc names both: `PODMAN_SOCKET`
+    IS product-written, just not by the config writer — `deploy_phases`
+    `_ensure_podman_socket` appends its own DETECTED value when the line is missing, so
+    surviving a re-run costs the operator their choice of path. An arbitrary hand-added
+    key has no such rescue and is simply gone.
+    """
+    setup = _load_setup()
+    hand = LAN_ENV + "MY_HAND_KEEPED_FLAG=please-keep-me\n"
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(hand, encoding="utf-8")
+    _enter_only(monkeypatch)
+
+    config = setup.run_quick_mode()
+    env_path, _, _ = setup.write_config_files(config, str(tmp_path))
+    after = env_path.read_text(encoding="utf-8")
+
+    # The doc's claim: lines setup.py does not write do not survive.
+    assert _env_line(after, "PODMAN_SOCKET") is None, (
+        "a re-run started preserving PODMAN_SOCKET — security.md's regen warning is "
+        "now wrong and must be updated in the same change"
+    )
+    assert _env_line(after, "MY_HAND_KEEPED_FLAG") is None
+    # The other half: this is a regeneration, not a wipe — the carried-over keys prove
+    # the two asserts above are about a specific class of line.
+    assert _env_line(after, "JWT_SECRET") == "aaaa.bbbb.cccc"
+    assert _env_line(after, "GRAFANA_PORT") == "3002"
+
+    # Match against whitespace-normalized text: this doc wraps its prose, so a
+    # literal substring assert would key on where the line breaks fall — the first
+    # such assert here failed on "Back up\n  the file" within minutes of being
+    # written. Phrases are what the doc commits to; the wrapping is formatting.
+    doc_text = (REPO_ROOT / "docs/operator/admin/security.md").read_text(encoding="utf-8")
+    doc = " ".join(doc_text.split())
+    assert "drops any line it does not write" in doc, (
+        "the paragraph must keep naming the regeneration cost of a re-run"
+    )
+    assert "Back up the file before a re-run" in doc, "and must keep the remedy"
 
 
 def test_defaults_mode_still_mints_its_own_key(
