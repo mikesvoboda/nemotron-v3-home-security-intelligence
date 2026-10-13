@@ -124,23 +124,37 @@ def test_the_accept_sweep_finds_the_known_sites() -> None:
     accept sites legitimately move. The floor's job is to notice a DELETION
     the sweep did not mean, which is what the bound above is for — it is a
     BOUND (``>=``), not an exact count, exactly as the retired floor was
-    (``>= 12``). The presence loop below is the half that a bound cannot
-    cover: a count survives a site moving between files, a named file does
-    not."""
+    (``>= 12``). The per-file floors below are the half a total cannot cover.
+
+    They replaced a bare NAME-membership loop, which looked like a per-file
+    guard but was not one: name presence is itself a total in disguise. A
+    mutation moved one accept from ``websocket_auth.py`` (5 -> 4) into
+    ``event_broadcaster.py`` (1 -> 2) and the old guard passed — total still
+    10, all five names still present. A floor set AT today's count per file
+    closes that: because every file sits exactly at its floor, taking a site
+    out of ANY listed file breaks that file's floor, so a move between two
+    listed files can no longer hide. Additions still never redden, which is
+    what the ``>=`` shape buys — a new accept belongs in this tuple only when
+    someone re-counts, and tier 2 is what forces ``subprotocol=`` on it now."""
     sites = _production_accepts()
     assert len(sites) >= 10, f"sweep found only {len(sites)} accept sites: {sites}"
-    files = {s.split(":")[0] for s in sites}
-    # One entry per file the docstring above counts. This tuple is the half of
-    # the guard a count cannot be: the arithmetic passes unchanged when a site
-    # MOVES between files, and only the named file going to zero trips it.
-    for expected in (
-        "backend/api/middleware/auth.py",
-        "backend/api/middleware/websocket_auth.py",
-        "backend/api/routes/websocket.py",
-        "backend/services/event_broadcaster.py",
-        "backend/services/system_broadcaster.py",
-    ):
-        assert expected in files, f"sweep missed {expected}: {sorted(files)}"
+    counts: dict[str, int] = {}
+    for site in sites:
+        counts[site.split(":")[0]] = counts.get(site.split(":")[0], 0) + 1
+    # Floor per file the docstring above counts, set AT today's count so a
+    # deletion in any one of them trips THIS file's floor rather than hiding
+    # inside the total. ``got`` prints the whole census so a red says which
+    # file moved, not just which floor broke.
+    floors = {
+        "backend/api/middleware/auth.py": 2,
+        "backend/api/middleware/websocket_auth.py": 5,
+        "backend/api/routes/websocket.py": 1,
+        "backend/services/event_broadcaster.py": 1,
+        "backend/services/system_broadcaster.py": 1,
+    }
+    for expected, floor in floors.items():
+        got = counts.get(expected, 0)
+        assert got >= floor, f"{expected} has {got} accept site(s), floor {floor}: {counts}"
 
 
 def test_every_production_accept_passes_subprotocol() -> None:
