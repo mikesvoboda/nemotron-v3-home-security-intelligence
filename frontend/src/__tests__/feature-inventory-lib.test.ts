@@ -44,6 +44,8 @@ interface NoFeatureModule {
 interface NoFeatureCall extends ApiCall {
   fn: string;
   file: string;
+  /** Every `line N` the why cell cites, in order; empty when it cites none. */
+  lineCites: number[];
 }
 
 interface Inventory {
@@ -59,6 +61,8 @@ interface Lib {
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
   rowProblems: (row: Row) => string[];
   rowCites: (row: Row) => { file: string; line: number }[];
+  declarationAt: (absFile: string, line: number) => string | null;
+  lineCount: (text: string) => number;
   callerChain: (options: { root: string; file: string; name: string }) => {
     mounted: boolean;
     lines: string[];
@@ -135,13 +139,41 @@ describe('parseInventory', () => {
   });
 
   it('reads the client-requests-no-feature-reaches table with its file', () => {
+    // The why cell is prose, but it leads with `line N` cites in every row of
+    // the real inventory. The reader keeps each number, because they are the
+    // only part of the cell a gate can check: `declarationAt` below can ask the
+    // parser which symbol actually sits there. A row that cites nothing keeps an
+    // empty list, not [0] — "cites line 0" would be a cite. Every cite is kept,
+    // not the first, so a cell that cites two lines cannot hide a bad second.
     const md =
       '## Client requests no feature reaches\n\n' +
       '| request | function | file | why |\n| --- | --- | --- | --- |\n' +
-      '| `GET /api/stats` | `fetchStats` | `frontend/src/services/api.ts` | no production importer |\n';
+      '| `GET /api/stats` | `fetchStats` | `frontend/src/services/api.ts` | no production importer |\n' +
+      '| `DELETE /api/x/{}` | `deleteX` | `frontend/src/hooks/useX.ts` | line 12; dead export |\n' +
+      '| `POST /api/y` | `postY` | `frontend/src/hooks/useY.ts` | line 3 opens it, line 40 returns |\n';
     const inv = lib.parseInventory(md);
     expect(inv.noFeatureCalls).toEqual([
-      { method: 'GET', path: '/api/stats', fn: 'fetchStats', file: 'frontend/src/services/api.ts' },
+      {
+        method: 'GET',
+        path: '/api/stats',
+        fn: 'fetchStats',
+        file: 'frontend/src/services/api.ts',
+        lineCites: [],
+      },
+      {
+        method: 'DELETE',
+        path: '/api/x/{}',
+        fn: 'deleteX',
+        file: 'frontend/src/hooks/useX.ts',
+        lineCites: [12],
+      },
+      {
+        method: 'POST',
+        path: '/api/y',
+        fn: 'postY',
+        file: 'frontend/src/hooks/useY.ts',
+        lineCites: [3, 40],
+      },
     ]);
   });
 
@@ -170,6 +202,62 @@ describe('parseInventory', () => {
     const inv = lib.parseInventory(md);
     expect(inv.rows[0].action).toBe('filter `a|b`');
     expect(inv.rows[0].status).toBe('unverified');
+  });
+});
+
+describe('declarationAt', () => {
+  // The inventory's "Client requests no feature reaches" table cites `line N`
+  // inside its why cell. Nothing in the committed gates could read that number,
+  // so nothing could tell whether it pointed at the symbol the row names — a
+  // commit that grows a cited file shifts every declaration below it and
+  // falsifies a cite in a file that commit never touched. This is the reader
+  // that makes such a cite checkable: the name of the top-level declaration
+  // enclosing a line, or null.
+  it('names the top-level function, class or const enclosing a line', () => {
+    const root = tree({
+      'a.ts': [
+        'const top = 1;', // 1
+        'export async function outer(): void {', // 2
+        '  const inner = 2;', // 3
+        '}', // 4
+        'class C {', // 5
+        '  m(): void {}', // 6
+        '}', // 7
+        'export const arrow = () => {', // 8
+        '  return 3;', // 9
+        '};', // 10
+        '', // 11
+      ].join('\n'),
+    });
+    const f = path.join(root, 'a.ts');
+    expect(lib.declarationAt(f, 1)).toBe('top');
+    expect(lib.declarationAt(f, 3)).toBe('outer');
+    expect(lib.declarationAt(f, 6)).toBe('C');
+    expect(lib.declarationAt(f, 9)).toBe('arrow');
+    // A line between declarations binds nothing: say so, do not guess a neighbour.
+    expect(lib.declarationAt(f, 11)).toBeNull();
+  });
+
+  it('returns null past the end of the file rather than the last declaration', () => {
+    const root = tree({ 'b.ts': 'export function one(): void {}\n' });
+    expect(lib.declarationAt(path.join(root, 'b.ts'), 2)).toBeNull();
+    expect(lib.declarationAt(path.join(root, 'b.ts'), 200)).toBeNull();
+  });
+
+  it('returns null for a line number that cannot bind, rather than the first declaration', () => {
+    // `NaN` and `1.5` are `number` to the type system and pass both range
+    // tests; `starts[NaN]` is undefined, and an undefined position compares
+    // false against every statement — so an unguarded reader names the file's
+    // FIRST declaration for input that cannot bind. Every entry `lineCites`
+    // holds is an integer the regex matched, so this guards the next caller,
+    // not the current one.
+    const root = tree({ 'c.ts': 'function first(): void {}\nfunction second(): void {}\n' });
+    const f = path.join(root, 'c.ts');
+    const notALine: unknown[] = [Number.NaN, 1.5, undefined, '2', null];
+    for (const bad of notALine) {
+      expect(lib.declarationAt(f, bad as number), JSON.stringify(bad) ?? String(bad)).toBeNull();
+    }
+    expect(lib.declarationAt(f, 2)).toBe('second');
   });
 });
 
@@ -358,6 +446,34 @@ describe('rowCites', () => {
       { file: 'docker-compose.prod.yml', line: 989 },
       { file: 'pyproject.toml', line: 90 },
     ]);
+  });
+});
+
+describe('lineCount', () => {
+  // `text.split('\n').length` is the obvious way to count lines and it is one
+  // too many for any file ending in a newline, which is every non-empty file
+  // this repo tracks. The gate compared a cited line against that length, so a
+  // cite one past the end of a file passed; the printer indexed the phantom
+  // element and printed an empty line as if it were the cited source.
+  it('does not count the empty string after a trailing newline as a line', () => {
+    expect(lib.lineCount('a\nb\n')).toBe(2);
+    expect(lib.lineCount('a\nb')).toBe(2);
+    expect(lib.lineCount('a')).toBe(1);
+  });
+
+  it('counts a real blank line, but not one fabricated by the final newline', () => {
+    expect(lib.lineCount('a\n\n')).toBe(2); // line 2 genuinely exists, and is empty
+    expect(lib.lineCount('\n')).toBe(1);
+    expect(lib.lineCount('\n\n')).toBe(2);
+  });
+
+  it('counts no lines in a file with no bytes', () => {
+    // Without the empty-text guard `''` splits to `['']` and reads as one line.
+    expect(lib.lineCount('')).toBe(0);
+  });
+
+  it('keeps CRLF line endings at the same count as LF', () => {
+    expect(lib.lineCount('a\r\nb\r\n')).toBe(2);
   });
 });
 
