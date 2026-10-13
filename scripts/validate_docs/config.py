@@ -50,6 +50,13 @@ class Citation:
         doc_file: Source documentation file containing this citation
         doc_line: Line number in documentation where citation appears
         raw_text: Original citation text as it appears in documentation
+        symbol_inferred: True when ``symbol_name`` was guessed from surrounding
+            prose rather than typed by the author. Only the prose-inference site
+            in ``parsers/markdown.py`` sets it; the declared forms (frontmatter
+            ``source_refs``, mermaid nodes, code-block ``# Source:`` comments)
+            leave it False. It carries the severity contract: a declared symbol
+            is a claim, so a miss is an ERROR; an inferred one was never written
+            and may only WARN.
     """
 
     file_path: str
@@ -59,6 +66,7 @@ class Citation:
     doc_file: str = ""
     doc_line: int = 0
     raw_text: str = ""
+    symbol_inferred: bool = False
 
     @property
     def is_range(self) -> bool:
@@ -240,9 +248,11 @@ MERMAID_REFERENCE_PATTERN: Pattern[str] = re.compile(
     r"(?:Note|note).*?`([a-zA-Z0-9_/.-]+\.[a-zA-Z]+):(\d+)(?:-(\d+))?`"
 )
 
-# Pattern to extract function/class name from text near citation
+# Pattern to extract function/class name from text near citation.
+# The leading \b is load-bearing: without it the keyword matches INSIDE a word,
+# so "bullet TEXT" matched "let TEXT" and inferred a required symbol TEXT.
 SYMBOL_CONTEXT_PATTERN: Pattern[str] = re.compile(
-    r"(?:function|class|method|def|const|var|let)\s+[`\"]?([a-zA-Z_][a-zA-Z0-9_]*)[`\"]?"
+    r"\b(?:function|class|method|def|const|var|let)\s+[`\"]?([a-zA-Z_][a-zA-Z0-9_]*)[`\"]?"
 )
 
 

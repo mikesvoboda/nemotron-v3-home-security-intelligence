@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Render + refuse: the gate between "I read operator.md" and "something started".
 #
-# Implements docs/uplevel/operator.md step 4 ("Render the configuration first and refuse to
+# Implements docs/uplevel/roles/operator.md step 4 ("Render the configuration first and refuse to
 # start when any value points at host.docker.internal …") and the owner-vet list from
 # "The owner on the host" steps 1-2 (-p project, own env file, non-default ports, fresh
 # camera dir, no live mounts, no Podman socket, ORCHESTRATOR_ENABLED=false) — mechanically,

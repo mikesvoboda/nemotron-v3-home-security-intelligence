@@ -269,14 +269,19 @@ def validate_python_ast(
     matching_symbols = [s for s in all_symbols if s["name"] == citation.symbol_name]
 
     if not matching_symbols:
+        # A symbol the AUTHOR wrote (`path:symbol:line`) is a claim, so a miss
+        # is an error. A symbol INFERRED from prose is a guess about words the
+        # author did not write as a claim, so it warns: prose must not be able
+        # to block a PR on a name nobody typed.
         return ValidationResult(
             citation=citation,
-            status=CitationStatus.ERROR,
+            status=CitationStatus.WARNING if citation.symbol_inferred else CitationStatus.ERROR,
             level=ValidationLevel.AST_VERIFY,
             message=f"Symbol '{citation.symbol_name}' not found in {citation.file_path}",
             details={
                 "expected_symbol": citation.symbol_name,
                 "available_symbols": [str(s["name"]) for s in all_symbols[:10]],  # First 10
+                "inferred": citation.symbol_inferred,
             },
         )
 

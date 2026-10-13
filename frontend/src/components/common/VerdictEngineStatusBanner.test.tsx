@@ -1,7 +1,7 @@
 /**
  * VerdictEngineStatusBanner tests (F1.2, UR-18).
  *
- * Failing-test-first for 20-frontend.md F1.2: "when engine state is
+ * Failing-test-first for docs/uplevel/packages/frontend.md F1.2: "when engine state is
  * `unavailable`, a persistent banner reads that the verdict engine is
  * unavailable since a time and that new events need review; it clears when
  * the state returns to `available`."

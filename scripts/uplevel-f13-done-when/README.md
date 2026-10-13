@@ -3,7 +3,7 @@
 The two stack runs in PR #6922's Evidence section ("`EXPOSE_LAN=true` requires
 login and works after it; `EXPOSE_LAN` unset shows no login"). Contract rule 3
 — tools live in the repo — so the harness the runs used lives here, not in
-`/tmp`. This README is the command sheet; `docs/uplevel/operator.md` remains
+`/tmp`. This README is the command sheet; `docs/uplevel/roles/operator.md` remains
 the operator's role doc.
 
 These files run a **disposable** stack of their own (compose project

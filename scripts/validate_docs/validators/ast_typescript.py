@@ -305,14 +305,17 @@ def validate_typescript_ast(
     matching_symbols = [s for s in all_symbols if s["name"] == citation.symbol_name]
 
     if not matching_symbols:
+        # Author-written symbols are claims and fail; prose-inferred symbols
+        # are guesses and warn. See ast_python.py for the same split.
         return ValidationResult(
             citation=citation,
-            status=CitationStatus.ERROR,
+            status=CitationStatus.WARNING if citation.symbol_inferred else CitationStatus.ERROR,
             level=ValidationLevel.AST_VERIFY,
             message=f"Symbol '{citation.symbol_name}' not found in {citation.file_path}",
             details={
                 "expected_symbol": citation.symbol_name,
                 "available_symbols": [str(s["name"]) for s in all_symbols[:10]],
+                "inferred": citation.symbol_inferred,
             },
         )
 

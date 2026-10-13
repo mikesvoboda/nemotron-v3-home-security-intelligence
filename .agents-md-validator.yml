@@ -85,7 +85,7 @@ exclude_reference_patterns:
 # demonstrably dodged. Ratchet doctrine (scripts/ratchet-check.py):
 # these sets may only FALL. A rise is a hand edit a human reviews in the diff;
 # there is deliberately no --update, because a flag that rewrites the baseline
-# is an opt-out with no diff. See docs/uplevel/40-docs.md (W1.1).
+# is an opt-out with no diff. See docs/uplevel/history/packages-done.md (W1.1).
 # ---------------------------------------------------------------------------
 
 # dead_reference_allowlist was REMOVED by W1.3 (drained to zero 2026-10-08): dead references
@@ -229,7 +229,7 @@ boundary_list:
 # run stays green on caps alone. Caps apply to the boundary files only — files
 # outside the list are W3.1 deletions, and capping a file scheduled to disappear is
 # noise, not a ratchet. The standard that sets these numbers has its single home at
-# docs/developer/agents-md-standard.md (40-docs.md points there). Measured at
+# docs/developer/agents-md-standard.md (packages/docs.md points there). Measured at
 # adoption (PR #6920, this head): root 505 — inside its cap; lane roots 41..1334,
 # 4 of the 7 over; boundary packages up to 3164; 29 of the 42 boundary files over
 # cap. The live set is the report's ratchet.line_caps.over (or the run's console

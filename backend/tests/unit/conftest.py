@@ -41,7 +41,31 @@ UNIT_TEST_API_KEY = "test-unit-api-key-12345"  # pragma: allowlist secret
 # Same class of fix as mock_transformers_for_speed below (shipped in 3d30ef71
 # for the identical gate). Best-effort: import failure here must never break
 # collection — the lazy site still governs behavior.
-for _warm in ("torchvision", "piq"):
+#
+# main-red (measured 2026-10-13, red main `137f76b19`, run 38378672681): the
+# sweeps below import their modules INSIDE the fixture, so the first unit node
+# on each fresh xdist worker pays the cold imports inside its junit
+# <testcase time> — setup+teardown, not its call. Measured on the solo-shape
+# re-run the gate itself performs (CI's `SLEEP_GATE_RERUN=1` argv):
+# test_monitoring_expose_lan_credentials::test_derived_channels_render_end_to_end
+# = setup 1.73s + call 0.07s + teardown 1.57s = <testcase time> 3.38s on an
+# IDLE 16-core box (call always 0.07s; the bill is imports). Under CI's runner
+# contention that same bill read 4.52s > the 4.0s sleep-gate budget (routing
+# 6138797534 measured 58x inflation on another victim of this cluster), and
+# the gate's solo re-run pays the bill AGAIN (measured CI re-run: 10.96s), so
+# the re-run never exonerates it. config/database/redis are exactly what the
+# sweeps import lazily (each 0.58s cold, one module per fresh process); they
+# are safe to import here because importing constructs nothing: get_settings()
+# reads env at CALL time and the auth fixture cache_clear()s after setting
+# API_KEYS, so warming cannot freeze env values. Same rotating-victim class as
+# the paragraph above — the victim is whichever node the seed draws first.
+for _warm in (
+    "torchvision",
+    "piq",
+    "backend.core.config",
+    "backend.core.database",
+    "backend.core.redis",
+):
     try:
         __import__(_warm)
     except Exception:  # pragma: no cover - absent dep just skips the warm-up

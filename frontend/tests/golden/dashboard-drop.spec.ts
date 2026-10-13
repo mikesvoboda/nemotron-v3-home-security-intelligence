@@ -1,5 +1,5 @@
 /**
- * F2.1 golden path 1 (20-frontend.md §F2.1): fixture image dropped into a
+ * F2.1 golden path 1 (docs/uplevel/history/packages-done.md §F2.1): fixture image dropped into a
  * camera folder → dashboard event carrying the fake VLM's verdict → event
  * detail shows score and summary.
  *
