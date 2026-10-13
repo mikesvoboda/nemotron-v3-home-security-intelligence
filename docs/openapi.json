@@ -57772,7 +57772,7 @@
           {
             "description": "Comma-separated job types to filter (e.g., 'export,cleanup')",
             "in": "query",
-            "name": "job_type",
+            "name": "type",
             "required": false,
             "schema": {
               "anyOf": [
@@ -57784,7 +57784,7 @@
                 }
               ],
               "description": "Comma-separated job types to filter (e.g., 'export,cleanup')",
-              "title": "Job Type"
+              "title": "Type"
             }
           },
           {

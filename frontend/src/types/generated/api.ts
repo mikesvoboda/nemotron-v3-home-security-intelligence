@@ -54040,7 +54040,7 @@ export interface operations {
                 /** @description Comma-separated status values to filter (e.g., 'running,pending') */
                 status?: string | null;
                 /** @description Comma-separated job types to filter (e.g., 'export,cleanup') */
-                job_type?: string | null;
+                type?: string | null;
                 /** @description Queue name filter (reserved for future use) */
                 queue?: string | null;
                 /** @description Filter jobs created after this ISO timestamp */
