@@ -512,11 +512,13 @@ async def list_events(
             # re-validated against EventResponse, whose `notes` defaults to None
             # with no exclude_if, so omitting it here reports notes: null for
             # text the database holds -- a contract test cannot tell the two
-            # states apart. The note's only other reader is GET /events/{id},
-            # which the running UI never calls (inventory row F-057,
-            # docs/reference/feature-inventory.md:191). Not deferred in
-            # models/event.py:78, so this read stays eager (contrast the
-            # reasoning/llm_prompt reads above, which need undefer at :405).
+            # states apart (inventory row F-057). Four other response builders
+            # already pass the value through by name -- list_deleted_events,
+            # get_event, update_event, restore_event -- this one was the odd
+            # reader out. The column is NOT deferred in models/event.py (unlike
+            # `reasoning`/`llm_prompt`, which are), so no undefer is needed for
+            # it here; `reasoning` above still carries its own in this query's
+            # select options.
             "notes": event.notes,
             "detection_count": detection_count,
             "detection_ids": parsed_detection_ids,

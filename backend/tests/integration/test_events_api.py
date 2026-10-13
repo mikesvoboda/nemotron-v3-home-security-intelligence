@@ -416,10 +416,13 @@ class TestListEvents:
         # one: filter_fields drops the key, then EventListResponse revalidation
         # re-adds it from the schema default. So sparse fieldsets trim VALUES,
         # never KEYS -- which is the same revalidation-fills-the-default
-        # mechanism this PR fixes for `notes`. Measured, not assumed: the whole
-        # row's keys at this request were every EventResponse field. Fixing
-        # that is out of scope here (it would change every list consumer's
-        # payload shape); pinned so a later change to it is a deliberate act.
+        # mechanism this PR fixes for `notes`. Measured at this request, not
+        # assumed: the row's keys are every EventResponse field EXCEPT the two
+        # exclude_if-guarded ones below, plus `risk_level`, which is a
+        # @computed_field and so serializes without being a model field.
+        # Fixing the revalidation-adds-the-key behaviour is out of scope here
+        # (it would change every list consumer's payload shape); pinned so a
+        # later change to it is a deliberate act.
         assert "summary" in sparse_rows[sample_event.id], (
             "sparse trimming is by value, not by key -- if this flips, every "
             "list consumer's payload shape changed and the pin must be updated "
