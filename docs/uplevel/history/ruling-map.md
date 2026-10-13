@@ -1,6 +1,6 @@
 # Ruling map
 
-One row per owner ruling 1-149 on #6854, and one per owner record that set a rule, showing what each
+One row per owner ruling 1-153 on #6854, and one per owner record that set a rule, showing what each
 became: the [`rules.md`](../rules.md) rule (`UR-n`), `one-off` (one PR, row, fold or order, now
 history), `package <id>` (binds only while that package is open; its text is in `packages/` or
 `packages-done.md`), or `superseded by <n>`. A ruling with several parts lists each. Rulings 118 and
@@ -162,6 +162,10 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 147    | the plan rewrite (owner design session 2026-10-12; see "Owner records")                                     |
 | 148    | packages `[r148a]`, `[r148b]`, `[r148c]`; F-278 under UR-153 one-off (record 6136930446)                    |
 | 149    | UR-106, UR-91, UR-116; packages `[r149b]`, `[r149d]`, `[r149e]`, `[r149f]` (record 6146380050)              |
+| 150    | packages `[r132]`, `[r133]`, `[r134]`; ops F2.3 batches; `OB.3` (record 6147963319)                         |
+| 151    | UR-125 (integration re-run); package `[r151]` (record 6149020713)                                           |
+| 152    | `scripts/uplevel/coordinator_snapshot.py` and the tick steps, PR #7078 (record 6149140632)                  |
+| 153    | UR-92 (owner tier only for UR-47's owner kinds) (record 6151644378)                                         |
 
 ## Owner records
 
@@ -179,6 +183,8 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 6128195816                      | UR-106, UR-29                                                                                                                                                                                                                              |
 | 6128714278                      | PROGRAMME PAUSE record; supersedes ruling 146's ledger by this rewrite                                                                                                                                                                     |
 | 6135991251                      | UR-102 (merge without update-branch when safe)                                                                                                                                                                                             |
+| 6146755754                      | `roles/coordinator.md` (each tick runs in a fresh subagent)                                                                                                                                                                                |
+| 6148551105                      | `roles/coordinator.md` (tick reads from a cursor; dispatcher only dispatches)                                                                                                                                                              |
 | owner design session 2026-10-12 | ruling 147. Pass 1: UR-39, UR-40, UR-41, UR-106, UR-29, UR-162, UR-163; corrected lines in UR-45, UR-66, UR-10, UR-121, UR-144. Pass 2: UR-24, UR-52, UR-59, UR-63, UR-25, UR-166, UR-168, UR-98, UR-125, UR-126, UR-151; package `[r147]` |
 | 6135935339                      | UR-166 (status comment shows current state only, about 4,000 characters)                                                                                                                                                                   |
 
