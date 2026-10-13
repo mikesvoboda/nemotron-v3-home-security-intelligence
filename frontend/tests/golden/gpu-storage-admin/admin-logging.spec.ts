@@ -86,19 +86,29 @@ test.describe('golden path: admin logging level control and retention save @crit
     });
 
     // Row clause "edits log retention days and saves" — executed, not pinned.
-    // Read the value the panel loaded first: the restore and the backend
-    // witness both key off it, and the row's Done-when is the round trip.
+    // `found` is read from the SAME endpoint the panel loads from, and the slider
+    // is then asserted to show it. Taking `inputValue()` as the source of truth
+    // instead would let a panel still holding its `useState<number>(7)` seed pick
+    // the number: the loader's `catch {}` (LoggingSettings.tsx:129-131) swallows a
+    // failed config GET yet still clears the loading flag in `finally`, so the
+    // card renders on the seed and the leg would restore 7 over a real 21 and go
+    // green. Asserting the pair closes that, and `toHaveValue` retries — so it is
+    // also the "slider has the loaded value" sync point, rather than a prose
+    // promise about load order.
     const retention = page.getByTestId('log-retention-settings');
     await expect(retention).toBeVisible();
     const slider = retention.getByLabel('Log retention period in days');
-    const found = Number(await slider.inputValue());
-    expect(found).toBeGreaterThanOrEqual(1); // slider min=1, max=90
+    const found = Number(
+      (await api<SystemConfigBody>(h, session, '/api/system/config')).log_retention_days
+    );
+    expect(found).toBeGreaterThanOrEqual(1); // backend field default 7; slider 1..90
+    await expect(slider).toHaveValue(String(found));
     // Step INWARD from whichever end the value sits at. At max=90 ArrowRight is
     // a native no-op, and a value that did not move leaves hasRetentionChanges
     // false — the Save button would stay disabled and the leg would fail for a
-    // reason that has nothing to do with persistence. Measured default is 7
-    // (LoggingSettings.tsx:117), so this arm is belt-and-braces, not a hunch
-    // about the current stack.
+    // reason that has nothing to do with persistence. Both arms measured on a
+    // CI-shape stack: found=90 saves 89, found=1 saves 2, so the save always
+    // lands interior, Save always enables, and the restore key is never a no-op.
     const dir = found >= 90 ? 'ArrowLeft' : 'ArrowRight';
     const saved = found >= 90 ? found - 1 : found + 1;
     await slider.focus();
@@ -127,15 +137,45 @@ test.describe('golden path: admin logging level control and retention save @crit
     // INVERSE of the save's, which is why the save's direction is stored rather
     // than inlined: at found=90 the save stepped LEFT, so restoring LEFT again
     // would save 88 and the assertion below would be checking the wrong number.
+    //
+    // The waiter is installed BEFORE the click, and the read happens only after
+    // the PATCH response resolves. Save #1 is synchronized by the toast, which
+    // LoggingSettings.tsx:166 fires after updateConfig resolves; this second save
+    // deliberately asserts no toast (see below), so without a wait of its own the
+    // GET used to be fired while save #2's PATCH was still in flight. The route
+    // clears the settings cache before it answers (system.py:2668, ahead of the
+    // audit-log await at :2697), so the read was beating its own write: measured
+    // red at attempt 1 at found=7/21/90/1 with `Received` always exactly `saved`,
+    // and 29 of 30 immediate GETs read the pre-write value against 25 of 25
+    // correct once awaited. CI hid it — CI=1 selects retries: 2
+    // (playwright.config.ts:79) and failOnFlakyTests is unset, so attempt 2 went
+    // green, the junit row carried no <failure> child, and junit_results()
+    // (scripts/feature_check.py:853) called it `passed`. Under UR-129 a failed
+    // attempt makes the spec `flaky` whatever its final outcome, and UR-128 says a
+    // row flips only on a run whose test passed, so a retry-laundered green is not
+    // a witness for this row no matter what the harness prints.
+    const restoreSaved = page
+      .waitForResponse(
+        (response) =>
+          response.request().method() === 'PATCH' &&
+          new URL(response.url()).pathname === '/api/system/config',
+        { timeout: 20_000 }
+      )
+      .catch(() => null);
     await slider.focus();
     await page.keyboard.press(dir === 'ArrowRight' ? 'ArrowLeft' : 'ArrowRight');
     await expect(retention.getByTestId('retention-save-button')).toBeEnabled();
     await retention.getByTestId('retention-save-button').click();
+    const restoreResponse = await restoreSaved;
+    expect(
+      restoreResponse,
+      'the restore save must reach the backend and be answered'
+    ).not.toBeNull();
     // No toast assertion here: a success toast from save #1 may still be on
     // screen (sonner's own auto-dismiss decides when), so "a success toast is
     // visible" would pass even if this save failed and "two toasts" would
-    // race that dismiss timer. The restore's witness is the backend read:
-    // patch_config clears the settings cache, so a value that did not reach
+    // race that dismiss timer. The witness is the answered PATCH above plus this
+    // read: patch_config clears the settings cache, so a value that did not reach
     // the runtime env would still answer the OLD number here.
     const back = await api<SystemConfigBody>(h, session, '/api/system/config');
     expect(back.log_retention_days).toBe(found);
