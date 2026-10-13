@@ -17,7 +17,7 @@ The owner sets these queues; a change is a ruling.
 | --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
 | `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                       | none              |
 | `uplevel-backend`     | fast      | `[r129]` (#7031), `[r122]` (#7027), `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                     | `review:backend`  |
-| `uplevel-frontend`    | fast      | `[r130f]`, `F2.3` UI batches (FE-3, FE-4), each `R2b` round's record, `F3.2`, `F3.3`                                                                   | `review:frontend` |
+| `uplevel-frontend`    | fast      | `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `F2.3` UI batches (FE-3, FE-4), `[r148a]` after `F2.3`, each `R2b` round's record, `F3.2`, `F3.3`          | `review:frontend` |
 | `uplevel-ops-a`       | fast      | `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`, `OB.3`                                                                                                     | `review:ops-a`    |
 | `uplevel-ops-b`       | fast      | `O2.4` (#7002), `[r143]` (#7034), `[r141]` follow-up (ruling 145), `[r147]` (sleep-gate re-run), `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger         | `review:ops-b`    |
 | `uplevel-docs`        | fast      | `F2.3` UI batches (DO-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                               | `review:docs`     |
