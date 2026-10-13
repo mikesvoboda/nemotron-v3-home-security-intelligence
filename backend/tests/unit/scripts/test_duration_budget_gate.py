@@ -94,6 +94,10 @@ assert _spec is not None and _spec.loader is not None
 _gate = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_gate)
 categorize_test = _gate.categorize_test
+# Read, never restated: a pin that hardcodes 5 passes when someone raises the
+# bound in the script and the pins quietly stop describing the rule. The cap
+# pin below asserts the SHAPE of the cap (per tier) against this value.
+MAX_RERUNS = _gate.MAX_RERUNS
 KNOWN_TIERS = frozenset({"unit", "integration", "e2e", "slow", "benchmark"})
 
 # Same knob set the script reads; the CI step sets the same five values
@@ -1882,3 +1886,312 @@ def test_a_class_based_breach_is_re_run_with_the_colon_spelling(tmp_path: Path) 
     assert target == (
         "backend/tests/unit/tracked/test_ledger.py::TestLedgerWindow::test_window_stamps"
     ), f"class members need the :: spelling; saw {target!r}"
+
+
+# ==========================================================================
+# UR-125 AS AMENDED BY RULING 151: the INTEGRATION tier gets the same re-run.
+#
+# Verbatim (rules.md:385-387): "An integration test over its 10.0 s budget gets
+# the same single re-run, and is red only if the re-run also breaches; at most 5
+# re-runs per job in each tier."
+#
+# The block above was written when the clause named only unit tests, and the
+# gate still implements exactly that: ``reproduce`` filters ``b[2] == "unit"``.
+# So an integration test at 12.4 s is red on the first reading, with no
+# reproduction, which is the failure mode ruling 151 exists to fix. Three of the
+# six pins below are red on `main` for three DIFFERENT reasons, and the reasons
+# are why this is a three-site change and not a one-line filter:
+#
+#   * the verdict itself (nothing re-runs an integration breach);
+#   * the REPORTING of a cleared one — the WARN list is unit tier by a deliberate
+#     comment (listing a legal 2.6 s banner spec would train everyone to skim),
+#     and both the stdout warning row and the step-summary row for a cleared
+#     breach are rendered by walking that unit-only list. Widen only the filter
+#     and a cleared integration breach drops out of ``red`` WITHOUT appearing
+#     anywhere: the owner sees a green run that says nothing about the 12.4 s
+#     event, which is the downgrade the ruling did not grant;
+#   * the CAP, which slices the POOLED list, so "at most 5 per job in each tier"
+#     is silently 5 across all tiers — and because integration breaches are the
+#     longest ones in the corpus, a pooled cap spends every re-run on
+#     integration and leaves the unit tier with none.
+#
+# The tiers OUTSIDE the clause (e2e, slow) are pinned too, because "everything
+# that is not unit" is NOT what the amendment says and the audit job has no
+# browser and no ``npm ci``.
+# ==========================================================================
+
+# An integration id with no module behind it, same reasoning as ``SLEEPER``. The
+# tier is doubly determined on purpose: the classname carries "integration" AND
+# the corpus file is named ``integration.xml``, so a pin cannot go green because
+# one channel accidentally classified it (see the M8 probe note at the top of
+# this file). Neither name is a SLOW_TEST_PATTERNS member or a ``.spec.`` path.
+INTEGRATION = ("backend.tests.integration.api.test_gateway", "test_integration_gateway_slow_path")
+INTEGRATION_ID = f"{INTEGRATION[0]}::{INTEGRATION[1]}"
+
+# 12.4 s against the 10.0 s integration budget: a breach by 2.4 s, which is
+# squarely the "runner was starved" size, and well clear of the 4.0 s unit
+# budget so it cannot be read as a mis-tiered unit test.
+INTEGRATION_BREACH = 12.4
+INTEGRATION_CLEARANCE = "0.60"
+
+
+def test_an_integration_breach_that_passes_its_re_run_is_not_red(tmp_path: Path) -> None:
+    """Done-when case 1 for the integration tier (ruling 151, verbatim).
+
+    12.4 s in the corpus, 0.60 s on the re-run: the same shape ruling 122
+    forgives in the unit tier. GREEN, one re-run, exactly once.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {INTEGRATION_ID: INTEGRATION_CLEARANCE}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        "an integration breach that does NOT reproduce must not fail the run — "
+        f"ruling 151 gives this tier the same single re-run\n{out}"
+    )
+    assert "BREACH" not in run.stdout, f"a non-reproducing breach is not a breach\n{out}"
+    invoked = _calls(calls)
+    assert len(invoked) == 1, (
+        f"one re-run of the breaching id, not zero and not a retry loop: {invoked}"
+    )
+
+
+def test_a_cleared_integration_breach_is_still_listed_with_both_timings(
+    tmp_path: Path,
+) -> None:
+    """The downgrade has to be VISIBLE, or it is an exemption channel.
+
+    A cleared unit breach is over the 1.5 s WARN threshold by arithmetic, so it
+    reaches the report for free. A cleared INTEGRATION breach is not: the WARN
+    list is unit-tier by a deliberate comment, and today both the stdout row and
+    the ``$GITHUB_STEP_SUMMARY`` row for a cleared breach are emitted by walking
+    that list. So a gate that widens only the eligibility filter would drop this
+    id out of the breach list and print nothing about it — a green run with no
+    record of a 12.4 s event, which is the exact "listed as a warning" half of
+    UR-125 going missing while the leniency half ships.
+
+    Both numbers, beside the same id, in stdout AND in the step summary: the
+    corpus timing is the event, the re-run timing is the exoneration, and a row
+    that shows only the flattering one deletes the event.
+    """
+    calls = tmp_path / "calls.jsonl"
+    summary = tmp_path / "step-summary.md"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {INTEGRATION_ID: INTEGRATION_CLEARANCE}, calls_file=calls
+            ),
+            "GITHUB_STEP_SUMMARY": str(summary),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, f"expected green; got\n{out}"
+    assert len(_calls(calls)) == 1, "the re-run has to happen before anything can report it"
+
+    row = next((line for line in run.stdout.splitlines() if INTEGRATION[1] in line), "")
+    assert row, (
+        "a cleared integration breach must appear in the output at all — it is "
+        f"no longer a breach, so silence here means silence everywhere\n{out}"
+    )
+    assert "12.40" in row and INTEGRATION_CLEARANCE in row, (
+        f"the row must carry corpus AND re-run timing; saw: {row!r}"
+    )
+
+    written = summary.read_text(encoding="utf-8")
+    summary_row = next((line for line in written.splitlines() if INTEGRATION_ID in line), "")
+    assert summary_row, (
+        "the step summary is where the owner reads this, and a cleared "
+        f"integration id is not in the unit WARN list it is built from\n{written}"
+    )
+    assert "12.40" in summary_row and INTEGRATION_CLEARANCE in summary_row, (
+        f"both timings in the summary row too; saw: {summary_row!r}"
+    )
+
+
+def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> None:
+    """Done-when case 2 — "red only if the re-run also breaches".
+
+    Deliberately GREEN on `main`, and it must stay green after the filter
+    widens: it is the pin that fails if the integration tier is ever made
+    exempt instead of merely re-measured. The re-run reports 13.1 s, over the
+    10.0 s budget, so the breach reproduced.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {INTEGRATION_ID: "13.1"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        f"a 12.4 s breach that re-runs at 13.1 s is real and stays RED\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
+    assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
+
+
+def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
+    """UR-125: "at most 5 re-runs per job **in each tier**" — not 5 pooled.
+
+    Six unit breaches (4.4-4.9 s) and six integration breaches (10.4-15.9 s).
+    Sixteen over budget, and the corpus is sorted longest-first, so a cap that
+    slices the POOLED list spends all five re-runs on the five longest — which
+    are all integration — and leaves the unit tier with none. That is the
+    inverted damage: the tier the cap was written for loses its exoneration to
+    the tier ruling 151 just added.
+
+    The rule is 5 PER TIER, so 10 ids get re-run and the one dropped per tier is
+    the shortest in that tier. ``MAX_RERUNS`` is the bound; its cost comment in
+    the script says "5 sleeps worst case", which becomes 10 per job by this
+    reading — the pins name the bound, so a reviewer who wants 5 pooled sees it
+    here rather than inferring it.
+    """
+    calls = tmp_path / "calls.jsonl"
+    unit_cases = [
+        (f"backend.tests.unit.tiershard.test_u{i}", f"test_u{i}_slow", 4.4 + 0.1 * i)
+        for i in range(6)
+    ]
+    integration_cases = [
+        (
+            f"backend.tests.integration.tiershard.test_i{i}",
+            f"test_integration_i{i}_slow",
+            10.4 + 1.1 * i,
+        )
+        for i in range(6)
+    ]
+    durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml(unit_cases)),
+        ("integration.xml", _xml(integration_cases)),
+    )
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    targets = [next((a for a in rec["argv"] if "::" in a), "") for rec in invoked]
+
+    re_run_unit = [t for t in targets if "/unit/" in t]
+    re_run_integration = [t for t in targets if "/integration/" in t]
+    assert len(re_run_unit) == MAX_RERUNS, (
+        f"the unit tier gets its OWN {MAX_RERUNS} re-runs; a pooled cap gave it "
+        f"{len(re_run_unit)} because the integration breaches are longer\n{targets}"
+    )
+    assert len(re_run_integration) == MAX_RERUNS, (
+        f"the integration tier gets {MAX_RERUNS} too — 'in each tier' is the "
+        f"ruling's words, and it is what separates 5-per-tier from a 5 total\n{targets}"
+    )
+    assert len(invoked) == 2 * MAX_RERUNS, f"no tier may exceed the cap either way: {targets}"
+    # The cap must still be the STRICT end: the dropped id is the SHORTEST in its
+    # tier, and the tier's remaining breaches stay RED unverified.
+    assert run.returncode != 0, (
+        f"2 of 12 breaches are unverified, so this run is RED whatever the cap "
+        f"decides to re-run\n{out}"
+    )
+    # The cap has to stay the STRICT end in each tier: what it drops is the
+    # SHORTEST breach of that tier, and the longest one must never be the loser.
+    unit_names = [t.rsplit("::", 1)[-1] for t in re_run_unit]
+    assert "test_u5_slow" in unit_names, (
+        f"u5 is the longest unit breach (4.9 s) and must be re-run first; saw {unit_names}"
+    )
+    assert "test_u0_slow" not in unit_names, (
+        f"u0 is the SHORTEST unit breach (4.4 s); dropping anything else would "
+        f"make the cap lenient instead of strict; saw {unit_names}"
+    )
+
+
+def test_tiers_outside_the_clause_are_still_never_re_run(tmp_path: Path) -> None:
+    """e2e and slow stay RED-unverified with no subprocess spawned.
+
+    The amendment names only the integration tier, and the reasons for the other
+    two survive it. The audit job downloads Playwright's junit too (``ci.yml:3008``), so e2e ids
+    really are in the corpus it reads — the filter has to be
+    ``("unit", "integration")`` and NOT "everything that is not unit", or every
+    e2e failure spawns a subprocess in a job with no browser and no ``npm ci``.
+    The ``slow`` tier is measured-slow by census, so a re-run there buys a
+    60 s-class sleep, not a flake verdict.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        ("e2e.xml", _xml([("specs/edge_case_matrix.spec.ts", "test_slow_spec", 23.1)])),
+        (
+            "slow.xml",
+            _xml(
+                [
+                    (
+                        "backend.tests.unit.perf.test_fast_path",
+                        "test_fast_path_high_priority_detection",
+                        71.0,
+                    )
+                ]
+            ),
+        ),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
+    )
+    out = _out(run)
+    assert run.returncode != 0, f"a 23.1 s e2e and a 71 s slow breach are both RED\n{out}"
+    assert _calls(calls) == [], (
+        "e2e and slow are outside the tiers the re-run covers; an attempt would "
+        f"be a doomed subprocess, not a measurement: {_calls(calls)}"
+    )
+
+
+def test_the_enabled_header_counts_what_the_gate_actually_re_runs(
+    tmp_path: Path,
+) -> None:
+    """The header must not report a unit-only count once other tiers qualify.
+
+    One integration breach, nothing else. Today the line reads "0 unit
+    breach(es) get one re-run each" while the gate is about to re-run one (after
+    the fix) — a report that denies the regime it is running under, which is the
+    WP0.5 "off reads as the rule" shape this block has warned about since ruling
+    122. Asserted against the invocations rather than a phrasing, so the pin
+    cannot be satisfied by a prettier sentence that still miscounts.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {INTEGRATION_ID: INTEGRATION_CLEARANCE}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    assert len(invoked) == 1, (
+        f"the tier has to be re-run at all before the header can count it\n{out}"
+    )
+    header = next(line for line in out.splitlines() if "ENABLED" in line)
+    assert str(len(invoked)) in header, (
+        f"the ENABLED line must state the count it is honouring; saw: {header!r}"
+    )
+    assert "0 unit breach" not in header, (
+        f"a header that says zero while re-running something is the shape this "
+        f"file exists to prevent; saw: {header!r}"
+    )
