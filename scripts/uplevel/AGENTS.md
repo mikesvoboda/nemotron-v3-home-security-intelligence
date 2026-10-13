@@ -5,8 +5,8 @@
 The uplevel programme's host-side tooling. Today one tool: `launch.py`, the sandbox
 launcher (package `O0.1`, rulings UR-26 and UR-28 in `docs/uplevel/`). It is a **host tool
 for the owner** - no agent runs it. The programme itself is planned in `docs/uplevel/`
-(start at its `README.md`); this module only automates what `docs/uplevel/50-coordination.md`
-("Where agents run") describes the owner doing by hand at a phase boundary.
+(start at its `README.md`); this module only automates what `docs/uplevel/rules.md`
+("Agents, sandboxes and models") describes the owner doing by hand at a phase boundary.
 
 ## Files
 
@@ -50,7 +50,7 @@ plus optional `mount` and `gpu` (a plain TOML boolean; only `uplevel-operator` s
 The loader refuses the hand-edit shapes a growing roster can produce: a non-boolean
 `gpu`, a `gpu` row mounting at or under `/srv/agent-models` (which `agent-dgx --gpu`
 owns), and a name repeated within one phase. It mirrors the roster in
-`docs/uplevel/50-coordination.md` - when the coordinator changes the plan, that PR
+`docs/uplevel/roles/lane.md` ("Who takes what") - when the coordinator changes the plan, that PR
 updates this file too. A kickoff line names
 the prompt's **section**, never a position (`up` prints it verbatim, and a position rots
 when the file grows); #6864 established that rule, and both the heavy row and the

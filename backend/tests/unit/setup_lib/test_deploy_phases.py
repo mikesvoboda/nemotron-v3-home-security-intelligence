@@ -9,9 +9,16 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+if TYPE_CHECKING:
+    # Type-only: this file's convention is a function-local import of
+    # DeployConfig (runtime cost stays inside the tests that need it); the
+    # shared cache fixture below needs the name for its return annotation.
+    from setup_lib.deploy import DeployConfig
 
 
 @pytest.fixture(autouse=True)
@@ -482,27 +489,123 @@ class TestPhaseBuild:
 class TestPhaseExport:
     """Tests for phase_export() function."""
 
-    def test_skips_when_all_models_cached(self, tmp_path: Path) -> None:
-        """Should skip export when all models have cached files."""
+    @staticmethod
+    def _seed_host(
+        tmp_path: Path,
+        configs: dict[str, str],
+        artifacts: dict[str, str],
+    ) -> DeployConfig:
+        """A fake project root: Triton configs + a model cache, both synthetic.
+
+        `configs` maps model -> the `backend:` line its shipped config declares;
+        `artifacts` maps model -> the filename present in its cache version dir.
+        Keeping the config in the fixture (rather than reading the real
+        repository) is what makes the pair testable at all: "is this cache
+        complete?" is a question about a model's declared backend, and a test
+        that hard-codes the answer would not notice the next backend flip.
+        """
         from setup_lib.deploy import DeployConfig
-        from setup_lib.deploy_phases import CORE_MODELS, phase_export
 
+        for model, backend in configs.items():
+            cfg_dir = tmp_path / "ai" / "triton" / "model_repository" / model
+            cfg_dir.mkdir(parents=True, exist_ok=True)
+            (cfg_dir / "config.pbtxt").write_text(f'backend: "{backend}"\n')
         triton_cache = tmp_path / "triton"
-        for model in CORE_MODELS:
+        for model, artifact in artifacts.items():
             model_dir = triton_cache / model / "1"
-            model_dir.mkdir(parents=True)
-            (model_dir / "model.onnx").write_text("fake")
-
-        config = DeployConfig(
+            model_dir.mkdir(parents=True, exist_ok=True)
+            (model_dir / artifact).write_text("fake")
+        return DeployConfig(
             project_root=tmp_path,
             compose_cmd=["podman", "compose"],
             env={"AI_MODELS_PATH": str(tmp_path)},
         )
 
+    def test_skips_when_all_models_cached(self, tmp_path: Path) -> None:
+        """Should skip export when all models have cached files.
+
+        Each model's cached file is the one ITS config loads: since O2.4 (owner
+        ruling 107) `reid` declares backend "tensorrt" and Triton loads only
+        1/model.plan for it, so a reid ONNX no longer completes the cache.
+        """
+        from setup_lib.deploy_phases import CORE_MODELS, phase_export
+
+        configs = dict.fromkeys(CORE_MODELS, "onnxruntime")
+        configs["reid"] = "tensorrt"  # the shipped state after O2.4
+        artifacts = dict.fromkeys(CORE_MODELS, "model.onnx")
+        artifacts["reid"] = "model.plan"
+        config = self._seed_host(tmp_path, configs, artifacts)
+
         result = phase_export(config)
 
         assert result.success is True
         assert "cached" in result.message.lower()
+
+    def test_an_onnx_only_cache_does_not_count_for_a_tensorrt_model(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The O2.4 regression this test exists for.
+
+        A CPU bake produces every ONNX and NO plan (export_all.sh skips the plan
+        step without trtexec). The old sufficiency test — "an .onnx or a .plan
+        exists" — called that host a complete cache, skipped the bake, and
+        deployed a gateway whose reid has nothing to load: the tensorrt backend
+        reads exactly 1/model.plan. So an ONNX-only cache must NOT be treated as
+        cached; the bake has to run.
+        """
+        from setup_lib.deploy_phases import CORE_MODELS, phase_export
+
+        configs = dict.fromkeys(CORE_MODELS, "onnxruntime")
+        configs["reid"] = "tensorrt"
+        artifacts = dict.fromkeys(CORE_MODELS, "model.onnx")  # no plan: a CPU bake
+        config = self._seed_host(tmp_path, configs, artifacts)
+
+        mock_proc = MagicMock()
+        mock_proc.pid = 4242
+        with (
+            patch(
+                "setup_lib.deploy_phases._get_compose_image",
+                return_value="test-ai-gateway:latest",
+                autospec=True,
+            ),
+            patch("subprocess.Popen", return_value=mock_proc, autospec=True),
+        ):
+            result = phase_export(config)
+
+        assert result.success is True
+        assert "background" in result.message.lower(), (
+            "an ONNX-only cache declared a tensorrt-backend model ready"
+        )
+        assert config._export_process is mock_proc
+
+    def test_a_model_with_no_readable_config_is_never_cached(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When the config can't be read the answer is "not cached", not a guess.
+
+        Re-running the bake is harmless (it skips artifacts it finds); guessing
+        model.onnx for a tensorrt model would declare an unusable cache ready.
+        """
+        from setup_lib.deploy_phases import CORE_MODELS, phase_export
+
+        artifacts = dict.fromkeys(CORE_MODELS, "model.onnx")
+        # No configs at all: every model's served artifact is unknown.
+        config = self._seed_host(tmp_path, {}, artifacts)
+
+        mock_proc = MagicMock()
+        mock_proc.pid = 4343
+        with (
+            patch(
+                "setup_lib.deploy_phases._get_compose_image",
+                return_value="test-ai-gateway:latest",
+                autospec=True,
+            ),
+            patch("subprocess.Popen", return_value=mock_proc, autospec=True),
+        ):
+            result = phase_export(config)
+
+        assert "background" in result.message.lower()
+        assert config._export_process is mock_proc
 
     def test_starts_background_export(self, tmp_path: Path) -> None:
         """Should start export in background when models are missing."""
@@ -659,6 +762,45 @@ class TestPhaseInfrastructure:
             phase_infrastructure(config)
 
             mock_proc.wait.assert_called_once()
+
+    def test_a_failed_model_export_fails_the_deploy(self, tmp_path: Path) -> None:
+        """A bake that exits nonzero is a failed deploy, not a printed warning.
+
+        Before O2.4 this branch printed "WARNING: Model export had failures" and
+        returned success. That was survivable when every failure was an extra
+        ONNX nobody needed; it is not survivable now that `reid` serves backend
+        "tensorrt" (ruling 107): the gateway still answers /health with 200 and
+        status "degraded", the compose healthcheck passes, and
+        /enrich-lt/person-reid returns 503 forever on a deploy that reported
+        success. The message also has to name the consequence, because "check
+        logs" is not actionable at 2am.
+        """
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_infrastructure
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 1  # the bake failed (e.g. no plan could be built)
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+        )
+        config._export_process = mock_proc
+
+        with (
+            patch("setup_lib.deploy_phases.compose_run", return_value=True, autospec=True),
+            patch(
+                "setup_lib.deploy_phases._is_service_installed", return_value=False, autospec=True
+            ),
+            patch("time.sleep", autospec=True),
+        ):
+            result = phase_infrastructure(config)
+
+        assert result.success is False
+        assert "export failed" in result.message.lower()
+        assert "plan" in result.message.lower(), (
+            "the failure must say WHY a failed bake is fatal now: the reid plan"
+        )
 
     def test_fails_on_core_infra_error(self, tmp_path: Path) -> None:
         """Should return failure when core infrastructure fails to start."""

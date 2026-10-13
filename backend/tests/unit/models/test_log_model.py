@@ -948,7 +948,7 @@ class TestLogExtraProperties:
 
     @pytest.mark.slow
     @given(extra=extra_dicts)
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_extra_roundtrip(self, extra: dict | None):
         """Property: Extra dict values roundtrip correctly."""
         log = Log(

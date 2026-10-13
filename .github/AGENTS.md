@@ -191,7 +191,7 @@ those floors, so review such hunks by hand.
 > **Removed 2026-10-09 (O1.4):** the PR preview-container pipeline — its only
 > trigger was manual dispatch while its body read pull-request context (never
 > populated there), it had no successful run since 2026-01-06, and its PR
-> comment advertised retired service URLs. 30-ops.md's DECIDE rule: 90+ silent
+> comment advertised retired service URLs. O1.4's DECIDE rule: 90+ silent
 > days means delete. On the retired-paths list (scripts/retired_paths.txt);
 > its history lives in git.
 

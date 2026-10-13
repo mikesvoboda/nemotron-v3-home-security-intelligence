@@ -1,6 +1,6 @@
 /**
  * F2.1 Done-when half 2: "a deliberately mocked spec in it fails the guard"
- * (20-frontend.md §F2.1).
+ * (docs/uplevel/history/packages-done.md §F2.1).
  *
  * This IS the deliberately mocked spec. It tries to mock the API the way every
  * other Playwright spec in this repo does, and asserts the guard rejects each

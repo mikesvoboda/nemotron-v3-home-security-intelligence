@@ -60,7 +60,8 @@ def build_tree(root: Path) -> None:
         "nemotron rollout plan, dated record.\n", encoding="utf-8"
     )
     (root / "docs" / "uplevel").mkdir()
-    (root / "docs" / "uplevel" / "30-ops.md").write_text("retire the pose overlay\n", encoding="utf-8")
+    (root / "docs" / "uplevel" / "packages").mkdir()
+    (root / "docs" / "uplevel" / "packages" / "ops.md").write_text("retire the pose overlay\n", encoding="utf-8")
     (root / "docs" / "goal-prompt-alpha.txt").write_text("pose and demographic\n", encoding="utf-8")
     (root / "docs" / "image.png").write_bytes(b"\x89PNG")
     (root / "backend").mkdir()
@@ -161,7 +162,7 @@ def test_names_match_plan_text():
     and an audit census need not agree); this pin guards drift against the
     text this package's Done-when cites, nothing more.
     """
-    plan = (REPO_ROOT / "docs" / "uplevel" / "30-ops.md").read_text(encoding="utf-8")
+    plan = (REPO_ROOT / "docs" / "uplevel" / "history" / "packages-done.md").read_text(encoding="utf-8")
     section = plan.split("### O1.7", 1)[1].split("### O1.8", 1)[0]
     for name in NAMES:
         assert f"`{name}`" in section, f"O1.7 plan text no longer names {name}"

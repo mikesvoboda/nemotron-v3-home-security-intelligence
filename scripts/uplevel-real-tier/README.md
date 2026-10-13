@@ -3,11 +3,12 @@
 The files here run B1.4's real-tier check — "the verdict engine's state goes
 `unavailable` and back, `ready` and HTTP 200 never wobble" — on a **disposable test
 deployment**, never the live stack. They implement owner ruling 22's five steps on top of
-`docs/uplevel/operator.md`'s agent-gpu path (steps 1-6), and they add the one piece ruling 22
+`docs/uplevel/roles/operator.md`'s agent-gpu path (steps 1-6), and they add the one piece ruling 22
 asked for: a **fixed backend→engine URL that survives an engine restart on a new port**, via a
 small TCP proxy in the test project.
 
-Read `docs/uplevel/operator.md` first; this README is the command sheet, that file is the role.
+Read `docs/uplevel/roles/operator.md` first; this README is the command sheet, that file is the
+role.
 
 | file                          | what it is                                                              |
 | ----------------------------- | ----------------------------------------------------------------------- |
@@ -28,7 +29,7 @@ Read `docs/uplevel/operator.md` first; this README is the command sheet, that fi
 
 ## Before you start (agent-gpu path)
 
-Run `docs/uplevel/operator.md` "The agent-gpu path" steps 1-3 first: check the weights'
+Run `docs/uplevel/roles/operator.md` "The agent-gpu path" steps 1-3 first: check the weights'
 `sha256sum` against the pin, build `ai-vlm:<tree>` for the commit under test, and
 `agent-gpu run` the engine. Keep the line `run` printed:
 

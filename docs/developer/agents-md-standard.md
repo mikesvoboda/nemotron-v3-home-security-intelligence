@@ -3,15 +3,15 @@ title: The AGENTS.md Standard
 source_refs:
   - .agents-md-validator.yml:1
   - scripts/agents_md_validator.py:1
-  - docs/uplevel/40-docs.md:20
+  - docs/uplevel/packages/docs.md:20
 ---
 
 # The AGENTS.md Standard
 
 The reference every `AGENTS.md` is written to and reviewed against. `W2.1` moved it here from
-`docs/uplevel/40-docs.md`, whose standard section now points at this file instead of holding a
-second copy — a rule written in two documents is two rules the next time one of them is edited
-(`UR-21`).
+the docs lane's plan file (now `docs/uplevel/packages/docs.md`), whose lane scope points at this
+file instead of holding a second copy — a rule written in two documents is two rules the next
+time one of them is edited (`UR-21`).
 
 ## Where they live
 
@@ -52,7 +52,7 @@ What an agent cannot find by looking:
 File-by-file inventories, restated code, counts, and history narratives. The directory listing, the
 imports and `git log` are the source of truth; a copy of them is a cache that goes stale as soon as
 the code moves. That is where the lane's headline finding came from — 77 of 244 `AGENTS.md` files
-citing 213 files that existed nowhere, stated at the head of `docs/uplevel/40-docs.md` against the
+citing 213 files that existed nowhere, stated at the head of the docs lane's plan file against the
 `d6ba78d5` baseline. `W1.3` drained every dead reference the validator's grammar can see and
 removed the allowlist that excused them, so a new one fails the run; the wider-grammar sweep that
 would cover the remainder is a follow-up recorded in #6915's honest-scope section, not finished

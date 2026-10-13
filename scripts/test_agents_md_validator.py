@@ -193,7 +193,8 @@ EXPECTED_LANE_ROOTS = {
     "synthbench",
 }
 # The >= 20 rule does not explain these; they are the rule's named/contract
-# arm (40-docs.md's exemplars + cross-lane/CI contracts). Pinned separately
+# arm (docs/developer/agents-md-standard.md's named examples + cross-lane/CI
+# contracts). Pinned separately
 # from the main set so adding a 43rd entry says WHY, in a reviewable place.
 # setup_lib is NOT here — it has exactly 20 code files and survives the >= 20
 # rule on its own; its own exception is softer (it sits on
