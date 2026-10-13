@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Revert-campaign driver for ruling 143's golden-container pins (contract rule 3).
 
-    uv run --no-project python scripts/r143-mutation-campaign.py
+    python3 scripts/r143-mutation-campaign.py
+
+Run from the repo root. It picks the repo's ``.venv/bin/python`` when that can
+import pytest, because the suite needs the project's dependencies and the
+interpreter you launched this with usually is not that one; ``--python`` names
+one explicitly.
 
 The body of #7034 claims these pins have teeth. A claim about teeth is only
 evidence if the reader can bite, so the campaign the body reports runs from the
@@ -32,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -95,7 +101,7 @@ MUTANTS: list[tuple[str, str, str]] = [
     ),
     (
         "version read from the top-level lock version: the tag leaves the package",
-        "entry = (packages or {}).get(f\"node_modules/{PLAYWRIGHT_LOCK_KEY}\") or {}",
+        'entry = (packages or {}).get(f"node_modules/{PLAYWRIGHT_LOCK_KEY}") or {}',
         "entry = lock if isinstance(lock, dict) else {}",
     ),
     (
@@ -111,11 +117,20 @@ MUTANTS: list[tuple[str, str, str]] = [
 ]
 
 
-def run_suite(worktree: pathlib.Path, suite: str) -> set[str]:
-    """The failed test ids of one suite run inside WORKTREE."""
+def run_suite(worktree: pathlib.Path, suite: str, python: str) -> tuple[set[str], int, str]:
+    """FAILED test ids, executed count, and the summary line for one run in WORKTREE.
+
+    The count is returned, not discarded, because the campaign's whole signal is
+    an ABSENCE ("this mutant reddened nothing") and an absence is exactly what a
+    broken instrument produces: run this file with an interpreter that cannot
+    import pytest and every suite run collects zero tests, so every mutant
+    reports ESCAPED and the driver accused these pins of having no teeth. A
+    count of zero, or a count that moves between runs, is now refused as
+    INSTRUMENT rather than read as a measurement.
+    """
     result = subprocess.run(
         [
-            sys.executable,
+            python,
             "-m",
             "pytest",
             suite,
@@ -129,9 +144,22 @@ def run_suite(worktree: pathlib.Path, suite: str) -> set[str]:
         text=True,
         check=False,
     )
-    return {
+    failed = {
         line.split("::")[-1] for line in result.stdout.splitlines() if line.startswith("FAILED")
     }
+    summary = next(
+        (
+            line
+            for line in reversed(result.stdout.splitlines())
+            if re.search(r"\d+ (passed|failed|error)", line) or "no tests ran" in line
+        ),
+        "",
+    )
+    executed = sum(int(n) for n, _ in re.findall(r"(\d+) (?:passed|failed|errors?)", summary))
+    if not summary:  # pytest never got to reporting: surface its output, not silence
+        summary = (result.stderr or result.stdout).strip().splitlines()[-1:] or ["<no output>"]
+        summary = summary[0]
+    return failed, executed, summary
 
 
 def main() -> int:
@@ -141,6 +169,10 @@ def main() -> int:
         default="backend/tests/unit/scripts/test_feature_check.py",
         help="test file to mutate against, relative to the worktree root",
     )
+    parser.add_argument(
+        "--python",
+        help="interpreter to run the suite with; defaults to the first candidate that can import pytest",
+    )
     args = parser.parse_args()
 
     root = subprocess.run(
@@ -148,6 +180,23 @@ def main() -> int:
     ).stdout.strip()
     script = pathlib.Path(root) / "scripts" / "feature_check.py"
     pristine = script.read_text(encoding="utf-8")
+
+    candidates = [args.python] if args.python else [f"{root}/.venv/bin/python", sys.executable]
+    python = next(
+        (
+            c
+            for c in candidates
+            if c
+            and subprocess.run(
+                [c, "-c", "import pytest"], capture_output=True, check=False
+            ).returncode
+            == 0
+        ),
+        None,
+    )
+    if python is None:
+        print(f"INSTRUMENT | no interpreter can import pytest: tried {candidates}", file=sys.stderr)
+        return 2
 
     failures = 0
     with tempfile.TemporaryDirectory(prefix="r143-campaign-") as tmp:
@@ -161,8 +210,13 @@ def main() -> int:
         target = worktree / "scripts" / "feature_check.py"
         try:
             target.write_text(pristine, encoding="utf-8")
-            baseline = run_suite(worktree, args.suite)
-            print(f"baseline reds: {len(baseline)}")
+            baseline, baseline_count, baseline_summary = run_suite(worktree, args.suite, python)
+            if baseline_count == 0:
+                print(
+                    f"INSTRUMENT | baseline executed 0 tests: {baseline_summary}", file=sys.stderr
+                )
+                return 2
+            print(f"python: {python}\nbaseline: {baseline_count} executed, {len(baseline)} red")
             for description, old, new in MUTANTS:
                 count = pristine.count(old)
                 if count != 1:
@@ -177,7 +231,17 @@ def main() -> int:
                     failures += 1
                     target.write_text(pristine, encoding="utf-8")
                     continue
-                new_reds = sorted(run_suite(worktree, args.suite) - baseline)
+                reds, executed, summary = run_suite(worktree, args.suite, python)
+                if executed != baseline_count:
+                    print(
+                        f"INSTRUMENT | mutant ran {executed} tests, baseline ran "
+                        f"{baseline_count}: {summary}",
+                        file=sys.stderr,
+                    )
+                    failures += 1
+                    target.write_text(pristine, encoding="utf-8")
+                    continue
+                new_reds = sorted(reds - baseline)
                 if new_reds:
                     print(f"CAUGHT({len(new_reds)}) | {description}")
                     for name in new_reds:
@@ -186,11 +250,14 @@ def main() -> int:
                     print(f"ESCAPED     | {description}")
                     failures += 1
                 target.write_text(pristine, encoding="utf-8")
-            restored = run_suite(worktree, args.suite)
+            restored, restored_count, _ = run_suite(worktree, args.suite, python)
             print(
-                f"restored reds: {len(restored)} (baseline {len(baseline)}) "
-                f"same={restored == baseline}"
+                f"restored: {restored_count} executed, {len(restored)} red "
+                f"(baseline {baseline_count}/{len(baseline)}) same={restored == baseline}"
             )
+            if restored_count != baseline_count:
+                print("INSTRUMENT | restored run executed a different count", file=sys.stderr)
+                failures += 1
             if restored != baseline:
                 failures += 1
         finally:
