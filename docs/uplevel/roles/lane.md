@@ -113,7 +113,9 @@ Read rules.md §Building a package first: one package per PR, the hot-file rules
    `codebase-archaeologist` on their scope (UR-95).
 
 **Self-review.** Run the fresh-context self-review UR-89 describes, record its findings in the PR,
-then mark the PR ready.
+then mark the PR ready once its code is complete. A Done-when clause that only a CI run shows (a
+draft skips every job but the gate) is ticked from the first ready run, naming it; a red run is
+fixed on the ready PR, and the reviewer approves only with those clauses green (ruling 161).
 
 ## Reviewing another lane's PR
 
