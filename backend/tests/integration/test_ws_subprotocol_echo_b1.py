@@ -113,17 +113,30 @@ def test_the_accept_sweep_finds_the_known_sites() -> None:
     B-1 counted 12 on 2026-10-09. #6950 (`49dd54a90`) deleted two of them in
     ``websocket_auth.py`` — one in ``authenticate_websocket_cookie``, one in
     ``verify_websocket_auth``, both ``websocket.accept(subprotocol=…)`` lines
-    removed with the cookie/JWT legs they belonged to — so the FLOOR went
-    stale, not the sweep: the nightly's red is this arithmetic, and the two
-    deleted sites are gone on purpose. Re-count the sites here whenever accept
-    sites legitimately move; the floor's job is to notice a DELETION the sweep
-    did not mean, which is why it stays an exact count and not a loose bound."""
+    removed with the cookie EXPIRY legs they belonged to (the accept-then-
+    ``close(4002)`` pair that ran when a cookie parsed but its claims were
+    expired; ruling 55 moved expiry to the Redis session TTL, so the accept
+    and the 4002 both went away). The name "JWT" was in the old wording here
+    and is wrong: ``authenticate_websocket_jwt`` keeps both of its accepts
+    (``:262``, ``:267``) at this head, untouched by that commit. So the FLOOR
+    went stale, not the sweep: the nightly's red is this arithmetic, and the
+    two deleted sites are gone on purpose. Re-count the sites here whenever
+    accept sites legitimately move. The floor's job is to notice a DELETION
+    the sweep did not mean, which is what the bound above is for — it is a
+    BOUND (``>=``), not an exact count, exactly as the retired floor was
+    (``>= 12``). The presence loop below is the half that a bound cannot
+    cover: a count survives a site moving between files, a named file does
+    not."""
     sites = _production_accepts()
     assert len(sites) >= 10, f"sweep found only {len(sites)} accept sites: {sites}"
     files = {s.split(":")[0] for s in sites}
+    # One entry per file the docstring above counts. This tuple is the half of
+    # the guard a count cannot be: the arithmetic passes unchanged when a site
+    # MOVES between files, and only the named file going to zero trips it.
     for expected in (
         "backend/api/middleware/auth.py",
         "backend/api/middleware/websocket_auth.py",
+        "backend/api/routes/websocket.py",
         "backend/services/event_broadcaster.py",
         "backend/services/system_broadcaster.py",
     ):
