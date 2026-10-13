@@ -106,7 +106,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 91     | one-off (#6980 approved)                                                                                    |
 | 92     | one-off (F2.2 follow-up to frontend)                                                                        |
 | 93     | UR-125; package real-sleep gate (done, #6972)                                                               |
-| 94     | package `[r94]` `setup.py` re-runs and `--convert-monitoring-key` (open; `packages/backend.md`)             |
+| 94     | package `[r94]` `setup.py` re-runs and `--convert-monitoring-key` (done, #7038)                             |
 | 95     | package `[r95]` monitoring-key gaps S1, S4 (open; `packages/backend.md`)                                    |
 | 96     | item 8: package dead CI failure guards (done, #6993); item 11: package `[r96i11]` (open; `packages/ops.md`) |
 | 97     | UR-56 (F2.3 claim PR), UR-107 (never combine queued PRs); package draft-skip workflows (done, #6989)        |

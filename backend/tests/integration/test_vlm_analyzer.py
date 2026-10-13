@@ -100,17 +100,64 @@ async def camera(db_session):
     return cam
 
 
-async def _mk_detections(db_session, camera, count: int = 2) -> list[int]:
+# Spacing between synthetic detections in _mk_detections, in seconds. Chosen
+# so the key-frame tests land on OPPOSITE sides of
+# settings.key_frame_spread_seconds (default 10): the coalescing pair is
+# count=2 at SPACING_S (=6 s, UNDER the threshold, so it coalesces to one
+# frame), and every spanning case uses 2*SPACING_S (=12 s, OVER it, so ISS-005
+# grants companion stills) whether by three rows a spacing apart or two rows
+# two spacings apart. 6 and 12 straddle the default 10 with room on both sides,
+# and the integer thresholds that keep ALL the key-frame tests green are exactly
+# 6..11 (the config field is an int, gt=0, so that band is closed). Move it OUT
+# of the band and the time-based canary below reddens ALONGSIDE one pair test,
+# and WHICH pair test joins the canary names the broken side: under 6 the
+# coalescing pair itself starts spanning (2 frames, not 1); at 12 or over the
+# dwelling pair stops spanning. Pinning both sides is the point.
+# `_mk_detections` takes `spacing_s` so one test can
+# hold BOTH sides in a single batch — see
+# test_the_spread_gate_is_time_based_not_file_based.
+SPACING_S = 6
+
+
+async def _mk_detections(
+    db_session,
+    camera,
+    count: int = 2,
+    *,
+    object_type: str = "person",
+    spacing_s: int = SPACING_S,
+) -> list[int]:
     """Synthetic detection rows (fake paths, no file IO anywhere on this
-    tier - the fake client never reads them)."""
+    tier - the fake client never reads them).
+
+    `object_type` and `spacing_s` exist so one test can build TWO pairs in the
+    same batch: the selector keys pairs on `(camera_id, object_type)`, so a
+    second class is a second independent pair, and `spacing_s` decides whether
+    THAT pair spans the threshold. Both are keyword-only and defaulted, so the
+    two original callers see identical data.
+
+    Rows land `spacing_s` apart (default `SPACING_S`, deliberately INSIDE
+    `settings.key_frame_spread_seconds`, default 10, ISS-005). The key-frame
+    assertion in TestScoredEventOnLiveSchema is a coalescing claim, and the
+    span is what decides it: a (camera, class) pair whose members are more
+    than the threshold apart is a DWELLING pair, and ISS-005 lets it spend a
+    spare slot on its temporally farthest distinct still - so 2 members on
+    distinct files yield 2 key frames by design. The original fixture spaced
+    rows a MINUTE apart (60 s >> 10 s), which is exactly the spanning case,
+    while asserting the non-spanning outcome; that is why the nightly turned
+    red here and why the fix is the fixture's clocks, not the `== 1`. Keep
+    `SPACING_S * (count - 1)` under the threshold, or the pair spans and the
+    count legitimately rises - see
+    TestScoredEventOnLiveSchema.test_a_dwelling_pair_widens_the_key_frames_on_the_live_pipe
+    below, which pins the spanning side on purpose."""
     ids: list[int] = []
     for i in range(count):
         det = Detection(
             camera_id=camera.id,
             file_path=f"/export/foscam/vlm/det_{uuid.uuid4().hex[:6]}.jpg",
-            object_type="person",
+            object_type=object_type,
             confidence=0.91,
-            detected_at=datetime(2026, 9, 25, 10, i, tzinfo=UTC),
+            detected_at=datetime(2026, 9, 25, 10, 0, i * spacing_s, tzinfo=UTC),
         )
         db_session.add(det)
         await db_session.flush()
@@ -169,6 +216,142 @@ class TestScoredEventOnLiveSchema:
         # llm_prompt references images BY PATH (D10) - never base64
         assert "/export/foscam/vlm/det_" in event.llm_prompt
         assert "data:image" not in event.llm_prompt
+
+    async def test_a_dwelling_pair_widens_the_key_frames_on_the_live_pipe(
+        self, db_session, camera, real_redis
+    ):
+        """The OTHER side of the spread threshold, on the real schema. The
+        coalescing test above proves a pair INSIDE `key_frame_spread_seconds`
+        collapses to one frame; this proves a DWELLING pair (3 rows, 2 x
+        SPACING_S = 12 s apart > the 10 s default) is granted ISS-005's spare
+        slots — the same analyzer call, the same table, only the clocks
+        differ. Without this half, a future "fix" that disabled spread
+        entirely would leave the coalescing test green and silently drop the
+        dwelling behaviour the spec §2 asks for.
+
+        The count is the SELECTOR's, capped at MAX_KEY_FRAMES=4; 3 distinct
+        files across one dwelling pair all fit, so the expectation is 3 (not
+        ">= 2", which would also pass a broken selector that picks 2)."""
+        from backend.core.config import get_settings
+        from backend.services.event_broadcaster import reset_broadcaster_state
+
+        settings = get_settings()
+        # Precondition the whole point rests on: the pair spans the threshold.
+        assert settings.key_frame_spread_seconds < 2 * SPACING_S, (
+            f"fixture no longer spans: 2*{SPACING_S} s vs threshold "
+            f"{settings.key_frame_spread_seconds} s — move SPACING_S or skip "
+            "this assertion, but do NOT leave a vacuous dwelling case"
+        )
+
+        det_ids = await _mk_detections(db_session, camera, count=3)
+        reset_broadcaster_state()
+        analyzer = VlmAnalyzer(
+            vlm_client=FakeClient(verdict=make_verdict()), redis_client=real_redis
+        )
+        event = await analyzer.analyze_batch(
+            f"batch-{uuid.uuid4().hex[:8]}", camera_id=camera.id, detection_ids=det_ids
+        )
+        reset_broadcaster_state()
+        stored = await db_session.scalar(
+            select(EventVerification).where(EventVerification.event_id == event.id)
+        )
+        assert stored is not None
+        assert set(stored.key_frame_detection_ids) <= set(det_ids)
+        assert len(stored.key_frame_detection_ids) == 3, (
+            f"a dwelling pair should widen to its distinct stills, got "
+            f"{stored.key_frame_detection_ids}"
+        )
+
+    async def test_the_spread_gate_is_time_based_not_file_based(
+        self, db_session, camera, real_redis
+    ):
+        """Which half of the eligibility gate actually fires, on the live pipe.
+
+        The gate is one OR'd condition
+        (`len(distinct_files) < 2 or span <= spread_seconds`), and the test
+        above cannot tell the two halves apart: its pair has BOTH distinct
+        files and a spanning clock, so it is eligible either way and its count
+        is identical under a mutant that deletes either clause. This batch
+        separates them by putting TWO pairs in one batch — pairs key on
+        `(camera_id, object_type)`, so a second class is a second independent
+        pair:
+
+        * `person`, 2 rows `2 x SPACING_S` apart -> spans (12 s > 10) -> ISS-005
+          grants its second still;
+        * `car`, 2 rows `SPACING_S` apart -> does NOT span (6 s <= 10), but has
+          two distinct files just like the person pair.
+
+        Correct code: person rep + car rep + the person pair's companion =
+        **3**, and the car pair gets nothing, because its clock does not span.
+        Delete the span clause and the car pair is eligible on file diversity
+        ALONE, so it takes a companion too: **4**. The totals differ only if
+        the time comparison is what gated the grant, which is the whole claim.
+        3 vs 4 also stays inside MAX_KEY_FRAMES=4, so the cap cannot mask it.
+
+        Both pairs are `count=2`. That is load-bearing: with the person pair at
+        `count=3` (the shape this test first shipped) both pairs exhaust their
+        slots either way and the total is 4 under the correct code AND under
+        the mutant — only the IDENTITY of the 4th pick differs. Measured on the
+        real selector: 3-row person pair -> `n=4` correct vs `n=4` mutant;
+        2-row person pair -> `n=3` vs `n=4`. The count is asserted anyway, and
+        the per-pair identity below is asserted too, so a mutant that only
+        swaps WHICH still fills the last slot is caught even where a count
+        would not be.
+
+        The other clause is NOT claimed covered. Removing `len(distinct_files)
+        < 2` instead leaves every test in this file green (measured: 6 passed)
+        because `_spread_companions` already refuses a candidate whose file is
+        in `shown` — that clause is unreachable through this output, at any
+        shape. So the time half is the only half the integration tier can see,
+        and it is the half §2's dwelling rule is about."""
+        from backend.core.config import get_settings
+        from backend.services.event_broadcaster import reset_broadcaster_state
+
+        settings = get_settings()
+        thr = settings.key_frame_spread_seconds
+        # Both halves of the design, preconditioned: one pair spans, one does
+        # not, and the in-span pair is not accidentally the one with fewer
+        # files (if it were, a file-only gate would look identical to a
+        # time-only gate and the test would prove nothing).
+        assert thr < 2 * SPACING_S, f"person pair must span: {2 * SPACING_S} s vs {thr} s"
+        assert thr >= SPACING_S, f"car pair must NOT span: {SPACING_S} s vs {thr} s"
+
+        person_ids = await _mk_detections(
+            db_session, camera, count=2, object_type="person", spacing_s=2 * SPACING_S
+        )
+        car_ids = await _mk_detections(db_session, camera, count=2, object_type="car")
+        det_ids = [*person_ids, *car_ids]
+        reset_broadcaster_state()
+        analyzer = VlmAnalyzer(
+            vlm_client=FakeClient(verdict=make_verdict()), redis_client=real_redis
+        )
+        event = await analyzer.analyze_batch(
+            f"batch-{uuid.uuid4().hex[:8]}", camera_id=camera.id, detection_ids=det_ids
+        )
+        reset_broadcaster_state()
+        stored = await db_session.scalar(
+            select(EventVerification).where(EventVerification.event_id == event.id)
+        )
+        assert stored is not None
+        picks = set(stored.key_frame_detection_ids)
+        assert picks <= set(det_ids)
+        assert len(picks) == 3, (
+            f"expected 2 reps + 1 spanning-pair companion = 3, got {len(picks)}: "
+            f"{sorted(picks)} — 4 means the in-span car pair spread too, i.e. the "
+            "eligibility gate stopped comparing clocks"
+        )
+        # The grant went to the DWELLING pair, not to whichever pair came
+        # second: pinning the companion's identity is what stops a selector
+        # that fills slots by arrival order from passing on count alone.
+        # car_ids[1] is the pair's REPRESENTATIVE: equal confidence, so
+        # _rank_key breaks the tie on recency and the later row wins. Referring
+        # to it positionally rather than by max(id) keeps the assertion honest
+        # if detection ids ever stop being issued in insert order.
+        assert picks == set(person_ids) | {car_ids[1]}, (
+            f"expected both dwelling-pair stills plus the car representative "
+            f"{car_ids[1]}, got {sorted(picks)} — car_ids[0] in the picks means "
+            "the in-span pair spread on file diversity instead of on time"
+        )
 
     async def test_rest_renders_the_analyzer_event(self, client, db_session, camera, real_redis):
         """The composition the UI consumes on a REAL analyzer-written row:
