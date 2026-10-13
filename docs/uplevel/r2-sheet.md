@@ -156,7 +156,10 @@ recommendation is the drafting agent's; the ruling is the owner's.
 
 ## 1. Features to rule
 
-132 of the inventory's 172 **half-built** and **leftover** rows, in 46 rows by cause. Core-loop
+132 of the inventory's 172 **half-built** and **leftover** rows, in 46 rows by cause — those two "
+figures are the 2026-10-12 read and they bind **two different trees** (`172` the inventory at
+`31eab5e46`, `132` this sheet at `9a66cfffc`), neither of them this one; the re-tie at this
+paragraph's end is the current read, and it is the one to rule from. Core-loop
 rows first. Re-measured 2026-10-12, each figure bound to the artifact it derives from: **172** live
 binds the inventory (byte-identical since `31eab5e46`, which the fold commits do not touch); **132**
 enumerated here and **40** not bind **this sheet** at `9a66cfffc` — the F-270/F-271 fold commit; at

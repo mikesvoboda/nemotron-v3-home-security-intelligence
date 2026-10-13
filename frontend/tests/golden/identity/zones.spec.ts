@@ -370,9 +370,9 @@ test.describe('DO-3 zones golden path', () => {
     // WATCHED WINDOW, measured. `timeout: 15_000` is what this leg was ASKED to
     // watch, not what it got: the test body can die first (its own budget expires,
     // the page closes) and the leg dies with it mid-flight. Measured in run
-    // hsi-check-20261013010810-48eedc's trace (test.trace/1-trace.trace; the clock
-    // field is `startTime`/`endTime`, and this run's own numbers are there to be
-    // re-grepped): the leg armed at startTime 435432.780, 3354.7 ms after the
+    // hsi-check-20261013010810-48eedc's trace.zip, which unpacks to sibling files
+    // test.trace (test-level log; holds every anchor below) and 1-trace.trace (page
+    // log): the leg armed at startTime 435432.780, 3354.7 ms after the
     // test's first trace entry (Before Hooks, 432078.074 -- the clock the 15 s
     // budget runs on: After Hooks opens at 447178.405, start + 15.1 s, and the
     // error record says "Test timeout of 15000ms exceeded"); the body died there,
