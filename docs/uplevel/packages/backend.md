@@ -320,3 +320,14 @@ on the CI compose before their save leg can go green; until then they flip on th
       entry.
 
 **Done when:** `GET /api/events` returns a saved note, and F-057's read-back golden leg passes.
+
+### [r160b] Deferred Python major: huggingface-hub 2
+
+**Flags:** none. **Assigned:** backend. **Depends on:** Phase 2's exit. **PR:** none yet. (ruling
+160; dependabot #7062, closed with `@dependabot ignore this major version`)
+
+- [ ] Bump `huggingface-hub` to 2.x in its own PR, lifting the ignore
+      (`@dependabot unignore huggingface-hub`).
+
+**Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
+head.
