@@ -122,8 +122,9 @@ function jarVisible(page: import('@playwright/test').Page, widgetId: string) {
  * The re-drive is load-bearing, not padding. Run 38168556142 measured this
  * leg FLAKY (attempt 1 and retry #1 both red; junit's "passed" is retry #2),
  * and both signatures point at one shipped race, not at the instrument:
- * DashboardConfigModal.tsx:109-113 re-seeds its unsaved in-editor draft from
- * the `config` prop on ANY change to that prop's identity, and DashboardLayout
+ * DashboardConfigModal.tsx:109-113 (pre-fix numbering — #7086 replaced that reset
+ * with a closed→open-edge seed at :108-123) re-seeded its unsaved in-editor draft
+ * from the `config` prop on ANY change to that prop's identity, and DashboardLayout
  * .tsx:268 builds that prop as a fresh object literal on every render
  * (`const config: DashboardConfig = { widgets, version }`, handed down :377)
  * while the dashboard re-renders continuously. A background re-render landing
@@ -187,8 +188,8 @@ async function enableWidget(page: import('@playwright/test').Page, widgetId: str
     if (attempt === 3) {
       throw new Error(
         `Save reported success but the jar never carried ${widgetId} visible:true across 3 ` +
-          'drives — the modal draft-lossy path (DashboardConfigModal.tsx:109-113 with ' +
-          'DashboardLayout.tsx:268) discarded the edit. This is a product hazard, not an ' +
+          'drives — the modal draft-lossy path (pre-fix DashboardConfigModal.tsx:109-113 ' +
+          'with DashboardLayout.tsx:268) discarded the edit. This is a product hazard, not an ' +
           'instrument failure.'
       );
     }

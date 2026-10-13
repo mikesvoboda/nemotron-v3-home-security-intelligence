@@ -1,7 +1,7 @@
 import { Switch } from '@headlessui/react';
 import { clsx } from 'clsx';
 import { ArrowDown, ArrowUp, RefreshCw, Settings2, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   useDashboardConfigStore,
@@ -105,11 +105,21 @@ export default function DashboardConfigModal({
   // Local state for editing (allows cancel without saving)
   const [editConfig, setEditConfig] = useState<DashboardConfig>(config);
 
-  // Reset edit state when modal opens
+  // Seed the edit state on the closed→open EDGE, not on every `config` identity
+  // change. `config` arrives as a fresh object literal on every parent render
+  // (DashboardLayout.tsx:268 builds it as `{ widgets, version }` inline) and the
+  // dashboard repaints on each WebSocket frame, so keying this reset on identity
+  // silently discarded the user's UNSAVED toggles and reorders mid-edit. Golden run
+  // 38450973581 is that reset: two toggles and six move-up clicks erased between the
+  // last click and the assert, three attempts, three different wrong rows.
+  // `config` stays in the deps so the seed reads current values at open time; the ref
+  // is what confines the write to the transition.
+  const wasOpen = useRef(isOpen);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpen.current) {
       setEditConfig(config);
     }
+    wasOpen.current = isOpen;
   }, [isOpen, config]);
 
   // Handle visibility toggle
