@@ -3,10 +3,16 @@
 
     uv run python scripts/check-inventory-summary-arith.py [PATH] [--json]
 
-by path, as CI calls it. `-m scripts.check-inventory-summary-arith` happens to
-work from the repo root — `scripts/` has no `__init__.py`, so it resolves as a
-namespace package — and fails from any other cwd with ModuleNotFoundError, so the
-by-path form is the one worth printing here.
+Call it by path, the way its only automated caller does:
+`scripts/test_check_inventory_summary_arith.py:88` runs
+`sys.executable <this file> <doc> --json`, and CI runs that test
+(`.github/workflows/ci.yml:272`). No CI step names this file itself — a `scripts/`
+path written in that step trips the entries pin (`ci.yml:250-253`), which is why the
+`entry_points.toml` line this branch first added was then removed.
+
+`-m scripts.check-inventory-summary-arith` is not the form to advertise: it happens
+to work from the repo root (no `scripts/__init__.py`, so it resolves as a namespace
+package) and fails from any other cwd with ModuleNotFoundError.
 
 Section 2 publishes, per `### 3.x` section, a row count and a per-status count, plus
 an `all` row. Until this checker existed NOTHING compared those numbers to the rows
