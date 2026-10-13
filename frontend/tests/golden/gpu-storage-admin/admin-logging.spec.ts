@@ -1,6 +1,6 @@
 /**
  * F-195 (inventory 3.9): Admin › Logging settings — a scoped partial of the
- * row, with its retention-save leg cited for demotion.
+ * row, now covering ALL THREE of its clauses.
  *
  * LoggingSettings is the only AdminSettings section whose reads work on the
  * CI stack: its legs are GET /api/debug/config, the log-level GET/POST pair,
@@ -11,19 +11,23 @@
  * is process-global root-logger state, so a green run must leave it exactly
  * where it found it, and it asserts the BACKEND agrees, not just the label.
  *
- * The row's last clause — "edits log retention days and saves" — cannot pass
- * on the CI compose: the save PUTs PATCH /api/system/config
- * (LoggingSettings.tsx:164 → services/api.ts:2102), and the backend cannot
- * persist any config write there — backend has read_only: true
- * (docker-compose.ci.yml:103) and the route writes ./data/runtime.env,
- * measured answering 500 "[Errno 30] Read-only file system: 'runtime.env'"
- * (backend/api/routes/system.py patch_config :2590; F-190/F-191's PATCH
- * /api/v1/settings dies the same way via settings_api.py:159). The spec ends
- * on that edge deliberately: it EDITS the retention slider (so the Save
- * button enables — proof the edit path works) and asserts the save FAILS with
- * the product's own toast, pinning the break instead of skipping it. When the
- * persistence class is fixed the toast flips to "Log retention updated" and
- * this assertion fails loudly, pointing right here.
+ * The third clause — "edits log retention days and saves" — used to be pinned
+ * as a break here, because the save's PATCH /api/system/config
+ * (LoggingSettings.tsx:164 → services/api.ts:2102) writes the runtime-override
+ * env file and the backend could not write ANY file under read_only: true:
+ * the route's default ./data/runtime.env answered 500
+ * "[Errno 30] Read-only file system" (backend/api/routes/system.py
+ * _runtime_env_path/_write_runtime_env). Ruling 127 routed that to F2.3 as
+ * "`HSI_RUNTIME_ENV_PATH` (ops-b owns it)", and this batch ships it:
+ * docker-compose.ci.yml's backend now sets HSI_RUNTIME_ENV_PATH=/tmp/runtime.env
+ * onto a /tmp that was already a tmpfs there. So the clause is no longer
+ * pinned-red — it is executed: the save must answer with the product's OWN
+ * success toast, and the spec then re-reads GET /api/system/config and
+ * asserts the BACKEND holds the new value, which is the part a toast cannot
+ * show (a toast proves the fetch resolved; only the read proves the file
+ * landed and the settings cache was cleared). Both saves restore through the
+ * same control, because unlike the log level this one persists for the
+ * container's life: a green run must leave the retention it found.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../operations/harness';
@@ -36,14 +40,18 @@ interface LogLevelBody {
   current_level?: string;
 }
 
+interface SystemConfigBody {
+  log_retention_days?: number;
+}
+
 function levelOf(body: LogLevelBody): string {
   return String(body.level ?? body.current_level ?? '');
 }
 
-test.describe('golden path: admin logging level control and retention-save break @critical', () => {
+test.describe('golden path: admin logging level control and retention save @critical', () => {
   test.setTimeout(90_000);
 
-  test('the level buttons change and restore the root logger, and the retention save pins the read-only-fs break', async ({
+  test('the level buttons change and restore the root logger, and the retention save round-trips to the backend', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -77,19 +85,50 @@ test.describe('golden path: admin logging level control and retention-save break
       timeout: 10_000,
     });
 
-    // Row clause "edits log retention days and saves" — the pinned break.
+    // Row clause "edits log retention days and saves" — executed, not pinned.
+    // Read the value the panel loaded first: the restore and the backend
+    // witness both key off it, and the row's Done-when is the round trip.
     const retention = page.getByTestId('log-retention-settings');
     await expect(retention).toBeVisible();
     const slider = retention.getByLabel('Log retention period in days');
+    const found = Number(await slider.inputValue());
+    expect(found).toBeGreaterThanOrEqual(1); // slider min=1, max=90
     await slider.focus();
     await page.keyboard.press('ArrowRight'); // native range input: +1 step (1 day)
+    const saved = found + 1;
     await expect(retention.getByTestId('retention-save-button')).toBeEnabled();
     await retention.getByTestId('retention-save-button').click();
 
-    const toast = page.locator('[data-sonner-toast]').filter({
-      hasText: 'Failed to update log retention',
+    // The save must answer with the product's OWN success string — the exact
+    // toast this spec used to assert the opposite of. Matching on the success
+    // text rather than "no error toast" is what makes the leg non-vacuous:
+    // LoggingSettings.tsx:166 fires it only after updateConfig resolves.
+    const ok = page.locator('[data-sonner-toast]').filter({
+      hasText: 'Log retention updated',
     });
-    await expect(toast).toBeVisible({ timeout: 15_000 });
+    await expect(ok).toBeVisible({ timeout: 15_000 });
+
+    // The half the toast cannot show: the backend itself must hold the value.
+    // patch_config clears the settings cache after writing the runtime env
+    // (system.py), so a value that only reached the browser fails here.
+    const cfg = await api<SystemConfigBody>(h, session, '/api/system/config');
+    expect(cfg.log_retention_days).toBe(saved);
+
+    // Restore through the same control: this save PERSISTS for the container's
+    // life (unlike the log level), so leaving it changed would hand the next
+    // spec a different retention. Same witness, same path.
+    await slider.focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(retention.getByTestId('retention-save-button')).toBeEnabled();
+    await retention.getByTestId('retention-save-button').click();
+    // No toast assertion here: a success toast from save #1 may still be on
+    // screen (sonner's own auto-dismiss decides when), so "a success toast is
+    // visible" would pass even if this save failed and "two toasts" would
+    // race that dismiss timer. The restore's witness is the backend read:
+    // patch_config clears the settings cache, so a value that did not reach
+    // the runtime env would still answer the OLD number here.
+    const back = await api<SystemConfigBody>(h, session, '/api/system/config');
+    expect(back.log_retention_days).toBe(found);
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });

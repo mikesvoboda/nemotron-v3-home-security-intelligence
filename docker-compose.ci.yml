@@ -137,6 +137,21 @@ services:
       - ENVIRONMENT=development
       # Disable file watcher in CI (no camera folders)
       - FILE_WATCHER_ENABLED=false
+      # Ruling 127 routed F-195's retention save (and F-190/F-191's Save) to F2.3
+      # with "`HSI_RUNTIME_ENV_PATH` (ops-b owns it)". Both runtime-env writers
+      # read this var — system.py `_runtime_env_path` and settings_api.py
+      # `_get_runtime_env_path` — and both default to ./data/runtime.env, which
+      # cannot be written under read_only: true above (measured in this image
+      # under these same flags: "cannot create data/runtime.env: Read-only file
+      # system", the [Errno 30] the three rows cite). /tmp is already a tmpfs
+      # (line ~105) and system.py's traversal guard lists
+      # tempfile.gettempdir() among its allowed bases, so this needs no new
+      # mount and shadows no baked content: the backend image ships neither
+      # /app/data/runtime.env nor /app/.env (measured). Writing here persists
+      # for the container's life, which is the semantics F2.3 needs; the golden
+      # spec restores through the UI path so no later spec inherits a changed
+      # value. Prod is untouched — it bind-mounts ./backend/data:/app/data.
+      - HSI_RUNTIME_ENV_PATH=/tmp/runtime.env
     depends_on:
       postgres:
         condition: service_healthy
