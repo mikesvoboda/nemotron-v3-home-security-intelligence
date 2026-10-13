@@ -225,7 +225,9 @@ those floors, so review such hunks by hand.
 
 **Jobs:**
 
-1. **Security Audit** (ubuntu) - pip-audit, npm audit, Bandit
+1. **Security Audit** (ubuntu) - Bandit full scan (OB.2: dep audits left — see
+   `dependency-audit.yml`, whose npm leg is the exemption-registry checker, not
+   a bare `npm audit`)
 
 ### Additional Workflows
 
