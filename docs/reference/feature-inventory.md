@@ -678,7 +678,7 @@ candidates; the table below is the measured list.
 
 Measured at tool-inputs `33b93b9e1b` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
 
-**157 non-shipping Python modules (60798 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
+**157 non-shipping Python modules (61109 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
 
 <!-- prettier-ignore -->
 | module | lane | lines | last meaningful commit | notes |
@@ -699,7 +699,7 @@ Measured at tool-inputs `33b93b9e1b` by `scripts/r2-python-dead-list.py` — the
 | `ai/gateway/export/export_depth.py` | ai | 302 | `8395fb640` 2026-02-11 | non-shipping |
 | `ai/gateway/export/export_fashion_clip.py` | ai | 746 | - | non-shipping |
 | `ai/gateway/export/export_pet.py` | ai | 257 | - | non-shipping |
-| `ai/gateway/export/export_reid.py` | ai | 700 | `a56c1cef4` 2026-10-10 | non-shipping |
+| `ai/gateway/export/export_reid.py` | ai | 1011 | `5ec815959` 2026-10-12 | non-shipping |
 | `ai/gateway/export/export_stgcn.py` | ai | 281 | `610882b47` 2026-09-22 | non-shipping |
 | `ai/gateway/export/export_vehicle.py` | ai | 276 | - | non-shipping |
 | `ai/gateway/export/export_yolo26.py` | ai | 551 | `54e927366` 2026-09-28 | non-shipping |

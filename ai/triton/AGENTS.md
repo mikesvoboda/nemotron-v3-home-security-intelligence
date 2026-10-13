@@ -183,14 +183,18 @@ gateway-consolidation follow-up:
 | demographics_age    | onnxruntime | 8               |
 | demographics_gender | onnxruntime | 8               |
 | pet                 | onnxruntime | 8               |
-| reid                | onnxruntime | 16              |
+| reid                | tensorrt    | 16              |
 | depth               | onnxruntime | 0 (static 1)    |
 | pose                | onnxruntime | 0 (static 1)    |
 | threat              | onnxruntime | 0 (static 1)    |
 | florence2           | python      | 0               |
 | stgcn_action        | onnxruntime | 0 (config only) |
 
-`florence2` is the only Triton Python-backend model left; `xclip_action`
+`reid` is the only `tensorrt`-backend config: since O2.4 (owner ruling 107) it
+serves `1/model.plan`, compiled ON the serving GPU by `export_reid.py
+--output-path .../reid/1/model.plan`, because ONNX Runtime's CUDA execution
+provider fails on the GB300 (ruling 106). Without that plan `reid` does not
+load. `florence2` is the only Triton Python-backend model left; `xclip_action`
 (python, zero-shot video action recognition) was superseded by the
 skeleton-based `stgcn_action` pipeline — itself retired in the shipped vlm set
 (`ai/gateway/tests/test_residency.py`), with no exported weights by default,

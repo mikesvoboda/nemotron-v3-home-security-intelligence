@@ -75,3 +75,94 @@ export to pass.
 - The `--workspace-gb` default of 1 GB is tuned for the 4 GB RTX A400 on GPU 1.
 - CLIP uses `transformers.CLIPModel`; FashionSigLIP uses `open_clip.create_model_from_pretrained`.
 - FashionSigLIP local paths resolve to `hf-hub:Marqo/marqo-fashionSigLIP` (meta-tensor workaround).
+
+## Person Re-ID: a two-step ONNX, then a per-GPU plan (O2.4)
+
+`export_reid.py` is the one script here whose output is not decided by a flag in
+one run — the gateway's `reid` model serves a TensorRT **plan** now (owner
+ruling 107), and an engine is only valid on the GPU architecture that built it.
+So the export splits the way `export_all.sh`'s phases already imply:
+
+| Step                                  | Where it runs            | What it does                                                                                                     | Guard                                                                      |
+| ------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `--output-path .../reid/1/model.onnx` | any host (CPU fine)      | exports OSNet-AIN x1.0 from the `.pth`, validates the ONNX against PyTorch, then writes `provenance.json` (B2.2) | provenance only after a validated export                                   |
+| `--output-path .../reid/1/model.plan` | **only the serving GPU** | compiles that `model.onnx` with `trtexec` (fp16, batch profiles 1/8/16)                                          | refuses without a provenance record whose `source_sha256` is these weights |
+
+The plan step is a **compile, not a re-export**: it reads the sibling
+`model.onnx` and never loads a checkpoint, exports, or runs inference. That is
+why the numeric proof sits where it always has:
+
+- **the graph** is proved by `validate_onnx` in the ONNX step — PyTorch against
+  ONNX Runtime's **CPU** execution provider, cosine > 0.999, no GPU needed;
+- **the plan** is proved by the owner's host run, `scripts/reid_parity_check.py`
+  on the GB300 (ruling 107's _Done when_). Nothing in this directory
+  re-validates an engine, because nothing here has a GPU to run one on; the plan
+  is a deterministic compile of an already-vouched graph.
+- **`provenance.json` is never rewritten by the plan step.** It stays where the
+  ONNX step wrote it, because that is the record `reid_model_id()` reports in the
+  running gateway, and the two must stay the same bytes.
+
+The refusal is deliberate: `export_all.sh` skips an existing `model.onnx`, so a
+stale pre-B2.2 ONNX (no record beside it) would otherwise seed a plan, and the
+gateway would report a model ID its weights never earned — #6970 states that
+precondition as a note; here it is a stop.
+
+**The plan is required, not optional.** `ai/triton/model_repository/reid/config.pbtxt`
+declares `backend: "tensorrt"`, so `reid` does not load without a
+`model.plan`. `export_all.sh` handles the two failure shapes differently and
+says which one it hit:
+
+- **no `trtexec` on this host** (the CPU bake, and CI): the step is skipped and
+  prints a warning naming `reid/config.pbtxt serves backend "tensorrt"` and
+  that without a plan built ON the serving GPU, reid will not load. The bake
+  still produces every ONNX, which is what those runs are for — and its summary
+  says `the GPU step is pending, not passed` rather than
+  `All exports succeeded`, because a skipped GPU step is not a passed one.
+- **`trtexec` present and the compile fails**: counted as a failed export — the
+  bake reports it and exits non-zero. A refusal from the provenance guard is the
+  loud case it exists to make loud.
+
+Two more things the bake does, both because an engine is GPU-specific:
+
+- **It records what the plan was built against** (`model.plan.device`, beside the
+  plan: GPU name on line 1, precision on line 2). A cache copied from a different
+  card — or compiled at a different precision — still has a `.plan`, and Triton
+  cannot load the first; the bake calls both `STALE … rebuilding` instead of
+  `CACHED`. A plan with NO sidecar is unverifiable, so it is rebuilt when a
+  builder exists and kept (never silently deleted) when one does not — and a host
+  whose `nvidia-smi` probe FAILS is told so (`this host is 'GPU PROBE FAILED'`)
+  rather than having its empty probe answer compare equal to a missing record.
+  Either way the verdict then reads `the GPU step is unverified, not passed` —
+  never `All exports succeeded`.
+- **The sidecar is written by the bake, not by `export_reid.py`.** Baking a plan
+  by hand with the CLI (below) leaves none, so the next bake cannot vouch for it —
+  it will rebuild where a builder exists, and keep it unverified where one does
+  not. Prefer running `export_all.sh` on the serving GPU.
+- **`REID_PLAN_PRECISION`** selects the compile precision (`fp16` default — the
+  idiom ruling 107 names, though no shipped engine in this repo is a trtexec
+  fp16 plan yet; see the reid config.pbtxt note). If the owner's parity run
+  lands just under the 0.999 gate, `REID_PLAN_PRECISION=fp32` is the one-flag
+  retry — the gate was proven against an FP32 path. The precision rides in the
+  sidecar, so a retry on the SAME card actually rebuilds instead of printing
+  `CACHED` and keeping the fp16 plan.
+
+One limit of the guard, stated so nobody assumes more than it does: the record
+proves the ONNX was exported from THESE weights, and `validate_onnx` proves that
+ONNX matches the PyTorch model — but `--skip-validation` still writes a record,
+so a record is not proof that validation ran. The plan step cannot see past the
+record it is given.
+
+Re-derive a plan after moving to different GPU hardware, or after anything
+touches the ONNX (the `.device` sidecar makes this automatic on a new card):
+
+```bash
+rm -f "${CACHE_DIR}/reid/1/model.plan"
+# re-export the ONNX too if the checkpoint changed — the plan refuses an ONNX
+# whose provenance record does not match the checkpoint you pass
+python3 export_reid.py \
+    --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
+    --output-path "${CACHE_DIR}/reid/1/model.onnx"
+python3 export_reid.py \
+    --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
+    --output-path "${CACHE_DIR}/reid/1/model.plan"
+```

@@ -1,4 +1,15 @@
-# Person Re-Identification - ONNX Runtime on GPU (OSNet-AIN x1.0)
+# Person Re-Identification - TensorRT on GPU (OSNet-AIN x1.0)
+# O2.4 (owner ruling 107): served through TensorRT, "a plan built for the serving
+#   GPU as yolo26's is" — the ONNX Runtime CUDA execution provider fails on the
+#   GB300 (ruling 106: cudaErrorSymbolNotFound on Blackwell/aarch64, 26.01-py3).
+#   1/model.plan is compiled on the serving host by
+#   ai/gateway/export/export_reid.py --output-path .../model.plan (trtexec), and
+#   entrypoint.sh §0c links it in from /models/cache like every exported model.
+#   "as yolo26's is" is the ruling's INTENT, not a build to copy: yolo26 still
+#   runs backend "onnxruntime" (yolo26/config.pbtxt:14) and its .engine is
+#   produced by Ultralytics and placed by copy_yolo26_engine.py — never by
+#   trtexec. This config is the first dynamic-shape trtexec plan in the repo, so
+#   there is no existing engine in the tree to diff a build against.
 # Upgraded from OSNet-x0.25 to OSNet-AIN x1.0 for 4x better accuracy (NEM-5562)
 # NEM-5551: Promoted from CPU to GPU (~2x speedup, ~9MB on GPU)
 # Input: preprocessed person crop (B, 3, 256, 128) FP32
@@ -6,9 +17,11 @@
 # Source: ai/enrichment-light/models/person_reid.py
 #   OSNET_INPUT_HEIGHT=256, OSNET_INPUT_WIDTH=128, EMBEDDING_DIMENSION=512
 # Weights: MSMT17 domain-generalization trained (Rank-1: 73.3%)
+# Provenance (B2.2): 1/provenance.json is written beside the ONNX the plan is
+#   compiled from and travels with the version dir; the plan never rewrites it.
 
 name: "reid"
-backend: "onnxruntime"
+backend: "tensorrt"
 max_batch_size: 16
 
 input [
@@ -46,7 +59,9 @@ dynamic_batching {
   max_queue_delay_microseconds: 100000
 }
 
-# OSNet-AIN x1.0 person re-identification model (~9MB ONNX, GPU-accelerated)
+# OSNet-AIN x1.0 person re-identification model (~9MB ONNX -> FP16 plan, GPU)
 # AIN = Attention-based Instance Normalization for better cross-domain generalization
 # Same input/output dims as OSNet-x0.25: drop-in replacement
 # Preprocessing: Resize(256,128), ToTensor, Normalize(ImageNet)
+# The plan carries batch profiles 1/8/16 (the builder's --min/opt/maxShapes), so
+# the dynamic_batching preferred sizes above are satisfiable inside the engine.
