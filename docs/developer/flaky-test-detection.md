@@ -31,7 +31,8 @@ Flaky tests are tests that exhibit non-deterministic behavior - sometimes passin
    - Runs nightly at 2 AM UTC
    - Executes test suite 5 times to detect inconsistent behavior
    - Analyzes pass rates and timing variance
-   - Creates GitHub issues for newly detected flaky tests
+   - Publishes the flaky list to the run summary; the coordinator routes it (UR-116). It no
+     longer opens a GitHub issue — see "Where the list goes" below.
 
 4. **Analysis Script**
    - Location: `scripts/analyze-flaky-tests.py`
@@ -123,11 +124,16 @@ graph TD
     C --> E[Upload Results + Tracking Data]
     D --> E
     E --> F[Analyze All Results]
-    F --> G{Flaky Tests Found?}
-    G -->|Yes| H[Create/Update GitHub Issue]
-    G -->|No| I[Success - No Flaky Tests]
-    H --> J[Generate Report with Recommendations]
+    F --> J[Write Run Summary + JSON Report]
+    J --> K{Flaky Tests Found?}
+    K -->|Yes| L[Warn in the log - job stays green]
+    K -->|No| M[Success - No Flaky Tests]
+    L --> N[Coordinator routes the list UR-116]
 ```
+
+`[r149f]`: the leaf that used to read "Create/Update GitHub Issue" is gone. A scheduled
+workflow that files tickets competes with the coordinator over one list, so the analysis now
+only publishes; every path ends green unless the analysis itself fails.
 
 ### CI Integration Flow
 
@@ -183,10 +189,10 @@ Each flaky test detection run creates a job summary:
 
 Detected **3** flaky test(s)
 
-| Status      | Test                       | Pass Rate | Flakiness | Runs |
-| ----------- | -------------------------- | --------- | --------- | ---- |
-| **NEW**     | `test_database_connection` | 60%       | 0.45      | 5    |
-| Quarantined | `test_websocket_broadcast` | 80%       | 0.25      | 5    |
+| Status      | Test                       | Pass / Fail | Pass Rate | Flakiness | Runs |
+| ----------- | -------------------------- | ----------- | --------- | --------- | ---- |
+| **NEW**     | `test_database_connection` | 3 / 2       | 60%       | 0.45      | 5    |
+| Quarantined | `test_websocket_broadcast` | 4 / 1       | 80%       | 0.25      | 5    |
 ```
 
 ### JSON Report
@@ -226,19 +232,22 @@ backend/tests/unit/test_cache.py::test_concurrent_updates
   Mean: 0.456s, StdDev: 0.298s, CV: 65.35%, Runs: 5
 ```
 
-## GitHub Issue Creation
+## Where the list goes
 
-When new flaky tests are detected, the workflow automatically:
+Since `[r149f]` this workflow no longer opens or updates a GitHub issue. UR-116 assigns flaky
+routing to the coordinator, and a cron job filing tickets competes with it over the same list.
+The analysis now only publishes:
 
-1. Searches for existing "Flaky Test Detection" issues
-2. Creates a new issue or updates the existing one
-3. Includes:
-   - Summary of detected flaky tests
-   - Pass rates and flakiness scores
-   - Recommended actions
-   - Links to full reports
+1. The **run summary** (`## Flaky Test Report`, written by `write_github_summary`) — a human
+   table of test id, pass/fail counts, pass rate, flakiness score and run count.
+2. The **`flaky-test-report` artifact** (`flaky-test-report.json`) — the machine-readable record.
+   `update-ci-metrics` downloads it, so this is a live consumer and the summary is an addition,
+   not a replacement.
+3. A **console warning** when flakes are found. It does not fail the job: a green analysis that
+   found flakes is the expected state, and routing is the coordinator's act.
 
-Issue labels: `flaky-tests`, `testing`, `ci`
+A run whose *analysis* fails (the script raises, the report is unreadable) is red; a run that
+finds flaky tests is not.
 
 ## Best Practices
 
