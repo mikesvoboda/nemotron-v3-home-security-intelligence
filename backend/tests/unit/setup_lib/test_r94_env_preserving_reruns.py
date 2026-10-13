@@ -424,7 +424,16 @@ def test_convert_keeps_the_lines_own_terminator(shape: str) -> None:
     ``str.partition("\\n")``, which DISCARDS the separator and so dropped a line on
     every conversion. The byte-compare test above caught that only because its
     fixture ends with a newline and its line count was checked; these are the shapes
-    where a dropped or rewritten terminator is the only visible damage.
+    where line endings are the only thing left to check.
+
+    Each shape needs its OWN mutant, and the r94 self-review flagged the docstring
+    here for claiming a single mutant covered them. ``partition("\\n")`` (battery M9)
+    only bites the shape whose line ENDS CRLF — it swallows the separator and
+    re-emits LF, which the `\\r` census catches. On the two shapes whose API_KEYS line
+    has NO terminator it is exactly ``rstrip("\\r\\n")`` and changes nothing, so those
+    need the terminator-ADDING mutant: M20 writes ``terminator = "\\n"`` instead of
+    keeping the line's own, and gains the file a newline. Run the battery; both must
+    be caught.
     """
     base = _env_with_api_keys_at(shape)
 

@@ -171,6 +171,28 @@ MUTANTS: list[tuple[str, str, int, str, str]] = [
 """,
         "",
     ),
+    # ---- r94 self-review additions (routed to the fast follow-up) ----
+    (
+        "M18 saved_answer reads PRESENCE as yes (fail-open on a saved `false`)",
+        "setup.py",
+        1,
+        '    return "y" if _expose_lan_is_truthy(existing_env[saved_key]) else "n"',
+        '    return "y"',
+    ),
+    (
+        "M19 the flag handler stops refusing to eclipse a command",
+        "setup.py",
+        1,
+        "        if args.command:",
+        "        if args.command and False:",
+    ),
+    (
+        "M20 the writer supplies the terminator instead of the line's own",
+        "setup_lib/core.py",
+        1,
+        '    body = line.rstrip("\\r\\n")\n    terminator = line[len(body) :]',
+        '    body = line.rstrip("\\r\\n")\n    terminator = "\\n"',
+    ),
 ]
 
 
