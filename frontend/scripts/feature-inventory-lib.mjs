@@ -46,6 +46,9 @@ const STATUS_PROSE = `${STATUS_NAMES.slice(0, -1).join(', ')} or ${STATUS_NAMES.
 /** A `file.ext:line` cite, the evidence a half-built or leftover row needs. */
 const CITE = /[\w./-]+\.[a-z]+:\d+/;
 
+/** The `real tier` cell's date, which is what a `works` row must carry (ruling 148). */
+const REAL_TIER_DATE = /\d{4}-\d{2}-\d{2}/;
+
 /** Split one markdown table line into trimmed cells; `\|` is a literal pipe. */
 function cells(line) {
   const inner = line.trim().replace(/^\|/, '').replace(/\|$/, '');
@@ -241,6 +244,11 @@ export function rowProblems(row) {
   if (!row.evidence.trim()) problems.push(`${row.id}: no evidence`);
   else if ((row.status === 'half-built' || row.status === 'leftover') && !CITE.test(row.evidence))
     problems.push(`${row.id}: ${row.status} evidence cites no file:line`);
+  // `works` is terminal: only the operator's real-tier confirmation may set it (ruling 148), so the
+  // row must carry the date that confirmation wrote in its `real tier` cell. Without this check the
+  // legend promises "confirmed on the real tier" while the gate accepts a lane's own fake-tier green.
+  if (row.status === 'works' && !REAL_TIER_DATE.test(row.realTier))
+    problems.push(`${row.id}: works with no real-tier date in the real tier cell`);
   if (row.modules.length === 0) problems.push(`${row.id}: no modules`);
   return problems;
 }
