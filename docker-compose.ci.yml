@@ -138,12 +138,15 @@ services:
       # Disable file watcher in CI (no camera folders)
       - FILE_WATCHER_ENABLED=false
       # Ruling 127 routed F-195's retention save (and F-190/F-191's Save) to F2.3
-      # with "`HSI_RUNTIME_ENV_PATH` (ops-b owns it)". Both runtime-env writers
-      # read this var — system.py `_runtime_env_path` and settings_api.py
-      # `_get_runtime_env_path` — and both default to ./data/runtime.env, which
+      # with "`HSI_RUNTIME_ENV_PATH` (ops-b owns it)". TWO functions resolve this
+      # var — system.py `_runtime_env_path` and settings_api.py
+      # `_get_runtime_env_path` — and they serve THREE routes that write the file:
+      # PATCH /api/system/config, PUT /api/system/severity (both via system.py),
+      # and PATCH /api/v1/settings. All default to ./data/runtime.env, which
       # cannot be written under read_only: true above (measured in this image
       # under these same flags: "cannot create data/runtime.env: Read-only file
-      # system", the [Errno 30] the three rows cite). /tmp is already a tmpfs
+      # system", the [Errno 30] the three rows cite). One var, so this one line
+      # covers all three. /tmp is already a tmpfs
       # (line ~105) and system.py's traversal guard lists
       # tempfile.gettempdir() among its allowed bases, so this needs no new
       # mount and shadows no baked content: the backend image ships neither

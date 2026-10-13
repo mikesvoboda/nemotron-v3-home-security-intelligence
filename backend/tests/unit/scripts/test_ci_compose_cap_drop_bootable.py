@@ -181,10 +181,11 @@ def test_backend_gives_the_filewatcher_a_writable_cameras_path(services: dict) -
 def test_backend_gives_the_runtime_env_a_writable_path(services: dict) -> None:
     """Every config SAVE is a file write, and the rootfs cannot take one.
 
-    Two routes persist settings and both default to ``./data/runtime.env``:
+    Three routes persist settings and all three default to ``./data/runtime.env``:
     ``system.py:_runtime_env_path`` (``PATCH /api/system/config``, the F-195
-    retention save) and ``settings_api.py:_get_runtime_env_path``
-    (``PATCH /api/v1/settings``, F-190/F-191's Save). Under ``read_only: true``
+    retention save), the same resolver under ``PUT /api/system/severity``, and
+    ``settings_api.py:_get_runtime_env_path`` (``PATCH /api/v1/settings``,
+    F-190/F-191's Save). Under ``read_only: true``
     that default cannot be created — measured in the image CI pulls, under this
     file's exact flags (cap_drop ALL, no-new-privileges, and as the image's own
     uid 1000): ``[Errno 30] Read-only file system``, surfaced to the user as a
@@ -219,24 +220,40 @@ def test_backend_gives_the_runtime_env_a_writable_path(services: dict) -> None:
     env = _env(svc)
     runtime_env = env.get("HSI_RUNTIME_ENV_PATH")
     assert runtime_env, (
-        "backend must set HSI_RUNTIME_ENV_PATH: both settings-save routes "
+        "backend must set HSI_RUNTIME_ENV_PATH: all three settings-save routes "
         "default to ./data/runtime.env, which read_only: true cannot write "
         "— every Save answers 500 [Errno 30] without it"
     )
     parent = str(PurePosixPath(runtime_env).parent)
     tmpfs_paths = {p.rstrip("/") for p in svc.get("tmpfs") or []}
-    assert parent in tmpfs_paths, (
+
+    # Containment under a mount, not equality with one — prefix-safe, so
+    # `/tmpevil` never counts as under `/tmp`. A subdirectory of a tmpfs is
+    # writable and `_write_runtime_env` creates it (`path.parent.mkdir
+    # (parents=True)`, system.py:2572), so `/tmp/hsi/runtime.env` boots. The
+    # property under test is "the save lands on a WRITABLE mount", not "the
+    # path is spelled exactly /tmp".
+    def _under(mount: str) -> bool:
+        return parent == mount or parent.startswith(mount + "/")
+
+    assert any(_under(m) for m in tmpfs_paths), (
         f"HSI_RUNTIME_ENV_PATH={runtime_env} must live under one of this "
         f"service's tmpfs mounts {sorted(tmpfs_paths)} — a path inside the "
         "read-only rootfs restores the [Errno 30] the F-190/F-191/F-195 rows "
         "cite"
     )
-    assert str(parent) == "/tmp", (  # noqa: S108 - the guard's allowed base IS /tmp
-        f"HSI_RUNTIME_ENV_PATH={runtime_env} must be under /tmp specifically: "
-        "system.py's traversal guard allows tempfile.gettempdir(), which in "
-        "this image is /tmp, and falls back to ./data/runtime.env for "
-        "anything else (settings_api.py has no validator, so only this "
-        "guard can veto)"
+    # Containment under the guard's base, NOT equality with it. system.py's
+    # guard is `str(path).startswith(base)` for base in allowed_bases
+    # (:2545-2556) and _write_runtime_env does `path.parent.mkdir(parents=True)`
+    # (:2572), so /tmp/hsi/runtime.env clears the guard AND creates its own
+    # parent — it works. Asserting parent == "/tmp" here would red a compose
+    # value that boots, which is a stricter contract than the product has.
+    assert parent == "/tmp" or parent.startswith("/tmp/"), (  # noqa: S108
+        f"HSI_RUNTIME_ENV_PATH={runtime_env} must be contained under /tmp: "
+        "system.py's traversal guard allows tempfile.gettempdir() — which in "
+        "this image is /tmp — by PREFIX, and falls back to the unwritable "
+        "./data/runtime.env for anything else (settings_api.py has no "
+        "validator at all, so only this guard can veto)"
     )
     assert env.get("TMPDIR") is None, (
         "backend must not set TMPDIR: it relocates tempfile.gettempdir(), "

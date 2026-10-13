@@ -1,6 +1,15 @@
 /**
  * F-195 (inventory 3.9): Admin › Logging settings — a scoped partial of the
- * row, now covering ALL THREE of its clauses.
+ * row. The inventory row (`docs/reference/feature-inventory.md:379`) carries
+ * FOUR clauses; this spec executes THREE of them and names the one it does not:
+ *   (a) "expands Logging Settings"      — openAdminSection + toBeVisible
+ *   (b) "sees log file/DB config"        — NOT executed here (no assertion; the
+ *       panel's file/DB readout has no CI-reachable witness, so it stays a gap
+ *       for the row, not a claim)
+ *   (c) "clicks a level button"          — the LOG_LEVELS buttons, backend-confirmed
+ *   (d) "edits log retention days and saves" — executed, backend-confirmed, restored
+ * Claiming all four, or a tidy "three", would over-state the row: (b) is why the
+ * row is not fully witnessed by this file.
  *
  * LoggingSettings is the only AdminSettings section whose reads work on the
  * CI stack: its legs are GET /api/debug/config, the log-level GET/POST pair,
@@ -11,7 +20,7 @@
  * is process-global root-logger state, so a green run must leave it exactly
  * where it found it, and it asserts the BACKEND agrees, not just the label.
  *
- * The third clause — "edits log retention days and saves" — used to be pinned
+ * Clause (d) — "edits log retention days and saves" — used to be pinned
  * as a break here, because the save's PATCH /api/system/config
  * (LoggingSettings.tsx:164 → services/api.ts:2102) writes the runtime-override
  * env file and the backend could not write ANY file under read_only: true:
@@ -101,7 +110,15 @@ test.describe('golden path: admin logging level control and retention save @crit
     const found = Number(
       (await api<SystemConfigBody>(h, session, '/api/system/config')).log_retention_days
     );
-    expect(found).toBeGreaterThanOrEqual(1); // backend field default 7; slider 1..90
+    // Both ends, not just the floor. The direction arithmetic below assumes
+    // `found` is INSIDE the slider's [1,90]; a value above max would make the
+    // DOM clamp (native range inputs clamp `value` to [min,max] on render) while
+    // `saved = found ± 1` keeps the raw number, so the leg would red on the
+    // persistence assertion for a reason that has nothing to do with persistence.
+    // Not API-reachable today — PATCH answered 422 for 500/0/-5 — but nothing
+    // pins max="90", so a future max change would silently re-open the arm.
+    expect(found).toBeGreaterThanOrEqual(1); // backend field default 7; slider min 1
+    expect(found).toBeLessThanOrEqual(90); // slider max; keeps `saved` DOM-representable
     await expect(slider).toHaveValue(String(found));
     // Step INWARD from whichever end the value sits at. At max=90 ArrowRight is
     // a native no-op, and a value that did not move leaves hasRetentionChanges
