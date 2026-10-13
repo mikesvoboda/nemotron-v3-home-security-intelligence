@@ -32,6 +32,7 @@ from typing import Any, ClassVar
 
 from sqlalchemy import inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now
@@ -317,19 +318,44 @@ class BackupService:
         Returns:
             Number of records exported.
         """
-        # Query all records from the table
+        # The exporter walks every mapper column below; resolve the column list
+        # first so the loader options can be chosen from it.
+        mapper = inspect(model)
+        column_names = [col.key for col in mapper.columns]
+
+        # Undefer every deferred column on this model before the walk below.
+        # The loop reads each column with plain getattr (synchronous lazy load),
+        # and a deferred() column is instrumented to lazy-load on first touch --
+        # inside an AsyncSession that raises MissingGreenlet, so a backup died as
+        # soon as the table had a single row (ruling 129: Event.reasoning /
+        # Event.llm_prompt, models/event.py:72-74 -- every backup failed once any
+        # event existed). Precedent: export_service.py:766, search.py:305.
+        # Generic over `model` because this exporter serves all 9 backup tables:
+        # among the models THIS exporter walks, exactly those 2 columns are
+        # deferred today (measured), and the loader options below compile to the
+        # identical statement for the other 8. Scoped on purpose, not repo-wide:
+        # deferred() appears 3x in backend/models/, and the third one
+        # (Detection.enrichment_data, models/detection.py:72) is simply not in
+        # the walked set, because the 8 BACKUP_TABLES entries (:142-151) plus
+        # the lazily appended events (:172-175) never include Detection. If a
+        # future model with a deferred column joins BACKUP_TABLES, this loop
+        # picks it up automatically -- it reads `deferred` off the mapper, so
+        # the count above is a snapshot, not the mechanism.
+        # `column_attrs.get` rather than `[key]`: Alert has a column key
+        # (`metadata`) that is not a class-bound attribute name.
         stmt = select(model)
+        for col_name in column_names:
+            if getattr(mapper.column_attrs.get(col_name), "deferred", False):
+                stmt = stmt.options(undefer(getattr(model, col_name)))
+
         result = await db.execute(stmt)
         # select(model) is a dynamic model here, so 2.1 leaves the scalar
         # type unresolved -- Any matches how the rows are consumed (via the
-        # mapper's column keys, below).
+        # mapper's column keys, above).
         records: Sequence[Any] = result.scalars().all()
 
         # Convert records to dictionaries
         rows: list[dict[str, Any]] = []
-        mapper = inspect(model)
-        column_names = [col.key for col in mapper.columns]
-
         for record in records:
             row_dict: dict[str, Any] = {}
             for col_name in column_names:

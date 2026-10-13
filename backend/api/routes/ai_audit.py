@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from backend.api.dependencies import (
     get_event_audit_or_404,
@@ -420,8 +421,20 @@ async def _run_batch_audit_job(
                         message=f"Processing event {i + 1} of {total_events}",
                     )
 
-                    # Fetch the event
-                    result = await db.execute(select(Event).where(Event.id == event_id))
+                    # Fetch the event -- undefer the two deferred columns
+                    # (models/event.py:72-74) because event.llm_prompt is read
+                    # below (:445) and again inside run_full_evaluation
+                    # (pipeline_quality_audit_service.py:367). A plain select()
+                    # leaves them lazy, and touching one here is a sync load in
+                    # an AsyncSession -> MissingGreenlet, which this loop's
+                    # `except Exception` turned into failed_events for 100% of
+                    # events while complete_job still reported a normal result
+                    # (ruling 129). Precedent: background_evaluator.py:322-324.
+                    result = await db.execute(
+                        select(Event)
+                        .where(Event.id == event_id)
+                        .options(undefer(Event.llm_prompt), undefer(Event.reasoning))
+                    )
                     event = result.scalar_one_or_none()
 
                     if event is None:
