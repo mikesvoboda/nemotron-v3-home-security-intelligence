@@ -295,14 +295,19 @@ green on it.
 ### [r132] F-022: retire the rate-limit countdown
 
 **Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged (UR-66's R2b-round exception).
-**PR:** none yet. (rulings 132, 150)
+**PR:** none yet. (rulings 132, 150, 155)
 
 - [ ] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
       (`frontend/src/services/queryClient.ts:249-297`) and every store field only they read.
-- [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time.
+- [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time
+      (`RetryingIndicator.tsx` is renamed to this text; ruling 155).
+- [ ] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no
+      `isLimited` and shows no pill; only the backend's header-complete 429 does (ruling 155).
 
-**Done when:** F-022's flipped golden spec asserts the pill and that no countdown or number renders,
-and passes. Ruling 125's quarantine of F-022 is unchanged until its expiry.
+**Done when:** F-022's flipped golden spec asserts the pill's exact text and that no countdown or
+number renders, and passes. Ruling 125's quarantine of F-022 ends with this PR (ruling 155).
+After it merges, frontend deletes the dead `secondsUntilReset` store field in its own one-commit
+PR (UR-48).
 
 ### [r133] F-023: retire the in-page PWA install prompt
 
