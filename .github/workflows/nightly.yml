@@ -16,10 +16,10 @@ jobs:
   # NOTE 2026-10-13: complexity-trends (wily) removed by owner ruling 149(b) —
   # it had failed on every run since at least 10-03 and nothing read its report.
   # It survived that long because this workflow is report-only: a red here is
-  # triaged, never merge-blocking. Complexity gating lives in ci.yml's
-  # `uv run radon cc` / `uv run radon mi` step (a hard gate, not a report), and
-  # wily itself left the project env under R-1 (2026-09-23) — these `uv tool run`
-  # steps were its last consumer, so nothing else here needs to change.
+  # triaged, never merge-blocking. Nothing gates complexity either: ci.yml's
+  # `uv run radon cc` / `mi` step is in the required gate but cannot fail on a
+  # finding (radon has no threshold flag and exits 0 even on unparseable source).
+  # wily left the env under R-1 (2026-09-23); these steps were its last consumer.
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest

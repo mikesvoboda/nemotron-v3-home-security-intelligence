@@ -297,8 +297,8 @@ npm run docs:watch  # Watch mode
 - `security-audit` - Bandit JSON report
 
 > **Removed 2026-10-13:** `complexity-trends` (wily complexity reports, owner ruling 149(b)) —
-> red on every run since at least 10-03, nothing read its report. Complexity gating is
-> ci.yml's `uv run radon cc`/`mi` step, which gates. See the note in `nightly.yml`.
+> red on every run since at least 10-03, nothing read its report. Nothing gates complexity now:
+> ci.yml's `uv run radon cc`/`mi` step is in the gate but reports only (see `nightly.yml`).
 
 > **Removed 2026-09-15:** `gpu-tests.yml` queued to its 6h timeout on every
 > push to main because `rtx-a5500-runner` (labels `self-hosted, gpu,
