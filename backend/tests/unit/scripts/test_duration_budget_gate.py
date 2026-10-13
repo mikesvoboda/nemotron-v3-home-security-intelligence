@@ -2045,21 +2045,50 @@ def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> Non
     assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
 
 
+def test_the_cap_value_is_the_number_the_rulebook_states() -> None:
+    """The bound itself, asserted against the script instead of read from it.
+
+    The two pins below compare re-run counts to ``_gate.MAX_RERUNS``, which is
+    deliberate: they pin the SHAPE (one slice per tier) and keep describing the
+    rule if the bound ever moves. The cost of reading it is that they cannot see
+    the bound move DOWN — the fixture corpora are sized from the same constant
+    (``range(MAX_RERUNS + 1)``) or from a count above it (``range(6)``), so a
+    smaller cap shrinks the fixtures and the expectations in step. Measured on
+    this PR's head ``25f97f14e``, ``MAX_RERUNS`` = 1, 2, 3 and 4 all leave BOTH
+    pins green; only 6 and 7 are caught, and only because the corpus happens to
+    hold 6 breaches per tier. So the number UR-125 states was pinned nowhere,
+    and a silent 5 -> 4 is a silent loosening of the exoneration the rule grants.
+
+    This is the file's own precedent, not a new idea: ``BUDGETS`` above hardcodes
+    4.0 / 10.0 / 1.5 and names ruling 93 beside them. The cap is the one number a
+    rule states that this file did not pin absolutely.
+
+    Authority: UR-125 (``rules.md:401-402``) — "at most 5 re-runs per job in each
+    tier", citing rulings 93, 122 and 151. Ruling 151 itself says "At most 5
+    re-runs per job, as for unit tests"; the "in each tier" scoping is the
+    rulebook's, which is why this pin cites the rule and not the ruling.
+    """
+    assert _gate.MAX_RERUNS == 5, (
+        "UR-125 states 5 re-runs per job in each tier. Raise this only by "
+        f"changing rules.md:401-402 first; the script had {_gate.MAX_RERUNS}"
+    )
+
+
 def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
     """UR-125: "at most 5 re-runs per job **in each tier**" — not 5 pooled.
 
-    Six unit breaches (4.4-4.9 s) and six integration breaches (10.4-15.9 s).
-    Sixteen over budget, and the corpus is sorted longest-first, so a cap that
+    Six unit breaches (4.4-4.9 s) and six integration breaches (10.4-15.9 s), so
+    twelve over budget, and the corpus is sorted longest-first, so a cap that
     slices the POOLED list spends all five re-runs on the five longest — which
     are all integration — and leaves the unit tier with none. That is the
-    inverted damage: the tier the cap was written for loses its exoneration to
-    the tier ruling 151 just added.
+    inverted damage: the tier the cap has served since ruling 122 loses its
+    exoneration to the tier ruling 151 just added.
 
     The rule is 5 PER TIER, so 10 ids get re-run and the one dropped per tier is
-    the shortest in that tier. ``MAX_RERUNS`` is the bound; its cost comment in
-    the script says "5 sleeps worst case", which becomes 10 per job by this
-    reading — the pins name the bound, so a reviewer who wants 5 pooled sees it
-    here rather than inferring it.
+    the shortest in that tier. ``MAX_RERUNS`` is the bound; the pin above holds it
+    to UR-125's number, and the worst-case cost is therefore 2 x 5 sleeps per job
+    — the pins name the bound, so a reviewer who wants 5 pooled sees it here
+    rather than inferring it.
     """
     calls = tmp_path / "calls.jsonl"
     unit_cases = [
@@ -2098,8 +2127,8 @@ def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
         f"{len(re_run_unit)} because the integration breaches are longer\n{targets}"
     )
     assert len(re_run_integration) == MAX_RERUNS, (
-        f"the integration tier gets {MAX_RERUNS} too — 'in each tier' is the "
-        f"ruling's words, and it is what separates 5-per-tier from a 5 total\n{targets}"
+        f"the integration tier gets {MAX_RERUNS} too — 'in each tier' is UR-125's "
+        f"wording, and it is what separates 5-per-tier from a 5 total\n{targets}"
     )
     assert len(invoked) == 2 * MAX_RERUNS, f"no tier may exceed the cap either way: {targets}"
     # The cap must still be the STRICT end: the dropped id is the SHORTEST in its

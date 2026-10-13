@@ -192,14 +192,19 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 # can cost the job rather than letting a red shard spawn hundreds. Breaches past
 # the cap stay RED — the cap can only ever be strict.
 #
-# The cap is PER TIER, because ruling 151's words are "at most 5 re-runs per job
-# IN EACH TIER". That is not a cosmetic distinction here: ``breaches`` is sorted
-# longest-first and the two eligible tiers have budgets 4.0 s apart, so the
-# integration breaches are almost always the longer ones. A single pooled slice
-# of 5 would therefore spend the whole allowance on integration and leave the
-# unit tier — the one this clause has served since ruling 122 — with none.
-# Worst case for the job is now len(RERUN_TIERS) * MAX_RERUNS sleeps, 10, up
-# from 5; that is the cost the ruling accepted when it extended the clause.
+# The cap is PER TIER because that is what the rulebook states: UR-125
+# (rules.md:401-402) reads "at most 5 re-runs per job in each tier", and cites
+# rulings 93, 122 and 151. Precision about the source matters here: ruling 151's
+# OWN words are "At most 5 re-runs per job, as for unit tests" — the "in each
+# tier" scoping is UR-125's codification of that clause, recorded with the
+# ruling. The distinction is not cosmetic: ``breaches`` is sorted longest-first
+# and the two eligible tiers have budgets 4.0 s apart, so the integration
+# breaches are almost always the longer ones. A single pooled slice of 5 would
+# therefore spend the whole allowance on integration and leave the unit tier —
+# the one this clause has served since ruling 122 — with none. Worst case for
+# the job is now len(RERUN_TIERS) * MAX_RERUNS sleeps, 10, up from 5; that is
+# what the per-tier scoping costs, and the number is pinned to UR-125 by
+# test_the_cap_value_is_the_number_the_rulebook_states, not restated here.
 MAX_RERUNS = 5
 
 # Tiers the reproduce-before-red clause covers, ruling 122 (unit) + ruling 151
