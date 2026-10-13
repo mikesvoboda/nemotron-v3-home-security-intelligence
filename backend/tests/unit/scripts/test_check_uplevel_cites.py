@@ -150,7 +150,15 @@ class TestRealTree:
 class TestFixtureRegister:
     def test_snapshot_and_fixture_are_committed_and_nontrivial(self) -> None:
         snaps = sorted(DATA.glob("*.md"))
-        assert len(snaps) == 6 and all(p.stat().st_size > 1000 for p in snaps)
+        # A floor tied to what these files actually are: byte-frozen copies of whole plan docs,
+        # smallest 10,517 B measured at this head (largest 49,646). `> 1000` could not notice five
+        # of the six being replaced by stubs, which is the failure this check exists to catch —
+        # provenance verdicts are only as good as the record they read. Kept as a floor rather
+        # than exact bytes on purpose: exact sizes are already pinned by SHA256SUMS, and pinning
+        # them twice here adds no check, only a second place to update.
+        assert len(snaps) == 6, [p.name for p in snaps]
+        sizes = {p.name: p.stat().st_size for p in snaps}
+        assert all(s > 5_000 for s in sizes.values()), sizes
         fixture = json.loads((DATA / "entailments.json").read_text())
         assert len(fixture) >= 20
         pins = [c for c in fixture if not c.get("expect_present", True)]
@@ -238,7 +246,15 @@ class TestPlantedDefects:
         )
         result = run_gate(root)
         assert result.returncode == 0, result.stdout  # a dead fallback would FAIL the cite
-        assert "1 verbatim phrases" in result.stdout, result.stdout
+        # A FLOOR, not "1 verbatim phrases": the exact pin contradicted this file's own rule
+        # (test_witness_totals_are_printed_not_silent: "floors, not exact counts — docs/uplevel
+        # grows legitimately"). The second author who cites a live lowercase prose phrase would
+        # have reddened this test for writing documentation. The arm's claim is "the fallback is
+        # ALIVE", which is count >= 1; the plant guarantees the count moves off zero.
+        phrases = re.search(r"(\d+) verbatim phrases", result.stdout)
+        assert phrases and int(phrases.group(1)) >= 1, (
+            f"live prose fallback resolved nothing — dead arm: {result.stdout!r}"
+        )
 
     def test_snapshot_byte_drift_fires(self, tmp_path: Path) -> None:
         """MINOR 3: provenance verdicts rest on the six frozen snapshots; SHA256SUMS is
@@ -249,6 +265,67 @@ class TestPlantedDefects:
         result = run_gate(root)
         assert result.returncode == 1
         assert "DRIFTED from SHA256SUMS" in result.stdout
+
+    def test_cite_target_absent_from_live_tree_fires(self, tmp_path: Path) -> None:
+        """:281 — the fourth adjudicated UNPINNED branch (old :228). A cite to a file that was
+        never live and is not a snapshot. The three sibling arms cover dead-file, dead-section
+        and ambiguous-name; this is the plain 'no such file' path, and it is the one a typo in a
+        brand-new cite takes."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(rules.read_text() + '\nPer roles/no-such-lane.md "Whatever".\n')
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "cite target roles/no-such-lane.md not found live" in result.stdout, result.stdout
+
+    def test_dead_name_absent_from_the_snapshot_fires(self, tmp_path: Path) -> None:
+        """:257 — 'the deleted 30-ops.md' is proven dead, and the quoted name is neither a
+        heading, a label, nor prose in the pre-reorg record. Without this the gate would bless a
+        provenance claim with no antecedent: the file really died, but it never SAID that."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(
+            rules.read_text() + '\nCorrects the deleted 30-ops.md "Phrase Nowhere On Record".\n'
+        )
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "not a heading/label in the pre-reorg snapshot" in result.stdout, result.stdout
+
+    def test_dead_section_whose_record_is_gone_fires(self, tmp_path: Path) -> None:
+        """:217 — a `section` provenance cite whose file has no snapshot at all. The claim needs
+        two sides and one is missing entirely: nothing can show the section ever existed."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(
+            rules.read_text() + '\nSee the deleted 60-never-recorded.md section "Some Heading".\n'
+        )
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "snapshot lacks 60-never-recorded.md for its dead-section cite" in result.stdout, (
+            result.stdout
+        )
+
+    def test_snapshot_record_goes_missing_fires_both_arms(self, tmp_path: Path) -> None:
+        """:237 + :332 — remove a committed snapshot from the data dir. TWO arms must speak: the
+        manifest no longer matches the directory, and the provenance cite that read that record
+        now has no antecedent. A single plant covering both is the honest shape — they describe
+        one event seen from the integrity side and the resolver side."""
+        root = make_tree(tmp_path)
+        (root / DATA.relative_to(REPO_ROOT) / "30-ops.md").unlink()
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "but the data dir has" in result.stdout, result.stdout
+        assert "for its provenance cite" in result.stdout, result.stdout
+
+    def test_scanned_source_missing_fires(self, tmp_path: Path) -> None:
+        """:193 — the corpus is big enough to judge (16 files, floor is 5) but the SCANNED rule
+        file itself is gone. Without this arm the gate can report a clean run while having read
+        no sources at all: the loop simply has nothing to iterate."""
+        root = make_tree(tmp_path)
+        (root / "docs/uplevel/rules.md").unlink()
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "scanned source rules.md missing" in result.stdout, result.stdout
 
     def test_bare_ambiguous_cite_with_claims_fires(self, tmp_path: Path) -> None:
         """MINOR 7: bare `r2-sheet.md` matches BOTH the live doc and templates/r2-sheet.md
@@ -290,6 +367,333 @@ class TestPlantedDefects:
         result = run_gate(root)
         assert result.returncode == 1
         assert "UR-32c-widen" in result.stdout
+
+
+def _point_gate_at(tmp_path: Path) -> Path:
+    """Copy the gate INTO the throwaway tree so a test can mutate the SCRIPT.
+
+    run_gate() passes the real script plus a root argv, which pins every arm to the shipped
+    source. Data plants (docs, snapshots, fixtures) can mutate the tree; a CODE plant has to
+    mutate the script, and the script must then resolve DATA relative to the tree it judges —
+    which it does: DATA is a relative Path joined to `root` everywhere, and `root` is argv[0].
+    """
+    root = make_tree(tmp_path)
+    scripts = root / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(SCRIPT, scripts / "check-uplevel-cites.py")
+    return root
+
+
+def _replace_in_gate(path: Path, old: str, new: str) -> None:
+    """A mutation plant that CANNOT fail silently. Asserting the occurrence count before
+    writing is the difference between a mutation test and a green run that proved nothing
+    (memory: absent-needle-makes-mutation-control-a-noop — my own first attempt at this in
+    #7064 no-op'd on a wrong path and printed a reassuring 17 passed)."""
+    text = path.read_text()
+    assert text.count(old) == 1, f"plant did not land: {old!r} occurs {text.count(old)}x"
+    path.write_text(text.replace(old, new))
+
+
+def _fixture(root: Path) -> list[dict]:
+    rel = DATA.relative_to(REPO_ROOT)
+    return json.loads((root / rel / "entailments.json").read_text())
+
+
+def _write_fixture(root: Path, rows: list[dict]) -> None:
+    rel = DATA.relative_to(REPO_ROOT)
+    (root / rel / "entailments.json").write_text(json.dumps(rows, indent=2) + "\n")
+
+
+class TestEntailmentArmEdges:
+    """The entail() arms the mutation census found UNREACHED (17 of 22 failure sites entered
+    by no test — /tmp/corr/reach-probe2.py, whose reach.json is the raw per-site counts).
+
+    Each arm asserts the branch's MESSAGE, never rc: two of these branches exit 1 on the same
+    plant, and a test that says only `returncode == 1` is satisfied by whichever sibling fires
+    first — the failure-block-attribution trap, learned the hard way by the reviewer whose
+    letter I am folding (arm-audit rule 2)."""
+
+    def test_presence_needle_case_is_folded_both_sides(self, tmp_path: Path) -> None:
+        """joined() lowercases the haystack. Comparing a needle as-written made a sentence-case
+        fixture needle UNSATISFIABLE: the row can never go green, and the red reads like a
+        content violation in the docs rather than a bug in the gate. Every needle shipped at
+        2e80eca72 happened to be lowercase, so this was latent until a fixture edit walked in."""
+        root = make_tree(tmp_path)
+        rows = _fixture(root)
+        row = next(r for r in rows if r["rule"] == "UR-32c")
+        row["needles"] = ["Reviews First"]  # real text in item 3, capitals folded away
+        _write_fixture(root, rows)
+        result = run_gate(root)
+        assert result.returncode == 0, result.stdout
+
+    def test_emptiness_pin_needle_case_is_folded_too(self, tmp_path: Path) -> None:
+        """The dangerous half of the same asymmetry. A presence row with an unsatisfiable
+        needle is a loud false red; an emptiness PIN with one is a SILENT green — the check
+        that text is absent can never fire, so the pin reports pass whether or not the text
+        came back. Plant the text and require the pin to say so."""
+        root = make_tree(tmp_path)
+        rows = _fixture(root)
+        row = next(r for r in rows if r["rule"] == "UR-91-c4")
+        row["needles"] = ["Reviewed Again"]  # capitals; 'reviewed again' is what we inject
+        _write_fixture(root, rows)
+        lane = root / "docs/uplevel/roles/lane.md"
+        anchor = "## Reviewing another lane's PR\n"
+        text = lane.read_text()
+        assert anchor in text, "fixture drifted: the pinned section moved"
+        lane.write_text(text.replace(anchor, anchor + "\nThe head is Reviewed Again today.\n"))
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "UR-91-c4" in result.stdout, result.stdout
+        assert "must NOT say" in result.stdout
+
+    def test_presence_row_with_no_needle_fires(self, tmp_path: Path) -> None:
+        """:369 — 'lacks any of'. Unreachable by the shipped fixture because every row has at
+        least one matching needle. An empty needle list is a vacuous presence claim: the row
+        says 'this section proves UR-x' and checks nothing."""
+        root = make_tree(tmp_path)
+        rows = _fixture(root)
+        next(r for r in rows if r["rule"] == "UR-89")["needles"] = []
+        _write_fixture(root, rows)
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "UR-89" in result.stdout and "lacks any of" in result.stdout, result.stdout
+
+    def test_fixture_naming_an_absent_file_fires(self, tmp_path: Path) -> None:
+        """:347 — a fixture row whose file was renamed away is NOT an entailment failure, it
+        is a blind check, and it must be said out loud as its own message."""
+        root = make_tree(tmp_path)
+        rows = _fixture(root)
+        next(r for r in rows if r["rule"] == "UR-89")["file"] = "roles/lane-moved-away.md"
+        _write_fixture(root, rows)
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "absent at" in result.stdout, result.stdout
+
+    def test_fixture_naming_a_moved_section_reports_blind_not_entailed(self, tmp_path: Path) -> None:
+        """:352 + :375 — the section can't be located. Two branches must BOTH speak: the miss
+        itself, and the floor that refuses to let an unlocated section count as an entailment.
+        Without the floor a gate can 'pass' while judging none of the register."""
+        root = make_tree(tmp_path)
+        rows = _fixture(root)
+        next(r for r in rows if r["rule"] == "UR-89")["section"] = "Section Since Renamed"
+        _write_fixture(root, rows)
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "Section Since Renamed" in result.stdout, result.stdout
+        assert "blind check" in result.stdout, "the located-N/N floor did not fire"
+
+    def test_manifest_missing_refuses_instead_of_skipping(self, tmp_path: Path) -> None:
+        """A fail path my whole census frame could not see: it RETURNS a fail list rather than
+        appending to one, so a `grep -n fails.append` enumeration — the frame my own note
+        mutation-census-frame-from-source-not-claim tells me to build from — misses it. Deleting
+        the manifest must not turn snapshot integrity into an unchecked pass."""
+        root = make_tree(tmp_path)
+        (root / DATA.relative_to(REPO_ROOT) / "SHA256SUMS").unlink()
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "SHA256SUMS missing" in result.stdout, result.stdout
+
+    def test_manifest_covering_nothing_reports_vacuous(self, tmp_path: Path) -> None:
+        """The second non-append fail path. A manifest emptied to comments only lists zero
+        files; the loop over it then verifies zero snapshots and n=0 would print beside
+        'integrity: 0 snapshots match' as if that were a pass. It is a skipped loop."""
+        root = make_tree(tmp_path)
+        man = root / DATA.relative_to(REPO_ROOT) / "SHA256SUMS"
+        man.write_text("# hand-maintained; see scripts/check-uplevel-cites.py\n")
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "integrity arm is vacuous" in result.stdout, result.stdout
+
+
+class TestScopeClaimArms:
+    """The four § arms the fix head added to resolve() — a § cite claims a section HAS item N.
+    None of these branches was entered by any test before this head (probe: tree=0 at :221,
+    :241, :284, :288), which is how the shipped grammar could fail to deliver the item at all
+    and stay green."""
+
+    def test_live_section_scope_claim_false_fires(self, tmp_path: Path) -> None:
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(rules.read_text() + '\nPer roles/lane.md "The tick" §99.\n')
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "§99" in result.stdout and "has no item 99" in result.stdout, result.stdout
+
+    def test_live_section_scope_claim_true_passes(self, tmp_path: Path) -> None:
+        """The positive control. Without it the arm above is worthless: a check that fails on
+        §99 and on §3 alike is not checking the item, it is failing every § cite — and the
+        corpus would go red for the wrong reason the moment anyone wrote a true §."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(rules.read_text() + '\nPer roles/lane.md "The tick" §3.\n')
+        result = run_gate(root)
+        assert result.returncode == 0, result.stdout
+        assert "ALL ULEVEL CITES RESOLVE" in result.stdout
+
+    def test_live_prose_phrase_cannot_carry_a_scope(self, tmp_path: Path) -> None:
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(
+            rules.read_text() + '\nPer roles/lane.md "Review each PR independently" §2.\n'
+        )
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "scopes a § to a prose phrase" in result.stdout, result.stdout
+
+    def test_snapshot_section_scope_claim_false_fires(self, tmp_path: Path) -> None:
+        """A provenance cite may scope into the SNAPSHOT: 'the deleted X section "Y" §3' claims
+        the pre-reorg file had an item 3 there. Plant it against a real snapshot heading."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(
+            rules.read_text()
+            + '\nCorrects the deleted 10-backend.md section "B1.1 VLM timeout ladder (D1)" §99.\n'
+        )
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "§99" in result.stdout, result.stdout
+        assert "pre-reorg scope claim is false" in result.stdout, result.stdout
+
+    def test_snapshot_section_scope_claim_false_fires_markerless(self, tmp_path: Path) -> None:
+        """:241 — the MARKERLESS deleted form (`the deleted X "Y" §N`, no `section` keyword)
+        still resolves Y against the snapshot's headings, and a § there is still a claim. The
+        corpus has no § on this branch at all, so the branch could invert and stay green."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(rules.read_text() + '\nCorrects the deleted 50-coordination.md "Roles" §4.\n')
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "§4 has no item 4" in result.stdout, result.stdout
+
+    def test_snapshot_prose_phrase_cannot_carry_a_scope(self, tmp_path: Path) -> None:
+        """The deleted-side twin of the live prose arm. `corrects the deleted 50-coordination.md
+        \"Roles\", \"makes no decisions\"` is the corpus's own idiom: \"Roles\" is a snapshot
+        SECTION and \"makes no decisions\" is PROSE reached through the fallback — so the § on
+        the second one scopes to nothing. (My first plant here used \"Roles\" and the gate
+        correctly answered `has no item 4`, which is the arm above.)"""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(
+            rules.read_text()
+            + '\nCorrects the deleted 50-coordination.md "makes no decisions" §4.\n'
+        )
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "scopes a § to a prose phrase" in result.stdout, result.stdout
+
+    def test_deleted_section_missing_from_snapshot_fires(self, tmp_path: Path) -> None:
+        """:217 (adjudicated UNPINNED as old :180). A dead-section provenance needs BOTH sides:
+        absent now, present in the snapshot. The corpus has no cite of this form, so the arm
+        that proves the antecedent existed was never entered."""
+        root = make_tree(tmp_path)
+        rules = root / "docs/uplevel/rules.md"
+        rules.write_text(
+            rules.read_text() + '\nSee the deleted README.md section "Section Gone For Real".\n'
+        )
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "absent from the pre-reorg snapshot" in result.stdout, result.stdout
+
+    def test_deleted_section_live_again_fires(self, tmp_path: Path) -> None:
+        """:210 — the dead-SECTION branch (a dead heading in a live file). The sibling arm
+        test_deleted_file_alive_again_fires covers the dead-FILE branch only, and the two
+        print different messages, so pinning rc would let one stand in for the other."""
+        root = make_tree(tmp_path)
+        readme = root / "docs/uplevel/README.md"
+        readme.write_text(readme.read_text() + '\n## The path\n\nBack from the dead.\n')
+        result = run_gate(root)
+        assert result.returncode == 1, result.stdout
+        assert "is live in README.md again" in result.stdout, result.stdout
+
+
+class TestSelftestWitness:
+    """main() prints `selftest: N/N arms fired`. At 2e80eca72 that number was the literal 4, so
+    `st = selftest()` -> `st = []` left rc=0, the suite green, and stdout still complimenting
+    itself. The count is derived now; these arms are what keeps it derived."""
+
+    def test_witness_count_is_derived_and_at_least_the_shipped_arms(self) -> None:
+        out = run_gate(REPO_ROOT).stdout
+        m = re.search(r"selftest: (\d+)/(\d+) arms fired", out)
+        assert m, f"the derived witness line is gone: {out.splitlines()[:2]!r}"
+        fired, total = int(m.group(1)), int(m.group(2))
+        assert fired == total == 11, f"witness drifted: {fired}/{total} (9 §/case arms + join)"
+
+    def _run_script(self, script: Path, root: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(  # noqa: S603  # intentional - tests our own mutated copy
+            [sys.executable, "-I", str(script), str(root)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+
+    def test_a_broken_capability_withholds_the_tree_verdicts(self, tmp_path: Path) -> None:
+        """Break a REAL capability — drop the `**N.` alternative from the item locator, which
+        is the snapshot form every §-cite into a snapshot depends on — and require the run to
+        refuse at rc=2, name which arm broke, and NOT certify the tree.
+
+        My first plant here substituted `True` for an arm's predicate instead. That is not
+        blindness: the tuples are (instrument_works, message_if_blind), so `True` fabricates a
+        PASSING arm, and no instrument can detect an arm that lies about working. The honest
+        plant breaks the thing the arm checks."""
+        root = _point_gate_at(tmp_path)
+        script = root / "scripts/check-uplevel-cites.py"
+        _replace_in_gate(
+            script,
+            r'        start = rf"^[ ]*(?:{item}\.\s|\*\*{item}\.\s)"',
+            r'        start = rf"^[ ]*(?:{item}\.\s)"',
+        )
+        result = self._run_script(script, root)
+        assert result.returncode == 2, result.stdout + result.stderr
+        assert "SELF-TEST FAILED" in result.stdout
+        assert "verdicts withheld" in result.stdout
+        assert "ALL ULEVEL CITES" not in result.stdout, "certified the tree while blind"
+
+    def test_the_refusal_itself_is_a_gate_not_a_report(self, tmp_path: Path) -> None:
+        """Two-part plant: break the same capability AND replace the guard's predicate so the
+        selftest still RUNS and still counts 11/11 while its verdicts are ignored. The output
+        is then a fully confident, fully false certification — `selftest: 11/11 arms fired`
+        beside a broken matcher, which is the #7064 hole in its second form. If the guard is a
+        report rather than a gate, this run certifies the tree."""
+        root = _point_gate_at(tmp_path)
+        script = root / "scripts/check-uplevel-cites.py"
+        _replace_in_gate(
+            script,
+            r'        start = rf"^[ ]*(?:{item}\.\s|\*\*{item}\.\s)"',
+            r'        start = rf"^[ ]*(?:{item}\.\s)"',
+        )
+        _replace_in_gate(
+            script,
+            "    blind = [msg for ok, msg in st if not ok]",
+            "    blind = []",
+        )
+        result = self._run_script(script, root)
+        assert "ALL ULEVEL CITES" not in result.stdout, (
+            f"the refusal was decorative: {result.stdout!r}"
+        )
+        assert result.returncode != 0, result.stdout
+
+    def test_bypassing_selftest_cannot_certify_the_tree(self, tmp_path: Path) -> None:
+        """The mutation that was undetectable at 2e80eca72: `st = selftest()` -> `st = []`.
+
+        Two separate halves, both needed. (a) The WITNESS must be derived, so the line reads
+        0/0 instead of the hard-coded 4 it used to print. (b) ZERO ARMS MUST REFUSE THE RUN —
+        `blind` is computed FROM st, so an empty st gives an empty blind list and the guard
+        never fires; with only (a) fixed, the gate printed `selftest: 0/0 arms fired` and
+        `ALL ULEVEL CITES RESOLVE` on the very next line, rc=0. Measured, this window, against
+        the intermediate head: that is what I wrote first and what this test caught."""
+        root = _point_gate_at(tmp_path)
+        script = root / "scripts/check-uplevel-cites.py"
+        _replace_in_gate(script, "    st = selftest()", "    st = []")
+        result = self._run_script(script, root)
+        assert "selftest ran 0 arms" in result.stdout, result.stdout
+        assert result.returncode == 2, result.stdout
+        assert "ALL ULEVEL CITES" not in result.stdout, (
+            "zero arms fired yet the tree was certified — that is the #7064 hole"
+        )
+        assert "selftest: 0/0" not in result.stdout, (
+            "the derived witness line is printed for a run that withheld its verdicts"
+        )
 
 
 class TestSetupRefusals:

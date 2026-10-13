@@ -68,9 +68,19 @@ ARTIFACTS = {
     "feature-inventory.md", "agents-md-standard.md", "01-mutation-policy.md", "r2-sheet.md",
     "sandboxes.toml", "api.ts", "openapi.json", "config.py", ".env.example",
 }
+# One cite unit is a quoted name plus the § scope that qualifies IT, and the corpus chains units
+# with `,`/`;`. The § used to be a single group placed BEFORE the names group, which made it dead
+# code twice over: corpus order is `file "name" §3`, so it never captured (measured: item was None
+# for all 127 rules.md cites), and a mid-chain § cut the chain — `rules.md:347` `… "Review and
+# merge" §4, "Hot files"` silently dropped "Hot files". Putting the scope inside the unit fixes both.
+# The unit's § group is deliberately NON-capturing: a capture inside a repeated unit shifts every
+# later group index, and citations() keys group(2) on the file token. Name+scope are parsed from
+# the chain by CITE_NAME_RE instead, which is separately testable.
+CITE_UNIT = r'"[^"]+"(?:\s*§\s*\d+)?'
+CITE_NAME_RE = re.compile(r'"([^"]+)"(?:\s*§\s*(\d+))?')
 CITE_RE = re.compile(
     r'(the deleted\s+)?((?:docs/uplevel/)?[\w./-]*\.md|README)( \s*section)?'
-    r'((?:\s*§\d+)?)((?:\s*"[^"]+")(?:\s*[;,]\s*"[^"]+")*)?'
+    rf'((?:\s*{CITE_UNIT})(?:\s*[;,]\s*{CITE_UNIT})*)?'
 )
 DEAD_NAMES = {"50-coordination.md", "10-backend.md", "20-frontend.md", "30-ops.md", "40-docs.md"}
 # A bold LABEL line start, list markers allowed — `**Remit.**` and `3. **Fetch.**` both count.
@@ -120,27 +130,53 @@ def section(text: str, name: str, item: int | None = None) -> str | None:
         block = "\n".join(out)
         if item is None:
             return block
-        m = re.search(rf"^{item}\.\s.*?(?=^\s*{item + 1}\.\s|\Z)", block, re.S | re.M)
+        # Corpus items come in TWO typographic forms, and the old pattern matched only one:
+        #   live    `3. **Reviews first** (UR-32): …`   number outside the bold
+        #   snapshot `**4. Merge.** The coordinator …`  number INSIDE the bold
+        # A §4 cite into the snapshot therefore located nothing — which the §-cluster audit never
+        # found because its own selftest arm handed section() a literal int and never ran a real
+        # document through the parse (memory: hand-fed-fixtures-pin-one-arm-only).
+        start = rf"^[ ]*(?:{item}\.\s|\*\*{item}\.\s)"
+        nxt = rf"^[ ]*(?:{item + 1}\.\s|\*\*{item + 1}\.\s)"
+        m = re.search(start + r".*?(?=" + nxt + r"|\Z)", block, re.S | re.M)
         return m.group(0) if m else None
     return None
 
 
 def citations(text: str):
-    """Yield (deleted, file, section_marker, item, quoted_names) for every cite-shaped token,
-    skipping only mid-token matches — the offset test keys on the file token itself, group(2).
-    What is an artifact vs a cite is POLICY (the corpus decides), so it lives in resolve()."""
+    """Yield (deleted, file, section_marker, quoted_names) for every cite-shaped token, where
+    quoted_names is a list of (name, item) and item is the § scope that name carries or None.
+    The scope rides the NAME, not the cite: `"Review and merge" §4, "Hot files"` scopes §4 to the
+    first name only. Skipping is only ever mid-token — the offset test keys on the file token,
+    group(2). What is an artifact vs a cite is POLICY (the corpus decides), so it lives in resolve().
+    """
     j = re.sub(r"\n[ ]+", " ", text)
     for m in CITE_RE.finditer(j):
-        deleted, f, sec_marker, sec_n, quotes = m.groups()
+        deleted, f, sec_marker, quotes = m.groups()
         f = f.replace("docs/uplevel/", "")
         if f == "README":  # bare "README" in prose means docs/uplevel/README.md
             f = "README.md"
         pre = j[m.start(2) - 1] if m.start(2) else ""
         if re.match(r"[\w./<>-]", pre):  # e.g. `4n-<feature>.md` placeholder text
             continue
-        names = re.findall(r'"([^"]+)"', quotes or "")
-        item = int(sec_n.strip("§")) if sec_n and sec_n.strip("§").isdigit() else None
-        yield bool(deleted), f, bool(sec_marker), item, names
+        names = [(n, int(it) if it else None)
+                 for n, it in CITE_NAME_RE.findall(quotes or "")]
+        yield bool(deleted), f, bool(sec_marker), names
+
+
+def scope_claim(text: str, name: str, item: int) -> str | None:
+    """None when a `name §item` cite is TRUE (the section has that item); else why it is false.
+    A § scope is a CLAIM, not a label: before this function existed nothing anywhere checked it,
+    which is the whole reason the grammar could be broken without a single test noticing."""
+    block = section(text, name)
+    if block is None:
+        return f"section {name!r} not located"          # caller already reports the name itself
+    if section(text, name, item) is None:
+        have = sorted({int(n) for n in re.findall(
+            r"^[ ]*(?:\*\*)?(\d+)\.\s", block, re.M)})
+        return (f"has no item {item}"
+                + (f" (items present: {', '.join(map(str, have))})" if have else " (no items at all)"))
+    return None
 
 
 def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
@@ -156,7 +192,8 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
         if text is None:
             fails.append(f"scanned source {fname} missing")
             continue
-        for deleted, f, sec_marker, _item, names in citations(text):
+        for deleted, f, sec_marker, names in citations(text):
+            qnames = [n for n, _ in names]  # for messages: the names, not the (name, item) pairs
             base = f.split("/")[-1]  # citations() already normalised bare README → README.md
             if base in ARTIFACTS and not deleted and base not in live_bases:
                 tall["artifacts_skipped"] += 1  # witness: the skip-set is counted, never silent
@@ -166,9 +203,14 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
                 # absent now (else the provenance is a lie), present in the snapshot (else the
                 # claim has no antecedent).
                 tall["dead_ok"] += 1
-                now = live_text.get(base)
+                # _short(), not .get(base): live_text keys by RELATIVE PATH, so a basename lookup
+                # returns None for every file in a subdir and the liveness check below would be
+                # skipped on the shape it exists for. Today the corpus's six dead-section cites all
+                # name README.md (a root file), so .get() happens to resolve — the bug is latent,
+                # not live. The markerless branch already uses _short for this exact mapping.
+                now = live_text.get(base) or live_text.get(_short(live_text, base) or "")
                 pre = snap_text.get(base)
-                for q in names:
+                for q, item in names:
                     if now is not None and q in heads(now):
                         fails.append(f"{fname}: provenance \"{q}\" is live in {base} again")
                     if pre is None:
@@ -178,6 +220,11 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
                               or re.search(LABEL_START + re.escape(q), pre, re.M)
                               or q in joined(pre)):
                         fails.append(f"{fname}: {base} \"{q}\" absent from the pre-reorg snapshot")
+                    elif item is not None:  # a §N cite claims the snapshot section HAS item N
+                        bad = scope_claim(pre, q, item)
+                        if bad:
+                            fails.append(f"{fname}: {base} \"{q}\" §{item} {bad}, so the "
+                                         "pre-reorg scope claim is false")
                 continue
             if deleted:
                 if base in live_text or _short(live_text, base):
@@ -189,25 +236,31 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
                     if base in DEAD_NAMES or base in snap_text:
                         fails.append(f"{fname}: snapshot lacks {base} for its provenance cite")
                     continue  # dead files with no quoted names need no snapshot (file death proved)
-                for q in names:
+                for q, item in names:
                     if re.search(r"^#{1,6}\s+" + re.escape(q), pre, re.M) or re.search(
                             LABEL_START + re.escape(q), pre, re.M):
                         tall["snap_sections"] += 1
+                        if item is not None:  # the § is a claim about the snapshot's structure
+                            bad = scope_claim(pre, q, item)
+                            if bad:
+                                fails.append(f"{fname}: deleted {base} \"{q}\" §{item} {bad}")
                     elif q in joined(pre):
                         # `corrects the deleted 50-coordination.md "Roles", "makes no
                         # decisions"` chains a section name and a PROSE phrase with a comma and
                         # carries no ` section` marker anywhere — requiring the marker here made
                         # the whole comma idiom unresolvable for every cite but the ones I edited.
                         tall["snap_phrases"] += 1
+                        if item is not None:
+                            fails.append(f"{fname}: deleted {base} \"{q}\" §{item} scopes a § to a "
+                                         "prose phrase — a § needs a section behind it")
                     else:
                         fails.append(f"{fname}: deleted {base} \"{q}\": not a heading/label in "
                                      "the pre-reorg snapshot")
-                if sec_marker and names:
-                    # a dead SECTION of a STILL-LIVE file (README case): also require absence now
-                    now = live_text.get(base, "")
-                    for q in names:
-                        if q in heads(now):
-                            fails.append(f"{fname}: provenance \"{q}\" is live in {base} again")
+                # (no "is it live again here?" arm: the markerless deleted case has already proven
+                # the file is NOT live at the branch above, so a name can never be live in it —
+                # the same check runs live in the `deleted and sec_marker` branch. The arm that
+                # used to sit here was unreachable by construction; measured: 18-19 tokens reached
+                # it across the corpus and 7 planted shapes, sec_marker False in every one.)
                 continue
             if "/" in f:
                 matches = [f] if f in live_text else []
@@ -221,17 +274,24 @@ def resolve(live_text: dict[str, str], snap_text: dict[str, str]):
                 # only unsafe where claims ride on it (memory: nonunique-join-binds-wrong).
                 if len(matches) > 1 and names:
                     fails.append(f"{fname}: bare cite {f!r} is ambiguous "
-                                 f"({', '.join(matches[:4])}) and quotes {names} — cite a path")
+                                 f"({', '.join(matches[:4])}) and quotes {qnames} — cite a path")
                     continue
             target = live_text.get(matches[0]) if matches else None
             if target is None:
                 fails.append(f"{fname}: cite target {f} not found live")
                 continue
-            for q in names:
+            for q, item in names:
                 if q in heads(target) or q.strip("`") in heads(target):
                     tall["live_sections"] += 1
+                    if item is not None:  # §N claims the LIVE section has item N
+                        bad = scope_claim(target, q, item)
+                        if bad:
+                            fails.append(f"{fname}: {f} \"{q}\" §{item} {bad}")
                 elif q in joined(target):
                     tall["live_phrases"] += 1
+                    if item is not None:
+                        fails.append(f"{fname}: {f} \"{q}\" §{item} scopes a § to a prose "
+                                     "phrase — a § needs a section behind it")
                 else:
                     fails.append(f"{fname}: section {q!r} not found in live {f}")
     return fails, tall
@@ -298,10 +358,20 @@ def entail(live_text: dict[str, str], snap_text: dict[str, str], fixture: list[d
                          f"{c['file']} @ {c['ref']}")
             continue
         found += 1
-        have = [n for n in c["needles"] if n in sec.lower()]
+        # Case folded on BOTH sides. `joined()` lowercases its output, so a needle compared
+        # as-written could never match a section containing capitals: a sentence-case needle in a
+        # presence row was an unsatisfiable claim (a false red that reads like a content
+        # violation), and in an emptiness pin it was permanently unfireable — a silent green
+        # beside a check that claims text is absent. Every needle shipped at 2e80eca72 happened to
+        # be lowercase, so both halves were latent until a fixture edit walked into the first one.
+        have = [n for n in c["needles"] if n.lower() in sec.lower()]
         want = c.get("expect_present", True)
         if want and not have:
-            fails.append(f"{c['rule']}: {c['file']} \"{c['section']}\" lacks all of {c['needles']}")
+            # "lacks any of", not "lacks all of": `have` is a filter, so this row fires only when
+            # NO needle matches — the list is alternative surface forms of one claim, not a
+            # conjunction. The old wording read as AND and made authors add a 2nd needle
+            # believing it tightened the row when it only widened how the row can pass.
+            fails.append(f"{c['rule']}: {c['file']} \"{c['section']}\" lacks any of {c['needles']}")
         if not want and have:
             fails.append(f"{c['rule']}: PIN says {c['file']} \"{c['section']}\" must NOT say "
                          f"{have} — text was written where the cite claims no home exists; "
@@ -312,22 +382,67 @@ def entail(live_text: dict[str, str], snap_text: dict[str, str], fixture: list[d
     return fails
 
 
-def selftest() -> list[str]:
+def selftest() -> list[tuple[bool, str]]:
     """The instrument must prove it can fire BEFORE it judges the tree: a planted fake cite
-    and a planted heading must be caught by its own matcher (in memory, nothing touched)."""
+    and a planted heading must be caught by its own matcher (in memory, nothing touched).
+    Returns one (ok, message) per arm — the count main() prints is len() of this list, so the
+    witness cannot print a compliment the checks did not earn: bypass the call and the line
+    reads 0/0, which is exactly what its old literal form (`"selftest: 4 arms fired"`) could
+    never do (measured at 2e80eca72: `st = selftest()` -> `st = []` left rc=0, suite green, and
+    the literal still printing "4 arms fired").
+    Every arm feeds the REAL parse. An earlier § arm called `section(text, "T", 3)` with a
+    literal 3 — it tested the locator while the broken grammar that was supposed to PRODUCE the
+    3 stayed invisible (memory: hand-fed-fixtures-pin-one-arm-only)."""
+    checks: list[tuple[bool, str]] = []
     bad = 'the deleted 50-coordination.md "Roles", "Sect That Never Was"\n'
-    fires = [n for d, f, s, i, ns in citations(bad) for n in ns if n == "Sect That Never Was"]
-    out = []
-    if not fires:
-        out.append("selftest: resolver capture dropped a planted 3rd comma-chained name")
+    fires = [n for _d, _f, _s, ns in citations(bad) for n, _i in ns
+             if n == "Sect That Never Was"]
+    checks.append((bool(fires),
+                   "selftest: resolver capture dropped a planted 3rd comma-chained name"))
     snap_like = "# Roles\n\ntext\n"
-    if section(snap_like, "Sect That Never Was") is not None:
-        out.append("selftest: locator matched a heading that is not there")
-    if section("## T\n\n1. a\n2. b\n3. c\n", "T", 3) != "3. c\n":
-        out.append("selftest: §-item narrowing failed (a §3 cite could borrow step 1)")
-    if joined("wraps\nacross") != "wraps across":
-        out.append("selftest: wrap-join failed (line-grep absence-factory is back)")
-    return out
+    checks.append((section(snap_like, "Sect That Never Was") is None,
+                   "selftest: locator matched a heading that is not there"))
+    # § scope: the parse must DELIVER the item, and the claim must be checkable both ways.
+    itemized = "## T\n\n1. a\n2. b\n3. c\n"
+    parsed = [ns for _d, _f, _s, ns in citations('per x.md "T" §3.')]
+    checks.append((bool(parsed) and bool(parsed[0]) and parsed[0][0][1] == 3,
+                   "selftest: § scope never reaches the resolver — a §3 cite could borrow "
+                   "step 1 and nothing would notice"))
+    checks.append((section(itemized, "T", 3) == "3. c\n",
+                   "selftest: §-item narrowing failed (a §3 cite could borrow step 1)"))
+    checks.append((section("## T\n\n**1. a.**\n**2. b.**\n**3. c.**\n", "T", 3) is not None,
+                   "selftest: item locator missed the `**4. Merge.**` form — every snapshot "
+                   "§-cite would locate nothing"))
+    checks.append((scope_claim(itemized, "T", 99) is not None,
+                   "selftest: scope_claim accepted a §99 cite into a 3-item section — the § "
+                   "claim is not being checked"))
+    checks.append((scope_claim(itemized, "T", 3) is None,
+                   "selftest: scope_claim rejected a TRUE §3 cite — correct cites would red"))
+    # chain integrity: a mid-chain § must not truncate the comma chain (the :347 shape).
+    chain = [ns for _d, _f, _s, ns in citations('per x.md "A" §4, "B".')]
+    checks.append((bool(chain) and [n for n, _i in chain[0]] == ["A", "B"],
+                   "selftest: a mid-chain § dropped a comma-chained name — cites after the § "
+                   "go unchecked"))
+    checks.append((joined("wraps\nacross") == "wraps across",
+                   "selftest: wrap-join failed (line-grep absence-factory is back)"))
+    # Case folding, both directions of the hazard. joined() lowercases the haystack only, so a
+    # sentence-case needle is UNSATISFIABLE: in a presence row that is a false red, in an
+    # emptiness pin it is a permanently unfireable check — a green beside "this text is absent".
+    # Both arms feed one fixture section so they fail together if the fold is ever dropped.
+    mixed = {"a.md": "## T\n\nHeavy Agents Skip This Step.\n"}
+    base = {"rule": "selftest", "ref": "live", "file": "a.md", "section": "T",
+            "needles": ["Heavy Agents Skip"]}
+    # `not present` / `bool(absent)` on the WHOLE fail list: entail() returns [] when satisfied,
+    # so indexing [0] here would raise IndexError on the very state being asserted.
+    present = entail(mixed, {}, [dict(base, expect_present=True)])
+    absent = entail(mixed, {}, [dict(base, expect_present=False)])
+    checks.append((not present,
+                   "selftest: a sentence-case needle cannot match a lowercased section — a "
+                   "presence fixture written with capitals is an unsatisfiable claim"))
+    checks.append((bool(absent),
+                   "selftest: an emptiness pin with a sentence-case needle can never fire — the "
+                   "check that text is GONE reports green whether or not it is"))
+    return checks
 
 
 def main(argv: list[str]) -> int:
@@ -342,11 +457,23 @@ def main(argv: list[str]) -> int:
         return 2
 
     st = selftest()
-    if st:
-        print("SELF-TEST FAILED (the instrument is blind; tree verdicts withheld):")
-        [print("  -", x) for x in st]
+    if not st:
+        # A zero-arm selftest is not "all arms passed". `blind` above is computed FROM st, so an
+        # empty st yields an empty blind list and the guard below never fires: bypassing the call
+        # (`st = selftest()` -> `st = []`) certified the whole tree at rc=0 even after the witness
+        # count became derived — the derived count prints 0/0 and main() still says ALL RESOLVE.
+        # Same law as snapshot_sums' "SHA256SUMS lists 0 files — the integrity arm is vacuous".
+        print("SETUP: selftest ran 0 arms — nothing proves the instrument can fire; "
+              "tree verdicts withheld")
         return 2
-    print(f"selftest: 4 arms fired; corpus {len(live_text)} live files "
+    blind = [msg for ok, msg in st if not ok]
+    if blind:
+        print(f"SELF-TEST FAILED ({len(blind)}/{len(st)} arms blind; tree verdicts withheld):")
+        [print("  -", x) for x in blind]
+        return 2
+    # Derived from st, never a literal: the witness line used to hard-code "4 arms fired", so
+    # bypassing selftest() entirely still printed it. Now the count IS the measurement.
+    print(f"selftest: {len(st)}/{len(st)} arms fired; corpus {len(live_text)} live files "
           f"({sum(len(t) for t in live_text.values())} chars), snapshot {len(snap_text)} files")
 
     sums_fails, n_sums = snapshot_sums(root)

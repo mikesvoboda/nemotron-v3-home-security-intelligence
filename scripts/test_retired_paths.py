@@ -44,9 +44,20 @@ What is NOT living text (records keep their references — the package says so:
       #7064 cite gate because a CI checkout has no history to read. They are records by
       the same right as ``docs/uplevel/`` itself — they ARE that tree at an earlier commit
       — and their historical prose is exactly what the cite gate proves cites against.
-      Prettier could not reflow them and the gate could not quote them if they were
-      rewritten "clean". Listed per-file, not by directory: the sibling
-      ``entailments.json`` in that tree is hand-authored LIVING text and stays policed.
+      What freezes them is ``SHA256SUMS``, not any formatter's inability (the
+      earlier wording here claimed ``Prettier could not reflow them and the gate
+      could not quote them``; both halves measured false at this head — prettier
+      parses all six, ``--check`` reports them clean today, ``--write`` on the
+      committed bytes is a no-op, and after a forced reflow the gate's tallies
+      came back identical, 60 live sections / 19 snapshot sections / 1 phrase.
+      Prettier is in fact still POLICING them: the hook's ``types_or`` covers
+      markdown and no exclude matches this path). The reason the bytes may not
+      move is that they ARE ``de661e070^`` — a reformatted copy is a different
+      tree, whatever still parses out of it — and a hook that ever did reformat
+      one is caught by the manifest, which reddened all six under that reflow
+      rather than letting provenance drift quietly. Listed per-file, not by
+      directory: the sibling ``entailments.json`` in that tree is hand-authored
+      LIVING text and stays policed.
     - ``scripts/retired_paths.txt`` and this file — the gate lists the paths.
     - ``.secrets.baseline`` — generated, and its keys are file paths by design.
     - In a ``.py`` file only: a line carrying a dated decision-log tag,
