@@ -331,8 +331,16 @@ class BackupService:
         # Event.llm_prompt, models/event.py:72-74 -- every backup failed once any
         # event existed). Precedent: export_service.py:766, search.py:305.
         # Generic over `model` because this exporter serves all 9 backup tables:
-        # exactly those 2 columns are deferred today (measured), and the loader
-        # options below compile to the identical statement for the other 8.
+        # among the models THIS exporter walks, exactly those 2 columns are
+        # deferred today (measured), and the loader options below compile to the
+        # identical statement for the other 8. Scoped on purpose, not repo-wide:
+        # deferred() appears 3x in backend/models/, and the third one
+        # (Detection.enrichment_data, models/detection.py:72) is simply not in
+        # the walked set, because the 8 BACKUP_TABLES entries (:142-151) plus
+        # the lazily appended events (:172-175) never include Detection. If a
+        # future model with a deferred column joins BACKUP_TABLES, this loop
+        # picks it up automatically -- it reads `deferred` off the mapper, so
+        # the count above is a snapshot, not the mechanism.
         # `column_attrs.get` rather than `[key]`: Alert has a column key
         # (`metadata`) that is not a class-bound attribute name.
         stmt = select(model)
