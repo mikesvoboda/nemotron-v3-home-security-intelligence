@@ -198,9 +198,24 @@ take_snapshot before
 # --- a fresh tree at a named head (UR-133) ---------------------------------------------
 
 BRANCH="${REID_TIER_BRANCH:-uplevel/r157-o24-reid-parity}"
+# The branch is fetched on EVERY path, not only when --head is absent. Fetching in
+# one arm only was a trap: `worktree add` on a sha the host has never seen dies
+# with `invalid reference`, and o24.sh's own note warns that a pinned sha goes stale
+# on every roll -- so a named head has to be checked for and fetched into the
+# checkout, not assumed to be there because it was read off the PR page.
+git -C "$CHECKOUT" fetch origin "$BRANCH"
 if [[ -z "$HEAD" ]]; then
-  git -C "$CHECKOUT" fetch origin "$BRANCH"
   HEAD="$(git -C "$CHECKOUT" rev-parse FETCH_HEAD)"
+else
+  git -C "$CHECKOUT" cat-file -e "$HEAD^{commit}" 2>/dev/null \
+    || git -C "$CHECKOUT" fetch --quiet origin "$HEAD" >/dev/null 2>&1 || true
+  git -C "$CHECKOUT" cat-file -e "$HEAD^{commit}" 2>/dev/null || {
+    echo "--head $HEAD is not an object in $CHECKOUT (fetching $BRANCH did not" >&2
+    echo "bring it in, and a direct fetch of the sha was refused or failed)." >&2
+    echo "Run: git -C $CHECKOUT fetch origin $HEAD   -- or drop --head to use the" >&2
+    echo "live $BRANCH head." >&2
+    exit 1
+  }
 fi
 printf '%s\n' "$HEAD" > "$RUN/commit.txt"
 echo "head=$HEAD (report this sha with the result)"
