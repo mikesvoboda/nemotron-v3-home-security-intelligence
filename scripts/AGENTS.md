@@ -95,6 +95,7 @@ scripts/
   linear-label-issues.sh             # Bulk label Linear issues
   check-docs-drift.py                # Detect documentation drift from code
   docs-drift-rules.yml               # Rules configuration for docs drift detection
+  check-uplevel-cites.py             # CI gate: docs/uplevel cites resolve and entail (rules.md)
 
   # Development Tools
   create-worktree.sh                 # Create git worktree for isolated work

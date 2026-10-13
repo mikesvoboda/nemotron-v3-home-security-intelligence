@@ -1,0 +1,12 @@
+# Snapshot integrity manifest for scripts/check-uplevel-cites.py.
+# sha256 of the six byte-frozen pre-reorg snapshots (git show de661e070^:<path>,
+# certified 2026-10-13). The gate recomputes these at every run: a snapshot that
+# drifts here drifts under every provenance verdict. The sums pin no-drift-since-
+# certification in a history-less CI checkout; the historical identity claim is the
+# prose above, verifiable by anyone WITH history.
+c86dc19a887354e4a5f8bb72fa70418a2eb4f673a7e4c0661d5f21d9cbef6ea8  10-backend.md
+08da84abc86dc5aee3f94b9da3f1b780c3d907c2739daae6d0f8c0ccf86dde5e  20-frontend.md
+b124366c67a2f857a3e6088bde52151cf0ce06f1b6936add593c1f1752a26a9e  30-ops.md
+c5e4cdcd28bddbcdd7deee61e112c8b582a7438eff6fdd4c02a41208129cde7c  40-docs.md
+ef69d0f5536ad9cef28ae94266f254309d1e7a104fd77092e7540f55236a36bc  50-coordination.md
+1277f94d98c824498fcd0758229c989354fe6f7bc3a4aa32a2533dbcd550a626  README.md
