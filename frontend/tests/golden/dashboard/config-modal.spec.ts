@@ -15,7 +15,7 @@
  *   .tsx:154-234) exposes widget-row-<id> / widget-toggle-<id> /
  *   widget-move-up-<id> / widget-move-down-<id> / save-button / cancel-button
  *   / reset-defaults-button, all inside data-testid="widget-list".
- * - The toggles are HeadlessUI Switch (DashboardConfigModal.tsx:1, :268): a
+ * - The toggles are HeadlessUI Switch (DashboardConfigModal.tsx:1, :278): a
  *   real role="switch" BUTTON whose aria-checked is the source of truth — not
  *   the Tremor pattern that lands its name on a wrapper div. The data-testid
  *   passes through to the button itself.
