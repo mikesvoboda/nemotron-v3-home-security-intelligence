@@ -1362,21 +1362,41 @@ def main() -> None:
     # rest of the operator's file alone. Handled here — before platform detection and
     # the install steps — because scoping a key needs no podman, no GPU and no apt.
     if args.convert_monitoring_key:
+        if args.command:
+            # An early exit makes every OTHER argv moot, and `deploy` is the one
+            # position whose promise this handler breaks: `setup.py deploy
+            # --convert-monitoring-key` would convert, print success, exit 0, and
+            # NEVER DEPLOY (measured: rc 0, file converted, zero deploy output —
+            # r94 self-review F6). Refuse the combination instead of silently
+            # dropping the half the operator asked for.
+            print(
+                f"! --convert-monitoring-key cannot be combined with `{args.command}`: "
+                "the conversion runs first and exits, so the command would never run. "
+                "Run the conversion, then run the command."
+            )
+            sys.exit(1)
         env_target = Path(args.output_dir) / ".env"
         if not env_target.exists():
             print(f"! No .env at {env_target} — nothing to convert.")
             sys.exit(1)
         try:
-            original = env_target.read_text(encoding="utf-8")
-        except OSError as exc:
+            # Bytes in, bytes out — deliberately NOT read_text/write_text. Those apply
+            # universal-newline translation, which rewrites a CRLF .env's EVERY line
+            # ending on the round-trip (measured: 17 \r in, 0 out) while this flag
+            # prints "Nothing else in the file changed". convert_monitoring_key keeps
+            # each line's own terminator; decode/encode adds none, so the sole changed
+            # line stays the API_KEYS line. (r94 follow-up, ops-b's reproduced Medium.)
+            original = env_target.read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
             print(f"! Cannot read {env_target}: {exc}")
             sys.exit(1)
         rewritten, outcome = convert_monitoring_key(original)
 
         if outcome == "converted":
             # Write the whole file back only because exactly one line inside it
-            # changed; the byte-compare test pins that nothing else did.
-            env_target.write_text(rewritten, encoding="utf-8")
+            # changed; the byte-compare test pins that nothing else did, on LF and
+            # on CRLF alike.
+            env_target.write_bytes(rewritten.encode("utf-8"))
             print(
                 "+ Converted the monitoring key's API_KEYS entry to the scoped form "
                 '{"key": ..., "scope": "monitoring"}. Nothing else in the file changed.'
@@ -1420,6 +1440,13 @@ def main() -> None:
             "duplicate-line": (
                 "the file has two API_KEYS lines, so which one is authoritative is "
                 "ambiguous. Collapse them to one, then run this flag again."
+            ),
+            "not-quotable": (
+                "an API_KEYS entry contains a literal apostrophe, which no quoting "
+                "of this line survives (single quotes cannot nest; double quotes "
+                "expand $ and backticks). The file was left exactly as it was — "
+                "it still sources and loads. Re-key that entry without the "
+                "apostrophe, then run this flag again."
             ),
         }
         print(f"! Not converted ({outcome}): {reasons.get(outcome, outcome)}")
