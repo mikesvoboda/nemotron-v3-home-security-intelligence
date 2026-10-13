@@ -1367,16 +1367,23 @@ def main() -> None:
             print(f"! No .env at {env_target} — nothing to convert.")
             sys.exit(1)
         try:
-            original = env_target.read_text(encoding="utf-8")
-        except OSError as exc:
+            # Bytes in, bytes out — deliberately NOT read_text/write_text. Those apply
+            # universal-newline translation, which rewrites a CRLF .env's EVERY line
+            # ending on the round-trip (measured: 17 \r in, 0 out) while this flag
+            # prints "Nothing else in the file changed". convert_monitoring_key keeps
+            # each line's own terminator; decode/encode adds none, so the sole changed
+            # line stays the API_KEYS line. (r94 follow-up, ops-b's reproduced Medium.)
+            original = env_target.read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
             print(f"! Cannot read {env_target}: {exc}")
             sys.exit(1)
         rewritten, outcome = convert_monitoring_key(original)
 
         if outcome == "converted":
             # Write the whole file back only because exactly one line inside it
-            # changed; the byte-compare test pins that nothing else did.
-            env_target.write_text(rewritten, encoding="utf-8")
+            # changed; the byte-compare test pins that nothing else did, on LF and
+            # on CRLF alike.
+            env_target.write_bytes(rewritten.encode("utf-8"))
             print(
                 "+ Converted the monitoring key's API_KEYS entry to the scoped form "
                 '{"key": ..., "scope": "monitoring"}. Nothing else in the file changed.'
