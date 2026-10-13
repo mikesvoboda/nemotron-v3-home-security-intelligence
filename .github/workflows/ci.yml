@@ -3693,9 +3693,10 @@ jobs:
           if-no-files-found: warn
 
   # DOCS-NJT: the negative-tooling-claim gate as ITS OWN job, per the hot-file
-  # rule (50-coordination.md, "Hot files" row — cited by row, not line: that
-  # file is hot prose and renumbers every owner plan PR. A new check on ci.yml
-  # is its own job or its own workflow file, never an edit to a shared one).
+  # rule UR-121 (rules.md, cited by rule id, never by line: that file renumbers
+  # with every ruling, so a line cite drifts while still looking plausible. A
+  # new check on ci.yml is its own job or its own workflow file, never an edit
+  # to a shared one).
   # It ran here as a path appended to collection-sanity's battery line; that was
   # the shape the rule forbids. It was also the only entry that did not have its
   # own line, and that doubling lived in THIS branch, not in main: at `da350bd4c`
@@ -3850,9 +3851,8 @@ jobs:
       # review, not a silent edit.
       - feature-check
       # DOCS-NJT: docs' negative-tooling-claim gate. Own job per the hot-file
-      # rule (50-coordination.md, "Hot files" row — cited by row, not line: the
-      # file is edited by every owner plan PR, so a line cite here drifts while
-      # still looking plausible) — direct need + check_job below, the only
+      # rule UR-121 (rules.md, cited by rule id, never by line: that file
+      # renumbers with every ruling) — direct need + check_job below, the only
       # wiring scripts/test_ci_job_graph.py's WP0.6 invariant accepts for a
       # red-able job.
       - docs-negative-claims

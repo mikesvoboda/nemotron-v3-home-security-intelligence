@@ -128,8 +128,8 @@ class TestWalkOnRealData(_CiYml):
         # adding 3 edges is the fix; the count must not silently balloon
         # 30 -> 31 adjudicated in the DOCS-NJT commit that pressed it: the
         # negative-tooling-claims gate moved into ci.yml as its OWN job per the
-        # hot-file rule (50-coordination.md, "Hot files" row — cited by row,
-        # not line: that file is hot prose and renumbers every owner plan PR),
+        # hot-file rule UR-121 (rules.md; by rule id, never by line — rules.md
+        # renumbers with every ruling),
         # and a direct need is the only
         # edge WP0.6 accepts for a red-able job — a bare `needs:` an
         # intermediate never reads carries no red (see result_checked_needs in
