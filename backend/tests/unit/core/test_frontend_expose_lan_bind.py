@@ -652,7 +652,7 @@ def test_exposure_docs_dropped_the_forward_reference(doc: str) -> None:
     # stays as written until ISS-029 closes with F1.3. The parametrized files
     # are live docs; the family assertion is the UR-9 sweep as a regression
     # gate: any live doc that later calls O1.6 future fails here, not on a
-    # future grep. (docs/uplevel/50-coordination.md sequences O1.6 *after*
+    # future grep. (docs/uplevel/README.md, "Cross-lane dependencies", sequences O1.6 *after*
     # B1.5 — package order, not the bind — so it is deliberately out of scope.)
     text = (REPO_ROOT / doc).read_text(encoding="utf-8")
     assert "(until then nginx publishes on `0.0.0.0`)" not in text, (

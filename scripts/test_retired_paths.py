@@ -31,7 +31,8 @@ What is NOT living text (records keep their references — the package says so:
     - Path prefixes: ``docs/plans/``, ``docs/superpowers/``,
       ``docs/vss-integration/``, ``docs/uplevel/`` — plan, spec and
       program-record trees. ``docs/uplevel/`` includes this package's own text
-      in ``30-ops.md``: a gate may not flag the order that executed it.
+      in ``history/packages-done.md`` (O1.2): a gate may not flag the order that
+      executed it.
       ``docs/archive/`` and ``archive/`` are NOT here any more (O1.5, UR-19):
       they were record trees while they existed, and are now retired entries
       above, so an exemption for them would exempt the text that names them.

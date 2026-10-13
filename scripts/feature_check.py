@@ -8,7 +8,7 @@ directory, runs the harness smoke check and the golden paths, collects
 artifacts and tears down. Usage and the golden-path contract are in
 ``docs/developer/testing.md``, "Feature check".
 
-A test deployment touches nothing else on the machine (``docs/uplevel/30-ops.md``
+A test deployment touches nothing else on the machine (``docs/uplevel/packages/ops.md``
 §O2.2). Every run:
 
 * gets its own compose project (``hsi-check-<run-id>``), run directory and
@@ -29,7 +29,7 @@ A test deployment touches nothing else on the machine (``docs/uplevel/30-ops.md`
 
 ``--real`` (owner ruling 66) is the same test deployment with the real VLM in
 place of the fake one, served on the GB300 through ``agent-gpu``
-(:class:`AgentGpu`; ``docs/uplevel/operator.md``, "The agent-gpu path"); the
+(:class:`AgentGpu`; ``docs/uplevel/roles/operator.md``, "The agent-gpu path"); the
 fake detector stays. It checks the weights against the production pin before
 serving, lets the backend reach the host only on the port ``agent-gpu run``
 printed, and removes the VLM after the run, also after a failure.
@@ -99,7 +99,7 @@ EXIT_UNAVAILABLE = 4  # the mode cannot run here (--real without agent-gpu)
 SMOKE_SCENARIO = "harness-smoke"
 
 # --real (owner ruling 66, #6854): the real VLM, served on the GB300 through
-# agent-gpu (docs/uplevel/operator.md, "The agent-gpu path"), with the fake
+# agent-gpu (docs/uplevel/roles/operator.md, "The agent-gpu path"), with the fake
 # detector kept. Its test deployment is --fake's without the fake ai-vlm.
 REAL_SERVICES = tuple(name for name in FAKE_SERVICES if name != "ai-vlm")
 PROD_STACK = REPO_ROOT / "docker-compose.prod.yml"
@@ -940,7 +940,7 @@ def real_unavailable(environ: Mapping[str, str]) -> str | None:
         return (
             "--real serves the VLM only through agent-gpu (owner ruling 66), and "
             "agent-gpu is not on PATH here. It runs in the uplevel-operator sandbox: "
-            'docs/uplevel/operator.md, "The agent-gpu path".'
+            'docs/uplevel/roles/operator.md, "The agent-gpu path".'
         )
     if not environ.get("AGENT_GPU_LIBRARY"):
         return (

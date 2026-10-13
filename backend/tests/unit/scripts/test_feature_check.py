@@ -975,7 +975,7 @@ def test_a_vlm_url_outside_the_runners_pool_refuses(output: str) -> None:
 
 
 def test_the_weight_pins_are_operator_mds() -> None:
-    runbook = (REPO_ROOT / "docs" / "uplevel" / "operator.md").read_text(encoding="utf-8")
+    runbook = (REPO_ROOT / "docs" / "uplevel" / "roles" / "operator.md").read_text(encoding="utf-8")
     assert set(fc.VLM_WEIGHTS) == {fc.VLM_MODEL, fc.VLM_MMPROJ}
     for name, digest in fc.VLM_WEIGHTS.items():
         assert f"{digest}  {name}" in runbook
@@ -1474,7 +1474,7 @@ def test_a_failed_up_with_a_reachable_vlm_keeps_its_own_reason(
 
 
 # ---------------------------------------------------------------------------
-# The summary the operator posts (30-ops.md §O2.2: the preflight snapshot and
+# The summary the operator posts (packages/ops.md §O2.2: the preflight snapshot and
 # each golden spec's result)
 # ---------------------------------------------------------------------------
 
