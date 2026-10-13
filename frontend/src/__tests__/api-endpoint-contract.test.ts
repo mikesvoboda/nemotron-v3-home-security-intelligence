@@ -209,22 +209,22 @@ describe('endpoint contract (D2)', () => {
       audit.scan.opaqueMethod.map((o) => `${o.path}  ${o.file}:${o.line}  ${o.reason}`).join('\n'),
       `${audit.scan.opaqueMethod.length} claim(s) send a verb the scan cannot read`
     ).toMatchInlineSnapshot(`
-      "/api/cameras  src/services/api.ts:1405  options passed by name: options
-      /api/system/health  src/services/api.ts:2004  options passed by name: options
-      /api/system/health/full  src/services/api.ts:2079  options passed by name: options
-      /api/system/gpu  src/services/api.ts:2089  options passed by name: options
-      /api/system/health/websocket  src/services/api.ts:2165  options passed by name: options
-      /api/system/health/live  src/services/api.ts:2188  options passed by name: options
-      /api/events  src/services/api.ts:2294  options passed by name: options
-      /api/events/stats  src/services/api.ts:2329  options passed by name: options
-      /api/events/clusters  src/services/api.ts:2376  options passed by name: options
-      /api/events/deleted  src/services/api.ts:2559  options passed by name: options
-      /api/events/search  src/services/api.ts:3812  options passed by name: options
-      /api/audit  src/services/api.ts:4545  options passed by name: options
-      /api/entities  src/services/api.ts:5766  options passed by name: options
-      /api/entities/matches/{}  src/services/api.ts:5862  options passed by name: options
-      /api/logs  src/services/api.ts:9006  options passed by name: options
-      /api/reid/similar/{}  src/services/api.ts:9119  options passed by name: options"
+      "/api/cameras  src/services/api.ts:1408  options passed by name: options
+      /api/system/health  src/services/api.ts:2007  options passed by name: options
+      /api/system/health/full  src/services/api.ts:2082  options passed by name: options
+      /api/system/gpu  src/services/api.ts:2092  options passed by name: options
+      /api/system/health/websocket  src/services/api.ts:2168  options passed by name: options
+      /api/system/health/live  src/services/api.ts:2191  options passed by name: options
+      /api/events  src/services/api.ts:2297  options passed by name: options
+      /api/events/stats  src/services/api.ts:2332  options passed by name: options
+      /api/events/clusters  src/services/api.ts:2379  options passed by name: options
+      /api/events/deleted  src/services/api.ts:2562  options passed by name: options
+      /api/events/search  src/services/api.ts:3815  options passed by name: options
+      /api/audit  src/services/api.ts:4548  options passed by name: options
+      /api/entities  src/services/api.ts:5769  options passed by name: options
+      /api/entities/matches/{}  src/services/api.ts:5865  options passed by name: options
+      /api/logs  src/services/api.ts:9020  options passed by name: options
+      /api/reid/similar/{}  src/services/api.ts:9133  options passed by name: options"
     `);
   });
 
@@ -249,9 +249,9 @@ describe('endpoint contract (D2)', () => {
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
       src/services/aiAuditApi.ts:386  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:150: not a literal path
-      src/services/api.ts:1557  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:1629  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3338  built at runtime: isVideo
+      src/services/api.ts:1560  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:1632  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:3341  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/detectorApi.ts:144  built at runtime: url.toString()
