@@ -1509,12 +1509,39 @@ def _write_lock(
             {
                 "name": "frontend",
                 "lockfileVersion": 3,
-                "packages": {f"node_modules/{fc.PLAYWRIGHT_LOCK_KEY}": entry},
+                # Spelled as a literal, NOT f"node_modules/{fc.PLAYWRIGHT_LOCK_KEY}".
+                # A fixture that builds its key from the same constant the harness
+                # reads stays green when that constant is mutated — both sides move
+                # together. The literal is what makes a drift in PLAYWRIGHT_LOCK_KEY
+                # redden these tests, which is the drift the real lock would punish.
+                "packages": {"node_modules/@playwright/test": entry},
             }
         ),
         encoding="utf-8",
     )
     return path
+
+
+LOCK_REGISTRY = "mcr.microsoft.com"  # the host UR-131 says a failure must NAME
+LOCK_IMAGE_V163 = f"{LOCK_REGISTRY}/playwright:v{LOCK_VERSION_DEFAULT}-noble"
+
+
+def _named_registry(problem: str) -> str:
+    """The host the harness's firewall clause tells the owner to allow.
+
+    Extracted from the instruction, never substring-matched against the whole
+    sentence. ``assert "mcr.microsoft.com" in problem`` cannot fail on a mutated
+    ``PLAYWRIGHT_IMAGE_REGISTRY``, because the SAME sentence quotes the image
+    reference — ``pull of mcr.microsoft.com/playwright:v…-noble`` — which is
+    built from a SECOND constant, ``PLAYWRIGHT_IMAGE_REPOSITORY``. Measured: with
+    ``PLAYWRIGHT_IMAGE_REGISTRY`` set to ``cdn.playwright.dev``, the substring
+    assert still passed on the reference while the instruction named the wrong
+    host. Parsing the host out of the operator instruction and comparing it to a
+    literal is what makes the instruction's own value the pin's referent.
+    """
+    found = re.search(r"registry: (\S+) — the host to allow", problem)
+    assert found, f"no operator instruction in {problem!r}"
+    return found.group(1)
 
 
 def _golden_only_run(
@@ -1681,8 +1708,9 @@ def test_the_leg_runs_in_the_image_with_the_same_argv_inside(
     assert f"{frontend}:{frontend}:ro" in argv, "the source tree is read-only"
     assert f"{run.dir}:{run.dir}" in argv, "the run dir is writable, at its own path"
     assert argv[argv.index("-w") + 1] == str(frontend), "cwd is frontend/"
-    image = fc.playwright_image(fc.PACKAGE_LOCK)
-    assert argv[argv.index("sh") - 1] == image, "the image is the lock-derived tag"
+    # The tag the FIXTURE's lock implies, as a literal — not fc.playwright_image(...)
+    # re-evaluated, which would agree with golden() no matter what golden() chose.
+    assert argv[argv.index("sh") - 1] == LOCK_IMAGE_V163, "the image is the lock-derived tag"
     assert argv[argv.index("sh") :][:2] == ["sh", "-c"], "everything after is the inner command"
     inner = argv[-1]
     assert inner.startswith("npx --no-install playwright test --project=golden "), inner
@@ -1696,15 +1724,21 @@ def test_the_container_gets_environment_names_never_values(
 ) -> None:
     """The run's admin password must not reach the logged argv.
 
-    ``_run`` logs every command it issues (``shlex.join``) and the harness's log
-    is uploaded as a CI artifact, so ``-e FEATURE_CHECK_ADMIN_PASSWORD=<value>``
-    would write the throwaway admin password into ``golden-playwright.log`` and
-    the CI log. The name-only form makes the engine read the value from the
-    ``env=`` this command actually runs with, which is the other half of this pin:
-    the NAMES are on the argv and the VALUES are in the child's env, so the leg
-    still receives its credentials. Both the engine view (PATH/HOME) and the run
-    env reach the child; only the password is asserted by name, because that is
-    the fact that must stay out of the log.
+    ``_run`` logs every command it issues (``shlex.join``) into the harness's
+    stdout, and on CI that stdout IS the Actions step log — an artifact of the
+    run in every practical sense, and one any operator can read. (The one file
+    this job uploads as a named artifact, ``golden-playwright.log``, carries
+    only the CHILD's output; the argv never reaches it. The claim used to be
+    written the other way round here and in the two docs; corrected — the
+    name-only rule is right for the step log, and a reader deciding what is
+    safe to put in an argv needs the true carrier, not a flattering one.)
+    So ``-e FEATURE_CHECK_ADMIN_PASSWORD=<value>`` would write the throwaway
+    admin password into the step log. The name-only form makes the engine read
+    the value from the ``env=`` this command actually runs with, which is the
+    other half of this pin: the NAMES are on the argv and the VALUES are in the
+    child's env, so the leg still receives its credentials. Both the engine
+    view (PATH/HOME) and the run env reach the child; only the password is
+    asserted by name, because that is the fact that must stay out of the log.
     """
     calls: list[tuple[list[str], dict[str, Any]]] = []
     run = _golden_only_run(tmp_path, monkeypatch, True, calls)
@@ -1727,11 +1761,47 @@ def test_the_container_gets_environment_names_never_values(
         "FEATURE_CHECK_ADMIN_USERNAME",
         "FEATURE_CHECK_ADMIN_PASSWORD",
         "PLAYWRIGHT_JUNIT_OUTPUT_FILE",
+        "CI",
     }, "every name the spec set needs to reach the browser, and only those"
     assert not any(token.startswith("-e") and len(token) > 2 for token in argv)
     env = kwargs["env"]
     assert env["FEATURE_CHECK_ADMIN_PASSWORD"] == password, "and the child still gets it"
     assert env["PLAYWRIGHT_JUNIT_OUTPUT_FILE"] == str(run.artifacts / "golden-playwright.xml")
+
+
+def test_the_container_sees_ci_so_the_config_branches_as_they_did_on_the_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`CI` reaches the browser, because playwright.config.ts BRANCHES on it.
+
+    `forbidOnly: !!process.env.CI` (config :73) and `retries: CI ? 2 : 0`
+    (:79) were live on the host leg — Actions sets CI=true unconditionally, no
+    workflow line needed — and the move into the container put a whitelist
+    between the config and that variable. Without `-e CI` the golden leg runs
+    with the .only guard OFF: one stray `test.only` executes 1 of 126, the
+    junit holds 1 passed testcase, `golden_execution_problems` sees neither an
+    empty nor an all-skipped set, and the leg reports green (UR-128's hole,
+    measured by the self-review's scratch config: CI=true → rc 1, `env -u CI`
+    → 1 passed rc 0). With retries 0 no spec can HAVE a failed attempt, so the
+    flaky census reads this leg as zero flake forever (UR-129).
+
+    Pinned as a SEPARATE test from the name-set pin above, on purpose: the
+    name-set pins membership, and a drop of exactly this name out of the
+    whitelist is the quiet one — the leg still runs, the specs still pass, and
+    only the two guards nobody exercises change. The value assertion is the
+    same shape as the password's: the name rides the argv, the value comes from
+    the harness's own env, so a `CI=true` job containers-inherits `true` and a
+    laptop inherits nothing — both legs match their host, which is the whole
+    contract of the name-only form.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setenv("CI", "true")
+    run.golden()
+    argv, kwargs = _golden_container(calls)
+    exported = [argv[i + 1] for i, token in enumerate(argv) if token == "-e"]
+    assert "CI" in exported, "the config's CI branches go dark without this name"
+    assert kwargs["env"].get("CI") == "true", "name-only: the value comes from the harness env"
 
 
 @pytest.mark.parametrize("engine", ["docker", "podman"])
@@ -1804,8 +1874,19 @@ def test_the_image_tag_is_derived_from_the_repo_lock_not_a_literal() -> None:
     resolved = json.loads(
         (REPO_ROOT / "frontend" / "package-lock.json").read_text(encoding="utf-8")
     )
-    version = resolved["packages"][f"node_modules/{fc.PLAYWRIGHT_LOCK_KEY}"]["version"]
-    assert fc.playwright_image(fc.PACKAGE_LOCK) == f"mcr.microsoft.com/playwright:v{version}-noble"
+    version = resolved["packages"]["node_modules/@playwright/test"]["version"]
+    assert fc.playwright_image(fc.PACKAGE_LOCK) == f"{LOCK_REGISTRY}/playwright:v{version}-noble"
+    # And the KEY itself, pinned directly, because no derived comparison can see
+    # a drift in it: the real lock carries node_modules/playwright and
+    # node_modules/playwright-core alongside, all three at 1.63.0 (measured), so
+    # a key that drifted to "playwright" would still produce the same tag from
+    # the same file and every equality above would hold. The sibling pins catch
+    # that drift now because their fixtures spell the path as a literal; this
+    # test reads the REAL lock, so it pins the constant against the literal too.
+    assert fc.PLAYWRIGHT_LOCK_KEY == "@playwright/test", (
+        "the lock key is a second source of truth for the browser if it drifts "
+        "from the package the frontend actually depends on"
+    )
 
 
 @pytest.mark.parametrize(
@@ -1886,11 +1967,21 @@ def test_a_missing_image_is_pulled_and_a_blocked_registry_names_the_host(
     run = _golden_only_run(tmp_path, monkeypatch, True, calls, image_present=False, pull_rc=1)
     problems = run.golden()
     pulls = [c for c, _ in calls if c[:2] == ["docker", "pull"]]
-    assert pulls == [["docker", "pull", fc.playwright_image(fc.PACKAGE_LOCK)]]
+    assert pulls == [["docker", "pull", LOCK_IMAGE_V163]], (
+        "exactly one pull of the tag THIS fixture's lock implies, spelled as a "
+        "literal. Comparing against fc.playwright_image(fc.PACKAGE_LOCK) instead "
+        "would let golden() hard-code a tag and stay green: both sides of the "
+        "equality would move together. Derivation from the real lock is pinned "
+        "separately, by the test that greps the harness for a version literal."
+    )
     assert run.summary["results"]["golden"]["playwright_image_pull"] == "exit 1"
     named = [p for p in problems if "pull of" in p]
     assert len(named) == 1, problems
-    assert "mcr.microsoft.com" in named[0], "the firewall clause needs the host to allow"
+    assert _named_registry(named[0]) == LOCK_REGISTRY, (
+        "UR-131 makes the failure NAME the host the owner must allow; the "
+        "instruction is the only part of the sentence whose host comes from "
+        "PLAYWRIGHT_IMAGE_REGISTRY, so that is the part to read"
+    )
     # The host name alone is NOT the clause: `mcr.microsoft.com` is already inside
     # the image reference the sentence quotes, so a message that only says
     # "registry unreachable" would still pass a substring test on it. What makes
@@ -1963,7 +2054,17 @@ def test_a_failed_frontend_install_is_a_named_step_not_a_crash(
     calls: list[tuple[list[str], dict[str, Any]]] = []
     run = _golden_only_run(tmp_path, monkeypatch, False, calls, install_rc=243)
     problems = run.golden()
-    assert [c[:2] for c, _ in calls][:2] == [["npm", "ci"], ["docker", "image"]]
+    # The WHOLE sequence, not its first two entries. The point of this test is
+    # the docstring's claim that check=False lets the run continue, and the
+    # third entry is that claim: a failed install still attempts the leg, so it
+    # arrives as a named step rather than a crash. A [:2] slice keeps the order
+    # and deletes the evidence. (Measured: exactly these three calls, with the
+    # image already present so no pull sits between them.)
+    assert [c[:2] for c, _ in calls] == [
+        ["npm", "ci"],
+        ["docker", "image"],
+        ["docker", "run"],
+    ]
     assert run.summary["results"]["golden"]["npm_ci"] == "exit 243"
     assert any("npm ci in frontend/ exited 243" in p for p in problems)
 
@@ -2157,7 +2258,11 @@ def test_a_stalled_pull_is_a_named_problem_and_never_starts_the_leg(
     assert golden_results["npm_ci"] == "ok", "earlier steps keep their accounting"
     named = [p for p in problems if "timed out" in p]
     assert len(named) == 1, problems
-    assert "mcr.microsoft.com" in named[0], "the firewall clause still names the host"
+    assert _named_registry(named[0]) == LOCK_REGISTRY, (
+        "the firewall clause still names the host, in the instruction — not only "
+        "in the image reference it quotes, which a substring test would accept "
+        "from PLAYWRIGHT_IMAGE_REPOSITORY alone"
+    )
     # Both of these are content the IMAGE REFERENCE cannot supply, so each one
     # fails if its clause is deleted: the instruction (the host alone is not
     # actionable — the ref already names it), and the child's own tail, which for

@@ -1098,6 +1098,17 @@ PLAYWRIGHT_IMAGE_REGISTRY = "mcr.microsoft.com"
 # FEATURE_CHECK_ returns API_URL, UI_URL, CAMERA_ROOT, CAMERAS, SCENARIOS,
 # ADMIN_USERNAME, ADMIN_PASSWORD — no MODE, no RUN_DIR) plus the junit path
 # golden() reads back. Names go to the engine; values never do.
+#
+# `CI` is here for a different reason than the eight FEATURE_CHECK_* names:
+# playwright.config.ts branches on it (`forbidOnly: !!process.env.CI` :73,
+# `retries: process.env.CI ? 2 : 0` :79). The host leg always had it — GitHub
+# sets CI=true in every job — so omitting it here would ship the containerized
+# leg with the .only guard OFF and retries 0: one stray test.only in any spec
+# would run 1 of 126 and report green (the junit then holds 1 testcase, which
+# the vacuity guard reads as a pass), and no spec could ever HAVE a failed
+# attempt, blinding the flaky census. Name-only, same as the password: the
+# engine reads the value from the harness's own env, so the container sees
+# exactly what the host leg saw. Locally CI is unset and both legs match.
 GOLDEN_CONTAINER_ENVIRONMENT = (
     "FEATURE_CHECK_API_URL",
     "FEATURE_CHECK_UI_URL",
@@ -1107,6 +1118,7 @@ GOLDEN_CONTAINER_ENVIRONMENT = (
     "FEATURE_CHECK_ADMIN_USERNAME",
     "FEATURE_CHECK_ADMIN_PASSWORD",
     "PLAYWRIGHT_JUNIT_OUTPUT_FILE",
+    "CI",
 )
 
 
@@ -1165,10 +1177,13 @@ def golden_container_command(
     Two choices are load-bearing rather than stylistic:
 
     * ``-e NAME`` with no ``=VALUE``. ``_run`` logs every argv it runs
-      (``shlex.join``), so ``-e FEATURE_CHECK_ADMIN_PASSWORD=…`` would write the
-      run's admin password into golden-playwright.log and the CI log. The
-      name-only form makes the engine read the value from ITS OWN environment,
-      which is the ``env=`` this command runs with.
+      (``shlex.join``) to the harness's own stdout, which on CI is the Actions
+      step log, so ``-e FEATURE_CHECK_ADMIN_PASSWORD=…`` would write the run's
+      admin password into that log. (The uploaded artifact
+      ``golden-playwright.log`` is only the Playwright child's output, so it
+      never carries an argv line — the step log is the exposure.) The name-only
+      form makes the engine read the value from ITS OWN environment, which is
+      the ``env=`` this command runs with.
     * ``ro`` on the source tree. The leg has no reason to write into it — both
       ``--output`` and the junit file live in the run dir — and a read-only bind
       turns "the container wrote in the tree" from a quiet possibility into a

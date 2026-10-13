@@ -525,8 +525,10 @@ gone. Three properties the pins hold:
   On podman each mount also carries `,z`, the relabel a SELinux engine wants.
   The environment reaches the container as NAMES ONLY (`-e
 FEATURE_CHECK_ADMIN_PASSWORD`, never `-e …=<value>`): `_run` logs every argv
-  it issues and the log is uploaded as a CI artifact, so a value in the argv is
-  a password in an artifact.
+  it issues, to the harness's stdout, and on CI that stdout IS the Actions step
+  log — so a value in the argv is a password in a log every run reader can
+  read. (`golden-playwright.log` is what the job uploads as an artifact, and it
+  holds only the Playwright child's output, never an argv line.)
 - **The inner command is the one the host leg ran** — same `--project=golden`,
   `--output=<run dir>`, `--reporter=list,junit` — so a spec count from before
   ruling 143 is still comparable, which is Done-when 1's "same counts as

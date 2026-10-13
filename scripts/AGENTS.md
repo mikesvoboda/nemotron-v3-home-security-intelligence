@@ -816,8 +816,11 @@ The logic is `feature_check.py`, standard library only:
   reaches the stack on an engine-assigned port; `frontend/` mounts READ-ONLY at
   its own path (the leg writes nothing there) and the run dir writable; podman
   adds `,z` to each mount. Pass environment NAMES to the engine (`-e NAME`),
-  never values — `_run` logs every argv and the log is a CI artifact, so a value
-  there is a password in an artifact. Keep `npx --no-install` on the inner
+  never values — `_run` logs every argv it issues, to the harness's own stdout,
+  which on CI is the Actions step log; a value there is a password in a log
+  anyone who can read the run can read. (`golden-playwright.log` is the job's
+  uploaded artifact, but it carries only the Playwright child's output, so no
+  argv line ever lands in it.) Keep `npx --no-install` on the inner
   command: without the flag a bare `npx` on a tree whose `npm ci` failed FETCHES
   the newest `playwright` off the network and exits 0 (measured: 1.64.0 fetched
   on a 1.63.0 image), so the leg would run an unlocked runner against a
