@@ -142,6 +142,16 @@ const DRIPS = 45; // ~3.5 s of pinned window; both clicks land inside it
  * toast is the error mapper's own copy and ruling 132 does not retire it, so
  * a shed mutation error surfacing it is CORRECT behaviour, not a failure.
  * A match here means a countdown/quota surface came back.
+ *
+ * ONE KNOWN HOLE, named rather than hidden: `retry in \d` cannot match
+ * 'Retrying in 0:59' — two words where the pattern expects one — and that is
+ * the copy components/RetryIndicator.tsx:136 renders (data-testid
+ * "retry-indicator", countdown at :138). Ruling 132 does not retire that
+ * component and this PR does not touch it; it is imported by NOTHING (grep:
+ * its own file plus a comment at hooks/useRetry.ts:112), so it cannot render
+ * and the hole is unreachable today. If anything ever mounts it, this scan
+ * will NOT see it — that is the moment the pattern needs widening, and it is
+ * why the hole is written here instead of left to the next reader.
  */
 const RETIRED_SURFACE = /rate limited|retry in \d|requests? remaining|quota running low/i;
 
