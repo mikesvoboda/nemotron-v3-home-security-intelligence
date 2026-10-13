@@ -492,13 +492,20 @@ test.describe('F-048 full-text search', () => {
   /**
    * THE SEVERITY FILTER FILTERS A VALUE THE ROW DOES NOT CLAIM TO HAVE.
    *
-   * `risk_level` exists TWICE on one row (`backend/models/event.py`): a stored
-   * column that carries whatever the create request declared (`:61-63`, "the
-   * persisted risk level from LLM analysis") and `computed_risk_level`, a hybrid
-   * CASE over `risk_score` (`:392-424`: ≤29 low, ≤59 medium, ≤84 high, else
-   * critical). The search route FILTERS with the column
-   * (`Event.risk_level.in_(filters.severity)`, services/search.py:331-332) and
-   * REPORTS the other (`risk_level=event.risk_level`, `:380`).
+   * `risk_level` is decided at THREE sites and they do not agree. On the model
+   * (`backend/models/event.py`) there is a stored column carrying whatever the
+   * create request declared (`:61-63`, "the persisted risk level from LLM
+   * analysis") and a `computed_risk_level` hybrid CASE over `risk_score`
+   * (`:392-424`: ≤29 low, ≤59 medium, ≤84 high, else critical). The search route
+   * FILTERS with the COLUMN (`Event.risk_level.in_(filters.severity)`,
+   * services/search.py:331-332) but its result object assigns the column
+   * (`risk_level=event.risk_level`, `:380`) into a pydantic response model that
+   * RE-DECLARES `risk_level` as a `@computed_field` over `risk_score`
+   * (backend/api/schemas/search.py:44, `:172-183` in schemas/events.py) — so that
+   * `:380` assignment is silently discarded and the JSON the client reads is the
+   * SCHEMA's computed value, a third implementation of the same thresholds.
+   * The filter compares field A; the wire reports field C. (This is why a
+   * reviewer must not trust the `:380` line alone — re-measure, as below.)
    *
    * Measured on the probe stack, one row at a time, all three readers
    * (single-row, browse, search) agreeing with each other and none with the
