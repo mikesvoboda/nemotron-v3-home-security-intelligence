@@ -176,6 +176,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 6128195816                      | UR-106, UR-29                                                                                                                                                                                                                              |
 | 6128714278                      | PROGRAMME PAUSE record; supersedes ruling 146's ledger by this rewrite                                                                                                                                                                     |
 | owner design session 2026-10-12 | ruling 147. Pass 1: UR-39, UR-40, UR-41, UR-106, UR-29, UR-162, UR-163; corrected lines in UR-45, UR-66, UR-10, UR-121, UR-144. Pass 2: UR-24, UR-52, UR-59, UR-63, UR-25, UR-166, UR-168, UR-98, UR-125, UR-126, UR-151; package `[r147]` |
+| 6135935339                      | UR-166 (status comment shows current state only, about 4,000 characters)                                                                                                                                                                   |
 
 ## Merged rules
 
