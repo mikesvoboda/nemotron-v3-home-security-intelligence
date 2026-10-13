@@ -77,6 +77,18 @@ def gate(conclusion="SUCCESS", status="COMPLETED"):
     }
 
 
+def filler_check(name="Backend Unit Tests"):
+    """A non-gate check run, to build a rollup long enough to hit the list-API cap."""
+    return {
+        "__typename": "CheckRun",
+        "name": name,
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": t(-timedelta(hours=1)),
+        "detailsUrl": f"https://github.com/{REPO}/actions/runs/901/job/1",
+    }
+
+
 def checkout_log(head=HEAD, base=RUN_BASE):
     return (
         "2026-10-13T15:13:40Z ##[group]Checking out the ref\n"
@@ -169,6 +181,8 @@ class FakeRunner:
         self.merges_behind = {RUN_BASE: "3", BASE: "10"}
         self.main_files = {RUN_BASE: "docs/a.md\n", BASE: "docs/a.md\ndocs/b.md\n"}
         self.pr_files = "docs/b.md\n"
+        # Per-PR rollups that differ from the batched list's (the list caps each PR at 100 entries).
+        self.pr_rollups: dict[int, list] = {}
         self.checkout_jobs = [{"id": 99, "steps": 40}, {"id": CHECKOUT_JOB, "steps": 5}]
         self.log = checkout_log()
 
@@ -207,6 +221,12 @@ class FakeRunner:
             return json.dumps([run("success")])
         if cmd[:3] == ["gh", "pr", "list"]:
             return json.dumps(self.prs)
+        if cmd[:3] == ["gh", "pr", "view"]:
+            number = int(cmd[3])
+            rollup = self.pr_rollups.get(number)
+            if rollup is None:  # the fake's batched answer, as if the cap never bit
+                rollup = next(p["statusCheckRollup"] for p in self.prs if p["number"] == number)
+            return json.dumps({"statusCheckRollup": rollup})
         if cmd[:2] == ["git", "fetch"]:
             return ""
         if cmd[:2] == ["git", "rev-parse"]:
@@ -229,6 +249,23 @@ def build(fake: FakeRunner, since: datetime | None = None) -> dict:
 
 def pr(data: dict, number: int = 7001) -> dict:
     return next(p for p in data["prs"]["items"] if p["number"] == number)
+
+
+def rendered_pr_block(data: dict, number: int = 7001) -> list[str]:
+    """Section 3's lines for one PR: its headline plus the six-space-indented detail rows.
+
+    Needed because ``"STALE" in render_text(...)`` is a false-positive instrument — section 6
+    prints the same word for an old heartbeat, so a whole-report search can never say that a
+    *verdict* was misread.
+    """
+    lines = snap.render_text(data).splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith(f"  #{number} "))
+    block = [lines[start]]
+    for line in lines[start + 1 :]:
+        if not line.startswith("      "):
+            break
+        block.append(line)
+    return block
 
 
 # --- 1. cursor ---------------------------------------------------------------------------
@@ -330,6 +367,53 @@ def test_approval_sha_on_an_older_head_is_stale():
     assert "STALE" in snap.render_text(build(fake))
 
 
+def test_bold_verdict_first_line_counts_as_approval():
+    # Verdict first lines in the wild (2026-10-13 census over 9 PRs): `Review: approve`,
+    # `Review: **approved**` (6151128403), `Review: approve at head <sha>`. The literal
+    # startswith("Review: approve") missed the bold one, so a live key read back as STALE
+    # and invited a void (defect note 6153121259 §1; frontend's 6152497298 says the same).
+    fake = FakeRunner()
+    fake.reviews.append(
+        {
+            "id": 32,
+            "created_at": t(-timedelta(minutes=5)),
+            "user": "mikesvoboda",
+            "body": "Review: **approved**\nHead: `a1b2c3d`\n",
+        }
+    )
+    p = pr(build(fake))
+    assert p["approval"]["id"] == 32
+    assert p["approval"]["matches_head"] is True
+    block = rendered_pr_block(build(fake), 7001)
+    assert "approve=a1b2c3d(=head, 32)" in block[0]
+    assert "STALE" not in block[0]
+    assert not [ln for ln in block[1:] if "latest review:" in ln]
+
+
+def test_changes_requested_and_negated_verdicts_are_not_approvals():
+    fake = FakeRunner()
+    fake.reviews.append(
+        {
+            "id": 33,
+            "created_at": t(-timedelta(minutes=5)),
+            "user": "x",
+            "body": "Review: changes requested",
+        }
+    )
+    fake.reviews.append(
+        {
+            "id": 34,
+            "created_at": t(-timedelta(minutes=4)),
+            "user": "x",
+            "body": "Review: **not approved**",
+        }
+    )
+    p = pr(build(fake))
+    # The earlier real approval still stands; neither new line counts as an approval.
+    assert p["approval"]["id"] == 30
+    assert p["latest_review"].startswith("Review: **not approved**")
+
+
 def test_drafts_get_no_review_read_and_no_legs():
     fake = FakeRunner()
     p = pr(build(fake), 7002)
@@ -342,6 +426,34 @@ def test_gate_states():
     assert snap.gate_state([]) == "absent"
     assert snap.gate_state([gate(conclusion="", status="IN_PROGRESS")]) == "IN_PROGRESS"
     assert snap.gate_state([gate(conclusion="FAILURE")]) == "FAILURE"
+
+
+def test_a_gate_past_the_list_api_rollup_cap_is_still_read():
+    # Measured 2026-10-13 on #7070: `gh pr list --json statusCheckRollup` returns at most 100
+    # entries per PR — it has 129, and both `CI Gate` rows fall past the cut — so §3 printed
+    # gate=absent for a PR whose gate was green (defect note 6153121259 §3, cause undiagnosed
+    # by the coordinator). `gh pr view --json statusCheckRollup` returns all 129. `absent` is
+    # the one reading the capped batch cannot be trusted for, so that is what gets re-read.
+    fake = FakeRunner()
+    full = [filler_check(f"check {i}") for i in range(100)] + [gate()]
+    fake.prs[0]["statusCheckRollup"] = full[:100]  # what the batch hands back: a truncated prefix
+    fake.pr_rollups[7001] = full  # what the per-PR read hands back
+    assert snap.gate_state(fake.prs[0]["statusCheckRollup"]) == "absent"  # the batch's own reading
+    p = pr(build(fake))
+    assert p["gate"] == "SUCCESS"
+    assert p["gate_run"] == GATE_RUN
+    asked = [c for c in fake.calls if c[:3] == ["gh", "pr", "view"]]
+    assert [c[3] for c in asked] == ["7001"], "the cap fix must re-read only the suspect PR"
+
+
+def test_a_short_rollup_without_a_gate_is_not_reread():
+    # The other side of the control: a PR whose batch is short genuinely has no gate, and the
+    # fix must not spend a per-PR call on every such PR each tick.
+    fake = FakeRunner()
+    fake.prs[1]["statusCheckRollup"] = [filler_check()]
+    p = pr(build(fake), 7002)
+    assert p["gate"] == "absent"
+    assert not [c for c in fake.calls if c[:3] == ["gh", "pr", "view"]]
 
 
 # --- 4. UR-102 legs ----------------------------------------------------------------------
@@ -481,6 +593,29 @@ def test_heartbeat_age_over_twenty_minutes_is_flagged():
     assert items["agent-uplevel-backend"]["paused"] is False
 
 
+def test_paused_is_the_status_field_not_a_word_in_the_prose():
+    # UR-160's paused flag drives §6's `[paused]` and the coordinator's routing. The substring
+    # test flagged 2 of 9 live heartbeats that are not paused at all (6098014375, 6098123126 —
+    # both say the word while describing someone else's lane). Defect note 6153121259 §2.
+    fake = FakeRunner()
+    fake.heartbeats.append(
+        comment(
+            6,
+            6958,
+            "<!-- heartbeat:agent-uplevel-frontend -->\nfrontend · 14:58Z · working #12 · "
+            "heavy lane is paused per ruling 88",
+            t(-timedelta(days=2)),
+            t(-timedelta(minutes=7)),
+        )
+    )
+    items = {h["agent"]: h for h in build(fake)["heartbeats"]["items"]}
+    assert items["agent-uplevel-frontend"]["paused"] is False
+    assert items["agent-uplevel-heavy"]["paused"] is True  # the real one still flags
+    # §6 renders no body, so a `paused` flag there is unambiguous — exactly one lane earns it.
+    sec6 = [ln for ln in snap.render_text(build(fake)).splitlines() if "paused" in ln]
+    assert [ln.split()[0] for ln in sec6] == ["agent-uplevel-heavy"]
+
+
 # --- robustness and read-only ---------------------------------------------------------------
 
 
@@ -514,7 +649,8 @@ def test_the_script_never_writes_to_github():
             cmd[0] == "git"
         )
         if cmd[:2] == ["gh", "pr"]:
-            assert cmd[2] == "list"
+            # read subcommands only — list (the batch) and view (a capped-rollup re-read)
+            assert cmd[2] in ("list", "view")
 
 
 def test_paginated_pages_are_flattened():
