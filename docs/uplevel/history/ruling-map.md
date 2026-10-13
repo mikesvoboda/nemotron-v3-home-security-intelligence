@@ -175,6 +175,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 160    | dependabot split; packages `[r160a]`, `[r160b]` (record 6155111397)                                         |
 | 161    | lane.md "Self-review": ready when code is complete (6156907393)                                             |
 | 162    | `O2.5`'s spike blockers; package `[r162]` (record 6156947315)                                               |
+| 163    | lane.md, operator.md tick step 1: read BINDING NOW records (6156999669)                                     |
 
 ## Owner records
 
