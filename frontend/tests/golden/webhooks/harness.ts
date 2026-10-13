@@ -218,7 +218,7 @@ export async function deleteWebhook(api: AuthedFetch, id: string): Promise<void>
 }
 
 /** Sorted id set of every webhook on the stack. The restore proof is SET EQUALITY
- *  against this snapshot (DO-2's rule, quiet-hours.spec.ts:76-78 / :255-257): a
+ *  against this snapshot (DO-2's rule, notify-access/quiet-hours.spec.ts:76-78 / :255-257): a
  *  stack that grows a seeded webhook later must not make this batch red, and
  *  "empty" is a weaker claim than "as I found it". */
 export async function webhookIds(api: AuthedFetch): Promise<string[]> {
