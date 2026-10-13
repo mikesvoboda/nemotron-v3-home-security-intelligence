@@ -89,8 +89,41 @@ export default function Layout({ children }: LayoutProps) {
           <SkipLinkGroup targets={SKIP_TARGETS} />
           <Header />
           <div className="flex flex-1 overflow-hidden">
-            {/* Hide sidebar on mobile, show MobileBottomNav instead */}
-            {!isMobile && <Sidebar />}
+            {/*
+              [r130f] F-017: the Sidebar is mounted at EVERY width now; it used to be
+              `{!isMobile && <Sidebar />}`. The row's clause "on mobile uses the bottom bar
+              AND slide-out menu" needs the drawer below 640, but the drawer IS this component
+              (its open/closed translate is the `isMobileMenuOpen` ternary in Sidebar.tsx's
+              aside className), so gating its mount on `isMobile` (width < 640,
+              useViewport.ts:124) unmounted the very thing the hamburger opens — a tap at
+              375px rendered this file's `mobile-overlay` backdrop over an absent drawer. The
+              two gates disagreed because they are two different systems: this one was JS at
+              640, while the hamburger's hiding is CSS `md:hidden` (Header.tsx:287) and the
+              backdrop's, a few lines below, is `md:hidden` too — all Tailwind `md` = 768. So
+              CSS already spoke one dialect and this line another.
+
+              The agreement is made by removing the JS gate rather than by moving the hamburger
+              to 640, and the reason is dependency direction: MobileBottomNav's More sheet
+              (its `handleNavigate`) is the phone's in-page nav, so HIDING the hamburger at 640
+              would strand the hamburger's feature with no entry point, while MOUNTING the
+              drawer leaves every band with a working control. The Sidebar doubles as the
+              desktop rail, so it cannot be unmounted above 768 either — which lands on "always
+              mounted", with the existing CSS as the single display contract: `md:relative
+              md:translate-x-0` plus `isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'`
+              means flush rail at >=768 and an off-canvas drawer below, exactly as designed.
+              `isMobile` still earns its keep in this file: `pb-14` on main and the
+              MobileBottomNav mount, both below.
+
+              The row's own evidence named the tell: Sidebar's "Menu / Close" header is gated
+              `md:hidden` alone — markup that is only reachable below 768 if the component
+              mounts below 768, which this gate forbade.
+
+              One consequence belongs here because it is invisible in a screenshot: a drawer
+              hidden by a transform is still in the tab order, so the always-mounted aside
+              carries an `inert` gate of its own — see the comment above `drawerIsOffCanvas` in
+              Sidebar.tsx.
+            */}
+            <Sidebar />
 
             {/* Mobile overlay backdrop */}
             {isMobileMenuOpen && (
