@@ -94,6 +94,11 @@ why the numeric proof sits where it always has:
 
 - **the graph** is proved by `validate_onnx` in the ONNX step — PyTorch against
   ONNX Runtime's **CPU** execution provider, cosine > 0.999, no GPU needed;
+  since owner ruling 157 the same proof also runs **in CI**, on real committed
+  crops rather than noise (`ai/gateway/tests/test_export_reid_onnx_fidelity.py`).
+  It needs `onnx`, `onnxscript` and `onnxruntime`, so all three are in the `dev`
+  extra — without them this step does not fail, it logs a warning and returns
+  `True`, which is how O2.4 shipped a cosine-0.23 model past a reported PASS.
 - **the plan** is proved by the owner's host run, `scripts/reid_parity_check.py`
   on the GB300 (ruling 107's _Done when_). Nothing in this directory
   re-validates an engine, because nothing here has a GPU to run one on; the plan
