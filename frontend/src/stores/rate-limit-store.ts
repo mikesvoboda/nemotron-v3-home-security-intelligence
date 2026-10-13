@@ -82,7 +82,7 @@ export interface RateLimitState {
  * // `secondsUntilReset` is internal bookkeeping for that timer — do NOT render
  * // a countdown from it (ruling 132 retired the countdown overlay).
  * if (isLimited && hasInFlightRequests) {
- *   return <div>Retrying request...</div>;
+ *   return <div>Rate limited, retrying…</div>;
  * }
  * ```
  */

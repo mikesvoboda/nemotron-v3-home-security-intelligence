@@ -4,7 +4,7 @@
  * ROW (F-022) as it now reads after ruling 132's split — "the retrying pill is
  * kept; the countdown overlay and its invented defaults retire":
  *   - KEPT: RetryingIndicator (data-testid="retrying-indicator", text
- *     "Retrying request..."), which renders only when the store says
+ *     "Rate limited, retrying…"), which renders only when the store says
  *     isLimited AND react-query has work in flight.
  *   - RETIRED (this PR deletes them): common/RateLimitIndicator.tsx (the
  *     "Rate Limited / Retry in M:SS" overlay + the <=50% quota bar + the
@@ -49,7 +49,7 @@
  * while limited) needs isLimited=true, and per 1 + 2 no shipped control on this
  * tier can be MADE to set it on demand — the panel above can 429, but not at a
  * moment a spec chooses. So the pill is exercised in the component tier only
- * (RetryingIndicator.test.tsx, 12 cases) — which rulings 114/128 do not accept
+ * (RetryingIndicator.test.tsx, 13 cases) — which rulings 114/128 do not accept
  * as a publishable flip. What this file CAN publish is the NEGATIVE leg: real
  * throttled 429s riding fetchApi, and the retired surface provably absent. A
  * reachability change that would make the positive leg golden is a backend/UI
@@ -152,8 +152,25 @@ const DRIPS = 45; // ~3.5 s of pinned window; both clicks land inside it
  * and the hole is unreachable today. If anything ever mounts it, this scan
  * will NOT see it — that is the moment the pattern needs widening, and it is
  * why the hole is written here instead of left to the next reader.
+ *
+ * THE PILL EXEMPTION below arrived with ruling 155's rename, so it is stated
+ * rather than slipped in: the KEPT pill now reads 'Rate limited, retrying…'
+ * (ruling 155 item 1), and a bare `rate limited` would match the one component
+ * this package KEEPS — a leg that ever lights the pill could then never go
+ * green. The lookahead is the owner's EXACT string, not a shape: a 'rate
+ * limited' is skipped only when ', retrying…' follows it immediately, so a
+ * reworded surface ('Rate limited — retrying in 0:53', 'Rate limited. Retry in
+ * 0:53') still matches, as does every retired copy the overlay produced
+ * ('Retry in 0:53' via `retry in \d`, '…requests remaining', 'API quota
+ * running low'). What it cannot see is exactly one string — the pill's ruled
+ * text — which is the intended scope: ruling 155 names that string, so a scan
+ * may not fail on it. Measured, not argued: over a 10-string corpus this
+ * differs from the old pattern on the pill alone and loses no retired-copy
+ * match (the narrower `(?![^a-z0-9]*retry)` was tried first and REJECTED — it
+ * also silenced the reworded-overlay case above).
  */
-const RETIRED_SURFACE = /rate limited|retry in \d|requests? remaining|quota running low/i;
+const RETIRED_SURFACE =
+  /rate limited(?!, retrying…)|retry in \d|requests? remaining|quota running low/i;
 
 /**
  * Whole-document scan for the retired surface: visible text AND any aria-label,
