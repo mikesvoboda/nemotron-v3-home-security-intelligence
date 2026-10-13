@@ -1215,6 +1215,7 @@ def _stub_pytest(
     *,
     exit_codes: dict[str, int] | None = None,
     collect_zero: set[str] | None = None,
+    skipped: set[str] | None = None,
     calls_file: Path,
 ) -> str:
     """A stand-in for ``python -m pytest``: canned duration, canned exit code.
@@ -1222,7 +1223,10 @@ def _stub_pytest(
     ``durations`` maps the re-run test's NAME to the seconds its canned junit
     reports, and a name in ``collect_zero`` exits 5 (pytest's real "no tests
     collected"); a name in neither exits 4 with no junit — the "could not run
-    it" shape.
+    it" shape. A name in ``skipped`` exits **0** and writes a real skip
+    (``<skipped/>`` child, ``skipped="1"``, a tiny nonzero ``time``): that is
+    what pytest does when a ``skipif`` guard no longer holds on the box doing
+    the re-run, and it is the one degraded-env shape that exits successfully.
 
     **Keyed by name, deliberately not by the path target.** Keying by target
     would mean the helper has to build the expected ``path::name`` itself, and
@@ -1250,6 +1254,7 @@ def _stub_pytest(
     by_name = {name_of(k): v for k, v in durations.items()}
     by_exit = {name_of(k): v for k, v in (exit_codes or {}).items()}
     by_zero = sorted(name_of(k) for k in (collect_zero or set()))
+    by_skip = sorted(name_of(k) for k in (skipped or set()))
     script = tmp_path / "stub-pytest.py"
     script.write_text(
         textwrap.dedent(
@@ -1259,6 +1264,7 @@ def _stub_pytest(
             D = {by_name!r}
             EXIT = {by_exit!r}
             ZERO = {by_zero!r}
+            SKIP = {by_skip!r}
             target = next((a for a in argv if "::" in a), "")
             name = target.split("::")[-1]
             xml = next((a.split("=", 1)[1] for a in argv if a.startswith("--junit-xml=")), "")
@@ -1266,6 +1272,25 @@ def _stub_pytest(
                 h.write(json.dumps({{"argv": argv, "cwd": os.getcwd()}}) + "\\n")
             if name in ZERO:
                 sys.exit(5)
+            if name in SKIP:
+                # The shape pytest really emits for a skip (measured against
+                # this repo's pytest): exit 0, a <skipped/> CHILD, and a tiny
+                # but NONZERO time. The nonzero part is what makes this a bug
+                # rather than a trivially-empty row — the gate's "is there a
+                # usable duration" test passes on it, so only the skipped
+                # marker can stop the clearance.
+                if xml:
+                    with open(xml, "w", encoding="utf-8") as h:
+                        h.write(
+                            '<?xml version="1.0" encoding="utf-8"?>'
+                            '<testsuites name="pytest tests"><testsuite name="pytest" tests="1" '
+                            'failures="0" errors="0" skipped="1" time="0.035">'
+                            '<testcase classname="" name="x" time="0.035">'
+                            '<skipped type="pytest.skip" message="no db in this env">'
+                            "skipped</skipped></testcase></testsuite>"
+                            "</testsuites>"
+                        )
+                sys.exit(0)
             if name not in D:
                 print(f"ERROR: no tests ran for {{target}}", file=sys.stderr)
                 sys.exit(4)
@@ -1526,6 +1551,47 @@ def test_a_re_run_the_gate_cannot_start_stays_red(tmp_path: Path) -> None:
     assert "BREACH" in run.stdout, f"the breach is still the headline\n{out}"
     assert SLEEPER[1] in out and "not verified" in out.lower(), (
         f"the report must say why it stayed red, not just that it did\n{out}"
+    )
+
+
+def test_a_re_run_that_SKIPS_stays_red(tmp_path: Path) -> None:
+    """A re-run that SKIPS executed nothing, and an executed nothing is not a witness.
+
+    This is the one degraded-environment shape that exits 0. The audit job
+    carries no ``services:`` block and no ``DATABASE_URL`` (``unit-tests`` has
+    both), and unit tests here skip on environment — GPU, docker daemon, a file
+    the job may not check out. So a breach whose re-run hits a ``skipif`` that
+    no longer holds on the audit runner returns ``exit 0`` with a real
+    ``<skipped>`` element and a tiny nonzero ``time`` — nonzero because pytest
+    still times the fixture teardown (measured 0.035 s against this repo's
+    pytest, and the gate prints it as ``0.00s``).
+
+    Before the fix that combination CLEARED the breach: the duration parser
+    refuses ``time=0`` but not 0.035, and the exit code is clean, so the corpus
+    4.5 s became a warning and the run went GREEN. Measured on the shipped code
+    8/8 trials. A test that never ran cannot demonstrate that its recorded
+    duration was a fluke — the same doctrine as the exit-4 and exit-5 pins
+    above, reached through the one path those pins do not cover.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {SLEEPER_ID: "0.035"}, skipped={SLEEPER_ID}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        "a skipped re-run is NOT a pass: the test did not run, so nothing about "
+        f"this attempt says the 4.5s was a fluke\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach is still the headline\n{out}"
+    assert "skipped" in out.lower(), (
+        f"the report must name the skip as the reason it stayed red\n{out}"
     )
 
 

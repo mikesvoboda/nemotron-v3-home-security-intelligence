@@ -184,6 +184,13 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 # hundreds. Breaches past the cap stay RED — the cap can only ever be strict.
 MAX_RERUNS = 5
 
+# Sentinel exit code for "the re-run SKIPPED". pytest exits 0 for a skip, so
+# the real code would read as a clean run to ``reproduce``; this private value
+# carries the one fact the exit code cannot — that the marker element was
+# present and nothing executed. Not a pytest code on purpose: it is in no
+# pytest documentation a reader could match an observed 0 against.
+SKIPPED_RERUN_EXIT = 90
+
 # The re-run's own per-test ceiling. Inherited ``timeout = 5``
 # (pyproject.toml:546 — its OWN ini key, not part of ``addopts``) is UNDER the
 # 4.0 s budget it is supposed to adjudicate: a 4.5 s test would be killed by
@@ -298,6 +305,16 @@ def _rerun_duration(target: str) -> tuple[float | None, int]:
         suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
         for suite in suites:
             for case in suite.findall("testcase"):
+                # A skip ran nothing, and "ran nothing" is a non-witness even
+                # though pytest exits 0 for it and still reports a tiny
+                # nonzero time (fixture teardown — 0.035s measured). Read the
+                # marker BEFORE the duration or the teardown time clears the
+                # breach: this is the only degraded-audit-env shape that exits
+                # clean, because this job has no services: block and no
+                # DATABASE_URL while unit tests skip on env (GPU, docker, a
+                # file the job need not check out).
+                if case.find("skipped") is not None:
+                    return None, SKIPPED_RERUN_EXIT
                 try:
                     d = float(case.get("time", "0"))
                 except ValueError:
@@ -315,9 +332,12 @@ def reproduce(
     """One re-run per unit-tier breach: ``test_id -> (state, seconds, exit)``.
 
     ``state`` is ``confirmed`` (re-ran and breached again), ``cleared`` (passed
-    under budget), or ``unverified`` (nothing about this run says the duration
-    was a fluke — including "it failed fast", which is a caught test, not an
-    exonerated one). Non-unit tiers are not returned: the amendment speaks
+    under budget), ``skipped`` (the re-run skipped, so it measured nothing —
+    see ``SKIPPED_RERUN_EXIT``) or ``unverified`` (nothing about this run says
+    the duration was a fluke — including "it failed fast", which is a caught
+    test, not an exonerated one). ``skipped`` and ``unverified`` both keep the
+    breach RED; they differ only in what the report gets to say about why.
+    Non-unit tiers are not returned: the amendment speaks
     about unit tests, and the audit job has no browser and no ``npm ci``, so an
     e2e re-run there is a doomed subprocess, not a measurement.
     """
@@ -333,7 +353,12 @@ def reproduce(
         )
     for _, test_id, _category, budget in eligible[:MAX_RERUNS]:
         seconds, code = _rerun_duration(pytest_target_for(test_id))
-        if seconds is None:
+        if code == SKIPPED_RERUN_EXIT:
+            # Checked before the generic None arm: a skip also has no usable
+            # duration, and the generic arm would report it as "exit 90", a
+            # number pytest has no meaning for. The reader needs the reason.
+            states[test_id] = ("skipped", None, code)
+        elif seconds is None:
             states[test_id] = ("unverified", None, code)
         elif code != 0:
             states[test_id] = ("unverified", seconds, code)
@@ -538,7 +563,9 @@ def main(argv: list[str] | None = None) -> int:
     states = reproduce(breaches)
     cleared = {t: s for t, s in states.items() if s[0] == "cleared"}
     confirmed = {t: s for t, s in states.items() if s[0] == "confirmed"}
-    unverified = {t: s for t, s in states.items() if s[0] == "unverified"}
+    # ``skipped`` rides in ``unverified`` for the verdict (both stay RED, and
+    # ``red`` is computed from ``cleared`` alone) but is reported by name.
+    unverified = {t: s for t, s in states.items() if s[0] in ("unverified", "skipped")}
     unit_breaches = [b for b in breaches if b[2] == "unit"]
 
     if not rerun_enabled():
@@ -590,6 +617,8 @@ def main(argv: list[str] | None = None) -> int:
             again = confirmed.get(test_id)
             if again:
                 verdict += f" — re-ran {again[1]:.2f}s and BREACHED AGAIN"
+            elif unverified.get(test_id, ("",))[0] == "skipped":
+                verdict += " — re-run SKIPPED (executed nothing; not a pass)"
             elif test_id in unverified:
                 code = unverified[test_id][2]
                 replay = unverified[test_id][1]
