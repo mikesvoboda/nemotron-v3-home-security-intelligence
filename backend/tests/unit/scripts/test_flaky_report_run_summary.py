@@ -34,7 +34,8 @@ were necessary but not sufficient:
   in that shell rather than grepping it.
 * ``test_the_summary_renders_the_table_from_a_real_nightly_report`` — the Done-when's "lists the
   flaky tests" half, which the dispatch run could not show (it had zero flakes). It renders the
-  committed REAL nightly report (``data/flaky-run-summary/nightly-38372397543.json``).
+  committed REAL nightly report:
+  ``backend/tests/unit/scripts/data/flaky-run-summary/nightly-38372397543.json``
 * the counts pin widened to TWO rows with disjoint digit sets, so a hardcoded cell or a
   pass/fail swap cannot pass — one row cannot tell "these counts render" from "some digits render".
 
@@ -59,6 +60,7 @@ run can observe it.
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import re
@@ -316,11 +318,13 @@ def test_the_summary_renders_the_table_from_a_real_nightly_report(
     Why this pin exists: the ``workflow_dispatch`` run that proves the job goes green
     (38480776978) had ZERO flakes, so ``write_github_summary`` took its no-flakes branch and
     wrote no table -- the Done-when's second half was never observed on a runner. The nightly
-    report committed at ``data/flaky-run-summary/nightly-38372397543.json`` IS the artifact from
-    the run that had flakes (nightly run 38372397543, artifact 11801280471, whose Analyze job
-    115221182007 failed only in the now-deleted ``Create issue for new flaky tests`` step), so
-    feeding it here renders the summary from real data instead of from a hand-written dict. The
-    corpus is genuinely awkward in the ways a synthetic one would not be: nodeids of 97-117
+    report committed here IS the artifact from the run that had flakes (nightly run 38372397543,
+    artifact 11801280471, whose Analyze job 115221182007 failed only in the now-deleted
+    ``Create issue for new flaky tests`` step), so feeding it here renders the summary from real
+    data instead of from a hand-written dict. Its full path:
+    ``backend/tests/unit/scripts/data/flaky-run-summary/nightly-38372397543.json``
+
+    The corpus is genuinely awkward in the ways a synthetic one would not be: nodeids of 97-117
     chars (all four hit the 60-char truncation), a never-passing test at ``0 / 15``, and two
     ``test_summaries_api`` cases that share the counts ``4 / 3`` and are distinguishable only by
     their nodeids.
@@ -409,3 +413,74 @@ def test_the_analysis_command_still_runs_in_the_analyze_job() -> None:
         step for step in _steps(ANALYZE_JOB) if "scripts/analyze-flaky-tests.py" in _run(step)
     ]
     assert analyzers, "the job must still run scripts/analyze-flaky-tests.py — that is the analysis"
+
+
+#: A repo-path cite in this file's PROSE: a double-backtick span ending in a file extension. The
+#: extension must abut the closing backticks, so a LINE cite like ``analyze-flaky-tests.py:199-200``
+#: is deliberately NOT matched — it names a location, not a path, and its `scripts/` prefix is
+#: elided by design, so resolving it as a path would only ever produce a false red.
+_PATH_CITE = re.compile(r"``([^`\n]+?\.(?:json|md|py|yml|txt))``")
+
+
+def _prose(path: Path) -> str:
+    """Concatenated docstring text of every module/class/function in ``path`` — prose only.
+
+    Code is excluded on purpose. This file's own fixtures quote report text that contains
+    backticked, extension-ending strings, and the pin below plants a control cite of its own; a
+    whole-file scan would match those and read red on a file whose prose is clean. "Every path
+    the prose cites exists" is the claim worth pinning; nothing here promises anything about
+    strings that appear in code.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found = [ast.get_docstring(tree) or ""]
+    nodes = ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef
+    found += [ast.get_docstring(node) or "" for node in ast.walk(tree) if isinstance(node, nodes)]
+    return "\n".join(found)
+
+
+def test_every_path_cite_in_this_file_resolves() -> None:
+    """Every path this file's prose cites is a file that exists, and the fixture cite is EXACT.
+
+    Why this exists: the #7090 review and my own retirement note both cited the committed nightly
+    report as `data/flaky-run-summary/nightly-38372397543.json` — one backticks, so this pin does
+    not match it — and no file lives at that repo-root path. The report is committed under the
+    test directory (the `DATA` constant above; the repo's own convention, the same shape
+    `check-uplevel-cites.py:41` uses for its baseline). The prose was written from memory of the
+    artifact's name rather than from a file listing, and a reader who follows the cite finds
+    nothing. UR-31 says a cited file comes from output the author ran; this makes that checkable
+    rather than a habit.
+
+    The trap this pins AROUND is why the fixture assertion is EXACT-EQUALITY over extracted spans
+    and not a substring search: the stale spelling is a SUFFIX of the correct one
+    ("backend/tests/unit/scripts/" + the stale path), so the obvious
+    `stale_string not in text` guard fails against the FIXED file — an absence check written that
+    way certifies the bug and reports the repair as the red. Comparing whole extracted cites (list
+    membership is element equality) is the shape that goes red on the stale cite, green on the
+    fixed one. The assertion below builds the stale string by concatenation so it never appears
+    here as a cite the extractor would (correctly) try to resolve.
+
+    Positive controls, because a clean verdict from a dead instrument certifies nothing: the
+    extractor is run on a planted pair and must return exactly that pair, and ``cites`` is
+    asserted non-empty before anything is said about it being clean.
+    """
+    cites = sorted(set(_PATH_CITE.findall(_prose(Path(__file__)))))
+    assert cites, "the cite extractor matched nothing — a dead regex would certify any path"
+
+    control = "``docs/uplevel/packages/ops.md`` and ``data/planted/nothere.json``"
+    assert sorted(set(_PATH_CITE.findall(control))) == [
+        "data/planted/nothere.json",
+        "docs/uplevel/packages/ops.md",
+    ], "the extractor itself is broken, so its verdict on this file means nothing"
+
+    missing = [c for c in cites if not (REPO_ROOT / c).is_file()]
+    assert not missing, f"path cites that resolve to nothing: {missing}"
+
+    fixture = str(REAL_REPORT.relative_to(REPO_ROOT))
+    assert fixture in cites, (
+        "the prose must cite the fixture at the exact path the loader above reads"
+    )
+    stale = "data/" + fixture.split("/data/")[1]
+    assert stale != fixture and stale not in cites, (
+        f"the repo-root spelling {stale} is back in the prose; it is a SUFFIX of the real path, "
+        "so it can only be caught by exact comparison, never by a substring search"
+    )
