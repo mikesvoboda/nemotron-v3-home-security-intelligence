@@ -1,11 +1,6 @@
 /**
- * F2.3 DO-3 golden path — the zones surface. Inventory rows F-256 and F-258
- * in docs/reference/feature-inventory.md (named by id, not by line: any commit
- * that adds a row above these shifts a `:462`-style cite silently, and this
- * file's cites are read by no gate — the citation job walks only docs/{decisions,
- * deployment,getting-started,operations,ui} and feature-inventory-cites.mjs reads
- * row cells, never tests/. The row this header quotes changed under it once:
- * ruling 148 item 3 narrowed F-256's action text, PR #7050).
+ * F2.3 DO-3 golden path — the zones surface. Inventory rows
+ * docs/reference/feature-inventory.md rows F-256 and F-258 (ids, not line numbers: a table coordinate drifts under merges).
  * Route: /zones (`path="/zones"` frontend/src/App.tsx:312).
  *
  * What the rows promise, verbatim, and what this file does about it:

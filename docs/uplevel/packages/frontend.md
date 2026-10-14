@@ -329,3 +329,13 @@ PR (UR-48).
 
 **Done when:** F-135's row reads "expands the section; sees active batches", its golden path covers
 that, and nothing renders the three history views.
+
+### [r160a] Deferred npm majors: vite-plugin-pwa 2, framer-motion 14, @vitejs/plugin-react 6
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** Phase 2's exit. **PR:** none yet.
+(ruling 160; dependabot #7058, #7059, #7060, closed with `@dependabot ignore this major version`)
+
+- [ ] One major per PR, each lifting its dependabot ignore (`@dependabot unignore <dependency>`).
+
+**Done when:** each of the three majors is on `main` with the unit, golden and lint suites green at
+its head.
