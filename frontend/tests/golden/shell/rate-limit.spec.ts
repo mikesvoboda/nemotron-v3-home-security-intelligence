@@ -188,8 +188,15 @@ const ARM_TRIES = 25; // ~2.5 s of hunting = 25 admit ticks; far above need
  * running low'). THE EXEMPTION'S REAL SCOPE, stated exactly because a prefix
  * test is easy to over-read: a lookahead tests what FOLLOWS 'rate limited', so
  * this skips every string that BEGINS with the pill's ruled copy, not one
- * string. 'Rate limited, retrying… 0:53' — the pill plus a leaked countdown,
- * which is where a number would actually reappear — passes unmarked. Named
+ * string. 'Rate limited, retrying… 0:53' — the pill plus a leaked countdown —
+ * passes unmarked. That append is the ONLY shape the exemption uniquely costs,
+ * and it is NOT why digits are invisible to this scan: `retry in \d` misses
+ * 'Retrying in 0:59' with no exemption involved, and a bare `60s`, '12 of 100'
+ * or a wall clock match no branch either. The scan is TEXT-SHAPE-BOUNDED, so the
+ * 'ONE KNOWN HOLE' above and this exemption are two separate limits and neither
+ * is the other's excuse. A digit that reaches the pill itself is caught one
+ * tier down, at RetryingIndicator.test.tsx:183 — a non-vacuous net, because that
+ * fixture feeds the store limit=100 / remaining=0 / reset=+60. Named
  * rather than widened, because both widenings that would close it measured
  * worse than the hole: appending `$` to the lookahead reddens the KEPT pill
  * whenever its text is not alone on a line, and "alone on a line" is a
