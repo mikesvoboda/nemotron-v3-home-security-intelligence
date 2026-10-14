@@ -9,6 +9,7 @@ import {
   AmbientStatusProvider,
   ChunkLoadErrorBoundary,
   ErrorBoundary,
+  EventDeepLinkRedirect,
   NavigationTracker,
   PageTransition,
   ProductTour,
@@ -256,6 +257,16 @@ export default function App() {
                                   <Routes>
                                     <Route path="/" element={<DashboardPage />} />
                                     <Route path="/timeline" element={<EventTimeline />} />
+                                    {/* Owner ruling 167: the summary-detail payload's
+                                        event links are `/events/{id}`
+                                        (summary_detail_service.py:147), so the SPA
+                                        answers that path instead of 404ing it. */}
+                                    <Route
+                                      path="/events/:eventId"
+                                      element={
+                                        <EventDeepLinkRedirect fallback={<NotFoundPage />} />
+                                      }
+                                    />
                                     <Route path="/analytics" element={<AnalyticsPage />} />
                                     <Route path="/jobs" element={<JobsPage />} />
                                     <Route path="/alerts" element={<AlertsPage />} />
