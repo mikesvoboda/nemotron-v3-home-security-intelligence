@@ -378,12 +378,15 @@ its head.
 
 ### [r165a] F-007: cure the quarantined ws-status spec
 
-**Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none. **PR:** none
-yet. (rulings 123, 125, 165)
+**Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none. **PR:** #7123
+(open). (rulings 123, 125, 165)
 
-- [ ] First commit: the ruling-125 mark's expiry in `frontend/tests/golden/shell/ws-status.spec.ts`
-      reads 2026-10-16T00:00Z.
-- [ ] Test 2 runs whatever precedes it (ruling 123) and passes; the `test.fixme` mark is removed.
+- [x] First commit: the ruling-125 mark's expiry in `frontend/tests/golden/shell/ws-status.spec.ts`
+      reads 2026-10-16T00:00Z. Witness: `6f1066eba` adds the stamp beside the mark.
+- [x] Test 2 runs whatever precedes it (ruling 123) and passes; the `test.fixme` mark is removed.
+      Witness: `67fe6c04b` deletes the mark (its diff removes one `test.fixme`, adds none; the file
+      has none at head), and CI's `Feature check (fake AI)` job `115963028206` (run 38595855657)
+      passed Test 2 (`:332` partition + reload, 16.7 s) and the chip leg (`:267`, 3.5 s).
 
 **Done when:** the spec passes in CI's `Feature check (fake AI)` with no mark, before
 2026-10-16T00:00Z.
