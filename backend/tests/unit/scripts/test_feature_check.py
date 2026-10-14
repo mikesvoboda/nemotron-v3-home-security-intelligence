@@ -3836,6 +3836,7 @@ def _engine_answers(
     present: frozenset[str] = frozenset(),
     build_rc: int = 0,
     build_tail: str = "",
+    rm_rc: int = 0,
 ) -> list[tuple[list[str], dict[str, Any]]]:
     """Answer this run's engine at the `_run` seam and record every argv + env.
 
@@ -3844,7 +3845,21 @@ def _engine_answers(
     the file's `_fake_compose` cannot show, because it drops kwargs and env is
     exactly where the builder switch lives.
     """
-    calls: list[tuple[list[str], dict[str, Any]]] = []
+
+    class _Calls(list):
+        """The argv record, plus the engine's image state as it evolved.
+
+        `have` starts as `present` and a SUCCESSFUL build adds the namespaced tags
+        it built, because that is what a build does: it leaves `<project>-
+        <service>:latest` in the engine. A static `present` set could not show both
+        facts the cleanup is judged on — that the build put images there, and that a
+        name the engine never got must not be `image rm`'d.
+        """
+
+        have: set[str]
+
+    calls = _Calls()
+    calls.have = set(present)
 
     def compose_verb(command: list[str]) -> str | None:
         # The subcommand follows the LAST -f's value: the argv is
@@ -3860,10 +3875,22 @@ def _engine_answers(
         calls.append((argv, kwargs))
         verb = compose_verb(argv)
         if argv[1:3] == ["image", "inspect"]:
-            return subprocess.CompletedProcess(argv, 0 if argv[3] in present else 1, "", "")
+            return subprocess.CompletedProcess(argv, 0 if argv[3] in calls.have else 1, "", "")
+        if argv[1:3] == ["image", "rm"]:
+            if rm_rc == 0:
+                calls.have.discard(argv[3])
+            return subprocess.CompletedProcess(
+                argv, rm_rc, "", "image is used by container" if rm_rc else ""
+            )
         if verb == "config":
             return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(rendered), stderr="")
         if verb == "build":
+            if build_rc == 0:
+                built = argv[_last(argv, "-f") + 3 :]
+                for name in built:
+                    service = (rendered.get("services") or {}).get(name) or {}
+                    if not service.get("image"):
+                        calls.have.add(f"{run.project}-{name}:latest")
             return subprocess.CompletedProcess(argv, build_rc, "", build_tail)
         if verb == "up":
             raise AssertionError(f"`up` ran during a pre-build test: {argv}")
@@ -3871,6 +3898,15 @@ def _engine_answers(
 
     monkeypatch.setattr(fc.Run, "_run", fake)
     return calls
+
+
+def _image_rms(calls: Any) -> list[str]:
+    """The image names this run asked the engine to remove, in call order.
+
+    Matched on the argv position, like every other matcher here: a bare engine
+    call has no `-f`, so `_verb_calls` (compose-only by design) cannot see it.
+    """
+    return [argv[3] for argv, _ in calls if argv[1:3] == ["image", "rm"]]
 
 
 def _is_verb(argv: list[str], verb: str) -> bool:
@@ -4049,3 +4085,271 @@ def test_a_render_with_no_build_services_builds_nothing(
     # No `exit` key at all: the record distinguishes "nothing was buildable" from
     # "a build ran and returned 0", which the CI tier's stack can never be.
     assert run.summary["prebuild"] == {"built": [], "present": [], "to_build": []}
+
+
+# ---------------------------------------------------------------------------
+# O2.5 follow-up: the images a prod-shape run LEAVES BEHIND.
+#
+# The pre-build names every image-less build service `<project>-<service>:latest`
+# and `self.project` carries a per-run random token, so those tags differ on every
+# run — a re-run cannot reuse a prior build, and nothing removes the old ones.
+# `down -v` (UR-135, pinned above to exactly that one compose call) takes
+# containers and volumes; the postflight `Snapshot` tracks containers and volumes.
+# Neither has an image axis, so the leak is neither cleaned nor reported. Measured
+# on the rendered boot document: 4 images per real-tier run, 5 per fake-tier run
+# (the fifth, ai-vlm, is in the fake tier's set). grafana declares its own host-
+# local `image:` and is NOT project-prefixed, so it is shared with production and
+# must survive — the same reason skip-if-present exists.
+#
+# Removal therefore lives on the bare-engine surface (`image rm`), OUTSIDE the
+# `run.started` gate: a run that dies in the pre-build never sets `started` (that
+# flips inside `up`), yet a partial build already left images behind.
+# ---------------------------------------------------------------------------
+
+
+def _cleanup_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, prod_shape: bool = True
+) -> tuple[Any, list[tuple[list[str], dict[str, Any]]]]:
+    """A rendered prod run plus its engine recorder, ready to clean up."""
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.prod_shape = prod_shape
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+    run.render(fc.Snapshot.from_engine([], []))
+    return run, calls
+
+
+def test_a_prod_shape_run_removes_the_images_it_built_under_its_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The names come from build_images over the run's OWN boot document, so the
+    # cleanup cannot drift from what `up` looked for. Only this run's prefixed tags
+    # go; grafana's declared name is production's image, not this run's to delete.
+    run, calls = _cleanup_run(tmp_path, monkeypatch)
+    backend_image = f"{run.project}-backend:latest"
+
+    status = run.cleanup_images()
+
+    assert _image_rms(calls) == [backend_image], (
+        "the project-namespaced build image must be removed by the exact name `up` used"
+    )
+    assert _GRAFANA not in _image_rms(calls), (
+        "a declared host-local image is not this run's to remove"
+    )
+    assert status == fc.EXIT_OK, status
+    assert run.summary["images_removed"] == [backend_image], run.summary
+
+
+def test_the_image_cleanup_asks_before_removing_and_skips_what_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `image rm` on a name the engine does not have is an error, not a no-op, so
+    # the cleanup checks each name first, the way the pre-build does: an absent
+    # name costs an inspect, never an rm that would report a false failure. A boot
+    # document is written by hand so the names are KNOWN, and the engine holds
+    # none of them — the two-sided half of the ask-before-remove pair.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch, present=frozenset())
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+
+    assert run.cleanup_images() == fc.EXIT_OK
+    assert _image_rms(calls) == [], (
+        f"an image the engine does not have must not be `image rm`'d: {_image_rms(calls)}"
+    )
+    inspected = {argv[3] for argv, _ in calls if argv[1:3] == ["image", "inspect"]}
+    assert inspected == {f"{run.project}-backend:latest"}, inspected
+
+
+def test_a_run_that_never_started_still_removes_its_images(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # THE reason cleanup sits outside `if run.started:`. A pre-build that dies
+    # after building SOME images leaves those with `started` still False, and the
+    # gate that correctly guards `teardown` would skip them. Engine state is seeded
+    # to say exactly that: backend's tag exists, the render still dies (build_rc=1,
+    # a build that half-finished is the operator's first-run situation).
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    partial = f"{run.project}-backend:latest"
+    calls = _engine_answers(
+        run,
+        _PREBUILD_DOC,
+        monkeypatch,
+        present=frozenset({partial}),
+        build_rc=1,
+        build_tail="mkdir /sys/fs/cgroup: permission denied",
+    )
+    with pytest.raises(fc.HarnessError):
+        run.render(fc.Snapshot.from_engine([], []))
+    assert run.started is False, "a failed pre-build must never have set started"
+
+    assert run.cleanup_images() == fc.EXIT_OK
+    assert _image_rms(calls) == [partial], _image_rms(calls)
+
+
+def test_the_image_cleanup_is_gated_on_shape_not_on_started(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The wiring is the finding: an unguarded call site is decoration if the gate
+    # next to it swallows it. `run_check`'s finally must call cleanup whether or not
+    # `started` flipped, and must NOT reach the engine for a tier that built nothing.
+    import argparse
+
+    calls: list[str] = []
+
+    class StubRun:
+        started = False
+        prod_shape = True
+
+        def __init__(self) -> None:
+            self.artifacts = tmp_path
+            self.summary: dict[str, Any] = {}
+
+        def prepare(self) -> Any:
+            # prepare() runs BEFORE run_check's try block, so it has to succeed for
+            # the finally to run at all; the failure goes in render(), inside it.
+            return fc.Snapshot.from_engine([], [])
+
+        def render(self, before: Any, vlm: Any = None) -> None:
+            raise fc.HarnessError("stopped on purpose")
+
+        def cleanup_images(self) -> int:
+            calls.append("cleanup")
+            return fc.EXIT_OK
+
+        def _write(self, name: str, data: Any) -> None:
+            return None
+
+    stub = StubRun()
+    # run_check resolves `Run` from the module at call time (`run = Run(...)`,
+    # :2727), so handing it the stub is a module-attribute patch — which monkeypatch
+    # undoes exactly. Do NOT patch `Run.__new__` here: a subclass never owns that
+    # slot, and monkeypatch's snapshot-then-restore leaves CPython's `__new__`
+    # unwinding broken, so every LATER `fc.Run(...)` in the process raises
+    # "object.__new__() takes exactly one argument". render() is where the stub
+    # fails: prepare() runs before run_check's try block, so the failure has to
+    # happen inside the try for the finally under test to run at all.
+    monkeypatch.setattr(fc, "Run", lambda **_kw: stub)
+    monkeypatch.setattr(fc, "AgentGpu", lambda *_a, **_k: None)
+
+    args = argparse.Namespace(
+        engine="podman", root=tmp_path / "runs", image_tag="test", prod_shape=True
+    )
+    status = fc.run_check(args, mode="real")
+    assert calls == ["cleanup"], (
+        "the finally must attempt image cleanup even when the run never started"
+    )
+    assert status != fc.EXIT_OK, "a run that died still reports its failure exit"
+
+
+def test_a_non_prod_shape_run_touches_no_images(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The CI and fake tiers boot registry images and build nothing, so an `image
+    # inspect` per service there is pure cost and an `image rm` would delete
+    # outside the run's own namespace. The boot document is written by hand, WITH
+    # the build blocks a prod render would have, so a guard that looked only at the
+    # document would still act here — this pins the shape guard, not the document.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+    run.prod_shape = False
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+
+    assert run.cleanup_images() == fc.EXIT_OK
+    assert _image_rms(calls) == [], _image_rms(calls)
+    assert [a for a, _ in calls if a[1:3] == ["image", "inspect"]] == []
+
+
+def test_a_pre_render_run_removes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # No boot document means no measured names. Deriving them from a second source
+    # (the stack YAML, a fixed list) is exactly the drift the names come from the
+    # render to avoid; an empty hand is the honest answer.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+    assert not run.compose_file.exists()
+    assert run.cleanup_images() == fc.EXIT_OK
+    assert _image_rms(calls) == []
+    assert [a for a, _ in calls if a[1:3] == ["image", "inspect"]] == []
+
+
+def test_an_unremovable_image_is_reported_not_swallowed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # An `image rm` that fails (in use, engine gone) must raise the exit, not vanish
+    # into a summary that says the run cleaned up after itself.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch, rm_rc=1)
+    run.render(fc.Snapshot.from_engine([], []))
+
+    assert run.cleanup_images() == fc.EXIT_FAILED
+    assert run.summary["images_removed"] == [], run.summary
+    assert _image_rms(calls) == [f"{run.project}-backend:latest"], _image_rms(calls)
+
+
+# ---------------------------------------------------------------------------
+# The failure-message WINDOWS: `up()`'s compose tail ([-400:]) and the pre-build's
+# ([-1200:]). A UR-89 review at 0d8b04387 showed `[:400:]` SURVIVED all 231 tests:
+# every existing boot-failure fixture is shorter than the window, so head-slice and
+# tail-slice carry the same bytes and no pin can tell them apart. compose actually
+# prints pages (the operator's up-replay runs to ~30KB) and the REASON sits at the
+# END of a build log, so the slice direction is the whole message contract: keep
+# the tail. Each pin is two-sided — the reason must survive, and a head marker that
+# a head-slice (or an unbouned message) would carry must not.
+# ---------------------------------------------------------------------------
+
+
+def _long_compose_error(reason: str) -> str:
+    # HEADMARKER sits at byte 0 of the flattened message; the reason sits at the
+    # end, ~3k characters apart. A window that keeps the last N chars carries the
+    # reason and not the marker; one that keeps the first N, or none at all, fails
+    # one half of the pair.
+    padding = "HEADMARKER " + "build step line output " * 150
+    return f"docker compose … up … exited 1: {padding} {reason}"
+
+
+def test_a_failed_up_message_keeps_the_tail_of_a_long_compose_output(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    reason = "ERROR: cgroup configuration: mkdir /sys/fs/cgroup/docker/buildx: denied"
+
+    def deployment(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise fc.HarnessError(_long_compose_error(reason))
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "check_vlm_reach", lambda *_: None)
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="real")
+    with pytest.raises(fc.HarnessError) as raised:
+        run.up(vlm=_StubVlm())
+    message = str(raised.value)
+    assert reason in message, (
+        f"a head-slice (or no window) lost the reason at the END of compose's output: "
+        f"{message[:160]}"
+    )
+    assert "HEADMARKER" not in message, (
+        "the message is unbounded or head-sliced: the window must keep the tail only"
+    )
+
+
+def test_a_failed_prebuild_message_keeps_the_tail_of_long_build_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The same contract one layer earlier: `prebuild_images` quotes the build with
+    # its own window, and the builder's reason is at the end of its stream.
+    reason = "STEP 2/6: Error: mounting /dev/fuse: Operation not permitted"
+
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _engine_answers(
+        run,
+        _PREBUILD_DOC,
+        monkeypatch,
+        build_rc=1,
+        build_tail="HEADMARKER " + "sending build context " * 200 + reason,
+    )
+    with pytest.raises(fc.HarnessError) as raised:
+        run.render(fc.Snapshot.from_engine([], []))
+    message = str(raised.value)
+    assert reason in message, f"the build's reason at the end was sliced away: {message[:160]}"
+    assert "HEADMARKER" not in message, "the pre-build window must keep the tail, not the head"
