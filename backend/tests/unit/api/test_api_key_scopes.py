@@ -44,7 +44,7 @@ from collections.abc import Awaitable, Callable, Iterator
 from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlsplit
 
@@ -72,7 +72,7 @@ from backend.api.middleware.setup_guard import SetupGuardMiddleware
 from backend.api.routes import dlq as dlq_routes
 from backend.api.routes import system as system_routes
 from backend.core.config import ScopedApiKey, get_settings
-from backend.core.constants import MONITORING_SCOPE_PATHS
+from backend.core.constants import DLQ_DETECTION_QUEUE, MONITORING_SCOPE_PATHS
 from backend.services.session_service import SESSION_COOKIE_NAME
 from backend.tests.unit.api.middleware.test_auth import (
     _client,
@@ -769,6 +769,16 @@ def _entry_is_scoped(entry: object) -> bool:
     return _key_scope(entry) is not None
 
 
+def _route_labels(routes: set[tuple[str, str]]) -> list[str]:
+    """Readable parametrisation ids: ``POST /api/dlq/requeue/{queue_name}``.
+
+    A LIST, not a callable: with two ``argnames`` pytest hands an ids callable
+    each VALUE separately, so a callable here unpacks the string ``"POST"`` and
+    dies at collection.
+    """
+    return [f"{method} {path}" for method, path in sorted(routes)]
+
+
 def _routes_guarded_by(router, guard) -> set[tuple[str, str]]:
     """Every (method, path) on ``router`` whose dependency graph resolves to ``guard``.
 
@@ -891,6 +901,105 @@ class TestLegacyRouteCopies:
         on = SimpleNamespace(api_key_enabled=True, api_keys=[PLAIN_KEY])
         monkeypatch.setattr(module, "get_settings", lambda: on)
         assert await guard(x_api_key=PLAIN_KEY) is None
+
+    # --- over real HTTP, through the route table, not just the guards ---------
+    #
+    # The legs above compose: each copy refuses a scoped entry, and the census
+    # proves the 9 routes carry exactly those two copies. Composition is
+    # arithmetic, and arithmetic leaves the route itself unexamined — whether the
+    # raise survives the framework into a client-visible 401. These legs send
+    # real requests. The bare app IS S1's configuration: with ``EXPOSE_LAN=false``
+    # AuthMiddleware is a documented pass-through, so mounting it would test the
+    # gate rather than the two copies under test.
+    #
+    # Only the REFUSAL direction is sent over HTTP, on all 9, because a
+    # dependency's HTTPException is raised before the endpoint body runs — so
+    # nothing is mutated. The ACCEPT clause deliberately stays at guard level
+    # above: 8 of these 9 are cleanup and config endpoints, and a passing accept
+    # leg would run those bodies for real. The accept claim is therefore
+    # ``guard returns None`` AND ``the 9 carry these guards``, and this file does
+    # not claim a per-route HTTP accept witness.
+
+    _CONCRETE_PATH: ClassVar[dict[str, str]] = {
+        "{queue_name}": DLQ_DETECTION_QUEUE,  # a real DLQName value: an invalid
+        # one could 422 before the guard, and param-vs-dependency ordering is
+        # framework behaviour this test must not depend on.
+        "{name}": "vlm",
+    }
+
+    @staticmethod
+    def _guarded_app(monkeypatch: pytest.MonkeyPatch, api_keys: list[Any]) -> TestClient:
+        """The two REAL routers, every collaborator but the guard overridden.
+
+        Collaborators are collected by walking each route's ``dependant`` rather
+        than by a hand-written list, so a new ``get_something`` on a guarded route
+        cannot make this tier fail on a missing service and report a 500 where the
+        guard's 401 belongs. The guard itself is never overridden.
+        """
+        from fastapi import FastAPI
+        from fastapi.routing import APIRoute
+
+        armed = SimpleNamespace(api_key_enabled=True, api_keys=api_keys)
+        # Each route module copied the get_settings BINDING at import; patching
+        # backend.core.config would leave both copies reading the old one.
+        monkeypatch.setattr(dlq_routes, "get_settings", lambda: armed)
+        monkeypatch.setattr(system_routes, "get_settings", lambda: armed)
+
+        app = FastAPI()
+        app.include_router(dlq_routes.router)
+        app.include_router(system_routes.router)
+        guards = {dlq_routes.verify_api_key, system_routes.verify_api_key}
+
+        def collaborators(dependant):
+            for sub in dependant.dependencies:
+                if sub.call not in guards:
+                    yield sub.call
+                yield from collaborators(sub)
+
+        for route in app.routes:
+            if isinstance(route, APIRoute):
+                for call in collaborators(route.dependant):
+                    app.dependency_overrides.setdefault(call, lambda: MagicMock())
+        return TestClient(app)
+
+    @pytest.mark.parametrize(
+        ("method", "path"),
+        sorted(_NINE_ROUTES),
+        ids=_route_labels(sorted(_NINE_ROUTES)),
+    )
+    def test_the_route_itself_answers_401_over_http(
+        self, method: str, path: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """[r95] S1's literal clause: the ROUTE refuses, not only the function.
+
+        Three assertions, each closing a different way this could pass empty:
+
+        1. no header → 401 with the "key required" detail — the route really is
+           guarded at HTTP level, so a 401 below cannot be a static rejection;
+        2. scoped key → 401 with the "Invalid API key" detail — naming the
+           detail distinguishes the digest-comparison branch from the missing-key
+           branch, so the refusal is the fix firing rather than a header accident;
+        3. the 401's body is the guard's own, proving the raise reached the client.
+        """
+        concrete = path
+        for token, value in self._CONCRETE_PATH.items():
+            concrete = concrete.replace(token, value)
+        client = self._guarded_app(
+            monkeypatch, [ScopedApiKey(SCOPED_KEY, MONITORING_SCOPE_PATHS)]
+        )
+
+        missing = client.request(method, concrete, json={} if method in _BODY_METHODS else None)
+        assert missing.status_code == 401, (method, concrete, missing.status_code)
+        assert missing.json()["detail"].startswith("API key required"), missing.json()
+
+        refused = client.request(
+            method,
+            concrete,
+            headers={_KEY_HEADER: SCOPED_KEY},
+            json={} if method in _BODY_METHODS else None,
+        )
+        assert refused.status_code == 401, (method, concrete, refused.status_code)
+        assert refused.json()["detail"] == "Invalid API key", refused.json()
 
     def test_a_mock_entry_stays_unscoped_after_the_fix(self) -> None:
         """The fix must keep ruling 60's type gate, or ~40 fixtures break.
