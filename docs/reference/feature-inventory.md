@@ -30,6 +30,7 @@ The vocabulary is the README's (`docs/uplevel/README.md`, "Vocabulary"); no othe
 | **half-built**         | the chain breaks somewhere between the user and the store, and the evidence cites where by `path:line`: the route is missing or takes another verb (the client gets 404 or 405), the handler returns fixed or mock data, the store has no production writer, the handler reports success it did not achieve, a write has no reader — or the break is at the UI end: a control wired to nothing, or a built component no route renders. |
 | **leftover**           | a surface for a capability that was retired (R8 and earlier: Florence-2, CLIP, X-CLIP, FashionCLIP, YOLO-World, pose and action recognition, the enrichment service, the Nemotron LLM, plate OCR); the evidence cites the retirement and what still shows it.                                                                                                                                                                          |
 | **awaiting real tier** | golden path green on the fake stack; the real tier has not run. Ruling 103; the operator's `F2.3` real-tier run promotes it to **works**, and the evidence cites the green spec.                                                                                                                                                                                                                                                       |
+| **works**              | the feature's golden path is green on the fake stack and confirmed on the real tier (README, "Vocabulary"). Ruling 148; the operator's real-tier confirmation sets it — a lane may not set it from its own green fake-tier run, which is `awaiting real tier`. The evidence cites the green spec and the real-tier run.                                                                                                                |
 
 **A break at the UI end is half-built — a reading the owner is asked to confirm** (PR #6941, "Questions for the owner"; `R2` rules these rows either way). The README's examples of half-built are backend
 faults, but the definition ("the surface exists, but … reports success it did not achieve") reads
@@ -50,8 +51,8 @@ is one row; an action that writes, or a panel whose data comes from a different 
 | action    | what the user does and sees                                                                                                                                                                                                                                                                                                                                                         |
 | API calls | each request as `` `METHOD /path` ``, `<br>`-separated; WebSockets as `` `WS /ws/…` ``. Parameter names are free: `{id}` and `{camera_id}` compare equal                                                                                                                                                                                                                            |
 | backend   | route handler at `path:line` → service → store (table, Redis key, file, outbound call)                                                                                                                                                                                                                                                                                              |
-| status    | **unverified**, **half-built**, **leftover** or **awaiting real tier**                                                                                                                                                                                                                                                                                                              |
-| evidence  | why that status, with `path:line` cites: the production writer for **unverified**, the break for **half-built**, the retirement for **leftover**, the green spec for **awaiting real tier**                                                                                                                                                                                         |
+| status    | **unverified**, **half-built**, **leftover**, **awaiting real tier** or **works**                                                                                                                                                                                                                                                                                                   |
+| evidence  | why that status, with `path:line` cites: the production writer for **unverified**, the break for **half-built**, the retirement for **leftover**, the green spec for **awaiting real tier**, the green spec and the real-tier run for **works**                                                                                                                                     |
 | modules   | every module the feature uses, in every lane, as repo-relative paths. Phase 3 deletes a retired feature's modules from this list; Phase 4 consolidates a completed feature's tests from it.                                                                                                                                                                                         |
 | real tier | the date the real tier last confirmed the row (`F2.3`); `—` until then                                                                                                                                                                                                                                                                                                              |
 | ruling    | the owner's ruling from `R2`, which records it: **complete**, **retire**, **split** (part of the row is kept and part retires), **defer to roadmap R1**, **complete, consolidated** (several rows become one feature) or **not ruled** (`R2b` round 1 records the return of a row `F2.3` could not reach). Rows already ruled carry the ruling: inbound webhooks `complete (UR-12)` |
@@ -89,22 +90,22 @@ changes; a row whose cite no longer says what the evidence claims is re-traced, 
 ## 2. Summary
 
 <!-- prettier-ignore -->
-| section | rows | unverified | half-built | leftover | awaiting real tier |
-| --- | --- | --- | --- | --- | --- |
-| [3.1 App shell and global chrome](#31-app-shell-and-global-chrome) | 27 | 2 | 9 | 2 | 14 |
-| [3.2 Dashboard](#32-dashboard) | 15 | 1 | 6 | 1 | 7 |
-| [3.3 Event timeline and event detail](#33-event-timeline-and-event-detail) | 27 | 16 | 8 | 3 | 0 |
-| [3.4 Analytics](#34-analytics) | 7 | 6 | 1 | 0 | 0 |
-| [3.5 Alerts, entities and re-ID](#35-alerts-entities-and-re-id) | 10 | 2 | 8 | 0 | 0 |
-| [3.6 Trash, jobs and data](#36-trash-jobs-and-data) | 15 | 0 | 13 | 0 | 2 |
-| [3.7 AI pages and AI settings](#37-ai-pages-and-ai-settings) | 30 | 3 | 19 | 7 | 1 |
-| [3.8 Operations and observability](#38-operations-and-observability) | 44 | 12 | 11 | 1 | 20 |
-| [3.9 GPU, storage and admin settings](#39-gpu-storage-and-admin-settings) | 22 | 7 | 10 | 1 | 4 |
-| [3.10 Settings: cameras, rules, processing, notifications, access](#310-settings-cameras-rules-processing-notifications-access) | 47 | 35 | 11 | 1 | 0 |
-| [3.11 Webhooks and scheduled reports](#311-webhooks-and-scheduled-reports) | 11 | 1 | 4 | 0 | 6 |
-| [3.12 Zones, plates, household, faces, heatmaps, scene changes, tracks](#312-zones-plates-household-faces-heatmaps-scene-changes-tracks) | 34 | 3 | 27 | 1 | 3 |
-| [3.13 External interfaces](#313-external-interfaces) | 5 | 0 | 4 | 0 | 1 |
-| **all** | **294** | **88** | **131** | **17** | **58** |
+| section | rows | unverified | half-built | leftover | awaiting real tier | works |
+| --- | --- | --- | --- | --- | --- | --- |
+| [3.1 App shell and global chrome](#31-app-shell-and-global-chrome) | 27 | 2 | 9 | 2 | 14 | 0 |
+| [3.2 Dashboard](#32-dashboard) | 15 | 1 | 6 | 1 | 7 | 0 |
+| [3.3 Event timeline and event detail](#33-event-timeline-and-event-detail) | 27 | 16 | 8 | 3 | 0 | 0 |
+| [3.4 Analytics](#34-analytics) | 7 | 6 | 1 | 0 | 0 | 0 |
+| [3.5 Alerts, entities and re-ID](#35-alerts-entities-and-re-id) | 10 | 2 | 8 | 0 | 0 | 0 |
+| [3.6 Trash, jobs and data](#36-trash-jobs-and-data) | 15 | 0 | 13 | 0 | 2 | 0 |
+| [3.7 AI pages and AI settings](#37-ai-pages-and-ai-settings) | 30 | 3 | 19 | 7 | 1 | 0 |
+| [3.8 Operations and observability](#38-operations-and-observability) | 44 | 12 | 11 | 1 | 20 | 0 |
+| [3.9 GPU, storage and admin settings](#39-gpu-storage-and-admin-settings) | 22 | 7 | 10 | 1 | 4 | 0 |
+| [3.10 Settings: cameras, rules, processing, notifications, access](#310-settings-cameras-rules-processing-notifications-access) | 47 | 35 | 11 | 1 | 0 | 0 |
+| [3.11 Webhooks and scheduled reports](#311-webhooks-and-scheduled-reports) | 11 | 1 | 4 | 0 | 6 | 0 |
+| [3.12 Zones, plates, household, faces, heatmaps, scene changes, tracks](#312-zones-plates-household-faces-heatmaps-scene-changes-tracks) | 34 | 3 | 27 | 1 | 3 | 0 |
+| [3.13 External interfaces](#313-external-interfaces) | 5 | 0 | 4 | 0 | 1 | 0 |
+| **all** | **294** | **88** | **131** | **17** | **58** | **0** |
 
 Counts are rows, not features weighted by size. Where one capability shows on two routes through
 one component, it is one row carrying both routes.

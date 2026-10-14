@@ -380,6 +380,7 @@ describe('rowProblems', () => {
       'half-built',
       'leftover',
       'awaiting real tier',
+      'works',
     ]);
     expect(lib.rowProblems({ ...base, status: 'awaiting real tier' })).toEqual([]);
     // Its evidence is the green spec: a cite is accepted but not demanded, because
@@ -394,9 +395,30 @@ describe('rowProblems', () => {
     ).toEqual([]);
   });
 
+  it('admits works only with the real-tier date that makes it true (ruling 148)', () => {
+    // README "Vocabulary": works means green on the fake stack AND confirmed on the
+    // real tier. Ruling 148 says a lane may NOT set it from its own fake-tier green,
+    // so the gate requires the date the operator's confirmation writes in the real
+    // tier cell — otherwise the legend promises a check the gate never runs.
+    expect(
+      lib.rowProblems({
+        ...base,
+        status: 'works',
+        realTier: '2026-10-12',
+        evidence:
+          'golden path green: `frontend/tests/golden/a/A.spec.ts` (1 test); O2.5 real-tier run confirms it',
+      })
+    ).toEqual([]);
+    expect(lib.rowProblems({ ...base, status: 'works' })).toEqual([
+      'F-001: works with no real-tier date in the real tier cell',
+    ]);
+    // The lane's own state keeps needing no date: that is the row a lane may write.
+    expect(lib.rowProblems({ ...base, status: 'awaiting real tier' })).toEqual([]);
+  });
+
   it('rejects an unknown status', () => {
     expect(lib.rowProblems({ ...base, status: 'works?' })).toEqual([
-      'F-001: status "works?" is not unverified, half-built, leftover or awaiting real tier',
+      'F-001: status "works?" is not unverified, half-built, leftover, awaiting real tier or works',
     ]);
   });
 
