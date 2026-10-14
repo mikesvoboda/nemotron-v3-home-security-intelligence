@@ -242,6 +242,24 @@ def main() -> int:
     ).stdout.strip()
     script = pathlib.Path(root) / TARGET
     pristine = script.read_text(encoding="utf-8")
+    # A campaign's verdict is a claim about a SPECIFIC test set, so the tests it
+    # runs have to be the ones on disk. A detached worktree at HEAD would
+    # otherwise run the COMMITTED pins while mutating the WORKING-TREE gate: edit
+    # a pin, re-run, and the driver certifies the test you wrote last commit and
+    # says nothing about the one you just wrote. Both sides are read from the
+    # working tree now, and the drift is printed rather than hidden.
+    stale = []
+    for suite in suites:
+        head = subprocess.run(
+            ["git", "show", f"HEAD:{suite}"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        disk = pathlib.Path(root, suite).read_text(encoding="utf-8")
+        if head.returncode != 0 or head.stdout != disk:
+            stale.append(suite)
 
     candidates = [args.python] if args.python else [f"{root}/.venv/bin/python", sys.executable]
     python = next(
@@ -272,6 +290,15 @@ def main() -> int:
         target = worktree / TARGET
         try:
             target.write_text(pristine, encoding="utf-8")
+            for suite in suites:  # worktree is at HEAD; the disk copy is the under-test one
+                dest = worktree / suite
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(pathlib.Path(root, suite).read_text(encoding="utf-8"), "utf-8")
+            if stale:
+                print(
+                    f"note: {len(stale)}/{len(suites)} suite file(s) differ from HEAD; "
+                    "running the working-tree copies, as edited"
+                )
             baseline, baseline_count, baseline_summary = run_suite(worktree, suites, python)
             if baseline_count == 0:
                 print(

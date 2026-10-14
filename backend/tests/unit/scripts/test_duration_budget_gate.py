@@ -1906,11 +1906,23 @@ def test_a_non_unit_breach_is_red_without_a_re_run(tmp_path: Path) -> None:
     described behaviour this file now disproves. The live rule is the SET:
     unit + integration re-run, e2e + slow do not.)
 
+    This is the pin that OWNS the e2e tier (review finding 3.10). The campaign
+    in ``scripts/r151-mutation-campaign.py`` measured the division of labour:
+    adding ``e2e`` to ``RERUN_TIERS`` reddened this pin AND its sibling
+    ``test_tiers_outside_the_clause_are_still_never_re_run``, because that one
+    also fed an e2e id — two witnesses for one tier, one of them silent on the
+    other's ``slow``. Adding ``slow`` reddened the sibling alone. So the
+    sibling is now slow-only and every reason below is e2e's own.
+
     The audit job has no browser and no ``npm ci``, so re-running an e2e id
-    there cannot work, and a 23 s Playwright spec is not runner starvation. If
-    the implementation ever offered a re-run to a tier outside the set it would
-    spawn a doomed subprocess per e2e failure; the stub knows no target here, so
-    an attempt is visible in the calls file.
+    there cannot work, and a 23 s Playwright spec is not runner starvation. What
+    makes the filter load-bearing rather than vacuous is that e2e ids ARE in the
+    corpus this job reads: the step downloads Playwright's junit through its
+    ``playwright-test-results-*`` download step. A complement-shaped filter
+    ("everything that is not unit") would therefore spawn a doomed subprocess
+    per e2e failure and call its non-zero exit "verified" — which is why the
+    implementation spells the set out. The stub knows no target here, so an
+    attempt is visible in the calls file.
     """
     calls = tmp_path / "calls.jsonl"
     results = _results(
@@ -2841,21 +2853,34 @@ def test_the_over_budget_section_count_excludes_the_breach_that_reproduced(
 
 
 def test_tiers_outside_the_clause_are_still_never_re_run(tmp_path: Path) -> None:
-    """e2e and slow stay RED-unverified with no subprocess spawned.
+    """The ``slow`` tier stays RED-unverified with no subprocess spawned.
 
-    The amendment names only the integration tier, and the reasons for the other
-    two survive it. The audit job downloads Playwright's junit too (its
-    ``playwright-test-results-*`` download step), so e2e ids
-    really are in the corpus it reads — the filter has to be
-    ``("unit", "integration")`` and NOT "everything that is not unit", or every
-    e2e failure spawns a subprocess in a job with no browser and no ``npm ci``.
-    The ``slow`` tier is measured-slow by census, so a re-run there buys a
-    60 s-class sleep, not a flake verdict.
+    Review finding 3.10: this pin used to carry an e2e corpus ALONGSIDE the slow
+    one, so it witnessed e2e twice over (``test_a_non_unit_breach_is_red_without_a_re_run``
+    already owned that tier) while being the ONLY witness for ``slow``. The
+    campaign driver measures the split — e2e-joins reddened both pins,
+    slow-joins reddened only this one — so the e2e fixture and the
+    browser-less-subprocess argument moved to the pin that owns e2e, and this
+    one is slow-only. Each out-of-tier tier now has exactly one named owner,
+    which is what makes "who catches this regression?" answerable at all.
+
+    Why ``slow`` stays out on its own merits, independent of e2e: its members
+    are slow by MEASURED CENSUS, not by one starved run. The seven
+    ``SLOW_TEST_PATTERNS`` entries in the audit each carry a recorded breach
+    across 18 main junit datasets, so a re-run there is not a flake verdict
+    waiting to happen — it is the same 60 s-class sleep again, in the audit job,
+    and the gate would print "did not reproduce" about a test the census has
+    already convicted. That is the failure mode UR-125's leniency must not be
+    allowed to grow into, and it is a different reason from e2e's (a browser
+    that is not installed), which is why it gets its own pin rather than riding
+    in a shared corpus where one green could cover the other's red.
     """
     calls = tmp_path / "calls.jsonl"
+    # A census member by name: this id is one of the seven patterns, so the
+    # classifier reaches `slow` the way production does rather than by a fixture
+    # that pre-declares the tier it wants.
     results = _results(
         tmp_path,
-        ("e2e.xml", _xml([("specs/edge_case_matrix.spec.ts", "test_slow_spec", 23.1)])),
         (
             "slow.xml",
             _xml(
@@ -2874,10 +2899,17 @@ def test_tiers_outside_the_clause_are_still_never_re_run(tmp_path: Path) -> None
         {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
     )
     out = _out(run)
-    assert run.returncode != 0, f"a 23.1 s e2e and a 71 s slow breach are both RED\n{out}"
+    # Precondition: the fixture must actually be classified `slow`, else a red
+    # below could be a unit breach wearing the wrong label and the tier would
+    # still be unowned.
+    assert "[slow]" in out, (
+        f"this corpus must reach the slow tier or the pin tests nothing; the "
+        f"classifier is the thing that decides\n{out}"
+    )
+    assert run.returncode != 0, f"a 71 s slow breach is over the 60 s slow budget\n{out}"
     assert _calls(calls) == [], (
-        "e2e and slow are outside the tiers the re-run covers; an attempt would "
-        f"be a doomed subprocess, not a measurement: {_calls(calls)}"
+        "slow is outside the tiers the re-run covers; an attempt would buy a "
+        f"measured-slow test a second 60 s sleep, not a measurement: {_calls(calls)}"
     )
 
 
