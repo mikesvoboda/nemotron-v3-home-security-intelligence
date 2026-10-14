@@ -90,11 +90,11 @@ Read this section before you take, claim, assign, park or release a package.
 - **UR-59** The coordinator assigns only `heavy` packages, packages on no roster queue, and a
   package it moves to an idle lane's queue (UR-52, UR-64): it opens the draft PR on a branch holding
   one empty commit, labelled `lane:<lane>` and, where they apply, `cell:<cell>`, `heavy` and
-  `owner`. A `heavy` PR labelled `cell:heavy-2` belongs to `uplevel-heavy-2`; every other belongs to
-  `uplevel-heavy`. To give a heavy agent a package the status table does not mark `heavy`, label its
-  PR `heavy` with no cell label; the row keeps its flags. A heavy agent takes only the PRs assigned
-  to it and follows the owning lane's package text, file ownership and kickoff line. (rulings 50,
-  53; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
+  `owner`. A `heavy` PR labelled `cell:heavy-b` belongs to `uplevel-heavy-b`; every other belongs to
+  `uplevel-heavy-a`. To give a heavy agent a package the status table does not mark `heavy`, label its
+  PR `heavy` (plus `cell:heavy-b` for heavy-b) and no lane label; the row keeps its flags. A heavy
+  agent takes only the PRs assigned to it and follows the owning lane's package text, file ownership
+  and kickoff line. (rulings 50, 53, 184; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
   50-coordination.md "Two heavy sandboxes", "Where agents run")
 - **UR-63** The status comment lists every package whose dependencies have merged, whose row is not
   `done` or `awaiting real tier`, and that has stayed unclaimed for two coordinator ticks, with the
@@ -215,6 +215,15 @@ Constraints on what you build; reopening one is a ruling (UR-44).
 - **UR-12** Inbound webhooks: **implement** (an arming module with webhook and MQTT adapters,
   designed after Phase 3); until then they answer `501` and validate keys against
   `settings.api_keys`. (UR-12)
+- **UR-182** The product is a consumer NVIDIA VSS-style blueprint for desktop RTX gaming GPUs:
+  visual search, identity and VLM reasoning, run locally, free, with full data control. Phase 4
+  adds a persistent header mode switch: **Easy Mode** ("Home Monitor", the default: Dashboard,
+  Timeline & Search, Alerts & Rules, Household, Settings) and **Advanced Mode** ("NVIDIA AI
+  Blueprint": the AI Workbench, GPU and model VRAM telemetry, the Entity/Re-ID Explorer,
+  Operations/Monitoring). This decides scope, not design: each feature is designed in its Phase 4
+  session (UR-77). It keeps F-063 (P2) and F-105, F-127, F-128, F-130 (P3) as Advanced Mode
+  features, reopening R2a rows 29 and 31 for them, and rules F-176 and F-178 complete (P3) if
+  `O2.5`'s witness fails them. Phase 3's deletions skip these rows. (ruling 182)
 
 ## Reviewing
 
@@ -555,8 +564,8 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-155** Beats, verdicts and lane notes run about 1,500 characters: what I read, what I did,
   what comes next. Evidence goes in a collapsed `<details>` block or a link to the job log, not in
   the body. A heartbeat is at most 600 characters: the coordinator's as UR-38 says, a lane's or the
-  operator's as the two lines `roles/lane.md` "Heartbeat" gives plus at most one short line, with
-  detail on the PR it concerns. (rulings 146, 156, 179)
+  operator's as the two lines `roles/lane.md` "Heartbeat" gives plus, only when blocked, a
+  `BLOCKER: <one line>` third line, with detail on the PR it concerns. (rulings 146, 156, 179, 181)
 - **UR-156** The coordinator asks an author to edit a comment that carries harness wrapper text
   (contract rule 2). (ruling 56)
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act

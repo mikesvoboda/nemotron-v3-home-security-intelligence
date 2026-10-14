@@ -27,7 +27,7 @@ label, or a comment on that agent's own open PR (UR-157).
 
 **What you keep in place:**
 
-- labels `lane:<lane>`, `cell:a`, `cell:b`, `cell:heavy-2`, `heavy`, `owner`, and `review:<lane>`
+- labels `lane:<lane>`, `cell:a`, `cell:b`, `cell:heavy-b`, `heavy`, `owner`, and `review:<lane>`
   (`review:ops-a` and `review:ops-b` for the split ops lane); create any that is missing;
 - the pinned owner issue #6854 (rulings, owner records, `URGENT PATH` comments and your status
   comment), and the pinned issue "Uplevel heartbeats" (#6958); create and pin either one if none is

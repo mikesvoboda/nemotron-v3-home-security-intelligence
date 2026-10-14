@@ -60,7 +60,7 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-2`. **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b`. **Depends on:** `O2.4` (its `RESULT: PASS` posted).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
 
@@ -99,8 +99,10 @@ nothing in `backend/` outside the DROP runbook.
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first, then the
-      scene-change vertical — then the rest of the list the owner approved at `R2`.
+- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then the rest
+      of the list the owner approved at `R2`. The scene-change vertical stays: R2a row 24 ruled it
+      complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
+      183).
 - [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"

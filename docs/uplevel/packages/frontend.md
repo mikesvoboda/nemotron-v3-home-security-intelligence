@@ -34,7 +34,7 @@ stopped and started on a running stack.
 
 ### F2.3 Golden paths for every working feature
 
-**Flags:** none; the heavy agents take none of it (ruling 87). **Depends on:** `F2.1`. Its status is
+**Flags:** none; the heavy agents take only FE-4 and OP-1 (rulings 87, 184). **Depends on:** `F2.1`. Its status is
 `in progress` (UR-144).
 
 - [ ] Write a golden path for every **unverified** row. A green golden path moves the row to
@@ -54,7 +54,8 @@ stopped and started on a running stack.
     the compose and harness changes; the lane that owns each row writes its spec (ruling 127).
 - [ ] Which runs count as a witness for a row: rules.md §Test tiers and the real tier.
 
-**Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents.
+**Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents, and ruling
+184 gives two batches to the heavy agents.
 
 - **Frontend** owns `F2.3`: the shared harness, the split and the UI batches it keeps. On `F2.1`'s
   merge it posted the split on #6854 (comment `6103539478`): the **unverified** rows grouped into
