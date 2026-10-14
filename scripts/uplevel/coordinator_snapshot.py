@@ -43,6 +43,11 @@ COORDINATOR_MARKER = "<!-- heartbeat:agent-uplevel-coordinator -->"
 HEARTBEAT_PREFIX = "<!-- heartbeat:"
 STATUS_MARKER = "<!-- status:uplevel-coordinator -->"
 GATE_CHECK = "CI Gate (Required Checks)"
+# `gh pr list --json statusCheckRollup` returns at most this many check runs per PR. Measured
+# 2026-10-13: #7070 has 129 and the batch hands back exactly 100, with both `CI Gate` rows past
+# the cut, which is why §3 printed gate=absent for a PR with a green gate. A batch of exactly
+# this length is known-truncated, so it is not evidence about the gate at all.
+LIST_ROLLUP_CAP = 100
 DEFAULT_LOOKBACK = timedelta(hours=2)
 BINDING_LIFE = timedelta(hours=48)
 STALE_HEARTBEAT_MIN = 20
@@ -57,6 +62,15 @@ HEX_TICKED = re.compile(r"`([0-9a-f]{7,40})`")
 HEX_BARE = re.compile(r"\b([0-9a-f]{7,40})\b")
 HEAD_LINE = re.compile(r"^[\s*_>-]*Head(?: reviewed)?:", re.IGNORECASE)
 LEAD_DECORATION = "*_ >#"
+# A heartbeat's status is one field of a middot-separated line (`agent · 19:07Z · paused · why`),
+# and the field can be markdown-decorated (`**paused**`, `` `paused` ``).
+HEARTBEAT_FIELD_SEP = "·"
+FIELD_DECORATION = "*_ >#`\t "
+# A verdict arrives as an issue comment, never as a review object (the APPROVE event 422s on this
+# workspace), and its first line is written by hand: `Review: approve` and `Review: **approve[d]**`
+# are both a verdict. A literal `startswith("Review: approve")` reads the decorated one as no
+# approval at all, which is worse than noise — it reports a live key as STALE and invites a void.
+REVIEW_HEADLINE = re.compile(r"^Review:\s*[*>_ `\t]*(approve|approved)\b", re.IGNORECASE)
 RUN_ID = re.compile(r"/actions/runs/([0-9]+)(?:/|$)")
 # actions/checkout in a pull_request run prints the merge it tested; the second sha is the
 # `main` the run ran against. The run API's pull_requests[0].base.sha is the PR's stored base,
@@ -134,6 +148,26 @@ def truncate(text: str, limit: int = FIRST_LINE_MAX) -> str:
 
 def undecorated(line: str) -> str:
     return line.lstrip(LEAD_DECORATION)
+
+
+def is_approval(line: str) -> re.Match[str] | None:
+    """Is this first line a verdict? One predicate, so §3's headline and §3's note cannot disagree."""
+    return REVIEW_HEADLINE.match(line)
+
+
+def is_paused(head: str) -> bool:
+    """UR-160's paused flag is the heartbeat's STATUS FIELD, not any mention of the word.
+
+    A substring test over the head lines flagged 2 of 9 live heartbeats that are not paused: the
+    coordinator's own row (prose about which lanes are live) and the operator's (prose about who
+    stopped whom). §6 prints `[paused]` and the coordinator routes work off it, so a false pause
+    silently reroutes a live lane's packages.
+    """
+    for line in head.splitlines()[1:]:
+        for field in line.split(HEARTBEAT_FIELD_SEP):
+            if field.strip().strip(FIELD_DECORATION).strip().lower() == "paused":
+                return True
+    return False
 
 
 def is_marker(line: str) -> bool:
@@ -414,8 +448,32 @@ class Snapshot:
         for pr in prs:
             section["items"].append(self._pr_item(pr))
 
+    def _rollup(self, pr: dict[str, Any], errors: list[str]) -> list[dict[str, Any]]:
+        """The PR's check runs, re-read per-PR only when the batch is known-truncated.
+
+        The list query caps each PR's rollup at ``LIST_ROLLUP_CAP`` entries, so a batch of
+        exactly that length says nothing about whether a gate exists — which is how a green
+        gate got printed as ``absent``. A short batch with no gate is a real "absent" and stays
+        free; only the suspect PR pays one extra read.
+        """
+        rollup = pr.get("statusCheckRollup") or []
+        if len(rollup) < LIST_ROLLUP_CAP:
+            return rollup
+        cmd = [
+            "gh", "pr", "view", str(pr["number"]), "--repo", self.repo,
+            "--json", "statusCheckRollup",
+        ]  # fmt: skip
+        try:
+            full = json.loads(self.run(cmd) or "{}").get("statusCheckRollup") or []
+        except Exception as exc:  # reported, not fatal: keep the truncated read and say so
+            errors.append(f"rollup re-read (batch capped at {LIST_ROLLUP_CAP}): {error_text(exc)}")
+            return rollup
+        return full or rollup
+
     def _pr_item(self, pr: dict[str, Any]) -> dict[str, Any]:
         head = pr.get("headRefOid") or ""
+        errors: list[str] = []
+        rollup = self._rollup(pr, errors)
         item: dict[str, Any] = {
             "number": pr["number"],
             "title": truncate(pr.get("title") or "", 70),
@@ -423,9 +481,9 @@ class Snapshot:
             "labels": [lbl["name"] for lbl in pr.get("labels") or []],
             "head": head,
             "merge_state": pr.get("mergeStateStatus"),
-            "gate": gate_state(pr.get("statusCheckRollup") or []),
-            "gate_run": gate_run_id(pr.get("statusCheckRollup") or []),
-            "errors": [],
+            "gate": gate_state(rollup),
+            "gate_run": gate_run_id(rollup),
+            "errors": errors,
         }
         try:
             item["merge_base"] = self.git("merge-base", "origin/main", head)
@@ -453,7 +511,7 @@ class Snapshot:
         reviews.sort(key=lambda r: r.get("created_at") or "")
         if reviews:
             item["latest_review"] = truncate(first_line(reviews[-1]["body"]), 60)
-        approvals = [r for r in reviews if first_line(r["body"]).startswith("Review: approve")]
+        approvals = [r for r in reviews if is_approval(first_line(r["body"]))]
         if not approvals:
             item["approval"] = None
             return
@@ -542,7 +600,7 @@ class Snapshot:
                     "id": c.get("id"),
                     "updated_at": c["updated_at"],
                     "age_min": round(age, 1),
-                    "paused": "paused" in head_lines,
+                    "paused": is_paused(head_lines),
                     "stale": age > STALE_HEARTBEAT_MIN,
                 }
             )
@@ -652,7 +710,7 @@ def render_text(data: dict[str, Any]) -> str:
         out.append(line)
         labels = ",".join(p["labels"]) or "-"
         out.append(f"      {p['title']} [{labels}]")
-        if p.get("latest_review") and not p["latest_review"].startswith("Review: approve"):
+        if p.get("latest_review") and not is_approval(p["latest_review"]):
             out.append(f"      latest review: {p['latest_review']}")
         out += [f"      ERROR prs: {e}" for e in p["errors"]]
     out += _errors("prs", prs)

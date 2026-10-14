@@ -63,8 +63,6 @@ Contains reusable UI components shared across multiple features. These are low-l
 | `ProfiledComponent.test.tsx`         | Test suite for ProfiledComponent                              | Active     |
 | `PullToRefresh.tsx`                  | Pull-to-refresh component for mobile                          | Active     |
 | `PullToRefresh.test.tsx`             | Test suite for PullToRefresh                                  | Active     |
-| `RateLimitIndicator.tsx`             | API rate limit status indicator                               | Active     |
-| `RateLimitIndicator.test.tsx`        | Test suite for RateLimitIndicator                             | Active     |
 | `ResponsiveChart.tsx`                | Responsive chart wrapper component                            | Active     |
 | `ResponsiveChart.test.tsx`           | Test suite for ResponsiveChart                                | Active     |
 | `ResponsiveModal.tsx`                | Responsive modal that adapts to screen size                   | Active     |

@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-10-13T09:17:12.539931+00:00",
+  "total_flaky": 4,
+  "tests": [
+    {
+      "nodeid": "backend/tests/integration/test_ws_subprotocol_echo_b1.py::test_the_accept_sweep_finds_the_known_sites",
+      "pass_rate": 0.0,
+      "total_runs": 15,
+      "passed": 0,
+      "failed": 15,
+      "reruns": 10,
+      "flakiness_score": 1.0,
+      "run_count": 5
+    },
+    {
+      "nodeid": "backend/tests/integration/test_summaries_api.py::TestGetHourlySummary::test_returns_latest_hourly_when_multiple_exist",
+      "pass_rate": 0.5714285714285714,
+      "total_runs": 7,
+      "passed": 4,
+      "failed": 3,
+      "reruns": 2,
+      "flakiness_score": 0.5714285714285714,
+      "run_count": 5
+    },
+    {
+      "nodeid": "backend/tests/integration/test_summaries_api.py::TestGetDailySummary::test_returns_latest_daily_when_multiple_exist",
+      "pass_rate": 0.5714285714285714,
+      "total_runs": 7,
+      "passed": 4,
+      "failed": 3,
+      "reruns": 2,
+      "flakiness_score": 0.5714285714285714,
+      "run_count": 5
+    },
+    {
+      "nodeid": "backend/tests/unit/services/test_file_watcher.py::test_task_cleanup_callback_prevents_memory_leak",
+      "pass_rate": 0.8333333333333334,
+      "total_runs": 6,
+      "passed": 5,
+      "failed": 1,
+      "reruns": 1,
+      "flakiness_score": 0.24999999999999994,
+      "run_count": 5
+    }
+  ]
+}

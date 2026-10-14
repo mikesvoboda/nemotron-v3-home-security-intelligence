@@ -151,9 +151,6 @@ export type { FaviconBadgeProps } from './FaviconBadge';
 export { default as AmbientStatusProvider } from './AmbientStatusProvider';
 export type { AmbientStatusProviderProps } from './AmbientStatusProvider';
 
-export { default as RateLimitIndicator } from './RateLimitIndicator';
-export type { RateLimitIndicatorProps } from './RateLimitIndicator';
-
 export { default as ThumbnailImage } from './ThumbnailImage';
 export type { ThumbnailImageProps } from './ThumbnailImage';
 

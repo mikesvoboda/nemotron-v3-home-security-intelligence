@@ -261,9 +261,9 @@ green on it.
 
 ### [r148b] F-256's action text
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7050 (merged). (ruling 148)
 
-- [ ] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
+- [x] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
       feed's lookback": the time range drives `<ZoneAnomalyFeed>` (`ZonesPage.tsx:660`, `:789-790`),
       not the card grid (`:507-512`). F-256 is judged on that text; it takes no `half-built` status
       and no `R2b` entry.
@@ -272,9 +272,9 @@ green on it.
 
 ### [r148c] `works` in the inventory
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7051 (merged). (ruling 148)
 
-- [ ] Add `works` to the inventory legend, to `STATUSES` in
+- [x] Add `works` to the inventory legend, to `STATUSES` in
       `frontend/scripts/feature-inventory-lib.mjs`, and as a column in the §2 count table, with its
       README meaning (UR-14). A lane whose golden path is green on the fake stack sets
       `awaiting real tier`; the operator's real-tier confirmation sets `works`.
@@ -295,10 +295,14 @@ green on it.
 ### [r132] F-022: retire the rate-limit countdown
 
 **Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged (UR-66's R2b-round exception).
-**PR:** none yet. (rulings 132, 150, 155)
+**PR:** #7077 (merged). (rulings 132, 150, 155)
 
-- [ ] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
+- [x] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
       (`frontend/src/services/queryClient.ts:249-297`) and every store field only they read.
+      Third limb now met: the follow-up (ruling 155 item 3) deleted `secondsUntilReset` — field,
+      writes, `useRateLimitStatus` member, test seeds. `current` stays by the ruling's own fence
+      (it names only that field) and F-022's row records why; the backend review of #7077
+      (finding 2) offered exactly these two homes for the strand and the row took the second.
 - [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time
       (`RetryingIndicator.tsx` is renamed to this text; ruling 155).
 - [ ] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no

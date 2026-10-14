@@ -147,7 +147,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 132    | package Phase 3 rate-limit countdown retirement                                                             |
 | 133    | package Phase 3 PWA install prompt retirement                                                               |
 | 134    | package Phase 3 batch-statistics history views retirement                                                   |
-| 135    | UR-66 (R2b-round Phase 3 start), UR-149; round 1 record #7030 (open); round 1 tiers one-off                 |
+| 135    | UR-66 (R2b-round Phase 3 start), UR-149; round 1 record #7030 (merged); round 1 tiers one-off               |
 | 136    | UR-78; #7026 fold one-off                                                                                   |
 | 137    | UR-121; #7022/#7023/#7025 one-off                                                                           |
 | 138    | UR-144                                                                                                      |
@@ -155,7 +155,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 140    | UR-124; package W3.3 (Done-when gains the citation gate)                                                    |
 | 141    | one-off (O3.8 target met; `timeout(30)`); package `[r141]` follow-up                                        |
 | 142    | UR-130; verdict-spread check one-off                                                                        |
-| 143    | UR-131, UR-176; package `[r143]` (open, #7034 draft; `packages/ops.md`)                                     |
+| 143    | UR-131, UR-176; package `[r143]` (open, #7034 merged; `packages/ops.md`)                                    |
 | 144    | package O2.5 (not started; `packages/ops.md`); UR-10 (contract rule 5: does not gate Phase 2's exit)        |
 | 145    | UR-94, UR-29, UR-113, UR-122; freeze lift one-off; package `[r141]` follow-up                               |
 | 146    | UR-39, UR-42, UR-155; the `rules.md` ledger itself superseded by the plan rewrite (record 6128714278)       |
