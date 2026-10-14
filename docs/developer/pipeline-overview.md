@@ -91,7 +91,7 @@ Detections are grouped into time-windowed batches before analysis
 
 **Bypasses:** high-confidence weapon threats (knife/pistol/rifle at
 confidence ≥ 0.7) and smoke/fire (fire ≥ 0.70, smoke ≥ 0.75) skip the batch
-window entirely (`backend/services/batch_aggregator.py:1294`). The generic
+window entirely (`backend/services/batch_aggregator.py:1303`). The generic
 "high-confidence person" fast path is **off by default** — its master switch
 (`FAST_PATH_ENABLED`) ships `false`, so nothing fires whatever the threshold
 says (ruling 168); the threshold ships `0.9` with an empty type list as second
