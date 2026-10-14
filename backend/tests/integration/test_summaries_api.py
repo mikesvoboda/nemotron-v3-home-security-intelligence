@@ -114,15 +114,15 @@ async def multiple_summaries(integration_db, clean_summaries) -> list[Summary]:
     by the access path rather than by the data: with tied keys the seq-scan +
     top-N-sort plan and the backward-index-scan plan return DIFFERENT rows,
     which is the intermittent `assert 2 == 0` seen in CI (nightly 38372397543).
-    Production cannot hit that tie: `get_latest_by_type` filters by
-    `summary_type` first, so only two rows of the SAME type could tie, and the
-    only writer (SummaryRepository.create_summary, one row per call) produces at
-    most one hourly and one daily per generation run — `generate_all_summaries`
-    shares a session, but still one row of each type, never two hourly. The
-    tie is therefore a pure fixture artifact of collapsing four production
-    writes into one commit; setting `created_at` here restores the
-    `created_at ≈ generated_at` ordering production naturally has instead of
-    leaving "latest" to chance.
+    No current code path hits that tie: `get_latest_by_type` filters by
+    `summary_type` first, so only SAME-type rows could tie, and the only writer
+    (SummaryRepository.create_summary, one row per call) makes at most one
+    hourly and one daily per run. `generate_all_summaries` shares ONE session,
+    so hourly and daily DO share a `created_at` — a cross-type tie the type
+    filter hides. Scope is the call graph at this head, not the schema: no
+    `UniqueConstraint` exists on `summaries`. The tie is therefore a pure
+    fixture artifact of collapsing four production writes into one commit;
+    setting `created_at` here restores production's real ordering.
     """
     from backend.core.database import get_session
 
