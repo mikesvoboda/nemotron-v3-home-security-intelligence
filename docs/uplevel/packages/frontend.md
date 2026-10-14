@@ -283,12 +283,24 @@ green on it.
 
 ### [r149e] Type-check the golden specs
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 149, record 6146380050)
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7069 (merged). (ruling 149,
+record 6146380050)
 
-- [ ] Add `frontend/tsconfig.golden.json` (extends `tsconfig.json`, includes `tests/golden/**`) and a
-      `tsc --noEmit` step over it in CI, appended as one entry (ruling 137).
-- [ ] Fix the 9 errors it finds today in the same PR, including the unused `closedByGuard` in
-      `dashboard/activity-feed.spec.ts:80`, so that spec checks the guard.
+- [x] Add `frontend/tsconfig.golden.json` (extends `tsconfig.json`, includes `tests/golden/**`) and a
+      `tsc --noEmit` step over it in CI, appended as one entry (ruling 137). Ticked with two
+      deviations from the box's literal text, both recorded rather than glossed: (a) `include` is
+      `tests/golden/**/*`, not the literal `**` — that literal is tsc error TS5010 and `**/*` selects
+      the same set; (b) "appended as one entry" is not realizable here — the shared
+      `frontend-typecheck` job holds its check as a `run:` command, not a list a step reads, so
+      UR-121 ("Anything else … goes in its own job") routes it to its own job
+      `frontend-golden-typecheck` at `.github/workflows/ci.yml:3823`, which is what #7069 shipped.
+      The box asks for a `tsc --noEmit` step over the config in CI; that half is met exactly.
+- [x] Fix the 9 errors it finds today in the same PR, including the unused `closedByGuard` in
+      `dashboard/activity-feed.spec.ts:80`, so that spec checks the guard. The `:80` was right where
+      the package wrote it (`acb1e39ad^`) but #7069's own fix shifts it +11, so it reads `:91` at
+      main; the spec now calls the tripwire at `:305` and `:354`, where the named-but-never-called
+      import had been a decoy. #7069's Done-when ticked per ruling 161 on run 38446238266 — its
+      ready head `41c74b8b1`, `Golden Spec Type Check (TypeScript)` and the whole run both `success`.
 
 **Done when:** the type-check step runs in CI and is green.
 
