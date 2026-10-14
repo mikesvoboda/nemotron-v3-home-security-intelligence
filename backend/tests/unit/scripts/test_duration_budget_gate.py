@@ -2072,9 +2072,9 @@ def test_a_class_based_breach_is_re_run_with_the_colon_spelling(tmp_path: Path) 
 # The block above was written when the clause named only unit tests, and the
 # gate still implements exactly that: ``reproduce`` filters ``b[2] == "unit"``.
 # So an integration test at 12.4 s is red on the first reading, with no
-# reproduction, which is the failure mode ruling 151 exists to fix. Six of the
-# eight pins below are red on `main` for three DIFFERENT reasons, and the reasons
-# are why this is a three-site change and not a one-line filter:
+# reproduction, which is the failure mode ruling 151 exists to fix. Eleven of the
+# thirteen pins below are red on `main` for three DIFFERENT reasons, and the
+# reasons are why this is a three-site change and not a one-line filter:
 #
 #   * the verdict itself (nothing re-runs an integration breach);
 #   * the REPORTING of a cleared one — the WARN list is unit tier by a deliberate
@@ -2092,6 +2092,15 @@ def test_a_class_based_breach_is_re_run_with_the_colon_spelling(tmp_path: Path) 
 # The tiers OUTSIDE the clause (e2e, slow) are pinned too, because "everything
 # that is not unit" is NOT what the amendment says and the audit job has no
 # browser and no ``npm ci``.
+#
+# The count sentence above is a MEASUREMENT, not an estimate: main's gate blob
+# swapped in for this file's, the below-banner tests run against it, and the red
+# ones counted (measured 11 failed / 2 passed at this head — the two greens being
+# precisely the pins that assert a constant and assert NON-re-runs, so main
+# satisfies them without ever re-running integration, which is reason 1 talking).
+# Adding a pin below this line moves the number again; re-measure it the same way
+# rather than editing the sentence to taste. An earlier revision carried "six of
+# eight", true when written and stale by the next commit — review finding 5.
 # ==========================================================================
 
 # An integration id with no module behind it, same reasoning as ``SLEEPER``. The
@@ -2203,6 +2212,52 @@ def test_a_cleared_integration_breach_is_still_listed_with_both_timings(
     assert "unit" not in pass_line, (
         f"nothing unit was cleared here; the verdict must not claim it: {pass_line!r}"
     )
+    # Review finding 3: the WORD was pinned, the sentence around it was not.
+    # Three mutants ran the whole suite green while lying on exactly this run —
+    # a zero count, a dropped exoneration claim, and the bare "no test over its
+    # real-sleep budget", which is verbatim the sentence the gate's own comment
+    # calls false on this path, because one test WAS over budget here.
+    assert "1 test(s) were over budget" in pass_line, (
+        f"the green has to say how many it let through: {pass_line!r}"
+    )
+    assert "no test over its real-sleep budget" not in pass_line, (
+        "a cleared run must not claim nothing was ever over budget; the gate's "
+        f"own comment calls this exact sentence false here: {pass_line!r}"
+    )
+    # A bare `"re-run" in pass_line` would pass on a mutant that deletes the
+    # exoneration, because the line's FIRST clause already contains the word
+    # ("...reproduced on its re-run"). So ask the count clause what happened to
+    # the tests it counted: a bare "N test(s) were over budget in the corpus."
+    # on a GREEN run reads as an unanswered question. Wording beyond that is
+    # free -- "cleared" and "re-run" are alternatives, not a spelling test.
+    tail = pass_line.split("were over budget", 1)[1]
+    assert "cleared" in tail or "re-run" in tail, (
+        f"the count clause must say the over-budget tests were exonerated, not "
+        f"just that they existed: {pass_line!r}"
+    )
+    # Review finding 7: the section header's COUNT was free. A mutant reading
+    # len(breaches) where the code reads len(listed_elsewhere) prints "2" above
+    # one row — counting the breach that DID reproduce, the single distinction
+    # the header's own parenthetical ("listed, never failing") exists to make.
+    # Anchored on the section NAME, not on "listed, never failing)", which the
+    # unit-WARN header prints too — matching that would test whichever of the two
+    # happened to print first. The scan stops at the blank line that closes the
+    # section, so it counts THIS section's rows and not the report's.
+    lines = run.stdout.splitlines()
+    head_i = next(
+        i for i, ln in enumerate(lines) if ln.startswith("OVER BUDGET, DID NOT REPRODUCE")
+    )
+    stated = int(lines[head_i].rsplit(":", 1)[1])
+    body = []
+    for ln in lines[head_i + 1 :]:
+        if ln.strip() == "":
+            break
+        if ln.startswith("  WARN "):
+            body.append(ln)
+    assert stated == len(body) == 1, (
+        f"one cleared breach is listed here, so the header must state 1 above 1 "
+        f"row; stated {stated} above {len(body)}\n{run.stdout}"
+    )
 
 
 def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> None:
@@ -2228,6 +2283,12 @@ def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> Non
     )
     assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
     assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
+    # The FAIL line's tier phrasing ("A seconds-scale test in a re-run tier")
+    # is deliberately UNPINNED, recorded here so its absence does not read as
+    # an oversight. The PASS-line twin is pinned to a WORD because "unit" can
+    # be a false statement about a given corpus; this sentence is framing, and
+    # any reword of it stays true of a two-tier red set — so a pin here would
+    # tax a future improvement without protecting a fact. Review finding 9.
 
 
 # Review finding 1: the exoneration ruling 151 grants lives in the 4.0-10.0 s
@@ -2237,7 +2298,10 @@ def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> Non
 # 4.0)` — that mutant ran the whole suite green while reddening a real 6.00 s
 # integration re-run. The greens below sit at 9.90 s, not the reviewer's
 # suggested 6.00 s, because 9.90 kills every mutant that lowers the effective
-# threshold below 9.9, and 6.00 would survive min(budget, 8.0).
+# threshold STRICTLY below 9.9, and 6.00 would survive min(budget, 8.0).
+# "strictly" is load-bearing and was added after review: min(budget, 9.9)
+# agrees with the base at exactly 9.90 — both clear it — so nothing that stops
+# AT 9.9 dies here. That mutant needs the boundary pin below instead.
 def test_an_integration_re_run_at_9p90_seconds_is_cleared(tmp_path: Path) -> None:
     """The 4.0-10.0 s band is judged against the INTEGRATION budget, not 4.0 s.
 
@@ -2270,8 +2334,13 @@ def test_an_integration_re_run_at_10p40_seconds_is_red(tmp_path: Path) -> None:
 
     Without this half the green above is ambiguous — it would also be green on
     a gate that forgives the integration tier entirely. Together the pair
-    brackets the judged threshold to (9.90, 10.40], which is the 10.0 s
+    brackets the judged threshold to (9.90, 10.40], which CONTAINS the 10.0 s
     integration budget, per tier rather than inherited from the unit case.
+
+    A bracket is not a boundary. `seconds >= budget` agrees with `>` at BOTH
+    endpoints of that interval and differs from it only at exactly 10.00 s, so
+    this pair cannot kill that mutant however tight the bracket gets -- see
+    test_an_integration_re_run_at_exactly_the_budget_is_cleared.
     """
     calls = tmp_path / "calls.jsonl"
     results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
@@ -2289,6 +2358,41 @@ def test_an_integration_re_run_at_10p40_seconds_is_red(tmp_path: Path) -> None:
     )
     assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
     assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
+
+
+def test_an_integration_re_run_at_exactly_the_budget_is_cleared(tmp_path: Path) -> None:
+    """The boundary itself: a re-run AT 10.00 s against a 10.0 s budget CLEARS.
+
+    The 9.90/10.40 pair brackets the threshold but never lands on it, and a
+    bracket is not a boundary — `seconds >= budget` clears 9.90 and reddens
+    10.40 exactly as the real `>` does, so it runs the entire suite green while
+    turning a real 10.00 s re-run RED. Measured at this head with the mutants
+    applied IN PLACE to the gate (it imports a sibling script by path, so a
+    relocated copy cannot run) and restored under md5: at 10.00 s the base
+    clears with exit 0, `>=` exits 1, and `> min(budget, 9.9)` exits 1. One
+    duration kills both survivors, which is why this pin sits beside the pair
+    rather than replacing it.
+
+    The corpus side has had this shape for a while
+    (``test_exactly_at_a_budget_is_not_a_breach``); the re-run side had none.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {INTEGRATION_ID: "10.0"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        "10.00 s against a 10.0 s budget is not OVER it — the comparison is "
+        "`seconds > budget`, so a re-run landing exactly on the limit reproduced "
+        f"nothing. This going red means the operator became `>=`:\n{out}"
+    )
+    assert "BREACH" not in run.stdout, f"an exactly-at-budget re-run is cleared\n{out}"
+    assert len(_calls(calls)) == 1, "one re-run; a cleared breach is not retried for luck"
 
 
 def test_the_cap_value_is_the_number_the_rulebook_states() -> None:
@@ -2324,8 +2428,9 @@ def test_the_cap_value_is_the_number_the_rulebook_states() -> None:
 def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
     """UR-125: "at most 5 re-runs per job **in each tier**" — not 5 pooled.
 
-    Six unit breaches (4.4-4.9 s) and six integration breaches (10.4-15.9 s), so
-    twelve over budget, and the corpus is sorted longest-first, so a cap that
+    MAX_RERUNS+2 unit breaches and MAX_RERUNS+1 integration ones -- deliberately
+    ASYMMETRIC, see the fixture -- so over budget in both eligible tiers, and the
+    corpus is sorted longest-first, so a cap that
     slices the POOLED list spends all five re-runs on the five longest — which
     are all integration — and leaves the unit tier with none. That is the
     inverted damage: the tier the cap has served since ruling 122 loses its
@@ -2333,14 +2438,21 @@ def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
 
     The rule is 5 PER TIER, so 10 ids get re-run and the one dropped per tier is
     the shortest in that tier. ``MAX_RERUNS`` is the bound; the pin above holds it
-    to UR-125's number, and the worst-case cost is therefore 2 x 5 sleeps per job
+    to UR-125's number, and the worst-case cost is therefore MAX_RERUNS sleeps per
+    eligible tier per job
     — the pins name the bound, so a reviewer who wants 5 pooled sees it here
     rather than inferring it.
     """
     calls = tmp_path / "calls.jsonl"
+    # DELIBERATELY ASYMMETRIC (review finding 1): MAX_RERUNS+2 unit against
+    # MAX_RERUNS+1 integration, where 6/6 was symmetric. A symmetric corpus
+    # cannot witness a tier-label swap — the swapped (count, tier) multiset is
+    # identical — so the pair assertion below needs the counts to differ. They
+    # are derived from MAX_RERUNS rather than literal so the asymmetry, which is
+    # the property, survives the cap moving.
     unit_cases = [
         (f"backend.tests.unit.tiershard.test_u{i}", f"test_u{i}_slow", 4.4 + 0.1 * i)
-        for i in range(6)
+        for i in range(MAX_RERUNS + 2)
     ]
     integration_cases = [
         (
@@ -2348,8 +2460,13 @@ def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
             f"test_integration_i{i}_slow",
             10.4 + 1.1 * i,
         )
-        for i in range(6)
+        for i in range(MAX_RERUNS + 1)
     ]
+    n_unit = len(unit_cases)
+    n_integration = len(integration_cases)
+    assert n_unit != n_integration, (
+        "the fixture must stay asymmetric or the pair assertion below cannot see a tier-label swap"
+    )
     durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
     results = _results(
         tmp_path,
@@ -2381,7 +2498,8 @@ def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
     # The cap must still be the STRICT end: the dropped id is the SHORTEST in its
     # tier, and the tier's remaining breaches stay RED unverified.
     assert run.returncode != 0, (
-        f"2 of 12 breaches are unverified, so this run is RED whatever the cap "
+        f"2 of {n_unit + n_integration} breaches are unverified, so this run is RED "
+        f"whatever the cap "
         f"decides to re-run\n{out}"
     )
     # The cap has to stay the STRICT end in each tier: what it drops is the
@@ -2402,9 +2520,76 @@ def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
     assert len(notes) == 2, (
         f"one over-cap note per tier that is over the cap (both here); saw {notes!r}"
     )
-    assert any("unit breaches" in line for line in notes) and any(
-        "integration breaches" in line for line in notes
-    ), f"each note must name ITS tier; saw {notes!r}"
+    # Review finding 1: membership cannot see a tier-label SWAP, and on the old
+    # 6/6 corpus it could not see one AT ALL. So parse the note and assert the
+    # PAIR. The explicit len() check is part of the teeth: a gate that stops
+    # printing the note in the expected shape would leave `pairs` empty, and an
+    # empty set is a very easy thing to assert nothing about.
+    parsed = re.findall(r"note: (\d+) (\w+) breaches", "\n".join(notes))
+    assert len(parsed) == 2, f"both notes must match the expected shape: {notes!r}"
+    pairs = {(int(n), t) for n, t in parsed}
+    assert pairs == {(n_unit, "unit"), (n_integration, "integration")}, (
+        f"each note must state ITS tier's own breach count; the corpus is "
+        f"{n_unit} unit / {n_integration} integration, saw {sorted(pairs)}\n{notes!r}"
+    )
+    # And the number the note must NOT state: MAX_RERUNS. "5 breaches, only the
+    # 5 slowest" describes a corpus where nothing was dropped, in a run that is
+    # leaving a breach RED unverified.
+    for count, tier in parsed:
+        assert int(count) != MAX_RERUNS, (
+            f"the {tier} note counts {count} on a tier over the cap; a note that "
+            f"equals the cap claims nothing was dropped\n{notes!r}"
+        )
+
+
+def test_a_corpus_sitting_exactly_at_the_cap_prints_no_over_cap_note(tmp_path: Path) -> None:
+    """At MAX_RERUNS per tier NOTHING was dropped, so no note may print.
+
+    The cap pin's corpus is deliberately over the cap in both tiers, which pins
+    what the note says and nothing about when it appears. A `>=` trigger is
+    indistinguishable there — both tiers are over the cap regardless — and it is
+    not harmless: it tells the reader "only the 5 slowest get a re-run; the rest
+    stay RED unverified" about a run in which every breach got its re-run and the
+    job is GREEN. An alarm that fires on a corpus with nothing to alarm about is
+    the shape that teaches people to skim the report.
+
+    MAX_RERUNS breaches per eligible tier, every one of them cleared: the strict
+    `>` prints no note and exits 0.
+    """
+    calls = tmp_path / "calls.jsonl"
+    unit_cases = [
+        (f"backend.tests.unit.atcap.test_u{i}", f"test_u{i}_slow", 4.4 + 0.1 * i)
+        for i in range(MAX_RERUNS)
+    ]
+    integration_cases = [
+        (f"backend.tests.integration.atcap.test_i{i}", f"test_i{i}_slow", 10.4 + 1.1 * i)
+        for i in range(MAX_RERUNS)
+    ]
+    durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml(unit_cases)),
+        ("integration.xml", _xml(integration_cases)),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls)},
+    )
+    out = _out(run)
+    # Precondition first: if the corpus stopped re-running everything, the missing
+    # note below would prove nothing about the trigger.
+    assert len(_calls(calls)) == 2 * MAX_RERUNS, (
+        f"every breach must get its re-run for 'no note' to mean anything; "
+        f"saw {len(_calls(calls))}\n{out}"
+    )
+    assert run.returncode == 0, f"all cleared, so the run is green:\n{out}"
+    notes = [ln for ln in run.stderr.splitlines() if "stay RED unverified" in ln]
+    assert notes == [], (
+        f"a tier AT the cap dropped nothing, so it must not claim otherwise; saw {notes!r}"
+    )
+    assert "only the" not in run.stderr, (
+        f"no re-run was skipped here; the report must not imply one was\n{out}"
+    )
 
 
 def test_the_header_names_eligible_and_re_run_counts_separately(tmp_path: Path) -> None:
@@ -2466,6 +2651,94 @@ def test_the_header_names_eligible_and_re_run_counts_separately(tmp_path: Path) 
     assert eligible != invoked, (
         f"this corpus must separate the two counts, else the pin above is "
         f"vacuous: eligible={eligible} invoked={invoked}"
+    )
+    # Review finding 8: every assertion above is INTEGER-shaped, so the tier
+    # WORDS in the parenthetical were free — one mutant printed "(6, 6)", another
+    # "(6 tiers, 6 tiers)", both green. Per-tier framing is the whole content of
+    # that clause; the counts alone do not carry it. Built from the fixture's own
+    # counts, not literal digits, so a cap change cannot flip this pin into a lie
+    # in the other direction.
+    # Splitting on the literal rather than scanning for parens: the same line
+    # carries "breach(es)" BEFORE the tier list and "(cap N per tier)" AFTER it,
+    # so index("(") finds the one inside breach(es) and index(")") closes it.
+    assert "breach(es)" in header, (
+        f"the ENABLED line changed shape; this pin's extraction needs updating: {header!r}"
+    )
+    after = header.split("breach(es)", 1)[1]
+    paren = after[after.index("(") + 1 : after.index(")")]
+    for count, tier in ((MAX_RERUNS + 1, "unit"), (MAX_RERUNS + 1, "integration")):
+        assert f"{count} {tier}" in paren, (
+            f"the parenthetical must name the tier, not only its count; expected "
+            f"{count} {tier} in {paren!r}"
+        )
+
+
+def test_the_over_budget_section_count_excludes_the_breach_that_reproduced(
+    tmp_path: Path,
+) -> None:
+    """The section's count must be the count of ITS rows, not of all breaches.
+
+    "OVER BUDGET, DID NOT REPRODUCE (listed, never failing): N" is the only
+    place the report separates the breach that a re-run cleared from the one that
+    reproduced, and the parenthetical is a promise: a number that also counts the
+    reproduced breach breaks it. A one-breach corpus cannot witness that — with a
+    single cleared breach, "all breaches" and "listed elsewhere" are the same
+    size — so this corpus has TWO integration breaches, one clearing at 0.60 s
+    and one reproducing at 13.1 s. The section must then say 1 over the one row
+    it prints, while the reproduced one is counted under BREACHES instead.
+
+    This is the shape the missing pin needs; the single-cleared pin next door
+    asserts the row's CONTENT and cannot see a count that is off by the breach
+    that did reproduce.
+    """
+    calls = tmp_path / "calls.jsonl"
+    reproducer = ("backend.tests.integration.apishard.test_auth", "test_integration_auth_slow")
+    results = _results(
+        tmp_path,
+        (
+            "integration.xml",
+            _xml(
+                [
+                    (*INTEGRATION, INTEGRATION_BREACH),
+                    (*reproducer, 11.9),
+                ]
+            ),
+        ),
+    )
+    durations = {f"{INTEGRATION[0]}::{INTEGRATION[1]}": INTEGRATION_CLEARANCE}
+    durations[f"{reproducer[0]}::{reproducer[1]}"] = "13.1"
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls)},
+    )
+    out = _out(run)
+    # Precondition: the corpus must really hold one cleared and one confirmed
+    # breach. If it does not, the count below is vacuous in the same way the
+    # single-breach corpus was.
+    assert len(_calls(calls)) == 2, f"both breaches must be re-run: {out}"
+    assert run.returncode != 0, f"the 13.1 s re-run reproduced, so this run is red: {out}"
+
+    lines = run.stdout.splitlines()
+    listed = [i for i, ln in enumerate(lines) if ln.startswith("OVER BUDGET, DID NOT REPRODUCE")]
+    assert len(listed) == 1, f"exactly one cleared breach should open that section: {out}"
+    stated = int(lines[listed[0]].rsplit(":", 1)[1])
+    body: list[str] = []
+    for ln in lines[listed[0] + 1 :]:
+        if ln.strip() == "":
+            break
+        if ln.startswith("  WARN "):
+            body.append(ln)
+    assert stated == len(body) == 1, (
+        f"one cleared breach: the header must state 1 above the 1 row it prints. "
+        f"A count of {stated} is counting the breach that DID reproduce, which is "
+        f"the distinction this section's name promises\n{run.stdout}"
+    )
+    breach_header = next(
+        (ln for ln in lines if ln.startswith("BREACHES (over the hard budget)")), ""
+    )
+    assert breach_header.rstrip().endswith(": 1"), (
+        f"and the reproduced breach belongs under BREACHES, not here: "
+        f"{breach_header!r}\n{run.stdout}"
     )
 
 
