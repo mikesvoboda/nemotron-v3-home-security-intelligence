@@ -246,7 +246,7 @@ The analysis now only publishes:
 3. A **console warning** when flakes are found. It does not fail the job: a green analysis that
    found flakes is the expected state, and routing is the coordinator's act.
 
-A run whose *analysis* fails (the script raises, the report is unreadable) is red; a run that
+A run whose _analysis_ fails (the script raises, the report is unreadable) is red; a run that
 finds flaky tests is not.
 
 ## Best Practices

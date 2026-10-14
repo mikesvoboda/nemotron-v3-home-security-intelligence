@@ -327,19 +327,23 @@ jobs:
         run: |
           # Count flaky tests for the log. Never fails the job: a green analysis
           # with flakes in it is the expected state (routing is the coordinator's).
+          # The `|| NEW_FLAKY_COUNT=0` is what makes that sentence true, not the
+          # `exit 0` below it: Actions runs this step under `bash -e`, where the
+          # bare command substitution would abort on a truncated/empty report
+          # before `exit 0` is reached. Guarding it keeps the step information-only
+          # (and the fallback 0 keeps `[ -gt 0 ]` from getting an empty operand).
           if [ -f flaky-test-report.json ]; then
             NEW_FLAKY_COUNT=$(python3 -c "
           import json
           with open('flaky-test-report.json') as f:
               data = json.load(f)
               print(data.get('total_flaky', 0))
-          ")
+          ") || NEW_FLAKY_COUNT=0
             if [ "$NEW_FLAKY_COUNT" -gt 0 ]; then
               echo "WARNING: Detected $NEW_FLAKY_COUNT flaky test(s); see the run summary"
             fi
           fi
           exit 0  # information only — a green analysis stays green
-
 
   # ==========================================================================
   # Update CI workflow with flaky test tracking
