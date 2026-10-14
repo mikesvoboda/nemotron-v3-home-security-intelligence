@@ -3314,3 +3314,84 @@ def test_read_subtree_control_follows_the_caller_s_own_cgroup(tmp_path: Path) ->
     (broken / "self").mkdir(parents=True)
     (broken / "self" / "cgroup").write_text("garbage\n", encoding="utf-8")
     assert fc.read_subtree_control(proc_dir=broken, sys_dir=sysfs) == ""
+
+
+def test_the_prod_render_writes_the_boot_file_the_lifecycle_boots_from(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The CI render writes self.compose_file (the deployment up/up-logs/down -v all
+    # read via deployment()). render_prod_shape did NOT -- so a --real --prod-shape run
+    # came up on PROD_STACK+OVERRIDE and then died at the first deployment() call:
+    # _address('compose port'), collect ('logs'/'ps') and teardown ('down -v') all boot
+    # compose_file, which was never written. That left the run's containers UP after a
+    # red run -- the exact failure UR-135 (teardown with down -v and nothing else) exists
+    # to prevent. The prod render must write the same file the CI render does.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "cpu memory\n")
+    _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    run.render(fc.Snapshot.from_engine([], []))
+    assert run.compose_file.exists(), (
+        "deployment()/teardown read compose_file; a prod render that never wrote it "
+        "leaves the run's containers up after teardown would run"
+    )
+
+
+def _recording_compose(run: Any, rendered: dict[str, Any]) -> list[Any]:
+    """Like _fake_compose but keeps kwargs too: teardown's check=False is part of
+    the contract (a failed `down -v` must not mask the postflight)."""
+    calls: list[Any] = []
+
+    def compose(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((list(files), args, kwargs))
+        return subprocess.CompletedProcess(["fake"], 0, stdout=json.dumps(rendered), stderr="")
+
+    run.compose = compose
+    return calls
+
+
+def test_a_prod_shape_run_tears_down_with_down_v_on_its_project_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # UR-135: teardown is `compose -p <run project> ... down -v` and NOTHING else.
+    # For the prod shape that only holds if the lifecycle boots the file the prod
+    # render wrote -- deployment() supplies the -p and the -f; before the boot file
+    # existed this call raised (no such file) mid-teardown, leaving containers up.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _recording_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    run.render(fc.Snapshot.from_engine([], []))
+    calls.clear()
+    changed, left = run.teardown(fc.Snapshot.from_engine([], []))
+    assert calls == [([run.compose_file], ("down", "-v"), {"check": False, "timeout": 600})], (
+        f"UR-135 allows exactly one teardown call; got {calls}"
+    )
+    assert changed == [] and left == []
+
+
+def test_the_prod_boot_file_bakes_no_object_names_so_the_project_decides_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Measured on compose v5.5.1: `config --format json` bakes the project name into
+    # every network and volume (`name: runA_security-net`), and a later `-p runB`
+    # overrides ONLY the top-level name -- the nested baked names survive and point at
+    # runA. A boot file carrying them would make a second run mount, and `down -v`
+    # DELETE, the first run's volumes: UR-133 isolation inverted into a cross-run
+    # delete. Stripping every baked `name` makes compose re-derive each object from
+    # the live -p, so the file cannot point at a run that is not booting it.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    baked = {
+        "name": run.project,
+        "services": {"postgres": {"image": "pg:1"}},
+        "networks": {"security-net": {"name": f"{run.project}_security-net", "driver": "bridge"}},
+        "volumes": {"postgres_data": {"name": f"{run.project}_postgres_data", "driver": "local"}},
+    }
+    _fake_compose(run, baked)
+    run.render(fc.Snapshot.from_engine([], []))
+    boot = json.loads(run.compose_file.read_text(encoding="utf-8"))
+    assert "name" not in boot, "the top-level name must come from -p at boot"
+    assert all("name" not in net for net in boot["networks"].values()), boot["networks"]
+    assert all("name" not in vol for vol in boot["volumes"].values()), boot["volumes"]
+    # the artifact an operator reads keeps the render as compose produced it
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert landed["volumes"]["postgres_data"]["name"] == f"{run.project}_postgres_data"

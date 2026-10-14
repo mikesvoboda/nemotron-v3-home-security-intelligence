@@ -617,6 +617,30 @@ def strip_resource_limits(rendered: dict[str, Any]) -> int:
     return changed
 
 
+def boot_render(rendered: Mapping[str, Any]) -> dict[str, Any]:
+    """The copy of a render that goes on disk for ``up`` to boot, with every baked
+    object name removed so the ``-p`` at boot decides them.
+
+    Measured on compose v5.5.1: ``config --format json`` writes the project name into
+    the render three times over -- the top-level ``name``, and a ``name`` on every
+    network and every volume (``security-net`` becomes ``<project>_security-net``).
+    Feeding that render back under a DIFFERENT ``-p`` overrides the top-level name and
+    nothing else: the nested names still point at the first project. So a run booted
+    from such a file mounts -- and ``down -v`` DELETES -- another run's volumes, which
+    is UR-133's own-project isolation turned into a cross-run delete. A render with
+    those names stripped makes compose re-derive each object from the live ``-p``, so
+    two runs produce two disjoint object sets. The copy keeps the caller's render
+    intact: the artifact an operator reads should say what compose produced.
+    """
+    boot = copy.deepcopy(dict(rendered))
+    boot.pop("name", None)
+    for section in ("networks", "volumes"):
+        for entry in (boot.get(section) or {}).values():
+            if isinstance(entry, dict):
+                entry.pop("name", None)
+    return boot
+
+
 def decide_resource_limits(rendered: dict[str, Any], subtree_control: str) -> str:
     """Decide, act and record in one step, so the three cannot disagree.
 
@@ -1710,6 +1734,16 @@ class Run:
             # disk, so a refused render must leave nothing to boot.
             raise Refused(problems)
         self._write("prod-rendered.json", rendered)
+        # The CI tier's render() writes self.compose_file and EVERY later lifecycle call
+        # boots it -- `up`, `_address` (`compose port`), `collect` (`logs`/`ps`) and
+        # `teardown` (`down -v`) all go through deployment(). Without this line a
+        # --real --prod-shape run came up on the two YAML files and then failed at its
+        # first deployment() call with no such file, teardown included, leaving the run's
+        # containers up: the exact hole UR-135 (teardown with `down -v` and nothing else)
+        # exists to close. Same file, same path as the CI tier, so there is one boot path.
+        self.compose_file.write_text(
+            json.dumps(boot_render(rendered), indent=2) + "\n", encoding="utf-8"
+        )
         _log(f"prod-shape render: {len(rendered.get('services') or {})} services")
         self.summary["images"] = {
             name: service.get("image") for name, service in (rendered.get("services") or {}).items()

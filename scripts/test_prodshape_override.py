@@ -31,6 +31,7 @@ Run explicitly (outside testpaths, like the other scripts/test_*.py):
 from __future__ import annotations
 
 import copy
+import importlib.util
 import json
 import os
 import subprocess
@@ -309,6 +310,109 @@ def test_override_refuses_to_render_without_the_run_root():
     assert "PROD_SHAPE_RUN_ROOT" in p.stderr, (
         f"the render failed for a reason that is not the missing variable: {p.stderr[:300]}")
 
+
+# ------------------------------------------------ the runner's generated boot file (O2.5) --------
+def _feature_check():
+    """Load scripts/feature_check.py as a module (it is a script, not a package)."""
+    spec = importlib.util.spec_from_file_location("feature_check", REPO / "scripts" / "feature_check.py")
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["feature_check"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _render_full(files: list[Path], project: str) -> dict:
+    """`compose config` for these files, returning the WHOLE document (names included).
+
+    Loud on rc!=0 like _compose: a green here only means the render actually ran."""
+    cmd = ["docker", "compose", "-p", project, "--project-directory", str(REPO)]
+    for f in files:
+        cmd += ["-f", str(f)]
+    cmd += ["config", "--format", "json"]
+    p = subprocess.run(
+        cmd,
+        cwd=REPO,
+        env={**os.environ, **ENV},
+        capture_output=True,
+        text=True,
+        check=False,  # rc IS the observation: a nonzero render must name the file
+    )
+    if p.returncode != 0:
+        pytest.fail(f"`docker compose config` rc={p.returncode}: {p.stderr[:600]}")
+    return json.loads(p.stdout)
+
+
+def _object_names(document: dict) -> set[str]:
+    """Every object name compose would create: the run's networks and named volumes."""
+    out = set()
+    for section in ("networks", "volumes"):
+        for entry in (document.get(section) or {}).values():
+            name = entry.get("name") if isinstance(entry, dict) else None
+            out.add(name or "UNNAMED")
+    return out
+
+
+def test_the_generated_boot_file_rebinds_its_objects_to_the_live_project(tmp_path):
+    """UR-133's isolation has to survive the runner writing a boot FILE.
+
+    `compose config --format json` bakes the project name into the top-level object AND
+    into every network and every volume (security-net -> prodshape-audit_security-net).
+    Measured on compose v5.5.1: re-feeding that render under a DIFFERENT -p overrides the
+    top-level name and NOTHING else. So a boot file written from a render is not
+    project-neutral -- a second run boots it under its own -p and still creates, mounts
+    and `down -v`s the FIRST project's networks and volumes. That turns UR-133's "its own
+    compose project" into a cross-run delete, which is why feature_check.boot_render()
+    strips the baked names before writing.
+
+    Two-sided control, because a guard that cannot fail both ways is decoration:
+      * must-catch  -- the UNstripped render, booted under a second project, still carries
+                       the first project's object names (the trap is real on this compose);
+      * must-ignore -- the stripped boot file, booted under two projects, yields two
+                       DISJOINT name sets, each prefixed by the project that booted it.
+    And one faithfulness clause: stripping the names must not change what gets deployed --
+    at the same -p the boot file renders byte-identically to the YAML pair it came from.
+    """
+    fc = _feature_check()
+    source_project = "prodshape-audit"
+    full = _render_full([PROD, OVERRIDE], source_project)
+    boot = fc.boot_render(full)
+
+    assert "name" not in boot, "the top-level name must be decided by -p at boot"
+    for section in ("networks", "volumes"):
+        assert all("name" not in entry for entry in (boot.get(section) or {}).values()), section
+
+    boot_file = tmp_path / "compose.json"
+    boot_file.write_text(json.dumps(boot, indent=2) + "\n", encoding="utf-8")
+
+    run_one = _render_full([boot_file], "hsi-run-one")
+    run_two = _render_full([boot_file], "hsi-run-two")
+    names_one, names_two = _object_names(run_one), _object_names(run_two)
+    assert names_one and names_two, "the stack has no networks or volumes to isolate?"
+    assert not (names_one & names_two), (
+        f"two runs sharing a boot file created the same objects: {names_one & names_two}")
+    assert all(n.startswith("hsi-run-one_") for n in names_one), names_one
+    assert all(n.startswith("hsi-run-two_") for n in names_two), names_two
+
+    # must-catch: the UNstripped render booted under a second project keeps the FIRST
+    # project's object names. This is the leak boot_render exists to close -- and it is
+    # only real because it reproduces on the compose in CI, not on my reading of it.
+    unstripped = tmp_path / "baked.json"
+    unstripped.write_text(json.dumps(full, indent=2) + "\n", encoding="utf-8")
+    assert any(n.startswith(source_project + "_") for n in _object_names(full)), (
+        "the source render bakes no project names at all -- the clause below is vacuous "
+        "and boot_render would be dead code")
+    leaked = _object_names(_render_full([unstripped], "hsi-run-leak"))
+    assert any(n.startswith(source_project + "_") for n in leaked), (
+        "compose no longer bakes object names against a -p rebind; boot_render is then "
+        f"dead code and THIS leg is what changed, not the runner ({sorted(leaked)[:3]})")
+    assert not any(n.startswith("hsi-run-leak_") for n in leaked), (
+        f"a baked boot file DID rebind to the live project ({sorted(leaked)[:3]})")
+
+    # faithfulness: at the project it was rendered for, the boot file deploys the SAME stack.
+    reblessed = _render_full([boot_file], source_project)
+    assert reblessed == full, (
+        "boot_render changed what would be deployed, not just who owns the objects")
 
 if __name__ == "__main__":   # pragma: no cover
     sys.exit(pytest.main([__file__, "-q"]))
