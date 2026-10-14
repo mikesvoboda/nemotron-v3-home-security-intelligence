@@ -14,9 +14,21 @@
 # reader can check it line by line:
 #   UR-134  drop the container-engine socket mount from backend and alloy (the two services
 #           ruling 162 names; both interpolate ${PODMAN_SOCKET}, alloy into source AND target)
-#   UR-133  container_name -> "hsi-test-" + the prod value, for every service prod PINS (6 of
-#           them). A service prod does not pin gets no container_name — adding a pin where prod
-#           has none would be a key change, not a prefix.
+#   UR-133  container_name -> "hsi-test-" + ${HSI_TEST_NAME_PREFIX} + the prod value, for every
+#           service the render PINS. prod.yml spells 7 container_names, but only 6 are visible to
+#           a profile-less render (measured): dcgm-exporter sits behind the `gpu-rootful` profile,
+#           and neither the runner nor the drift test passes --profile, so it never comes up and
+#           cannot collide. That is also the drift test's coverage boundary: a pin added to a
+#           PROFILED service is invisible to it. A service the render does not pin gets no
+#           container_name — adding a pin where the render has none would be a key change.
+#           Why the token, and why `:?`: a pinned container_name is NOT namespaced by the compose
+#           project — measured on v5.5.1, booting the same pin from two `-p` projects fails with
+#           `Conflict. The container name "/x" is already in use by container <id>`. So a constant
+#           "hsi-test-" prefix separates a run from PRODUCTION but not from another run, and two
+#           overlapping prod-shape runs would block each other. The runner supplies a fresh token
+#           per run (feature_check.prod_shape_env). `${VAR:?msg}` rather than `${VAR}` because an
+#           unset plain var only warns and interpolates EMPTY (measured), which would silently
+#           rejoin the colliding set; `:?` exits 1 and names itself.
 #   UR-133  every published port -> host_ip : (prod published + 15000) : same target. Measured:
 #           +15000 collides with no prod port and stays below the 32768 ephemeral band.
 #   B5      every WRITABLE host bind is redirected under ${PROD_SHAPE_RUN_ROOT}; read-only binds
@@ -60,7 +72,7 @@ services:
       - '127.0.0.1:23000:8000' # 8000 + 15000
 
   alloy:
-    container_name: hsi-test-alloy # UR-133 run prefix (prod pins "alloy")
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}alloy' # UR-133 run prefix (prod pins "alloy")
     volumes: !override # socket (source==target==socket) dropped; the rest
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro #   kept byte-identical to
       - /sys/kernel/debug:/sys/kernel/debug:ro #   prod: 3 read-only system
@@ -76,28 +88,28 @@ services:
   # ---- the remaining five services prod pins (UR-133 prefix) + their remapped ports ----
 
   go2rtc:
-    container_name: hsi-test-hsi-go2rtc # prod pins "hsi-go2rtc"
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}hsi-go2rtc' # prod pins "hsi-go2rtc"
     ports: !override
       - '127.0.0.1:16984:1984'
       - '127.0.0.1:23555:8555'
 
   loki:
-    container_name: hsi-test-loki
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}loki'
     ports: !override
       - '127.0.0.1:18100:3100'
 
   node-exporter:
-    container_name: hsi-test-node-exporter
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}node-exporter'
     ports: !override
       - '127.0.0.1:24100:9100'
 
   pyroscope:
-    container_name: hsi-test-pyroscope
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}pyroscope'
     ports: !override
       - '127.0.0.1:19040:4040'
 
   tempo:
-    container_name: hsi-test-tempo
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}tempo'
     ports: !override
       - '127.0.0.1:18200:3200'
       - '127.0.0.1:19317:4317' # same target as alloy's 4317; distinct host ports

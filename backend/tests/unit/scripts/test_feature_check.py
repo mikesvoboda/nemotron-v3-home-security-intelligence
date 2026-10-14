@@ -2956,6 +2956,46 @@ def test_the_prod_shape_env_file_is_generated_and_carries_no_host_secret(
         fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller={})
 
 
+def test_the_prod_shape_env_gives_the_run_its_own_container_name_prefix(
+    tmp_path: Path,
+) -> None:
+    # UR-133: a run's objects are isolated by its compose project -- EXCEPT a pinned
+    # `container_name`, which the project does NOT namespace. Measured on compose
+    # v5.5.1: booting the same pinned name under a second -p dies with `Conflict. The
+    # container name "/x" is already in use by container ...`, so a prod-shape run and
+    # any other prod-shape run on the machine cannot both come up. The override
+    # therefore prefixes each pinned name with a per-run token it reads from this env
+    # file (as ${HSI_TEST_NAME_PREFIX:?…}, so a missing token refuses the render rather
+    # than interpolating blank and silently rejoining the colliding set).
+    run_dir = tmp_path / "run-1"
+    caller = {"PODMAN_SOCKET": "/run/user/1000/podman/podman.sock"}
+
+    def values_of(text: str) -> dict[str, str]:
+        return {
+            line.split("=", 1)[0]: line.split("=", 1)[1]
+            for line in text.splitlines()
+            if "=" in line
+        }
+
+    first = values_of(fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller))
+    assert "HSI_TEST_NAME_PREFIX" in first, (
+        "the override pins container names the project cannot namespace; it needs this run's "
+        "token from the env file it renders with"
+    )
+    token = first["HSI_TEST_NAME_PREFIX"]
+    # a name is `hsi-test-<token><prod-pin>`: token must end in a separator and be
+    # container-name-safe, or the pinned name compose writes is one compose rejects.
+    assert token.endswith("-"), token
+    assert re.fullmatch(r"[0-9a-f]{6,16}-", token), (
+        f"token {token!r} is not lowercase hex + separator; project names and container names "
+        "both reject other spellings (measured: 'invalid project name' / name conflict errors)"
+    )
+    second = values_of(fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller))
+    assert second["HSI_TEST_NAME_PREFIX"] != token, (
+        "a constant token is the collision this exists to prevent, restated as a variable"
+    )
+
+
 _ENGINE_SOCKET = "/run/user/1000/podman/podman.sock"
 
 
@@ -3196,7 +3236,17 @@ def test_the_prod_render_swaps_in_the_generated_env_file(
     run.render(fc.Snapshot.from_engine([], []))
 
     env = dict(line.split("=", 1) for line in run.env_file.read_text(encoding="utf-8").splitlines())
-    assert {"IMAGE_TAG", "PODMAN_SOCKET", "POSTGRES_PASSWORD", "PROD_SHAPE_RUN_ROOT"} == set(env)
+    # The surface is an exact set on purpose: compose reads this file and nothing else, so a key
+    # silently added or dropped here changes the render. HSI_TEST_NAME_PREFIX is a deliberate
+    # addition -- a pinned container_name is not namespaced by the compose project, so the
+    # override needs this run's token to keep two runs off the same name.
+    assert {
+        "IMAGE_TAG",
+        "PODMAN_SOCKET",
+        "POSTGRES_PASSWORD",
+        "PROD_SHAPE_RUN_ROOT",
+        "HSI_TEST_NAME_PREFIX",
+    } == set(env)
     assert env["PROD_SHAPE_RUN_ROOT"] == str(run.dir)
     assert env["IMAGE_TAG"] == "test"
     assert env["PODMAN_SOCKET"] == _ENGINE_SOCKET

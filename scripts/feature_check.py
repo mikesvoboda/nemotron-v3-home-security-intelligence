@@ -667,12 +667,22 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
     variables (each missing one exits 1 and names itself), against 154 references that
     carry a ``:-`` default.
 
-    Two of the three are values a *test* deployment should not inherit from the host:
+    Three of these are values a *test* deployment should not inherit from the host:
     ``POSTGRES_PASSWORD`` is generated per run (a fixed literal would pass a test and
     still be a shared secret), and the socket path is taken from the caller because it
     is a path, not a secret -- but a missing one is refused here rather than passed on,
     because compose only *warns* and interpolates a blank, which is the same failure
     mode the override already refuses for ``PROD_SHAPE_RUN_ROOT``.
+
+    ``HSI_TEST_NAME_PREFIX`` exists because UR-133's project isolation has one hole a
+    compose project cannot close: a pinned ``container_name`` is global to the engine,
+    not namespaced by ``-p`` (measured on v5.5.1 -- booting the same pin under a second
+    project dies with ``Conflict. The container name ... is already in use``). ``prod.yml``
+    pins six names, so the override prefixes each with THIS run's token; a constant prefix
+    would leave two concurrent runs unable to come up. It is hex plus a separator because
+    compose rejects other spellings, and the override reads it as ``${…:?…}`` so a run
+    that somehow lacks it refuses to render instead of interpolating blank and rejoining
+    the colliding set.
     """
     socket = caller.get("PODMAN_SOCKET")
     if not socket:
@@ -688,6 +698,7 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
             ("PODMAN_SOCKET", socket),
             ("POSTGRES_PASSWORD", secrets.token_hex(16)),
             ("PROD_SHAPE_RUN_ROOT", str(run_dir)),
+            ("HSI_TEST_NAME_PREFIX", f"{secrets.token_hex(4)}-"),
         )
     )
 

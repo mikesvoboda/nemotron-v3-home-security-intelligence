@@ -46,12 +46,24 @@ OVERRIDE = REPO / "scripts" / "uplevel" / "docker-compose.prodshape.yml"
 
 # --- the policy this override implements. Uniform on purpose: one rule, no per-service surprises.
 RUN_PREFIX = "hsi-test-"
-PORT_OFFSET = 15000            # measured: collides with no prod port, stays under the 32768
-                               # Linux ephemeral band (max prod 14318 -> 29318)
-ENV = {                        # fixed literals for BOTH renders; none is a real credential
-    "PODMAN_SOCKET": "/render/engine.sock",   # sentinel: alloy interpolates it into src AND tgt
+NAME_VAR = "HSI_TEST_NAME_PREFIX"
+# A pinned container_name is NOT namespaced by the compose project (measured), so the prefix alone
+# cannot separate two runs: the override interpolates this per-RUN token instead.
+# A fixed literal here, deliberately NOT a per-run value: every render in this file must resolve
+# against the same env, or the prod-vs-override delta it asserts is not comparable. The per-run
+# token itself is feature_check.prod_shape_env's job; test_a_pinned_name_carries_the_run_token_...
+# renders with two different tokens and requires the name sets to be disjoint.
+DRIFT_NAME_PREFIX = "audit-"
+# measured: collides with no prod port, stays under the 32768 Linux ephemeral band
+# (max prod 14318 -> 29318)
+PORT_OFFSET = 15000
+# fixed literals for BOTH renders; none is a real credential
+ENV = {
+    # sentinel: alloy interpolates it into src AND tgt
+    "PODMAN_SOCKET": "/render/engine.sock",
     "POSTGRES_PASSWORD": "render-only",
     "PROD_SHAPE_RUN_ROOT": "/run/hsitest",
+    NAME_VAR: DRIFT_NAME_PREFIX,
 }
 RUN_ROOT = ENV["PROD_SHAPE_RUN_ROOT"]
 SOCKET_SENTINEL = ENV["PODMAN_SOCKET"]
@@ -204,14 +216,75 @@ def test_no_engine_socket_anywhere_in_the_override(prod_services, merged_service
 
 # ---------------------------------------------------------------- UR-133 names -----------------
 def test_container_names_are_prefixes_of_prod_pins(prod_services, merged_services):
-    """Every prod-pinned name gets exactly RUN_PREFIX prepended; nothing is newly pinned."""
+    """Every prod-pinned name gets RUN_PREFIX plus this render's run token prepended; nothing is
+    newly pinned. The token is the part that makes the name this RUN's: a pinned container_name is
+    NOT namespaced by the compose project, so a constant prefix leaves two concurrent runs asking
+    for the same name (measured: the second `up` dies with `Conflict. The container name ... is
+    already in use by container ...`), which UR-133's own-project isolation cannot allow."""
     for n, svc in prod_services.items():
         pin = svc.get("container_name")
         if pin:
-            assert merged_services[n].get("container_name") == RUN_PREFIX + pin, n
+            assert (
+                merged_services[n].get("container_name") == RUN_PREFIX + DRIFT_NAME_PREFIX + pin
+            ), (
+                f"{n}: expected {RUN_PREFIX + DRIFT_NAME_PREFIX + pin!r}, "
+                f"got {merged_services[n].get('container_name')!r}"
+            )
         else:
-            assert merged_services[n].get("container_name") is None, \
+            assert merged_services[n].get("container_name") is None, (
                 f"{n}: override added a container_name prod does not pin (a key change, not a prefix)"
+            )
+
+
+def test_a_pinned_name_carries_the_run_token_and_the_render_refuses_without_it():
+    """Two-sided, because a per-run name that silently degraded to a constant is exactly the bug.
+
+    must-ignore: two renders with two different run tokens get two DISJOINT container-name sets,
+    so two runs on one machine cannot collide at `up`.
+    must-catch: with the token MISSING the render must fail and name the variable. compose's
+    default for an unset `${VAR}` is a blank string plus a warning, which would resolve to
+    `hsi-test-alloy` -- the same name the override used before this rule existed -- so an
+    optional variable here reintroduces the collision it exists to prevent. Only `${VAR:?…}`
+    refuses, which is the same discipline docker-compose.prod.yml applies to PODMAN_SOCKET.
+    """
+    a = _render_full([PROD, OVERRIDE], "hsi-names-a", extra={NAME_VAR: "a1b2c3d4-"})
+    b = _render_full([PROD, OVERRIDE], "hsi-names-b", extra={NAME_VAR: "9f8e7d6c-"})
+    names_a, names_b = _container_names(a), _container_names(b)
+    assert names_a and names_b, "no service pins a container_name -- the premise changed"
+    assert not (names_a & names_b), (
+        f"two run tokens produced the same container names: {sorted(names_a & names_b)}"
+    )
+    assert all(n.startswith(RUN_PREFIX) for n in names_a), sorted(names_a)
+
+    env = {k: v for k, v in {**os.environ, **ENV}.items() if k != NAME_VAR}
+    cmd = [
+        "docker",
+        "compose",
+        "--env-file",
+        os.devnull,
+        "-p",
+        "hsi-names-missing",
+        "--project-directory",
+        str(REPO),
+        "-f",
+        str(PROD),
+        "-f",
+        str(OVERRIDE),
+        "config",
+        "--format",
+        "json",
+    ]
+    p = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True, check=False)
+    # No json.loads() in this message: the render is expected to FAIL, so stdout may be empty,
+    # and a guard whose failure path raises a parse error is not a guard.
+    assert p.returncode != 0, (
+        f"the render SUCCEEDED with no run token, so a name resolved to a constant: "
+        f"{p.stdout[:300]!r}"
+    )
+    assert NAME_VAR in p.stderr, (
+        f"the render failed for another reason, so the refusal is not this variable: "
+        f"{p.stderr[:300]}"
+    )
 
 
 # ---------------------------------------------------------------- UR-133 ports -----------------
@@ -322,10 +395,13 @@ def _feature_check():
     return mod
 
 
-def _render_full(files: list[Path], project: str) -> dict:
+def _render_full(files: list[Path], project: str, *, extra: dict[str, str] | None = None) -> dict:
     """`compose config` for these files, returning the WHOLE document (names included).
 
-    Loud on rc!=0 like _compose: a green here only means the render actually ran."""
+    Loud on rc!=0 like _compose: a green here only means the render actually ran.
+    `extra` overrides ENV entries for one render (a drop-one probe); without it every
+    render in this file sees the same fixed env, which is what makes the delta tests
+    comparable."""
     cmd = ["docker", "compose", "-p", project, "--project-directory", str(REPO)]
     for f in files:
         cmd += ["-f", str(f)]
@@ -333,7 +409,7 @@ def _render_full(files: list[Path], project: str) -> dict:
     p = subprocess.run(
         cmd,
         cwd=REPO,
-        env={**os.environ, **ENV},
+        env={**os.environ, **ENV, **(extra or {})},
         capture_output=True,
         text=True,
         check=False,  # rc IS the observation: a nonzero render must name the file
@@ -341,6 +417,14 @@ def _render_full(files: list[Path], project: str) -> dict:
     if p.returncode != 0:
         pytest.fail(f"`docker compose config` rc={p.returncode}: {p.stderr[:600]}")
     return json.loads(p.stdout)
+
+
+def _container_names(document: dict) -> set[str]:
+    return {
+        str(svc["container_name"])
+        for svc in (document.get("services") or {}).values()
+        if svc.get("container_name")
+    }
 
 
 def _object_names(document: dict) -> set[str]:
