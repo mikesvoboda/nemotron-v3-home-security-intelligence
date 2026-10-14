@@ -761,11 +761,21 @@ run_stages() {
   # ruling 157) was already on disk, unprobed. The AND-chain is load-bearing in
   # BOTH directions: `|| true` contains a failed build so its stage just leaves
   # its JSON absent (the table prints `unknown`, finding 3 fails the run), and
-  # the `&&` keeps the copy conditional because BOTH compiles write the same
-  # cache path — after a failed FP16 build the cache still holds FP32's bytes,
-  # so an unconditional copy would mint model-fp16.plan out of FP32 and have
-  # stage 4 measure FP32 reporting it as FP16, the exact wrong-plan swap
-  # stage_plan refuses to fall back over.
+  # the `&&` means a plan is only ever copied from a build that reported
+  # success. Both precisions write the SAME cache path
+  # ($RUN/cache/reid/1/model.plan), so a copy taken after an unsuccessful build
+  # can only ever capture the other precision's bytes. A build that dies
+  # mid-compilation is the common case and is handled one frame down:
+  # export_reid.py unlinks its own half-written engine (:828 for a timeout,
+  # :831 for a non-zero builder), so the cache then holds NO plan and a bare
+  # `cp` would only print a confusing ENOENT. The failure this `&&` actually
+  # guards is the one that raises BEFORE any build starts — export_reid.py
+  # :1009-1017 keeps that path from unlinking on purpose, because output_path
+  # may be the plan a gateway is serving right now. The cache then still holds
+  # FP32's bytes, and an unconditional copy would mint model-fp16.plan out of
+  # them and have stage 4 measure FP32 reporting it as FP16 — the wrong-plan
+  # swap stage_plan refuses to fall back over. Chaining costs nothing and
+  # covers both shapes.
   echo 'STEP S3a: compile the plan in FP32 and probe stage 3 (before FP16 can fail)'
   compile_plan fp32 && cp "$RUN/cache/reid/1/model.plan" "$RUN/model-fp32.plan" || true
   podman run --rm --network none --security-opt label=disable --device nvidia.com/gpu=all \
@@ -781,7 +791,19 @@ run_stages() {
     "$IMAGE" /work/stage_probe.py /work 4 || true
 
   echo 'STEP S5: the served gateway (host-side HTTP: a container cannot reach host loopback)'
-  start_gateway
+  # Contained, and it is load-bearing that this is the LAST line that can abort
+  # the function: the gateway serves cache/reid/1/model.plan, the path BOTH
+  # compiles write, so a failed FP16 build leaves it holding NO plan (the build
+  # unlinks its own half-written engine). start_gateway then polls 300 s, never
+  # sees models.reid healthy, and returns 1 -- and a BARE call here, under
+  # `set -euo pipefail`, aborts run_stages before cosine_table.py runs, reprint-
+  # ing the exact ruling-180 loss one line later: stage 3 measured, no table.
+  # `|| true` is not a suppression -- the stage-5 HTTP call below is already
+  # contained, a stage with no vectors reads `unknown`, and that makes the table
+  # exit 2, so an incomplete diagnostic still cannot post as a clean run. The
+  # unhealthy container is reaped by the EXIT trap (start_gateway set OWN_CTR=1
+  # before polling), so this is the same teardown footprint as the happy path.
+  start_gateway || true
   python3 -I "$RUN/stage5_host.py" "$RUN" "$GATEWAY" || true
 
   echo

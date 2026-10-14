@@ -29,6 +29,25 @@ PROJECT_ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = PROJECT_ROOT / "scripts" / "uplevel" / "reid_real_tier.sh"
 
 
+def _code(text: str) -> str:
+    """Blank out shell comment lines, keeping every line position intact.
+
+    Several pins here hunt for a token on a *statement* (``start_gateway``,
+    ``cosine_table.py``, ``|| true``). The runner explains itself heavily in
+    comments that name those same tokens, so a grep over raw text can be
+    satisfied -- or poisoned -- by prose: a comment mentioning a bare
+    ``start_gateway`` makes a guarded call look bare, and a comment containing
+    ``|| true`` lands inside a ``tail`` window and reads as a swallowed exit
+    code. Both are false verdicts, and they fail in OPPOSITE directions, so
+    neither shows up as a consistent signal. Same reasoning ``_heredoc`` states
+    for the embedded programs: anchor on the code, never on a mention.
+
+    Lines are blanked rather than dropped so character offsets stay comparable
+    across a strip -- ordering assertions (this before that) keep meaning.
+    """
+    return "\n".join("" if ln.lstrip().startswith("#") else ln for ln in text.splitlines())
+
+
 def _heredoc(text: str, written_name: str, tag: str) -> str:
     """Return one embedded python program the runner writes with ``cat > ...
     <<'TAG'``. These programs are the runner's actual measuring code (the probe
@@ -417,7 +436,13 @@ def test_the_stages_arm_carries_the_table_verdict_to_the_exit(script_text: str) 
     ``|| true``, the other obvious shorthand, would throw the verdict away,
     which is the bug being fixed. So the step captures it into ``rc`` the way
     the parity arm already does, and this pins that the capture is inside
-    ``run_stages``."""
+    ``run_stages``.
+
+    Read through ``_code``: the window is anchored on the FIRST mention of
+    ``cosine_table.py``, so an explanatory comment about a nearby guard that
+    happens to contain ``|| true`` would otherwise land in ``tail`` and read as
+    a swallowed verdict -- a false red for code that is correct."""
+    script_text = _code(script_text)
     stages = script_text[script_text.index("run_stages() {") :]
     stages = stages[: stages.index("\n}\n")]
     at = stages.index("cosine_table.py")
@@ -506,10 +531,13 @@ def test_a_failed_stage_build_leaves_the_other_stage_measured(script_text: str) 
     run_stages are contained, AND each plan copy is chained to its OWN build's
     success (``compile_plan fpX && cp ... || true``). The AND-chain is not
     decoration -- it is what keeps this cure from creating a worse bug. Both
-    compiles write the same cache path (``/out/reid/1/model.plan``), so when the
-    FP16 build fails, the cache still holds the FP32 plan's bytes; an
-    unconditional ``cp`` after a contained-but-failed build would copy FP32
-    bytes into ``model-fp16.plan`` and have stage 4 measure FP32 while reporting
+    compiles write the same cache path (``/out/reid/1/model.plan``), so a copy
+    taken after an UNSUCCESSFUL build can only capture the other precision. The
+    shape it actually guards: a build refused before it starts leaves the path
+    holding FP32's bytes (``export_reid.py`` deliberately does not unlink there,
+    because the path may be a plan a live gateway is serving), and an
+    unconditional ``cp`` would copy those FP32 bytes into ``model-fp16.plan``
+    and have stage 4 measure FP32 while reporting
     it as FP16 -- the wrong-plan swap
     test_stage_plan_never_falls_back_to_the_cache_plan exists to prevent,
     re-entering through the copy instead of the fallback. Containment with a
@@ -517,7 +545,7 @@ def test_a_failed_stage_build_leaves_the_other_stage_measured(script_text: str) 
     stage refuses (by that pin), and the cosine table prints ``unknown``:
     ruling 180's exact required state.
     """
-    body = _fn_body(script_text, "run_stages")
+    body = _fn_body(_code(script_text), "run_stages")
     lines = body.splitlines()
 
     compile_lines = [ln for ln in lines if "compile_plan " in ln]
@@ -571,6 +599,60 @@ def test_each_plan_build_logs_wall_time_and_compute_apps(script_text: str) -> No
     assert re.search(r"\bdate\b|SECONDS|time (?:-\+)?%|ts=", body), (
         "compile_plan must stamp wall time around the build; a build killed by the "
         "timeout prints no duration of its own (ruling 180 item 3)"
+    )
+
+
+def test_a_dead_gateway_cannot_stop_the_table_from_printing(script_text: str) -> None:
+    """Ruling 180's required state -- "a failed build leaves that stage
+    ``unknown`` instead of ending the run" -- has a third leg the first two pins
+    miss, and it is the one the owner's rerun will actually hit.
+
+    Stage 5 serves ``$RUN/cache/reid/1/model.plan``, the path BOTH compiles
+    write. When the FP16 build dies it unlinks its own half-written engine
+    (``export_reid.py:828``), and the FP32 build overwrote that same path first
+    -- so the cache holds NO plan. ``start_gateway`` then polls
+    ``models.reid`` for 300 s, never sees it healthy, and ``return 1``s. In
+    stages mode that call is BARE, inside ``run_stages``, under ``set -euo
+    pipefail`` -- so it aborts the function two lines before
+    ``cosine_table.py``. The result is the maui failure reproduced by a
+    different line: stage 3's JSON sits on disk and the owner gets no printed
+    table and no ``RESULT`` line again.
+
+    So the containment ruling 180 asks for has to cover the gateway leg too.
+    ``start_gateway || true`` is the honest shape, not a suppression: stage 5's
+    own HTTP call is already ``|| true`` and a stage with no vectors prints
+    ``unknown``, which makes the table exit 2 -- an incomplete diagnostic still
+    cannot post as a clean run, which is what finding 3 was for. Serving the
+    FP32 plan instead would be the wrong-plan swap
+    test_stage_plan_never_falls_back_to_the_cache_plan refuses, in the reporting
+    layer rather than the probe.
+
+    Two-sided on purpose: the parity arm's calls stay BARE (ruling 159's
+    fail-fast -- parity has nothing to report if the gateway is down, and a
+    blanket guard there would turn a hard failure into a silent one), and the
+    table must sit AFTER the gateway leg in the body, since a guard placed
+    below the print would fix nothing.
+    """
+    code = _code(script_text)
+    body = _fn_body(code, "run_stages")
+    gw = [ln for ln in body.splitlines() if "start_gateway" in ln]
+    assert gw, "run_stages lost its gateway leg entirely"
+    assert all("|| true" in ln for ln in gw), (
+        f"stages-mode gateway leg is bare: {gw} — when the FP16 build fails the "
+        "cache has no plan, start_gateway returns 1, and set -e aborts run_stages "
+        "before cosine_table.py, so stage 3 is measured and never printed (the "
+        "ruling-180 defect, relocated rather than fixed)"
+    )
+    table = body.index("cosine_table.py")
+    assert table > body.index("start_gateway"), (
+        "the cosine table must be printed after the gateway leg so a contained "
+        "gateway failure still reaches it"
+    )
+    parity = _arm(code, "parity")
+    bare = [ln for ln in parity.splitlines() if "start_gateway" in ln]
+    assert bare and all("|| true" not in ln for ln in bare), (
+        "the parity arm's gateway calls must stay fatal (ruling 159) — guarding "
+        "them here would hide a bring-up failure behind a green-looking run"
     )
 
 

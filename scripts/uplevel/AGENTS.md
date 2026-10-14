@@ -169,9 +169,18 @@ command and not a scratchpad (`[r157]`, rulings 157 + 159). Two modes:
   timeout, and under `set -euo pipefail` that ended the run with a good FP32 plan sitting
   on disk unprobed - losing the one measurement that separates "the plan is wrong" from
   "FP16 is not enough". Each build is contained so a failed one leaves its stage
-  `unknown`, and its plan copy is chained to that build's own success, because both
-  precisions write the same cache path and an unconditional copy after a failed FP16
-  would mint `model-fp16.plan` out of FP32's bytes.
+  `unknown`, its plan copy is chained to that build's own success, and the gateway leg
+  is contained the same way - a failed FP16 build leaves the shared cache path with no
+  plan at all (the exporter unlinks its half-written engine), so a bare `start_gateway`
+  would abort under `set -e` before the cosine table printed, losing the FP32 row a
+  second time. Parity's gateway calls stay fatal. Both precisions
+  write the same cache path, so a copy taken after an unsuccessful build captures the
+  OTHER precision: a build refused before it starts leaves the path holding FP32's
+  bytes (`export_reid.py` deliberately does not unlink on that path), and an
+  unconditional copy would mint `model-fp16.plan` out of them - the wrong-plan swap
+  `stage_plan` refuses to fall back over. A build that dies mid-compilation is already
+  clean, because the exporter unlinks its own half-written engine and there is nothing
+  to copy.
 
 `--checkout`, `--gpu`, `--port`, `--checkpoint`, `--crops`, `--head`, `--mode`,
 `--plan-timeout` - the host
