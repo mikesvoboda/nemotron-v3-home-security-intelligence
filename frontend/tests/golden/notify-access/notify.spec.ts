@@ -200,9 +200,9 @@ test.describe('DO-2 notifications golden path', () => {
   // The red was never in the feature. This leg's settings boot is the SECOND
   // SPA boot of its test (login() booted /login seconds earlier), and each boot
   // fires ~12 /api calls into the golden project's ONE shared nginx bucket
-  // (rate=10r/s burst=20, ONE client IP — nginx.conf:24). When the bucket is
-  // drained the config fetch sheds, the shipped client does not retry a 429
-  // (api.ts:901-903 covers 0/5xx only), config stays null, and the config-gated
+  // (rate=10r/s nginx.conf:24 + burst=20 nodelay docker-entrypoint.sh:139; ONE IP).
+  // A drained bucket sheds the config fetch and the shipped client does not retry a
+  // 429 (api.ts:901-903 covers 0/5xx only), so config stays null and the config-gated
   // block below never mounts. Observed twice: the run-2 snapshot on #6996
   // printed "HTTP 429: Too Many Requests" where the guidance belongs, and main's
   // run 38188266803 struck ✘ then ✓ on retry (coordinator census 6115961263).
@@ -210,7 +210,11 @@ test.describe('DO-2 notifications golden path', () => {
   // navigate, wait for the config-gated sentinel, re-drive on a shed coat — the
   // dashboard harness's proven discipline, kept local per ruling 87.
   test('F-235 channels: the no-env stack is not-configured end to end', async ({ page }) => {
-    test.setTimeout(60_000); // a saturated bucket can cost settledSettings two re-drives
+    // settledSettings' arithmetic ceiling is 48 s (3 drives x (2 s quiet + 10 s
+    // sentinel + 4 s refill)) plus the coat poller's round-trips; 90 s is ~2x that
+    // and matches the driveUntilBooted tier (../dashboard/config-modal.spec.ts:252,
+    // :296). Measured: a clean boot through it costs 2.8 s (hsi-check-20261014141946).
+    test.setTimeout(90_000);
     const h = harness as Harness;
     const api = await signIn(page, h);
 

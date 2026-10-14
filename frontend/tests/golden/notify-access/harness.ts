@@ -393,7 +393,7 @@ export async function settledSettings(page: Page, h: Harness, path: string): Pro
   }
   throw new Error(
     `settledSettings(${path}): 3 drives, none painted the config-gated panel (last shed coat: ${lastCoat}) — ` +
-      'the shared nginx api bucket (rate=10r/s burst=20, frontend/nginx.conf:24) shed every ' +
+      'the shared nginx api bucket (rate=10r/s nginx.conf:24, burst=20 nodelay docker-entrypoint.sh:139) shed every ' +
       'attempt; this is stack saturation, not a channel-configuration failure'
   );
 }
