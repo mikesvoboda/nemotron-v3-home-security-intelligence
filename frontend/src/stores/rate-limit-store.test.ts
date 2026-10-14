@@ -31,11 +31,6 @@ describe('rate-limit-store', () => {
       const state = useRateLimitStore.getState();
       expect(state.isLimited).toBe(false);
     });
-
-    it('has secondsUntilReset as 0 by default', () => {
-      const state = useRateLimitStore.getState();
-      expect(state.secondsUntilReset).toBe(0);
-    });
   });
 
   describe('update', () => {
@@ -84,39 +79,6 @@ describe('rate-limit-store', () => {
       expect(state.isLimited).toBe(false);
     });
 
-    it('calculates secondsUntilReset from reset timestamp', () => {
-      const now = Math.floor(Date.now() / 1000);
-      const resetIn = 120; // 2 minutes
-      const info: RateLimitInfo = {
-        limit: 100,
-        remaining: 0,
-        reset: now + resetIn,
-      };
-
-      act(() => {
-        useRateLimitStore.getState().update(info);
-      });
-
-      const state = useRateLimitStore.getState();
-      expect(state.secondsUntilReset).toBe(resetIn);
-    });
-
-    it('sets secondsUntilReset to 0 when reset time has passed', () => {
-      const now = Math.floor(Date.now() / 1000);
-      const info: RateLimitInfo = {
-        limit: 100,
-        remaining: 0,
-        reset: now - 10, // 10 seconds ago
-      };
-
-      act(() => {
-        useRateLimitStore.getState().update(info);
-      });
-
-      const state = useRateLimitStore.getState();
-      expect(state.secondsUntilReset).toBe(0);
-    });
-
     it('preserves retryAfter when provided', () => {
       const info: RateLimitInfo = {
         limit: 100,
@@ -159,7 +121,6 @@ describe('rate-limit-store', () => {
       // Should auto-clear
       const state = useRateLimitStore.getState();
       expect(state.isLimited).toBe(false);
-      expect(state.secondsUntilReset).toBe(0);
     });
 
     it('clears previous timer when updating with new info', () => {
@@ -231,10 +192,13 @@ describe('rate-limit-store', () => {
         useRateLimitStore.getState().update(info);
       });
 
-      // Should be limited but with 0 seconds until reset
-      const state = useRateLimitStore.getState();
-      expect(state.isLimited).toBe(true);
-      expect(state.secondsUntilReset).toBe(0);
+      // Limited (remaining = 0), and no timer was scheduled for the passed
+      // reset — advance well past it and isLimited must still be true.
+      expect(useRateLimitStore.getState().isLimited).toBe(true);
+      act(() => {
+        vi.advanceTimersByTime(60000);
+      });
+      expect(useRateLimitStore.getState().isLimited).toBe(true);
     });
   });
 
@@ -260,7 +224,6 @@ describe('rate-limit-store', () => {
       const state = useRateLimitStore.getState();
       expect(state.current).toBeNull();
       expect(state.isLimited).toBe(false);
-      expect(state.secondsUntilReset).toBe(0);
     });
 
     it('cancels pending auto-clear timer', () => {

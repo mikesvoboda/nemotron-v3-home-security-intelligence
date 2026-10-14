@@ -39,8 +39,6 @@ export interface RateLimitState {
   current: RateLimitInfo | null;
   /** Whether the client is currently rate limited (remaining = 0) */
   isLimited: boolean;
-  /** Seconds until rate limit resets, 0 if not limited */
-  secondsUntilReset: number;
   /** Update rate limit state with new information */
   update: (info: RateLimitInfo) => void;
   /** Clear all rate limit state */
@@ -59,7 +57,6 @@ export interface RateLimitState {
  * Features:
  * - Tracks current rate limit info from API responses
  * - Provides `isLimited` flag when remaining = 0
- * - Calculates `secondsUntilReset` from reset timestamp
  * - Auto-clears `isLimited` when reset time passes
  * - DevTools integration for debugging (NEM-3400)
  *
@@ -68,7 +65,7 @@ export interface RateLimitState {
  * import { useRateLimitStore } from '@/stores/rate-limit-store';
  *
  * // In a component
- * const { isLimited, secondsUntilReset, update } = useRateLimitStore();
+ * const { isLimited, update } = useRateLimitStore();
  *
  * // Update from API response headers
  * update({
@@ -79,8 +76,9 @@ export interface RateLimitState {
  *
  * // `isLimited` is the only display-facing flag: it drives the retrying pill
  * // (RetryingIndicator) and clears itself when the reset timestamp passes.
- * // `secondsUntilReset` is internal bookkeeping for that timer — do NOT render
- * // a countdown from it (ruling 132 retired the countdown overlay).
+ * // The seconds-until-reset figure is local bookkeeping for that timer only —
+ * // it is not stored (ruling 155 item 3 deleted the dead field; ruling 132
+ * // retired the countdown that used to render it).
  * if (isLimited && hasInFlightRequests) {
  *   return <div>Rate limited, retrying…</div>;
  * }
@@ -91,7 +89,6 @@ export const useRateLimitStore = create<RateLimitState>()(
     (set, get) => ({
       current: null,
       isLimited: false,
-      secondsUntilReset: 0,
       _timerId: null,
 
       update: (info: RateLimitInfo) => {
@@ -112,7 +109,6 @@ export const useRateLimitStore = create<RateLimitState>()(
             set(
               {
                 isLimited: false,
-                secondsUntilReset: 0,
                 _timerId: null,
               },
               undefined,
@@ -125,7 +121,6 @@ export const useRateLimitStore = create<RateLimitState>()(
           {
             current: info,
             isLimited,
-            secondsUntilReset,
             _timerId: timerId,
           },
           undefined,
@@ -144,7 +139,6 @@ export const useRateLimitStore = create<RateLimitState>()(
           {
             current: null,
             isLimited: false,
-            secondsUntilReset: 0,
             _timerId: null,
           },
           undefined,
@@ -189,14 +183,13 @@ export const selectIsHighUsage = (state: RateLimitState): boolean => {
  *
  * @example
  * ```tsx
- * const { isLimited, secondsUntilReset } = useRateLimitStatus();
+ * const { isLimited } = useRateLimitStatus();
  * ```
  */
 export function useRateLimitStatus() {
   return useRateLimitStore(
     useShallow((state) => ({
       isLimited: state.isLimited,
-      secondsUntilReset: state.secondsUntilReset,
     }))
   );
 }
