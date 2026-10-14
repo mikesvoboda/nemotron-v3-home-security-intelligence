@@ -10,25 +10,30 @@
  * Decided from shipped code before writing; every claim cites where. Three
  * findings shaped this spec:
  *
- * 1. THE ROW'S LAST CLAUSE — "links to events" — IS SHIPPED DEAD, and this
- *    spec says so with behavior, not grep. The service builds every timeline
- *    row's url as `/events/{id}` (`backend/services/summary_detail_service.py:147`)
- *    and the panel renders it verbatim into a plain same-tab anchor
- *    (`ExpandableDetailPanel.tsx:127-137`, no target/react-router — a real
- *    navigation). But the SPA route table (`App.tsx:232-329`) defines NO
- *    `/events/:id` route: the catch-all `path="*"` (:329) lands on NotFoundPage
- *    (`not-found-page`, NotFoundPage.tsx:36). nginx's SPA fallback
- *    (`try_files $uri $uri/ /index.html`, docker-entrypoint.sh:285) guarantees
- *    the app itself boots on that URL, so the landing is the SPA's 404, not a
- *    server error. The app's OWN working event-navigation proves the contrast:
- *    DashboardPage routes event clicks to `/timeline?event=<id>` (:319, :327),
- *    and that chain is GREEN as witnessed behavior — F-031's leg "clicking a
- *    card opens /timeline?event=<id>" passed on first attempt (run 38181698242,
- *    ✓ 6, activity-feed.spec.ts:297). So a link to an event EXISTS in the DOM
- *    and DEAD-ENDS in the shipped product: a control wired to nothing, which
- *    is what half-built names (vocabulary section). The row's panel/timeline/
- *    narrative halves are drivable and mirrored here; the link half is
- *    witnessed-dead in test 3 wherever the data branch reaches it.
+ * 1. THE ROW'S LAST CLAUSE — "links to events" — WAS SHIPPED DEAD AND NO
+ *    LONGER IS, and this spec tracked both halves with behavior, not grep. The
+ *    service builds every timeline row's url as `/events/{id}`
+ *    (`backend/services/summary_detail_service.py:147`) and the panel renders it
+ *    verbatim into a plain same-tab anchor
+ *    (`ExpandableDetailPanel.tsx:125-137`, no target/react-router — a real
+ *    navigation). When this spec was written the SPA route table defined NO
+ *    `/events/:id` route, so the catch-all `path="*"` landed on NotFoundPage
+ *    (`not-found-page`, NotFoundPage.tsx:36), and because nginx's SPA fallback
+ *    (`try_files $uri $uri/ /index.html`, docker-entrypoint.sh:285) boots the app
+ *    on that URL, the landing was the SPA's own 404 — a control wired to nothing,
+ *    which is what half-built names (vocabulary section). Test 3 asserted THAT
+ *    landing on purpose, so the break could not be fixed silently.
+ *    OWNER RULING 167 SETTLED THE SPLIT ("one side changes, not both"): the
+ *    backend keeps emitting `/events/{id}` and the frontend added the route.
+ *    `App.tsx:264-269` now mounts `<EventDeepLinkRedirect>` there, which rewrites
+ *    to `/timeline?event=<id>` — the destination DashboardPage already used for
+ *    event clicks (:332, :340) and that F-031's leg proves is CONSUMED, not just
+ *    navigated (green first attempt, run 38181698242 ✓ 6,
+ *    activity-feed.spec.ts:308). Test 3's landing asserts were flipped in the
+ *    same PR as the route, keeping a `not-found-page` count-0 negative control so
+ *    a revert redden this file instead of passing quietly. The row's
+ *    panel/timeline/narrative halves are drivable and mirrored here; the link
+ *    half is now drivable end to end wherever the data branch reaches it.
  * 2. BOTH TIMELINE BRANCHES ARE REAL SHIPPED STATES, so the spec branches on
  *    the endpoint, never on corpus luck. `event_ids` is stored only when the
  *    generator found high/critical events (`summary_generator.py:244,298`),
@@ -402,7 +407,7 @@ test.describe('golden path: dashboard summary detail panel @critical', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test('F-034: the per-event link mirrors the endpoint event_url and WHERE IT LANDS when followed — the shipped /events/{id} href has no SPA route, and the dialog-less app must answer it with its own NotFoundPage', async ({
+  test('F-034: the per-event link mirrors the endpoint event_url and WHERE IT LANDS when followed — /events/{id} now redirects to the timeline deep link (ruling 167)', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -431,11 +436,15 @@ test.describe('golden path: dashboard summary detail panel @critical', () => {
             `summary job runs before any event exists (summary_generator.py:244,298 stores ` +
             `event_ids only when events were found; run 38181698242: boot 23:01:00 vs smoke ` +
             `event 23:02:05), and no shipped route can regenerate summaries inside a run. ` +
-            `THE DEAD LINK ITSELF NEEDS NO DATA TO ESTABLISH — the href is hardcoded ` +
-            `/events/{id} (summary_detail_service.py:147) and App.tsx:232-329 routes no ` +
-            `/events/:id (catch-all :329 → NotFoundPage) — so a corpus whose summaries carry ` +
-            `events drives this leg; where it skips, the finding stands on those cites plus ` +
-            `test 2's structural mirror. (ruling 86: stated, not faked.)`
+            `WHAT THIS LEG UNIQUELY PROVES is the landing through the REAL stack — the ` +
+            `href the backend really emitted (summary_detail_service.py:147), served by ` +
+            `nginx's SPA fallback, resolved by the route table App.tsx now ships at ` +
+            `:264-269 — so a corpus whose summaries carry events drives it. Where it skips, ` +
+            `the redirect itself is still covered, but by a different instrument: ` +
+            `src/components/common/EventDeepLinkRedirect.test.tsx (mapping, refusal, ` +
+            `replace-semantics) and the caller leg in AuditResultsTable.test.tsx drive the ` +
+            `same route pair in jsdom, under the Unit job, not here. (ruling 86: stated, not ` +
+            `faked; ruling 167: the dead-link finding this leg used to name is fixed.)`
         );
       return;
     }
@@ -450,26 +459,42 @@ test.describe('golden path: dashboard summary detail panel @critical', () => {
 
     // Then the WHOLE clause: a real click on a real anchor. The anchor has no
     // target and no router (panel :127-137), so the browser really navigates;
-    // nginx's SPA fallback (docker-entrypoint.sh:285) serves index.html; and
-    // the route table answers /events/<n> with NotFoundPage — the app's OWN
-    // 404, with the session cookie still on the context so ProtectedRoute
-    // lets the boot through to the router. Asserting this landing is GREEN
-    // while naming a DEAD feature: the row cannot reach a passing grade on a
-    // link that goes nowhere (that is why the row ships half-built with the
-    // cite pair), and a later fix (a /timeline?event= href, the route itself,
-    // or an R2a retire) must turn THIS test red to be noticed — the assert
-    // below is written against the CURRENT broken destination on purpose.
+    // nginx's SPA fallback (docker-entrypoint.sh:285) serves index.html; and the
+    // route table now answers /events/<n> with the redirect App.tsx:264-269
+    // mounts (owner ruling 167), which lands on the deep link the app already
+    // serves for event clicks — the same destination DashboardPage navigates to
+    // (DashboardPage.tsx:332/:340) and F-031's leg proves is consumed. The
+    // session cookie is still on the context, so ProtectedRoute lets the fresh
+    // boot through to the router rather than bouncing to /login.
+    const eventId = String(linked.event_id);
+    expect(/^\d+$/.test(eventId), 'parseEventId requires digits-only (validation.ts:612)').toBe(
+      true
+    );
     await link.click();
+    await expect(page).toHaveURL(new RegExp(`/timeline\\?event=${eventId}`));
+    const landed = new URL(page.url());
+    expect(landed.pathname).toBe('/timeline');
+    expect(landed.searchParams.get('event')).toBe(eventId);
+    // Host leg, copied from F-031: this is a genuine browser navigation, so a
+    // wrong-origin landing would otherwise pass on path alone.
+    expect(landed.host).toBe(new URL(h.ui).host);
+
+    // CONSUMED, not merely navigated — the same instrument F-031 uses: the
+    // timeline's URL effect validates ?event= with parseEventId and opens the
+    // detail modal (EventTimeline.tsx:329-333), so an ignored param would leave
+    // the modal closed here even with a perfect URL.
+    await expect(page.getByTestId('event-detail-modal')).toBeVisible({ timeout: 30_000 });
+
+    // Negative control, and the reason this flip is not a softening: the leg
+    // used to PASS by landing on the 404. If the route is ever removed again the
+    // catch-all (App.tsx:339) answers and this line goes red — a revert cannot
+    // sneak through on the URL asserts alone, because both now demand /timeline.
     await expect(
       page.getByTestId('not-found-page'),
-      `following the timeline link (href ${JSON.stringify(
-        linked.event_url
-      )}) no longer lands on NotFoundPage — either the deep-link break at ` +
-        `App.tsx:232-329 was FIXED (update F-034's row and this assert together: the app's ` +
-        `working destination is /timeline?event=<id>, DashboardPage.tsx:319/:327, witnessed by ` +
-        `F-031's green leg) or navigation itself regressed`
-    ).toBeVisible();
-    expect(new URL(page.url()).pathname).toBe(linked.event_url as string);
+      `following the timeline link (href ${JSON.stringify(linked.event_url)}) landed on ` +
+        `NotFoundPage again — the /events/:eventId redirect at App.tsx:264-269 is gone or no ` +
+        `longer matches, so F-034's link half is dead again and the row's status must move back`
+    ).toHaveCount(0);
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });

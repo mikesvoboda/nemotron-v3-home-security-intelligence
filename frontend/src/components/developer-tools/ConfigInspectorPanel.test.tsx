@@ -18,17 +18,20 @@ vi.mock('../../services/api', () => ({
 
 describe('ConfigInspectorPanel', () => {
   const mockConfigResponse = {
-    database_url: '[REDACTED]',
-    redis_url: '[REDACTED]',
-    debug_mode: true,
-    log_level: 'INFO',
-    api_key: '[REDACTED]',
-    retention_days: 30,
-    log_retention_days: 7,
-    batch_window_seconds: 90,
-    max_connections: 100,
-    null_value: null,
-    empty_string: '',
+    config: {
+      database_url: '[REDACTED]',
+      redis_url: '[REDACTED]',
+      debug_mode: true,
+      log_level: 'INFO',
+      api_key: '[REDACTED]',
+      retention_days: 30,
+      log_retention_days: 7,
+      batch_window_seconds: 90,
+      max_connections: 100,
+      null_value: null,
+      empty_string: '',
+    },
+    timestamp: '2026-10-12T22:55:38.840617+00:00',
   };
 
   beforeEach(() => {

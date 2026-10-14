@@ -68,9 +68,26 @@ function apiCalls(cell) {
     .map((m) => ({ method: m[1], path: m[2] }));
 }
 
-/** Backticked route paths in a surface cell: `/`, `/settings/cameras`, `*`. */
+/**
+ * Backticked route paths in a surface cell: `/`, `/settings/cameras`, `*` — and,
+ * since owner ruling 167 gave `App.tsx` its first parameterized route, a path
+ * whose LAST segment is a single `:param` hanging under a static prefix
+ * (`/events/:eventId`). The first test is left exactly as it was, so nothing
+ * claimed before this change stops being claimed.
+ *
+ * The new shape is deliberately narrow. The static prefix is required because a
+ * path parameter only names a segment somebody has to arrive at — `/:id` claims a
+ * route that consumes the whole app — and one segment only, because a second one
+ * would be a different route's row to claim. The near-misses a hand-written cell
+ * could actually produce (`/:id`, `/events/:x/:y`, `/events/:`, `/events/:x?`, and
+ * a query URL like `/timeline?event=`) are pinned as NEGATIVES in
+ * `src/__tests__/feature-inventory-lib.test.ts`, so widening this further is a
+ * decision someone makes on purpose, not a side effect of a loose character class.
+ */
 function routes(cell) {
-  return codeSpans(cell).filter((s) => s === '*' || /^\/[\w\-/]*$/.test(s));
+  return codeSpans(cell).filter(
+    (s) => s === '*' || /^\/[\w\-/]*$/.test(s) || /^\/[\w\-/]+\/:[\w-]+$/.test(s)
+  );
 }
 
 /** Backticked repo-relative paths in a modules cell. */

@@ -259,6 +259,9 @@ import type {
   // Operation-level query params - used to derive the verdict-filter
   // vocabulary from the schema instead of restating it (EventVerdictFilter).
   operations,
+  // Schema-level aliases: DebugConfigResponse below is read off `components` so it
+  // cannot drift from the openapi.json the backend emits (r130f F-158).
+  components,
 } from '../types/generated';
 import type { SummariesLatestResponse, SummaryDetail } from '../types/summary';
 
@@ -7420,10 +7423,21 @@ export async function clearAllRecordings(): Promise<{ message: string; deleted_c
 // ============================================================================
 
 /**
- * Debug configuration response containing all config key-value pairs.
- * Sensitive values are shown as '[REDACTED]'.
+ * Response envelope for GET /api/debug/config: the settings plus the moment they
+ * were read. [r130f] F-158: this used to be `Record<string, unknown>`, which is
+ * so loose it agrees with any body, so it could not describe the two required
+ * keys the route actually answers with (`backend/api/routes/debug.py:527`,
+ * `response_model=DebugConfigResponse`) and the consumers typed `config.log_level`
+ * as `debugConfig.log_level`. Now it aliases the generated schema, which is
+ * derived from the same openapi.json the backend emits.
  */
-export type DebugConfigResponse = Record<string, unknown>;
+export type DebugConfigResponse = components['schemas']['DebugConfigResponse'];
+
+/**
+ * The settings map itself: every setting, secrets redacted by the backend.
+ * This is what consumers read; `DebugConfigResponse` only wraps it.
+ */
+export type DebugConfigSettings = DebugConfigResponse['config'];
 
 /**
  * Current log level response.
@@ -7451,13 +7465,13 @@ export interface SetLogLevelResponse {
  * Returns all configuration key-value pairs with sensitive values
  * shown as '[REDACTED]'. This is a read-only endpoint.
  *
- * @returns DebugConfigResponse with all config values
+ * @returns the envelope `{ config, timestamp }`; the settings are under `config`
  *
  * @example
  * ```typescript
- * const config = await fetchDebugConfig();
- * console.log(config.log_level); // "INFO"
- * console.log(config.database_url); // "[REDACTED]"
+ * const body = await fetchDebugConfig();
+ * console.log(body.config.log_level); // "INFO"
+ * console.log(body.config.database_url); // "postgresql+asyncpg://user:[REDACTED]@…"
  * ```
  */
 export async function fetchDebugConfig(): Promise<DebugConfigResponse> {

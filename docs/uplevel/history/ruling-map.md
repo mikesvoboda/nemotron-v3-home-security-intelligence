@@ -142,7 +142,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 127    | UR-148, UR-10, UR-153                                                                                       |
 | 128    | package Phase 4 Monitoring page                                                                             |
 | 129    | package `[r129]` (open, #7031 merged; `packages/backend.md`)                                                |
-| 130    | packages `[r130b]` (open; `packages/backend.md`) and `[r130f]` (open; `packages/frontend.md`)               |
+| 130    | packages `[r130b]` (open; `packages/backend.md`) and `[r130f]` (#7039; `packages/frontend.md`)              |
 | 131    | package Phase 4 Trash delete action                                                                         |
 | 132    | package Phase 3 rate-limit countdown retirement                                                             |
 | 133    | package Phase 3 PWA install prompt retirement                                                               |
@@ -187,6 +187,12 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 172    | package `[r172]`: per-module import budget (record 6168112919)                                              |
 | 173    | package `[r173]`: golden skips in the registry (record 6168125268)                                          |
 | 174    | compose-render entry leaves `tpa_slow_list` (record 6168142239)                                             |
+| 175    | lane.md roster: `F2.3` rebalanced (FE-4 to docs, OP-3 to ops-b) (record 6168756268)                         |
+| 176    | UR-180: sandbox disks under 90%, targeted cleanup (record 6172107453)                                       |
+| 177    | lane.md, operator.md step 1: uncarried records, filtered (record 6172198207)                                |
+| 178    | lane.md beat before long steps; coordinator.md step 5 (record 6172424097)                                   |
+| 179    | UR-155 600-char heartbeats; UR-181 evidence cells (record 6172543400)                                       |
+| 180    | package `[r157]`: independent builds, `--plan-timeout` (record 6173140800)                                  |
 
 ## Owner records
 

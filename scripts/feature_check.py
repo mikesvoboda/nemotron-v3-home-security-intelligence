@@ -522,6 +522,15 @@ LIMITS_STRIPPED = "limits: not applied (no cgroup delegation)"
 # limit, so the decision needs exactly these two delegated.
 LIMIT_CGROUPS = frozenset({"cpu", "memory"})
 
+# The pre-build is the longest step the prod-shape run takes: six services, from
+# cold caches on a first run, one of them (`ai-gateway`) FROM a NVIDIA Triton
+# server base. The precedent next door is `AgentGpu.prepare`, which allows 4 h
+# for a single CUDA image; six images get one call at 6 h. Generous on purpose —
+# a timer that fires mid-build costs the operator an hour and a rebuild, and a
+# genuinely hung build is still reported, because `_run` answers a stall with
+# exit 124 and the partial stream rather than raising.
+PREBUILD_TIMEOUT_SECONDS = 6 * 3600
+
 
 def read_subtree_control(
     *, proc_dir: Path = Path("/proc"), sys_dir: Path = Path("/sys/fs/cgroup")
@@ -647,6 +656,37 @@ def boot_render(rendered: Mapping[str, Any]) -> dict[str, Any]:
             if isinstance(entry, dict):
                 entry.pop("name", None)
     return boot
+
+
+def build_images(rendered: Mapping[str, Any], *, project: str) -> dict[str, str]:
+    """The image each ``build:`` service will be looked for under when ``up`` runs.
+
+    The prod stack carries six ``build:`` services and the boot document holds no
+    images, so ``up --wait`` starts BUILDING during the boot. Measured on compose
+    v5.5.1 (``config --images``, and a ``up --dry-run`` with the images absent): a
+    service that declares ``image:`` is looked up under THAT name -- grafana's is
+    hard-coded in ``docker-compose.prod.yml`` to
+    ``nemotron-v3-home-security-intelligence-grafana:latest``, host-local by
+    construction, so ``up`` tries to PULL it and the registry answers ``denied``
+    (the first prod-shape run, operator record 6166020894) -- and a service with
+    ``build:`` and no ``image:`` resolves to ``<project>-<service>:latest``, which
+    is why the project name has to come from the same run that boots.
+
+    Derived here, from the boot document ``up`` boots, so a pre-build and ``up``
+    cannot disagree: an image built under any other tag is simply absent in
+    compose's eyes, it builds during the boot after all, and the wall the
+    pre-build exists to route around comes back with an extra step in front of
+    it. A service that boots from a registry image is NOT included -- pulling it
+    is the tier's business, and building it would replace what the tier
+    witnesses with a locally-built stand-in.
+    """
+    images: dict[str, str] = {}
+    for name, service in (rendered.get("services") or {}).items():
+        if not isinstance(service, Mapping) or not service.get("build"):
+            continue
+        declared = service.get("image")
+        images[name] = str(declared) if declared else f"{project}-{name}:latest"
+    return images
 
 
 def decide_resource_limits(rendered: dict[str, Any], subtree_control: str) -> str:
@@ -1823,17 +1863,112 @@ class Run:
         self.summary["images"] = {
             name: service.get("image") for name, service in (rendered.get("services") or {}).items()
         }
+        self.prebuild_images()
+
+    def prebuild_images(self) -> None:
+        """Build the stack's `build:` images BEFORE `up`, so `up` builds nothing.
+
+        The prod stack ships six services with `build:` and no images in the boot
+        document, so `up --wait` starts building during the boot — and on the
+        first prod-shape run that is exactly where it died (operator record
+        6166020894): grafana's host-local name answered `denied` to a PULL (an
+        absent `image:` on a build service is pulled before it is built,
+        measured), and the five image-less services went to a builder that
+        bootstraps a `buildx_buildkit_default` CONTAINER, which needs both a
+        startable container and cgroup delegation this class of machine does not
+        have. Doing it here instead means a failure names itself here, in front
+        of a boot that would otherwise report it as "backend is not running".
+
+        Two measured properties shape the call:
+
+        * ``DOCKER_BUILDKIT=0`` is honoured by ``compose build`` (measured, both
+          branches) and makes the daemon's own builder answer — no builder
+          container, so neither the cgroup wall nor the init-binary wall applies;
+          ``DOCKER_HOST`` and friends are carried from the caller so the build
+          talks to the engine `up` will boot, not a different one;
+        * a name the engine already has is NOT rebuilt. That is `up`'s own
+          lookup (`image inspect`, measured over the compat API: 0 present, 1
+          absent), and it matters because grafana's name is host-local and NOT
+          namespaced by the compose project — an image that is there IS the image
+          production would boot, so rebuilding it would make the tier witness
+          something production does not run, and cost hours doing it.
+
+        The images come from :func:`build_images`, applied to the boot document
+        `up` boots, so this cannot drift from the names `up` will look for.
+        """
+        boot = json.loads(self.compose_file.read_text(encoding="utf-8"))
+        wanted = build_images(boot, project=self.project)
+        to_build: list[str] = []
+        present: list[str] = []
+        for name, image in sorted(wanted.items()):
+            lookup = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+            if lookup.returncode == 0:
+                present.append(name)
+                _log(f"prebuild: {name} -> {image} is already in the engine")
+            else:
+                to_build.append(name)
+        # `built` is filled from the build's EXIT, never from what was about to be
+        # attempted: a run that died building must not leave a summary asserting it
+        # built. `to_build` carries the intent, `exit` the verdict.
+        self.summary["prebuild"] = {"built": [], "present": present, "to_build": to_build}
+        if not to_build:
+            _log(f"prebuild: nothing to build ({len(present)} already present)")
+            return
+        _log(f"prebuild: {', '.join(to_build)}")
+        # check=False on purpose: a stalled build comes back as a readable result
+        # rather than a TimeoutExpired flying past this method, and either way the
+        # message below names the services and quotes what the engine said.
+        result = self.deployment(
+            "build",
+            *to_build,
+            timeout=PREBUILD_TIMEOUT_SECONDS,
+            check=False,
+            env={**compose_environment(os.environ), "DOCKER_BUILDKIT": "0"},
+        )
+        # The build's own stream is the artifact: it is what the operator's first
+        # run did not have, and a build that later goes wrong is read from here.
+        (self.artifacts / "prebuild.txt").write_text(
+            f"to build: {to_build}\nalready present: {present}\nexit: {result.returncode}\n\n"
+            f"--- stdout ---\n{result.stdout or ''}\n--- stderr ---\n{result.stderr or ''}\n",
+            encoding="utf-8",
+        )
+        self.summary["prebuild"]["exit"] = result.returncode
+        if result.returncode != 0:
+            tail = " ".join((result.stderr or result.stdout or "").split())[-1200:]
+            raise HarnessError(
+                f"the pre-build of {', '.join(to_build)} exited {result.returncode} "
+                f"(asked for the engine's own builder via DOCKER_BUILDKIT=0) — "
+                f"compose said: {tail}"
+            )
+        self.summary["prebuild"]["built"] = to_build
 
     def up(self, vlm: AgentGpu | None = None) -> None:
         self.started = True
         try:
             self.deployment("up", "-d", "--wait", "--wait-timeout", "900", timeout=1500)
-        except HarnessError:
+        except HarnessError as boot:
             # The backend's health check calls the VLM, so on --real an
             # unreachable VLM fails `up --wait` first; name that reason if so.
-            if vlm is not None:
+            # But when the reach check ALSO fails it cannot say whether the VLM is
+            # down or the stack never came up — and on the first prod-shape run
+            # (operator, 2026-10-14, #7037) it said "the backend cannot reach the
+            # VLM … or is not running" while the VLM was serving fine and compose
+            # had died building five image-less services. The compose tail is
+            # therefore carried into the message and chained: a reader has to be
+            # able to tell a boot failure from a reachability one.
+            if vlm is None:
+                raise
+            tail = " ".join(str(boot).split())[-400:]
+            try:
                 self.check_vlm_reach(str(vlm.url))
-            raise
+            except HarnessError as reach:
+                raise HarnessError(
+                    f"{reach}; and `up` itself failed, so the stack may simply never "
+                    f"have come up — compose said: {tail}"
+                ) from boot
+            raise HarnessError(
+                f"`up` failed while the VLM is reachable; compose said: {tail}"
+            ) from boot
         self.api = self._address("backend", 8000)
         self.ui = self._address("frontend", 8080)
         _log(f"up: api {self.api}, ui {self.ui}")

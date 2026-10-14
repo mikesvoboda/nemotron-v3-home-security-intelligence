@@ -4,12 +4,24 @@
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import AuditResultsTable from './AuditResultsTable';
+import { EventDeepLinkRedirect } from '../common';
 
 import type { AuditResult } from './AuditResultsTable';
+
+/** Where the router landed — see EventDeepLinkRedirect.test.tsx. */
+function LocationDisplay() {
+  const location = useLocation();
+  return (
+    <div>
+      <div data-testid="current-path">{location.pathname}</div>
+      <div data-testid="current-search">{location.search}</div>
+    </div>
+  );
+}
 
 const mockResults: AuditResult[] = [
   {
@@ -194,5 +206,33 @@ describe('AuditResultsTable', () => {
 
     // Link should navigate (MemoryRouter will handle)
     expect(eventLink).toHaveAttribute('href', '/events/1001');
+  });
+
+  // Owner ruling 167 (F-034): this caller keeps its `/events/{id}` href — the route
+  // table changed underneath it instead. So the href assertion above proves nothing
+  // about where a click LANDS, and this is the leg that does: the shipped anchor,
+  // the app's real redirect, and the timeline it resolves to.
+  it('lands its /events/{id} anchor on the timeline deep link (ruling 167)', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/ai-audit']}>
+        <Routes>
+          <Route path="/ai-audit" element={<AuditResultsTable results={mockResults} />} />
+          <Route path="/timeline" element={<LocationDisplay />} />
+          <Route
+            path="/events/:eventId"
+            element={<EventDeepLinkRedirect fallback={<div data-testid="not-found-page" />} />}
+          />
+          <Route path="*" element={<div data-testid="not-found-page">Not Found</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const eventLink = screen.getByRole('link', { name: /#1001/i });
+    await user.click(eventLink);
+
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/timeline');
+    expect(screen.getByTestId('current-search')).toHaveTextContent('event=1001');
+    expect(screen.queryByTestId('not-found-page')).not.toBeInTheDocument();
   });
 });

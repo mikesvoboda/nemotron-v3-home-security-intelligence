@@ -515,6 +515,10 @@ export default function DashboardPage() {
               0
             ),
             throughputPerMinute: aiMetrics.eventsPerMinute,
+            // F-038: the row's "DLQ error count" clause. The hook has fetched
+            // GET /api/dlq/stats into dlqItems all along; this is the render
+            // site it never had.
+            dlqCounts: aiMetrics.dlqItems,
           },
           cameraGrid: {
             cameras: cameraStatuses,
