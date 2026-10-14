@@ -692,7 +692,7 @@ def _ceiling_seconds(marks: list) -> int:
     return best
 
 
-def _nodes_owed_a_ceiling(tree: ast.AST, module_marks: list) -> set[str]:
+def _nodes_owed_a_ceiling(tree: ast.Module, module_marks: list) -> set[str]:
     """Module-level test functions that can pay for a compose spawn without a ceiling above the floor.
 
     `module_marks` is the file's own `pytestmark` list, which covers every node the way the fixtures
@@ -730,7 +730,7 @@ def test_no_compose_spawning_node_rides_the_five_second_tier_default() -> None:
     that spawns no subprocess owes no ceiling — otherwise the guard is a demand for marks everywhere
     and the next person deletes it instead of the bug.
     """
-    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    tree = ast.parse(Path(__file__).resolve().read_text(encoding="utf-8"))
     module_marks = globals().get("pytestmark", [])
     assert isinstance(module_marks, (list, pytest.MarkDecorator)), (
         "pytestmark must be a mark or a list"
