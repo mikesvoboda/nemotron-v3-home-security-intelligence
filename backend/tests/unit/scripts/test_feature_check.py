@@ -3420,9 +3420,7 @@ def test_a_prod_shape_run_tears_down_with_down_v_on_its_project_only(
     # `calls`, not on _run, so faking it keeps the contract pinned -- review
     # finding CR-2 on #7037). Empty stdout => empty after-snapshot => the
     # before==after case this test already asserts.
-    monkeypatch.setattr(
-        fc.Run, "_run", lambda *_, **__: subprocess.CompletedProcess([], 0, "", "")
-    )
+    monkeypatch.setattr(fc.Run, "_run", lambda *_, **__: subprocess.CompletedProcess([], 0, "", ""))
     calls = _recording_compose(run, _prod_rendered(postgres=_PG_LIMITS))
     run.render(fc.Snapshot.from_engine([], []))
     calls.clear()
