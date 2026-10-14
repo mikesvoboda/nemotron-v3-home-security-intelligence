@@ -134,14 +134,14 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 119    | coordinator decision C-119 (not an owner ruling); stands per 120                                            |
 | 120    | UR-45, UR-48, UR-151; C-118/C-119 disposition one-off                                                       |
 | 121    | UR-81                                                                                                       |
-| 122    | UR-125, UR-126; package `[r122]` (open, #7027; `packages/backend.md`)                                       |
+| 122    | UR-125, UR-126; package `[r122]` (open, #7027 merged; `packages/backend.md`)                                |
 | 123    | UR-128; spec fix one-off                                                                                    |
 | 124    | one-off (R2 sheet face-events row)                                                                          |
 | 125    | UR-114, UR-128; quarantine of F-022, F-007, F-235 one-off                                                   |
 | 126    | UR-48, UR-129                                                                                               |
 | 127    | UR-148, UR-10, UR-153                                                                                       |
 | 128    | package Phase 4 Monitoring page                                                                             |
-| 129    | package `[r129]` (open, #7031; `packages/backend.md`)                                                       |
+| 129    | package `[r129]` (open, #7031 merged; `packages/backend.md`)                                                |
 | 130    | packages `[r130b]` (open; `packages/backend.md`) and `[r130f]` (open; `packages/frontend.md`)               |
 | 131    | package Phase 4 Trash delete action                                                                         |
 | 132    | package Phase 3 rate-limit countdown retirement                                                             |
