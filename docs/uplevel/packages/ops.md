@@ -327,8 +327,8 @@ tests pass (ruling 96).
 
 ### [r143] The golden stage runs inside the Playwright container
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** #7034 (open,
-draft). The rule it builds is UR-131.
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** #7034 (merged).
+The rule it builds is UR-131.
 
 - [ ] `scripts/feature_check.py`'s golden stage runs `npx playwright test --project=golden` inside
       `mcr.microsoft.com/playwright:v<version>-noble`, where `<version>` is read from
@@ -386,7 +386,7 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 ### [r149f] Flaky Test Detection reports to its run summary
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7090 (open). (ruling 149)
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7090 (merged). (ruling 149)
 
 - [ ] Remove the issue-creation step from `.github/workflows/flaky-test-detection.yml`; the Analyze
       Flaky Tests job writes its flaky list (test id, pass/fail count over the runs) to the run
