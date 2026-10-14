@@ -92,20 +92,20 @@ changes; a row whose cite no longer says what the evidence claims is re-traced, 
 <!-- prettier-ignore -->
 | section | rows | unverified | half-built | leftover | awaiting real tier | works |
 | --- | --- | --- | --- | --- | --- | --- |
-| [3.1 App shell and global chrome](#31-app-shell-and-global-chrome) | 27 | 2 | 9 | 2 | 8 | 6 |
-| [3.2 Dashboard](#32-dashboard) | 15 | 1 | 6 | 1 | 3 | 4 |
+| [3.1 App shell and global chrome](#31-app-shell-and-global-chrome) | 27 | 2 | 6 | 2 | 11 | 6 |
+| [3.2 Dashboard](#32-dashboard) | 15 | 1 | 5 | 1 | 4 | 4 |
 | [3.3 Event timeline and event detail](#33-event-timeline-and-event-detail) | 27 | 6 | 13 | 3 | 4 | 1 |
 | [3.4 Analytics](#34-analytics) | 7 | 0 | 1 | 0 | 6 | 0 |
 | [3.5 Alerts, entities and re-ID](#35-alerts-entities-and-re-id) | 10 | 0 | 8 | 0 | 2 | 0 |
 | [3.6 Trash, jobs and data](#36-trash-jobs-and-data) | 15 | 0 | 13 | 0 | 1 | 1 |
-| [3.7 AI pages and AI settings](#37-ai-pages-and-ai-settings) | 30 | 3 | 19 | 7 | 1 | 0 |
-| [3.8 Operations and observability](#38-operations-and-observability) | 44 | 12 | 11 | 1 | 20 | 0 |
+| [3.7 AI pages and AI settings](#37-ai-pages-and-ai-settings) | 30 | 3 | 16 | 7 | 4 | 0 |
+| [3.8 Operations and observability](#38-operations-and-observability) | 44 | 12 | 10 | 1 | 21 | 0 |
 | [3.9 GPU, storage and admin settings](#39-gpu-storage-and-admin-settings) | 22 | 7 | 10 | 1 | 4 | 0 |
 | [3.10 Settings: cameras, rules, processing, notifications, access](#310-settings-cameras-rules-processing-notifications-access) | 47 | 25 | 11 | 1 | 10 | 0 |
 | [3.11 Webhooks and scheduled reports](#311-webhooks-and-scheduled-reports) | 11 | 1 | 4 | 0 | 0 | 6 |
 | [3.12 Zones, plates, household, faces, heatmaps, scene changes, tracks](#312-zones-plates-household-faces-heatmaps-scene-changes-tracks) | 34 | 3 | 27 | 1 | 0 | 3 |
 | [3.13 External interfaces](#313-external-interfaces) | 5 | 0 | 4 | 0 | 0 | 1 |
-| **all** | **294** | **60** | **136** | **17** | **59** | **22** |
+| **all** | **294** | **60** | **128** | **17** | **67** | **22** |
 
 Counts are rows, not features weighted by size. Where one capability shows on two routes through
 one component, it is one row carrying both routes.
