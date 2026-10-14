@@ -512,6 +512,10 @@ class ConfigResponse(BaseModel):
         ge=0.0,
         le=1.0,
     )
+    fast_path_enabled: bool = Field(
+        ...,
+        description="Master switch for fast-path processing (ruling 168)",
+    )
     grafana_url: str = Field(
         ...,
         description="Grafana dashboard URL for frontend link",
@@ -532,6 +536,7 @@ class ConfigResponse(BaseModel):
                 "batch_idle_timeout_seconds": 30,
                 "detection_confidence_threshold": 0.5,
                 "fast_path_confidence_threshold": 0.9,
+                "fast_path_enabled": False,
                 "grafana_url": "/grafana",
                 "debug": False,
             }
@@ -583,6 +588,10 @@ class ConfigUpdateRequest(BaseModel):
         description="Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
         ge=0.0,
         le=1.0,
+    )
+    fast_path_enabled: bool | None = Field(
+        None,
+        description="Master switch for fast-path processing (ruling 168)",
     )
 
 

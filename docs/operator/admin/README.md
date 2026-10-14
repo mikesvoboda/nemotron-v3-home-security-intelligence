@@ -92,16 +92,19 @@ RETENTION_DAYS=30
 
 ### Detection Settings
 
-| Variable                         | Default | Range   | Description                                  |
-| -------------------------------- | ------- | ------- | -------------------------------------------- |
-| `DETECTION_CONFIDENCE_THRESHOLD` | `0.40`  | 0.0-1.0 | Minimum confidence (`0.5` in `.env.example`) |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | `2.0`   | 0.0-1.0 | **Disabled by design** — an impossible value |
-| `FAST_PATH_OBJECT_TYPES`         | `[]`    | JSON    | **Empty by design** — see the warning below  |
+| Variable                         | Default | Range   | Description                                   |
+| -------------------------------- | ------- | ------- | --------------------------------------------- |
+| `DETECTION_CONFIDENCE_THRESHOLD` | `0.40`  | 0.0-1.0 | Minimum confidence (`0.5` in `.env.example`)  |
+| `FAST_PATH_ENABLED`              | `false` | bool    | **Master switch** — while false nothing fires |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | `0.9`   | 0.0-1.0 | Consulted only when the switch is on          |
+| `FAST_PATH_OBJECT_TYPES`         | `[]`    | JSON    | **Empty by design** — see the warning below   |
 
 > [!WARNING]
 > The fast path bypasses the specialist legs, so the VLM would score on partial data.
-> `config.py` ships the threshold at `2.0` and the object-type list empty for exactly
-> that reason. Do not lower them unless the specialists are added to the fast path.
+> `config.py` ships `FAST_PATH_ENABLED` off for exactly that reason — the fast path
+> never fires while it is false, whatever the threshold says — and keeps the object-type
+> list empty as a second net. Do not enable it unless the specialists are added to the
+> fast path.
 
 ### Batch Processing
 

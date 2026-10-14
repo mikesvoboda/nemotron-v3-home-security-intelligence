@@ -185,7 +185,7 @@ Batch detections into time windows with idle timeout, then analyze the batch as 
 
 **Fast Path Exception:**
 
-> **Status (2026-10-02):** The shipped configuration disables the fast path — `fast_path_confidence_threshold` defaults to an impossible 2.0 with an empty `fast_path_object_types` (`backend/core/config.py:1912-1928`) and compose ships `FAST_PATH_ENABLED=false` (`docker-compose.prod.yml:626`). Every detection goes through the batch window; the exception below describes the mechanism, not shipped behavior.
+> **Status (2026-10-02, amended by ruling 168):** The fast path is off — `fast_path_enabled` defaults `false` (`backend/core/config.py:1942-1982`) and compose ships `FAST_PATH_ENABLED=false` (`docker-compose.prod.yml:643`); while the switch is false no detection takes the fast path whatever the threshold says. The threshold ships `0.9` and the object-type list is empty as second nets. (Before ruling 168 the disabled state lived only in the threshold's impossible 2.0 default, which collided with the settings schema's `le=1.0` and 500s `GET /api/v1/settings`.) Every detection goes through the batch window; the exception below describes the mechanism, not shipped behavior.
 
 High-confidence critical detections (person >90%) bypass batching for immediate alerts:
 

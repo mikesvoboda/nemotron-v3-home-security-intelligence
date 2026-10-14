@@ -851,7 +851,7 @@ class TestSearchJobs:
         response = client.get(
             "/api/jobs/search?"
             "status=completed,failed&"
-            "job_type=export,cleanup&"
+            "type=export,cleanup&"
             "has_error=true&"
             "min_duration=10&"
             "max_duration=100&"

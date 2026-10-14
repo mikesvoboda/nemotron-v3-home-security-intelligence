@@ -370,7 +370,7 @@ Upload path: /export/foscam/Front Door/image.jpg
 - **Window timeout:** 90 seconds from batch start (configurable)
 - **Idle timeout:** 30 seconds since last detection (configurable)
 - **One batch per camera:** Each camera has max 1 active batch at a time
-- **Fast path:** The high-confidence bypass exists in the code but is DISABLED by config (`fast_path_confidence_threshold` defaults to the impossible 2.0 and `fast_path_object_types` to `[]`); when it does fire it routes the single detection through `VlmAnalyzer.analyze_detection_fast_path`, which runs the SAME batch gate as a one-detection batch
+- **Fast path:** The high-confidence bypass exists in the code but is OFF by default: `fast_path_enabled` (default `False`) is the master switch and while it is false nothing fires whatever the threshold says (ruling 168); the threshold ships `0.9` and `fast_path_object_types` ships `[]` as second safety nets. When it does fire it routes the single detection through `VlmAnalyzer.analyze_detection_fast_path`, which runs the SAME batch gate as a one-detection batch
 
 **Redis Keys (all keys have 1-hour TTL for orphan cleanup):**
 
