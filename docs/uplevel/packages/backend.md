@@ -230,14 +230,14 @@ already scoped is left alone; and the docs line is updated (ruling 94).
 ### [r95] Close both monitoring-key gaps (S1, S4)
 
 **Flags:** owner tier (security and auth), pre-approved by ruling 95 (UR-101); ops-b reviews.
-**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** none yet.
+**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** #7135 (open).
 
-- [ ] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
+- [x] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
       `verify_api_key` copies (`backend/api/routes/dlq.py`, `backend/api/routes/system.py`;
       including `POST /api/dlq/requeue/{q}`, `POST /api/dlq/requeue-all/{q}`, `DELETE /api/dlq/{q}`
       and `PATCH /api/system/config…`) accept a key that holds only the `monitoring` scope. The
       legacy copies refuse scoped entries, so scope has one rule.
-- [ ] **S4:** the `monitoring` scope admits `GET /api/events`, which serves sparse fieldsets
+- [x] **S4:** the `monitoring` scope admits `GET /api/events`, which serves sparse fieldsets
       including `reasoning`, and `include_deleted`. Enumerate what each monitoring consumer
       (Prometheus, json-exporter, Grafana, the frontend machine listener) actually calls, record
       that list in the PR, and narrow the scope to exactly it. If a consumer needs `/api/events`,
