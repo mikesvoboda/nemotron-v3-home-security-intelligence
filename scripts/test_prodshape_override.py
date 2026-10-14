@@ -34,6 +34,7 @@ import copy
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -73,6 +74,38 @@ ENV = {
     "PROD_SHAPE_RUN_ROOT": "/run/hsitest",
     NAME_VAR: DRIFT_NAME_PREFIX,
 }
+
+# Every name either file interpolates, read out of the files themselves -- not a
+# hand-list. `docker compose config` is client-side interpolation, so a host var
+# on this surface leaks into BOTH renders and the "machine-independent" claim
+# this guard exists to enforce dies with it: a runner exporting AI_MODELS_PATH
+# (review finding CR-3/#7037, measured) reddens test_readonly_binds_and_named_
+# volumes_survive for a reason that has nothing to do with the PR, and this leg
+# runs in collection-sanity, which EVERY PR pays. Deriving the set from the two
+# files means a newly interpolated name is covered the moment it lands.
+def _interpolated_names() -> frozenset[str]:
+    found: set[str] = set()
+    for path in (PROD, OVERRIDE):
+        text = path.read_text(encoding="utf-8")
+        found |= set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*)", text))
+        # bare $VAR too: prod has one comment mention and the override uses the form
+        found |= set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", text))
+    return frozenset(found)
+
+
+INTERPOLATED = _interpolated_names()
+
+
+def _clean_env(**extra: str) -> dict[str, str]:
+    """Host env MINUS everything the two compose files interpolate, plus the fixed
+    ENV (and `extra` for a one-variable probe). The scrub is on the interpolation
+    surface rather than an allowlist of PATH-ish names, so it cannot fall behind
+    a new compose variable; PATH and friends survive because compose itself
+    needs them."""
+    env = {k: v for k, v in os.environ.items() if k not in INTERPOLATED}
+    env.update(ENV)
+    env.update(extra)
+    return env
 RUN_ROOT = ENV["PROD_SHAPE_RUN_ROOT"]
 SOCKET_SENTINEL = ENV["PODMAN_SOCKET"]
 # "Outside the run" is ONE rule, not a prefix list — see _is_writable_outside_run. The first
@@ -88,7 +121,7 @@ def _compose(files: list[Path], profiles: tuple[str, ...] = ()) -> dict:
     for f in files:
         cmd += ["-f", str(f)]
     cmd += ["config", "--format", "json"]
-    p = subprocess.run(cmd, cwd=REPO, env={**os.environ, **ENV}, capture_output=True, text=True)
+    p = subprocess.run(cmd, cwd=REPO, env=_clean_env(), capture_output=True, text=True)
     if p.returncode != 0:
         # Loud, never a silent green: this leg is only worth anything if the oracle ran.
         pytest.fail(
@@ -191,6 +224,39 @@ def gpu_prod_services() -> dict:
 @pytest.fixture(scope="module")
 def gpu_merged_services() -> dict:
     return _compose([PROD, OVERRIDE], ALL_PROFILES)
+
+
+def test_the_render_env_scrubs_the_compose_interpolation_surface() -> None:
+    """The host-environment scrub (review finding 3 on #7037, comment `6163946798`).
+
+    Two-sided by necessity: `INTERPOLATED` is derived from the compose files, so a
+    regex that matched NOTHING would scrub nothing and still leave every other test
+    in this file green -- the silent-zero shape. must-catch: the two names measured
+    to flip test_readonly_binds_and_named_volumes_survive (AI_MODELS_PATH on six
+    volume lines, HF_CACHE_PATH on two). must-ignore: PATH/HOME/DOCKER_HOST, which
+    compose and the CLI need -- a scrub that ate them would fail every render for an
+    unrelated reason.
+    """
+    assert len(INTERPOLATED) > 50, f"derivation regressed to a trivial set: {sorted(INTERPOLATED)}"
+    for name in ("AI_MODELS_PATH", "HF_CACHE_PATH", "POSTGRES_PASSWORD", "PODMAN_SOCKET"):
+        assert name in INTERPOLATED, f"{name} interpolated but not scrubbed"
+    host = {"PATH": "/usr/bin", "HOME": "/root", "DOCKER_HOST": "unix:///x",
+            "AI_MODELS_PATH": "/mnt/models", "HF_CACHE_PATH": "/leak/hfcache"}
+    saved = dict(os.environ)
+    os.environ.clear()
+    os.environ.update(host)
+    try:
+        clean = _clean_env()
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+    assert "AI_MODELS_PATH" not in clean and "HF_CACHE_PATH" not in clean, (
+        f"a leak name survived the scrub: {sorted(k for k in clean if k in INTERPOLATED)}")
+    for name in ("PATH", "HOME", "DOCKER_HOST"):
+        assert clean[name] == host[name], f"the scrub ate runner plumbing: {name}"
+    # the fixed sentinels still win over the host (the drop-one sites depend on it)
+    assert clean["PODMAN_SOCKET"] == "/render/engine.sock"
+    assert _clean_env(HF_CACHE_PATH="/extra").get("HF_CACHE_PATH") == "/extra"
 
 
 def test_the_override_changes_no_service_set(prod_services, merged_services):
@@ -327,7 +393,7 @@ def test_a_pinned_name_carries_the_run_token_and_the_render_refuses_without_it()
     )
     assert all(n.startswith(RUN_PREFIX) for n in names_a), sorted(names_a)
 
-    env = {k: v for k, v in {**os.environ, **ENV}.items() if k != NAME_VAR}
+    env = {k: v for k, v in _clean_env().items() if k != NAME_VAR}
     cmd = [
         "docker",
         "compose",
@@ -444,7 +510,7 @@ def test_override_refuses_to_render_without_the_run_root():
     run the live stack, and nothing would say so. The override now carries `${VAR:?…}`, so the
     render exits nonzero and names the variable; rc=0 here is the breach.
     """
-    env = {k: v for k, v in {**os.environ, **ENV}.items() if k != "PROD_SHAPE_RUN_ROOT"}
+    env = {k: v for k, v in _clean_env().items() if k != "PROD_SHAPE_RUN_ROOT"}
     cmd = ["docker", "compose", "-p", "prodshape-audit", "--project-directory", str(REPO),
            "-f", str(PROD), "-f", str(OVERRIDE), "config", "--quiet"]
     p = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
