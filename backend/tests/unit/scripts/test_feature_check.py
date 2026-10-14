@@ -4127,15 +4127,26 @@ def test_a_prod_shape_run_removes_the_images_it_built_under_its_project(
     # go; grafana's declared name is production's image, not this run's to delete.
     run, calls = _cleanup_run(tmp_path, monkeypatch)
     backend_image = f"{run.project}-backend:latest"
+    # Seed grafana as ACTUALLY PRESENT before cleaning up. The fake's build branch
+    # never adds a declared-image service's tag (faithful: compose builds grafana
+    # under its own host-local name, not `<project>-grafana`), so with an empty
+    # engine the grafana assert below is unsatisfiable-by-construction and a mutant
+    # dropping the `startswith(prefix)` filter survives it (ops-b's UR-89 finding).
+    # `prebuild_images` leaves grafana in the engine under this exact name whenever
+    # it was absent, so this is the state that matters — the filter is the only
+    # thing between this cleanup and production's grafana image.
+    calls.have.add(_GRAFANA)
 
     status = run.cleanup_images()
 
     assert _image_rms(calls) == [backend_image], (
-        "the project-namespaced build image must be removed by the exact name `up` used"
+        "the project-namespaced build image must be removed by the exact name `up` "
+        f"used, and nothing else — grafana's declared tag was present: {_image_rms(calls)}"
     )
     assert _GRAFANA not in _image_rms(calls), (
         "a declared host-local image is not this run's to remove"
     )
+    assert _GRAFANA in calls.have, "grafana's image must still be in the engine after the run"
     assert status == fc.EXIT_OK, status
     assert run.summary["images_removed"] == [backend_image], run.summary
 
