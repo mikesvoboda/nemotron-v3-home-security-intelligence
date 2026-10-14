@@ -3452,6 +3452,63 @@ def test_the_prod_boot_file_bakes_no_object_names_so_the_project_decides_them(
     assert landed["volumes"]["postgres_data"]["name"] == f"{run.project}_postgres_data"
 
 
+def test_the_boot_file_strips_baked_names_from_every_project_named_section(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The section list is not decoration: compose names `configs` and `secrets` after the
+    # PROJECT exactly like networks and volumes (measured on v5.5.1 -- render under
+    # `-p proja`, reboot the baked document under `-p projb`, and `configs.myconf` still
+    # reads `proja_myconf`). This test failed against the two-section loop it replaced:
+    # networks and volumes came back clean while configs kept the other run's name.
+    # docker-compose.prod.yml declares neither today, but the same file documents enabling
+    # Docker secrets (docker-compose.prod.yml:68-75, :1692-1720), and the CI drift guard
+    # cannot catch this -- it compares prod to prod+override, never the boot file.
+    # The four names are spelled HERE on purpose: reading fc.PROJECT_NAME_SECTIONS back
+    # would make this test shrink in lockstep with the constant and stay green.
+    sections = ("networks", "volumes", "configs", "secrets")
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    baked = {
+        "name": run.project,
+        "services": {"backend": {"image": "backend:test"}},
+        "networks": {"security-net": {"name": f"{run.project}_security-net", "driver": "bridge"}},
+        "volumes": {"postgres_data": {"name": f"{run.project}_postgres_data", "driver": "local"}},
+        "configs": {"alerts.yml": {"name": f"{run.project}_alerts.yml", "file": "./alerts.yml"}},
+        "secrets": {"pg_pass": {"name": f"{run.project}_pg_pass", "file": "./pg_pass"}},
+    }
+    _fake_compose(run, baked)
+    run.render(fc.Snapshot.from_engine([], []))
+    boot = json.loads(run.compose_file.read_text(encoding="utf-8"))
+    for section in sections:
+        entries = boot.get(section) or {}
+        assert entries, f"{section} vanished from the boot file"
+        leftover = {k: e["name"] for k, e in entries.items() if "name" in e}
+        assert not leftover, f"{section} still carries another run's baked names: {leftover}"
+    # behaviour checked first (it fails with the leftover names, not with a missing symbol)
+    assert sections == fc.PROJECT_NAME_SECTIONS, (
+        f"compose names objects in {sections}, the strip list is {fc.PROJECT_NAME_SECTIONS}"
+    )
+
+
+def test_the_test_tier_names_project_scoped_objects_in_every_named_section(
+    base: dict[str, Any],
+) -> None:
+    # The other half of the same constant. as_test_deployment PREFIXES names so one run's
+    # objects cannot be confused with another's; if the prefix list and the strip list ever
+    # disagree, a section is named by the test tier and left baked by the prod tier. The
+    # sections are spelled HERE, not read back from the constant under test.
+    doc = copy.deepcopy(base)
+    doc["volumes"] = {"vol": {}}
+    doc["configs"] = {"conf": {}}
+    doc["secrets"] = {"sec": {}}
+    got = fc.as_test_deployment(doc, project=PROJECT, run_dir=RUN_DIR)
+    for section in ("networks", "volumes", "configs", "secrets"):
+        names = {k: e.get("name") for k, e in got[section].items()}
+        assert names == {k: f"{PROJECT}_{k}" for k in names}, (
+            f"{section} not prefixed by the project: {names}"
+        )
+
+
 # --------------------------------------------------- O2.5 Step 2: the prod-shape transforms ----
 def _prod_shape_doc() -> dict[str, Any]:
     """A prod-shaped render, as compose would produce it: the backend pointing at the

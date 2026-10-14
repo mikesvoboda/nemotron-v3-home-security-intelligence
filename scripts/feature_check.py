@@ -88,6 +88,14 @@ FAKE_SERVICES = ("postgres", "redis", "backend", "frontend", "ai-vlm", "ai-gatew
 CAMERA_TARGET = "/cameras"
 PROJECT_LABEL = "com.docker.compose.project"
 PROJECT_PREFIX = "hsi-check-"
+# Top-level sections whose entries compose names after the PROJECT, not the file. Measured on
+# v5.5.1 by rendering under -p proja and rebooting the baked document under -p projb: all four
+# keep `proja_<key>` after the rebind, so a boot file carrying them points at another run's
+# objects (UR-133 isolation inverted into a cross-run `down -v` delete). prod declares only
+# networks/volumes today, but the same file documents enabling Docker secrets
+# (docker-compose.prod.yml:68-75, :1692-1720), and one constant keeps the naming site and the
+# stripping site from disagreeing about the list.
+PROJECT_NAME_SECTIONS = ("networks", "volumes", "configs", "secrets")
 
 EXIT_OK = 0
 EXIT_FAILED = 1  # a check of the run failed
@@ -437,7 +445,7 @@ def as_test_deployment(
     for key, value in base.items():
         if key not in ("name", "services") and not key.startswith("x-"):
             deployment[key] = copy.deepcopy(value)
-    for section in ("networks", "volumes"):
+    for section in PROJECT_NAME_SECTIONS:
         for key, entry in (deployment.get(section) or {}).items():
             if isinstance(entry, dict) and not entry.get("external"):
                 entry["name"] = f"{project}_{key}"
@@ -634,7 +642,7 @@ def boot_render(rendered: Mapping[str, Any]) -> dict[str, Any]:
     """
     boot = copy.deepcopy(dict(rendered))
     boot.pop("name", None)
-    for section in ("networks", "volumes"):
+    for section in PROJECT_NAME_SECTIONS:
         for entry in (boot.get(section) or {}).values():
             if isinstance(entry, dict):
                 entry.pop("name", None)
@@ -663,9 +671,11 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
     passes ``--env-file``, which suppresses the ``.env`` beside the compose file) --
     applies unchanged to the prod shape, so a run must not quietly pick up the host's
     real credentials. What the render needs was measured, not assumed: a drop-one
-    matrix over ``prod.yml`` + the prod-shape override found exactly three REQUIRED
-    variables (each missing one exits 1 and names itself), against 154 references that
-    carry a ``:-`` default.
+    matrix over ``prod.yml`` + the prod-shape override found four REQUIRED variables
+    (each missing one exits 1 and names itself), against 154 references that
+    carry a ``:-`` default. The fourth is ``HSI_TEST_NAME_PREFIX``, added with the
+    per-run container names below; "three" was true until then and the matrix re-run
+    is what caught it.
 
     Three of these are values a *test* deployment should not inherit from the host:
     ``POSTGRES_PASSWORD`` is generated per run (a fixed literal would pass a test and
@@ -678,7 +688,9 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
     compose project cannot close: a pinned ``container_name`` is global to the engine,
     not namespaced by ``-p`` (measured on v5.5.1 -- booting the same pin under a second
     project dies with ``Conflict. The container name ... is already in use``). ``prod.yml``
-    pins six names, so the override prefixes each with THIS run's token; a constant prefix
+    spells seven names and a profile-less render shows six of them (``dcgm-exporter`` sits
+    behind the ``gpu-rootful`` profile), so the override prefixes each with THIS run's token;
+    a constant prefix
     would leave two concurrent runs unable to come up. It is hex plus a separator because
     compose rejects other spellings, and the override reads it as ``${…:?…}`` so a run
     that somehow lacks it refuses to render instead of interpolating blank and rejoining
