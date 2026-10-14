@@ -3591,3 +3591,113 @@ def test_the_prod_shape_transform_drops_only_the_dependency_it_omits() -> None:
     doc2["services"]["backend"]["depends_on"]["tempo"] = {"condition": "service_started"}
     with pytest.raises(fc.HarnessError, match="tempo"):
         fc.as_prod_shape_deployment(doc2, vlm_url="http://10.0.0.5:8123")
+
+
+# ---------------------------------------------------------------------------
+# O2.5 / UR-140 — the operator's first prod-shape run (#7037 `6166020894`) died at
+# the prod shape's BUILD path and the harness reported it as a VLM problem. The
+# run's own words: "21 seconds, zero services booted — and the harness reports it
+# as 'backend is not running', because `up()` swallows compose's own output into
+# that reason. The VLM was fine (it was serving; I had just read `/props`)."
+#
+# Mechanism, in `Run.up`: `deployment("up", …)` raises a HarnessError whose
+# message IS compose's tail ("… denied …", "booting buildkit", "mkdir
+# /sys/fs/cgroup/docker/buildx: permission denied"), and the `except HarnessError`
+# arm calls `check_vlm_reach` and lets ITS message win, discarding the one it
+# caught. A reader then goes looking for a broken model server while the actual
+# failure is five image-less services the engine cannot build.
+#
+# Each pin below has a way to fail: the first goes red if compose's tail is
+# swallowed again, the second if the VLM reason is dropped in the other direction.
+# ---------------------------------------------------------------------------
+
+# A trimmed copy of the operator's `up-replay.out` (sha 6f0cd7b1…): the walls, in
+# the words compose actually printed.
+_COMPOSE_BUILD_FAILURE = (
+    " Image nemotron-v3-home-security-intelligence-grafana:latest denied: "
+    "requested access to the resource is denied\n"
+    "#2 [internal] booting buildkit\n"
+    "#2 starting container buildx_buildkit_default\n"
+    "#2 ERROR: cgroup configuration: mkdir /sys/fs/cgroup/docker/buildx: "
+    "permission denied: OCI permission denied"
+)
+
+
+class _StubVlm:
+    url = "http://host.docker.internal:18100"
+
+
+def _boot_failed_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> fc.HarnessError:
+    """A run whose `up` dies the way the operator's did — compose fails, VLM
+    serving — returning the error the harness raised."""
+
+    def deployment(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise fc.HarnessError(f"docker compose … up … exited 1: {_COMPOSE_BUILD_FAILURE}")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "check_vlm_reach", lambda *_: None)
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="real")
+    with pytest.raises(fc.HarnessError) as raised:
+        run.up(vlm=_StubVlm())
+    return raised.value
+
+
+def test_a_failed_up_with_a_reachable_vlm_reraises_composes_error_verbatim(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The control that says WHERE the defect is. Measured at the first attempt,
+    # before any implementation: this one PASSES on main. When the VLM answers,
+    # `check_vlm_reach` returns and `up`'s bare `raise` re-raises compose's own
+    # HarnessError untouched — so the swallow is NOT here. It is in the other
+    # branch, where the VLM check also fails (the operator's situation: nothing
+    # booted, so `exec -T backend` fails too) and the reach message REPLACES the
+    # compose one. Pinned because a "fix" that routed every failure through a
+    # synthesized reach message would break this and read a healthy boot failure
+    # as a VLM outage.
+    message = str(_boot_failed_run(monkeypatch, tmp_path))
+    for needle in ("buildx_buildkit_default", "permission denied", "denied"):
+        assert needle in message, f"compose's reason {needle!r} was lost: {message[:400]}"
+    # and a build failure must not be MISLABELED as a reachability one
+    assert "cannot reach the VLM" not in message, (
+        f"a build failure was reported as a VLM reachability failure: {message[:400]}"
+    )
+
+
+def test_a_failed_up_chains_composes_failure_under_the_raised_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="real")
+
+    def deployment(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise fc.HarnessError(f"docker compose … up … exited 1: {_COMPOSE_BUILD_FAILURE}")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "check_vlm_reach", lambda *_: None)
+    with pytest.raises(fc.HarnessError) as raised:
+        run.up(vlm=_StubVlm())
+    assert isinstance(raised.value.__cause__, fc.HarnessError), (
+        "the raised error is not chained to compose's own failure"
+    )
+
+
+def test_a_failed_up_with_the_vlm_also_unreachable_names_both_reasons(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The arm the except clause was written for must keep working: an unreachable
+    # VLM really is the likely reason, and dropping it would be the mirror image
+    # of the bug above. Both reasons, neither alone.
+    def unreachable(self: Any, url: str) -> None:
+        raise fc.HarnessError(f"the backend cannot reach the VLM at {url}, or is not running")
+
+    monkeypatch.setattr(fc.Run, "check_vlm_reach", unreachable)
+
+    def deployment(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise fc.HarnessError(f"docker compose … up … exited 1: {_COMPOSE_BUILD_FAILURE}")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="real")
+    with pytest.raises(fc.HarnessError) as raised:
+        run.up(vlm=_StubVlm())
+    message = str(raised.value)
+    assert "cannot reach the VLM" in message, f"the VLM reason was dropped: {message[:400]}"
+    assert "buildx_buildkit_default" in message, f"compose's reason was swallowed: {message[:400]}"

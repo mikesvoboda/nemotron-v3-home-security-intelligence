@@ -1828,12 +1828,27 @@ class Run:
         self.started = True
         try:
             self.deployment("up", "-d", "--wait", "--wait-timeout", "900", timeout=1500)
-        except HarnessError:
+        except HarnessError as boot:
             # The backend's health check calls the VLM, so on --real an
             # unreachable VLM fails `up --wait` first; name that reason if so.
-            if vlm is not None:
+            # But when the reach check ALSO fails it cannot say whether the VLM is
+            # down or the stack never came up — and on the first prod-shape run
+            # (operator, 2026-10-14, #7037) it said "the backend cannot reach the
+            # VLM … or is not running" while the VLM was serving fine and compose
+            # had died building five image-less services. The compose tail is
+            # therefore carried into the message and chained: a reader has to be
+            # able to tell a boot failure from a reachability one.
+            if vlm is None:
+                raise
+            tail = " ".join(str(boot).split())[-400:]
+            try:
                 self.check_vlm_reach(str(vlm.url))
-            raise
+            except HarnessError as reach:
+                raise HarnessError(
+                    f"{reach}; and `up` itself failed, so the stack may simply never "
+                    f"have come up — compose said: {tail}"
+                ) from boot
+            raise HarnessError(f"`up` failed while the VLM is reachable; compose said: {tail}") from boot
         self.api = self._address("backend", 8000)
         self.ui = self._address("frontend", 8080)
         _log(f"up: api {self.api}, ui {self.ui}")
