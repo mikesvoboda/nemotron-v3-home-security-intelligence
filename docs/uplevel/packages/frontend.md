@@ -236,7 +236,7 @@ flipped to assert the fix and passes (ruling 130).
 ### [r144n] Route notes for ruling 127's real-tier rows
 
 **Flags:** none. **Assigned:** frontend. **Depends on:** #7030 (R2b round 1 record) merged. **PR:**
-none yet. Ordered by the owner's approval of #7030 (record 6136889433).
+#7109 (open). Ordered by the owner's approval of #7030 (record 6136889433).
 
 - [ ] Rewrite the route notes of ruling 127's 12 real-tier rows in
       `docs/reference/feature-inventory.md` to ruling 144's route: the row gets its witness from the

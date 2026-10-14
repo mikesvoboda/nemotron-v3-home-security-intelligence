@@ -159,12 +159,21 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 
 
 # ---------------------------------------------------------------------------
-# UR-125 AS AMENDED: a unit-tier breach must REPRODUCE before it goes red.
+# UR-125 AS AMENDED: a breach must REPRODUCE before it goes red, in each tier the
+# clause names.
 #
 # Verbatim: "The real-sleep gate fails a unit test over 4.0 s only when the
 # breach reproduces: the gate re-runs that one test once, in the same job, and
 # the run is red only if the re-run also breaches; a test that passes on its
-# re-run is listed as a warning with both timings."
+# re-run is listed as a warning with both timings." RULING 151 then extended the
+# same sentence: "An integration test over its 10.0 s budget gets the same
+# single re-run, and is red only if the re-run also breaches; at most 5 re-runs
+# per job in each tier."
+#
+# So the clause names TWO tiers and this block implements both. It is not
+# "everything that is not unit": see ``RERUN_TIERS`` for why e2e and slow stay
+# out, and why that is a reason ruling 151 did not remove rather than an
+# oversight it should have.
 #
 # Three properties the rest of this block exists to keep true, each with a pin:
 # * the re-run is OFF unless the CI step turns it on. A junit corpus describes
@@ -180,9 +189,60 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 # ---------------------------------------------------------------------------
 
 # Re-runs are one per breaching test; the cap bounds what a pathological corpus
-# can cost the job (5 sleeps worst case) rather than letting a red shard spawn
-# hundreds. Breaches past the cap stay RED — the cap can only ever be strict.
+# can cost the job rather than letting a red shard spawn hundreds. Breaches past
+# the cap stay RED — the cap can only ever be strict.
+#
+# The cap is PER TIER because that is what the rulebook states: UR-125 in
+# docs/uplevel/rules.md reads "at most 5 re-runs per job in each tier", and cites
+# rulings 93, 122 and 151. Precision about the source matters here: ruling 151's
+# OWN words are "At most 5 re-runs per job, as for unit tests" — the "in each
+# tier" scoping is UR-125's codification of that clause, recorded with the
+# ruling. The distinction is not cosmetic: ``breaches`` is sorted longest-first
+# and the two eligible tiers have budgets 4.0 s apart, so the integration
+# breaches are almost always the longer ones. A single pooled slice of 5 would
+# therefore spend the whole allowance on integration and leave the unit tier —
+# the one this clause has served since ruling 122 — with none. Worst case for
+# the job is now len(RERUN_TIERS) * MAX_RERUNS sleeps, 10, up from 5; that is
+# what the per-tier scoping costs, and the number is pinned to UR-125 by
+# test_the_cap_value_is_the_number_the_rulebook_states, not restated here.
+#
+# Do the time arithmetic with it (review finding 4): each re-run is capped by
+# DEFAULT_RERUN_TIMEOUT + DEFAULT_RERUN_GRACE, 150 s, so 10 hanging re-runs are a
+# 1,500 s ceiling inside a job whose timeout-minutes is 15 (900 s, ci.yml's
+# test-performance-audit job) — the job budget is the binding limit, and it binds
+# once the 7th hanging re-run ACROSS BOTH TIERS starts: 6 x 150 s already consumes
+# the whole 900 s budget, so the 6th leaves no headroom and the 7th is cancelled.
+# The bound is pooled, not per tier — 3 + 3 hangs the job as hard as 6 + 0.
+# Recorded so the next reader does that sum here instead of across four
+# files. What changed since this paragraph was written: that ceiling used to be
+# FICTIONAL, because --timeout is a per-test timer and a collection-time stall
+# outranks it (see DEFAULT_RERUN_GRACE), so the 1,200 s figure was "the job gets
+# cancelled at 900 s" wearing a friendlier number. The parent bound makes the
+# arithmetic real for up to 6 hanging re-runs; past that the job still cancels,
+# which is why the cap is 5 and not, say, 40.
 MAX_RERUNS = 5
+
+# Tiers the reproduce-before-red clause covers, ruling 122 (unit) + ruling 151
+# (integration). Deliberately an explicit set and NOT "any tier but unit".
+#
+# ``e2e`` stays out because the audit job has no browser and no ``npm ci``, so a
+# Playwright re-run there is a doomed subprocess rather than a measurement. That
+# reason is nearly dormant, and the exact numbers matter here. Measured on
+# ``main``'s newest green CI run (``38457693762``), all three
+# ``playwright-test-results-*`` artifacts: 961 testcases, of which 960 are skips
+# carrying ``time="0"`` ("E2E tests flaky in CI - run locally") — and
+# ``worst_durations`` drops zero-duration rows, so those 960 never enter this
+# corpus. But ONE id is live and timed: F1.2's ``verdict-engine banner`` spec at
+# 2.441 s, which classifies ``e2e`` and sits under the 10.0 s budget, so today it
+# produces no breach. That is a one-regression margin, not a stable state: the
+# same spec is on record (ruling 93) at 23.1 s, which WOULD breach, and a
+# complement-style filter would then spawn a browser-less doomed subprocess in
+# the audit job and call its non-zero exit "verified". Spelling the set out is
+# what keeps that path from opening silently. ``slow`` stays out
+# because its members are slow by measured census, not by one starved run: a
+# re-run there buys a 60 s-class sleep and returns the same verdict. Neither
+# reason is weakened by ruling 151, which named only the integration tier.
+RERUN_TIERS = ("unit", "integration")
 
 # Sentinel exit code for "the re-run SKIPPED". pytest exits 0 for a skip, so
 # the real code would read as a clean run to ``reproduce``; this private value
@@ -190,6 +250,32 @@ MAX_RERUNS = 5
 # present and nothing executed. Not a pytest code on purpose: it is in no
 # pytest documentation a reader could match an observed 0 against.
 SKIPPED_RERUN_EXIT = 90
+
+# Sentinel exit code for "the re-run child was KILLED BY THE GATE because it
+# would not finish". Same reasoning as ``SKIPPED_RERUN_EXIT`` for the number:
+# ``124`` is the GNU coreutils wall-clock convention, not a pytest code, and a
+# reader who sees 124 in a pytest report will go looking for a pytest meaning
+# that is not there. 91 is deliberately outside every set a reader could match.
+TIMED_OUT_RERUN_EXIT = 91
+
+# Seconds the gate lets the child past its own ``--timeout`` before reaping it.
+# The parent bound is NOT redundant with ``--timeout``, which is why it exists:
+# pytest-timeout arms its timer per TEST ITEM, during runtest, so a stall that
+# happens during collection -- a module-level import, a fixture collected at
+# import, a network call at module scope -- is before any timer is armed and the
+# flag never fires. Measured on this repo's pytest: a module that sleeps 12.4 s
+# at import, re-run with ``--timeout=3``, exits 0 (``1 passed``) after 13.4 s of
+# wall clock with ``<testcase time="0.023">``. The only reaper for that shape
+# was the job's own ``timeout-minutes: 15``, which cancels the run: no report,
+# no verdict, and the audit's own findings lost with it. So the child keeps its
+# ``--timeout`` for the case it does handle (a slow test: it kills the test,
+# writes the junit, exits, and the gate reads a real duration), and the parent
+# bound handles the case it cannot. Grace, not equality, so the child's own path
+# wins whenever it is going to: pytest needs the slack to write the junit and
+# tear down. ``SLEEP_GATE_RERUN_GRACE`` is the test hook, same shape as
+# ``SLEEP_GATE_RERUN_TIMEOUT``.
+DEFAULT_RERUN_GRACE = 30.0
+
 
 # The re-run's own per-test ceiling. Inherited ``timeout = 5``
 # (pyproject.toml:546 — its OWN ini key, not part of ``addopts``) is UNDER the
@@ -248,6 +334,10 @@ def _repro_timeout() -> float:
     return float(os.environ.get("SLEEP_GATE_RERUN_TIMEOUT", str(DEFAULT_RERUN_TIMEOUT)))
 
 
+def _repro_grace() -> float:
+    return float(os.environ.get("SLEEP_GATE_RERUN_GRACE", str(DEFAULT_RERUN_GRACE)))
+
+
 def _rerun_duration(target: str) -> tuple[float | None, int]:
     """Re-run one test once; return ``(seconds or None, pytest exit code)``.
 
@@ -263,6 +353,11 @@ def _rerun_duration(target: str) -> tuple[float | None, int]:
     Returns ``None`` for the duration whenever there is no usable number — no
     junit, an unparseable one, or a zero-duration testcase, which junit emits
     for a skip and which the corpus pass already refuses to read as "fast".
+
+    The wait is bounded. ``--timeout`` in the argv is NOT that bound, whatever
+    the name suggests: pytest-timeout arms per test item, so it cannot see a
+    stall that happens during collection, and this function's own ``cwd`` is the
+    repo root, so a stall of that shape costs the whole audit job.
     """
     argv = [
         *rerun_command(),
@@ -286,7 +381,21 @@ def _rerun_duration(target: str) -> tuple[float | None, int]:
                 text=True,
                 check=False,
                 cwd=REPO_ROOT,
+                timeout=_repro_timeout() + _repro_grace(),
             )
+        except subprocess.TimeoutExpired:
+            # The child would not finish inside its own ceiling plus the
+            # grace, so the gate killed it (stdlib run() sends SIGKILL before
+            # re-raising, so nothing is orphaned). Deliberately NOT folded into
+            # the OSError arm below: "could not start" and "started and hung"
+            # are different diagnoses and the report has to tell them apart.
+            # TimeoutExpired is not a subclass of OSError, so it would
+            # otherwise escape and take the whole gate down with a traceback.
+            print(
+                "  (re-run timed out and was killed; no duration measured)",
+                file=sys.stderr,
+            )
+            return None, TIMED_OUT_RERUN_EXIT
         except OSError as exc:
             # The prefix itself will not start (bad SLEEP_GATE_PYTEST, no
             # interpreter). That is "not verified", not "passed".
@@ -329,43 +438,53 @@ def _rerun_duration(target: str) -> tuple[float | None, int]:
 def reproduce(
     breaches: list[tuple[float, str, str, float]],
 ) -> dict[str, tuple[str, float | None, int]]:
-    """One re-run per unit-tier breach: ``test_id -> (state, seconds, exit)``.
+    """One re-run per eligible-tier breach: ``test_id -> (state, seconds, exit)``.
 
     ``state`` is ``confirmed`` (re-ran and breached again), ``cleared`` (passed
     under budget), ``skipped`` (the re-run skipped, so it measured nothing —
     see ``SKIPPED_RERUN_EXIT``) or ``unverified`` (nothing about this run says
     the duration was a fluke — including "it failed fast", which is a caught
-    test, not an exonerated one). ``skipped`` and ``unverified`` both keep the
-    breach RED; they differ only in what the report gets to say about why.
-    Non-unit tiers are not returned: the amendment speaks
-    about unit tests, and the audit job has no browser and no ``npm ci``, so an
-    e2e re-run there is a doomed subprocess, not a measurement.
+    test, not an exonerated one). ``skipped``, ``timed_out`` and ``unverified`` all
+    keep the breach RED; they differ only in what the report gets to say about
+    why. ``timed_out`` rides in ``unverified`` for the verdict and is named in
+    the row, exactly as ``skipped`` is.
+    Tiers outside ``RERUN_TIERS`` are not returned: the clause names unit and
+    (since ruling 151) integration, and for the other two the reason is
+    measurement, not caution — see that constant.
     """
     states: dict[str, tuple[str, float | None, int]] = {}
     if not rerun_enabled():
         return states
-    eligible = [b for b in breaches if b[2] == "unit"]
-    if len(eligible) > MAX_RERUNS:
-        print(
-            f"  note: {len(eligible)} unit breaches, only the {MAX_RERUNS} slowest get a "
-            "re-run; the rest stay RED unverified",
-            file=sys.stderr,
-        )
-    for _, test_id, _category, budget in eligible[:MAX_RERUNS]:
-        seconds, code = _rerun_duration(pytest_target_for(test_id))
-        if code == SKIPPED_RERUN_EXIT:
-            # Checked before the generic None arm: a skip also has no usable
-            # duration, and the generic arm would report it as "exit 90", a
-            # number pytest has no meaning for. The reader needs the reason.
-            states[test_id] = ("skipped", None, code)
-        elif seconds is None:
-            states[test_id] = ("unverified", None, code)
-        elif code != 0:
-            states[test_id] = ("unverified", seconds, code)
-        elif seconds > budget:
-            states[test_id] = ("confirmed", seconds, code)
-        else:
-            states[test_id] = ("cleared", seconds, code)
+    # The cap is applied per tier, so each tier's longest MAX_RERUNS breaches get
+    # a re-run rather than the corpus's longest overall (see MAX_RERUNS).
+    for tier in RERUN_TIERS:
+        eligible = [b for b in breaches if b[2] == tier]
+        if len(eligible) > MAX_RERUNS:
+            print(
+                f"  note: {len(eligible)} {tier} breaches, only the {MAX_RERUNS} slowest "
+                "get a re-run; the rest stay RED unverified",
+                file=sys.stderr,
+            )
+        for _, test_id, _category, budget in eligible[:MAX_RERUNS]:
+            seconds, code = _rerun_duration(pytest_target_for(test_id))
+            if code == SKIPPED_RERUN_EXIT:
+                # Checked before the generic None arm: a skip also has no usable
+                # duration, and the generic arm would report it as "exit 90", a
+                # number pytest has no meaning for. The reader needs the reason.
+                states[test_id] = ("skipped", None, code)
+            elif code == TIMED_OUT_RERUN_EXIT:
+                # Also checked before the generic None arm: a timeout has no
+                # duration either, and the generic arm would print it as a
+                # pytest exit code the reader cannot look up.
+                states[test_id] = ("timed_out", None, code)
+            elif seconds is None:
+                states[test_id] = ("unverified", None, code)
+            elif code != 0:
+                states[test_id] = ("unverified", seconds, code)
+            elif seconds > budget:
+                states[test_id] = ("confirmed", seconds, code)
+            else:
+                states[test_id] = ("cleared", seconds, code)
     return states
 
 
@@ -420,10 +539,35 @@ def worst_durations(
     return worst, xml_count, timed_cases
 
 
+def cleared_rows_outside_warns(
+    breaches: list[tuple[float, str, str, float]],
+    warns: list[tuple[float, str]],
+    cleared: dict[str, tuple[str, float | None, int]],
+) -> list[tuple[float, str]]:
+    """Cleared breaches the unit-tier WARN list cannot carry: ``(seconds, id)``.
+
+    The WARN list is unit-tier by ruling 93 and a deliberate comment (listing a
+    legal 2.6 s banner spec as "slow" would train everyone to skim it). A cleared
+    UNIT breach is over the 1.5 s warn threshold by arithmetic, so it reaches the
+    report for free — but a cleared INTEGRATION breach is not, and once the
+    re-run took it out of ``red`` there was no list left that mentioned it. This
+    is why extending the eligibility filter alone would have shipped the
+    leniency without UR-125's "listed as a warning" half: a green run recording
+    nothing about a 12.4 s event.
+    """
+    already_listed = {test_id for _duration, test_id in warns}
+    return [
+        (duration, test_id)
+        for duration, test_id, _category, _budget in breaches
+        if test_id in cleared and test_id not in already_listed
+    ]
+
+
 def write_step_summary(
     warns: list[tuple[float, str]],
     breaches: list[tuple[float, str]],
     cleared: dict[str, tuple[str, float | None, int]] | None = None,
+    extra_cleared: list[tuple[float, str]] | None = None,
 ) -> None:
     """Append the WARN section to ``$GITHUB_STEP_SUMMARY``; never fail on it.
 
@@ -434,16 +578,20 @@ def write_step_summary(
     changing anyone's verdict would defeat the tier it serves.
 
     ``cleared`` is the UR-125 re-run result for breaches that did not
-    reproduce. Those ids are already in WARNS (a 4.5 s unit test is over the
+    reproduce. Unit ones are already in WARNS (a 4.5 s unit test is over the
     1.5 s warn threshold by definition), so they get ONE row here rather than a
     second section — and that row carries the corpus timing AND the re-run
     timing, because a row that shows only the flattering number deletes the
-    event the owner declined to forgive.
+    event the owner declined to forgive. ``extra_cleared`` holds the cleared
+    breaches WARNS cannot hold, i.e. non-unit tiers since ruling 151; they get
+    the same two-timing row, in their own section, so the summary never depends
+    on the WARN list's tier scope to mention them.
     """
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "").strip()
-    if not summary_path or not (warns or breaches):
+    if not summary_path or not (warns or breaches or extra_cleared):
         return
     cleared = cleared or {}
+    extra_cleared = extra_cleared or []
     lines = [
         "## Real-sleep duration budget (ruling 93, UR-125 as amended)",
         "",
@@ -461,6 +609,19 @@ def write_step_summary(
             )
             continue
         lines.append(f"- `{test_id}` — {duration:.2f}s")
+    if extra_cleared:
+        lines += [
+            "",
+            "Over budget, did not reproduce on its re-run (listed, not failed):",
+            "",
+        ]
+        for duration, test_id in extra_cleared:
+            replay = cleared[test_id][1]
+            tail = f"{replay:.2f}s" if replay is not None else "no timing"
+            lines.append(
+                f"- `{test_id}` — {duration:.2f}s over budget, re-ran {tail} "
+                "(did not reproduce; listed, not failed)"
+            )
     if breaches:
         lines += ["", "Hard-budget breaches (this run is RED):", ""]
         lines += [f"- `{test_id}` — {duration:.2f}s" for duration, test_id in breaches]
@@ -553,33 +714,59 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"Corpus: {xml_count} XML file(s), {len(worst)} test(s) with a recorded duration")
 
-    # UR-125 as amended: a unit-tier breach has to REPRODUCE before it reddens
-    # the run. One re-run per breaching id, in this job, on this checkout.
-    # Everything below is decided by what those re-runs said, so the header
-    # states which regime this run was under rather than asserting ruling 93's
-    # "every breach is RED" unconditionally -- that sentence is exactly what the
-    # amendment changed, and a report that denies it while downgrading is the
-    # WP0.5 "off reads as the rule" shape.
+    # UR-125 as amended (rulings 122 + 151): a breach in an eligible tier has to
+    # REPRODUCE before it reddens the run. One re-run per breaching id, in this
+    # job, on this checkout. Everything below is decided by what those re-runs
+    # said, so the header states which regime this run was under rather than
+    # asserting ruling 93's "every breach is RED" unconditionally -- that sentence
+    # is exactly what the amendments changed, and a report that denies it while
+    # downgrading is the WP0.5 "off reads as the rule" shape.
     states = reproduce(breaches)
     cleared = {t: s for t, s in states.items() if s[0] == "cleared"}
     confirmed = {t: s for t, s in states.items() if s[0] == "confirmed"}
     # ``skipped`` rides in ``unverified`` for the verdict (both stay RED, and
     # ``red`` is computed from ``cleared`` alone) but is reported by name.
-    unverified = {t: s for t, s in states.items() if s[0] in ("unverified", "skipped")}
-    unit_breaches = [b for b in breaches if b[2] == "unit"]
+    unverified = {t: s for t, s in states.items() if s[0] in ("unverified", "skipped", "timed_out")}
+    # Counted per tier, because that is how the cap is applied and the header has
+    # to describe the rule the gate is actually honouring. A unit-only count here
+    # would print "0 breach(es) get a re-run" on a run that re-runs five
+    # integration ids.
+    tier_counts = {tier: sum(1 for b in breaches if b[2] == tier) for tier in RERUN_TIERS}
+    eligible_count = sum(tier_counts.values())
+    # The number of re-runs is read BACK from ``states``, not recomputed from the
+    # cap: `reproduce()` is the only thing that knows what it actually ran, and a
+    # second slice here would be a second place to be wrong. The distinction is
+    # load-bearing at an over-cap corpus — "6 eligible get one re-run each (max
+    # 5)" is a sentence the run does not honour (it re-runs 5), and that
+    # overstatement predates ruling 151; this is the commit that rewrites the
+    # line, so the line has to carry both numbers now.
+    # ``states`` is keyed by exactly the ids reproduce() actually re-ran, so the
+    # re-run count is read straight off it. An earlier version derived a per-tier
+    # re-run map here and summed it back to one number; that split reached no
+    # output, so a mutant collapsing every tier to "unit" printed a byte-identical
+    # line and no pin could see it (UR-89 batch-3 finding 3.4). The header reports
+    # per-tier ELIGIBLE counts from ``tier_counts`` above; per-tier re-run counts
+    # are not a reported dimension, so they are not computed as one.
+    re_run_count = len(states)
 
     if not rerun_enabled():
-        if unit_breaches:
+        if eligible_count:
             print(
                 "Re-run of a breach: NOT ENABLED (SLEEP_GATE_RERUN unset), so every "
                 "breach below is unverified and ruling 93's verdict stands: RED."
             )
         else:
-            print("Re-run of a breach: not enabled (no unit breach to reproduce anyway).")
+            print("Re-run of a breach: not enabled (no eligible breach to reproduce anyway).")
     else:
+        per_tier = ", ".join(f"{n} {tier}" for tier, n in tier_counts.items())
+        # Both counts, named by what they are. "N eligible get one re-run each"
+        # lied whenever N > the per-tier cap (it re-ran fewer), and the old
+        # single-count line could not express the difference at all; see the
+        # pin at test_the_header_names_eligible_and_re_run_counts_separately.
         print(
-            f"Re-run of a breach: ENABLED — {len(unit_breaches)} unit breach(es) get one "
-            f"re-run each (max {MAX_RERUNS}); only a reproduced breach is RED."
+            f"Re-run of a breach: ENABLED — {eligible_count} eligible breach(es) "
+            f"({per_tier}); {re_run_count} get one re-run each (cap {MAX_RERUNS} "
+            "per tier); only a reproduced breach is RED."
         )
     print("No previous-run downgrade and no exemption file.")
     print()
@@ -605,9 +792,27 @@ def main(argv: list[str] | None = None) -> int:
     # A breach that cleared is no longer a breach; it is the warning above.
     red = [b for b in breaches if b[1] not in cleared]
 
+    # ...unless the warning above is unit-tier and this breach is not. A cleared
+    # integration breach appears in neither the WARN section (unit-only by ruling
+    # 93) nor the red list, so without its own section it would be a green run
+    # that records nothing about a 12.4 s event — UR-125's "listed as a warning
+    # with both timings" is half of the clause, not a courtesy.
+    listed_elsewhere = cleared_rows_outside_warns(breaches, warns, cleared)
+    if listed_elsewhere:
+        print(f"OVER BUDGET, DID NOT REPRODUCE (listed, never failing): {len(listed_elsewhere)}")
+        print("-" * 40)
+        for duration, test_id in listed_elsewhere:
+            replay = cleared[test_id][1]
+            tail = f"{replay:.2f}s" if replay is not None else "no timing"
+            print(
+                f"  WARN {test_id} — corpus {duration:.2f}s, re-ran {tail} "
+                "(over budget, did not reproduce)"
+            )
+        print()
+
     # Written on RED runs too — the summary's value peaks exactly when the
     # gate has just refused a merge.
-    write_step_summary(warns, [(d, t) for d, t, _, _ in red], cleared)
+    write_step_summary(warns, [(d, t) for d, t, _, _ in red], cleared, listed_elsewhere)
 
     if red:
         print(f"BREACHES (over the hard budget): {len(red)}")
@@ -619,6 +824,8 @@ def main(argv: list[str] | None = None) -> int:
                 verdict += f" — re-ran {again[1]:.2f}s and BREACHED AGAIN"
             elif unverified.get(test_id, ("",))[0] == "skipped":
                 verdict += " — re-run SKIPPED (executed nothing; not a pass)"
+            elif unverified.get(test_id, ("",))[0] == "timed_out":
+                verdict += " — re-run TIMED OUT (killed by the gate; not a pass)"
             elif test_id in unverified:
                 code = unverified[test_id][2]
                 replay = unverified[test_id][1]
@@ -636,8 +843,8 @@ def main(argv: list[str] | None = None) -> int:
             )
         print(
             f"RESULT: FAIL - {len(red)} test(s) over their real-sleep budget."
-            f"{notes} A seconds-scale unit test is a real sleep: give it a "
-            "fake/injected clock "
+            f"{notes} A seconds-scale test in a re-run tier is a real sleep: "
+            "give it a fake/injected clock "
             "or make it genuinely faster. There is no file to add it to."
         )
         return 1
@@ -648,7 +855,7 @@ def main(argv: list[str] | None = None) -> int:
         # downgrade is the point of the amendment, not a fact to hide.
         print(
             f"RESULT: PASS - nothing over budget reproduced on its re-run. "
-            f"{len(cleared)} unit test(s) were over budget in the corpus and cleared a "
+            f"{len(cleared)} test(s) were over budget in the corpus and cleared a "
             "re-run; they are listed as warnings above."
         )
         return 0
