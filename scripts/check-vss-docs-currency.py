@@ -34,11 +34,15 @@ mutmut's mutant home (pyproject.toml, the "tenth member" comment), and a unit te
 absent docs/ tree aborts its coverage gather. A row that quotes the spec or ledger is skipped when
 that file is absent.
 
-1. Register consistency (17-action-plan.md). The header count, every Dashboard table cell, every
-   area heading count and the P0/P1 list are RECOMPUTED from the `#### ISS-nnn` blocks and compared;
-   duplicate ids fail (a lettered suffix such as ISS-088b is a distinct id), and so does a block filed
-   outside section 5 (ISS-087 and ISS-088 were once filed under "Withdrawn"). A failure prints the
-   recomputed counts, so nobody hand-counts.
+1. Register consistency (17-action-plan.md and history/17-closed-issues.md). The header count, every
+   Dashboard table cell, every area heading count and the P0/P1 list are RECOMPUTED from the
+   `#### ISS-nnn` blocks and compared; duplicate ids fail (a lettered suffix such as ISS-088b is a
+   distinct id), and so does a block filed outside section 5 (ISS-087 and ISS-088 were once filed under
+   "Withdrawn"). Under OD-34 (ruling 89), when the section-4 Owner decisions table carries a `Ruling`
+   column, every `OD-n` row must populate it, and when `history/17-closed-issues.md` exists, every
+   closed (`done`, `wont-fix`, `superseded`) issue in `17-action-plan.md` must have its full block
+   archived in `history/17-closed-issues.md`. A failure prints the recomputed counts, so nobody
+   hand-counts.
 2. The State page (README.md). Active when README carries `<!-- state-of-the-stack as-of=DATE
    verified-at=SHA -->`. Then: every numbered doc must be named in README (the document map);
    relative links that resolve inside the folder must exist; every ISS-, E- and OD- id README cites
@@ -151,6 +155,7 @@ def check(root: Path) -> list[str]:
 
 # ---- register consistency ---------------------------------------------------------------------
 REGISTER_REL = "docs/vss-integration/17-action-plan.md"
+CLOSED_HISTORY_REL = "docs/vss-integration/history/17-closed-issues.md"
 README_REL = "docs/vss-integration/README.md"
 FOLDER_REL = "docs/vss-integration"
 ISS_HEADING = re.compile(r"^#### (ISS-\d+[a-z]?) — (.+)$")
@@ -372,6 +377,37 @@ def check_register(root: Path) -> list[str]:
             problems.append(
                 f"{REGISTER_REL}: the P0 and P1 list names {extra}, which is not filed P0 or P1"
             )
+
+    # OD-34: when the OD table carries a Ruling column, every row must populate it.
+    od_at = next((i for i, x in enumerate(lines) if x.startswith("## 4.")), None)
+    if od_at is not None:
+        od_stop = next(
+            (i for i in range(od_at + 1, len(lines)) if lines[i].startswith("## ")), len(lines)
+        )
+        od_tables = _tables(lines, od_at, od_stop)
+        if "ID" in od_tables:
+            od_header = od_tables["ID"][0]
+            if "Ruling" in od_header:
+                ruling_idx = od_header.index("Ruling")
+                for row in od_tables["ID"][1:]:
+                    if len(row) <= ruling_idx or not row[ruling_idx].strip():
+                        problems.append(
+                            f"{REGISTER_REL}: Owner decisions row {row[0]!r} has an empty Ruling cell (OD-34)"
+                        )
+
+    # OD-34: when history/17-closed-issues.md exists, every closed issue in 17 must exist in history.
+    closed_hist = root / CLOSED_HISTORY_REL
+    if closed_hist.is_file():
+        hist_ids = {
+            m.group(1)
+            for line in closed_hist.read_text(encoding="utf-8").splitlines()
+            if (m := ISS_HEADING.match(line))
+        }
+        for b in blocks:
+            if b["status"] in CLOSED and b["id"] not in hist_ids:
+                problems.append(
+                    f"{REGISTER_REL}: closed issue {b['id']} ({b['status']}) is missing from {CLOSED_HISTORY_REL} (OD-34)"
+                )
 
     if problems:
         problems.append(
