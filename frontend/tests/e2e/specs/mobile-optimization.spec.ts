@@ -79,14 +79,25 @@ test.describe('Mobile Bottom Navigation', () => {
     }
   });
 
-  test('sidebar is hidden on mobile viewport', async ({ page }) => {
+  test('sidebar is off-canvas on mobile viewport', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
 
-    // Sidebar should not be visible on mobile
+    // [r130f] F-017: this read `await expect(sidebar).not.toBeVisible()` while
+    // Layout unmounted the Sidebar below 640 — count 0 made it pass. The drawer is
+    // now ALWAYS mounted (that mount gate is what hid the hamburger's own feature)
+    // and hidden below `md` by `-translate-x-full`, so "not visible" is the WRONG
+    // contract twice over: Playwright calls a translated element visible (it has a
+    // 256px box at x = -256), and the thing the row actually promises is that the
+    // drawer is parked off-screen and unreachable until the hamburger opens it.
+    // Geometry + inert say that; a visibility boolean cannot.
     const sidebar = page.locator('[data-testid="sidebar"]');
-    await expect(sidebar).not.toBeVisible();
+    await expect(sidebar).toHaveCount(1);
+    const box = await sidebar.boundingBox();
+    expect(box, 'sidebar has no box at mobile width').not.toBeNull();
+    expect(box!.x).toBeLessThan(0);
+    await expect(sidebar).toHaveJSProperty('inert', true);
   });
 
   test('main content has bottom padding for mobile nav', async ({ page }) => {
@@ -191,9 +202,15 @@ test.describe('Mobile Navigation Transitions', () => {
     const mobileNav = page.locator('nav[aria-label="Mobile navigation"]');
     await expect(mobileNav).toBeVisible();
 
-    // Sidebar should be hidden
+    // [r130f] F-017: same correction as the other mobile-width leg — the rail is
+    // always mounted now, so after a resize DOWN it is an off-canvas, inert drawer
+    // rather than an absent element.
     const sidebar = page.locator('[data-testid="sidebar"]');
-    await expect(sidebar).not.toBeVisible();
+    await expect(sidebar).toHaveCount(1);
+    const box = await sidebar.boundingBox();
+    expect(box, 'sidebar has no box after resizing to mobile').not.toBeNull();
+    expect(box!.x).toBeLessThan(0);
+    await expect(sidebar).toHaveJSProperty('inert', true);
   });
 
   test('bottom nav hides when transitioning from mobile to desktop', async ({ page }) => {

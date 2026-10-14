@@ -192,7 +192,7 @@ export interface SidebarProps {
 export default function Sidebar({ forceCollapsed }: SidebarProps = {}) {
   const { isMobileMenuOpen, setMobileMenuOpen } = useSidebarContext();
   const location = useLocation();
-  const { isTablet, isDesktop } = useViewport();
+  const { isTablet, isDesktop, breakpoint } = useViewport();
 
   // Initialize collapsed state from localStorage (only for desktop)
   // Tablets automatically use collapsed mode
@@ -261,6 +261,35 @@ export default function Sidebar({ forceCollapsed }: SidebarProps = {}) {
   // Determine display state: fully collapsed or expanded
   const showExpanded = !isCollapsed || isHovered;
 
+  // [r130f] F-017: below Tailwind `md` this aside is a DRAWER, not a rail:
+  // `-translate-x-full` parks it off-canvas until `isMobileMenuOpen`. Translation
+  // moves it visually but NOT out of the sequential focus order, so now that the
+  // component mounts at every width (Layout.tsx) a closed drawer at 375px still
+  // exposed 34 tabbable links and a "Close menu" button by Tab stop #5.
+  //
+  // `inert` is what off-canvas means to a keyboard. Measured here at 375px, not
+  // assumed: with the attribute absent, `link.focus()` lands and Tab reaches
+  // `close-menu-button`; with it present, `link.focus()` is a no-op
+  // (activeElement stays put) and the 10-stop Tab walk has no `SIDEBAR:` entry at
+  // all, while the same probe after opening the drawer reads focusable again.
+  // The ATTRIBUTED-STATE check is `hasAttribute('inert')`, and React renders
+  // `inert={true}` as the empty string — so `getAttribute` would compare against
+  // '' and a flip to `inert=""`-vs-`inert="true"` would look like a change.
+  //
+  // What is NOT claimed: Chromium's ariaSnapshot still enumerates the whole
+  // subtree in both states (80 lines closed, 80 open), so this comment does not
+  // assert a11y-tree removal on this evidence — only focusability.
+  //
+  // The width test is `breakpoint === 'sm'`, which is `width < BREAKPOINTS.md`
+  // (useViewport.ts:62 — the returned 'sm' bucket, not `isMobile`, which is
+  // `< BREAKPOINTS.sm` = 640, useViewport.ts:124). That is deliberately the SAME
+  // 768 the hamburger's `md:hidden` and the drawer's own `md:translate-x-0` use,
+  // because the condition must match when the aside is a drawer, not when the app
+  // calls the viewport "mobile": at 700px the hamburger shows, the drawer opens,
+  // and it must be interactive. Keying on `isMobile` would have inerted a drawer
+  // the user could see and had just asked for, between 640 and 768.
+  const drawerIsOffCanvas = breakpoint === 'sm' && !isMobileMenuOpen;
+
   return (
     <aside
       className={`fixed inset-y-0 left-0 z-40 flex transform flex-col border-r border-gray-800 bg-[#1A1A1A] transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${
@@ -268,6 +297,7 @@ export default function Sidebar({ forceCollapsed }: SidebarProps = {}) {
       } ${showExpanded ? 'w-64' : 'w-16'}`}
       data-testid="sidebar"
       data-collapsed={isCollapsed && !isHovered}
+      inert={drawerIsOffCanvas}
       onMouseEnter={() => isCollapsed && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

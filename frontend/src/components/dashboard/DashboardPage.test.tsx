@@ -158,6 +158,7 @@ vi.mock('./DashboardLayout', () => ({
   default: ({
     widgetProps,
     renderStatsRow,
+    renderAISummaryRow,
     renderCameraGrid,
     renderActivityFeed,
     isLoading,
@@ -171,6 +172,7 @@ vi.mock('./DashboardLayout', () => ({
         systemStatus: string;
         riskHistory?: number[];
       };
+      aiSummaryRow?: Record<string, unknown>;
       cameraGrid?: {
         cameras: Array<{ id: string; name: string; thumbnail_url?: string }>;
         onCameraClick?: (cameraId: string) => void;
@@ -183,6 +185,7 @@ vi.mock('./DashboardLayout', () => ({
       };
     };
     renderStatsRow: (props: unknown) => React.ReactNode;
+    renderAISummaryRow: (props: unknown) => React.ReactNode;
     renderCameraGrid: (props: unknown) => React.ReactNode;
     renderActivityFeed: (props: unknown) => React.ReactNode;
     isLoading?: boolean;
@@ -209,6 +212,13 @@ vi.mock('./DashboardLayout', () => ({
           {widgetProps.statsRow && (
             <div className="mb-6 md:mb-8">{renderStatsRow(widgetProps.statsRow)}</div>
           )}
+
+          {/* AI Summary Row — rendered here so the row's props are observable.
+              The real DashboardLayout gates this on widget visibility
+              (DashboardLayout.tsx:173); the mock renders it unconditionally, so
+              what a test proves is that DashboardPage passed the props, not
+              that the layout chose to show the widget. */}
+          {widgetProps.aiSummaryRow && renderAISummaryRow(widgetProps.aiSummaryRow)}
 
           {/* 2-Column Layout */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[2.5fr,1fr]">
@@ -317,6 +327,7 @@ vi.mock('../ai-performance/AIPerformanceSummaryRow', () => ({
     totalDetections,
     totalEvents,
     totalErrors,
+    dlqCounts,
   }: {
     rtdetr: { name: string; status: string };
     nemotron: { name: string; status: string };
@@ -328,6 +339,7 @@ vi.mock('../ai-performance/AIPerformanceSummaryRow', () => ({
     totalEvents: number;
     totalErrors: number;
     throughputPerMinute?: number;
+    dlqCounts?: Record<string, number>;
     sectionRefs?: unknown;
     onIndicatorClick?: unknown;
     className?: string;
@@ -341,6 +353,7 @@ vi.mock('../ai-performance/AIPerformanceSummaryRow', () => ({
       data-total-detections={totalDetections}
       data-total-events={totalEvents}
       data-total-errors={totalErrors}
+      data-dlq-total={Object.values(dlqCounts ?? {}).reduce((sum, n) => sum + n, 0)}
     >
       AI Performance Summary Row
     </div>
@@ -746,6 +759,44 @@ describe('DashboardPage', () => {
         const cameraGrid = screen.getByTestId('camera-grid');
         // Verify the click handler is provided
         expect(cameraGrid).toHaveAttribute('data-has-click-handler', 'true');
+      });
+    });
+
+    // F-038: the row's "DLQ error count" clause. The hook has fetched
+    // GET /api/dlq/stats into dlqItems for as long as it has existed; what it
+    // never had was a render site. This pins the wire from that hook field to
+    // the summary row's prop — the half no golden run can prove on this stack,
+    // because the golden DLQ is empty and an empty DLQ renders the same string
+    // whether the wire is live or the card is hardcoded.
+    it('passes the hook DLQ counts through to the AI summary row', async () => {
+      (useAIMetricsHook.useAIMetrics as Mock).mockReturnValue({
+        data: {
+          rtdetr: { name: 'RT-DETRv2', status: 'healthy' },
+          nemotron: { name: 'Nemotron', status: 'healthy' },
+          detectionLatency: { avg_ms: 25, p95_ms: 45, p99_ms: 60, sample_count: 100 },
+          analysisLatency: { avg_ms: 3500, p95_ms: 5500, p99_ms: 7000, sample_count: 50 },
+          pipelineLatency: null,
+          totalDetections: 150,
+          totalEvents: 45,
+          detectionQueueDepth: 2,
+          analysisQueueDepth: 1,
+          pipelineErrors: {},
+          queueOverflows: {},
+          // Non-empty, and split across both queues: a single queue would also
+          // pass if the prop were wired to just one of them.
+          dlqItems: { 'dlq:detection_queue': 3, 'dlq:analysis_queue': 2 },
+          detectionsByClass: {},
+          lastUpdated: '2025-01-01T12:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        refresh: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ai-summary-row')).toHaveAttribute('data-dlq-total', '5');
       });
     });
 

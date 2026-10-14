@@ -17,7 +17,9 @@ give work a number.
   one-line pointer: "Ruling N, in PR #M: one line". (owner design session 2026-10-12; ruling 146)
 - **UR-40** An owner record on #6854 whose first line carries `BINDING NOW` binds at once and lapses
   48 hours after posting unless a merged PR carries it. The coordinator lists the live `BINDING NOW`
-  records at the top of its status comment (UR-166). (owner design session 2026-10-12)
+  records at the top of its status comment (UR-166). Lanes and the operator read, each tick, the
+  live records that have no row yet in `history/ruling-map.md` on `main`, filtered at the source
+  (`roles/lane.md`, "The tick", step 1). (owner design session 2026-10-12; rulings 170, 177)
 - **UR-41** Rulings 1-146 bind only through the plan files once the plan rewrite that adds this file
   merges; `history/ruling-map.md` shows where each one landed. (owner design session 2026-10-12)
 - **UR-42** Where this file and an older line in another plan file disagree, this file wins until
@@ -528,6 +530,10 @@ when a phase exits, are UR-10 (contract rule 5).
 - **UR-153** A row demoted only because the CI stack cannot reach it returns to `unverified`, its
   note saying why, and `F2.3` reaches it by the real tier or a seeded golden path; a row is ruled
   only if it fails once reachable, and that failure is a demotion in a later `R2b` round. (ruling 127)
+- **UR-181** An inventory evidence cell, whenever its row is edited, is at most three sentences
+  (about 500 characters): why the row has its status, the witness (`path:line` or the spec), and
+  the run id. Demotion history, supersessions and re-anchoring go in the PR body. A long cell is cut
+  to this shape when its row is next edited; there is no sweep. (ruling 179)
 
 ## Posting, heartbeats and the urgent path
 
@@ -546,9 +552,11 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-154** When a command fails or its answer is unclear, say that instead of stating a fact; read
   times from `date -u` or omit them, and treat GitHub's `created_at` as the record. (coordinator
   kickoff prompt; roles/owner-partner.md "Guardrails")
-- **UR-155** Heartbeats, beats, verdicts and lane notes run about 1,500 characters: what I read,
-  what I did, what comes next. Evidence goes in a collapsed `<details>` block or a link to the job
-  log, not in the body. (ruling 146)
+- **UR-155** Beats, verdicts and lane notes run about 1,500 characters: what I read, what I did,
+  what comes next. Evidence goes in a collapsed `<details>` block or a link to the job log, not in
+  the body. A heartbeat is at most 600 characters: the coordinator's as UR-38 says, a lane's or the
+  operator's as the two lines `roles/lane.md` "Heartbeat" gives plus at most one short line, with
+  detail on the PR it concerns. (rulings 146, 156, 179)
 - **UR-156** The coordinator asks an author to edit a comment that carries harness wrapper text
   (contract rule 2). (ruling 56)
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act
@@ -577,7 +585,10 @@ Read this section before you post any comment, review, heartbeat, status comment
   - **Stalled.** An agent is stalled when its heartbeat is older than three of its intervals (45
     minutes for lane and heavy agents, 90 for the operator) and it has pushed no commit and posted
     no comment since. The coordinator raises the urgent path for it, naming the agent and its open
-    PRs. (ruling 64; roles/coordinator.md "The urgent path")
+    PRs. A comment counts when it is signed by the agent (`Reviewer lane: <lane>`, or its lane
+    or sandbox name in the first line), on any PR or issue. Before a step it expects to run over 15
+    minutes, an agent beats `working #<n> · <step> since <HH:MMZ>` (`roles/lane.md`, "Before a long
+    step"). (ruling 64, 178; roles/coordinator.md "The urgent path")
 - **UR-160** A heavy agent whose queue is empty posts a final heartbeat
   `paused · queue empty (ruling 88)` and ends its turn, and the owner stops its loop. When the owner
   stops an agent, the owner's session may write its `paused` heartbeat. An agent whose heartbeat
@@ -673,6 +684,16 @@ or an agent's memory.
   `sudo npx playwright install-deps chromium`, with no record. Production Dockerfiles never gain
   browser packages, and nothing is built into the host sandbox image for this. (ruling 143;
   supersedes record 6123811294)
+- **UR-180** Each agent keeps its own sandbox's disks under 90% used. Each tick's heartbeat step
+  reads `df -h / /var/lib/docker`; above 90%, the agent removes its own leftovers in this order,
+  re-reading `df` after each and stopping once under 90%: containers and volumes of its finished or
+  killed `feature_check.py` runs (compose projects `hsi-check-*`), `docker builder prune -af`,
+  `docker image prune -f`, scratch worktrees under `/tmp` that no open PR of its own uses (then
+  `git worktree prune`), `uv cache clean`, and only then `docker system prune -af --volumes`. A
+  routine full prune before or after each run is barred: it re-pulls base images from Docker Hub,
+  whose anonymous pull limit CI has already hit. The heartbeat names a disk only while it is above
+  90%. The cleanup needs no owner approval; no agent touches another's sandbox (UR-163, UR-170).
+  (ruling 176)
 
 ## Security
 

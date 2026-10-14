@@ -11,19 +11,21 @@
 **The roster.** Each sandbox and its queue, in order. An agent claims the next package in its own
 queue (UR-52); the coordinator assigns only `heavy` packages and packages on no queue (UR-59).
 `scripts/uplevel/sandboxes.toml` declares the same sessions. Phase 3 entries wait as UR-66 says.
-The owner sets these queues; a change is a ruling.
+The owner sets these queues; a change is a ruling. Ruling 175 rebalanced `F2.3` so every lane
+works on it: packages a ruling routed after a lane's `F2.3` rows wait for them, and routed bug
+fixes (`[r130b]`, `[r130f]`) keep their place.
 
-| sandbox               | model     | queue                                                                                                                                                  | review label      |
-| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
-| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                       | none              |
-| `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                    | `review:backend`  |
-| `uplevel-frontend`    | fast      | `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-3, FE-4), `[r148a]`, `R2b` records, `F3.2`, `F3.3`  | `review:frontend` |
-| `uplevel-ops-a`       | fast      | `OB.3`, an `F2.3` UI batch, `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`                                                                                 | `review:ops-a`    |
-| `uplevel-ops-b`       | fast      | `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, an `F2.3` UI batch, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                     | `review:ops-b`    |
-| `uplevel-docs`        | fast      | `F2.3` UI batches (DO-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                               | `review:docs`     |
-| `uplevel-heavy`       | strongest | assigned `heavy` PRs without `cell:heavy-2`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused until Phase 3 opens (ruling 88)       | none              |
-| `uplevel-heavy-2`     | strongest | assigned `heavy` PRs labelled `cell:heavy-2`: `B2.3` after `O2.4`; paused until then (ruling 88)                                                       | none              |
-| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5` | none              |
+| sandbox               | model     | queue                                                                                                                                                                                                          | review label      |
+| --------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                               | none              |
+| `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                                                                            | `review:backend`  |
+| `uplevel-frontend`    | fast      | `[r165a]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews docs' FE-4), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3` | `review:frontend` |
+| `uplevel-ops-a`       | fast      | `OB.3`, `F2.3` UI (OP-1, OP-2), `[r164a]`, `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                          | `review:ops-a`    |
+| `uplevel-ops-b`       | fast      | `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger           | `review:ops-b`    |
+| `uplevel-docs`        | fast      | `[r165b]`, `F2.3` UI batches (DO-2, DO-3, then FE-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                           | `review:docs`     |
+| `uplevel-heavy`       | strongest | assigned `heavy` PRs without `cell:heavy-2`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused until Phase 3 opens (ruling 88)                                                               | none              |
+| `uplevel-heavy-2`     | strongest | assigned `heavy` PRs labelled `cell:heavy-2`: `B2.3` after `O2.4`; paused until then (ruling 88)                                                                                                               | none              |
+| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                         | none              |
 
 **Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. Each
 cell claims from its own roster queue (UR-52).
@@ -48,8 +50,26 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
-   Then read every live `BINDING NOW` record on #6854: `gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate`, keeping those whose first line starts `BINDING NOW`. Act on each that names your lane or all agents and whose required state does not already hold; one already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings 163, 170).
-2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below). Read the coordinator's; if it is older
+   Then read the live `BINDING NOW` records on #6854 that the plan files do not yet carry: run the
+   command below and read what it prints. A record whose ruling number or comment id has a row in
+   `history/ruling-map.md` on `main` is already in the plan files you just read. Act on each printed
+   record that names your lane or all agents and whose required state does not already hold; one
+   already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings
+   163, 170, 177). Never fetch the 48-hour window unfiltered.
+
+   ```bash
+   MAP=$(git show origin/main:docs/uplevel/history/ruling-map.md)
+   gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate \
+     --jq '.[] | select(.body | startswith("BINDING NOW")) | "\(.id)\t\(.body | split("\n")[0])"' |
+   while IFS=$'\t' read -r id first; do
+     n=$(grep -oE 'ruling [0-9]+' <<<"$first" | head -1 | grep -oE '[0-9]+')
+     if [ -n "$n" ] && grep -qE "^\| $n " <<<"$MAP"; then continue; fi
+     grep -qF "$id" <<<"$MAP" && continue
+     gh api "repos/<owner>/<repo>/issues/comments/$id" --jq .body; echo
+   done
+   ```
+
+2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below), and keep your disks under 90% (UR-180). Read the coordinator's; if it is older
    than 20 minutes, follow "Stale coordinator" below.
 3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
    lane's PR" below). Heavy agents skip this step.
@@ -63,7 +83,8 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 ## Heartbeat
 
 Keep your heartbeat comment on the pinned issue "Uplevel heartbeats" as UR-38 says; post it once
-if you have none. It is two lines:
+if you have none. It is two lines, plus at most one short line, and at most 600 characters in all
+(UR-155); detail goes on the PR it concerns:
 
 ```text
 <!-- heartbeat:<sandbox> -->
@@ -73,6 +94,11 @@ if you have none. It is two lines:
 Find the issue with `gh issue list --state open --search "Uplevel heartbeats in:title"`, find your
 comment by its first line, and edit it with
 `gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`.
+
+**Before a long step.** Before any step you expect to run over 15 minutes (a local test or golden
+run, a UR-89 self-review subagent), edit your heartbeat to
+`<sandbox> · <HH:MMZ> · working #<n> · <step> since <HH:MMZ>`. It is a beat, not a wait (UR-38).
+(ruling 178)
 
 **Stale coordinator.** When the coordinator's heartbeat is older than 20 minutes, act as UR-162
 says: one plain `URGENT PATH` comment on #6854 per hour, no label and no @-mention (UR-168). The

@@ -148,6 +148,19 @@ dev = [
     "snakeviz>=2.2.0",  # Visualize cProfile output as flamegraphs
     # Note: py-spy requires system installation (not pip) - install with:
     # pip install py-spy  # or cargo install py-spy
+    # ONNX export fidelity (owner ruling 157, package [r157]). ai/gateway/tests/
+    # test_export_reid_onnx_fidelity.py exports OSNet-AIN to ONNX on CPU and
+    # compares it to PyTorch at ruling 68's 0.999 gate. torch 2.14's exporter needs
+    # onnx+onnxscript to export at all, and export_reid.validate_onnx needs
+    # onnxruntime to MEASURE anything — without it the ImportError branch returns
+    # True with a warning, which is exactly how O2.4 shipped a cosine-0.23 model
+    # past a reported PASS. These are the CPU wheels (no GPU provider), so the test
+    # runs on ubuntu-latest with no CUDA. The gateway image ships the same three
+    # (ai/gateway/Dockerfile:30-32); onnxruntime here is CPUExecutionProvider only,
+    # matching the face extra's deliberate no-GPU-provider rule.
+    "onnx>=1.17",
+    "onnxscript>=0.7.0",
+    "onnxruntime>=1.16",
 ]
 # GPU quantization support (NEM-3373, NEM-3376)
 # Provides 4-bit and 8-bit quantization for LLMs via bitsandbytes

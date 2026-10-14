@@ -64,7 +64,12 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    carry each open `URGENT PATH` item (UR-166), and ask the author of a comment that carries
    harness wrapper text to edit it (UR-156).
 5. **Heartbeats.** Raise the urgent path for each stalled agent the report's heartbeats show
-   (UR-38); a `paused` agent is not stalled (UR-160). A heartbeat older than 20 minutes goes in the
+   (UR-38); a `paused` agent is not stalled (UR-160). Before raising, read the comments updated
+   since that agent's heartbeat time, repo-wide
+   (`gh api "repos/<owner>/<repo>/issues/comments?since=<heartbeat updated_at>" --paginate --jq '.[] | "\(.updated_at) \(.html_url) \(.body | split("\n")[0])"'`),
+   and the commits on its open PR branches since then. A comment signed by the agent
+   (`Reviewer lane: <lane>`, or its lane or sandbox name in the first line) or one of those commits
+   means it is not stalled; say which you read in the raise (ruling 178). A heartbeat older than 20 minutes goes in the
    status comment (UR-166).
 6. **`main`.** On the first red `CI Gate` run the report shows on `main`, follow "Red `main`" below;
    a cancelled run is not red. On the first tick after the nightly schedule, raise and route a red

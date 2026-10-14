@@ -55,7 +55,11 @@ export interface UseDebugConfigQueryOptions {
  * Return type for the useDebugConfigQuery hook
  */
 export interface UseDebugConfigQueryReturn {
-  /** Raw config response, undefined if not yet fetched */
+  /**
+   * Raw response envelope `{ config, timestamp }`, undefined until fetched.
+   * [r130f] F-158: the SETTINGS live at `data.config` — read them there, not off
+   * `data`. (`configEntries` is already derived from `data.config`.)
+   */
   data: DebugConfigResponse | undefined;
   /** Whether the initial fetch is in progress */
   isLoading: boolean;
@@ -75,15 +79,31 @@ export interface UseDebugConfigQueryReturn {
 
 /**
  * Determines if a config value is sensitive (redacted)
+ *
+ * [r130f] F-158: exact-match on purpose, and it only works at all once the
+ * entries come from `body.config`. Measured on the live stack: 17 settings answer
+ * exactly '[REDACTED]', and one (`database_url`) answers
+ * `postgresql+asyncpg://security:[REDACTED]@postgres:5432/security` — the backend
+ * masks only the password so the operator can still read host and db
+ * (`backend/api/routes/debug.py:350` _get_redacted_config). Treating that partial
+ * as "sensitive" would grey out a value the operator is meant to read, so it stays
+ * unflagged and the italic treatment stays a true statement about a masked value.
  */
 function isSensitiveValue(value: unknown): boolean {
   return value === '[REDACTED]';
 }
 
 /**
- * Converts a config object to an array of ConfigEntry
+ * Converts the response's settings map to an array of ConfigEntry.
+ *
+ * [r130f] F-158: this took `Object.entries` of the whole response body, which is
+ * the ENVELOPE `{ config, timestamp }`, so the inspector table listed 2 rows named
+ * `config` and `timestamp` instead of the 303 settings, and redaction could never
+ * fire because neither envelope value is '[REDACTED]'. Reading `.config` is the
+ * whole fix; the timestamp stays out of the table because it is not a setting.
  */
-function toConfigEntries(config: DebugConfigResponse | undefined): ConfigEntry[] {
+function toConfigEntries(body: DebugConfigResponse | undefined): ConfigEntry[] {
+  const config = body?.config;
   if (!config) {
     return [];
   }

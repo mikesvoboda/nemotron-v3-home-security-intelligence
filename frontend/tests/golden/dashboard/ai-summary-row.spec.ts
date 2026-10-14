@@ -11,35 +11,51 @@
  *   AIPerformanceSummaryRow.tsx as IndicatorCards whose value string is
  *   derived by the component's OWN code, mirrored below with cites:
  *     • Queues    = `${detectionQueueDepth + analysisQueueDepth} queued`
- *       (:374-376; the two depths come from GET /api/system/telemetry
+ *       (:420-422; the two depths come from GET /api/system/telemetry
  *       queues.*_queue, hook fallback chain useAIMetrics.ts:378-381).
- *     • Throughput = `${calculatedThroughput.toFixed(1)}/min` (:403-405;
+ *     • Throughput = `${calculatedThroughput.toFixed(1)}/min` (:445-447;
  *       throughputPerMinute = events_per_min from GET /api/system/
  *       performance inference.throughput.events_per_min — DashboardPage
- *       passes it (:505) so the totalEvents fallback at :292 never runs).
+ *       passes it (:517) so the totalEvents fallback at :338-339 never runs).
  *     • Errors    = totalErrors === 0 ? 'None' : `${totalErrors} total`
- *       (:423-424) where totalErrors = Σ hsi_pipeline_errors_total counters
- *       from the /api/metrics exposition (DashboardPage.tsx:500-502,
+ *       (:471-473) where totalErrors = Σ hsi_pipeline_errors_total counters
+ *       from the /api/metrics exposition (DashboardPage.tsx:513-516,
  *       metricsParser.ts:368 getCountersByLabel). MEASURED on the probe
  *       stack: this counter is CUMULATIVE and LIVE (+6 per 6 s, 3732→3744),
  *       so this mirror is an agreement poll — each poll re-reads
  *       /api/metrics and compares to the DOM; a persistent mismatch fails
  *       naming both values. A one-shot equality could race the counter.
- * - The fourth number is the row's break, found by reading the chain:
- *   "DLQ error count". The hook fetches GET /api/dlq/stats and maps it to
- *   state `dlqItems` (useAIMetrics.ts:309-323, :384) — and NO component on
- *   the dashboard reads that field: the row's Errors card is fed
- *   `pipelineErrors` (DashboardPage.tsx:500), never `dlqItems`; the only
- *   reader of `dlqItems` is ai/PipelineHealthPanel.tsx:105,112, which has
- *   ZERO render sites (`<PipelineHealthPanel` appears nowhere in
- *   frontend/src outside its own test — verified by grep at this head) and
- *   PipelineQueues.tsx's DLQRow renders from a DIFFERENT call
- *   (queuesStatus, :89-90, :161-162) inside a widget that is off by
- *   default. So the row shows a pipeline-errors count and NO DLQ count:
- *   the vocabulary's UI-end half-built, a fetched value no route renders.
- *   The shipped contract is MEASURED — the DLQ endpoint answers
- *   total_count 0 on the probe stack, and no dashboard element displays it.
- * - The latency cards render formatLatency(:152-157: null/undefined → '--',
+ * - The fourth number — "DLQ error count" — was the row's break and is now
+ *   FIXED (ruling 130: this bullet asserted the break; it now asserts the
+ *   fix). What was true when this spec was written: the hook fetched
+ *   GET /api/dlq/stats into `dlqItems` (useAIMetrics.ts:313, :378) and NO
+ *   rendered component read it — its only reader, ai/PipelineHealthPanel.tsx
+ *   :105,112, has zero render sites, and PipelineQueues.tsx's DLQRow reads a
+ *   DIFFERENT call (queuesStatus, :89-90, :161-162) in a widget that is off by
+ *   default. What the fix changed, and where to look:
+ *     • A sixth card, testId="dlq-indicator", in the row the clause is about:
+ *       AIPerformanceSummaryRow.tsx:497-519 — label "DLQ" (:499), value
+ *       `${totalDlqItems} parked` / "None" at zero (:500), status from
+ *       getDlqStatus (:185, stricter than getErrorStatus: 1 parked is already
+ *       yellow, ≥10 red, because a parked job is a CURRENT condition rather
+ *       than a cumulative counter).
+ *     • Fed from the field that always existed: DashboardPage.tsx:521
+ *       `dlqCounts: aiMetrics.dlqItems`.
+ *     • The card's total is the same arithmetic the API uses: the component
+ *       sums the map (:334), and backend/services/retry_handler.py:628 sets
+ *       total_count = detection_count + analysis_count. The hook drops
+ *       zero-valued keys (useAIMetrics.ts:315-322), so summing `dlqItems`
+ *       reproduces total_count exactly rather than approximately.
+ *   WHY THIS SPEC CANNOT PROVE THE WIRE, AND WHAT DOES: on the golden stack
+ *   the DLQ is empty, and an empty DLQ renders "None" whether the wire is live
+ *   or the card is a hardcoded "None". So test 2 below asserts the card
+ *   EXISTS, is the row's only DLQ surface, and agrees with the endpoint's own
+ *   number — and the load-bearing falsification of the WIRING lives in
+ *   DashboardPage.test.tsx ("passes the hook DLQ counts through to the AI
+ *   summary row"), which fakes dlqItems={detection:3, analysis:2} and asserts
+ *   data-dlq-total="5". That test was mutation-controlled: deleting
+ *   DashboardPage.tsx:521 turns it RED.
+ * - The latency cards render formatLatency(:194-199: null/undefined → '--',
  *   < 1 → '< 1ms', < 1000 → `${round}ms`) over latency?.avg_ms with the
  *   hook's documented preference (useAIMetrics.ts:328-357): Prometheus
  *   histogram first (metricsParser.ts:343-361 reads
@@ -91,7 +107,7 @@ interface DlqStats {
   total_count: number;
 }
 
-/** Mirror of AIPerformanceSummaryRow.tsx:152-157 (the card's own number→string rule). */
+/** Mirror of AIPerformanceSummaryRow.tsx:194-199 (the card's own number→string rule). */
 function formatLatency(ms: number | null | undefined): string {
   if (ms === null || ms === undefined) return '--';
   if (ms < 1) return '< 1ms';
@@ -100,7 +116,7 @@ function formatLatency(ms: number | null | undefined): string {
 }
 
 /** Σ of hsi_pipeline_errors_total{...} lines in the /api/metrics exposition —
- * the exact family metricsParser.ts:368 feeds DashboardPage.tsx:500's sum. */
+ * the exact family metricsParser.ts:368 feeds DashboardPage.tsx:513's sum. */
 function sumPipelineErrors(exposition: string): number {
   let total = 0;
   for (const line of exposition.split('\n')) {
@@ -215,7 +231,7 @@ test.describe('golden path: dashboard AI summary row @critical', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test('F-038: the row\'s "DLQ error count" clause ships with no DLQ element — half-built evidence', async ({
+  test('F-038: the row renders its DLQ count — the card the clause promised (ruling 130 flip)', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -225,32 +241,64 @@ test.describe('golden path: dashboard AI summary row @critical', () => {
 
     await openDashboard(page, h);
     const session = await adminSession(h);
+    const row = page.getByTestId('ai-summary-row');
+    await expect(row, 'the AI summary row is on by default').toBeVisible({ timeout: 15_000 });
 
-    // The endpoint the clause names ANSWERS (its own numbers come from it):
-    const dlq = await api<DlqStats>(h, session, '/api/dlq/stats');
-    expect(
-      dlq.total_count,
-      'the probe/golden stack keeps the DLQ empty (total_count 0)'
-    ).toBeGreaterThanOrEqual(0);
+    // THE FLIP. This test used to assert `dlqShown === 0` — that no element
+    // anywhere on the dashboard mentioned a dead-letter queue, which was the
+    // measured shipped contract and the row's half-built evidence. Now it
+    // asserts the opposite: the word is on screen, on a card, carrying the
+    // endpoint's own number. Same boot, same endpoint read, inverted polarity.
+    const card = row.getByTestId('dlq-indicator');
+    await expect(card, 'the row renders a DLQ card').toBeVisible();
 
-    // …and the SHIPPED dashboard renders NO DLQ value anywhere: the summary
-    // row's Errors card is fed pipelineErrors (DashboardPage.tsx:500), never
-    // dlqItems (useAIMetrics.ts:384), whose only reader
-    // (ai/PipelineHealthPanel.tsx:105) has zero render sites. This asserts
-    // the MEASURED shipped contract so the row tells the truth about what
-    // exists. A fix (surface dlqItems in a card, or fold DLQ totals into
-    // totalErrors with the row's wording fixed) flips THIS red on purpose:
-    // it will start finding an element carrying dlq.total_count.
-    const rowText = await flat(page.getByTestId('ai-summary-row'));
-    const dlqShown = await page.getByText(new RegExp(`dlq|dead[- ]letter`, 'i')).count();
-    expect(
-      dlqShown,
-      'no DLQ/dead-letter element exists on the dashboard — the row clause ' +
-        '"DLQ error count" is not rendered (the Errors card shows Σ ' +
-        'hsi_pipeline_errors_total instead); row must stay half-built until a ' +
-        'card renders /api/dlq/stats total_count'
-    ).toBe(0);
-    expect(rowText, 'the visible row still mirrors three real numbers').toContain('queued');
+    // The card mirrors GET /api/dlq/stats total_count, in the card's own
+    // wording (AIPerformanceSummaryRow.tsx:500). Polled rather than compared
+    // once because these are CURRENT counts — a job moving to the DLQ between
+    // the API read and the DOM read would fail a one-shot equality, exactly
+    // like the cumulative Errors mirror in test 1. On this stack the DLQ is
+    // empty, so the steady state is 'None'; a non-empty DLQ is still asserted
+    // against the endpoint rather than a literal.
+    await expect
+      .poll(
+        async () => {
+          const dlq = await api<DlqStats>(h, session, '/api/dlq/stats');
+          const want = dlq.total_count === 0 ? 'None' : `${dlq.total_count} parked`;
+          const dom = await flat(card);
+          return dom.includes(want) ? 'agree' : `dom="${dom}" want="${want}"`;
+        },
+        {
+          message: 'dlq-indicator mirrors /api/dlq/stats total_count',
+          timeout: 25_000,
+          intervals: [1_000],
+        }
+      )
+      .toBe('agree');
+
+    // The clause is about THIS row, so the card must be the row's own child —
+    // not a widget elsewhere that happens to mention DLQs (PipelineQueues'
+    // DLQRow reads a different endpoint and is off by default, so it would
+    // satisfy a page-wide search while leaving this row's clause false).
+    const dlqInRow = await row.getByText(/^DLQ$/).count();
+    expect(dlqInRow, 'the DLQ label is inside ai-summary-row, not a page-wide match').toBe(1);
+
+    // The row's own shape: six indicators, the sixth being this one. The
+    // pre-fix row had five and the fifth (Errors) was the only error-looking
+    // card, fed pipelineErrors — so counting here is what distinguishes "a
+    // DLQ was folded into Errors" from "a DLQ count exists".
+    const cards = await row.locator('[data-testid$="-indicator"]').count();
+    expect(cards, 'the row now carries six indicators').toBe(6);
+
+    // The pre-fix assertions still hold where they should: Errors is still the
+    // cumulative pipeline count and is NOT the DLQ number wearing a hat.
+    const errors = await flat(row.getByTestId('errors-indicator'));
+    const dlqText = await flat(card);
+    expect(errors, 'the Errors card still mirrors pipeline errors').toMatch(/None|total/);
+    expect(dlqText).not.toBe(errors);
+
+    // The rest of the row is untouched by this fix.
+    const rowText = await flat(row);
+    expect(rowText, 'the row still mirrors its queue-depth number').toContain('queued');
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });

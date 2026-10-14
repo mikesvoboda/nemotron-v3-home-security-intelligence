@@ -126,6 +126,32 @@ describe('parseInventory', () => {
     expect(inv.rows[1].status).toBe('half-built');
   });
 
+  it('claims a route whose last segment is a path param (ruling 167)', () => {
+    // Owner ruling 167 gave `App.tsx` its first parameterized route, and the
+    // coverage test ("maps every route App.tsx declares to a row") compares
+    // App.tsx's own path strings against this cell's spans. Until this change the
+    // surface cell could not EXPRESS `/events/:eventId` at all, so a row could not
+    // claim a parameterized route even when it owned it.
+    const md =
+      HEADER +
+      '| F-001 | Panel `/` `/events/:eventId` | a | — | — | unverified | ok | `src/A.tsx` | — | | |\n';
+    expect(lib.parseInventory(md).rows[0].routes).toEqual(['/', '/events/:eventId']);
+  });
+
+  it('does not read a near-miss of a parameterized route as a route claim', () => {
+    // The widening above is a RECOGNITION rule, so each extra character class is a
+    // standing decision about what a row may claim. These are the shapes a
+    // hand-written cell could plausibly produce that stay unclaimed: a param that
+    // is the whole path (no static prefix to arrive at), two params (a second
+    // route's row to claim), an empty name, a react-router optional marker, and a
+    // query URL (which is a destination, not a route the app declares).
+    const md =
+      HEADER +
+      '| F-001 | Panel `/:id` `/events/:a/:b` `/events/:` `/events/:x?` `/timeline?event=` | a ' +
+      '| — | — | unverified | ok | `src/A.tsx` | — | | |\n';
+    expect(lib.parseInventory(md).rows[0].routes).toEqual([]);
+  });
+
   it('reads the modules-serving-no-feature table separately from feature rows', () => {
     const md =
       HEADER +
