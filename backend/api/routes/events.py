@@ -546,7 +546,17 @@ async def list_events(
             "thumbnail_url": thumbnail_url,
             # P0.4: None for legacy events; dropped from the payload by the
             # schema's exclude_if (spec §4: legacy carries NO verification key)
-            "verification": verification_payload(event),
+            # [r95] S4: a scoped key gets that same None. `verification` is not
+            # a bookkeeping field -- it renders the verifier VLM's own prose
+            # (`scene_description`, and each criterion's `evidence`;
+            # schemas/event_verification.py:51,:34, written from
+            # services/vlm_analyzer.py:695), which is the class of text S4's
+            # "no reasoning" names, and 0 hits for `verification` anywhere
+            # under monitoring/ means no scoped consumer reads it. The clamp
+            # drops rather than nulls, which is safe here precisely because the
+            # schema already strips a None (the line above), so the response is
+            # the legacy shape rather than a half-built object.
+            "verification": None if key_ceiling is True else verification_payload(event),
             # ISS-001: the persisted notify decision. None (no row) is dropped
             # below by the EventListResponse revalidation: the dict is
             # re-validated against EventResponse, whose exclude_if strips the

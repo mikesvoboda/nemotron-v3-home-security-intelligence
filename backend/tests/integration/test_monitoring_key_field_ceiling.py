@@ -55,6 +55,7 @@ from backend.core.config import get_settings
 from backend.core.database import get_session
 from backend.models.camera import Camera
 from backend.models.event import Event
+from backend.models.event_verification import EventVerification
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -73,6 +74,13 @@ _KEY_HEADER = "X-API-Key"
 # optional. A subset omitting a required field 500s for a reason unrelated to
 # this package (pinned at test_events_api.py:407-411).
 SAFE_SPARSE_WITH_REASONING = "id,camera_id,started_at,reasoning"
+# S4's third leak, found by the security audit of this clamp: `verification`
+# carries the VLM's own prose (`scene_description`, plus each criterion's
+# `evidence`), which is the same class of text as `reasoning`, and 0 hits for
+# `verification` anywhere under monitoring/ — no scoped consumer reads it.
+# Seed both members, because a clamp that nulls the payload has to stop BOTH.
+SCENE_TEXT = "the verifier model described a person at the front door"  # pragma: allowlist secret
+EVIDENCE_TEXT = "verifier evidence: parcel visible on the porch step"  # pragma: allowlist secret
 
 
 def _scoped_entry() -> str:
@@ -112,8 +120,13 @@ def keyless(client: AsyncClient) -> AsyncClient:
     return client
 
 
-async def _seed_pair(camera_id: str) -> tuple[int, int]:
+async def _seed_pair(camera_id: str, *, with_verification: bool = False) -> tuple[int, int]:
     """One live event carrying REASONING_TEXT and one soft-deleted twin.
+
+    `with_verification` also hangs an EventVerification row on the live event,
+    because `verification` is a second VLM-prose member of the same response
+    (its payload renders from the newest row, so seeding one is what makes the
+    field non-null by default rather than null-by-absence).
 
     Returns (live_id, deleted_id).
     """
@@ -148,6 +161,19 @@ async def _seed_pair(camera_id: str) -> tuple[int, int]:
         db.add_all([live, deleted])
         await db.flush()
         ids = (live.id, deleted.id)
+        if with_verification:
+            db.add(
+                EventVerification(
+                    event_id=live.id,
+                    verdict="confirmed",
+                    engine="llama.cpp",
+                    model_id="qwen3-vl-4b",
+                    scene_description=SCENE_TEXT,
+                    criteria=[
+                        {"name": "person_present", "passed": True, "evidence": EVIDENCE_TEXT}
+                    ],
+                )
+            )
         await db.commit()
     return ids
 
@@ -232,6 +258,53 @@ class TestScopedKeyFieldCeiling:
             "S4's ceiling: include_deleted is not an admitted capability of the "
             "monitoring grant, so it must not widen the row set"
         )
+
+    async def test_scoped_key_sees_no_verification_prose(
+        self, keyless: AsyncClient, gate_armed: None, clean_tables: None
+    ) -> None:
+        """`verification` is VLM prose too, so it falls under the same ceiling.
+
+        Witnessed on the RAW BODY, deliberately. This clamp drops the payload
+        rather than nulling a scalar, and `EventVerificationPayload`/
+        `EventResponse` strip a None `verification` from the payload entirely —
+        so key presence says nothing here either way, and the only assertion
+        that survives the schema is that neither seeded string is anywhere in
+        what went out. Same lesson as the module docstring's `reasoning` note,
+        one layer deeper.
+        """
+        live_id, _ = await _seed_pair("r95s4_scoped_verify", with_verification=True)
+
+        response = await keyless.get("/api/events", headers={_KEY_HEADER: SCOPED_KEY})
+        assert response.status_code == 200, response.text
+        rows = _rows(response.json())
+        assert live_id in rows, "the leg must still be served, not refused"
+        assert SCENE_TEXT not in response.text, "S4's ceiling: no verifier prose for the grant"
+        assert EVIDENCE_TEXT not in response.text, (
+            "criteria[].evidence carries the same class of text as "
+            "scene_description; nulling only the scene would leak it"
+        )
+
+    async def test_unscoped_key_still_gets_verification_prose(
+        self, keyless: AsyncClient, gate_armed: None, clean_tables: None
+    ) -> None:
+        """Control: the field is really served by default, so the leg above is not vacuous.
+
+        Without this the scoped assertion could be green because the seed never
+        produced a payload at all. This one pins the shape too — the row's
+        `verification.scene_description` is the seeded text.
+        """
+        live_id, _ = await _seed_pair("r95s4_plain_verify", with_verification=True)
+
+        response = await keyless.get("/api/events", headers={_KEY_HEADER: PLAIN_KEY})
+        assert response.status_code == 200, response.text
+        rows = _rows(response.json())
+        verification = rows[live_id].get("verification")
+        assert verification is not None, (
+            "the seed must produce a served payload; got the row without one: "
+            f"{sorted(rows[live_id])}"
+        )
+        assert verification["scene_description"] == SCENE_TEXT
+        assert verification["criteria"][0]["evidence"] == EVIDENCE_TEXT
 
     async def test_unscoped_key_include_deleted_still_widens_rows(
         self, keyless: AsyncClient, gate_armed: None, clean_tables: None
