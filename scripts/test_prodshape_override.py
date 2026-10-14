@@ -54,6 +54,14 @@ NAME_VAR = "HSI_TEST_NAME_PREFIX"
 # token itself is feature_check.prod_shape_env's job; test_a_pinned_name_carries_the_run_token_...
 # renders with two different tokens and requires the name sets to be disjoint.
 DRIFT_NAME_PREFIX = "audit-"
+# prod.yml declares TWO profiles (measured: `profiles:` at docker-compose.prod.yml:284 and :1535).
+# The guard renders both, because the file it must cover is not the file a profile-less render
+# shows: `gpu-rootful` adds dcgm-exporter (a PIN and a published 9400) and `vllm` adds ai-llm-vllm
+# (unpinned, publishes 8097). On a GPU host the profile-less 6-of-7 coverage would leave both
+# services pointing at prod's host ports next to production's own.
+GPU_PROFILE = "gpu-rootful"
+VLLM_PROFILE = "vllm"
+ALL_PROFILES = (GPU_PROFILE, VLLM_PROFILE)
 # measured: collides with no prod port, stays under the 32768 Linux ephemeral band
 # (max prod 14318 -> 29318)
 PORT_OFFSET = 15000
@@ -73,8 +81,10 @@ SOCKET_SENTINEL = ENV["PODMAN_SOCKET"]
 # The complement form (not under RUN_ROOT) cannot miss a path nobody thought to list.
 
 
-def _compose(files: list[Path]) -> dict:
+def _compose(files: list[Path], profiles: tuple[str, ...] = ()) -> dict:
     cmd = ["docker", "compose", "-p", "prodshape-audit", "--project-directory", str(REPO)]
+    for pf in profiles:
+        cmd += ["--profile", pf]
     for f in files:
         cmd += ["-f", str(f)]
     cmd += ["config", "--format", "json"]
@@ -95,7 +105,11 @@ def _norm(value: object) -> str:
 
 
 def _volkey(v: dict):
-    return (v["type"], _norm(v["source"]), v["target"], bool(v.get("read_only")))
+    bind = v.get("bind") or {}
+    return (
+        v["type"], _norm(v["source"]), v["target"], bool(v.get("read_only")),
+        bind.get("selinux"), bind.get("create_host_path"),
+    )
 
 
 def _portkey(p: dict):
@@ -162,6 +176,63 @@ def prod_services() -> dict:
 @pytest.fixture(scope="module")
 def merged_services() -> dict:
     return _compose([PROD, OVERRIDE])
+
+
+@pytest.fixture(scope="module")
+def gpu_prod_services() -> dict:
+    """The leg a GPU host actually boots: gpu-rootful adds dcgm-exporter (prod PINS it and
+    publishes 9400) and vllm adds ai-llm-vllm (unpinned, publishes 8097). A profile-less render
+    cannot see either, so the profile-less legs above cannot guard them — yet ruling 162 item 3
+    and packages/ops.md:176 both say the override handles 'the 7 pinned container_names', and
+    UR-133 says every published port gets the offset. Six of seven is not seven."""
+    return _compose([PROD], ALL_PROFILES)
+
+
+@pytest.fixture(scope="module")
+def gpu_merged_services() -> dict:
+    return _compose([PROD, OVERRIDE], ALL_PROFILES)
+
+
+def test_the_override_changes_no_service_set(prod_services, merged_services):
+    """`_changed_keys` iterates the INTERSECTION of the two service sets, so a service the
+    override ADDS or DROPS is invisible to every delta assertion above — an override that started
+    a new container, or silently dropped one prod runs, would pass them all. The service set is
+    the one thing the override must never touch: ruling 162 item 3 permits three kinds of KEY
+    change on services that already exist, and says nothing about adding a service."""
+    assert set(merged_services) == set(prod_services), (
+        f"override changed the rendered service set: "
+        f"added={sorted(set(merged_services) - set(prod_services))} "
+        f"dropped={sorted(set(prod_services) - set(merged_services))}"
+    )
+
+
+def test_the_profiled_leg_is_covered_too(gpu_prod_services, gpu_merged_services):
+    """The drift assertion, re-run on the leg with prod's profiles enabled. Every service a GPU
+    or vllm host brings up must clear the same policy: a pinned name gets the run token, every
+    published port gets the offset, no writable bind escapes the run, and the service set is
+    unchanged. This is the leg the GPU host runs and the profile-less render cannot check."""
+    assert set(gpu_merged_services) == set(gpu_prod_services), (
+        f"override changed the profiled service set: "
+        f"added={sorted(set(gpu_merged_services) - set(gpu_prod_services))} "
+        f"dropped={sorted(set(gpu_prod_services) - set(gpu_merged_services))}"
+    )
+    observed = _changed_keys(gpu_prod_services, gpu_merged_services)
+    expected = expected_changed_keys(gpu_prod_services)
+    missing = {n: sorted(set(k) - set(observed.get(n, []))) for n, k in expected.items()
+               if set(k) - set(observed.get(n, []))}
+    extra = {n: sorted(set(k) - set(expected.get(n, []))) for n, k in observed.items()
+             if set(k) - set(expected.get(n, []))}
+    assert not missing, f"profiled services the override fails to neutralise: {missing}"
+    assert not extra, f"override changed keys the profiled policy does not explain: {extra}"
+    for n, svc in gpu_merged_services.items():
+        pin = gpu_prod_services[n].get("container_name")
+        if pin:
+            assert svc.get("container_name") == RUN_PREFIX + DRIFT_NAME_PREFIX + pin, \
+                f"{n}: profiled pin not prefixed: {svc.get('container_name')!r}"
+        prod_pub = {str(p["target"]) for p in gpu_prod_services[n].get("ports", [])}
+        for p in svc.get("ports", []):
+            assert str(p["published"]) not in prod_pub, \
+                f"{n}: profiled port {p['published']} reuses a prod target"
 
 
 # ---------------------------------------------------------------- the main assertion -----------
@@ -314,7 +385,7 @@ def test_no_writable_host_bind_outside_the_run(prod_services, merged_services):
     bad = [(n, str(v["source"]), str(v["target"]))
            for n, svc in merged_services.items() for v in svc.get("volumes", [])
            if str(v.get("type")) == "bind" and not v.get("read_only")
-           and not _norm(v["source"]).startswith(RUN_ROOT)]
+           and not _norm(v["source"]).startswith(RUN_ROOT + "/")]
     assert not bad, f"writable host bind outside the run survives: {bad}"
 
 
@@ -500,3 +571,87 @@ def test_the_generated_boot_file_rebinds_its_objects_to_the_live_project(tmp_pat
 
 if __name__ == "__main__":   # pragma: no cover
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# ------------------------------------------------- B2: removal is not the same as redirect -----
+def _writable_outside_run(prod: dict) -> dict[str, list[dict]]:
+    """{svc: the prod mounts the policy says must be REDIRECTED under the run root}.
+    Sockets are excluded, and the exclusion is code, not prose: the engine socket IS a writable
+    bind outside the run by _is_writable_outside_run's definition (measured -- alloy's
+    socket:socket mount satisfies it), and the policy's rule for it is DROP, not redirect.
+    Conflating the two makes the guard demand a run-root redirect for a mount UR-134 forbids
+    outright."""
+    return {
+        n: [v for v in svc.get("volumes", []) if _is_writable_outside_run(v) and not _is_socket(v)]
+        for n, svc in prod.items()
+        if any(
+            _is_writable_outside_run(v) and not _is_socket(v) for v in svc.get("volumes", [])
+        )
+    }
+
+
+def test_every_writable_prod_bind_is_redirected_at_its_own_target(
+    prod_services, merged_services
+):
+    """must-ignore side of the two-sided control: the shipped override redirects EVERY writable
+    prod bind, at the same target, to a path under the run root.
+
+    This is the level the key-name guard cannot see. _changed_keys compares per (service, key),
+    so once a service is EXPECTED to change `volumes` -- which every service with a writable bind
+    is -- the CONTENT of that change is unexamined. Measured: the override restates each such
+    service's whole list under `!override`, which REPLACES it, so a bind a later prod change adds
+    is silently ABSENT from the boot document rather than redirected, and the observed delta still
+    equals the prediction, so the leg stays green on a production change nobody reviewed. Dropping
+    a writable bind is not compliance; the run must still be able to write there."""
+    for n, want in _writable_outside_run(prod_services).items():
+        after = {_volkey(v): v for v in merged_services[n].get("volumes", [])}
+        for v in want:
+            tgt = str(v["target"])
+            redirects = [
+                m for m in merged_services[n].get("volumes", [])
+                if str(m["target"]) == tgt
+                and str(m.get("type")) == "bind"
+                and not m.get("read_only")
+                and _norm(m.get("source")).startswith(RUN_ROOT + "/")
+            ]
+            assert redirects, (
+                f"{n}: prod's writable bind at {tgt} ({_norm(v['source'])}) has no redirect under "
+                f"{RUN_ROOT}/ in the boot document -- the override restates this service's volume "
+                f"list wholesale, so an uncovered new bind DISAPPEARS rather than being redirected. "
+                f"Extend scripts/uplevel/docker-compose.prodshape.yml."
+            )
+            assert after, f"{n}: no volumes survive the override at all"
+
+
+def test_an_uncovered_new_writable_bind_is_caught(prod_services, merged_services):
+    """must-catch side: a writable bind added to prod AFTER the override was authored, on a
+    service the override already restates, MUST make the guard disagree. The existing
+    test_uncovered_prod_change_is_caught plants on a service the override does NOT restate; this
+    plants where that test's structure cannot reach, which is where the real drift lands."""
+    test_every_writable_prod_bind_is_redirected_at_its_own_target(
+        prod_services, merged_services
+    )  # precondition: the shipped pair is compliant
+    # a service the override ALREADY restates -- i.e. one whose volumes the policy expects to
+    # change. That is precisely where the key-name comparison is blind.
+    cand = next(n for n in sorted(prod_services) if "volumes" in expected_changed_keys(prod_services).get(n, []))
+    planted = {
+        "type": "bind", "source": "/export/planted-after-the-override", "target": "/planted",
+        "read_only": False,
+    }
+    tampered_prod = copy.deepcopy(prod_services)
+    tampered_prod[cand]["volumes"].append(dict(planted))
+    # The override restates the list, so the planted bind is absent from the merged render --
+    # exactly what compose produces when the override has not been extended.
+    tampered_merged = copy.deepcopy(merged_services)
+    assert dict(planted) not in tampered_merged[cand]["volumes"]
+    with pytest.raises(AssertionError, match="/planted"):
+        test_every_writable_prod_bind_is_redirected_at_its_own_target(
+            tampered_prod, tampered_merged
+        )
+    # and the key-level guard is provably BLIND at this position, which is why the test above
+    # exists: a vanished mount and a redirected mount both read as "volumes changed", so the
+    # guard's whole-document verdict on the tampered pair is still "fully compliant". If this
+    # assert ever fails, _changed_keys has become content-aware and this companion test can go.
+    assert _changed_keys(tampered_prod, tampered_merged) == expected_changed_keys(tampered_prod), (
+        "the key-level guard now DISAGREES with itself on the tampered pair, so it is no longer "
+        "blind here -- re-check whether this companion test is still needed")

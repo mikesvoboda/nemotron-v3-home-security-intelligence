@@ -15,12 +15,15 @@
 #   UR-134  drop the container-engine socket mount from backend and alloy (the two services
 #           ruling 162 names; both interpolate ${PODMAN_SOCKET}, alloy into source AND target)
 #   UR-133  container_name -> "hsi-test-" + ${HSI_TEST_NAME_PREFIX} + the prod value, for every
-#           service the render PINS. prod.yml spells 7 container_names, but only 6 are visible to
-#           a profile-less render (measured): dcgm-exporter sits behind the `gpu-rootful` profile,
-#           and neither the runner nor the drift test passes --profile, so it never comes up and
-#           cannot collide. That is also the drift test's coverage boundary: a pin added to a
-#           PROFILED service is invisible to it. A service the render does not pin gets no
-#           container_name — adding a pin where the render has none would be a key change.
+#           service the render PINS. prod.yml spells 7 container_names (measured). Six appear in a
+#           profile-less render; the seventh, dcgm-exporter, sits behind the `gpu-rootful` profile.
+#           The drift test renders BOTH of prod's profiles (test_prodshape_override.ALL_PROFILES)
+#           precisely because a profile-less render cannot check a profiled service: it would see
+#           6 pins, predict 6 changes, and pass on a file that leaves the 7th name unprefixed.
+#           A service the render does not pin gets no container_name — adding a pin where the
+#           render has none would be a key change, not a prefix (test_the_override_changes_no_
+#           service_set also forbids the override adding or dropping a service outright, which the
+#           delta comparison cannot see: it iterates the intersection of the two service sets).
 #           Why the token, and why `:?`: a pinned container_name is NOT namespaced by the compose
 #           project — measured on v5.5.1, booting the same pin from two `-p` projects fails with
 #           `Conflict. The container name "/x" is already in use by container <id>`. So a constant
@@ -30,7 +33,9 @@
 #           unset plain var only warns and interpolates EMPTY (measured), which would silently
 #           rejoin the colliding set; `:?` exits 1 and names itself.
 #   UR-133  every published port -> host_ip : (prod published + 15000) : same target. Measured:
-#           +15000 collides with no prod port and stays below the 32768 ephemeral band.
+#           +15000 collides with no prod port and stays below the 32768 ephemeral band. Includes
+#           the two ports behind prod's profiles (dcgm-exporter 9400, ai-llm-vllm 8097): on a GPU
+#           host an un-offset 9400 would collide with production's own published 9400.
 #   B5      every WRITABLE host bind is redirected under ${PROD_SHAPE_RUN_ROOT}; read-only binds
 #           and named volumes are kept EXACTLY as prod (UR-134 forbids only a writable bind
 #           outside the run, and alloy needs /sys + /host/proc to function).
@@ -62,9 +67,9 @@ services:
   # isolated by the run's own compose project), so it gets none here either.
   backend:
     volumes: !override # 6 prod mounts: socket dropped, 2 writable binds
-      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/backend-data:/app/data #   redirected under the run,
-      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras #   2 read-only binds + the
-      - /export/ai_models/model-zoo:/models/model-zoo:ro #   compose file kept as prod
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/backend-data:/app/data:z #   redirected under the run,
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras:z #   2 read-only binds + the
+      - /export/ai_models/model-zoo:/models/model-zoo:ro,z #   compose file kept as prod
       - /home/ubuntu/.cache/huggingface:/models/huggingface-cache:ro
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
       # REMOVED (UR-134): ${PODMAN_SOCKET}:/var/run/podman/podman.sock
@@ -74,7 +79,7 @@ services:
   alloy:
     container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}alloy' # UR-133 run prefix (prod pins "alloy")
     volumes: !override # socket (source==target==socket) dropped; the rest
-      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro #   kept byte-identical to
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z #   kept byte-identical to
       - /sys/kernel/debug:/sys/kernel/debug:ro #   prod: 3 read-only system
       - /sys/fs/cgroup:/sys/fs/cgroup:ro #   binds, 1 named volume,
       - /proc:/host/proc:ro #   1 read-only repo file
@@ -131,11 +136,27 @@ services:
 
   foscam-init:
     volumes: !override # 1 prod mount: the writable camera path
-      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras:z
 
   ai-vlm:
     ports: !override
       - '127.0.0.1:23098:8098'
+
+  # ---- behind a PROFILE: invisible to a profile-less render, still covered here ----
+  # prod declares two profiles (docker-compose.prod.yml:284 `vllm`, :1535 `gpu-rootful`) and both
+  # add a service that needs this file. The drift test renders with BOTH enabled
+  # (test_prodshape_override.ALL_PROFILES), so these two blocks are guarded; a profile-less render
+  # would not see them and could not check them.
+
+  dcgm-exporter: # profile gpu-rootful. The 7th pin ruling 162 item 3 counts.
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}dcgm-exporter'
+    ports: !override
+      - '127.0.0.1:24400:9400' # 9400 + 15000. Its one mount is a read-only bind, kept as prod.
+
+  ai-llm-vllm: # profile vllm. prod does NOT pin it, so it gets no container_name (a pin where
+    ports: !override #   prod has none would be a key change, not a prefix).
+      - '127.0.0.1:23097:8000' # prod publishes 8097 -> 23097; both binds stay as prod (one named
+                               #   volume, one read-only)
 
   alertmanager:
     ports: !override
