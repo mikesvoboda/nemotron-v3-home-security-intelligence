@@ -1,6 +1,7 @@
 """[r162] The engine socket follows the orchestrator setting.
 
-Done-when (`docs/uplevel/packages/ops.md:450-452`, ruling 162 `6156947315`), rendered contract:
+Done-when (`docs/uplevel/packages/ops.md:450-451` — the file is 451 lines, ruling 162 `6156947315`),
+rendered contract:
 
   1. a production config rendered with the orchestrator OFF mounts NO engine socket;
   2. one with it ON mounts it as before;
