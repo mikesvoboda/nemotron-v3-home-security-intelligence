@@ -82,12 +82,27 @@ named volumes are kept verbatim. `limits` are absent on purpose: ruling 162 item
 runtime decision the runner records, so keeping them out of the committed file is what makes the
 delta the static, assertable part.
 
+That variable is interpolated **required** (`${VAR:?…}`), and that is a safety property, not
+tidiness: a bare `${VAR}/cameras` with the variable unset interpolates to `/cameras` and compose
+only _warns_ ("variable is not set. Defaulting to a blank string"). Measured on the first version
+of this file: a forgotten `PROD_SHAPE_RUN_ROOT` rendered writable binds at the filesystem root
+(`/cameras`, `/backend-data`, `/triton-cache`, `/hf-cache`) — a UR-133/134 breach that writes
+outside the run directory on a host that may run the live stack, silently. `test_override_refuses_
+to_render_without_the_run_root` pins the refusal.
+
+Two compose/YAML traps in the same file, both measured: a `:?` message must not contain a colon
+followed by a space, because YAML reads `key: value` inside an otherwise-plain scalar and each
+volume entry silently becomes a one-key mapping; and a comment inside a folded YAML scalar is
+literal text (see `test_check_gate_reachability`). `test_prodshape_override.py` renders the file
+through the compose CLI, so it is the oracle that catches either corruption — a bare `yaml.safe_load`
+cannot even parse it (the `!override`/`!reset` tags are compose's).
+
 The override is **hand-authored, never generated.** A generator would derive it from the prod
 render, the override would always match prod, and the CI test could never fail - which is precisely
 the failure ruling 162 asks to be possible. `scripts/test_prodshape_override.py` is that test: it
 renders prod and prod+override with `docker compose config` (CPU-only, daemon-free - client-side
 interpolation and schema validation, nothing starts, so UR-133/134/135 are respected by
-construction) and asserts the *observed* delta equals an *expected* delta derived from a policy
+construction) and asserts the _observed_ delta equals an _expected_ delta derived from a policy
 that never reads the override file. It is wired into `collection-sanity`'s pytest list, where it
 costs 0.31 s.
 

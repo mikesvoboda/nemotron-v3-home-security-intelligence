@@ -44,121 +44,120 @@
 # podman's Docker-compatible API socket.
 
 services:
-
   # ---- the two services that mount the engine socket (UR-134) ----
 
   # backend has NO pinned container_name in prod (it auto-names `<project>-backend-1`, already
   # isolated by the run's own compose project), so it gets none here either.
   backend:
-    volumes: !override                          # 6 prod mounts: socket dropped, 2 writable binds
-      - ${PROD_SHAPE_RUN_ROOT}/backend-data:/app/data                #   redirected under the run,
-      - ${PROD_SHAPE_RUN_ROOT}/cameras:/cameras                      #   2 read-only binds + the
-      - /export/ai_models/model-zoo:/models/model-zoo:ro             #   compose file kept as prod
+    volumes: !override # 6 prod mounts: socket dropped, 2 writable binds
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/backend-data:/app/data #   redirected under the run,
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras #   2 read-only binds + the
+      - /export/ai_models/model-zoo:/models/model-zoo:ro #   compose file kept as prod
       - /home/ubuntu/.cache/huggingface:/models/huggingface-cache:ro
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
       # REMOVED (UR-134): ${PODMAN_SOCKET}:/var/run/podman/podman.sock
     ports: !override
-      - "127.0.0.1:23000:8000"                  # 8000 + 15000
+      - '127.0.0.1:23000:8000' # 8000 + 15000
 
   alloy:
-    container_name: hsi-test-alloy              # UR-133 run prefix (prod pins "alloy")
-    volumes: !override                          # socket (source==target==socket) dropped; the rest
-      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro   #   kept byte-identical to
-      - /sys/kernel/debug:/sys/kernel/debug:ro                       #   prod: 3 read-only system
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro                             #   binds, 1 named volume,
-      - /proc:/host/proc:ro                                          #   1 read-only repo file
+    container_name: hsi-test-alloy # UR-133 run prefix (prod pins "alloy")
+    volumes: !override # socket (source==target==socket) dropped; the rest
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro #   kept byte-identical to
+      - /sys/kernel/debug:/sys/kernel/debug:ro #   prod: 3 read-only system
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro #   binds, 1 named volume,
+      - /proc:/host/proc:ro #   1 read-only repo file
       - alloy_symb_cache:/tmp/symb-cache
       # REMOVED (UR-134): ${PODMAN_SOCKET}:${PODMAN_SOCKET}
     ports: !override
-      - "127.0.0.1:27345:12345"
-      - "127.0.0.1:29317:4317"                  # prod PUBLISHES 14317 here (not 4317): +15000
-      - "127.0.0.1:29318:4318"                  # prod publishes 14318 -> 29318
+      - '127.0.0.1:27345:12345'
+      - '127.0.0.1:29317:4317' # prod PUBLISHES 14317 here (not 4317): +15000
+      - '127.0.0.1:29318:4318' # prod publishes 14318 -> 29318
 
   # ---- the remaining five services prod pins (UR-133 prefix) + their remapped ports ----
 
   go2rtc:
-    container_name: hsi-test-hsi-go2rtc         # prod pins "hsi-go2rtc"
+    container_name: hsi-test-hsi-go2rtc # prod pins "hsi-go2rtc"
     ports: !override
-      - "127.0.0.1:16984:1984"
-      - "127.0.0.1:23555:8555"
+      - '127.0.0.1:16984:1984'
+      - '127.0.0.1:23555:8555'
 
   loki:
     container_name: hsi-test-loki
     ports: !override
-      - "127.0.0.1:18100:3100"
+      - '127.0.0.1:18100:3100'
 
   node-exporter:
     container_name: hsi-test-node-exporter
     ports: !override
-      - "127.0.0.1:24100:9100"
+      - '127.0.0.1:24100:9100'
 
   pyroscope:
     container_name: hsi-test-pyroscope
     ports: !override
-      - "127.0.0.1:19040:4040"
+      - '127.0.0.1:19040:4040'
 
   tempo:
     container_name: hsi-test-tempo
     ports: !override
-      - "127.0.0.1:18200:3200"
-      - "127.0.0.1:19317:4317"                  # same target as alloy's 4317; distinct host ports
+      - '127.0.0.1:18200:3200'
+      - '127.0.0.1:19317:4317' # same target as alloy's 4317; distinct host ports
 
   # ---- every other service: ports remapped only; ai-gateway and foscam-init also redirect
   # ---- their writable host binds (B5), keeping read-only binds and named volumes as prod ----
 
   ai-gateway:
-    volumes: !override                          # 6 prod mounts: 2 writable host binds redirected,
-      - /export/ai_models/model-zoo:/models/zoo:ro                   #   2 read-only binds and the
-      - ${PROD_SHAPE_RUN_ROOT}/triton-cache:/models/cache            #   2 named volumes kept
+    volumes: !override # 6 prod mounts: 2 writable host binds redirected,
+      - /export/ai_models/model-zoo:/models/zoo:ro #   2 read-only binds and the
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/triton-cache:/models/cache #   2 named volumes kept
       - /export/ai_models/quantized:/models/quantized:ro
       - triton-kernel-cache:/root/.nv
       - triton-tmp-cache:/tmp
-      - ${PROD_SHAPE_RUN_ROOT}/hf-cache:/root/.cache/huggingface
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/hf-cache:/root/.cache/huggingface
     ports: !override
-      - "127.0.0.1:23090:8090"
-      - "127.0.0.1:23002:8002"
+      - '127.0.0.1:23090:8090'
+      - '127.0.0.1:23002:8002'
 
   foscam-init:
-    volumes: !override                          # 1 prod mount: the writable camera path
-      - ${PROD_SHAPE_RUN_ROOT}/cameras:/cameras
+    volumes: !override # 1 prod mount: the writable camera path
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras
 
   ai-vlm:
     ports: !override
-      - "127.0.0.1:23098:8098"
+      - '127.0.0.1:23098:8098'
 
   alertmanager:
     ports: !override
-      - "127.0.0.1:24093:9093"
+      - '127.0.0.1:24093:9093'
 
   blackbox-exporter:
     ports: !override
-      - "127.0.0.1:24115:9115"
+      - '127.0.0.1:24115:9115'
 
   frontend:
     ports: !override
-      - "127.0.0.1:23444:8443"
-      - "127.0.0.1:23080:8080"
+      - '127.0.0.1:23444:8443'
+      - '127.0.0.1:23080:8080'
 
   grafana:
     ports: !override
-      - "127.0.0.1:18002:3000"
+      - '127.0.0.1:18002:3000'
 
   json-exporter:
     ports: !override
-      - "127.0.0.1:22979:7979"
+      - '127.0.0.1:22979:7979'
 
   postgres:
     ports: !override
-      - "127.0.0.1:20432:5432"
+      - '127.0.0.1:20432:5432'
 
   prometheus:
     ports: !override
-      - "127.0.0.1:24090:9090"
+      - '127.0.0.1:24090:9090'
 
   redis:
     ports: !override
-      - "127.0.0.1:21379:6379"
+      - '127.0.0.1:21379:6379'
 
   redis-exporter:
     ports: !override
-      - "127.0.0.1:24121:9121"
+      - '127.0.0.1:24121:9121'

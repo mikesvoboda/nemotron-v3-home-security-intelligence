@@ -29,9 +29,9 @@
 services:
   postgres:
     ports: !override
-      - "15432:5432"
+      - '15432:5432'
     deploy: !reset null
   redis:
     ports: !override
-      - "16379:6379"
+      - '16379:6379'
     deploy: !reset null

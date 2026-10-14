@@ -289,5 +289,26 @@ def _tampered_merged(merged: dict, svc: str) -> dict:
     return out
 
 
+def test_override_refuses_to_render_without_the_run_root():
+    """UR-133/134: a forgotten PROD_SHAPE_RUN_ROOT must stop the render, not fall back to `/`.
+
+    Measured on the first version of this file (which interpolated the variable bare): with it
+    unset, compose rendered WRITABLE binds at the filesystem root — /cameras, /backend-data,
+    /triton-cache, /hf-cache — because `${VAR}/cameras` interpolates to `/cameras` when VAR is
+    empty. A test deployment would then write outside its own run directory on a host that may
+    run the live stack, and nothing would say so. The override now carries `${VAR:?…}`, so the
+    render exits nonzero and names the variable; rc=0 here is the breach.
+    """
+    env = {k: v for k, v in {**os.environ, **ENV}.items() if k != "PROD_SHAPE_RUN_ROOT"}
+    cmd = ["docker", "compose", "-p", "prodshape-audit", "--project-directory", str(REPO),
+           "-f", str(PROD), "-f", str(OVERRIDE), "config", "--quiet"]
+    p = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
+    assert p.returncode != 0, (
+        "the override rendered with PROD_SHAPE_RUN_ROOT unset — its writable binds land at the "
+        f"filesystem root, outside the run directory: {p.stdout[:200]}")
+    assert "PROD_SHAPE_RUN_ROOT" in p.stderr, (
+        f"the render failed for a reason that is not the missing variable: {p.stderr[:300]}")
+
+
 if __name__ == "__main__":   # pragma: no cover
     sys.exit(pytest.main([__file__, "-q"]))
