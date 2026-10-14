@@ -192,7 +192,7 @@ export async function assertGuardSurvives(page: Page, h: Harness): Promise<void>
  * Pause before browser navigations so the nginx `/api` rate-limit bucket
  * (`rate=10r/s`, `burst=20` in `frontend/nginx.conf:24`) refills between waves.
  */
-export const BOOT_QUIET_MS = 2_000;
+export const BOOT_QUIET_MS = 500;
 
 async function shedCoat(page: Page): Promise<string | null> {
   if (
@@ -320,34 +320,26 @@ export interface CameraRecord {
 }
 
 /**
- * Fetch the current camera list from `GET /api/cameras` (`backend/api/routes/cameras.py:152`),
- * waiting out any stale 60s Redis cache window (`SHORT_TTL = 60` in `cache_service.py:60`)
- * if `GET /api/cameras` returns an ID that no longer exists in PostgreSQL (e.g., `front-door`
- * left in `"cache:hsi:cache:cameras:list:all"` right after `operations/test-data.spec.ts`'s
- * database reset).
+ * Fetch the current camera list from `GET /api/cameras` (`backend/api/routes/cameras.py:152`)
+ * and filter to cameras that exist in PostgreSQL (`GET /api/cameras/{id}` === 200).
+ * After `operations/test-data.spec.ts` runs `Seed Cameras` (`front-door`, etc.) and then
+ * `Full Database Reset` (which wipes `front-door` and recreates the 5 harness cameras),
+ * `"cache:hsi:cache:cameras:list:all"` can still contain the wiped `front-door` ID for up to
+ * `SHORT_TTL = 60`s while all 5 harness cameras exist in both the cache and PostgreSQL.
+ * Filtering to live PostgreSQL cameras avoids a 30-60s sleep while ensuring every returned
+ * camera is both rendered by the UI and reachable at `/api/cameras/{id}/*`.
  */
 export async function listCameras(api: AuthedFetch): Promise<CameraRecord[]> {
-  let liveItems: CameraRecord[] = [];
-  await expect
-    .poll(
-      async () => {
-        const res = await api.getJson('/api/cameras');
-        if (res.status !== 200 || !Array.isArray(res.body?.items) || res.body.items.length === 0) {
-          return false;
-        }
-        const items = res.body.items as CameraRecord[];
-        for (const cam of items) {
-          const detail = await api.getJson(`/api/cameras/${cam.id}`);
-          if (detail.status !== 200) {
-            return false;
-          }
-        }
-        liveItems = items;
-        return true;
-      },
-      { timeout: 65_000, intervals: [500, 1_000, 2_000] }
-    )
-    .toBe(true);
+  const res = await api.getJson('/api/cameras');
+  expect(res.status, 'GET /api/cameras answers 200').toBe(200);
+  const items = Array.isArray(res.body?.items) ? (res.body.items as CameraRecord[]) : [];
+  const liveItems: CameraRecord[] = [];
+  for (const cam of items) {
+    const detail = await api.getJson(`/api/cameras/${cam.id}`);
+    if (detail.status === 200) {
+      liveItems.push(cam);
+    }
+  }
   return liveItems;
 }
 

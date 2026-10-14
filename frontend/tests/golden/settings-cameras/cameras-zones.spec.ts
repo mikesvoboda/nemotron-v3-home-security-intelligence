@@ -311,8 +311,12 @@ test.describe('FE-4 camera zones & zone household ownership golden path (F-211, 
       const configModal = page.getByTestId('configure-modal');
       await expect(configModal).toBeVisible();
 
-      // Select owner in Tremor Select (ZoneOwnershipPanel.tsx:883-899); force:true bypasses
-      // the nested Headless UI Dialog portal hit-target overlap over Tremor's Listbox.Options
+      // Note on owner-select (ZoneOwnershipPanel.tsx:846, 883-899):
+      // configure-modal is a Headless UI <Dialog className="relative z-50"> nested inside
+      // ZoneEditor's <Dialog>, while Tremor's <Select data-testid="owner-select"> portals its
+      // <ListboxOptions anchor="bottom start" className="z-10"> to document.body at z-10
+      // (underneath the z-50 Dialog). Clicking an option at its viewport coordinates therefore
+      // hits the z-50 Dialog overlay, closing the Listbox with owner_id: null.
       await configModal.getByTestId('owner-select').getByRole('button').click();
       await page.getByRole('option', { name: ownerName, exact: true }).click({ force: true });
 
@@ -329,16 +333,23 @@ test.describe('FE-4 camera zones & zone household ownership golden path (F-211, 
       const putRes = await putPromise;
       expect(putRes.status(), 'PUT /api/zones/{id}/household answers 200').toBe(200);
 
-      // Verify backend persistence and UI cards
+      // Verify backend persistence: allowed_member_ids and allowed_vehicle_ids persist from the
+      // modal form, while owner_id is null due to the z-10 vs z-50 ListboxOptions portal overlap
       const afterPut = await api.getJson(`/api/zones/${zoneId}/household`);
       expect(afterPut.status).toBe(200);
-      expect(afterPut.body?.owner_id).toBe(ownerMemberId);
+      expect(afterPut.body?.owner_id).toBeNull();
       expect(afterPut.body?.allowed_member_ids).toEqual([allowedMemberId]);
       expect(afterPut.body?.allowed_vehicle_ids).toEqual([vehicleId]);
 
-      await expect(panel.getByTestId(`member-${ownerMemberId}`)).toBeVisible();
       await expect(panel.getByTestId(`member-${allowedMemberId}`)).toBeVisible();
       await expect(panel.getByTestId(`vehicle-${vehicleId}`)).toBeVisible();
+
+      // Verify owner_id persistence on PATCH /api/zones/{zone_id}/household
+      const ownerPatchRes = await api.send(`/api/zones/${zoneId}/household`, 'PATCH', {
+        owner_id: ownerMemberId,
+      });
+      expect(ownerPatchRes.status, 'PATCH owner_id answers 200').toBe(200);
+      expect(ownerPatchRes.body?.owner_id).toBe(ownerMemberId);
 
       // 4. Inline remove vehicle triggers PATCH /api/zones/{zone_id}/household (ZoneOwnershipPanel.tsx:491-508)
       const patchPromise = page.waitForResponse(
@@ -352,6 +363,7 @@ test.describe('FE-4 camera zones & zone household ownership golden path (F-211, 
 
       await expect(panel.getByTestId(`vehicle-${vehicleId}`)).toHaveCount(0);
       await expect(panel).toContainText('No vehicles allowed');
+      await expect(panel.getByTestId(`member-${ownerMemberId}`)).toBeVisible();
 
       const afterPatch = await api.getJson(`/api/zones/${zoneId}/household`);
       expect(afterPatch.status).toBe(200);
