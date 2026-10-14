@@ -21,7 +21,7 @@ fixes (`[r130b]`, `[r130f]`) keep their place.
 | `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                                                                            | `review:backend`  |
 | `uplevel-frontend`    | fast      | `[r165a]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews docs' FE-4), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3` | `review:frontend` |
 | `uplevel-ops-a`       | fast      | `OB.3`, `F2.3` UI (OP-1, OP-2), `[r164a]`, `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                          | `review:ops-a`    |
-| `uplevel-ops-b`       | fast      | `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger           | `review:ops-b`    |
+| `uplevel-ops-b`       | fast      | `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger | `review:ops-b`    |
 | `uplevel-docs`        | fast      | `[r165b]`, `F2.3` UI batches (DO-2, DO-3, then FE-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                           | `review:docs`     |
 | `uplevel-heavy`       | strongest | assigned `heavy` PRs without `cell:heavy-2`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused until Phase 3 opens (ruling 88)                                                               | none              |
 | `uplevel-heavy-2`     | strongest | assigned `heavy` PRs labelled `cell:heavy-2`: `B2.3` after `O2.4`; paused until then (ruling 88)                                                                                                               | none              |
@@ -83,8 +83,9 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 ## Heartbeat
 
 Keep your heartbeat comment on the pinned issue "Uplevel heartbeats" as UR-38 says; post it once
-if you have none. It is two lines, plus at most one short line, and at most 600 characters in all
-(UR-155); detail goes on the PR it concerns:
+if you have none. It is two lines, and at most 600 characters in all (UR-155); detail goes on the
+PR it concerns. Only when you are blocked, add a third line, `BLOCKER: <one line>` (for example
+`BLOCKER: /var/lib/docker 100%, UR-180 cleanup failed`; ruling 181):
 
 ```text
 <!-- heartbeat:<sandbox> -->

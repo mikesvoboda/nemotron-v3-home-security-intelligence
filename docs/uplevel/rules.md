@@ -555,8 +555,8 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-155** Beats, verdicts and lane notes run about 1,500 characters: what I read, what I did,
   what comes next. Evidence goes in a collapsed `<details>` block or a link to the job log, not in
   the body. A heartbeat is at most 600 characters: the coordinator's as UR-38 says, a lane's or the
-  operator's as the two lines `roles/lane.md` "Heartbeat" gives plus at most one short line, with
-  detail on the PR it concerns. (rulings 146, 156, 179)
+  operator's as the two lines `roles/lane.md` "Heartbeat" gives plus, only when blocked, a
+  `BLOCKER: <one line>` third line, with detail on the PR it concerns. (rulings 146, 156, 179, 181)
 - **UR-156** The coordinator asks an author to edit a comment that carries harness wrapper text
   (contract rule 2). (ruling 56)
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act
