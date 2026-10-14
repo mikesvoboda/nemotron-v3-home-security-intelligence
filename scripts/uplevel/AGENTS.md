@@ -104,7 +104,16 @@ renders prod and prod+override with `docker compose config` (CPU-only, daemon-fr
 interpolation and schema validation, nothing starts, so UR-133/134/135 are respected by
 construction) and asserts the _observed_ delta equals an _expected_ delta derived from a policy
 that never reads the override file. It is wired into `collection-sanity`'s pytest list, where it
-costs 0.31 s.
+costs about 1 s of test time and about 2 s of wall time standalone (each number names its
+instrument, measured 2026-10-14 on an unloaded sandbox: pytest's `--durations` sums this file's own
+calls + setups at 0.99 s under `-n0`; full-process wall time is 2.04-2.17 s, and a `--collect-only`
+run of the same file is 1.03-1.10 s, so about half the wall is interpreter/report startup the leg
+already pays once for all its files). What the shared process actually charges is nearer the 0.99 s
+of own-duration than the standalone wall. The original `0.31 s` here was a single pytest-reported
+duration written in `12a4f6edc`, when the file had ten tests and rendered no profiles at all; it has
+seventeen now and four module-scope renders (prod, prod+override, each twice - once with no profile
+and once with both), so the file has about 1.7x the tests and 2x the compose work it had when that
+number was written.
 
 Three measured compose facts the file depends on, each re-checked before it was relied on:
 `volumes` merge **by target** (an entry at an existing target replaces it and can never delete
