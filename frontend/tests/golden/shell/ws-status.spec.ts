@@ -180,7 +180,7 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  // owner ruling 125 — quarantined until fixed, expires 2026-10-14T00:00Z
+  // owner ruling 125 — quarantined until fixed, expires 2026-10-16T00:00Z
   test.fixme('F-007: partitioning the network raises the banner with a live attempt counter, and the shell recovers', async ({
     page,
   }) => {
