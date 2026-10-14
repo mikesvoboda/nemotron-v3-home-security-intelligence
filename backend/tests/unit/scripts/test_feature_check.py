@@ -3805,6 +3805,37 @@ def test_the_derivation_ignores_a_service_that_boots_from_a_registry_image(
 # ---------------------------------------------------------------------------
 
 
+# What each SUPPORTED engine actually prints, and what it returns, when a name is not in the engine
+# vs when its daemon is DOWN. Measured in this sandbox against docker 27.x and podman 5.7.0:
+#     docker  absent  rc=1    "Error response from daemon: No such image: <name>"
+#     docker  down    rc=1    "failed to connect to the docker API at unix:///…; check if the path…"
+#     podman  absent  rc=125  "Error: <name>: image not known"
+#     podman  down    rc=125  "Cannot connect to Podman. Please verify your connection…"
+# Both DOWN answers share their engine's absent exit code, so the rc cannot carry the distinction
+# and only the words can -- which is why the cleanup's absence test is a marker, not a code. One
+# source feeds both the shared fake below (fidelity: an honest absence must carry the daemon's
+# words or a tightening of the rule silently reclassifies every real absence as unknown) and the
+# engine-down pins further down. `choices=("docker", "podman")` in `main()` closes the engine set.
+_ABSENT_STDERR = {
+    "docker": "Error response from daemon: No such image: {name}",
+    "podman": "Error: {name}: image not known",
+}
+_DOWN_STDERR = {
+    "docker": (
+        "failed to connect to the docker API at unix:///run/user/1000/podman/podman.sock; "
+        "check if the path is correct and if the daemon is running"
+    ),
+    "podman": "Cannot connect to Podman. Please verify your connection to the Linux system",
+}
+# The exit code each engine returns for BOTH answers above -- the reason rc is no discriminator.
+_LOOKUP_RC = {"docker": 1, "podman": 125}
+
+
+def _absent_stderr(engine: str, name: str) -> str:
+    """What `engine` says, verbatim, when `name` is genuinely not in it."""
+    return _ABSENT_STDERR[engine].format(name=name)
+
+
 _PREBUILD_DOC = {
     "services": {
         # build, no image -> compose derives <project>-backend:latest
@@ -3875,7 +3906,15 @@ def _engine_answers(
         calls.append((argv, kwargs))
         verb = compose_verb(argv)
         if argv[1:3] == ["image", "inspect"]:
-            return subprocess.CompletedProcess(argv, 0 if argv[3] in calls.have else 1, "", "")
+            if argv[3] in calls.have:
+                return subprocess.CompletedProcess(argv, 0, "", "")
+            # An honest "not in the engine" carries the daemon's WORDS, not just a nonzero rc:
+            # the cleanup reads absence as a positive claim (see `_ABSENT_STDERR` above), so a
+            # fake that answers absence with empty stderr would make every real absence read
+            # as unknown and turn the guard green by never exercising it.
+            return subprocess.CompletedProcess(
+                argv, _LOOKUP_RC[self.engine], "", _absent_stderr(self.engine, argv[3])
+            )
         if argv[1:3] == ["image", "rm"]:
             if rm_rc == 0:
                 calls.have.discard(argv[3])
@@ -4330,6 +4369,163 @@ def test_a_stalled_inspect_is_reported_as_unknown_and_not_as_a_clean_run(
     assert [a for a in calls if a[1:3] == ["image", "rm"]] == [], calls
     logged = capsys.readouterr().out
     assert f"the engine timed out: {backend_image}" in logged, logged
+
+
+def _refusing_engine(
+    run: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    answer: str,
+    rc: int | None = None,
+) -> list[list[str]]:
+    """Answer every `image inspect` with a refusal, and record the argvs.
+
+    `answer` is `"down"` (the daemon's not-there words for this run's engine), `"absent"`
+    (its honest no-such-image words), or a literal stderr to hand back verbatim. The
+    message is resolved INSIDE the fake because fidelity needs the run's own engine, and
+    a per-call lambda would either ignore arguments (ruff ARG005) or re-derive the engine
+    at every call site. A refusal is not a stall: rc is never 124, so the stall fence
+    doesn't see it and this exercises the other door.
+    """
+    exit_code = rc if rc is not None else _LOOKUP_RC[run.engine]
+    calls: list[list[str]] = []
+
+    def refusing(self: Any, command: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        argv = [str(part) for part in command]
+        calls.append(argv)
+        if argv[1:3] == ["image", "inspect"]:
+            if answer == "down":
+                stderr = _DOWN_STDERR[self.engine]
+            elif answer == "absent":
+                stderr = _absent_stderr(self.engine, argv[3])
+            else:
+                stderr = answer
+            return subprocess.CompletedProcess(argv, exit_code, "", stderr)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(fc.Run, "_run", refusing)
+    return calls
+
+
+def test_a_down_engine_is_reported_as_unknown_and_not_as_a_clean_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The companion test fences a STALLED inspect (rc=124). This is the other door: a daemon that is
+    # DOWN answers `image inspect` with the same exit code it uses for "that name is not in the
+    # engine", so the bare nonzero test reads every name as never-having-existed and reports the
+    # exact false-spotless run this step exists to prevent. The discriminator is the daemon's own
+    # words, measured above; absence has to be POSITIVELY identified, not inferred from an rc.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    backend_image = f"{run.project}-backend:latest"
+    calls = _refusing_engine(run, monkeypatch, answer="down")
+
+    assert run.cleanup_images() == fc.EXIT_FAILED, (
+        "a run whose engine never answered must not exit OK: the cleanup is unverified, not clean"
+    )
+    assert run.summary["images_stalled"] == [backend_image], (
+        "the unknown name belongs in the list the operator acts on -- the repair is an engine "
+        f"to fix, exactly as for a timeout: {run.summary}"
+    )
+    assert run.summary["images_removed"] == [], run.summary
+    assert run.summary["images_leaked"] == [], run.summary
+    # Not one `image rm`: guessing that a name is absent and removing it anyway is a second guess
+    # stacked on the first, and on a daemon that is merely slow to come up it deletes a built image.
+    assert [a for a in calls if a[1:3] == ["image", "rm"]] == [], calls
+    logged = capsys.readouterr().out
+    assert f"state unknown: {backend_image}" in logged, logged
+    # The log carries the daemon's own words, because "state unknown" alone does not tell the
+    # operator whether to wait for a hung engine or start a dead one.
+    assert "Cannot connect" in logged or "failed to connect" in logged, logged
+
+
+@pytest.mark.parametrize("engine", sorted(_ABSENT_STDERR))
+def test_a_name_the_engine_positively_does_not_have_is_absent_not_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, engine: str
+) -> None:
+    # The must-ignore side, per engine: an honest "No such image" / "image not known" is evidence of
+    # absence and must still exit OK with nothing named. Without this half the rule would be "any
+    # refusal is unknown", every real cleanup of a never-built name would go red, and the next
+    # person would delete the guard instead of the bug.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.engine = engine
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    calls = _refusing_engine(run, monkeypatch, answer="absent")
+
+    assert run.cleanup_images() == fc.EXIT_OK, run.summary
+    assert run.summary["images_stalled"] == [], run.summary
+    assert run.summary["images_leaked"] == [], run.summary
+    assert run.summary["images_removed"] == [], run.summary
+    assert [a for a in calls if a[1:3] == ["image", "rm"]] == [], calls
+
+
+def test_the_absence_markers_discriminate_both_ways() -> None:
+    # Two-sided control on the marker set itself, deterministic and engine-independent: each
+    # supported engine's absent words must be accepted and its DOWN words refused. A marker list is
+    # exactly the kind of constant that silently rots -- widen it to "any stderr" and the false
+    # spotless returns; narrow it to one engine and that engine's real absences start reporting
+    # unknown on every green run.
+    for engine in sorted(_ABSENT_STDERR):
+        absent = subprocess.CompletedProcess(
+            ["x", "image", "inspect", "n"], _LOOKUP_RC[engine], "", "irrelevant"
+        )
+        absent.stderr = _ABSENT_STDERR[engine].format(name="proj-backend:latest")
+        assert fc._image_absent(absent), f"{engine}'s measured absence marker must read absent"
+        down = subprocess.CompletedProcess(
+            ["x", "image", "inspect", "n"], _LOOKUP_RC[engine], "", _DOWN_STDERR[engine]
+        )
+        assert not fc._image_absent(down), f"{engine}'s measured DOWN text must read UNKNOWN"
+    # And an rc=0 answer is not "absent" whatever its stderr, so the marker cannot turn a present
+    # image into an unknown one.
+    assert not fc._image_absent(
+        subprocess.CompletedProcess(["x"], 0, "", _ABSENT_STDERR["docker"].format(name="n"))
+    ), "rc=0 is present, full stop"
+
+
+def test_the_engine_helper_holds_a_silence_is_not_an_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Empty stderr with a nonzero rc is the shape a fake writes by default and a real engine can
+    # also produce (a wrapper that logged nothing). It is unknown, not absent: absence is a positive
+    # claim the daemon made in words, and this pins that the guard's DEFAULT is the loud direction.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    _refusing_engine(run, monkeypatch, answer="")
+
+    assert run.cleanup_images() == fc.EXIT_FAILED, run.summary
+    assert run.summary["images_stalled"] == [f"{run.project}-backend:latest"], run.summary
+
+
+def test_the_ceiling_of_unknown_covers_every_nonzero_inspect_that_is_not_marked_absent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The whole rule in one line: `image inspect` may be believed as "not present" ONLY when the
+    # daemon said so. Every other nonzero answer -- a refusal, a bad name form, an unexpected rc --
+    # is unknown. Pinning the rule as a sweep rather than as one case per message is what keeps a
+    # new engine error shape from silently defaulting to "absent".
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    unmarked = [
+        "docker: 'docker image inspect' requires at least 1 argument",
+        "permission denied while trying to connect to the Docker daemon socket",
+        "error during connect: Get http://%2Fvar%2Frun%2Fdocker.sock/v1.24/execute: dial unix",
+        "",
+    ]
+    for stderr in unmarked:
+        assert not fc._image_absent(
+            subprocess.CompletedProcess(["x", "image", "inspect", "n"], 1, "", stderr)
+        ), f"unmarked nonzero stderr {stderr!r} must read UNKNOWN, not absent"
+    # One end-to-end instance of the sweep's conclusion, so the helper is not the only thing pinned.
+    _refusing_engine(
+        run, monkeypatch, answer="permission denied while trying to connect to the daemon"
+    )
+    assert run.cleanup_images() == fc.EXIT_FAILED, run.summary
+    assert run.summary["images_stalled"], run.summary
 
 
 def test_the_cleanup_removes_the_prefixed_tags_in_a_stable_order(
