@@ -69,7 +69,7 @@ PORT_OFFSET = 15000
 ENV = {
     # sentinel: alloy interpolates it into src AND tgt
     "PODMAN_SOCKET": "/render/engine.sock",
-    "POSTGRES_PASSWORD": "render-only",
+    "POSTGRES_PASSWORD": "render-only",  # pragma: allowlist secret
     "PROD_SHAPE_RUN_ROOT": "/run/hsitest",
     NAME_VAR: DRIFT_NAME_PREFIX,
 }

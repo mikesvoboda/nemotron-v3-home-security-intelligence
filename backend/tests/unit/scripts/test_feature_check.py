@@ -2926,7 +2926,10 @@ def test_the_prod_shape_env_file_is_generated_and_carries_no_host_secret(
     # and PROD_SHAPE_RUN_ROOT (the override's). Dropping any one exits 1 and names
     # that one; there are 154 `${X:-default}` references and no other bare ones.
     run_dir = tmp_path / "run-1"
-    caller = {"PODMAN_SOCKET": "/run/user/1000/podman/podman.sock", "POSTGRES_PASSWORD": "hunter2"}
+    caller = {
+        "PODMAN_SOCKET": "/run/user/1000/podman/podman.sock",
+        "POSTGRES_PASSWORD": "hunter2",  # pragma: allowlist secret
+    }
 
     text = fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller)
     values = dict(

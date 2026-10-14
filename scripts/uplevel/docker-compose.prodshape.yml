@@ -153,10 +153,17 @@ services:
     ports: !override
       - '127.0.0.1:24400:9400' # 9400 + 15000. Its one mount is a read-only bind, kept as prod.
 
-  ai-llm-vllm: # profile vllm. prod does NOT pin it, so it gets no container_name (a pin where
-    ports: !override #   prod has none would be a key change, not a prefix).
-      - '127.0.0.1:23097:8000' # prod publishes 8097 -> 23097; both binds stay as prod (one named
-                               #   volume, one read-only)
+  # profile vllm (docker-compose.prod.yml:284). prod does NOT pin container_name here, so neither
+  # does this file (adding one where prod has none is a key change, not a prefix). Its two volumes
+  # — hf_cache (named) and the ${AI_MODELS_PATH} model bind, `:ro` at prod:300 — are kept verbatim:
+  # this service needs no volume restatement, only the port offset (prod's default 8097 -> 23097).
+  # The prose is on its own lines on purpose: the retired-name guard in
+  # backend/tests/security/test_docker_compose_security.py admits a line containing `ai-llm` only
+  # as a pure comment or as the exact key `ai-llm-vllm:`, so a trailing comment on that key would
+  # be admitted by neither allowance.
+  ai-llm-vllm:
+    ports: !override
+      - '127.0.0.1:23097:8000'
 
   alertmanager:
     ports: !override
