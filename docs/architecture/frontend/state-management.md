@@ -363,7 +363,6 @@ export const useRateLimitStore = create<RateLimitState>()(
     (set, get) => ({
       current: null,
       isLimited: false,
-      secondsUntilReset: 0,
       update: (info: RateLimitInfo) => {
         // Auto-schedules clear when reset time passes
         set({ current: info, isLimited: info.remaining === 0 });
@@ -379,7 +378,6 @@ export function useRateLimitStatus() {
   return useRateLimitStore(
     useShallow((state) => ({
       isLimited: state.isLimited,
-      secondsUntilReset: state.secondsUntilReset,
     }))
   );
 }

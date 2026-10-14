@@ -295,10 +295,14 @@ green on it.
 ### [r132] F-022: retire the rate-limit countdown
 
 **Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged (UR-66's R2b-round exception).
-**PR:** #7077 (open). (rulings 132, 150, 155)
+**PR:** #7077 (merged). (rulings 132, 150, 155)
 
-- [ ] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
+- [x] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
       (`frontend/src/services/queryClient.ts:249-297`) and every store field only they read.
+      Third limb now met: the follow-up (ruling 155 item 3) deleted `secondsUntilReset` — field,
+      writes, `useRateLimitStatus` member, test seeds. `current` stays by the ruling's own fence
+      (it names only that field) and F-022's row records why; the backend review of #7077
+      (finding 2) offered exactly these two homes for the strand and the row took the second.
 - [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time
       (`RetryingIndicator.tsx` is renamed to this text; ruling 155).
 - [ ] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no

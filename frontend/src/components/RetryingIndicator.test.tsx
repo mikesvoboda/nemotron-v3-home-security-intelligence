@@ -48,7 +48,6 @@ describe('RetryingIndicator', () => {
     vi.mocked(useRateLimitStore).mockReturnValue({
       current: null,
       isLimited: false,
-      secondsUntilReset: 0,
       update: vi.fn(),
       clear: vi.fn(),
       _timerId: null,
@@ -79,7 +78,6 @@ describe('RetryingIndicator', () => {
       vi.mocked(useRateLimitStore).mockReturnValue({
         current: { limit: 100, remaining: 0, reset: Date.now() / 1000 + 60 },
         isLimited: true,
-        secondsUntilReset: 60,
         update: vi.fn(),
         clear: vi.fn(),
         _timerId: null,
@@ -107,7 +105,6 @@ describe('RetryingIndicator', () => {
       vi.mocked(useRateLimitStore).mockReturnValue({
         current: { limit: 100, remaining: 0, reset: Date.now() / 1000 + 60 },
         isLimited: true,
-        secondsUntilReset: 60,
         update: vi.fn(),
         clear: vi.fn(),
         _timerId: null,
@@ -122,7 +119,6 @@ describe('RetryingIndicator', () => {
       vi.mocked(useRateLimitStore).mockReturnValue({
         current: { limit: 100, remaining: 0, reset: Date.now() / 1000 + 60 },
         isLimited: true,
-        secondsUntilReset: 60,
         update: vi.fn(),
         clear: vi.fn(),
         _timerId: null,
@@ -137,7 +133,6 @@ describe('RetryingIndicator', () => {
       vi.mocked(useRateLimitStore).mockReturnValue({
         current: { limit: 100, remaining: 0, reset: Date.now() / 1000 + 60 },
         isLimited: true,
-        secondsUntilReset: 60,
         update: vi.fn(),
         clear: vi.fn(),
         _timerId: null,
@@ -155,7 +150,6 @@ describe('RetryingIndicator', () => {
       vi.mocked(useRateLimitStore).mockReturnValue({
         current: { limit: 100, remaining: 0, reset: Date.now() / 1000 + 60 },
         isLimited: true,
-        secondsUntilReset: 60,
         update: vi.fn(),
         clear: vi.fn(),
         _timerId: null,
@@ -175,8 +169,9 @@ describe('RetryingIndicator', () => {
 
     // Ruling 132's other half: "shows no count, limit or time". This fixture is
     // what makes the assertion non-vacuous — the store above is fed
-    // limit=100 / remaining=0 / reset=now+60 / secondsUntilReset=60, so a pill
-    // that rendered any of them would print digits here.
+    // current = limit 100 / remaining 0 / reset now+60 (ruling 155 item 3
+    // deleted the secondsUntilReset field this fixture used to seed), so a
+    // pill that rendered any of them would still print digits here.
     it('renders no count, limit or time while limited', () => {
       renderComponent();
       const pill = screen.getByTestId('retrying-indicator');
