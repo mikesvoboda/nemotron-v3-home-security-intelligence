@@ -384,3 +384,15 @@ its head.
       `VITE_API_KEY`, as UR-179 requires; there are no reads at ruling 164.
 
 **Done when:** the guard runs in CI and fails on an injected `import.meta.env.VITE_API_KEY` read.
+
+### [r165a] F-007: cure the quarantined ws-status spec
+
+**Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none. **PR:** none
+yet. (rulings 123, 125, 165)
+
+- [ ] First commit: the ruling-125 mark's expiry in `frontend/tests/golden/shell/ws-status.spec.ts`
+      reads 2026-10-16T00:00Z.
+- [ ] Test 2 runs whatever precedes it (ruling 123) and passes; the `test.fixme` mark is removed.
+
+**Done when:** the spec passes in CI's `Feature check (fake AI)` with no mark, before
+2026-10-16T00:00Z.
