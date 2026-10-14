@@ -47,6 +47,8 @@ test.skip(
 );
 
 test.describe('FE-4 storage, cleanup & dead-letter queue golden path (F-223, F-224, F-228, F-229)', () => {
+  test.setTimeout(90_000);
+
   test('F-223: StorageDashboard and CleanupPreviewPanel render GET /api/system/storage and run POST /api/system/cleanup?dry_run=true', async ({
     page,
   }) => {

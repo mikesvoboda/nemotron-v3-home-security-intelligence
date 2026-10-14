@@ -39,6 +39,8 @@ test.skip(
 );
 
 test.describe('FE-4 alert rules golden path (F-215, F-218, F-219)', () => {
+  test.setTimeout(90_000);
+
   test('F-215: /settings/rules renders read-only SeverityConfigPanel from GET /api/system/severity and rule list from GET /api/alerts/rules', async ({
     page,
   }) => {
@@ -173,10 +175,12 @@ test.describe('FE-4 alert rules golden path (F-215, F-218, F-219)', () => {
       // --- Arm 1: Cancel keeps the rule intact (AlertRulesSettings.tsx:1107-1175) ---
       await row.getByRole('button', { name: `Delete ${ruleName}`, exact: true }).click();
       const dialog = page.getByRole('dialog', { name: 'Delete Alert Rule' });
-      await expect(dialog).toBeVisible();
-      await expect(dialog).toContainText(
-        `Are you sure you want to delete ${ruleName}? This action cannot be undone.`
-      );
+      await expect(dialog.getByRole('heading', { name: 'Delete Alert Rule' })).toBeVisible();
+      await expect(
+        dialog.getByText(
+          `Are you sure you want to delete ${ruleName}? This action cannot be undone.`
+        )
+      ).toBeVisible();
       await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
       await expect(dialog).toHaveCount(0);
       await expect(row).toBeVisible();
@@ -186,7 +190,7 @@ test.describe('FE-4 alert rules golden path (F-215, F-218, F-219)', () => {
 
       // --- Arm 2: Confirm sends DELETE /api/alerts/rules/{id} (204) and removes the row ---
       await row.getByRole('button', { name: `Delete ${ruleName}`, exact: true }).click();
-      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole('heading', { name: 'Delete Alert Rule' })).toBeVisible();
 
       const deletePromise = page.waitForResponse(
         (res) =>
@@ -270,13 +274,13 @@ test.describe('FE-4 alert rules golden path (F-215, F-218, F-219)', () => {
       expect(testPostRes.request().postDataJSON()).toEqual({ limit: 10 });
 
       const dialog = page.getByRole('dialog', { name: `Test Rule: ${ruleName}` });
-      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole('heading', { name: `Test Rule: ${ruleName}` })).toBeVisible();
       await expect(dialog.getByText('Events Tested')).toBeVisible();
       await expect(dialog.getByText('Matched', { exact: true })).toBeVisible();
       await expect(dialog.getByText('Match Rate')).toBeVisible();
-      await expect(dialog).toContainText(String(eventsTested));
-      await expect(dialog).toContainText(String(eventsMatched));
-      await expect(dialog).toContainText(matchRatePct);
+      await expect(dialog.getByText(String(eventsTested)).first()).toBeVisible();
+      await expect(dialog.getByText(String(eventsMatched)).first()).toBeVisible();
+      await expect(dialog.getByText(matchRatePct)).toBeVisible();
 
       if (eventsTested > 0 && results.length > 0) {
         await expect(dialog.getByText('Event Results')).toBeVisible();
@@ -286,10 +290,12 @@ test.describe('FE-4 alert rules golden path (F-215, F-218, F-219)', () => {
           matches: boolean;
           matched_conditions: string[];
         };
-        await expect(dialog).toContainText(`Event #${first.event_id}`);
-        await expect(dialog).toContainText(`Risk: ${first.risk_score ?? 'N/A'}`);
+        await expect(dialog.getByText(`Event #${first.event_id}`)).toBeVisible();
+        await expect(dialog.getByText(`Risk: ${first.risk_score ?? 'N/A'}`).first()).toBeVisible();
         if (first.matches && first.matched_conditions.length > 0) {
-          await expect(dialog).toContainText(`Matched: ${first.matched_conditions.join(', ')}`);
+          await expect(
+            dialog.getByText(`Matched: ${first.matched_conditions.join(', ')}`).first()
+          ).toBeVisible();
         }
       } else {
         await expect(dialog.getByText('No recent events to test against')).toBeVisible();

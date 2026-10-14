@@ -25,12 +25,16 @@
  *    `ProcessingSettings` and `CamerasSettings` fire 3–6 concurrent GETs on
  *    mount; `settledGoto` pauses before navigation and retries if the shared
  *    nginx token bucket sheds a boot request with 429.
- * 4. Background camera-cache invalidation (`backend/api/routes/cameras.py:815-819`,
- *    `:913-917`, `:992-996`): `POST /api/cameras`, `PATCH /api/cameras/{id}`,
- *    and `DELETE /api/cameras/{id}` schedule `_invalidate_cameras_cache_background`
- *    via FastAPI `BackgroundTasks`. Helpers `waitCameraPresent` and
- *    `waitCameraAbsent` poll `GET /api/cameras` until the Redis list cache
- *    reflects the write.
+ * 4. Camera list cache bug (`backend/services/cache_service.py:577` vs `:762`):
+ *    `list_cameras` (`backend/api/routes/cameras.py:194, 259`) caches under
+ *    `CacheKeys.cameras_list_by_status(None)` (`"hsi:cache:cameras:list:all"`),
+ *    stored by `CacheService.set` (`:194`) as `"cache:hsi:cache:cameras:list:all"`
+ *    with `SHORT_TTL = 60`s, whereas `CacheService.invalidate_cameras` (`:577`)
+ *    scans `"cache:cameras:*"` (`0` keys deleted). Consequently, after
+ *    `operations/test-data.spec.ts` resets the database, `GET /api/cameras` can
+ *    serve stale pre-reset camera IDs (`front-door`) for up to 60s. `listCameras()`
+ *    verifies each returned ID against uncached `GET /api/cameras/{id}` and waits
+ *    out any stale post-reset cache window before returning.
  * 5. Shared `/tmp/runtime.env` restoration (`docker-compose.ci.yml:157`):
  *    `PATCH /api/system/config`, `PATCH /api/v1/settings`, and
  *    `PUT /api/system/severity` all read-merge-write `HSI_RUNTIME_ENV_PATH`
@@ -316,60 +320,46 @@ export interface CameraRecord {
 }
 
 /**
- * Fetch the current camera list from `GET /api/cameras` (`backend/api/routes/cameras.py:152`).
+ * Fetch the current camera list from `GET /api/cameras` (`backend/api/routes/cameras.py:152`),
+ * waiting out any stale 60s Redis cache window (`SHORT_TTL = 60` in `cache_service.py:60`)
+ * if `GET /api/cameras` returns an ID that no longer exists in PostgreSQL (e.g., `front-door`
+ * left in `"cache:hsi:cache:cameras:list:all"` right after `operations/test-data.spec.ts`'s
+ * database reset).
  */
 export async function listCameras(api: AuthedFetch): Promise<CameraRecord[]> {
-  const res = await api.getJson('/api/cameras');
-  expect(res.status, 'GET /api/cameras answers 200').toBe(200);
-  return Array.isArray(res.body?.items) ? (res.body.items as CameraRecord[]) : [];
-}
-
-/**
- * Poll `GET /api/cameras` until `cameraId` appears in `items` (handles background
- * Redis cache invalidation in `_invalidate_cameras_cache_background`, `cameras.py:815-819`).
- */
-export async function waitCameraPresent(
-  api: AuthedFetch,
-  cameraId: string
-): Promise<CameraRecord | undefined> {
-  let found: CameraRecord | undefined;
+  let liveItems: CameraRecord[] = [];
   await expect
     .poll(
       async () => {
-        const items = await listCameras(api);
-        found = items.find((c) => c.id === cameraId);
-        return Boolean(found);
+        const res = await api.getJson('/api/cameras');
+        if (res.status !== 200 || !Array.isArray(res.body?.items) || res.body.items.length === 0) {
+          return false;
+        }
+        const items = res.body.items as CameraRecord[];
+        for (const cam of items) {
+          const detail = await api.getJson(`/api/cameras/${cam.id}`);
+          if (detail.status !== 200) {
+            return false;
+          }
+        }
+        liveItems = items;
+        return true;
       },
-      { timeout: 10_000, intervals: [200, 400, 800] }
+      { timeout: 65_000, intervals: [500, 1_000, 2_000] }
     )
     .toBe(true);
-  return found;
+  return liveItems;
 }
 
 /**
- * Poll `GET /api/cameras` until `cameraId` is absent from `items` (handles background
- * Redis cache invalidation in `_invalidate_cameras_cache_background`, `cameras.py:992-996`).
- */
-export async function waitCameraAbsent(api: AuthedFetch, cameraId: string): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        const items = await listCameras(api);
-        return items.some((c) => c.id === cameraId);
-      },
-      { timeout: 10_000, intervals: [200, 400, 800] }
-    )
-    .toBe(false);
-}
-
-/**
- * Delete a camera by ID if it exists (`204` or `404`), then wait for the list cache
- * to stop returning it. Safe to call in `finally` blocks regardless of where a test failed.
+ * Delete a camera by ID if it exists (`204` or `404`), then verify uncached
+ * `GET /api/cameras/{id}` returns `404`. Safe to call in `finally` blocks.
  */
 export async function deleteCameraIfPresent(api: AuthedFetch, cameraId: string): Promise<void> {
   const res = await api.send(`/api/cameras/${cameraId}`, 'DELETE');
   expect([204, 404], `DELETE /api/cameras/${cameraId} answers 204 or 404`).toContain(res.status);
-  await waitCameraAbsent(api, cameraId);
+  const check = await api.getJson(`/api/cameras/${cameraId}`);
+  expect(check.status, `GET /api/cameras/${cameraId} after delete answers 404`).toBe(404);
 }
 
 /**

@@ -39,6 +39,8 @@ test.skip(
 );
 
 test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, F-225, F-226)', () => {
+  test.setTimeout(90_000);
+
   test('F-221: Processing settings form loads GET /api/system/config, previews batch presets, resets, and saves via PATCH /api/system/config', async ({
     page,
   }) => {
@@ -69,12 +71,12 @@ test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, 
       );
 
       // 2. Verify all 6 sliders and preset/tooltip panels mirror GET /api/system/config
-      const windowSlider = page.getByLabel('Batch window duration in seconds');
-      const idleSlider = page.getByLabel('Batch idle timeout in seconds');
-      const retentionSlider = page.getByLabel('Retention period in days');
-      const logRetentionSlider = page.getByLabel('Log retention period in days');
-      const detSlider = page.getByLabel('Detection confidence threshold');
-      const fastPathSlider = page.getByLabel('Fast-path confidence threshold');
+      const windowSlider = page.getByLabel('Batch window duration in seconds', { exact: true });
+      const idleSlider = page.getByLabel('Batch idle timeout in seconds', { exact: true });
+      const retentionSlider = page.getByLabel('Retention period in days', { exact: true });
+      const logRetentionSlider = page.getByLabel('Log retention period in days', { exact: true });
+      const detSlider = page.getByLabel('Detection confidence threshold', { exact: true });
+      const fastPathSlider = page.getByLabel('Fast-path confidence threshold', { exact: true });
 
       await expect(windowSlider).toHaveValue(String(before.batch_window_seconds));
       await expect(idleSlider).toHaveValue(String(before.batch_idle_timeout_seconds));

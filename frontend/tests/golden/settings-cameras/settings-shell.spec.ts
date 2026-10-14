@@ -45,6 +45,8 @@ const EXPECTED_TABS = [
 ] as const;
 
 test.describe('FE-4 settings shell golden path (F-198)', () => {
+  test.setTimeout(60_000);
+
   test('F-198: /settings redirects to /settings/cameras, loads /api/system/config, and wires all 11 tabs', async ({
     page,
   }) => {

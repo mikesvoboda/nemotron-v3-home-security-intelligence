@@ -48,6 +48,8 @@ test.skip(
 );
 
 test.describe('FE-4 camera activity baseline modal golden path (F-209)', () => {
+  test.setTimeout(120_000);
+
   test('F-209: Activity Baseline modal renders GET /api/cameras/{id}/baseline and /baseline/activity (populated + empty states)', async ({
     page,
   }) => {

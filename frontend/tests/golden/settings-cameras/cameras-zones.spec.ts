@@ -68,6 +68,8 @@ async function listZoneIds(api: AuthedFetch, cameraId: string): Promise<string[]
 }
 
 test.describe('FE-4 camera zones & zone household ownership golden path (F-211, F-213)', () => {
+  test.setTimeout(120_000);
+
   test('F-211: Zone editor draws rectangle zone, lists it, updates it via PUT, and deletes it via DELETE', async ({
     page,
   }) => {
@@ -309,9 +311,10 @@ test.describe('FE-4 camera zones & zone household ownership golden path (F-211, 
       const configModal = page.getByTestId('configure-modal');
       await expect(configModal).toBeVisible();
 
-      // Select owner in Tremor Select (ZoneOwnershipPanel.tsx:883-899)
+      // Select owner in Tremor Select (ZoneOwnershipPanel.tsx:883-899); force:true bypasses
+      // the nested Headless UI Dialog portal hit-target overlap over Tremor's Listbox.Options
       await configModal.getByTestId('owner-select').getByRole('button').click();
-      await page.getByRole('option', { name: ownerName, exact: true }).click();
+      await page.getByRole('option', { name: ownerName, exact: true }).click({ force: true });
 
       // Check allowed member and allowed vehicle checkboxes (ZoneOwnershipPanel.tsx:926, 964)
       await configModal.getByTestId(`member-checkbox-${allowedMemberId}`).check();

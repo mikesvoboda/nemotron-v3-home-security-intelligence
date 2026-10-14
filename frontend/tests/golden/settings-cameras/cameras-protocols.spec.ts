@@ -51,12 +51,10 @@ import { expect, test } from '../guard';
 import {
   apiPath,
   assertGuardSurvives,
-  deleteCameraIfPresent,
   listCameras,
   readHarness,
   settledGoto,
   signIn,
-  waitCameraPresent,
   type Harness,
 } from './harness';
 
@@ -69,6 +67,8 @@ test.skip(
 const REFUSED_RTSP_URL = 'rtsp://127.0.0.1:1/live';
 
 test.describe('FE-4 camera protocols golden path (F-204, F-205, F-206, F-207)', () => {
+  test.setTimeout(120_000);
+
   test('F-204: RTSP Test Connection probes POST /api/cameras/rtsp/test and renders ConnectionStatusCard', async ({
     page,
   }) => {
@@ -278,84 +278,74 @@ test.describe('FE-4 camera protocols golden path (F-204, F-205, F-206, F-207)', 
       '_validate_folder_path rejects colons in folder_path with 422'
     ).toBe(422);
 
-    // 2. Create temporary ONVIF camera with valid filesystem folder_path
-    const camName = `Golden FE4 PTZ ${runTag}`;
-    const createRes = await api.send('/api/cameras', 'POST', {
-      name: camName,
-      folder_path: `/cameras/golden_fe4_ptz_${runTag}`,
-      status: 'online',
-      ingestion_mode: 'onvif',
-      rtsp_url: REFUSED_RTSP_URL,
-      motion_sensitivity: 0.5,
+    // 2. Use an existing seeded camera to verify the 3 PTZ backend endpoints and mount
+    // <PTZControls> in the Edit Camera modal by switching ingestion_mode to 'onvif'
+    // (CamerasSettings.tsx:921-943, 1120-1133) without saving
+    const cameras = await listCameras(api);
+    expect(cameras.length).toBeGreaterThan(0);
+    const camId = cameras[0].id;
+
+    // 3. API-first check of all 3 PTZ endpoints (backend/api/routes/onvif.py:276-474):
+    // Because _get_onvif_device_url (backend/services/onvif_service.py:59-67) checks
+    // camera.folder_path.startswith("http"), all 3 endpoints return 409 Conflict.
+    const presetsRes = await api.getJson(`/api/cameras/${camId}/onvif/presets`);
+    expect(presetsRes.status).toBe(409);
+    expect(String(presetsRes.body?.detail ?? '')).toContain('Camera is not an ONVIF device');
+
+    const ptzRes = await api.send(`/api/cameras/${camId}/onvif/ptz`, 'POST', {
+      command: 'pan',
+      value: 1.0,
+      speed: 1.0,
     });
-    expect(createRes.status, 'ONVIF camera created (201)').toBe(201);
-    const camId = String(createRes.body?.id);
-    await waitCameraPresent(api, camId);
+    expect(ptzRes.status).toBe(409);
 
-    try {
-      // 3. API-first check of all 3 PTZ endpoints (backend/api/routes/onvif.py:276-474):
-      // Because _get_onvif_device_url (backend/services/onvif_service.py:59-67) checks
-      // camera.folder_path.startswith("http"), all 3 endpoints return 409 Conflict.
-      const presetsRes = await api.getJson(`/api/cameras/${camId}/onvif/presets`);
-      expect(presetsRes.status).toBe(409);
-      expect(String(presetsRes.body?.detail ?? '')).toContain('Camera is not an ONVIF device');
+    const gotoPresetRes = await api.send(`/api/cameras/${camId}/onvif/presets/preset_1`, 'POST');
+    expect(gotoPresetRes.status).toBe(409);
 
-      const ptzRes = await api.send(`/api/cameras/${camId}/onvif/ptz`, 'POST', {
-        command: 'pan',
-        value: 1.0,
-        speed: 1.0,
-      });
-      expect(ptzRes.status).toBe(409);
+    // 4. UI leg: open Edit Camera modal and switch ingestion_mode to 'onvif' (CamerasSettings.tsx:1120-1133)
+    await settledGoto(page, h, '/settings/cameras', (p) => p.getByTestId(`edit-camera-${camId}`));
+    await page.getByTestId(`edit-camera-${camId}`).click();
 
-      const gotoPresetRes = await api.send(`/api/cameras/${camId}/onvif/presets/preset_1`, 'POST');
-      expect(gotoPresetRes.status).toBe(409);
+    const presetsFetchPromise = page.waitForResponse(
+      (res) =>
+        apiPath(res.url()) === `/api/cameras/${camId}/onvif/presets` &&
+        res.request().method() === 'GET'
+    );
+    await page.getByTestId('camera-ingestion-mode-select').selectOption('onvif');
+    await presetsFetchPromise;
 
-      // 4. UI leg: open Edit Camera modal for the ONVIF camera (CamerasSettings.tsx:1120-1133)
-      await settledGoto(page, h, '/settings/cameras', (p) => p.getByTestId(`edit-camera-${camId}`));
+    const ptzControls = page.getByTestId('ptz-controls');
+    await expect(ptzControls).toBeVisible();
+    await expect(ptzControls).toHaveAttribute('aria-label', 'PTZ camera controls');
 
-      const presetsFetchPromise = page.waitForResponse(
-        (res) =>
-          apiPath(res.url()) === `/api/cameras/${camId}/onvif/presets` &&
-          res.request().method() === 'GET'
-      );
-      await page.getByTestId(`edit-camera-${camId}`).click();
-      await presetsFetchPromise;
+    // Directional & zoom buttons + preset selector (PTZControls.tsx:305-408)
+    const presetSelector = page.getByTestId('ptz-preset-selector');
+    await expect(presetSelector).toBeVisible();
+    await expect(presetSelector).toBeDisabled();
+    await expect(presetSelector).toContainText('No presets');
+    await expect(page.getByTestId('ptz-stop')).toBeDisabled();
 
-      const ptzControls = page.getByTestId('ptz-controls');
-      await expect(ptzControls).toBeVisible();
-      await expect(ptzControls).toHaveAttribute('aria-label', 'PTZ camera controls');
+    // Clicking Tilt Up dispatches POST /api/cameras/{id}/onvif/ptz with { command: 'tilt', value: 1 }
+    const tiltUpPromise = page.waitForResponse(
+      (res) =>
+        apiPath(res.url()) === `/api/cameras/${camId}/onvif/ptz` &&
+        res.request().method() === 'POST'
+    );
+    await page.getByTestId('ptz-up').click();
+    const tiltUpRes = await tiltUpPromise;
+    expect(tiltUpRes.request().postDataJSON()).toEqual({ command: 'tilt', value: 1 });
 
-      // Directional & zoom buttons + preset selector (PTZControls.tsx:305-408)
-      const presetSelector = page.getByTestId('ptz-preset-selector');
-      await expect(presetSelector).toBeVisible();
-      await expect(presetSelector).toBeDisabled();
-      await expect(presetSelector).toContainText('No presets');
-      await expect(page.getByTestId('ptz-stop')).toBeDisabled();
+    // Clicking Zoom In dispatches POST /api/cameras/{id}/onvif/ptz with { command: 'zoom', value: 1 }
+    const zoomInPromise = page.waitForResponse(
+      (res) =>
+        apiPath(res.url()) === `/api/cameras/${camId}/onvif/ptz` &&
+        res.request().method() === 'POST'
+    );
+    await page.getByTestId('ptz-zoom-in').click();
+    const zoomInRes = await zoomInPromise;
+    expect(zoomInRes.request().postDataJSON()).toEqual({ command: 'zoom', value: 1 });
 
-      // Clicking Tilt Up dispatches POST /api/cameras/{id}/onvif/ptz with { command: 'tilt', value: 1 }
-      const tiltUpPromise = page.waitForResponse(
-        (res) =>
-          apiPath(res.url()) === `/api/cameras/${camId}/onvif/ptz` &&
-          res.request().method() === 'POST'
-      );
-      await page.getByTestId('ptz-up').click();
-      const tiltUpRes = await tiltUpPromise;
-      expect(tiltUpRes.request().postDataJSON()).toEqual({ command: 'tilt', value: 1 });
-
-      // Clicking Zoom In dispatches POST /api/cameras/{id}/onvif/ptz with { command: 'zoom', value: 1 }
-      const zoomInPromise = page.waitForResponse(
-        (res) =>
-          apiPath(res.url()) === `/api/cameras/${camId}/onvif/ptz` &&
-          res.request().method() === 'POST'
-      );
-      await page.getByTestId('ptz-zoom-in').click();
-      const zoomInRes = await zoomInPromise;
-      expect(zoomInRes.request().postDataJSON()).toEqual({ command: 'zoom', value: 1 });
-
-      await page.getByRole('button', { name: 'Cancel' }).click();
-      await assertGuardSurvives(page, h);
-    } finally {
-      await deleteCameraIfPresent(api, camId);
-    }
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await assertGuardSurvives(page, h);
   });
 });
