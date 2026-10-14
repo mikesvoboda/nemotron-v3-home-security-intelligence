@@ -213,14 +213,18 @@ test.describe('F-047 event statistics panel', () => {
     page,
   }) => {
     const session = await adminSession(harness);
-    // All fixture rows are created within the last hour (createStatsFixture),
-    // so "today" holds them all and a 2020 range holds none — two answers that
-    // cannot both be satisfied by a panel that ignored the filter.
-    const today = new Date().toISOString().split('T')[0];
-    const full = await statsTruth(session, `&start_date=${today}&end_date=${today}`);
+    // The range is the fixture's OWN day, read back from the instant it stamped
+    // (createStatsFixture now returns `day`), NOT the runner's `new Date()`. A
+    // boot in the first UTC hour puts a now-anchored "today" a day ahead of rows
+    // created ~40-55 min ago — run 38488280792 booted at 00:06:59Z, saw 0 instead
+    // of 4, because `start=end=2026-10-14` excluded rows stamped 23:50 the day
+    // before. One day still answers two ways: the fixture's day holds all rows, a
+    // 2020 range holds none, so a panel that dropped the filter still fails.
+    const day = fx.day;
+    const full = await statsTruth(session, `&start_date=${day}&end_date=${day}`);
     expect(
       full.total_events,
-      'a range covering today must see the whole fixture (rows anchored to now)'
+      `a range covering the fixture's own day (${day}) must see the whole fixture`
     ).toBe(STATS_FIXTURE_ROWS.length);
     const empty = await statsTruth(session, '&start_date=2020-01-01&end_date=2020-01-31');
     expect(empty.total_events, 'a 2020 range must see none of them').toBe(0);

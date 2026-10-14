@@ -284,10 +284,12 @@ test.describe('F-046 timeline scrubber', () => {
       });
     }
 
-    // Rows anchored to NOW (same reason as createStatsFixture, harness.ts:749-755):
-    // the scrubber's default window is `now - 24 h → now`, so a fixture pinned to
-    // a calendar date walks out of it and the bars go flat. ONE shared instant, so
-    // no drifting bucket edge can ever split the fixture — see the header.
+    // Rows anchored to NOW (same shared-instant reasoning as createStatsFixture
+    // in ./harness.ts — cited by function, not by line, because line cites there
+    // went stale the moment the midnight-window fix landed): the scrubber's
+    // default window is `now - 24 h → now`, so a fixture pinned to a calendar
+    // date walks out of it and the bars go flat. ONE shared instant, so no
+    // drifting bucket edge can ever split the fixture — see the header.
     const salt = Date.now();
     const instant = new Date(Date.now() - ROWS_AGO_MIN * 60_000).toISOString();
     const events = FIXTURE_ROWS.map((row, i) => ({
@@ -343,19 +345,40 @@ test.describe('F-046 timeline scrubber', () => {
    *  through an effect (EventTimeline.tsx:305-328) and the first render has no
    *  camera yet. A path-only predicate caught the UNFILTERED one — 9 events
    *  stack-wide instead of this camera's 6 — which is the same trap as mirroring
-   *  against a second read, wearing a different hat. */
+   *  against a second read, wearing a different hat.
+   *
+   *  The body is read AT RESOLUTION (`.then(r => r.json())`), not after the
+   *  reload loop returns. It used to `await settledReload()` and THEN
+   *  `res.json()`, and that is the 3/3 `Network.getResponseBody: No resource with
+   *  given identifier found` run 38488280792 hit on all three attempts: `res`
+   *  resolves at the response EVENT during the first drive, but
+   *  `settledReload`→`driveUntilBooted` reloads up to 4 times when the shared
+   *  nginx bucket sheds a boot, and each navigation tears down the document that
+   *  owned the matched request, so CDP has evicted its body by the time a
+   *  deferred `.json()` asks for it. The fetch SUCCEEDED (the panel rendered from
+   *  it) — only the read handle was dead, so this was transport, not a dropped
+   *  summary body. In isolation the boot lands on drive 1 and never re-navigates,
+   *  which is why no local single-file run reproduced it: it needs the full-suite
+   *  bucket pressure to force a second drive. Reading at resolution issues the
+   *  CDP `getResponseBody` while the owning document is still current. */
   async function bootAndCapture(page: Page): Promise<TimelineSummaryBody> {
     await boot(page);
-    const pending = page.waitForResponse(
-      (r) =>
-        r.request().method() === 'GET' &&
-        new URL(r.url()).pathname === '/api/events/timeline-summary' &&
-        new URL(r.url()).searchParams.get('camera_id') === cameraId,
-      { timeout: 30_000 }
-    );
+    const captured = page
+      .waitForResponse(
+        (r) =>
+          r.request().method() === 'GET' &&
+          new URL(r.url()).pathname === '/api/events/timeline-summary' &&
+          new URL(r.url()).searchParams.get('camera_id') === cameraId &&
+          // Only a SUCCESS is "the body the page rendered from": the predicate
+          // used to ignore status, so a boot the nginx bucket shed (429 whose
+          // body is nginx HTML, not the summary) could satisfy it, and the
+          // deferred read then failed as an eviction instead of as what it was.
+          r.status() === 200,
+        { timeout: 30_000 }
+      )
+      .then((r) => r.json());
     await settledReload(page);
-    const res = await pending;
-    return (await res.json()) as TimelineSummaryBody;
+    return (await captured) as TimelineSummaryBody;
   }
 
   test('sees a 24-hour event-density chart whose every bar mirrors the server, and a bar click sets and resets the filter', async ({

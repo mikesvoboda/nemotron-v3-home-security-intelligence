@@ -693,13 +693,26 @@ export const STATS_FIXTURE_ROWS: ReadonlyArray<{
 export interface StatsFixture {
   cameraId: string;
   eventIds: number[];
+  /** The UTC calendar day (YYYY-MM-DD) every row was stamped INSIDE. The
+   *  date-filter leg must pass THIS back as its range, never `new Date()` —
+   *  see the stamp note below for why the runner's clock is the wrong answer. */
+  day: string;
 }
 
 /**
- * One dedicated camera plus STATS_FIXTURE_ROWS on it, anchored to NOW rather
- * than to a calendar date: F-047's date-filter leg asserts "today holds them
- * all", which a hardcoded date would break the moment CI runs at another hour
- * (the golden suite's clock is the runner's, not this file's).
+ * One dedicated camera plus STATS_FIXTURE_ROWS on it. The rows share ONE stamp
+ * so no midnight can split them, and the fixture returns that stamp's own UTC
+ * day so the date-filter leg reads back the day it wrote rather than asking the
+ * runner's clock for "today" (the golden suite's clock is the runner's, and a
+ * boot in the first hour of a UTC day made `now - 40..55 min` land on YESTERDAY
+ * — run 38488280792 at 00:06:59Z saw all four rows fall out of a
+ * start=end=today range: 4 expected, 0 received).
+ *
+ * The stats panel applies NO default time window (`get_event_stats` filters on
+ * `start_date`/`end_date` only when supplied, backend/api/routes/events.py:624)
+ * and EventTimeline seeds its filter state empty (EventTimeline.tsx:101), so
+ * recency is irrelevant to what renders — only the DAY the rows share matters,
+ * and that day is now returned, not guessed.
  *
  * Idempotent the same way createTimelineFixture is, but the purge is a HARD one
  * — see the block header for why soft is not enough for a counts fixture.
@@ -745,13 +758,19 @@ export async function createStatsFixture(
   );
 
   const salt = Date.now();
-  const now = Date.now();
+  // ONE shared instant ~6 h ago, not a 40..55 min spread. The spread was the
+  // landmine: 40-55 minutes before 00:30Z is 23:50 on the PREVIOUS UTC day, so
+  // a run booting in the first hour of a day put the whole fixture outside a
+  // "today" range (and a spread that wide could straddle midnight and split the
+  // fixture across two days, so no single-day range could ever hold it). 6 h
+  // back keeps the instant inside the scrubber's default 24 h window too, which
+  // is what the panel's boot render needs.
+  const instant = new Date(Date.now() - 6 * 3_600_000);
+  const day = instant.toISOString().slice(0, 10);
   const events = STATS_FIXTURE_ROWS.map((row, i) => ({
     batch_id: `fe3s-${salt}-${i}`, // UNIQUE per row (measured UniqueViolationError)
     camera_id: cameraId,
-    // 40..55 minutes ago: inside the last hour, inside today, and inside the
-    // scrubber's default 24 h window (measured: it spans now-24 h → now).
-    started_at: new Date(now - (40 + i * 5) * 60_000).toISOString(),
+    started_at: instant.toISOString(),
     risk_score: row.riskScore,
     risk_level: row.riskLevel,
     summary: `FE-3 stats fixture row ${i} (${row.riskLevel})`,
@@ -764,7 +783,7 @@ export async function createStatsFixture(
     );
   }
   const eventIds = bulk.results.map((r) => r.id).filter((id): id is number => id !== null);
-  return { cameraId, eventIds };
+  return { cameraId, eventIds, day };
 }
 
 /**
