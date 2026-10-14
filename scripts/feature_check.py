@@ -486,13 +486,18 @@ def as_test_deployment(
 # every service that has a `deploy:` block has them — and a rootless engine
 # cannot start a container that asks for a limit where no cgroup controller is
 # delegated to the caller (the O2.5 spike's differential control). Unlike the CI
-# path, the prod-shape run does NOT go through `as_test_deployment`/`preflight` —
-# those are built for the 6-service CI stack
-# and their fail-closed key allowlist refuses prod's `userns_mode`/`devices`/
-# `cgroup`. The authored override (scripts/uplevel/docker-compose.prodshape.yml,
-# pinned by scripts/test_prodshape_override.py) is the UR-133/134 transform
-# instead; limits are the one thing it deliberately leaves to run time, decided
-# from the machine the operator runs on and recorded in the run summary.
+# path, the prod-shape run does NOT go through `as_test_deployment`/`preflight`.
+# Measured, not assumed: the fail-closed key allowlist refuses the plain prod
+# render with 46 problems (19 of them `restart`, which has no CI rule; plus
+# `pid: host` on alloy and node-exporter, `devices`, `labels`, `cap_add`,
+# `ulimits`, `userns_mode`, and three `security_opt: label=disable`), and the
+# prod+override render still has 39. Widening that gate to fit would widen what a
+# CI run may ask for, and `pid: host` is something the prod shape genuinely needs
+# to observe the host, so it is not a refusal that can be made to go away. The
+# authored override (scripts/uplevel/docker-compose.prodshape.yml, pinned by
+# scripts/test_prodshape_override.py) is the UR-133/134 transform instead; limits
+# are the one thing it deliberately leaves to run time, decided from the machine
+# the operator runs on and recorded in the run summary.
 # ---------------------------------------------------------------------------
 
 # Ruling 162 item 2 names these strings verbatim; the run record carries them
