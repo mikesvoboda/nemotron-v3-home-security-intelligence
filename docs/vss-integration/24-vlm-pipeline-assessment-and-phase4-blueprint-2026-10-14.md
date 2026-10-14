@@ -61,8 +61,8 @@ programme baseline), five waves of commits established the shipped `ai-vlm` path
 
 ### The Unresolved Core Bottleneck
 
-Despite the 15-arm sweep — 12 model arms across 10 distinct upstream repositories (12 distinct
-weight files; two repos contribute two quantizations each) plus 3 controls — reported in
+Despite the 15-arm sweep — 12 model arms on 9 distinct base models, from 10 upstream repositories
+(12 distinct weight files; two repos contribute two quantizations each) plus 3 controls — reported in
 `6144f132f` and recorded by `08d0bf21` (`ISS-097`), and the 4-stage, 10-arm controlled prompt
 programme (`26b900bc`, `60022dd0`, `c0191f4d`; banked in
 [`22`](22-prompt-research-and-probes-2026-10-04.md) and
