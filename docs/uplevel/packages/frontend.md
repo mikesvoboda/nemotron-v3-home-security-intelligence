@@ -396,3 +396,15 @@ yet. (rulings 123, 125, 165)
 
 **Done when:** the spec passes in CI's `Feature check (fake AI)` with no mark, before
 2026-10-16T00:00Z.
+
+### [r168] The fast-path switch
+
+**Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s
+`fast_path_enabled` field merged. **PR:** none yet. (ruling 168)
+
+- [ ] The processing settings show a "Fast path" switch bound to `fast_path_enabled`, off by default,
+      with `config.py`'s warning as its help text; the threshold slider shows only when it is on.
+- [ ] The page never writes a threshold while the switch is off.
+
+**Done when:** a test saves the settings page with the fast path off and reads it back off; backend
+then removes the two read clamps in `system.py` as UR-48 lane work.
