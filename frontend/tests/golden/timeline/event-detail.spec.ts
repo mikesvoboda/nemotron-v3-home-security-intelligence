@@ -64,8 +64,8 @@
  *   the modal reopens"). A 10 s sampler after a reload, with the note stored and
  *   `?event=` still in the URL, read `""` at every 250 ms sample: never populated,
  *   not populated-then-wiped. `test.fixme` is this repo's instrument for exactly
- *   this (shell/ws-status.spec.ts:184, notify-access/notify.spec.ts:199): the spec
- *   is written and the failure is documented, and the rest of the golden project
+ *   this (shell/ws-status.spec.ts:184): the spec is written and the failure is
+ *   documented, and the rest of the golden project
  *   stays green so CI's verdict stays readable.
  * - A SECOND, SEPARATE DEFECT, frontend, reported but NOT the basis for the
  *   demotion. The modal's inline chip that literally reads "Saved" is present for
@@ -331,7 +331,7 @@ test.describe('F-057 notes', () => {
   /**
    * THE BROKEN HALF. Written, documented, not executed — `test.fixme` is how this
    * repo records a path that is built and known to fail (shell/ws-status.spec.ts:
-   * 184, notify-access/notify.spec.ts:199), which keeps the rest of the golden
+   * 184), which keeps the rest of the golden
    * project's verdict readable while the defect is open.
    *
    * WHY IT CANNOT PASS TODAY, measured on one row in one run: PATCH answered

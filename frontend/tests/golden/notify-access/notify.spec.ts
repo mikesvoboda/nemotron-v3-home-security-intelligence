@@ -77,6 +77,7 @@ import {
   login,
   readHarness,
   sectionTitle,
+  settledSettings,
   type Harness,
 } from './harness';
 
@@ -195,8 +196,25 @@ test.describe('DO-2 notifications golden path', () => {
     ).toHaveCount(0);
   });
 
-  // owner ruling 125 — quarantined until fixed, expires 2026-10-14T00:00Z
-  test.fixme('F-235 channels: the no-env stack is not-configured end to end', async ({ page }) => {
+  // [r165b] cure (owner rulings 125, 165): the ruling-125 mark comes off here.
+  // The red was never in the feature. This leg's settings boot is the SECOND
+  // SPA boot of its test (login() booted /login seconds earlier), and each boot
+  // fires ~12 /api calls into the golden project's ONE shared nginx bucket
+  // (rate=10r/s nginx.conf:24 + burst=20 nodelay docker-entrypoint.sh:139; ONE IP).
+  // A drained bucket sheds the config fetch and the shipped client does not retry a
+  // 429 (api.ts:901-903 covers 0/5xx only), so config stays null and the config-gated
+  // block below never mounts. Observed twice: the run-2 snapshot on #6996
+  // printed "HTTP 429: Too Many Requests" where the guidance belongs, and main's
+  // run 38188266803 struck ✘ then ✓ on retry (coordinator census 6115961263).
+  // The boot now runs through settledSettings (./harness.ts): drain the burst,
+  // navigate, wait for the config-gated sentinel, re-drive on a shed coat — the
+  // dashboard harness's proven discipline, kept local per ruling 87.
+  test('F-235 channels: the no-env stack is not-configured end to end', async ({ page }) => {
+    // settledSettings' arithmetic ceiling is 48 s (3 drives x (2 s quiet + 10 s
+    // sentinel + 4 s refill)) plus the coat poller's round-trips; 90 s is ~2x that
+    // and matches the driveUntilBooted tier (../dashboard/config-modal.spec.ts:252,
+    // :296). Measured: a clean boot through it costs 2.8 s (hsi-check-20261014141946).
+    test.setTimeout(90_000);
     const h = harness as Harness;
     const api = await signIn(page, h);
 
@@ -209,7 +227,7 @@ test.describe('DO-2 notifications golden path', () => {
     expect(cfg.body?.available_channels, 'no channel passes its predicate').toEqual([]);
 
     // --- UI leg: the guidance REPLACES the test buttons (that is the pin) ---
-    await page.goto(`${h.ui}/settings/notifications`, { waitUntil: 'domcontentloaded' });
+    await settledSettings(page, h, '/settings/notifications');
     await expect(page.getByText('Email notifications are not configured.')).toBeVisible();
     await expect(page.getByText('Webhook notifications are not configured.')).toBeVisible();
     await expect(page.getByText('No notification channels configured')).toBeVisible();

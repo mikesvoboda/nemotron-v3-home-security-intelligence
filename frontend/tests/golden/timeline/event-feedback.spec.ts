@@ -360,8 +360,8 @@ test.describe('F-060 event feedback', () => {
     // not shown. If a fix ever renders it, this leg turns green and F-060's
     // half-built evidence loses its UI-end half (the no-backend-reader half in
     // the file header would remain). test.fixme is this repo's instrument for a
-    // written-but-known-red leg (shell/ws-status.spec.ts:184,
-    // notify-access/notify.spec.ts:199); the rest of the project stays green so
+    // written-but-known-red leg (shell/ws-status.spec.ts:184); the rest of the
+    // project stays green so
     // CI's verdict stays readable.
     const session = await bootWithModal(page, fx.seededEventId);
     // The premise, stated as a passing assertion so a reader can see WHICH
