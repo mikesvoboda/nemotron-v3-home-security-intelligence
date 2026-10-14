@@ -64,10 +64,15 @@ test.describe('golden path: performance page active alerts (F-171) @critical', (
       (a) => a.metric === 'redis_hit_ratio' && a.severity === 'critical'
     );
 
-    for (let round = 0; !redisAlert && round < 8; round += 1) {
-      await Promise.all(
-        Array.from({ length: 30 }, () => api<unknown>(h, session, '/api/debug/pipeline-state'))
-      );
+    for (let round = 0; !redisAlert && round < 10; round += 1) {
+      // Four waves of 40 requests (160 × 7 = 1,120 keyspace_misses per round,
+      // up to 11,200 across 10 rounds) keep concurrency bounded while covering
+      // >1,200 prior keyspace_hits accumulated by earlier golden specs.
+      for (let wave = 0; wave < 4; wave += 1) {
+        await Promise.all(
+          Array.from({ length: 40 }, () => api<unknown>(h, session, '/api/debug/pipeline-state'))
+        );
+      }
       await new Promise((r) => setTimeout(r, 5_500));
       perf = await api<PerformanceSnapshotBody>(h, session, '/api/system/performance');
       redisAlert = (perf.alerts ?? []).find(

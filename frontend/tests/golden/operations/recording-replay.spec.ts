@@ -96,7 +96,7 @@ test.describe('golden path: recording and replay panel (F-154, F-155, F-156) @cr
       // F-154: click View to open the detail modal.
       await panel.getByRole('button', { name: `View recording ${first.recording_id}` }).click();
       await expect(page.getByRole('heading', { name: 'Recording Details' })).toBeVisible();
-      await expect(page.getByText(first.recording_id)).toBeVisible();
+      await expect(page.getByText(first.recording_id).first()).toBeVisible();
       await page.getByRole('button', { name: 'Close' }).first().click();
 
       // F-155: click Replay to open the replay-results modal.
