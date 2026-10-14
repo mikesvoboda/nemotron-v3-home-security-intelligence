@@ -185,12 +185,24 @@ const ARM_TRIES = 25; // ~2.5 s of hunting = 25 admit ticks; far above need
  * reworded surface ('Rate limited — retrying in 0:53', 'Rate limited. Retry in
  * 0:53') still matches, as does every retired copy the overlay produced
  * ('Retry in 0:53' via `retry in \d`, '…requests remaining', 'API quota
- * running low'). What it cannot see is exactly one string — the pill's ruled
- * text — which is the intended scope: ruling 155 names that string, so a scan
- * may not fail on it. Measured, not argued: over a 10-string corpus this
- * differs from the old pattern on the pill alone and loses no retired-copy
- * match (the narrower `(?![^a-z0-9]*retry)` was tried first and REJECTED — it
- * also silenced the reworded-overlay case above).
+ * running low'). THE EXEMPTION'S REAL SCOPE, stated exactly because a prefix
+ * test is easy to over-read: a lookahead tests what FOLLOWS 'rate limited', so
+ * this skips every string that BEGINS with the pill's ruled copy, not one
+ * string. 'Rate limited, retrying… 0:53' — the pill plus a leaked countdown,
+ * which is where a number would actually reappear — passes unmarked. Named
+ * rather than widened, because both widenings that would close it measured
+ * worse than the hole: appending `$` to the lookahead reddens the KEPT pill
+ * whenever its text is not alone on a line, and "alone on a line" is a
+ * property of innerText's inline/block shape rather than of the pill's own
+ * copy, so it goes false silently the day someone adds a sibling; a bare
+ * `\d{1,2}:\d{2}` alternative loses the two retired copies that carry no
+ * digits ('…requests remaining', 'API quota running low') and matches page
+ * chrome the moment a panel that renders 'Last updated: 2:31:45 AM' (e.g.
+ * WebSocketHealthPanel.tsx:321) is mounted on a scanned page. Measured, not
+ * argued, over a 12-string probe: the exemption differs from the pre-ruling-155
+ * pattern on THREE strings — the pill itself and two strings that begin with
+ * it — and loses no retired-copy match (the narrower `(?![^a-z0-9]*retry)` was
+ * tried first and REJECTED — it also silenced the reworded-overlay case above).
  */
 const RETIRED_SURFACE =
   /rate limited(?!, retrying…)|retry in \d|requests? remaining|quota running low/i;
