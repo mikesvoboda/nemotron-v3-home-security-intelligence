@@ -342,8 +342,14 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     // chunk drain 1.5 s · coherent sample 25 s · one backoff increment 45 s
     // · merged recovery poll 90 s · final drain 2 s  =  270.5 s of poll
     // ceilings, plus two navigations (boot + reload). The LEGITIMATE worst
-    // path is far under that (a passing leg spends ≈120 s: its polls return
-    // as soon as they're true), so 300 s is headroom for a leg that is
+    // path is far under that — its polls return as soon as they're true. One
+    // measured datapoint: on a fake-AI compose stack in this sandbox (the
+    // feature-check harness's rendered file, held up past its own teardown) the
+    // leg passed in 14.8 s wall — so the ceiling sum is NOT an expected
+    // duration. CI's real number is the testcase's time= attribute in that run's
+    // golden-playwright.xml, which is the instrument the row cites; the host
+    // tears loopback sockets down differently, so CI's margin is CI's to print.
+    // 300 s is headroom for a leg that is
     // merely slow, and the sum of ceilings stays inside the Feature check
     // job's own 60-min bound (ci.yml, feature-check).
     // The arithmetic matters because a leg that outlives test.setTimeout
