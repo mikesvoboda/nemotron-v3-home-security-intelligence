@@ -859,6 +859,23 @@ The logic is `feature_check.py`, standard library only:
 - `--real` (owner ruling 66) serves the real VLM through `agent-gpu` in place
   of the fake one (`AgentGpu`): the weights' pin first, the runner's port as
   the only host address the run may reach, and the VLM removed after the run.
+- `--real --prod-shape` (O2.5, UR-140) boots the PRODUCTION compose file, and
+  that changes what the boot itself has to do: the prod render carries six
+  `build:` services and no local image, so `up` starts BUILDING _during_ the
+  boot — pulling a host-local name only ever answered `denied`, and
+  bootstrapping a buildx builder CONTAINER for the image-less five, which
+  needs a startable container and cgroup delegation. So `render_prod_shape()`
+  pre-builds before `up`: an `image inspect` census per derived name
+  (`build_images()`, cross-checked against compose's own `config --images`),
+  one `compose build` for the absent ones under `DOCKER_BUILDKIT=0` — the
+  engine's own builder, no builder container — streamed to `prebuild.txt`. A
+  failed build refuses the boot, and a failed boot now quotes compose's own
+  tail instead of only "backend is not running". `prebuild.built` in the
+  summary is filled from the build's EXIT, never from intent. `--fake` is
+  untouched: `docker-compose.ci.yml` has no `build:` block, so the leg no-ops.
+  Whether the engine's builder honours the cache mounts three prod
+  Dockerfiles ask for is what the operator's first run reads out of
+  `prebuild.txt` — the runner takes no side of that question for it.
 
 The tests are in `backend/tests/unit/scripts/test_feature_check.py`. The
 `Feature Check` workflow runs `--fake` on every PR that changes more than
