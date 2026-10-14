@@ -99,8 +99,10 @@ nothing in `backend/` outside the DROP runbook.
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first, then the
-      scene-change vertical — then the rest of the list the owner approved at `R2`.
+- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then the rest
+      of the list the owner approved at `R2`. The scene-change vertical stays: R2a row 24 ruled it
+      complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
+      183).
 - [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"

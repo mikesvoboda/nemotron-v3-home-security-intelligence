@@ -195,6 +195,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 180    | package `[r157]`: independent builds, `--plan-timeout` (record 6173140800)                                  |
 | 181    | package `[r181]`: lane-tick digest, activity snapshot; `BLOCKER:` line (record 6173920972)                  |
 | 182    | UR-182: RTX VSS positioning, Easy/Advanced modes; seven rows kept (record 6174228588)                       |
+| 183    | package B3.2: scene-change vertical kept, R2a row 24 over OD-28 (record 6175205677)                         |
 
 ## Owner records
 
