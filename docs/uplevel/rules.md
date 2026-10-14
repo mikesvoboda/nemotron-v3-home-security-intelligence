@@ -673,6 +673,16 @@ or an agent's memory.
   `sudo npx playwright install-deps chromium`, with no record. Production Dockerfiles never gain
   browser packages, and nothing is built into the host sandbox image for this. (ruling 143;
   supersedes record 6123811294)
+- **UR-180** Each agent keeps its own sandbox's disks under 90% used. Each tick's heartbeat step
+  reads `df -h / /var/lib/docker`; above 90%, the agent removes its own leftovers in this order,
+  re-reading `df` after each and stopping once under 90%: containers and volumes of its finished or
+  killed `feature_check.py` runs (compose projects `hsi-check-*`), `docker builder prune -af`,
+  `docker image prune -f`, scratch worktrees under `/tmp` that no open PR of its own uses (then
+  `git worktree prune`), `uv cache clean`, and only then `docker system prune -af --volumes`. A
+  routine full prune before or after each run is barred: it re-pulls base images from Docker Hub,
+  whose anonymous pull limit CI has already hit. The heartbeat names a disk only while it is above
+  90%. The cleanup needs no owner approval; no agent touches another's sandbox (UR-163, UR-170).
+  (ruling 176)
 
 ## Security
 

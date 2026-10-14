@@ -27,7 +27,7 @@ tick".`
 1. `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/operator.md`).
    Then read every live `BINDING NOW` record on #6854: `gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate`, keeping those whose first line starts `BINDING NOW`. Act on each that names the operator or all agents and whose required state does not already hold; one already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings 163, 170).
-2. Edit your heartbeat ([`lane.md`](lane.md), "Heartbeat"). If the coordinator's is older than 20
+2. Edit your heartbeat ([`lane.md`](lane.md), "Heartbeat"), and keep your disks under 90% (UR-180). If the coordinator's is older than 20
    minutes, follow `lane.md`, "Stale coordinator".
 3. Read the new comments on your own open PRs.
 4. Take the oldest README row on `main` that says `awaiting real tier` and run it: on the agent-gpu

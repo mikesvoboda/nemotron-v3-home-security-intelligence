@@ -187,6 +187,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 172    | package `[r172]`: per-module import budget (record 6168112919)                                              |
 | 173    | package `[r173]`: golden skips in the registry (record 6168125268)                                          |
 | 174    | compose-render entry leaves `tpa_slow_list` (record 6168142239)                                             |
+| 176    | UR-180: sandbox disks under 90%, targeted cleanup (record 6172107453)                                       |
 
 ## Owner records
 

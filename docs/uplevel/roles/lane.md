@@ -49,7 +49,7 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
    Then read every live `BINDING NOW` record on #6854: `gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate`, keeping those whose first line starts `BINDING NOW`. Act on each that names your lane or all agents and whose required state does not already hold; one already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings 163, 170).
-2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below). Read the coordinator's; if it is older
+2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below), and keep your disks under 90% (UR-180). Read the coordinator's; if it is older
    than 20 minutes, follow "Stale coordinator" below.
 3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
    lane's PR" below). Heavy agents skip this step.
