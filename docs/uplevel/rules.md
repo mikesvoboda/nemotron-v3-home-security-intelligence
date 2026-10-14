@@ -579,7 +579,10 @@ Read this section before you post any comment, review, heartbeat, status comment
   - **Stalled.** An agent is stalled when its heartbeat is older than three of its intervals (45
     minutes for lane and heavy agents, 90 for the operator) and it has pushed no commit and posted
     no comment since. The coordinator raises the urgent path for it, naming the agent and its open
-    PRs. (ruling 64; roles/coordinator.md "The urgent path")
+    PRs. A comment counts when it is signed by the agent (`Reviewer lane: <lane>`, or its lane
+    or sandbox name in the first line), on any PR or issue. Before a step it expects to run over 15
+    minutes, an agent beats `working #<n> · <step> since <HH:MMZ>` (`roles/lane.md`, "Before a long
+    step"). (ruling 64, 178; roles/coordinator.md "The urgent path")
 - **UR-160** A heavy agent whose queue is empty posts a final heartbeat
   `paused · queue empty (ruling 88)` and ends its turn, and the owner stops its loop. When the owner
   stops an agent, the owner's session may write its `paused` heartbeat. An agent whose heartbeat

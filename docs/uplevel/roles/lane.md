@@ -92,6 +92,11 @@ Find the issue with `gh issue list --state open --search "Uplevel heartbeats in:
 comment by its first line, and edit it with
 `gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`.
 
+**Before a long step.** Before any step you expect to run over 15 minutes (a local test or golden
+run, a UR-89 self-review subagent), edit your heartbeat to
+`<sandbox> · <HH:MMZ> · working #<n> · <step> since <HH:MMZ>`. It is a beat, not a wait (UR-38).
+(ruling 178)
+
 **Stale coordinator.** When the coordinator's heartbeat is older than 20 minutes, act as UR-162
 says: one plain `URGENT PATH` comment on #6854 per hour, no label and no @-mention (UR-168). The
 owner restarts the coordinator (UR-163).
