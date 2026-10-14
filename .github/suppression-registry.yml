@@ -1093,13 +1093,13 @@ pytest_skip_imperative:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:544
+  - id: backend/tests/security/test_docker_compose_security.py:549
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: git not available
-  - id: backend/tests/security/test_docker_compose_security.py:554
+  - id: backend/tests/security/test_docker_compose_security.py:559
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
@@ -1742,9 +1742,8 @@ tpa_slow_list:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason:
-      6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots
-      a real child pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked,
-      20s child wall) (2026-10-11)
+      6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots a real child
+      pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked, 20s child wall) (2026-10-11)
   - id: test_enrichment_pipeline_household_matching.*test_vehicle_household_matching_via_license_plate
     kind: todo
     owner: mikesvoboda
