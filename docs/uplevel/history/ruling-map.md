@@ -191,6 +191,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 177    | lane.md, operator.md step 1: uncarried live records only, filtered at the source (record 6172198207)          |
 | 178    | lane.md beat before long steps; coordinator.md step 5 reads signed activity; UR-38 (record 6172424097)        |
 | 179    | UR-155: heartbeats at most 600 characters; UR-181: evidence cells at most three sentences (record 6172543400) |
+| 180    | package `[r157]`: independent stage builds, `--plan-timeout` (default 600 s) (record 6173140800)              |
 
 ## Owner records
 

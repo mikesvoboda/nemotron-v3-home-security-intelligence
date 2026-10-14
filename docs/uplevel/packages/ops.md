@@ -432,6 +432,12 @@ Triton, so CI never checks the model half.
       arguments; the parity check as its default mode and the diagnostic as a second mode; UR-133 and
       UR-134 kept (ruling 159).
 - [ ] The fix for the first stage under 0.999, here or in a follow-up PR this one names.
+- [ ] The runner builds each stage's plan independently: stage 3 probes the FP32 plan straight
+      after its build, and a failed build leaves its stage `unknown` instead of ending the run. A
+      `--plan-timeout <s>` flag reaches `export_reid.py`'s build, default 600 s, and each build logs
+      its wall time and `nvidia-smi` compute apps into the run directory. The owner's 10-14 run
+      lost stage 3 when the FP16 build hit 600 s; the same build took 137.7 s on 10-13. The owner
+      reruns with `--plan-timeout 1800` (ruling 180).
 
 **Done when:** the owner's one diagnostic run on maui is posted on this PR, and O2.4's command
 (#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
