@@ -286,3 +286,114 @@ export async function assertGuardSurvives(page: Page, h: Harness): Promise<void>
 export function sectionTitle(page: Page, text: string): Locator {
   return page.getByText(text, { exact: true });
 }
+
+/**
+ * The measured nginx burst pause — the measurement itself lives in
+ * ../shell/harness.ts (its BOOT_QUIET_MS comment: burst=20 + the 10 r/s refill
+ * passes ~22 of a 60-request flood, and 2 s of quiet restores a full 20-token
+ * burst; frontend/nginx.conf:24 zone=api rate=10r/s). Why DO-2 needs it at
+ * all: the golden project runs ONE worker over ONE client IP, so every boot of
+ * every spec drains the SAME bucket, and a DO-2 leg's two boots — login()'s
+ * /login wave plus the settings wave, ~12 calls each, seconds apart — land
+ * right at the burst edge. The shipped client cannot absorb the shed:
+ * shouldRetry covers only 0/5xx (services/api.ts:901-903), so a shed
+ * GET /api/notification/config THROWS, NotificationSettings' catch (:215-225)
+ * leaves config null, and the whole config-gated block (:522) — every string
+ * F-235 asserts — never mounts. That is ruling 125's F-235 red, observed twice:
+ * the run-2 snapshot on #6996 renders "HTTP 429: Too Many Requests" (from
+ * fetchApi's default message, services/api.ts:1209) where the guidance should
+ * be, and main's run 38188266803 struck it ✘ then ✓ on retry (coordinator
+ * census 6115961263). The node-API legs ride backend:8000 direct
+ * (feature_check.py:1837) and never see nginx — only the BROWSER boots drain
+ * the bucket, which is why the fix is a boot discipline, not an API-leg one.
+ */
+export const BOOT_QUIET_MS = 2_000;
+
+/** The three ways a SHED boot renders instead of the settings panel. Same
+ *  coats ../dashboard/harness.ts reads on the dashboard: a shed setup-status
+ *  query fail-closes ProtectedRoute to /setup ("First Time Setup"), a shed
+ *  current-user query reads as logged-out (/login, "Welcome Back"), and a shed
+ *  config fetch flips NotificationSettings' error box (:496-500), which prints
+ *  the raw "HTTP 429: Too Many Requests". A coat is the bucket shedding, not
+ *  the feature — it must never be what an assert is judging. */
+async function shedCoat(page: Page): Promise<string | null> {
+  if (
+    await page
+      .getByText('First Time Setup')
+      .first()
+      .isVisible()
+      .catch(() => false)
+  )
+    return 'setup';
+  if (
+    await page
+      .getByText('Welcome Back')
+      .first()
+      .isVisible()
+      .catch(() => false)
+  )
+    return 'login';
+  if (
+    (await page
+      .getByText(/HTTP 429/)
+      .first()
+      .isVisible()
+      .catch(() => false)) ||
+    (await page
+      .getByText('Error Loading Dashboard')
+      .first()
+      .isVisible()
+      .catch(() => false))
+  )
+    return 'err429';
+  return null;
+}
+
+/**
+ * Boot a /settings page and settle it: quiet (drain the shared bucket),
+ * navigate, then WAIT FOR THE CONFIG-GATED PANEL, detecting a shed coat
+ * instead of waiting out the timeout — the dashboard harness's driveUntilBooted
+ * (:221-239) pattern, kept in this batch's own file because ruling 87 keeps
+ * batches' harnesses independent (the same reasoning as this file's header: a
+ * shared module across batches would make two lanes' PRs depend on each other's
+ * merge). `Global Preferences` is the boot sentinel because it lives INSIDE the
+ * `!isAnyLoading && config` gate (:522) — its paint proves the config fetch
+ * survived, which is exactly the fact every F-235 assert rests on. A shed drive
+ * is re-driven after one burst refill; a stack that never settles IS reported,
+ * naming the last coat — saturation deserves a red, just not a misleading one.
+ */
+export async function settledSettings(page: Page, h: Harness, path: string): Promise<void> {
+  let lastCoat = 'no-shed-coat(page painted something else)';
+  for (let drive = 1; drive <= 3; drive++) {
+    await page.waitForTimeout(BOOT_QUIET_MS);
+    await page.goto(`${h.ui}${path}`, { waitUntil: 'domcontentloaded' });
+    const painted = await Promise.race([
+      sectionTitle(page, 'Global Preferences')
+        .waitFor({ state: 'visible', timeout: 10_000 })
+        .then(() => 'booted' as const),
+      (async () => {
+        // Poll for a coat while the boot settles; whichever appears first wins.
+        // Swallow ANY throw — a detached page after the race resolved is the
+        // normal case, mirroring settleBoot's floating promise.
+        try {
+          for (let t = 0; t < 20; t++) {
+            const coat = await shedCoat(page);
+            if (coat) return coat;
+            await page.waitForTimeout(500);
+          }
+        } catch {
+          /* page gone / detached — the race already resolved or the drive ends */
+        }
+        return null;
+      })(),
+    ]);
+    if (painted === 'booted') return;
+    lastCoat = painted ?? lastCoat;
+    await page.waitForTimeout(4_000); // one burst refill (10 r/s → 20 tokens in 2 s)
+  }
+  throw new Error(
+    `settledSettings(${path}): 3 drives, none painted the config-gated panel (last shed coat: ${lastCoat}) — ` +
+      'the shared nginx api bucket (rate=10r/s burst=20, frontend/nginx.conf:24) shed every ' +
+      'attempt; this is stack saturation, not a channel-configuration failure'
+  );
+}
