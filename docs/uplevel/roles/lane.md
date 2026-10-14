@@ -81,7 +81,8 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 ## Heartbeat
 
 Keep your heartbeat comment on the pinned issue "Uplevel heartbeats" as UR-38 says; post it once
-if you have none. It is two lines:
+if you have none. It is two lines, plus at most one short line, and at most 600 characters in all
+(UR-155); detail goes on the PR it concerns:
 
 ```text
 <!-- heartbeat:<sandbox> -->

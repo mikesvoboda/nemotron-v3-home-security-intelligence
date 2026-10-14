@@ -530,6 +530,10 @@ when a phase exits, are UR-10 (contract rule 5).
 - **UR-153** A row demoted only because the CI stack cannot reach it returns to `unverified`, its
   note saying why, and `F2.3` reaches it by the real tier or a seeded golden path; a row is ruled
   only if it fails once reachable, and that failure is a demotion in a later `R2b` round. (ruling 127)
+- **UR-181** An inventory evidence cell, whenever its row is edited, is at most three sentences
+  (about 500 characters): why the row has its status, the witness (`path:line` or the spec), and
+  the run id. Demotion history, supersessions and re-anchoring go in the PR body. A long cell is cut
+  to this shape when its row is next edited; there is no sweep. (ruling 179)
 
 ## Posting, heartbeats and the urgent path
 
@@ -548,9 +552,11 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-154** When a command fails or its answer is unclear, say that instead of stating a fact; read
   times from `date -u` or omit them, and treat GitHub's `created_at` as the record. (coordinator
   kickoff prompt; roles/owner-partner.md "Guardrails")
-- **UR-155** Heartbeats, beats, verdicts and lane notes run about 1,500 characters: what I read,
-  what I did, what comes next. Evidence goes in a collapsed `<details>` block or a link to the job
-  log, not in the body. (ruling 146)
+- **UR-155** Beats, verdicts and lane notes run about 1,500 characters: what I read, what I did,
+  what comes next. Evidence goes in a collapsed `<details>` block or a link to the job log, not in
+  the body. A heartbeat is at most 600 characters: the coordinator's as UR-38 says, a lane's or the
+  operator's as the two lines `roles/lane.md` "Heartbeat" gives plus at most one short line, with
+  detail on the PR it concerns. (rulings 146, 156, 179)
 - **UR-156** The coordinator asks an author to edit a comment that carries harness wrapper text
   (contract rule 2). (ruling 56)
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act
