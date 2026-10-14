@@ -1,7 +1,7 @@
 # Lane and heavy agents
 
 > For the lane agents (`uplevel-backend`, `uplevel-frontend`, `uplevel-ops-a`, `uplevel-ops-b`,
-> `uplevel-docs`) and the heavy agents (`uplevel-heavy`, `uplevel-heavy-2`). This file is your
+> `uplevel-docs`) and the heavy agents (`uplevel-heavy-a`, `uplevel-heavy-b`). This file is your
 > procedure: your tick, claiming, building, self-review, reviewing other lanes' PRs, posting, and
 > your kickoff prompt. The rules each step obeys live in [`rules.md`](../rules.md); each step names
 > the section to read before you act. Your packages are in `packages/<lane>.md`.
@@ -13,19 +13,19 @@ queue (UR-52); the coordinator assigns only `heavy` packages and packages on no 
 `scripts/uplevel/sandboxes.toml` declares the same sessions. Phase 3 entries wait as UR-66 says.
 The owner sets these queues; a change is a ruling. Ruling 175 rebalanced `F2.3` so every lane
 works on it: packages a ruling routed after a lane's `F2.3` rows wait for them, and routed bug
-fixes (`[r130b]`, `[r130f]`) keep their place.
+fixes (`[r130b]`, `[r130f]`) keep their place. Ruling 184 gave the heavy agents FE-4 and OP-1.
 
-| sandbox               | model     | queue                                                                                                                                                                                                          | review label      |
-| --------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                               | none              |
-| `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                                                                            | `review:backend`  |
-| `uplevel-frontend`    | fast      | `[r165a]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews docs' FE-4), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3` | `review:frontend` |
-| `uplevel-ops-a`       | fast      | `OB.3`, `F2.3` UI (OP-1, OP-2), `[r164a]`, `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                          | `review:ops-a`    |
-| `uplevel-ops-b`       | fast      | `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger           | `review:ops-b`    |
-| `uplevel-docs`        | fast      | `[r165b]`, `F2.3` UI batches (DO-2, DO-3, then FE-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                           | `review:docs`     |
-| `uplevel-heavy`       | strongest | assigned `heavy` PRs without `cell:heavy-2`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused until Phase 3 opens (ruling 88)                                                               | none              |
-| `uplevel-heavy-2`     | strongest | assigned `heavy` PRs labelled `cell:heavy-2`: `B2.3` after `O2.4`; paused until then (ruling 88)                                                                                                               | none              |
-| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                         | none              |
+| sandbox               | model     | queue                                                                                                                                                                                                           | review label      |
+| --------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                | none              |
+| `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                                                                             | `review:backend`  |
+| `uplevel-frontend`    | fast      | `[r165a]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3` | `review:frontend` |
+| `uplevel-ops-a`       | fast      | `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                                    | `review:ops-a`    |
+| `uplevel-ops-b`       | fast      | `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger  | `review:ops-b`    |
+| `uplevel-docs`        | fast      | `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                          | `review:docs`     |
+| `uplevel-heavy-a`     | strongest | `F2.3` UI FE-4 (ruling 184); then assigned `heavy` PRs without `cell:heavy-b`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused between (ruling 88)                                          | none              |
+| `uplevel-heavy-b`     | strongest | `F2.3` UI OP-1's `unverified` rows (ruling 184); assigned `heavy` PRs labelled `cell:heavy-b`: `B2.3` once `O2.4` passes                                                                                        | none              |
+| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                          | none              |
 
 **Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. Each
 cell claims from its own roster queue (UR-52).
@@ -83,8 +83,9 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 ## Heartbeat
 
 Keep your heartbeat comment on the pinned issue "Uplevel heartbeats" as UR-38 says; post it once
-if you have none. It is two lines, plus at most one short line, and at most 600 characters in all
-(UR-155); detail goes on the PR it concerns:
+if you have none. It is two lines, and at most 600 characters in all (UR-155); detail goes on the
+PR it concerns. Only when you are blocked, add a third line, `BLOCKER: <one line>` (for example
+`BLOCKER: /var/lib/docker 100%, UR-180 cleanup failed`; ruling 181):
 
 ```text
 <!-- heartbeat:<sandbox> -->
@@ -212,8 +213,8 @@ Then run the tick in lane.md, "The tick".
   after the packages file, and apply it (UR-88). Start Phase 3 work as UR-68 allows. You own
   `docs/`, every `AGENTS.md` (UR-81), `llms.txt`, `mkdocs.yml`, the root markdown files and the
   AGENTS.md validator.
-- **"You are uplevel-heavy."** You run on the strongest available model and take only `heavy` PRs
-  without `cell:heavy-2` ("Heavy agents" above). For each package, read the packages file and the
+- **"You are uplevel-heavy-a."** You run on the strongest available model and take only `heavy` PRs
+  without `cell:heavy-b` ("Heavy agents" above). For each package, read the packages file and the
   line above of the lane that owns it, and follow them. You have no review label.
-- **"You are uplevel-heavy-2; take only heavy PRs labelled cell:heavy-2."** As `uplevel-heavy`,
-  for the PRs labelled `heavy` and `cell:heavy-2`.
+- **"You are uplevel-heavy-b; take only heavy PRs labelled cell:heavy-b."** As `uplevel-heavy-a`,
+  for the PRs labelled `heavy` and `cell:heavy-b`.
