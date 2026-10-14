@@ -295,7 +295,7 @@ green on it.
 ### [r132] F-022: retire the rate-limit countdown
 
 **Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged (UR-66's R2b-round exception).
-**PR:** none yet. (rulings 132, 150, 155)
+**PR:** #7077 (open). (rulings 132, 150, 155)
 
 - [ ] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
       (`frontend/src/services/queryClient.ts:249-297`) and every store field only they read.

@@ -163,9 +163,25 @@ describe('RetryingIndicator', () => {
       vi.mocked(useIsFetching).mockReturnValue(1);
     });
 
-    it('displays "Retrying request..." text', () => {
+    // Owner ruling 132 fixed this string ("the string is the owner's ruling,
+    // not derived prose" — ruling 155 item 1) and ruling 155 requires the
+    // EXACT text, ellipsis included: U+2026 … , not three full stops. An
+    // exact-string assert is deliberate — toMatch(/rate limited/i) would pass
+    // on a re-worded pill and the owner's wording is the thing under test.
+    it('displays the ruled text "Rate limited, retrying…" exactly', () => {
       renderComponent();
-      expect(screen.getByText('Retrying request...')).toBeInTheDocument();
+      expect(screen.getByText('Rate limited, retrying…')).toBeInTheDocument();
+    });
+
+    // Ruling 132's other half: "shows no count, limit or time". This fixture is
+    // what makes the assertion non-vacuous — the store above is fed
+    // limit=100 / remaining=0 / reset=now+60 / secondsUntilReset=60, so a pill
+    // that rendered any of them would print digits here.
+    it('renders no count, limit or time while limited', () => {
+      renderComponent();
+      const pill = screen.getByTestId('retrying-indicator');
+      expect(pill.textContent).not.toMatch(/\d/);
+      expect(pill.textContent).toBe('Rate limited, retrying…');
     });
 
     it('shows a spinner element', () => {
