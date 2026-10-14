@@ -537,6 +537,21 @@ def strip_resource_limits(rendered: dict[str, Any]) -> int:
     return changed
 
 
+def decide_resource_limits(rendered: dict[str, Any], subtree_control: str) -> str:
+    """Decide, act and record in one step, so the three cannot disagree.
+
+    When the machine delegates the controllers prod's limits need, the render
+    keeps them and the run record says ``limits: applied``; otherwise they are
+    stripped here (they would only make a rootless container fail to start) and
+    the record says ruling 162 item 2's exact string. Returning the label the
+    caller writes verbatim is deliberate: a caller that decided in one place and
+    recorded in another is where an "applied" label lands on a stripped render."""
+    if cgroup_limits_usable(subtree_control):
+        return LIMITS_APPLIED
+    strip_resource_limits(rendered)
+    return LIMITS_STRIPPED
+
+
 # ---------------------------------------------------------------------------
 # Preflight
 # ---------------------------------------------------------------------------

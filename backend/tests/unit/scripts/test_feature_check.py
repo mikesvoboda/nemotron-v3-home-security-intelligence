@@ -2894,3 +2894,23 @@ def test_the_limits_decision_records_the_exact_string_ruling_162_names() -> None
     # a paraphrase, because the operator pastes the record and a reader greps it.
     assert fc.LIMITS_APPLIED == "limits: applied"
     assert fc.LIMITS_STRIPPED == "limits: not applied (no cgroup delegation)"
+
+
+def test_the_limits_decision_strips_only_when_cgroups_are_not_delegated() -> None:
+    # The branch is where the bug hides: decide, act, and record must agree in one
+    # call, or a run could strip on a machine that supports limits, or record
+    # "applied" while the render still carries a limit it cannot enforce.
+    import copy
+
+    delegated = copy.deepcopy(_PROD_LIMIT_RENDER)
+    label = fc.decide_resource_limits(delegated, "cpuset cpu io memory pids\n")
+    assert label == fc.LIMITS_APPLIED
+    # applied => the limits are still there (this is what the operator gets enforced)
+    assert "limits" in delegated["services"]["postgres"]["deploy"]["resources"]
+
+    stripped = copy.deepcopy(_PROD_LIMIT_RENDER)
+    label = fc.decide_resource_limits(stripped, "cpuset io pids\n")
+    assert label == fc.LIMITS_STRIPPED
+    assert "limits" not in stripped["services"]["postgres"]["deploy"]["resources"]
+    # a machine with neither controller nor a limit to enforce is still "not applied"
+    assert fc.decide_resource_limits({"services": {}}, "") == fc.LIMITS_STRIPPED
