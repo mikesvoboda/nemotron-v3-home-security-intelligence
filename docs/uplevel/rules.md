@@ -215,6 +215,15 @@ Constraints on what you build; reopening one is a ruling (UR-44).
 - **UR-12** Inbound webhooks: **implement** (an arming module with webhook and MQTT adapters,
   designed after Phase 3); until then they answer `501` and validate keys against
   `settings.api_keys`. (UR-12)
+- **UR-182** The product is a consumer NVIDIA VSS-style blueprint for desktop RTX gaming GPUs:
+  visual search, identity and VLM reasoning, run locally, free, with full data control. Phase 4
+  adds a persistent header mode switch: **Easy Mode** ("Home Monitor", the default: Dashboard,
+  Timeline & Search, Alerts & Rules, Household, Settings) and **Advanced Mode** ("NVIDIA AI
+  Blueprint": the AI Workbench, GPU and model VRAM telemetry, the Entity/Re-ID Explorer,
+  Operations/Monitoring). This decides scope, not design: each feature is designed in its Phase 4
+  session (UR-77). It keeps F-063 (P2) and F-105, F-127, F-128, F-130 (P3) as Advanced Mode
+  features, reopening R2a rows 29 and 31 for them, and rules F-176 and F-178 complete (P3) if
+  `O2.5`'s witness fails them. Phase 3's deletions skip these rows. (ruling 182)
 
 ## Reviewing
 

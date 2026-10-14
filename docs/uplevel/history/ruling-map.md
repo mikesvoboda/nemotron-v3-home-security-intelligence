@@ -194,6 +194,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 179    | UR-155 600-char heartbeats; UR-181 evidence cells (record 6172543400)                                       |
 | 180    | package `[r157]`: independent builds, `--plan-timeout` (record 6173140800)                                  |
 | 181    | package `[r181]`: lane-tick digest, activity snapshot; `BLOCKER:` line (record 6173920972)                  |
+| 182    | UR-182: RTX VSS positioning, Easy/Advanced modes; seven rows kept (record 6174228588)                       |
 
 ## Owner records
 
