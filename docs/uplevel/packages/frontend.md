@@ -103,6 +103,9 @@ same way after the owner's `R2b` session.
   priority columns for the 41 rows, returns ruling 127's 22 rows to **unverified** with their
   reachability notes, sets `R2b` to `in progress` in the README status table, and carries no code
   change.
+- **Ruling 182's record** (record `6174228588`, BINDING NOW 17:24Z): #7131 (open) writes that
+  record's seven rows into the ruling and priority columns. It moves no status, so §2 is not in its
+  diff and it merges in any order with the three PRs that rewrite the `**all**` line.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).
