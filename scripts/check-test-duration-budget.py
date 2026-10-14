@@ -207,11 +207,17 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 # test_the_cap_value_is_the_number_the_rulebook_states, not restated here.
 #
 # Do the time arithmetic with it (review finding 4): each re-run is capped by
-# DEFAULT_RERUN_TIMEOUT, 120 s, so 10 hanging re-runs are a 1,200 s ceiling
-# inside a job whose timeout-minutes is 15 (900 s, ci.yml's test-performance-audit
-# job) — the job budget is the binding limit, and it can only bind when >= 6
-# breaches per tier ALL hang, which no corpus has ever looked like. Recorded so
-# the next reader does that sum here instead of across four files.
+# DEFAULT_RERUN_TIMEOUT + DEFAULT_RERUN_GRACE, 150 s, so 10 hanging re-runs are a
+# 1,500 s ceiling inside a job whose timeout-minutes is 15 (900 s, ci.yml's
+# test-performance-audit job) — the job budget is the binding limit, and it can
+# only bind when >= 6 breaches per tier ALL hang, which no corpus has ever looked
+# like. Recorded so the next reader does that sum here instead of across four
+# files. What changed since this paragraph was written: that ceiling used to be
+# FICTIONAL, because --timeout is a per-test timer and a collection-time stall
+# outranks it (see DEFAULT_RERUN_GRACE), so the 1,200 s figure was "the job gets
+# cancelled at 900 s" wearing a friendlier number. The parent bound makes the
+# arithmetic real for up to 6 hanging re-runs; past that the job still cancels,
+# which is why the cap is 5 and not, say, 40.
 MAX_RERUNS = 5
 
 # Tiers the reproduce-before-red clause covers, ruling 122 (unit) + ruling 151
@@ -242,6 +248,32 @@ RERUN_TIERS = ("unit", "integration")
 # present and nothing executed. Not a pytest code on purpose: it is in no
 # pytest documentation a reader could match an observed 0 against.
 SKIPPED_RERUN_EXIT = 90
+
+# Sentinel exit code for "the re-run child was KILLED BY THE GATE because it
+# would not finish". Same reasoning as ``SKIPPED_RERUN_EXIT`` for the number:
+# ``124`` is the GNU coreutils wall-clock convention, not a pytest code, and a
+# reader who sees 124 in a pytest report will go looking for a pytest meaning
+# that is not there. 91 is deliberately outside every set a reader could match.
+TIMED_OUT_RERUN_EXIT = 91
+
+# Seconds the gate lets the child past its own ``--timeout`` before reaping it.
+# The parent bound is NOT redundant with ``--timeout``, which is why it exists:
+# pytest-timeout arms its timer per TEST ITEM, during runtest, so a stall that
+# happens during collection -- a module-level import, a fixture collected at
+# import, a network call at module scope -- is before any timer is armed and the
+# flag never fires. Measured on this repo's pytest: a module that sleeps 12.4 s
+# at import, re-run with ``--timeout=3``, exits 0 (``1 passed``) after 13.4 s of
+# wall clock with ``<testcase time="0.023">``. The only reaper for that shape
+# was the job's own ``timeout-minutes: 15``, which cancels the run: no report,
+# no verdict, and the audit's own findings lost with it. So the child keeps its
+# ``--timeout`` for the case it does handle (a slow test: it kills the test,
+# writes the junit, exits, and the gate reads a real duration), and the parent
+# bound handles the case it cannot. Grace, not equality, so the child's own path
+# wins whenever it is going to: pytest needs the slack to write the junit and
+# tear down. ``SLEEP_GATE_RERUN_GRACE`` is the test hook, same shape as
+# ``SLEEP_GATE_RERUN_TIMEOUT``.
+DEFAULT_RERUN_GRACE = 30.0
+
 
 # The re-run's own per-test ceiling. Inherited ``timeout = 5``
 # (pyproject.toml:546 — its OWN ini key, not part of ``addopts``) is UNDER the
@@ -300,6 +332,10 @@ def _repro_timeout() -> float:
     return float(os.environ.get("SLEEP_GATE_RERUN_TIMEOUT", str(DEFAULT_RERUN_TIMEOUT)))
 
 
+def _repro_grace() -> float:
+    return float(os.environ.get("SLEEP_GATE_RERUN_GRACE", str(DEFAULT_RERUN_GRACE)))
+
+
 def _rerun_duration(target: str) -> tuple[float | None, int]:
     """Re-run one test once; return ``(seconds or None, pytest exit code)``.
 
@@ -315,6 +351,11 @@ def _rerun_duration(target: str) -> tuple[float | None, int]:
     Returns ``None`` for the duration whenever there is no usable number — no
     junit, an unparseable one, or a zero-duration testcase, which junit emits
     for a skip and which the corpus pass already refuses to read as "fast".
+
+    The wait is bounded. ``--timeout`` in the argv is NOT that bound, whatever
+    the name suggests: pytest-timeout arms per test item, so it cannot see a
+    stall that happens during collection, and this function's own ``cwd`` is the
+    repo root, so a stall of that shape costs the whole audit job.
     """
     argv = [
         *rerun_command(),
@@ -338,7 +379,21 @@ def _rerun_duration(target: str) -> tuple[float | None, int]:
                 text=True,
                 check=False,
                 cwd=REPO_ROOT,
+                timeout=_repro_timeout() + _repro_grace(),
             )
+        except subprocess.TimeoutExpired:
+            # The child would not finish inside its own ceiling plus the
+            # grace, so the gate killed it (stdlib run() sends SIGKILL before
+            # re-raising, so nothing is orphaned). Deliberately NOT folded into
+            # the OSError arm below: "could not start" and "started and hung"
+            # are different diagnoses and the report has to tell them apart.
+            # TimeoutExpired is not a subclass of OSError, so it would
+            # otherwise escape and take the whole gate down with a traceback.
+            print(
+                "  (re-run timed out and was killed; no duration measured)",
+                file=sys.stderr,
+            )
+            return None, TIMED_OUT_RERUN_EXIT
         except OSError as exc:
             # The prefix itself will not start (bad SLEEP_GATE_PYTEST, no
             # interpreter). That is "not verified", not "passed".
@@ -387,8 +442,10 @@ def reproduce(
     under budget), ``skipped`` (the re-run skipped, so it measured nothing —
     see ``SKIPPED_RERUN_EXIT``) or ``unverified`` (nothing about this run says
     the duration was a fluke — including "it failed fast", which is a caught
-    test, not an exonerated one). ``skipped`` and ``unverified`` both keep the
-    breach RED; they differ only in what the report gets to say about why.
+    test, not an exonerated one). ``skipped``, ``timed_out`` and ``unverified`` all
+    keep the breach RED; they differ only in what the report gets to say about
+    why. ``timed_out`` rides in ``unverified`` for the verdict and is named in
+    the row, exactly as ``skipped`` is.
     Tiers outside ``RERUN_TIERS`` are not returned: the clause names unit and
     (since ruling 151) integration, and for the other two the reason is
     measurement, not caution — see that constant.
@@ -413,6 +470,11 @@ def reproduce(
                 # duration, and the generic arm would report it as "exit 90", a
                 # number pytest has no meaning for. The reader needs the reason.
                 states[test_id] = ("skipped", None, code)
+            elif code == TIMED_OUT_RERUN_EXIT:
+                # Also checked before the generic None arm: a timeout has no
+                # duration either, and the generic arm would print it as a
+                # pytest exit code the reader cannot look up.
+                states[test_id] = ("timed_out", None, code)
             elif seconds is None:
                 states[test_id] = ("unverified", None, code)
             elif code != 0:
@@ -662,7 +724,7 @@ def main(argv: list[str] | None = None) -> int:
     confirmed = {t: s for t, s in states.items() if s[0] == "confirmed"}
     # ``skipped`` rides in ``unverified`` for the verdict (both stay RED, and
     # ``red`` is computed from ``cleared`` alone) but is reported by name.
-    unverified = {t: s for t, s in states.items() if s[0] in ("unverified", "skipped")}
+    unverified = {t: s for t, s in states.items() if s[0] in ("unverified", "skipped", "timed_out")}
     # Counted per tier, because that is how the cap is applied and the header has
     # to describe the rule the gate is actually honouring. A unit-only count here
     # would print "0 breach(es) get a re-run" on a run that re-runs five
@@ -758,6 +820,8 @@ def main(argv: list[str] | None = None) -> int:
                 verdict += f" — re-ran {again[1]:.2f}s and BREACHED AGAIN"
             elif unverified.get(test_id, ("",))[0] == "skipped":
                 verdict += " — re-run SKIPPED (executed nothing; not a pass)"
+            elif unverified.get(test_id, ("",))[0] == "timed_out":
+                verdict += " — re-run TIMED OUT (killed by the gate; not a pass)"
             elif test_id in unverified:
                 code = unverified[test_id][2]
                 replay = unverified[test_id][1]

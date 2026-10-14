@@ -79,6 +79,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -1221,6 +1222,8 @@ def _stub_pytest(
     exit_codes: dict[str, int] | None = None,
     collect_zero: set[str] | None = None,
     skipped: set[str] | None = None,
+    stalling: set[str] | None = None,
+    late: dict[str, tuple[str, float]] | None = None,
     calls_file: Path,
 ) -> str:
     """A stand-in for ``python -m pytest``: canned duration, canned exit code.
@@ -1247,6 +1250,15 @@ def _stub_pytest(
     It writes its junit to whatever ``--junit-xml=`` the gate passed, so the
     gate's temp-file handling is on the path under test, and appends every
     invocation to ``calls_file`` so a pin can assert *once*, and with what.
+
+    ``stalling`` names hang forever instead of answering: that is what a
+    collection-time stall looks like (a module-level import that never
+    returns), and it is the one shape the re-run's own ``--timeout`` CANNOT
+    stop, because pytest-timeout arms per test item and there is no item yet.
+    Every other arm here finishes on its own; only the parent bound can end
+    this one, so a pin that uses it is really testing the parent bound and not
+    the child's flag. ``late`` answers with a valid junit after a delay — the
+    child-slow-but-legitimate path the grace exists to leave alone.
     """
 
     def name_of(key: str) -> str:
@@ -1260,6 +1272,8 @@ def _stub_pytest(
     by_exit = {name_of(k): v for k, v in (exit_codes or {}).items()}
     by_zero = sorted(name_of(k) for k in (collect_zero or set()))
     by_skip = sorted(name_of(k) for k in (skipped or set()))
+    by_stall = sorted(name_of(k) for k in (stalling or set()))
+    by_late = {name_of(k): v for k, v in (late or {}).items()}
     script = tmp_path / "stub-pytest.py"
     script.write_text(
         textwrap.dedent(
@@ -1270,11 +1284,31 @@ def _stub_pytest(
             EXIT = {by_exit!r}
             ZERO = {by_zero!r}
             SKIP = {by_skip!r}
+            STALL = {by_stall!r}
+            LATE = {by_late!r}
             target = next((a for a in argv if "::" in a), "")
             name = target.split("::")[-1]
             xml = next((a.split("=", 1)[1] for a in argv if a.startswith("--junit-xml=")), "")
             with open({str(calls_file)!r}, "a", encoding="utf-8") as h:
                 h.write(json.dumps({{"argv": argv, "cwd": os.getcwd()}}) + "\\n")
+            if name in STALL:
+                import time
+                while True:
+                    time.sleep(3600)
+            if name in LATE:
+                import time
+                t, delay = LATE[name]
+                time.sleep(delay)
+                if xml:
+                    with open(xml, "w", encoding="utf-8") as h:
+                        h.write(
+                            '<?xml version="1.0" encoding="utf-8"?>'
+                            '<testsuites name="pytest tests"><testsuite name="pytest" tests="1" '
+                            'failures="0" errors="0" skipped="0" time="' + t + '">'
+                            '<testcase classname="" name="x" time="' + t + '" /></testsuite>'
+                            "</testsuites>"
+                        )
+                sys.exit(0)
             if name in ZERO:
                 sys.exit(5)
             if name in SKIP:
@@ -1593,6 +1627,102 @@ def test_a_re_run_the_gate_cannot_start_stays_red(tmp_path: Path) -> None:
     assert "BREACH" in run.stdout, f"the breach is still the headline\n{out}"
     assert SLEEPER[1] in out and "not verified" in out.lower(), (
         f"the report must say why it stayed red, not just that it did\n{out}"
+    )
+
+
+def test_a_stalling_re_run_is_killed_and_stays_red(tmp_path: Path) -> None:
+    """A re-run that never finishes is bounded by the GATE, not by the job.
+
+    This is the shape the child's own ``--timeout`` cannot stop. pytest-timeout
+    arms a timer per test item, during runtest; a module that stalls at import
+    time never gets to runtest, so there is no timer to fire (measured on this
+    repo's pytest: a 12.4 s import stall re-run with ``--timeout=3`` exits 0,
+    "1 passed", after 13.4 s of wall clock, reporting ``time="0.023"``). The
+    stub here ignores ``--timeout`` on purpose and answers nothing at all, so
+    the only thing that can end the wait is the parent bound — which is what
+    this pins. Before it, the reaper was the job's own ``timeout-minutes: 15``:
+    the run got cancelled, so the audit posted no report and lost every finding
+    it had already made to explain one flake.
+
+    Timing is asserted as a FLOOR as well as a ceiling. The floor is the whole
+    point: ``timeout=_repro_timeout()`` with no grace would satisfy a ceiling
+    alone, and would also cut off the legitimate child-slow path that
+    ``test_a_re_run_that_is_slow_but_finishes_is_never_mistaken_for_a_stall``
+    pins.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    started = time.monotonic()
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_RERUN_TIMEOUT": "1",
+            "SLEEP_GATE_RERUN_GRACE": "1",
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {}, stalling={SLEEPER_ID}, calls_file=calls
+            ),
+        },
+    )
+    elapsed = time.monotonic() - started
+    out = _out(run)
+
+    assert run.returncode != 0, "a re-run that measured nothing cannot clear the breach\n" + out
+    assert "BREACH" in run.stdout, f"the breach is still the headline\n{out}"
+    assert "TIMED OUT" in out, (
+        "the report must NAME the reason. The generic arm would print "
+        f'"pytest exit 91", a number pytest has no meaning for — the same trap '
+        f"the SKIPPED row exists to avoid\n{out}"
+    )
+    assert "could not start" not in out, (
+        "a hang is not a failure to launch; collapsing them loses the "
+        f"diagnosis the reader needs\n{out}"
+    )
+    assert 2.0 <= elapsed < 15.0, (
+        f"bound = timeout(1) + grace(1) = 2 s, so ~2 s + interpreter startup; "
+        f"took {elapsed:.2f}s. Under 2.0 the bound is firing before the child "
+        f"gets its own chance; over 15 it is not firing at all\n{out}"
+    )
+    assert len(_calls(calls)) == 1, (
+        "the timeout is not a retry — one re-run, bounded. A second "
+        f"invocation would double the worst case\n{out}"
+    )
+
+
+def test_a_re_run_that_is_slow_but_finishes_is_never_mistaken_for_a_stall(
+    tmp_path: Path,
+) -> None:
+    """The grace has to actually be there, or the bound is a new bug.
+
+    A parent bound set equal to ``--timeout`` would kill every child that
+    legitimately uses its full allowance and then takes a moment to write the
+    junit and tear down — turning the new safety net into a machine that calls
+    a slow-but-successful re-run "not verified", which is exactly the red this
+    clause exists to remove. So the child answers 2.5 s into a
+    timeout(1)+grace(3)=4 s bound: inside it, and past the child's own flag.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_RERUN_TIMEOUT": "1",
+            "SLEEP_GATE_RERUN_GRACE": "3",
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {}, late={SLEEPER_ID: ("0.40", 2.5)}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        "a re-run that finished under budget must still be a clearance — the "
+        f"grace must not shorten the child's own allowance\n{out}"
+    )
+    assert "TIMED OUT" not in out, f"the child finished; nothing timed out\n{out}"
+    assert "0.40s" in out, (
+        "the re-run's own measured duration must still reach the report, which "
+        f"is what proves the junit was read and not abandoned\n{out}"
     )
 
 
