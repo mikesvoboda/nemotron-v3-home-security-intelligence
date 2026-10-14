@@ -2809,3 +2809,88 @@ def test_a_vlm_that_ps_does_not_list_by_name_fails_the_run(
     finally:
         server.shutdown()
         server.server_close()
+
+
+# ---------------------------------------------------------------------------
+# O2.5 / ruling 162 item 2 — the prod-shape resource-limits decision.
+#
+# A rootless engine cannot start a container that asks for a resource limit
+# where no cgroup controller is delegated to the caller (the O2.5 spike's
+# differential control: same image, `--memory`/`--cpus` both fail with runc's
+# "rootless needs no limits ... when no permission is granted for cgroups").
+# So the runner decides limits at RUN time from the machine it is on, and says
+# which in the run record. These pieces are CPU-only and daemon-free, so they
+# are pinned here even though the boot they feed is the operator's (UR-136).
+# ---------------------------------------------------------------------------
+
+# prod.yml's limits are only ever `cpus:` and `memory:` (measured), which the
+# kernel exposes as the `cpu` and `memory` controllers. `cpuset` alone is not
+# enough to run a `cpus:` limit, so the predicate keys on the two that matter.
+_PROD_LIMIT_RENDER = {
+    "services": {
+        "postgres": {"deploy": {"resources": {"limits": {"cpus": "2", "memory": "1G"}}}},
+        # a reservation is a request, not a cap, and the spike's failing flag was
+        # a limit (`--memory=512m`), never a bare reservation — so the strip keeps
+        # reservations and preserves prod-shape fidelity for what was not shown
+        # to block.
+        "backend": {
+            "deploy": {
+                "resources": {
+                    "limits": {"cpus": "8", "memory": "20G"},
+                    "reservations": {"memory": "10G"},
+                }
+            }
+        },
+        "go2rtc": {"deploy": {"resources": {}}},  # a deploy with no limits
+        "frontend": {},  # no deploy at all
+    }
+}
+
+
+def test_limits_are_usable_only_where_both_controlling_cgroups_are_delegated() -> None:
+    assert fc.cgroup_limits_usable("cpuset cpu io memory pids\n") is True
+    assert fc.cgroup_limits_usable("cpu memory\n") is True
+    # each limit kind on its own is not enough: a `cpus:` limit needs `cpu`, a
+    # `memory:` limit needs `memory`, and prod declares both.
+    assert fc.cgroup_limits_usable("cpuset io pids\n") is False  # cpu and memory both absent
+    assert fc.cgroup_limits_usable("cpu io pids\n") is False  # memory missing
+    assert fc.cgroup_limits_usable("io memory pids\n") is False  # cpu missing
+    assert fc.cgroup_limits_usable("") is False
+    assert fc.cgroup_limits_usable("\n") is False
+
+
+def test_strip_resource_limits_removes_only_limits_and_reports_what_it_changed() -> None:
+    import copy
+
+    rendered = copy.deepcopy(_PROD_LIMIT_RENDER)
+    changed = fc.strip_resource_limits(rendered)
+    services = rendered["services"]
+    # The count is the non-vacuity control: a strip that changed nothing would
+    # return 0 and this test could not tell it apart from a working one.
+    assert changed == 2, changed
+    assert "limits" not in services["postgres"]["deploy"]["resources"]
+    assert "limits" not in services["backend"]["deploy"]["resources"]
+    # reservations survive the strip (only limits were shown to block);
+    # an empty resources and a deploy-free service are left untouched, not created.
+    assert services["backend"]["deploy"]["resources"] == {"reservations": {"memory": "10G"}}
+    assert services["go2rtc"]["deploy"] == {"resources": {}}
+    assert services["frontend"] == {}
+
+
+def test_strip_resource_limits_is_idempotent_and_never_adds_a_deploy() -> None:
+    import copy
+
+    once = copy.deepcopy(_PROD_LIMIT_RENDER)
+    fc.strip_resource_limits(once)
+    assert fc.strip_resource_limits(once) == 0  # a second pass changes nothing
+    # a service with no deploy is not given one by the strip
+    once["services"]["brand-new"] = {"image": "x"}
+    fc.strip_resource_limits(once)
+    assert "deploy" not in once["services"]["brand-new"]
+
+
+def test_the_limits_decision_records_the_exact_string_ruling_162_names() -> None:
+    # ruling 162 item 2 names these verbatim; the run record must carry them, not
+    # a paraphrase, because the operator pastes the record and a reader greps it.
+    assert fc.LIMITS_APPLIED == "limits: applied"
+    assert fc.LIMITS_STRIPPED == "limits: not applied (no cgroup delegation)"

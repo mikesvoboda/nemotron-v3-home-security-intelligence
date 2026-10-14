@@ -480,6 +480,59 @@ def as_test_deployment(
 
 
 # ---------------------------------------------------------------------------
+# Production shape (O2.5, ruling 162 item 2) — the resource-limits decision.
+#
+# The prod stack asks for `deploy.resources.limits` on 19 of its 21 services —
+# every service that has a `deploy:` block has them — and a rootless engine
+# cannot start a container that asks for a limit where no cgroup controller is
+# delegated to the caller (the O2.5 spike's differential control). Unlike the CI
+# path, the prod-shape run does NOT go through `as_test_deployment`/`preflight` —
+# those are built for the 6-service CI stack
+# and their fail-closed key allowlist refuses prod's `userns_mode`/`devices`/
+# `cgroup`. The authored override (scripts/uplevel/docker-compose.prodshape.yml,
+# pinned by scripts/test_prodshape_override.py) is the UR-133/134 transform
+# instead; limits are the one thing it deliberately leaves to run time, decided
+# from the machine the operator runs on and recorded in the run summary.
+# ---------------------------------------------------------------------------
+
+# Ruling 162 item 2 names these strings verbatim; the run record carries them
+# unchanged so the operator's paste and a reader's grep agree.
+LIMITS_APPLIED = "limits: applied"
+LIMITS_STRIPPED = "limits: not applied (no cgroup delegation)"
+# prod.yml's limits are only ever `cpus:` and `memory:` (measured), i.e. the
+# `cpu` and `memory` cgroup controllers. `cpuset` alone cannot run a `cpus:`
+# limit, so the decision needs exactly these two delegated.
+LIMIT_CGROUPS = frozenset({"cpu", "memory"})
+
+
+def cgroup_limits_usable(subtree_control: str) -> bool:
+    """Can this machine enforce resource limits? True when the controllers a
+    `deploy.resources.limits` needs are all delegated to us, read from the
+    cgroup's `cgroup.subtree_control` contents (one space-separated list).
+
+    Split on whitespace, not substring: `cpu` is a prefix of `cpuset`, so a
+    substring test would call limits usable on a `cpuset`-only cgroup."""
+    delegated = {token for token in subtree_control.split() if token}
+    return LIMIT_CGROUPS.issubset(delegated)
+
+
+def strip_resource_limits(rendered: dict[str, Any]) -> int:
+    """Drop each service's ``deploy.resources.limits`` in place and return how
+    many services changed. Reservations are kept — the spike showed a LIMIT
+    (``--memory``/``--cpus``) is what a rootless engine refuses, never a bare
+    reservation — and a service with no ``deploy`` is not given one. The return
+    count lets the caller prove the strip did something: an all-zero return is
+    the difference between "no limits to strip" and "the strip is broken"."""
+    changed = 0
+    for service in (rendered.get("services") or {}).values():
+        resources = (service.get("deploy") or {}).get("resources") or {}
+        if "limits" in resources:
+            del resources["limits"]
+            changed += 1
+    return changed
+
+
+# ---------------------------------------------------------------------------
 # Preflight
 # ---------------------------------------------------------------------------
 
