@@ -146,8 +146,11 @@ test.skip(
 );
 
 /** Fixture names that cannot collide with the other DO-3 specs' constants
- *  ('Golden DO-3 Member'/'Golden DO-3 Vehicle' in zones.spec.ts:170-171,
- *  'Golden DO-3 Person' in persons.spec.ts:111). Distinctness is belt-and-
+ *  (the MEMBER/VEHICLE consts in zones.spec.ts, the PERSON const in
+ *  persons.spec.ts — named, not line-numbered: nothing gates this file's
+ *  comments, and a coordinate goes stale the moment the neighbour grows;
+ *  the :170-171 this cite carried died when #7050's merge added lines above
+ *  them). Distinctness is belt-and-
  *  braces: each spec deletes what it creates, but a leak under a SHARED name
  *  would let one spec's residue satisfy another's assert, which is the failure
  *  mode where everything passes and nothing is proven. */
