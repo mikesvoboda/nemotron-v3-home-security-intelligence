@@ -132,7 +132,8 @@ Read this section while you write a package's code, tests, docs and PR.
      that passes, a command's output, a file that no longer exists). Numbers are measured and
      reported, never climbed.
   2. **Evidence in the PR:** open every package PR with `gh pr create --template uplevel.md`, and
-     put each command and its output in the body. Commit subjects stay at 72 characters or fewer;
+     put each command and its output in the body. Commit subjects stay at 100 characters or fewer and headers at 120, the limits
+     `commitlint.config.js` sets (ruling 164);
      ledger files take no rows from this programme; comments, PR bodies and reviews carry only the
      agent's own text, never its harness's framing of a subagent's or another session's output.
      (ruling 56)
@@ -206,8 +207,9 @@ Constraints on what you build; reopening one is a ruling (UR-44).
   metrics stay (OD-39). (ruling 89)
 - **UR-87** Future plans go in `docs/superpowers/<date>-<slug>/`; `docs/plans/` is frozen history,
   and a dated plan created anywhere else is a violation (OD-33). (ruling 89)
-- **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason; the validator fails on
-  dead references and on files outside the list. (UR-21)
+- **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason. `agents_md_validator.py`
+  fails on dead references; a file outside the list is reported, not failed, until W3.1. (UR-21;
+  ruling 164)
 - **UR-12** Inbound webhooks: **implement** (an arming module with webhook and MQTT adapters,
   designed after Phase 3); until then they answer `501` and validate keys against
   `settings.api_keys`. (UR-12)
@@ -291,14 +293,13 @@ and the re-read and merge comment are UR-29.
   coordinator merges one PR at a time, and its merge pass continues past a roll to the next ready
   PR. A lane PR on auto-merge (UR-108) merges when its gate passes, without these legs; while
   `main` is red the coordinator disables auto-merge on every queued lane PR and re-enables it when
-  `main` is green. Otherwise a ready PR merges without an update-branch when its green
-  `CI Gate` ran on a `main` at most 3 merges behind the tip, no PR merged since that base changed a
-  file it changes (`git diff --name-only <its base>..origin/main` shares no path with its files),
-  and `main`'s latest CI run is not red. Otherwise only the coordinator updates it, one at a time,
+  `main` is green. Otherwise a ready PR merges without an update-branch when
+  `coordinator_snapshot.py`'s three merge legs pass for it (gate at most 3 merges behind the tip, no
+  shared path with what merged since, `main` not red). Otherwise only the coordinator updates it, one at a time,
   with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`; authors rebase their own PRs
   to resolve conflicts. A red `main` from a merge interaction is a red-`main` fix (UR-111); after
   two in one UTC day the coordinator turns "require branches to be up to date" back on and raises
-  the urgent path. (rulings 19, 27, 156; owner record 6135991251)
+  the urgent path. (rulings 19, 27, 152, 156, 164; owner record 6135991251)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
@@ -691,5 +692,6 @@ the shared GitHub token.
   callers credentials and puts `/grafana/` behind the app's login. The default, unexposed mode is
   unchanged. (UR-33; ruling 1)
 - **UR-179** A browser bundle never carries an API key: browsers authenticate only through the
-  cookie login, API keys are for non-browser clients, and a CI guard fails if `frontend/src` reads
-  `VITE_API_KEY`. (ruling 44)
+  cookie login, API keys are for non-browser clients, and
+  `frontend/src/__tests__/no-browser-api-key.test.ts` fails CI if the frontend build scope reads
+  `VITE_API_KEY`. (rulings 44, 164)

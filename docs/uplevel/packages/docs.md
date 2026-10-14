@@ -104,3 +104,15 @@ list covers them, each directory added in the PR that fixes its citations (owner
 
 The ratchets hold the map true; who updates a boundary file's lines, and when this lane reviews
 them, is UR-81. This lane opens a package only on a trigger (UR-68).
+
+### [r165b] F-235: cure the quarantined notify channels spec
+
+**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** none yet.
+(rulings 125, 165)
+
+- [ ] First commit: the ruling-125 mark's expiry in
+      `frontend/tests/golden/notify-access/notify.spec.ts` reads 2026-10-16T00:00Z.
+- [ ] The F-235 channels test passes without a retry; the `test.fixme` mark is removed.
+
+**Done when:** the spec passes in CI's `Feature check (fake AI)` with no mark, before
+2026-10-16T00:00Z.

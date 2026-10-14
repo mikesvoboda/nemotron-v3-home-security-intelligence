@@ -375,3 +375,42 @@ that, and nothing renders the three history views.
 
 **Done when:** each of the three majors is on `main` with the unit, golden and lint suites green at
 its head.
+
+### [r165a] F-007: cure the quarantined ws-status spec
+
+**Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none. **PR:** none
+yet. (rulings 123, 125, 165)
+
+- [ ] First commit: the ruling-125 mark's expiry in `frontend/tests/golden/shell/ws-status.spec.ts`
+      reads 2026-10-16T00:00Z.
+- [ ] Test 2 runs whatever precedes it (ruling 123) and passes; the `test.fixme` mark is removed.
+
+**Done when:** the spec passes in CI's `Feature check (fake AI)` with no mark, before
+2026-10-16T00:00Z.
+
+### [r168] The fast-path switch
+
+**Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s
+`fast_path_enabled` field merged. **PR:** none yet. (ruling 168)
+
+- [ ] The processing settings show a "Fast path" switch bound to `fast_path_enabled`, off by default,
+      with `config.py`'s warning as its help text; the threshold slider shows only when it is on.
+- [ ] The page never writes a threshold while the switch is off.
+
+**Done when:** a test saves the settings page with the fast path off and reads it back off; backend
+then removes the two read clamps in `system.py` as UR-48 lane work.
+
+### [r173] Golden Playwright skips join the suppression registry
+
+**Flags:** none. **Assigned:** frontend, after `[r168]`; ops-b reviews the `scripts/` and `.github/`
+hunks. **Depends on:** none. **PR:** none yet. (ruling 173)
+
+- [ ] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
+      `frontend/tests/golden/**/*.spec.ts` for `test.fixme(` and unconditional `test.skip(` call
+      sites, excluding conditional guards as the pytest arm does.
+- [ ] One registry row per site in a golden reason class citing its authorizing ruling or package;
+      the baseline rises in the same commit.
+- [ ] Sites with no authorizing ruling are listed on the PR for the coordinator to route.
+
+**Done when:** the census fails CI on an unregistered golden `test.fixme`, and every current site has
+a row.

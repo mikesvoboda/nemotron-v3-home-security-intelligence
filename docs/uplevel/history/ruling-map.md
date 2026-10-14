@@ -176,6 +176,17 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 161    | lane.md "Self-review": ready when code is complete (6156907393)                                             |
 | 162    | `O2.5`'s spike blockers; package `[r162]` (record 6156947315)                                               |
 | 163    | lane.md, operator.md tick step 1: read BINDING NOW records (6156999669)                                     |
+| 164    | UR-10, UR-21, UR-102, UR-179; package `[r164a]` (record 6157102381)                                         |
+| 165    | packages `[r165a]`, `[r165b]`: quarantine cures (record 6167988837)                                         |
+| 166    | flaky golden specs published, not failed (record 6168002797)                                                |
+| 167    | F-034: frontend `/events/:id` redirect (record 6168022059)                                                  |
+| 168    | package `[r168]` and `[r130b]`'s fast-path flag (record 6168040085)                                         |
+| 169    | `[r96i11]` accepted as built; #7052 approved (record 6168049984)                                            |
+| 170    | lane.md, operator.md step 1: every live record (6168081817)                                                 |
+| 171    | reviewer auto-merge may merge at once (record 6168101206)                                                   |
+| 172    | package `[r172]`: per-module import budget (record 6168112919)                                              |
+| 173    | package `[r173]`: golden skips in the registry (record 6168125268)                                          |
+| 174    | compose-render entry leaves `tpa_slow_list` (record 6168142239)                                             |
 
 ## Owner records
 
