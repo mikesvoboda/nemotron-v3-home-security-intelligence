@@ -4149,6 +4149,7 @@ def test_a_prod_shape_run_removes_the_images_it_built_under_its_project(
     assert _GRAFANA in calls.have, "grafana's image must still be in the engine after the run"
     assert status == fc.EXIT_OK, status
     assert run.summary["images_removed"] == [backend_image], run.summary
+    assert run.summary["images_leaked"] == [], run.summary
 
 
 def test_the_image_cleanup_asks_before_removing_and_skips_what_is_absent(
@@ -4285,7 +4286,7 @@ def test_a_pre_render_run_removes_nothing(tmp_path: Path, monkeypatch: pytest.Mo
 
 
 def test_an_unremovable_image_is_reported_not_swallowed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     # An `image rm` that fails (in use, engine gone) must raise the exit, not vanish
     # into a summary that says the run cleaned up after itself.
@@ -4296,7 +4297,159 @@ def test_an_unremovable_image_is_reported_not_swallowed(
 
     assert run.cleanup_images() == fc.EXIT_FAILED
     assert run.summary["images_removed"] == [], run.summary
+    assert run.summary["images_leaked"] == [f"{run.project}-backend:latest"], (
+        "the operator pastes summary.json verbatim, so an image left in the engine "
+        f"must be named there and not only in the log: {run.summary}"
+    )
     assert _image_rms(calls) == [f"{run.project}-backend:latest"], _image_rms(calls)
+    # The live log too, not only the summary: the leak is reported where the
+    # operator is watching while the run is still going. Deleting the `_log` line
+    # for a leaked image reddens this half.
+    logged = capsys.readouterr().out
+    assert (
+        f"FAIL prod-shape image still in the engine, not removed: {run.project}-backend" in logged
+    ), logged
+
+
+class _WiredRun:
+    """A run that walks `run_check`'s whole lifecycle without an engine.
+
+    `run_check` resolves `Run` from the module at call time, so a test hands it this
+    via `monkeypatch.setattr(fc, "Run", ...)` — a module-attribute patch monkeypatch
+    undoes exactly (never `Run.__new__`: a subclass never owns that slot and its
+    snapshot-then-restore leaves CPython's slot unwinding broken for every LATER
+    `fc.Run(...)` in the process). Every lifecycle method is a no-op except the ones
+    a test is watching, and `record` collects the calls in the order they happened,
+    which is what pins the ORDER of teardown and image cleanup.
+    """
+
+    def __init__(
+        self,
+        artifacts: Path,
+        *,
+        record: list[str] | None = None,
+        fail_in: str | None = None,
+        cleanup: int | None = fc.EXIT_OK,
+        cleanup_raises: Exception | None = None,
+    ) -> None:
+        self.artifacts = artifacts
+        self.summary: dict[str, Any] = {}
+        self.started = True
+        self.prod_shape = True
+        self.record = record if record is not None else []
+        self.fail_in = fail_in
+        self.cleanup = cleanup
+        self.cleanup_raises = cleanup_raises
+
+    def prepare(self) -> Any:
+        return fc.Snapshot.from_engine([], [])
+
+    def take_snapshot(self) -> Any:
+        return fc.Snapshot.from_engine([], [])
+
+    def render(self, before: Any, vlm: Any = None) -> None:
+        if self.fail_in == "render":
+            raise fc.HarnessError("stopped on purpose")
+
+    def up(self, vlm: Any = None) -> None:
+        self.record.append("up")
+
+    def register_admin(self) -> None:
+        return None
+
+    def seed_cameras(self) -> None:
+        return None
+
+    def check_isolation(self) -> list[str]:
+        return []
+
+    def smoke(self, vlm: Any = None) -> list[str]:
+        return []
+
+    def golden(self) -> list[str]:
+        return []
+
+    def collect(self) -> None:
+        return None
+
+    def teardown(self, before: Any) -> tuple[list[str], list[str]]:
+        self.record.append("teardown")
+        return [], []
+
+    def cleanup_images(self) -> int:
+        self.record.append("cleanup")
+        if self.cleanup_raises is not None:
+            raise self.cleanup_raises
+        assert self.cleanup is not None
+        return self.cleanup
+
+    def _write(self, name: str, data: Any) -> None:
+        return None
+
+
+def _run_check_with(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, run: _WiredRun) -> int:
+    """Drive the real `run_check` over a stub run, prod-shape and real-tier."""
+    import argparse
+
+    monkeypatch.setattr(fc, "Run", lambda **_kw: run)
+    monkeypatch.setattr(fc, "AgentGpu", lambda *_a, **_k: None)
+    args = argparse.Namespace(
+        engine="podman", root=tmp_path / "runs", image_tag="test", prod_shape=True
+    )
+    return fc.run_check(args, mode="real")
+
+
+def test_a_green_prod_shape_run_removes_its_images_after_the_teardown(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # Two pins the failure-path wiring test cannot make, both measured as survivors
+    # (ops-b's UR-89 review, reproduced in my own shell): a cleanup gated on
+    # `status != EXIT_OK` — "only clean up when something went wrong" — passes every
+    # failure-path test and leaks on every SUCCESSFUL run, which is the common case
+    # this PR exists for; and moving the cleanup call above `_finish` removes the
+    # images while containers still hold them, which is exactly the `image rm`
+    # failure the code already handles. A green run reaching EXIT_OK with the calls
+    # recorded in that order reddens both.
+    record: list[str] = []
+    run = _WiredRun(tmp_path, record=record)
+
+    status = _run_check_with(monkeypatch, tmp_path, run)
+
+    assert status == fc.EXIT_OK, run.summary
+    assert "up" in record, "the run must actually have reached the boot"
+    assert record == [*record[: record.index("teardown")], "teardown", "cleanup"], (
+        f"image cleanup must run last, after the deployment is torn down: {record}"
+    )
+    assert record[-1] == "cleanup", record
+    assert "cleanup" in record, (
+        "a SUCCESSFUL prod-shape run must remove the images it built — they are "
+        f"per-run names nothing else ever deletes: {record}"
+    )
+
+
+def test_a_cleanup_that_crashes_is_reported_and_not_reported_as_clean(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # `_cleanup_images`'s docstring promises a cleanup that cannot run is "reported,
+    # not swallowed". Both halves of that promise were unpinned: making its `except`
+    # return EXIT_OK survived all 240, and so did deleting the `except` so the crash
+    # escapes the finally. The run here is GREEN, so the exit word below comes from
+    # the cleanup alone — a swallowed crash (EXIT_OK) cannot pass it — and the URGENT
+    # line is what the operator pastes, so it is asserted as text.
+    record: list[str] = []
+    run = _WiredRun(
+        tmp_path, record=record, cleanup_raises=fc.HarnessError("engine socket vanished")
+    )
+
+    status = _run_check_with(monkeypatch, tmp_path, run)
+    logged = capsys.readouterr().out
+
+    assert record[-1] == "cleanup", record
+    assert "URGENT prod-shape image cleanup did not complete" in logged, logged
+    assert "engine socket vanished" in logged, logged
+    assert status == fc.EXIT_FAILED, (
+        f"a run whose image cleanup could not run must not report a clean exit: {status}"
+    )
 
 
 # ---------------------------------------------------------------------------

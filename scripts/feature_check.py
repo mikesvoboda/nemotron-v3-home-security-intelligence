@@ -2399,6 +2399,11 @@ class Run:
             else:
                 leaked.append(image)
         self.summary["images_removed"] = removed
+        # The leak gets its own key, not just a log line: `run_check` prints the
+        # summary whole for the operator to paste, and every other failure surface
+        # (`results.postflight`, `results.teardown`, `results.engine_socket`) reaches
+        # it. Names left in the engine would otherwise be visible only in the log.
+        self.summary["images_leaked"] = leaked
         for image in leaked:
             _log(f"FAIL prod-shape image still in the engine, not removed: {image}")
         return EXIT_FAILED if leaked else EXIT_OK
