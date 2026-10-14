@@ -317,10 +317,28 @@ record 6146380050)
       writes, `useRateLimitStatus` member, test seeds. `current` stays by the ruling's own fence
       (it names only that field) and F-022's row records why; the backend review of #7077
       (finding 2) offered exactly these two homes for the strand and the row took the second.
-- [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time
+- [x] The pill reads "Rate limited, retrying…" and shows no count, limit or time
       (`RetryingIndicator.tsx` is renamed to this text; ruling 155).
-- [ ] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no
+      Met by merged #7077: `649475fb4` — an interior commit of its head `66db84789`, not the head
+      itself — renames the kept pill to the owner's string (U+2026) at
+      `frontend/src/components/RetryingIndicator.tsx:64`, and it renders exactly one span plus an
+      `aria-hidden` spinner, no count, limit or time (it returns `null` unless limited AND
+      in-flight). The authority for the string is **ruling 155 item 1** ("the string is the owner's
+      ruling, not derived prose"). The component test
+      (`frontend/src/components/RetryingIndicator.test.tsx`) agrees — it pins that exact text plus a
+      no-digit check — but both asserts are `+` lines of the rename commit, so they show the two
+      files co-moved rather than independently pinning the copy. The **golden positive leg** is the
+      place ruling 155 item 1 actually asks that exact-text assert to live, and it is _not_ what this
+      box states; it is unchanged here — it stays the **Done when** paragraph's requirement, tracked
+      by F-022's `half-built` status, not something this tick erases.
+- [x] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no
       `isLimited` and shows no pill; only the backend's header-complete 429 does (ruling 155).
+      Met by merged #7077. Ruling 155 item 2 directs this exact record, and `62c72165e` (the
+      retirement commit, refined by `8864ee71a`) wrote it into F-022's row in
+      `docs/reference/feature-inventory.md` ("…it feeds the store **nothing**, because it carries no
+      `X-RateLimit-*`"); the rename commit `649475fb4` only touched that row's description cell, so
+      it is not this box's witness. The row's own status is still `half-built` for the golden-positive
+      reason above; this box only required the record to exist, and it does.
 
 **Done when:** F-022's flipped golden spec asserts the pill's exact text and that no countdown or
 number renders, and passes. Ruling 125's quarantine of F-022 ends with this PR (ruling 155).
