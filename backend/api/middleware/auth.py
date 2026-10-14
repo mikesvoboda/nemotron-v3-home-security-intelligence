@@ -234,7 +234,7 @@ def presents_scoped_api_key(conn: HTTPConnection) -> bool:
     postures and there is exactly one scope rule in the tree.
 
     Why not read middleware-set state: ``AuthMiddleware.__call__`` returns
-    early when ``expose_lan`` is off (``:613``, measured: it is
+    early when ``expose_lan`` is off (``:661``, measured: it is
     ``get_settings().expose_lan`` re-read per request, not built once), so in
     the LAN-trusted posture — exactly where S1's configuration lives — the
     gate never runs and state set there would leave the ceiling unarmed.

@@ -16,26 +16,26 @@ The narrowing has to sit where the response is built.
 
 Two clamps, because the clause names two different leaks:
 
-- `reasoning` is SERVED by default: routes/events.py:405 `undefer`s the column
-  and :509 writes the value into every row. The ceiling is on the VALUE, not on
-  key presence — measured here: a dict that OMITS `reasoning` still goes out on
-  the wire as `"reasoning": null`, because the row dicts are re-validated
+- `reasoning` is SERVED by default: `routes/events.py:407` `undefer`s the column
+  and `:530` writes the value into every row. The ceiling is on the VALUE, not
+  on key presence — measured here: a dict that OMITS `reasoning` still goes out
+  on the wire as `"reasoning": null`, because the row dicts are re-validated
   against `EventResponse` and pydantic re-adds the schema default. That is the
   same absence-is-not-a-witness trap this file's `notes` sibling documents at
-  routes/events.py:511 (F-057). So each leg below seeds real text and asserts
+  `routes/events.py:532` (F-057). So each leg below seeds real text and asserts
   the value is null, which is the only assertion that distinguishes the states.
-- `include_deleted` widens the ROWS (events.py:409-410 skips the
-  `deleted_at IS NULL` filter). For a scoped caller it is not an admitted
-  capability, so it is forced off: the response stays a 200 and the row set
-  equals the default one. Deliberately not a 400 — "admit only the fields it
-  reads" narrows the grant; it does not add a new failure mode to a path
-  Grafana calls on every dashboard refresh.
+- `include_deleted` widens the ROWS (`events.py:420-421` is where the
+  `deleted_at IS NULL` filter is applied, so skipping it widens the set). For a
+  scoped caller it is not an admitted capability, so it is forced off: the
+  response stays a 200 and the row set equals the default one. Deliberately not
+  a 400 — "admit only the fields it reads" narrows the grant; it does not add a
+  new failure mode to a path Grafana calls on every dashboard refresh.
 
 Both clamps key on the PRESENTED KEY's scope re-derived at request time, not on
 middleware-set state, because `AuthMiddleware.__call__` returns early when
-`expose_lan` is off (auth.py:613) — in the LAN-trusted posture the gate never
-runs, so state set there would leave the ceiling unarmed exactly where S1's
-configuration lives.
+`expose_lan` is off (`middleware/auth.py:661`) — in the LAN-trusted posture the
+gate never runs, so state set there would leave the ceiling unarmed exactly
+where S1's configuration lives.
 
 The unscoped arms are the point as much as the scoped ones: an operator key and
 a session-cookie caller keep byte-identical payloads, so this is a narrowing of
@@ -113,8 +113,9 @@ def keyless(client: AsyncClient) -> AsyncClient:
     """The shared client with its ambient integration key removed.
 
     The ``client`` fixture sends ``X-API-Key: test-api-key-12345`` on every
-    request (conftest.py:1755) — an UNSCOPED entry. Leaving it on would make
-    every "scoped" leg an unscoped one wearing a second header.
+    request (``backend/tests/integration/conftest.py:1755``) — an UNSCOPED
+    entry. Leaving it on would make every "scoped" leg an unscoped one wearing a
+    second header.
     """
     client.headers.pop(_KEY_HEADER, None)
     return client
