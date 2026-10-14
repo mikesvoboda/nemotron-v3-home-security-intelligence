@@ -234,9 +234,7 @@ class TestPlanBuilder:
             )
         assert not plan.exists()
 
-    def test_a_builder_that_reports_success_but_wrote_no_plan_raises(
-        self, tmp_path: Path
-    ) -> None:
+    def test_a_builder_that_reports_success_but_wrote_no_plan_raises(self, tmp_path: Path) -> None:
         """The exit code of a subprocess is the one signal that cannot be trusted
         alone: trtexec can return 0 and write nothing (disk full, OOM-killed
         child, a flag it parses but cannot act on). `export_all.sh` counts a
@@ -248,6 +246,7 @@ class TestPlanBuilder:
         file, which is exactly why this case had no coverage: deleting the
         `engine.is_file()` guard left the whole suite green. This is that mutant.
         """
+
         def lying_run(cmd: list[str], *args: object, **kwargs: object) -> SimpleNamespace:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
 
@@ -300,6 +299,7 @@ class TestPlanBuilder:
         touch it. That asymmetry is what this test and
         `test_a_guard_refusal_leaves_an_existing_plan_alone` pin together.
         """
+
         def timing_out(cmd: list[str], *args: object, **kwargs: object) -> SimpleNamespace:
             out = next(a for a in cmd if a.startswith("--saveEngine="))[len("--saveEngine=") :]
             Path(out).write_bytes(b"half a plan")  # what the kernel had flushed
@@ -313,6 +313,82 @@ class TestPlanBuilder:
                 str(onnx), str(plan), trtexec="/usr/bin/trtexec", run=timing_out
             )
         assert not plan.exists()
+
+    def test_the_build_timeout_is_a_parameter_keeping_600_as_its_default(
+        self, tmp_path: Path
+    ) -> None:
+        """Ruling 180 item 2: ``--plan-timeout`` must REACH this subprocess, which
+        is the only frame that actually enforces a bound. The owner's maui run
+        hit exactly this ``timeout=600`` on the FP16 leg (GPU at 100% throughout,
+        so a slow build, not a hung one), and no flag or env could lift it.
+
+        Two directions, both load-bearing. (1) OMIT the parameter and the bound
+        stays 600 — the owner ruled the default stays tight on purpose ("the same
+        FP16 command built in 137.7 s on 10-13"), so widening it silently would
+        hide every future timeout. (2) PASS one and the subprocess sees exactly
+        that number. A parameter the builder accepts but never forwards to
+        ``runner`` satisfies a signature check and still aborts the owner's run
+        at 600, so the assertion is on the kwargs of the captured call.
+        """
+        captured: list = []
+
+        def spy_run(cmd: list[str], *args: object, **kwargs: object) -> SimpleNamespace:
+            captured.append(kwargs)
+            out = next(a for a in cmd if a.startswith("--saveEngine="))[len("--saveEngine=") :]
+            Path(out).write_bytes(b"plan bytes")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        def build(precision: str, **kw: object) -> None:
+            onnx = tmp_path / f"model-{precision}.onnx"
+            onnx.write_bytes(b"fake onnx")
+            export_reid.build_tensorrt_engine(
+                str(onnx),
+                str(tmp_path / f"model-{precision}.plan"),
+                trtexec="/usr/bin/trtexec",
+                run=spy_run,
+                **kw,
+            )
+
+        build("default")
+        assert captured[-1]["timeout"] == 600, (
+            "the default bound drifted off 600 — ruling 180 keeps it tight so a "
+            "hang stays visible; only --plan-timeout may lift it"
+        )
+        build("lifted", plan_timeout=1800)
+        assert captured[-1]["timeout"] == 1800, (
+            "--plan-timeout is accepted but not forwarded to the subprocess that "
+            "enforces it — the owner's 1800 s rerun would still die at 600 s"
+        )
+
+    def test_a_liftoff_timeout_still_unlinks_its_husk(self, tmp_path: Path) -> None:
+        """Ruling 180 item 2, second clause: a long bound must keep the cleanup
+        that the 600 s pin guards, because raising the bound makes a *partial*
+        build MORE likely to be inspected, not less. Same husk contract as
+        ``test_a_kill_during_the_build_leaves_no_husk`` — at 1800 s the build ran
+        three times longer and flushed three times more before SIGKILL.
+        """
+
+        def timing_out(cmd: list[str], *args: object, **kwargs: object) -> SimpleNamespace:
+            assert kwargs.get("timeout") == 1800, "the lifted bound never reached the runner"
+            out = next(a for a in cmd if a.startswith("--saveEngine="))[len("--saveEngine=") :]
+            Path(out).write_bytes(b"half a plan, written slowly")
+            raise subprocess.TimeoutExpired(cmd=cmd, timeout=kwargs.get("timeout", 600))  # type: ignore[arg-type]
+
+        onnx = tmp_path / "model.onnx"
+        onnx.write_bytes(b"fake onnx")
+        plan = tmp_path / "model.plan"
+        with pytest.raises(subprocess.TimeoutExpired):
+            export_reid.build_tensorrt_engine(
+                str(onnx),
+                str(plan),
+                trtexec="/usr/bin/trtexec",
+                run=timing_out,
+                plan_timeout=1800,
+            )
+        assert not plan.exists(), (
+            "a plan_timeout longer than the default lost the unlink — Triton's "
+            "entrypoint links the whole version dir and would serve the husk"
+        )
 
 
 class TestValidationRunsOnCpu:
@@ -421,10 +497,17 @@ class TestPlanModeKeepsProvenanceVouching:
             )
         )
 
-    def _argv(self, monkeypatch: pytest.MonkeyPatch, ckpt: Path, plan: Path) -> None:
+    def _argv(self, monkeypatch: pytest.MonkeyPatch, ckpt: Path, plan: Path, *extra: str) -> None:
         monkeypatch.setattr(
             "sys.argv",
-            ["export_reid.py", "--model-path", str(ckpt), "--output-path", str(plan)],
+            [
+                "export_reid.py",
+                "--model-path",
+                str(ckpt),
+                "--output-path",
+                str(plan),
+                *extra,
+            ],
         )
 
     def _builder_available(self, monkeypatch: pytest.MonkeyPatch) -> list:
@@ -634,9 +717,7 @@ class TestPlanModeKeepsProvenanceVouching:
         by deleting the previous artifact". This one puts a plan there first.
         """
         ckpt = self._write_checkpoint(tmp_path / "osnet_ain_x1_0_msmt17.pth")
-        other = self._write_checkpoint(
-            tmp_path / "replaced.pth", content=b"a NEWER checkpoint"
-        )
+        other = self._write_checkpoint(tmp_path / "replaced.pth", content=b"a NEWER checkpoint")
         self._write_record_for(version_dir / "model.onnx", other)  # record: the OTHER weights
         live_plan = version_dir / "model.plan"
         live_plan.write_bytes(b"the plan the gateway is serving right now")
@@ -647,6 +728,46 @@ class TestPlanModeKeepsProvenanceVouching:
         assert built == [], "the guard let a build start"
         assert live_plan.read_bytes() == b"the plan the gateway is serving right now"
         assert (version_dir / "provenance.json").exists()
+
+    def test_the_plan_timeout_flag_threads_to_the_builder(
+        self, version_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The runner's ``--plan-timeout 1800`` (the command ruling 180 item 4
+        has the owner rerun) arrives here as a CLI flag and must survive both
+        hops down to the frame that enforces it: ``main()`` →
+        ``compile_plan_from_validated_onnx`` → ``build_tensorrt_engine``. A flag
+        parsed and dropped at either hop reads as implemented — the flag exists,
+        the help text lists it — while the run still dies at 600 s.
+
+        Captured as kwargs at the builder boundary, with the SAME default-pinned
+        shape in both directions: no flag → the builder is called with no
+        override (its own default, 600, then applies — the two defaults living
+        in one place is what test_the_build_timeout_is_a_parameter... checks);
+        flag → exactly that value reaches the builder.
+        """
+        ckpt = self._write_checkpoint(tmp_path / "osnet_ain_x1_0_msmt17.pth")
+        self._write_record_for(version_dir / "model.onnx", ckpt)
+        seen: list = []
+
+        def fake_build(onnx: str, plan: str, **kw: object) -> str:
+            seen.append(kw)
+            Path(plan).write_bytes(b"plan bytes")
+            return plan
+
+        monkeypatch.setattr(export_reid, "build_tensorrt_engine", fake_build)
+
+        self._argv(monkeypatch, ckpt, version_dir / "model.plan")
+        assert export_reid.main() == 0
+        assert "plan_timeout" not in seen[-1], (
+            "main() started passing a plan_timeout even when no flag was given — "
+            "the default must live in exactly one frame, not be restated here"
+        )
+
+        self._argv(monkeypatch, ckpt, version_dir / "model.plan", "--plan-timeout", "1800")
+        assert export_reid.main() == 0
+        assert seen[-1].get("plan_timeout") == 1800, (
+            f"--plan-timeout parsed but not threaded: builder saw {seen[-1]!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -864,13 +985,15 @@ class TestExportAllOnAHost:
         # pins that the writer stopped producing it.
         empty_gpu = "\nfp16\n"
         for broken, recorded in (
-            ("#!/bin/bash\necho 'NVIDIA-SMI has failed because it could not communicate' >&2\nexit 9\n",
-             "NVIDIA GB200\nfp16\n"),
+            (
+                "#!/bin/bash\necho 'NVIDIA-SMI has failed because it could not communicate' >&2\nexit 9\n",
+                "NVIDIA GB200\nfp16\n",
+            ),
             ("#!/bin/bash\nexit 0\n", "NVIDIA GB200\nfp16\n"),
             (None, "NVIDIA GB200\nfp16\n"),
-            ("#!/bin/bash\nexit 0\n", empty_gpu),   # the mutant-killer leg
+            ("#!/bin/bash\nexit 0\n", empty_gpu),  # the mutant-killer leg
             (None, empty_gpu),
-            ("#!/bin/bash\nexit 0\n", ""),          # sidecar exists but is empty
+            ("#!/bin/bash\nexit 0\n", ""),  # sidecar exists but is empty
         ):
             host["plan"].write_bytes(b"a plan copied from another card")
             host["sidecar"].write_text(recorded)
@@ -1048,7 +1171,7 @@ class TestExportAllNamesThePlanStep:
         source of truth is what the pin demands.
         """
         text = EXPORT_ALL.read_text()
-        gate = text[text.index("have_trtexec()") : text.index("if [ -f \"$REID_PLAN\" ]")]
+        gate = text[text.index("have_trtexec()") : text.index('if [ -f "$REID_PLAN" ]')]
         for candidate in export_reid.TRTEXEC_CANDIDATES:
             assert candidate in gate, f"the shell gate cannot see {candidate}"
         assert "command -v trtexec" in gate  # PATH, like shutil.which("trtexec")

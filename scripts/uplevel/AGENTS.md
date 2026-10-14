@@ -164,10 +164,22 @@ command and not a scratchpad (`[r157]`, rulings 157 + 159). Two modes:
   cache plan (which is the LAST compiled precision, so a fallback could score FP16 as
   FP32). `unknown` makes the table exit 2 - an incomplete diagnostic must not post as a
   clean run - while a located first failure stays exit 0, because naming the broken stage
-  is this mode succeeding.
+  is this mode succeeding. Stage 3 is built and probed BEFORE the FP16 build starts
+  (ruling 180): the owner's maui run compiled FP32 in 130.9 s, then FP16 hit the build
+  timeout, and under `set -euo pipefail` that ended the run with a good FP32 plan sitting
+  on disk unprobed - losing the one measurement that separates "the plan is wrong" from
+  "FP16 is not enough". Each build is contained so a failed one leaves its stage
+  `unknown`, and its plan copy is chained to that build's own success, because both
+  precisions write the same cache path and an unconditional copy after a failed FP16
+  would mint `model-fp16.plan` out of FP32's bytes.
 
-`--checkout`, `--gpu`, `--port`, `--checkpoint`, `--crops`, `--head`, `--mode` - the host
-paths ruling 159 makes arguments. Without `--crops` it stops after build/export/compile and
+`--checkout`, `--gpu`, `--port`, `--checkpoint`, `--crops`, `--head`, `--mode`,
+`--plan-timeout` - the host
+paths ruling 159 makes arguments. `--plan-timeout` bounds one `trtexec` build inside the
+exporter and defaults to 600 s, kept tight on purpose so a stalled build surfaces as a
+failure (ruling 180); before each build the runner writes a `--query-compute-apps`
+snapshot and its own wall-clock timing into the run directory, since `gpu-before.txt`
+names no PID and a build killed by the bound prints no duration of its own. Without `--crops` it stops after build/export/compile and
 prints the run directory: real camera crops cannot be synthesised (a synthetic crop passes
 the parity check it is meant to test), so it waits for >=30 crops plus a `crops-ready`
 touch. UR-133/UR-134 hold unchanged: a fresh detached worktree at a named head (never the

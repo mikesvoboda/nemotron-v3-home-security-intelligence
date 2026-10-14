@@ -716,6 +716,15 @@ MAX_BATCH = 16
 #: second card (export/README.md "Notes").
 DEFAULT_WORKSPACE_GB = 1
 
+#: Wall-clock bound on ONE trtexec build, in seconds. Ruling 180 keeps 600 as
+#: the default on purpose — the same FP16 command completed in 137.7 s on
+#: 2026-10-13, so a build that runs ten minutes is abnormal and should surface
+#: as a failure, not silently finish at minute nine. The runner's
+#: ``--plan-timeout`` (which reid_real_tier.sh forwards to ``main()``) is the
+#: only way to lift it for a run the owner expects to be slow, and the
+#: unlink-on-timeout cleanup below stays regardless of the bound.
+DEFAULT_PLAN_TIMEOUT_S = 600
+
 #: trtexec is pre-installed in the NVIDIA serving container but not on PATH
 #: there; the same candidate list export_fashion_clip.py uses.
 TRTEXEC_CANDIDATES = ("/usr/src/tensorrt/bin/trtexec", "/usr/local/bin/trtexec")
@@ -739,6 +748,7 @@ def build_tensorrt_engine(
     precision: str = "fp16",
     max_batch: int = MAX_BATCH,
     workspace_gb: int = DEFAULT_WORKSPACE_GB,
+    plan_timeout: int = DEFAULT_PLAN_TIMEOUT_S,
     trtexec: str | None = None,
     run: Callable[..., Any] | None = None,
 ) -> str:
@@ -754,6 +764,9 @@ def build_tensorrt_engine(
         precision: ``fp16`` (what yolo26's shipped engine is) or ``fp32``.
         max_batch: Upper bound of the dynamic batch profile.
         workspace_gb: Builder workspace, in GB.
+        plan_timeout: Wall-clock bound on the builder, seconds. Default 600,
+            kept tight on purpose (ruling 180); the runner's ``--plan-timeout``
+            forwards here when the owner expects a slow build on a shared GPU.
         trtexec: Builder binary; auto-detected when omitted.
         run: Subprocess runner; ``subprocess.run`` when omitted. Injectable so
             the command shape is testable without a GPU or TensorRT.
@@ -805,10 +818,10 @@ def build_tensorrt_engine(
     logger.info("Building the reid TensorRT plan: %s", " ".join(cmd))
     started = time.time()
     try:
-        result = runner(cmd, check=False, capture_output=True, text=True, timeout=600)
+        result = runner(cmd, check=False, capture_output=True, text=True, timeout=plan_timeout)
     except BaseException:
-        # A build that never reported an exit code (600s timeout, SIGKILL,
-        # KeyboardInterrupt) can leave a HALF-WRITTEN plan at the destination,
+        # A build that never reported an exit code (the plan_timeout firing,
+        # SIGKILL, KeyboardInterrupt) can leave a HALF-WRITTEN plan at the destination,
         # and the entrypoint links the whole version dir — Triton would be
         # handed a husk. This is the only place that knows a build was actually
         # started, so it is the only place that may delete what it started.
@@ -861,6 +874,7 @@ def compile_plan_from_validated_onnx(
     plan_path: str,
     *,
     precision: str = "fp16",
+    plan_timeout: int | None = None,
 ) -> str:
     """Compile the plan beside ``plan_path`` from the ONNX vouched for by provenance.
 
@@ -925,7 +939,14 @@ def compile_plan_from_validated_onnx(
             "model ID came from"
         )
 
-    return build_tensorrt_engine(str(onnx), str(plan), precision=precision)
+    # `plan_timeout` stays None unless the CLI got --plan-timeout, and then the
+    # builder's OWN default applies — one place owns the 600 s figure. Passing
+    # an explicit None through would either defeat the default or force this
+    # frame to restate the number (where it could drift from the constant).
+    extra: dict[str, object] = {}
+    if plan_timeout is not None:
+        extra["plan_timeout"] = plan_timeout
+    return build_tensorrt_engine(str(onnx), str(plan), precision=precision, **extra)
 
 
 def main() -> int:
@@ -956,6 +977,18 @@ def main() -> int:
         action="store_true",
         help="Skip ONNX validation step",
     )
+    parser.add_argument(
+        "--plan-timeout",
+        type=int,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            f"Wall-clock bound on one trtexec build (plan mode only); default "
+            f"{DEFAULT_PLAN_TIMEOUT_S}s, kept tight on purpose (ruling 180) so a "
+            "stalled build surfaces as a failure. Raise it only when the build "
+            "is legitimately slow on a contended GPU."
+        ),
+    )
     args = parser.parse_args()
 
     # Plan mode (O2.4): a compile over the ONNX pass that already ran, guarded by
@@ -965,7 +998,10 @@ def main() -> int:
     if args.output_path.endswith(".plan"):
         try:
             compile_plan_from_validated_onnx(
-                args.model_path, args.output_path, precision=args.precision
+                args.model_path,
+                args.output_path,
+                precision=args.precision,
+                plan_timeout=args.plan_timeout,
             )
             logger.info("Person Re-ID TensorRT plan complete")
             return 0

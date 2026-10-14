@@ -49,7 +49,8 @@
 #
 # Usage:
 #   scripts/uplevel/reid_real_tier.sh --checkout <host checkout> --gpu <index> \
-#       [--port N] [--checkpoint DIR] [--crops DIR] [--head SHA] [--mode parity|stages]
+#       [--port N] [--checkpoint DIR] [--crops DIR] [--head SHA] [--mode parity|stages] \
+#       [--plan-timeout SECONDS]
 #
 # With no --crops the runner stops after build/export/compile and prints the run
 # directory: populate <run>/crops and `touch <run>/crops-ready` (the owner's flow
@@ -73,6 +74,11 @@ CHECKPOINT="${ZOO_SRC:-/export/ai_models/model-zoo/osnet-ain-x1-0}"
 CROPS=""
 HEAD=""
 MODE="parity"
+# Wall-clock bound forwarded to export_reid's ONE trtexec build. Ruling 180 keeps
+# 600 as the default on purpose (the same FP16 command built in 137.7 s on
+# 2026-10-13, so a ten-minute build is the failure the owner wants to SEE);
+# --plan-timeout lifts it for a run expected to be slow on a contended GPU.
+PLAN_TIMEOUT=600
 IMAGE="${REID_TIER_IMAGE:-hsi-gateway:b22}"
 CTR="${REID_TIER_CONTAINER:-b22-reid-gw}"
 # models.yml `osnet-ain-x1-0.runtime_file`; the sha256 it pins is read from
@@ -99,11 +105,12 @@ while [[ $# -gt 0 ]]; do
     --checkout)   CHECKOUT="$2"; shift 2 ;;
     --gpu)        GPU="$2"; shift 2 ;;
     --port)       PORT="$2"; shift 2 ;;
-    --checkpoint) CHECKPOINT="$2"; shift 2 ;;
-    --crops)      CROPS="$2"; shift 2 ;;
-    --head)       HEAD="$2"; shift 2 ;;
-    --mode)       MODE="$2"; shift 2 ;;
-    -h|--help)    usage 0 ;;
+    --checkpoint)   CHECKPOINT="$2"; shift 2 ;;
+    --crops)        CROPS="$2"; shift 2 ;;
+    --head)         HEAD="$2"; shift 2 ;;
+    --mode)         MODE="$2"; shift 2 ;;
+    --plan-timeout) PLAN_TIMEOUT="$2"; shift 2 ;;
+    -h|--help)      usage 0 ;;
     *) echo "unknown argument: $1" >&2; usage 1 ;;
   esac
 done
@@ -112,6 +119,7 @@ done
 [[ "$MODE" == parity || "$MODE" == stages ]] || { echo "--mode is parity or stages" >&2; usage 1; }
 [[ "$GPU" =~ ^[0-9]+$ ]] || { echo "--gpu must be an index, got '$GPU'" >&2; exit 1; }
 [[ "$PORT" =~ ^[0-9]+$ ]] || { echo "--port must be a number, got '$PORT'" >&2; exit 1; }
+[[ "$PLAN_TIMEOUT" =~ ^[0-9]+$ && "$PLAN_TIMEOUT" -ge 1 ]] || { echo "--plan-timeout must be a positive number of seconds, got '$PLAN_TIMEOUT'" >&2; exit 1; }
 [[ -e "$CHECKOUT/.git" ]] || { echo "--checkout is not a git checkout: $CHECKOUT" >&2; exit 1; }
 # UR-133: the runner never touches the live stack. It gets its own worktree, its
 # own port and a read-only weights copy, and refuses rather than sharing anything.
@@ -273,14 +281,40 @@ cat "$RUN/cache/reid/1/provenance.json"
 compile_plan() {
   # Writes beside the ONNX (Triton's fixed 1/model.plan) and refuses, inside
   # export_reid, unless the provenance record vouches for these exact bytes.
+  #
+  # Ruling 180 item 3: every build stamps its own wall time and a compute-apps
+  # snapshot into $RUN before it starts. gpu-before.txt cannot serve this purpose
+  # -- it is a one-shot memory total taken before the FIRST build and names no
+  # PID, so it cannot answer the question the owner's maui run actually raised
+  # ("GPU 0 at 100% throughout": slow build, or someone else's process on the
+  # card?). --query-compute-apps is the only nvidia-smi query that names the
+  # tenants; it goes to its own file per precision so the FP32 and FP16 legs are
+  # read separately. Wall time is stamped HERE, not read from trtexec's output,
+  # because a build killed by the bound never gets to print a duration.
   local precision="$1"
+  local ts
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  {
+    echo "precision=$precision start=$ts plan_timeout=${PLAN_TIMEOUT}s"
+    nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv || true
+  } > "$RUN/compute-apps-$precision.txt" 2>&1
+  local started=$SECONDS
+  # `|| rc=$?` rather than a bare command: the failing build must not abort the
+  # function under `set -e` before the elapsed-time line lands, and the same
+  # wrapper runs in parity (a bare, fatal call) and in stages (contained by the
+  # caller's `&& cp … || true`). Returning the status explicitly keeps the
+  # witness write unconditional while the caller still sees the real rc.
+  local rc=0
   podman run --rm --network none --security-opt label=disable --device nvidia.com/gpu=all \
     -e CUDA_VISIBLE_DEVICES="$GPU" --entrypoint python3 \
     -v "$RUN/zoo":/zoo:ro -v "$RUN/cache":/out \
     "$IMAGE" -m ai.gateway.export.export_reid \
       --model-path "/zoo/$WEIGHTS_FILE" --output-path /out/reid/1/model.plan \
-      --precision "$precision" \
-    > "$RUN/compile-$precision.log" 2>&1
+      --precision "$precision" --plan-timeout "$PLAN_TIMEOUT" \
+    > "$RUN/compile-$precision.log" 2>&1 || rc=$?
+  echo "precision=$precision elapsed=$(( SECONDS - started ))s rc=$rc" \
+    >> "$RUN/compute-apps-$precision.txt"
+  return "$rc"
 }
 
 # --- crops: real camera frames only -----------------------------------------------------
@@ -718,15 +752,33 @@ run_stages() {
     -v "$RUN":/work -v "$RUN/zoo":/work/zoo:ro -v "$RUN/cache":/work/cache:ro \
     "$IMAGE" /work/stage_probe.py /work 1,2 || true
 
-  echo 'STEP S3: compile the plan in FP32 and FP16, then probe each directly'
-  compile_plan fp32
-  cp "$RUN/cache/reid/1/model.plan" "$RUN/model-fp32.plan"
-  compile_plan fp16   # leave the cache holding the fp16 plan the gateway serves
-  cp "$RUN/cache/reid/1/model.plan" "$RUN/model-fp16.plan"
+  # STEP S3, the ruling-180 shape: build and probe EACH precision before
+  # touching the other. The owner's maui run showed why the old order was wrong:
+  # it compiled FP32 (130.9 s, good), copied it, then compiled FP16 — which hit
+  # the 600 s bound, and under `set -euo pipefail` that abort ended the run
+  # before stage 3 was ever probed. The FP32 measurement the whole diagnostic
+  # exists to take ("separates 'the plan is wrong' from 'FP16 is not enough'",
+  # ruling 157) was already on disk, unprobed. The AND-chain is load-bearing in
+  # BOTH directions: `|| true` contains a failed build so its stage just leaves
+  # its JSON absent (the table prints `unknown`, finding 3 fails the run), and
+  # the `&&` keeps the copy conditional because BOTH compiles write the same
+  # cache path — after a failed FP16 build the cache still holds FP32's bytes,
+  # so an unconditional copy would mint model-fp16.plan out of FP32 and have
+  # stage 4 measure FP32 reporting it as FP16, the exact wrong-plan swap
+  # stage_plan refuses to fall back over.
+  echo 'STEP S3a: compile the plan in FP32 and probe stage 3 (before FP16 can fail)'
+  compile_plan fp32 && cp "$RUN/cache/reid/1/model.plan" "$RUN/model-fp32.plan" || true
   podman run --rm --network none --security-opt label=disable --device nvidia.com/gpu=all \
     -e CUDA_VISIBLE_DEVICES="$GPU" --entrypoint python3 \
     -v "$RUN":/work -v "$RUN/zoo":/zoo:ro \
-    "$IMAGE" /work/stage_probe.py /work 3,4 || true
+    "$IMAGE" /work/stage_probe.py /work 3 || true
+
+  echo 'STEP S3b: compile the plan in FP16 and probe stage 4 (leaves the cache on FP16)'
+  compile_plan fp16 && cp "$RUN/cache/reid/1/model.plan" "$RUN/model-fp16.plan" || true
+  podman run --rm --network none --security-opt label=disable --device nvidia.com/gpu=all \
+    -e CUDA_VISIBLE_DEVICES="$GPU" --entrypoint python3 \
+    -v "$RUN":/work -v "$RUN/zoo":/zoo:ro \
+    "$IMAGE" /work/stage_probe.py /work 4 || true
 
   echo 'STEP S5: the served gateway (host-side HTTP: a container cannot reach host loopback)'
   start_gateway
