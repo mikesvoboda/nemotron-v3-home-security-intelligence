@@ -88,8 +88,17 @@ _SCOPE_RE = re.compile(r"^(\d+):(class|def)\s+(\w+)")
 
 def _git_grep(pattern: str) -> dict[str, list[str]]:
     """One pass over the tracked tree; {path: ["lineno:content", ...]}."""
-    out = subprocess.run(
-        ["git", "grep", "-I", "-n", "-E", pattern, "--", "*.py"],
+    out = subprocess.run(  # noqa: S603  # real git grep, fixed argv, tests our own script
+        [  # noqa: S607  # partial path OK for test script
+            "git",
+            "grep",
+            "-I",
+            "-n",
+            "-E",
+            pattern,
+            "--",
+            "*.py",
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -214,7 +223,10 @@ def test_the_dead_check_fires_on_a_bogus_pattern():
     bogus = r"test_no_such_file_zzz.*test_no_such_def_zzz"
     assert _dead([bogus], _audit.is_known_slow_test) == [bogus]
     # ...and it does NOT flag a row known to be live.
-    assert _dead([r"test_error_handler.*test_timestamp_auto_generated"], _audit.is_known_slow_test) == []
+    assert (
+        _dead([r"test_error_handler.*test_timestamp_auto_generated"], _audit.is_known_slow_test)
+        == []
+    )
 
 
 # The owner-rule witness, both directions at once. ``test_pipeline_e2e.py``
