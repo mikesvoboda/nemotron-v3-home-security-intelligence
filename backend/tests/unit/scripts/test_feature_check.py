@@ -3139,3 +3139,178 @@ def test_the_shape_is_recorded_in_the_run_summary(tmp_path: Path) -> None:
     assert plain.summary["mode"] == "real"
     fake = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake")
     assert fake.summary["mode"] == "fake"
+
+
+# ---------------------------------------------------------------------------
+# O2.5 Step 2 slice 2: the prod render itself -- the generated env file, the
+# two-file compose, the limits decision recorded from THIS machine, and the
+# UR-134 re-check on the render the run actually got (drift, not the static gate).
+# ---------------------------------------------------------------------------
+
+
+def _prod_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, socket: str | None = None) -> Any:
+    if socket is None:
+        monkeypatch.delenv("PODMAN_SOCKET", raising=False)
+    else:
+        monkeypatch.setenv("PODMAN_SOCKET", socket)
+    run = fc.Run(
+        engine="podman",
+        root=tmp_path / "runs",
+        image_tag="test",
+        mode="real",
+        prod_shape=True,
+    )
+    # what prepare() leaves behind, without prepare()'s engine calls
+    run.dir.mkdir(parents=True)
+    run.artifacts.mkdir(parents=True)
+    run.env_file.write_text(f"IMAGE_TAG={run.image_tag}\n", encoding="utf-8")
+    return run
+
+
+def _fake_compose(run: Any, rendered: dict[str, Any]) -> list[Any]:
+    """Record every compose(...) call; answer the render with `rendered`."""
+    calls: list[Any] = []
+
+    def compose(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((list(files), args))
+        return subprocess.CompletedProcess(["fake"], 0, stdout=json.dumps(rendered), stderr="")
+
+    run.compose = compose  # instance attribute: shadow the bound method
+    return calls
+
+
+def _prod_rendered(**services: Any) -> dict[str, Any]:
+    return {"services": services}
+
+
+_PG_LIMITS = {"image": "pg:1", "deploy": {"resources": {"limits": {"memory": "512M"}}}}
+
+
+def test_the_prod_render_swaps_in_the_generated_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+
+    run.render(fc.Snapshot.from_engine([], []))
+
+    env = dict(line.split("=", 1) for line in run.env_file.read_text(encoding="utf-8").splitlines())
+    assert {"IMAGE_TAG", "PODMAN_SOCKET", "POSTGRES_PASSWORD", "PROD_SHAPE_RUN_ROOT"} == set(env)
+    assert env["PROD_SHAPE_RUN_ROOT"] == str(run.dir)
+    assert env["IMAGE_TAG"] == "test"
+    assert env["PODMAN_SOCKET"] == _ENGINE_SOCKET
+    # the two files are prod + the authored override -- NOT the CI stack, and the
+    # override is the UR-133/134 transform the static oracle pins
+    assert calls == [([fc.PROD_STACK, fc.PROD_SHAPE_OVERRIDE], ("config", "--format", "json"))]
+
+
+def test_the_prod_render_refuses_before_the_engine_without_the_socket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # prod_shape_env refuses a missing PODMAN_SOCKET (a blank interpolates to a
+    # "/" mount); here that refusal must stop the render, not reach compose.
+    run = _prod_run(tmp_path, monkeypatch, socket=None)
+    calls = _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    with pytest.raises(fc.Refused) as refused:
+        run.render(fc.Snapshot.from_engine([], []))
+    assert any("PODMAN_SOCKET" in p for p in refused.value.problems), refused.value.problems
+    assert calls == []
+
+
+def test_the_prod_render_records_and_applies_the_limits_decision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Ruling 162 item 2: limits stay where the machine delegates the controllers
+    # and are stripped otherwise, with the verbatim string in the run record.
+    # Both branches run through render_prod_shape, not just the helper, because
+    # a caller that decided in one place and recorded in another is the bug the
+    # helper's docstring warns about -- and because only the render writes the
+    # artifact `up` will boot from.
+    import copy
+
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "cpuset cpu io memory pids\n")
+    _fake_compose(run, copy.deepcopy(_prod_rendered(postgres=_PG_LIMITS)))
+    run.render(fc.Snapshot.from_engine([], []))
+    assert run.summary["limits"] == fc.LIMITS_APPLIED
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert "limits" in landed["services"]["postgres"]["deploy"]["resources"]
+
+    run2 = _prod_run(tmp_path / "b", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _fake_compose(run2, copy.deepcopy(_prod_rendered(postgres=_PG_LIMITS)))
+    run2.render(fc.Snapshot.from_engine([], []))
+    assert run2.summary["limits"] == fc.LIMITS_STRIPPED
+    landed2 = json.loads((run2.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert "limits" not in landed2["services"]["postgres"]["deploy"]["resources"]
+
+
+def test_the_prod_render_refuses_a_render_that_still_mounts_the_socket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The runtime twin of the static gate: the override DROPS the socket mounts
+    # (test_prodshape_override.py proves the committed file does), but the render
+    # is what `up` boots, and a socket prod grew after the override was authored
+    # is invisible to the gate and visible here. A hit refuses the run naming
+    # the service, before anything starts.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    mounting = _prod_rendered(
+        backend={
+            "image": "b:1",
+            "volumes": [
+                {"type": "bind", "source": _ENGINE_SOCKET, "target": "/var/run/podman/podman.sock"}
+            ],
+        },
+        # The real shape prod mounts on `alloy`: the SAME ${PODMAN_SOCKET}
+        # interpolated into BOTH fields, so the target is the caller's socket path,
+        # NOT one of the canonical docker/podman targets. A check that passed no
+        # socket path would see only the target and miss alloy outright -- which is
+        # the exact drift this re-check exists for.
+        alloy={
+            "image": "a:1",
+            "volumes": [{"type": "bind", "source": _ENGINE_SOCKET, "target": _ENGINE_SOCKET}],
+        },
+    )
+    _fake_compose(run, mounting)
+    with pytest.raises(fc.Refused) as refused:
+        run.render(fc.Snapshot.from_engine([], []))
+    assert any("backend" in p for p in refused.value.problems), refused.value.problems
+    assert any("alloy" in p for p in refused.value.problems), refused.value.problems
+    assert refused.value.problems == run.summary["results"]["engine_socket"], (
+        "the record and the refusal are one measurement; run_check logs the second "
+        "and the operator pastes the first, and a reader must be able to match them"
+    )
+    assert not (run.artifacts / "prod-rendered.json").exists(), (
+        "a refused render must not leave the artifact up would boot from"
+    )
+    # the same render without the mount passes (the re-check is not a blanket ban)
+    run2 = _prod_run(tmp_path / "b", monkeypatch, socket=_ENGINE_SOCKET)
+    _fake_compose(run2, _prod_rendered(backend={"image": "b:1"}))
+    run2.render(fc.Snapshot.from_engine([], []))
+    assert (run2.artifacts / "prod-rendered.json").exists()
+
+
+def test_read_subtree_control_follows_the_caller_s_own_cgroup(tmp_path: Path) -> None:
+    # Which cgroup the harness's OWN containers will inherit is what /proc says,
+    # not a fixed path: the probe measured /sys/fs/cgroup$(cut -d: -f3 of
+    # /proc/self/cgroup)/cgroup.subtree_control. A missing file must read as ""
+    # -- the fail-closed direction, because "" makes decide_resource_limits
+    # STRIP limits (a container that starts without a limit cannot fail to
+    # start over one it was promised).
+    proc = tmp_path / "proc"
+    (proc / "self").mkdir(parents=True)
+    (proc / "self" / "cgroup").write_text(
+        "0::/user.slice/user-1000.slice/session-2.scope\n", encoding="utf-8"
+    )
+    sysfs = tmp_path / "sys"
+    cg = sysfs / "user.slice/user-1000.slice/session-2.scope"
+    cg.mkdir(parents=True)
+    (cg / "cgroup.subtree_control").write_text("cpuset cpu io memory pids\n", encoding="utf-8")
+    assert fc.read_subtree_control(proc_dir=proc, sys_dir=sysfs) == "cpuset cpu io memory pids\n"
+    assert fc.read_subtree_control(proc_dir=proc, sys_dir=tmp_path / "nothing") == ""
+    broken = tmp_path / "broken"
+    (broken / "self").mkdir(parents=True)
+    (broken / "self" / "cgroup").write_text("garbage\n", encoding="utf-8")
+    assert fc.read_subtree_control(proc_dir=broken, sys_dir=sysfs) == ""
