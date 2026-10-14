@@ -1399,6 +1399,43 @@ def test_the_warning_row_after_a_clean_re_run_carries_both_timings(tmp_path: Pat
     )
 
 
+def test_a_cleared_unit_breach_is_listed_once_not_twice(tmp_path: Path) -> None:
+    """Review finding 2: the dedup half of ``cleared_rows_outside_warns`` is load-bearing.
+
+    A unit breach is over the 1.5 s warn threshold by arithmetic, so WARNS
+    already holds it, and ``cleared_rows_outside_warns`` must NOT also hand it
+    to the "did not reproduce" section — that predicate
+    (``test_id not in already_listed``) is what keeps it one row. Measured on
+    this PR's head: dropping that clause leaves all pre-existing pins green
+    (60 passed) and prints the id TWICE on stdout (WARN row + DID NOT
+    REPRODUCE row) and twice in the summary. Counting the full id is the check
+    membership cannot make: the row that exists proves nothing about the row
+    that shouldn't.
+    """
+    calls = tmp_path / "calls.jsonl"
+    summary = tmp_path / "step-summary.md"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+            "GITHUB_STEP_SUMMARY": str(summary),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, f"cleared breach is green; got\n{out}"
+    assert out.count(SLEEPER_ID) == 1, (
+        f"a cleared UNIT breach gets exactly ONE stdout row (the WARN row); "
+        f"the dedup predicate put it in the did-not-reproduce section too\n{out}"
+    )
+    written = summary.read_text(encoding="utf-8")
+    assert written.count(SLEEPER_ID) == 1, (
+        "one row in the step summary as well — a double-list is what the "
+        f"owner reads as two events\n{written}"
+    )
+
+
 def test_a_breach_that_breaches_again_is_red(tmp_path: Path) -> None:
     """Done-when case 3 (UR-125 + UR-126) — the reproduced breach is RED.
 
@@ -1731,13 +1768,19 @@ def test_the_rerun_is_off_unless_the_env_turns_it_on(tmp_path: Path) -> None:
 
 
 def test_a_non_unit_breach_is_red_without_a_re_run(tmp_path: Path) -> None:
-    """The re-run clause speaks about UNIT tests; every other tier keeps 93.
+    """Tiers OUTSIDE ``RERUN_TIERS`` keep ruling 93's hard red, no re-run.
+
+    (Reworded per review finding 5: this said "the re-run clause speaks about
+    UNIT tests" while ruling 151 had already added integration — the sibling
+    integration pins kill the same e2e-joins mutant, so the stale sentence
+    described behaviour this file now disproves. The live rule is the SET:
+    unit + integration re-run, e2e + slow do not.)
 
     The audit job has no browser and no ``npm ci``, so re-running an e2e id
     there cannot work, and a 23 s Playwright spec is not runner starvation. If
-    the implementation ever offered a re-run to a non-unit breach it would spawn
-    a doomed subprocess per e2e failure; the stub knows no target here, so an
-    attempt is visible in the calls file.
+    the implementation ever offered a re-run to a tier outside the set it would
+    spawn a doomed subprocess per e2e failure; the stub knows no target here, so
+    an attempt is visible in the calls file.
     """
     calls = tmp_path / "calls.jsonl"
     results = _results(
@@ -1751,7 +1794,7 @@ def test_a_non_unit_breach_is_red_without_a_re_run(tmp_path: Path) -> None:
     out = _out(run)
     assert run.returncode != 0, f"23.1 s over the 10.0 s e2e limit\n{out}"
     assert _calls(calls) == [], (
-        "the re-run is unit-tier only; an e2e breach cannot be re-run in this "
+        "e2e is outside RERUN_TIERS; an e2e breach cannot be re-run in this "
         f"job and must not try: {_calls(calls)}"
     )
 
@@ -2018,6 +2061,18 @@ def test_a_cleared_integration_breach_is_still_listed_with_both_timings(
     assert "12.40" in summary_row and INTEGRATION_CLEARANCE in summary_row, (
         f"both timings in the summary row too; saw: {summary_row!r}"
     )
+    # Review finding 6: the PASS verdict line is what a reader trusts, and a
+    # phrasing that says "unit" here is FALSE for this corpus — the only test
+    # that was over budget is an integration one. The sentence existed on an
+    # earlier revision of this PR and a mutant restores it with every other pin
+    # green, so the word itself is pinned now.
+    pass_line = next(
+        (line for line in run.stdout.splitlines() if line.startswith("RESULT: PASS")), ""
+    )
+    assert pass_line, f"a cleared run must print its PASS verdict\n{out}"
+    assert "unit" not in pass_line, (
+        f"nothing unit was cleared here; the verdict must not claim it: {pass_line!r}"
+    )
 
 
 def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> None:
@@ -2040,6 +2095,67 @@ def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> Non
     out = _out(run)
     assert run.returncode != 0, (
         f"a 12.4 s breach that re-runs at 13.1 s is real and stays RED\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
+    assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
+
+
+# Review finding 1: the exoneration ruling 151 grants lives in the 4.0-10.0 s
+# band, and before these two pins NO re-run duration anywhere in this file sat
+# inside it (every value was 0 / 0.4 / 4.7 / 13.1), so the comparison
+# `elif seconds > budget:` was never distinguished from `seconds > min(budget,
+# 4.0)` — that mutant ran the whole suite green while reddening a real 6.00 s
+# integration re-run. The greens below sit at 9.90 s, not the reviewer's
+# suggested 6.00 s, because 9.90 kills every mutant that lowers the effective
+# threshold below 9.9, and 6.00 would survive min(budget, 8.0).
+def test_an_integration_re_run_at_9p90_seconds_is_cleared(tmp_path: Path) -> None:
+    """The 4.0-10.0 s band is judged against the INTEGRATION budget, not 4.0 s.
+
+    12.4 s in the corpus, 9.90 s re-run: under the 10.0 s budget, so cleared.
+    This is the duration ruling 151 exists to forgive — a starved integration
+    test that re-measures just under its own limit. A gate that judged the
+    re-run against the 4.0 s unit line would call it CONFIRMED red here.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {INTEGRATION_ID: "9.9"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        "a re-run at 9.90 s is under the 10.0 s integration budget, so it is "
+        "exonerated. If this goes red the re-run is being judged against a "
+        f"smaller budget than the tier's own:\n{out}"
+    )
+    assert "BREACH" not in run.stdout, f"a cleared re-run must not print as a breach\n{out}"
+    assert len(_calls(calls)) == 1, f"one re-run, then the verdict: {_calls(calls)}"
+
+
+def test_an_integration_re_run_at_10p40_seconds_is_red(tmp_path: Path) -> None:
+    """The mirror, just over the line: 10.40 s re-run against 10.0 s is RED.
+
+    Without this half the green above is ambiguous — it would also be green on
+    a gate that forgives the integration tier entirely. Together the pair
+    brackets the judged threshold to (9.90, 10.40], which is the 10.0 s
+    integration budget, per tier rather than inherited from the unit case.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {INTEGRATION_ID: "10.4"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        "a re-run at 10.40 s is over the 10.0 s budget and the breach "
+        f"reproduced; a green here means the tier got an exemption\n{out}"
     )
     assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
     assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
@@ -2148,6 +2264,17 @@ def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
         f"u0 is the SHORTEST unit breach (4.4 s); dropping anything else would "
         f"make the cap lenient instead of strict; saw {unit_names}"
     )
+    # Review finding 6: which ids got re-run was pinned; the report's own PROSE
+    # about the cap was free to be deleted. A 6/6 corpus is over the cap in BOTH
+    # eligible tiers, so the stderr note must name each of them — a reader
+    # told "6 breaches, 5 re-run" without the tier cannot tell which tier lost.
+    notes = [line for line in run.stderr.splitlines() if "stay RED unverified" in line]
+    assert len(notes) == 2, (
+        f"one over-cap note per tier that is over the cap (both here); saw {notes!r}"
+    )
+    assert any("unit breaches" in line for line in notes) and any(
+        "integration breaches" in line for line in notes
+    ), f"each note must name ITS tier; saw {notes!r}"
 
 
 def test_the_header_names_eligible_and_re_run_counts_separately(tmp_path: Path) -> None:

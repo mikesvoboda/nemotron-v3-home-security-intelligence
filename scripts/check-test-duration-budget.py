@@ -205,6 +205,13 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 # the job is now len(RERUN_TIERS) * MAX_RERUNS sleeps, 10, up from 5; that is
 # what the per-tier scoping costs, and the number is pinned to UR-125 by
 # test_the_cap_value_is_the_number_the_rulebook_states, not restated here.
+#
+# Do the time arithmetic with it (review finding 4): each re-run is capped by
+# DEFAULT_RERUN_TIMEOUT, 120 s, so 10 hanging re-runs are a 1,200 s ceiling
+# inside a job whose timeout-minutes is 15 (900 s, ci.yml's test-performance-audit
+# job) — the job budget is the binding limit, and it can only bind when >= 6
+# breaches per tier ALL hang, which no corpus has ever looked like. Recorded so
+# the next reader does that sum here instead of across four files.
 MAX_RERUNS = 5
 
 # Tiers the reproduce-before-red clause covers, ruling 122 (unit) + ruling 151
@@ -768,7 +775,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         print(
             f"RESULT: FAIL - {len(red)} test(s) over their real-sleep budget."
-            f"{notes} A seconds-scale unit or integration test is a real sleep: "
+            f"{notes} A seconds-scale test in a re-run tier is a real sleep: "
             "give it a fake/injected clock "
             "or make it genuinely faster. There is no file to add it to."
         )
