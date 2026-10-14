@@ -1750,22 +1750,23 @@ tpa_slow_list:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason:
-      spawns a real compose binary, so the CLI boot IS the Done-when, not a sleep. Breached 4.93s and BREACHED
+      "spawns a real compose binary, so the CLI boot IS the Done-when, not a sleep. Breached 4.93s and BREACHED
       AGAIN on the gate's isolated re-run at 8.12s (PR 7083 head 961ddc956, job 115516785427) while the same code
-      measured 0.447s in main's own junit (run 38478749542, absent from both WARN lists) — RETRACTED — the claim that
-      the spread IS which compose invocation _compose_argv() resolves was my inference written as a measurement. That
-      function (test_compose_render_lists_ai_vlm.py:40-49) probes host binaries in priority order with shutil.which,
-      and its result reaches exactly one string in the file, the exit-nonzero message at :90, so a run that passes
-      cannot show which branch it took; main's 0.447s run passed and the head's 4.93s run carries no such label, so
-      no artifact settles it. Podman IS on the image's Included Software list (ubuntu-24.04 build 20261004.327.1 —
-      the Runner Image blocks of unit jobs 115578584163 and 115512344178 are identical modulo the per-line log timestamp)
-      but that list is not what shutil.which consults at runtime, and this suite skips outright when these binaries
-      are absent (:66-67), so image contents cannot show which branch either run rode. Unresolved machine-dependent
-      variance — the hard-line breach is reproducible but the duration is not. Rejected — a tier move to integration
-      stops it running in pull-request CI (all four pull-request integration groups are -k allowlists that never match
-      this nodeid; it would run only in the nightly full gate, which takes the whole tier with no -k); @pytest.mark.slow
-      changes nothing (conftest.py:486 gives 30s only absent an explicit marker and this test's own timeout(120) outranks
-      it) (2026-10-13)
+      measured 0.447s in main's own junit (run 38478749542, absent from both WARN lists) — RETRACTED — the claim
+      that the spread IS which compose invocation _compose_argv() resolves was my inference written as a measurement.
+      That function (test_compose_render_lists_ai_vlm.py:40-49) probes host binaries in priority order with shutil.which.
+      Its result reaches two renderings, not one: the exit-nonzero message at :90, and the TimeoutExpired text of
+      the timeout=100 call at :86 (CPython embeds the argv list in that exception's str) — but nothing in the file
+      catches it, so a timeout ERRORS instead of passing, and a run that PASSES prints neither. main's 0.447s run
+      passed and the head's 4.93s run carries no such label, so no artifact settles which branch either rode. Podman
+      IS on the image's Included Software list (ubuntu-24.04 build 20261004.327.1 — the Runner Image blocks of unit
+      jobs 115578584163 and 115512344178 are identical modulo the per-line log timestamp) but that list is not what
+      shutil.which consults at runtime, and this suite skips outright when these binaries are absent (:66-67), so
+      image contents cannot show which branch either run rode. Unresolved machine-dependent variance — the hard-line
+      breach is reproducible but the duration is not. Rejected — a tier move to integration stops it running in pull-request
+      CI (all four pull-request integration groups are -k allowlists that never match this nodeid; it would run only
+      in the nightly full gate, which takes the whole tier with no -k); @pytest.mark.slow changes nothing (conftest.py:486
+      gives 30s only absent an explicit marker and this test's own timeout(120) outranks it) (2026-10-13)"
   - id: test_enrichment_pipeline_household_matching.*test_vehicle_household_matching_via_license_plate
     kind: todo
     owner: mikesvoboda

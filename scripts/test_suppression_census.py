@@ -618,14 +618,18 @@ def test_real_tree_matches_spec_baselines():
         # it cannot be fake-clocked. RETRACTED: the claim that the main-vs-head
         # spread IS which compose invocation _compose_argv() resolves was my
         # inference written as a measurement. That probe reads host binaries via
-        # shutil.which and its value reaches only the exit-nonzero message
-        # (test_compose_render_lists_ai_vlm.py:90), so a passing run cannot show
-        # which branch it took — and main's 0.447s run passed. Podman is on the
-        # image's Included Software list, but shutil.which consults runtime PATH
-        # and the suite skips outright when the binaries are absent (:66-67), so
-        # the image cannot settle it either. Unresolved machine-dependent
-        # variance, which is why the entry records a reproducible breach rather
-        # than a stable duration. Both rows are named by id, not counted: the
+        # shutil.which, and its value reaches two renderings: the exit-nonzero
+        # message (test_compose_render_lists_ai_vlm.py:90) and the TimeoutExpired
+        # text of the timeout=100 call (:86), whose str CPython builds from the
+        # argv list. Nothing catches that exception, so a timeout ERRORS rather
+        # than passes, and a passing run prints neither — which is why a passing
+        # run cannot show which branch it took, and main's 0.447s run passed.
+        # Both compose binaries are on the image's Included Software list
+        # (Podman 4.9.3, Docker Compose 2.38.2), which is exactly why the
+        # manifest cannot settle the branch; shutil.which consults runtime PATH,
+        # and the suite skips outright when the binaries are absent (:66-67).
+        # Two machines disagreed, which is why the entry records a reproducible
+        # breach rather than a stable duration. Both rows are named by id, not counted: the
         # offset this note used to give ("the -n8-contention row two above") was
         # itself wrong by one — two above is
         # test_r8_s2b_nemotron_deletion.* (idx 8, LIVE:
