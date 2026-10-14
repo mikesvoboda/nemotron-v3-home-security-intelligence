@@ -640,7 +640,7 @@ def test_real_tree_matches_spec_baselines():
         # label happened to name an actually-orphaned row (its def went away in
         # 602379e29 with enrichment_pipeline.py, licensing zero tests), which is
         # why the miscount stayed invisible. That is the reason to name ids.
-        "tpa_slow_list": 9,
+        "tpa_slow_list": 8,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
     assert not stale, "census vs spec baseline drift: " + ", ".join(
