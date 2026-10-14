@@ -20,7 +20,7 @@
  * 2. Collection-time safety: `readHarness()` never throws when `FEATURE_CHECK_*`
  *    env vars are absent, so `npx playwright test --project=golden --list`
  *    succeeds outside the feature-check harness.
- * 3. Nginx burst discipline (`BOOT_QUIET_MS = 2_000`, `settledGoto`):
+ * 3. Nginx burst discipline (`BOOT_QUIET_MS = 500`, `settledGoto`):
  *    `frontend/nginx.conf:24` limits `/api` to `rate=10r/s` with `burst=20`.
  *    `ProcessingSettings` and `CamerasSettings` fire 3–6 concurrent GETs on
  *    mount; `settledGoto` pauses before navigation and retries if the shared
@@ -28,7 +28,7 @@
  * 4. Camera list cache bug (`backend/services/cache_service.py:577` vs `:762`):
  *    `list_cameras` (`backend/api/routes/cameras.py:194, 259`) caches under
  *    `CacheKeys.cameras_list_by_status(None)` (`"hsi:cache:cameras:list:all"`),
- *    stored by `CacheService.set` (`:194`) as `"cache:hsi:cache:cameras:list:all"`
+ *    stored by `CacheService.set` (`:196`) as `"cache:hsi:cache:cameras:list:all"`
  *    with `SHORT_TTL = 60`s, whereas `CacheService.invalidate_cameras` (`:577`)
  *    scans `"cache:cameras:*"` (`0` keys deleted). Consequently, after
  *    `operations/test-data.spec.ts` resets the database, `GET /api/cameras` can
