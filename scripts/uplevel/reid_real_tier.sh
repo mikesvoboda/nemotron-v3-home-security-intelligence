@@ -4,7 +4,10 @@
 # This is o24.sh (the design partner's script, pinned on #7002) merged with
 # o24-run-safe.sh (the script the owner's 2026-10-13 maui run actually used),
 # with the four things ruling 159 makes arguments: --port, --checkpoint, --gpu,
-# --crops. Nothing else about the sequence changed.
+# --crops, plus ONE sequence step restored: STEP 2b compiles the FP16 plan
+# before the parity arm serves (o24-run-safe.sh compiled there; Triton's reid
+# declares backend: "tensorrt" and each invocation allocates a fresh cache, so
+# a parity run that never compiles has no plan to serve).
 #
 # Two modes:
 #
@@ -664,6 +667,12 @@ run_parity() {
 
 case "$MODE" in
   parity)
+    echo "STEP 2b: compile the FP16 plan the gateway will serve"
+    # o24-run-safe.sh did this before serving, and it is load-bearing: the
+    # cache is a fresh mktemp dir every invocation and Triton's reid declares
+    # backend: "tensorrt", so without this line parity mounts a read-only
+    # cache holding only model.onnx and the gateway has no plan to load.
+    compile_plan fp16
     echo "STEP 3: serve and warm up"
     start_gateway
     echo 'STEP 4: fp16 parity and timings'
