@@ -610,7 +610,16 @@ def test_real_tree_matches_spec_baselines():
         # two heads of #7003; 6.92s local): it boots a real child pytest session
         # and the ~6s interpreter+plugin boot is the mechanism, not noise. The
         # file is absent at main, so no corpus entry existed to pre-admit it.
-        "tpa_slow_list": 10,
+        # 10→11 (2026-10-13): compose-render CLI-boot test admitted with
+        # measured CI breaches (4.93s + isolated re-run 8.12s on PR #7083 head
+        # 961ddc956, job 115516785427) while the same file measured 0.447s in
+        # main's own junit (run 38478749542, so absent from both WARN lists):
+        # it spawns a real compose binary and the CLI boot IS the assertion, so
+        # it cannot be fake-clocked. The main-vs-head spread is which compose
+        # invocation the runner resolves (_compose_argv prefers podman), which
+        # is why the entry records a reproducible breach rather than a stable
+        # duration — the same shape as the -n8-contention row two above.
+        "tpa_slow_list": 11,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
     assert not stale, "census vs spec baseline drift: " + ", ".join(

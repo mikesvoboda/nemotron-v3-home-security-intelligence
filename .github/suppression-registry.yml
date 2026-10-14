@@ -1742,9 +1742,22 @@ tpa_slow_list:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason:
-      6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots
-      a real child pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked,
-      20s child wall) (2026-10-11)
+      6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots a real child
+      pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked, 20s child wall) (2026-10-11)
+  - id: test_compose_render_lists_ai_vlm.*test_default_services_render_lists_ai_vlm
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason:
+      spawns a real compose binary, so the CLI boot IS the Done-when, not a sleep. Breached 4.93s and BREACHED
+      AGAIN on the gate's isolated re-run at 8.12s (PR 7083 head 961ddc956, job 115516785427) while the same code
+      measured 0.447s in main's own junit (run 38478749542, absent from both WARN lists) — the spread is which compose
+      invocation the runner resolves (_compose_argv prefers podman compose), so the hard-line breach is reproducible
+      but the duration is not. Rejected — a tier move to integration stops it running in pull-request CI (all four
+      pull-request integration groups are -k allowlists that never match this nodeid; it would run only in the nightly
+      full gate, which takes the whole tier with no -k); @pytest.mark.slow changes nothing (conftest.py:486 gives
+      30s only absent an explicit marker and this test's own timeout(120) outranks it) (2026-10-13)
   - id: test_enrichment_pipeline_household_matching.*test_vehicle_household_matching_via_license_plate
     kind: todo
     owner: mikesvoboda
