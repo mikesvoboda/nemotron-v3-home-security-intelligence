@@ -272,6 +272,11 @@ TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     # longer carry keys, so the deployment it described no longer exists)
     "scripts/uplevel-f13-done-when/docker-compose.f13-stack.yml",
     "scripts/uplevel-real-tier/docker-compose.b14-real.yml",
+    # O2.5 Step 2 (ruling 162): the prod-shape override. Named here because it is a
+    # compose file the repo ships, and the point of this list is that a new one cannot
+    # join silently -- `test_the_tracked_compose_list_is_what_git_tracks` reddens when
+    # `git ls-files` and this tuple disagree, in either direction.
+    "scripts/uplevel/docker-compose.prodshape.yml",
 )
 
 # Short syntax ``<source>:<target>[:<opts>]``. The shortest source wins, so the

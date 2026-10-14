@@ -88,6 +88,14 @@ FAKE_SERVICES = ("postgres", "redis", "backend", "frontend", "ai-vlm", "ai-gatew
 CAMERA_TARGET = "/cameras"
 PROJECT_LABEL = "com.docker.compose.project"
 PROJECT_PREFIX = "hsi-check-"
+# Top-level sections whose entries compose names after the PROJECT, not the file. Measured on
+# v5.5.1 by rendering under -p proja and rebooting the baked document under -p projb: all four
+# keep `proja_<key>` after the rebind, so a boot file carrying them points at another run's
+# objects (UR-133 isolation inverted into a cross-run `down -v` delete). prod declares only
+# networks/volumes today, but the same file documents enabling Docker secrets
+# (docker-compose.prod.yml:68-75, :1692-1720), and one constant keeps the naming site and the
+# stripping site from disagreeing about the list.
+PROJECT_NAME_SECTIONS = ("networks", "volumes", "configs", "secrets")
 
 EXIT_OK = 0
 EXIT_FAILED = 1  # a check of the run failed
@@ -106,6 +114,11 @@ SMOKE_SCENARIO = "harness-smoke"
 # detector kept. Its test deployment is --fake's without the fake ai-vlm.
 REAL_SERVICES = tuple(name for name in FAKE_SERVICES if name != "ai-vlm")
 PROD_STACK = REPO_ROOT / "docker-compose.prod.yml"
+# The authored override the O2.5 spike posted and scripts/test_prodshape_override.py
+# pins: the UR-133/134 transform (remapped ports, dropped engine-socket mounts,
+# prefixed container names) applied as an extra `-f` so no production file and no
+# CI leg is edited.
+PROD_SHAPE_OVERRIDE = REPO_ROOT / "scripts" / "uplevel" / "docker-compose.prodshape.yml"
 VLM_DOCKERFILE = REPO_ROOT / "ai" / "vlm" / "Dockerfile"
 # The production pin and its sha256 (operator.md step 1). The library also
 # holds a Q8_0 build of the model itself; it is not the pin.
@@ -432,7 +445,7 @@ def as_test_deployment(
     for key, value in base.items():
         if key not in ("name", "services") and not key.startswith("x-"):
             deployment[key] = copy.deepcopy(value)
-    for section in ("networks", "volumes"):
+    for section in PROJECT_NAME_SECTIONS:
         for key, entry in (deployment.get(section) or {}).items():
             if isinstance(entry, dict) and not entry.get("external"):
                 entry["name"] = f"{project}_{key}"
@@ -476,6 +489,280 @@ def as_test_deployment(
             "bind": {"create_host_path": False},
         }
     )
+    return deployment
+
+
+# ---------------------------------------------------------------------------
+# Production shape (O2.5, ruling 162 item 2) — the resource-limits decision.
+#
+# The prod stack asks for `deploy.resources.limits` on 19 of its 21 services —
+# every service that has a `deploy:` block has them — and a rootless engine
+# cannot start a container that asks for a limit where no cgroup controller is
+# delegated to the caller (the O2.5 spike's differential control). Unlike the CI
+# path, the prod-shape run does NOT go through `as_test_deployment`/`preflight`.
+# Measured, not assumed: the fail-closed key allowlist refuses the plain prod
+# render with 46 problems (19 of them `restart`, which has no CI rule; plus
+# `pid: host` on alloy and node-exporter, `devices`, `labels`, `cap_add`,
+# `ulimits`, `userns_mode`, and three `security_opt: label=disable`), and the
+# prod+override render still has 39. Widening that gate to fit would widen what a
+# CI run may ask for, and `pid: host` is something the prod shape genuinely needs
+# to observe the host, so it is not a refusal that can be made to go away. The
+# authored override (scripts/uplevel/docker-compose.prodshape.yml, pinned by
+# scripts/test_prodshape_override.py) is the UR-133/134 transform instead; limits
+# are the one thing it deliberately leaves to run time, decided from the machine
+# the operator runs on and recorded in the run summary.
+# ---------------------------------------------------------------------------
+
+# Ruling 162 item 2 names these strings verbatim; the run record carries them
+# unchanged so the operator's paste and a reader's grep agree.
+LIMITS_APPLIED = "limits: applied"
+LIMITS_STRIPPED = "limits: not applied (no cgroup delegation)"
+# prod.yml's limits are only ever `cpus:` and `memory:` (measured), i.e. the
+# `cpu` and `memory` cgroup controllers. `cpuset` alone cannot run a `cpus:`
+# limit, so the decision needs exactly these two delegated.
+LIMIT_CGROUPS = frozenset({"cpu", "memory"})
+
+
+def read_subtree_control(
+    *, proc_dir: Path = Path("/proc"), sys_dir: Path = Path("/sys/fs/cgroup")
+) -> str:
+    """The delegated-controller list for the cgroup a new container here inherits.
+
+    The path comes from the caller's own `/proc/self/cgroup` — not a fixed
+    location — because inside a sandbox the harness's cgroup is a slice, and the
+    O2.5 spike measured that slice (it read `/sys/fs/cgroup$(cut -d: -f3
+    /proc/self/cgroup)/cgroup.subtree_control` and found it EMPTY, which is why
+    the spike needed `deploy: !reset null` on 18 services).
+
+    Fail-closed by construction: anything unreadable returns "" — a malformed
+    line, an absent file, a cgroup-v1 host with no `0::` line. "" makes
+    :func:`decide_resource_limits` STRIP limits, and a container started without
+    a limit it was promised can fail to start, while one started with no limit
+    simply runs. The dangerous direction would be to guess "delegated".
+    """
+    try:
+        lines = (proc_dir / "self" / "cgroup").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    path = ""
+    for line in lines:
+        parts = line.split(":")
+        if len(parts) == 3 and parts[0] == "0":  # cgroup v2: `0::<path>`
+            path = parts[2]
+            break
+    if not path:
+        return ""
+    try:
+        return (sys_dir / path.lstrip("/") / "cgroup.subtree_control").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def cgroup_limits_usable(subtree_control: str) -> bool:
+    """Can this machine enforce resource limits? True when the controllers a
+    `deploy.resources.limits` needs are all delegated to us, read from the
+    cgroup's `cgroup.subtree_control` contents (one space-separated list).
+
+    Split on whitespace, not substring: `cpu` is a prefix of `cpuset`, so a
+    substring test would call limits usable on a `cpuset`-only cgroup."""
+    delegated = {token for token in subtree_control.split() if token}
+    return LIMIT_CGROUPS.issubset(delegated)
+
+
+# The engine sockets a container can drive the host with, wherever they are
+# mounted. Measured against the prod render: prod mounts the caller's
+# PODMAN_SOCKET twice -- on `backend` (into /var/run/podman/podman.sock) and on
+# `alloy`, which interpolates the same variable into BOTH source and target, so a
+# check that read only the target field would miss alloy outright.
+ENGINE_SOCKET_TARGETS = frozenset(
+    {"/var/run/docker.sock", "/var/run/podman/podman.sock", "/run/docker.sock"}
+)
+
+
+def engine_socket_mounts(
+    rendered: Mapping[str, Any], *, socket_path: str
+) -> list[tuple[str, str, str]]:
+    """Every `(service, source, target)` in a rendered deployment that mounts an
+    engine socket (UR-134), given the socket path this caller uses.
+
+    This is the RUN-TIME twin of `scripts/test_prodshape_override.py`, and the two
+    are not redundant. That test proves the committed override clears the mounts
+    prod has in the checkout CI saw; a run happens against whatever checkout the
+    operator brought, so a socket `docker-compose.prod.yml` grew since the override
+    was authored is exactly what the static gate cannot see and this check can. The
+    predicate reads source and target only -- never the mount's mode -- because a
+    read-only socket is not a weaker capability: opening the socket is the whole
+    attack, and `read_only: true` on the bind does not stop a container from
+    connecting through it.
+    """
+    hits: list[tuple[str, str, str]] = []
+    for name, service in (rendered.get("services") or {}).items():
+        for mount in service.get("volumes") or []:
+            if not isinstance(mount, Mapping):
+                continue
+            source = str(mount.get("source") or "")
+            target = str(mount.get("target") or "")
+            if socket_path and source == socket_path:
+                hits.append((name, source, target))
+            elif target in ENGINE_SOCKET_TARGETS:
+                hits.append((name, source, target))
+    return hits
+
+
+def strip_resource_limits(rendered: dict[str, Any]) -> int:
+    """Drop each service's ``deploy.resources.limits`` in place and return how
+    many services changed. Reservations are kept — the spike showed a LIMIT
+    (``--memory``/``--cpus``) is what a rootless engine refuses, never a bare
+    reservation — and a service with no ``deploy`` is not given one. The return
+    count lets the caller prove the strip did something: an all-zero return is
+    the difference between "no limits to strip" and "the strip is broken"."""
+    changed = 0
+    for service in (rendered.get("services") or {}).values():
+        resources = (service.get("deploy") or {}).get("resources") or {}
+        if "limits" in resources:
+            del resources["limits"]
+            changed += 1
+    return changed
+
+
+def boot_render(rendered: Mapping[str, Any]) -> dict[str, Any]:
+    """The copy of a render that goes on disk for ``up`` to boot, with every baked
+    object name removed so the ``-p`` at boot decides them.
+
+    Measured on compose v5.5.1: ``config --format json`` writes the project name into
+    the render three times over -- the top-level ``name``, and a ``name`` on every
+    network and every volume (``security-net`` becomes ``<project>_security-net``).
+    Feeding that render back under a DIFFERENT ``-p`` overrides the top-level name and
+    nothing else: the nested names still point at the first project. So a run booted
+    from such a file mounts -- and ``down -v`` DELETES -- another run's volumes, which
+    is UR-133's own-project isolation turned into a cross-run delete. A render with
+    those names stripped makes compose re-derive each object from the live ``-p``, so
+    two runs produce two disjoint object sets. The copy keeps the caller's render
+    intact: the artifact an operator reads should say what compose produced.
+    """
+    boot = copy.deepcopy(dict(rendered))
+    boot.pop("name", None)
+    for section in PROJECT_NAME_SECTIONS:
+        for entry in (boot.get(section) or {}).values():
+            if isinstance(entry, dict):
+                entry.pop("name", None)
+    return boot
+
+
+def decide_resource_limits(rendered: dict[str, Any], subtree_control: str) -> str:
+    """Decide, act and record in one step, so the three cannot disagree.
+
+    When the machine delegates the controllers prod's limits need, the render
+    keeps them and the run record says ``limits: applied``; otherwise they are
+    stripped here (they would only make a rootless container fail to start) and
+    the record says ruling 162 item 2's exact string. Returning the label the
+    caller writes verbatim is deliberate: a caller that decided in one place and
+    recorded in another is where an "applied" label lands on a stripped render."""
+    if cgroup_limits_usable(subtree_control):
+        return LIMITS_APPLIED
+    strip_resource_limits(rendered)
+    return LIMITS_STRIPPED
+
+
+def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) -> str:
+    """The env file for a prod-shape render, generated and never inherited.
+
+    O2.2's rule -- compose reads this file and nothing else (:func:`compose_command`
+    passes ``--env-file``, which suppresses the ``.env`` beside the compose file) --
+    applies unchanged to the prod shape, so a run must not quietly pick up the host's
+    real credentials. What the render needs was measured, not assumed: a drop-one
+    matrix over ``prod.yml`` + the prod-shape override found four REQUIRED variables
+    (each missing one exits 1 and names itself), against 154 references that
+    carry a ``:-`` default. The fourth is ``HSI_TEST_NAME_PREFIX``, added with the
+    per-run container names below; "three" was true until then and the matrix re-run
+    is what caught it.
+
+    Three of these are values a *test* deployment should not inherit from the host:
+    ``POSTGRES_PASSWORD`` is generated per run (a fixed literal would pass a test and
+    still be a shared secret), and the socket path is taken from the caller because it
+    is a path, not a secret -- but a missing one is refused here rather than passed on,
+    because compose only *warns* and interpolates a blank, which is the same failure
+    mode the override already refuses for ``PROD_SHAPE_RUN_ROOT``.
+
+    ``HSI_TEST_NAME_PREFIX`` exists because UR-133's project isolation has one hole a
+    compose project cannot close: a pinned ``container_name`` is global to the engine,
+    not namespaced by ``-p`` (measured on v5.5.1 -- booting the same pin under a second
+    project dies with ``Conflict. The container name ... is already in use``). ``prod.yml``
+    spells seven names and a profile-less render shows six of them (``dcgm-exporter`` sits
+    behind the ``gpu-rootful`` profile), so the override prefixes each with THIS run's token;
+    a constant prefix
+    would leave two concurrent runs unable to come up. It is hex plus a separator because
+    compose rejects other spellings, and the override reads it as ``${…:?…}`` so a run
+    that somehow lacks it refuses to render instead of interpolating blank and rejoining
+    the colliding set.
+    """
+    socket = caller.get("PODMAN_SOCKET")
+    if not socket:
+        raise HarnessError(
+            "PODMAN_SOCKET is not set in the caller's environment. The prod stack mounts it "
+            "into backend and alloy, and an empty value interpolates to a blank string with "
+            "only a warning, so the render would ask the engine for a mount of '/'."
+        )
+    return "".join(
+        f"{key}={value}\n"
+        for key, value in (
+            ("IMAGE_TAG", image_tag),
+            ("PODMAN_SOCKET", socket),
+            ("POSTGRES_PASSWORD", secrets.token_hex(16)),
+            ("PROD_SHAPE_RUN_ROOT", str(run_dir)),
+            ("HSI_TEST_NAME_PREFIX", f"{secrets.token_hex(4)}-"),
+        )
+    )
+
+
+def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None) -> dict[str, Any]:
+    """The run-time transforms the authored override cannot carry.
+
+    The prod-shape path does NOT go through :func:`as_test_deployment` (measured:
+    ``render()`` dispatches to ``render_prod_shape()`` before that function is ever
+    called), so the two things the CI tier gets from it were missing here. Both were
+    found by the UR-89 review and re-measured in the composed boot document.
+
+    * ``ORCHESTRATOR_ENABLED=false`` (UR-134's first clause). The boot document's
+      ``backend`` has ``env_file: None`` and its only ``ORCHESTRATOR_*`` key is
+      ``DOCKER_HOST``, so an absent flag resolves to ``backend/core/config.py``'s
+      ``enabled: Field(True)``; ``check_isolation`` runs on EVERY mode and asserts
+      ``GET /api/system/services`` answers ``503``, so the first real run died there.
+    * on ``--real``, the backend calls the VLM ``agent-gpu`` serves and the in-stack
+      ``ai-vlm`` stays out -- package ``O2.5`` Step 1 words this ("pointed at
+      ``agent-gpu``'s ``ai-vlm`` instead of CDI"). Left alone, the boot file keeps
+      ``AI_VLM_URL=http://ai-vlm:8098`` and an ``ai-vlm`` whose top-level ``devices``
+      ask the engine for ``nvidia.com/gpu=0``: a second GPU consumer racing agent-gpu's
+      own container, and not the deployment the 12 real-tier rows witness.
+
+    These are NOT put in the authored override for two reasons. It is a frozen,
+    hand-authored artifact whose changes ruling 162 item 3 caps at three kinds
+    (socket, pinned name, port/path) -- ``test_only_the_three_kinds_of_key_change``
+    enforces exactly that, and a fourth kind would need a ruling to add. And a VLM URL
+    is per-run, so static YAML cannot express it at all. Same split as the CI tier:
+    the file carries the shape, the runner carries the run.
+    """
+    deployment = copy.deepcopy(dict(rendered))
+    services = deployment.get("services") or {}
+    backend = services.get("backend")
+    if backend is None:
+        raise HarnessError("the prod-shape render has no backend service")
+    environment = backend.setdefault("environment", {})
+    environment["ORCHESTRATOR_ENABLED"] = "false"
+    if vlm_url is not None:
+        environment["AI_VLM_URL"] = vlm_url
+        services.pop("ai-vlm", None)
+    for name, service in services.items():
+        depends_on = service.get("depends_on")
+        if isinstance(depends_on, dict) and "ai-vlm" not in services:
+            # the omission this transform performs deliberately (mirrors
+            # as_test_deployment:449); anything else still missing is drift, not design.
+            depends_on.pop("ai-vlm", None)
+        for dependency in depends_on or {}:
+            if dependency not in services:
+                raise HarnessError(
+                    f"{name} depends on {dependency}, which this prod-shape render omits"
+                )
     return deployment
 
 
@@ -1279,11 +1566,25 @@ def _log(message: str) -> None:
 class Run:
     """One test deployment: its project, directory, engine and artifacts."""
 
-    def __init__(self, *, engine: str, root: Path, image_tag: str, mode: str) -> None:
+    def __init__(
+        self,
+        *,
+        engine: str,
+        root: Path,
+        image_tag: str,
+        mode: str,
+        prod_shape: bool = False,
+    ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
         self.engine = engine
         self.mode = mode
+        self.prod_shape = prod_shape
+        # A run record that does not say WHICH compose shape was rendered cannot
+        # witness ruling 127's 12 real-tier rows, which is the whole point of the
+        # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
+        # prod shape gets a distinct one -- so nothing that greps today shifts.
+        self.shape = f"{mode}-prod-shape" if prod_shape else mode
         self.image_tag = image_tag
         self.dir = (root / self.project).resolve()
         self.cameras = self.dir / "cameras"
@@ -1292,7 +1593,7 @@ class Run:
         self.compose_file = self.dir / "compose.json"
         self.summary: dict[str, Any] = {
             "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "mode": mode,
+            "mode": self.shape,
             "project": self.project,
             "run_dir": str(self.dir),
             "engine": engine,
@@ -1427,6 +1728,9 @@ class Run:
         return before
 
     def render(self, before: Snapshot, vlm: AgentGpu | None = None) -> None:
+        if self.prod_shape:
+            self.render_prod_shape(vlm)
+            return
         base = json.loads(
             self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
         )
@@ -1451,6 +1755,73 @@ class Run:
         _log("preflight: ok")
         self.summary["images"] = {
             name: service.get("image") for name, service in rendered["services"].items()
+        }
+
+    def render_prod_shape(self, vlm: AgentGpu | None = None) -> None:
+        """The O2.5 production-shape render: `docker-compose.prod.yml` + the
+        authored override, decided and checked here, at run time.
+
+        This path deliberately does NOT go through `as_test_deployment` and
+        :func:`preflight` (measured: the fail-closed key allowlist refuses the
+        prod render with 46 problems, 19 of them `restart`, plus `pid: host` on
+        alloy and node-exporter, which the prod shape genuinely needs to observe
+        the host). The authored override is the UR-133/134 transform the spike
+        posted, pinned by `scripts/test_prodshape_override.py`; two things can
+        only be decided now, and are decided here:
+
+        * the env file — generated by :func:`prod_shape_env`, never the checkout's
+          `.env` or the caller's shell (O2.2's rule, unchanged for the prod shape);
+        * resource limits — ruling 162 item 2, read from THIS machine's cgroup.
+
+        and one thing the static gate cannot see is re-checked: the engine socket
+        on the render `up` will boot from. That is the whole reason a run-time
+        twin of the static test exists — a socket `docker-compose.prod.yml` grew
+        since the override was authored is invisible to CI and fatal here, because
+        opening that socket IS driving the host's engine.
+        """
+        try:
+            self.env_file.write_text(
+                prod_shape_env(run_dir=self.dir, image_tag=self.image_tag, caller=dict(os.environ)),
+                encoding="utf-8",
+            )
+        except HarnessError as missing:
+            # Same exit as a preflight refusal: the deployment never started, and
+            # the reason is named ("PODMAN_SOCKET is not set ...").
+            raise Refused([str(missing)]) from missing
+        rendered = json.loads(
+            self.compose([PROD_STACK, PROD_SHAPE_OVERRIDE], "config", "--format", "json").stdout
+        )
+        self.summary["limits"] = decide_resource_limits(rendered, read_subtree_control())
+        _log(self.summary["limits"])
+        sockets = engine_socket_mounts(rendered, socket_path=os.environ.get("PODMAN_SOCKET", ""))
+        problems = [
+            f"{name} mounts the engine socket {source} -> {target} in the render this run "
+            f"would boot; the prod-shape override is expected to drop it "
+            f"(scripts/uplevel/docker-compose.prodshape.yml)"
+            for (name, source, target) in sockets
+        ]
+        self.summary["results"]["engine_socket"] = problems or "ok"
+        if problems:
+            for problem in problems:
+                _log(f"REFUSED {problem}")
+            # Deliberately before writing the artifact: `up` boots from what is on
+            # disk, so a refused render must leave nothing to boot.
+            raise Refused(problems)
+        self._write("prod-rendered.json", rendered)
+        rendered = as_prod_shape_deployment(rendered, vlm_url=vlm.url if vlm else None)
+        # The CI tier's render() writes self.compose_file and EVERY later lifecycle call
+        # boots it -- `up`, `_address` (`compose port`), `collect` (`logs`/`ps`) and
+        # `teardown` (`down -v`) all go through deployment(). Without this line a
+        # --real --prod-shape run came up on the two YAML files and then failed at its
+        # first deployment() call with no such file, teardown included, leaving the run's
+        # containers up: the exact hole UR-135 (teardown with `down -v` and nothing else)
+        # exists to close. Same file, same path as the CI tier, so there is one boot path.
+        self.compose_file.write_text(
+            json.dumps(boot_render(rendered), indent=2) + "\n", encoding="utf-8"
+        )
+        _log(f"prod-shape render: {len(rendered.get('services') or {})} services")
+        self.summary["images"] = {
+            name: service.get("image") for name, service in (rendered.get("services") or {}).items()
         }
 
     def up(self, vlm: AgentGpu | None = None) -> None:
@@ -2163,7 +2534,13 @@ def _interrupt(signum: int, _frame: Any) -> None:
 
 
 def run_check(args: argparse.Namespace, *, mode: str) -> int:
-    run = Run(engine=args.engine, root=args.root, image_tag=args.image_tag, mode=mode)
+    run = Run(
+        engine=args.engine,
+        root=args.root,
+        image_tag=args.image_tag,
+        mode=mode,
+        prod_shape=args.prod_shape,
+    )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
     status = EXIT_OK
@@ -2270,6 +2647,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     modes.add_argument("--fake", action="store_true", help="the CI stack with the fake AI (O2.1)")
     modes.add_argument("--real", action="store_true", help="real models through agent-gpu")
     parser.add_argument(
+        "--prod-shape",
+        action="store_true",
+        help="with --real, bring up the PRODUCTION compose shape (O2.5, ruling 144/162): "
+        "docker-compose.prod.yml + the prod-shape override on Podman, instead of the CI "
+        "stack. Refused without --real — the prod shape is the real tier's prod shape.",
+    )
+    parser.add_argument(
         "--image-tag",
         default=os.environ.get("FEATURE_CHECK_IMAGE_TAG", "latest"),
         help="backend/frontend image tag (default: $FEATURE_CHECK_IMAGE_TAG or latest)",
@@ -2299,6 +2683,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         print(drop(args.image, args.camera, Path(root)))
         return 0
+    if args.prod_shape and not args.real:
+        # O2.5's flag is a SHAPE of the real tier, not a third mode: the prod shape
+        # renders docker-compose.prod.yml, and --fake renders docker-compose.ci.yml.
+        # "the CI stack in the shape of prod" has no referent, and accepting it
+        # would let a reader of a run record believe prod was exercised when the CI
+        # stack ran. Refused at parse time, before any engine call.
+        parser.error("--prod-shape needs --real (it is the real tier's production shape)")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:

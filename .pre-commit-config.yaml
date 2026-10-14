@@ -57,9 +57,13 @@ repos:
         # !override tags with the same failure mode (compose itself parses
         # them fine — CI/podman accept the file; only this safe_load hook
         # chokes). scripts/uplevel-real-tier/docker-compose.b14-real.yml tags !reset the
-        # same way. All excluded; schema validation lives in the compose
-        # validation steps, not here.
-        exclude: (mkdocs\.yml$|^config/docker-compose\.gb300\.yml$|^scripts/uplevel-real-tier/docker-compose\.b14-real\.yml$)
+        # same way, and so do O2.5's two prod-shape files (scripts/uplevel/docker-compose.
+        # prodshape.yml and prod-shape-override.yml — their tags are what the file's own
+        # CI test asserts on, so they are compose-syntax files on purpose). All excluded;
+        # schema validation lives in the compose validation steps, not here, and for
+        # prodshape.yml it is test_prodshape_override.py rendering the file through the
+        # compose CLI -- a stronger oracle than safe_load, which cannot read the file at all.
+        exclude: (mkdocs\.yml$|^config/docker-compose\.gb300\.yml$|^scripts/uplevel-real-tier/docker-compose\.b14-real\.yml$|^scripts/uplevel/docker-compose\.prodshape\.yml$|^scripts/uplevel/prod-shape-override\.yml$)
       - id: check-json
         exclude: tsconfig.*\.json$
       - id: check-added-large-files

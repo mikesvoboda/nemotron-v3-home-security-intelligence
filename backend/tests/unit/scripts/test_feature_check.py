@@ -2809,3 +2809,785 @@ def test_a_vlm_that_ps_does_not_list_by_name_fails_the_run(
     finally:
         server.shutdown()
         server.server_close()
+
+
+# ---------------------------------------------------------------------------
+# O2.5 / ruling 162 item 2 — the prod-shape resource-limits decision.
+#
+# A rootless engine cannot start a container that asks for a resource limit
+# where no cgroup controller is delegated to the caller (the O2.5 spike's
+# differential control: same image, `--memory`/`--cpus` both fail with runc's
+# "rootless needs no limits ... when no permission is granted for cgroups").
+# So the runner decides limits at RUN time from the machine it is on, and says
+# which in the run record. These pieces are CPU-only and daemon-free, so they
+# are pinned here even though the boot they feed is the operator's (UR-136).
+# ---------------------------------------------------------------------------
+
+# prod.yml's limits are only ever `cpus:` and `memory:` (measured), which the
+# kernel exposes as the `cpu` and `memory` controllers. `cpuset` alone is not
+# enough to run a `cpus:` limit, so the predicate keys on the two that matter.
+_PROD_LIMIT_RENDER = {
+    "services": {
+        "postgres": {"deploy": {"resources": {"limits": {"cpus": "2", "memory": "1G"}}}},
+        # a reservation is a request, not a cap, and the spike's failing flag was
+        # a limit (`--memory=512m`), never a bare reservation — so the strip keeps
+        # reservations and preserves prod-shape fidelity for what was not shown
+        # to block.
+        "backend": {
+            "deploy": {
+                "resources": {
+                    "limits": {"cpus": "8", "memory": "20G"},
+                    "reservations": {"memory": "10G"},
+                }
+            }
+        },
+        "go2rtc": {"deploy": {"resources": {}}},  # a deploy with no limits
+        "frontend": {},  # no deploy at all
+    }
+}
+
+
+def test_limits_are_usable_only_where_both_controlling_cgroups_are_delegated() -> None:
+    assert fc.cgroup_limits_usable("cpuset cpu io memory pids\n") is True
+    assert fc.cgroup_limits_usable("cpu memory\n") is True
+    # each limit kind on its own is not enough: a `cpus:` limit needs `cpu`, a
+    # `memory:` limit needs `memory`, and prod declares both.
+    assert fc.cgroup_limits_usable("cpuset io pids\n") is False  # cpu and memory both absent
+    assert fc.cgroup_limits_usable("cpu io pids\n") is False  # memory missing
+    assert fc.cgroup_limits_usable("io memory pids\n") is False  # cpu missing
+    assert fc.cgroup_limits_usable("") is False
+    assert fc.cgroup_limits_usable("\n") is False
+
+
+def test_strip_resource_limits_removes_only_limits_and_reports_what_it_changed() -> None:
+    import copy
+
+    rendered = copy.deepcopy(_PROD_LIMIT_RENDER)
+    changed = fc.strip_resource_limits(rendered)
+    services = rendered["services"]
+    # The count is the non-vacuity control: a strip that changed nothing would
+    # return 0 and this test could not tell it apart from a working one.
+    assert changed == 2, changed
+    assert "limits" not in services["postgres"]["deploy"]["resources"]
+    assert "limits" not in services["backend"]["deploy"]["resources"]
+    # reservations survive the strip (only limits were shown to block);
+    # an empty resources and a deploy-free service are left untouched, not created.
+    assert services["backend"]["deploy"]["resources"] == {"reservations": {"memory": "10G"}}
+    assert services["go2rtc"]["deploy"] == {"resources": {}}
+    assert services["frontend"] == {}
+
+
+def test_strip_resource_limits_is_idempotent_and_never_adds_a_deploy() -> None:
+    import copy
+
+    once = copy.deepcopy(_PROD_LIMIT_RENDER)
+    fc.strip_resource_limits(once)
+    assert fc.strip_resource_limits(once) == 0  # a second pass changes nothing
+    # a service with no deploy is not given one by the strip
+    once["services"]["brand-new"] = {"image": "x"}
+    fc.strip_resource_limits(once)
+    assert "deploy" not in once["services"]["brand-new"]
+
+
+def test_the_limits_decision_records_the_exact_string_ruling_162_names() -> None:
+    # ruling 162 item 2 names these verbatim; the run record must carry them, not
+    # a paraphrase, because the operator pastes the record and a reader greps it.
+    assert fc.LIMITS_APPLIED == "limits: applied"
+    assert fc.LIMITS_STRIPPED == "limits: not applied (no cgroup delegation)"
+
+
+def test_the_limits_decision_strips_only_when_cgroups_are_not_delegated() -> None:
+    # The branch is where the bug hides: decide, act, and record must agree in one
+    # call, or a run could strip on a machine that supports limits, or record
+    # "applied" while the render still carries a limit it cannot enforce.
+    import copy
+
+    delegated = copy.deepcopy(_PROD_LIMIT_RENDER)
+    label = fc.decide_resource_limits(delegated, "cpuset cpu io memory pids\n")
+    assert label == fc.LIMITS_APPLIED
+    # applied => the limits are still there (this is what the operator gets enforced)
+    assert "limits" in delegated["services"]["postgres"]["deploy"]["resources"]
+
+    stripped = copy.deepcopy(_PROD_LIMIT_RENDER)
+    label = fc.decide_resource_limits(stripped, "cpuset io pids\n")
+    assert label == fc.LIMITS_STRIPPED
+    assert "limits" not in stripped["services"]["postgres"]["deploy"]["resources"]
+    # a machine with neither controller nor a limit to enforce is still "not applied"
+    assert fc.decide_resource_limits({"services": {}}, "") == fc.LIMITS_STRIPPED
+
+
+def test_the_prod_shape_env_file_is_generated_and_carries_no_host_secret(
+    tmp_path: Path,
+) -> None:
+    # Ruling 162 item 3 + O2.2's own rule that compose never reads the checkout's
+    # .env or the caller's shell. Measured against the real render (drop-one matrix
+    # on prod + the prod-shape override): exactly three variables are REQUIRED --
+    # PODMAN_SOCKET, POSTGRES_PASSWORD (both `${X:?…}` in docker-compose.prod.yml)
+    # and PROD_SHAPE_RUN_ROOT (the override's). Dropping any one exits 1 and names
+    # that one; there are 154 `${X:-default}` references and no other bare ones.
+    run_dir = tmp_path / "run-1"
+    caller = {
+        "PODMAN_SOCKET": "/run/user/1000/podman/podman.sock",
+        "POSTGRES_PASSWORD": "hunter2",  # pragma: allowlist secret
+    }
+
+    text = fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller)
+    values = dict(
+        line.split("=", 1) for line in text.splitlines() if line and not line.startswith("#")
+    )
+    assert {"PODMAN_SOCKET", "POSTGRES_PASSWORD", "PROD_SHAPE_RUN_ROOT", "IMAGE_TAG"} <= set(values)
+    # the run directory is where UR-133 says every writable bind must land
+    assert values["PROD_SHAPE_RUN_ROOT"] == str(run_dir)
+    assert values["IMAGE_TAG"] == "test"
+    assert values["PODMAN_SOCKET"] == caller["PODMAN_SOCKET"], (
+        "the socket path is a path, not a secret"
+    )
+    # the host's postgres password must NOT reach a disposable test deployment
+    assert "hunter2" not in text
+    assert values["POSTGRES_PASSWORD"] != caller["POSTGRES_PASSWORD"]
+    # a fixed value copied from an example would pass everything above and still be
+    # a shared secret across runs: two runs of the same run dir must differ
+    again = fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller)
+    second = dict(line.split("=", 1) for line in again.splitlines() if "=" in line)
+    assert second["POSTGRES_PASSWORD"] != values["POSTGRES_PASSWORD"], (
+        "password is per-run, not constant"
+    )
+    # and with no socket to name the caller gets a refusal, not a blank string
+    # (compose would only warn and interpolate "/" -- the same failure mode as the
+    # run root, which the override already refuses outright)
+    with pytest.raises(fc.HarnessError):
+        fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller={})
+
+
+def test_the_prod_shape_env_gives_the_run_its_own_container_name_prefix(
+    tmp_path: Path,
+) -> None:
+    # UR-133: a run's objects are isolated by its compose project -- EXCEPT a pinned
+    # `container_name`, which the project does NOT namespace. Measured on compose
+    # v5.5.1: booting the same pinned name under a second -p dies with `Conflict. The
+    # container name "/x" is already in use by container ...`, so a prod-shape run and
+    # any other prod-shape run on the machine cannot both come up. The override
+    # therefore prefixes each pinned name with a per-run token it reads from this env
+    # file (as ${HSI_TEST_NAME_PREFIX:?…}, so a missing token refuses the render rather
+    # than interpolating blank and silently rejoining the colliding set).
+    run_dir = tmp_path / "run-1"
+    caller = {"PODMAN_SOCKET": "/run/user/1000/podman/podman.sock"}
+
+    def values_of(text: str) -> dict[str, str]:
+        return {
+            line.split("=", 1)[0]: line.split("=", 1)[1]
+            for line in text.splitlines()
+            if "=" in line
+        }
+
+    first = values_of(fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller))
+    assert "HSI_TEST_NAME_PREFIX" in first, (
+        "the override pins container names the project cannot namespace; it needs this run's "
+        "token from the env file it renders with"
+    )
+    token = first["HSI_TEST_NAME_PREFIX"]
+    # a name is `hsi-test-<token><prod-pin>`: token must end in a separator and be
+    # container-name-safe, or the pinned name compose writes is one compose rejects.
+    assert token.endswith("-"), token
+    assert re.fullmatch(r"[0-9a-f]{6,16}-", token), (
+        f"token {token!r} is not lowercase hex + separator; project names and container names "
+        "both reject other spellings (measured: 'invalid project name' / name conflict errors)"
+    )
+    second = values_of(fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller))
+    assert second["HSI_TEST_NAME_PREFIX"] != token, (
+        "a constant token is the collision this exists to prevent, restated as a variable"
+    )
+
+
+_ENGINE_SOCKET = "/run/user/1000/podman/podman.sock"
+
+
+def _svc(**volumes: Any) -> dict[str, Any]:
+    """One service per keyword; each value is a mount spec or a list of them. A spec
+    is (source, target) or (source, target, {extra fields})."""
+    services = {}
+    for name, spec in volumes.items():
+        specs = spec if isinstance(spec, list) else [spec]
+        services[name] = {"volumes": [_mount(s) for s in specs]}
+    return {"services": services}
+
+
+def _mount(spec: Any) -> dict[str, Any]:
+    if isinstance(spec, dict):
+        return {"type": "bind", **spec}
+    source, target, *extra = spec
+    return {"type": "bind", "source": source, "target": target, **(extra[0] if extra else {})}
+
+
+def test_the_run_refuses_a_render_that_still_mounts_the_engine_socket() -> None:
+    # UR-134. The static CI oracle (scripts/test_prodshape_override.py) proves the
+    # committed override clears the two mounts prod has TODAY; this is the run-time
+    # twin, and its reason to exist is drift: a run happens at whatever checkout the
+    # operator brought, so a socket prod grew since the override was authored is not
+    # covered by it and must stop the run rather than start a container that can
+    # drive the host's engine.
+    prod_shaped = _svc(
+        backend=(_ENGINE_SOCKET, "/var/run/podman/podman.sock", {}),
+        alloy=(_ENGINE_SOCKET, _ENGINE_SOCKET, {}),  # prod interpolates it into BOTH fields
+    )
+    hits = fc.engine_socket_mounts(prod_shaped, socket_path=_ENGINE_SOCKET)
+    assert {h[0] for h in hits} == {"backend", "alloy"}, hits
+    # must-ignore side. Deliberately NOT "the override's render, as a fixture I typed":
+    # the override clears the socket mounts, but the authority for that is
+    # test_prodshape_override.py, which renders the real file -- a hand-written
+    # socket-free fixture here would assert my own guess and could not disagree with
+    # anything. What this clause must show is that the predicate does not flag the
+    # mounts a COMPLIANT prod-shape render really keeps: named volumes, and a writable
+    # bind inside the run directory.
+    compliant = {
+        "services": {
+            "node-exporter": {
+                "volumes": [
+                    {"type": "volume", "source": "tempo-data", "target": "/var/tempo"},
+                    {"type": "bind", "source": "/run/hsitest/cameras", "target": "/cameras"},
+                ]
+            },
+            "postgres": {
+                "volumes": [
+                    {"type": "volume", "source": "pg", "target": "/var/lib/postgresql/data"}
+                ]
+            },
+        }
+    }
+    assert fc.engine_socket_mounts(compliant, socket_path=_ENGINE_SOCKET) == []
+    # ...and the two predicates DISAGREE on purpose. `is_engine_socket` counts "/" and
+    # "/var" as holding a socket, which is precisely why the fail-closed preflight
+    # refuses the prod shape (node-exporter's `/:/host:ro` is a breach by its rules,
+    # on every render). Wiring this check to it would make every prod-shape run refuse
+    # itself, so the divergence is asserted, not left to a reader's judgement.
+    assert fc.is_engine_socket("/"), "the preflight's rule, kept for the CI path"
+    assert (
+        fc.engine_socket_mounts(
+            _svc(node_exporter=("/", "/host", {"read_only": True})), socket_path=_ENGINE_SOCKET
+        )
+        == []
+    ), "the prod-shape path's rule: the engine's own socket, not the host's root"
+    # a socket-shaped path that is NOT the engine's is not a breach (no blanket .sock
+    # ban -- a test deployment may legitimately mount one)
+    other = _svc(backend=("/run/hsitest/gpg-agent.sock", "/in/gpg.sock", {}))
+    assert fc.engine_socket_mounts(other, socket_path=_ENGINE_SOCKET) == []
+
+
+def test_a_read_only_engine_socket_mount_is_still_a_breach() -> None:
+    # `read_only: true` on a socket is not a permission boundary: the socket IS the
+    # engine's API, and opening it read-write is what the container does after the
+    # mount exists. So the UR-134 check must not filter on the mount's mode -- which
+    # is why the predicate below reads source/target only.
+    ro = _svc(alloy=(_ENGINE_SOCKET, _ENGINE_SOCKET, {"read_only": True}))
+    assert [h[0] for h in fc.engine_socket_mounts(ro, socket_path=_ENGINE_SOCKET)] == ["alloy"]
+    # and a docker-targeted engine reaches the same verdict through the target field,
+    # which is how a socket the caller did not name is still caught
+    docker_sock = _svc(backend=("/host/elsewhere.sock", "/var/run/docker.sock", {}))
+    assert [h[0] for h in fc.engine_socket_mounts(docker_sock, socket_path=_ENGINE_SOCKET)] == [
+        "backend"
+    ]
+
+
+# ---------------------------------------------------------------------------
+# O2.5 Step 2: the --prod-shape flag (package text: "feature_check.py --real
+# --prod-shape (the flag's name is the package's call)"). This slice is the CLI
+# seam only -- that the flag exists, is refused off --real, and that the chosen
+# shape reaches run_check, which is where the prod render decision lives.
+# ---------------------------------------------------------------------------
+
+
+def test_prod_shape_reaches_run_check_with_the_shape(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[tuple[str, bool]] = []
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        seen.append((mode, args.prod_shape))
+        return 0
+
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    assert fc.main(["--real", "--prod-shape"]) == 0
+    assert seen == [("real", True)]
+    # bare --prod-shape (no --fake/--real) is refused the same way, before any run
+    monkeypatch.setattr(fc, "run_check", lambda *_a, **_k: seen.append(("LEAK", False)) or 0)
+    with pytest.raises(SystemExit) as caught:
+        fc.main(["--prod-shape"])
+    assert caught.value.code == 2
+    assert all(s[0] != "LEAK" for s in seen)
+
+
+def test_prod_shape_without_real_is_a_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # "--prod-shape --fake" would mean "the CI stack, in the shape of prod" -- two
+    # compose files that cannot both be the one rendered. argparse's own error
+    # (SystemExit 2) is the answer, and it must be the answer BEFORE any engine call.
+    called: list[Any] = []
+    monkeypatch.setattr(fc, "run_check", lambda *a, **_k: called.append(a) or 0)
+    with pytest.raises(SystemExit) as caught:
+        fc.main(["--fake", "--prod-shape"])
+    assert caught.value.code == 2
+    assert called == []
+    # and the default stays honest for every other invocation
+    seen: list[bool] = []
+    monkeypatch.setattr(fc, "run_check", lambda args, **_kw: seen.append(args.prod_shape) or 0)
+    assert fc.main(["--fake"]) == 0
+    assert seen == [False]
+
+
+def test_run_check_builds_the_run_with_the_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The forwarding itself: main() only holds the flag; run_check is what hands it
+    # to the Run that renders. A run_check that drops it would render the CI stack
+    # while the operator believes prod was exercised -- and the summary above would
+    # still be self-consistent, because both would say "real". So this pins the
+    # exact handoff, not the two ends.
+    import argparse
+
+    captured: dict[str, Any] = {}
+    real_init = fc.Run.__init__
+
+    def spy(self: Any, **kwargs: Any) -> None:
+        captured.update(kwargs)
+        real_init(self, **kwargs)
+
+    monkeypatch.setattr(fc.Run, "__init__", spy)
+
+    class StopHere(Exception):
+        pass
+
+    # prepare() runs BEFORE run_check's try block, so this propagates out of
+    # run_check untouched -- which is exactly what we want: every Run kwarg is
+    # already captured, and no engine, VLM or artifact code runs.
+    def stop(*_a: Any, **_k: Any) -> None:
+        raise StopHere
+
+    monkeypatch.setattr(fc.Run, "prepare", stop)
+    args = argparse.Namespace(
+        engine="podman", root=tmp_path / "runs", image_tag="test", prod_shape=True
+    )
+    with pytest.raises(StopHere):
+        fc.run_check(args, mode="real")
+    assert captured.get("prod_shape") is True, "run_check must forward the flag to Run"
+    assert captured.get("mode") == "real"
+
+
+def test_the_shape_is_recorded_in_the_run_summary(tmp_path: Path) -> None:
+    # A run record that does not say which stack was rendered cannot witness
+    # ruling 127's real-tier rows -- the whole point of the O2.5 run.
+    run = fc.Run(
+        engine="podman", root=tmp_path / "runs", image_tag="test", mode="real", prod_shape=True
+    )
+    assert run.summary["mode"] == "real-prod-shape"
+    # and the ordinary tiers keep the strings they already emit
+    plain = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="real")
+    assert plain.summary["mode"] == "real"
+    fake = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake")
+    assert fake.summary["mode"] == "fake"
+
+
+# ---------------------------------------------------------------------------
+# O2.5 Step 2 slice 2: the prod render itself -- the generated env file, the
+# two-file compose, the limits decision recorded from THIS machine, and the
+# UR-134 re-check on the render the run actually got (drift, not the static gate).
+# ---------------------------------------------------------------------------
+
+
+def _prod_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, socket: str | None = None) -> Any:
+    if socket is None:
+        monkeypatch.delenv("PODMAN_SOCKET", raising=False)
+    else:
+        monkeypatch.setenv("PODMAN_SOCKET", socket)
+    run = fc.Run(
+        engine="podman",
+        root=tmp_path / "runs",
+        image_tag="test",
+        mode="real",
+        prod_shape=True,
+    )
+    # what prepare() leaves behind, without prepare()'s engine calls
+    run.dir.mkdir(parents=True)
+    run.artifacts.mkdir(parents=True)
+    run.env_file.write_text(f"IMAGE_TAG={run.image_tag}\n", encoding="utf-8")
+    return run
+
+
+def _fake_compose(run: Any, rendered: dict[str, Any]) -> list[Any]:
+    """Record every compose(...) call; answer the render with `rendered`."""
+    calls: list[Any] = []
+
+    def compose(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((list(files), args))
+        return subprocess.CompletedProcess(["fake"], 0, stdout=json.dumps(rendered), stderr="")
+
+    run.compose = compose  # instance attribute: shadow the bound method
+    return calls
+
+
+def _prod_rendered(**services: Any) -> dict[str, Any]:
+    # `backend` is in every prod render (and as_prod_shape_deployment refuses a render
+    # without it, exactly as as_test_deployment refuses a stack missing a kept service).
+    # A caller that needs a specific backend passes one and wins.
+    return {"services": {"backend": {"image": "backend:test"}, **services}}
+
+
+_PG_LIMITS = {"image": "pg:1", "deploy": {"resources": {"limits": {"memory": "512M"}}}}
+
+
+def test_the_prod_render_swaps_in_the_generated_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+
+    run.render(fc.Snapshot.from_engine([], []))
+
+    env = dict(line.split("=", 1) for line in run.env_file.read_text(encoding="utf-8").splitlines())
+    # The surface is an exact set on purpose: compose reads this file and nothing else, so a key
+    # silently added or dropped here changes the render. HSI_TEST_NAME_PREFIX is a deliberate
+    # addition -- a pinned container_name is not namespaced by the compose project, so the
+    # override needs this run's token to keep two runs off the same name.
+    assert {
+        "IMAGE_TAG",
+        "PODMAN_SOCKET",
+        "POSTGRES_PASSWORD",
+        "PROD_SHAPE_RUN_ROOT",
+        "HSI_TEST_NAME_PREFIX",
+    } == set(env)
+    assert env["PROD_SHAPE_RUN_ROOT"] == str(run.dir)
+    assert env["IMAGE_TAG"] == "test"
+    assert env["PODMAN_SOCKET"] == _ENGINE_SOCKET
+    # the two files are prod + the authored override -- NOT the CI stack, and the
+    # override is the UR-133/134 transform the static oracle pins
+    assert calls == [([fc.PROD_STACK, fc.PROD_SHAPE_OVERRIDE], ("config", "--format", "json"))]
+
+
+def test_the_prod_render_refuses_before_the_engine_without_the_socket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # prod_shape_env refuses a missing PODMAN_SOCKET (a blank interpolates to a
+    # "/" mount); here that refusal must stop the render, not reach compose.
+    run = _prod_run(tmp_path, monkeypatch, socket=None)
+    calls = _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    with pytest.raises(fc.Refused) as refused:
+        run.render(fc.Snapshot.from_engine([], []))
+    assert any("PODMAN_SOCKET" in p for p in refused.value.problems), refused.value.problems
+    assert calls == []
+
+
+def test_the_prod_render_records_and_applies_the_limits_decision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Ruling 162 item 2: limits stay where the machine delegates the controllers
+    # and are stripped otherwise, with the verbatim string in the run record.
+    # Both branches run through render_prod_shape, not just the helper, because
+    # a caller that decided in one place and recorded in another is the bug the
+    # helper's docstring warns about -- and because only the render writes the
+    # artifact `up` will boot from.
+    import copy
+
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "cpuset cpu io memory pids\n")
+    _fake_compose(run, copy.deepcopy(_prod_rendered(postgres=_PG_LIMITS)))
+    run.render(fc.Snapshot.from_engine([], []))
+    assert run.summary["limits"] == fc.LIMITS_APPLIED
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert "limits" in landed["services"]["postgres"]["deploy"]["resources"]
+
+    run2 = _prod_run(tmp_path / "b", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _fake_compose(run2, copy.deepcopy(_prod_rendered(postgres=_PG_LIMITS)))
+    run2.render(fc.Snapshot.from_engine([], []))
+    assert run2.summary["limits"] == fc.LIMITS_STRIPPED
+    landed2 = json.loads((run2.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert "limits" not in landed2["services"]["postgres"]["deploy"]["resources"]
+
+
+def test_the_prod_render_refuses_a_render_that_still_mounts_the_socket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The runtime twin of the static gate: the override DROPS the socket mounts
+    # (test_prodshape_override.py proves the committed file does), but the render
+    # is what `up` boots, and a socket prod grew after the override was authored
+    # is invisible to the gate and visible here. A hit refuses the run naming
+    # the service, before anything starts.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    mounting = _prod_rendered(
+        backend={
+            "image": "b:1",
+            "volumes": [
+                {"type": "bind", "source": _ENGINE_SOCKET, "target": "/var/run/podman/podman.sock"}
+            ],
+        },
+        # The real shape prod mounts on `alloy`: the SAME ${PODMAN_SOCKET}
+        # interpolated into BOTH fields, so the target is the caller's socket path,
+        # NOT one of the canonical docker/podman targets. A check that passed no
+        # socket path would see only the target and miss alloy outright -- which is
+        # the exact drift this re-check exists for.
+        alloy={
+            "image": "a:1",
+            "volumes": [{"type": "bind", "source": _ENGINE_SOCKET, "target": _ENGINE_SOCKET}],
+        },
+    )
+    _fake_compose(run, mounting)
+    with pytest.raises(fc.Refused) as refused:
+        run.render(fc.Snapshot.from_engine([], []))
+    assert any("backend" in p for p in refused.value.problems), refused.value.problems
+    assert any("alloy" in p for p in refused.value.problems), refused.value.problems
+    assert refused.value.problems == run.summary["results"]["engine_socket"], (
+        "the record and the refusal are one measurement; run_check logs the second "
+        "and the operator pastes the first, and a reader must be able to match them"
+    )
+    assert not (run.artifacts / "prod-rendered.json").exists(), (
+        "a refused render must not leave the artifact up would boot from"
+    )
+    # the same render without the mount passes (the re-check is not a blanket ban)
+    run2 = _prod_run(tmp_path / "b", monkeypatch, socket=_ENGINE_SOCKET)
+    _fake_compose(run2, _prod_rendered(backend={"image": "b:1"}))
+    run2.render(fc.Snapshot.from_engine([], []))
+    assert (run2.artifacts / "prod-rendered.json").exists()
+
+
+def test_read_subtree_control_follows_the_caller_s_own_cgroup(tmp_path: Path) -> None:
+    # Which cgroup the harness's OWN containers will inherit is what /proc says,
+    # not a fixed path: the probe measured /sys/fs/cgroup$(cut -d: -f3 of
+    # /proc/self/cgroup)/cgroup.subtree_control. A missing file must read as ""
+    # -- the fail-closed direction, because "" makes decide_resource_limits
+    # STRIP limits (a container that starts without a limit cannot fail to
+    # start over one it was promised).
+    proc = tmp_path / "proc"
+    (proc / "self").mkdir(parents=True)
+    (proc / "self" / "cgroup").write_text(
+        "0::/user.slice/user-1000.slice/session-2.scope\n", encoding="utf-8"
+    )
+    sysfs = tmp_path / "sys"
+    cg = sysfs / "user.slice/user-1000.slice/session-2.scope"
+    cg.mkdir(parents=True)
+    (cg / "cgroup.subtree_control").write_text("cpuset cpu io memory pids\n", encoding="utf-8")
+    assert fc.read_subtree_control(proc_dir=proc, sys_dir=sysfs) == "cpuset cpu io memory pids\n"
+    assert fc.read_subtree_control(proc_dir=proc, sys_dir=tmp_path / "nothing") == ""
+    broken = tmp_path / "broken"
+    (broken / "self").mkdir(parents=True)
+    (broken / "self" / "cgroup").write_text("garbage\n", encoding="utf-8")
+    assert fc.read_subtree_control(proc_dir=broken, sys_dir=sysfs) == ""
+
+
+def test_the_prod_render_writes_the_boot_file_the_lifecycle_boots_from(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The CI render writes self.compose_file (the deployment up/up-logs/down -v all
+    # read via deployment()). render_prod_shape did NOT -- so a --real --prod-shape run
+    # came up on PROD_STACK+OVERRIDE and then died at the first deployment() call:
+    # _address('compose port'), collect ('logs'/'ps') and teardown ('down -v') all boot
+    # compose_file, which was never written. That left the run's containers UP after a
+    # red run -- the exact failure UR-135 (teardown with down -v and nothing else) exists
+    # to prevent. The prod render must write the same file the CI render does.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "cpu memory\n")
+    _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    run.render(fc.Snapshot.from_engine([], []))
+    assert run.compose_file.exists(), (
+        "deployment()/teardown read compose_file; a prod render that never wrote it "
+        "leaves the run's containers up after teardown would run"
+    )
+
+
+def _recording_compose(run: Any, rendered: dict[str, Any]) -> list[Any]:
+    """Like _fake_compose but keeps kwargs too: teardown's check=False is part of
+    the contract (a failed `down -v` must not mask the postflight)."""
+    calls: list[Any] = []
+
+    def compose(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((list(files), args, kwargs))
+        return subprocess.CompletedProcess(["fake"], 0, stdout=json.dumps(rendered), stderr="")
+
+    run.compose = compose
+    return calls
+
+
+def test_a_prod_shape_run_tears_down_with_down_v_on_its_project_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # UR-135: teardown is `compose -p <run project> ... down -v` and NOTHING else.
+    # For the prod shape that only holds if the lifecycle boots the file the prod
+    # render wrote -- deployment() supplies the -p and the -f; before the boot file
+    # existed this call raised (no such file) mid-teardown, leaving containers up.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    # teardown()'s postflight reads a SECOND snapshot through _run -> the engine
+    # binary. _recording_compose fakes the `down -v` only, so without this the
+    # postflight snapshot reaches a real `podman ps` (the UR-135 assertion is on
+    # `calls`, not on _run, so faking it keeps the contract pinned -- review
+    # finding CR-2 on #7037). Empty stdout => empty after-snapshot => the
+    # before==after case this test already asserts.
+    monkeypatch.setattr(fc.Run, "_run", lambda *_, **__: subprocess.CompletedProcess([], 0, "", ""))
+    calls = _recording_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    run.render(fc.Snapshot.from_engine([], []))
+    calls.clear()
+    changed, left = run.teardown(fc.Snapshot.from_engine([], []))
+    assert calls == [([run.compose_file], ("down", "-v"), {"check": False, "timeout": 600})], (
+        f"UR-135 allows exactly one teardown call; got {calls}"
+    )
+    assert changed == [] and left == []
+
+
+def test_the_prod_boot_file_bakes_no_object_names_so_the_project_decides_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Measured on compose v5.5.1: `config --format json` bakes the project name into
+    # every network and volume (`name: runA_security-net`), and a later `-p runB`
+    # overrides ONLY the top-level name -- the nested baked names survive and point at
+    # runA. A boot file carrying them would make a second run mount, and `down -v`
+    # DELETE, the first run's volumes: UR-133 isolation inverted into a cross-run
+    # delete. Stripping every baked `name` makes compose re-derive each object from
+    # the live -p, so the file cannot point at a run that is not booting it.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    baked = {
+        "name": run.project,
+        # backend included because every prod render has one (the transform refuses a
+        # render without it); this test's subject is the baked object NAMES, not services.
+        "services": {"backend": {"image": "backend:test"}, "postgres": {"image": "pg:1"}},
+        "networks": {"security-net": {"name": f"{run.project}_security-net", "driver": "bridge"}},
+        "volumes": {"postgres_data": {"name": f"{run.project}_postgres_data", "driver": "local"}},
+    }
+    _fake_compose(run, baked)
+    run.render(fc.Snapshot.from_engine([], []))
+    boot = json.loads(run.compose_file.read_text(encoding="utf-8"))
+    assert "name" not in boot, "the top-level name must come from -p at boot"
+    assert all("name" not in net for net in boot["networks"].values()), boot["networks"]
+    assert all("name" not in vol for vol in boot["volumes"].values()), boot["volumes"]
+    # the artifact an operator reads keeps the render as compose produced it
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert landed["volumes"]["postgres_data"]["name"] == f"{run.project}_postgres_data"
+
+
+def test_the_boot_file_strips_baked_names_from_every_project_named_section(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The section list is not decoration: compose names `configs` and `secrets` after the
+    # PROJECT exactly like networks and volumes (measured on v5.5.1 -- render under
+    # `-p proja`, reboot the baked document under `-p projb`, and `configs.myconf` still
+    # reads `proja_myconf`). This test failed against the two-section loop it replaced:
+    # networks and volumes came back clean while configs kept the other run's name.
+    # docker-compose.prod.yml declares neither today, but the same file documents enabling
+    # Docker secrets (docker-compose.prod.yml:68-75, :1692-1720), and the CI drift guard
+    # cannot catch this -- it compares prod to prod+override, never the boot file.
+    # The four names are spelled HERE on purpose: reading fc.PROJECT_NAME_SECTIONS back
+    # would make this test shrink in lockstep with the constant and stay green.
+    sections = ("networks", "volumes", "configs", "secrets")
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    baked = {
+        "name": run.project,
+        "services": {"backend": {"image": "backend:test"}},
+        "networks": {"security-net": {"name": f"{run.project}_security-net", "driver": "bridge"}},
+        "volumes": {"postgres_data": {"name": f"{run.project}_postgres_data", "driver": "local"}},
+        "configs": {"alerts.yml": {"name": f"{run.project}_alerts.yml", "file": "./alerts.yml"}},
+        "secrets": {"pg_pass": {"name": f"{run.project}_pg_pass", "file": "./pg_pass"}},
+    }
+    _fake_compose(run, baked)
+    run.render(fc.Snapshot.from_engine([], []))
+    boot = json.loads(run.compose_file.read_text(encoding="utf-8"))
+    for section in sections:
+        entries = boot.get(section) or {}
+        assert entries, f"{section} vanished from the boot file"
+        leftover = {k: e["name"] for k, e in entries.items() if "name" in e}
+        assert not leftover, f"{section} still carries another run's baked names: {leftover}"
+    # behaviour checked first (it fails with the leftover names, not with a missing symbol)
+    assert sections == fc.PROJECT_NAME_SECTIONS, (
+        f"compose names objects in {sections}, the strip list is {fc.PROJECT_NAME_SECTIONS}"
+    )
+
+
+def test_the_test_tier_names_project_scoped_objects_in_every_named_section(
+    base: dict[str, Any],
+) -> None:
+    # The other half of the same constant. as_test_deployment PREFIXES names so one run's
+    # objects cannot be confused with another's; if the prefix list and the strip list ever
+    # disagree, a section is named by the test tier and left baked by the prod tier. The
+    # sections are spelled HERE, not read back from the constant under test.
+    doc = copy.deepcopy(base)
+    doc["volumes"] = {"vol": {}}
+    doc["configs"] = {"conf": {}}
+    doc["secrets"] = {"sec": {}}
+    got = fc.as_test_deployment(doc, project=PROJECT, run_dir=RUN_DIR)
+    for section in ("networks", "volumes", "configs", "secrets"):
+        names = {k: e.get("name") for k, e in got[section].items()}
+        assert names == {k: f"{PROJECT}_{k}" for k in names}, (
+            f"{section} not prefixed by the project: {names}"
+        )
+
+
+# --------------------------------------------------- O2.5 Step 2: the prod-shape transforms ----
+def _prod_shape_doc() -> dict[str, Any]:
+    """A prod-shaped render, as compose would produce it: the backend pointing at the
+    in-stack ai-vlm, that ai-vlm present with its CDI devices, no orchestrator flag."""
+    return {
+        "name": "hsi-check-x",
+        "services": {
+            "backend": {
+                "image": "backend:test",
+                "environment": {"AI_VLM_URL": "http://ai-vlm:8098"},
+                "depends_on": {"ai-gateway": {"condition": "service_healthy"}},
+            },
+            "ai-vlm": {"image": "vlm:test", "devices": ["nvidia.com/gpu=0"]},
+            "ai-gateway": {"image": "gw:test", "devices": ["nvidia.com/gpu=all"]},
+            "postgres": {"image": "pg:1"},
+        },
+    }
+
+
+def test_the_prod_shape_deployment_turns_the_orchestrator_off() -> None:
+    # UR-134's first clause, and the blocker the fresh-context review found: the CI tier
+    # gets this from as_test_deployment (:469), but the prod-shape path does NOT go through
+    # that function, so nothing set it -- and check_isolation runs on EVERY mode (:2502),
+    # where an absent flag resolves to backend/core/config.py's default `True` and the run
+    # dies at "expected 503 'Container orchestrator not available'". Measured in the
+    # composed boot doc: env_file is None and the only ORCHESTRATOR_* key is DOCKER_HOST.
+    doc = _prod_shape_doc()
+    out = fc.as_prod_shape_deployment(doc, vlm_url=None)
+    assert out["services"]["backend"]["environment"]["ORCHESTRATOR_ENABLED"] == "false"
+    # must-ignore side: the input document is not mutated (the render artifact an operator
+    # reads must stay what compose produced).
+    assert "ORCHESTRATOR_ENABLED" not in doc["services"]["backend"]["environment"]
+
+
+def test_the_prod_shape_run_points_the_backend_at_agent_gpu_and_drops_the_in_stack_vlm() -> None:
+    # The package Step 1 words it: "GPU services pointed at agent-gpu's ai-vlm INSTEAD OF
+    # CDI". Without this the boot file keeps AI_VLM_URL=http://ai-vlm:8098 (measured) and an
+    # in-stack ai-vlm whose top-level devices ask for nvidia.com/gpu=0 -- a second GPU
+    # consumer racing agent-gpu's own container on the operator's box, and a deployment
+    # that is not the one ruling 127's 12 rows are supposed to witness.
+    out = fc.as_prod_shape_deployment(_prod_shape_doc(), vlm_url="http://10.0.0.5:8123")
+    backend = out["services"]["backend"]
+    assert backend["environment"]["AI_VLM_URL"] == "http://10.0.0.5:8123"
+    assert "ai-vlm" not in out["services"], "the in-stack GPU container must not boot on --real"
+    # ai-gateway is NOT a VLM and prod's backend does not depend on it (measured), so it
+    # stays -- dropping it would be a wider change than the package asks for.
+    assert "ai-gateway" in out["services"]
+
+
+def test_the_prod_shape_run_keeps_the_in_stack_vlm_on_the_fake_tier_shape() -> None:
+    # must-ignore side: no vlm_url means no agent-gpu, so the in-stack ai-vlm is the ONLY
+    # VLM and must survive, URL and all. A transform that dropped it unconditionally would
+    # break every run that is not pointed at agent-gpu.
+    out = fc.as_prod_shape_deployment(_prod_shape_doc(), vlm_url=None)
+    assert "ai-vlm" in out["services"]
+    assert out["services"]["backend"]["environment"]["AI_VLM_URL"] == "http://ai-vlm:8098"
+
+
+def test_the_prod_shape_transform_drops_only_the_dependency_it_omits() -> None:
+    # Two directions, both needed. Deliberate omission: `--real` drops the in-stack ai-vlm,
+    # so a depends_on naming it goes with it (as_test_deployment:449 does the same on the
+    # CI tier). Accidental omission: a dependency on a service this render never had is
+    # drift the transform must NOT paper over, because compose would refuse to start.
+    doc = _prod_shape_doc()
+    doc["services"]["backend"]["depends_on"]["ai-vlm"] = {"condition": "service_started"}
+    out = fc.as_prod_shape_deployment(doc, vlm_url="http://10.0.0.5:8123")
+    assert "ai-vlm" not in out["services"]["backend"]["depends_on"]
+
+    doc2 = _prod_shape_doc()
+    doc2["services"]["backend"]["depends_on"]["tempo"] = {"condition": "service_started"}
+    with pytest.raises(fc.HarnessError, match="tempo"):
+        fc.as_prod_shape_deployment(doc2, vlm_url="http://10.0.0.5:8123")
