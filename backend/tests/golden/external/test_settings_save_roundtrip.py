@@ -54,6 +54,45 @@ SETTINGS_PATH = "/api/v1/settings"
 QUEUE_NON_DEFAULT = 4242
 
 
+@pytest.fixture(scope="session", autouse=True)
+def save_leg_login_preflight(api_url: str, admin_credentials: dict[str, str]) -> None:
+    """Fail — never skip — when the harness is up but this spec cannot log in.
+
+    ``logged_in_api`` answers a non-200 login with ``pytest.skip``
+    (``conftest.py:131``), which is the right call for a spec that merely prefers
+    a principal. Here it would be an evidential hole: the golden gate reddens only
+    when *every* spec in the leg skipped (``scripts/feature_check.py:1169``), and
+    the leg's metrics specs run on the *unauthenticated* ``api`` fixture
+    (``test_metrics_scrape.py:101``), so a dead login leaves 5 rows executed and
+    prints a green tier with all three of these tests absent. That is a pass that
+    proves nothing, which is the failure ruling 114 was written against.
+
+    So the precondition is asserted, not skipped, and the assertion is scoped to
+    this module: a module that never requests these fixtures is untouched.
+    ``api_url`` and ``admin_credentials`` still ``pytest.skip`` when the harness
+    env is absent, which is the honest skip ruling 86 asks for — collection and a
+    stack-less machine stay green. Only the "env present AND login refused"
+    combination is red, and it is recorded ``failed`` because the harness maps
+    ``<failure|error>`` to ``failed`` (``junit_results``, ``feature_check.py:1140``).
+
+    Scope is ``session`` deliberately. A module-scoped autouse fixture runs *after*
+    the session-scoped ``logged_in_api`` it is meant to outrank, so its skip wins
+    and the preflight never executes — measured, not reasoned: a module-scoped
+    version of this fixture is reported ``skipped`` while a session-scoped one is
+    reported ``failed`` for the same simulated login failure.
+    """
+    with httpx.Client(base_url=api_url, timeout=30.0) as client:
+        response = client.post("/api/auth/login", json=admin_credentials)
+    if response.status_code != 200:
+        raise AssertionError(
+            f"the save-leg witness cannot run: POST /api/auth/login answered "
+            f"{response.status_code}, not 200, on a stack whose harness env is fully "
+            f"present. These three tests would be SKIPPED and the backend golden tier "
+            f"would still read green, because its metrics specs need no login — a "
+            f"green that never executed F-190/F-191's save leg. Body: {response.text[:200]}"
+        )
+
+
 def _read(client: httpx.Client) -> dict:
     """``GET /api/v1/settings`` as a dict, asserting the read leg is healthy.
 
@@ -101,10 +140,13 @@ def test_f190_feature_toggle_save_roundtrip(logged_in_api: httpx.Client) -> None
     """F-190: a feature toggle flips on the save leg and comes back on ``GET``.
 
     ``clip_generation_enabled`` defaults ``True`` (``backend/core/config.py:2703``)
-    and maps to ``CLIP_GENERATION_ENABLED`` (``settings_api.py:60``). Saving it
+    and maps to ``CLIP_GENERATION_ENABLED`` (``settings_api.py:59``). Saving it
     ``False`` and reading it back ``False`` is the half the read-leg spec never
-    covered: that the toggle survives a write to ``runtime.env`` and a reload, so
-    a UI success toast is not a lie.
+    covered: that the toggle survives a write to ``runtime.env`` and a reload.
+    This is a **persistence** witness only. ``clip_generation_enabled`` is read
+    once at construction (``backend/services/clip_generator.py:175-176``), so a
+    save changes what a *fresh* process sees, not a live one — the restart-required
+    behaviour F-190 itself records. It is not evidence a live toggle flipped.
     """
     baseline = _read(logged_in_api)
     default_value = baseline["features"]["clip_generation_enabled"]
@@ -127,7 +169,7 @@ def test_f191_queue_value_save_roundtrip(logged_in_api: httpx.Client) -> None:
 
     ``queue.max_size`` defaults 10000, band ``ge=100 le=100000``
     (``backend/core/config.py:2370``), mapped to ``QUEUE_MAX_SIZE``
-    (``settings_api.py:70``). Writing 4242 and reading 4242 back — through the
+    (``settings_api.py:69``). Writing 4242 and reading 4242 back — through the
     post-write ``cache_clear`` — is the write leg for the System-config row.
     """
     baseline = _read(logged_in_api)
@@ -150,7 +192,7 @@ def test_empty_patch_does_not_clobber_a_saved_value(logged_in_api: httpx.Client)
     """A no-field ``PATCH {}`` writes nothing and must not revert a saved value.
 
     ``update_settings`` short-circuits when ``_extract_env_updates`` is empty
-    (``settings_api.py:318``) — an empty body returns current settings without
+    (``settings_api.py:321``) — an empty body returns current settings without
     touching ``runtime.env``. The negative control earns its keep by pinning that
     short-circuit: it first saves a non-default ``rate_limiting.burst_size`` (its
     own key, disjoint from the two tests above), then sends ``PATCH {}``, and the
@@ -159,7 +201,16 @@ def test_empty_patch_does_not_clobber_a_saved_value(logged_in_api: httpx.Client)
     """
     baseline = _read(logged_in_api)
     original = baseline["rate_limiting"]["burst_size"]
-    moved = original + 1  # ge=1, no upper band in RateLimitingSettingsUpdate
+    moved = original + 1
+    # ``RateLimitingSettingsUpdate.burst_size`` is banded BOTH ways — ``ge=1,
+    # le=100`` (``backend/api/schemas/settings_api.py:586-590``) — so this +1 is
+    # only in band while the deployed default sits below the ceiling. Assert it
+    # rather than discover it: an out-of-band PATCH answers 422 and would surface
+    # as a confusing 200-assertion failure several lines down.
+    assert 1 <= moved <= 100, (
+        f"burst_size default {original} leaves no in-band headroom for the +1 this "
+        "witness needs (schema band is ge=1, le=100); pick a different key"
+    )
 
     try:
         _set_and_confirm(logged_in_api, "rate_limiting", "burst_size", moved)
