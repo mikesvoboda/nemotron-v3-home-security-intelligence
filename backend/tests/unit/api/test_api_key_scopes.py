@@ -790,13 +790,16 @@ def _routes_guarded_by(router, guard) -> set[tuple[str, str]]:
 
 
 class TestLegacyRouteCopies:
-    """routes/system.py + routes/dlq.py: TIMING FIX ONLY (amendment 2).
+    """routes/system.py + routes/dlq.py after [r95] S1 (supersedes amendment 2).
 
-    These copies stay unscoped by design — the gate is the outermost door —
-    and their flag-off early returns are untouched. Pinning THAT is what
-    stops a later "consistency" sweep from scoping them into a boot-order
-    dependency on constants.py, or from deleting a return three tests depend
-    on. (A mutation pin must patch THIS module's get_settings binding — the
+    Amendment 2 held that these copies stay unscoped because the gate is the
+    outermost door; ruling 95 closes the gap that assumption opens when the gate
+    is off (EXPOSE_LAN=false is its pass-through), so a scoped entry now
+    contributes no digest here and a monitoring key is refused. What these legs
+    pin is the SHAPED fix, not a blanket refusal: the flag-off early returns stay
+    untouched, an unscoped (plain or MagicMock) key still authenticates, and the
+    nine routes carrying the two copies are a census resolved from the route
+    table. (A mutation pin must patch THIS module's get_settings binding — the
     from-import in the routes copied it at import time.)
     """
 
