@@ -209,9 +209,11 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 # Do the time arithmetic with it (review finding 4): each re-run is capped by
 # DEFAULT_RERUN_TIMEOUT + DEFAULT_RERUN_GRACE, 150 s, so 10 hanging re-runs are a
 # 1,500 s ceiling inside a job whose timeout-minutes is 15 (900 s, ci.yml's
-# test-performance-audit job) — the job budget is the binding limit, and it can
-# only bind when >= 6 breaches per tier ALL hang, which no corpus has ever looked
-# like. Recorded so the next reader does that sum here instead of across four
+# test-performance-audit job) — the job budget is the binding limit, and it binds
+# once the 7th hanging re-run ACROSS BOTH TIERS starts: 6 x 150 s already consumes
+# the whole 900 s budget, so the 6th leaves no headroom and the 7th is cancelled.
+# The bound is pooled, not per tier — 3 + 3 hangs the job as hard as 6 + 0.
+# Recorded so the next reader does that sum here instead of across four
 # files. What changed since this paragraph was written: that ceiling used to be
 # FICTIONAL, because --timeout is a per-test timer and a collection-time stall
 # outranks it (see DEFAULT_RERUN_GRACE), so the 1,200 s figure was "the job gets
@@ -738,12 +740,14 @@ def main(argv: list[str] | None = None) -> int:
     # 5)" is a sentence the run does not honour (it re-runs 5), and that
     # overstatement predates ruling 151; this is the commit that rewrites the
     # line, so the line has to carry both numbers now.
-    tier_by_id = {b[1]: b[2] for b in breaches}
-    rerun_counts = {
-        tier: sum(1 for test_id in states if tier_by_id.get(test_id) == tier)
-        for tier in RERUN_TIERS
-    }
-    re_run_count = sum(rerun_counts.values())
+    # ``states`` is keyed by exactly the ids reproduce() actually re-ran, so the
+    # re-run count is read straight off it. An earlier version derived a per-tier
+    # re-run map here and summed it back to one number; that split reached no
+    # output, so a mutant collapsing every tier to "unit" printed a byte-identical
+    # line and no pin could see it (UR-89 batch-3 finding 3.4). The header reports
+    # per-tier ELIGIBLE counts from ``tier_counts`` above; per-tier re-run counts
+    # are not a reported dimension, so they are not computed as one.
+    re_run_count = len(states)
 
     if not rerun_enabled():
         if eligible_count:

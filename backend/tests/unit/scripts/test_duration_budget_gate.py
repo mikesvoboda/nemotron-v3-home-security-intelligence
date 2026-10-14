@@ -2283,12 +2283,22 @@ def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> Non
     )
     assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
     assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
-    # The FAIL line's tier phrasing ("A seconds-scale test in a re-run tier")
-    # is deliberately UNPINNED, recorded here so its absence does not read as
-    # an oversight. The PASS-line twin is pinned to a WORD because "unit" can
-    # be a false statement about a given corpus; this sentence is framing, and
-    # any reword of it stays true of a two-tier red set — so a pin here would
-    # tax a future improvement without protecting a fact. Review finding 9.
+    # The FAIL line names the tiers the re-run covers, and this corpus is
+    # INTEGRATION-ONLY, so the wording is load-bearing here: the red branch is
+    # shared by every tier, so a revert to the pre-ruling-151 "seconds-scale unit
+    # test" would have this integration failure telling the reader to go fix a
+    # unit test. That is the same falsehood the PASS-line pin above exists to
+    # prevent, and the earlier note here argued the opposite — that any reword
+    # "stays true of a two-tier red set" — which is true only of a set that has a
+    # unit member in it. UR-89 batch-3 finding 3.3: a revert of this one clause
+    # ran the whole suite green (75 passed) before this pin existed.
+    assert "in a re-run tier" in out, (
+        f"the FAIL line must name the tier the re-run covers; this is an "
+        f"integration-only red\n{out}"
+    )
+    assert "seconds-scale unit test" not in out, (
+        f"a red integration test must not be explained as a unit test\n{out}"
+    )
 
 
 # Review finding 1: the exoneration ruling 151 grants lives in the 4.0-10.0 s
@@ -2420,8 +2430,8 @@ def test_the_cap_value_is_the_number_the_rulebook_states() -> None:
     """
     assert _gate.MAX_RERUNS == 5, (
         "UR-125 states 5 re-runs per job in each tier. Raise this only by "
-        "UR-125 in docs/uplevel/rules.md is the authority: widen the rule first; "
-        f"the script had {_gate.MAX_RERUNS}"
+        "widening UR-125 in docs/uplevel/rules.md first — the rule is the "
+        f"authority, not this file; the script had {_gate.MAX_RERUNS}"
     )
 
 
@@ -2746,7 +2756,8 @@ def test_tiers_outside_the_clause_are_still_never_re_run(tmp_path: Path) -> None
     """e2e and slow stay RED-unverified with no subprocess spawned.
 
     The amendment names only the integration tier, and the reasons for the other
-    two survive it. The audit job downloads Playwright's junit too (``ci.yml:3008``), so e2e ids
+    two survive it. The audit job downloads Playwright's junit too (its
+    ``playwright-test-results-*`` download step), so e2e ids
     really are in the corpus it reads — the filter has to be
     ``("unit", "integration")`` and NOT "everything that is not unit", or every
     e2e failure spawns a subprocess in a job with no browser and no ``npm ci``.
