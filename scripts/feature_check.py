@@ -649,6 +649,37 @@ def boot_render(rendered: Mapping[str, Any]) -> dict[str, Any]:
     return boot
 
 
+def build_images(rendered: Mapping[str, Any], *, project: str) -> dict[str, str]:
+    """The image each ``build:`` service will be looked for under when ``up`` runs.
+
+    The prod stack carries six ``build:`` services and the boot document holds no
+    images, so ``up --wait`` starts BUILDING during the boot. Measured on compose
+    v5.5.1 (``config --images``, and a ``up --dry-run`` with the images absent): a
+    service that declares ``image:`` is looked up under THAT name -- grafana's is
+    hard-coded in ``docker-compose.prod.yml`` to
+    ``nemotron-v3-home-security-intelligence-grafana:latest``, host-local by
+    construction, so ``up`` tries to PULL it and the registry answers ``denied``
+    (the first prod-shape run, operator record 6166020894) -- and a service with
+    ``build:`` and no ``image:`` resolves to ``<project>-<service>:latest``, which
+    is why the project name has to come from the same run that boots.
+
+    Derived here, from the boot document ``up`` boots, so a pre-build and ``up``
+    cannot disagree: an image built under any other tag is simply absent in
+    compose's eyes, it builds during the boot after all, and the wall the
+    pre-build exists to route around comes back with an extra step in front of
+    it. A service that boots from a registry image is NOT included -- pulling it
+    is the tier's business, and building it would replace what the tier
+    witnesses with a locally-built stand-in.
+    """
+    images: dict[str, str] = {}
+    for name, service in (rendered.get("services") or {}).items():
+        if not isinstance(service, Mapping) or not service.get("build"):
+            continue
+        declared = service.get("image")
+        images[name] = str(declared) if declared else f"{project}-{name}:latest"
+    return images
+
+
 def decide_resource_limits(rendered: dict[str, Any], subtree_control: str) -> str:
     """Decide, act and record in one step, so the three cannot disagree.
 
@@ -1848,7 +1879,9 @@ class Run:
                     f"{reach}; and `up` itself failed, so the stack may simply never "
                     f"have come up — compose said: {tail}"
                 ) from boot
-            raise HarnessError(f"`up` failed while the VLM is reachable; compose said: {tail}") from boot
+            raise HarnessError(
+                f"`up` failed while the VLM is reachable; compose said: {tail}"
+            ) from boot
         self.api = self._address("backend", 8000)
         self.ui = self._address("frontend", 8080)
         _log(f"up: api {self.api}, ui {self.ui}")

@@ -3701,3 +3701,73 @@ def test_a_failed_up_with_the_vlm_also_unreachable_names_both_reasons(
     message = str(raised.value)
     assert "cannot reach the VLM" in message, f"the VLM reason was dropped: {message[:400]}"
     assert "buildx_buildkit_default" in message, f"compose's reason was swallowed: {message[:400]}"
+
+
+# ---------------------------------------------------------------------------
+# O2.5 / UR-140 slice 2a — the names `up` builds under.
+#
+# The operator's run (#7037 `6166020894`) died because six prod services carry
+# `build:` and no image existed locally, so `up --wait` started building during
+# the boot: it PULLED grafana's host-local name first (measured: compose prints
+# `Image <name> Pulling` for a build+image service whose image is absent, then
+# `denied: requested access to the resource is denied`), and for the five
+# services with no `image:` at all it started a buildx builder container, which
+# is where the cgroup wall bit. A pre-build can only prevent that if it builds
+# under the EXACT names compose will look for, so those names are derived here,
+# from the same boot document `up` boots, and not from a second source.
+#
+# Measured on compose v5.5.1 (both branches, with a real render):
+#   * a service with `image:` is looked up under that name — grafana's is
+#     `nemotron-v3-home-security-intelligence-grafana:latest`, hard-coded in
+#     docker-compose.prod.yml, host-local by construction: there is nowhere to
+#     pull it from, so `up`'s pull is the failure;
+#   * a service with `build:` and no `image:` gets `<project>-<service>:latest`.
+#
+# Each pin fails if the derivation drifts from what compose does: a pre-build
+# under any other tag leaves the image "absent" in compose's eyes, `up` builds
+# it anyway, and the wall is back with an extra step in front of it.
+# ---------------------------------------------------------------------------
+
+
+def test_the_derivation_names_a_build_service_with_no_image_under_the_project(
+    tmp_path: Path,
+) -> None:
+    boot = {
+        "services": {
+            "backend": {"build": {"context": "/repo", "dockerfile": "backend/Dockerfile"}},
+            "redis": {"image": "redis:7.4-alpine3.21"},
+        }
+    }
+    assert fc.build_images(boot, project="hsi-check-x1") == {
+        "backend": "hsi-check-x1-backend:latest"
+    }
+
+
+def test_the_derivation_keeps_a_declared_image_name_verbatim(tmp_path: Path) -> None:
+    # grafana's real case: prod sets the name, so compose looks for THAT name and
+    # a pre-build tagged anything else is invisible to it.
+    boot = {
+        "services": {
+            "grafana": {
+                "image": "nemotron-v3-home-security-intelligence-grafana:latest",
+                "build": {"context": "/repo/monitoring/grafana"},
+            }
+        }
+    }
+    assert fc.build_images(boot, project="hsi-check-x1") == {
+        "grafana": "nemotron-v3-home-security-intelligence-grafana:latest"
+    }
+
+
+def test_the_derivation_ignores_a_service_that_boots_from_a_registry_image(
+    tmp_path: Path,
+) -> None:
+    # A pulled service is not something a pre-build should attempt: building it
+    # would replace what the tier witnesses with a locally-built stand-in.
+    boot = {
+        "services": {
+            "postgres": {"image": "postgres:17.3-alpine"},
+            "tempo": {"image": "grafana/tempo:2.9.0"},
+        }
+    }
+    assert fc.build_images(boot, project="hsi-check-x1") == {}
