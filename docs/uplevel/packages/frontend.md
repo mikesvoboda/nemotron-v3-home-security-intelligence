@@ -376,15 +376,6 @@ that, and nothing renders the three history views.
 **Done when:** each of the three majors is on `main` with the unit, golden and lint suites green at
 its head.
 
-### [r164b] A CI guard: `frontend/src` never reads `VITE_API_KEY`
-
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 164)
-
-- [ ] A unit test (or lint rule) that fails when any file under `frontend/src` reads
-      `VITE_API_KEY`, as UR-179 requires; there are no reads at ruling 164.
-
-**Done when:** the guard runs in CI and fails on an injected `import.meta.env.VITE_API_KEY` read.
-
 ### [r165a] F-007: cure the quarantined ws-status spec
 
 **Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none. **PR:** none
