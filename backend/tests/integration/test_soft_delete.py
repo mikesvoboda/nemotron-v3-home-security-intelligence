@@ -201,6 +201,57 @@ class TestEventSoftDeleteFiltering:
             assert active_event.id in event_ids
             assert deleted_event.id in event_ids
 
+    async def test_stats_exclude_soft_deleted_events(self, client: AsyncClient) -> None:
+        """GET /api/events/stats must count only live events.
+
+        Every aggregate this route serves must skip soft-deleted rows, the way
+        /api/events does (the leg above) and the way /timeline-summary
+        (events.py:786) and /clusters (events.py:937) already do with an explicit
+        `Event.deleted_at.is_(None)`. The three aggregates here — total, by risk
+        level, by camera — are built from one shared `filters` list, so the clause
+        belongs in that list and not in any single query: added per-query it would
+        leave the headline and the breakdown able to disagree with each other,
+        which is exactly the bug this leg was written red for (total_events read 2
+        for one live row plus one deleted row).
+
+        The camera is unique to this leg on purpose: the route caches under
+        CacheKeys.event_stats(start, end, camera_id) (events.py:606), so a shared
+        camera id could serve a response cached by another test and read green
+        for the wrong reason. Both the seeded totals and the cache key are this
+        camera's alone, and the live/deleted pair is asserted against the list
+        endpoint in the same leg so the two views cannot drift silently.
+        """
+        async with get_session() as db:
+            camera = await create_test_camera(db, camera_id="stats_filter_cam")
+            await create_test_event(db, camera.id, deleted=False, summary="Live", risk_score=80)
+            await create_test_event(db, camera.id, deleted=True, summary="Deleted", risk_score=80)
+            await db.commit()
+
+        response = await client.get(f"/api/events/stats?camera_id={camera.id}")
+        assert response.status_code == 200, response.text
+        data = response.json()
+
+        assert data["total_events"] == 1, (
+            "/stats counts the soft-deleted event: one live + one deleted row on this "
+            f"camera must read total_events=1, got {data['total_events']}"
+        )
+        assert data["events_by_risk_level"]["high"] == 1, (
+            "the risk-level breakdown is a second aggregate off the same unfiltered "
+            f"scan; it inflates too. Got {data['events_by_risk_level']}"
+        )
+        assert data["events_by_camera"][0]["event_count"] == 1, (
+            f"and so does the per-camera row. Got {data['events_by_camera'][0]['event_count']}"
+        )
+
+        # The two views of the same camera must agree, which is what a Grafana
+        # panel reading both would otherwise expose as a visible contradiction.
+        listing = await client.get(f"/api/events?camera_id={camera.id}")
+        assert listing.status_code == 200, listing.text
+        # The envelope nests its count: EventListResponse is items + a
+        # PaginationMeta (schemas/events.py:368-369), so total lives under
+        # "pagination", not at the top level.
+        assert listing.json()["pagination"]["total"] == data["total_events"]
+
     async def test_soft_deleted_event_returns_404_on_direct_access(
         self, client: AsyncClient
     ) -> None:
