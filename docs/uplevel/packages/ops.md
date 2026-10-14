@@ -349,12 +349,12 @@ draft). The rule it builds is UR-131.
 
 ### [r141] Retired-paths timing guard
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** #7032 (open).
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** #7032 (merged).
 #7023 (O3.8) merged before ruling 141's changes were made (ruling 145).
 
-- [ ] Remove `--durations=20` from the shared anti-rot pytest command in `.github/workflows/ci.yml`
+- [x] Remove `--durations=20` from the shared anti-rot pytest command in `.github/workflows/ci.yml`
       (the `collection-sanity` step).
-- [ ] Set `@pytest.mark.timeout(30)` on both retired-paths tests in `scripts/test_retired_paths.py`
+- [x] Set `@pytest.mark.timeout(30)` on both retired-paths tests in `scripts/test_retired_paths.py`
       (today `timeout(120)`), with their comment updated to the measured CI time.
 
 **Done when** (rulings 141, 145): the shared step's argument list matches its shape before #7023,
@@ -362,13 +362,13 @@ both tests carry `timeout(30)`, and `Collection Sanity` passes at the PR's head.
 
 ### [r147] The real-sleep gate re-runs a breach before failing
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** none yet.
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none named. **PR:** #7042 (merged).
 Builds UR-125 as the owner amended it (owner design session 2026-10-12, pass 2 Q9).
 
-- [ ] When the Test Performance Audit finds a unit test over 4.0 s, it re-runs only that test, once,
+- [x] When the Test Performance Audit finds a unit test over 4.0 s, it re-runs only that test, once,
       in the same job, and fails the run only if the re-run also breaches.
-- [ ] A test that passes on its re-run is listed as a warning carrying both timings.
-- [ ] No baseline file and no cross-run allowance are added; `SLOW_TEST_PATTERNS` stays the only
+- [x] A test that passes on its re-run is listed as a warning carrying both timings.
+- [x] No baseline file and no cross-run allowance are added; `SLOW_TEST_PATTERNS` stays the only
       exemption.
 
 **Done when:** a unit test pins each case (breach then pass on re-run is a warning; breach twice
@@ -376,7 +376,7 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 ### [r149b] Retire `Nightly Analysis`'s Complexity Trends job
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7067 (open). (ruling
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7067 (merged). (ruling
 149, record 6146380050)
 
 - [x] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed
