@@ -14,12 +14,37 @@ when this suite was written -- ``test_pipeline_e2e.*test_pipeline_llm_failure_fa
 (both gone, in ``602379e29`` with ``enrichment_pipeline.py``; the census comment in
 ``scripts/test_suppression_census.py`` already recorded that deletion).
 
+**The owner rule, not "nearest class".** junit's ``classname`` is the dotted
+module plus the *collected* class, and pytest collects a method only under a
+column-0 ``class Test*`` (``pyproject`` ``python_classes``). The first version
+of this harvest owned every test to the nearest preceding ``class``, which
+fabricated node ids pytest would never emit. Measured against a real
+``--collect-only`` of 36,967 nodes: it mis-owned **3,894** module-level
+``def test``s to a class that merely appears earlier in the file (fabricating a
+``module.Class::name`` the audit never runs), and having given each a phantom
+owner it then reported the true module-only twin missing -- **3,826** nodes
+pytest emits that the harvest lacked, **3,750** of which are exactly those
+twins. One bug, two faces: a fabricated id is the dangerous one, because an
+exemption row matching it reads "live" forever for a test the audit never runs.
+(Only the fabrication *total* shifts by a couple of units with how one strips
+pytest's ``[param]`` suffix; 3,894 / 3,826 / 3,750 are tree properties, not
+parser artifacts, so they are the numbers quoted.) The rule below mirrors the
+collection contract instead -- column-0 def -> module-level, indented def under
+``class Test*`` -> that class, anything else -> not in the universe.
+
 **Why the universe is harvested with ``git grep`` and not with ``ast``.** The
-audit's own unit-tier threshold is 1.0 s, and this suite runs in that tier.
-Parsing all 1,231 ``test_*.py`` files with ``ast.parse`` measures ~5.0 s and a
-full-file regex scan ~2.4 s -- either would make the rot-pin itself a breach of
-the gate it protects. Two ``git grep`` passes harvest every ``def test*`` and
-every top-level ``class`` in 44 ms total, which is 20x under the WARN line.
+audit gates the unit tier at ``UNIT_TEST_THRESHOLD`` = **4.0 s** in CI
+(``ci.yml`` and ``scripts/test_audit_gate.sh``; the 1.0 s in the script's
+default is not what runs -- WP0.5 raised the gate to 4.0 s), and the rot-pin
+must not itself be a breach. Re-measured on this tree (1,232 ``test_*.py``
+files): ``ast.parse`` over all of them is ~4.5 s -- that WOULD breach the
+enforced 4.0 s line and is the whole reason not to use it -- while a full-file
+regex scan is ~0.28 s and the two ``git grep`` passes here ~0.19 s warm. The
+worst single test in this file (the one that triggers the module-level harvest)
+measures ~0.98 s, about a quarter of the enforced line. The earlier draft of
+this file claimed "44 ms", a "2.4 s" regex scan, and a 1.0 s tier -- all stale;
+these were re-measured at this head, the same re-measure that made the owner-
+logic fix safe to land (0 shipped rows change verdict either way).
 
 **Positive witness, not absence-of-behavior.** ``test_the_dead_check_fires_on_a_bogus_pattern``
 feeds the same code path a pattern that matches nothing and asserts it is
@@ -49,8 +74,16 @@ _spec.loader.exec_module(_audit)
 # at column 0 (module-level functions), which reads as a DEAD pattern rather
 # than a broken harvest. Measured: that version reported
 # `test_compose_render_lists_ai_vlm.*` dead, and it is live.
-_DEF_RE = re.compile(r"^(\d+):\s*(?:async\s+)?def\s+(test\w*)")
-_CLASS_RE = re.compile(r"^(\d+):class\s+(\w+)")
+# The whitespace after the line-number colon is CAPTURED (group 2) because the
+# owner rule below needs the def's indentation: a `def test` at column 0 is a
+# module-level function and has no owner no matter what class precedes it.
+_DEF_RE = re.compile(r"^(\d+):(\s*)(?:async\s+)?def\s+(test\w*)")
+# Column-0 scope openers only. pytest's collection contract (pyproject
+# `python_classes = ["Test*"]`) admits a method only under a column-0 `class`
+# whose name starts with `Test`; a `def` nested in a column-0 `def` (a test
+# factory) and a method of a non-`Test*` class are never collected, so they
+# must not be attributed to the nearest preceding class -- the old rule's bug.
+_SCOPE_RE = re.compile(r"^(\d+):(class|def)\s+(\w+)")
 
 
 def _git_grep(pattern: str) -> dict[str, list[str]]:
@@ -72,37 +105,62 @@ def _git_grep(pattern: str) -> dict[str, list[str]]:
 def _junit_universe() -> set[tuple[str, str]]:
     """Every (classname, name) pair pytest-junit would emit, from the tracked tree.
 
-    classname is the dotted module path, plus the enclosing top-level class when
-    the test is a method -- which is the shape ``is_known_slow_test`` receives.
+    classname is the dotted module path, plus the enclosing class when the test
+    is a *collected* method -- the shape ``is_known_slow_test`` receives.
+
+    The owner rule mirrors pytest's collection contract rather than "nearest
+    preceding class". Measured against the real 36,967-node collect, "nearest
+    class" mis-owned 3,894 module-level ``def test``s to a class that merely
+    precedes them (fabricating ids the audit never runs) and thereby reported
+    their true module-level twins missing -- 3,826 missing, 3,750 of them
+    exactly those twins, so the two sets are one bug seen twice (the module
+    docstring has the full derivation and the 4.0 s gate arithmetic). Three cases:
+
+    * ``def test`` at column 0 -> module-level function, ownerless, whether or
+      not a class appears above it in the file (the old rule gave it one).
+    * indented ``def test`` whose nearest column-0 scope opener is
+      ``class Test*`` -> a collected method, owned by that class.
+    * indented ``def test`` under a non-``Test*`` class, or nested inside a
+      column-0 ``def`` (a test factory) -> pytest never collects it, so it is
+      not in the universe at all. Attributing it to a class invented a node id
+      the audit could never see, which is exactly how a dead exemption row can
+      read live.
     """
     defs = _git_grep(r"^[[:space:]]*(async[[:space:]]+)?def test")
-    classes = _git_grep(r"^class [A-Za-z_]")
+    scopes = _git_grep(r"^(class|def) [A-Za-z_]")
     pairs: set[tuple[str, str]] = set()
     for path, lines in defs.items():
         module = path[: -len(".py")].replace("/", ".")
-        class_lines = sorted(
-            (int(m.group(1)), m.group(2))
-            for m in (_CLASS_RE.match(x) for x in classes.get(path, []))
+        scope_lines = sorted(
+            (int(m.group(1)), m.group(2), m.group(3))
+            for m in (_SCOPE_RE.match(x) for x in scopes.get(path, []))
             if m
         )
         for entry in lines:
             m = _DEF_RE.match(entry)
             if not m:
                 continue
-            lineno, name = int(m.group(1)), m.group(2)
-            owner = None
-            for cline, cname in class_lines:
-                if cline < lineno:
-                    owner = cname
+            lineno, indent, name = int(m.group(1)), m.group(2), m.group(3)
+            if not indent:
+                # Column 0: a module-level test function. No owner, ever.
+                pairs.add((module, name))
+                continue
+            kind = owner = None
+            for slin, skind, sname in scope_lines:
+                if slin < lineno:
+                    kind, owner = skind, sname
                 else:
                     break
-            pairs.add((f"{module}.{owner}" if owner else module, name))
+            if kind == "class" and owner.startswith("Test"):
+                pairs.add((f"{module}.{owner}", name))
+            # otherwise: not collected by pytest -> deliberately not in the universe
     return pairs
 
 
 _UNIVERSE = _junit_universe()
-# Node ids as the audit receives them, built once: 35k `re.search` calls per
-# pattern would push this suite over the audit's own 1.0 s unit threshold.
+# Node ids as the audit receives them, built once: ``_dead`` and the witnesses
+# scan the universe per pattern, so materialising the (node, pair) list a single
+# time keeps every check a linear pass instead of re-sorting 35k tuples each call.
 _NODES = sorted((f"{c}::{n}", (c, n)) for c, n in _UNIVERSE)
 
 
@@ -112,9 +170,13 @@ def _dead(patterns: list[str], shipped) -> list[str]:
     Attribution needs one pattern at a time, but ``is_known_slow_test`` takes no
     argument and consults the whole list -- so the fast pass finds a candidate
     with the shipped semantics spelled out, then the SHIPPED predicate must
-    agree that the candidate is exempt. A reimplementation that drifted from
-    ``re.IGNORECASE`` or the ``::`` separator would then disagree, not silently
-    pass.
+    agree on that FIRST matching node. State the assert's real reach so it is not
+    read as a stronger guard than it is: it only ever sees the *first* match of a
+    pattern, and it is one-directional -- measured, dropping ``re.IGNORECASE``
+    from the shipped predicate keeps every shipped row's first match case-safe,
+    so the assert does NOT fire (0 disagreements across all rows). It is a
+    cheap sanity check that the two matchers agree on the node they both land on,
+    not a comprehensive drift detector.
     """
     dead = []
     for pat in patterns:
@@ -153,6 +215,48 @@ def test_the_dead_check_fires_on_a_bogus_pattern():
     assert _dead([bogus], _audit.is_known_slow_test) == [bogus]
     # ...and it does NOT flag a row known to be live.
     assert _dead([r"test_error_handler.*test_timestamp_auto_generated"], _audit.is_known_slow_test) == []
+
+
+# The owner-rule witness, both directions at once. ``test_pipeline_e2e.py``
+# defines ``class ScriptedVlmClient`` and then SIXTEEN module-level ``def test``
+# functions below it -- none are methods of that class, so pytest never emits a
+# ``ScriptedVlmClient::`` classname for them. These two patterns are the same
+# 16 tests seen from the two morphologies the owner bug swapped, so they pin the
+# rule on the arm the bogus-pattern witness above cannot reach: a pattern that
+# is DEAD to pytest but was LIVE to the old nearest-class harvest (the false
+# green), and the TRUE module-level form the same harvest reported DEAD (the
+# false red). Under the old rule these two results are exactly inverted.
+_PHANTOM_OWNER = r"test_pipeline_e2e\.ScriptedVlmClient::"
+_TRUE_MODULE_FORM = r"test_pipeline_e2e::test_batch_close"
+
+
+def test_the_owner_rule_keeps_the_phantom_class_owner_dead():
+    """A module-level def below a class must NOT be owned by that class.
+
+    This is the direction the ``>20_000`` floor and the ``in _UNIVERSE`` pins
+    cannot see: a fabricated ``ScriptedVlmClient::`` id would keep a dead
+    exemption reading live forever, which is the false green the whole suite
+    exists to prevent. If someone reverts the owner rule to "nearest preceding
+    class", this goes red.
+    """
+    assert _dead([_PHANTOM_OWNER], _audit.is_known_slow_test) == [_PHANTOM_OWNER]
+
+
+def test_the_owner_rule_keeps_the_true_module_form_live():
+    """The same tests ARE live under their real module-level classname.
+
+    The other half: the phantom must be replaced by the correct node, not merely
+    dropped -- otherwise the harvest shrank and a genuine module-level def would
+    now read dead (a false red, the reviewer's WITNESS B). This checks node
+    EXISTENCE, not ``_dead``: ``_TRUE_MODULE_FORM`` is not a shipped exemption
+    row, so the shipped predicate would (correctly) call it not-slow -- the
+    assertion here is only that pytest emits the node at all.
+    """
+    rx = re.compile(_TRUE_MODULE_FORM, re.IGNORECASE)
+    live = [node for node, _ in _NODES if rx.search(node)]
+    assert live, f"module-level form {_TRUE_MODULE_FORM!r} matches no harvested node"
+    # and it is genuinely the module-level shape, not a class owner
+    assert all("::" in node and "." not in node.split("::", 1)[1] for node in live)
 
 
 def test_every_slow_test_pattern_matches_a_real_test():
