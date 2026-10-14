@@ -522,6 +522,15 @@ LIMITS_STRIPPED = "limits: not applied (no cgroup delegation)"
 # limit, so the decision needs exactly these two delegated.
 LIMIT_CGROUPS = frozenset({"cpu", "memory"})
 
+# The pre-build is the longest step the prod-shape run takes: six services, from
+# cold caches on a first run, one of them (`ai-gateway`) FROM a NVIDIA Triton
+# server base. The precedent next door is `AgentGpu.prepare`, which allows 4 h
+# for a single CUDA image; six images get one call at 6 h. Generous on purpose —
+# a timer that fires mid-build costs the operator an hour and a rebuild, and a
+# genuinely hung build is still reported, because `_run` answers a stall with
+# exit 124 and the partial stream rather than raising.
+PREBUILD_TIMEOUT_SECONDS = 6 * 3600
+
 
 def read_subtree_control(
     *, proc_dir: Path = Path("/proc"), sys_dir: Path = Path("/sys/fs/cgroup")
@@ -1854,6 +1863,84 @@ class Run:
         self.summary["images"] = {
             name: service.get("image") for name, service in (rendered.get("services") or {}).items()
         }
+        self.prebuild_images()
+
+    def prebuild_images(self) -> None:
+        """Build the stack's `build:` images BEFORE `up`, so `up` builds nothing.
+
+        The prod stack ships six services with `build:` and no images in the boot
+        document, so `up --wait` starts building during the boot — and on the
+        first prod-shape run that is exactly where it died (operator record
+        6166020894): grafana's host-local name answered `denied` to a PULL (an
+        absent `image:` on a build service is pulled before it is built,
+        measured), and the five image-less services went to a builder that
+        bootstraps a `buildx_buildkit_default` CONTAINER, which needs both a
+        startable container and cgroup delegation this class of machine does not
+        have. Doing it here instead means a failure names itself here, in front
+        of a boot that would otherwise report it as "backend is not running".
+
+        Two measured properties shape the call:
+
+        * ``DOCKER_BUILDKIT=0`` is honoured by ``compose build`` (measured, both
+          branches) and makes the daemon's own builder answer — no builder
+          container, so neither the cgroup wall nor the init-binary wall applies;
+          ``DOCKER_HOST`` and friends are carried from the caller so the build
+          talks to the engine `up` will boot, not a different one;
+        * a name the engine already has is NOT rebuilt. That is `up`'s own
+          lookup (`image inspect`, measured over the compat API: 0 present, 1
+          absent), and it matters because grafana's name is host-local and NOT
+          namespaced by the compose project — an image that is there IS the image
+          production would boot, so rebuilding it would make the tier witness
+          something production does not run, and cost hours doing it.
+
+        The images come from :func:`build_images`, applied to the boot document
+        `up` boots, so this cannot drift from the names `up` will look for.
+        """
+        boot = json.loads(self.compose_file.read_text(encoding="utf-8"))
+        wanted = build_images(boot, project=self.project)
+        to_build: list[str] = []
+        present: list[str] = []
+        for name, image in sorted(wanted.items()):
+            lookup = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+            if lookup.returncode == 0:
+                present.append(name)
+                _log(f"prebuild: {name} -> {image} is already in the engine")
+            else:
+                to_build.append(name)
+        # `built` is filled from the build's EXIT, never from what was about to be
+        # attempted: a run that died building must not leave a summary asserting it
+        # built. `to_build` carries the intent, `exit` the verdict.
+        self.summary["prebuild"] = {"built": [], "present": present, "to_build": to_build}
+        if not to_build:
+            _log(f"prebuild: nothing to build ({len(present)} already present)")
+            return
+        _log(f"prebuild: {', '.join(to_build)}")
+        # check=False on purpose: a stalled build comes back as a readable result
+        # rather than a TimeoutExpired flying past this method, and either way the
+        # message below names the services and quotes what the engine said.
+        result = self.deployment(
+            "build",
+            *to_build,
+            timeout=PREBUILD_TIMEOUT_SECONDS,
+            check=False,
+            env={**compose_environment(os.environ), "DOCKER_BUILDKIT": "0"},
+        )
+        # The build's own stream is the artifact: it is what the operator's first
+        # run did not have, and a build that later goes wrong is read from here.
+        (self.artifacts / "prebuild.txt").write_text(
+            f"to build: {to_build}\nalready present: {present}\nexit: {result.returncode}\n\n"
+            f"--- stdout ---\n{result.stdout or ''}\n--- stderr ---\n{result.stderr or ''}\n",
+            encoding="utf-8",
+        )
+        self.summary["prebuild"]["exit"] = result.returncode
+        if result.returncode != 0:
+            tail = " ".join((result.stderr or result.stdout or "").split())[-1200:]
+            raise HarnessError(
+                f"the pre-build of {', '.join(to_build)} exited {result.returncode} "
+                f"(asked for the engine's own builder via DOCKER_BUILDKIT=0) — "
+                f"compose said: {tail}"
+            )
+        self.summary["prebuild"]["built"] = to_build
 
     def up(self, vlm: AgentGpu | None = None) -> None:
         self.started = True

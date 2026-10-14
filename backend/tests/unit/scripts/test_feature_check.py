@@ -3771,3 +3771,281 @@ def test_the_derivation_ignores_a_service_that_boots_from_a_registry_image(
         }
     }
     assert fc.build_images(boot, project="hsi-check-x1") == {}
+
+
+# ---------------------------------------------------------------------------
+# O2.5 / UR-140 slice 2b — the pre-build leg.
+#
+# The routing sent the runner revision to this lane (#7114 `6166927526`:
+# "pre-build or pre-pull the five images, or drop them from the boot set, and
+# name grafana's image; it's your call as the lane that writes the runner").
+# Measured here: pre-pull is impossible (five services have no registry name at
+# all, and grafana's is host-local by construction) and dropping services would
+# change what the tier witnesses (9 of ruling 127's 12 rows ARE Grafana embeds;
+# backend depends on ai-gateway with USE_AI_GATEWAY=true). So: pre-build, before
+# `up` — because building INSIDE the boot is the failure.
+#
+# Two walls the leg routes around, both reproduced in this sandbox:
+#   * buildkit is the DEFAULT builder, and against an engine socket the CLI
+#     bootstraps a `docker-container` builder — `creating container
+#     buildx_buildkit_default` — needing a startable container (the operator's
+#     missing catatonit) and cgroup delegation (absent there). DOCKER_BUILDKIT=0
+#     is honoured by `compose build` (measured, both branches: `Sending build
+#     context to Docker daemon`, then the daemon's native `STEP 1/2`).
+#   * `up` PULLS a build+image service whose image is absent, so grafana's
+#     host-local name answers `denied`. With the image present it prints neither
+#     Pulling nor Building and goes to `Container Creating` (measured, `up
+#     --dry-run`, both branches). Hence skip-if-present, using `up`'s own
+#     `image inspect` lookup (measured over the compat API: 0 present, 1 absent).
+#
+# The fake dispatches on the compose VERB (the token after the last `-f`), never
+# on a substring of the argv: pytest's tmp_path embeds the test name, so a path
+# here can contain the word "build" and a substring filter would match the `-f`
+# argument instead of the subcommand.
+# ---------------------------------------------------------------------------
+
+
+_PREBUILD_DOC = {
+    "services": {
+        # build, no image -> compose derives <project>-backend:latest
+        "backend": {"build": {"context": "/repo", "dockerfile": "backend/Dockerfile"}},
+        # build AND a host-local image -> that name verbatim (grafana's case)
+        "grafana": {
+            "image": "nemotron-v3-home-security-intelligence-grafana:latest",
+            "build": {"context": "/repo/monitoring/grafana"},
+        },
+        # registry image, no build -> nobody's build, and must not be pulled
+        "redis": {"image": "redis:7.4-alpine3.21"},
+    }
+}
+
+
+def _last(argv: list[str], token: str) -> int:
+    """Index of the LAST occurrence of `token` (a list has no rindex)."""
+    return max(i for i, part in enumerate(argv) if part == token)
+
+
+_GRAFANA = "nemotron-v3-home-security-intelligence-grafana:latest"
+
+
+def _engine_answers(
+    run: Any,
+    rendered: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    present: frozenset[str] = frozenset(),
+    build_rc: int = 0,
+    build_tail: str = "",
+) -> list[tuple[list[str], dict[str, Any]]]:
+    """Answer this run's engine at the `_run` seam and record every argv + env.
+
+    `_run` is the one boundary every engine call crosses: the compose argv, the
+    bare `image inspect`, and the env each call carries all arrive here — which
+    the file's `_fake_compose` cannot show, because it drops kwargs and env is
+    exactly where the builder switch lives.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+
+    def compose_verb(command: list[str]) -> str | None:
+        # The subcommand follows the LAST -f's value: the argv is
+        # `<engine> compose --env-file E -p P -f F [-f F …] <verb> …`, so the
+        # render may carry two files and the verb still sits at +2.
+        if "compose" not in command[:2] or "-f" not in command:
+            return None
+        after = command[_last(command, "-f") + 2 :]
+        return after[0] if after else None
+
+    def fake(self: Any, command: list[Any], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        argv = [str(part) for part in command]
+        calls.append((argv, kwargs))
+        verb = compose_verb(argv)
+        if argv[1:3] == ["image", "inspect"]:
+            return subprocess.CompletedProcess(argv, 0 if argv[3] in present else 1, "", "")
+        if verb == "config":
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(rendered), stderr="")
+        if verb == "build":
+            return subprocess.CompletedProcess(argv, build_rc, "", build_tail)
+        if verb == "up":
+            raise AssertionError(f"`up` ran during a pre-build test: {argv}")
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(fc.Run, "_run", fake)
+    return calls
+
+
+def _is_verb(argv: list[str], verb: str) -> bool:
+    """Is this a `<engine> compose … -f FILE <verb> …` invocation?
+
+    Matched on the subcommand position, not on a substring: pytest's tmp_path
+    embeds the test name, so a `-f` path here can contain the word "build".
+    """
+    if "compose" not in argv[:2] or "-f" not in argv:
+        return False
+    after = argv[_last(argv, "-f") + 2 :]
+    return bool(after) and after[0] == verb
+
+
+def _verb_calls(calls: Any, verb: str) -> list[list[str]]:
+    """The recorded compose argvs whose subcommand is `verb`."""
+    return [argv for argv, _ in calls if _is_verb(argv, verb)]
+
+
+def _the_build(calls: Any) -> tuple[list[str], dict[str, Any]]:
+    """The one and only `build` call, with the env it carried.
+
+    One call is itself a pin: the buildable services go to a single
+    `compose build` naming them, not one call per service, so the tier pays for
+    one builder start and the failure message can name every service at once.
+    """
+    builds = [(argv, env) for argv, env in calls if _is_verb(argv, "build")]
+    assert len(builds) == 1, [argv for argv, _ in builds]
+    return builds[0]
+
+
+def test_the_prod_render_prebuilds_the_build_images_before_up(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Nothing boots in this sandbox (podman cannot mount here at all), so the leg
+    # is pinned at the seam it acts through: the argv it issues and the record it
+    # leaves. The `up` guard in the fake carries the ordering.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+
+    run.render(fc.Snapshot.from_engine([], []))
+
+    builds = _verb_calls(calls, "build")
+    assert len(builds) == 1, builds
+    argv = builds[0]
+    named = argv[_last(argv, "-f") + 3 :]
+    # Both build-bearing services by NAME; redis is nobody's build.
+    assert sorted(named) == ["backend", "grafana"], argv
+    assert run.summary["prebuild"] == {
+        "built": ["backend", "grafana"],
+        "present": [],
+        "to_build": ["backend", "grafana"],
+        "exit": 0,
+    }
+
+
+def test_the_prebuild_skips_an_image_the_engine_already_has(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Not an optimisation: grafana's name is host-local and NOT namespaced by the
+    # project, so an image that is present IS the image production boots.
+    # Rebuilding it would make the tier witness something production does not
+    # run — and spend hours doing it.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch, present=frozenset({_GRAFANA}))
+
+    run.render(fc.Snapshot.from_engine([], []))
+
+    (argv, _env) = _the_build(calls)
+    assert argv[_last(argv, "-f") + 3 :] == ["backend"], argv
+    assert run.summary["prebuild"] == {
+        "built": ["backend"],
+        "present": ["grafana"],
+        "to_build": ["backend"],
+        "exit": 0,
+    }
+    # the lookup is per image, through the engine, not a path on disk
+    inspected = {argv[3] for argv, _ in calls if argv[1:3] == ["image", "inspect"]}
+    assert inspected == {_GRAFANA, f"{run.project}-backend:latest"}, inspected
+
+
+def test_the_prebuild_routes_the_builder_away_from_a_builder_container(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The wall is the builder, not the build. By default the CLI bootstraps
+    # `buildx_buildkit_default` as a CONTAINER (reproduced here: `exec:
+    # "catatonit": executable file not found in $PATH`); DOCKER_BUILDKIT=0 makes
+    # the daemon's own builder answer. DOCKER_HOST must survive, or the build
+    # talks to a different engine than the one `up` boots.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    monkeypatch.setenv("DOCKER_HOST", "unix:///run/user/1000/podman/podman.sock")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+
+    run.render(fc.Snapshot.from_engine([], []))
+
+    (_argv, kwargs) = _the_build(calls)
+    env = kwargs["env"]
+    assert env["DOCKER_BUILDKIT"] == "0", env
+    assert env["DOCKER_HOST"] == "unix:///run/user/1000/podman/podman.sock", (
+        "the build must reach the engine `up` boots, so DOCKER_HOST cannot be dropped"
+    )
+
+
+def test_a_failing_prebuild_names_the_services_and_never_boots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Slice 1 made a dead boot quotable; this stops the run one step EARLIER, and
+    # must not become the next silent middle step: which services, the engine's
+    # own words, and no `up` afterwards.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(
+        run,
+        _PREBUILD_DOC,
+        monkeypatch,
+        build_rc=1,
+        build_tail="cgroup configuration: mkdir /sys/fs/cgroup/docker/buildx: permission denied",
+    )
+
+    with pytest.raises(fc.HarnessError) as raised:
+        run.render(fc.Snapshot.from_engine([], []))
+    message = str(raised.value)
+    assert "backend" in message and "grafana" in message, message
+    assert "buildx" in message, f"the engine's own words were dropped: {message[:300]}"
+    assert _verb_calls(calls, "up") == [], "a failed pre-build must not boot the stack"
+    # and the stream it died with is kept for the operator to read
+    assert "buildx" in (run.artifacts / "prebuild.txt").read_text(encoding="utf-8")
+
+
+def test_a_failed_prebuild_records_nothing_as_built(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The record is read as a claim about the engine, not about intent. Reporting
+    # the images as built when the build exited nonzero is the same class of defect
+    # slice 1 fixed: a run that died leaving a summary that says otherwise. `built`
+    # is filled from the build's exit, so `to_build` holds the intent and `built`
+    # stays empty, and the artifact says `exit: 1` in its own words.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _engine_answers(
+        run,
+        _PREBUILD_DOC,
+        monkeypatch,
+        build_rc=1,
+        build_tail="STEP 1/2: Error: building at STEP ...: /dev/fuse: Operation not permitted",
+    )
+
+    with pytest.raises(fc.HarnessError):
+        run.render(fc.Snapshot.from_engine([], []))
+
+    prebuild = run.summary["prebuild"]
+    assert prebuild["built"] == [], prebuild
+    assert prebuild["to_build"] == ["backend", "grafana"], prebuild
+    assert prebuild["exit"] == 1, prebuild
+    artifact = (run.artifacts / "prebuild.txt").read_text(encoding="utf-8")
+    assert "exit: 1" in artifact, artifact[:200]
+
+
+def test_a_render_with_no_build_services_builds_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The CI tier's stack has no `build:` blocks at all (measured: 0 in
+    # docker-compose.ci.yml). A tier with nothing to build must not spend an
+    # `image inspect` per service, and must not claim a prebuild it did not do.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _prod_rendered(postgres=_PG_LIMITS), monkeypatch)
+
+    run.render(fc.Snapshot.from_engine([], []))
+
+    assert _verb_calls(calls, "build") == []
+    assert [a for a, _ in calls if a[1:3] == ["image", "inspect"]] == []
+    # No `exit` key at all: the record distinguishes "nothing was buildable" from
+    # "a build ran and returned 0", which the CI tier's stack can never be.
+    assert run.summary["prebuild"] == {"built": [], "present": [], "to_build": []}
