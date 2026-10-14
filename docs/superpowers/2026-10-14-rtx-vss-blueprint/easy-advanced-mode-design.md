@@ -92,8 +92,10 @@ session (`UR-77`, `UR-79`)**.
   (`vlm_client.py:1145`) and `wake_ai_vlm()` (`:1180`) are called from the batch aggregator's §6
   wake-on-open (`batch_aggregator.py:671-676`). The ledger carries the live witness: _"after 300 s
   idle `is_sleeping=true` and llama-server fell 8822 → 290 MiB … the wake itself is ~1.5-2 s against
-  the client's 90 s timeout"_ (`…/2026-09-23-vss-gaming-gpu-ledger.md:382`). A correction to the
-  ruling is owed on `#6854`.
+  the client's 90 s timeout"_ (`…/2026-09-23-vss-gaming-gpu-ledger.md:382`). The owner posted the
+  correction to the record on `#6854` (`6175141693`, posted 18:13:21Z), reading it as _"what is new is an
+  on-demand sleep trigger for Gaming Mode,"_ and stating that nothing else in the record changes and
+  its lapse time is unchanged.
 - **What is actually new:** an **on-demand** yield. Nothing in `backend/` or `ai/vlm/` can ask the
   engine to sleep today — only its idle timer can — so Gaming Mode needs either an explicit sleep
   call or a slot unload, plus the pause/resume of the analysis worker.
