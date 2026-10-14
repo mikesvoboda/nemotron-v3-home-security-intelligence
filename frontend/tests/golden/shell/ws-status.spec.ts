@@ -25,7 +25,7 @@
  *   assuming).
  * - Disconnect leg ([r165a]'s cure — WHY it is a RELOAD and what replaced):
  *   context.setOffline(true) is Chromium's real network partition — the e2e
- *   lane's own instrument (tests/e2e/utils/browser-helpers.ts:311
+ *   lane's own instrument (tests/e2e/utils/browser-helpers.ts:310-311
  *   simulateOfflineMode). It is NOT route()/routeWebSocket(), so the guard's
  *   no-interception contract holds: nothing is mocked; every visible change
  *   comes from the app's own state machine. What it does NOT do
@@ -34,19 +34,32 @@
  *   record: run 38146684985 (head 68a6856dc) — the chip still read Connected
  *   60 s after partition, 3/3 attempts (initial + 2 retries; junit + DOM
  *   snapshots); and run 38183338604 (head 81553b100) — there the break DID
- *   surface and the leg then FAILED at 195.6 s against its 180 s budget, the
- *   banner flapping mid-suite (probe: banner mounted, unmounted on a
- *   transient 'connected', remounted; sequential locators raced it — role
- *   found, text gone). A leg whose assertions depend on sockets the host may
- *   or may not tear is a coin flip either way; owner ruling 165 made curing
- *   it a package.
+ *   surface and the leg then FAILED at 195.6 s against its 180 s budget (the
+ *   number is that testcase's time attribute in the run's feature-check
+ *   artifact, golden-playwright.xml — failure "no coherent
+ *   banner+Reconnecting+Attempt n/30 sample" at the 60 s coherence poll; the
+ *   same run also failed rate-limit F-022 (shed), so this leg was not the
+ *   run's only red), the banner flapping mid-suite (probe: banner mounted,
+ *   unmounted on a transient 'connected', remounted; sequential locators
+ *   raced it — role found, text gone). A leg whose assertions depend on
+ *   sockets the host may or may not tear is a coin flip either way; owner
+ *   ruling 165 made curing it a package.
  *   The cure replaces "wait for the established sockets to die" with "make
  *   the app HANDSHAKE while partitioned", because Chromium's offline
  *   emulation IS deterministic about NEW connections: measured 2026-10-14
- *   (bare RFC6455 server on 127.0.0.1 + this repo's Playwright 1.63/Chromium,
- *   probe recorded in the PR Evidence; the app's socket layer only ever calls
- *   new WebSocket(url) — useWebSocketStatus.ts:145 — so the browser's
- *   behaviour IS the app's): three fresh handshakes while offline each failed
+ *   (bare RFC6455 server on 127.0.0.1 + this sandbox's installed Playwright
+ *   1.63.0/Chromium — the lockfile pins ^1.64.0 and CI installs 1.64.0, so
+ *   CI's word on socket behaviour is the Feature check, not this probe;
+ *   probe recorded in the PR Evidence. Scope note for why the probe's
+ *   browser-level finding transfers: the two WS channels THIS page's status
+ *   chrome mounts come from useWebSocketStatus.ts:145's new WebSocket(url),
+ *   which is where Chromium's offline emulation bites. The page also mounts
+ *   webSocketManager sockets (that constructor is at webSocketManager.ts:503-504;
+ *   on `/` they come via Layout.tsx:37 useServiceStatus and DashboardPage's
+ *   useEventStream/useSystemStatus/useSummaries) and those fail the same
+ *   offline way; what the two constructors do NOT share is the attempt
+ *   counter the banner sums, so only the :145 channels drive it): three
+ *   fresh handshakes while offline each failed
  *   with onerror/readyState 3 in ~1 ms and the server saw ZERO upgrade
  *   requests, while an established socket sat at readyState 1 for the whole
  *   offline window (both CI symptoms reproduced in one run), and the first
@@ -70,9 +83,11 @@
  *   it as channelStatus.maxReconnectAttempts (:281), and Layout.tsx:116-119
  *   SUMS the two channels — and the numerator is the same sum of counts
  *   (useConnectionStatus.ts:379). On a fresh offline boot both counts start
- *   at 0, so the banner reads a SMALL n over /30 (both channels' first close
- *   ticks land within ~1 s of each other; the sum reaches ~6 only after ~17 s
- *   of backoff — the old draft's /^Attempt \d+\/30$/ family was right and is
+ *   at 0, so the banner reads a SMALL n over /30 (an offline RELOAD boots both
+ *   channels in phase — per-channel close schedule 0/1/3/7/15/31 s from
+ *   min→max jitter — so the summed count reaches ~6 at ≈3–9 s, and only a
+ *   full-slot offset pushes it to ~15–19 s; the old draft's /^Attempt \d+\/30$/
+ *   family was right and is
  *   kept; what was never right anywhere is pinning n, which is exactly what
  *   the old leg's flapping made unsafe).
  *   The counter can only CLIMB while offline: a reset-to-zero needs onopen,
@@ -95,7 +110,9 @@
  *   and data polls every 5 s (useConnectionStatus.ts:115
  *   FALLBACK_POLLING_INTERVAL, startPolling on onMaxRetriesExhausted) — is
  *   NOT reachable inside golden timeouts: exhausting 15 exponential attempts
- *   per channel takes the ~8 minutes the shipped comment states, against any
+ *   per channel takes 331–414 s — recomputed from calculateBackoffDelay's own
+ *   arithmetic (1+2+4+8+16+30×10 s at no jitter, ×1.25 at max; the shipped
+ *   comment's "~8+ minutes" overstates its own schedule) — against any
  *   sane test budget, and no runtime knob shortens it (the count is a hook
  *   default; editing hook or config is ruling 87 territory and would test a
  *   shape CI never ships). Per ruling 86 this spec does not assert that leg
@@ -108,7 +125,7 @@
  *   ConnectionStatusBanner.tsx:222-226, Header.tsx:397-401), and so does the
  *   row's "Retry button" clause — data-testid="retry-button" renders only in
  *   the 'failed' state (ConnectionStatusBanner.tsx:179/:233-241), which the
- *   same ~8-minute exhaustion gates.
+ *   same 331–414 s exhaustion gates.
  * - Recovery leg: restoring the network changes nothing by itself — the flip
  *   happens on the hook's next SCHEDULED retry, not at the instant the
  *   network returns (the old leg's probes: a probe sitting at Attempt 5 at
@@ -118,13 +135,19 @@
  *   (never established), so the first scheduled attempt after the restore is
  *   a fresh handshake that succeeds (probe: 3 ms), and the wait only has to
  *   cover the shipped schedule. Worst case is a leg that sampled late near
- *   the cap: both channels sitting in a 30 s slot, staggered by up to one
- *   slot ⇒ the last open lands ≤ 30 s × 1.25 + 30 s × 1.25 ≈ 75 s after the
- *   restore, so the poll carries 75 s. A leg that samples early recovers in
- *   seconds. (The old leg's 90 s was budget for a socket it could never see
- *   die; this one pays the shipped schedule instead.)
+ *   the cap: a channel sitting in a 30 s slot when the network returns has
+ *   ≤ 30 s × 1.25 jitter ≈ 37.5 s of slot left. The predicate is the
+ *   SLOWER of two independent hook instances — Layout.tsx:38's pair drives
+ *   the banner, Header.tsx:171's pair drives the chip, separate state
+ *   machines with separate jitter — so one poll over one predicate carries
+ *   90 s, comfortably above that bound (the earlier draft's "75 s" summed
+ *   two channels as if they re-opened in sequence, which the code doesn't
+ *   impose: each schedules its own retry). A leg that samples early recovers
+ *   in seconds. (The old leg's 90 s was budget for a socket it could never
+ *   see die; this one pays the shipped schedule instead.)
  *   stopPolling-on-connected (useConnectionStatus.ts:305-309) and the
- *   banner's null render close the leg.
+ *   banner's null render close the leg — asserted INSIDE the recovery poll,
+ *   never as a second sequential predicate with its own short clock.
  */
 import type { Response } from '@playwright/test';
 
@@ -247,14 +270,27 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
-    test.setTimeout(60_000);
+    // openShell ≤ 22 s + both-channels 30 s + the negative-control poll below
+    // 30 s (it covers the SECOND hook instance — see comment) + tooltip/feed
+    // ~35 s ≈ 117 s of poll ceilings ⇒ 150 s wall.
+    test.setTimeout(150_000);
     await openShell(page, h);
     await expectBothChannelsConnected(page);
 
     // Connected ⇒ the banner is NOT rendered (ConnectionStatusBanner returns
     // null for 'connected', :173) — the negative control the disconnect leg
-    // later flips.
-    await expect(page.getByTestId('connection-status-banner')).toHaveCount(0);
+    // later flips. Polled, not sequential: the chip reports HEADER's hook
+    // instance and the banner is gated on LAYOUT's (Layout.tsx:38 vs
+    // Header.tsx:171 — two useConnectionStatus() calls, two state machines),
+    // so under the 3 s default a boot where Layout's pair is a few seconds
+    // behind Header's would read as a false red. The poll still can only
+    // succeed when the banner genuinely is un-rendered.
+    await expect
+      .poll(async () => (await snapshot(page)).bannerText === null, {
+        timeout: 30_000,
+        message: 'connected shell still renders the disconnect banner',
+      })
+      .toBe(true);
 
     // Hover opens the tooltip (WebSocketStatus.tsx:276-281, no delay on enter).
     const chip = page.getByTestId('websocket-status');
@@ -299,16 +335,37 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
-    // Budget from THIS leg's measured timeline (file header): online boot +
-    // both channels up + warm (~40 s), offline reload + coherent banner
-    // sample (≤ 25 s), one backoff increment (≤ 45 s), restore + worst
-    // staggered schedule (≤ 75 s), banner-null + drains (~20 s).
-    test.setTimeout(240_000);
+    // Budget from THIS leg's PER-PHASE MAXIMA (each number is a poll's own
+    // timeout or a waitForTimeout in this file, not an estimate): openShell
+    // 2 s drain + 20 s branding = 22 s · both-channels-up 30 s · negative
+    // control 10 s · waitControlled 20 s · api-cache 15 s · onLine 10 s ·
+    // chunk drain 1.5 s · coherent sample 25 s · one backoff increment 45 s
+    // · merged recovery poll 90 s · final drain 2 s  =  270.5 s of poll
+    // ceilings, plus two navigations (boot + reload). The LEGITIMATE worst
+    // path is far under that (a passing leg spends ≈120 s: its polls return
+    // as soon as they're true), so 300 s is headroom for a leg that is
+    // merely slow, and the sum of ceilings stays inside the Feature check
+    // job's own 60-min bound (ci.yml, feature-check).
+    // The arithmetic matters because a leg that outlives test.setTimeout
+    // loses its named predicate message: deadlineForMatcher takes
+    // min(testDeadline − 250, matcherDeadline) and prints "Test timeout of
+    // …ms exceeded" instead of the message these polls were written to carry.
+    test.setTimeout(300_000);
 
     // --- ONLINE: boot connected, and witness the negative control first. ---
     await openShell(page, h);
     await expectBothChannelsConnected(page);
-    await expect(page.getByTestId('connection-status-banner')).toHaveCount(0);
+    // Bounded, not the 3 s default: the chip is HEADER's hook instance, the
+    // banner is gated on LAYOUT's (two useConnectionStatus() calls), so a boot
+    // where Layout lags Header by a few seconds must not false-fail the leg
+    // before it even partitions. It can only pass once the banner is really
+    // un-rendered (ConnectionStatusBanner.tsx:173).
+    await expect
+      .poll(async () => (await snapshot(page)).bannerText === null, {
+        timeout: 10_000,
+        message: 'connected shell still renders the disconnect banner',
+      })
+      .toBe(true);
 
     // The offline boot needs the worker in charge and the boot's API answers
     // in api-cache; without the warmed setup-status the reload fail-closes to
@@ -337,7 +394,10 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     page.on('response', (r) => responses.push(r));
     await page.context().setOffline(true);
     await expect
-      .poll(() => page.evaluate(() => navigator.onLine), { message: 'partition must take' })
+      .poll(() => page.evaluate(() => navigator.onLine), {
+        message: 'partition must take',
+        timeout: 10_000,
+      })
       .toBe(false);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('load');
@@ -347,7 +407,7 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
 
     // The reload is REAL and cache-served, not a dev-server artifact: every
     // shell response came from the worker at 200, document and entry bundle
-    // included (offline-cache.spec.ts:363-385 instrument).
+    // included (offline-cache.spec.ts:361-382 instrument).
     const shell = responses.filter(
       (r) =>
         r.url().startsWith(h.ui) &&
@@ -416,14 +476,20 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
         async () => {
           const t = await snapshot(page);
           const n = /^Attempt (\d+)\//.exec(t.counter ?? '');
-          return n ? Number(n[1]) : first;
+          // −1, not `first`: a vanished counter must fail (it can never
+          // satisfy > first either way) but it must name ITSELF, not read as
+          // "the number never climbed".
+          return n ? Number(n[1]) : -1;
         },
-        { timeout: 45_000, message: 'reconnect counter never incremented while partitioned' }
+        {
+          timeout: 45_000,
+          message: 'reconnect counter never incremented (or vanished) while partitioned',
+        }
       )
       .toBeGreaterThan(first);
 
-    // The exhaustion legs must NOT be active (~8 min away — their absence is
-    // the honest half of the deferral, ruling 86): no polling fallback, no
+    // The exhaustion legs must NOT be active (331–414 s away — their absence
+    // is the honest half of the deferral, ruling 86): no polling fallback, no
     // REST Fallback pill, no Retry button (that one belongs to 'failed' —
     // ConnectionStatusBanner.tsx:179/:233-241). And the offline boot really
     // booted the app: header chrome is on screen, nothing crashed.
@@ -434,22 +500,35 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     expect(mid.branding).toBe(true);
 
     // Restore — the machine wakes on its next SCHEDULED retry, not at the
-    // instant the network returns (measured; file header). 75 s is the shipped
-    // schedule's worst case from this point: both channels in a capped 30 s
-    // slot, staggered by up to one full slot (× 1.25 jitter), one per channel.
+    // instant the network returns (measured; file header). ONE poll over ONE
+    // predicate, because the two surfaces wait on two INDEPENDENT state
+    // machines: useConnectionStatus() is called at Layout.tsx:38 AND
+    // Header.tsx:171, each mounting two useWebSocketStatus hooks with their
+    // own Math.random() jitter, so the chip (Header's summary) and the
+    // banner's null render (Layout's own connectionState,
+    // ConnectionStatusBanner.tsx:173) can each be a capped slot behind the
+    // other. Worst case after the restore is 2 × 30 s × 1.25 ≈ 75 s per
+    // instance; a separate 15 s budget on the second half does not bound
+    // that, so both clauses ride one 90 s poll. Sequential predicates here
+    // are the "role found, text gone" failure class this cure exists to
+    // remove, re-appearing one level up.
     await page.context().setOffline(false);
     await expect
-      .poll(async () => (await snapshot(page)).chip, {
-        timeout: 75_000,
-        message: 'channels never reconnected after the network returned',
-      })
-      .toMatch(/WebSocket connection status: Connected/);
-    // Both channels up fires the banner's null render AND stopPolling
-    // (useConnectionStatus.ts:305-309); polled so a one-commit render lag
-    // cannot false-fail the recovery the row claims.
-    await expect
-      .poll(async () => (await snapshot(page)).bannerText, { timeout: 15_000 })
-      .toBeNull();
+      .poll(
+        async () => {
+          const t = await snapshot(page);
+          return (
+            (t.chip ?? '').includes('WebSocket connection status: Connected') &&
+            t.bannerText === null
+          );
+        },
+        {
+          timeout: 90_000,
+          message:
+            'after the restore: never reached chip Connected AND banner un-rendered (both channels, both hook instances)',
+        }
+      )
+      .toBe(true);
 
     // The leg just hammered /api through the worker while partitioned; drain
     // so the next spec inherits a full nginx burst bucket (harness.ts).
