@@ -183,6 +183,10 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 168    | package `[r168]` and `[r130b]`'s fast-path flag (record 6168040085)                                         |
 | 169    | `[r96i11]` accepted as built; #7052 approved (record 6168049984)                                            |
 | 170    | lane.md, operator.md step 1: every live record (6168081817)                                                 |
+| 171    | reviewer auto-merge may merge at once (record 6168101206)                                                   |
+| 172    | package `[r172]`: per-module import budget (record 6168112919)                                              |
+| 173    | package `[r173]`: golden skips in the registry (record 6168125268)                                          |
+| 174    | compose-render entry leaves `tpa_slow_list` (record 6168142239)                                             |
 
 ## Owner records
 
