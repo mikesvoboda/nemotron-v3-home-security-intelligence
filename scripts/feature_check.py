@@ -2387,16 +2387,27 @@ class Run:
         )
         removed: list[str] = []
         leaked: list[str] = []
+        stalled: list[str] = []
         for image in candidates:
-            present = self._run(
-                [self.engine, "image", "inspect", image], check=False, echo=False
-            )
+            present = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+            if _stalled(present):
+                # BEFORE the nonzero check, because a stall IS nonzero: `_run` turns
+                # its own deadline into rc=124, so without this fence a dead or
+                # wedged engine answers every name with "not present" and the run
+                # reports a spotless cleanup it never performed. Unknown is not
+                # absent, and `image rm` on an unknown name is a second guess on
+                # top of the first one — so the name is only recorded, never removed.
+                stalled.append(image)
+                _log(f"FAIL prod-shape image state unknown, the engine timed out: {image}")
+                continue
             if present.returncode != 0:
                 continue  # this run never left an image under that name
             gone = self._run([self.engine, "image", "rm", image], check=False, echo=False)
             if gone.returncode == 0:
                 removed.append(image)
             else:
+                # Includes a stalled `image rm`: rc=124 is nonzero, and "might still
+                # be there" is the correct reading of a removal we could not confirm.
                 leaked.append(image)
         self.summary["images_removed"] = removed
         # The leak gets its own key, not just a log line: `run_check` prints the
@@ -2404,9 +2415,14 @@ class Run:
         # (`results.postflight`, `results.teardown`, `results.engine_socket`) reaches
         # it. Names left in the engine would otherwise be visible only in the log.
         self.summary["images_leaked"] = leaked
+        # Its own key rather than folded into `images_leaked`, because the two need
+        # different repairs: a leak is an image to delete, a stall is an engine to
+        # fix. Pasted into the same list, an operator would chase images that may
+        # not exist while the wedged engine that answered 124 goes unmentioned.
+        self.summary["images_stalled"] = stalled
         for image in leaked:
             _log(f"FAIL prod-shape image still in the engine, not removed: {image}")
-        return EXIT_FAILED if leaked else EXIT_OK
+        return EXIT_FAILED if (leaked or stalled) else EXIT_OK
 
     def _write(self, name: str, data: Any) -> None:
         (self.artifacts / name).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

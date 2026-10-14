@@ -4096,8 +4096,11 @@ def test_a_render_with_no_build_services_builds_nothing(
 # `down -v` (UR-135, pinned above to exactly that one compose call) takes
 # containers and volumes; the postflight `Snapshot` tracks containers and volumes.
 # Neither has an image axis, so the leak is neither cleaned nor reported. Measured
-# on the rendered boot document: 4 images per real-tier run, 5 per fake-tier run
-# (the fifth, ai-vlm, is in the fake tier's set). grafana declares its own host-
+# on the rendered boot document: 5 image-less build tags on a first real-tier run,
+# 4 once --vlm-url is set (as_prod_shape_deployment:795 pops ai-vlm). The fake tier
+# leaks nothing: --prod-shape is refused without --real (:2893) and both of its
+# build services declare image: hsi-fake-ai, so compose never names one <project>-.
+# grafana declares its own host-
 # local `image:` and is NOT project-prefixed, so it is shared with production and
 # must survive — the same reason skip-if-present exists.
 #
@@ -4108,12 +4111,15 @@ def test_a_render_with_no_build_services_builds_nothing(
 
 
 def _cleanup_run(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, prod_shape: bool = True
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Any, list[tuple[list[str], dict[str, Any]]]]:
-    """A rendered prod run plus its engine recorder, ready to clean up."""
+    """A rendered prod run plus its engine recorder, ready to clean up.
+
+    The shape needs no argument: _prod_run builds with prod_shape=True, and the
+    non-prod-shape case writes its own run because it also swaps the boot document.
+    """
     run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
     monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
-    run.prod_shape = prod_shape
     calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
     run.render(fc.Snapshot.from_engine([], []))
     return run, calls
@@ -4258,9 +4264,11 @@ def test_the_image_cleanup_is_gated_on_shape_not_on_started(
 def test_a_non_prod_shape_run_touches_no_images(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The CI and fake tiers boot registry images and build nothing, so an `image
-    # inspect` per service there is pure cost and an `image rm` would delete
-    # outside the run's own namespace. The boot document is written by hand, WITH
+    # Only the prod shape is in scope. The CI tier boots registry images and builds
+    # nothing (docker-compose.ci.yml: 4 services, zero build blocks); the fake tier
+    # DOES build two, but tags them image: hsi-fake-ai, and --prod-shape is refused
+    # without --real. Either way an `image inspect` per service is pure cost and an
+    # `image rm` there could delete outside the run's own namespace. The doc is hand-written, WITH
     # the build blocks a prod render would have, so a guard that looked only at the
     # document would still act here — this pins the shape guard, not the document.
     run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
@@ -4283,6 +4291,89 @@ def test_a_pre_render_run_removes_nothing(tmp_path: Path, monkeypatch: pytest.Mo
     assert run.cleanup_images() == fc.EXIT_OK
     assert _image_rms(calls) == []
     assert [a for a, _ in calls if a[1:3] == ["image", "inspect"]] == []
+
+
+def test_a_stalled_inspect_is_reported_as_unknown_and_not_as_a_clean_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A stalled `image inspect` returns rc=124, which is nonzero, and a nonzero
+    # inspect is the code's signal for "this name never existed". Without the stall
+    # fence a dead engine therefore reads as a perfectly clean run: the whole point
+    # of this step is that a leak must not be reported as a cleanup, and "the engine
+    # never answered" is not evidence that nothing leaked. `_stalled` is the file's
+    # own detector (`_exit_word` already refuses to let a stall and a refusal read
+    # alike), and the name must NOT be `image rm`'d: unknown state is not absence.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    # The boot document is what makes this test measure the loop at all: without it
+    # cleanup_images() returns EXIT_OK at its own "no render, no names" gate and every
+    # assertion below passes without the stall branch ever running.
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    backend_image = f"{run.project}-backend:latest"
+
+    def stalled_engine(self: Any, command: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        argv = [str(part) for part in command]
+        calls.append(argv)
+        if argv[1:3] == ["image", "inspect"]:
+            return subprocess.CompletedProcess(
+                argv, fc._TIMEOUT_RC, "", f"{fc._TIMEOUT_NOTE} after 300 seconds"
+            )
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(fc.Run, "_run", stalled_engine)
+
+    assert run.cleanup_images() == fc.EXIT_FAILED
+    assert run.summary["images_stalled"] == [backend_image], run.summary
+    assert run.summary["images_removed"] == [], run.summary
+    assert run.summary["images_leaked"] == [], run.summary
+    assert [a for a in calls if a[1:3] == ["image", "rm"]] == [], calls
+    logged = capsys.readouterr().out
+    assert f"the engine timed out: {backend_image}" in logged, logged
+
+
+def test_the_cleanup_removes_the_prefixed_tags_in_a_stable_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The summary is pasted to the operator and diffed between runs, and the rm
+    # order is what a log reader traces, so both get `sorted` rather than document
+    # order. Hand-write a boot document whose two image-less build services are in
+    # NON-alphabetical order: without the sort, both lists come out reversed.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    two_builds = {
+        "services": {
+            "zeta": {"build": {"context": "/repo/zeta"}},
+            "alpha": {"build": {"context": "/repo/alpha"}},
+        }
+    }
+    run.compose_file.write_text(json.dumps(two_builds), encoding="utf-8")
+    calls = _engine_answers(run, two_builds, monkeypatch)
+    for name in ("zeta", "alpha"):
+        calls.have.add(f"{run.project}-{name}:latest")
+
+    assert run.cleanup_images() == fc.EXIT_OK
+    want = [f"{run.project}-alpha:latest", f"{run.project}-zeta:latest"]
+    assert run.summary["images_removed"] == want, run.summary
+    assert _image_rms(calls) == want, _image_rms(calls)
+
+
+def test_the_fake_engine_never_seeds_a_declared_image_services_namespaced_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The fake's build branch adds `<project>-<service>:latest` only for a service
+    # with no `image:`, because that is what compose actually does. That predicate
+    # is what makes the grafana pin above mean anything: seed grafana's namespaced
+    # tag too and `present` would be satisfied by an image no engine ever held, and
+    # the "must not be rm'd" assertion would pass while the code lost the guard.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+
+    run.render(fc.Snapshot.from_engine([], []))
+
+    assert f"{run.project}-backend:latest" in calls.have, sorted(calls.have)
+    assert f"{run.project}-grafana:latest" not in calls.have, sorted(calls.have)
 
 
 def test_an_unremovable_image_is_reported_not_swallowed(
