@@ -90,11 +90,11 @@ Read this section before you take, claim, assign, park or release a package.
 - **UR-59** The coordinator assigns only `heavy` packages, packages on no roster queue, and a
   package it moves to an idle lane's queue (UR-52, UR-64): it opens the draft PR on a branch holding
   one empty commit, labelled `lane:<lane>` and, where they apply, `cell:<cell>`, `heavy` and
-  `owner`. A `heavy` PR labelled `cell:heavy-2` belongs to `uplevel-heavy-2`; every other belongs to
-  `uplevel-heavy`. To give a heavy agent a package the status table does not mark `heavy`, label its
-  PR `heavy` with no cell label; the row keeps its flags. A heavy agent takes only the PRs assigned
-  to it and follows the owning lane's package text, file ownership and kickoff line. (rulings 50,
-  53; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
+  `owner`. A `heavy` PR labelled `cell:heavy-b` belongs to `uplevel-heavy-b`; every other belongs to
+  `uplevel-heavy-a`. To give a heavy agent a package the status table does not mark `heavy`, label its
+  PR `heavy` (plus `cell:heavy-b` for heavy-b) and no lane label; the row keeps its flags. A heavy
+  agent takes only the PRs assigned to it and follows the owning lane's package text, file ownership
+  and kickoff line. (rulings 50, 53, 184; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
   50-coordination.md "Two heavy sandboxes", "Where agents run")
 - **UR-63** The status comment lists every package whose dependencies have merged, whose row is not
   `done` or `awaiting real tier`, and that has stayed unclaimed for two coordinator ticks, with the

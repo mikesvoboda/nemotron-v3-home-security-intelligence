@@ -43,7 +43,10 @@ Follow the kickoff prompt in docs/uplevel/roles/lane.md. \
 You are cell B of the ops lane."""
 
 # Phase 1: the rest of the roster (roles/lane.md, "Who takes what"). The owner opened
-# `uplevel-heavy-2` on 2026-10-09; its row follows `uplevel-heavy`'s.
+# the second heavy sandbox on 2026-10-09; its row follows the first's. Ruling 184 renamed
+# them `uplevel-heavy-a` and `uplevel-heavy-b`; the owner starts both under the pi harness
+# with `agent-dgx <name> pi --split` (2026-10-14), a form the launcher does not print yet
+# (`[r184]`).
 [[phase]]
 number = 1
 
@@ -93,21 +96,21 @@ You are the docs lane."""
 # silently started the heavy sandbox as the coordinator. The heavy prompt is in
 # roles/lane.md, never the coordinator's file.
 [[phase.session]]
-name = "uplevel-heavy"
+name = "uplevel-heavy-a"
 model = "strongest"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/roles/lane.md. \
-You are uplevel-heavy."""
+You are uplevel-heavy-a."""
 
 # The second heavy sandbox (owner rulings 28 and 50). Both heavy agents paste the same
-# prompt, so the line names this one and its label: a `heavy` PR labelled `cell:heavy-2` is
-# its; every other `heavy` PR is `uplevel-heavy`'s (roles/lane.md, "Heavy agents").
+# prompt, so the line names this one and its label: a `heavy` PR labelled `cell:heavy-b` is
+# its; every other `heavy` PR is `uplevel-heavy-a`'s (roles/lane.md, "Heavy agents").
 [[phase.session]]
-name = "uplevel-heavy-2"
+name = "uplevel-heavy-b"
 model = "strongest"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/roles/lane.md. \
-You are uplevel-heavy-2; take only heavy PRs labelled cell:heavy-2."""
+You are uplevel-heavy-b; take only heavy PRs labelled cell:heavy-b."""
 
 # UR-30: the only GPU holder. The owner hand-started it for Phase 1; this row lets the
 # launcher create it from the next phase boundary. gpu = true makes `up` add --gpu after
