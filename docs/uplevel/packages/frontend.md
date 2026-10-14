@@ -172,7 +172,7 @@ paths; the inventory row reads **works** once the operator records the real-tier
 
 - **Trash** (F-087 with R2a's F-088; P1; one package): a Delete action in the event detail modal and
   a bulk Delete on the timeline, both calling the existing soft-delete routes
-  (`DELETE /api/events/{id}`, `routes/events.py:2713`, and the bulk delete, `:1780`), so deleted
+  (`DELETE /api/events/{id}`, `routes/events.py:2726`, and the bulk delete, `:1793`), so deleted
   events land in `/trash`; no backend change is expected. Golden path: delete an event from the UI,
   find it in `/trash`, restore it, then delete it permanently; it replaces the spec's API-side
   seeding (rulings 131, 135).
@@ -261,9 +261,9 @@ green on it.
 
 ### [r148b] F-256's action text
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7050 (merged). (ruling 148)
 
-- [ ] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
+- [x] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
       feed's lookback": the time range drives `<ZoneAnomalyFeed>` (`ZonesPage.tsx:660`, `:789-790`),
       not the card grid (`:507-512`). F-256 is judged on that text; it takes no `half-built` status
       and no `R2b` entry.
@@ -272,9 +272,9 @@ green on it.
 
 ### [r148c] `works` in the inventory
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7051 (merged). (ruling 148)
 
-- [ ] Add `works` to the inventory legend, to `STATUSES` in
+- [x] Add `works` to the inventory legend, to `STATUSES` in
       `frontend/scripts/feature-inventory-lib.mjs`, and as a column in the §2 count table, with its
       README meaning (UR-14). A lane whose golden path is green on the fake stack sets
       `awaiting real tier`; the operator's real-tier confirmation sets `works`.
@@ -295,14 +295,19 @@ green on it.
 ### [r132] F-022: retire the rate-limit countdown
 
 **Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged (UR-66's R2b-round exception).
-**PR:** none yet. (rulings 132, 150)
+**PR:** none yet. (rulings 132, 150, 155)
 
 - [ ] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
       (`frontend/src/services/queryClient.ts:249-297`) and every store field only they read.
-- [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time.
+- [ ] The pill reads "Rate limited, retrying…" and shows no count, limit or time
+      (`RetryingIndicator.tsx` is renamed to this text; ruling 155).
+- [ ] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no
+      `isLimited` and shows no pill; only the backend's header-complete 429 does (ruling 155).
 
-**Done when:** F-022's flipped golden spec asserts the pill and that no countdown or number renders,
-and passes. Ruling 125's quarantine of F-022 is unchanged until its expiry.
+**Done when:** F-022's flipped golden spec asserts the pill's exact text and that no countdown or
+number renders, and passes. Ruling 125's quarantine of F-022 ends with this PR (ruling 155).
+After it merges, frontend deletes the dead `secondsUntilReset` store field in its own one-commit
+PR (UR-48).
 
 ### [r133] F-023: retire the in-page PWA install prompt
 
@@ -324,3 +329,13 @@ and passes. Ruling 125's quarantine of F-022 is unchanged until its expiry.
 
 **Done when:** F-135's row reads "expands the section; sees active batches", its golden path covers
 that, and nothing renders the three history views.
+
+### [r160a] Deferred npm majors: vite-plugin-pwa 2, framer-motion 14, @vitejs/plugin-react 6
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** Phase 2's exit. **PR:** none yet.
+(ruling 160; dependabot #7058, #7059, #7060, closed with `@dependabot ignore this major version`)
+
+- [ ] One major per PR, each lifting its dependabot ignore (`@dependabot unignore <dependency>`).
+
+**Done when:** each of the three majors is on `main` with the unit, golden and lint suites green at
+its head.

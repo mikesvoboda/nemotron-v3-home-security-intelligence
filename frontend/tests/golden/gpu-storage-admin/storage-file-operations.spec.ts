@@ -136,12 +136,17 @@ test.describe('golden path: storage settings file operations panel @critical', (
     // returns, so these polls land immediately; the 30 s interval next ticks
     // ~26 s from here, well after this mirror block finishes, so the frozen
     // snapshot cannot be overtaken mid-assertion.)
-    await expect.poll(() => storageBody).not.toBeNull();
-    await expect.poll(() => statusBody).not.toBeNull();
-    await expect.poll(() => jobsBody).not.toBeNull();
-    const storage = storageBody as StorageStats;
-    const status = statusBody as CleanupStatus;
-    const exportJobs = (jobsBody as JobList).items.filter((j) => j.job_type === 'export');
+    // Declared-return readers, not bare casts: see the [r149e] note in
+    // admin-cache-clear.spec.ts (TS narrows a closure-assigned `let` to `null`).
+    const capturedStorage = (): StorageStats | null => storageBody;
+    const capturedStatus = (): CleanupStatus | null => statusBody;
+    const capturedJobs = (): JobList | null => jobsBody;
+    await expect.poll(capturedStorage).not.toBeNull();
+    await expect.poll(capturedStatus).not.toBeNull();
+    await expect.poll(capturedJobs).not.toBeNull();
+    const storage = capturedStorage() as StorageStats;
+    const status = capturedStatus() as CleanupStatus;
+    const exportJobs = (capturedJobs() as JobList).items.filter((j) => j.job_type === 'export');
 
     // Disk usage block renders only once /api/system/storage answered.
     const usage = panel.getByTestId('storage-usage-section');

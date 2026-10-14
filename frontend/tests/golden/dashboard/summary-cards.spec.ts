@@ -662,10 +662,27 @@ test.describe('golden path: dashboard hourly and daily summary cards @critical',
     // only (page.on), never interception: the guard's four methods are
     // untouched, so nothing here fakes a server or a frame.
     const journal: ('frame' | 'get')[] = [];
-    page.on('socket', (socket) => {
+    // Two bugs the [r149e] type check found here, both silent at runtime. Both
+    // cites are STRUCTURAL (event name, not line number) because a vendored
+    // types.d.ts renumbers on every playwright bump and a drifted line cite
+    // still looks authoritative:
+    // (a) the PAGE event is 'websocket' (Page's event overload set in
+    //     node_modules/playwright/types.d.ts) — 'socket' is not in it at all, so
+    //     the listener never attached and the journal could never gain a 'frame'
+    //     entry. Measured: page.on('socket', fn) THROWS NOTHING — Playwright's
+    //     EventEmitter accepts any string, `listenerCount('socket')` is 1 and no
+    //     code ever emits it — so the leg silently took its `test.skip(...)`
+    //     escape on every run instead of observing anything.
+    // (b) 'framereceived' on a WebSocket carries `{ payload: string | Buffer }`,
+    //     not a string, so the old `frame.includes(...)` would have thrown a
+    //     TypeError inside the listener the moment (a) was fixed. The typeof
+    //     guard is also the correct semantics: only a TEXT frame can carry the
+    //     JSON marker; a BINARY frame's Buffer must not be substring-matched.
+    page.on('websocket', (socket) => {
       if (!socket.url().includes('/ws/events')) return;
-      socket.on('framereceived', (frame) => {
-        if (frame.includes('"summary_update"')) journal.push('frame');
+      socket.on('framereceived', (data) => {
+        if (typeof data.payload === 'string' && data.payload.includes('"summary_update"'))
+          journal.push('frame');
       });
     });
     page.on('request', (req) => {

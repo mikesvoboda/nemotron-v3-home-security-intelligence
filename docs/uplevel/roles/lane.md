@@ -48,13 +48,18 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
+   Then read the `BINDING NOW` records on #6854 posted since your last tick
+   (`gh api "repos/<owner>/<repo>/issues/6854/comments?since=<your last heartbeat time>" --paginate`, keeping
+   those whose first line starts `BINDING NOW`) and follow each that names your lane or all agents; it
+   binds before the plan files catch up (UR-40, ruling 163).
 2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below). Read the coordinator's; if it is older
    than 20 minutes, follow "Stale coordinator" below.
 3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
    lane's PR" below). Heavy agents skip this step.
 4. **Your own open PRs** (UR-35): read the new comments and reviews on each
    (`gh pr view <n> --comments`). Read CI at the head once, fix what is red, answer what is
-   requested, and rebase what conflicts with `main` (what a new head resets: UR-106).
+   requested, and rebase what conflicts with `main` (what a new head resets: UR-106). Before you
+   push to a PR on auto-merge, run `gh pr merge <n> --disable-auto` (UR-108).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. If none of these has work, say so in one line and end the turn.
 
@@ -112,7 +117,9 @@ Read rules.md §Building a package first: one package per PR, the hot-file rules
    `codebase-archaeologist` on their scope (UR-95).
 
 **Self-review.** Run the fresh-context self-review UR-89 describes, record its findings in the PR,
-then mark the PR ready.
+then mark the PR ready once its code is complete. A Done-when clause that only a CI run shows (a
+draft skips every job but the gate) is ticked from the first ready run, naming it; a red run is
+fixed on the ready PR, and the reviewer approves only with those clauses green (ruling 161).
 
 ## Reviewing another lane's PR
 
@@ -132,7 +139,10 @@ Read rules.md §Reviewing first.
    Notes:
    ```
 
-4. Remove the review label.
+4. On `approve` of a lane-tier PR (its `Plan text:` is `none` or a UR-47 lane-review kind, and no
+   other UR-98 trigger applies), run `gh pr merge <n> --auto --merge` and add `Auto-merge: on` to the
+   review's `Notes:` (UR-108, ruling 156). Owner-tier PRs get no auto-merge from you.
+5. Remove the review label.
 
 ## Posting
 

@@ -12,7 +12,8 @@ You route work, within the remit UR-22 sets, and nothing beyond it:
   "Assigning a package" below). Every other package is claimed by the agent whose queue holds it (UR-52).
 - Assign each PR's reviewing lane, name it in a comment when you assign the package, and label the
   PR for review (UR-32).
-- Merge PRs one at a time ("Merging a PR" below; rules.md §Merging, UR-83's hot files).
+- Audit lane PRs that auto-merged on approval, and merge the rest one at a time ("Merging a PR"
+  below; rules.md §Merging, UR-108, UR-83's hot files).
 - Keep the README status table accurate, and watch the CI queue.
 - Keep the status comment on #6854 current (UR-25, UR-166; "The status comment" below).
 - Raise the urgent path when its criteria hold (UR-25; "The urgent path" below).
@@ -54,8 +55,10 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    Read a PR's whole thread only for a PR you are about to merge, route or label this tick. An
    `ERROR <section>` line means that section was not read: read it yourself or state that it is
    unread, and never fill it from an earlier tick (UR-29).
-3. **Heartbeat.** Edit your heartbeat in place (UR-38; [`lane.md`](lane.md), "Heartbeat"), keeping
-   its `read-through:` line unchanged. Your heartbeat lives on #6958, and the cursor lives only in
+3. **Heartbeat.** Edit your heartbeat in place to `tick started · cursor <t>` (UR-38;
+   [`lane.md`](lane.md), "Heartbeat"), keeping its `read-through:` line unchanged; the end-of-tick
+   beat in step 14 is at most 600 characters (state, cursor, acts as PR numbers, `NEXT:`), with
+   detail on the PR it concerns (ruling 156). Your heartbeat lives on #6958, and the cursor lives only in
    its `read-through: <UTC>` line, never in a local file.
 4. **New comments.** Act on the report's comments: list the live `BINDING NOW` records (UR-40),
    carry each open `URGENT PATH` item (UR-166), and ask the author of a comment that carries
@@ -77,12 +80,13 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
 10. **Route.** Answer what needs routing; point out a fold (UR-78).
 11. **Label for review.** When an author marks a head ready, add `review:<lane>` for the lane you
     assigned (UR-32). Route on each review's `Plan text:` line, and send a review without it back
-    to its reviewer (UR-92).
-12. **Merge** what meets the merge rule, one PR at a time ("Merging a PR" below); the report's
-    merge legs answer UR-102's three conditions.
+    to its reviewer unless UR-92's default reads it as `none`.
+12. **Audit and merge.** Audit each PR merged since the cursor ("Auditing an auto-merge" below), then
+    merge what meets the merge rule, one PR at a time, continuing past a roll ("Merging a PR"
+    below); the report's merge legs answer UR-102's three conditions.
 13. **Edit the status comment** in place with what this tick read ("The status comment" below).
-14. **Advance the cursor:** set your heartbeat's `read-through:` to the report's `now` (the time of
-    its comments call in step 2). Do this last, so a tick that stops early leaves the old cursor and
+14. **Advance the cursor:** write your end-of-tick heartbeat (step 3's limits) with `read-through:`
+    set to the report's `now` (the time of its comments call in step 2). Do this last, so a tick that stops early leaves the old cursor and
     the next one re-reads.
 15. **Return** a summary of at most five lines: PRs merged (numbers), other acts, raises, owner
     questions, `main`'s CI state. The dispatcher passes it to the owner word for word.
@@ -129,8 +133,17 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    update-branch of an owner PR, the two diff hashes from step 2. The status comment counts
    auto-merged owner PRs (UR-166).
 
+**Auditing an auto-merge** (UR-108, ruling 156). A lane-tier PR merges by the auto-merge its
+reviewer turned on at approval. For each PR merged since the cursor, read the merged head
+(`gh pr view <n> --json headRefOid,mergeCommit,comments`) and check it is the head the approving
+review names, or a UR-106 carry of it, and that no owner ruling or record barred it (UR-94); then
+post the merge comment (step 6). A merge that fails the check goes into the status comment and to
+the owning lane for a revert PR. Disable auto-merge (`gh pr merge <n> --disable-auto`) on any open
+PR whose head is neither the approved head nor a carry of it.
+
 **Red `main`.** On the first red `CI Gate` run on `main`, raise the urgent path with the failing
-job and the log lines you read that tick, and route the fix (UR-111). The fix PR merges next,
+job and the log lines you read that tick, disable auto-merge on every queued lane PR until `main` is
+green again (UR-102), and route the fix (UR-111). The fix PR merges next,
 within UR-112's limits.
 
 ## The status comment
@@ -144,7 +157,8 @@ on #6854, never by replying to it.
    (`gh api "repos/<owner>/<repo>/issues/6854/comments?per_page=100" --paginate`, matching the first
    line). If none exists, post it once with that first line. If more than one exists, keep the
    oldest and delete the others.
-2. **Edit it in place every tick**
+2. **Edit it in place in each tick that changes its content** (a new timestamp alone is no change;
+   ruling 156)
    (`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -F body=@<file>`), never repost it,
    as with your heartbeat (UR-38). Show current state only, in about 4,000 characters (UR-166):
    your beat's history and corrections go in your heartbeat or on the PR they concern; link to PRs

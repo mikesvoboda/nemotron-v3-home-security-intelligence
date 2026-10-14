@@ -9,7 +9,9 @@ Related: NEM-3566 Backup/Restore Implementation
 from __future__ import annotations
 
 import json
+import uuid
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -129,6 +131,156 @@ class TestBackupServiceCreateBackup:
         assert len(progress_updates) > 0
         # Should end at 100%
         assert any(pct == 100 for pct, _ in progress_updates)
+
+
+class TestBackupExportsDeferredEventColumns:
+    """[r129] ruling 127: a populated `events` table must survive a backup.
+
+    ``Event.reasoning`` and ``Event.llm_prompt`` are ``deferred()``
+    (backend/models/event.py:70-74), so ``select(Event)`` does not load them.
+    ``_export_table`` then walks EVERY mapper column with ``getattr``
+    (backend/services/backup_service.py:353-354), and touching an unloaded
+    deferred column makes SQLAlchemy issue a lazy load -- which raises
+    ``MissingGreenlet`` inside an ``AsyncSession``. Pre-fix every backup failed
+    as soon as one event existed, and every backup looked healthy on an empty
+    table. No test ran THIS service's ``create_backup`` over a populated
+    ``events`` table: the unit tier drives it with a ``FakeDB`` whose ``events``
+    count it asserts is 0, and the one integration file that does seed events
+    (``test_backup_restore.py:381``) exercises ``create_pg_backup``
+    (``:123`` -- a pg_dump shell-out), a different implementation. That is why
+    a 100 % real-world failure passed CI.
+
+    Asserting the VALUES, not just completion, is deliberate: the tempting
+    fix is to skip deferred columns, which would make this backup "complete
+    with every row present" while silently dropping two columns from every
+    backup forever -- a loud failure traded for permanent data loss.
+    """
+
+    # Number of event rows seeded per test.
+    N_EVENTS = 5
+
+    @pytest.fixture
+    async def seeded_events(self, test_db) -> list[int]:
+        """Populate cameras + events, with the deferred columns non-NULL.
+
+        Seeding follows ``test_ai_audit_api.py::_events_for_batch``: no explicit
+        ``id`` (``Event.id`` is an autoincrement Integer, event.py:49), then
+        ``flush()`` so ``event.id`` is populated for the assertions.
+        """
+        from backend.models.event import Event
+
+        camera_ids = [unique_id("r129_cam") for _ in range(2)]
+        event_ids: list[int] = []
+        async with test_db() as session:
+            for camera_id in camera_ids:
+                session.add(
+                    Camera(
+                        id=camera_id,
+                        name=f"R129 Camera {camera_id[-6:]}",
+                        folder_path=f"/export/foscam/{camera_id}",
+                    )
+                )
+            await session.flush()
+
+            for i in range(self.N_EVENTS):
+                event = Event(
+                    batch_id=str(uuid.uuid4()),
+                    camera_id=camera_ids[i % 2],
+                    started_at=datetime(2026, 1, i + 1, 12, 0, 0, tzinfo=UTC),
+                    risk_score=30 + i * 10,
+                    risk_level="medium",
+                    summary=f"R129 event {i}",
+                    # The two deferred columns, with sentinel payloads.
+                    reasoning=f"R129-REASONING-{i}",
+                    llm_prompt=f"R129-LLMPROMPT-{i}",
+                )
+                session.add(event)
+                await session.flush()
+                event_ids.append(event.id)
+            await session.commit()
+        return event_ids
+
+    @pytest.mark.asyncio
+    async def test_backup_of_populated_events_table_completes_with_every_row(
+        self,
+        test_db,
+        backup_service: BackupService,
+        seeded_events: list[int],
+    ) -> None:
+        """Done-when (2): the backup completes and every event row is present."""
+        job_id = unique_id("backup_job")
+
+        async with test_db() as session:
+            result = await backup_service.create_backup(session, job_id)
+
+        with zipfile.ZipFile(result.file_path, "r") as zf:
+            assert "events.json" in zf.namelist()
+            events_data = json.loads(zf.read("events.json").decode("utf-8"))
+
+        assert len(events_data) == len(seeded_events), (
+            f"[r129] backup exported {len(events_data)} of {len(seeded_events)} "
+            f"event rows; manifest count was "
+            f"{result.manifest.contents['events'].count}"
+        )
+        assert sorted(e["id"] for e in events_data) == sorted(seeded_events)
+
+    @pytest.mark.asyncio
+    async def test_backup_preserves_the_deferred_column_values(
+        self,
+        test_db,
+        backup_service: BackupService,
+        seeded_events: list[int],
+    ) -> None:
+        """The deferred columns must be IN the archive, not skipped to get there.
+
+        This is the half that separates "undefer the load" from "drop the
+        columns". A backup that completes while writing ``reasoning: null``
+        for every row passes Done-when (2) and is still data loss.
+        """
+        job_id = unique_id("backup_job")
+
+        async with test_db() as session:
+            result = await backup_service.create_backup(session, job_id)
+
+        with zipfile.ZipFile(result.file_path, "r") as zf:
+            events_data = json.loads(zf.read("events.json").decode("utf-8"))
+
+        by_id = {e["id"]: e for e in events_data}
+        assert len(by_id) == len(seeded_events)
+        for i, event_id in enumerate(seeded_events):
+            row = by_id[event_id]
+            assert row.get("reasoning") == f"R129-REASONING-{i}", (
+                f"[r129] event {event_id} lost its deferred `reasoning` in the "
+                f"backup: {row.get('reasoning')!r}"
+            )
+            assert row.get("llm_prompt") == f"R129-LLMPROMPT-{i}", (
+                f"[r129] event {event_id} lost its deferred `llm_prompt` in the "
+                f"backup: {row.get('llm_prompt')!r}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_an_empty_events_table_was_never_evidence_of_a_working_backup(
+        self,
+        test_db,
+        backup_service: BackupService,
+    ) -> None:
+        """Negative control: the green path everyone relied on is the vacuous one.
+
+        With no event rows the deferred getattr never fires, so the export
+        succeeds -- proving the OLD suite's confidence was an artifact of an
+        empty table. Kept as a pin so the empty case stays working, and as
+        the documented reason the defect survived.
+        """
+        job_id = unique_id("backup_job")
+
+        async with test_db() as session:
+            result = await backup_service.create_backup(session, job_id)
+
+        with zipfile.ZipFile(result.file_path, "r") as zf:
+            events_data = json.loads(zf.read("events.json").decode("utf-8"))
+
+        assert events_data == []
+        assert result.manifest.contents["events"].count == 0
 
 
 class TestBackupServiceListBackups:
