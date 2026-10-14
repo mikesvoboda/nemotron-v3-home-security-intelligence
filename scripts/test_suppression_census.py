@@ -625,10 +625,17 @@ def test_real_tree_matches_spec_baselines():
         # and the suite skips outright when the binaries are absent (:66-67), so
         # the image cannot settle it either. Unresolved machine-dependent
         # variance, which is why the entry records a reproducible breach rather
-        # than a stable duration. Named by id, not
-        # by list offset — the offset this note used landed on the -n8 row
-        # test_enrichment_pipeline_household_matching.*, which is orphaned
-        # (its def went away in 602379e29) and licenses zero tests.
+        # than a stable duration. Both rows are named by id, not counted: the
+        # offset this note used to give ("the -n8-contention row two above") was
+        # itself wrong by one — two above is
+        # test_r8_s2b_nemotron_deletion.* (idx 8, LIVE:
+        # TestNoTestFileStillImportsASymbolS2bDeleted::
+        # test_no_test_module_imports_a_name_that_no_longer_exists) and the -n8
+        # row test_enrichment_pipeline_household_matching.* is THREE above (idx
+        # 7). Its offset and its label disagreed with each other; only the
+        # label happened to name an actually-orphaned row (its def went away in
+        # 602379e29 with enrichment_pipeline.py, licensing zero tests), which is
+        # why the miscount stayed invisible. That is the reason to name ids.
         "tpa_slow_list": 11,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
