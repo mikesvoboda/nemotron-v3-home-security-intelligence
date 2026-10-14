@@ -3414,6 +3414,15 @@ def test_a_prod_shape_run_tears_down_with_down_v_on_its_project_only(
     # existed this call raised (no such file) mid-teardown, leaving containers up.
     run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
     monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    # teardown()'s postflight reads a SECOND snapshot through _run -> the engine
+    # binary. _recording_compose fakes the `down -v` only, so without this the
+    # postflight snapshot reaches a real `podman ps` (the UR-135 assertion is on
+    # `calls`, not on _run, so faking it keeps the contract pinned -- review
+    # finding CR-2 on #7037). Empty stdout => empty after-snapshot => the
+    # before==after case this test already asserts.
+    monkeypatch.setattr(
+        fc.Run, "_run", lambda *_, **__: subprocess.CompletedProcess([], 0, "", "")
+    )
     calls = _recording_compose(run, _prod_rendered(postgres=_PG_LIMITS))
     run.render(fc.Snapshot.from_engine([], []))
     calls.clear()
