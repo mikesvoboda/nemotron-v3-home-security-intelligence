@@ -236,13 +236,15 @@ flipped to assert the fix and passes (ruling 130).
 ### [r144n] Route notes for ruling 127's real-tier rows
 
 **Flags:** none. **Assigned:** frontend. **Depends on:** #7030 (R2b round 1 record) merged. **PR:**
-#7109 (open). Ordered by the owner's approval of #7030 (record 6136889433).
+#7109 (merged). Ordered by the owner's approval of #7030 (record 6136889433).
 
-- [ ] Rewrite the route notes of ruling 127's 12 real-tier rows in
+- [x] Rewrite the route notes of ruling 127's 12 real-tier rows in
       `docs/reference/feature-inventory.md` to ruling 144's route: the row gets its witness from the
       `O2.5` run, falling back to ruling 127's route if `O2.5` cannot deliver it. Grafana rows F-102,
       F-115, F-117, F-164–F-167, F-169, F-174; GPU rows F-176, F-178, F-182. Statuses, ruling cells
-      and priorities stay as #7030 records them.
+      and priorities stay as #7030 records them. Witness: #7109 merged at `a55dd2eb5`; ops-b's
+      review (`6163810759`, head `88800e5b5`) counted the route clauses 12/12 `O2.5`, `ruling 103`
+      in 0 of the 12, and row identity by first cell as exactly the named 12.
 
 **Done when:** none of the 12 notes names the per-batch real tier (ruling 103) or an ops-b
 owner-tier ruling as its route.
