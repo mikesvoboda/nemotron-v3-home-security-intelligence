@@ -51,6 +51,7 @@ from urllib.parse import urlsplit
 import pytest
 import yaml
 from fastapi import HTTPException
+from pydantic import SecretStr
 from pydantic_settings import SettingsError
 from starlette.requests import HTTPConnection, Request
 from starlette.testclient import TestClient
@@ -63,6 +64,7 @@ from backend.api.middleware.auth import (
     _hash_key,
     _key_admits,
     _key_entry_for_digest,
+    _key_scope,
     require_api_key,
     validate_websocket_api_key,
 )
@@ -741,6 +743,52 @@ class TestValidateWebsocketApiKey:
         assert await validate_websocket_api_key(_fake_ws(SCOPED_KEY)) is True
 
 
+# [r95] S1: the nine routes the two legacy copies guard, and the one scope rule.
+#
+# ``_entry_is_scoped`` is the predicate the fix must use — the middleware's own
+# ``_key_scope`` behind a boolean, so the copies and the gate cannot drift into a
+# third and fourth reading of "scoped". ``_routes_guarded_by`` resolves the guard
+# from the route table instead of trusting a hand-written list.
+_NINE_ROUTES: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("POST", "/api/dlq/requeue/{queue_name}"),
+        ("POST", "/api/dlq/requeue-all/{queue_name}"),
+        ("DELETE", "/api/dlq/{queue_name}"),
+        ("PATCH", "/api/system/config"),
+        ("PATCH", "/api/system/anomaly-config"),
+        ("POST", "/api/system/cleanup"),
+        ("POST", "/api/system/cleanup/orphaned-files"),
+        ("PUT", "/api/system/severity"),
+        ("POST", "/api/system/circuit-breakers/{name}/reset"),
+    }
+)
+
+
+def _entry_is_scoped(entry: object) -> bool:
+    """True only for an entry carrying a real scope set (None → unscoped)."""
+    return _key_scope(entry) is not None
+
+
+def _routes_guarded_by(router, guard) -> set[tuple[str, str]]:
+    """Every (method, path) on ``router`` whose dependency graph resolves to ``guard``.
+
+    Both mounting styles are covered because ``FastAPI`` folds each into the
+    route's ``dependant``: the ``Depends(verify_api_key)`` parameter default the
+    dlq routes use, and the ``dependencies=[...]`` the system routes pass.
+    """
+    from fastapi.routing import APIRoute
+
+    found: set[tuple[str, str]] = set()
+
+    def uses(dependant) -> bool:
+        return any(sub.call is guard or uses(sub) for sub in dependant.dependencies)
+
+    for route in router.routes:
+        if isinstance(route, APIRoute) and uses(route.dependant):
+            found |= {(m, route.path) for m in route.methods}
+    return found
+
+
 class TestLegacyRouteCopies:
     """routes/system.py + routes/dlq.py: TIMING FIX ONLY (amendment 2).
 
@@ -774,18 +822,88 @@ class TestLegacyRouteCopies:
             await dlq_routes.verify_api_key(x_api_key="bogus-key")  # pragma: allowlist secret
         assert excinfo.value.status_code == 401
 
-    @pytest.mark.asyncio
-    async def test_copies_stay_unscoped_by_amendment(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A ScopedApiKey with an EMPTY scope still passes these copies.
+    def test_exactly_nine_routes_carry_the_two_copies(self) -> None:
+        """The 9 is a measured census, so "all 9" in [r95]'s Done-when is checkable.
 
-        That is amendment 2, stated as a test: scope lives at the gate, not
-        in the route-local dependencies. (The gate refuses the same key on
-        the same route whenever EXPOSE_LAN=true — TestExhaustiveGateWalk —
-        so this is not an open door; it is the flag-independent layering.)
+        Ruling 95's S1 names nine routes. This walks the two live routers and
+        collects every (method, path) whose resolved guard IS one of these
+        modules' own ``verify_api_key`` — both mounting styles count: the dlq
+        routes take it as a parameter default, the system routes pass it in
+        ``dependencies=[...]``. A tenth guarded route added later lands here
+        red rather than slipping past a hardcoded count.
         """
-        on = SimpleNamespace(api_key_enabled=True, api_keys=[ScopedApiKey(SCOPED_KEY, frozenset())])
-        monkeypatch.setattr("backend.api.routes.system.get_settings", lambda: on)
-        assert await system_routes.verify_api_key(x_api_key=SCOPED_KEY) is None
+        guarded = _routes_guarded_by(dlq_routes.router, dlq_routes.verify_api_key)
+        guarded |= _routes_guarded_by(system_routes.router, system_routes.verify_api_key)
+        assert guarded == _NINE_ROUTES
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "module, guard",
+        [(dlq_routes, dlq_routes.verify_api_key), (system_routes, system_routes.verify_api_key)],
+        ids=["dlq", "system"],
+    )
+    async def test_a_monitoring_only_key_is_refused(
+        self, module, guard, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """[r95] S1: scope has ONE rule, so the route-local copies refuse it too.
+
+        The configuration is S1's own: ``API_KEY_ENABLED=true`` with the gate
+        inert (``EXPOSE_LAN=false`` is the middleware's pass-through, and this
+        dependency never consults it — that is the point). R60's amendment 2
+        left these copies unscoped because the gate is "the outermost door";
+        ruling 95 closes the gap that assumption opens exactly here, with the
+        gate off. A key scoped to ``MONITORING_SCOPE_PATHS`` is presented, and
+        none of those pairs is any of the 9 routes — the census test above
+        proves the disjointness, so this is not a key that merely happens to
+        lack a grant.
+        """
+        on = SimpleNamespace(
+            api_key_enabled=True,
+            api_keys=[ScopedApiKey(SCOPED_KEY, MONITORING_SCOPE_PATHS)],
+        )
+        monkeypatch.setattr(module, "get_settings", lambda: on)
+        # The premise, asserted rather than assumed: this entry IS scoped, and
+        # its scope admits none of the 9 routes. Without these two lines the
+        # refusal could pass for a key that merely lacks a grant.
+        assert _entry_is_scoped(on.api_keys[0]) is True
+        assert not (MONITORING_SCOPE_PATHS & _NINE_ROUTES)
+        with pytest.raises(HTTPException) as excinfo:
+            await guard(x_api_key=SCOPED_KEY)
+        assert excinfo.value.status_code == 401
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "module, guard",
+        [(dlq_routes, dlq_routes.verify_api_key), (system_routes, system_routes.verify_api_key)],
+        ids=["dlq", "system"],
+    )
+    async def test_an_unscoped_key_is_still_accepted(
+        self, module, guard, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """[r95] S1's other half: refusing scope must not refuse the operator.
+
+        The Done-when asks for BOTH clauses, because the obvious way to make
+        the first one pass is a guard that rejects everything.
+        """
+        on = SimpleNamespace(api_key_enabled=True, api_keys=[PLAIN_KEY])
+        monkeypatch.setattr(module, "get_settings", lambda: on)
+        assert await guard(x_api_key=PLAIN_KEY) is None
+
+    def test_a_mock_entry_stays_unscoped_after_the_fix(self) -> None:
+        """The fix must keep ruling 60's type gate, or ~40 fixtures break.
+
+        Amendment 2's real constraint was never "these copies ignore scope" —
+        it is that test mocks carry only ``api_keys``/``api_key_enabled``, and
+        a mock entry's ``scoped_paths`` is a ``MagicMock``, not a set. The
+        middleware already answers that with a type gate in ``_key_scope``;
+        this pins that the copies use the SAME rule, so a mock entry reads as
+        unscoped instead of tripping the new refusal.
+        """
+        mock_entry = MagicMock()
+        on = SimpleNamespace(api_key_enabled=True, api_keys=[mock_entry])
+        assert _entry_is_scoped(mock_entry) is False
+        assert _entry_is_scoped(ScopedApiKey(SCOPED_KEY, frozenset())) is True
+        assert _entry_is_scoped(SecretStr(PLAIN_KEY)) is False
 
 
 # =============================================================================
