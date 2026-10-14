@@ -692,6 +692,6 @@ the shared GitHub token.
   callers credentials and puts `/grafana/` behind the app's login. The default, unexposed mode is
   unchanged. (UR-33; ruling 1)
 - **UR-179** A browser bundle never carries an API key: browsers authenticate only through the
-  cookie login, API keys are for non-browser clients, and `frontend/src` never reads
-  `VITE_API_KEY` (no read at ruling 164; review enforces it until `[r164b]`'s CI guard merges).
-  (rulings 44, 164)
+  cookie login, API keys are for non-browser clients, and
+  `frontend/src/__tests__/no-browser-api-key.test.ts` fails CI if the frontend build scope reads
+  `VITE_API_KEY`. (rulings 44, 164)
