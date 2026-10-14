@@ -399,3 +399,18 @@ yet. (rulings 123, 125, 165)
 
 **Done when:** a test saves the settings page with the fast path off and reads it back off; backend
 then removes the two read clamps in `system.py` as UR-48 lane work.
+
+### [r173] Golden Playwright skips join the suppression registry
+
+**Flags:** none. **Assigned:** frontend, after `[r168]`; ops-b reviews the `scripts/` and `.github/`
+hunks. **Depends on:** none. **PR:** none yet. (ruling 173)
+
+- [ ] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
+      `frontend/tests/golden/**/*.spec.ts` for `test.fixme(` and unconditional `test.skip(` call
+      sites, excluding conditional guards as the pytest arm does.
+- [ ] One registry row per site in a golden reason class citing its authorizing ruling or package;
+      the baseline rises in the same commit.
+- [ ] Sites with no authorizing ruling are listed on the PR for the coordinator to route.
+
+**Done when:** the census fails CI on an unregistered golden `test.fixme`, and every current site has
+a row.
