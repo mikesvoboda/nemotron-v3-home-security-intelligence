@@ -105,7 +105,7 @@ changes; a row whose cite no longer says what the evidence claims is re-traced, 
 | [3.11 Webhooks and scheduled reports](#311-webhooks-and-scheduled-reports) | 11 | 1 | 4 | 0 | 0 | 6 |
 | [3.12 Zones, plates, household, faces, heatmaps, scene changes, tracks](#312-zones-plates-household-faces-heatmaps-scene-changes-tracks) | 34 | 3 | 27 | 1 | 0 | 3 |
 | [3.13 External interfaces](#313-external-interfaces) | 5 | 0 | 4 | 0 | 0 | 1 |
-| **all** | **294** | **58** | **128** | **17** | **69** | **22** |
+| **all** | **294** | **57** | **128** | **17** | **70** | **22** |
 
 Counts are rows, not features weighted by size. Where one capability shows on two routes through
 one component, it is one row carrying both routes.
