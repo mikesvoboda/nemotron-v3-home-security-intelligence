@@ -187,6 +187,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 172    | package `[r172]`: per-module import budget (record 6168112919)                                                |
 | 173    | package `[r173]`: golden skips in the registry (record 6168125268)                                            |
 | 174    | compose-render entry leaves `tpa_slow_list` (record 6168142239)                                               |
+| 175    | lane.md roster: `F2.3` rebalanced (FE-4 to docs, OP-3 to ops-b), new packages ordered (record 6168756268)     |
 | 176    | UR-180: sandbox disks under 90%, targeted cleanup (record 6172107453)                                         |
 | 177    | lane.md, operator.md step 1: uncarried live records only, filtered at the source (record 6172198207)          |
 | 178    | lane.md beat before long steps; coordinator.md step 5 reads signed activity; UR-38 (record 6172424097)        |
