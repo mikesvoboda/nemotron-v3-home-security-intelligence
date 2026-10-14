@@ -26,10 +26,10 @@
  * - Clause 3 (collapse the sidebar, remembered) is where the naive assert
  *   lies: `isCollapsed = forceCollapsed ?? (isTablet || (isDesktop &&
  *   userCollapsed))` (:204) and showExpanded = !isCollapsed || isHovered
- *   (:262), with onMouseEnter setting isHovered whenever isCollapsed (:271).
+ *   (:262), with onMouseEnter setting isHovered whenever isCollapsed (:301).
  *   So (a) between 640 and 1023 the rail is FORCE-collapsed no matter what
  *   the user chose (isTablet, useViewport.ts:125) — the desktop-only toggle
- *   (:288) cannot even render there — and (b) at desktop width, clicking the
+ *   (:318) cannot even render there — and (b) at desktop width, clicking the
  *   toggle leaves the pointer INSIDE the <aside>, which immediately
  *   re-expands it, so `w-16` measured right after the click would fail and
  *   `data-collapsed` would read false. The honest instrument is therefore the
@@ -41,7 +41,7 @@
  *   false, so the class is the restored state, not a hover artifact).
  * - Clause 4a (mobile bottom bar): isMobile is width < 640 (useViewport.ts:124
  *   — not the 768 in useIsMobile's docs), and Layout mounts MobileBottomNav
- *   only when isMobile (Layout.tsx:150). The bar is role=navigation
+ *   only when isMobile (Layout.tsx:183). The bar is role=navigation
  *   aria-label "Mobile navigation" with links "Go to <label>"
  *   (MobileBottomNav.tsx:84-122); the More button opens a BottomSheet whose
  *   open content is `mobile-nav-more-menu` and whose items are buttons
@@ -49,19 +49,37 @@
  *   AnimatePresence {isOpen && …} (BottomSheet.tsx:186-188), so closing
  *   UNMOUNTS it — toHaveCount(0) is real, and handleNavigate closes the sheet
  *   as it navigates (MobileBottomNav.tsx:58-63).
- * - Clause 4b (slide-out menu) meets a DEFECT, and this spec measures it at
- *   both widths instead of pretending: Layout gates the Sidebar itself behind
- *   !isMobile (Layout.tsx:93) while the hamburger that opens the slide-out is
- *   hidden by CSS only at ≥768 (Header.tsx md:hidden), and the drawer's own
- *   translate lives INSIDE Sidebar (the ternary at :267). At 375 the hamburger therefore
- *   toggles state and the backdrop (Layout :95-104, `mobile-overlay`) appears
- *   over an UNMOUNTED drawer — nothing slides out. At 700 the drawer exists
- *   and slides. The two mobile halves are never both true at one width. The
- *   slide position is asserted as geometry (boundingBox().x off-canvas vs 0)
- *   because the class list carries `md:translate-x-0` UNCONDITIONALLY
- *   (the ternary at :267) — a /translate-x-0/ regex would pass while the drawer was
- *   still off-screen. Ruling 86: the false half is filed in the inventory row
- *   as failure-as-evidence, not asserted vacuously.
+ * - Clause 4b (slide-out menu) met a DEFECT that [r130f] fixed, and this leg
+ *   still measures GEOMETRY for the reason the defect was invisible to class
+ *   checks: the aside's class list carries `md:translate-x-0` UNCONDITIONALLY
+ *   (Sidebar.tsx, the translate ternary), so a /translate-x-0/ regex passes
+ *   while the drawer is still off-screen — boundingBox().x (off-canvas vs 0) is
+ *   the only honest read of "slid out". The defect was that Layout.tsx gated the
+ *   Sidebar's MOUNT behind !isMobile (width < 640) while the hamburger that
+ *   OPENS the drawer is hidden by CSS at `md` (≥768), and the drawer's translate
+ *   lives inside Sidebar — so at 375 the hamburger toggled state and the backdrop
+ *   (`mobile-overlay`) appeared over an UNMOUNTED drawer. The two mobile halves
+ *   could never both be true at one width. The fix removes the mount gate, so
+ *   THIS LEG NOW ASSERTS BOTH HALVES AT 375: the bottom bar navigates AND the
+ *   hamburger slides the drawer to flush-left.
+ * - Always-mounted has a consequence this leg pins too, because it is the part a
+ *   screenshot cannot see: below `md` the drawer is hidden by a TRANSFORM, and a
+ *   transform does not remove an element from the sequential focus order. Measured
+ *   before the `inert` gate existed: 34 tabbable links behind the backdrop,
+ *   `close-menu-button` at Tab stop #5 (WCAG 2.4.3). So the closed drawer is
+ *   asserted inert AND non-focusable (`link.focus()` is a no-op, and a 10-stop Tab
+ *   walk has no `SIDEBAR:` stop), and the OPEN drawer is asserted focusable in the
+ *   same leg — without that second half the inert assertions could pass on a
+ *   drawer that was unreachable for some unrelated reason.
+ *   `toHaveJSProperty('inert', …)` is used rather than `toHaveAttribute` because
+ *   React renders `inert={true}` as the EMPTY STRING (measured: getAttribute → ''),
+ *   so an attribute-value assert would be a test of React's serialization.
+ *   Not covered, deliberately: whether the closed drawer leaves the a11y TREE
+ *   (Chromium's ariaSnapshot enumerates all 80 lines inert or not, so no claim),
+ *   and where focus lands after the drawer is closed by backdrop or button
+ *   (measured: <body>, and the next Tab resumes FORWARD from the drawer's DOM
+ *   position rather than at the top of the page — the app's modals behave the same
+ *   way, see the F-018 row; the drawer also has no Escape-to-close at all).
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
@@ -95,6 +113,71 @@ async function drainAndReload(page: import('@playwright/test').Page) {
   await page.waitForTimeout(BOOT_QUIET_MS);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * Does the browser ACCEPT focus for the drawer's Timeline link right now?
+ *
+ * Raw `el.focus()` inside the page rather than `locator.focus()`, and raw
+ * `document.activeElement` rather than `toBeFocused()`, for one reason: a closed
+ * drawer sits at x = -256, so Playwright's actionability ("element receives
+ * events") would time out before it ever asked the question — and a timeout is
+ * not evidence about focusability. The return value distinguishes the three
+ * states a reader might otherwise conflate: the link is not even in the DOM
+ * ('absent'), it is there but the browser refuses focus ('refused'), or focus
+ * landed ('focused').
+ */
+async function timelineAcceptsFocus(page: import('@playwright/test').Page) {
+  return page.evaluate(() => {
+    const link = [...document.querySelectorAll('[data-testid="sidebar"] a')].find((a) =>
+      a.textContent?.includes('Timeline')
+    );
+    if (!link) return 'absent';
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    // The selector ends in ` a`, so this element is an anchor; DOM's declared
+    // type is the looser Element, which is why [r149e]'s golden type-check job
+    // flagged the bare `.focus()` call (TS2339). A wrong cast here would be
+    // invisible to the test, so the selector that justifies it is on this line.
+    (link as HTMLElement).focus();
+    return document.activeElement === link ? 'focused' : 'refused';
+  });
+}
+
+/**
+ * Press Tab N times from wherever focus sits (callers blur first to start from
+ * the top of the document) and name each stop, tagging the ones that landed
+ * inside the drawer.
+ *
+ * This is the instrument the WCAG 2.4.3 claim is actually about — sequential
+ * focus order — and it is run in BOTH drawer states on purpose: an assert that
+ * only ever expects "no SIDEBAR stop" cannot tell `inert` working from the
+ * drawer being unreachable for some unrelated reason (e.g. unmounted, which is
+ * exactly what the pre-fix code did).
+ */
+async function tabWalkStops(page: import('@playwright/test').Page, n: number) {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.());
+  const stops: string[] = [];
+  for (let i = 0; i < n; i++) {
+    await page.keyboard.press('Tab');
+    stops.push(
+      await page.evaluate(() => {
+        // `activeElement` is nullable and the DOM type says so; the old code
+        // assumed non-null and [r149e]'s type-check job flagged all three
+        // dereferences (TS18047). Rather than cast, the walk names the state it
+        // would otherwise have crashed on — a null activeElement is a real
+        // focus outcome worth seeing in the arrow-chain, and the callers below
+        // only filter this list for a 'SIDEBAR:' prefix and join it into a
+        // message, so the extra token cannot change a passing run's verdict.
+        const a = document.activeElement;
+        if (!a) return 'NO-FOCUS';
+        return (
+          (a.closest('[data-testid="sidebar"]') ? 'SIDEBAR:' : '') +
+          (a.getAttribute('data-testid') || a.tagName.toLowerCase())
+        );
+      })
+    );
+  }
+  return stops;
 }
 
 test.describe('golden path: sidebar + mobile navigation @critical', () => {
@@ -142,7 +225,7 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
     );
 
     // Clause 3: the desktop collapse control. The pointer is left inside the
-    // rail by the click, and a collapsed rail expands on hover (:271), so the
+    // rail by the click, and a collapsed rail expands on hover (:301), so the
     // first truth read is the jar, then the pointer leaves and the rendered
     // width follows the state.
     await page.getByTestId('collapse-sidebar-button').click();
@@ -166,7 +249,7 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
   test.describe('phone viewport (width < 640 ⇒ isMobile)', () => {
     test.use({ viewport: { width: 375, height: 812 } });
 
-    test('F-017 (phone): the bottom bar and More sheet work; the slide-out is unmounted there (measured)', async ({
+    test('F-017 (phone): bottom bar AND slide-out work at the same width; the closed drawer is unreachable to the keyboard', async ({
       page,
     }) => {
       test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -175,12 +258,16 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
       test.setTimeout(120_000);
       await openShell(page, h);
 
-      // Layout.tsx:93 — no Sidebar at all below 640; :150 — the bottom bar
-      // instead. Both halves of the row's mobile clause in one assertion pair.
-      await expect(page.getByTestId('sidebar')).toHaveCount(0);
+      const sidebar = page.getByTestId('sidebar');
       const bar = page.getByRole('navigation', { name: 'Mobile navigation' });
+
+      // BOTH halves of the row's mobile clause, at ONE width. Before [r130f] the
+      // first line below read toHaveCount(0): Layout unmounted the Sidebar below
+      // 640, so the drawer this width's hamburger opens did not exist.
+      await expect(sidebar).toHaveCount(1);
       await expect(bar).toBeVisible();
 
+      // Half one: the bottom bar navigates.
       await bar.getByRole('link', { name: 'Go to Timeline' }).click();
       await expect(page).toHaveURL(`${h.ui}/timeline`);
 
@@ -195,37 +282,93 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
       await expect(page).toHaveURL(`${h.ui}/entities`);
       await expect(sheet).toHaveCount(0); // AnimatePresence unmounts on close
 
-      // THE DEFECT, measured at phone width: the hamburger is visible (its
-      // CSS hiding is md:hidden = ≥768), clicking it flips the shared state
-      // and Layout's backdrop renders — but the drawer it is supposed to
-      // reveal is not in the DOM, so nothing slides out.
-      await page.getByTestId('hamburger-menu').click();
+      // Half two, THE FIX: the same hamburger at the SAME 375 now slides a real
+      // drawer to flush-left. Geometry, never the class list (see header).
+      // Keyboard activation for the reason the 700px leg below documents — the
+      // aside's own onClick fires on mousedown and the sliding drawer passes
+      // under a stationary pointer, so click()'s second hit-test at mouseup
+      // loses on a slow runner.
+      const closedBox = await sidebar.boundingBox();
+      expect(closedBox, 'drawer has no box at 375px').not.toBeNull();
+      expect(closedBox!.x, 'the drawer starts on-canvas at 375px').toBeLessThan(0);
+
+      // THE CONSEQUENCE OF ALWAYS-MOUNTED, pinned: hidden by a TRANSFORM is not
+      // hidden to a keyboard. Measured before the inert gate existed: 34 tabbable
+      // links behind the backdrop and `close-menu-button` at Tab stop #5, i.e. a
+      // WCAG 2.4.3 break. Note what is NOT used here: Playwright 1.63's actionability
+      // has no `inert` support (grep of playwright-core finds the word only in its
+      // bundled viewers), so `toBeEnabled()` on a link inside an inert subtree is
+      // near-vacuous — it checks `:disabled`, which an <a> never matches. The
+      // attribute, programmatic focus, and the Tab walk are the three instruments
+      // that can each fail.
+      await expect(sidebar).toHaveJSProperty('inert', true);
+      expect(await timelineAcceptsFocus(page), 'a closed drawer accepts focus').toBe('refused');
+      const closedStops = await tabWalkStops(page, 10);
+      expect(
+        closedStops.filter((s) => s.startsWith('SIDEBAR:')),
+        `a closed drawer is tabbable: ${closedStops.join(' → ')}`
+      ).toEqual([]);
+
+      await page.getByTestId('hamburger-menu').press('Enter');
+      await expect
+        .poll(async () => (await sidebar.boundingBox())?.x ?? null, {
+          timeout: 10_000,
+          message: 'the drawer never slid to flush-left at 375px',
+        })
+        .toBe(0);
       await expect(page.getByTestId('mobile-overlay')).toBeVisible();
-      await expect(page.getByTestId('sidebar')).toHaveCount(0);
-      await page.getByTestId('mobile-overlay').click();
+
+      // ...and OPEN means reachable, which is what stops the three asserts above
+      // from passing on a drawer that is unreachable for some unrelated reason.
+      await expect(sidebar).toHaveJSProperty('inert', false);
+      expect(await timelineAcceptsFocus(page), 'an open drawer refuses focus').toBe('focused');
+      const openStops = await tabWalkStops(page, 8);
+      expect(
+        openStops.filter((s) => s.startsWith('SIDEBAR:')).length,
+        `an open drawer is not tabbable: ${openStops.join(' → ')}`
+      ).toBeGreaterThan(0);
+      await sidebar.getByRole('button', { name: 'Close menu' }).click();
+      await expect
+        .poll(async () => (await sidebar.boundingBox())?.x ?? null, {
+          timeout: 10_000,
+          message: 'the drawer never slid back off-canvas',
+        })
+        .toBeLessThan(0);
+      await expect(sidebar).toHaveJSProperty('inert', true);
+
+      // The backdrop closes it too — but the tap must land on the EXPOSED strip,
+      // not the element's centre: the overlay is fixed inset-0 (full 375 width)
+      // while the open drawer occupies x 0–256 at z-40 over it (overlay z-30), so
+      // the centre Playwright aims at is the drawer. This is a NEW property of
+      // always-mounted: with the drawer unmounted at 375 the centre was free.
+      await page.getByTestId('hamburger-menu').press('Enter');
+      await expect
+        .poll(async () => (await sidebar.boundingBox())?.x ?? null, { timeout: 10_000 })
+        .toBe(0);
+      await page.getByTestId('mobile-overlay').click({ position: { x: 340, y: 400 } });
       await expect(page.getByTestId('mobile-overlay')).toHaveCount(0);
-      // Fully shut before the next leg: the overlay's onClick (Layout.tsx:99)
-      // cleared the flag, but Sidebar.tsx:266 is transition-all duration-300 —
-      // the slide-out takes 300 ms, and the aside is fixed inset-y-0 left-0
-      // (full height), so a still-sliding drawer covers the hamburger's hit
-      // point for that window.
+      // Fully shut before the next leg: Layout's backdrop cleared the flag, but
+      // the aside is transition-all duration-300 and fixed inset-y-0 (full
+      // height), so a still-sliding drawer covers the hamburger's hit point.
       await page.waitForTimeout(600);
 
-      // The same control WORKS one band up: at 700, isMobile is false ⇒ the
-      // Sidebar (and its drawer) mounts, and md:hidden has not hidden the
-      // hamburger. Geometry, not class names: off-canvas then flush.
+      // One band up (700) the clause is unchanged by the fix: isMobile is FALSE
+      // there yet the drawer still works, because `md` (768) — not `isMobile` —
+      // governs the drawer. This is also the leg that would catch an `inert`
+      // keyed on isMobile: at 700 the drawer is off-canvas while closed (so inert)
+      // and must become reachable the moment it is open.
       await page.setViewportSize({ width: 700, height: 800 });
-      const drawer = page.getByTestId('sidebar');
-      await expect(drawer).toHaveCount(1);
-      const closedBox = await drawer.boundingBox();
-      expect(closedBox, 'drawer has no box at 700px').not.toBeNull();
-      expect(closedBox!.x).toBeLessThan(0); // -translate-x-full ⇒ off-canvas
+      await expect(sidebar).toHaveCount(1);
+      const wideClosedBox = await sidebar.boundingBox();
+      expect(wideClosedBox, 'drawer has no box at 700px').not.toBeNull();
+      expect(wideClosedBox!.x).toBeLessThan(0); // -translate-x-full ⇒ off-canvas
+      await expect(sidebar).toHaveJSProperty('inert', true);
       // Keyboard activation, deliberately: React's onClick fires on KEYDOWN,
       // click() fires on MOUSEUP — and Playwright hit-tests the pointer AGAIN
       // at mouseup (actionability check, after the click() call itself). The
       // aside's onClick at Layout.tsx:68 flips the flag on mousedown; while it
       // slides in (duration-300) its left edge passes under the stationary
-      // pointer and the close button (Sidebar.tsx:276-284, in the md:hidden
+      // pointer and the close button (Sidebar.tsx:306-314, in the md:hidden
       // header, ~354px x on a 700px viewport) covers the hamburger's hit
       // point. Locally the mouseup wins the race and lands on the hamburger;
       // on CI's runner it consistently landed on the sliding aside — "the
@@ -234,12 +377,22 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
       // lose; the poll below proves the open itself.
       await page.getByTestId('hamburger-menu').press('Enter');
       await expect
-        .poll(async () => (await drawer.boundingBox())?.x ?? null, {
+        .poll(async () => (await sidebar.boundingBox())?.x ?? null, {
           timeout: 10_000,
           message: 'the drawer never slid to flush-left at 700px',
         })
         .toBe(0);
       await expect(page.getByTestId('mobile-overlay')).toBeVisible();
+      // Instrument note: at 700 the drawer is isTablet ⇒ FORCE-collapsed
+      // (Sidebar.tsx isCollapsed), so it renders w-16 with ICON-ONLY links. The
+      // link is still in the DOM and its text content is unchanged, so
+      // timelineAcceptsFocus (which matches on textContent, not accessible name)
+      // still finds it — but getByRole would not, which is why the focus probe is
+      // a DOM probe.
+      await expect(sidebar).toHaveJSProperty('inert', false);
+      expect(await timelineAcceptsFocus(page), 'an open drawer refuses focus at 700px').toBe(
+        'focused'
+      );
 
       expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
     });

@@ -181,8 +181,13 @@ export default function DashboardLayout({
 
         case 'camera-grid':
           if (widgetProps.cameraGrid) {
+            // data-tour anchors the product tour's "Camera Grid" step. It sits on the
+            // widget SECTION, not on CameraGrid's own container, because that container
+            // is only rendered when cameras exist (CameraGrid.tsx returns
+            // camera-grid-empty at zero cameras) — anchoring there would make the step's
+            // target dead on a fresh install with no cameras.
             return (
-              <div key={widgetId} data-testid="widget-camera-grid">
+              <div key={widgetId} data-testid="widget-camera-grid" data-tour="camera-grid">
                 <h2 className="text-section-title mb-3 md:mb-4">Camera Status</h2>
                 {renderCameraGrid(widgetProps.cameraGrid)}
               </div>
@@ -192,8 +197,11 @@ export default function DashboardLayout({
 
         case 'activity-feed':
           if (widgetProps.activityFeed) {
+            // data-tour anchors the tour's "Activity Feed" step — same reason as
+            // camera-grid above: the section renders whenever the widget is visible,
+            // whatever its data.
             return (
-              <div key={widgetId} data-testid="widget-activity-feed">
+              <div key={widgetId} data-testid="widget-activity-feed" data-tour="activity-feed">
                 <h2 className="text-section-title mb-3 md:mb-4">Live Activity</h2>
                 {renderActivityFeed(widgetProps.activityFeed)}
               </div>

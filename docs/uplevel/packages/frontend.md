@@ -211,7 +211,7 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 ### [r130f] Small bugs from `F2.3`'s demotions, frontend half
 
 **Flags:** none. **Assigned:** frontend, as lane bug fixes outside Phase 4's priority order.
-**Depends on:** none; it runs in parallel with backend's `[r130b]`. **PR:** none yet.
+**Depends on:** none; it runs in parallel with backend's `[r130b]`. **PR:** #7039 (open draft, self-review dispositioned).
 
 - [ ] **F-125, F-129.** `/settings/ai-models` crashes on every load: `StatusIndicator` destructures
       `config[status]`, and `GET /api/system/models` sends no `status` field at all

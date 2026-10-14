@@ -142,7 +142,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 127    | UR-148, UR-10, UR-153                                                                                       |
 | 128    | package Phase 4 Monitoring page                                                                             |
 | 129    | package `[r129]` (open, #7031 merged; `packages/backend.md`)                                                |
-| 130    | packages `[r130b]` (open; `packages/backend.md`) and `[r130f]` (open; `packages/frontend.md`)               |
+| 130    | packages `[r130b]` (open; `packages/backend.md`) and `[r130f]` (#7039; `packages/frontend.md`)              |
 | 131    | package Phase 4 Trash delete action                                                                         |
 | 132    | package Phase 3 rate-limit countdown retirement                                                             |
 | 133    | package Phase 3 PWA install prompt retirement                                                               |

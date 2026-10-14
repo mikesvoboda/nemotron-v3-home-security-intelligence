@@ -112,12 +112,16 @@ export const tourSteps: Step[] = [
     title: 'Welcome to Nemotron Security',
   },
   {
-    target: '[data-tour="risk-gauge"]',
+    // Targets the StatsRow risk card (StatsRow.tsx `risk-card`), the widget that
+    // actually renders the 0-100 score. It previously targeted
+    // [data-tour="risk-gauge"], which no component ever wrote — a dead target
+    // (see ProductTour.tsx for why a dead target killed the whole tour).
+    target: '[data-tour="risk-card"]',
     content:
-      'The Risk Gauge shows your current security risk level based on AI-analyzed camera detections. The score ranges from 0 (safe) to 100 (high risk).',
+      'The risk card shows your current security risk level based on AI-analyzed camera detections. The score ranges from 0 (safe) to 100 (high risk).',
     placement: 'bottom',
     disableBeacon: true,
-    title: 'Risk Gauge',
+    title: 'Risk Level',
     spotlightClicks: true,
   },
   {

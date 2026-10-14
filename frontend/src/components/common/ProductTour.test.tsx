@@ -12,7 +12,7 @@ import {
 
 // Mock react-joyride
 vi.mock('react-joyride', () => ({
-  default: vi.fn(({ callback, run, steps }) => {
+  default: vi.fn(({ callback, run, steps, stepIndex }) => {
     // Store the callback for testing
     if (run && callback) {
       // Simulate the tour being active
@@ -20,6 +20,36 @@ vi.mock('react-joyride', () => ({
         <div data-testid="joyride-mock">
           <span data-testid="joyride-running">{run ? 'running' : 'stopped'}</span>
           <span data-testid="joyride-steps-count">{steps?.length || 0}</span>
+          <span data-testid="joyride-step-index">{stepIndex ?? 'uncontrolled'}</span>
+          {/* Fires the callback Joyride fires for a step whose target matches no
+              mounted element (react-joyride EVENTS.TARGET_NOT_FOUND). Index 1 is a
+              mid-tour dead step; the tour has 7 steps so index 6 is the last. */}
+          <button
+            data-testid="joyride-target-missing"
+            onClick={() =>
+              callback({
+                action: 'prev',
+                index: 1,
+                status: 'running',
+                type: 'error:target_not_found',
+              })
+            }
+          >
+            Target Missing (step 2)
+          </button>
+          <button
+            data-testid="joyride-target-missing-last"
+            onClick={() =>
+              callback({
+                action: 'next',
+                index: 6,
+                status: 'running',
+                type: 'error:target_not_found',
+              })
+            }
+          >
+            Target Missing (last step)
+          </button>
           <button
             data-testid="joyride-next"
             onClick={() =>
@@ -314,6 +344,41 @@ describe('ProductTour', () => {
     });
   });
 
+  describe('dead-target resilience (F-021)', () => {
+    it('advances past a step whose target never mounted instead of stalling', async () => {
+      renderWithRouter(<ProductTour />);
+      expect(screen.getByTestId('joyride-step-index')).toHaveTextContent('0');
+
+      fireEvent.click(screen.getByTestId('joyride-target-missing'));
+
+      // Joyride would only self-advance when UNcontrolled (react-joyride 2.9.3
+      // TARGET_NOT_FOUND branch runs `if (!controlled)`), and this component is
+      // always controlled — so without ProductTour's own branch the tour stalls on
+      // the dead step with its DOM removed: F-021's measured failure. The branch
+      // does what uncontrolled Joyride would — move to the next step.
+      await waitFor(() => {
+        expect(screen.getByTestId('joyride-step-index')).toHaveTextContent('2');
+      });
+      // Still alive, and nothing stored: a skipped-over step is not a dismissal.
+      expect(screen.getByTestId('joyride-mock')).toBeInTheDocument();
+      expect(localStorage.getItem(TOUR_COMPLETED_KEY)).toBeNull();
+      expect(localStorage.getItem(TOUR_SKIPPED_KEY)).toBeNull();
+    });
+
+    it("finishes when the last step's target is missing instead of stalling", async () => {
+      const onComplete = vi.fn();
+      renderWithRouter(<ProductTour onComplete={onComplete} />);
+
+      fireEvent.click(screen.getByTestId('joyride-target-missing-last'));
+
+      await waitFor(() => {
+        expect(onComplete).toHaveBeenCalled();
+        expect(localStorage.getItem(TOUR_COMPLETED_KEY)).toBe('true');
+      });
+      expect(screen.queryByTestId('joyride-mock')).not.toBeInTheDocument();
+    });
+  });
+
   describe('restartProductTour function', () => {
     it('clears tour completion status from localStorage', () => {
       localStorage.setItem(TOUR_COMPLETED_KEY, 'true');
@@ -406,10 +471,15 @@ describe('tourSteps configuration', () => {
     expect(lastStep.title).toBe('Tour Complete');
   });
 
-  it('has risk gauge step', () => {
-    const riskStep = tourSteps.find((step) => step.target === '[data-tour="risk-gauge"]');
+  it('has a risk step targeting the risk card that actually renders', () => {
+    // F-021: this step targeted [data-tour="risk-gauge"], a selector no component
+    // ever wrote (the rendered element is StatsRow's risk-card). A dead target
+    // killed the whole tour, so the config now points at the real element.
+    const riskStep = tourSteps.find((step) => step.target === '[data-tour="risk-card"]');
     expect(riskStep).toBeDefined();
-    expect(riskStep?.title).toBe('Risk Gauge');
+    expect(riskStep?.title).toBe('Risk Level');
+    // And the old dead selector is gone from the whole config.
+    expect(tourSteps.some((step) => step.target === '[data-tour="risk-gauge"]')).toBe(false);
   });
 
   it('has camera grid step', () => {
