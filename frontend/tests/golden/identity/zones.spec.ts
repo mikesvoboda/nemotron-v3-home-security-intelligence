@@ -5,8 +5,13 @@
  *
  * What the rows promise, verbatim, and what this file does about it:
  *  F-256  "opens the page; sees a card per zone with type, enabled state and
- *         priority; filters by zone type and time range; clicks Export CSV
- *         (built in the browser); toggles a panel to full screen"
+ *         priority; filters the cards by zone type; the time range sets the
+ *         anomaly feed's lookback; clicks Export CSV (built in the browser);
+ *         toggles a panel to full screen"
+ *         NB: no leg here drives that lookback — all four hoursLookback
+ *         mentions in this file are comments and no test touches
+ *         <ZoneAnomalyFeed>, so the clause is CITED, not covered. F-256 stays
+ *         `unverified` for that reason; a lookback leg is new golden scope.
  *  F-258  "sees a grid of household members (or vehicles) against zones with
  *         trust levels; clicks a cell and picks full/partial/monitor/none"
  *
@@ -316,12 +321,15 @@ test.describe('DO-3 zones golden path', () => {
     // **462 B**) INSIDE the first page's lifetime -- the next /zones document GET
     // is at 01:33:11. A matcher armed BEFORE a goto captures the next matching
     // response whatever caused it, and the cause here was an in-page refetch. So
-    // (1) the label was false. (2) The gate was mis-specified: F-256's `when`
-    // column is "opens the page; sees a card per zone with type, enabled state and
-    // priority; filters by zone type and time range; clicks Export CSV (built in
+    // (1) the label was false. (2) The gate was mis-specified: F-256's `action`
+    // column (that is its header name; this comment said `when` until #7050
+    // corrected it alongside the quote) is "opens the page; sees a card per zone
+    // with type, enabled state and priority; filters the cards by zone type; the
+    // time range sets the anomaly feed's lookback; clicks Export CSV (built in
     // the browser); toggles a panel to full screen" -- there is no reload step in
     // the row, so a camera-identity-across-time assert is not evidence the row
-    // asked for, and red on it is not a row verdict.
+    // asked for, and red on it is not a row verdict. The 148b narrowing does not
+    // weaken this argument: the reload step was never in the text, before or after.
     //
     // WHY THE NAVIGATION STAYS. The page learns of a zone the HARNESS created only
     // by re-reading: useZones invalidates on the PAGE's own mutations
