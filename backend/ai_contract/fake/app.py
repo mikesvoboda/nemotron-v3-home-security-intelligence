@@ -112,7 +112,7 @@ def _images_of(payload: dict[str, Any]) -> list[bytes]:
             if isinstance(url, str) and url.startswith("data:") and ";base64," in url:
                 try:
                     images.append(base64.b64decode(url.split(";base64,", 1)[1], validate=True))
-                except binascii.Error, ValueError:
+                except (binascii.Error, ValueError):
                     continue
     return images
 
@@ -253,7 +253,7 @@ def create_fake_app(
             return None
         try:
             upload = (await request.form()).get("file")
-        except StarletteHTTPException, ValueError:
+        except (StarletteHTTPException, ValueError):
             # Starlette answers a missing boundary with a 400 and
             # python-multipart's parse errors are ValueErrors; the fake
             # answered both with the literal script before scenarios existed.
@@ -283,7 +283,7 @@ def create_fake_app(
                 # bytes out, either way.
                 try:
                     payload = json.loads(raw)
-                except json.JSONDecodeError, UnicodeDecodeError:
+                except (json.JSONDecodeError, UnicodeDecodeError):
                     payload = None
             prof = request.headers.get(PROFILE_HEADER, profile)
             prof = prof if prof in _TABLE else profile

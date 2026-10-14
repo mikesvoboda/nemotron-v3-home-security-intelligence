@@ -397,6 +397,17 @@ job invokes. Docs text only, no behavior. -->
 3. Warns about tests approaching the threshold (>80%)
 4. Exits non-zero if any test exceeds its limit
 
+**Exemptions:** two pattern lists, both matched with `re.search(pattern, "<classname>::<name>",
+IGNORECASE)` against the JUnit node id: `SLOW_TEST_PATTERNS` (the 60 s cap's allow-list, census
+category `tpa_slow_list`) and `BENCHMARK_PATTERNS` (excluded from the audit outright). An
+exemption row whose pattern stops matching a test is silent here, so
+`backend/tests/unit/scripts/test_audit_slow_list_liveness.py` pins that every row in both lists
+matches a test in the tracked tree. Adding a row therefore needs a measured breach AND a
+`tpa_slow_list` entry (WP1.3), and deleting a test that has a row means deleting the row too, in
+four stores: this list, `.github/suppression-baseline.json`, the mirror in
+`scripts/test_suppression_census.py`, and `.github/suppression-registry.yml` (machine-minted --
+`scripts/suppression-registry-gen.py --check` must return 0).
+
 **Usage:**
 
 ```bash
