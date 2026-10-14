@@ -99,12 +99,16 @@ nothing in `backend/` outside the DROP runbook.
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first, then the
-      scene-change vertical — then the rest of the list the owner approved at `R2`.
+- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first, then the rest
+      of the list the owner approved at `R2`. The scene-change vertical is not on that list: OD-28's
+      instruction to delete it was superseded by R2a row 24 (ruling 183).
 - [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"
-      (ruling 89).
+      (ruling 89). So does the scene-change vertical: when this package cuts
+      `backend/services/__init__.py`, `backend/services/scene_change_detector.py` goes on
+      `scripts/reachability/keep.toml` with the reason "F-287, R2a row 24", and it ships once the
+      backend runs it on frames in the pipeline (ruling 183).
 - [ ] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
       code imports.
 - [ ] Delete each module's tests, batteries included. These PRs change production code, so the
