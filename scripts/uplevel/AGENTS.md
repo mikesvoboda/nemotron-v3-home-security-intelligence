@@ -155,8 +155,16 @@ command and not a scratchpad (`[r157]`, rulings 157 + 159). Two modes:
   called directly FP32 -> FP16 -> the gateway endpoint, cosine per crop against stage 1,
   and the first stage under the gate names where parity breaks. Stages 3/4 bind the plan by
   device pointer using `ai/common/tensorrt_utils.py`'s own idiom, so they exercise the
-  same plan the Triton backend loads. A stage that raises just leaves its file absent and
-  the table reads `unknown`, never a false green.
+  same plan the Triton backend loads, and each precision PRINTS the binding the engine
+  reports (input/output names, declared shape, dtype, plus what the probe feeds) because
+  bullet 2 names that print as a deliverable - a CHW-vs-transposed fault is shape-legal and
+  shows up only when the owner can eyeball it. The gateway leg prints Triton's own
+  `/v2/models/reid/config` too. A stage that raises just leaves its file absent and the
+  table reads `unknown`; a stage plan missing on disk FAILS instead of falling back to the
+  cache plan (which is the LAST compiled precision, so a fallback could score FP16 as
+  FP32). `unknown` makes the table exit 2 - an incomplete diagnostic must not post as a
+  clean run - while a located first failure stays exit 0, because naming the broken stage
+  is this mode succeeding.
 
 `--checkout`, `--gpu`, `--port`, `--checkpoint`, `--crops`, `--head`, `--mode` - the host
 paths ruling 159 makes arguments. Without `--crops` it stops after build/export/compile and

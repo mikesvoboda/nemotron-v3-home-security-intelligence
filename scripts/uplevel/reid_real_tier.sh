@@ -317,10 +317,18 @@ GATEWAY="http://127.0.0.1:$PORT/enrich-lt"
 
 start_gateway() {
   OWN_CTR=1
+  # UR-134 is unconditional: a test deployment ALWAYS runs with
+  # ORCHESTRATOR_ENABLED=false. Nothing in this image reads it today -- the
+  # gateway image COPYs only ai/gateway and ai/triton (ai/gateway/Dockerfile:38
+  # -55), and the flag's sole reader is backend/core/config.py -- so omitting it
+  # was inert, not unsafe. It is set anyway: the rule is not conditional on the
+  # image happening to lack the code, and a container that later gains the
+  # backend must not inherit an orchestrator-enabled default from this script.
   podman run -d --name "$CTR" --security-opt label=disable \
     -p "127.0.0.1:$PORT:8090" \
     --device nvidia.com/gpu=all -e CUDA_VISIBLE_DEVICES="$GPU" \
     -e GATEWAY_MODEL_SET=vlm -e GATEWAY_ENABLE_THREAT=false \
+    -e ORCHESTRATOR_ENABLED=false \
     -v "$RUN/cache":/models/cache:ro "$IMAGE"
   local healthy=0
   for (( i = 0; i < 60; i++ )); do
@@ -335,6 +343,26 @@ start_gateway() {
     podman logs "$CTR" | tail -n 50
     echo "reid never came up (health checked at models.reid, not a string match)" >&2
     return 1
+  fi
+  # Ruling 157 bullet 2 wants the binding printed "as they are bound", and stage
+  # 5's suspect IS the Triton binding (header: tensor names, [3,256,128] layout,
+  # batch). Triton's HTTP port 8000 is NOT published to the host (only 8090 is,
+  # on loopback), so read it from INSIDE the container and save it: this is
+  # Triton's own view of reid's input/output names, dims and data types, which is
+  # what the gateway's adapter binds against. Non-fatal by design -- a missing
+  # curl in the image must not fail a parity run whose real job is the cosine --
+  # but it prints loudly when absent so the posted run shows the gap.
+  if podman exec "$CTR" sh -c 'curl -fsS localhost:8000/v2/models/reid/config' \
+      > "$RUN/triton-reid-config.json" 2>/dev/null; then
+    echo 'triton reid config (Triton bound names/shapes as the gateway serves them):'
+    python3 -I - "$RUN/triton-reid-config.json" <<'TRT'
+import json, sys
+d = json.load(open(sys.argv[1]))
+print("  input :", [(i["name"], i["datatype"], i["shape"]) for i in d.get("input", [])])
+print("  output:", [(o["name"], o["datatype"], o["shape"]) for o in d.get("output", [])])
+TRT
+  else
+    echo "WARN: could not read Triton's reid config (no curl in the image?); the stage-5 binding print is missing -- the plan-side print in the probe still stands"
   fi
   # An earlier owner run timed out on FIRST inference (plan load is lazy). Warm up
   # before anything measures time, or the timings are the load, not the model.
@@ -487,6 +515,30 @@ def _trt_run(plan: Path) -> np.ndarray:
             f"{plan} declares a {declared}-wide output but export_reid expects "
             f"{EMBEDDING_DIM}; refusing to compare across different widths"
         )
+
+    # Ruling 157 bullet 2 names this output as a stage-3/4 DELIVERABLE, not a
+    # debug aid: "with Triton's input and output names, shapes and layout printed
+    # as they are bound." Stage 5's suspect IS the binding (the header: tensor
+    # names, [3,256,128] layout, batch), and a CHW-vs-transposed fault is
+    # shape- and dtype-legal -- invisible to the cosine until the owner can
+    # EYEBALL what the plan actually asks for against what the probe feeds. So
+    # read the metadata back off the engine and print it, per precision, right
+    # here, before a single byte is bound. get_tensor_mode/get_tensor_shape/
+    # get_tensor_dtype are the engine's OWN view, not a reimplementation of it.
+    def _io(name: str) -> str:
+        return (
+            f"{name}[mode={engine.get_tensor_mode(name).name} "
+            f"declared={tuple(engine.get_tensor_shape(name))} "
+            f"dtype={engine.get_tensor_dtype(name).name}]"
+        )
+
+    print(f"plan {plan.name}: binding as the engine sees it")
+    print(f"  engine input : {_io(in_names[0])}")
+    print(f"  engine output: {_io(out_names[0])}")
+    print(
+        f"  probe feeds   : shape {tuple(BATCH.shape)} dtype {BATCH.dtype} "
+        "layout NCHW (adapter transform: resize (128,256) BILINEAR, /255, ImageNet mean/std)"
+    )
     out = np.empty((len(BATCH), declared), dtype=np.float32)
     stream = torch.cuda.current_stream().cuda_stream
     for i in range(0, len(BATCH), MAX_BATCH):
@@ -505,9 +557,21 @@ def _trt_run(plan: Path) -> np.ndarray:
 
 
 def stage_plan(precision: str) -> np.ndarray:
+    # NO fallback to cache/reid/1/model.plan. That file is whatever
+    # compile_plan wrote LAST, and run_stages compiles fp32 THEN fp16, so the
+    # cache copy is the FP16 plan. A stage-3 that fell back would therefore
+    # measure the FP16 plan and report it as FP32 clean -- silently re-creating
+    # the exact question this diagnostic exists to answer (FP32 vs FP16 is the
+    # only thing separating "the plan is wrong" from "FP16 is not enough").
+    # A missing per-precision plan must fail the stage; the cosine table then
+    # prints `unknown` for it, and finding 3 makes that exit non-zero.
     plan = RUN / f"model-{precision}.plan"
     if not plan.is_file():
-        plan = RUN / "cache" / "reid" / "1" / "model.plan"
+        raise SystemExit(
+            f"stage {precision} has no {plan.name}; refusing to fall back to the "
+            f"cache plan (that file is the LAST compiled precision, so a fallback "
+            "could measure the wrong plan and report it as this one)"
+        )
     return _trt_run(plan)
 
 
@@ -592,14 +656,17 @@ if ref is None:
 names, refv = ref
 print(f"{'stage':6} {'min':>9} {'mean':>9}  {'worst crop':40}  verdict")
 first = None
+unknown = []
 for stage in "2345":
     got = load(stage)
     if got is None:
         print(f"{stage:6} {'-':>9} {'-':>9}  {'(probe unavailable - see the step log)':40}  unknown")
+        unknown.append(stage)
         continue
     gnames, v = got
     if gnames != names:
         print(f"{stage:6} {'-':>9} {'-':>9}  {'(crop order differs from stage 1)':40}  unknown")
+        unknown.append(stage)
         continue
     cos = [cosine(r, w) for r, w in zip(refv, v)]
     lo = min(range(len(cos)), key=lambda i: cos[i])
@@ -609,8 +676,10 @@ for stage in "2345":
     if not ok and first is None:
         first = stage
 print()
-if first is None:
+if first is None and not unknown:
     print("RESULT: no stage below the 0.999 gate - the diagnostic found nothing to find")
+elif first is None:
+    print(f"RESULT: INCONCLUSIVE - stages {'+'.join(unknown)} never produced vectors")
 else:
     print(f"RESULT: the first stage under the gate is {first}")
     print({
@@ -619,6 +688,18 @@ else:
         "4": "precision only - FP32 was clean, so the fix is a build flag, not a preprocessing change",
         "5": "the BINDING: tensor names, [3,256,128] layout, batch, or the adapter's preprocessing",
     }[first])
+    if unknown:
+        print(f"  (stages {'+'.join(unknown)} were also unreadable; {first} is the first MEASURED failure)")
+# An unknown row is a leg that never ran, not a verdict. The owner runs this
+# diagnostic ONCE on maui and posts that one run, so a headline and an exit code
+# that both read clean while three legs are dead is the failure mode this table
+# must not have: `|| true` on the legs is deliberate (a raising stage leaves its
+# JSON absent rather than killing the run), so the only place that can see the
+# gap is here. Exit 2 = the diagnostic was INCOMPLETE. That is kept distinct
+# from a located first failure, which stays exit 0: naming the broken stage IS
+# this mode succeeding, so it must not share an exit status with "nothing ran".
+if unknown:
+    sys.exit(2)
 TABLE
 }
 
@@ -652,7 +733,15 @@ run_stages() {
   python3 -I "$RUN/stage5_host.py" "$RUN" "$GATEWAY" || true
 
   echo
+  # The table's exit code is the run's verdict, so capture it the way the parity
+  # arm captures reid_parity_check.py's: rc must reach the script's final
+  # `exit "${rc:-0}"` (and so the EXIT trap's reported exit=) instead of
+  # aborting under set -e before the after-snapshot and gpu-after-test.txt land.
+  # Exit 2 means a stage read `unknown` -- a leg that never ran -- see the table.
+  set +e
   python3 -I "$RUN/cosine_table.py" "$RUN"
+  rc=$?
+  set -e
 }
 
 # --- parity mode: #6970's command -------------------------------------------------------

@@ -167,7 +167,9 @@ class TestOnnxExportFidelity:
         # The gate itself, per crop. min, not mean — ruling 68 is a floor.
         assert min(sims) >= PARITY_GATE, (
             f"exported ONNX diverges from PyTorch: per-crop cosine "
-            f"{[round(s, 6) for s in sims]}, min {min(sims):.6f} < {PARITY_GATE}"
+            f"{[round(s, 6) for s in sims]}, min {min(sims):.6f} < {PARITY_GATE}; "
+            f"toolchain torch {torch.__version__} onnx {onnx.__version__} "
+            f"onnxruntime {ort.__version__} onnxscript {onnxscript.__version__}"
         )
 
     def test_the_validation_helper_no_longer_returns_true_when_deps_are_present(
