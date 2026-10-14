@@ -2683,6 +2683,94 @@ def test_the_header_names_eligible_and_re_run_counts_separately(tmp_path: Path) 
         )
 
 
+def test_the_enabled_header_counts_each_tier_and_not_a_pooled_split(
+    tmp_path: Path,
+) -> None:
+    """The header's parenthetical must count tiers SEPARATELY, not pool them.
+
+    Review finding 3.4's fix removed a per-tier re-run map that reached no
+    output; auditing that fix found the surviving half of the same dimension
+    still unpinned. Mutating ``tier_counts`` to a pooled split
+    (``total // len(RERUN_TIERS)`` for every tier) ran the WHOLE suite green —
+    measured, 68 passed — because the only pin that reads that parenthetical
+    feeds it a SYMMETRIC corpus: 6 eligible unit and 6 eligible integration,
+    and 6/6 is exactly what pooling 12 across 2 tiers also produces. A
+    symmetric fixture cannot tell a per-tier count from a pooled one.
+
+    So this fixture is deliberately UNEVEN: ONE unit breach and MAX_RERUNS
+    integration breaches. Pooled, both tiers print ``(MAX_RERUNS + 1) // 2``,
+    which agrees with neither 1 nor MAX_RERUNS — the digit the pin asks for
+    cannot be there by accident. Counts come from the fixture's own lists so a
+    cap change can't turn the assertion into a lie in the other direction, and
+    the unevenness is itself asserted (see the last check): if a future edit
+    makes the corpus symmetric again this pin fails loudly instead of going
+    quietly vacuous, which is how the trap got set the first time.
+    """
+    calls = tmp_path / "calls.jsonl"
+    unit_cases = [("backend.tests.unit.tiercount.test_u0", "test_u0_slow", 4.4)]
+    integration_cases = [
+        (
+            f"backend.tests.integration.tiercount.test_i{i}",
+            f"test_i{i}_slow",
+            10.4 + 1.1 * i,
+        )
+        for i in range(MAX_RERUNS)
+    ]
+    # Every id re-runs clear, so the ONLY thing the verdict could hinge on here
+    # is the header text; nothing below depends on a breach staying red.
+    durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml(unit_cases)),
+        ("integration.xml", _xml(integration_cases)),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls)},
+    )
+    out = _out(run)
+    eligible = len(unit_cases) + len(integration_cases)
+    # Precondition: the corpus must sit AT the cap in both tiers, so every
+    # eligible breach really was re-run. Otherwise the counts below could be
+    # produced by a run that skipped some, and the header would be describing a
+    # different run than this pin thinks it is.
+    assert len(_calls(calls)) == eligible, (
+        f"every breach must get its re-run for these counts to mean what they "
+        f"say; saw {len(_calls(calls))} of {eligible}\n{out}"
+    )
+    assert run.returncode == 0, f"all of them cleared, so the run is green:\n{out}"
+
+    header = next(line for line in out.splitlines() if "ENABLED" in line)
+    # Same extraction as the over-cap pin: "breach(es)" closes before the tier
+    # list, so the next paren pair is the tier list's, not the "(cap N)" after it.
+    assert "breach(es)" in header, (
+        f"the ENABLED line changed shape; this pin's extraction needs updating: {header!r}"
+    )
+    after = header.split("breach(es)", 1)[1]
+    paren = after[after.index("(") + 1 : after.index(")")]
+    pooled = eligible // len(_gate.RERUN_TIERS)
+    assert f"{len(unit_cases)} unit" in paren, (
+        f"the parenthetical must state the unit tier's OWN count "
+        f"({len(unit_cases)}); a pooled split prints {pooled} for both tiers: "
+        f"{paren!r}"
+    )
+    assert f"{len(integration_cases)} integration" in paren, (
+        f"and the integration tier's OWN count ({len(integration_cases)}), not "
+        f"the pooled {pooled}: {paren!r}"
+    )
+    # The teeth of the whole pin, stated as a check instead of a comment: if the
+    # corpus ever becomes symmetric again the pooled mutant is invisible and this
+    # pin certifies nothing, so fail rather than pass quietly.
+    assert len(unit_cases) != len(integration_cases), (
+        f"this fixture must stay UNEVEN or a pooled tier count becomes "
+        f"indistinguishable from a per-tier one: {len(unit_cases)} vs "
+        f"{len(integration_cases)}"
+    )
+    assert pooled not in (len(unit_cases), len(integration_cases)), (
+        f"pooling has to be FORCED wrong by this corpus; pooled={pooled} collides with a real count"
+    )
+
+
 def test_the_over_budget_section_count_excludes_the_breach_that_reproduced(
     tmp_path: Path,
 ) -> None:
