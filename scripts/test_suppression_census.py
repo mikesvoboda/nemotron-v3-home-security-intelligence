@@ -615,10 +615,20 @@ def test_real_tree_matches_spec_baselines():
         # 961ddc956, job 115516785427) while the same file measured 0.447s in
         # main's own junit (run 38478749542, so absent from both WARN lists):
         # it spawns a real compose binary and the CLI boot IS the assertion, so
-        # it cannot be fake-clocked. The main-vs-head spread is which compose
-        # invocation the runner resolves (_compose_argv prefers podman), which
-        # is why the entry records a reproducible breach rather than a stable
-        # duration — the same shape as the -n8-contention row two above.
+        # it cannot be fake-clocked. RETRACTED: the claim that the main-vs-head
+        # spread IS which compose invocation _compose_argv() resolves was my
+        # inference written as a measurement. That probe reads host binaries via
+        # shutil.which and its value reaches only the exit-nonzero message
+        # (test_compose_render_lists_ai_vlm.py:90), so a passing run cannot show
+        # which branch it took — and main's 0.447s run passed. Podman is on the
+        # image's Included Software list, but shutil.which consults runtime PATH
+        # and the suite skips outright when the binaries are absent (:66-67), so
+        # the image cannot settle it either. Unresolved machine-dependent
+        # variance, which is why the entry records a reproducible breach rather
+        # than a stable duration. Named by id, not
+        # by list offset — the offset this note used landed on the -n8 row
+        # test_enrichment_pipeline_household_matching.*, which is orphaned
+        # (its def went away in 602379e29) and licenses zero tests.
         "tpa_slow_list": 11,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
