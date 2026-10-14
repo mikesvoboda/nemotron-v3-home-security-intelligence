@@ -398,7 +398,7 @@ tests.
 
 ### [r151] The integration tier re-runs a breach before failing
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7084 (open). (ruling 151,
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7084 (merged). (ruling 151,
 record 6149020713)
 
 - [ ] Extend `[r147]`'s re-run to the integration tier: an integration test over 10.0 s is re-run
