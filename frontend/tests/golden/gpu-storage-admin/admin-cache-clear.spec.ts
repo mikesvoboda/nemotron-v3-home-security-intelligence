@@ -75,8 +75,14 @@ test.describe('golden path: admin maintenance clear cache @critical', () => {
     await dialog.getByRole('button', { name: 'Clear Cache' }).click();
     await expect(dialog).toHaveCount(0); // handleCacheClear closes it in finally (:359)
 
-    await expect.poll(() => cleared, { timeout: 10_000 }).not.toBeNull();
-    const body = cleared as ClearCacheBody;
+    // Read through a declared return type: TS narrows the `let` to `null` —
+    // control-flow analysis cannot see the assignment inside page.on('response'),
+    // so the declared union never reappears and a bare `cleared as ClearCacheBody`
+    // is TS2352. `!` would compile but type the body `never`, quietly switching
+    // off field checking on every assertion below. (Full note: [r149e] PR body.)
+    const captured = (): ClearCacheBody | null => cleared;
+    await expect.poll(captured, { timeout: 10_000 }).not.toBeNull();
+    const body = captured() as ClearCacheBody;
     expect(typeof body.keys_cleared).toBe('number');
     expect(body.message).toMatch(/Cleared \d+ cache keys/);
 

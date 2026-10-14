@@ -312,7 +312,7 @@ on the CI compose before their save leg can go green; until then they flip on th
 **Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** none yet. (ruling
 149, record 6146380050)
 
-- [ ] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:498-523`)
+- [ ] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
       and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
       `GET /api/events`.
 - [ ] When it merges, frontend flips the read-back `test.fixme` in
@@ -320,3 +320,14 @@ on the CI compose before their save leg can go green; until then they flip on th
       entry.
 
 **Done when:** `GET /api/events` returns a saved note, and F-057's read-back golden leg passes.
+
+### [r160b] Deferred Python major: huggingface-hub 2
+
+**Flags:** none. **Assigned:** backend. **Depends on:** Phase 2's exit. **PR:** none yet. (ruling
+160; dependabot #7062, closed with `@dependabot ignore this major version`)
+
+- [ ] Bump `huggingface-hub` to 2.x in its own PR, lifting the ignore
+      (`@dependabot unignore huggingface-hub`).
+
+**Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
+head.

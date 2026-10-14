@@ -234,9 +234,12 @@ Read this section before you self-review your own PR or review another lane's.
   will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing another lane's PR";
   ruling 39 item G; ruling 149)
 - **UR-92** Every review carries `Plan text: none | <which kind in UR-47 it changes, and where>`,
-  written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it
-  (anything but `none` makes the PR owner-tier) and asks the reviewer for a missing line rather than
-  judging the diff. (ruling 40)
+  written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it: the PR
+  is owner-tier only when the named kind is one of UR-47's owner kinds, and a lane-review kind
+  merges on lane review. It asks the reviewer for a missing line rather than judging the diff,
+  except that a lane review with no `Plan text:` line, on a PR whose diff
+  (`git diff --name-only <base>..<head>`) has no `docs/uplevel/` path, reads as `Plan text: none`.
+  (rulings 40, 153, 156)
 - **UR-94** Before merging a PR or posting a verdict on it, the coordinator and every reviewer open
   every owner ruling, record and pointer that names it, on the PR and on #6854, not only approval
   comments; if any bars the head, the merge or verdict waits. (ruling 145)
@@ -258,7 +261,8 @@ and the re-read and merge comment are UR-29.
 - **UR-23** A PR merges on green CI plus an approving review from another lane's agent, after the
   author's own fresh-context self-review; owner-tier PRs also need the owner. The coordinator
   merges: when `CI Gate (Required Checks)` is green at its head, its review says approve and, in the
-  owner tier, the owner has approved, keeping the repository's existing merge style. (UR-23;
+  owner tier, the owner has approved, keeping the repository's existing merge style. A lane-tier PR
+  merges through the auto-merge its reviewer turns on at approval (UR-108; ruling 156). (UR-23;
   roles/coordinator.md "Merging a PR")
 - **UR-98** Owner tier: these PRs also need an owner approval recorded on #6854 (a ruling or owner
   record); the status table's `owner` flag marks the packages that carry it. (roles/coordinator.md
@@ -284,14 +288,17 @@ and the re-read and merge comment are UR-29.
   (`B3.1`, `F3.1`, `B3.2`), security or auth or plan text beyond the ruling, or a PR with owner
   questions. (ruling 84)
 - **UR-102** `main` requires `CI Gate (Required Checks)` but not "branches up to date". The
-  coordinator merges one PR at a time. A ready PR merges without an update-branch when its green
+  coordinator merges one PR at a time, and its merge pass continues past a roll to the next ready
+  PR. A lane PR on auto-merge (UR-108) merges when its gate passes, without these legs; while
+  `main` is red the coordinator disables auto-merge on every queued lane PR and re-enables it when
+  `main` is green. Otherwise a ready PR merges without an update-branch when its green
   `CI Gate` ran on a `main` at most 3 merges behind the tip, no PR merged since that base changed a
   file it changes (`git diff --name-only <its base>..origin/main` shares no path with its files),
   and `main`'s latest CI run is not red. Otherwise only the coordinator updates it, one at a time,
   with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`; authors rebase their own PRs
   to resolve conflicts. A red `main` from a merge interaction is a red-`main` fix (UR-111); after
   two in one UTC day the coordinator turns "require branches to be up to date" back on and raises
-  the urgent path. (rulings 19, 27; owner record 6135991251)
+  the urgent path. (rulings 19, 27, 156; owner record 6135991251)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
@@ -312,6 +319,15 @@ and the re-read and merge comment are UR-29.
   (ruling 97)
 - **UR-108** Owner PRs carry auto-merge and join the same queue; the coordinator updates one in its
   turn, and GitHub merges it once the gate passes. No owner watcher updates branches. (ruling 15)
+  - **Lane PRs** carry auto-merge too: the reviewing lane, approving a ready lane-tier PR (its
+    `Plan text:` is `none` or a UR-47 lane-review kind, and no other UR-98 trigger applies), runs
+    `gh pr merge <n> --auto --merge` and says so in the review. An author pushing to a PR on
+    auto-merge runs `gh pr merge <n> --disable-auto` first; the reviewer re-enables it on
+    re-approval. The coordinator disables auto-merge on any PR whose head is neither the approved
+    head nor a UR-106 carry of it, and audits each merged PR the next tick: the merged head was the
+    approved head and no owner ruling or record barred it (UR-94). It then posts UR-29's merge
+    comment; a merge that fails the audit goes into the status comment and to the owning lane for a
+    revert PR. (ruling 156)
 
 ## Red main and the nightly
 
@@ -381,9 +397,10 @@ the gates.
 - **UR-125** The real-sleep gate fails a unit test over 4.0 s only when the breach reproduces: the
   gate re-runs that one test once, in the same job, and the run is red only if the re-run also
   breaches; a test that passes on its re-run is listed as a warning with both timings. Any unit
-  test over 1.5 s is listed as a warning that never fails the run. There is no cross-run allowance
-  and no baseline file. (rulings 93, 122; owner design session 2026-10-12, pass 2 Q9; supersedes
-  ruling 74)
+  test over 1.5 s is listed as a warning that never fails the run. An integration test over its
+  10.0 s budget gets the same single re-run, and is red only if the re-run also breaches; at most 5
+  re-runs per job in each tier. There is no cross-run allowance and no baseline file. (rulings 93,
+  122, 151; owner design session 2026-10-12, pass 2 Q9; supersedes ruling 74)
 - **UR-126** A reproduced breach is red, and the remedy is in the test, not the gate.
   `SLOW_TEST_PATTERNS`, each entry with its measured note, is the only channel for a genuinely slow
   test; `@pytest.mark.slow` is read by neither gate. (ruling 122; owner design session 2026-10-12,
@@ -553,7 +570,9 @@ Read this section before you post any comment, review, heartbeat, status comment
   - **Heartbeat.** Each agent keeps one heartbeat comment on that issue (first line
     `<!-- heartbeat:<sandbox> -->`, then the one-line status `roles/lane.md` gives), edited in place
     each tick, never reposted; extras are deleted, and the coordinator creates and pins the issue
-    if missing. (rulings 77, 85)
+    if missing. The coordinator's heartbeat is at most 600 characters (state, `read-through:`
+    cursor, acts as PR numbers, `NEXT:`), with detail on the PR it concerns, and it beats at the
+    start of each tick (`tick started · cursor <t>`) as well as at the end. (rulings 77, 85, 156)
   - **Stalled.** An agent is stalled when its heartbeat is older than three of its intervals (45
     minutes for lane and heavy agents, 90 for the operator) and it has pushed no commit and posted
     no comment since. The coordinator raises the urgent path for it, naming the agent and its open
@@ -573,8 +592,8 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-25** The owner works from one status comment the coordinator keeps on #6854; the urgent
   path is for what cannot wait for it. (UR-25; owner design session 2026-10-12, pass 2 Q8)
   - **The status comment** is one comment on the pinned issue #6854 whose first line is
-    `<!-- status:uplevel-coordinator -->`. The coordinator edits it in place every tick, like a
-    heartbeat, and never reposts it, linking rather than quoting. It carries UR-166's list
+    `<!-- status:uplevel-coordinator -->`. The coordinator edits it in place in each tick that
+    changes its content (a new timestamp alone is no change; ruling 156), and never reposts it, linking rather than quoting. It carries UR-166's list
     and never re-asks a decided ruling. It has no fixed posting time. The owner answers questions
     and approves owner-tier PRs through the design partner, as a ruling or an owner record on
     #6854, never by replying to the status comment. (ruling 29; owner design session 2026-10-12,

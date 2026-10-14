@@ -135,7 +135,18 @@ class TestWalkOnRealData(_CiYml):
         # intermediate never reads carries no red (see result_checked_needs in
         # test_ci_job_graph.py). Same doctrine as the suppression ratchet: a
         # rise moves here, in the reviewed commit that causes it, never silently.
-        assert len(direct) <= 31, f"ci-gate has {len(direct)} direct needs — review"
+        #
+        # 31 -> 32 adjudicated here, in the [r149e] commit that causes it: that
+        # package orders a `tsc --noEmit` step over frontend/tests/golden/ and
+        # UR-121 forbids adding a STEP to the shared frontend-typecheck job
+        # (its only permitted edit is one appended entry to a list a step
+        # already reads, and `npm run typecheck` is a `run:` command, not a list
+        # item), so the check arrives as its own job — frontend-golden-typecheck
+        # — and WP0.6 then REQUIRES the direct need. The rise is compelled by
+        # the two rules together, not discretionary: decline either one and the
+        # package's Done-when ("the type-check step runs in CI and is green")
+        # is unreachable.
+        assert len(direct) <= 32, f"ci-gate has {len(direct)} direct needs — review"
 
 
 class TestRunStepCommentSwallow(_CiYml):

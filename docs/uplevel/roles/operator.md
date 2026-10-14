@@ -26,6 +26,10 @@ tick".`
 
 1. `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/operator.md`).
+   Then read the `BINDING NOW` records on #6854 posted since your last tick
+   (`gh api "repos/<owner>/<repo>/issues/6854/comments?since=<your last heartbeat time>" --paginate`, keeping
+   those whose first line starts `BINDING NOW`) and follow each that names the operator or all agents; it
+   binds before the plan files catch up (UR-40, ruling 163).
 2. Edit your heartbeat ([`lane.md`](lane.md), "Heartbeat"). If the coordinator's is older than 20
    minutes, follow `lane.md`, "Stale coordinator".
 3. Read the new comments on your own open PRs.
@@ -233,6 +237,8 @@ Docker socket reachable from the checkout, stop and post that instead of adaptin
    host, the before/after snapshot diff.
 3. Name and flag every store or file the result was read from as UR-142 says.
 4. Set the package's README status row to `done` as UR-146 says.
+5. Set each inventory row the run confirmed to **works** in `docs/reference/feature-inventory.md`,
+   with the real-tier date in its `real tier` column (ruling 148).
 
 ## When something goes wrong
 

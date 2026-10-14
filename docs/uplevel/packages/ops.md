@@ -170,7 +170,13 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 - [ ] **Step 2, if yes.** `feature_check.py --real --prod-shape` (the flag's name is the package's
       call) brings up that stack and runs the golden suite against it, using the Playwright
       container from ruling 143. The operator runs it nightly or on demand, not for every batch,
-      on a test deployment (UR-133).
+      on a test deployment (UR-133), in the operator's sandbox (ruling 162).
+- [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
+      and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
+      record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
+      handled by the runner's own test override, never by editing `docker-compose.prod.yml`; a
+      CPU-only CI test renders `docker compose config` for both and fails on any difference not
+      listed.
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
 - [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
@@ -180,7 +186,9 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
 deployment and the operator's run witnesses ruling 127's 12 rows; on no, the owner has ruled on the
-blocker (ruling 144).
+blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
+(#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
+deployment, in a comment on each PR (ruling 154).
 
 ## Phase 3 — The tree matches the rulings
 
@@ -368,10 +376,10 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 ### [r149b] Retire `Nightly Analysis`'s Complexity Trends job
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7067 (open). (ruling
 149, record 6146380050)
 
-- [ ] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed
+- [x] Delete the `complexity-trends` (`wily`) job from `.github/workflows/nightly.yml`; it has failed
       on every run since at least 10-03 and nothing reads its report. Security Audit stays.
 
 **Done when:** the next `Nightly Analysis` run is green, or `nightly.yml` holds only Security Audit.
@@ -387,3 +395,57 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 **Done when:** a `workflow_dispatch` run's Analyze job is green and its summary lists the flaky
 tests.
+
+### [r151] The integration tier re-runs a breach before failing
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling 151,
+record 6149020713)
+
+- [ ] Extend `[r147]`'s re-run to the integration tier: an integration test over 10.0 s is re-run
+      once in the same job, and the run is red only if the re-run also breaches; a test that passes
+      on its re-run is listed as a warning with both timings. At most 5 re-runs per job.
+
+**Done when:** a unit test pins each integration case (breach then pass on re-run is a warning;
+breach twice is red), and the audit passes on `main`'s current tests in CI.
+
+### [r157] O2.4: find the re-ID parity failure, and gate the model half in CI
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, ahead of its F2.3 batch; ops-a
+reviews. **Depends on:** none. **PR:** #7087. (rulings 157, 159)
+
+The owner's O2.4 run at `3e0183e9f` (#7002, result `6154659954`) gave cosine min 0.230, mean 0.331,
+against the 0.999 gate on 36 real crops, with build, flags, checkpoint SHA and model IDs all
+passing: the embeddings are unrelated, not FP16-imprecise. `test_reid_path_parity.py` mocks
+Triton, so CI never checks the model half.
+
+- [ ] O2.4's README row goes back from `awaiting real tier` to `in progress` in this claim PR.
+- [ ] A diagnostic script feeds the same crops through each stage and prints cosine per crop and
+      per stage against the backend's CPU OSNet vector: PyTorch on the production checkpoint; ONNX
+      Runtime on CPU on the exported ONNX; the TensorRT plan called directly in FP32 and in FP16,
+      printing Triton's bound input and output names, shapes and layout; and the gateway's
+      `/enrich-lt/person-reid`. It runs under UR-133/UR-134: a fresh worktree, a loopback port, a
+      read-only cache, and teardown on exit.
+- [ ] A CPU-only CI test of the model half: exported ONNX against PyTorch, cosine at least 0.999 on
+      fixed crops, using a seeded, randomly initialised OSNet-AIN where the checkpoint is not in CI.
+- [ ] One committed runner, `scripts/uplevel/reid_real_tier.sh`, built from `o24.sh` and the owner's
+      maui adaptations (both posted on #7087): port, checkpoint directory, GPU and crops directory as
+      arguments; the parity check as its default mode and the diagnostic as a second mode; UR-133 and
+      UR-134 kept (ruling 159).
+- [ ] The fix for the first stage under 0.999, here or in a follow-up PR this one names.
+
+**Done when:** the owner's one diagnostic run on maui is posted on this PR, and O2.4's command
+(#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
+is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
+
+### [r162] The engine socket follows the orchestrator setting
+
+**Flags:** owner (production safety). **Assigned:** `uplevel-ops-a`. **Depends on:** `O2.5`
+merged. **PR:** none yet. (ruling 162)
+
+- [ ] `backend` and `alloy` mount `${PODMAN_SOCKET}` only when the orchestrator is enabled
+      (`docker-compose.prod.yml:473`, `:1584` at ruling 162), not unconditionally; the `:?`
+      interpolation no longer demands a value when nothing uses it.
+- [ ] A migration note for the live deployment's next redeploy.
+
+**Done when:** a production config rendered with the orchestrator off mounts no engine socket, one
+with it on mounts it as before, and `O2.5`'s override drift test still passes.
