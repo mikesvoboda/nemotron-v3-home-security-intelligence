@@ -935,6 +935,20 @@ class TestLegacyRouteCopies:
         than by a hand-written list, so a new ``get_something`` on a guarded route
         cannot make this tier fail on a missing service and report a 500 where the
         guard's 401 belongs. The guard itself is never overridden.
+
+        **Walk the routers, never ``app.routes``.** FastAPI 0.142 keeps
+        ``include_router`` lazy: ``app.routes`` yields ``_IncludedRouter``
+        objects (a private ``BaseRoute`` subclass carrying ``original_router``,
+        with NO ``.routes``), so ``isinstance(route, APIRoute)`` is false for
+        every one and a walk of the app collects ZERO — silently. Measured at
+        this head: 0 APIRoutes via ``app.routes``, 45 via each router's own
+        ``.routes`` (ops-b's #7135 finding, reproduced here with ``REDIS_URL``
+        pointed at a dead port: 3 failed, the three dlq legs). A zero-collecting
+        walk installs no overrides, so ``get_redis`` dials a real server and the
+        leg's answer depends on whether one happens to be listening — the exact
+        environment dependence ruling 60's witness must not have. Hence the
+        explicit floor below: a harness that collects nothing is a failure, not
+        a green.
         """
         from fastapi import FastAPI
         from fastapi.routing import APIRoute
@@ -946,8 +960,9 @@ class TestLegacyRouteCopies:
         monkeypatch.setattr(system_routes, "get_settings", lambda: armed)
 
         app = FastAPI()
-        app.include_router(dlq_routes.router)
-        app.include_router(system_routes.router)
+        routers = (dlq_routes.router, system_routes.router)
+        for router in routers:
+            app.include_router(router)
         guards = {dlq_routes.verify_api_key, system_routes.verify_api_key}
 
         def collaborators(dependant):
@@ -956,10 +971,33 @@ class TestLegacyRouteCopies:
                     yield sub.call
                 yield from collaborators(sub)
 
-        for route in app.routes:
-            if isinstance(route, APIRoute):
+        owners = {id(dlq_routes.router): "dlq", id(system_routes.router): "system"}
+        collected: dict[str, int] = {}
+        for router in routers:
+            label = owners[id(router)]
+            for route in router.routes:
+                if not isinstance(route, APIRoute):
+                    continue
+                collected[label] = collected.get(label, 0) + 1
                 for call in collaborators(route.dependant):
                     app.dependency_overrides.setdefault(call, lambda: MagicMock())
+        # Non-vacuity, stated as a FLOOR rather than an inventory count: the
+        # count moves whenever either module gains a route, and a harness that
+        # fails on ordinary growth gets relaxed into nothing. What must never
+        # happen is a router contributing zero — that is the silent-zero shape
+        # this whole block exists to make loud. Measured: the ``app.routes``
+        # walk yields 0 for BOTH routers, and the failure names them.
+        assert all(collected.get(owners[id(r)], 0) > 0 for r in routers), (
+            f"route walk collected {collected}; every router must contribute "
+            "routes, or no collaborator is overridden and the legs answer from "
+            "the environment instead of from the guard"
+        )
+        # The dlq legs' own collaborator must be among the overridden calls —
+        # the one that reaches for Redis before the guard runs (dlq.py:249).
+        assert dlq_routes.get_redis in app.dependency_overrides, (
+            "get_redis was not overridden: the dlq legs would dial a real "
+            "Redis and answer from the environment, not from the guard"
+        )
         return TestClient(app)
 
     @pytest.mark.parametrize(
