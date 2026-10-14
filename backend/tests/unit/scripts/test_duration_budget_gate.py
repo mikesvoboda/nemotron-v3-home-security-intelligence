@@ -2865,18 +2865,28 @@ def test_tiers_outside_the_clause_are_still_never_re_run(tmp_path: Path) -> None
     which is what makes "who catches this regression?" answerable at all.
 
     Why ``slow`` stays out on its own merits, independent of e2e: its members
-    are slow by MEASURED CENSUS, not by one starved run. The seven
-    ``SLOW_TEST_PATTERNS`` entries in the audit each carry a recorded breach
-    across 18 main junit datasets, so a re-run there is not a flake verdict
-    waiting to happen — it is the same 60 s-class sleep again, in the audit job,
-    and the gate would print "did not reproduce" about a test the census has
-    already convicted. That is the failure mode UR-125's leniency must not be
-    allowed to grow into, and it is a different reason from e2e's (a browser
-    that is not installed), which is why it gets its own pin rather than riding
-    in a shared corpus where one green could cover the other's red.
+    are slow by MEASURED CENSUS, not by one starved run. Every
+    ``SLOW_TEST_PATTERNS`` entrant has to carry a measured breach in the corpus
+    AND a ``tpa_slow_list`` census entry (the rule the audit's own comment
+    states), so a re-run there is not a flake verdict waiting to happen — it is
+    the same 60 s-class sleep again, in the audit job, and the gate would print
+    "did not reproduce" about a test the census has already convicted. That is
+    the failure mode UR-125's leniency must not be allowed to grow into, and it
+    is a different reason from e2e's (a browser that is not installed), which is
+    why it gets its own pin rather than riding in a shared corpus where one
+    green could cover the other's red.
+
+    (An earlier draft of this docstring said "the seven ``SLOW_TEST_PATTERNS``
+    entries … each carry a recorded breach across 18 main junit datasets". That
+    was false in two ways and was caught by COUNTING the list rather than
+    quoting the comment: the list now holds 11 entries, not 7, and the 18-dataset
+    WP1.3 cohort is only its first seven — the four later entrants (dated
+    2026-09-23 through 2026-10-13) each bring a single-run measured breach
+    instead. The fixture below is a member of the original cohort, which is the
+    claim this pin actually rests on.)
     """
     calls = tmp_path / "calls.jsonl"
-    # A census member by name: this id is one of the seven patterns, so the
+    # A census member by name: this id is a SLOW_TEST_PATTERNS member, so the
     # classifier reaches `slow` the way production does rather than by a fixture
     # that pre-declares the tier it wants.
     results = _results(
