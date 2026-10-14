@@ -251,7 +251,7 @@ and still accept an unscoped key, and a test pins the narrowed `monitoring` gran
 ### [r122] WARN-band unit tests made cheaper in the tests
 
 **Flags:** pre-approved under ruling 83's limits (UR-112). **Assigned:**
-backend. **Depends on:** queues behind #7003 (merged). **PR:** #7027 (open).
+backend. **Depends on:** queues behind #7003 (merged). **PR:** #7027 (merged).
 
 - [ ] The unit tests that land in the 1.5–4.0 s WARN band every run (about 10 ids, mostly
       100-example property tests) are made cheaper in the tests themselves: draw counts, fixtures,
@@ -263,7 +263,7 @@ backend. **Depends on:** queues behind #7003 (merged). **PR:** #7027 (open).
 ### [r129] Backups and the batch audit load the deferred columns
 
 **Flags:** none. **Assigned:** backend, as a bug fix outside Phase 4's priority order. **Depends
-on:** queues behind `[r122]`. **PR:** #7031 (open).
+on:** queues behind `[r122]`. **PR:** #7031 (merged).
 
 F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_prompt` are
 `deferred()` (`backend/models/event.py:72-74`). `_export_table`
@@ -309,10 +309,10 @@ on the CI compose before their save leg can go green; until then they flip on th
 
 ### [r149d] F-057: the event list returns `notes`
 
-**Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** none yet. (ruling
-149, record 6146380050)
+**Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** #7070 (merged).
+(ruling 149, record 6146380050)
 
-- [ ] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
+- [x] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
       and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
       `GET /api/events`.
 - [ ] When it merges, frontend flips the read-back `test.fixme` in
