@@ -3043,3 +3043,99 @@ def test_a_read_only_engine_socket_mount_is_still_a_breach() -> None:
     assert [h[0] for h in fc.engine_socket_mounts(docker_sock, socket_path=_ENGINE_SOCKET)] == [
         "backend"
     ]
+
+
+# ---------------------------------------------------------------------------
+# O2.5 Step 2: the --prod-shape flag (package text: "feature_check.py --real
+# --prod-shape (the flag's name is the package's call)"). This slice is the CLI
+# seam only -- that the flag exists, is refused off --real, and that the chosen
+# shape reaches run_check, which is where the prod render decision lives.
+# ---------------------------------------------------------------------------
+
+
+def test_prod_shape_reaches_run_check_with_the_shape(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[tuple[str, bool]] = []
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        seen.append((mode, args.prod_shape))
+        return 0
+
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    assert fc.main(["--real", "--prod-shape"]) == 0
+    assert seen == [("real", True)]
+    # bare --prod-shape (no --fake/--real) is refused the same way, before any run
+    monkeypatch.setattr(fc, "run_check", lambda *_a, **_k: seen.append(("LEAK", False)) or 0)
+    with pytest.raises(SystemExit) as caught:
+        fc.main(["--prod-shape"])
+    assert caught.value.code == 2
+    assert all(s[0] != "LEAK" for s in seen)
+
+
+def test_prod_shape_without_real_is_a_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # "--prod-shape --fake" would mean "the CI stack, in the shape of prod" -- two
+    # compose files that cannot both be the one rendered. argparse's own error
+    # (SystemExit 2) is the answer, and it must be the answer BEFORE any engine call.
+    called: list[Any] = []
+    monkeypatch.setattr(fc, "run_check", lambda *a, **_k: called.append(a) or 0)
+    with pytest.raises(SystemExit) as caught:
+        fc.main(["--fake", "--prod-shape"])
+    assert caught.value.code == 2
+    assert called == []
+    # and the default stays honest for every other invocation
+    seen: list[bool] = []
+    monkeypatch.setattr(fc, "run_check", lambda args, **_kw: seen.append(args.prod_shape) or 0)
+    assert fc.main(["--fake"]) == 0
+    assert seen == [False]
+
+
+def test_run_check_builds_the_run_with_the_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The forwarding itself: main() only holds the flag; run_check is what hands it
+    # to the Run that renders. A run_check that drops it would render the CI stack
+    # while the operator believes prod was exercised -- and the summary above would
+    # still be self-consistent, because both would say "real". So this pins the
+    # exact handoff, not the two ends.
+    import argparse
+
+    captured: dict[str, Any] = {}
+    real_init = fc.Run.__init__
+
+    def spy(self: Any, **kwargs: Any) -> None:
+        captured.update(kwargs)
+        real_init(self, **kwargs)
+
+    monkeypatch.setattr(fc.Run, "__init__", spy)
+
+    class StopHere(Exception):
+        pass
+
+    # prepare() runs BEFORE run_check's try block, so this propagates out of
+    # run_check untouched -- which is exactly what we want: every Run kwarg is
+    # already captured, and no engine, VLM or artifact code runs.
+    def stop(*_a: Any, **_k: Any) -> None:
+        raise StopHere
+
+    monkeypatch.setattr(fc.Run, "prepare", stop)
+    args = argparse.Namespace(
+        engine="podman", root=tmp_path / "runs", image_tag="test", prod_shape=True
+    )
+    with pytest.raises(StopHere):
+        fc.run_check(args, mode="real")
+    assert captured.get("prod_shape") is True, "run_check must forward the flag to Run"
+    assert captured.get("mode") == "real"
+
+
+def test_the_shape_is_recorded_in_the_run_summary(tmp_path: Path) -> None:
+    # A run record that does not say which stack was rendered cannot witness
+    # ruling 127's real-tier rows -- the whole point of the O2.5 run.
+    run = fc.Run(
+        engine="podman", root=tmp_path / "runs", image_tag="test", mode="real", prod_shape=True
+    )
+    assert run.summary["mode"] == "real-prod-shape"
+    # and the ordinary tiers keep the strings they already emit
+    plain = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="real")
+    assert plain.summary["mode"] == "real"
+    fake = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake")
+    assert fake.summary["mode"] == "fake"

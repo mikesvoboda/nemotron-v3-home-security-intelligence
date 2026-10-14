@@ -1428,11 +1428,25 @@ def _log(message: str) -> None:
 class Run:
     """One test deployment: its project, directory, engine and artifacts."""
 
-    def __init__(self, *, engine: str, root: Path, image_tag: str, mode: str) -> None:
+    def __init__(
+        self,
+        *,
+        engine: str,
+        root: Path,
+        image_tag: str,
+        mode: str,
+        prod_shape: bool = False,
+    ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
         self.engine = engine
         self.mode = mode
+        self.prod_shape = prod_shape
+        # A run record that does not say WHICH compose shape was rendered cannot
+        # witness ruling 127's 12 real-tier rows, which is the whole point of the
+        # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
+        # prod shape gets a distinct one -- so nothing that greps today shifts.
+        self.shape = f"{mode}-prod-shape" if prod_shape else mode
         self.image_tag = image_tag
         self.dir = (root / self.project).resolve()
         self.cameras = self.dir / "cameras"
@@ -1441,7 +1455,7 @@ class Run:
         self.compose_file = self.dir / "compose.json"
         self.summary: dict[str, Any] = {
             "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "mode": mode,
+            "mode": self.shape,
             "project": self.project,
             "run_dir": str(self.dir),
             "engine": engine,
@@ -2312,7 +2326,13 @@ def _interrupt(signum: int, _frame: Any) -> None:
 
 
 def run_check(args: argparse.Namespace, *, mode: str) -> int:
-    run = Run(engine=args.engine, root=args.root, image_tag=args.image_tag, mode=mode)
+    run = Run(
+        engine=args.engine,
+        root=args.root,
+        image_tag=args.image_tag,
+        mode=mode,
+        prod_shape=args.prod_shape,
+    )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
     status = EXIT_OK
@@ -2419,6 +2439,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     modes.add_argument("--fake", action="store_true", help="the CI stack with the fake AI (O2.1)")
     modes.add_argument("--real", action="store_true", help="real models through agent-gpu")
     parser.add_argument(
+        "--prod-shape",
+        action="store_true",
+        help="with --real, bring up the PRODUCTION compose shape (O2.5, ruling 144/162): "
+        "docker-compose.prod.yml + the prod-shape override on Podman, instead of the CI "
+        "stack. Refused without --real — the prod shape is the real tier's prod shape.",
+    )
+    parser.add_argument(
         "--image-tag",
         default=os.environ.get("FEATURE_CHECK_IMAGE_TAG", "latest"),
         help="backend/frontend image tag (default: $FEATURE_CHECK_IMAGE_TAG or latest)",
@@ -2448,6 +2475,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         print(drop(args.image, args.camera, Path(root)))
         return 0
+    if args.prod_shape and not args.real:
+        # O2.5's flag is a SHAPE of the real tier, not a third mode: the prod shape
+        # renders docker-compose.prod.yml, and --fake renders docker-compose.ci.yml.
+        # "the CI stack in the shape of prod" has no referent, and accepting it
+        # would let a reader of a run record believe prod was exercised when the CI
+        # stack ran. Refused at parse time, before any engine call.
+        parser.error("--prod-shape needs --real (it is the real tier's production shape)")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:
