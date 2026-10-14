@@ -134,7 +134,11 @@ async function timelineAcceptsFocus(page: import('@playwright/test').Page) {
     );
     if (!link) return 'absent';
     (document.activeElement as HTMLElement | null)?.blur?.();
-    link.focus();
+    // The selector ends in ` a`, so this element is an anchor; DOM's declared
+    // type is the looser Element, which is why [r149e]'s golden type-check job
+    // flagged the bare `.focus()` call (TS2339). A wrong cast here would be
+    // invisible to the test, so the selector that justifies it is on this line.
+    (link as HTMLElement).focus();
     return document.activeElement === link ? 'focused' : 'refused';
   });
 }
@@ -157,7 +161,15 @@ async function tabWalkStops(page: import('@playwright/test').Page, n: number) {
     await page.keyboard.press('Tab');
     stops.push(
       await page.evaluate(() => {
+        // `activeElement` is nullable and the DOM type says so; the old code
+        // assumed non-null and [r149e]'s type-check job flagged all three
+        // dereferences (TS18047). Rather than cast, the walk names the state it
+        // would otherwise have crashed on — a null activeElement is a real
+        // focus outcome worth seeing in the arrow-chain, and the callers below
+        // only filter this list for a 'SIDEBAR:' prefix and join it into a
+        // message, so the extra token cannot change a passing run's verdict.
         const a = document.activeElement;
+        if (!a) return 'NO-FOCUS';
         return (
           (a.closest('[data-testid="sidebar"]') ? 'SIDEBAR:' : '') +
           (a.getAttribute('data-testid') || a.tagName.toLowerCase())
