@@ -149,6 +149,7 @@ describe('PyroscopePage', () => {
           batch_idle_timeout_seconds: 30,
           detection_confidence_threshold: 0.5,
           fast_path_confidence_threshold: 0.9,
+          fast_path_enabled: false,
           grafana_url: '/grafana',
           debug: false,
         });
@@ -188,6 +189,7 @@ describe('PyroscopePage', () => {
           batch_idle_timeout_seconds: 30,
           detection_confidence_threshold: 0.5,
           fast_path_confidence_threshold: 0.9,
+          fast_path_enabled: false,
           grafana_url: '/grafana',
           debug: false,
         });

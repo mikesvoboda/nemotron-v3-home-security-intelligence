@@ -92,9 +92,10 @@ Detections are grouped into time-windowed batches before analysis
 **Bypasses:** high-confidence weapon threats (knife/pistol/rifle at
 confidence ≥ 0.7) and smoke/fire (fire ≥ 0.70, smoke ≥ 0.75) skip the batch
 window entirely (`backend/services/batch_aggregator.py:1294`). The generic
-"high-confidence person" fast path is **disabled by default** — its
-threshold (`FAST_PATH_CONFIDENCE_THRESHOLD`) ships at an impossible 2.0 with
-an empty type list, because that path analyzes without specialist context.
+"high-confidence person" fast path is **off by default** — its master switch
+(`FAST_PATH_ENABLED`) ships `false`, so nothing fires whatever the threshold
+says (ruling 168); the threshold ships `0.9` with an empty type list as second
+nets, because that path analyzes without specialist context.
 
 ### 5. Risk Analysis
 
@@ -202,7 +203,8 @@ threat/smoke-fire bypasses skip the window.
 | `BATCH_WINDOW_SECONDS`           | 90      | Maximum batch duration                                                      |
 | `BATCH_IDLE_TIMEOUT_SECONDS`     | 30      | Close batch if no activity                                                  |
 | `BATCH_MAX_DETECTIONS`           | 500     | Close batch at size                                                         |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0     | Generic fast path ships disabled (>1.0)                                     |
+| `FAST_PATH_ENABLED`              | false   | Generic fast path master switch (off = nothing fires)                       |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.9     | Generic fast path threshold (consulted only when enabled)                   |
 | `USE_REDIS_STREAMS`              | true    | Streams vs list queues                                                      |
 | `DETECTION_CONFIDENCE_THRESHOLD` | 0.40    | Fallback class threshold (per-class overrides in `YOLO26_CLASS_THRESHOLDS`) |
 | `AI_VLM_READ_TIMEOUT`            | 25.0    | Per-read idle budget for an attempt (not an attempt deadline)               |

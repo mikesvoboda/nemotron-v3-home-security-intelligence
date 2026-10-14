@@ -909,7 +909,9 @@ async def test_add_detection_triggers_fast_path(batch_aggregator, mock_redis_ins
     mock_analyzer.analyze_detection_fast_path = AsyncMock()
     batch_aggregator._analyzer = mock_analyzer
 
-    # Configure fast path settings
+    # Configure fast path settings (the master switch must be on for the
+    # threshold and types below to be consulted at all — ruling 168)
+    batch_aggregator._fast_path_enabled = True
     batch_aggregator._fast_path_threshold = 0.90
     batch_aggregator._fast_path_types = ["person"]
 

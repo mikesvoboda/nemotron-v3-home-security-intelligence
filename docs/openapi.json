@@ -9230,6 +9230,7 @@
           "debug": false,
           "detection_confidence_threshold": 0.5,
           "fast_path_confidence_threshold": 0.9,
+          "fast_path_enabled": false,
           "grafana_url": "/grafana",
           "log_retention_days": 7,
           "retention_days": 30,
@@ -9273,6 +9274,11 @@
             "title": "Fast Path Confidence Threshold",
             "type": "number"
           },
+          "fast_path_enabled": {
+            "description": "Master switch for fast-path processing (ruling 168)",
+            "title": "Fast Path Enabled",
+            "type": "boolean"
+          },
           "grafana_url": {
             "description": "Grafana dashboard URL for frontend link",
             "title": "Grafana Url",
@@ -9307,6 +9313,7 @@
           "batch_idle_timeout_seconds",
           "detection_confidence_threshold",
           "fast_path_confidence_threshold",
+          "fast_path_enabled",
           "grafana_url",
           "debug"
         ],
@@ -9370,6 +9377,18 @@
             ],
             "description": "Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
             "title": "Fast Path Confidence Threshold"
+          },
+          "fast_path_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Master switch for fast-path processing (ruling 168)",
+            "title": "Fast Path Enabled"
           },
           "log_retention_days": {
             "anyOf": [
@@ -11689,6 +11708,7 @@
         "description": "Detection-related settings for object detection thresholds.\n\nControls the confidence thresholds used by YOLO26v2 for object detection\nand fast-path processing for high-priority alerts.",
         "example": {
           "confidence_threshold": 0.5,
+          "fast_path_enabled": false,
           "fast_path_threshold": 0.9
         },
         "properties": {
@@ -11698,6 +11718,11 @@
             "minimum": 0.0,
             "title": "Confidence Threshold",
             "type": "number"
+          },
+          "fast_path_enabled": {
+            "description": "Master switch for fast-path processing (ruling 168)",
+            "title": "Fast Path Enabled",
+            "type": "boolean"
           },
           "fast_path_threshold": {
             "description": "Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
@@ -11709,6 +11734,7 @@
         },
         "required": [
           "confidence_threshold",
+          "fast_path_enabled",
           "fast_path_threshold"
         ],
         "title": "DetectionSettings",
@@ -11733,6 +11759,18 @@
             ],
             "description": "Minimum confidence threshold for object detections (0.0-1.0)",
             "title": "Confidence Threshold"
+          },
+          "fast_path_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Master switch for fast-path processing (ruling 168)",
+            "title": "Fast Path Enabled"
           },
           "fast_path_threshold": {
             "anyOf": [
@@ -36847,6 +36885,7 @@
           },
           "detection": {
             "confidence_threshold": 0.5,
+            "fast_path_enabled": false,
             "fast_path_threshold": 0.9
           },
           "features": {

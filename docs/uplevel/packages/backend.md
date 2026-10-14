@@ -291,11 +291,14 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
 **Flags:** none. **Assigned:** backend, as lane bug fixes outside Phase 4's priority order.
 **Depends on:** queues after `[r129]`; frontend's `[r130f]` runs in parallel. **PR:** none yet.
 
-- [ ] **F-187, F-190, F-191.** `GET /api/v1/settings` returns 500: `settings_api.py:115` feeds
+- [ ] **F-187, F-190, F-191.** `GET /api/v1/settings` returns 500: `settings_api.py:117` feeds
       `fast_path_confidence_threshold` (default `2.0`, the deliberate "disabled" value,
-      `config.py:1966`) into `DetectionSettings.fast_path_threshold`, whose schema caps it at
-      `le=1.0` (`schemas/settings_api.py:49`). Make the schema and the config agree, and keep the
-      disabled sentinel expressible.
+      `config.py:1952`) into `DetectionSettings.fast_path_threshold`, whose schema caps it at
+      `le=1.0` (`schemas/settings_api.py:53`). Make the schema and the config agree, and keep the
+      disabled sentinel expressible. Ruling 168 (option b) settles the mechanism: the disabled
+      state becomes an explicit `fast_path_enabled: bool` (default false) rather than an
+      out-of-band threshold, so this row is met by `[r130b]` and the `2.0`/`le=10.0` above
+      describe the base, not the fix.
 - [ ] **F-089.** Give the `job_type` query parameter `alias="type"` (`routes/jobs.py:296-299`),
       matching `job_status`.
 - [ ] **F-034, link half.** `summary_detail_service.py:147` builds `/events/{id}`, a route the app

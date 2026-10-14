@@ -46,6 +46,10 @@ class DetectionSettings(BaseModel):
         le=1.0,
         description="Minimum confidence threshold for object detections (0.0-1.0)",
     )
+    fast_path_enabled: bool = Field(
+        ...,
+        description="Master switch for fast-path processing (ruling 168)",
+    )
     fast_path_threshold: float = Field(
         ...,
         ge=0.0,
@@ -57,6 +61,7 @@ class DetectionSettings(BaseModel):
         json_schema_extra={
             "example": {
                 "confidence_threshold": 0.5,
+                "fast_path_enabled": False,
                 "fast_path_threshold": 0.9,
             }
         }
@@ -334,6 +339,7 @@ class SettingsResponse(BaseModel):
             "example": {
                 "detection": {
                     "confidence_threshold": 0.5,
+                    "fast_path_enabled": False,
                     "fast_path_threshold": 0.9,
                 },
                 "batch": {
@@ -390,6 +396,10 @@ class DetectionSettingsUpdate(BaseModel):
         ge=0.0,
         le=1.0,
         description="Minimum confidence threshold for object detections (0.0-1.0)",
+    )
+    fast_path_enabled: bool | None = Field(
+        None,
+        description="Master switch for fast-path processing (ruling 168)",
     )
     fast_path_threshold: float | None = Field(
         None,
