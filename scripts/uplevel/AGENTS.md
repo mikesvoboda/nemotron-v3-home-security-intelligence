@@ -5,7 +5,9 @@
 The uplevel programme's tooling. `launch.py` is the sandbox launcher (package `O0.1`, rulings
 UR-26 and UR-28 in `docs/uplevel/`) and is a **host tool for the owner** - no agent runs it.
 `prod-shape-probe.sh` and its override file are different: an agent runs those, inside a
-sandbox, as the `O2.5` Step 1 spike (ruling 144). The programme itself is planned in
+sandbox, as the `O2.5` Step 1 spike (ruling 144), and `docker-compose.prodshape.yml` is the same
+package's Step 2 artifact (ruling 162) - an override plus the CPU-only CI test that pins what it
+covers. The programme itself is planned in
 `docs/uplevel/` (start at its `README.md`); this module only automates what
 `docs/uplevel/rules.md` ("Agents, sandboxes and models") describes the owner doing by hand at a
 phase boundary.
@@ -66,6 +68,38 @@ answer and cannot live in that file: this sandbox cannot mount overlayfs even as
 `CONTAINERS_STORAGE_CONF` rather than `--storage-driver` (the flag is refused on an existing
 database). The probe is a test deployment in every sense UR-133/134 require and tears itself
 down with `down -v` only (UR-135).
+
+### docker-compose.prodshape.yml + test_prodshape_override.py
+
+`docker-compose.prodshape.yml` is Step 2's real artifact (ruling 162 item 3): the override the
+prod-shape runner applies on top of `docker-compose.prod.yml`. The production file is **not**
+edited - this file is the only carrier - and it changes exactly three kinds of thing: drops the
+container-engine socket on `backend` and `alloy` (UR-134), prefixes `hsi-test-` onto every
+`container_name` **prod pins** (UR-133; a service prod leaves unpinned gets no `container_name`,
+because adding one where prod has none is a key change, not a prefix), and remaps every published
+port by +15000 and every writable host bind under `${PROD_SHAPE_RUN_ROOT}`. Read-only binds and
+named volumes are kept verbatim. `limits` are absent on purpose: ruling 162 item 2 makes them a
+runtime decision the runner records, so keeping them out of the committed file is what makes the
+delta the static, assertable part.
+
+The override is **hand-authored, never generated.** A generator would derive it from the prod
+render, the override would always match prod, and the CI test could never fail - which is precisely
+the failure ruling 162 asks to be possible. `scripts/test_prodshape_override.py` is that test: it
+renders prod and prod+override with `docker compose config` (CPU-only, daemon-free - client-side
+interpolation and schema validation, nothing starts, so UR-133/134/135 are respected by
+construction) and asserts the *observed* delta equals an *expected* delta derived from a policy
+that never reads the override file. It is wired into `collection-sanity`'s pytest list, where it
+costs 0.31 s.
+
+Three measured compose facts the file depends on, each re-checked before it was relied on:
+`volumes` merge **by target** (an entry at an existing target replaces it and can never delete
+one, so dropping or redirecting a mount requires restating the whole list under `!override`);
+`ports` **append** (same reason); and a relative `./x` source resolves against the **compose
+project directory** - the first `-f` file's dir, the repo root - not the override's own
+`scripts/uplevel/`, which is what lets a relative path byte-reproduce prod's absolute source and
+keeps the CI comparison machine-independent. The socket mounts are only findable by rendering with
+a sentinel `PODMAN_SOCKET`, because `prod.yml` interpolates that variable into **both** fields on
+`alloy` and into only the source on `backend`.
 
 ### sandboxes.toml
 
