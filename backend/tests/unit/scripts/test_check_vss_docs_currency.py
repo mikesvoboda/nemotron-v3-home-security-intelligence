@@ -511,6 +511,37 @@ class TestStatePage:
         )
         assert result.returncode == 0, result.stdout + result.stderr
 
+    def test_od34_empty_ruling_cell_fails(self, tmp_path: Path) -> None:
+        text = register_text(BLOCKS).replace(
+            "| ID | Decision |\n| -- | -- |\n| OD-1 | Something |",
+            "| ID | Decision | Options | Ruling | Unblocks | Source |\n"
+            "| --- | --- | --- | --- | --- | --- |\n"
+            "| OD-1 | Something | opt |  | ISS-001 | src |",
+        )
+        result = run_gate(with_register(tmp_path, text))
+        assert result.returncode != 0
+        assert "OD-1" in result.stdout and "Ruling" in result.stdout
+
+    def test_od34_closed_issue_missing_from_history_file_fails(self, tmp_path: Path) -> None:
+        tree = with_register(tmp_path, register_text(BLOCKS))
+        hist = tree / "docs/vss-integration/history"
+        hist.mkdir(parents=True, exist_ok=True)
+        (hist / "17-closed-issues.md").write_text("# Closed\n", encoding="utf-8")
+        result = run_gate(tree)
+        assert result.returncode != 0
+        assert "ISS-003" in result.stdout and "17-closed-issues.md" in result.stdout
+
+    def test_od34_closed_issue_present_in_history_file_passes(self, tmp_path: Path) -> None:
+        tree = with_register(tmp_path, register_text(BLOCKS))
+        hist = tree / "docs/vss-integration/history"
+        hist.mkdir(parents=True, exist_ok=True)
+        (hist / "17-closed-issues.md").write_text(
+            "#### ISS-003 — Closed block\n\n`P2` · `debt` · actor `agent-now` · status `done`\n",
+            encoding="utf-8",
+        )
+        result = run_gate(tree)
+        assert result.returncode == 0, result.stdout + result.stderr
+
 
 class TestRepoItself:
     def test_the_real_tree_is_clean(self) -> None:
