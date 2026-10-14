@@ -147,7 +147,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 132    | package Phase 3 rate-limit countdown retirement                                                             |
 | 133    | package Phase 3 PWA install prompt retirement                                                               |
 | 134    | package Phase 3 batch-statistics history views retirement                                                   |
-| 135    | UR-66 (R2b-round Phase 3 start), UR-149; round 1 record #7030 (open); round 1 tiers one-off                 |
+| 135    | UR-66 (R2b-round Phase 3 start), UR-149; round 1 record #7030 (merged); round 1 tiers one-off               |
 | 136    | UR-78; #7026 fold one-off                                                                                   |
 | 137    | UR-121; #7022/#7023/#7025 one-off                                                                           |
 | 138    | UR-144                                                                                                      |
