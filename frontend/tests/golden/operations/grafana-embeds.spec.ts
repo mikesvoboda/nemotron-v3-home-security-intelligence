@@ -189,13 +189,17 @@ test.describe('golden path: operations grafana embed pages (F-164..F-167, F-169,
         expect(href ?? '').toContain(extra.hrefContains);
       }
 
-      // Refresh button resets iframe.src and restores it after 100 ms.
+      // Refresh button reads the DOM property `iframeRef.current.src` (which
+      // resolves the relative `/grafana/...` attribute against `h.ui`), blanks
+      // it, and writes the resolved URL back into `src` after 100 ms — so the
+      // attribute moving from `expectedIframeSrc` to `${h.ui}${expectedIframeSrc}`
+      // directly witnesses `handleRefresh` executing.
       const refreshBtn = page.getByTestId(spec.refreshTestId);
       await expect(refreshBtn).toBeVisible();
       await expect(refreshBtn).toBeEnabled();
       await refreshBtn.click();
       await expect(refreshBtn).toBeEnabled({ timeout: 5_000 });
-      await expect(iframe).toHaveAttribute('src', expectedIframeSrc);
+      await expect(iframe).toHaveAttribute('src', `${h.ui}${expectedIframeSrc}`);
 
       expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
     });
