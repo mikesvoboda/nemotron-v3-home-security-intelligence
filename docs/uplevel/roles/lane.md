@@ -48,7 +48,25 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
-   Then read every live `BINDING NOW` record on #6854: `gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate`, keeping those whose first line starts `BINDING NOW`. Act on each that names your lane or all agents and whose required state does not already hold; one already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings 163, 170).
+   Then read the live `BINDING NOW` records on #6854 that the plan files do not yet carry: run the
+   command below and read what it prints. A record whose ruling number or comment id has a row in
+   `history/ruling-map.md` on `main` is already in the plan files you just read. Act on each printed
+   record that names your lane or all agents and whose required state does not already hold; one
+   already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings
+   163, 170, 177). Never fetch the 48-hour window unfiltered.
+
+   ```bash
+   MAP=$(git show origin/main:docs/uplevel/history/ruling-map.md)
+   gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate \
+     --jq '.[] | select(.body | startswith("BINDING NOW")) | "\(.id)\t\(.body | split("\n")[0])"' |
+   while IFS=$'\t' read -r id first; do
+     n=$(grep -oE 'ruling [0-9]+' <<<"$first" | head -1 | grep -oE '[0-9]+')
+     if [ -n "$n" ] && grep -qE "^\| $n " <<<"$MAP"; then continue; fi
+     grep -qF "$id" <<<"$MAP" && continue
+     gh api "repos/<owner>/<repo>/issues/comments/$id" --jq .body; echo
+   done
+   ```
+
 2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below), and keep your disks under 90% (UR-180). Read the coordinator's; if it is older
    than 20 minutes, follow "Stale coordinator" below.
 3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another

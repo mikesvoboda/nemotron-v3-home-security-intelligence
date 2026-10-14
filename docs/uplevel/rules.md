@@ -17,7 +17,9 @@ give work a number.
   one-line pointer: "Ruling N, in PR #M: one line". (owner design session 2026-10-12; ruling 146)
 - **UR-40** An owner record on #6854 whose first line carries `BINDING NOW` binds at once and lapses
   48 hours after posting unless a merged PR carries it. The coordinator lists the live `BINDING NOW`
-  records at the top of its status comment (UR-166). (owner design session 2026-10-12)
+  records at the top of its status comment (UR-166). Lanes and the operator read, each tick, the
+  live records that have no row yet in `history/ruling-map.md` on `main`, filtered at the source
+  (`roles/lane.md`, "The tick", step 1). (owner design session 2026-10-12; rulings 170, 177)
 - **UR-41** Rulings 1-146 bind only through the plan files once the plan rewrite that adds this file
   merges; `history/ruling-map.md` shows where each one landed. (owner design session 2026-10-12)
 - **UR-42** Where this file and an older line in another plan file disagree, this file wins until
