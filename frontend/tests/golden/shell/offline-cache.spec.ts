@@ -10,7 +10,7 @@
  *   The row's whole surface is an offline partition, and Playwright's
  *   context.setOffline() is the browser's REAL network partition (Chromium
  *   NetworkStateConditions — requests genuinely fail; ws-status.spec.ts's
- *   "PARTITION + RELOAD" section (its context.setOffline(true), :392-395
+ *   "PARTITION + RELOAD" section (its context.setOffline(true), :398-401
  *   measured at [r165a]'s head)
  *   already leans on it to prove a real WS disconnect, and that spec still
  *   ends with the interception guard tripped). setOffline is browser-level
