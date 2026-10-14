@@ -206,7 +206,7 @@ class TestEventSoftDeleteFiltering:
 
         Every aggregate this route serves must skip soft-deleted rows, the way
         /api/events does (the leg above) and the way /timeline-summary
-        (events.py:786) and /clusters (events.py:937) already do with an explicit
+        (events.py:790) and /clusters (events.py:941) already do with an explicit
         `Event.deleted_at.is_(None)`. The three aggregates here — total, by risk
         level, by camera — are built from one shared `filters` list, so the clause
         belongs in that list and not in any single query: added per-query it would
@@ -248,7 +248,7 @@ class TestEventSoftDeleteFiltering:
         listing = await client.get(f"/api/events?camera_id={camera.id}")
         assert listing.status_code == 200, listing.text
         # The envelope nests its count: EventListResponse is items + a
-        # PaginationMeta (schemas/events.py:368-369), so total lives under
+        # PaginationMeta (api/schemas/events.py:368-369), so total lives under
         # "pagination", not at the top level.
         assert listing.json()["pagination"]["total"] == data["total_events"]
 
