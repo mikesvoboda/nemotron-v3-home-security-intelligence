@@ -314,109 +314,36 @@ jobs:
           print()
           PYTHON
 
-      - name: Check for new flaky tests
-        id: check_new_flaky
+      # [r149f]: this used to be a two-step gate — "Check for new flaky tests"
+      # wrote new_flaky_count to $GITHUB_OUTPUT purely to drive the
+      # "Create issue for new flaky tests" step's `if:` below. UR-116 puts flaky
+      # routing with the coordinator, so the analysis publishes its list to the
+      # run summary (written by scripts/analyze-flaky-tests.py's
+      # write_github_summary) instead of filing an issue from a cron. The
+      # issue-creation step is gone; this step keeps only the console warning,
+      # which is still useful telemetry, and no longer has a step output to
+      # write because its only reader left with the issue step.
+      - name: Warn on new flaky tests
         run: |
-          # Check if any new flaky tests were detected
+          # Count flaky tests for the log. Never fails the job: a green analysis
+          # with flakes in it is the expected state (routing is the coordinator's).
+          # The `|| NEW_FLAKY_COUNT=0` is what makes that sentence true, not the
+          # `exit 0` below it: Actions runs this step under `bash -e`, where the
+          # bare command substitution would abort on a truncated/empty report
+          # before `exit 0` is reached. Guarding it keeps the step information-only
+          # (and the fallback 0 keeps `[ -gt 0 ]` from getting an empty operand).
           if [ -f flaky-test-report.json ]; then
             NEW_FLAKY_COUNT=$(python3 -c "
           import json
           with open('flaky-test-report.json') as f:
               data = json.load(f)
               print(data.get('total_flaky', 0))
-          ")
-            echo "new_flaky_count=$NEW_FLAKY_COUNT" >> $GITHUB_OUTPUT
-
+          ") || NEW_FLAKY_COUNT=0
             if [ "$NEW_FLAKY_COUNT" -gt 0 ]; then
-              echo "WARNING: Detected $NEW_FLAKY_COUNT flaky test(s)"
-              exit 0  # Don't fail the workflow, just warn
+              echo "WARNING: Detected $NEW_FLAKY_COUNT flaky test(s); see the run summary"
             fi
           fi
-
-      - name: Create issue for new flaky tests
-        if: steps.check_new_flaky.outputs.new_flaky_count > 0
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-
-            // Read flaky test report
-            const report = JSON.parse(fs.readFileSync('flaky-test-report.json', 'utf8'));
-
-            if (report.total_flaky === 0) {
-              console.log('No flaky tests to report');
-              return;
-            }
-
-            // Generate issue body
-            let body = `## Flaky Test Detection Report\n\n`;
-            body += `**Generated:** ${report.generated_at}\n`;
-            body += `**Total Flaky Tests:** ${report.total_flaky}\n\n`;
-
-            body += `### Summary\n\n`;
-            body += `The automated flaky test detection workflow identified ${report.total_flaky} test(s) with inconsistent pass/fail behavior across multiple runs.\n\n`;
-
-            body += `### Detected Flaky Tests\n\n`;
-            body += `| Test | Pass Rate | Flakiness Score | Runs |\n`;
-            body += `|------|-----------|-----------------|------|\n`;
-
-            for (const test of report.tests.slice(0, 20)) {
-              const shortName = test.nodeid.length > 80
-                ? '...' + test.nodeid.slice(-77)
-                : test.nodeid;
-              body += `| \`${shortName}\` | ${(test.pass_rate * 100).toFixed(1)}% | ${test.flakiness_score.toFixed(2)} | ${test.total_runs} |\n`;
-            }
-
-            if (report.tests.length > 20) {
-              body += `\n*...and ${report.tests.length - 20} more*\n`;
-            }
-
-            body += `\n### Recommended Actions\n\n`;
-            body += `1. **Investigate Root Causes**: Review test implementation for race conditions, timing issues, or external dependencies\n`;
-            body += `2. **Register in the Flake Allowlist**: Add an entry to \`.github/flake-allowlist.yml\` with a Linear tracking ref and an expiry (WP0.8 — a bare \`@pytest.mark.flaky\` without an entry now fails collection; only registered flakes are rerun/queried)\n`;
-            body += `3. **Improve Test Isolation**: Ensure tests don't share state or depend on execution order\n`;
-            body += `4. **Check Resource Contention**: Tests with high timing variance may have resource issues\n`;
-            body += `5. **Review Test Data**: Ensure test fixtures are deterministic\n\n`;
-
-            body += `### Resources\n\n`;
-            body += `- [View full report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
-            body += `- [Flaky test documentation](docs/developer/testing.md#troubleshooting)\n`;
-            body += `- [Testing patterns](docs/developer/patterns/AGENTS.md#testing-patterns)\n`;
-
-            // Check if issue already exists
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'flaky-tests',
-              per_page: 5
-            });
-
-            const existingIssue = issues.data.find(issue =>
-              issue.title.includes('Flaky Test Detection')
-            );
-
-            if (existingIssue) {
-              // Update existing issue
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: existingIssue.number,
-                body: `## Update: ${new Date().toISOString().split('T')[0]}\n\n${body}`
-              });
-              console.log(`Updated existing issue #${existingIssue.number}`);
-            } else {
-              // Create new issue
-              const issue = await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `[CI] Flaky Test Detection - ${report.total_flaky} test(s) detected`,
-                body: body,
-                labels: ['flaky-tests', 'testing', 'ci']
-              });
-              console.log(`Created new issue #${issue.data.number}`);
-            }
+          exit 0  # information only — a green analysis stays green
 
   # ==========================================================================
   # Update CI workflow with flaky test tracking

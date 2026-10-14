@@ -386,7 +386,7 @@ is red; a 1.5–4.0 s test is a warning only), and the audit passes on `main`'s 
 
 ### [r149f] Flaky Test Detection reports to its run summary
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** none yet. (ruling 149)
+**Flags:** none. **Assigned:** `uplevel-ops-b`. **Depends on:** none. **PR:** #7090 (open). (ruling 149)
 
 - [ ] Remove the issue-creation step from `.github/workflows/flaky-test-detection.yml`; the Analyze
       Flaky Tests job writes its flaky list (test id, pass/fail count over the runs) to the run
