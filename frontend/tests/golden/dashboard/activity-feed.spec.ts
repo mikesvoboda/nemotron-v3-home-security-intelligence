@@ -74,6 +74,17 @@
  *   only the click leg skips (with reason) when the stack holds no events.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
+// [r149e]: this file imported closedByGuard from ./harness and never called it,
+// ending both legs with the inline `page.route(...)` form instead. The two are
+// equivalent in effect (`export function closedByGuard` in ./harness is exactly
+// `void page.route('**/api/**', () => undefined)`), so nothing was wrong with
+// the PROOF — what was wrong is that the named import was a decoy: a reader
+// (and grep) could conclude the spec used the shared tripwire when it did not.
+// TS6133 is the only instrument that could see that, which is the package's
+// argument for the check. Both legs now call the helper, the form the rest of
+// the corpus already uses: 53 golden files, 91 call sites, counted with
+// `grep -rc` over tests/golden at this revision (a `| head -20` first made me
+// report "20" — that was the pipe's cap, not a count).
 import {
   adminSession,
   api,
@@ -291,7 +302,7 @@ test.describe('golden path: dashboard recent activity feed @critical', () => {
       ).toBeVisible();
     }
 
-    expect(() => page.route('**/api/**', () => undefined)).toThrow(GUARD_MESSAGE);
+    expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
   test('F-031: clicking a card opens /timeline?event=<id> and the timeline consumes it', async ({
@@ -340,7 +351,7 @@ test.describe('golden path: dashboard recent activity feed @critical', () => {
       await expect(page.getByTestId('ai-analysis-section')).toContainText(String(first.summary));
     }
 
-    expect(() => page.route('**/api/**', () => undefined)).toThrow(GUARD_MESSAGE);
+    expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
     expect(new URL(page.url()).host).toBe(new URL(h.ui).host);
   });
 });

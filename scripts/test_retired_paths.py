@@ -39,6 +39,25 @@ What is NOT living text (records keep their references — the package says so:
       Their own historical prose is preserved as a dated note in the file that
       mentioned them, not as a tree the scanner never looks at.
     - Files named ``docs/goal-prompt-*.txt`` — dated goal prompts, records.
+    - The six ``backend/tests/unit/scripts/data/uplevel-cites/*.md`` — byte-frozen
+      snapshots of the pre-reorg plan tree (``git show de661e070^``), committed by the
+      #7064 cite gate because a CI checkout has no history to read. They are records by
+      the same right as ``docs/uplevel/`` itself — they ARE that tree at an earlier commit
+      — and their historical prose is exactly what the cite gate proves cites against.
+      What freezes them is ``SHA256SUMS``, not any formatter's inability (the
+      earlier wording here claimed ``Prettier could not reflow them and the gate
+      could not quote them``; both halves measured false at this head — prettier
+      parses all six, ``--check`` reports them clean today, ``--write`` on the
+      committed bytes is a no-op, and after a forced reflow the gate's tallies
+      came back identical, 60 live sections / 19 snapshot sections / 1 phrase.
+      Prettier is in fact still POLICING them: the hook's ``types_or`` covers
+      markdown and no exclude matches this path). The reason the bytes may not
+      move is that they ARE ``de661e070^`` — a reformatted copy is a different
+      tree, whatever still parses out of it — and a hook that ever did reformat
+      one is caught by the manifest, which reddened all six under that reflow
+      rather than letting provenance drift quietly. Listed per-file, not by
+      directory: the sibling ``entailments.json`` in that tree is hand-authored
+      LIVING text and stays policed.
     - ``scripts/retired_paths.txt`` and this file — the gate lists the paths.
     - ``.secrets.baseline`` — generated, and its keys are file paths by design.
     - In a ``.py`` file only: a line carrying a dated decision-log tag,
@@ -131,6 +150,15 @@ EXCLUDED_FILES = {
     "scripts/retired_paths.txt",
     "scripts/test_retired_paths.py",
     ".secrets.baseline",
+    # byte-frozen pre-reorg snapshots the #7064 cite gate proves provenance cites
+    # against; records per the docstring, listed per-file so the sibling
+    # entailments.json (living hand-authored text) stays scanned.
+    "backend/tests/unit/scripts/data/uplevel-cites/README.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/50-coordination.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/10-backend.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/20-frontend.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/30-ops.md",
+    "backend/tests/unit/scripts/data/uplevel-cites/40-docs.md",
 }
 
 # Dated decision-log tag: [V 2026-09-28], [P 2026-10-03] — short word, ISO date.
@@ -484,18 +512,23 @@ def test_retired_list_is_committed_and_nonempty() -> None:
     assert read_retired_paths(RETIRED_LIST), "the retired-paths list is empty — a gate with nothing on it"
 
 
-# Both scan tests keep a 120s mark (the suite's default timeout is 5s) even
-# though each now measures ~1.8s on this tree — the prefilter's win is
-# input-dependent: a tree where most files name a retired path gets almost no
-# skipping and costs what it always cost. The margin is free; the number in the
-# comment is the measured current cost, so a reader sees both.
-@pytest.mark.timeout(120)  # measured 1.77s here (was ~11s clean / ~33s live); margin above
+# Both scan tests carry a 30s mark (owner ruling 141; the suite's default
+# timeout is 5s). The number is the Done-when's own budget: in CI (job
+# 114837162590, 359 items) test_no_living_reference_names_a_retired_path took
+# 9.15s and test_retired_paths_are_gone 8.60s — 17.75s together, which is how
+# O3.8's ≤30s target is proven met. Marking each test at 30s means either one
+# alone can never creep past the whole target unnoticed: as the tree grows, a
+# slow scan fails loudly by itself. (Locally the same pair measures ~1.8s; the
+# prefilter's win is input-dependent — a tree where most files name a retired
+# path gets almost no skipping and costs what it always cost — so a breach here
+# is a signal to read the scan, not to raise the mark.)
+@pytest.mark.timeout(30)  # CI-measured 8.60s (ruling 141); ~1.8s on a local tree
 def test_retired_paths_are_gone() -> None:
     violations = [v for v in find_violations(REPO_ROOT) if v.endswith("retired path exists again")]
     assert not violations, "retired paths must stay gone:\n" + "\n".join(violations)
 
 
-@pytest.mark.timeout(120)  # same full-tree scan; see the pin above
+@pytest.mark.timeout(30)  # CI-measured 9.15s (ruling 141); see the pin above
 def test_no_living_reference_names_a_retired_path() -> None:
     violations = [v for v in find_violations(REPO_ROOT) if not v.endswith("retired path exists again")]
     assert not violations, (
@@ -519,6 +552,42 @@ def test_list_entries_stay_inside_the_repo(tmp_path: Path) -> None:
         bad.write_text(entry + "\n", encoding="utf-8")
         with pytest.raises(ValueError, match="escapes the repo root"):
             read_retired_paths(bad)
+
+
+def test_cite_gate_snapshot_exemption_is_per_file(tmp_path: Path) -> None:
+    """The #7064 snapshot exemption must exempt six record files and NOTHING else.
+
+    ``EXCLUDED_FILES`` lists the six byte-frozen snapshots per-file, so a future
+    edit that swaps in a directory prefix would silence the two SIBLINGS that are
+    living text — the hand-authored fixture and the integrity manifest — while
+    every existing test stayed green. So this plants the same retired-path
+    sentence at three paths under that directory and requires three different
+    outcomes: the per-file names silent, each sibling flagged. Measured, not
+    assumed: ``entailments.json`` (.json) and ``SHA256SUMS`` (no extension) are
+    both in ``iter_scanned_files``' yield — 1,445 .json and 686 extensionless
+    files are scanned tree-wide — so the sibling arms are real, not vacuous.
+    """
+    data = "backend/tests/unit/scripts/data/uplevel-cites"
+    exempt = sorted(f"{data}/{Path(e).name}" for e in EXCLUDED_FILES if e.startswith(data))
+    assert len(exempt) == 6, exempt  # the six, or this test checks the wrong set
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "retired_paths.txt").write_text("gone.txt\n", encoding="utf-8")
+    for rel in [*exempt, f"{data}/entailments.json", f"{data}/SHA256SUMS"]:
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("Run it with gone.txt today.\n", encoding="utf-8")
+    flagged = find_violations(tmp_path, tmp_path / "scripts" / "retired_paths.txt")
+    assert any("gone.txt" in v for v in flagged), (
+        f"the planted reference flagged NOTHING — every arm below is vacuous: {flagged}")
+    for rel in exempt:
+        assert not any(v.startswith(rel + ":") for v in flagged), (
+            f"snapshot record {rel} is being flagged — the per-file exemption broke:\n"
+            + "\n".join(flagged))
+    for rel in (f"{data}/entailments.json", f"{data}/SHA256SUMS"):
+        assert any(v.startswith(rel + ":") for v in flagged), (
+            f"living text {rel} named a retired path and was NOT flagged — the "
+            "exemption widened to a directory, which is exactly what per-file "
+            "listing exists to prevent")
 
 
 def test_selftest_discriminates(tmp_path: Path) -> None:

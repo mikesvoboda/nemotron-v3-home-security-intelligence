@@ -16,10 +16,10 @@ The owner sets these queues; a change is a ruling.
 | sandbox               | model     | queue                                                                                                                                                  | review label      |
 | --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
 | `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                       | none              |
-| `uplevel-backend`     | fast      | `[r129]` (#7031), `[r122]` (#7027), `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                     | `review:backend`  |
-| `uplevel-frontend`    | fast      | `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `F2.3` UI batches (FE-3, FE-4), `[r148a]` after `F2.3`, each `R2b` round's record, `F3.2`, `F3.3`          | `review:frontend` |
-| `uplevel-ops-a`       | fast      | `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`, `OB.3`                                                                                                     | `review:ops-a`    |
-| `uplevel-ops-b`       | fast      | `O2.4` (#7002), `[r143]` (#7034), `[r141]` follow-up (ruling 145), `[r147]` (sleep-gate re-run), `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger         | `review:ops-b`    |
+| `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                    | `review:backend`  |
+| `uplevel-frontend`    | fast      | `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-3, FE-4), `[r148a]`, `R2b` records, `F3.2`, `F3.3`  | `review:frontend` |
+| `uplevel-ops-a`       | fast      | `OB.3`, an `F2.3` UI batch, `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`                                                                                 | `review:ops-a`    |
+| `uplevel-ops-b`       | fast      | `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, an `F2.3` UI batch, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                     | `review:ops-b`    |
 | `uplevel-docs`        | fast      | `F2.3` UI batches (DO-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                               | `review:docs`     |
 | `uplevel-heavy`       | strongest | assigned `heavy` PRs without `cell:heavy-2`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused until Phase 3 opens (ruling 88)       | none              |
 | `uplevel-heavy-2`     | strongest | assigned `heavy` PRs labelled `cell:heavy-2`: `B2.3` after `O2.4`; paused until then (ruling 88)                                                       | none              |
@@ -48,13 +48,18 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
    (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
+   Then read the `BINDING NOW` records on #6854 posted since your last tick
+   (`gh api "repos/<owner>/<repo>/issues/6854/comments?since=<your last heartbeat time>" --paginate`, keeping
+   those whose first line starts `BINDING NOW`) and follow each that names your lane or all agents; it
+   binds before the plan files catch up (UR-40, ruling 163).
 2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below). Read the coordinator's; if it is older
    than 20 minutes, follow "Stale coordinator" below.
 3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
    lane's PR" below). Heavy agents skip this step.
 4. **Your own open PRs** (UR-35): read the new comments and reviews on each
    (`gh pr view <n> --comments`). Read CI at the head once, fix what is red, answer what is
-   requested, and rebase what conflicts with `main` (what a new head resets: UR-106).
+   requested, and rebase what conflicts with `main` (what a new head resets: UR-106). Before you
+   push to a PR on auto-merge, run `gh pr merge <n> --disable-auto` (UR-108).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. If none of these has work, say so in one line and end the turn.
 
@@ -112,7 +117,9 @@ Read rules.md §Building a package first: one package per PR, the hot-file rules
    `codebase-archaeologist` on their scope (UR-95).
 
 **Self-review.** Run the fresh-context self-review UR-89 describes, record its findings in the PR,
-then mark the PR ready.
+then mark the PR ready once its code is complete. A Done-when clause that only a CI run shows (a
+draft skips every job but the gate) is ticked from the first ready run, naming it; a red run is
+fixed on the ready PR, and the reviewer approves only with those clauses green (ruling 161).
 
 ## Reviewing another lane's PR
 
@@ -132,7 +139,10 @@ Read rules.md §Reviewing first.
    Notes:
    ```
 
-4. Remove the review label.
+4. On `approve` of a lane-tier PR (its `Plan text:` is `none` or a UR-47 lane-review kind, and no
+   other UR-98 trigger applies), run `gh pr merge <n> --auto --merge` and add `Auto-merge: on` to the
+   review's `Notes:` (UR-108, ruling 156). Owner-tier PRs get no auto-merge from you.
+5. Remove the review label.
 
 ## Posting
 

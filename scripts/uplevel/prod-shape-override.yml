@@ -1,0 +1,37 @@
+# The minimal override `docker-compose.prod.yml` needs to come up under ROOTLESS
+# Podman: the O2.5 Step 1 spike's answer (ruling 144), used by prod-shape-probe.sh as
+# an extra `-f`. It changes no production file and no CI leg.
+#
+# Two changes, each forced by what a rootless user namespace can do inside an uplevel
+# sandbox (all measured 2026-10-12; rerun with prod-shape-probe.sh):
+#
+# 1. `deploy: !reset null`. 18 of the prod file's 19 services ask for
+#    `deploy.resources.limits`. runc refuses to start a container that asks for limits
+#    when the calling cgroup has no controllers delegated to it -- here
+#    `/sys/fs/cgroup/docker/<id>/cgroup.subtree_control` is empty and `mkdir` under it
+#    is EACCES -- with "rootless needs no limits + no cgrouppath ... permission
+#    denied". The same image starts fine with no limits, and with `--memory=512m` or
+#    `--cpus=1` it fails again. So the limits are what blocks rootless bring-up, not
+#    the image and not the ports.
+# 2. `ports: !override`. A test deployment publishes remapped ports (UR-133). Listed
+#    only for the services the probe brings up; extend it per service as needed.
+#
+# The `!override` / `!reset` tags are docker-compose (moby) syntax. `podman-compose`
+# cannot express the empty mapping this needs (verified 2026-10-12: `!override {}`
+# raises "AttributeError: 'list'/'tuple' object has no attribute 'value'"), so the
+# probe runs the moby CLI against podman's Docker-compatible API socket
+# (`podman system service`, DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock).
+#
+# Storage is the other half of the story and lives outside this file: the sandbox
+# cannot mount overlayfs (even as root) and opening /dev/fuse is EPERM, so the only
+# working storage driver here is `vfs` (`podman --storage-driver=vfs`), which is why
+# this file cannot also be a plain "prod works on podman" claim.
+services:
+  postgres:
+    ports: !override
+      - '15432:5432'
+    deploy: !reset null
+  redis:
+    ports: !override
+      - '16379:6379'
+    deploy: !reset null

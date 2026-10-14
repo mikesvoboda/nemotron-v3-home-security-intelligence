@@ -208,7 +208,7 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 
 **Flags:** owner tier (security and auth), pre-approved by ruling 94 (UR-101).
 **Assigned:** `uplevel-backend`, test-first; `setup.py` is ops's file, so the PR lists it as a
-cross-lane part. **Depends on:** none named. **PR:** none yet.
+cross-lane part. **Depends on:** none named. **PR:** #7038 (merged).
 
 - [ ] **The defect:** on a re-run, the LAN-exposure prompt defaults to `n` (`setup.py:685` quick
       path, `:900` guided), and that answer drives `EXPOSE_LAN`, `FRONTEND_BIND_ADDRESS` and the
@@ -251,7 +251,7 @@ and still accept an unscoped key, and a test pins the narrowed `monitoring` gran
 ### [r122] WARN-band unit tests made cheaper in the tests
 
 **Flags:** pre-approved under ruling 83's limits (UR-112). **Assigned:**
-backend. **Depends on:** queues behind #7003 (merged). **PR:** #7027 (open).
+backend. **Depends on:** queues behind #7003 (merged). **PR:** #7027 (merged).
 
 - [ ] The unit tests that land in the 1.5–4.0 s WARN band every run (about 10 ids, mostly
       100-example property tests) are made cheaper in the tests themselves: draw counts, fixtures,
@@ -263,7 +263,7 @@ backend. **Depends on:** queues behind #7003 (merged). **PR:** #7027 (open).
 ### [r129] Backups and the batch audit load the deferred columns
 
 **Flags:** none. **Assigned:** backend, as a bug fix outside Phase 4's priority order. **Depends
-on:** queues behind `[r122]`. **PR:** #7031 (open).
+on:** queues behind `[r122]`. **PR:** #7031 (merged).
 
 F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_prompt` are
 `deferred()` (`backend/models/event.py:72-74`). `_export_table`
@@ -306,3 +306,28 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
 flipped to assert the fix and passes. F-190 and F-191 also need ruling 127's writable `runtime.env`
 on the CI compose before their save leg can go green; until then they flip on the read leg only
 (ruling 130).
+
+### [r149d] F-057: the event list returns `notes`
+
+**Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** #7070 (merged).
+(ruling 149, record 6146380050)
+
+- [x] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
+      and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
+      `GET /api/events`.
+- [ ] When it merges, frontend flips the read-back `test.fixme` in
+      `frontend/tests/golden/timeline/event-detail.spec.ts`; that golden path rules F-057. No `R2b`
+      entry.
+
+**Done when:** `GET /api/events` returns a saved note, and F-057's read-back golden leg passes.
+
+### [r160b] Deferred Python major: huggingface-hub 2
+
+**Flags:** none. **Assigned:** backend. **Depends on:** Phase 2's exit. **PR:** none yet. (ruling
+160; dependabot #7062, closed with `@dependabot ignore this major version`)
+
+- [ ] Bump `huggingface-hub` to 2.x in its own PR, lifting the ignore
+      (`@dependabot unignore huggingface-hub`).
+
+**Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
+head.

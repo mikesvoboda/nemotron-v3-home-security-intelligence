@@ -53,6 +53,9 @@ class TestListEventsEagerLoading:
             mock_event.reasoning = "Test reasoning"
             mock_event.detection_id_list = [1, 2, 3]
             mock_event.reviewed = False
+            # F-057: list_events reads event.notes into the row; an unset
+            # attribute on a spec'd Mock fabricates a Mock that fails validation.
+            mock_event.notes = None
             mock_event.object_types = "person,vehicle"
             mock_events.append(mock_event)
 
@@ -140,6 +143,7 @@ class TestListEventsEagerLoading:
         mock_event.reasoning = "Test reasoning"
         mock_event.detection_id_list = [1, 2, 3]
         mock_event.reviewed = False
+        mock_event.notes = None
         mock_event.object_types = "person"
 
         # Create mock DB session
@@ -206,6 +210,7 @@ class TestListEventsEagerLoading:
         mock_event.reasoning = "Test reasoning"
         mock_event.detection_id_list = [1, 2, 3]
         mock_event.reviewed = False
+        mock_event.notes = None
         mock_event.object_types = "person"
 
         # Create mock DB session
@@ -279,6 +284,7 @@ class TestListEventsEagerLoading:
         mock_event.reasoning = "Test reasoning"
         mock_event.detection_id_list = [1, 2, 3]
         mock_event.reviewed = False
+        mock_event.notes = None
         mock_event.object_types = "person"
 
         # Create mock DB session

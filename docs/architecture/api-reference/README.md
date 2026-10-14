@@ -24,21 +24,21 @@ This section provides comprehensive documentation for all REST API endpoints in 
 
 ### Events API (`/api/events`)
 
-| Method | Endpoint                         | Description                               | Source                                 |
-| ------ | -------------------------------- | ----------------------------------------- | -------------------------------------- |
-| GET    | `/api/events`                    | List events with filtering and pagination | `backend/api/routes/events.py:224-468` |
-| GET    | `/api/events/stats`              | Get aggregated event statistics           | `backend/api/routes/events.py:471-603` |
-| GET    | `/api/events/timeline-summary`   | Get bucketed timeline data                | `backend/api/routes/events.py:621-779` |
-| GET    | `/api/events/search`             | Full-text search events                   | `backend/api/routes/events.py:782-892` |
-| GET    | `/api/events/export`             | Export events as CSV/Excel                | `backend/api/routes/events.py:895-999` |
-| GET    | `/api/events/deleted`            | List soft-deleted events                  | `backend/api/routes/events.py`         |
-| GET    | `/api/events/{event_id}`         | Get single event by ID                    | `backend/api/routes/events.py`         |
-| PATCH  | `/api/events/{event_id}`         | Update event (reviewed, notes)            | `backend/api/routes/events.py`         |
-| DELETE | `/api/events/{event_id}`         | Soft-delete an event                      | `backend/api/routes/events.py`         |
-| POST   | `/api/events/{event_id}/restore` | Restore soft-deleted event                | `backend/api/routes/events.py`         |
-| POST   | `/api/events/bulk`               | Bulk create events                        | `backend/api/routes/events.py`         |
-| PATCH  | `/api/events/bulk`               | Bulk update events                        | `backend/api/routes/events.py`         |
-| DELETE | `/api/events/bulk`               | Bulk delete events                        | `backend/api/routes/events.py`         |
+| Method | Endpoint                         | Description                               | Source                                  |
+| ------ | -------------------------------- | ----------------------------------------- | --------------------------------------- |
+| GET    | `/api/events`                    | List events with filtering and pagination | `backend/api/routes/events.py:225-469`  |
+| GET    | `/api/events/stats`              | Get aggregated event statistics           | `backend/api/routes/events.py:472-616`  |
+| GET    | `/api/events/timeline-summary`   | Get bucketed timeline data                | `backend/api/routes/events.py:634-792`  |
+| GET    | `/api/events/search`             | Full-text search events                   | `backend/api/routes/events.py:795-905`  |
+| GET    | `/api/events/export`             | Export events as CSV/Excel                | `backend/api/routes/events.py:908-1012` |
+| GET    | `/api/events/deleted`            | List soft-deleted events                  | `backend/api/routes/events.py`          |
+| GET    | `/api/events/{event_id}`         | Get single event by ID                    | `backend/api/routes/events.py`          |
+| PATCH  | `/api/events/{event_id}`         | Update event (reviewed, notes)            | `backend/api/routes/events.py`          |
+| DELETE | `/api/events/{event_id}`         | Soft-delete an event                      | `backend/api/routes/events.py`          |
+| POST   | `/api/events/{event_id}/restore` | Restore soft-deleted event                | `backend/api/routes/events.py`          |
+| POST   | `/api/events/bulk`               | Bulk create events                        | `backend/api/routes/events.py`          |
+| PATCH  | `/api/events/bulk`               | Bulk update events                        | `backend/api/routes/events.py`          |
+| DELETE | `/api/events/bulk`               | Bulk delete events                        | `backend/api/routes/events.py`          |
 
 ### Cameras API (`/api/cameras`)
 

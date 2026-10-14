@@ -1,0 +1,203 @@
+# O2.5 Step 2 / ruling 162 item 3 — the test override the prod-shape runner applies on top of
+# docker-compose.prod.yml. docker-compose.prod.yml is NOT edited; this file is the only carrier.
+#
+# It is a HAND-AUTHORED, frozen artifact. It is deliberately NOT generated from the production
+# file: scripts/test_prodshape_override.py renders production, and production+this override, and
+# asserts the ONLY differences are the listed ones. If the override were regenerated from prod it
+# would always match prod and that test could never fail — which is exactly what ruling 162 says
+# must be able to happen ("a change to the production file that the override does not cover fails
+# CI"). A new socket mount, a new pinned container_name, a new published port, or a new writable
+# host bind added to prod.yml is NOT covered here, so the observed delta no longer equals the
+# expected one and the test goes red until a human extends this file (and the test's policy sets).
+#
+# Three kinds of change, and nothing else (ruling 162 item 3). The policy is uniform, so a
+# reader can check it line by line:
+#   UR-134  drop the container-engine socket mount from backend and alloy (the two services
+#           ruling 162 names; both interpolate ${PODMAN_SOCKET}, alloy into source AND target)
+#   UR-133  container_name -> "hsi-test-" + ${HSI_TEST_NAME_PREFIX} + the prod value, for every
+#           service the render PINS. prod.yml spells 7 container_names (measured). Six appear in a
+#           profile-less render; the seventh, dcgm-exporter, sits behind the `gpu-rootful` profile.
+#           The drift test renders BOTH of prod's profiles (test_prodshape_override.ALL_PROFILES)
+#           precisely because a profile-less render cannot check a profiled service: it would see
+#           6 pins, predict 6 changes, and pass on a file that leaves the 7th name unprefixed.
+#           A service the render does not pin gets no container_name — adding a pin where the
+#           render has none would be a key change, not a prefix (test_the_override_changes_no_
+#           service_set also forbids the override adding or dropping a service outright, which the
+#           delta comparison cannot see: it iterates the intersection of the two service sets).
+#           Why the token, and why `:?`: a pinned container_name is NOT namespaced by the compose
+#           project — measured on v5.5.1, booting the same pin from two `-p` projects fails with
+#           `Conflict. The container name "/x" is already in use by container <id>`. So a constant
+#           "hsi-test-" prefix separates a run from PRODUCTION but not from another run, and two
+#           overlapping prod-shape runs would block each other. The runner supplies a fresh token
+#           per run (feature_check.prod_shape_env). `${VAR:?msg}` rather than `${VAR}` because an
+#           unset plain var only warns and interpolates EMPTY (measured), which would silently
+#           rejoin the colliding set; `:?` exits 1 and names itself.
+#   UR-133  every published port -> host_ip : (prod published + 15000) : same target. Measured:
+#           +15000 collides with no prod port and stays below the 32768 ephemeral band. Includes
+#           the two ports behind prod's profiles (dcgm-exporter 9400, ai-llm-vllm 8097): on a GPU
+#           host an un-offset 9400 would collide with production's own published 9400.
+#   B5      every WRITABLE host bind is redirected under ${PROD_SHAPE_RUN_ROOT}; read-only binds
+#           and named volumes are kept EXACTLY as prod (UR-134 forbids only a writable bind
+#           outside the run, and alloy needs /sys + /host/proc to function).
+#   limits are NOT touched — ruling 162 item 2 makes limits a RUNTIME decision the runner records
+#           as `limits: applied` / `limits: not applied (no cgroup delegation)` in its per-run
+#           fragment. Keeping them out of this committed file is what makes the test's delta the
+#           static, assertable part.
+#
+# Why the whole `volumes` list is restated under `!override` (not just the changed line): compose
+# merges a `volumes` sequence BY TARGET — an override entry at an existing target REPLACES that
+# entry, it cannot remove one. Measured on compose v5.5.1. So removing or redirecting a mount
+# requires restating the entire list under `!override`, which replaces the list at the key.
+# `!override` on `ports` likewise: an override `ports` entry APPENDS (measured — a bare override
+# produced a duplicate target).
+#
+# Relative paths (./x) resolve against the COMPOSE PROJECT DIRECTORY (the repo root, i.e. the
+# first -f file's directory), NOT this override's scripts/uplevel/ directory. Measured 2026-10-14,
+# with and without --project-directory. That is what makes these paths byte-match prod's own
+# absolute sources and keeps the CI delta machine-independent.
+#
+# The `!override`/`!reset` tags are moby docker-compose syntax. podman-compose cannot express the
+# empty mapping they need (verified 2026-10-12), so the runner drives the moby CLI against
+# podman's Docker-compatible API socket.
+
+services:
+  # ---- the two services that mount the engine socket (UR-134) ----
+
+  # backend has NO pinned container_name in prod (it auto-names `<project>-backend-1`, already
+  # isolated by the run's own compose project), so it gets none here either.
+  backend:
+    volumes: !override # 6 prod mounts: socket dropped, 2 writable binds
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/backend-data:/app/data:z #   redirected under the run,
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras:z #   2 read-only binds + the
+      - /export/ai_models/model-zoo:/models/model-zoo:ro,z #   compose file kept as prod
+      - /home/ubuntu/.cache/huggingface:/models/huggingface-cache:ro
+      - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
+      # REMOVED (UR-134): ${PODMAN_SOCKET}:/var/run/podman/podman.sock
+    ports: !override
+      - '127.0.0.1:23000:8000' # 8000 + 15000
+
+  alloy:
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}alloy' # UR-133 run prefix (prod pins "alloy")
+    volumes: !override # socket (source==target==socket) dropped; the rest
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z #   kept byte-identical to
+      - /sys/kernel/debug:/sys/kernel/debug:ro #   prod: 3 read-only system
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro #   binds, 1 named volume,
+      - /proc:/host/proc:ro #   1 read-only repo file
+      - alloy_symb_cache:/tmp/symb-cache
+      # REMOVED (UR-134): ${PODMAN_SOCKET}:${PODMAN_SOCKET}
+    ports: !override
+      - '127.0.0.1:27345:12345'
+      - '127.0.0.1:29317:4317' # prod PUBLISHES 14317 here (not 4317): +15000
+      - '127.0.0.1:29318:4318' # prod publishes 14318 -> 29318
+
+  # ---- the remaining five services prod pins (UR-133 prefix) + their remapped ports ----
+
+  go2rtc:
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}hsi-go2rtc' # prod pins "hsi-go2rtc"
+    ports: !override
+      - '127.0.0.1:16984:1984'
+      - '127.0.0.1:23555:8555'
+
+  loki:
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}loki'
+    ports: !override
+      - '127.0.0.1:18100:3100'
+
+  node-exporter:
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}node-exporter'
+    ports: !override
+      - '127.0.0.1:24100:9100'
+
+  pyroscope:
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}pyroscope'
+    ports: !override
+      - '127.0.0.1:19040:4040'
+
+  tempo:
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}tempo'
+    ports: !override
+      - '127.0.0.1:18200:3200'
+      - '127.0.0.1:19317:4317' # same target as alloy's 4317; distinct host ports
+
+  # ---- every other service: ports remapped only; ai-gateway and foscam-init also redirect
+  # ---- their writable host binds (B5), keeping read-only binds and named volumes as prod ----
+
+  ai-gateway:
+    volumes: !override # 6 prod mounts: 2 writable host binds redirected,
+      - /export/ai_models/model-zoo:/models/zoo:ro #   2 read-only binds and the
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/triton-cache:/models/cache #   2 named volumes kept
+      - /export/ai_models/quantized:/models/quantized:ro
+      - triton-kernel-cache:/root/.nv
+      - triton-tmp-cache:/tmp
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/hf-cache:/root/.cache/huggingface
+    ports: !override
+      - '127.0.0.1:23090:8090'
+      - '127.0.0.1:23002:8002'
+
+  foscam-init:
+    volumes: !override # 1 prod mount: the writable camera path
+      - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras:z
+
+  ai-vlm:
+    ports: !override
+      - '127.0.0.1:23098:8098'
+
+  # ---- behind a PROFILE: invisible to a profile-less render, still covered here ----
+  # prod declares two profiles (docker-compose.prod.yml:284 `vllm`, :1535 `gpu-rootful`) and both
+  # add a service that needs this file. The drift test renders with BOTH enabled
+  # (test_prodshape_override.ALL_PROFILES), so these two blocks are guarded; a profile-less render
+  # would not see them and could not check them.
+
+  dcgm-exporter: # profile gpu-rootful. The 7th pin ruling 162 item 3 counts.
+    container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}dcgm-exporter'
+    ports: !override
+      - '127.0.0.1:24400:9400' # 9400 + 15000. Its one mount is a read-only bind, kept as prod.
+
+  # profile vllm (docker-compose.prod.yml:284). prod does NOT pin container_name here, so neither
+  # does this file (adding one where prod has none is a key change, not a prefix). Its two volumes
+  # — hf_cache (named) and the ${AI_MODELS_PATH} model bind, `:ro` at prod:300 — are kept verbatim:
+  # this service needs no volume restatement, only the port offset (prod's default 8097 -> 23097).
+  # The prose is on its own lines on purpose: the retired-name guard in
+  # backend/tests/security/test_docker_compose_security.py admits a line containing `ai-llm` only
+  # as a pure comment or as the exact key `ai-llm-vllm:`, so a trailing comment on that key would
+  # be admitted by neither allowance.
+  ai-llm-vllm:
+    ports: !override
+      - '127.0.0.1:23097:8000'
+
+  alertmanager:
+    ports: !override
+      - '127.0.0.1:24093:9093'
+
+  blackbox-exporter:
+    ports: !override
+      - '127.0.0.1:24115:9115'
+
+  frontend:
+    ports: !override
+      - '127.0.0.1:23444:8443'
+      - '127.0.0.1:23080:8080'
+
+  grafana:
+    ports: !override
+      - '127.0.0.1:18002:3000'
+
+  json-exporter:
+    ports: !override
+      - '127.0.0.1:22979:7979'
+
+  postgres:
+    ports: !override
+      - '127.0.0.1:20432:5432'
+
+  prometheus:
+    ports: !override
+      - '127.0.0.1:24090:9090'
+
+  redis:
+    ports: !override
+      - '127.0.0.1:21379:6379'
+
+  redis-exporter:
+    ports: !override
+      - '127.0.0.1:24121:9121'

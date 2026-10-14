@@ -12,7 +12,6 @@ import {
   NavigationTracker,
   PageTransition,
   ProductTour,
-  RateLimitIndicator,
   RouteLoadingFallback,
   ToastProvider,
 } from './components/common';
@@ -342,8 +341,6 @@ export default function App() {
               <ProductTour />
             </BrowserRouter>
           </AuthProvider>
-          {/* Rate limit indicator - fixed position overlay */}
-          <RateLimitIndicator />
           {/* Retrying indicator - shows when rate limited AND requests in flight */}
           <RetryingIndicator />
           {/* PWA install prompt - shows after engagement criteria met */}

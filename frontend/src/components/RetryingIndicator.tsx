@@ -61,7 +61,7 @@ export default function RetryingIndicator({ className }: RetryingIndicatorProps)
         data-testid="retrying-spinner"
         aria-hidden="true"
       />
-      <span className="text-sm font-medium text-blue-800">Retrying request...</span>
+      <span className="text-sm font-medium text-blue-800">Rate limited, retrying…</span>
     </div>
   );
 }

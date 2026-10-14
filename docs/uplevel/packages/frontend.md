@@ -62,7 +62,10 @@ stopped and started on a running stack.
   each affected agent's own `F2.3` claim PR (UR-157).
 - **Backend** takes the rows whose evidence is an external API behaviour, as pytest specs in
   `backend/tests/golden/` (the contract in `O2.2`'s PR body, #6961).
-- **ops-a** (after `O2.3b`) and **docs** take UI batches as `golden` Playwright specs.
+- **ops-a** (after `O2.3b`), **ops-b** and **docs** take UI batches as `golden` Playwright specs. An
+  ops cell with no batch opens its claim PR, `[F2.3] claim: <cell> golden UI batch`, and frontend
+  names the batch's `unverified` rows, from rows no open batch holds, in a comment on that PR within
+  its next tick (ruling 150).
 - **One claim PR per agent** (UR-56).
 - **Files:** a batch touches only `frontend/tests/golden/<area>/` or `backend/tests/golden/<area>/`
   and its own rows in the inventory. Frontend reviews every batch; a batch that needs a harness
@@ -169,7 +172,7 @@ paths; the inventory row reads **works** once the operator records the real-tier
 
 - **Trash** (F-087 with R2a's F-088; P1; one package): a Delete action in the event detail modal and
   a bulk Delete on the timeline, both calling the existing soft-delete routes
-  (`DELETE /api/events/{id}`, `routes/events.py:2713`, and the bulk delete, `:1780`), so deleted
+  (`DELETE /api/events/{id}`, `routes/events.py:2726`, and the bulk delete, `:1793`), so deleted
   events land in `/trash`; no backend change is expected. Golden path: delete an event from the UI,
   find it in `/trash`, restore it, then delete it permanently; it replaces the spec's API-side
   seeding (rulings 131, 135).
@@ -233,13 +236,15 @@ flipped to assert the fix and passes (ruling 130).
 ### [r144n] Route notes for ruling 127's real-tier rows
 
 **Flags:** none. **Assigned:** frontend. **Depends on:** #7030 (R2b round 1 record) merged. **PR:**
-none yet. Ordered by the owner's approval of #7030 (record 6136889433).
+#7109 (merged). Ordered by the owner's approval of #7030 (record 6136889433).
 
-- [ ] Rewrite the route notes of ruling 127's 12 real-tier rows in
+- [x] Rewrite the route notes of ruling 127's 12 real-tier rows in
       `docs/reference/feature-inventory.md` to ruling 144's route: the row gets its witness from the
       `O2.5` run, falling back to ruling 127's route if `O2.5` cannot deliver it. Grafana rows F-102,
       F-115, F-117, F-164–F-167, F-169, F-174; GPU rows F-176, F-178, F-182. Statuses, ruling cells
-      and priorities stay as #7030 records them.
+      and priorities stay as #7030 records them. Witness: #7109 merged at `a55dd2eb5`; ops-b's
+      review (`6163810759`, head `88800e5b5`) counted the route clauses 12/12 `O2.5`, `ruling 103`
+      in 0 of the 12, and row identity by first cell as exactly the named 12.
 
 **Done when:** none of the 12 notes names the per-batch real tier (ruling 103) or an ops-b
 owner-tier ruling as its route.
@@ -258,9 +263,9 @@ green on it.
 
 ### [r148b] F-256's action text
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7050 (merged). (ruling 148)
 
-- [ ] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
+- [x] Narrow F-256's action text to "filters the cards by zone type; the time range sets the anomaly
       feed's lookback": the time range drives `<ZoneAnomalyFeed>` (`ZonesPage.tsx:660`, `:789-790`),
       not the card grid (`:507-512`). F-256 is judged on that text; it takes no `half-built` status
       and no `R2b` entry.
@@ -269,11 +274,104 @@ green on it.
 
 ### [r148c] `works` in the inventory
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** none yet. (ruling 148)
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7051 (merged). (ruling 148)
 
-- [ ] Add `works` to the inventory legend, to `STATUSES` in
+- [x] Add `works` to the inventory legend, to `STATUSES` in
       `frontend/scripts/feature-inventory-lib.mjs`, and as a column in the §2 count table, with its
       README meaning (UR-14). A lane whose golden path is green on the fake stack sets
       `awaiting real tier`; the operator's real-tier confirmation sets `works`.
 
 **Done when:** the inventory gate accepts a `works` row and the §2 table counts it.
+
+### [r149e] Type-check the golden specs
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** none. **PR:** #7069 (merged). (ruling 149,
+record 6146380050)
+
+- [x] Add `frontend/tsconfig.golden.json` (extends `tsconfig.json`, includes `tests/golden/**`) and a
+      `tsc --noEmit` step over it in CI, appended as one entry (ruling 137). Ticked with two
+      deviations from the box's literal text, both recorded rather than glossed: (a) `include` is
+      `tests/golden/**/*`, not the literal `**` — that literal is tsc error TS5010 and `**/*` selects
+      the same set; (b) "appended as one entry" is not realizable here — the shared
+      `frontend-typecheck` job holds its check as a `run:` command, not a list a step reads, so
+      UR-121 ("Anything else … goes in its own job") routes it to its own job
+      `frontend-golden-typecheck` at `.github/workflows/ci.yml:3823`, which is what #7069 shipped.
+      The box asks for a `tsc --noEmit` step over the config in CI; that half is met exactly.
+- [x] Fix the 9 errors it finds today in the same PR, including the unused `closedByGuard` in
+      `dashboard/activity-feed.spec.ts:80`, so that spec checks the guard. The `:80` was right where
+      the package wrote it (`acb1e39ad^`) but #7069's own fix shifts it +11, so it reads `:91` at
+      main; the spec now calls the tripwire at `:305` and `:354`, where the named-but-never-called
+      import had been a decoy. #7069's Done-when ticked per ruling 161 on run 38446238266 — its
+      ready head `41c74b8b1`, `Golden Spec Type Check (TypeScript)` and the whole run both `success`.
+
+**Done when:** the type-check step runs in CI and is green.
+
+### [r132] F-022: retire the rate-limit countdown
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged (UR-66's R2b-round exception).
+**PR:** #7077 (merged). (rulings 132, 150, 155)
+
+- [x] Delete the countdown overlay, the invented defaults in `updateRateLimitStoreFromError`
+      (`frontend/src/services/queryClient.ts:249-297`) and every store field only they read.
+      Third limb now met: the follow-up (ruling 155 item 3) deleted `secondsUntilReset` — field,
+      writes, `useRateLimitStatus` member, test seeds. `current` stays by the ruling's own fence
+      (it names only that field) and F-022's row records why; the backend review of #7077
+      (finding 2) offered exactly these two homes for the strand and the row took the second.
+- [x] The pill reads "Rate limited, retrying…" and shows no count, limit or time
+      (`RetryingIndicator.tsx` is renamed to this text; ruling 155).
+      Met by merged #7077: `649475fb4` — an interior commit of its head `66db84789`, not the head
+      itself — renames the kept pill to the owner's string (U+2026) at
+      `frontend/src/components/RetryingIndicator.tsx:64`, and it renders exactly one span plus an
+      `aria-hidden` spinner, no count, limit or time (it returns `null` unless limited AND
+      in-flight). The authority for the string is **ruling 155 item 1** ("the string is the owner's
+      ruling, not derived prose"). The component test
+      (`frontend/src/components/RetryingIndicator.test.tsx`) agrees — it pins that exact text plus a
+      no-digit check — but both asserts are `+` lines of the rename commit, so they show the two
+      files co-moved rather than independently pinning the copy. The **golden positive leg** is the
+      place ruling 155 item 1 actually asks that exact-text assert to live, and it is _not_ what this
+      box states; it is unchanged here — it stays the **Done when** paragraph's requirement, tracked
+      by F-022's `half-built` status, not something this tick erases.
+- [x] F-022's row records that the nginx 429, which sends no `X-RateLimit-*` headers, sets no
+      `isLimited` and shows no pill; only the backend's header-complete 429 does (ruling 155).
+      Met by merged #7077. Ruling 155 item 2 directs this exact record, and `62c72165e` (the
+      retirement commit, refined by `8864ee71a`) wrote it into F-022's row in
+      `docs/reference/feature-inventory.md` ("…it feeds the store **nothing**, because it carries no
+      `X-RateLimit-*`"); the rename commit `649475fb4` only touched that row's description cell, so
+      it is not this box's witness. The row's own status is still `half-built` for the golden-positive
+      reason above; this box only required the record to exist, and it does.
+
+**Done when:** F-022's flipped golden spec asserts the pill's exact text and that no countdown or
+number renders, and passes. Ruling 125's quarantine of F-022 ends with this PR (ruling 155).
+After it merges, frontend deletes the dead `secondsUntilReset` store field in its own one-commit
+PR (UR-48).
+
+### [r133] F-023: retire the in-page PWA install prompt
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 133, 150)
+
+- [ ] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
+      dismissal store and its tests, `frontend/tests/golden/shell/pwa-install.spec.ts` included.
+- [ ] Keep `frontend/public/manifest.json`, `/sw.js` and their registration.
+
+**Done when:** nothing imports `InstallPrompt`, and the golden project and unit tests are green.
+
+### [r134] F-135: retire the batch-history views
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 134, 150)
+
+- [ ] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
+      `frontend/src/components/batch/BatchStatisticsDashboard.tsx`, and any hook or type only they
+      use. The active-batches view stays.
+
+**Done when:** F-135's row reads "expands the section; sees active batches", its golden path covers
+that, and nothing renders the three history views.
+
+### [r160a] Deferred npm majors: vite-plugin-pwa 2, framer-motion 14, @vitejs/plugin-react 6
+
+**Flags:** none. **Assigned:** frontend. **Depends on:** Phase 2's exit. **PR:** none yet.
+(ruling 160; dependabot #7058, #7059, #7060, closed with `@dependabot ignore this major version`)
+
+- [ ] One major per PR, each lifting its dependabot ignore (`@dependabot unignore <dependency>`).
+
+**Done when:** each of the three majors is on `main` with the unit, golden and lint suites green at
+its head.

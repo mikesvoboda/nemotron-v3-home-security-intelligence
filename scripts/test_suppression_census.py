@@ -610,7 +610,37 @@ def test_real_tree_matches_spec_baselines():
         # two heads of #7003; 6.92s local): it boots a real child pytest session
         # and the ~6s interpreter+plugin boot is the mechanism, not noise. The
         # file is absent at main, so no corpus entry existed to pre-admit it.
-        "tpa_slow_list": 10,
+        # 10→11 (2026-10-13): compose-render CLI-boot test admitted with
+        # measured CI breaches (4.93s + isolated re-run 8.12s on PR #7083 head
+        # 961ddc956, job 115516785427) while the same file measured 0.447s in
+        # main's own junit (run 38478749542, so absent from both WARN lists):
+        # it spawns a real compose binary and the CLI boot IS the assertion, so
+        # it cannot be fake-clocked. RETRACTED: the claim that the main-vs-head
+        # spread IS which compose invocation _compose_argv() resolves was my
+        # inference written as a measurement. That probe reads host binaries via
+        # shutil.which, and its value reaches two renderings: the exit-nonzero
+        # message (test_compose_render_lists_ai_vlm.py:90) and the TimeoutExpired
+        # text of the timeout=100 call (:86), whose str CPython builds from the
+        # argv list. Nothing catches that exception, so a timeout ERRORS rather
+        # than passes, and a passing run prints neither — which is why a passing
+        # run cannot show which branch it took, and main's 0.447s run passed.
+        # Both compose binaries are on the image's Included Software list
+        # (Podman 4.9.3, Docker Compose 2.38.2), which is exactly why the
+        # manifest cannot settle the branch; shutil.which consults runtime PATH,
+        # and the suite skips outright when the binaries are absent (:66-67).
+        # Two machines disagreed, which is why the entry records a reproducible
+        # breach rather than a stable duration. Both rows are named by id, not counted: the
+        # offset this note used to give ("the -n8-contention row two above") was
+        # itself wrong by one — two above is
+        # test_r8_s2b_nemotron_deletion.* (idx 8, LIVE:
+        # TestNoTestFileStillImportsASymbolS2bDeleted::
+        # test_no_test_module_imports_a_name_that_no_longer_exists) and the -n8
+        # row test_enrichment_pipeline_household_matching.* is THREE above (idx
+        # 7). Its offset and its label disagreed with each other; only the
+        # label happened to name an actually-orphaned row (its def went away in
+        # 602379e29 with enrichment_pipeline.py, licensing zero tests), which is
+        # why the miscount stayed invisible. That is the reason to name ids.
+        "tpa_slow_list": 11,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
     assert not stale, "census vs spec baseline drift: " + ", ".join(

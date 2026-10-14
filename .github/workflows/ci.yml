@@ -251,6 +251,15 @@ jobs:
       # scripts/test_reachability.py scans THIS file's comments for non-test
       # script paths and demands each be a declared entry point, and naming
       # it would change the tool-inputs stamp for a walk-neutral reason.
+      # #7064 (UR-89 follow-up): the uplevel cite gate's own suite joined the
+      # list. It lives in the unit tier, but on a docs-only PR the unit shards
+      # never run: ci.yml gates them on backend/should-run-all and the summary
+      # job exit-0s on that skip — measured at #7054's be801744d (shards
+      # skipped, "Backend Unit Tests" success, CI Gate green: vacuous green).
+      # The cite gate reads only docs/uplevel/** and its committed snapshot
+      # data, so this step is the tier that reaches its subject — a cite
+      # otherwise rots with every check green. Drafts stay uncovered:
+      # detect-changes skips on drafts, so no docs-only condition can see one.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -269,6 +278,7 @@ jobs:
           scripts/test_mutation_score.py
           scripts/test_check_ai_provider_parity.py
           scripts/test_check_gate_reachability.py
+          scripts/test_check_inventory_summary_arith.py
           scripts/test_ai_surface_census.py
           scripts/test_check_npm_audit_exemptions.py
           scripts/test_check_pip_audit_exemptions.py
@@ -278,6 +288,7 @@ jobs:
           scripts/test_retired_paths.py
           scripts/test_check_coe_reasons.py
           scripts/test_workflow_paths.py
+          backend/tests/unit/scripts/test_check_uplevel_cites.py
           scripts/test_workflow_draft_guards.py
           scripts/audit/test_retired_names.py
           scripts/audit/test_settings_orphans.py
@@ -287,7 +298,8 @@ jobs:
           scripts/test_shard_durations.py
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py
-          --durations=20
+          scripts/test_coordinator_snapshot.py
+          scripts/test_prodshape_override.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
@@ -3071,6 +3083,15 @@ jobs:
           SLEEP_GATE_INTEGRATION_BUDGET: '10.0'
           SLEEP_GATE_E2E_BUDGET: '10.0'
           SLEEP_GATE_WARN_BUDGET: '1.5'
+          # UR-125 as amended: a unit-tier breach re-runs once before it can
+          # redden the run. The script ships this OFF, because a junit corpus
+          # describes the machine that wrote it and replaying one on a laptop
+          # compares two boxes — it could clear a genuine breach. This job is
+          # the one place the checkout IS the tree that produced these XMLs
+          # (same commit, same runner class, same job), which is what the
+          # ruling's "re-runs only that test, once, in the same job" means. The
+          # key needs the dev extra, which the uv sync above already installs.
+          SLEEP_GATE_RERUN: '1'
 
       - name: Create Linear issue on failure
         # WP0.5: the job now gates PRs too — a PR failure is a red check the
@@ -3692,6 +3713,147 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  # DOCS-NJT: the negative-tooling-claim gate as ITS OWN job, per the hot-file
+  # rule UR-121 (rules.md, cited by rule id, never by line: that file renumbers
+  # with every ruling, so a line cite drifts while still looking plausible. A
+  # new check on ci.yml is its own job or its own workflow file, never an edit
+  # to a shared one).
+  # It ran here as a path appended to collection-sanity's battery line; that was
+  # the shape the rule forbids. It was also the only entry that did not have its
+  # own line, and that doubling lived in THIS branch, not in main: at `da350bd4c`
+  # the battery is 38 argv / 32 `.py` paths with `test_r2_python_dead_list.py
+  # scripts/test_negative_tooling_claims.py` sharing one line. Everywhere else a
+  # per-line count finds exactly one path per line — measured 31 at `4a83b61a1`
+  # and `9bc51ece0`, 32 at `2079e4a21` (MAIN's own addition), 31 at this head
+  # (mine moved out to the job below). A bare "at origin/main" version of this
+  # sentence went stale in review, so each figure names the SHA it was read at.
+  # If you re-verify a per-line count, use a DIGIT-INCLUSIVE class: `[a-z_]`
+  # skips `test_r2_python_dead_list.py` and manufactures a contradiction that is
+  # your regex, not the file. (Cited by structure, not by line range: a `ci.yml:N`
+  # cite drifts the moment anyone inserts a line above it — and so does any count
+  # quoted against a ref-name.)
+  # Why the JOB lives here, not in its own workflow file: `needs:` is file-local,
+  # so ci-gate can only need a job declared in this file, and branch protection
+  # requires exactly one context, `CI Gate (Required Checks)` (read live from
+  # /branches/main/protection). A second workflow file would have to make its OWN
+  # check name required to gate anything — which is the shape WP1.2 removed. Note
+  # this is about the job's DECLARATION site, not its body: six jobs here already
+  # delegate their work to a reusable file with job-level
+  # `uses: ./.github/workflows/x.yml` and are still gated — the four security-*
+  # (gitleaks/sast/trivy/dependency-audit) are DIRECT ci-gate needs, the two
+  # integration-shard callers reach it transitively through
+  # integration-coverage-merge / integration-tests-summary. Gating follows the
+  # need+result-read edge, not the file the body sits in. This suite needs no
+  # reuse, so it takes the plain job here, where a direct need is one line.
+  # Placed last in the job block but BEFORE ci-gate, which stays the file's
+  # final job. Deliberately no `ci.yml:N` cite anywhere in this block: this
+  # package's own gate class is stale line numbers, and a comment citing its own
+  # line number is the one cite GUARANTEED to drift — any insert above it moves
+  # it. Cite the job name (`docs-negative-claims`), which cannot drift. The
+  # cite-neutrality argument lives in the PR instead (measured there: no document
+  # cites a ci.yml line above 3676 at origin/main, so a job placed here re-anchors
+  # nothing).
+  # The step mirrors collection-sanity's battery INVOCATION (same `uv run python
+  # -m pytest … -q` shape, same project env) — because this suite's
+  # @pytest.mark.timeout needs the project's pytest-timeout, and because this
+  # is the recipe that actually runs, not one I guessed. It does NOT mirror the
+  # timeout. `uv run` syncs the project env on first use and setup-uv caches
+  # nothing unless `enable-cache: true` is passed (neither job passes it), so the
+  # job's floor is that sync, not the suite's measured 3.4 s — and 5 was the
+  # repo's cheap-job timeout, chosen for a job whose whole cost is one suite.
+  # collection-sanity gets 15 for the same sync plus 31 suites; 10 is sync plus
+  # one with room for a slow runner.
+  docs-negative-claims:
+    name: Negative Tooling Claims in Docs (DOCS-NJT)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Every "no CI runs X" in docs/ must be true
+        run: >-
+          uv run python -m pytest scripts/test_negative_tooling_claims.py
+          -q
+
+  # [r149e]: type-check the golden specs — ITS OWN job, per the hot-file rule
+  # UR-121 (rules.md, cited by rule id, never by line: that file renumbers with
+  # every ruling). UR-121 allows exactly one shape of edit to a shared job in
+  # this file — one appended entry to a list a step already reads — and there is
+  # no such list to append to here: `npm run typecheck` is a `run:` command
+  # (this file's only occurrence), not an item in a list, so a `tsc -p` step
+  # added to frontend-typecheck would be a new step, which is what the rule
+  # sends to its own job. docs-negative-claims above is the in-repo precedent
+  # for exactly this move, and the wiring below (direct need + check_job line)
+  # is the only shape scripts/test_ci_job_graph.py's WP0.6 invariant accepts for
+  # a red-able job: bare `needs:` membership is ORDERING, not gating.
+  #
+  # WHY THIS JOB EXISTS AT ALL. ci.yml's Frontend Type Check runs
+  # `cd frontend && npm run typecheck` = `tsc --noEmit`, and frontend/tsconfig.json
+  # declares `"include": ["src"]`. Everything under frontend/tests/golden/ was
+  # therefore opened by CI's Feature check job and by nothing that ever
+  # type-checked it: ~15 spec files, executed on every PR that touches the
+  # feature tier, were never parsed by the compiler that would have caught a
+  # wrong event name, a stray unused import, or a cast that checks nothing. The
+  # first run of frontend/tsconfig.golden.json over that tree found 9 real
+  # errors (the package's own count, reproduced exactly), so the gap was not
+  # theoretical. The 9 are fixed in this PR; see the PR body for what each one
+  # was silently doing.
+  #
+  # WHY `npx tsc -p` AND NOT A NEW npm SCRIPT. Adding `typecheck:golden` to
+  # frontend/package.json is a second change to a file this package does not
+  # name, and the package's CI clause says `tsc --noEmit` — which is the
+  # command, not the script name. One line here keeps the diff to the two files
+  # the package asks for (the config and this job).
+  #
+  # WHY THE SAME FILTER AS ITS SIBLING. The checked tree is frontend/tests/golden/,
+  # so `frontend` is the right path filter, and should-run-all covers main pushes
+  # and workflow edits — a spec that drifts past the compiler on a docs-only PR
+  # is not possible (the tree is only reachable through `frontend`). Same guard,
+  # same shape as frontend-typecheck: the draft clause must stay the LEFT operand
+  # of the top-level &&, because GitHub's expressions bind && tighter than ||,
+  # and a guard appended after a || gates only the last disjunct (pinned by
+  # scripts/test_workflow_draft_guards.py).
+  #
+  # timeout-minutes: 10, the same figure as frontend-typecheck, which runs the
+  # same `npm ci` against the same lockfile. The step itself is not the cost:
+  # `time -p npx tsc -p tsconfig.golden.json --noEmit` on the current tree,
+  # three consecutive warm runs in frontend/, real = 2.96 / 2.95 / 3.02 s. So
+  # the job is install-bound like its sibling and inherits its headroom rather
+  # than a number guessed here.
+  frontend-golden-typecheck:
+    name: Golden Spec Type Check (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [detect-changes]
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
+      needs.detect-changes.outputs.should-run-all == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true'
+      )
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: TypeScript check (golden specs)
+        # -p is the whole contract: it resolves tsconfig.golden.json from the
+        # CWD (frontend/), which inherits tsconfig.json's compilerOptions and
+        # REPLACES its `include` with the golden subtree. `--noEmit` is restated
+        # on the command line so the step says out loud what the package asked
+        # for, even though the config already sets it.
+        run: cd frontend && npx tsc -p tsconfig.golden.json --noEmit
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -3712,6 +3874,7 @@ jobs:
       - integration-tests-summary
       - frontend-lint
       - frontend-typecheck
+      - frontend-golden-typecheck
       - frontend-tests-summary
       - frontend-e2e-summary
       - api-types-check
@@ -3787,6 +3950,12 @@ jobs:
       # scripts/test_check_gate_reachability.py pins; the next edge is a
       # review, not a silent edit.
       - feature-check
+      # DOCS-NJT: docs' negative-tooling-claim gate. Own job per the hot-file
+      # rule UR-121 (rules.md, cited by rule id, never by line: that file
+      # renumbers with every ruling) — direct need + check_job below, the only
+      # wiring scripts/test_ci_job_graph.py's WP0.6 invariant accepts for a
+      # red-able job.
+      - docs-negative-claims
     if: always()
     steps:
       - name: Check required job results
@@ -3815,6 +3984,7 @@ jobs:
           check_job "Backend Integration Tests" "${{ needs.integration-tests-summary.result }}"
           check_job "Frontend Lint (ESLint)" "${{ needs.frontend-lint.result }}"
           check_job "Frontend Type Check (TypeScript)" "${{ needs.frontend-typecheck.result }}"
+          check_job "Golden Spec Type Check (TypeScript)" "${{ needs.frontend-golden-typecheck.result }}"
           check_job "Frontend Tests (Vitest)" "${{ needs.frontend-tests-summary.result }}"
           check_job "E2E Tests (Chromium)" "${{ needs.frontend-e2e-summary.result }}"
           check_job "API Types Contract Check" "${{ needs.api-types-check.result }}"
@@ -3843,6 +4013,9 @@ jobs:
           check_job "Frontend Coverage Floors" "${{ needs.frontend-coverage-merge.result }}"
           # Ruling 105: the golden paths' verdict, first time inside the gate.
           check_job "Feature Check (Fake AI)" "${{ needs.feature-check.result }}"
+          # DOCS-NJT: a docs claim that no CI runs a tool is a claim this gate
+          # now disproves on every PR. Own need + own line (WP0.6 wiring).
+          check_job "Negative Tooling Claims in Docs (DOCS-NJT)" "${{ needs.docs-negative-claims.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 

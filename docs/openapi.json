@@ -54184,7 +54184,7 @@
             }
           },
           {
-            "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url, verification",
+            "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, notes, detection_count, detection_ids, thumbnail_url, verification",
             "in": "query",
             "name": "fields",
             "required": false,
@@ -54197,7 +54197,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url, verification",
+              "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, notes, detection_count, detection_ids, thumbnail_url, verification",
               "title": "Fields"
             }
           },

@@ -73,9 +73,13 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import json
 import os
+import re
 import subprocess
 import sys
+import textwrap
+import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -92,6 +96,10 @@ assert _spec is not None and _spec.loader is not None
 _gate = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_gate)
 categorize_test = _gate.categorize_test
+# Read, never restated: a pin that hardcodes 5 passes when someone raises the
+# bound in the script and the pins quietly stop describing the rule. The cap
+# pin below asserts the SHAPE of the cap (per tier) against this value.
+MAX_RERUNS = _gate.MAX_RERUNS
 KNOWN_TIERS = frozenset({"unit", "integration", "e2e", "slow", "benchmark"})
 
 # Same knob set the script reads; the CI step sets the same five values
@@ -1154,4 +1162,1800 @@ def test_an_untracked_tier_falls_to_the_strictest_budget() -> None:
     )
     assert 'budgets["unit"]' in fallback, (
         f"the fallback target must be the unit budget in the source; saw: {fallback.strip()}"
+    )
+
+
+# ==========================================================================
+# UR-125 AS AMENDED (owner design session 2026-10-12, pass 2 Q9): a unit-tier
+# breach must REPRODUCE before it goes red.
+#
+# Verbatim: "The real-sleep gate fails a unit test over 4.0 s only when the
+# breach reproduces: the gate re-runs that one test once, in the same job, and
+# the run is red only if the re-run also breaches; a test that passes on its
+# re-run is listed as a warning with both timings."
+#
+# The package's three Done-when cases are the first three tests below, plus the
+# 1.5-4.0 s clause. Everything after them is the machinery's FAILURE shapes —
+# the cases where adding a re-run can make the gate weaker than ruling 93
+# left it, which is the only way this amendment can hurt.
+#
+# **How the re-run is driven without paying a real sleep.** The gate re-invokes
+# one test by argv; ``SLEEP_GATE_PYTEST`` replaces that argv prefix (default
+# ``<sys.executable> -m pytest``) and each test below points it at a stub
+# pytest written into ``tmp_path``, which records every invocation and prints a
+# canned duration in the one format the gate parses. The gate's own argv
+# construction, junit temp-file handling, parsing and verdict path all still
+# run end to end — only the process on the other end of the pipe is canned.
+# ``test_the_default_rerun_is_live_and_names_this_interpreter`` then pins the
+# DEFAULT against a real test in this repo, because a stubbed seam proves
+# nothing about the runner production uses.
+#
+# **Why the re-run is OFF until the env turns it on, and why that is not the
+# downgrade returning through a flag.** ``SLEEP_GATE_RERUN`` can name no test,
+# widen no budget and read no previous run, so it is not an exemption channel;
+# unset, the gate is ruling 93 byte for byte (breach = red, nothing spawned).
+# It exists because a re-run is only meaningful where the checked-out tree is
+# the tree that produced the junit: the audit job is that place (same commit,
+# same runner, same job — the package's "in the same job"), whereas a junit
+# artifact replayed on a laptop would compare two machines and could CLEAR a
+# genuine breach. The step sets it and
+# ``test_the_gate_step_enables_the_re_run`` makes dropping it an alarm instead
+# of a silent reversion. Two more rules the pins below hold: a re-run the gate
+# CANNOT complete stays RED (unverified is not passed), and the report says
+# which of the three states it is in, so "off" and "broken" never read as "the
+# rule".
+# ==========================================================================
+
+RERUN_ON = {"SLEEP_GATE_RERUN": "1"}
+
+# A corpus id with NO module behind it: the re-run can never accidentally
+# execute something real while these pins are checking the machinery.
+SLEEPER = ("backend.tests.unit.slow.test_sleeper", "test_a")
+SLEEPER_ID = f"{SLEEPER[0]}::{SLEEPER[1]}"
+SLEEPER_TARGET = "backend/tests/unit/slow/test_sleeper.py::test_a"
+
+
+def _stub_pytest(
+    tmp_path: Path,
+    durations: dict[str, str],
+    *,
+    exit_codes: dict[str, int] | None = None,
+    collect_zero: set[str] | None = None,
+    skipped: set[str] | None = None,
+    stalling: set[str] | None = None,
+    late: dict[str, tuple[str, float]] | None = None,
+    calls_file: Path,
+) -> str:
+    """A stand-in for ``python -m pytest``: canned duration, canned exit code.
+
+    ``durations`` maps the re-run test's NAME to the seconds its canned junit
+    reports, and a name in ``collect_zero`` exits 5 (pytest's real "no tests
+    collected"); a name in neither exits 4 with no junit — the "could not run
+    it" shape. A name in ``skipped`` exits **0** and writes a real skip
+    (``<skipped/>`` child, ``skipped="1"``, a tiny nonzero ``time``): that is
+    what pytest does when a ``skipif`` guard no longer holds on the box doing
+    the re-run, and it is the one degraded-env shape that exits successfully.
+
+    **Keyed by name, deliberately not by the path target.** Keying by target
+    would mean the helper has to build the expected ``path::name`` itself, and
+    a helper that re-derives the path re-implements the very inversion
+    ``test_the_re_run_names_the_breaching_test_as_a_path`` exists to check —
+    an inverted id would then match the fixture's own wrong spelling and every
+    machinery pin below would go green on a gate that can never re-run
+    anything. So the stub answers "whatever you asked for, this is how long it
+    took" and leaves the target string as data only that one pin reads. A
+    target whose name the stub does not know still exits 4, so the fail-closed
+    arms keep their teeth.
+
+    It writes its junit to whatever ``--junit-xml=`` the gate passed, so the
+    gate's temp-file handling is on the path under test, and appends every
+    invocation to ``calls_file`` so a pin can assert *once*, and with what.
+
+    ``stalling`` names hang forever instead of answering: that is what a
+    collection-time stall looks like (a module-level import that never
+    returns), and it is the one shape the re-run's own ``--timeout`` CANNOT
+    stop, because pytest-timeout arms per test item and there is no item yet.
+    Every other arm here finishes on its own; only the parent bound can end
+    this one, so a pin that uses it is really testing the parent bound and not
+    the child's flag. ``late`` answers with a valid junit after a delay — the
+    child-slow-but-legitimate path the grace exists to leave alone.
+    """
+
+    def name_of(key: str) -> str:
+        """``a.b.c::test_x`` and ``path::Class::test_x`` both → ``test_x``."""
+        return key.rsplit("::", maxsplit=1)[-1]
+
+    # Projected HERE rather than inside the f-string: an f-string replacement
+    # field parses its expression as real Python, where ``{{}}`` is not an
+    # escaped empty dict but a set literal holding one (TypeError: unhashable).
+    by_name = {name_of(k): v for k, v in durations.items()}
+    by_exit = {name_of(k): v for k, v in (exit_codes or {}).items()}
+    by_zero = sorted(name_of(k) for k in (collect_zero or set()))
+    by_skip = sorted(name_of(k) for k in (skipped or set()))
+    by_stall = sorted(name_of(k) for k in (stalling or set()))
+    by_late = {name_of(k): v for k, v in (late or {}).items()}
+    script = tmp_path / "stub-pytest.py"
+    script.write_text(
+        textwrap.dedent(
+            f"""\
+            import json, os, sys
+            argv = sys.argv[1:]
+            D = {by_name!r}
+            EXIT = {by_exit!r}
+            ZERO = {by_zero!r}
+            SKIP = {by_skip!r}
+            STALL = {by_stall!r}
+            LATE = {by_late!r}
+            target = next((a for a in argv if "::" in a), "")
+            name = target.split("::")[-1]
+            xml = next((a.split("=", 1)[1] for a in argv if a.startswith("--junit-xml=")), "")
+            with open({str(calls_file)!r}, "a", encoding="utf-8") as h:
+                h.write(json.dumps({{"argv": argv, "cwd": os.getcwd()}}) + "\\n")
+            if name in STALL:
+                import time
+                while True:
+                    time.sleep(3600)
+            if name in LATE:
+                import time
+                t, delay = LATE[name]
+                time.sleep(delay)
+                if xml:
+                    with open(xml, "w", encoding="utf-8") as h:
+                        h.write(
+                            '<?xml version="1.0" encoding="utf-8"?>'
+                            '<testsuites name="pytest tests"><testsuite name="pytest" tests="1" '
+                            'failures="0" errors="0" skipped="0" time="' + t + '">'
+                            '<testcase classname="" name="x" time="' + t + '" /></testsuite>'
+                            "</testsuites>"
+                        )
+                sys.exit(0)
+            if name in ZERO:
+                sys.exit(5)
+            if name in SKIP:
+                # The shape pytest really emits for a skip (measured against
+                # this repo's pytest): exit 0, a <skipped/> CHILD, and a tiny
+                # but NONZERO time. The nonzero part is what makes this a bug
+                # rather than a trivially-empty row — the gate's "is there a
+                # usable duration" test passes on it, so only the skipped
+                # marker can stop the clearance.
+                if xml:
+                    with open(xml, "w", encoding="utf-8") as h:
+                        h.write(
+                            '<?xml version="1.0" encoding="utf-8"?>'
+                            '<testsuites name="pytest tests"><testsuite name="pytest" tests="1" '
+                            'failures="0" errors="0" skipped="1" time="0.035">'
+                            '<testcase classname="" name="x" time="0.035">'
+                            '<skipped type="pytest.skip" message="no db in this env">'
+                            "skipped</skipped></testcase></testsuite>"
+                            "</testsuites>"
+                        )
+                sys.exit(0)
+            if name not in D:
+                print(f"ERROR: no tests ran for {{target}}", file=sys.stderr)
+                sys.exit(4)
+            t = D[name]
+            if xml:
+                with open(xml, "w", encoding="utf-8") as h:
+                    h.write(
+                        '<?xml version="1.0" encoding="utf-8"?>'
+                        '<testsuites name="pytest tests"><testsuite name="pytest" tests="1" '
+                        'failures="0" errors="0" skipped="0" time="' + t + '">'
+                        '<testcase classname="" name="x" time="' + t + '" /></testsuite>'
+                        "</testsuites>"
+                    )
+            sys.exit(EXIT.get(name, 0))
+            """
+        ),
+        encoding="utf-8",
+    )
+    return f"{sys.executable} {script}"
+
+
+def _calls(calls_file: Path) -> list[dict]:
+    """Every recorded stub invocation, as ``{"argv": [...], "cwd": "..."}``.
+
+    A dict and not a bare argv because the child's working directory is
+    load-bearing (the re-run target is repo-relative) and nothing else
+    observes it.
+    """
+    if not calls_file.exists():
+        return []
+    return [
+        json.loads(line)
+        for line in calls_file.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def _argvs(calls_file: Path) -> list[list[str]]:
+    return [rec["argv"] for rec in _calls(calls_file)]
+
+
+def test_a_breach_that_passes_its_re_run_is_a_warning_not_red(tmp_path: Path) -> None:
+    """Done-when case 1 — "the run is red only if the re-run also breaches".
+
+    4.5 s in the corpus, 0.4 s on the re-run: the runner-starvation shape the
+    amendment exists to forgive. GREEN, and listed.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        f"a breach that does NOT reproduce is a warning, not a red — that IS the amendment\n{out}"
+    )
+    assert "BREACH" not in run.stdout, f"a non-reproducing breach must not print as one\n{out}"
+    assert "WARN" in out and SLEEPER[1] in out, (
+        f"the non-reproducing breach must be listed as a warning\n{out}"
+    )
+    invoked = _calls(calls)
+    assert len(invoked) == 1, (
+        "exactly ONE re-run of the one breaching test — 're-runs that one test "
+        f"once' is the ruling's word; a retry loop is a different rule: {invoked}"
+    )
+
+
+def test_the_warning_row_after_a_clean_re_run_carries_both_timings(tmp_path: Path) -> None:
+    """Done-when case 2 — "a warning WITH BOTH TIMINGS", not the flattering one.
+
+    A row showing only ``0.40s`` reads as "this test is fine" and the 4.5 s
+    event leaves the record, which is the downgrade the owner did not grant.
+    Both numbers, in stdout and in ``$GITHUB_STEP_SUMMARY``, beside the same id.
+    """
+    calls = tmp_path / "calls.jsonl"
+    summary = tmp_path / "step-summary.md"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+            "GITHUB_STEP_SUMMARY": str(summary),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, f"expected green; got\n{out}"
+    row = next(line for line in out.splitlines() if SLEEPER[1] in line)
+    assert "4.50" in row and "0.40" in row, (
+        f"the row must carry the corpus AND the re-run timing; saw: {row!r}"
+    )
+    written = summary.read_text(encoding="utf-8")
+    line2 = next((line for line in written.splitlines() if SLEEPER_ID in line), "")
+    assert "4.50" in line2 and "0.40" in line2, (
+        "both timings belong in the step summary too — that is where the owner "
+        f"reads the numbers\n{written}"
+    )
+
+
+def test_a_cleared_unit_breach_is_listed_once_not_twice(tmp_path: Path) -> None:
+    """Review finding 2: the dedup half of ``cleared_rows_outside_warns`` is load-bearing.
+
+    A unit breach is over the 1.5 s warn threshold by arithmetic, so WARNS
+    already holds it, and ``cleared_rows_outside_warns`` must NOT also hand it
+    to the "did not reproduce" section — that predicate
+    (``test_id not in already_listed``) is what keeps it one row. Measured on
+    this PR's head: dropping that clause leaves all pre-existing pins green
+    (60 passed) and prints the id TWICE on stdout (WARN row + DID NOT
+    REPRODUCE row) and twice in the summary. Counting the full id is the check
+    membership cannot make: the row that exists proves nothing about the row
+    that shouldn't.
+    """
+    calls = tmp_path / "calls.jsonl"
+    summary = tmp_path / "step-summary.md"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+            "GITHUB_STEP_SUMMARY": str(summary),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, f"cleared breach is green; got\n{out}"
+    assert out.count(SLEEPER_ID) == 1, (
+        f"a cleared UNIT breach gets exactly ONE stdout row (the WARN row); "
+        f"the dedup predicate put it in the did-not-reproduce section too\n{out}"
+    )
+    written = summary.read_text(encoding="utf-8")
+    assert written.count(SLEEPER_ID) == 1, (
+        "one row in the step summary as well — a double-list is what the "
+        f"owner reads as two events\n{written}"
+    )
+
+
+def test_a_breach_that_breaches_again_is_red(tmp_path: Path) -> None:
+    """Done-when case 3 (UR-125 + UR-126) — the reproduced breach is RED.
+
+    Durations are the redis backoff's own recorded pair (4.31 s on main, 4.68 s
+    locally), the test the amendment was argued over. UR-126: the remedy is in
+    the test, so the verdict must still name and size it and show both
+    measurements.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "4.7"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, f"a reproduced breach is red, UR-126\n{out}"
+    assert "BREACH" in run.stdout and SLEEPER[1] in run.stdout, (
+        f"the confirmed breach must still be named\n{out}"
+    )
+    assert "4.50" in out and "4.70" in out, (
+        f"a confirmed breach should show both measurements; the remedy needs them\n{out}"
+    )
+    assert len(_calls(calls)) == 1, f"one re-run, then the verdict: {_calls(calls)}"
+
+
+def test_a_1p5_to_4p0_second_unit_test_warns_only_and_is_never_re_run(tmp_path: Path) -> None:
+    """Done-when case 4 — "any unit test over 1.5 s is listed as a warning that
+    never fails the run", and the re-run must not touch it.
+
+    The re-run is a defence against a FALSE breach; a warn-band test is not a
+    breach. Re-running the warn tier would (a) pay a real sleep per warning —
+    the shipping corpora hold dozens of ids over 1.5 s — and (b) hand those ids
+    a channel to be *erased* from the list by a fast re-run, which is the
+    exemption the ruling refuses to grant. So the load-bearing assert is on the
+    calls file, not the verdict.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml([("backend.tests.unit.band.test_mid", "test_mid", 2.5)])),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
+    )
+    out = _out(run)
+    assert run.returncode == 0, f"a 2.5 s unit test is warn-only\n{out}"
+    assert "WARN" in out and "test_mid" in out, f"and it must be listed\n{out}"
+    assert _calls(calls) == [], (
+        "a WARN-band test must not be re-run — a fast re-run would delete a "
+        f"warning the ruling says must stay listed: {_calls(calls)}"
+    )
+
+
+def test_the_re_run_names_the_breaching_test_as_a_path(tmp_path: Path) -> None:
+    """The id must be inverted correctly, or the whole mechanism is inert.
+
+    junit's classname is dotted (``backend.tests.unit.slow.test_sleeper``) and
+    a pytest target is a path (``backend/tests/unit/slow/test_sleeper.py``). An
+    inversion bug makes every re-run fail with "no tests ran", so the gate
+    reports "could not verify" forever, looks rigorous, and never downgrades a
+    thing. That failure mode is otherwise indistinguishable from a working gate
+    that simply has no flukes; this pin sees the target string itself.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+        },
+    )
+    assert run.returncode == 0, _out(run)
+    argv = _argvs(calls)[0]
+    target = next(a for a in argv if "::" in a)
+    assert target == SLEEPER_TARGET, (
+        f"target must be the corpus id inverted to path::name; saw {target!r}"
+    )
+
+
+def test_the_re_run_clears_addopts_and_sets_its_own_timeout(tmp_path: Path) -> None:
+    """The re-run must measure what the budget speaks about.
+
+    Two ini settings would poison a re-run, from two different places, cleared
+    by two different mechanisms — and an earlier revision of this docstring
+    credited both to ``addopts``, which is wrong twice over. ``addopts``
+    (``pyproject.toml:545``) carries ``-n 8 --dist=worksteal``; inheriting that
+    would time the sleep under 8-way runner contention — the exact starvation
+    the amendment forgives, so a genuine breach would be *confirmed* by the
+    contention that disguised it. ``timeout = 5`` is its OWN ini key
+    (``pyproject.toml:546``, not inside ``addopts``); inherited, pytest-timeout
+    kills any re-run over 5 s and reports that as the verdict, making the
+    plugin's ceiling, not the owner's 4.0 s, the thing that decides red.
+
+    What clears them must therefore be asserted as what it is: ``-o addopts=``
+    present in the argv (the cause of the parallelism being gone — an
+    absence-only assertion could not tell "override present" from "override
+    deleted", since under the stub nothing re-adds ``-n 8`` on its own), and an
+    explicit ``--timeout=`` above the budget (the cause of the ini key being
+    overridden — a command-line flag outranks an ini value only by being there).
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "4.7"}, calls_file=calls),
+        },
+    )
+    assert run.returncode != 0, _out(run)
+    argv = _argvs(calls)[0]
+    joined = " ".join(argv)
+    assert any(argv[i : i + 2] == ["-o", "addopts="] for i in range(len(argv) - 1)), (
+        "the re-run must carry the addopts override as a PAIR, not merely look "
+        f"unparallelised (nor hold its two tokens apart, which pytest would "
+        f"read as one -o value and a stray test path): {argv}"
+    )
+    assert "-n 8" not in joined and "--dist" not in joined, (
+        "the re-run must not inherit the parallel addopts — it would measure "
+        f"contention, not the test: {argv}"
+    )
+    assert any(a.startswith("--timeout=") for a in argv), (
+        "the re-run needs an explicit timeout — timeout=5 is its own ini key "
+        f"(pyproject.toml:546), not part of addopts: {argv}"
+    )
+    timeout = next(a for a in argv if a.startswith("--timeout=")).split("=", 1)[1]
+    assert float(timeout) > 4.0, f"the timeout must not undercut the budget: {timeout}"
+
+
+def test_a_re_run_the_gate_cannot_start_stays_red(tmp_path: Path) -> None:
+    """Fail closed on the re-run: "could not check" is not "passed".
+
+    The test is not in the tree (exit 4 — what a renamed or deleted test looks
+    like). Nothing about this run says the duration was a fluke. A gate that
+    turns unverifiable breaches green has been switched off by the machinery
+    meant to explain them — the same WP0.5 doctrine the corpus-level pins apply
+    to zero evidence. And the report must say WHY it stayed red.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        "an unverifiable breach is RED; the alternative is a gate that goes "
+        f"green because its own re-run is broken\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach is still the headline\n{out}"
+    assert SLEEPER[1] in out and "not verified" in out.lower(), (
+        f"the report must say why it stayed red, not just that it did\n{out}"
+    )
+
+
+def test_a_stalling_re_run_is_killed_and_stays_red(tmp_path: Path) -> None:
+    """A re-run that never finishes is bounded by the GATE, not by the job.
+
+    This is the shape the child's own ``--timeout`` cannot stop. pytest-timeout
+    arms a timer per test item, during runtest; a module that stalls at import
+    time never gets to runtest, so there is no timer to fire (measured on this
+    repo's pytest: a 12.4 s import stall re-run with ``--timeout=3`` exits 0,
+    "1 passed", after 13.4 s of wall clock, reporting ``time="0.023"``). The
+    stub here ignores ``--timeout`` on purpose and answers nothing at all, so
+    the only thing that can end the wait is the parent bound — which is what
+    this pins. Before it, the reaper was the job's own ``timeout-minutes: 15``:
+    the run got cancelled, so the audit posted no report and lost every finding
+    it had already made to explain one flake.
+
+    Timing is asserted as a FLOOR as well as a ceiling. The floor is the whole
+    point: ``timeout=_repro_timeout()`` with no grace would satisfy a ceiling
+    alone, and would also cut off the legitimate child-slow path that
+    ``test_a_re_run_that_is_slow_but_finishes_is_never_mistaken_for_a_stall``
+    pins.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    started = time.monotonic()
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_RERUN_TIMEOUT": "1",
+            "SLEEP_GATE_RERUN_GRACE": "1",
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {}, stalling={SLEEPER_ID}, calls_file=calls
+            ),
+        },
+    )
+    elapsed = time.monotonic() - started
+    out = _out(run)
+
+    assert run.returncode != 0, "a re-run that measured nothing cannot clear the breach\n" + out
+    assert "BREACH" in run.stdout, f"the breach is still the headline\n{out}"
+    assert "TIMED OUT" in out, (
+        "the report must NAME the reason. The generic arm would print "
+        f'"pytest exit 91", a number pytest has no meaning for — the same trap '
+        f"the SKIPPED row exists to avoid\n{out}"
+    )
+    assert "could not start" not in out, (
+        "a hang is not a failure to launch; collapsing them loses the "
+        f"diagnosis the reader needs\n{out}"
+    )
+    assert 2.0 <= elapsed < 15.0, (
+        f"bound = timeout(1) + grace(1) = 2 s, so ~2 s + interpreter startup; "
+        f"took {elapsed:.2f}s. Under 2.0 the bound is firing before the child "
+        f"gets its own chance; over 15 it is not firing at all\n{out}"
+    )
+    assert len(_calls(calls)) == 1, (
+        "the timeout is not a retry — one re-run, bounded. A second "
+        f"invocation would double the worst case\n{out}"
+    )
+
+
+def test_a_re_run_that_is_slow_but_finishes_is_never_mistaken_for_a_stall(
+    tmp_path: Path,
+) -> None:
+    """The grace has to actually be there, or the bound is a new bug.
+
+    A parent bound set equal to ``--timeout`` would kill every child that
+    legitimately uses its full allowance and then takes a moment to write the
+    junit and tear down — turning the new safety net into a machine that calls
+    a slow-but-successful re-run "not verified", which is exactly the red this
+    clause exists to remove. So the child answers 2.5 s into a
+    timeout(1)+grace(3)=4 s bound: inside it, and past the child's own flag.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_RERUN_TIMEOUT": "1",
+            "SLEEP_GATE_RERUN_GRACE": "3",
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {}, late={SLEEPER_ID: ("0.40", 2.5)}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        "a re-run that finished under budget must still be a clearance — the "
+        f"grace must not shorten the child's own allowance\n{out}"
+    )
+    assert "TIMED OUT" not in out, f"the child finished; nothing timed out\n{out}"
+    assert "0.40s" in out, (
+        "the re-run's own measured duration must still reach the report, which "
+        f"is what proves the junit was read and not abandoned\n{out}"
+    )
+
+
+def test_a_re_run_that_SKIPS_stays_red(tmp_path: Path) -> None:
+    """A re-run that SKIPS executed nothing, and an executed nothing is not a witness.
+
+    This is the one degraded-environment shape that exits 0. The audit job
+    carries no ``services:`` block and no ``DATABASE_URL`` (``unit-tests`` has
+    both), and unit tests here skip on environment — GPU, docker daemon, a file
+    the job may not check out. So a breach whose re-run hits a ``skipif`` that
+    no longer holds on the audit runner returns ``exit 0`` with a real
+    ``<skipped>`` element and a tiny nonzero ``time`` — nonzero because pytest
+    still times the fixture teardown (measured 0.035 s against this repo's
+    pytest, and the gate prints it as ``0.00s``).
+
+    Before the fix that combination CLEARED the breach: the duration parser
+    refuses ``time=0`` but not 0.035, and the exit code is clean, so the corpus
+    4.5 s became a warning and the run went GREEN. Measured on the shipped code
+    8/8 trials. A test that never ran cannot demonstrate that its recorded
+    duration was a fluke — the same doctrine as the exit-4 and exit-5 pins
+    above, reached through the one path those pins do not cover.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {SLEEPER_ID: "0.035"}, skipped={SLEEPER_ID}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        "a skipped re-run is NOT a pass: the test did not run, so nothing about "
+        f"this attempt says the 4.5s was a fluke\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach is still the headline\n{out}"
+    assert "skipped" in out.lower(), (
+        f"the report must name the skip as the reason it stayed red\n{out}"
+    )
+
+
+def test_a_re_run_that_collects_nothing_stays_red(tmp_path: Path) -> None:
+    """pytest's "no tests collected" (exit 5) is the same non-witness.
+
+    A target that selects zero tests exits successfully while executing
+    nothing; counting that as clean would clear every breach whose path
+    inversion is subtly wrong.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {}, collect_zero={SLEEPER_ID}, calls_file=calls
+            ),
+        },
+    )
+    assert run.returncode != 0, (
+        f"a re-run that collected nothing measured nothing — red, not a downgrade\n{_out(run)}"
+    )
+    assert len(_calls(calls)) == 1, "it did try once; the verdict is still red"
+
+
+def test_a_re_run_that_reports_no_duration_stays_red(tmp_path: Path) -> None:
+    """A runner that exits 0 but records 0 s has not measured anything.
+
+    The corpus side already treats a zero-duration testcase as "not a fast
+    test, a skipped one" and fails closed on it; the re-run arm must apply the
+    same rule to itself, or "no number" silently means "under budget" and every
+    re-run becomes a clearance.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0"}, calls_file=calls),
+        },
+    )
+    assert run.returncode != 0, (
+        f"a re-run that reported no duration cannot certify a pass\n{_out(run)}"
+    )
+
+
+def test_the_re_run_happens_once_per_breach_not_once_per_run(tmp_path: Path) -> None:
+    """Three breaches → three re-runs, one each, three distinct targets.
+
+    The ruling says "that one test once", per breach. One shared re-run would
+    clear tests it never ran or red tests that were clean; a loop that retried
+    until green would be ``pytest-rerunfailures``, which this repo already
+    ships and which the owner did not ask the gate to become.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        (
+            "unit.xml",
+            _xml(
+                [
+                    ("backend.tests.unit.multi", "test_a", 4.5),
+                    ("backend.tests.unit.multi", "test_b", 5.5),
+                    ("backend.tests.unit.multi", "test_c", 6.5),
+                ]
+            ),
+        ),
+    )
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path,
+                {
+                    "backend.tests.unit.multi::test_a": "0.3",
+                    "backend.tests.unit.multi::test_b": "0.3",
+                    "backend.tests.unit.multi::test_c": "0.3",
+                },
+                calls_file=calls,
+            ),
+        },
+    )
+    assert run.returncode == 0, f"all three came back clean; none is a breach\n{_out(run)}"
+    targets = sorted(next(a for a in argv if "::" in a) for argv in _argvs(calls))
+    assert len(targets) == 3 and len(set(targets)) == 3, (
+        f"one re-run per breaching id, three distinct targets; got {targets}"
+    )
+
+
+def test_the_rerun_is_off_unless_the_env_turns_it_on(tmp_path: Path) -> None:
+    """The knob's ABSENCE must not be the downgrade wearing a different hat.
+
+    Two arms on one corpus. Off: ruling 93 exactly — red, and nothing spawned —
+    plus a report that SAYS the breach went unreproduced, so the off state
+    never reads as the rule. On: the clean re-run downgrades it. If the two
+    arms agree in either direction, the knob is not what implements the
+    amendment and this pin cannot tell.
+    """
+    off_calls = tmp_path / "off.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    off = _run(
+        results,
+        {
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=off_calls),
+        },
+    )
+    assert off.returncode != 0, (
+        "with the re-run not enabled the gate is ruling 93: breach = red. If "
+        f"this went green the knob silently IS an exemption channel\n{_out(off)}"
+    )
+    assert _calls(off_calls) == [], f"nothing spawns while off: {_calls(off_calls)}"
+    assert "not enabled" in _out(off).lower(), (
+        "a breach the gate did not attempt to reproduce must say so\n" + _out(off)
+    )
+
+    on_calls = tmp_path / "on.jsonl"
+    on = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=on_calls),
+        },
+    )
+    assert on.returncode == 0, (
+        "same corpus, knob on: the clean re-run downgrades it — the two arms "
+        f"must disagree\n{_out(on)}"
+    )
+
+
+def test_a_non_unit_breach_is_red_without_a_re_run(tmp_path: Path) -> None:
+    """Tiers OUTSIDE ``RERUN_TIERS`` keep ruling 93's hard red, no re-run.
+
+    (Reworded per review finding 5: this said "the re-run clause speaks about
+    UNIT tests" while ruling 151 had already added integration — the sibling
+    integration pins kill the same e2e-joins mutant, so the stale sentence
+    described behaviour this file now disproves. The live rule is the SET:
+    unit + integration re-run, e2e + slow do not.)
+
+    This is the pin that OWNS the e2e tier (review finding 3.10). The campaign
+    in ``scripts/r151-mutation-campaign.py`` measured the division of labour:
+    adding ``e2e`` to ``RERUN_TIERS`` reddened this pin AND its sibling
+    ``test_tiers_outside_the_clause_are_still_never_re_run``, because that one
+    also fed an e2e id — two witnesses for one tier, one of them silent on the
+    other's ``slow``. Adding ``slow`` reddened the sibling alone. So the
+    sibling is now slow-only and every reason below is e2e's own.
+
+    The audit job has no browser and no ``npm ci``, so re-running an e2e id
+    there cannot work, and a 23 s Playwright spec is not runner starvation. What
+    makes the filter load-bearing rather than vacuous is that e2e ids ARE in the
+    corpus this job reads: the step downloads Playwright's junit through its
+    ``playwright-test-results-*`` download step. A complement-shaped filter
+    ("everything that is not unit") would therefore spawn a doomed subprocess
+    per e2e failure and call its non-zero exit "verified" — which is why the
+    implementation spells the set out. The stub knows no target here, so an
+    attempt is visible in the calls file.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        ("e2e.xml", _xml([("specs/edge_case_matrix.spec.ts", "test_slow_spec", 23.1)])),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
+    )
+    out = _out(run)
+    assert run.returncode != 0, f"23.1 s over the 10.0 s e2e limit\n{out}"
+    assert _calls(calls) == [], (
+        "e2e is outside RERUN_TIERS; an e2e breach cannot be re-run in this "
+        f"job and must not try: {_calls(calls)}"
+    )
+
+
+def test_the_default_rerun_is_live_and_names_this_interpreter(tmp_path: Path) -> None:
+    """The stubbed seam proves nothing about PRODUCTION's runner, so pin that.
+
+    The failure mode this exists to catch is UR-125 being merged while inert: a
+    default argv that cannot start would satisfy every stub pin above, report
+    "could not verify" on every breach forever, and read exactly like a working
+    gate that happens to see no flakes. Three limbs, each cheap.
+
+    (a) The default argv is ``<this interpreter> -m pytest`` — not a bare
+        ``pytest`` that could resolve to something off PATH. The audit job gets
+        pytest from ``uv sync --extra dev``, so the gate must re-run with the
+        interpreter already running it.
+    (b) That interpreter can actually IMPORT pytest, proved by running it
+        (``--version``, ~0.2 s). Deliberately not a full in-repo collection:
+        measured here, ``pytest --collect-only`` on one tiny in-repo file costs
+        3.81 s and running it 5.82 s, because this repo's conftest chain is
+        heavy — a live arm that pays that would breach this very gate's 4.0 s
+        unit budget (and pytest's own ``timeout = 5``) to prove a point, and
+        duration gates here are marker-blind, so ``@pytest.mark.slow`` would not
+        save it. What a laptop cannot measure honestly, CI measures for real:
+        ``test_the_gate_step_enables_the_re_run`` pins that the job which
+        enables the re-run is the job that installs the dev extra.
+    (c) The child runs with cwd at the repo root, because the re-run target is
+        a repo-RELATIVE path — spawn it from anywhere else and every target
+        misses, which is limb (b)'s inert-gate shape arriving by a different
+        route.
+    """
+    direct = _gate.rerun_command()
+    assert direct[:2] == [sys.executable, "-m"], (
+        f"the default must re-run with THIS interpreter, not PATH's: {direct}"
+    )
+    assert direct[2] == "pytest", f"…invoked as a module, not an executable: {direct}"
+
+    # Real on purpose: this IS the sanity check — it must actually spawn our own
+    # interpreter to prove the re-run's default runner resolves. Fixed argv list,
+    # no shell; the check-test-timeouts hook's "# real" token exempts it, and
+    # ruff's S603 is ignored for backend/tests/ in pyproject.toml.
+    probe = subprocess.run(  # real
+        [sys.executable, "-m", "pytest", "--version"],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=_gate.REPO_ROOT,
+    )
+    assert probe.returncode == 0, (
+        "the default runner's pytest must be importable by the interpreter that "
+        f"runs the gate; otherwise every re-run is 'could not verify' and "
+        f"UR-125 is inert while reading implemented\n{probe.stderr}"
+    )
+
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {SLEEPER_ID: "0.4"}, calls_file=calls),
+        },
+    )
+    cwd = _calls(calls)[0]["cwd"]
+    assert Path(cwd).resolve() == _gate.REPO_ROOT.resolve(), (
+        f"the target is repo-relative, so the spawn must happen at the repo root; "
+        f"saw cwd={cwd!r} root={_gate.REPO_ROOT}"
+    )
+
+
+def test_a_breach_whose_re_run_fails_stays_red(tmp_path: Path) -> None:
+    """The downgrade is for a test that PASSES on its re-run (UR-125's words).
+
+    A re-run that finishes under budget but exits non-zero — it now fails, or
+    errors in its fixture — has not been exonerated, it has been caught. This
+    is the shape a "fast" reading could wave through: the gate parses a
+    duration, sees 0.9 s < 4.0 s, and if it looked only at the number it would
+    call a red test a flake that got lucky. The exit code is part of the
+    verdict, not noise around it.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("unit.xml", _xml([(*SLEEPER, 4.5)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {SLEEPER_ID: "0.9"}, exit_codes={SLEEPER_ID: 1}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        "a re-run that FAILS fast did not clear the breach — 'passes on its "
+        f"re-run' is the only exoneration the ruling grants\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
+    assert len(_calls(calls)) == 1, "one re-run; a failing test is not retried for luck"
+
+
+def test_a_class_based_breach_is_re_run_with_the_colon_spelling(tmp_path: Path) -> None:
+    """junit spells a class member ``Class.method``; pytest wants ``Class::method``.
+
+    junit's own ids are joined with ``::`` for display, but the classname itself
+    can carry a class (``test_file.py::TestLedgerWindow::test_window_stamps`` is
+    how pytest writes a class member, and the ledger's ``TestDurationTracking``
+    row shows those ids really reach the corpora). A target built by splitting
+    on the first dot would produce ``…/test_ledger.py.TestLedgerWindow::…`` and
+    select nothing — and per the inert-inversion argument above the gate would
+    then look permanently unverifiable rather than obviously broken. (The class
+    here is deliberately NOT ``TestDurationTracking``, which is a live
+    ``SLOW_TEST_PATTERNS`` member and would classify as ``slow``, not ``unit``.)
+    """
+    calls = tmp_path / "calls.jsonl"
+    classname = "backend.tests.unit.tracked.test_ledger.TestLedgerWindow"
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml([(classname, "test_window_stamps", 4.5)])),
+    )
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path,
+                {f"{classname}::test_window_stamps": "0.4"},
+                calls_file=calls,
+            ),
+        },
+    )
+    assert run.returncode == 0, _out(run)
+    target = next(a for a in _argvs(calls)[0] if "::" in a)
+    assert target == (
+        "backend/tests/unit/tracked/test_ledger.py::TestLedgerWindow::test_window_stamps"
+    ), f"class members need the :: spelling; saw {target!r}"
+
+
+# ==========================================================================
+# UR-125 AS AMENDED BY RULING 151: the INTEGRATION tier gets the same re-run.
+#
+# Verbatim (UR-125, docs/uplevel/rules.md): "An integration test over its 10.0 s budget gets
+# the same single re-run, and is red only if the re-run also breaches; at most 5
+# re-runs per job in each tier."
+#
+# The block above was written when the clause named only unit tests, and the
+# gate still implements exactly that: ``reproduce`` filters ``b[2] == "unit"``.
+# So an integration test at 12.4 s is red on the first reading, with no
+# reproduction, which is the failure mode ruling 151 exists to fix. Eleven of the
+# thirteen pins below are red on `main` for three DIFFERENT reasons, and the
+# reasons are why this is a three-site change and not a one-line filter:
+#
+#   * the verdict itself (nothing re-runs an integration breach);
+#   * the REPORTING of a cleared one — the WARN list is unit tier by a deliberate
+#     comment (listing a legal 2.6 s banner spec would train everyone to skim),
+#     and both the stdout warning row and the step-summary row for a cleared
+#     breach are rendered by walking that unit-only list. Widen only the filter
+#     and a cleared integration breach drops out of ``red`` WITHOUT appearing
+#     anywhere: the owner sees a green run that says nothing about the 12.4 s
+#     event, which is the downgrade the ruling did not grant;
+#   * the CAP, which slices the POOLED list, so "at most 5 per job in each tier"
+#     is silently 5 across all tiers — and because integration breaches are the
+#     longest ones in the corpus, a pooled cap spends every re-run on
+#     integration and leaves the unit tier with none.
+#
+# The tiers OUTSIDE the clause (e2e, slow) are pinned too, because "everything
+# that is not unit" is NOT what the amendment says and the audit job has no
+# browser and no ``npm ci``.
+#
+# The count sentence above is a MEASUREMENT, not an estimate: main's gate blob
+# swapped in for this file's, the below-banner tests run against it, and the red
+# ones counted (measured 11 failed / 2 passed at this head — the two greens being
+# precisely the pins that assert a constant and assert NON-re-runs, so main
+# satisfies them without ever re-running integration, which is reason 1 talking).
+# Adding a pin below this line moves the number again; re-measure it the same way
+# rather than editing the sentence to taste. An earlier revision carried "six of
+# eight", true when written and stale by the next commit — review finding 5.
+# ==========================================================================
+
+# An integration id with no module behind it, same reasoning as ``SLEEPER``. The
+# tier is doubly determined on purpose: the classname carries "integration" AND
+# the corpus file is named ``integration.xml``, so a pin cannot go green because
+# one channel accidentally classified it (see the M8 probe note at the top of
+# this file). Neither name is a SLOW_TEST_PATTERNS member or a ``.spec.`` path.
+INTEGRATION = ("backend.tests.integration.api.test_gateway", "test_integration_gateway_slow_path")
+INTEGRATION_ID = f"{INTEGRATION[0]}::{INTEGRATION[1]}"
+
+# 12.4 s against the 10.0 s integration budget: a breach by 2.4 s, which is
+# squarely the "runner was starved" size, and well clear of the 4.0 s unit
+# budget so it cannot be read as a mis-tiered unit test.
+INTEGRATION_BREACH = 12.4
+INTEGRATION_CLEARANCE = "0.60"
+
+
+def test_an_integration_breach_that_passes_its_re_run_is_not_red(tmp_path: Path) -> None:
+    """Done-when case 1 for the integration tier (ruling 151, verbatim).
+
+    12.4 s in the corpus, 0.60 s on the re-run: the same shape ruling 122
+    forgives in the unit tier. GREEN, one re-run, exactly once.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {INTEGRATION_ID: INTEGRATION_CLEARANCE}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        "an integration breach that does NOT reproduce must not fail the run — "
+        f"ruling 151 gives this tier the same single re-run\n{out}"
+    )
+    assert "BREACH" not in run.stdout, f"a non-reproducing breach is not a breach\n{out}"
+    invoked = _calls(calls)
+    assert len(invoked) == 1, (
+        f"one re-run of the breaching id, not zero and not a retry loop: {invoked}"
+    )
+
+
+def test_a_cleared_integration_breach_is_still_listed_with_both_timings(
+    tmp_path: Path,
+) -> None:
+    """The downgrade has to be VISIBLE, or it is an exemption channel.
+
+    A cleared unit breach is over the 1.5 s WARN threshold by arithmetic, so it
+    reaches the report for free. A cleared INTEGRATION breach is not: the WARN
+    list is unit-tier by a deliberate comment, and today both the stdout row and
+    the ``$GITHUB_STEP_SUMMARY`` row for a cleared breach are emitted by walking
+    that list. So a gate that widens only the eligibility filter would drop this
+    id out of the breach list and print nothing about it — a green run with no
+    record of a 12.4 s event, which is the exact "listed as a warning" half of
+    UR-125 going missing while the leniency half ships.
+
+    Both numbers, beside the same id, in stdout AND in the step summary: the
+    corpus timing is the event, the re-run timing is the exoneration, and a row
+    that shows only the flattering one deletes the event.
+    """
+    calls = tmp_path / "calls.jsonl"
+    summary = tmp_path / "step-summary.md"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {INTEGRATION_ID: INTEGRATION_CLEARANCE}, calls_file=calls
+            ),
+            "GITHUB_STEP_SUMMARY": str(summary),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, f"expected green; got\n{out}"
+    assert len(_calls(calls)) == 1, "the re-run has to happen before anything can report it"
+
+    row = next((line for line in run.stdout.splitlines() if INTEGRATION[1] in line), "")
+    assert row, (
+        "a cleared integration breach must appear in the output at all — it is "
+        f"no longer a breach, so silence here means silence everywhere\n{out}"
+    )
+    assert "12.40" in row and INTEGRATION_CLEARANCE in row, (
+        f"the row must carry corpus AND re-run timing; saw: {row!r}"
+    )
+
+    written = summary.read_text(encoding="utf-8")
+    summary_row = next((line for line in written.splitlines() if INTEGRATION_ID in line), "")
+    assert summary_row, (
+        "the step summary is where the owner reads this, and a cleared "
+        f"integration id is not in the unit WARN list it is built from\n{written}"
+    )
+    assert "12.40" in summary_row and INTEGRATION_CLEARANCE in summary_row, (
+        f"both timings in the summary row too; saw: {summary_row!r}"
+    )
+    # Review finding 6: the PASS verdict line is what a reader trusts, and a
+    # phrasing that says "unit" here is FALSE for this corpus — the only test
+    # that was over budget is an integration one. The sentence existed on an
+    # earlier revision of this PR and a mutant restores it with every other pin
+    # green, so the word itself is pinned now.
+    pass_line = next(
+        (line for line in run.stdout.splitlines() if line.startswith("RESULT: PASS")), ""
+    )
+    assert pass_line, f"a cleared run must print its PASS verdict\n{out}"
+    assert "unit" not in pass_line, (
+        f"nothing unit was cleared here; the verdict must not claim it: {pass_line!r}"
+    )
+    # Review finding 3: the WORD was pinned, the sentence around it was not.
+    # Three mutants ran the whole suite green while lying on exactly this run —
+    # a zero count, a dropped exoneration claim, and the bare "no test over its
+    # real-sleep budget", which is verbatim the sentence the gate's own comment
+    # calls false on this path, because one test WAS over budget here.
+    assert "1 test(s) were over budget" in pass_line, (
+        f"the green has to say how many it let through: {pass_line!r}"
+    )
+    assert "no test over its real-sleep budget" not in pass_line, (
+        "a cleared run must not claim nothing was ever over budget; the gate's "
+        f"own comment calls this exact sentence false here: {pass_line!r}"
+    )
+    # A bare `"re-run" in pass_line` would pass on a mutant that deletes the
+    # exoneration, because the line's FIRST clause already contains the word
+    # ("...reproduced on its re-run"). So ask the count clause what happened to
+    # the tests it counted: a bare "N test(s) were over budget in the corpus."
+    # on a GREEN run reads as an unanswered question. Wording beyond that is
+    # free -- "cleared" and "re-run" are alternatives, not a spelling test.
+    tail = pass_line.split("were over budget", 1)[1]
+    assert "cleared" in tail or "re-run" in tail, (
+        f"the count clause must say the over-budget tests were exonerated, not "
+        f"just that they existed: {pass_line!r}"
+    )
+    # Review finding 7: the section header's COUNT was free. A mutant reading
+    # len(breaches) where the code reads len(listed_elsewhere) prints "2" above
+    # one row — counting the breach that DID reproduce, the single distinction
+    # the header's own parenthetical ("listed, never failing") exists to make.
+    # Anchored on the section NAME, not on "listed, never failing)", which the
+    # unit-WARN header prints too — matching that would test whichever of the two
+    # happened to print first. The scan stops at the blank line that closes the
+    # section, so it counts THIS section's rows and not the report's.
+    lines = run.stdout.splitlines()
+    head_i = next(
+        i for i, ln in enumerate(lines) if ln.startswith("OVER BUDGET, DID NOT REPRODUCE")
+    )
+    stated = int(lines[head_i].rsplit(":", 1)[1])
+    body = []
+    for ln in lines[head_i + 1 :]:
+        if ln.strip() == "":
+            break
+        if ln.startswith("  WARN "):
+            body.append(ln)
+    assert stated == len(body) == 1, (
+        f"one cleared breach is listed here, so the header must state 1 above 1 "
+        f"row; stated {stated} above {len(body)}\n{run.stdout}"
+    )
+
+
+def test_an_integration_breach_that_breaches_again_is_red(tmp_path: Path) -> None:
+    """Done-when case 2 — "red only if the re-run also breaches".
+
+    Deliberately GREEN on `main`, and it must stay green after the filter
+    widens: it is the pin that fails if the integration tier is ever made
+    exempt instead of merely re-measured. The re-run reports 13.1 s, over the
+    10.0 s budget, so the breach reproduced.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {INTEGRATION_ID: "13.1"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        f"a 12.4 s breach that re-runs at 13.1 s is real and stays RED\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
+    assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
+    # The FAIL line names the tiers the re-run covers, and this corpus is
+    # INTEGRATION-ONLY, so the wording is load-bearing here: the red branch is
+    # shared by every tier, so a revert to the pre-ruling-151 "seconds-scale unit
+    # test" would have this integration failure telling the reader to go fix a
+    # unit test. That is the same falsehood the PASS-line pin above exists to
+    # prevent, and the earlier note here argued the opposite — that any reword
+    # "stays true of a two-tier red set" — which is true only of a set that has a
+    # unit member in it. UR-89 batch-3 finding 3.3: a revert of this one clause
+    # ran the whole suite green (75 passed) before this pin existed.
+    assert "in a re-run tier" in out, (
+        f"the FAIL line must name the tier the re-run covers; this is an "
+        f"integration-only red\n{out}"
+    )
+    assert "seconds-scale unit test" not in out, (
+        f"a red integration test must not be explained as a unit test\n{out}"
+    )
+
+
+# Review finding 1: the exoneration ruling 151 grants lives in the 4.0-10.0 s
+# band, and before these two pins NO re-run duration anywhere in this file sat
+# inside it (every value was 0 / 0.4 / 4.7 / 13.1), so the comparison
+# `elif seconds > budget:` was never distinguished from `seconds > min(budget,
+# 4.0)` — that mutant ran the whole suite green while reddening a real 6.00 s
+# integration re-run. The greens below sit at 9.90 s, not the reviewer's
+# suggested 6.00 s, because 9.90 kills every mutant that lowers the effective
+# threshold STRICTLY below 9.9, and 6.00 would survive min(budget, 8.0).
+# "strictly" is load-bearing and was added after review: min(budget, 9.9)
+# agrees with the base at exactly 9.90 — both clear it — so nothing that stops
+# AT 9.9 dies here. That mutant needs the boundary pin below instead.
+def test_an_integration_re_run_at_9p90_seconds_is_cleared(tmp_path: Path) -> None:
+    """The 4.0-10.0 s band is judged against the INTEGRATION budget, not 4.0 s.
+
+    12.4 s in the corpus, 9.90 s re-run: under the 10.0 s budget, so cleared.
+    This is the duration ruling 151 exists to forgive — a starved integration
+    test that re-measures just under its own limit. A gate that judged the
+    re-run against the 4.0 s unit line would call it CONFIRMED red here.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {INTEGRATION_ID: "9.9"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        "a re-run at 9.90 s is under the 10.0 s integration budget, so it is "
+        "exonerated. If this goes red the re-run is being judged against a "
+        f"smaller budget than the tier's own:\n{out}"
+    )
+    assert "BREACH" not in run.stdout, f"a cleared re-run must not print as a breach\n{out}"
+    assert len(_calls(calls)) == 1, f"one re-run, then the verdict: {_calls(calls)}"
+
+
+def test_an_integration_re_run_at_10p40_seconds_is_red(tmp_path: Path) -> None:
+    """The mirror, just over the line: 10.40 s re-run against 10.0 s is RED.
+
+    Without this half the green above is ambiguous — it would also be green on
+    a gate that forgives the integration tier entirely. Together the pair
+    brackets the judged threshold to (9.90, 10.40], which CONTAINS the 10.0 s
+    integration budget, per tier rather than inherited from the unit case.
+
+    A bracket is not a boundary. `seconds >= budget` agrees with `>` at BOTH
+    endpoints of that interval and differs from it only at exactly 10.00 s, so
+    this pair cannot kill that mutant however tight the bracket gets -- see
+    test_an_integration_re_run_at_exactly_the_budget_is_cleared.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {INTEGRATION_ID: "10.4"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode != 0, (
+        "a re-run at 10.40 s is over the 10.0 s budget and the breach "
+        f"reproduced; a green here means the tier got an exemption\n{out}"
+    )
+    assert "BREACH" in run.stdout, f"the breach stays the headline\n{out}"
+    assert len(_calls(calls)) == 1, "one re-run; a reproduced breach is not retried for luck"
+
+
+def test_an_integration_re_run_at_exactly_the_budget_is_cleared(tmp_path: Path) -> None:
+    """The boundary itself: a re-run AT 10.00 s against a 10.0 s budget CLEARS.
+
+    The 9.90/10.40 pair brackets the threshold but never lands on it, and a
+    bracket is not a boundary — `seconds >= budget` clears 9.90 and reddens
+    10.40 exactly as the real `>` does, so it runs the entire suite green while
+    turning a real 10.00 s re-run RED. Measured at this head with the mutants
+    applied IN PLACE to the gate (it imports a sibling script by path, so a
+    relocated copy cannot run) and restored under md5: at 10.00 s the base
+    clears with exit 0, `>=` exits 1, and `> min(budget, 9.9)` exits 1. One
+    duration kills both survivors, which is why this pin sits beside the pair
+    rather than replacing it.
+
+    The corpus side has had this shape for a while
+    (``test_exactly_at_a_budget_is_not_a_breach``); the re-run side had none.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {INTEGRATION_ID: "10.0"}, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 0, (
+        "10.00 s against a 10.0 s budget is not OVER it — the comparison is "
+        "`seconds > budget`, so a re-run landing exactly on the limit reproduced "
+        f"nothing. This going red means the operator became `>=`:\n{out}"
+    )
+    assert "BREACH" not in run.stdout, f"an exactly-at-budget re-run is cleared\n{out}"
+    assert len(_calls(calls)) == 1, "one re-run; a cleared breach is not retried for luck"
+
+
+def test_the_cap_value_is_the_number_the_rulebook_states() -> None:
+    """The bound itself, asserted against the script instead of read from it.
+
+    The two pins below compare re-run counts to ``_gate.MAX_RERUNS``, which is
+    deliberate: they pin the SHAPE (one slice per tier) and keep describing the
+    rule if the bound ever moves. The cost of reading it is that they cannot see
+    the bound move DOWN — the fixture corpora are sized from the same constant
+    (``range(MAX_RERUNS + 1)``) or from a count above it (``range(6)``), so a
+    smaller cap shrinks the fixtures and the expectations in step. Measured on
+    this PR's head ``25f97f14e``, ``MAX_RERUNS`` = 1, 2, 3 and 4 all leave BOTH
+    pins green; only 6 and 7 are caught, and only because the corpus happens to
+    hold 6 breaches per tier. So the number UR-125 states was pinned nowhere,
+    and a silent 5 -> 4 is a silent loosening of the exoneration the rule grants.
+
+    This is the file's own precedent, not a new idea: ``BUDGETS`` above hardcodes
+    4.0 / 10.0 / 1.5 and names ruling 93 beside them. The cap is the one number a
+    rule states that this file did not pin absolutely.
+
+    Authority: UR-125 (``docs/uplevel/rules.md``, the UR-125 clause) — "at most 5 re-runs per job in each
+    tier", citing rulings 93, 122 and 151. Ruling 151 itself says "At most 5
+    re-runs per job, as for unit tests"; the "in each tier" scoping is the
+    rulebook's, which is why this pin cites the rule and not the ruling.
+    """
+    assert _gate.MAX_RERUNS == 5, (
+        "UR-125 states 5 re-runs per job in each tier. Raise this only by "
+        "widening UR-125 in docs/uplevel/rules.md first — the rule is the "
+        f"authority, not this file; the script had {_gate.MAX_RERUNS}"
+    )
+
+
+def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
+    """UR-125: "at most 5 re-runs per job **in each tier**" — not 5 pooled.
+
+    MAX_RERUNS+2 unit breaches and MAX_RERUNS+1 integration ones -- deliberately
+    ASYMMETRIC, see the fixture -- so over budget in both eligible tiers, and the
+    corpus is sorted longest-first, so a cap that
+    slices the POOLED list spends all five re-runs on the five longest — which
+    are all integration — and leaves the unit tier with none. That is the
+    inverted damage: the tier the cap has served since ruling 122 loses its
+    exoneration to the tier ruling 151 just added.
+
+    The rule is 5 PER TIER, so 10 ids get re-run and the one dropped per tier is
+    the shortest in that tier. ``MAX_RERUNS`` is the bound; the pin above holds it
+    to UR-125's number, and the worst-case cost is therefore MAX_RERUNS sleeps per
+    eligible tier per job
+    — the pins name the bound, so a reviewer who wants 5 pooled sees it here
+    rather than inferring it.
+    """
+    calls = tmp_path / "calls.jsonl"
+    # DELIBERATELY ASYMMETRIC (review finding 1): MAX_RERUNS+2 unit against
+    # MAX_RERUNS+1 integration, where 6/6 was symmetric. A symmetric corpus
+    # cannot witness a tier-label swap — the swapped (count, tier) multiset is
+    # identical — so the pair assertion below needs the counts to differ. They
+    # are derived from MAX_RERUNS rather than literal so the asymmetry, which is
+    # the property, survives the cap moving.
+    unit_cases = [
+        (f"backend.tests.unit.tiershard.test_u{i}", f"test_u{i}_slow", 4.4 + 0.1 * i)
+        for i in range(MAX_RERUNS + 2)
+    ]
+    integration_cases = [
+        (
+            f"backend.tests.integration.tiershard.test_i{i}",
+            f"test_integration_i{i}_slow",
+            10.4 + 1.1 * i,
+        )
+        for i in range(MAX_RERUNS + 1)
+    ]
+    n_unit = len(unit_cases)
+    n_integration = len(integration_cases)
+    assert n_unit != n_integration, (
+        "the fixture must stay asymmetric or the pair assertion below cannot see a tier-label swap"
+    )
+    durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml(unit_cases)),
+        ("integration.xml", _xml(integration_cases)),
+    )
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls),
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    targets = [next((a for a in rec["argv"] if "::" in a), "") for rec in invoked]
+
+    re_run_unit = [t for t in targets if "/unit/" in t]
+    re_run_integration = [t for t in targets if "/integration/" in t]
+    assert len(re_run_unit) == MAX_RERUNS, (
+        f"the unit tier gets its OWN {MAX_RERUNS} re-runs; a pooled cap gave it "
+        f"{len(re_run_unit)} because the integration breaches are longer\n{targets}"
+    )
+    assert len(re_run_integration) == MAX_RERUNS, (
+        f"the integration tier gets {MAX_RERUNS} too — 'in each tier' is UR-125's "
+        f"wording, and it is what separates 5-per-tier from a 5 total\n{targets}"
+    )
+    assert len(invoked) == 2 * MAX_RERUNS, f"no tier may exceed the cap either way: {targets}"
+    # The cap must still be the STRICT end: the dropped id is the SHORTEST in its
+    # tier, and the tier's remaining breaches stay RED unverified.
+    assert run.returncode != 0, (
+        f"2 of {n_unit + n_integration} breaches are unverified, so this run is RED "
+        f"whatever the cap "
+        f"decides to re-run\n{out}"
+    )
+    # The cap has to stay the STRICT end in each tier: what it drops is the
+    # SHORTEST breach of that tier, and the longest one must never be the loser.
+    unit_names = [t.rsplit("::", 1)[-1] for t in re_run_unit]
+    assert "test_u5_slow" in unit_names, (
+        f"u5 is the longest unit breach (4.9 s) and must be re-run first; saw {unit_names}"
+    )
+    assert "test_u0_slow" not in unit_names, (
+        f"u0 is the SHORTEST unit breach (4.4 s); dropping anything else would "
+        f"make the cap lenient instead of strict; saw {unit_names}"
+    )
+    # Review finding 6: which ids got re-run was pinned; the report's own PROSE
+    # about the cap was free to be deleted. A 6/6 corpus is over the cap in BOTH
+    # eligible tiers, so the stderr note must name each of them — a reader
+    # told "6 breaches, 5 re-run" without the tier cannot tell which tier lost.
+    notes = [line for line in run.stderr.splitlines() if "stay RED unverified" in line]
+    assert len(notes) == 2, (
+        f"one over-cap note per tier that is over the cap (both here); saw {notes!r}"
+    )
+    # Review finding 1: membership cannot see a tier-label SWAP, and on the old
+    # 6/6 corpus it could not see one AT ALL. So parse the note and assert the
+    # PAIR. The explicit len() check is part of the teeth: a gate that stops
+    # printing the note in the expected shape would leave `pairs` empty, and an
+    # empty set is a very easy thing to assert nothing about.
+    parsed = re.findall(r"note: (\d+) (\w+) breaches", "\n".join(notes))
+    assert len(parsed) == 2, f"both notes must match the expected shape: {notes!r}"
+    pairs = {(int(n), t) for n, t in parsed}
+    assert pairs == {(n_unit, "unit"), (n_integration, "integration")}, (
+        f"each note must state ITS tier's own breach count; the corpus is "
+        f"{n_unit} unit / {n_integration} integration, saw {sorted(pairs)}\n{notes!r}"
+    )
+    # And the number the note must NOT state: MAX_RERUNS. "5 breaches, only the
+    # 5 slowest" describes a corpus where nothing was dropped, in a run that is
+    # leaving a breach RED unverified.
+    for count, tier in parsed:
+        assert int(count) != MAX_RERUNS, (
+            f"the {tier} note counts {count} on a tier over the cap; a note that "
+            f"equals the cap claims nothing was dropped\n{notes!r}"
+        )
+
+
+def test_a_corpus_sitting_exactly_at_the_cap_prints_no_over_cap_note(tmp_path: Path) -> None:
+    """At MAX_RERUNS per tier NOTHING was dropped, so no note may print.
+
+    The cap pin's corpus is deliberately over the cap in both tiers, which pins
+    what the note says and nothing about when it appears. A `>=` trigger is
+    indistinguishable there — both tiers are over the cap regardless — and it is
+    not harmless: it tells the reader "only the 5 slowest get a re-run; the rest
+    stay RED unverified" about a run in which every breach got its re-run and the
+    job is GREEN. An alarm that fires on a corpus with nothing to alarm about is
+    the shape that teaches people to skim the report.
+
+    MAX_RERUNS breaches per eligible tier, every one of them cleared: the strict
+    `>` prints no note and exits 0.
+    """
+    calls = tmp_path / "calls.jsonl"
+    unit_cases = [
+        (f"backend.tests.unit.atcap.test_u{i}", f"test_u{i}_slow", 4.4 + 0.1 * i)
+        for i in range(MAX_RERUNS)
+    ]
+    integration_cases = [
+        (f"backend.tests.integration.atcap.test_i{i}", f"test_i{i}_slow", 10.4 + 1.1 * i)
+        for i in range(MAX_RERUNS)
+    ]
+    durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml(unit_cases)),
+        ("integration.xml", _xml(integration_cases)),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls)},
+    )
+    out = _out(run)
+    # Precondition first: if the corpus stopped re-running everything, the missing
+    # note below would prove nothing about the trigger.
+    assert len(_calls(calls)) == 2 * MAX_RERUNS, (
+        f"every breach must get its re-run for 'no note' to mean anything; "
+        f"saw {len(_calls(calls))}\n{out}"
+    )
+    assert run.returncode == 0, f"all cleared, so the run is green:\n{out}"
+    notes = [ln for ln in run.stderr.splitlines() if "stay RED unverified" in ln]
+    assert notes == [], (
+        f"a tier AT the cap dropped nothing, so it must not claim otherwise; saw {notes!r}"
+    )
+    assert "only the" not in run.stderr, (
+        f"no re-run was skipped here; the report must not imply one was\n{out}"
+    )
+
+
+def test_the_header_names_eligible_and_re_run_counts_separately(tmp_path: Path) -> None:
+    """At an over-cap corpus the ENABLED line must not call the cap "one each".
+
+    Six breaches per eligible tier, so 12 are eligible and only 2 x MAX_RERUNS
+    are actually re-run. ``main``'s line already reads "6 unit breach(es) get one
+    re-run each (max 5)" while it re-runs 5, so the overstatement predates ruling
+    151 — but widening the tiers widens the lie to 12-while-10, and this package
+    is the one that ships the sentence. A breach the cap cannot reach is NOT
+    re-run; telling the reader otherwise is the same "off reads as the rule"
+    shape, just wearing the leniency's clothes.
+
+    Asserted on whole integer tokens, not substrings: at one breach the digit 1
+    appears inside "6 unit, 1 integration" whatever the line means, so a
+    substring check passes for a reason that does not generalise. Both counts
+    must appear, and they must differ — which is only true of this corpus.
+    """
+    calls = tmp_path / "calls.jsonl"
+    unit_cases = [
+        (f"backend.tests.unit.capcount.test_u{i}", f"test_u{i}_slow", 4.4 + 0.1 * i)
+        for i in range(MAX_RERUNS + 1)
+    ]
+    integration_cases = [
+        (
+            f"backend.tests.integration.capcount.test_i{i}",
+            f"test_i{i}_slow",
+            10.4 + 1.1 * i,
+        )
+        for i in range(MAX_RERUNS + 1)
+    ]
+    durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml(unit_cases)),
+        ("integration.xml", _xml(integration_cases)),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls)},
+    )
+    out = _out(run)
+    invoked = len(_calls(calls))
+    eligible = 2 * (MAX_RERUNS + 1)
+    header = next(line for line in out.splitlines() if "ENABLED" in line)
+    tokens = {int(n) for n in re.findall(r"\d+", header)}
+
+    assert invoked == 2 * MAX_RERUNS, (
+        f"the corpus has to be over the cap in BOTH tiers for this to bite; "
+        f"{invoked} re-runs\n{out}"
+    )
+    assert invoked in tokens, (
+        f"the ENABLED line must state how many breaches it actually re-runs "
+        f"({invoked}); saw: {header!r}"
+    )
+    assert eligible in tokens, (
+        f"the line still has to say how many were eligible ({eligible}); saw: {header!r}"
+    )
+    assert eligible != invoked, (
+        f"this corpus must separate the two counts, else the pin above is "
+        f"vacuous: eligible={eligible} invoked={invoked}"
+    )
+    # Review finding 8: every assertion above is INTEGER-shaped, so the tier
+    # WORDS in the parenthetical were free — one mutant printed "(6, 6)", another
+    # "(6 tiers, 6 tiers)", both green. Per-tier framing is the whole content of
+    # that clause; the counts alone do not carry it. Built from the fixture's own
+    # counts, not literal digits, so a cap change cannot flip this pin into a lie
+    # in the other direction.
+    # Splitting on the literal rather than scanning for parens: the same line
+    # carries "breach(es)" BEFORE the tier list and "(cap N per tier)" AFTER it,
+    # so index("(") finds the one inside breach(es) and index(")") closes it.
+    assert "breach(es)" in header, (
+        f"the ENABLED line changed shape; this pin's extraction needs updating: {header!r}"
+    )
+    after = header.split("breach(es)", 1)[1]
+    paren = after[after.index("(") + 1 : after.index(")")]
+    for count, tier in ((MAX_RERUNS + 1, "unit"), (MAX_RERUNS + 1, "integration")):
+        assert f"{count} {tier}" in paren, (
+            f"the parenthetical must name the tier, not only its count; expected "
+            f"{count} {tier} in {paren!r}"
+        )
+
+
+def test_the_enabled_header_counts_each_tier_and_not_a_pooled_split(
+    tmp_path: Path,
+) -> None:
+    """The header's parenthetical must count tiers SEPARATELY, not pool them.
+
+    Review finding 3.4's fix removed a per-tier re-run map that reached no
+    output; auditing that fix found the surviving half of the same dimension
+    still unpinned. Mutating ``tier_counts`` to a pooled split
+    (``total // len(RERUN_TIERS)`` for every tier) ran the WHOLE suite green —
+    measured, 68 passed — because the only pin that reads that parenthetical
+    feeds it a SYMMETRIC corpus: 6 eligible unit and 6 eligible integration,
+    and 6/6 is exactly what pooling 12 across 2 tiers also produces. A
+    symmetric fixture cannot tell a per-tier count from a pooled one.
+
+    So this fixture is deliberately UNEVEN: ONE unit breach and MAX_RERUNS
+    integration breaches. Pooled, both tiers print ``(MAX_RERUNS + 1) // 2``,
+    which agrees with neither 1 nor MAX_RERUNS — the digit the pin asks for
+    cannot be there by accident. Counts come from the fixture's own lists so a
+    cap change can't turn the assertion into a lie in the other direction, and
+    the unevenness is itself asserted (see the last check): if a future edit
+    makes the corpus symmetric again this pin fails loudly instead of going
+    quietly vacuous, which is how the trap got set the first time.
+    """
+    calls = tmp_path / "calls.jsonl"
+    unit_cases = [("backend.tests.unit.tiercount.test_u0", "test_u0_slow", 4.4)]
+    integration_cases = [
+        (
+            f"backend.tests.integration.tiercount.test_i{i}",
+            f"test_i{i}_slow",
+            10.4 + 1.1 * i,
+        )
+        for i in range(MAX_RERUNS)
+    ]
+    # Every id re-runs clear, so the ONLY thing the verdict could hinge on here
+    # is the header text; nothing below depends on a breach staying red.
+    durations = {f"{c[0]}::{c[1]}": "0.4" for c in unit_cases + integration_cases}
+    results = _results(
+        tmp_path,
+        ("unit.xml", _xml(unit_cases)),
+        ("integration.xml", _xml(integration_cases)),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls)},
+    )
+    out = _out(run)
+    eligible = len(unit_cases) + len(integration_cases)
+    # Precondition: the corpus must sit AT the cap in both tiers, so every
+    # eligible breach really was re-run. Otherwise the counts below could be
+    # produced by a run that skipped some, and the header would be describing a
+    # different run than this pin thinks it is.
+    assert len(_calls(calls)) == eligible, (
+        f"every breach must get its re-run for these counts to mean what they "
+        f"say; saw {len(_calls(calls))} of {eligible}\n{out}"
+    )
+    assert run.returncode == 0, f"all of them cleared, so the run is green:\n{out}"
+
+    header = next(line for line in out.splitlines() if "ENABLED" in line)
+    # Same extraction as the over-cap pin: "breach(es)" closes before the tier
+    # list, so the next paren pair is the tier list's, not the "(cap N)" after it.
+    assert "breach(es)" in header, (
+        f"the ENABLED line changed shape; this pin's extraction needs updating: {header!r}"
+    )
+    after = header.split("breach(es)", 1)[1]
+    paren = after[after.index("(") + 1 : after.index(")")]
+    pooled = eligible // len(_gate.RERUN_TIERS)
+    assert f"{len(unit_cases)} unit" in paren, (
+        f"the parenthetical must state the unit tier's OWN count "
+        f"({len(unit_cases)}); a pooled split prints {pooled} for both tiers: "
+        f"{paren!r}"
+    )
+    assert f"{len(integration_cases)} integration" in paren, (
+        f"and the integration tier's OWN count ({len(integration_cases)}), not "
+        f"the pooled {pooled}: {paren!r}"
+    )
+    # The teeth of the whole pin, stated as a check instead of a comment: if the
+    # corpus ever becomes symmetric again the pooled mutant is invisible and this
+    # pin certifies nothing, so fail rather than pass quietly.
+    assert len(unit_cases) != len(integration_cases), (
+        f"this fixture must stay UNEVEN or a pooled tier count becomes "
+        f"indistinguishable from a per-tier one: {len(unit_cases)} vs "
+        f"{len(integration_cases)}"
+    )
+    assert pooled not in (len(unit_cases), len(integration_cases)), (
+        f"pooling has to be FORCED wrong by this corpus; pooled={pooled} collides with a real count"
+    )
+
+
+def test_the_over_budget_section_count_excludes_the_breach_that_reproduced(
+    tmp_path: Path,
+) -> None:
+    """The section's count must be the count of ITS rows, not of all breaches.
+
+    "OVER BUDGET, DID NOT REPRODUCE (listed, never failing): N" is the only
+    place the report separates the breach that a re-run cleared from the one that
+    reproduced, and the parenthetical is a promise: a number that also counts the
+    reproduced breach breaks it. A one-breach corpus cannot witness that — with a
+    single cleared breach, "all breaches" and "listed elsewhere" are the same
+    size — so this corpus has TWO integration breaches, one clearing at 0.60 s
+    and one reproducing at 13.1 s. The section must then say 1 over the one row
+    it prints, while the reproduced one is counted under BREACHES instead.
+
+    This is the shape the missing pin needs; the single-cleared pin next door
+    asserts the row's CONTENT and cannot see a count that is off by the breach
+    that did reproduce.
+    """
+    calls = tmp_path / "calls.jsonl"
+    reproducer = ("backend.tests.integration.apishard.test_auth", "test_integration_auth_slow")
+    results = _results(
+        tmp_path,
+        (
+            "integration.xml",
+            _xml(
+                [
+                    (*INTEGRATION, INTEGRATION_BREACH),
+                    (*reproducer, 11.9),
+                ]
+            ),
+        ),
+    )
+    durations = {f"{INTEGRATION[0]}::{INTEGRATION[1]}": INTEGRATION_CLEARANCE}
+    durations[f"{reproducer[0]}::{reproducer[1]}"] = "13.1"
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, durations, calls_file=calls)},
+    )
+    out = _out(run)
+    # Precondition: the corpus must really hold one cleared and one confirmed
+    # breach. If it does not, the count below is vacuous in the same way the
+    # single-breach corpus was.
+    assert len(_calls(calls)) == 2, f"both breaches must be re-run: {out}"
+    assert run.returncode != 0, f"the 13.1 s re-run reproduced, so this run is red: {out}"
+
+    lines = run.stdout.splitlines()
+    listed = [i for i, ln in enumerate(lines) if ln.startswith("OVER BUDGET, DID NOT REPRODUCE")]
+    assert len(listed) == 1, f"exactly one cleared breach should open that section: {out}"
+    stated = int(lines[listed[0]].rsplit(":", 1)[1])
+    body: list[str] = []
+    for ln in lines[listed[0] + 1 :]:
+        if ln.strip() == "":
+            break
+        if ln.startswith("  WARN "):
+            body.append(ln)
+    assert stated == len(body) == 1, (
+        f"one cleared breach: the header must state 1 above the 1 row it prints. "
+        f"A count of {stated} is counting the breach that DID reproduce, which is "
+        f"the distinction this section's name promises\n{run.stdout}"
+    )
+    breach_header = next(
+        (ln for ln in lines if ln.startswith("BREACHES (over the hard budget)")), ""
+    )
+    assert breach_header.rstrip().endswith(": 1"), (
+        f"and the reproduced breach belongs under BREACHES, not here: "
+        f"{breach_header!r}\n{run.stdout}"
+    )
+
+
+def test_tiers_outside_the_clause_are_still_never_re_run(tmp_path: Path) -> None:
+    """The ``slow`` tier stays RED-unverified with no subprocess spawned.
+
+    Review finding 3.10: this pin used to carry an e2e corpus ALONGSIDE the slow
+    one, so it witnessed e2e twice over (``test_a_non_unit_breach_is_red_without_a_re_run``
+    already owned that tier) while being the ONLY witness for ``slow``. The
+    campaign driver measures the split — e2e-joins reddened both pins,
+    slow-joins reddened only this one — so the e2e fixture and the
+    browser-less-subprocess argument moved to the pin that owns e2e, and this
+    one is slow-only. Each out-of-tier tier now has exactly one named owner,
+    which is what makes "who catches this regression?" answerable at all.
+
+    Why ``slow`` stays out on its own merits, independent of e2e: its members
+    are slow by MEASURED CENSUS, not by one starved run. Every
+    ``SLOW_TEST_PATTERNS`` entrant has to carry a measured breach in the corpus
+    AND a ``tpa_slow_list`` census entry (the rule the audit's own comment
+    states), so a re-run there is not a flake verdict waiting to happen — it is
+    the same 60 s-class sleep again, in the audit job, and the gate would print
+    "did not reproduce" about a test the census has already convicted. That is
+    the failure mode UR-125's leniency must not be allowed to grow into, and it
+    is a different reason from e2e's (a browser that is not installed), which is
+    why it gets its own pin rather than riding in a shared corpus where one
+    green could cover the other's red.
+
+    (An earlier draft of this docstring said "the seven ``SLOW_TEST_PATTERNS``
+    entries … each carry a recorded breach across 18 main junit datasets". That
+    was false in two ways and was caught by COUNTING the list rather than
+    quoting the comment: the list now holds 11 entries, not 7, and the 18-dataset
+    WP1.3 cohort is only its first seven — the four later entrants (dated
+    2026-09-23 through 2026-10-13) each bring a single-run measured breach
+    instead. The fixture below is a member of the original cohort, which is the
+    claim this pin actually rests on.)
+    """
+    calls = tmp_path / "calls.jsonl"
+    # A census member by name: this id is a SLOW_TEST_PATTERNS member, so the
+    # classifier reaches `slow` the way production does rather than by a fixture
+    # that pre-declares the tier it wants.
+    results = _results(
+        tmp_path,
+        (
+            "slow.xml",
+            _xml(
+                [
+                    (
+                        "backend.tests.unit.perf.test_fast_path",
+                        "test_fast_path_high_priority_detection",
+                        71.0,
+                    )
+                ]
+            ),
+        ),
+    )
+    run = _run(
+        results,
+        {**RERUN_ON, "SLEEP_GATE_PYTEST": _stub_pytest(tmp_path, {}, calls_file=calls)},
+    )
+    out = _out(run)
+    # Precondition: the fixture must actually be classified `slow`, else a red
+    # below could be a unit breach wearing the wrong label and the tier would
+    # still be unowned.
+    assert "[slow]" in out, (
+        f"this corpus must reach the slow tier or the pin tests nothing; the "
+        f"classifier is the thing that decides\n{out}"
+    )
+    assert run.returncode != 0, f"a 71 s slow breach is over the 60 s slow budget\n{out}"
+    assert _calls(calls) == [], (
+        "slow is outside the tiers the re-run covers; an attempt would buy a "
+        f"measured-slow test a second 60 s sleep, not a measurement: {_calls(calls)}"
+    )
+
+
+def test_the_enabled_header_counts_what_the_gate_actually_re_runs(
+    tmp_path: Path,
+) -> None:
+    """The header must not report a unit-only count once other tiers qualify.
+
+    One integration breach, nothing else. Today the line reads "0 unit
+    breach(es) get one re-run each" while the gate is about to re-run one (after
+    the fix) — a report that denies the regime it is running under, which is the
+    WP0.5 "off reads as the rule" shape this block has warned about since ruling
+    122. Asserted against the invocations rather than a phrasing, so the pin
+    cannot be satisfied by a prettier sentence that still miscounts.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(tmp_path, ("integration.xml", _xml([(*INTEGRATION, INTEGRATION_BREACH)])))
+    run = _run(
+        results,
+        {
+            **RERUN_ON,
+            "SLEEP_GATE_PYTEST": _stub_pytest(
+                tmp_path, {INTEGRATION_ID: INTEGRATION_CLEARANCE}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    assert len(invoked) == 1, (
+        f"the tier has to be re-run at all before the header can count it\n{out}"
+    )
+    header = next(line for line in out.splitlines() if "ENABLED" in line)
+    assert str(len(invoked)) in header, (
+        f"the ENABLED line must state the count it is honouring; saw: {header!r}"
+    )
+    assert "0 unit breach" not in header, (
+        f"a header that says zero while re-running something is the shape this "
+        f"file exists to prevent; saw: {header!r}"
     )

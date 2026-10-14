@@ -414,9 +414,12 @@ def write_github_summary(flaky_tests: list[dict], quarantined: set[str]) -> None
 
         f.write(f"Detected **{len(flaky_tests)}** flaky test(s)\n\n")
 
-        # Table header
-        f.write("| Status | Test | Pass Rate | Flakiness | Runs |\n")
-        f.write("|--------|------|-----------|-----------|------|\n")
+        # Table header. [r149f] added the Pass/Fail counts: a rate alone cannot
+        # tell a reader whether 13% came from 2 of 15 runs or 130 of 1,000, and
+        # the counts are what a fix needs. The rate stays — it is what the
+        # threshold in this file is computed from.
+        f.write("| Status | Test | Pass / Fail | Pass Rate | Flakiness | Runs |\n")
+        f.write("|--------|------|-------------|-----------|-----------|------|\n")
 
         for test in flaky_tests[:20]:  # Limit to top 20
             status = "Quarantined" if test["nodeid"] in quarantined else "**NEW**"
@@ -425,7 +428,8 @@ def write_github_summary(flaky_tests: list[dict], quarantined: set[str]) -> None
             if len(name) > 60:
                 name = "..." + name[-57:]
             f.write(
-                f"| {status} | `{name}` | {test['pass_rate'] * 100:.0f}% | "
+                f"| {status} | `{name}` | {test['passed']} / {test['failed']} | "
+                f"{test['pass_rate'] * 100:.0f}% | "
                 f"{test['flakiness_score']:.2f} | {test['total_runs']} |\n"
             )
 

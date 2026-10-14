@@ -75,16 +75,27 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CI_STACK = REPO_ROOT / "docker-compose.ci.yml"
 FAKE_OVERLAY = REPO_ROOT / "docker-compose.fake-ai.yml"
 SCENARIO_DIR = REPO_ROOT / "backend" / "ai_contract" / "fake" / "scenario_fixtures"
+SCRIPTS_DIR = REPO_ROOT / "scripts"
 BACKEND_GOLDEN = REPO_ROOT / "backend" / "tests" / "golden"
 FRONTEND = REPO_ROOT / "frontend"
 FRONTEND_MODULES = FRONTEND / "node_modules"
 PLAYWRIGHT_CONFIG = FRONTEND / "playwright.config.ts"
+# The lock ruling 143 names as the golden image's version source.
+PACKAGE_LOCK = FRONTEND / "package-lock.json"
 
 # The services the golden paths need: the CI stack and the two fakes.
 FAKE_SERVICES = ("postgres", "redis", "backend", "frontend", "ai-vlm", "ai-gateway")
 CAMERA_TARGET = "/cameras"
 PROJECT_LABEL = "com.docker.compose.project"
 PROJECT_PREFIX = "hsi-check-"
+# Top-level sections whose entries compose names after the PROJECT, not the file. Measured on
+# v5.5.1 by rendering under -p proja and rebooting the baked document under -p projb: all four
+# keep `proja_<key>` after the rebind, so a boot file carrying them points at another run's
+# objects (UR-133 isolation inverted into a cross-run `down -v` delete). prod declares only
+# networks/volumes today, but the same file documents enabling Docker secrets
+# (docker-compose.prod.yml:68-75, :1692-1720), and one constant keeps the naming site and the
+# stripping site from disagreeing about the list.
+PROJECT_NAME_SECTIONS = ("networks", "volumes", "configs", "secrets")
 
 EXIT_OK = 0
 EXIT_FAILED = 1  # a check of the run failed
@@ -103,6 +114,11 @@ SMOKE_SCENARIO = "harness-smoke"
 # detector kept. Its test deployment is --fake's without the fake ai-vlm.
 REAL_SERVICES = tuple(name for name in FAKE_SERVICES if name != "ai-vlm")
 PROD_STACK = REPO_ROOT / "docker-compose.prod.yml"
+# The authored override the O2.5 spike posted and scripts/test_prodshape_override.py
+# pins: the UR-133/134 transform (remapped ports, dropped engine-socket mounts,
+# prefixed container names) applied as an extra `-f` so no production file and no
+# CI leg is edited.
+PROD_SHAPE_OVERRIDE = REPO_ROOT / "scripts" / "uplevel" / "docker-compose.prodshape.yml"
 VLM_DOCKERFILE = REPO_ROOT / "ai" / "vlm" / "Dockerfile"
 # The production pin and its sha256 (operator.md step 1). The library also
 # holds a Q8_0 build of the model itself; it is not the pin.
@@ -429,7 +445,7 @@ def as_test_deployment(
     for key, value in base.items():
         if key not in ("name", "services") and not key.startswith("x-"):
             deployment[key] = copy.deepcopy(value)
-    for section in ("networks", "volumes"):
+    for section in PROJECT_NAME_SECTIONS:
         for key, entry in (deployment.get(section) or {}).items():
             if isinstance(entry, dict) and not entry.get("external"):
                 entry["name"] = f"{project}_{key}"
@@ -473,6 +489,280 @@ def as_test_deployment(
             "bind": {"create_host_path": False},
         }
     )
+    return deployment
+
+
+# ---------------------------------------------------------------------------
+# Production shape (O2.5, ruling 162 item 2) — the resource-limits decision.
+#
+# The prod stack asks for `deploy.resources.limits` on 19 of its 21 services —
+# every service that has a `deploy:` block has them — and a rootless engine
+# cannot start a container that asks for a limit where no cgroup controller is
+# delegated to the caller (the O2.5 spike's differential control). Unlike the CI
+# path, the prod-shape run does NOT go through `as_test_deployment`/`preflight`.
+# Measured, not assumed: the fail-closed key allowlist refuses the plain prod
+# render with 46 problems (19 of them `restart`, which has no CI rule; plus
+# `pid: host` on alloy and node-exporter, `devices`, `labels`, `cap_add`,
+# `ulimits`, `userns_mode`, and three `security_opt: label=disable`), and the
+# prod+override render still has 39. Widening that gate to fit would widen what a
+# CI run may ask for, and `pid: host` is something the prod shape genuinely needs
+# to observe the host, so it is not a refusal that can be made to go away. The
+# authored override (scripts/uplevel/docker-compose.prodshape.yml, pinned by
+# scripts/test_prodshape_override.py) is the UR-133/134 transform instead; limits
+# are the one thing it deliberately leaves to run time, decided from the machine
+# the operator runs on and recorded in the run summary.
+# ---------------------------------------------------------------------------
+
+# Ruling 162 item 2 names these strings verbatim; the run record carries them
+# unchanged so the operator's paste and a reader's grep agree.
+LIMITS_APPLIED = "limits: applied"
+LIMITS_STRIPPED = "limits: not applied (no cgroup delegation)"
+# prod.yml's limits are only ever `cpus:` and `memory:` (measured), i.e. the
+# `cpu` and `memory` cgroup controllers. `cpuset` alone cannot run a `cpus:`
+# limit, so the decision needs exactly these two delegated.
+LIMIT_CGROUPS = frozenset({"cpu", "memory"})
+
+
+def read_subtree_control(
+    *, proc_dir: Path = Path("/proc"), sys_dir: Path = Path("/sys/fs/cgroup")
+) -> str:
+    """The delegated-controller list for the cgroup a new container here inherits.
+
+    The path comes from the caller's own `/proc/self/cgroup` — not a fixed
+    location — because inside a sandbox the harness's cgroup is a slice, and the
+    O2.5 spike measured that slice (it read `/sys/fs/cgroup$(cut -d: -f3
+    /proc/self/cgroup)/cgroup.subtree_control` and found it EMPTY, which is why
+    the spike needed `deploy: !reset null` on 18 services).
+
+    Fail-closed by construction: anything unreadable returns "" — a malformed
+    line, an absent file, a cgroup-v1 host with no `0::` line. "" makes
+    :func:`decide_resource_limits` STRIP limits, and a container started without
+    a limit it was promised can fail to start, while one started with no limit
+    simply runs. The dangerous direction would be to guess "delegated".
+    """
+    try:
+        lines = (proc_dir / "self" / "cgroup").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    path = ""
+    for line in lines:
+        parts = line.split(":")
+        if len(parts) == 3 and parts[0] == "0":  # cgroup v2: `0::<path>`
+            path = parts[2]
+            break
+    if not path:
+        return ""
+    try:
+        return (sys_dir / path.lstrip("/") / "cgroup.subtree_control").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def cgroup_limits_usable(subtree_control: str) -> bool:
+    """Can this machine enforce resource limits? True when the controllers a
+    `deploy.resources.limits` needs are all delegated to us, read from the
+    cgroup's `cgroup.subtree_control` contents (one space-separated list).
+
+    Split on whitespace, not substring: `cpu` is a prefix of `cpuset`, so a
+    substring test would call limits usable on a `cpuset`-only cgroup."""
+    delegated = {token for token in subtree_control.split() if token}
+    return LIMIT_CGROUPS.issubset(delegated)
+
+
+# The engine sockets a container can drive the host with, wherever they are
+# mounted. Measured against the prod render: prod mounts the caller's
+# PODMAN_SOCKET twice -- on `backend` (into /var/run/podman/podman.sock) and on
+# `alloy`, which interpolates the same variable into BOTH source and target, so a
+# check that read only the target field would miss alloy outright.
+ENGINE_SOCKET_TARGETS = frozenset(
+    {"/var/run/docker.sock", "/var/run/podman/podman.sock", "/run/docker.sock"}
+)
+
+
+def engine_socket_mounts(
+    rendered: Mapping[str, Any], *, socket_path: str
+) -> list[tuple[str, str, str]]:
+    """Every `(service, source, target)` in a rendered deployment that mounts an
+    engine socket (UR-134), given the socket path this caller uses.
+
+    This is the RUN-TIME twin of `scripts/test_prodshape_override.py`, and the two
+    are not redundant. That test proves the committed override clears the mounts
+    prod has in the checkout CI saw; a run happens against whatever checkout the
+    operator brought, so a socket `docker-compose.prod.yml` grew since the override
+    was authored is exactly what the static gate cannot see and this check can. The
+    predicate reads source and target only -- never the mount's mode -- because a
+    read-only socket is not a weaker capability: opening the socket is the whole
+    attack, and `read_only: true` on the bind does not stop a container from
+    connecting through it.
+    """
+    hits: list[tuple[str, str, str]] = []
+    for name, service in (rendered.get("services") or {}).items():
+        for mount in service.get("volumes") or []:
+            if not isinstance(mount, Mapping):
+                continue
+            source = str(mount.get("source") or "")
+            target = str(mount.get("target") or "")
+            if socket_path and source == socket_path:
+                hits.append((name, source, target))
+            elif target in ENGINE_SOCKET_TARGETS:
+                hits.append((name, source, target))
+    return hits
+
+
+def strip_resource_limits(rendered: dict[str, Any]) -> int:
+    """Drop each service's ``deploy.resources.limits`` in place and return how
+    many services changed. Reservations are kept — the spike showed a LIMIT
+    (``--memory``/``--cpus``) is what a rootless engine refuses, never a bare
+    reservation — and a service with no ``deploy`` is not given one. The return
+    count lets the caller prove the strip did something: an all-zero return is
+    the difference between "no limits to strip" and "the strip is broken"."""
+    changed = 0
+    for service in (rendered.get("services") or {}).values():
+        resources = (service.get("deploy") or {}).get("resources") or {}
+        if "limits" in resources:
+            del resources["limits"]
+            changed += 1
+    return changed
+
+
+def boot_render(rendered: Mapping[str, Any]) -> dict[str, Any]:
+    """The copy of a render that goes on disk for ``up`` to boot, with every baked
+    object name removed so the ``-p`` at boot decides them.
+
+    Measured on compose v5.5.1: ``config --format json`` writes the project name into
+    the render three times over -- the top-level ``name``, and a ``name`` on every
+    network and every volume (``security-net`` becomes ``<project>_security-net``).
+    Feeding that render back under a DIFFERENT ``-p`` overrides the top-level name and
+    nothing else: the nested names still point at the first project. So a run booted
+    from such a file mounts -- and ``down -v`` DELETES -- another run's volumes, which
+    is UR-133's own-project isolation turned into a cross-run delete. A render with
+    those names stripped makes compose re-derive each object from the live ``-p``, so
+    two runs produce two disjoint object sets. The copy keeps the caller's render
+    intact: the artifact an operator reads should say what compose produced.
+    """
+    boot = copy.deepcopy(dict(rendered))
+    boot.pop("name", None)
+    for section in PROJECT_NAME_SECTIONS:
+        for entry in (boot.get(section) or {}).values():
+            if isinstance(entry, dict):
+                entry.pop("name", None)
+    return boot
+
+
+def decide_resource_limits(rendered: dict[str, Any], subtree_control: str) -> str:
+    """Decide, act and record in one step, so the three cannot disagree.
+
+    When the machine delegates the controllers prod's limits need, the render
+    keeps them and the run record says ``limits: applied``; otherwise they are
+    stripped here (they would only make a rootless container fail to start) and
+    the record says ruling 162 item 2's exact string. Returning the label the
+    caller writes verbatim is deliberate: a caller that decided in one place and
+    recorded in another is where an "applied" label lands on a stripped render."""
+    if cgroup_limits_usable(subtree_control):
+        return LIMITS_APPLIED
+    strip_resource_limits(rendered)
+    return LIMITS_STRIPPED
+
+
+def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) -> str:
+    """The env file for a prod-shape render, generated and never inherited.
+
+    O2.2's rule -- compose reads this file and nothing else (:func:`compose_command`
+    passes ``--env-file``, which suppresses the ``.env`` beside the compose file) --
+    applies unchanged to the prod shape, so a run must not quietly pick up the host's
+    real credentials. What the render needs was measured, not assumed: a drop-one
+    matrix over ``prod.yml`` + the prod-shape override found four REQUIRED variables
+    (each missing one exits 1 and names itself), against 154 references that
+    carry a ``:-`` default. The fourth is ``HSI_TEST_NAME_PREFIX``, added with the
+    per-run container names below; "three" was true until then and the matrix re-run
+    is what caught it.
+
+    Three of these are values a *test* deployment should not inherit from the host:
+    ``POSTGRES_PASSWORD`` is generated per run (a fixed literal would pass a test and
+    still be a shared secret), and the socket path is taken from the caller because it
+    is a path, not a secret -- but a missing one is refused here rather than passed on,
+    because compose only *warns* and interpolates a blank, which is the same failure
+    mode the override already refuses for ``PROD_SHAPE_RUN_ROOT``.
+
+    ``HSI_TEST_NAME_PREFIX`` exists because UR-133's project isolation has one hole a
+    compose project cannot close: a pinned ``container_name`` is global to the engine,
+    not namespaced by ``-p`` (measured on v5.5.1 -- booting the same pin under a second
+    project dies with ``Conflict. The container name ... is already in use``). ``prod.yml``
+    spells seven names and a profile-less render shows six of them (``dcgm-exporter`` sits
+    behind the ``gpu-rootful`` profile), so the override prefixes each with THIS run's token;
+    a constant prefix
+    would leave two concurrent runs unable to come up. It is hex plus a separator because
+    compose rejects other spellings, and the override reads it as ``${…:?…}`` so a run
+    that somehow lacks it refuses to render instead of interpolating blank and rejoining
+    the colliding set.
+    """
+    socket = caller.get("PODMAN_SOCKET")
+    if not socket:
+        raise HarnessError(
+            "PODMAN_SOCKET is not set in the caller's environment. The prod stack mounts it "
+            "into backend and alloy, and an empty value interpolates to a blank string with "
+            "only a warning, so the render would ask the engine for a mount of '/'."
+        )
+    return "".join(
+        f"{key}={value}\n"
+        for key, value in (
+            ("IMAGE_TAG", image_tag),
+            ("PODMAN_SOCKET", socket),
+            ("POSTGRES_PASSWORD", secrets.token_hex(16)),
+            ("PROD_SHAPE_RUN_ROOT", str(run_dir)),
+            ("HSI_TEST_NAME_PREFIX", f"{secrets.token_hex(4)}-"),
+        )
+    )
+
+
+def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None) -> dict[str, Any]:
+    """The run-time transforms the authored override cannot carry.
+
+    The prod-shape path does NOT go through :func:`as_test_deployment` (measured:
+    ``render()`` dispatches to ``render_prod_shape()`` before that function is ever
+    called), so the two things the CI tier gets from it were missing here. Both were
+    found by the UR-89 review and re-measured in the composed boot document.
+
+    * ``ORCHESTRATOR_ENABLED=false`` (UR-134's first clause). The boot document's
+      ``backend`` has ``env_file: None`` and its only ``ORCHESTRATOR_*`` key is
+      ``DOCKER_HOST``, so an absent flag resolves to ``backend/core/config.py``'s
+      ``enabled: Field(True)``; ``check_isolation`` runs on EVERY mode and asserts
+      ``GET /api/system/services`` answers ``503``, so the first real run died there.
+    * on ``--real``, the backend calls the VLM ``agent-gpu`` serves and the in-stack
+      ``ai-vlm`` stays out -- package ``O2.5`` Step 1 words this ("pointed at
+      ``agent-gpu``'s ``ai-vlm`` instead of CDI"). Left alone, the boot file keeps
+      ``AI_VLM_URL=http://ai-vlm:8098`` and an ``ai-vlm`` whose top-level ``devices``
+      ask the engine for ``nvidia.com/gpu=0``: a second GPU consumer racing agent-gpu's
+      own container, and not the deployment the 12 real-tier rows witness.
+
+    These are NOT put in the authored override for two reasons. It is a frozen,
+    hand-authored artifact whose changes ruling 162 item 3 caps at three kinds
+    (socket, pinned name, port/path) -- ``test_only_the_three_kinds_of_key_change``
+    enforces exactly that, and a fourth kind would need a ruling to add. And a VLM URL
+    is per-run, so static YAML cannot express it at all. Same split as the CI tier:
+    the file carries the shape, the runner carries the run.
+    """
+    deployment = copy.deepcopy(dict(rendered))
+    services = deployment.get("services") or {}
+    backend = services.get("backend")
+    if backend is None:
+        raise HarnessError("the prod-shape render has no backend service")
+    environment = backend.setdefault("environment", {})
+    environment["ORCHESTRATOR_ENABLED"] = "false"
+    if vlm_url is not None:
+        environment["AI_VLM_URL"] = vlm_url
+        services.pop("ai-vlm", None)
+    for name, service in services.items():
+        depends_on = service.get("depends_on")
+        if isinstance(depends_on, dict) and "ai-vlm" not in services:
+            # the omission this transform performs deliberately (mirrors
+            # as_test_deployment:449); anything else still missing is drift, not design.
+            depends_on.pop("ai-vlm", None)
+        for dependency in depends_on or {}:
+            if dependency not in services:
+                raise HarnessError(
+                    f"{name} depends on {dependency}, which this prod-shape render omits"
+                )
     return deployment
 
 
@@ -1074,25 +1364,133 @@ def compose_environment(caller: Mapping[str, str]) -> dict[str, str]:
     return {key: caller[key] for key in ENGINE_ENVIRONMENT if key in caller}
 
 
-# The caller-set variables the Playwright browser steps need beyond
-# ENGINE_ENVIRONMENT, and the only reason they get an env at all. The golden
-# TEST leg runs with the caller's whole environment, so it launches from a
-# moved cache; a probe judged at the default root would call that cache absent
-# (or, worse, call a stale default root present) and disagree with the runner.
-# Both of the variables that move that root are here: PLAYWRIGHT_BROWSERS_PATH
-# wins outright, else XDG_CACHE_HOME/ms-playwright (measured on the pinned
-# 1.63.0 CLI — with only XDG_CACHE_HOME set every "Install location:" line
-# moves under it, and chromium.executablePath() follows the same order, which
-# is what makes forwarding both safe: the probe reads the CLI's own answer).
-BROWSER_ENVIRONMENT = ("PLAYWRIGHT_BROWSERS_PATH", "XDG_CACHE_HOME")
+# Ruling 143: the golden Playwright leg runs inside Playwright's own image, so
+# the browser and its system libraries arrive with the runner instead of being
+# downloaded onto the host. The tag's VERSION never appears here — it comes from
+# frontend/package-lock.json (see playwright_image) — this is only the
+# repository and the Ubuntu release Playwright publishes images for.
+PLAYWRIGHT_IMAGE_REPOSITORY = "mcr.microsoft.com/playwright"
+PLAYWRIGHT_IMAGE_VARIANT = "noble"
+# The lock key whose version becomes the image tag: the package the golden specs
+# import, and the one `npm ci` installs from the same file.
+PLAYWRIGHT_LOCK_KEY = "@playwright/test"
+# The registry whose reachability ruling 116's firewall clause now governs. A
+# literal, not a parse of the ref, because the clause has to name a host at the
+# point where nothing else has run yet: when the pull fails there is no
+# engine-side fact to consult, only this string and the child's own tail. The
+# image's layer blobs live on a different host, so a block one hop past the
+# registry names itself in that tail — which is why the tail is kept.
+PLAYWRIGHT_IMAGE_REGISTRY = "mcr.microsoft.com"
+# The variables the containerized golden leg needs: exactly the ones the golden
+# specs read through process.env (grep of frontend/tests/golden/** for
+# FEATURE_CHECK_ returns API_URL, UI_URL, CAMERA_ROOT, CAMERAS, SCENARIOS,
+# ADMIN_USERNAME, ADMIN_PASSWORD — no MODE, no RUN_DIR) plus the junit path
+# golden() reads back. Names go to the engine; values never do.
+#
+# `CI` is here for a different reason than the eight FEATURE_CHECK_* names:
+# playwright.config.ts branches on it (`forbidOnly: !!process.env.CI` :73,
+# `retries: process.env.CI ? 2 : 0` :79). The host leg always had it — GitHub
+# sets CI=true in every job — so omitting it here would ship the containerized
+# leg with the .only guard OFF and retries 0: one stray test.only in any spec
+# would run 1 of 126 and report green (the junit then holds 1 testcase, which
+# the vacuity guard reads as a pass), and no spec could ever HAVE a failed
+# attempt, blinding the flaky census. Name-only, same as the password: the
+# engine reads the value from the harness's own env, so the container sees
+# exactly what the host leg saw. Locally CI is unset and both legs match.
+GOLDEN_CONTAINER_ENVIRONMENT = (
+    "FEATURE_CHECK_API_URL",
+    "FEATURE_CHECK_UI_URL",
+    "FEATURE_CHECK_CAMERA_ROOT",
+    "FEATURE_CHECK_CAMERAS",
+    "FEATURE_CHECK_SCENARIOS",
+    "FEATURE_CHECK_ADMIN_USERNAME",
+    "FEATURE_CHECK_ADMIN_PASSWORD",
+    "PLAYWRIGHT_JUNIT_OUTPUT_FILE",
+    "CI",
+)
 
 
-def browser_environment(caller: Mapping[str, str]) -> dict[str, str]:
-    """``compose_environment`` plus the browser-cache location: the npm/npx
-    install steps' env. Still never the run env — no admin password."""
-    env = compose_environment(caller)
-    env.update({key: caller[key] for key in BROWSER_ENVIRONMENT if key in caller})
-    return env
+def playwright_image(lock_path: Path) -> str:
+    """The Playwright image ref for the version this repo's lock resolves.
+
+    Ruling 143: "where `<version>` comes from `frontend/package-lock.json`,
+    never hard-coded." The ref is `v<version>-<variant>` and the version is read
+    from the lock's own `packages["node_modules/@playwright/test"].version` — the
+    same entry `npm ci` installs, so the container's browser and the repo's
+    runner cannot disagree. A missing key RAISES instead of defaulting: a
+    defaulting version is a hard-coded version with extra steps, and the
+    Done-when for this package is a test that this function follows the lock.
+
+    Every way the version source can fail becomes THIS error type, including a
+    lock that is absent or is not JSON. `golden()` catches `HarnessError` around
+    this call precisely so the failure is accounted in summary.json, and it
+    commits its results only on the way out — a raw `OSError`/`JSONDecodeError`
+    would fly past that handler to the harness's catch-all and erase every golden
+    step already recorded, which is ruling 116's finding about a raised timeout.
+    """
+    try:
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as unreadable:
+        raise HarnessError(
+            f"{lock_path} cannot be read ({type(unreadable).__name__}: {unreadable}), "
+            f"so the golden image tag cannot be derived from it"
+        ) from unreadable
+    packages = lock.get("packages") if isinstance(lock, dict) else None
+    entry = (packages or {}).get(f"node_modules/{PLAYWRIGHT_LOCK_KEY}") or {}
+    version = entry.get("version") if isinstance(entry, dict) else None
+    if not isinstance(version, str) or not version:
+        raise HarnessError(
+            f"{lock_path} has no packages['node_modules/{PLAYWRIGHT_LOCK_KEY}'].version, "
+            f"so the golden image tag cannot be derived from it"
+        )
+    return f"{PLAYWRIGHT_IMAGE_REPOSITORY}:v{version}-{PLAYWRIGHT_IMAGE_VARIANT}"
+
+
+def golden_container_command(
+    *,
+    engine: str,
+    image: str,
+    inner: str,
+    read_only_mounts: Sequence[Path] = (),
+    mounts: Sequence[Path] = (),
+) -> list[str]:
+    """The `<engine> run` argv that runs `inner` inside the golden image.
+
+    Ruling 143's three requirements, one flag each: ``--network host`` is how the
+    container reaches the harness's stack on an engine-assigned port; every mount
+    is bound at its OWN absolute path, so a path recorded on the host names the
+    same file inside; and the engine is ``self.engine``, so ``--engine podman``
+    gets a podman invocation.
+
+    Two choices are load-bearing rather than stylistic:
+
+    * ``-e NAME`` with no ``=VALUE``. ``_run`` logs every argv it runs
+      (``shlex.join``) to the harness's own stdout, which on CI is the Actions
+      step log, so ``-e FEATURE_CHECK_ADMIN_PASSWORD=…`` would write the run's
+      admin password into that log. (The uploaded artifact
+      ``golden-playwright.log`` is only the Playwright child's output, so it
+      never carries an argv line — the step log is the exposure.) The name-only
+      form makes the engine read the value from ITS OWN environment, which is
+      the ``env=`` this command runs with.
+    * ``ro`` on the source tree. The leg has no reason to write into it — both
+      ``--output`` and the junit file live in the run dir — and a read-only bind
+      turns "the container wrote in the tree" from a quiet possibility into a
+      loud failure.
+
+    ``z`` (shared SELinux relabel) goes on the binds only under podman, matching
+    docker-compose.prod.yml's ``:z`` camera and data mounts: on an SELinux host a
+    podman bind without a relabel context reads Permission denied. Docker has no
+    relabel to do and rejects the option.
+    """
+    command = [engine, "run", "--rm", "--network", "host", "-w", str(FRONTEND)]
+    suffix = ",z" if engine == "podman" else ""
+    for path in read_only_mounts:
+        command += ["-v", f"{path}:{path}:ro{suffix}"]
+    for path in mounts:
+        command += ["-v", f"{path}:{path}{suffix}"]
+    for name in GOLDEN_CONTAINER_ENVIRONMENT:
+        command += ["-e", name]
+    return [*command, image, "sh", "-c", inner]
 
 
 # ---------------------------------------------------------------------------
@@ -1168,11 +1566,25 @@ def _log(message: str) -> None:
 class Run:
     """One test deployment: its project, directory, engine and artifacts."""
 
-    def __init__(self, *, engine: str, root: Path, image_tag: str, mode: str) -> None:
+    def __init__(
+        self,
+        *,
+        engine: str,
+        root: Path,
+        image_tag: str,
+        mode: str,
+        prod_shape: bool = False,
+    ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
         self.engine = engine
         self.mode = mode
+        self.prod_shape = prod_shape
+        # A run record that does not say WHICH compose shape was rendered cannot
+        # witness ruling 127's 12 real-tier rows, which is the whole point of the
+        # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
+        # prod shape gets a distinct one -- so nothing that greps today shifts.
+        self.shape = f"{mode}-prod-shape" if prod_shape else mode
         self.image_tag = image_tag
         self.dir = (root / self.project).resolve()
         self.cameras = self.dir / "cameras"
@@ -1181,7 +1593,7 @@ class Run:
         self.compose_file = self.dir / "compose.json"
         self.summary: dict[str, Any] = {
             "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "mode": mode,
+            "mode": self.shape,
             "project": self.project,
             "run_dir": str(self.dir),
             "engine": engine,
@@ -1219,8 +1631,9 @@ class Run:
             # able to read, and raising here is strictly worse than returning:
             # the raise flies past golden() to the harness's catch-all, which
             # discards golden()'s results dict (it is only committed on the way
-            # out) and skips every step after the stall — so a stalled browser
-            # download would also erase ruling 102's npm_ci entry. A caller who
+            # out) and skips every step after the stall — so a stalled fetch
+            # (ruling 116's browser download, now ruling 143's image pull) would
+            # also erase ruling 102's npm_ci entry. A caller who
             # asked check=True wants the exception; a caller who said
             # check=False gets _stalled_result, which says WHAT happened in the
             # stderr instead of just a number.
@@ -1315,6 +1728,9 @@ class Run:
         return before
 
     def render(self, before: Snapshot, vlm: AgentGpu | None = None) -> None:
+        if self.prod_shape:
+            self.render_prod_shape(vlm)
+            return
         base = json.loads(
             self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
         )
@@ -1339,6 +1755,73 @@ class Run:
         _log("preflight: ok")
         self.summary["images"] = {
             name: service.get("image") for name, service in rendered["services"].items()
+        }
+
+    def render_prod_shape(self, vlm: AgentGpu | None = None) -> None:
+        """The O2.5 production-shape render: `docker-compose.prod.yml` + the
+        authored override, decided and checked here, at run time.
+
+        This path deliberately does NOT go through `as_test_deployment` and
+        :func:`preflight` (measured: the fail-closed key allowlist refuses the
+        prod render with 46 problems, 19 of them `restart`, plus `pid: host` on
+        alloy and node-exporter, which the prod shape genuinely needs to observe
+        the host). The authored override is the UR-133/134 transform the spike
+        posted, pinned by `scripts/test_prodshape_override.py`; two things can
+        only be decided now, and are decided here:
+
+        * the env file — generated by :func:`prod_shape_env`, never the checkout's
+          `.env` or the caller's shell (O2.2's rule, unchanged for the prod shape);
+        * resource limits — ruling 162 item 2, read from THIS machine's cgroup.
+
+        and one thing the static gate cannot see is re-checked: the engine socket
+        on the render `up` will boot from. That is the whole reason a run-time
+        twin of the static test exists — a socket `docker-compose.prod.yml` grew
+        since the override was authored is invisible to CI and fatal here, because
+        opening that socket IS driving the host's engine.
+        """
+        try:
+            self.env_file.write_text(
+                prod_shape_env(run_dir=self.dir, image_tag=self.image_tag, caller=dict(os.environ)),
+                encoding="utf-8",
+            )
+        except HarnessError as missing:
+            # Same exit as a preflight refusal: the deployment never started, and
+            # the reason is named ("PODMAN_SOCKET is not set ...").
+            raise Refused([str(missing)]) from missing
+        rendered = json.loads(
+            self.compose([PROD_STACK, PROD_SHAPE_OVERRIDE], "config", "--format", "json").stdout
+        )
+        self.summary["limits"] = decide_resource_limits(rendered, read_subtree_control())
+        _log(self.summary["limits"])
+        sockets = engine_socket_mounts(rendered, socket_path=os.environ.get("PODMAN_SOCKET", ""))
+        problems = [
+            f"{name} mounts the engine socket {source} -> {target} in the render this run "
+            f"would boot; the prod-shape override is expected to drop it "
+            f"(scripts/uplevel/docker-compose.prodshape.yml)"
+            for (name, source, target) in sockets
+        ]
+        self.summary["results"]["engine_socket"] = problems or "ok"
+        if problems:
+            for problem in problems:
+                _log(f"REFUSED {problem}")
+            # Deliberately before writing the artifact: `up` boots from what is on
+            # disk, so a refused render must leave nothing to boot.
+            raise Refused(problems)
+        self._write("prod-rendered.json", rendered)
+        rendered = as_prod_shape_deployment(rendered, vlm_url=vlm.url if vlm else None)
+        # The CI tier's render() writes self.compose_file and EVERY later lifecycle call
+        # boots it -- `up`, `_address` (`compose port`), `collect` (`logs`/`ps`) and
+        # `teardown` (`down -v`) all go through deployment(). Without this line a
+        # --real --prod-shape run came up on the two YAML files and then failed at its
+        # first deployment() call with no such file, teardown included, leaving the run's
+        # containers up: the exact hole UR-135 (teardown with `down -v` and nothing else)
+        # exists to close. Same file, same path as the CI tier, so there is one boot path.
+        self.compose_file.write_text(
+            json.dumps(boot_render(rendered), indent=2) + "\n", encoding="utf-8"
+        )
+        _log(f"prod-shape render: {len(rendered.get('services') or {})} services")
+        self.summary["images"] = {
+            name: service.get("image") for name, service in (rendered.get("services") or {}).items()
         }
 
     def up(self, vlm: AgentGpu | None = None) -> None:
@@ -1490,96 +1973,6 @@ class Run:
         self.summary["results"]["smoke"] = problems or "ok"
         return problems
 
-    # The install plan lines ruling 116's absence check parses: a header per
-    # build ("(playwright <browser> <vNNNN>)"), then its Install location and
-    # its Download url/fallback hosts. (playwright 1.63's shape, measured).
-    _PLAN_BUILD = re.compile(r"\(playwright (\S+) (v\d+)\)")
-    _PLAN_LOCATION = re.compile(r"^\s*Install location:\s+(\S+)")
-    _PLAN_URL = re.compile(r"^\s*Download (?:url|fallback \d+):\s+https://([^/:]+)/")
-    # A build directory counts as installed only when it carries the marker the
-    # CLI itself writes LAST, after extracting (1.63.0: browserFetcher's
-    # "already downloaded" early return tests <dir>/INSTALLATION_COMPLETE, and
-    # oopDownloadBrowserMain removes the dir → extractZip → chmod → writeFile
-    # (marker)). An interrupted download therefore leaves a directory WITHOUT
-    # it, which the runner cannot launch; is_dir() alone would call that
-    # "present" and skip the install, i.e. ruling 116's bug inside its own fix.
-    _BROWSER_MARKER = "INSTALLATION_COMPLETE"
-
-    def _ensure_chromium(self, results: dict[str, Any], problems: list[str]) -> None:
-        """Install Playwright Chromium when the lock-resolved runner's own dry
-        run names builds that are absent on disk (ruling 116). Accounted, never
-        raised — see the call site in golden() for the three measured facts
-        behind every choice here."""
-        env = browser_environment(os.environ)
-        plan = self._run(
-            ["npx", "playwright", "install", "--dry-run", "chromium"],
-            check=False,
-            cwd=FRONTEND,
-            env=env,
-        )
-        wanted: list[tuple[str, str, Path]] = []
-        hosts: set[str] = set()
-        pending: tuple[str, str] | None = None
-        for line in plan.stdout.splitlines():
-            build = self._PLAN_BUILD.search(line)
-            if build:
-                pending = (build.group(1), build.group(2))
-                continue
-            location = self._PLAN_LOCATION.match(line)
-            if location is not None and pending is not None:
-                wanted.append((pending[0], pending[1], Path(location.group(1))))
-                continue
-            url = self._PLAN_URL.match(line)
-            if url is not None:
-                hosts.add(url.group(1))
-        if plan.returncode != 0 or not wanted:
-            # An unreadable (or unparseable) plan means we cannot know which
-            # builds the locked runner wants; a speculative install could drag
-            # the wrong build down minutes of download. The test npx below
-            # still runs and names the launch failure in its own output.
-            # A stall reads as exit "timed out", not "exit 124": an operator
-            # comparing a summary against a firewall notice has to be able to
-            # tell "the probe never came back" from "the probe refused".
-            results["playwright_browsers"] = (
-                f"probe exit {_exit_word(plan)}" if plan.returncode != 0 else "probe empty"
-            )
-            return
-        missing = sorted(
-            f"{name} {version}"
-            for name, version, where in wanted
-            if not (where / self._BROWSER_MARKER).is_file()
-        )
-        if not missing:
-            results["playwright_browsers"] = "present"
-            return
-        _log(f"golden: chromium builds absent ({', '.join(missing)}); installing")
-        install = self._run(
-            ["npx", "playwright", "install", "chromium"],
-            check=False,
-            timeout=1800,
-            cwd=FRONTEND,
-            env=env,
-        )
-        if install.returncode == 0:
-            results["playwright_browsers"] = f"installed {' '.join(missing)}"
-            return
-        # "exit timed out" rather than "exit 124": see _exit_word -- a stalled
-        # download must not read like a refusal in summary.json.
-        results["playwright_browsers"] = f"exit {_exit_word(install)}"
-        # Ruling 116's firewall: the failure names the download hosts the plan
-        # offers, so the owner has something to allow; the harness does not work
-        # around a block. "named by" is load-bearing, not hedging -- the Chrome
-        # for Testing URLs 307 to storage.googleapis.com (measured 2026-10-11:
-        # cdn.playwright.dev/builds/cft/... -> storage.googleapis.com/
-        # chrome-for-testing-public/...), so a block can happen one hop past any
-        # host the plan prints, and the operator's own error tail (kept below)
-        # is what names the host that actually refused.
-        problems.append(
-            f"golden: npx playwright install chromium exited {install.returncode} "
-            f"(hosts named by the plan: {', '.join(sorted(hosts))}): "
-            f"{(install.stderr or install.stdout).strip()[-400:]}"
-        )
-
     def golden(self) -> list[str]:
         env = {
             **os.environ,
@@ -1655,63 +2048,131 @@ class Run:
                         f"golden: npm ci in frontend/ exited {install.returncode}: "
                         f"{(install.stderr or install.stdout).strip()[-400:]}"
                     )
-            # Ruling 116: npm ci brings the RUNNER, not Chromium. The operator's
-            # --real re-run then failed every spec in about 3 ms on
-            #   browserType.launch: Executable doesn't exist at
-            #   ~/.cache/ms-playwright/chromium_headless_shell-1243/…
-            # (testing.md, merged with #6999, predicts exactly this). So an
-            # absent browser set is installed once here. Three measured facts
-            # shape it (2026-10-11, this sandbox, the repo's own lock):
-            #   * the gate is node_modules/.bin/playwright, not node_modules --
-            #     `npx playwright` with the locked package missing resolves to
-            #     the LATEST package, whose plan names a DIFFERENT build (v1248
-            #     vs the lock's v1243), so a half-installed tree would install
-            #     browsers the locked runner cannot launch; a failed npm ci
-            #     therefore skips this block entirely (the named npm_ci step
-            #     above already says why);
-            #   * absence is read from the dry-run plan's own "Install
-            #     location:" lines rather than a hardcoded ~/.cache/... path:
-            #     that keeps the check version-aware (a Playwright bump changes
-            #     the build number) and follows a custom
-            #     PLAYWRIGHT_BROWSERS_PATH, because the plan prints the very
-            #     locations the install would use -- which is what the env bullet
-            #     below has to preserve. The dry-run is a PLAN printer --
-            #     identical output whether the builds exist or not -- so the
-            #     filesystem, not the probe's exit code, is the presence oracle;
-            #   * env: browser_environment(os.environ), not the default
-            #     compose_environment and not golden()'s run env. Ruling 102's
-            #     discipline still holds -- FEATURE_CHECK_ADMIN_PASSWORD never
-            #     reaches an npm/npx child -- but the bare engine view is not
-            #     enough here, because the TEST npx below runs with the caller's
-            #     WHOLE environment (the specs log in), so it honours a caller-set
-            #     PLAYWRIGHT_BROWSERS_PATH. Measured on this repo's own 1.63.0
-            #     CLI: with that variable set, every "Install location:" line in
-            #     the plan moves under it. Judged at the default root, a moved
-            #     cache would read absent and download builds the runner never
-            #     uses -- and a stale-but-complete default root would read
-            #     present and install nothing, which is ruling 116's own bug all
-            #     over again. So the two browser steps carry the engine's view
-            #     PLUS that one variable, and nothing else.
-            # A failure is ACCOUNTED, not worked around (the ruling's firewall:
-            # "If the operator sandbox cannot reach Playwright's download host,
-            # the PR names the host and the owner allows it. The harness does
-            # not work around a block."), and the test npx still runs so its own
-            # output carries Playwright's browser-missing message.
-            if (FRONTEND_MODULES / ".bin" / "playwright").exists():
-                self._ensure_chromium(results, problems)
-            result = self._run(
+            # Ruling 143 replaces ruling 116's browser install. The leg used to
+            # run `npx playwright test` on the HOST, which meant the host needed
+            # Chromium: npm ci brings the runner but not the browser, so the
+            # operator's --real run failed every spec in about 3 ms on
+            # "browserType.launch: Executable doesn't exist at
+            # ~/.cache/ms-playwright/chromium_headless_shell-1243/…" and a
+            # multi-minute `npx playwright install chromium` was bolted on to fix
+            # it. Now the leg runs inside Playwright's own image, which carries
+            # the browser AND the system libraries it links, so there is nothing
+            # to install and no exit-127 to recover from. The image tag's version
+            # comes from frontend/package-lock.json (playwright_image), never a
+            # literal here.
+            #
+            # Ruling 116's firewall clause survives, moved onto the thing that now
+            # has to be fetched: "if the registry is blocked, the failure names the
+            # host, and the harness does not work around it." So the pull is its
+            # own accounted step -- a problem naming the registry and the child's
+            # own tail -- rather than an error buried inside the test run's output.
+            #
+            # The pull is attempted only when the tag is absent locally, which is
+            # what `run` would do anyway. That ordering matters for the blocked
+            # case: a host that already has the image and cannot reach the registry
+            # stays green (correct -- a versioned tag is content, and a present
+            # copy of it IS the right browser), while a host with neither gets one
+            # named failure instead of two.
+            try:
+                image = playwright_image(PACKAGE_LOCK)
+            except HarnessError as lock_problem:
+                # Accounted, not raised: a raise flies past golden() to the
+                # harness's catch-all, which discards the results dict and every
+                # step after this one. The leg is genuinely red -- there is no
+                # image to run -- so it reads red here and says why.
+                results["playwright"] = "no image tag"
+                problems.append(f"golden: {lock_problem}")
+                problems += golden_execution_problems("playwright", {})
+                self.summary["results"]["golden"] = results
+                return problems
+            results["playwright_image"] = image
+            have = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+            available = have.returncode == 0
+            if available:
+                results["playwright_image_pull"] = "present"
+            else:
+                pull = self._run([self.engine, "pull", image], check=False, timeout=1800)
+                available = pull.returncode == 0
+                results["playwright_image_pull"] = (
+                    "pulled" if available else f"exit {_exit_word(pull)}"
+                )
+                if not available:
+                    problems.append(
+                        f"golden: {self.engine} pull of {image} exited {pull.returncode} "
+                        f"(registry: {PLAYWRIGHT_IMAGE_REGISTRY} — the host to allow; the "
+                        f"harness does not work around a block): "
+                        f"{(pull.stderr or pull.stdout).strip()[-400:]}"
+                    )
+            if not available:
+                # The leg cannot run and no image means no specs: that is exactly
+                # the evidential hole ruling 114 exists for, so it is reported as
+                # one rather than left as a silent gap. The named pull failure
+                # above already carries the host; this says the leg did not run.
+                results["playwright"] = "image unavailable"
+                results["playwright_specs"] = {}
+                problems += golden_execution_problems("playwright", {})
+                self.summary["results"]["golden"] = results
+                return problems
+            # The leg, in the image. Same argv as before -- --project=golden,
+            # --output=<run dir>, --reporter=list,junit -- because ruling 143's
+            # first Done-when is that the fake-tier golden passes "with the same
+            # counts"; only the wrapper changed. Both mounts are at their own
+            # absolute paths so `report` and `junit` name the same file on both
+            # sides, and the run dir is mounted rw because that is where the leg
+            # writes (junit, --output traces, .last-run.json under outputDir).
+            # ``--no-install`` because a bare ``npx`` fetches. Measured on this
+            # image with the mount stripped of node_modules: ``npx playwright
+            # --version`` printed "npm warn exec The following package was not
+            # found and will be installed: playwright@1.64.0" and exited 0, on a
+            # 1.63.0 image whose browser builds are 1.63.0's. So a tree whose
+            # ``npm ci`` above failed does not fail loudly -- it runs a runner
+            # the repo does not lock, against browsers it does not match, and the
+            # report reads as a golden pass that witnesses nothing (UR-128). On a
+            # host where npm registry is blocked the same fetch instead fails
+            # inside the leg's output, where ruling 116's firewall clause cannot
+            # name it, while the npm_ci step already said "exit 243". With the
+            # flag the refusal is immediate and legible: "npx canceled due to
+            # missing packages and no YES option" (measured, exit 1), which is
+            # ruling 116's own reason for asking the lock-resolved runner, now
+            # enforced at the place ruling 143 moved the leg to. With a real
+            # install the flag is inert -- same tree, mounted :ro, it printed
+            # "Version 1.63.0".
+            inner = " ".join(
                 [
                     "npx",
+                    "--no-install",
                     "playwright",
                     "test",
                     "--project=golden",
-                    f"--output={report}",
+                    shlex.quote(f"--output={report}"),
                     "--reporter=list,junit",
-                ],
+                ]
+            )
+            result = self._run(
+                golden_container_command(
+                    engine=self.engine,
+                    image=image,
+                    inner=inner,
+                    # Three read-only binds, not one. A path this leg EXPORTS but
+                    # does not MOUNT is not an error inside the container — it is
+                    # an absent file, and the golden specs read their readiness
+                    # with `if (!existsSync(bookPath)) return { ready: false }`,
+                    # so an unmounted input silently SKIPS at collection in a leg
+                    # that exits 0. Measured on CI: this branch shipped 115
+                    # passed / 11 skipped where main's host leg read 118 / 8, and
+                    # the three newly-skipped specs are the three that read the
+                    # scenario book. SCENARIO_DIR is what they read; SCRIPTS_DIR
+                    # is what dashboard-drop's helper execs
+                    # (`repoRoot/scripts/feature-check.sh`, harness.ts:179), whose
+                    # last line execs its sibling feature_check.py — hence the
+                    # directory, not the single file. Both are :ro because both
+                    # are inputs; the leg's writes stay in the run dir below.
+                    read_only_mounts=[FRONTEND, SCENARIO_DIR, SCRIPTS_DIR],
+                    mounts=[self.dir],
+                ),
                 check=False,
                 timeout=1800,
                 env={**env, "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit)},
-                cwd=FRONTEND,
             )
             (self.artifacts / "golden-playwright.log").write_text(
                 result.stdout + result.stderr, encoding="utf-8"
@@ -2073,7 +2534,13 @@ def _interrupt(signum: int, _frame: Any) -> None:
 
 
 def run_check(args: argparse.Namespace, *, mode: str) -> int:
-    run = Run(engine=args.engine, root=args.root, image_tag=args.image_tag, mode=mode)
+    run = Run(
+        engine=args.engine,
+        root=args.root,
+        image_tag=args.image_tag,
+        mode=mode,
+        prod_shape=args.prod_shape,
+    )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
     status = EXIT_OK
@@ -2180,6 +2647,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     modes.add_argument("--fake", action="store_true", help="the CI stack with the fake AI (O2.1)")
     modes.add_argument("--real", action="store_true", help="real models through agent-gpu")
     parser.add_argument(
+        "--prod-shape",
+        action="store_true",
+        help="with --real, bring up the PRODUCTION compose shape (O2.5, ruling 144/162): "
+        "docker-compose.prod.yml + the prod-shape override on Podman, instead of the CI "
+        "stack. Refused without --real — the prod shape is the real tier's prod shape.",
+    )
+    parser.add_argument(
         "--image-tag",
         default=os.environ.get("FEATURE_CHECK_IMAGE_TAG", "latest"),
         help="backend/frontend image tag (default: $FEATURE_CHECK_IMAGE_TAG or latest)",
@@ -2209,6 +2683,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         print(drop(args.image, args.camera, Path(root)))
         return 0
+    if args.prod_shape and not args.real:
+        # O2.5's flag is a SHAPE of the real tier, not a third mode: the prod shape
+        # renders docker-compose.prod.yml, and --fake renders docker-compose.ci.yml.
+        # "the CI stack in the shape of prod" has no referent, and accepting it
+        # would let a reader of a run record believe prod was exercised when the CI
+        # stack ran. Refused at parse time, before any engine call.
+        parser.error("--prod-shape needs --real (it is the real tier's production shape)")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:

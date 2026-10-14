@@ -363,7 +363,6 @@ export const useRateLimitStore = create<RateLimitState>()(
     (set, get) => ({
       current: null,
       isLimited: false,
-      secondsUntilReset: 0,
       update: (info: RateLimitInfo) => {
         // Auto-schedules clear when reset time passes
         set({ current: info, isLimited: info.remaining === 0 });
@@ -379,7 +378,6 @@ export function useRateLimitStatus() {
   return useRateLimitStore(
     useShallow((state) => ({
       isLimited: state.isLimited,
-      secondsUntilReset: state.secondsUntilReset,
     }))
   );
 }
@@ -537,13 +535,12 @@ if (isError) {
   return <ErrorBoundary error={error} />;
 }
 
-// Global error handling via QueryCache
-const queryCache = new QueryCache({
-  onError: (error) => {
-    updateRateLimitStoreFromError(error);
-    // Log to monitoring service
-  },
-});
+// Global defaults live on the QueryClient (no QueryCache/MutationCache onError
+// hook: [r132] retired updateRateLimitStoreFromError, which fabricated a fake
+// rate-limit window from a header-less nginx 429). The store now has exactly
+// one writer — see `extractRateLimitInfo` in services/api.ts — so error
+// handling stays per-query; see services/queryClient.ts for the shipped
+// defaultOptions.
 ```
 
 ### Performance Optimization
