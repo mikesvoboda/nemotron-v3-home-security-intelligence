@@ -3220,7 +3220,10 @@ def _fake_compose(run: Any, rendered: dict[str, Any]) -> list[Any]:
 
 
 def _prod_rendered(**services: Any) -> dict[str, Any]:
-    return {"services": services}
+    # `backend` is in every prod render (and as_prod_shape_deployment refuses a render
+    # without it, exactly as as_test_deployment refuses a stack missing a kept service).
+    # A caller that needs a specific backend passes one and wins.
+    return {"services": {"backend": {"image": "backend:test"}, **services}}
 
 
 _PG_LIMITS = {"image": "pg:1", "deploy": {"resources": {"limits": {"memory": "512M"}}}}
@@ -3432,7 +3435,9 @@ def test_the_prod_boot_file_bakes_no_object_names_so_the_project_decides_them(
     monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
     baked = {
         "name": run.project,
-        "services": {"postgres": {"image": "pg:1"}},
+        # backend included because every prod render has one (the transform refuses a
+        # render without it); this test's subject is the baked object NAMES, not services.
+        "services": {"backend": {"image": "backend:test"}, "postgres": {"image": "pg:1"}},
         "networks": {"security-net": {"name": f"{run.project}_security-net", "driver": "bridge"}},
         "volumes": {"postgres_data": {"name": f"{run.project}_postgres_data", "driver": "local"}},
     }
@@ -3445,3 +3450,77 @@ def test_the_prod_boot_file_bakes_no_object_names_so_the_project_decides_them(
     # the artifact an operator reads keeps the render as compose produced it
     landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
     assert landed["volumes"]["postgres_data"]["name"] == f"{run.project}_postgres_data"
+
+
+# --------------------------------------------------- O2.5 Step 2: the prod-shape transforms ----
+def _prod_shape_doc() -> dict[str, Any]:
+    """A prod-shaped render, as compose would produce it: the backend pointing at the
+    in-stack ai-vlm, that ai-vlm present with its CDI devices, no orchestrator flag."""
+    return {
+        "name": "hsi-check-x",
+        "services": {
+            "backend": {
+                "image": "backend:test",
+                "environment": {"AI_VLM_URL": "http://ai-vlm:8098"},
+                "depends_on": {"ai-gateway": {"condition": "service_healthy"}},
+            },
+            "ai-vlm": {"image": "vlm:test", "devices": ["nvidia.com/gpu=0"]},
+            "ai-gateway": {"image": "gw:test", "devices": ["nvidia.com/gpu=all"]},
+            "postgres": {"image": "pg:1"},
+        },
+    }
+
+
+def test_the_prod_shape_deployment_turns_the_orchestrator_off() -> None:
+    # UR-134's first clause, and the blocker the fresh-context review found: the CI tier
+    # gets this from as_test_deployment (:469), but the prod-shape path does NOT go through
+    # that function, so nothing set it -- and check_isolation runs on EVERY mode (:2502),
+    # where an absent flag resolves to backend/core/config.py's default `True` and the run
+    # dies at "expected 503 'Container orchestrator not available'". Measured in the
+    # composed boot doc: env_file is None and the only ORCHESTRATOR_* key is DOCKER_HOST.
+    doc = _prod_shape_doc()
+    out = fc.as_prod_shape_deployment(doc, vlm_url=None)
+    assert out["services"]["backend"]["environment"]["ORCHESTRATOR_ENABLED"] == "false"
+    # must-ignore side: the input document is not mutated (the render artifact an operator
+    # reads must stay what compose produced).
+    assert "ORCHESTRATOR_ENABLED" not in doc["services"]["backend"]["environment"]
+
+
+def test_the_prod_shape_run_points_the_backend_at_agent_gpu_and_drops_the_in_stack_vlm() -> None:
+    # The package Step 1 words it: "GPU services pointed at agent-gpu's ai-vlm INSTEAD OF
+    # CDI". Without this the boot file keeps AI_VLM_URL=http://ai-vlm:8098 (measured) and an
+    # in-stack ai-vlm whose top-level devices ask for nvidia.com/gpu=0 -- a second GPU
+    # consumer racing agent-gpu's own container on the operator's box, and a deployment
+    # that is not the one ruling 127's 12 rows are supposed to witness.
+    out = fc.as_prod_shape_deployment(_prod_shape_doc(), vlm_url="http://10.0.0.5:8123")
+    backend = out["services"]["backend"]
+    assert backend["environment"]["AI_VLM_URL"] == "http://10.0.0.5:8123"
+    assert "ai-vlm" not in out["services"], "the in-stack GPU container must not boot on --real"
+    # ai-gateway is NOT a VLM and prod's backend does not depend on it (measured), so it
+    # stays -- dropping it would be a wider change than the package asks for.
+    assert "ai-gateway" in out["services"]
+
+
+def test_the_prod_shape_run_keeps_the_in_stack_vlm_on_the_fake_tier_shape() -> None:
+    # must-ignore side: no vlm_url means no agent-gpu, so the in-stack ai-vlm is the ONLY
+    # VLM and must survive, URL and all. A transform that dropped it unconditionally would
+    # break every run that is not pointed at agent-gpu.
+    out = fc.as_prod_shape_deployment(_prod_shape_doc(), vlm_url=None)
+    assert "ai-vlm" in out["services"]
+    assert out["services"]["backend"]["environment"]["AI_VLM_URL"] == "http://ai-vlm:8098"
+
+
+def test_the_prod_shape_transform_drops_only_the_dependency_it_omits() -> None:
+    # Two directions, both needed. Deliberate omission: `--real` drops the in-stack ai-vlm,
+    # so a depends_on naming it goes with it (as_test_deployment:449 does the same on the
+    # CI tier). Accidental omission: a dependency on a service this render never had is
+    # drift the transform must NOT paper over, because compose would refuse to start.
+    doc = _prod_shape_doc()
+    doc["services"]["backend"]["depends_on"]["ai-vlm"] = {"condition": "service_started"}
+    out = fc.as_prod_shape_deployment(doc, vlm_url="http://10.0.0.5:8123")
+    assert "ai-vlm" not in out["services"]["backend"]["depends_on"]
+
+    doc2 = _prod_shape_doc()
+    doc2["services"]["backend"]["depends_on"]["tempo"] = {"condition": "service_started"}
+    with pytest.raises(fc.HarnessError, match="tempo"):
+        fc.as_prod_shape_deployment(doc2, vlm_url="http://10.0.0.5:8123")

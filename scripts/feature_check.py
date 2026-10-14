@@ -703,6 +703,57 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
     )
 
 
+def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None) -> dict[str, Any]:
+    """The run-time transforms the authored override cannot carry.
+
+    The prod-shape path does NOT go through :func:`as_test_deployment` (measured:
+    ``render()`` dispatches to ``render_prod_shape()`` before that function is ever
+    called), so the two things the CI tier gets from it were missing here. Both were
+    found by the UR-89 review and re-measured in the composed boot document.
+
+    * ``ORCHESTRATOR_ENABLED=false`` (UR-134's first clause). The boot document's
+      ``backend`` has ``env_file: None`` and its only ``ORCHESTRATOR_*`` key is
+      ``DOCKER_HOST``, so an absent flag resolves to ``backend/core/config.py``'s
+      ``enabled: Field(True)``; ``check_isolation`` runs on EVERY mode and asserts
+      ``GET /api/system/services`` answers ``503``, so the first real run died there.
+    * on ``--real``, the backend calls the VLM ``agent-gpu`` serves and the in-stack
+      ``ai-vlm`` stays out -- package ``O2.5`` Step 1 words this ("pointed at
+      ``agent-gpu``'s ``ai-vlm`` instead of CDI"). Left alone, the boot file keeps
+      ``AI_VLM_URL=http://ai-vlm:8098`` and an ``ai-vlm`` whose top-level ``devices``
+      ask the engine for ``nvidia.com/gpu=0``: a second GPU consumer racing agent-gpu's
+      own container, and not the deployment the 12 real-tier rows witness.
+
+    These are NOT put in the authored override for two reasons. It is a frozen,
+    hand-authored artifact whose changes ruling 162 item 3 caps at three kinds
+    (socket, pinned name, port/path) -- ``test_only_the_three_kinds_of_key_change``
+    enforces exactly that, and a fourth kind would need a ruling to add. And a VLM URL
+    is per-run, so static YAML cannot express it at all. Same split as the CI tier:
+    the file carries the shape, the runner carries the run.
+    """
+    deployment = copy.deepcopy(dict(rendered))
+    services = deployment.get("services") or {}
+    backend = services.get("backend")
+    if backend is None:
+        raise HarnessError("the prod-shape render has no backend service")
+    environment = backend.setdefault("environment", {})
+    environment["ORCHESTRATOR_ENABLED"] = "false"
+    if vlm_url is not None:
+        environment["AI_VLM_URL"] = vlm_url
+        services.pop("ai-vlm", None)
+    for name, service in services.items():
+        depends_on = service.get("depends_on")
+        if isinstance(depends_on, dict) and "ai-vlm" not in services:
+            # the omission this transform performs deliberately (mirrors
+            # as_test_deployment:449); anything else still missing is drift, not design.
+            depends_on.pop("ai-vlm", None)
+        for dependency in depends_on or {}:
+            if dependency not in services:
+                raise HarnessError(
+                    f"{name} depends on {dependency}, which this prod-shape render omits"
+                )
+    return deployment
+
+
 # ---------------------------------------------------------------------------
 # Preflight
 # ---------------------------------------------------------------------------
@@ -1666,7 +1717,7 @@ class Run:
 
     def render(self, before: Snapshot, vlm: AgentGpu | None = None) -> None:
         if self.prod_shape:
-            self.render_prod_shape()
+            self.render_prod_shape(vlm)
             return
         base = json.loads(
             self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
@@ -1694,7 +1745,7 @@ class Run:
             name: service.get("image") for name, service in rendered["services"].items()
         }
 
-    def render_prod_shape(self) -> None:
+    def render_prod_shape(self, vlm: AgentGpu | None = None) -> None:
         """The O2.5 production-shape render: `docker-compose.prod.yml` + the
         authored override, decided and checked here, at run time.
 
@@ -1745,6 +1796,7 @@ class Run:
             # disk, so a refused render must leave nothing to boot.
             raise Refused(problems)
         self._write("prod-rendered.json", rendered)
+        rendered = as_prod_shape_deployment(rendered, vlm_url=vlm.url if vlm else None)
         # The CI tier's render() writes self.compose_file and EVERY later lifecycle call
         # boots it -- `up`, `_address` (`compose port`), `collect` (`logs`/`ps`) and
         # `teardown` (`down -v`) all go through deployment(). Without this line a
