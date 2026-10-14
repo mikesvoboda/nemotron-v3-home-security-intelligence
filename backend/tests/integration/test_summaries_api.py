@@ -101,7 +101,29 @@ async def sample_daily_summary(integration_db, clean_summaries) -> Summary:
 
 @pytest.fixture
 async def multiple_summaries(integration_db, clean_summaries) -> list[Summary]:
-    """Create multiple summaries of different types and times for testing."""
+    """Create multiple summaries of different types and times for testing.
+
+    `created_at` is set explicitly on every row, matching each row's
+    `generated_at`. That is not decoration — it is required for this fixture to
+    mean what its name says. `created_at` is `server_default=func.now()`
+    (backend/models/summary.py:66-69) and Postgres `now()` is the TRANSACTION
+    timestamp, so four rows written in the one `commit()` below all receive an
+    IDENTICAL `created_at`. `get_latest_by_type` then runs
+    `ORDER BY created_at DESC LIMIT 1` with no tiebreak
+    (backend/repositories/summary_repository.py:70-74), so "latest" is decided
+    by the access path rather than by the data: with tied keys the seq-scan +
+    top-N-sort plan and the backward-index-scan plan return DIFFERENT rows,
+    which is the intermittent `assert 2 == 0` seen in CI (nightly 38372397543).
+    Production cannot hit that tie: `get_latest_by_type` filters by
+    `summary_type` first, so only two rows of the SAME type could tie, and the
+    only writer (SummaryRepository.create_summary, one row per call) produces at
+    most one hourly and one daily per generation run — `generate_all_summaries`
+    shares a session, but still one row of each type, never two hourly. The
+    tie is therefore a pure fixture artifact of collapsing four production
+    writes into one commit; setting `created_at` here restores the
+    `created_at ≈ generated_at` ordering production naturally has instead of
+    leaving "latest" to chance.
+    """
     from backend.core.database import get_session
 
     now = datetime.now(UTC)
@@ -118,6 +140,7 @@ async def multiple_summaries(integration_db, clean_summaries) -> list[Summary]:
             window_start=now - timedelta(hours=2),
             window_end=now - timedelta(hours=1),
             generated_at=now - timedelta(hours=1, minutes=5),
+            created_at=now - timedelta(hours=1, minutes=5),
         )
         db.add(older_hourly)
         summaries.append(older_hourly)
@@ -131,6 +154,7 @@ async def multiple_summaries(integration_db, clean_summaries) -> list[Summary]:
             window_start=now - timedelta(hours=1),
             window_end=now,
             generated_at=now - timedelta(minutes=5),
+            created_at=now - timedelta(minutes=5),
         )
         db.add(latest_hourly)
         summaries.append(latest_hourly)
@@ -144,6 +168,7 @@ async def multiple_summaries(integration_db, clean_summaries) -> list[Summary]:
             window_start=midnight - timedelta(days=1),
             window_end=midnight,
             generated_at=midnight - timedelta(minutes=5),
+            created_at=midnight - timedelta(minutes=5),
         )
         db.add(older_daily)
         summaries.append(older_daily)
@@ -157,6 +182,7 @@ async def multiple_summaries(integration_db, clean_summaries) -> list[Summary]:
             window_start=midnight,
             window_end=now,
             generated_at=now - timedelta(minutes=5),
+            created_at=now - timedelta(minutes=5),
         )
         db.add(latest_daily)
         summaries.append(latest_daily)
