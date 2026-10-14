@@ -1768,12 +1768,6 @@ tpa_slow_list:
       CI (all four pull-request integration groups are -k allowlists that never match this nodeid; it would run only
       in the nightly full gate, which takes the whole tier with no -k); @pytest.mark.slow changes nothing (conftest.py:486
       gives 30s only absent an explicit marker and this test's own timeout(120) outranks it) (2026-10-13)"
-  - id: test_enrichment_pipeline_household_matching.*test_vehicle_household_matching_via_license_plate
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: 4.18s x2 + 4.297s main corpus, 1.20s alone — -n8 contention (2026-09-23)
   - id: test_error_handler.*test_timestamp_auto_generated
     kind: todo
     owner: mikesvoboda
@@ -1792,12 +1786,6 @@ tpa_slow_list:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: ~15.3s measured
-  - id: test_pipeline_e2e.*test_pipeline_llm_failure_fallback
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: ~15.3s
   - id: test_r8_s2b_nemotron_deletion.*test_no_test_module_imports_a_name_that_no_longer_exists
     kind: todo
     owner: mikesvoboda
