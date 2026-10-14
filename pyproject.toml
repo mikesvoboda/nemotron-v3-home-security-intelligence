@@ -327,6 +327,13 @@ exclude = ["vulture_whitelist.py", "mutants/"]
 # (ai/gateway/tests/test_py312_compat.py).
 "ai/gateway/**/*.py" = "py312"
 "ai/triton/**/*.py" = "py312"
+# The fake VLM, ruled 3.13-parseable by ruling 96 item 11 so the reachability
+# toolchain is not coupled to 3.14 (scripts/reachability.py ast.parses the whole
+# candidate tree with the HOST interpreter and catches no SyntaxError). It ships
+# on 3.14; the pin is not for the image, it is so ruff-format cannot rewrite the
+# parenthesized tuples back into PEP 758 form, which `ruff format --check` would
+# then bless (backend/tests/unit/test_r96i11_fake_vlm_except_tuple.py).
+"backend/ai_contract/fake/app.py" = "py313"
 
 [tool.ruff.lint]
 select = [
