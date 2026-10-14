@@ -546,7 +546,10 @@ def _render_full(files: list[Path], project: str, *, extra: dict[str, str] | Non
     p = subprocess.run(
         cmd,
         cwd=REPO,
-        env={**os.environ, **ENV, **(extra or {})},
+        # same scrub as _compose: this render sees the fixed env, not the host's.
+        # `extra` still wins over ENV -- _clean_env applies it last -- so a drop-one
+        # probe here behaves exactly as it did before (review finding 3, 4th site).
+        env=_clean_env(**(extra or {})),
         capture_output=True,
         text=True,
         check=False,  # rc IS the observation: a nonzero render must name the file
