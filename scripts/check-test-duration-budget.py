@@ -192,8 +192,8 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
 # can cost the job rather than letting a red shard spawn hundreds. Breaches past
 # the cap stay RED — the cap can only ever be strict.
 #
-# The cap is PER TIER because that is what the rulebook states: UR-125
-# (rules.md:401-402) reads "at most 5 re-runs per job in each tier", and cites
+# The cap is PER TIER because that is what the rulebook states: UR-125 in
+# docs/uplevel/rules.md reads "at most 5 re-runs per job in each tier", and cites
 # rulings 93, 122 and 151. Precision about the source matters here: ruling 151's
 # OWN words are "At most 5 re-runs per job, as for unit tests" — the "in each
 # tier" scoping is UR-125's codification of that clause, recorded with the

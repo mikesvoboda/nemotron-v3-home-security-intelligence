@@ -1892,15 +1892,15 @@ def test_a_class_based_breach_is_re_run_with_the_colon_spelling(tmp_path: Path) 
 # ==========================================================================
 # UR-125 AS AMENDED BY RULING 151: the INTEGRATION tier gets the same re-run.
 #
-# Verbatim (rules.md:385-387): "An integration test over its 10.0 s budget gets
+# Verbatim (UR-125, docs/uplevel/rules.md): "An integration test over its 10.0 s budget gets
 # the same single re-run, and is red only if the re-run also breaches; at most 5
 # re-runs per job in each tier."
 #
 # The block above was written when the clause named only unit tests, and the
 # gate still implements exactly that: ``reproduce`` filters ``b[2] == "unit"``.
 # So an integration test at 12.4 s is red on the first reading, with no
-# reproduction, which is the failure mode ruling 151 exists to fix. Three of the
-# six pins below are red on `main` for three DIFFERENT reasons, and the reasons
+# reproduction, which is the failure mode ruling 151 exists to fix. Six of the
+# eight pins below are red on `main` for three DIFFERENT reasons, and the reasons
 # are why this is a three-site change and not a one-line filter:
 #
 #   * the verdict itself (nothing re-runs an integration breach);
@@ -2063,14 +2063,15 @@ def test_the_cap_value_is_the_number_the_rulebook_states() -> None:
     4.0 / 10.0 / 1.5 and names ruling 93 beside them. The cap is the one number a
     rule states that this file did not pin absolutely.
 
-    Authority: UR-125 (``rules.md:401-402``) — "at most 5 re-runs per job in each
+    Authority: UR-125 (``docs/uplevel/rules.md``, the UR-125 clause) — "at most 5 re-runs per job in each
     tier", citing rulings 93, 122 and 151. Ruling 151 itself says "At most 5
     re-runs per job, as for unit tests"; the "in each tier" scoping is the
     rulebook's, which is why this pin cites the rule and not the ruling.
     """
     assert _gate.MAX_RERUNS == 5, (
         "UR-125 states 5 re-runs per job in each tier. Raise this only by "
-        f"changing rules.md:401-402 first; the script had {_gate.MAX_RERUNS}"
+        "UR-125 in docs/uplevel/rules.md is the authority: widen the rule first; "
+        f"the script had {_gate.MAX_RERUNS}"
     )
 
 
