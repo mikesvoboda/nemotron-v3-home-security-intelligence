@@ -2914,3 +2914,43 @@ def test_the_limits_decision_strips_only_when_cgroups_are_not_delegated() -> Non
     assert "limits" not in stripped["services"]["postgres"]["deploy"]["resources"]
     # a machine with neither controller nor a limit to enforce is still "not applied"
     assert fc.decide_resource_limits({"services": {}}, "") == fc.LIMITS_STRIPPED
+
+
+def test_the_prod_shape_env_file_is_generated_and_carries_no_host_secret(
+    tmp_path: Path,
+) -> None:
+    # Ruling 162 item 3 + O2.2's own rule that compose never reads the checkout's
+    # .env or the caller's shell. Measured against the real render (drop-one matrix
+    # on prod + the prod-shape override): exactly three variables are REQUIRED --
+    # PODMAN_SOCKET, POSTGRES_PASSWORD (both `${X:?…}` in docker-compose.prod.yml)
+    # and PROD_SHAPE_RUN_ROOT (the override's). Dropping any one exits 1 and names
+    # that one; there are 154 `${X:-default}` references and no other bare ones.
+    run_dir = tmp_path / "run-1"
+    caller = {"PODMAN_SOCKET": "/run/user/1000/podman/podman.sock", "POSTGRES_PASSWORD": "hunter2"}
+
+    text = fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller)
+    values = dict(
+        line.split("=", 1) for line in text.splitlines() if line and not line.startswith("#")
+    )
+    assert {"PODMAN_SOCKET", "POSTGRES_PASSWORD", "PROD_SHAPE_RUN_ROOT", "IMAGE_TAG"} <= set(values)
+    # the run directory is where UR-133 says every writable bind must land
+    assert values["PROD_SHAPE_RUN_ROOT"] == str(run_dir)
+    assert values["IMAGE_TAG"] == "test"
+    assert values["PODMAN_SOCKET"] == caller["PODMAN_SOCKET"], (
+        "the socket path is a path, not a secret"
+    )
+    # the host's postgres password must NOT reach a disposable test deployment
+    assert "hunter2" not in text
+    assert values["POSTGRES_PASSWORD"] != caller["POSTGRES_PASSWORD"]
+    # a fixed value copied from an example would pass everything above and still be
+    # a shared secret across runs: two runs of the same run dir must differ
+    again = fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller=caller)
+    second = dict(line.split("=", 1) for line in again.splitlines() if "=" in line)
+    assert second["POSTGRES_PASSWORD"] != values["POSTGRES_PASSWORD"], (
+        "password is per-run, not constant"
+    )
+    # and with no socket to name the caller gets a refusal, not a blank string
+    # (compose would only warn and interpolate "/" -- the same failure mode as the
+    # run root, which the override already refuses outright)
+    with pytest.raises(fc.HarnessError):
+        fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller={})

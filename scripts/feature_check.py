@@ -552,6 +552,42 @@ def decide_resource_limits(rendered: dict[str, Any], subtree_control: str) -> st
     return LIMITS_STRIPPED
 
 
+def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) -> str:
+    """The env file for a prod-shape render, generated and never inherited.
+
+    O2.2's rule -- compose reads this file and nothing else (:func:`compose_command`
+    passes ``--env-file``, which suppresses the ``.env`` beside the compose file) --
+    applies unchanged to the prod shape, so a run must not quietly pick up the host's
+    real credentials. What the render needs was measured, not assumed: a drop-one
+    matrix over ``prod.yml`` + the prod-shape override found exactly three REQUIRED
+    variables (each missing one exits 1 and names itself), against 154 references that
+    carry a ``:-`` default.
+
+    Two of the three are values a *test* deployment should not inherit from the host:
+    ``POSTGRES_PASSWORD`` is generated per run (a fixed literal would pass a test and
+    still be a shared secret), and the socket path is taken from the caller because it
+    is a path, not a secret -- but a missing one is refused here rather than passed on,
+    because compose only *warns* and interpolates a blank, which is the same failure
+    mode the override already refuses for ``PROD_SHAPE_RUN_ROOT``.
+    """
+    socket = caller.get("PODMAN_SOCKET")
+    if not socket:
+        raise HarnessError(
+            "PODMAN_SOCKET is not set in the caller's environment. The prod stack mounts it "
+            "into backend and alloy, and an empty value interpolates to a blank string with "
+            "only a warning, so the render would ask the engine for a mount of '/'."
+        )
+    return "".join(
+        f"{key}={value}\n"
+        for key, value in (
+            ("IMAGE_TAG", image_tag),
+            ("PODMAN_SOCKET", socket),
+            ("POSTGRES_PASSWORD", secrets.token_hex(16)),
+            ("PROD_SHAPE_RUN_ROOT", str(run_dir)),
+        )
+    )
+
+
 # ---------------------------------------------------------------------------
 # Preflight
 # ---------------------------------------------------------------------------
