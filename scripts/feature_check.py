@@ -1599,6 +1599,36 @@ def _exit_word(result: subprocess.CompletedProcess[str]) -> str:
     return _TIMEOUT_NOTE if _stalled(result) else str(result.returncode)
 
 
+# What the two engines `main()` offers actually print for "that name is not in the engine",
+# measured in this sandbox against docker 27.x and podman 5.7.0. Lowercased, because the
+# comparison below lowercases the stream.
+_ABSENCE_MARKERS = ("no such image:", "image not known")
+
+
+def _image_absent(result: subprocess.CompletedProcess[str]) -> bool:
+    """Did the engine POSITIVELY say this image name is not in it?
+
+    The companion to :func:`_stalled`, one level down. A stall was already fenced
+    because rc=124 is nonzero and nonzero inspect used to mean "never existed"; the
+    same false reading survives through a second door, measured here: a DOWN daemon
+    answers `image inspect` with the exit code it uses for absence -- rc=1 for
+    docker, rc=125 for podman, and the SAME code for both answers on each engine.
+    So the exit code cannot carry this distinction at all, and only the daemon's own
+    words can: docker says "No such image:", podman says "image not known".
+
+    Absence therefore has to be identified, not inferred. Everything this returns
+    False for -- a refusal, an argument error, empty stderr, an unrecognised engine
+    message -- is unknown state, which is the loud direction: the caller records the
+    name and does not remove it. A marker list is deliberately short and anchored to
+    the two engines the harness can be pointed at; widening it to "any stderr" would
+    put the false-spotless report back.
+    """
+    if result.returncode == 0:
+        return False  # rc=0 is present, whatever the stream says
+    stderr = (result.stderr or "").lower()
+    return any(marker in stderr for marker in _ABSENCE_MARKERS)
+
+
 def _log(message: str) -> None:
     stamp = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
     print(f"feature-check {stamp} {message}", flush=True)
@@ -2401,7 +2431,26 @@ class Run:
                 _log(f"FAIL prod-shape image state unknown, the engine timed out: {image}")
                 continue
             if present.returncode != 0:
-                continue  # this run never left an image under that name
+                # Not every nonzero answer means "not in the engine": a DOWN daemon answers
+                # with the exit code absence uses on that same engine (rc=1 docker, rc=125
+                # podman -- measured), so trusting the rc alone lets a run whose engine never
+                # answered report itself spotless. Absence is claimed only when the daemon
+                # said so in words; everything else is unknown, recorded, and NOT removed.
+                #
+                # The `continue` is OUTSIDE the inner test on purpose, so no nonzero answer
+                # can reach `image rm` on either reading -- the battery found that nesting it
+                # inside the unknown branch makes the two `continue`s redundant next to each
+                # other, which is a mutation an editor could introduce by accident.
+                if not _image_absent(present):
+                    stalled.append(image)
+                    said = "\n".join(
+                        f"  | {line}" for line in (present.stderr or "").splitlines()[:3]
+                    )
+                    _log(
+                        f"FAIL prod-shape image state unknown: {image} "
+                        f"(exit {_exit_word(present)})" + (f"\n{said}" if said else "")
+                    )
+                continue  # absent (the engine said so) or unknown -- neither is removed here
             gone = self._run([self.engine, "image", "rm", image], check=False, echo=False)
             if gone.returncode == 0:
                 removed.append(image)
