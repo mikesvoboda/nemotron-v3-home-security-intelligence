@@ -474,3 +474,19 @@ from the status comment for 25 hours.
 **Done when:** unit tests pin each new field on recorded fixtures (a carried and an uncarried roll,
 an armed unapproved head, a draft with owner questions), and one coordinator tick runs on the new
 output with its status comment drafted by `status_draft.py`.
+
+### [r172] A per-module import budget for the duration gate
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r157]`; ops-a reviews. **Depends on:** none.
+**PR:** none yet. (ruling 172; issue #7102)
+
+- [ ] `scripts/check-test-duration-budget.py` computes each module's import cost as
+      `<testsuite time>` minus the sum of its `<testcase time>`s and applies UR-125's numbers per
+      module, with UR-125's single re-run and shared re-run cap; per-test budgets and
+      `worst_durations()` keep their meaning.
+- [ ] It ships warning-only; after one scheduled nightly the modules over each threshold are posted,
+      and it turns failing once each is fixed or in `SLOW_TEST_PATTERNS` with a measured note.
+- [ ] A pin fails when the import stall is left out of the compared number.
+
+**Done when:** the module budget fails CI on a reproduced import breach, the warning-only nightly's
+list is posted, and the existing duration pins pass.
