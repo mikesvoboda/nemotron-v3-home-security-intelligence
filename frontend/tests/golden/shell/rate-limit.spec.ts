@@ -67,14 +67,31 @@
  * asserted, and its replacement asserts the opposite surface. The flood's
  * bucket calibration is inherited from it verbatim (see BURST/DRIP_MS below).
  *
- * THE BUCKET MATH the flood respects (nginx ngx_http_limit_req @10r/s: each
- * request costs 100 ms of excess, burst=20 nodelay): a 60-request burst parks
- * stored excess AT the ceiling (rejections add nothing back — probes 9/10
- * measured a single burst draining in ~2 s, too short to click inside); a drip
- * every 80 ms (12.5 r/s > the 10 r/s refill) pins excess >= burst for the
- * drip's whole span, making a click inside it a deterministic 429. Measured
- * 2026-10-11 probes 10/12 on the live stack: POST 429 (Server: nginx, no
- * X-RateLimit-*, no Retry-After).
+ * THE BUCKET MATH the flood respects, CORRECTED at this head (nginx
+ * ngx_http_limit_req @10r/s, burst=20 nodelay; excess is kept in ms of work):
+ * each request adds 1000 and time decays it at 10/ms; a request whose updated
+ * excess would exceed 20000 is REJECTED — and a rejection does NOT store the
+ * new excess or the new timestamp. Decay therefore keeps accruing from the
+ * last ACCEPTED request, so a hard-pushed bucket does not sit frozen above the
+ * ceiling: it free-runs as a METRONOME, admitting ~1 request per 1000/rate =
+ * 100 ms no matter how hard the flood pushes. A 60-request burst parks it there
+ * in milliseconds; a drip every 80 ms (12.5 r/s > the 10 r/s refill) keeps it
+ * there for the drip's whole span.
+ *
+ * That single fact is why this leg was red on CI and why it is green here. The
+ * pre-fix instrument waited a blind 900 ms and clicked, i.e. it clicked at a
+ * RANDOM PHASE of a 100 ms metronome: shed with probability 1 - delta/100ms,
+ * which is a coin flip, not a deterministic 429 as the old comment claimed. Run
+ * 38477914966 proved it from nginx's own lines — five shed /api/debug/log-level
+ * requests spread over 3.06 s (~1 per 612 ms), each logged at excess ~= 20.5, a
+ * hair over the ceiling, and attempt 0 admitted BOTH clicks (POST 200 119, POST
+ * 200 122) while shedding the panel's own refetch GETs 14 ms later.
+ *
+ * So the click is now ARMED, not timed: probe until a request is ACCEPTED and
+ * click in the same JS turn. After an admit, excess sits a hair over the
+ * ceiling and needs ~100 ms of decay to admit again, so a click within a few ms
+ * of that admit CANNOT be admitted — measured 15/15 shed at delta 0.0-0.2 ms on
+ * the live stack (probe file /tmp/rl7077/repro/dump4.mjs, not committed).
  *
  * INSTRUMENT CHOICES, each measured against a failed alternative:
  * - Flood rides context.request (Node-side): the probes' ONE in-main-page
@@ -82,22 +99,24 @@
  *   (probe7), and a drip inside a NON-active page would hit Chromium's
  *   hidden-page timer throttling (~1/s) and clump instead of pinning.
  *   context.request hits the same nginx $binary_remote_addr bucket for free.
- * - Clicks go through el.click() inside page.evaluate after an
- *   enabled-button waitForFunction: with the bucket dirty the panel's query
- *   churn made Playwright actionability retries drift past the drip boundary
- *   (probe10/11 measured 3 s timeouts on an enabled+visible button, probe12's
- *   DOM dump proved dis:false vis:true); the trusted click on the SAME button
- *   React listens to lands the shed every run.
+ * - The shed itself is produced by armedShedClick, not by a blind wait — see
+ *   the BUCKET MATH block. The click stays el.click() inside page.evaluate on
+ *   the SAME button React listens to (probe10/11/12: Playwright actionability
+ *   retries drifted past the drip boundary on an enabled+visible button), just
+ *   with the click aimed at the bucket's tick instead of at the clock.
  * - The level button is the control because a MUTATION never retries 429
  *   (utils shouldRetryMutation covers timeouts only) so the shed POST is
  *   FINAL and rides handleResponse — queries, by contrast, DO retry 429
  *   (RETRYABLE_HTTP_STATUS_CODES, utils/error-handling.ts:588) and their ~1 s
  *   backoff usually lands after the bucket drains.
- * - Shed honesty: run to run, either click (or the panel's own refetch wave)
- *   can be the request the error feed sees (probe11 measured a 429 POST list
- *   of [200] while a query final error still lit the old store). So the spec
- *   asserts the posts list contains at least one 429 and otherwise asserts
- *   ONLY store-visible outcomes.
+ * - ONE shed is the experiment, so the leg aims one click, not two. The panel
+ *   gates every level button on disabled={isPending || isActive}
+ *   (LogLevelPanel.tsx:123) with isActive = level === currentLevel, so a
+ *   SUCCESSFUL click makes that button disabled forever: the old second
+ *   clickLevel('DEBUG') could only time out, which is exactly where attempts 1
+ *   and 2 died (waitForFunction at :245). The armed click auto-picks an
+ *   ENABLED level so a rare admitted click still cannot deadlock the leg; the
+ *   level is restored at the end either way.
  *
  * SIDE EFFECTS owned by this file: the clicked control is the Operations
  * page's Log Level panel (SystemMonitoringPage.tsx:751 -> POST
@@ -131,9 +150,13 @@ test.skip(
 );
 
 /** nginx /api throttle geometry (docker-entrypoint.sh:166-169; nginx.conf zones). */
-const BURST = 60; // >> burst=20 -> rejections pin stored excess at the ceiling
-const DRIP_MS = 80; // 12.5 req/s > the 10 r/s refill -> excess never drains
-const DRIPS = 45; // ~3.5 s of pinned window; both clicks land inside it
+const BURST = 60; // >> burst=20 -> parks the bucket above the ceiling in ms
+const DRIP_MS = 80; // 12.5 req/s > the 10 r/s refill -> the metronome never stops
+const DRIPS = 45; // ~3.5 s of pinned window; the armed click lands inside it
+/** Arm probes wait this long between tries; < the 100 ms admit tick, so the
+ *  leg's own traffic keeps the bucket pinned while it hunts for an admit. */
+const ARM_PROBE_MS = 60;
+const ARM_TRIES = 25; // ~2.5 s of hunting = 25 admit ticks; far above need
 
 /**
  * Copy that ONLY the retired overlay produced. Deliberately narrow: it must
@@ -240,25 +263,63 @@ async function openOperations(
   return session;
 }
 
-/** Click a level button by exact label once it is ENABLED (see header). */
-async function clickLevel(page: import('@playwright/test').Page, level: string) {
-  await page.waitForFunction(
-    (name) =>
-      [...document.querySelectorAll('button')].some(
-        (b) => b.textContent?.trim() === name && !b.disabled
-      ),
-    level,
-    { timeout: 5_000 }
-  );
-  await page.evaluate(
-    (name) =>
-      (() => {
-        const bs = [...document.querySelectorAll('button')].filter(
-          (b) => b.textContent?.trim() === name && !b.disabled
+/**
+ * Arm the nginx bucket, then click a level button IN THE SAME JS TURN.
+ *
+ * Why arming instead of waiting: nginx's ngx_http_limit_req rejects WITHOUT
+ * storing the new excess/timestamp, so after any ACCEPT the bucket sits a hair
+ * over the ceiling and needs ~1000/rate = 100 ms of decay before it can admit
+ * again. A click issued microseconds after a request we PROVED was accepted is
+ * therefore inside that window by construction — measured 15/15 shed at
+ * delta 0.0-0.2 ms. A click issued at an arbitrary wall-clock moment is inside
+ * it with probability 1 - delta/100ms, i.e. a coin flip; that is what CI's run
+ * 38477914966 showed (attempt 0 admitted both POSTs, attempts 1-2 shed them).
+ *
+ * The probe request rides in-page fetch so it shares the bucket AND the event
+ * loop turn we then click in. The target is any ENABLED level button rather
+ * than a named one: the panel gates buttons on disabled={isPending||isActive}
+ * (LogLevelPanel.tsx:123), so naming a level deadlocks the leg if the click
+ * happens to be admitted (the named level becomes active, hence disabled).
+ * Returns the POST's status as the page saw it, or a skip reason.
+ */
+async function armedShedClick(page: import('@playwright/test').Page): Promise<{
+  level: string | null;
+  msSinceAdmit: number | null;
+  tries: number | null;
+  skipped: string | null;
+}> {
+  return page.evaluate(
+    async ({ probeMs, tries }) => {
+      const LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
+      const pick = () =>
+        [...document.querySelectorAll('button')].find(
+          (b) => LEVELS.includes(b.textContent?.trim() ?? '') && !b.disabled
         );
-        bs[bs.length - 1]?.click();
-      })(),
-    level
+      const target = pick();
+      if (!target)
+        return { level: null, msSinceAdmit: null, tries: null, skipped: 'no enabled level button' };
+      const level = target.textContent?.trim() ?? '';
+      for (let a = 0; a < tries; a++) {
+        const t0 = performance.now();
+        // A 429 here means the bucket has not ticked yet; only a 200 starts the
+        // 100 ms window the click is aimed inside.
+        const probe = await fetch(`/api/system/health?ARM=${a}`);
+        if (probe.status !== 200) {
+          const wait = probeMs - (performance.now() - t0);
+          if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+        const admitAt = performance.now();
+        const btn = pick();
+        if (!btn || btn.textContent?.trim() !== level)
+          return { level, msSinceAdmit: null, tries: a, skipped: 'target button vanished' };
+        const clickAt = performance.now();
+        btn.click(); // React's own handler -> fetchApi -> POST, same turn
+        return { level, msSinceAdmit: +(clickAt - admitAt).toFixed(1), tries: a, skipped: null };
+      }
+      return { level, msSinceAdmit: null, tries, skipped: 'no admitted probe within the budget' };
+    },
+    { probeMs: ARM_PROBE_MS, tries: ARM_TRIES }
   );
 }
 
@@ -374,21 +435,41 @@ test.describe('golden path: rate-limit pill @critical', () => {
         )
       );
 
-    await page.waitForTimeout(900); // mid-drip: bucket pinned RIGHT NOW
-    await clickLevel(page, 'DEBUG');
-    await page.waitForTimeout(900); // still mid-drip
-    await clickLevel(page, 'INFO');
+    // ONE aim, not two. The bucket is a 100 ms metronome while pinned (see the
+    // BUCKET MATH block), so timing this click off the clock was a coin flip;
+    // arming it off a PROVEN admit makes the shed deterministic. A second click
+    // was never observable anyway: a successful first click makes its own
+    // button disabled via isActive (LogLevelPanel.tsx:123), which is where CI's
+    // attempts 1-2 died (waitForFunction, :245 before this head).
+    await page.waitForTimeout(400); // let the drip establish the tick
+    const aim = await armedShedClick(page);
+    expect(
+      aim.skipped,
+      `could not arm the shed (${JSON.stringify(aim)}; burst codes ${burstCodes.join(',')})`
+    ).toBeNull();
 
     // THE WITNESS LEG — the throttle really fired, and this time it rode
-    // fetchApi (a mutation, which never retries a 429, so the denial is FINAL
-    // and reaches handleResponse). Pre-retirement this exact status was what
+    // fetchApi (a mutation, which never retries 429 — shouldRetry is
+    // `status === 0 || 5xx`, api.ts:901 — so the denial is FINAL and reaches
+    // handleResponse). Pre-retirement this exact status was what
     // updateRateLimitStoreFromError turned into limit=100/remaining=0/reset+60.
-    await expect
-      .poll(() => posts.includes(429), {
-        timeout: 5_000,
-        message: `no POST was shed (statuses ${JSON.stringify(posts)}; burst codes ${burstCodes.join(',')})`,
-      })
-      .toBe(true);
+    //
+    // One assertion only, and it carries the diagnosis. expect.poll's message
+    // is a plain string built at CALL time (types/test.d.ts:8924 — the same
+    // eager-string fact that made run 38477914966 print `statuses [200]`
+    // before the POST had returned), and a poll that TIMES OUT throws
+    // Playwright's own generic message — so nothing may sit behind a poll
+    // whose failure would skip its rich expect. A bounded wait that cannot
+    // throw, then one plain matcher: its message is built at FAILURE time.
+    const shedDeadline = Date.now() + 5_000;
+    while (!posts.includes(429) && Date.now() < shedDeadline) {
+      await page.waitForTimeout(100);
+    }
+    expect(
+      posts.includes(429),
+      `no POST was shed (statuses ${JSON.stringify(posts)}; aim ${JSON.stringify(aim)}; ` +
+        `burst codes ${burstCodes.join(',')})`
+    ).toBe(true);
 
     // THE NEGATIVE LEG — and it must stay negative for the whole flood tail.
     await Promise.all(drips);
