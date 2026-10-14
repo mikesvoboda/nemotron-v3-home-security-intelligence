@@ -2954,3 +2954,92 @@ def test_the_prod_shape_env_file_is_generated_and_carries_no_host_secret(
     # run root, which the override already refuses outright)
     with pytest.raises(fc.HarnessError):
         fc.prod_shape_env(run_dir=run_dir, image_tag="test", caller={})
+
+
+_ENGINE_SOCKET = "/run/user/1000/podman/podman.sock"
+
+
+def _svc(**volumes: Any) -> dict[str, Any]:
+    """One service per keyword; each value is a mount spec or a list of them. A spec
+    is (source, target) or (source, target, {extra fields})."""
+    services = {}
+    for name, spec in volumes.items():
+        specs = spec if isinstance(spec, list) else [spec]
+        services[name] = {"volumes": [_mount(s) for s in specs]}
+    return {"services": services}
+
+
+def _mount(spec: Any) -> dict[str, Any]:
+    if isinstance(spec, dict):
+        return {"type": "bind", **spec}
+    source, target, *extra = spec
+    return {"type": "bind", "source": source, "target": target, **(extra[0] if extra else {})}
+
+
+def test_the_run_refuses_a_render_that_still_mounts_the_engine_socket() -> None:
+    # UR-134. The static CI oracle (scripts/test_prodshape_override.py) proves the
+    # committed override clears the two mounts prod has TODAY; this is the run-time
+    # twin, and its reason to exist is drift: a run happens at whatever checkout the
+    # operator brought, so a socket prod grew since the override was authored is not
+    # covered by it and must stop the run rather than start a container that can
+    # drive the host's engine.
+    prod_shaped = _svc(
+        backend=(_ENGINE_SOCKET, "/var/run/podman/podman.sock", {}),
+        alloy=(_ENGINE_SOCKET, _ENGINE_SOCKET, {}),  # prod interpolates it into BOTH fields
+    )
+    hits = fc.engine_socket_mounts(prod_shaped, socket_path=_ENGINE_SOCKET)
+    assert {h[0] for h in hits} == {"backend", "alloy"}, hits
+    # must-ignore side. Deliberately NOT "the override's render, as a fixture I typed":
+    # the override clears the socket mounts, but the authority for that is
+    # test_prodshape_override.py, which renders the real file -- a hand-written
+    # socket-free fixture here would assert my own guess and could not disagree with
+    # anything. What this clause must show is that the predicate does not flag the
+    # mounts a COMPLIANT prod-shape render really keeps: named volumes, and a writable
+    # bind inside the run directory.
+    compliant = {
+        "services": {
+            "node-exporter": {
+                "volumes": [
+                    {"type": "volume", "source": "tempo-data", "target": "/var/tempo"},
+                    {"type": "bind", "source": "/run/hsitest/cameras", "target": "/cameras"},
+                ]
+            },
+            "postgres": {
+                "volumes": [
+                    {"type": "volume", "source": "pg", "target": "/var/lib/postgresql/data"}
+                ]
+            },
+        }
+    }
+    assert fc.engine_socket_mounts(compliant, socket_path=_ENGINE_SOCKET) == []
+    # ...and the two predicates DISAGREE on purpose. `is_engine_socket` counts "/" and
+    # "/var" as holding a socket, which is precisely why the fail-closed preflight
+    # refuses the prod shape (node-exporter's `/:/host:ro` is a breach by its rules,
+    # on every render). Wiring this check to it would make every prod-shape run refuse
+    # itself, so the divergence is asserted, not left to a reader's judgement.
+    assert fc.is_engine_socket("/"), "the preflight's rule, kept for the CI path"
+    assert (
+        fc.engine_socket_mounts(
+            _svc(node_exporter=("/", "/host", {"read_only": True})), socket_path=_ENGINE_SOCKET
+        )
+        == []
+    ), "the prod-shape path's rule: the engine's own socket, not the host's root"
+    # a socket-shaped path that is NOT the engine's is not a breach (no blanket .sock
+    # ban -- a test deployment may legitimately mount one)
+    other = _svc(backend=("/run/hsitest/gpg-agent.sock", "/in/gpg.sock", {}))
+    assert fc.engine_socket_mounts(other, socket_path=_ENGINE_SOCKET) == []
+
+
+def test_a_read_only_engine_socket_mount_is_still_a_breach() -> None:
+    # `read_only: true` on a socket is not a permission boundary: the socket IS the
+    # engine's API, and opening it read-write is what the container does after the
+    # mount exists. So the UR-134 check must not filter on the mount's mode -- which
+    # is why the predicate below reads source/target only.
+    ro = _svc(alloy=(_ENGINE_SOCKET, _ENGINE_SOCKET, {"read_only": True}))
+    assert [h[0] for h in fc.engine_socket_mounts(ro, socket_path=_ENGINE_SOCKET)] == ["alloy"]
+    # and a docker-targeted engine reaches the same verdict through the target field,
+    # which is how a socket the caller did not name is still caught
+    docker_sock = _svc(backend=("/host/elsewhere.sock", "/var/run/docker.sock", {}))
+    assert [h[0] for h in fc.engine_socket_mounts(docker_sock, socket_path=_ENGINE_SOCKET)] == [
+        "backend"
+    ]

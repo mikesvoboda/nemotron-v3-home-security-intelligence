@@ -521,6 +521,46 @@ def cgroup_limits_usable(subtree_control: str) -> bool:
     return LIMIT_CGROUPS.issubset(delegated)
 
 
+# The engine sockets a container can drive the host with, wherever they are
+# mounted. Measured against the prod render: prod mounts the caller's
+# PODMAN_SOCKET twice -- on `backend` (into /var/run/podman/podman.sock) and on
+# `alloy`, which interpolates the same variable into BOTH source and target, so a
+# check that read only the target field would miss alloy outright.
+ENGINE_SOCKET_TARGETS = frozenset(
+    {"/var/run/docker.sock", "/var/run/podman/podman.sock", "/run/docker.sock"}
+)
+
+
+def engine_socket_mounts(
+    rendered: Mapping[str, Any], *, socket_path: str
+) -> list[tuple[str, str, str]]:
+    """Every `(service, source, target)` in a rendered deployment that mounts an
+    engine socket (UR-134), given the socket path this caller uses.
+
+    This is the RUN-TIME twin of `scripts/test_prodshape_override.py`, and the two
+    are not redundant. That test proves the committed override clears the mounts
+    prod has in the checkout CI saw; a run happens against whatever checkout the
+    operator brought, so a socket `docker-compose.prod.yml` grew since the override
+    was authored is exactly what the static gate cannot see and this check can. The
+    predicate reads source and target only -- never the mount's mode -- because a
+    read-only socket is not a weaker capability: opening the socket is the whole
+    attack, and `read_only: true` on the bind does not stop a container from
+    connecting through it.
+    """
+    hits: list[tuple[str, str, str]] = []
+    for name, service in (rendered.get("services") or {}).items():
+        for mount in service.get("volumes") or []:
+            if not isinstance(mount, Mapping):
+                continue
+            source = str(mount.get("source") or "")
+            target = str(mount.get("target") or "")
+            if socket_path and source == socket_path:
+                hits.append((name, source, target))
+            elif target in ENGINE_SOCKET_TARGETS:
+                hits.append((name, source, target))
+    return hits
+
+
 def strip_resource_limits(rendered: dict[str, Any]) -> int:
     """Drop each service's ``deploy.resources.limits`` in place and return how
     many services changed. Reservations are kept — the spike showed a LIMIT
