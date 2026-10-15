@@ -73,8 +73,8 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, and
    keep your disks under 90% (UR-180). Read the coordinator's age from the digest; if it is older
    than 20 minutes with no live `URGENT PATH` on record, follow "Stale coordinator" below.
-3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
-   lane's PR" below), reading each one's whole thread only now. Heavy agents skip this step.
+3. **Review your ready PRs first** (UR-32): for each of your PRs that is ready, with CI finished at
+   its head and no review at that head, run "Reviewing your PR" below (ruling 198).
 4. **Your own open PRs** (UR-35): read the full thread of a row the digest shows with new comments,
    reviews or a `DIRTY`/red gate; fix what is red, answer what is requested, and rebase what
    conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
@@ -142,23 +142,24 @@ Read rules.md §Building a package first: one package per PR, the hot-file rules
 6. Authors of `F2.2`, `O2.3` and R2's list of modules serving no feature dispatch
    `codebase-archaeologist` on their scope (UR-95).
 
-**Self-review.** Run the fresh-context self-review UR-89 describes, record its findings in the PR,
-then mark the PR ready once its code is complete. A Done-when clause that only a CI run shows (a
-draft skips every job but the gate) is ticked from the first ready run, naming it; a red run is
-fixed on the ready PR, and the reviewer approves only with those clauses green (ruling 161).
+**Ready, then review.** Mark the PR ready once its code is complete. A Done-when clause that only a
+CI run shows (a draft skips every job but the gate) is ticked from the first ready run, naming it;
+a red run is fixed on the ready PR. When CI has finished at the head, review it as "Reviewing your
+PR" below says, and approve only with those clauses green (rulings 161, 198).
 
-## Reviewing another lane's PR
+## Reviewing your PR
 
-Read rules.md §Reviewing first.
+Read rules.md §Reviewing first. Each PR has one review, its author's (UR-32, ruling 198).
 
-1. List your queue: `gh pr list --state open --label review:<your label>`.
-2. Review each PR independently (UR-91). Write its `Plan text:` line as UR-92 says. For a
-   security-and-auth package, dispatch `security-auditor` on the diff (UR-95, UR-96).
+1. Dispatch the fresh-context subagent UR-89 describes on the ready head, after its CI has
+   finished. Fix or answer each finding.
+2. Write the `Plan text:` line as UR-92 says. For a security-and-auth package, also dispatch
+   `security-auditor` on the diff (UR-95, UR-96).
 3. Post the review as a PR comment in this form:
 
    ```text
    Review: approve | changes requested
-   Reviewer lane: <lane>
+   Reviewer lane: <your lane> (UR-89 subagent)
    Done when: <each clause> — observed | not observed (where)
    Contract: rules 1-5 — ok | <which rule, why>
    Plan text: none | <which kind of plan text it changes (rules.md §Authority: rulings, plan text and IDs), and where>
@@ -166,9 +167,10 @@ Read rules.md §Reviewing first.
    ```
 
 4. On `approve` of a lane-tier PR (its `Plan text:` is `none` or a UR-47 lane-review kind, and no
-   other UR-98 trigger applies), run `gh pr merge <n> --auto --merge` and add `Auto-merge: on` to the
-   review's `Notes:` (UR-108, ruling 156). Owner-tier PRs get no auto-merge from you.
-5. Remove the review label.
+   other UR-98 trigger applies) whose `CI Gate` is green at the head, run
+   `gh pr merge <n> --auto --merge` and add `Auto-merge: on` to the review's `Notes:` (UR-108,
+   rulings 156, 198). Never on a draft. Owner-tier PRs get no auto-merge from you; they wait for
+   the owner's approval record.
 
 ## Posting
 
@@ -190,8 +192,8 @@ docs/uplevel/00-audit.md sections each package cites.
 
 Claim the next package on your roster queue as lane.md, "Claiming a package",
 says; a heavy agent takes the package the coordinator assigns it. Build it as lane.md,
-"Building a package", says. Reviews come first, then the new comments on your
-own open PRs, then your package. Before each act, read the rules.md section the
+"Building a package", says. Reviewing your ready PRs comes first, then the new
+comments on your own open PRs, then your package. Before each act, read the rules.md section the
 step names.
 
 Then run the tick in lane.md, "The tick".
