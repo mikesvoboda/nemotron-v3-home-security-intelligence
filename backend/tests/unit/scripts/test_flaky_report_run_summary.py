@@ -556,7 +556,9 @@ def test_every_path_cite_in_this_file_resolves() -> None:
     assert comment_only in prose, "the #: COMMENT block left the harvest — its cites are unchecked"
     # …and the negative witnesses: each phrase lives in exactly one region, so these three asserts
     # pin WHICH regions are harvested, not merely that _prose returns a blob that contains them.
-    src = Path(__file__).read_text(encoding="utf-8")
+    # The path here is __file__ — this very module — never a caller-supplied path, so there is
+    # nothing to traverse (repo precedent: 121 files carry this marker for trusted paths).
+    src = Path(__file__).read_text(encoding="utf-8")  # nosemgrep: path-traversal-open
     tree = ast.parse(src)
     fn_docstrings = "".join(
         ast.get_docstring(n) or "" for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
@@ -603,7 +605,9 @@ def test_the_module_docstring_quotes_the_package_clause_verbatim() -> None:
     assert " ".join(register.split()).find(clause) != -1, (
         "the clause this module docstring quotes verbatim is no longer in ops.md — the quote drifted"
     )
-    docstring = ast.get_docstring(ast.parse(Path(__file__).read_text(encoding="utf-8"))) or ""
+    # Same: __file__ is this module, not a caller path.
+    own = Path(__file__).read_text(encoding="utf-8")  # nosemgrep: path-traversal-open
+    docstring = ast.get_docstring(ast.parse(own)) or ""
     assert " ".join(docstring.split()).find(clause) != -1, (
         "the module docstring no longer quotes the clause it claims to quote verbatim"
     )
