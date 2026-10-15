@@ -11,6 +11,13 @@ it to the working tree, run the suite, restore from an in-memory snapshot and ve
 the restore by SHA-256. A mutant the suite does not turn red is reported QUIET and the
 battery exits nonzero -- that is a gap in the pins, not a result.
 
+A run that never tested anything is a THIRD outcome, not a kill: pytest rc 2/3/4/5
+or a `no tests ran` tally aborts the battery with exit 3 and prints no fraction.
+Scoring such a run "caught" credits the pins with a measurement that never happened
+-- a wrong suite path exits 4 and prints `no tests ran`, and before this guard both
+of those booked as kills. Exit codes: 0 every mutant caught, 1 a QUIET mutant,
+3 the suite did not run, 8 the restore failed.
+
 The `count` field is load-bearing twice over: it refuses a mutant whose anchor no
 longer matches (a silent no-op would otherwise score as "killed"), and it refuses one
 that matches MORE sites than intended, which would undercount the suite and let a weak
@@ -111,13 +118,19 @@ MUTANTS: list[tuple[str, int, str, str]] = [
 ]
 
 
+#: pytest exit codes that mean the run never tested anything: 2 = interrupted,
+#: 3 = internal error, 4 = usage error (a wrong suite path lands here), 5 = no
+#: tests collected. None of them is evidence about a mutant in either direction.
+UNSCOREABLE_RC = frozenset({2, 3, 4, 5})
+
+
 def run_pytest() -> tuple[int, str]:
     """One suite run against the mutant on disk. Returns (exit code, tally line).
 
     The tally is printed even on a green run: a suite that collected 0 tests also
     exits 0, and the tally line is what tells those two apart.
     """
-    proc = subprocess.run(
+    proc = subprocess.run(  # real: the suite under mutation; rc is the measurement
         [
             sys.executable,
             "-m",
@@ -132,6 +145,7 @@ def run_pytest() -> tuple[int, str]:
             "addopts=",
         ],
         cwd=REPO,
+        check=False,
         capture_output=True,
         text=True,
     )
@@ -150,7 +164,16 @@ def main() -> int:
 
     quiet: list[str] = []
     damaged: list[str] = []
+    aborted: str | None = None
     try:
+        # Baseline before any mutant: prove the suite actually runs here. A path
+        # that does not exist exits 4 and prints `no tests ran`, and scoring
+        # mutants against a suite that never ran would book all of them `caught`.
+        code, tally = run_pytest()
+        if code != 0 or not tally or "no tests ran" in tally:
+            print(f"BASELINE SUITE DID NOT RUN (rc={code}): {tally or TARGET}")
+            return 3
+        print(f"baseline: {tally}")
         for label, count, old, new in MUTANTS:
             found = source.count(old)
             if found != count:
@@ -163,6 +186,16 @@ def main() -> int:
                 quiet.append(label)
                 continue
             code, tally = run_pytest()
+            # A kill must be a real red from a suite that ran. rc 2/3/4/5 and any
+            # `no tests ran` tally mean the run tested nothing, so scoring them
+            # "caught" would credit the pins with a run that never happened -- the
+            # floor the r94 precedent already had (SUITE DID NOT RUN) and this
+            # copy dropped. Abort rather than continue: the next mutant would be
+            # scored against the same broken instrument.
+            if code in UNSCOREABLE_RC or "no tests ran" in tally:
+                print(f"SUITE DID NOT RUN (rc={code}) at {label}: {tally} -- aborting, not scoring")
+                aborted = label
+                break
             if code == 0:
                 print(f"QUIET   {label}  <- pin gap: suite passed with this defect in ({tally})")
                 quiet.append(label)
@@ -173,11 +206,17 @@ def main() -> int:
         if hashlib.sha256(target.read_text(encoding="utf-8").encode()).hexdigest() != source_hash:
             damaged.append(TARGET)
 
-    caught = len(MUTANTS) - len(quiet)
-    print(f"\n{caught}/{len(MUTANTS)} mutants caught by the suite; quiet: {quiet or 'none'}")
     if damaged:
         print(f"RESTORE-FAILED for: {damaged} -- verify with git diff before trusting any of this")
         return 8
+    if aborted is not None:
+        # No score is printed at all: the mutants after the abort were never run,
+        # and any fraction here would be a number nobody measured.
+        print(f"\nNO RESULT -- aborted at {aborted}; later mutants were never run")
+        return 3
+
+    caught = len(MUTANTS) - len(quiet)
+    print(f"\n{caught}/{len(MUTANTS)} mutants caught by the suite; quiet: {quiet or 'none'}")
     return 0 if not quiet else 1
 
 
