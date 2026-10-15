@@ -281,6 +281,7 @@ export default defineConfig({
           {
             name: 'golden',
             testDir: './tests/golden',
+            testIgnore: /.*\.seeded\.spec\.ts$/,
             // One worker, serial: the dashboard path drops a fixture and waits
             // on the backend's content-hash dedupe window, so its wait must not
             // interleave with another spec competing for the same camera.
@@ -288,6 +289,18 @@ export default defineConfig({
             workers: 1,
             // The harness's stack serves the UI on an engine-assigned port;
             // point every navigation there instead of the fixed e2e baseURL.
+            use: {
+              ...devices['Desktop Chrome'],
+              baseURL: GOLDEN_UI,
+              launchOptions: { args: ['--disable-gpu', '--disable-dev-shm-usage'] },
+            },
+          },
+          {
+            name: 'golden-seeded',
+            testDir: './tests/golden',
+            testMatch: /.*\.seeded\.spec\.ts$/,
+            fullyParallel: false,
+            workers: 1,
             use: {
               ...devices['Desktop Chrome'],
               baseURL: GOLDEN_UI,

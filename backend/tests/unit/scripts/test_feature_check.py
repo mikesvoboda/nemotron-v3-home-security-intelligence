@@ -4804,3 +4804,120 @@ def test_a_failed_prebuild_message_keeps_the_tail_of_long_build_output(
     message = str(raised.value)
     assert reason in message, f"the build's reason at the end was sliced away: {message[:160]}"
     assert "HEADMARKER" not in message, "the pre-build window must keep the tail, not the head"
+
+
+# ---------------------------------------------------------------------------
+# Ruling 127 / 187: --seeded mode (DEBUG=true, request recorder, breaker and
+# threshold fault seeds, orphan file fixture, and golden-seeded project).
+# ---------------------------------------------------------------------------
+
+
+def test_as_test_deployment_seeded_enables_debug_recorder_fault_seed_and_data_tmpfs(
+    base: dict[str, Any],
+) -> None:
+    unseeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR)
+    unseeded_env = unseeded["services"]["backend"]["environment"]
+    assert unseeded_env.get("DEBUG") != "true"
+    assert "REQUEST_RECORDING_ENABLED" not in unseeded_env
+    assert "HSI_FAULT_SEED" not in unseeded_env
+
+    seeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR, seeded=True)
+    backend = seeded["services"]["backend"]
+    env = backend["environment"]
+    assert env["DEBUG"] == "true"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+    assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert "/app/data" in backend["tmpfs"]
+
+
+def test_seeded_flag_is_refused_without_fake() -> None:
+    with pytest.raises(SystemExit) as bare:
+        fc.main(["--seeded"])
+    assert bare.value.code == 2
+
+    with pytest.raises(SystemExit) as with_real:
+        fc.main(["--real", "--seeded"])
+    assert with_real.value.code == 2
+
+
+def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
+    )
+    run.prepare()
+    run.api = "http://127.0.0.1:32772"
+    run.admin = {"username": "feature-check", "password": "secret"}
+
+    exec_calls: list[tuple[str, ...]] = []
+
+    def fake_deployment(*args: str, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        exec_calls.append(args)
+        return subprocess.CompletedProcess(list(args), 0, stdout="21\n", stderr="")
+
+    http_calls: list[tuple[str, str, Any]] = []
+
+    def fake_http(
+        method: str, url: str, payload: Any = None, timeout: float = 15, **kwargs: Any
+    ) -> tuple[int, Any]:
+        http_calls.append((method, url, kwargs.get("headers")))
+        if url.endswith("/api/debug/recordings"):
+            return 200, {"recordings": [{"recording_id": "r1"}, {"recording_id": "r2"}], "total": 2}
+        if "/api/system/cleanup/orphaned-files" in url:
+            return 200, {"orphaned_count": 1, "total_size": 21}
+        if url.endswith("/api/system/circuit-breakers"):
+            return 200, {"circuit_breakers": {"redis": {"state": "open"}}, "open_count": 1}
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(run, "deployment", fake_deployment)
+    monkeypatch.setattr(fc, "_http", fake_http)
+
+    run.seed_debug_fixtures()
+
+    assert run.summary["results"]["seeded"] == "ok"
+    assert any(headers and headers.get("X-Debug-Record") == "true" for _, _, headers in http_calls)
+    assert any("seeded-orphan.jpg" in " ".join(c) for c in exec_calls)
+
+
+def test_golden_seeded_runs_golden_seeded_playwright_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
+    )
+    run.prepare()
+    run.api = "http://127.0.0.1:32772"
+    run.ui = "http://127.0.0.1:32773"
+    run.admin = {"username": "feature-check", "password": "secret"}
+
+    config = tmp_path / "playwright.config.ts"
+    config.write_text(
+        "projects: [{ name: 'golden' }, { name: 'golden-seeded' }]\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(fc, "PLAYWRIGHT_CONFIG", config)
+    monkeypatch.setattr(fc, "FRONTEND_MODULES", tmp_path)
+
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        cmd = [str(c) for c in command]
+        commands.append(cmd)
+        if "playwright" in " ".join(cmd):
+            junit = run.artifacts / "golden-playwright.xml"
+            junit.write_text(
+                '<testsuites><testsuite name="operations/debug-mode-toggle.seeded.spec.ts">'
+                '<testcase classname="debug-mode-toggle.seeded.spec.ts" name="F-133"/>'
+                "</testsuite></testsuites>",
+                encoding="utf-8",
+            )
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(run, "_run", fake_run)
+    problems = run.golden()
+    assert problems == []
+    playwright_cmds = [" ".join(c) for c in commands if "--project=" in " ".join(c)]
+    assert len(playwright_cmds) == 1
+    assert "--project=golden-seeded" in playwright_cmds[0]
+    assert "--project=golden " not in playwright_cmds[0]

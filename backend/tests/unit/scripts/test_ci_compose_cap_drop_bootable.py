@@ -289,3 +289,15 @@ def test_frontend_port_maps_to_the_unprivileged_listen_port(services: dict) -> N
         f"frontend ports {ports} must map the host port to 8080 — "
         "the image listens there, never on 80"
     )
+
+
+def test_backend_gives_data_dir_a_writable_tmpfs_for_recordings_and_orphans(
+    services: dict,
+) -> None:
+    """Ruling 127/187: RequestRecorderMiddleware (data/recordings) and OrphanedFileCleanup
+    (data/thumbnails, data/clips) write under /app/data on the read_only rootfs."""
+    tmpfs_paths = {p.rstrip("/") for p in services["backend"].get("tmpfs") or []}
+    assert "/app/data" in tmpfs_paths, (
+        f"backend tmpfs {sorted(tmpfs_paths)} must include /app/data so "
+        "data/recordings and data/thumbnails are writable under read_only: true"
+    )

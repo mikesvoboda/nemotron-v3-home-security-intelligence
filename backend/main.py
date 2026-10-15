@@ -9,6 +9,7 @@ This module provides:
 
 import asyncio
 import contextlib
+import os
 import pathlib
 import signal
 import ssl
@@ -334,6 +335,13 @@ def init_circuit_breakers() -> list[str]:
 
     get_circuit_breaker("redis", infrastructure_config)
     breaker_names.append("redis")
+
+    # Ruling 127 / 187 fault seed behind the debug guard: trip the non-critical
+    # redis breaker in _get_registry() at startup so GET /api/system/circuit-breakers
+    # exposes an OPEN breaker for F-138's Reset golden path without affecting
+    # /api/system/health/ready or AI inference.
+    if get_settings().debug and os.getenv("HSI_FAULT_SEED") == "1":
+        get_circuit_breaker("redis", infrastructure_config).force_open()
 
     return breaker_names
 
