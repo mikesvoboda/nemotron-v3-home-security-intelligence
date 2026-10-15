@@ -11,35 +11,45 @@
  * of a surface that was never reachable — the vacuity trap this lane's own
  * r133 guard names. The honest path supplies one active batch.
  *
- * Supply: POST /api/debug/batch/add-detection (debug.py:1728) — the same
+ * Supply: POST /api/debug/batch/add-detection (debug.py:1728-1742) — the same
  * surgical-supply pattern this lane used for the F-2xx golden batch, and
  * /api/debug/* is documented live on this stack (databases.spec.ts:14). It
- * writes `batch:<camera>:current` atomically (batch_aggregator.py:622), which
+ * writes `batch:<camera>:current` atomically (batch_aggregator.py:623-630), which
  * GET /api/system/pipeline enumerates by scanning `batch:*:current`
  * (system.py:4066) with NO database validation, so a synthetic camera id is
  * a legitimate active batch for a read that never consults Postgres.
  *
+ * The probe camera is ATTEMPT-scoped, not a fixed name. playwright.config.ts:79
+ * sets `retries: 2` on CI, and add_detection REUSES an existing
+ * `batch:<camera>:current` rather than minting a new one, so a fixed name would
+ * let a failed attempt 1 leave its probe batch alive for the ~90 s window and
+ * attempt 2's "must start with no active batch" leg would then fire on this
+ * spec's own leftover — a false RED caused by the retry machinery itself.
+ * A fresh camera per attempt keeps that leg both meaningful and true by
+ * construction; leftovers still self-clean via the worker below. Same posture
+ * as access.spec.ts:81 (`GoldenAcc${Date.now()...}${process.pid}`) and
+ * frontend-logs.spec.ts:214 (RUN_MARK).
+ *
  * Why this cannot leak into another spec's counts:
- *  - camera-scoped: the probe camera `fe_r134_probe` matches no fixture, and
+ *  - camera-scoped: the probe camera is a `fe_r134_`-prefixed name that matches
+ *    no fixture, and
  *    every golden event-count truth is camera-scoped
  *    (event-stats.spec.ts:127 `?camera_id=`, timeline-scrubber.spec.ts:394),
  *    so it can never enter another file's numerator;
  *  - it self-cleans: the `backend` container runs the `batch_timeout` worker
- *    (main.py:1010), which closes the batch at the window/idle timeout and
- *    DELETEs every `batch:*` key (batch_aggregator.py:1016-1024) — no HTTP
+ *    (main.py:1011-1015), which closes the batch at the window/idle timeout and
+ *    DELETEs every `batch:*` key (batch_aggregator.py:1018-1026) — no HTTP
  *    delete is needed and none exists;
  *  - closing it creates NO event: the close pushes to the analysis queue, and
  *    analyze_batch loads the batch's detection ids from Postgres and raises
- *    `No detections found for batch` for a synthetic id (vlm_analyzer.py:508-
- *    510) before any event is written. The seed warms the (fake) engine via
+ *    `No detections found for batch` for a synthetic id (vlm_analyzer.py:515)
+ *    before any event is written. The seed warms the (fake) engine via
  *    wake_ai_vlm and broadcasts `detection.new` over WS — both client-side.
  *
- * The DOM is tied to the backend through the batch's own identity: the
- * returned batch_id and the probe camera id must both appear inside
- * `batch-timeline-chart`, so a view that rendered zeros or a stale list fails.
- * `active-batch-count` is asserted as a positive number, not an exact 1,
- * because another lane's batch could coexist; the probe batch's presence in
- * the chart is the exact, differential claim. aria-expanded is not read (see
+ * The DOM is tied to the backend through the batch's own identity, at ROW
+ * level: the returned batch_id and the probe camera id must co-occur in the
+ * SAME per-batch row, so a view that rendered zeros, a stale list, or a row
+ * that mixed two batches' fields fails. aria-expanded is not read (see
  * openSection's measured note: it is stale on this page's controlled sections).
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
@@ -56,7 +66,11 @@ import {
 
 const harness = readOpsHarness();
 
-const PROBE_CAMERA = 'fe_r134_probe';
+// Attempt-scoped (see header): a retry gets a fresh camera so the
+// "must start with no active batch" leg can never fire on this spec's own
+// leftover batch. 13 chars + 6 = 19, matching the longest seeded camera
+// (driveway, front_door, backyard).
+const PROBE_CAMERA = `fe_r134_${Date.now().toString(36).slice(-6)}`;
 // Synthetic detection id, absent from Postgres by construction (well above any
 // id a golden fixture stack's detection sequence reaches).
 const PROBE_DETECTION_ID = 99_134_001;
@@ -90,7 +104,9 @@ test.describe('golden path: batch statistics section @critical', () => {
 
     // Supply one active batch. No threat_type / smoke_fire_type and
     // fast_path_enabled ships False (ruling 168), so add_detection takes the
-    // normal batching path (batch_aggregator.py:618) rather than a fast path.
+    // normal batching path: the fast-path gate at batch_aggregator.py:557 calls
+    // _should_use_fast_path (:1186), which returns False whatever the threshold is
+    // set to because fast_path_enabled ships False (ruling 168).
     const seeded = await authPost<AddDetectionResp>(h, session, '/api/debug/batch/add-detection', {
       camera_id: PROBE_CAMERA,
       detection_id: PROBE_DETECTION_ID,
@@ -143,12 +159,18 @@ test.describe('golden path: batch statistics section @critical', () => {
     const dashboard = page.getByTestId('batch-statistics-dashboard');
     await expect(dashboard).toBeVisible();
 
-    // The kept active-batches view renders the seeded batch by identity.
+    // The kept active-batches view renders the seeded batch by identity, in
+    // ONE ROW. Three chart-wide toContainText checks would also pass if a render
+    // bug split a batch's camera and id across two rows, or if the container
+    // matched its own empty branch — that branch carries the SAME
+    // data-testid (BatchTimelineChart.tsx:49 and :61 are mutually-exclusive
+    // returns, so only one is mounted, but the id alone cannot tell them apart).
+    // The per-batch row is separately addressable: it uses rounded-md (:77)
+    // while the container uses rounded-lg (:61), and it is keyed by batch_id.
     const chart = page.getByTestId('batch-timeline-chart');
-    await expect(chart).toBeVisible();
-    await expect(chart).toContainText('Active Batches');
-    await expect(chart).toContainText(PROBE_CAMERA);
-    await expect(chart).toContainText(seeded.batch_id);
+    const probeRow = chart.locator('div.rounded-md').filter({ hasText: seeded.batch_id });
+    await expect(probeRow, 'exactly one row carries the seeded batch id').toHaveCount(1);
+    await expect(probeRow, 'that row also carries the probe camera').toContainText(PROBE_CAMERA);
 
     // The summary count tracks a positive active-batch number (not an exact 1:
     // another lane's batch may coexist; identity above is the exact claim).
