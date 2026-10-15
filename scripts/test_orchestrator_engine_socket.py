@@ -19,12 +19,13 @@ which #7114's owner letter showed is accidental protection worth keeping (a prod
 invalid Alloy config cannot boot at all today). `test_alloy_always_demands_the_socket_value`
 pins that protection against a future relaxation.
 
-These are RENDER assertions on purpose. The mechanism is an open owner-tier design question
-(Compose has no conditional volume item: an interpolated entry that expands to nothing is
-`invalid empty volume spec`, and `${VAR:+…}` treats the string "false" as truthy — both measured on
-the repo's CLI v5.5.1). So this file reads the `docker compose config` output and says nothing about
-whether the fix is an `include:` fragment, a second service, or anything else. Whichever mechanism
-makes all four pins green wins; the test does not pre-select it.
+These are RENDER assertions on purpose (Compose has no conditional volume item: an interpolated
+entry that expands to nothing is `invalid empty volume spec`, and `${VAR:+…}` treats the string
+"false" as truthy — both measured on the repo's CLI v5.5.1). The file reads the
+`docker compose config` output, so it pins the CONTRACT, not one file's spelling of it: the shipped
+mechanism (owner ruling 186 item 3, ops-a's call — `ac84fd7d9`) is the top-level `include:` whose
+interpolated PATH names one of two fragments, and the pins here would hold unchanged if a future
+commit re-expressed that mechanism differently, which is the point.
 
 The DEFAULT direction is not cosmetic. `backend/core/config.py:134-138` is `enabled: bool =
 Field(True, …)`, so an unset `ORCHESTRATOR_ENABLED` means the orchestrator is ON. A render that
@@ -155,6 +156,51 @@ def test_the_unset_flag_keeps_the_socket():
     hits = _socket_mounts(services)
     for n in NAMED:
         assert hits[n], f"{n} lost its engine socket on an UNSET flag (default must be ON): {hits}"
+
+
+# ------------------------------------------------------------------ loud-failure: the values gap ----------
+# pydantic 2.13.5's lenient bool coercion, re-measured at this head: it accepts every
+# case-insensitive spelling of true/false/yes/no/on/off/t/f/y/n plus `1` and `0` — 82 spellings, of
+# which 80 name no fragment. The list below is those 80 collapsed to their distinct SHAPES (the
+# case-permutations of one family all fail the same way, on the same line of code), and every entry
+# was measured as accepted by pydantic and rejected by compose at this head. Silent acceptance of a
+# non-canonical spelling is the bad outcome: `1` resolves to no file, and a mechanism that swallowed
+# that would boot the orchestrator ON with no socket (or OFF holding one) — a shape nobody wrote
+# down. The control for these legs is `test_orchestrator_on_mounts_the_socket_as_before`: same CLI,
+# same `_render()`, same env scrub, rc=0. If prod.yml were broken wholesale, that leg goes red
+# first, so rc!=0 here cannot be an unrelated failure — and the assertion pins WHICH fragment the
+# renderer looked for, which a generic breakage cannot satisfy.
+NON_CANONICAL_BOOL_SPELLINGS = (
+    "1", "0",                                   # digits
+    "t", "T", "f", "F", "y", "Y", "n", "N",     # single letters
+    "yes", "Yes", "YES",                        # yes-family
+    "no", "No", "NO",                           # no-family
+    "on", "On", "ON",                           # on-family
+    "off", "Off", "OFF",                        # off-family
+    "True", "TRUE",                             # true-family, non-canonical case
+    "False", "FALSE",                           # false-family, non-canonical case
+)
+
+
+@pytest.mark.parametrize("spelling", NON_CANONICAL_BOOL_SPELLINGS)
+def test_a_non_canonical_flag_spelling_fails_the_render_loudly(spelling: str):
+    """The values gap #7114's mechanism note names, pinned. `ORCHESTRATOR_ENABLED` reaches compose
+    as a literal string, and the condition lives in a FILENAME, so a spelling pydantic accepts but
+    no fragment carries has no file to include: the render must fail, and name the fragment it
+    looked for. Failing loudly is the designed behaviour (see the two fragment headers) — this pin
+    is what keeps it loud."""
+    _require_cli()
+    rc, err, _services = _render(PODMAN_SOCKET=SOCKET_SENTINEL, ORCHESTRATOR_ENABLED=spelling)
+    assert rc != 0, (
+        f"ORCHESTRATOR_ENABLED={spelling!r} RENDERED (rc=0). pydantic accepts this spelling, but "
+        f"docker-compose.engine-{spelling}.yml does not exist, so a render that succeeded mounted "
+        f"a socket on a condition no fragment expresses — the silent-wrong-shape outcome."
+    )
+    expected = f"docker-compose.engine-{spelling}.yml"
+    assert expected in err and "no such file" in err, (
+        f"ORCHESTRATOR_ENABLED={spelling!r} failed rc={rc} but not on the missing fragment "
+        f"(expected {expected!r} + 'no such file' in the error): {err[:400]}"
+    )
 
 
 # ------------------------------------------------------------------ kept protection: the `:?` ----------

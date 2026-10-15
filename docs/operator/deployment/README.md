@@ -859,6 +859,15 @@ never names it keeps the socket exactly as before. The Upgrade Steps above are
 unchanged — compose resolves the `include:` path itself; the two fragments ship in
 the repo root and no operator action is needed for the default (ON) state.
 
+**Write the variable as exactly `true` or `false`.** The backend's config parser
+is lenient (`1`, `yes`, `on`, any case — all read as ON), but the condition above
+lives in a FILENAME, so only those two spellings resolve to a fragment. Any other
+value fails the render with `docker-compose.engine-<value>.yml: no such file or
+directory` — loud by design, because the alternative is booting a socket shape no
+fragment expresses. `scripts/test_orchestrator_engine_socket.py` pins that failure
+across the distinct spellings beyond `true`/`false` (case variants fail identically,
+on the same line of code).
+
 **Only check this if your deployment runs the orchestrator OFF.** A redeploy with
 `ORCHESTRATOR_ENABLED=false` in `.env` drops the socket mount from `backend` and
 container auto-recovery stops working (the NEM-4xxx feature). `alloy`'s socket
