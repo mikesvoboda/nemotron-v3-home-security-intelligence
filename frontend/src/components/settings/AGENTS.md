@@ -171,6 +171,10 @@ related admin panels.
 | Detection Confidence Threshold | 0.00-1.00 | 0.01 |
 | Fast-Path Confidence Threshold | 0.00-1.00 | 0.01 |
 
+The Fast-Path Confidence Threshold slider renders only while the "Fast Path"
+switch (`fast_path_enabled`, off by default) is on (ruling 168); while off the
+save payload omits `fast_path_confidence_threshold` entirely.
+
 Detection confidence is marked DEPRECATED in the backend
 (`ConfigResponse.detection_confidence_threshold`); the settings API
 (`/api/v1/settings`, through `useSettingsQuery` / `useUpdateSettings`) is the

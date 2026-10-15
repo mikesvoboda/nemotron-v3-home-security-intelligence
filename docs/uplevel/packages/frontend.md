@@ -496,11 +496,14 @@ its head.
 ### [r168] The fast-path switch
 
 **Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s
-`fast_path_enabled` field merged. **PR:** none yet. (ruling 168)
+`fast_path_enabled` field merged. **PR:** #7174 (open). (ruling 168)
 
 - [ ] The processing settings show a "Fast path" switch bound to `fast_path_enabled`, off by default,
       with `config.py`'s warning as its help text; the threshold slider shows only when it is on.
-- [ ] The page never writes a threshold while the switch is off.
+      Ticked from the first ready `Backend+Frontend Unit Tests` run naming this PR's leg
+      (`ProcessingSettings.test.tsx › fast-path switch (ruling 168)`); a draft skips every job.
+- [ ] The page never writes a threshold while the switch is off. Same witness as above
+      (`never sends a fast-path threshold while the switch is off`).
 
 **Done when:** a test saves the settings page with the fast path off and reads it back off; backend
 then removes the two read clamps in `system.py` as UR-48 lane work.
