@@ -209,6 +209,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 194    | F-234: docs sets `channel: 'chromium'` in permission.spec.ts only (record 6197728882)                       |
 | 195    | O2.5 runs on maui after package `[r195]` (host-login harness) (record 6197833896)                           |
 | 196    | packages `[r196a]` frontend, `[r196b]` docs, `[r196c]` ops-b: last F2.3 rows (record 6198072340)            |
+| 197    | `[r197]`, owner's session: plan lint, footers, `--beat` (records 6198161166, 6198199744)                    |
 
 ## Owner records
 
