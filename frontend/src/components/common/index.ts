@@ -244,3 +244,7 @@ export type {
 // Verdict-engine status banner (F1.2, UR-18)
 export { default as VerdictEngineStatusBanner } from './VerdictEngineStatusBanner';
 export type { VerdictEngineStatusBannerProps } from './VerdictEngineStatusBanner';
+
+// /events/:id -> /timeline?event=:id deep-link redirect (owner ruling 167, F-034)
+export { default as EventDeepLinkRedirect } from './EventDeepLinkRedirect';
+export type { EventDeepLinkRedirectProps } from './EventDeepLinkRedirect';

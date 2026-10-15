@@ -5,26 +5,36 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import Sidebar from './Sidebar';
 import { navGroups, navItems, STORAGE_KEY } from './sidebarNav';
 
+import type { ViewportInfo } from '../../hooks/useViewport';
+
 // Mock the useSidebarContext hook
 const mockSetMobileMenuOpen = vi.fn();
+const menuState = vi.hoisted(() => ({ current: false }));
 
 vi.mock('../../hooks/useSidebarContext', () => ({
   useSidebarContext: () => ({
-    isMobileMenuOpen: false,
+    isMobileMenuOpen: menuState.current,
     setMobileMenuOpen: mockSetMobileMenuOpen,
     toggleMobileMenu: vi.fn(),
   }),
 }));
 
-// Mock the useViewport hook to return desktop by default
-vi.mock('../../hooks/useIsMobile', () => ({
-  useViewport: () => ({
+// Mock the useViewport hook. `viewport` is hoisted-mutable rather than a fixed
+// literal because the [r130f] F-017 drawer gate reads `breakpoint` (NOT isMobile):
+// with a constant 'lg' the inert behaviour is invisible to this tier, and this tier
+// is the only one CI runs without a live stack. Tests that care assign it.
+const viewportState = vi.hoisted((): { current: ViewportInfo } => ({
+  current: {
     isMobile: false,
     isTablet: false,
     isDesktop: true,
     width: 1200,
-    breakpoint: 'lg' as const,
-  }),
+    breakpoint: 'lg',
+  },
+}));
+
+vi.mock('../../hooks/useIsMobile', () => ({
+  useViewport: () => viewportState.current,
 }));
 
 // Helper to render with router
@@ -41,6 +51,16 @@ describe('Sidebar', () => {
     // Clear localStorage before each test
     localStorage.clear();
     mockSetMobileMenuOpen.mockClear();
+    // Both mocked hooks read live objects, so a test that flips them must not
+    // leak into the next one.
+    menuState.current = false;
+    viewportState.current = {
+      isMobile: false,
+      isTablet: false,
+      isDesktop: true,
+      width: 1200,
+      breakpoint: 'lg',
+    };
   });
 
   afterEach(() => {
@@ -243,6 +263,81 @@ describe('Sidebar', () => {
       renderWithRouter();
       const sidebar = screen.getByTestId('sidebar');
       expect(sidebar).toHaveClass('-translate-x-full');
+    });
+
+    // [r130f] F-017. The Sidebar is now mounted at every width (Layout's `!isMobile`
+    // gate is gone, because that gate unmounted the very drawer the hamburger opens),
+    // which leaves a NEW property to own: below `md` the drawer is hidden by a
+    // TRANSFORM, and a transform does not remove a subtree from the sequential focus
+    // order — measured at 375px, a closed drawer still exposed 34 tabbable links.
+    // `inert` is what off-canvas means to a keyboard.
+    //
+    // Scope of this tier, stated honestly: jsdom parses `inert` but does not ENFORCE
+    // it (no focus prevention, no a11y-tree removal), so what these tests can prove
+    // is the component's own decision — WHICH states set the attribute. That
+    // decision has three branches and the third is the one that would break the app:
+    // keying on `isMobile` (< 640) instead of `breakpoint === 'sm'` (< 768) would
+    // inert a drawer the user can see and has just opened, in the 640–767 band. What
+    // the browser DOES with the attribute is pinned in the golden tier, where a real
+    // engine answers `focus()` and Tab.
+    describe('drawer inertness (F-017)', () => {
+      const setViewport = (over: Partial<typeof viewportState.current>) => {
+        viewportState.current = { ...viewportState.current, ...over };
+      };
+
+      it('is inert below md while closed', () => {
+        setViewport({ breakpoint: 'sm', isMobile: true, isDesktop: false, width: 375 });
+        renderWithRouter();
+        expect(screen.getByTestId('sidebar')).toHaveAttribute('inert');
+      });
+
+      it('is inert in the 640–767 band while closed — the band `isMobile` would miss', () => {
+        // THE discriminating width, and the mock must be the combination the hook
+        // ACTUALLY produces there or the test proves nothing: getBreakpoint is
+        // `>= 768 ? 'md' : 'sm'` (useViewport.ts:57-62), so 700 yields
+        // breakpoint 'sm' with isMobile FALSE (`< BREAKPOINTS.sm` = 640, :124) and
+        // isTablet TRUE. That is the whole trap: `isMobile` says "not a phone" while
+        // Tailwind's `md` (the hamburger's hiding, the drawer's own md:translate-x-0)
+        // still says "drawer". Keyed on isMobile, this closed drawer stays tabbable
+        // and the golden spec's 700px leg fails; this test is the CI-runs-anyway
+        // version of that same trap.
+        setViewport({
+          breakpoint: 'sm',
+          isMobile: false,
+          isTablet: true,
+          isDesktop: false,
+          width: 700,
+        });
+        renderWithRouter();
+        expect(screen.getByTestId('sidebar')).toHaveAttribute('inert');
+      });
+
+      it('is NOT inert in that same band once the drawer opens', () => {
+        setViewport({
+          breakpoint: 'sm',
+          isMobile: false,
+          isTablet: true,
+          isDesktop: false,
+          width: 700,
+        });
+        menuState.current = true;
+        renderWithRouter();
+        expect(screen.getByTestId('sidebar')).not.toHaveAttribute('inert');
+      });
+
+      it('is NOT inert as the desktop rail, even though isMobile is false there too', () => {
+        // The other half of the same mistake: the rail must never be inert, or the
+        // app has no navigation.
+        renderWithRouter();
+        expect(screen.getByTestId('sidebar')).not.toHaveAttribute('inert');
+      });
+
+      it('becomes interactive the moment the drawer opens', () => {
+        setViewport({ breakpoint: 'sm', isMobile: true, isDesktop: false, width: 375 });
+        menuState.current = true;
+        renderWithRouter();
+        expect(screen.getByTestId('sidebar')).not.toHaveAttribute('inert');
+      });
     });
   });
 

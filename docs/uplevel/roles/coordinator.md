@@ -27,7 +27,7 @@ label, or a comment on that agent's own open PR (UR-157).
 
 **What you keep in place:**
 
-- labels `lane:<lane>`, `cell:a`, `cell:b`, `cell:heavy-2`, `heavy`, `owner`, and `review:<lane>`
+- labels `lane:<lane>`, `cell:a`, `cell:b`, `cell:heavy-b`, `heavy`, `owner`, and `review:<lane>`
   (`review:ops-a` and `review:ops-b` for the split ops lane); create any that is missing;
 - the pinned owner issue #6854 (rulings, owner records, `URGENT PATH` comments and your status
   comment), and the pinned issue "Uplevel heartbeats" (#6958); create and pin either one if none is
@@ -64,7 +64,12 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    carry each open `URGENT PATH` item (UR-166), and ask the author of a comment that carries
    harness wrapper text to edit it (UR-156).
 5. **Heartbeats.** Raise the urgent path for each stalled agent the report's heartbeats show
-   (UR-38); a `paused` agent is not stalled (UR-160). A heartbeat older than 20 minutes goes in the
+   (UR-38); a `paused` agent is not stalled (UR-160). Before raising, read the comments updated
+   since that agent's heartbeat time, repo-wide
+   (`gh api "repos/<owner>/<repo>/issues/comments?since=<heartbeat updated_at>" --paginate --jq '.[] | "\(.updated_at) \(.html_url) \(.body | split("\n")[0])"'`),
+   and the commits on its open PR branches since then. A comment signed by the agent
+   (`Reviewer lane: <lane>`, or its lane or sandbox name in the first line) or one of those commits
+   means it is not stalled; say which you read in the raise (ruling 178). A heartbeat older than 20 minutes goes in the
    status comment (UR-166).
 6. **`main`.** On the first red `CI Gate` run the report shows on `main`, follow "Red `main`" below;
    a cancelled run is not red. On the first tick after the nightly schedule, raise and route a red
@@ -110,9 +115,7 @@ Read rules.md §Merging first: it defines ready time, queue order, the owner tie
 and which PRs may jump the queue, and names the merge rules that sit elsewhere.
 
 1. **Pick** the oldest ready PR (UR-104, UR-106).
-2. **Skip the update** when UR-102's three conditions hold: its green `CI Gate` ran on a `main` at
-   most 3 merges behind the tip, `git diff --name-only <its base>..origin/main` shares no path with
-   `gh pr view <n> --json files`, and `main`'s latest CI run is not red. Go to step 3.
+2. **Skip the update** when the snapshot's three merge legs pass for the PR (UR-102). Go to step 3.
    **Otherwise update** the PR, one at a time (UR-102):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff

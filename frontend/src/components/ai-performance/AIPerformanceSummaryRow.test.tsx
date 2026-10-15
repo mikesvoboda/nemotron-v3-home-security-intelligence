@@ -6,7 +6,7 @@
  * tooltips, click-to-scroll behavior, and responsive layout.
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
@@ -92,6 +92,41 @@ describe('AIPerformanceSummaryRow', () => {
       expect(screen.getByTestId('queues-indicator')).toBeInTheDocument();
       expect(screen.getByTestId('throughput-indicator')).toBeInTheDocument();
       expect(screen.getByTestId('errors-indicator')).toBeInTheDocument();
+    });
+
+    it('keeps the desktop grid and the rendered card count in step', () => {
+      render(
+        <AIPerformanceSummaryRow
+          rtdetr={healthyRtdetr}
+          nemotron={healthyNemotron}
+          detectionLatency={fastDetectionLatency}
+          analysisLatency={fastAnalysisLatency}
+          detectionQueueDepth={0}
+          analysisQueueDepth={0}
+          totalDetections={100}
+          totalEvents={50}
+          totalErrors={0}
+        />
+      );
+      const row = screen.getByTestId('ai-summary-row');
+      // Every rendered card is an IndicatorCard button carrying data-status;
+      // counting them (rather than hardcoding 6) is the point — adding a card
+      // must break this by changing the count, not by needing an edit here.
+      const cardCount = within(row)
+        .getAllByRole('button')
+        .filter((b) => b.hasAttribute('data-status')).length;
+      expect(cardCount, 'the row renders no cards to divide into columns').toBeGreaterThan(0);
+      const lg = Array.from(row.classList)
+        .map((c) => /^lg:grid-cols-(\d+)$/.exec(c))
+        .find(Boolean);
+      const cols = lg ? Number(lg[1]) : 0;
+
+      expect(
+        cardCount % cols,
+        `${cardCount} cards in a ${cols}-column desktop grid orphans ` +
+          `${cardCount % cols} card(s) on a trailing row at 1/${cols} width. ` +
+          'When a card is added or removed, the lg:grid-cols-* class must move with it.'
+      ).toBe(0);
     });
 
     it('applies custom className', () => {
@@ -623,6 +658,95 @@ describe('AIPerformanceSummaryRow', () => {
     });
   });
 
+  // F-038: the inventory row promised a "DLQ error count". The hook already
+  // fetched GET /api/dlq/stats into dlqItems (useAIMetrics.ts:313, :378); what
+  // it never had was a render site — its only reader, ai/PipelineHealthPanel,
+  // is not mounted anywhere. These tests pin the card that closes that gap.
+  describe('DLQ indicator (F-038)', () => {
+    const baseProps = {
+      rtdetr: healthyRtdetr,
+      nemotron: healthyNemotron,
+      detectionLatency: fastDetectionLatency,
+      analysisLatency: fastAnalysisLatency,
+      detectionQueueDepth: 0,
+      analysisQueueDepth: 0,
+      totalDetections: 100,
+      totalEvents: 50,
+      totalErrors: 0,
+    };
+
+    it('renders the DLQ card with a zero state when nothing is parked', () => {
+      render(<AIPerformanceSummaryRow {...baseProps} dlqCounts={{}} />);
+      const card = screen.getByTestId('dlq-indicator');
+      expect(screen.getByText('DLQ')).toBeInTheDocument();
+      // Zero renders 'None' rather than hiding the card: a hidden card is
+      // indistinguishable from a failed fetch.
+      expect(card).toHaveTextContent('None');
+      expect(card).toHaveAttribute('data-status', 'green');
+    });
+
+    it('renders the zero state when the prop is omitted entirely', () => {
+      render(<AIPerformanceSummaryRow {...baseProps} />);
+      expect(screen.getByTestId('dlq-indicator')).toHaveTextContent('None');
+    });
+
+    it('sums the per-queue map the hook builds', () => {
+      render(
+        <AIPerformanceSummaryRow
+          {...baseProps}
+          dlqCounts={{ 'dlq:detection_queue': 3, 'dlq:analysis_queue': 2 }}
+        />
+      );
+      expect(screen.getByTestId('dlq-indicator')).toHaveTextContent('5 parked');
+    });
+
+    it('colours the first parked job yellow and a backlog red', () => {
+      // Stricter than the Errors card on purpose: a parked job is a current
+      // condition needing a decision, not a cumulative counter.
+      const { unmount } = render(
+        <AIPerformanceSummaryRow {...baseProps} dlqCounts={{ 'dlq:detection_queue': 1 }} />
+      );
+      expect(screen.getByTestId('dlq-indicator')).toHaveAttribute('data-status', 'yellow');
+      unmount();
+      render(
+        <AIPerformanceSummaryRow
+          {...baseProps}
+          dlqCounts={{ 'dlq:detection_queue': 10, 'dlq:analysis_queue': 0 }}
+        />
+      );
+      expect(screen.getByTestId('dlq-indicator')).toHaveAttribute('data-status', 'red');
+    });
+
+    it('names the queues in the tooltip so the total is traceable', async () => {
+      render(
+        <AIPerformanceSummaryRow
+          {...baseProps}
+          dlqCounts={{ 'dlq:detection_queue': 4, 'dlq:analysis_queue': 1 }}
+        />
+      );
+      // Same hover idiom as this file's tooltip block: mouseEnter, then assert
+      // against role=tooltip itself. (findByText on the heading would resolve
+      // to the heading div alone, which never contains the per-queue rows.)
+      fireEvent.mouseEnter(screen.getByTestId('dlq-indicator'));
+      await waitFor(() => {
+        const tooltip = screen.getByRole('tooltip');
+        expect(tooltip).toHaveTextContent('Total Parked: 5');
+        // The `dlq:` prefix is stripped for humans; the queue names survive.
+        expect(tooltip).toHaveTextContent('detection_queue: 4');
+        expect(tooltip).toHaveTextContent('analysis_queue: 1');
+      });
+    });
+
+    it('is reachable by keyboard and describes itself', () => {
+      render(<AIPerformanceSummaryRow {...baseProps} dlqCounts={{ 'dlq:detection_queue': 2 }} />);
+      const card = screen.getByTestId('dlq-indicator');
+      expect(card).toHaveAccessibleName(
+        /Dead-letter queues: 2 jobs parked\. Jobs land here after their final retry fails\./
+      );
+      expect(card).toBeEnabled();
+    });
+  });
+
   describe('click-to-scroll behavior', () => {
     it('calls onIndicatorClick when RT-DETRv2 indicator is clicked', async () => {
       const handleClick = vi.fn();
@@ -755,7 +879,10 @@ describe('AIPerformanceSummaryRow', () => {
       );
 
       const indicators = screen.getAllByRole('button');
-      expect(indicators.length).toBe(5);
+      // 6 as of F-038: the DLQ card joined the row. This render omits
+      // dlqCounts, so the count also proves the card renders its zero state
+      // rather than disappearing when the hook has nothing to show.
+      expect(indicators.length).toBe(6);
     });
 
     it('has aria-label for each indicator', () => {

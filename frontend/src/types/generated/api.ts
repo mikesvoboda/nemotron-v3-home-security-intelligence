@@ -19435,6 +19435,7 @@ export interface components {
          *       "debug": false,
          *       "detection_confidence_threshold": 0.5,
          *       "fast_path_confidence_threshold": 0.9,
+         *       "fast_path_enabled": false,
          *       "grafana_url": "/grafana",
          *       "log_retention_days": 7,
          *       "retention_days": 30,
@@ -19473,6 +19474,11 @@ export interface components {
              * @description Confidence threshold for fast-path high-priority analysis (0.0-1.0)
              */
             fast_path_confidence_threshold: number;
+            /**
+             * Fast Path Enabled
+             * @description Master switch for fast-path processing (ruling 168)
+             */
+            fast_path_enabled: boolean;
             /**
              * Grafana Url
              * @description Grafana dashboard URL for frontend link
@@ -19522,6 +19528,11 @@ export interface components {
              * @description Confidence threshold for fast-path high-priority analysis (0.0-1.0)
              */
             fast_path_confidence_threshold?: number | null;
+            /**
+             * Fast Path Enabled
+             * @description Master switch for fast-path processing (ruling 168)
+             */
+            fast_path_enabled?: boolean | null;
             /**
              * Log Retention Days
              * @description Number of days to retain logs
@@ -21169,6 +21180,7 @@ export interface components {
          *     and fast-path processing for high-priority alerts.
          * @example {
          *       "confidence_threshold": 0.5,
+         *       "fast_path_enabled": false,
          *       "fast_path_threshold": 0.9
          *     }
          */
@@ -21178,6 +21190,11 @@ export interface components {
              * @description Minimum confidence threshold for object detections (0.0-1.0)
              */
             confidence_threshold: number;
+            /**
+             * Fast Path Enabled
+             * @description Master switch for fast-path processing (ruling 168)
+             */
+            fast_path_enabled: boolean;
             /**
              * Fast Path Threshold
              * @description Confidence threshold for fast-path high-priority analysis (0.0-1.0)
@@ -21199,6 +21216,11 @@ export interface components {
              * @description Minimum confidence threshold for object detections (0.0-1.0)
              */
             confidence_threshold?: number | null;
+            /**
+             * Fast Path Enabled
+             * @description Master switch for fast-path processing (ruling 168)
+             */
+            fast_path_enabled?: boolean | null;
             /**
              * Fast Path Threshold
              * @description Confidence threshold for fast-path high-priority analysis (0.0-1.0)
@@ -39011,6 +39033,7 @@ export interface components {
          *       },
          *       "detection": {
          *         "confidence_threshold": 0.5,
+         *         "fast_path_enabled": false,
          *         "fast_path_threshold": 0.9
          *       },
          *       "features": {
@@ -54040,7 +54063,7 @@ export interface operations {
                 /** @description Comma-separated status values to filter (e.g., 'running,pending') */
                 status?: string | null;
                 /** @description Comma-separated job types to filter (e.g., 'export,cleanup') */
-                job_type?: string | null;
+                type?: string | null;
                 /** @description Queue name filter (reserved for future use) */
                 queue?: string | null;
                 /** @description Filter jobs created after this ISO timestamp */

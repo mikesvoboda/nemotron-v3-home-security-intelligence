@@ -327,7 +327,7 @@ To access Grafana directly with full editing capabilities, click the "Open in Gr
 | Batch Window          | `BATCH_WINDOW_SECONDS`               | `90`                                                                                       | Maximum batch duration                                          |
 | Idle Timeout          | `BATCH_IDLE_TIMEOUT_SECONDS`         | `30`                                                                                       | Close batch after this idle period                              |
 | Fast Path Enabled     | `FAST_PATH_ENABLED`                  | `false` (compose) — fast path is currently OFF                                             | Master switch for fast path                                     |
-| Fast Path Confidence  | `FAST_PATH_CONFIDENCE_THRESHOLD`     | config default `2.0` (disables it); compose overrides with `0.90`                          | Confidence for immediate analysis                               |
+| Fast Path Confidence  | `FAST_PATH_CONFIDENCE_THRESHOLD`     | config default `0.9`; compose sets `0.90`                                                  | Confidence for immediate analysis (consulted only when enabled) |
 | Fast Path Types       | `FAST_PATH_OBJECT_TYPES`             | `[]` in config; `.env.example` shows `["person"]` commented out                            | Object types eligible for fast path                             |
 
 ### Refresh Settings

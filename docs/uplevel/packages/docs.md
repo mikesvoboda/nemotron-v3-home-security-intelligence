@@ -104,3 +104,26 @@ list covers them, each directory added in the PR that fixes its citations (owner
 
 The ratchets hold the map true; who updates a boundary file's lines, and when this lane reviews
 them, is UR-81. This lane opens a package only on a trigger (UR-68).
+
+### [r165b] F-235: cure the quarantined notify channels spec
+
+**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** #7122 (merged 2026-10-14T18:36:41Z as `8977e9457`, head `f1d923174`).
+(rulings 125, 165)
+
+- [x] First commit: the ruling-125 mark's expiry in
+      `frontend/tests/golden/notify-access/notify.spec.ts` reads 2026-10-16T00:00Z.
+      Done at `e21e139e1`, which moved the expiry there. The cure then deleted the mark outright
+      (`8a374c2e1`), so the box is satisfied by the commit that wrote it and superseded by the one
+      that removed it — at HEAD `grep -c test.fixme` on that spec is 0.
+- [x] The F-235 channels test passes without a retry; the `test.fixme` mark is removed.
+      Run `38584761421`, job `Feature check (fake AI)` (115923989614), `success` at 15:29:34Z on
+      tree `6f1e1d9` (merge of main `2f7effd72` + head `c675919bc`). `golden-playwright.log`:
+      `✓ 63 … notify.spec.ts:212:3 › F-235 channels … (3.7s)`, first attempt, tally
+      `165 passed / 1 flaky / 12 skipped`. The no-retry witness is that log, not `summary.json`
+      (which stores only the final attempt): the run's ONE `(retry #…)` line is
+      `timeline/event-feedback.spec.ts:213`, a different leg, published under ruling 166.
+
+**Done when:** the spec passes in CI's `Feature check (fake AI)` with no mark, before
+2026-10-16T00:00Z. **MET** — run `38584761421` above, 2026-10-14T15:29:34Z, ~38 h inside the mark's
+expiry and the ruling-165 clock (12:08:57Z + 48 h on the 16th). The F-235 inventory row moves
+`unverified` → `awaiting real tier` in the same commit, and §2's §3.10/all totals roll with it.

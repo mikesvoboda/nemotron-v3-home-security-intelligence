@@ -134,15 +134,15 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 119    | coordinator decision C-119 (not an owner ruling); stands per 120                                            |
 | 120    | UR-45, UR-48, UR-151; C-118/C-119 disposition one-off                                                       |
 | 121    | UR-81                                                                                                       |
-| 122    | UR-125, UR-126; package `[r122]` (open, #7027; `packages/backend.md`)                                       |
+| 122    | UR-125, UR-126; package `[r122]` (open, #7027 merged; `packages/backend.md`)                                |
 | 123    | UR-128; spec fix one-off                                                                                    |
 | 124    | one-off (R2 sheet face-events row)                                                                          |
 | 125    | UR-114, UR-128; quarantine of F-022, F-007, F-235 one-off                                                   |
 | 126    | UR-48, UR-129                                                                                               |
 | 127    | UR-148, UR-10, UR-153                                                                                       |
 | 128    | package Phase 4 Monitoring page                                                                             |
-| 129    | package `[r129]` (open, #7031; `packages/backend.md`)                                                       |
-| 130    | packages `[r130b]` (open; `packages/backend.md`) and `[r130f]` (open; `packages/frontend.md`)               |
+| 129    | package `[r129]` (open, #7031 merged; `packages/backend.md`)                                                |
+| 130    | packages `[r130b]` (open; `packages/backend.md`) and `[r130f]` (#7039; `packages/frontend.md`)              |
 | 131    | package Phase 4 Trash delete action                                                                         |
 | 132    | package Phase 3 rate-limit countdown retirement                                                             |
 | 133    | package Phase 3 PWA install prompt retirement                                                               |
@@ -176,6 +176,29 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 161    | lane.md "Self-review": ready when code is complete (6156907393)                                             |
 | 162    | `O2.5`'s spike blockers; package `[r162]` (record 6156947315)                                               |
 | 163    | lane.md, operator.md tick step 1: read BINDING NOW records (6156999669)                                     |
+| 164    | UR-10, UR-21, UR-102, UR-179; package `[r164a]` (record 6157102381)                                         |
+| 165    | packages `[r165a]`, `[r165b]`: quarantine cures (record 6167988837)                                         |
+| 166    | flaky golden specs published, not failed (record 6168002797)                                                |
+| 167    | F-034: frontend `/events/:id` redirect (record 6168022059)                                                  |
+| 168    | package `[r168]` and `[r130b]`'s fast-path flag (record 6168040085)                                         |
+| 169    | `[r96i11]` accepted as built; #7052 approved (record 6168049984)                                            |
+| 170    | lane.md, operator.md step 1: every live record (6168081817)                                                 |
+| 171    | reviewer auto-merge may merge at once (record 6168101206)                                                   |
+| 172    | package `[r172]`: per-module import budget (record 6168112919)                                              |
+| 173    | package `[r173]`: golden skips in the registry (record 6168125268)                                          |
+| 174    | compose-render entry leaves `tpa_slow_list` (record 6168142239)                                             |
+| 175    | lane.md roster: `F2.3` rebalanced (FE-4 to docs, OP-3 to ops-b) (record 6168756268)                         |
+| 176    | UR-180: sandbox disks under 90%, targeted cleanup (record 6172107453)                                       |
+| 177    | lane.md, operator.md step 1: uncarried records, filtered (record 6172198207)                                |
+| 178    | lane.md beat before long steps; coordinator.md step 5 (record 6172424097)                                   |
+| 179    | UR-155 600-char heartbeats; UR-181 evidence cells (record 6172543400)                                       |
+| 180    | package `[r157]`: independent builds, `--plan-timeout` (record 6173140800)                                  |
+| 181    | package `[r181]`: lane-tick digest, activity snapshot; `BLOCKER:` line (record 6173920972)                  |
+| 182    | UR-182: RTX VSS positioning, Easy/Advanced modes; seven rows kept (record 6174228588)                       |
+| 183    | package B3.2: scene-change vertical kept, R2a row 24 over OD-28 (record 6175205677)                         |
+| 184    | heavy agents renamed heavy-a/-b; FE-4 and OP-1 batches; UR-59 label (record 6177514438)                     |
+| 185    | `O2.5`'s prod-shape run on maui, run by the owner (record 6181352718)                                       |
+| 186    | package `[r162]`: backend's socket only; alloy keeps its mount (record 6181436641)                          |
 
 ## Owner records
 

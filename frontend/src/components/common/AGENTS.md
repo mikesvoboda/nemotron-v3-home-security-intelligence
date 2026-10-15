@@ -35,6 +35,8 @@ Contains reusable UI components shared across multiple features. These are low-l
 | `EmptyState.test.tsx`                | Test suite for EmptyState                                     | Active     |
 | `ErrorBoundary.tsx`                  | React error boundary for catching component errors            | Active     |
 | `ErrorBoundary.test.tsx`             | Test suite for ErrorBoundary                                  | Active     |
+| `EventDeepLinkRedirect.tsx`          | Redirects /events/:id deep links to the timeline deep link    | Active     |
+| `EventDeepLinkRedirect.test.tsx`     | Test suite for EventDeepLinkRedirect                          | Active     |
 | `FaviconBadge.tsx`                   | Dynamic favicon badge for notification counts                 | Active     |
 | `FaviconBadge.test.tsx`              | Test suite for FaviconBadge                                   | Active     |
 | `FeatureErrorBoundary.tsx`           | Feature-specific error isolation boundary                     | Active     |
@@ -1040,6 +1042,45 @@ import RouteLoadingFallback from '../common/RouteLoadingFallback';
 **Dependencies:**
 
 - `lucide-react` - Loader2 icon
+
+---
+
+### EventDeepLinkRedirect.tsx
+
+**Purpose:** Answers the `/events/:id` deep links the backend emits by redirecting to the timeline deep link the app already serves (owner ruling 167, F-034).
+
+**Props Interface:**
+
+```typescript
+interface EventDeepLinkRedirectProps {
+  fallback?: ReactNode; // Rendered when the path id cannot be a timeline deep link
+}
+```
+
+**Key Features:**
+
+- The summary-detail payload stores each timeline row's link as `/events/{id}` (`backend/services/summary_detail_service.py:147`) and the dashboard panel renders that value verbatim into a plain anchor — no target, no router, so a click really navigates.
+- Owner ruling 167 fixed the URL split with "one side changes, not both": the backend keeps `/events/{id}`, the frontend answers it. The route lives in `App.tsx` inside `<Layout />`, so a followed link keeps the app shell.
+- An id `parseEventId` refuses (non-numeric, negative, decimal, empty) renders `fallback` rather than redirecting to an unfiltered timeline — `EventTimeline` validates `?event=` with the same helper, so a junk id there would show EVERY event behind a URL that looks like it worked.
+- **`fallback` is load-bearing, not decoration.** A matched route wins over `path="*"`, so returning `null` here would be a blank dead end instead of the 404 — `App.tsx` passes the same `NotFoundPage` the catch-all uses.
+- `replace` on the `<Navigate>` so Back does not land on the redirect and bounce forward again.
+
+**Usage:**
+
+```tsx
+<Route path="/events/:eventId" element={<EventDeepLinkRedirect fallback={<NotFoundPage />} />} />
+```
+
+**Used By:**
+
+- `App.tsx` - the `/events/:eventId` route (the only mount site)
+
+Two shipped callers reach the route through their own anchors rather than through `navigate()`: `AuditResultsTable.tsx` renders a react-router `Link`, and `MemberDetectionHistory.tsx` assigns `window.location.href`. Both keep their `/events/{id}` hrefs — the route changed underneath them — and the caller leg in `../../ai-audit/AuditResultsTable.test.tsx` drives that anchor through the redirect.
+
+**Dependencies:**
+
+- `react-router-dom` - `Navigate`, `useParams`
+- `../../utils/validation` - `parseEventId` (digits-only, NEM-2561)
 
 ---
 

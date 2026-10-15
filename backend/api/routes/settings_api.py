@@ -40,6 +40,7 @@ logger = get_logger(__name__)
 SETTINGS_ENV_MAP: dict[str, dict[str, str]] = {
     "detection": {
         "confidence_threshold": "DETECTION_CONFIDENCE_THRESHOLD",
+        "fast_path_enabled": "FAST_PATH_ENABLED",
         "fast_path_threshold": "FAST_PATH_CONFIDENCE_THRESHOLD",
     },
     "batch": {
@@ -112,6 +113,7 @@ async def get_user_settings() -> SettingsResponse:
     return SettingsResponse(
         detection=DetectionSettings(
             confidence_threshold=settings.detection_confidence_threshold,
+            fast_path_enabled=settings.fast_path_enabled,
             fast_path_threshold=settings.fast_path_confidence_threshold,
         ),
         batch=BatchSettings(

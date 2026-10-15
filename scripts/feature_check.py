@@ -524,6 +524,15 @@ LIMITS_STRIPPED = "limits: not applied (no cgroup delegation)"
 # limit, so the decision needs exactly these two delegated.
 LIMIT_CGROUPS = frozenset({"cpu", "memory"})
 
+# The pre-build is the longest step the prod-shape run takes: six services, from
+# cold caches on a first run, one of them (`ai-gateway`) FROM a NVIDIA Triton
+# server base. The precedent next door is `AgentGpu.prepare`, which allows 4 h
+# for a single CUDA image; six images get one call at 6 h. Generous on purpose —
+# a timer that fires mid-build costs the operator an hour and a rebuild, and a
+# genuinely hung build is still reported, because `_run` answers a stall with
+# exit 124 and the partial stream rather than raising.
+PREBUILD_TIMEOUT_SECONDS = 6 * 3600
+
 
 def read_subtree_control(
     *, proc_dir: Path = Path("/proc"), sys_dir: Path = Path("/sys/fs/cgroup")
@@ -649,6 +658,38 @@ def boot_render(rendered: Mapping[str, Any]) -> dict[str, Any]:
             if isinstance(entry, dict):
                 entry.pop("name", None)
     return boot
+
+
+def build_images(rendered: Mapping[str, Any], *, project: str) -> dict[str, str]:
+    """The image each ``build:`` service will be looked for under when ``up`` runs.
+
+    The prod stack carries six ``build:`` services, five of which declare no
+    ``image:`` at all (grafana declares its own), so ``up --wait`` starts BUILDING
+    during the boot. Measured on compose
+    v5.5.1 (``config --images``, and a ``up --dry-run`` with the images absent): a
+    service that declares ``image:`` is looked up under THAT name -- grafana's is
+    hard-coded in ``docker-compose.prod.yml`` to
+    ``nemotron-v3-home-security-intelligence-grafana:latest``, host-local by
+    construction, so ``up`` tries to PULL it and the registry answers ``denied``
+    (the first prod-shape run, operator record 6166020894) -- and a service with
+    ``build:`` and no ``image:`` resolves to ``<project>-<service>:latest``, which
+    is why the project name has to come from the same run that boots.
+
+    Derived here, from the boot document ``up`` boots, so a pre-build and ``up``
+    cannot disagree: an image built under any other tag is simply absent in
+    compose's eyes, it builds during the boot after all, and the wall the
+    pre-build exists to route around comes back with an extra step in front of
+    it. A service that boots from a registry image is NOT included -- pulling it
+    is the tier's business, and building it would replace what the tier
+    witnesses with a locally-built stand-in.
+    """
+    images: dict[str, str] = {}
+    for name, service in (rendered.get("services") or {}).items():
+        if not isinstance(service, Mapping) or not service.get("build"):
+            continue
+        declared = service.get("image")
+        images[name] = str(declared) if declared else f"{project}-{name}:latest"
+    return images
 
 
 def decide_resource_limits(rendered: dict[str, Any], subtree_control: str) -> str:
@@ -1560,6 +1601,36 @@ def _exit_word(result: subprocess.CompletedProcess[str]) -> str:
     return _TIMEOUT_NOTE if _stalled(result) else str(result.returncode)
 
 
+# What the two engines `main()` offers actually print for "that name is not in the engine",
+# measured in this sandbox against docker 27.x and podman 5.7.0. Lowercased, because the
+# comparison below lowercases the stream.
+_ABSENCE_MARKERS = ("no such image:", "image not known")
+
+
+def _image_absent(result: subprocess.CompletedProcess[str]) -> bool:
+    """Did the engine POSITIVELY say this image name is not in it?
+
+    The companion to :func:`_stalled`, one level down. A stall was already fenced
+    because rc=124 is nonzero and nonzero inspect used to mean "never existed"; the
+    same false reading survives through a second door, measured here: a DOWN daemon
+    answers `image inspect` with the exit code it uses for absence -- rc=1 for
+    docker, rc=125 for podman, and the SAME code for both answers on each engine.
+    So the exit code cannot carry this distinction at all, and only the daemon's own
+    words can: docker says "No such image:", podman says "image not known".
+
+    Absence therefore has to be identified, not inferred. Everything this returns
+    False for -- a refusal, an argument error, empty stderr, an unrecognised engine
+    message -- is unknown state, which is the loud direction: the caller records the
+    name and does not remove it. A marker list is deliberately short and anchored to
+    the two engines the harness can be pointed at; widening it to "any stderr" would
+    put the false-spotless report back.
+    """
+    if result.returncode == 0:
+        return False  # rc=0 is present, whatever the stream says
+    stderr = (result.stderr or "").lower()
+    return any(marker in stderr for marker in _ABSENCE_MARKERS)
+
+
 def _log(message: str) -> None:
     stamp = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
     print(f"feature-check {stamp} {message}", flush=True)
@@ -1825,17 +1896,113 @@ class Run:
         self.summary["images"] = {
             name: service.get("image") for name, service in (rendered.get("services") or {}).items()
         }
+        self.prebuild_images()
+
+    def prebuild_images(self) -> None:
+        """Build the stack's `build:` images BEFORE `up`, so `up` builds nothing.
+
+        The prod stack ships six services with `build:` in the boot document and
+        five of them declare no `image:` at all (grafana declares both), so
+        `up --wait` starts building during the boot — and on the
+        first prod-shape run that is exactly where it died (operator record
+        6166020894): grafana's host-local name answered `denied` to a PULL (an
+        absent `image:` on a build service is pulled before it is built,
+        measured), and the five image-less services went to a builder that
+        bootstraps a `buildx_buildkit_default` CONTAINER, which needs both a
+        startable container and cgroup delegation this class of machine does not
+        have. Doing it here instead means a failure names itself here, in front
+        of a boot that would otherwise report it as "backend is not running".
+
+        Two measured properties shape the call:
+
+        * ``DOCKER_BUILDKIT=0`` is honoured by ``compose build`` (measured, both
+          branches) and makes the daemon's own builder answer — no builder
+          container, so neither the cgroup wall nor the init-binary wall applies;
+          ``DOCKER_HOST`` and friends are carried from the caller so the build
+          talks to the engine `up` will boot, not a different one;
+        * a name the engine already has is NOT rebuilt. That is `up`'s own
+          lookup (`image inspect`, measured over the compat API: 0 present, 1
+          absent), and it matters because grafana's name is host-local and NOT
+          namespaced by the compose project — an image that is there IS the image
+          production would boot, so rebuilding it would make the tier witness
+          something production does not run, and cost hours doing it.
+
+        The images come from :func:`build_images`, applied to the boot document
+        `up` boots, so this cannot drift from the names `up` will look for.
+        """
+        boot = json.loads(self.compose_file.read_text(encoding="utf-8"))
+        wanted = build_images(boot, project=self.project)
+        to_build: list[str] = []
+        present: list[str] = []
+        for name, image in sorted(wanted.items()):
+            lookup = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+            if lookup.returncode == 0:
+                present.append(name)
+                _log(f"prebuild: {name} -> {image} is already in the engine")
+            else:
+                to_build.append(name)
+        # `built` is filled from the build's EXIT, never from what was about to be
+        # attempted: a run that died building must not leave a summary asserting it
+        # built. `to_build` carries the intent, `exit` the verdict.
+        self.summary["prebuild"] = {"built": [], "present": present, "to_build": to_build}
+        if not to_build:
+            _log(f"prebuild: nothing to build ({len(present)} already present)")
+            return
+        _log(f"prebuild: {', '.join(to_build)}")
+        # check=False on purpose: a stalled build comes back as a readable result
+        # rather than a TimeoutExpired flying past this method, and either way the
+        # message below names the services and quotes what the engine said.
+        result = self.deployment(
+            "build",
+            *to_build,
+            timeout=PREBUILD_TIMEOUT_SECONDS,
+            check=False,
+            env={**compose_environment(os.environ), "DOCKER_BUILDKIT": "0"},
+        )
+        # The build's own stream is the artifact: it is what the operator's first
+        # run did not have, and a build that later goes wrong is read from here.
+        (self.artifacts / "prebuild.txt").write_text(
+            f"to build: {to_build}\nalready present: {present}\nexit: {result.returncode}\n\n"
+            f"--- stdout ---\n{result.stdout or ''}\n--- stderr ---\n{result.stderr or ''}\n",
+            encoding="utf-8",
+        )
+        self.summary["prebuild"]["exit"] = result.returncode
+        if result.returncode != 0:
+            tail = " ".join((result.stderr or result.stdout or "").split())[-1200:]
+            raise HarnessError(
+                f"the pre-build of {', '.join(to_build)} exited {result.returncode} "
+                f"(asked for the engine's own builder via DOCKER_BUILDKIT=0) — "
+                f"compose said: {tail}"
+            )
+        self.summary["prebuild"]["built"] = to_build
 
     def up(self, vlm: AgentGpu | None = None) -> None:
         self.started = True
         try:
             self.deployment("up", "-d", "--wait", "--wait-timeout", "900", timeout=1500)
-        except HarnessError:
+        except HarnessError as boot:
             # The backend's health check calls the VLM, so on --real an
             # unreachable VLM fails `up --wait` first; name that reason if so.
-            if vlm is not None:
+            # But when the reach check ALSO fails it cannot say whether the VLM is
+            # down or the stack never came up — and on the first prod-shape run
+            # (operator, 2026-10-14, #7037) it said "the backend cannot reach the
+            # VLM … or is not running" while the VLM was serving fine and compose
+            # had died building five image-less services. The compose tail is
+            # therefore carried into the message and chained: a reader has to be
+            # able to tell a boot failure from a reachability one.
+            if vlm is None:
+                raise
+            tail = " ".join(str(boot).split())[-400:]
+            try:
                 self.check_vlm_reach(str(vlm.url))
-            raise
+            except HarnessError as reach:
+                raise HarnessError(
+                    f"{reach}; and `up` itself failed, so the stack may simply never "
+                    f"have come up — compose said: {tail}"
+                ) from boot
+            raise HarnessError(
+                f"`up` failed while the VLM is reachable; compose said: {tail}"
+            ) from boot
         self.api = self._address("backend", 8000)
         self.ui = self._address("frontend", 8080)
         _log(f"up: api {self.api}, ui {self.ui}")
@@ -2214,6 +2381,99 @@ class Run:
             )
         )
         return changed, left
+
+    def cleanup_images(self) -> int:
+        """Remove the images THIS prod-shape run built, and only these.
+
+        A prod-shape run names every image-less ``build:`` service
+        ``<project>-<service>:latest`` (:func:`build_images`), and ``self.project``
+        carries a per-run random token (:meth:`Run.__init__`), so those tags differ
+        on every run and a re-run can never reuse a prior build. Nothing in the
+        existing lifecycle removes them: ``down -v`` tears down containers and
+        volumes only (UR-135 pins ``teardown`` to exactly that one compose call),
+        and the postflight ``Snapshot`` tracks containers and volumes — it has no
+        image axis, so the leak is not even reported. Removal therefore lives here,
+        on the bare-engine surface (``image rm``), not inside ``teardown``.
+
+        The names come from the same :func:`build_images` derivation ``up`` and the
+        pre-build use, so a name is neither removed that compose did not build
+        under nor missed by a second list drifting. Only names carrying THIS run's
+        project prefix are touched: a service that declares its own ``image:``
+        (grafana, host-local and shared with production) is not prefixed, so it is
+        left exactly as skip-if-present leaves it.
+
+        This runs whether or not the boot started. A pre-build that dies after
+        building some layers leaves those layers behind with ``started`` still
+        False, and the ``if run.started`` gate that guards ``teardown`` would skip
+        an image cleanup placed behind it — which is why the caller calls this
+        outside that gate.
+        """
+        if not self.prod_shape or not self.compose_file.exists():
+            return EXIT_OK
+        boot = json.loads(self.compose_file.read_text(encoding="utf-8"))
+        prefix = f"{self.project}-"
+        candidates = sorted(
+            image
+            for image in build_images(boot, project=self.project).values()
+            if image.startswith(prefix)
+        )
+        removed: list[str] = []
+        leaked: list[str] = []
+        stalled: list[str] = []
+        for image in candidates:
+            present = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+            if _stalled(present):
+                # BEFORE the nonzero check, because a stall IS nonzero: `_run` turns
+                # its own deadline into rc=124, so without this fence a dead or
+                # wedged engine answers every name with "not present" and the run
+                # reports a spotless cleanup it never performed. Unknown is not
+                # absent, and `image rm` on an unknown name is a second guess on
+                # top of the first one — so the name is only recorded, never removed.
+                stalled.append(image)
+                _log(f"FAIL prod-shape image state unknown, the engine timed out: {image}")
+                continue
+            if present.returncode != 0:
+                # Not every nonzero answer means "not in the engine": a DOWN daemon answers
+                # with the exit code absence uses on that same engine (rc=1 docker, rc=125
+                # podman -- measured), so trusting the rc alone lets a run whose engine never
+                # answered report itself spotless. Absence is claimed only when the daemon
+                # said so in words; everything else is unknown, recorded, and NOT removed.
+                #
+                # The `continue` is OUTSIDE the inner test on purpose, so no nonzero answer
+                # can reach `image rm` on either reading -- the battery found that nesting it
+                # inside the unknown branch makes the two `continue`s redundant next to each
+                # other, which is a mutation an editor could introduce by accident.
+                if not _image_absent(present):
+                    stalled.append(image)
+                    said = "\n".join(
+                        f"  | {line}" for line in (present.stderr or "").splitlines()[:3]
+                    )
+                    _log(
+                        f"FAIL prod-shape image state unknown: {image} "
+                        f"(exit {_exit_word(present)})" + (f"\n{said}" if said else "")
+                    )
+                continue  # absent (the engine said so) or unknown -- neither is removed here
+            gone = self._run([self.engine, "image", "rm", image], check=False, echo=False)
+            if gone.returncode == 0:
+                removed.append(image)
+            else:
+                # Includes a stalled `image rm`: rc=124 is nonzero, and "might still
+                # be there" is the correct reading of a removal we could not confirm.
+                leaked.append(image)
+        self.summary["images_removed"] = removed
+        # The leak gets its own key, not just a log line: `run_check` prints the
+        # summary whole for the operator to paste, and every other failure surface
+        # (`results.postflight`, `results.teardown`, `results.engine_socket`) reaches
+        # it. Names left in the engine would otherwise be visible only in the log.
+        self.summary["images_leaked"] = leaked
+        # Its own key rather than folded into `images_leaked`, because the two need
+        # different repairs: a leak is an image to delete, a stall is an engine to
+        # fix. Pasted into the same list, an operator would chase images that may
+        # not exist while the wedged engine that answered 124 goes unmentioned.
+        self.summary["images_stalled"] = stalled
+        for image in leaked:
+            _log(f"FAIL prod-shape image still in the engine, not removed: {image}")
+        return EXIT_FAILED if (leaked or stalled) else EXIT_OK
 
     def _write(self, name: str, data: Any) -> None:
         (self.artifacts / name).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -2604,6 +2864,12 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         try:
             if run.started:
                 status = max(status, _finish(run, before))
+            # Image cleanup deliberately OUTSIDE the `run.started` gate, like the
+            # VLM's own `started` gate above: a prod-shape run that dies in the
+            # pre-build never sets `started` (that flips inside `up`), yet a partial
+            # build has already left images in the engine. Gating this on
+            # `run.started` would skip exactly the failure path that leaks.
+            status = max(status, _cleanup_images(run))
             if vlm is not None and vlm.started:
                 status = max(status, _finish_vlm(vlm))
             run.summary["exit"] = status
@@ -2636,6 +2902,17 @@ def _finish(run: Run, before: Snapshot) -> int:
     if changed:
         return EXIT_CHANGED
     return EXIT_FAILED if left else EXIT_OK
+
+
+def _cleanup_images(run: Run) -> int:
+    """Remove a prod-shape run's images after the deployment is gone, also after a
+    failure. A cleanup that cannot run is reported, not swallowed: the images are
+    the whole point (they are per-run and no later run reuses them)."""
+    try:
+        return run.cleanup_images()
+    except Exception as error:  # noqa: BLE001 - say so; the operator removes the rest
+        _log(f"URGENT prod-shape image cleanup did not complete ({type(error).__name__}: {error})")
+        return EXIT_FAILED
 
 
 def _finish_vlm(vlm: AgentGpu) -> int:

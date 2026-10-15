@@ -83,7 +83,11 @@ function formatFileCount(count: number): string {
 export default function LoggingSettings({ className }: LoggingSettingsProps) {
   const toast = useToast();
 
-  // Fetch debug config for logging settings
+  // Fetch debug config for logging settings. [r130f] F-158: the settings are the
+  // envelope's `config` member, so they are read off `data.config`. Destructuring
+  // it here (rather than `debugConfig?.config` at each of the seven reads below)
+  // keeps every existing `loggingConfig?.x ?? default` line intact and keeps the
+  // `if (!debugConfig)` early return as the "still loading" gate.
   const {
     data: debugConfig,
     isLoading: debugConfigLoading,
@@ -105,16 +109,24 @@ export default function LoggingSettings({ className }: LoggingSettingsProps) {
   const [editedRetention, setEditedRetention] = useState<number>(7);
   const [originalRetention, setOriginalRetention] = useState<number>(7);
 
-  // Extract logging config from debug config (response is flat Record<string, unknown>)
-  const loggingConfig: LoggingConfig | null = debugConfig
+  // Extract logging config from the debug config's settings map.
+  // [r130f] F-158: this comment used to claim the response "is flat", and the reads
+  // below matched it — so all seven fell through to their `??` default. Measured on
+  // the live stack, `config.log_level` is 'WARNING' while this card displayed
+  // 'INFO', a value the backend never sent for it. The route answers the envelope
+  // { config, timestamp } (backend/api/routes/debug.py:527), so the settings are
+  // read from `settings`, which is why the defaults are unchanged: they stay as the
+  // shape's fallback for a setting that is genuinely absent, and now only for one.
+  const settings = debugConfig?.config;
+  const loggingConfig: LoggingConfig | null = settings
     ? {
-        log_level: (debugConfig.log_level as string) ?? 'INFO',
-        log_file_path: (debugConfig.log_file_path as string) ?? 'data/logs/security.log',
-        log_file_max_bytes: (debugConfig.log_file_max_bytes as number) ?? 10485760,
-        log_file_backup_count: (debugConfig.log_file_backup_count as number) ?? 7,
-        log_db_enabled: (debugConfig.log_db_enabled as boolean) ?? true,
-        log_db_min_level: (debugConfig.log_db_min_level as string) ?? 'DEBUG',
-        log_retention_days: (debugConfig.log_retention_days as number) ?? 7,
+        log_level: (settings.log_level as string) ?? 'INFO',
+        log_file_path: (settings.log_file_path as string) ?? 'data/logs/security.log',
+        log_file_max_bytes: (settings.log_file_max_bytes as number) ?? 10485760,
+        log_file_backup_count: (settings.log_file_backup_count as number) ?? 7,
+        log_db_enabled: (settings.log_db_enabled as boolean) ?? true,
+        log_db_min_level: (settings.log_db_min_level as string) ?? 'DEBUG',
+        log_retention_days: (settings.log_retention_days as number) ?? 7,
       }
     : null;
 

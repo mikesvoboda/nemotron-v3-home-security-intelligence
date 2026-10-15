@@ -114,7 +114,7 @@ Service that sends real-time event notifications to connected WebSocket clients.
 
 ### Fast Path
 
-An optimization that scores a single high-confidence detection ahead of the batch gate. It ships **off**: `FAST_PATH_CONFIDENCE_THRESHOLD` defaults to `2.0`, a confidence no detector can report, and `FAST_PATH_OBJECT_TYPES` is empty (`backend/core/config.py`). Where it is enabled, the request still runs through `VlmAnalyzer` — there is no second analysis path.
+An optimization that scores a single high-confidence detection ahead of the batch gate. It ships **off**: `FAST_PATH_ENABLED` is the master switch and defaults `false`, so while it is false nothing takes the fast path whatever the threshold says (ruling 168); `FAST_PATH_CONFIDENCE_THRESHOLD` ships `0.9` and `FAST_PATH_OBJECT_TYPES` is empty as second nets (`backend/core/config.py`). Where it is enabled, the request still runs through `VlmAnalyzer` — there is no second analysis path.
 
 ### File Watcher
 

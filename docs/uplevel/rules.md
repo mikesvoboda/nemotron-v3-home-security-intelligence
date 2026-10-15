@@ -17,7 +17,9 @@ give work a number.
   one-line pointer: "Ruling N, in PR #M: one line". (owner design session 2026-10-12; ruling 146)
 - **UR-40** An owner record on #6854 whose first line carries `BINDING NOW` binds at once and lapses
   48 hours after posting unless a merged PR carries it. The coordinator lists the live `BINDING NOW`
-  records at the top of its status comment (UR-166). (owner design session 2026-10-12)
+  records at the top of its status comment (UR-166). Lanes and the operator read, each tick, the
+  live records that have no row yet in `history/ruling-map.md` on `main`, filtered at the source
+  (`roles/lane.md`, "The tick", step 1). (owner design session 2026-10-12; rulings 170, 177)
 - **UR-41** Rulings 1-146 bind only through the plan files once the plan rewrite that adds this file
   merges; `history/ruling-map.md` shows where each one landed. (owner design session 2026-10-12)
 - **UR-42** Where this file and an older line in another plan file disagree, this file wins until
@@ -88,11 +90,11 @@ Read this section before you take, claim, assign, park or release a package.
 - **UR-59** The coordinator assigns only `heavy` packages, packages on no roster queue, and a
   package it moves to an idle lane's queue (UR-52, UR-64): it opens the draft PR on a branch holding
   one empty commit, labelled `lane:<lane>` and, where they apply, `cell:<cell>`, `heavy` and
-  `owner`. A `heavy` PR labelled `cell:heavy-2` belongs to `uplevel-heavy-2`; every other belongs to
-  `uplevel-heavy`. To give a heavy agent a package the status table does not mark `heavy`, label its
-  PR `heavy` with no cell label; the row keeps its flags. A heavy agent takes only the PRs assigned
-  to it and follows the owning lane's package text, file ownership and kickoff line. (rulings 50,
-  53; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
+  `owner`. A `heavy` PR labelled `cell:heavy-b` belongs to `uplevel-heavy-b`; every other belongs to
+  `uplevel-heavy-a`. To give a heavy agent a package the status table does not mark `heavy`, label its
+  PR `heavy` (plus `cell:heavy-b` for heavy-b) and no lane label; the row keeps its flags. A heavy
+  agent takes only the PRs assigned to it and follows the owning lane's package text, file ownership
+  and kickoff line. (rulings 50, 53, 184; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
   50-coordination.md "Two heavy sandboxes", "Where agents run")
 - **UR-63** The status comment lists every package whose dependencies have merged, whose row is not
   `done` or `awaiting real tier`, and that has stayed unclaimed for two coordinator ticks, with the
@@ -132,7 +134,8 @@ Read this section while you write a package's code, tests, docs and PR.
      that passes, a command's output, a file that no longer exists). Numbers are measured and
      reported, never climbed.
   2. **Evidence in the PR:** open every package PR with `gh pr create --template uplevel.md`, and
-     put each command and its output in the body. Commit subjects stay at 72 characters or fewer;
+     put each command and its output in the body. Commit subjects stay at 100 characters or fewer and headers at 120, the limits
+     `commitlint.config.js` sets (ruling 164);
      ledger files take no rows from this programme; comments, PR bodies and reviews carry only the
      agent's own text, never its harness's framing of a subagent's or another session's output.
      (ruling 56)
@@ -206,11 +209,21 @@ Constraints on what you build; reopening one is a ruling (UR-44).
   metrics stay (OD-39). (ruling 89)
 - **UR-87** Future plans go in `docs/superpowers/<date>-<slug>/`; `docs/plans/` is frozen history,
   and a dated plan created anywhere else is a violation (OD-33). (ruling 89)
-- **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason; the validator fails on
-  dead references and on files outside the list. (UR-21)
+- **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason. `agents_md_validator.py`
+  fails on dead references; a file outside the list is reported, not failed, until W3.1. (UR-21;
+  ruling 164)
 - **UR-12** Inbound webhooks: **implement** (an arming module with webhook and MQTT adapters,
   designed after Phase 3); until then they answer `501` and validate keys against
   `settings.api_keys`. (UR-12)
+- **UR-182** The product is a consumer NVIDIA VSS-style blueprint for desktop RTX gaming GPUs:
+  visual search, identity and VLM reasoning, run locally, free, with full data control. Phase 4
+  adds a persistent header mode switch: **Easy Mode** ("Home Monitor", the default: Dashboard,
+  Timeline & Search, Alerts & Rules, Household, Settings) and **Advanced Mode** ("NVIDIA AI
+  Blueprint": the AI Workbench, GPU and model VRAM telemetry, the Entity/Re-ID Explorer,
+  Operations/Monitoring). This decides scope, not design: each feature is designed in its Phase 4
+  session (UR-77). It keeps F-063 (P2) and F-105, F-127, F-128, F-130 (P3) as Advanced Mode
+  features, reopening R2a rows 29 and 31 for them, and rules F-176 and F-178 complete (P3) if
+  `O2.5`'s witness fails them. Phase 3's deletions skip these rows. (ruling 182)
 
 ## Reviewing
 
@@ -291,14 +304,13 @@ and the re-read and merge comment are UR-29.
   coordinator merges one PR at a time, and its merge pass continues past a roll to the next ready
   PR. A lane PR on auto-merge (UR-108) merges when its gate passes, without these legs; while
   `main` is red the coordinator disables auto-merge on every queued lane PR and re-enables it when
-  `main` is green. Otherwise a ready PR merges without an update-branch when its green
-  `CI Gate` ran on a `main` at most 3 merges behind the tip, no PR merged since that base changed a
-  file it changes (`git diff --name-only <its base>..origin/main` shares no path with its files),
-  and `main`'s latest CI run is not red. Otherwise only the coordinator updates it, one at a time,
+  `main` is green. Otherwise a ready PR merges without an update-branch when
+  `coordinator_snapshot.py`'s three merge legs pass for it (gate at most 3 merges behind the tip, no
+  shared path with what merged since, `main` not red). Otherwise only the coordinator updates it, one at a time,
   with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`; authors rebase their own PRs
   to resolve conflicts. A red `main` from a merge interaction is a red-`main` fix (UR-111); after
   two in one UTC day the coordinator turns "require branches to be up to date" back on and raises
-  the urgent path. (rulings 19, 27, 156; owner record 6135991251)
+  the urgent path. (rulings 19, 27, 152, 156, 164; owner record 6135991251)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
@@ -527,6 +539,10 @@ when a phase exits, are UR-10 (contract rule 5).
 - **UR-153** A row demoted only because the CI stack cannot reach it returns to `unverified`, its
   note saying why, and `F2.3` reaches it by the real tier or a seeded golden path; a row is ruled
   only if it fails once reachable, and that failure is a demotion in a later `R2b` round. (ruling 127)
+- **UR-181** An inventory evidence cell, whenever its row is edited, is at most three sentences
+  (about 500 characters): why the row has its status, the witness (`path:line` or the spec), and
+  the run id. Demotion history, supersessions and re-anchoring go in the PR body. A long cell is cut
+  to this shape when its row is next edited; there is no sweep. (ruling 179)
 
 ## Posting, heartbeats and the urgent path
 
@@ -545,9 +561,11 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-154** When a command fails or its answer is unclear, say that instead of stating a fact; read
   times from `date -u` or omit them, and treat GitHub's `created_at` as the record. (coordinator
   kickoff prompt; roles/owner-partner.md "Guardrails")
-- **UR-155** Heartbeats, beats, verdicts and lane notes run about 1,500 characters: what I read,
-  what I did, what comes next. Evidence goes in a collapsed `<details>` block or a link to the job
-  log, not in the body. (ruling 146)
+- **UR-155** Beats, verdicts and lane notes run about 1,500 characters: what I read, what I did,
+  what comes next. Evidence goes in a collapsed `<details>` block or a link to the job log, not in
+  the body. A heartbeat is at most 600 characters: the coordinator's as UR-38 says, a lane's or the
+  operator's as the two lines `roles/lane.md` "Heartbeat" gives plus, only when blocked, a
+  `BLOCKER: <one line>` third line, with detail on the PR it concerns. (rulings 146, 156, 179, 181)
 - **UR-156** The coordinator asks an author to edit a comment that carries harness wrapper text
   (contract rule 2). (ruling 56)
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act
@@ -576,7 +594,10 @@ Read this section before you post any comment, review, heartbeat, status comment
   - **Stalled.** An agent is stalled when its heartbeat is older than three of its intervals (45
     minutes for lane and heavy agents, 90 for the operator) and it has pushed no commit and posted
     no comment since. The coordinator raises the urgent path for it, naming the agent and its open
-    PRs. (ruling 64; roles/coordinator.md "The urgent path")
+    PRs. A comment counts when it is signed by the agent (`Reviewer lane: <lane>`, or its lane
+    or sandbox name in the first line), on any PR or issue. Before a step it expects to run over 15
+    minutes, an agent beats `working #<n> · <step> since <HH:MMZ>` (`roles/lane.md`, "Before a long
+    step"). (ruling 64, 178; roles/coordinator.md "The urgent path")
 - **UR-160** A heavy agent whose queue is empty posts a final heartbeat
   `paused · queue empty (ruling 88)` and ends its turn, and the owner stops its loop. When the owner
   stops an agent, the owner's session may write its `paused` heartbeat. An agent whose heartbeat
@@ -672,6 +693,16 @@ or an agent's memory.
   `sudo npx playwright install-deps chromium`, with no record. Production Dockerfiles never gain
   browser packages, and nothing is built into the host sandbox image for this. (ruling 143;
   supersedes record 6123811294)
+- **UR-180** Each agent keeps its own sandbox's disks under 90% used. Each tick's heartbeat step
+  reads `df -h / /var/lib/docker`; above 90%, the agent removes its own leftovers in this order,
+  re-reading `df` after each and stopping once under 90%: containers and volumes of its finished or
+  killed `feature_check.py` runs (compose projects `hsi-check-*`), `docker builder prune -af`,
+  `docker image prune -f`, scratch worktrees under `/tmp` that no open PR of its own uses (then
+  `git worktree prune`), `uv cache clean`, and only then `docker system prune -af --volumes`. A
+  routine full prune before or after each run is barred: it re-pulls base images from Docker Hub,
+  whose anonymous pull limit CI has already hit. The heartbeat names a disk only while it is above
+  90%. The cleanup needs no owner approval; no agent touches another's sandbox (UR-163, UR-170).
+  (ruling 176)
 
 ## Security
 
@@ -691,5 +722,6 @@ the shared GitHub token.
   callers credentials and puts `/grafana/` behind the app's login. The default, unexposed mode is
   unchanged. (UR-33; ruling 1)
 - **UR-179** A browser bundle never carries an API key: browsers authenticate only through the
-  cookie login, API keys are for non-browser clients, and a CI guard fails if `frontend/src` reads
-  `VITE_API_KEY`. (ruling 44)
+  cookie login, API keys are for non-browser clients, and
+  `frontend/src/__tests__/no-browser-api-key.test.ts` fails CI if the frontend build scope reads
+  `VITE_API_KEY`. (rulings 44, 164)

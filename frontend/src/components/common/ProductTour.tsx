@@ -149,6 +149,33 @@ export default function ProductTour({
     (data: CallBackProps) => {
       const { action, index, status, type } = data;
 
+      // A step whose `target` selector matches nothing mounted. Joyride logs
+      // "Target not mounted" and advances past it only in UNcontrolled mode —
+      // `if (!controlled)`, react-joyride 2.9.3 src/components/Step.tsx:108, and
+      // `controlled` is `is.number(stepIndex)` (src/modules/store.ts:38). This
+      // component is always controlled (it passes `stepIndex={stepIndex}` below),
+      // so the library never advances: the tour stalls on a dead target with its
+      // DOM removed. That was F-021: three tour steps
+      // targeted selectors nothing rendered, so one Next killed the whole overlay
+      // and stored nothing, and the same tour re-booted on every reload. The
+      // writers now supply the targets; this branch is the safety net that keeps a
+      // single missing target (a widget hidden via the dashboard config, a step
+      // shown on a route that lacks it) from ever re-creating that dead loop — it
+      // does what uncontrolled Joyride would: skip forward to the next step.
+      if (type === EVENTS.TARGET_NOT_FOUND) {
+        if (typeof index === 'number' && index < tourSteps.length - 1) {
+          setStepIndex(index + 1);
+        } else {
+          // Dead target on the final step (step 7 targets 'body', so it cannot
+          // happen in practice) — finish rather than stall. The last step is
+          // always mounted, so forward-skip always terminates here.
+          setInternalRun(false);
+          markTourCompleted();
+          onComplete?.();
+        }
+        return;
+      }
+
       // Handle step changes - only advance on step:after events
       if (type === EVENTS.STEP_AFTER) {
         if (action === ACTIONS.NEXT) {

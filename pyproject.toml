@@ -148,6 +148,19 @@ dev = [
     "snakeviz>=2.2.0",  # Visualize cProfile output as flamegraphs
     # Note: py-spy requires system installation (not pip) - install with:
     # pip install py-spy  # or cargo install py-spy
+    # ONNX export fidelity (owner ruling 157, package [r157]). ai/gateway/tests/
+    # test_export_reid_onnx_fidelity.py exports OSNet-AIN to ONNX on CPU and
+    # compares it to PyTorch at ruling 68's 0.999 gate. torch 2.14's exporter needs
+    # onnx+onnxscript to export at all, and export_reid.validate_onnx needs
+    # onnxruntime to MEASURE anything — without it the ImportError branch returns
+    # True with a warning, which is exactly how O2.4 shipped a cosine-0.23 model
+    # past a reported PASS. These are the CPU wheels (no GPU provider), so the test
+    # runs on ubuntu-latest with no CUDA. The gateway image ships the same three
+    # (ai/gateway/Dockerfile:30-32); onnxruntime here is CPUExecutionProvider only,
+    # matching the face extra's deliberate no-GPU-provider rule.
+    "onnx>=1.17",
+    "onnxscript>=0.7.0",
+    "onnxruntime>=1.16",
 ]
 # GPU quantization support (NEM-3373, NEM-3376)
 # Provides 4-bit and 8-bit quantization for LLMs via bitsandbytes
@@ -327,6 +340,13 @@ exclude = ["vulture_whitelist.py", "mutants/"]
 # (ai/gateway/tests/test_py312_compat.py).
 "ai/gateway/**/*.py" = "py312"
 "ai/triton/**/*.py" = "py312"
+# The fake VLM, ruled 3.13-parseable by ruling 96 item 11 so the reachability
+# toolchain is not coupled to 3.14 (scripts/reachability.py ast.parses the whole
+# candidate tree with the HOST interpreter and catches no SyntaxError). It ships
+# on 3.14; the pin is not for the image, it is so ruff-format cannot rewrite the
+# parenthesized tuples back into PEP 758 form, which `ruff format --check` would
+# then bless (backend/tests/unit/test_r96i11_fake_vlm_except_tuple.py).
+"backend/ai_contract/fake/app.py" = "py313"
 
 [tool.ruff.lint]
 select = [

@@ -1616,6 +1616,7 @@ async def test_get_config_returns_settings() -> None:
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.5
     mock_settings.fast_path_confidence_threshold = 0.9
+    mock_settings.fast_path_enabled = False
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
@@ -1650,6 +1651,7 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.5
     mock_settings.fast_path_confidence_threshold = 0.9
+    mock_settings.fast_path_enabled = False
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
@@ -1692,6 +1694,7 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.5
     mock_settings.fast_path_confidence_threshold = 0.9
+    mock_settings.fast_path_enabled = False
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
@@ -1733,6 +1736,7 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
     mock_settings.batch_idle_timeout_seconds = 45
     mock_settings.detection_confidence_threshold = 0.5
     mock_settings.fast_path_confidence_threshold = 0.9
+    mock_settings.fast_path_enabled = False
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
@@ -1774,6 +1778,7 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.75
     mock_settings.fast_path_confidence_threshold = 0.9
+    mock_settings.fast_path_enabled = False
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
@@ -1815,6 +1820,7 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.5
     mock_settings.fast_path_confidence_threshold = 0.9
+    mock_settings.fast_path_enabled = False
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
@@ -1858,6 +1864,7 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
     mock_settings.batch_idle_timeout_seconds = 20
     mock_settings.detection_confidence_threshold = 0.8
     mock_settings.fast_path_confidence_threshold = 0.9
+    mock_settings.fast_path_enabled = False
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
@@ -1897,6 +1904,88 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
     assert "BATCH_WINDOW_SECONDS=60" in content
     assert "DETECTION_CONFIDENCE_THRESHOLD=0.8" in content
     assert "RETENTION_DAYS=14" in content
+
+
+@pytest.mark.asyncio
+async def test_patch_config_fast_path_disabled_stays_disabled(tmp_path, monkeypatch) -> None:
+    """Ruling 168 item 4: saving with the fast path disabled leaves it disabled.
+
+    Before ruling 168 the only way to express "off" was an out-of-band threshold —
+    ``fast_path_confidence_threshold`` defaulted to ``2.0``, above any real
+    confidence — and the settings page's 0-1 slider wrote ``1.0`` back on every
+    save, which re-enabled the fast path. The cure is the explicit
+    ``fast_path_enabled`` flag, and this pins it: a save that carries
+    ``fast_path_enabled=False`` alongside a threshold in the FIRING band (0.9) must
+    persist an explicit ``FAST_PATH_ENABLED=false``, so the disablement lives in
+    the flag rather than in a sentinel the slider cannot represent. The threshold is
+    deliberately left in-band: if the write ever degraded to "threshold only" the
+    first assertion goes red, which is the bug.
+
+    The second leg writes ``True`` so the branch cannot pass by hardcoding
+    ``false``. The response echo is asserted only on the disabled leg, where the
+    mocked settings agree with the saved value.
+    """
+    runtime_env = tmp_path / "runtime.env"
+    monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(runtime_env))
+
+    mock_settings = create_autospec(Settings, instance=True)
+    mock_settings.app_name = "Home Security Intelligence"
+    mock_settings.app_version = "1.0.0"
+    mock_settings.retention_days = 30
+    mock_settings.log_retention_days = 7
+    mock_settings.batch_window_seconds = 90
+    mock_settings.batch_idle_timeout_seconds = 30
+    mock_settings.detection_confidence_threshold = 0.5
+    mock_settings.fast_path_confidence_threshold = 0.9
+    mock_settings.fast_path_enabled = False
+    mock_settings.grafana_url = "http://localhost:3002"
+    mock_settings.debug = False
+
+    mock_get_settings = create_autospec(get_settings, return_value=mock_settings)
+    mock_get_settings.cache_clear = MagicMock()
+
+    from backend.api.schemas.system import ConfigUpdateRequest
+
+    mock_request = MagicMock(spec=Request)
+    mock_db = AsyncMock(spec=AsyncSession)
+
+    update = ConfigUpdateRequest(fast_path_enabled=False, fast_path_confidence_threshold=0.9)
+    with (
+        patch.object(system_routes, "get_settings", mock_get_settings),
+        patch.object(system_routes, "AuditService", autospec=True) as mock_audit,
+    ):
+        mock_audit.log_action = AsyncMock()
+        response = await system_routes.patch_config(
+            request=mock_request, response=Response(), update=update, db=mock_db
+        )
+
+    assert isinstance(response, ConfigResponse)
+    assert response.fast_path_enabled is False, "the response reported the fast path enabled"
+    content = runtime_env.read_text(encoding="utf-8").splitlines()
+    assert "FAST_PATH_ENABLED=false" in content, (
+        "ruling 168's explicit disable flag never reached runtime.env; a save would "
+        f"again rely on a threshold to mean 'off'. runtime.env was: {content!r}"
+    )
+    assert "FAST_PATH_CONFIDENCE_THRESHOLD=0.9" in content, (
+        "the threshold was not persisted beside the flag, so the save cannot be "
+        f"shown to leave the flag as the only thing disabling the path: {content!r}"
+    )
+
+    # Reverse leg: the branch writes the flag, it does not hardcode `false`.
+    update_on = ConfigUpdateRequest(fast_path_enabled=True)
+    with (
+        patch.object(system_routes, "get_settings", mock_get_settings),
+        patch.object(system_routes, "AuditService", autospec=True) as mock_audit,
+    ):
+        mock_audit.log_action = AsyncMock()
+        await system_routes.patch_config(
+            request=mock_request, response=Response(), update=update_on, db=mock_db
+        )
+
+    assert "FAST_PATH_ENABLED=true" in runtime_env.read_text(encoding="utf-8").splitlines(), (
+        "FAST_PATH_ENABLED did not follow the request, so the write is not a real "
+        "binding of the flag"
+    )
 
 
 # =============================================================================

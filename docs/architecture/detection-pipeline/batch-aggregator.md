@@ -302,28 +302,32 @@ instead of dropping them.
 ## Fast Path Processing
 
 The fast path routes a single critical detection straight to the analyzer instead
-of waiting for a batch to close (lines 1185-1251).
+of waiting for a batch to close (lines 1186-1260).
 
-### Criteria (Lines 1185-1216)
+### Criteria (Lines 1186-1225)
 
 ```python
 def _should_use_fast_path(self, confidence: float | None, object_type: str | None) -> bool:
     """Check if detection meets fast path criteria."""
+    if not self._fast_path_enabled:  # master switch, ships False (ruling 168)
+        return False
+
     if confidence is None or object_type is None:
         return False
 
-    if confidence < self._fast_path_threshold:  # 2.0 default
+    if confidence < self._fast_path_threshold:
         return False
 
     return object_type.lower() in [t.lower() for t in self._fast_path_types]
 ```
 
-Both settings that feed this gate ship closed — `fast_path_confidence_threshold`
-is 2.0 (a confidence can never reach it) and `fast_path_object_types` is empty —
-because a bypassed detection arrives without the batch context a batched one
-carries. The code path is live and tested; the defaults decide it.
+The gate is closed by the master switch first — `fast_path_enabled` ships False,
+so no detection takes this path whatever the threshold says (ruling 168). The
+threshold (`0.9`) and the empty `fast_path_object_types` are second nets, because
+a bypassed detection arrives without the batch context a batched one carries. The
+code path is live and tested; the switch decides it.
 
-### Processing (Lines 1218-1251)
+### Processing (Lines 1227-1265)
 
 ```python
 async def _process_fast_path(self, camera_id: str, detection_id: int) -> None:
@@ -492,11 +496,12 @@ Batching timing parameters (also documented in the [AI Pipeline — Current Stat
 
 Additional batch-aggregator settings:
 
-| Setting                          | Default | Description                                                            |
-| -------------------------------- | ------- | ---------------------------------------------------------------------- |
-| `batch_max_detections`           | `500`   | Max detections per batch before the batch is split                     |
-| `fast_path_confidence_threshold` | `2.0`   | Min confidence for the analysis fast path (>1.0 keeps the gate closed) |
-| `fast_path_object_types`         | `[]`    | Object types eligible for the fast path (empty keeps the gate closed)  |
+| Setting                          | Default | Description                                                           |
+| -------------------------------- | ------- | --------------------------------------------------------------------- |
+| `batch_max_detections`           | `500`   | Max detections per batch before the batch is split                    |
+| `fast_path_enabled`              | `False` | Master switch; while false nothing takes the fast path (ruling 168)   |
+| `fast_path_confidence_threshold` | `0.9`   | Min confidence for the analysis fast path (read only when enabled)    |
+| `fast_path_object_types`         | `[]`    | Object types eligible for the fast path (empty keeps the gate closed) |
 
 Module constants for the alert bypasses (`backend/services/batch_aggregator.py`):
 `THREAT_BYPASS_CONFIDENCE_THRESHOLD = 0.7` (line 77),

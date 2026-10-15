@@ -290,16 +290,18 @@ AI_VLM_URL=http://${AI_HOST}:8098
 | Variable                         | Description                  | Default                                          |
 | -------------------------------- | ---------------------------- | ------------------------------------------------ |
 | `DETECTION_CONFIDENCE_THRESHOLD` | Minimum confidence to store  | `0.40` in `config.py`; `.env.example` sets `0.5` |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | Threshold for fast-path      | `2.0` in code — disabled                         |
+| `FAST_PATH_ENABLED`              | Master switch for fast-path  | `false` in code — the fast path is off           |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | Threshold for fast-path      | `0.9` in code — consulted only when enabled      |
 | `FAST_PATH_OBJECT_TYPES`         | Types eligible for fast-path | `[]` in code                                     |
 
 > [!WARNING]
 >
 > **The fast path is disabled by design.** `config.py` ships
-> `fast_path_confidence_threshold = 2.0` (an impossible value) and an empty
-> `FAST_PATH_OBJECT_TYPES`, because the fast path bypasses the specialist legs and the
-> VLM then scores on partial data. Do not lower these unless the specialists are added
-> to the fast path.
+> `fast_path_enabled = False`, the master switch: while it is false no detection
+> takes the fast path whatever the threshold says (ruling 168). The threshold
+> ships at `0.9` and `FAST_PATH_OBJECT_TYPES` is empty as second nets, because
+> the fast path bypasses the specialist legs and the VLM then scores on partial
+> data. Do not enable it unless the specialists are added to the fast path.
 
 **Confidence threshold trade-offs:**
 

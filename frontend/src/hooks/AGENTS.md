@@ -1371,7 +1371,7 @@ interface UseDetectionEnrichmentReturn {
 
 ### `useModelZooStatus.ts`
 
-Hook for fetching and polling Model Zoo status including VRAM statistics. This is the legacy polling hook; prefer `useModelZooStatusQuery` for new development.
+Hook for fetching and polling Model Zoo status including VRAM statistics. `[r130f]` F-125/F-129: do NOT use this hook or `useModelZooStatusQuery` for new development — both model `GET /api/system/models` as the SHADOWED `system.get_models` shape (`ModelRegistryResponse`, `vram_budget_mb`/`display_name`/`status`), which the live stack never answers: `model_management.router` registers `/api/system/models` at `backend/main.py:1648`, BEFORE `system.router` at `:1663`, and FastAPI strips every field absent from its `response_model=ModelListResponse` (`backend/tests/unit/api/routes/test_system_models.py:7-9` records the shadowing; `openapi.json` still documents the shadowed schema). Use the live-shape hooks in `useModelZoo.ts` — `useModels`/`useVRAMSummary` over `modelZooApi.listModels`/`getVRAMSummary` — which is what `ModelManagementPanel.tsx` and its sibling `ModelZooPanel` now both consume.
 
 **Features:**
 

@@ -519,6 +519,7 @@ class SettingsStub:
     def __init__(self, *, streams: Any = _MISSING) -> None:
         self.batch_window_seconds = 90
         self.batch_idle_timeout_seconds = 30
+        self.fast_path_enabled = False
         self.fast_path_confidence_threshold = 0.8
         self.fast_path_object_types = ["person", "car"]
         self.batch_max_detections = 25
@@ -550,6 +551,7 @@ def test_init_stores_every_setting_and_the_analyzer() -> None:
     assert agg._batch_window == 90
     assert agg._idle_timeout == 30
     assert agg._analysis_queue == ba.ANALYSIS_QUEUE
+    assert agg._fast_path_enabled is False
     assert agg._fast_path_threshold == 0.8
     assert agg._fast_path_types == ["person", "car"]
     assert agg._batch_max_detections == 25

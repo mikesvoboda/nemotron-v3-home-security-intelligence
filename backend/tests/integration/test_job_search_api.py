@@ -20,6 +20,23 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
+def _seed_unique_job(job_type: str) -> str:
+    """Register a job directly on the in-process JobTracker singleton.
+
+    ``/api/jobs/search`` reads this singleton (``job_search_service.py:447`` ->
+    ``get_all_jobs``), not the database, so a job that must appear in a search
+    result has to live here. The caller passes a type name unique to the test so
+    no leftover singleton job from an earlier test in the same worker can satisfy
+    the assertion. A fresh job is the newest, so the default ``created_at`` desc
+    sort keeps it on page 1 -- which is what makes an *exclusion* assertion
+    (below) fail loudly when a type filter is dropped: the ignored filter returns
+    the whole store, newest-first, and this job is at the front of it.
+    """
+    from backend.services.job_tracker import get_job_tracker
+
+    return get_job_tracker().create_job(job_type)
+
+
 # =============================================================================
 # Basic Search Tests
 # =============================================================================
@@ -145,32 +162,49 @@ async def test_search_jobs_multiple_status_filter(client: AsyncClient, mock_redi
 
 @pytest.mark.asyncio
 async def test_search_jobs_single_type_filter(client: AsyncClient, mock_redis, integration_db):
-    """Test filtering by single job type."""
-    # Create an export job
-    job_request = {"format": "csv"}
-    await client.post("/api/events/export", json=job_request)
+    """Filtering by one job type both keeps matching jobs and drops others.
 
-    response = await client.get("/api/jobs/search?job_type=export")
+    F-089: the route binds this parameter as ``type`` (``routes/jobs.py:296``
+    with ``alias="type"``). The pre-F-089 form looped over ``data["data"]``
+    asserting every row was ``export``, which cannot fail -- the store held only
+    the one export job the test created, so a filter ignored entirely still
+    passed. The second read below is what makes the guard bite.
+    """
+    mine = _seed_unique_job("export")
+    other = _seed_unique_job("integration_probe_other_type")
+
+    response = await client.get("/api/jobs/search?type=export")
 
     assert response.status_code == 200
     data = response.json()
+    ids = {job["job_id"] for job in data["data"]}
+    assert mine in ids, "the matching job was filtered out"
+    assert other not in ids, "type filter was ignored: a non-matching job came back"
     for job in data["data"]:
         assert job["job_type"] == "export"
 
 
 @pytest.mark.asyncio
 async def test_search_jobs_multiple_type_filter(client: AsyncClient, mock_redis, integration_db):
-    """Test filtering by multiple comma-separated job types."""
-    # Create an export job
-    job_request = {"format": "csv"}
-    await client.post("/api/events/export", json=job_request)
+    """A comma-separated type filter keeps every named type and drops the rest.
 
-    response = await client.get("/api/jobs/search?job_type=export,cleanup")
+    Non-vacuous for the same reason as ``test_search_jobs_single_type_filter``:
+    a third, unnamed type is seeded and asserted absent.
+    """
+    mine = _seed_unique_job("export")
+    second = _seed_unique_job("integration_probe_second_type")
+    third = _seed_unique_job("integration_probe_third_type")
+
+    response = await client.get("/api/jobs/search?type=export,integration_probe_second_type")
 
     assert response.status_code == 200
     data = response.json()
+    ids = {job["job_id"] for job in data["data"]}
+    assert mine in ids
+    assert second in ids, "comma-separated type filter dropped one of its two names"
+    assert third not in ids, "type filter was ignored: an unlisted type came back"
     for job in data["data"]:
-        assert job["job_type"] in ("export", "cleanup")
+        assert job["job_type"] in ("export", "integration_probe_second_type")
 
 
 # =============================================================================
@@ -461,20 +495,27 @@ async def test_search_jobs_aggregations_by_type(client: AsyncClient, mock_redis,
 async def test_search_jobs_aggregations_reflect_filters(
     client: AsyncClient, mock_redis, integration_db
 ):
-    """Test aggregations are computed on filtered results, not all jobs."""
-    # Create an export job
-    job_request = {"format": "csv"}
-    await client.post("/api/events/export", json=job_request)
+    """Aggregations are computed on the filtered set, not the whole store.
+
+    The service filters before aggregating (``job_search_service.py:542``), so a
+    type excluded by the filter must not appear in ``by_type`` at all. The
+    pre-F-089 version had no non-matching type present and wrapped its one
+    assertion in ``if by_type:``, so it could not fail either way.
+    """
+    _seed_unique_job("export")
+    other_type = "integration_probe_agg_other_type"
+    _seed_unique_job(other_type)
 
     # Search only for export jobs
-    response = await client.get("/api/jobs/search?job_type=export")
+    response = await client.get("/api/jobs/search?type=export")
 
     assert response.status_code == 200
     data = response.json()
     by_type = data["aggregations"]["by_type"]
-    # Only export type should be in aggregations
-    if by_type:
-        assert "export" in by_type
+    assert by_type, "aggregations came back empty -- nothing was counted"
+    assert "export" in by_type
+    assert other_type not in by_type, "aggregations cover unfiltered jobs"
+    assert data["meta"]["total"] >= len(data["data"])
 
 
 # =============================================================================
@@ -632,16 +673,24 @@ async def test_search_jobs_total_matches_unfiltered(
 
 @pytest.mark.asyncio
 async def test_search_jobs_total_with_filter(client: AsyncClient, mock_redis, integration_db):
-    """Test meta.total reflects filtered count, not all jobs."""
-    # Create an export job
-    job_request = {"format": "csv"}
-    await client.post("/api/events/export", json=job_request)
+    """meta.total reflects the filtered count, not every job in the store.
 
-    # Filter to only export jobs
-    response = await client.get("/api/jobs/search?job_type=export")
+    This is the test's actual namesake claim, which the pre-F-089 body never
+    checked -- it looped over ``data["data"]`` instead of comparing totals. Two
+    types are seeded so the filtered total must be strictly smaller than the
+    unfiltered total.
+    """
+    _seed_unique_job("export")
+    _seed_unique_job("integration_probe_total_other_type")
 
-    assert response.status_code == 200
-    data = response.json()
-    # Total should match count of export jobs specifically
-    for job in data["data"]:
+    filtered = await client.get("/api/jobs/search?type=export")
+    unfiltered = await client.get("/api/jobs/search?limit=1000")
+
+    assert filtered.status_code == 200
+    fdata = filtered.json()
+    udata = unfiltered.json()
+    assert fdata["meta"]["total"] < udata["meta"]["total"], (
+        "filtered meta.total equals the unfiltered total -- the type filter did nothing"
+    )
+    for job in fdata["data"]:
         assert job["job_type"] == "export"

@@ -2,15 +2,16 @@
 
 ## Purpose
 
-The uplevel programme's tooling. `launch.py` is the sandbox launcher (package `O0.1`, rulings
-UR-26 and UR-28 in `docs/uplevel/`) and is a **host tool for the owner** - no agent runs it.
+The uplevel programme's tooling. `launch.py`, the sandbox launcher (package `O0.1`, rulings
+UR-26 and UR-28 in `docs/uplevel/`), and `reid_real_tier.sh`, the O2.4 re-ID real-tier runner
+(package `[r157]`, rulings 157 and 159), are **host tools for the owner** - no agent runs them.
 `prod-shape-probe.sh` and its override file are different: an agent runs those, inside a
 sandbox, as the `O2.5` Step 1 spike (ruling 144), and `docker-compose.prodshape.yml` is the same
 package's Step 2 artifact (ruling 162) - an override plus the CPU-only CI test that pins what it
 covers. The programme itself is planned in
 `docs/uplevel/` (start at its `README.md`); this module only automates what
 `docs/uplevel/rules.md` ("Agents, sandboxes and models") describes the owner doing by hand at a
-phase boundary.
+phase boundary, and what rulings 157/159 require repeated verbatim on the GPU host.
 
 ## Files
 
@@ -139,3 +140,40 @@ when the file grows); #6864 established that rule, and both the heavy row and th
 operator row on main now carry the section form. Network
 profiles and secrets are deliberately absent (no shown `agent-dgx` flag takes them);
 provisioning stays the owner's.
+
+### reid_real_tier.sh
+
+The O2.4 re-ID real-tier runner: the owner's throwaway maui run, committed so a repeat is a
+command and not a scratchpad (`[r157]`, rulings 157 + 159). Two modes:
+
+- `parity` (default) - the gateway serves this head's TensorRT plan and the runner runs
+  `scripts/reid_parity_check.py` (#6970's command): every crop through the CPU OSNet
+  reference and the served plan, cosine per crop against ruling 68's 0.999 gate. On a
+  near-miss (0.99 <= min < 0.999) it rebuilds the plan once in FP32 and retries, so a
+  precision loss is told apart from a fault.
+- `stages` - ruling 157's five-stage diagnostic: PyTorch -> ONNX Runtime CPU -> the plan
+  called directly FP32 -> FP16 -> the gateway endpoint, cosine per crop against stage 1,
+  and the first stage under the gate names where parity breaks. Stages 3/4 bind the plan by
+  device pointer using `ai/common/tensorrt_utils.py`'s own idiom, so they exercise the
+  same plan the Triton backend loads, and each precision PRINTS the binding the engine
+  reports (input/output names, declared shape, dtype, plus what the probe feeds) because
+  bullet 2 names that print as a deliverable - a CHW-vs-transposed fault is shape-legal and
+  shows up only when the owner can eyeball it. The gateway leg prints Triton's own
+  `/v2/models/reid/config` too. A stage that raises just leaves its file absent and the
+  table reads `unknown`; a stage plan missing on disk FAILS instead of falling back to the
+  cache plan (which is the LAST compiled precision, so a fallback could score FP16 as
+  FP32). `unknown` makes the table exit 2 - an incomplete diagnostic must not post as a
+  clean run - while a located first failure stays exit 0, because naming the broken stage
+  is this mode succeeding.
+
+`--checkout`, `--gpu`, `--port`, `--checkpoint`, `--crops`, `--head`, `--mode` - the host
+paths ruling 159 makes arguments. Without `--crops` it stops after build/export/compile and
+prints the run directory: real camera crops cannot be synthesised (a synthetic crop passes
+the parity check it is meant to test), so it waits for >=30 crops plus a `crops-ready`
+touch. UR-133/UR-134 hold unchanged: a fresh detached worktree at a named head (never the
+live checkout, never its `.env` - checked, not assumed), loopback-only port, the weights
+and model cache read-only, a local image tag never pushed, and teardown on any exit that
+re-snapshots both podman and docker and fails the run on any diff. Verified here: bash -n,
+shellcheck clean, the three embedded python scripts byte-compile, and the cosine table's
+four verdict branches tested against synthetic stage files. **Not run here:** the GPU legs
+(1-4) and the gateway leg need the serving host; the owner runs it on maui.

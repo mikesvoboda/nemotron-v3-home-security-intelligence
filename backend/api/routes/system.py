@@ -2528,6 +2528,7 @@ async def get_config(response: Response) -> ConfigResponse:
             if isinstance(settings.fast_path_confidence_threshold, int | float)
             else settings.fast_path_confidence_threshold
         ),
+        fast_path_enabled=settings.fast_path_enabled,
         grafana_url=settings.grafana_url,
         debug=settings.debug,
     )
@@ -2644,6 +2645,7 @@ async def patch_config(
         "batch_idle_timeout_seconds": old_settings.batch_idle_timeout_seconds,
         "detection_confidence_threshold": old_settings.detection_confidence_threshold,
         "fast_path_confidence_threshold": old_settings.fast_path_confidence_threshold,
+        "fast_path_enabled": old_settings.fast_path_enabled,
     }
 
     overrides: dict[str, str] = {}
@@ -2660,6 +2662,9 @@ async def patch_config(
         overrides["DETECTION_CONFIDENCE_THRESHOLD"] = str(update.detection_confidence_threshold)
     if update.fast_path_confidence_threshold is not None:
         overrides["FAST_PATH_CONFIDENCE_THRESHOLD"] = str(update.fast_path_confidence_threshold)
+    if update.fast_path_enabled is not None:
+        # Lowercase for pydantic-settings, matching settings_api's bool idiom.
+        overrides["FAST_PATH_ENABLED"] = str(update.fast_path_enabled).lower()
 
     if overrides:
         _write_runtime_env(overrides)
@@ -2684,6 +2689,7 @@ async def patch_config(
         "batch_idle_timeout_seconds": settings.batch_idle_timeout_seconds,
         "detection_confidence_threshold": settings.detection_confidence_threshold,
         "fast_path_confidence_threshold": settings.fast_path_confidence_threshold,
+        "fast_path_enabled": settings.fast_path_enabled,
     }
     changes: dict[str, dict[str, Any]] = {}
     for key, old_value in old_values.items():
@@ -2728,6 +2734,7 @@ async def patch_config(
             if isinstance(settings.fast_path_confidence_threshold, int | float)
             else settings.fast_path_confidence_threshold
         ),
+        fast_path_enabled=settings.fast_path_enabled,
         grafana_url=settings.grafana_url,
         debug=settings.debug,
     )
