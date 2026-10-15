@@ -62,23 +62,35 @@
  * the read is not trusted with that claim.
  *
  * Why the poll is IDENTITY-keyed and the row assert is count-free: the
- * pipeline read's `detection_count` is entangled with a key-type mismatch
- * between two BACKEND modules that this spec's first run will rule on. The
- * aggregator RPUSHes detections into `batch:<id>:detections` — a Redis LIST
- * (batch_aggregator.py:335-357) — while GET /api/system/pipeline reads that
- * key with `pipe.get(...)` (system.py:4089) and json.loads the reply
- * (:4027), which expects the pre-NEM-1726 JSON-string format the repo's unit
- * tests still seed (test_pipeline_worker.py:859 uses SET). GET on a list key
- * is WRONGTYPE, a RedisError subclass — reproduced on this sandbox with
- * fakeredis (`.venv` fakeredis 2.39/redis-py 8.1): ResponseError under BOTH
- * transaction=True (redis-py's default, what :4086 uses) and False — and the
- * handler's `except RedisError` at :4130 turns that into
- * `batch_aggregator: null` whenever a batch is alive. This sandbox cannot
- * bring a real stack up (/var/lib/docker full), so the first Feature check is
- * the witness: if the break holds, this spec goes RED at the poll/row legs and
- * the BREAK — not the assertions — is the finding (this body commits to
- * reporting output rather than adjusting assertions to fit). Identity-keyed
- * polling localizes it instead of compounding it.
+ * pipeline read's `detection_count` is entangled with TWO stacked key-type
+ * mismatches between backend modules, now WITNESSED against a real compose
+ * stack (not predicted). The aggregator RPUSHes detections into
+ * `batch:<id>:detections` — a Redis LIST (batch_aggregator.py:638, helper
+ * :335-357) — while GET /api/system/pipeline reads that key with
+ * `pipe.get(...)` (system.py:4089, in the 4-key pipeline :4086-4091) and
+ * json.loads the reply (:4027), expecting the pre-NEM-1726 JSON-string format
+ * the repo's unit tests still seed with SET (test_pipeline_worker.py:859).
+ * GET-on-LIST is WRONGTYPE ⊂ RedisError → `except RedisError` (:4130) →
+ * `batch_aggregator: null` while any batch is alive. A second mismatch is
+ * MASKED by the first: the wrapper's `set` always JSON-serializes
+ * (core/redis.py:1229), so `:started_at`/`:last_activity` land quoted, and the
+ * bare `float()` at :4106-4107 raises ValueError → the per-batch
+ * `except (ValueError, TypeError, KeyError)` (:4119) SKIPS the batch, so a
+ * WRONGTYPE-only cure still returns a well-formed `{active_batches: 0}`.
+ * The differential was run in a disposable container via a host bind-mount
+ * (this repo's backend/ is untouched): UNPATCHED backend:latest → this spec
+ * RED + `batch_aggregator:null` + 15× WRONGTYPE in the log; cure #1 only
+ * (lrange) → STILL RED, `active_batches: 0` +
+ * `could not convert string to float: '"…"'`; cures #1+#2 (json-decode the
+ * scalars) → this spec GREEN in 4.7 s, `active_batches: 1`, `detection_count: 2`.
+ * A fix that turns `null` into `0` looks like progress — the identity-keyed
+ * poll is what refused to accept the quieter failure, and it is why the row
+ * assert is count-free: no claim about the batch travels through the read under
+ * suspicion. Filed as lane work in backend/ at #7145 (UR-48); this spec stays
+ * as written — no skip (UR-114), assertions unbent (ruling 161). CI's
+ * Feature check (fake AI) is the independent real-Redis witness; the golden
+ * harness gate is only the four FEATURE_CHECK_* vars (harness.ts:17-20) and
+ * guard.ts has no CI skip, so this spec DOES execute there.
  *
  * It still self-cleans: the `backend` container runs the `batch_timeout`
  * worker (main.py:1011-1015), which closes the batch at the window/idle
