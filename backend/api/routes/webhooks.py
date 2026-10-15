@@ -14,7 +14,7 @@ from backend.api.schemas.webhooks import (
     AlertmanagerWebhookPayload,
     WebhookProcessingResponse,
 )
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.services.event_broadcaster import EventBroadcaster
 
 logger = get_logger(__name__)
@@ -102,9 +102,21 @@ async def receive_alertmanager_webhook(
         component = alert.labels.get("component", "unknown")
         description = alert.annotations.get("description", alert.annotations.get("summary", ""))
 
+        # CWE-117: every value above comes from a caller-supplied, unconstrained
+        # dict[str, str] (labels/annotations), so each one is sanitised before it
+        # reaches a log line. Routing deliberately keeps reading the raw
+        # ``severity``: sanitising is a log-content concern, and letting it steer
+        # the level would let a crafted "critical\u001b[0m" escalate itself
+        # to ERROR - a behaviour change beyond this fix.
+        safe_alertname = sanitize_log_value(alertname)
+        safe_severity = sanitize_log_value(severity)
+        safe_component = sanitize_log_value(component)
+        safe_description = sanitize_log_value(description)
+
         if alert.status == AlertmanagerStatus.FIRING:
             log_msg = (
-                f"[ALERT FIRING] {alertname} ({severity}) - component={component}: {description}"
+                f"[ALERT FIRING] {safe_alertname} ({safe_severity}) - "
+                f"component={safe_component}: {safe_description}"
             )
             if severity == "critical":
                 logger.error(log_msg)
@@ -114,8 +126,8 @@ async def receive_alertmanager_webhook(
                 logger.info(log_msg)
         else:
             logger.info(
-                f"[ALERT RESOLVED] {alertname} ({severity}) - "
-                f"component={component}: resolved after firing since {alert.startsAt}"
+                f"[ALERT RESOLVED] {safe_alertname} ({safe_severity}) - "
+                f"component={safe_component}: resolved after firing since {alert.startsAt}"
             )
 
     # Broadcast to WebSocket clients in background
