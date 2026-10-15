@@ -3593,7 +3593,12 @@ jobs:
   feature-check:
     name: Feature check (fake AI)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # ruling 189: 60 -> 64. With the leg's cap at GOLDEN_LEG_TIMEOUT_S=2640 (measured 1739 s x 1.5,
+    # see feature_check.py's GOLDEN_LEG_TIMEOUT_S), the same 10 green logs put worst boot+backend at 560 s and worst
+    # teardown at 30 s: 560+2640+30 = 3230 s = 53.8 min, which under 60 min left 6.2 min — under the
+    # ruling's 10-minute floor. 64 min = 3840 s restores 610 s. The margin is pinned in
+    # backend/tests/unit/scripts/test_feature_check.py against this file.
+    timeout-minutes: 64
     needs: detect-changes
     # O2.2's filter, expressed through detect-changes: a change that touches
     # only Markdown cannot break a golden path, so `feature` (below) is the
