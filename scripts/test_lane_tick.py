@@ -77,12 +77,12 @@ def heartbeat(agent, minutes, prose=None, cid=BEAT_ID):
     }
 
 
-def coordinator(minutes=5):
+def coordinator(minutes=5, cid=1):
     return heartbeat(
         "agent-uplevel-coordinator",
         minutes,
         f"coordinator · 09:2xZ · tick\nread-through: {CURSOR}",
-        cid=1,
+        cid=cid,
     )
 
 
@@ -403,8 +403,93 @@ def test_a_missing_beat_for_my_sandbox_is_reported_not_left_blank():
     assert has(text(beats=[coordinator()]), f"ERROR heartbeats: no beat for {SANDBOX}")
 
 
+# --- the --sandbox spelling ---------------------------------------------------------------
+# Both spellings are live on #6958 (measured: `uplevel-ops-a`, `uplevel-ops-b`, `uplevel-operator`
+# beat BARE; `agent-uplevel-backend`, `-frontend`, `-docs`, `-coordinator`, `-heavy-a/b` beat
+# PREFIXED) and `--sandbox` arrives as either -- the hostname is what `$SANDBOX_NAME` gives and so
+# what the role docs' `<your-sandbox>` resolves to. These go through `build`, not the helper: the
+# bug was the two lookups INSIDE build disagreeing, and a test that called the helper directly -- as
+# the held_claims A/B did -- could not see it.
+
+
+@pytest.mark.parametrize(
+    ("arg", "beat_key"),
+    [
+        # the docs' path: hostname in, bare beat on the issue (ops-a/ops-b/operator's real shape)
+        ("agent-uplevel-ops-b", "uplevel-ops-b"),
+        # the reverse: marker name in, prefixed beat (backend/frontend/docs/heavy's real shape)
+        ("uplevel-ops-b", "agent-uplevel-ops-b"),
+        # and the two that already agreed, so the fix is shown not to need them
+        ("agent-uplevel-ops-b", "agent-uplevel-ops-b"),
+        ("uplevel-ops-b", "uplevel-ops-b"),
+    ],
+)
+def test_either_sandbox_spelling_finds_my_beat(arg, beat_key):
+    out = text(sandbox=arg, beats=[coordinator(), heartbeat(beat_key, 3)])
+    assert has(out, "heartbeat id="), out
+    assert not has(out, "ERROR heartbeats"), out
+
+
+def test_two_beats_naming_me_resolve_to_the_freshest_not_the_first():
+    # Identity-matching makes two spellings ONE agent, so a stale second row becomes reachable. The
+    # heartbeat endpoint is not reliably sorted, so "first match" would be a coin flip -- the stale
+    # row is placed LAST here, the ordering that would make an arbitrary pick print the wrong age.
+    fresh = heartbeat("uplevel-ops-b", 3, cid=BEAT_ID)
+    stale = heartbeat("agent-uplevel-ops-b", 400, cid=999)
+    out = text(beats=[coordinator(), stale, fresh])
+    line = " ".join(has(out, "heartbeat id="))
+    assert f"id={BEAT_ID}" in line and "age 3.0m" in line, line
+    assert "id=999" not in out, "the stale spelling won"
+
+
+def test_the_comment_window_is_my_beat_under_either_spelling():
+    # The graver half: a missed beat made `since` fall back to the COORDINATOR's cursor, so step 4's
+    # `Nc/Nr since beat` was measured from a referent that is not my beat -- silently. Here the
+    # coordinator's read-through is NEWER than my beat and a comment lands in between, so the
+    # fallback reads 0c while the beat's own watermark reads 1c: the undercount, made visible.
+    beats = [
+        heartbeat("uplevel-ops-b", 3),
+        heartbeat(
+            "agent-uplevel-coordinator",
+            1,
+            "coordinator · 09:2xZ · tick\nread-through: " + t(timedelta(minutes=-1)),
+            cid=1,
+        ),
+    ]
+    between = comment(91, 7158, "Reviewer lane: ops-a\na flag", t(timedelta(minutes=-2)))
+    for arg in ("agent-uplevel-ops-b", "uplevel-ops-b"):
+        fake, out = run_tick(sandbox=arg, beats=beats, pr_comments={7158: [between]}, pr_reviews={})
+        read = [c for c in fake.asked("issues/7158/comments") if "since=" in c]
+        assert read and f"since={BEAT_AT}" in read[0], f"{arg}: window {read[:1]}"
+        assert "1c/0r since beat" in row(out, 7158), f"{arg}: {row(out, 7158)}"
+
+
 def test_the_coordinators_age_prints_and_a_fresh_one_raises_no_rule():
     assert has(text(), "coordinator age 5.0m") and not has(text(), "UR-162")
+
+
+def test_a_stale_coordinator_row_does_not_raise_a_ur162_that_is_not_owed():
+    # The coordinator keeps one row but its marker spelling can leave a stale duplicate behind, and
+    # the endpoint is not sorted. A first-match pick of the STALE row would trip UR-162 (age > 20m ->
+    # post a URGENT PATH) that the coordinator's actual fresh beat does not owe. Stale row placed
+    # last, so only a real freshest-wins tie-break avoids the false raise.
+    # Two rows must carry DIFFERENT spellings to survive `beats = {h["agent"]: h ...}`, which is
+    # keyed by the marker string: the same spelling twice collapses to one row and the pin would
+    # pass without the tie-break existing at all.
+    out = text(
+        beats=[
+            heartbeat("uplevel-ops-b", 3),
+            heartbeat(
+                "uplevel-coordinator",
+                400,
+                "coordinator · 08:0xZ · tick\nread-through: " + CURSOR,
+                cid=1,
+            ),  # stale, bare spelling
+            coordinator(2, cid=2),  # fresh, prefixed spelling
+        ]
+    )
+    assert has(out, "coordinator age 2.0m"), out
+    assert not has(out, "UR-162"), out
 
 
 def test_a_coordinator_older_than_twenty_minutes_points_at_ur162():

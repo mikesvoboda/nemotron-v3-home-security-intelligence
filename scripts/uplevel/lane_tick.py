@@ -339,8 +339,28 @@ def build(
         return [f"ERROR identities: {snap.error_text(exc)}"]
     now = snap.parse_time(data["cursor"]["now"])
     beats = {h["agent"]: h for h in data["heartbeats"].get("items", [])}
-    mybeat = beats.get(sandbox)
-    coord = next((h for a, h in beats.items() if a.endswith("coordinator")), None)
+    # Matched by AGENT IDENTITY, not by the string an agent happened to pass. The roster row lookup
+    # above already does this deliberately (`.endswith`), because `--sandbox` arrives either as the
+    # hostname (`agent-uplevel-ops-b`, what `$SANDBOX_NAME`/`hostname` give and so what the role
+    # docs' `<your-sandbox>` resolves to) or as the marker name (`uplevel-ops-b`), and BOTH spellings
+    # are live on #6958 -- measured: `uplevel-ops-a`, `uplevel-ops-b` and `uplevel-operator` beat
+    # bare while `agent-uplevel-backend`, `-frontend`, `-docs`, `-coordinator` and `-heavy-a/b` beat
+    # prefixed. A plain `beats.get(sandbox)` therefore missed a lane's OWN beat whenever the two
+    # spellings disagreed: the digest printed `ERROR heartbeats` AND, worse, fell through to the
+    # coordinator's cursor as the comment window, silently re-labelling step 4's `Nc/Nr since beat`.
+    # `agent_key` is the snapshot's existing normalization -- the same one box 2's signed-activity
+    # rule uses -- so the two readings cannot disagree about which agent an argument names.
+    my_key = snap.agent_key(sandbox)
+    # Freshest, not first: an agent is supposed to keep ONE beat (the role docs edit it in place) but
+    # the marker spelling is not stable, so two rows can collapse to one identity -- and the
+    # heartbeat endpoint is not reliably sorted, so "first match" would be an arbitrary pick.
+    mine_beats = [h for h in beats.values() if snap.agent_key(h["agent"]) == my_key]
+    mybeat = max(mine_beats, key=lambda h: h["updated_at"]) if mine_beats else None
+    # Same tie-break for the coordinator's row, whose age is the UR-162 trigger: a stale duplicate
+    # picked first would raise a URGENT PATH that is not owed. The `.endswith` SELECTOR is unchanged,
+    # so this only chooses among rows it already found -- it cannot lose the row it finds today.
+    coord_beats = [h for a, h in beats.items() if a.endswith("coordinator")]
+    coord = max(coord_beats, key=lambda h: h["updated_at"]) if coord_beats else None
     owner = data.get("owner_records", {}).get("items", [])
     urgent = [r for r in owner if raises_urgent(r, now)]
     who = f"{ids['lane']}-{ids['cell']}" if ids["cell"] else ids["lane"]
