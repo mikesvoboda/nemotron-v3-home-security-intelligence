@@ -456,8 +456,12 @@ PR (UR-48).
       a deletion — `BatchTimelineChart` takes `activeBatches` alone, so nothing ever rendered
       completed batches as a timeline, and the guard's leg B records that. Guard
       `frontend/src/__tests__/batch-history-views-retired.test.tsx` was proven RED with the render
-      armed, then green; leg C pins the kept view. The package's `Done when` is NOT met yet: F-135
-      stays `half-built` until this PR's golden spec has executed in CI.
+      armed, then green; leg C pins the kept view. The package's `Done when` is met, each leg re-read
+      at `c75e4642c`: the row's action cell reads the required text verbatim, its golden spec passed
+      first-attempt in CI (run `38725128069` attempt 2, `operations/batch-statistics.spec.ts:150`, no
+      failed-attempt child in its JUnit), and both retired component files are absent with the guard
+      pinning it. The row sits at `awaiting real tier`, not `works`: a fake-tier green is the lane's
+      ceiling (rulings 103, 148) and `F2.3` owns the real-tier flip.
 
 **Done when:** F-135's row reads "expands the section; sees active batches", its golden path covers
 that, and nothing renders the three history views.

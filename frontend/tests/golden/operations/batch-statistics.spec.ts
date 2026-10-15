@@ -16,7 +16,7 @@
  * /api/debug/* is documented live on this stack (databases.spec.ts:14). It
  * writes `batch:<camera>:current` atomically (batch_aggregator.py:623-630), which
  * GET /api/system/pipeline enumerates by scanning `batch:*:current`
- * (system.py:4066) with NO database validation, so a synthetic camera id is
+ * (system.py:4092) with NO database validation, so a synthetic camera id is
  * a legitimate active batch for a read that never consults Postgres.
  *
  * The probe camera is ATTEMPT-scoped, not a fixed name. playwright.config.ts:79
@@ -42,7 +42,7 @@
  *    /api/events/stats URL, unscoped): these are NOT protected by camera
  *    scoping. They are protected because the probe creates NO Event rows at
  *    all: analyze_batch raises `No detections found for batch` for a synthetic
- *    id (vlm_analyzer.py:515) before any event is written, so global counts
+ *    id (vlm_analyzer.py:517) before any event is written, so global counts
  *    cannot move.
  *
  * Seed LIFETIME, and why the spec re-adds once before the row asserts:
@@ -62,40 +62,40 @@
  * the read is not trusted with that claim.
  *
  * Why the poll is IDENTITY-keyed and the row assert is count-free: the
- * pipeline read's `detection_count` is entangled with TWO stacked key-type
- * mismatches between backend modules, now WITNESSED against a real compose
- * stack (not predicted). The aggregator RPUSHes detections into
- * `batch:<id>:detections` — a Redis LIST (batch_aggregator.py:638, helper
- * :335-357) — while GET /api/system/pipeline reads that key with
- * `pipe.get(...)` (system.py:4089, in the 4-key pipeline :4086-4091) and
- * json.loads the reply (:4027), expecting the pre-NEM-1726 JSON-string format
- * the repo's unit tests still seed with SET (test_pipeline_worker.py:859).
- * GET-on-LIST is WRONGTYPE ⊂ RedisError → `except RedisError` (:4130) →
- * `batch_aggregator: null` while any batch is alive. A second mismatch is
- * MASKED by the first: the wrapper's `set` always JSON-serializes
- * (core/redis.py:1229), so `:started_at`/`:last_activity` land quoted, and the
- * bare `float()` at :4106-4107 raises ValueError → the per-batch
- * `except (ValueError, TypeError, KeyError)` (:4119) SKIPS the batch, so a
- * WRONGTYPE-only cure still returns a well-formed `{active_batches: 0}`.
- * The differential was run in a disposable container via a host bind-mount
- * (this repo's backend/ is untouched): UNPATCHED backend:latest → this spec
- * RED + `batch_aggregator:null` + 15× WRONGTYPE in the log; cure #1 only
- * (lrange) → STILL RED, `active_batches: 0` +
- * `could not convert string to float: '"…"'`; cures #1+#2 (json-decode the
- * scalars) → this spec GREEN in 4.7 s, `active_batches: 1`, `detection_count: 2`.
- * A fix that turns `null` into `0` looks like progress — the identity-keyed
- * poll is what refused to accept the quieter failure, and it is why the row
- * assert is count-free: no claim about the batch travels through the read under
- * suspicion. Filed as lane work in backend/ at #7145 (UR-48); this spec stays
- * as written — no skip (UR-114), assertions unbent (ruling 161). CI's
- * Feature check (fake AI) is the independent real-Redis witness; the golden
- * harness gate is only the four FEATURE_CHECK_* vars (harness.ts:17-20) and
- * guard.ts has no CI skip, so this spec DOES execute there.
+ * pipeline read's `detection_count` WAS entangled with TWO stacked key-type
+ * mismatches, both cured ON THIS HEAD by `f9a18d028` (#7156), which reads the
+ * LIST with `pipe.lrange` (system.py:4117, in the 4-key pipeline :4114-4120)
+ * and unwraps the JSON-quoted scalars (`_coerce_scalar` def :4019, called
+ * :4135-4136) before `float()` (:4138). Pre-cure it `pipe.get`s the LIST the
+ * aggregator RPUSHes (batch_aggregator.py:638, helper :335-357): WRONGTYPE ⊂
+ * RedisError → `except RedisError` (:4130 then, :4162 now) →
+ * `batch_aggregator: null` for any live batch. MASKED behind that, the `set`
+ * wrapper JSON-quotes the timestamps (core/redis.py:1229), so `float()`
+ * raised ValueError and the per-batch `except (ValueError, TypeError,
+ * KeyError)` (:4151) SKIPPED the batch — lrange alone looked like progress
+ * and returned `{active_batches: 0}`, exactly as `f9a18d028`'s own message
+ * records. CI could not have seen either break: the unit fake seeds that key
+ * with SET and reads it back through the fake, never the endpoint
+ * (backend/tests/unit/services/test_pipeline_worker.py:859, inside
+ * `test_batch_metadata_lifecycle`). Both ends are now CI-witnessed — RED at
+ * `38664676455` (poll body carries `"batch_aggregator":null`; 70 WRONGTYPE
+ * naming `GET batch:<id>:detections` pipeline Command #2; `Error processing
+ * batch` 0×, the masking visible) and GREEN at `38725128069` attempt 2 (0× of
+ * all three). CI shows the pair but cannot separate the two cures, so that
+ * half was measured in a disposable container (this repo's backend/
+ * untouched): UNPATCHED → this spec RED + `batch_aggregator:null`; lrange alone → STILL RED,
+ * `active_batches: 0` + `could not convert string to float: '"…"'`; both → GREEN with
+ * `active_batches: 1`, `detection_count: 2`. Hence identity-keyed poll, count-free row assert, no skip
+ * (UR-114), assertions unbent (ruling 161), CI's Feature check as the
+ * independent real-Redis witness (harness.ts:17-20 is its only gate;
+ * guard.ts has no CI skip, so this spec DOES execute there).
  *
  * It still self-cleans: the `backend` container runs the `batch_timeout`
- * worker (main.py:1011-1015), which closes the batch at the window/idle
- * timeout after the LAST activity and DELETEs every `batch:*` key
- * (batch_aggregator.py:1018-1026) — no HTTP delete is needed and none exists.
+ * worker (main.py:1011-1015), which closes the batch on EITHER arm — the
+ * window arm measures `current_time - started_at` (batch_aggregator.py:790,
+ * compared :796), the idle arm measures from the LAST activity (:791, compared
+ * :801) — and DELETEs every `batch:*` key (batch_aggregator.py:1018-1026) — no
+ * HTTP delete is needed and none exists.
  *
  * The DOM is tied to the backend through the batch's own identity, at ROW
  * level: the returned batch_id and the probe camera id must co-occur in the
