@@ -344,6 +344,7 @@ jobs:
           scripts/test_lane_tick.py
           scripts/test_prodshape_override.py
           scripts/test_orchestrator_engine_socket.py
+          scripts/test_pr_watch.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref

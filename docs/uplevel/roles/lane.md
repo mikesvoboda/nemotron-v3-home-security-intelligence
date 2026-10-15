@@ -45,8 +45,14 @@ the package cites. You have no review label.
 
 ## The tick
 
-The owner arms it with `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+The owner arms it with `/loop 30m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
 Run these steps in order. Read CI once per tick and end the turn (UR-38).
+
+The 30-minute `/loop` is a **fallback** since ruling 193, not the main channel: step 6 arms a
+watcher that wakes you when a watched PR moves, so a handoff no longer waits up to a tick for its
+delay. Keep the `/loop` anyway -- it is what notices anything the watcher does not watch (a new
+`review:<lane>` label on a PR you were not watching, a stale coordinator) and it bounds a watcher
+that died silently.
 
 1. **Read the tick in one call.** Run
 
@@ -80,7 +86,24 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
    conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
    run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
-6. If none of these has work, say so in one line and end the turn.
+6. **Re-arm the watcher** (ruling 193) unless one is already running for these PRs. Arm it as a
+   background task, naming the PRs the digest just showed you -- your own open PRs and every
+   `review:<lane>` row -- and exit the turn immediately:
+
+   ```bash
+   uv run python scripts/uplevel/pr_watch.py --pr <n> --pr <m> --lifetime 1800
+   ```
+
+   It polls about every 60 s with **one GraphQL query and never the search API**, and exits with a
+   single line naming the PR and what moved -- a new head, a check conclusion, a review, a comment,
+   a label change, a merge or close, or a new `BINDING NOW` on #6854. It prints no comment bodies,
+   survives transient API errors, and ends with an error line after repeated failures or a "no
+   change" line at its lifetime bound, so silence never stands in for success. Its own suite
+   `scripts/test_pr_watch.py` pins each of these. A watcher armed in the background is not waiting
+   inside a turn (UR-38): the turn ends, and the line it prints starts a new one. When it exits,
+   act on the line and re-arm.
+
+7. If none of these has work, say so in one line and end the turn.
 
 ## Heartbeat
 

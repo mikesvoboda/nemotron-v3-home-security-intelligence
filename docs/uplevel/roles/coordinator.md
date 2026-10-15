@@ -36,6 +36,11 @@ agent's own open PR (UR-157).
 
 ## The tick
 
+**Unchanged by ruling 193:** the coordinator keeps its 5-minute tick and does not arm
+`scripts/uplevel/pr_watch.py`. The watcher is for a lane agent waiting on a specific PR; the
+coordinator's job is to sweep every open PR each tick, which a per-PR watcher does not do. Named
+here because ruling 193's package edits this section's file (item 4), not because it changed.
+
 Each tick runs in a fresh subagent that the coordinator's session dispatches ("Kickoff prompt"), so
 no tick carries anything from an earlier one except the `read-through` cursor in your heartbeat (owner
 record 6148551105). Run these steps in order. Read CI once per tick and end the turn (UR-38).
