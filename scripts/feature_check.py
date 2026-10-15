@@ -2107,12 +2107,14 @@ class Run:
         _log(f"seeded {len(self.camera_ids)} cameras: {', '.join(self.camera_ids.values())}")
 
     def seed_debug_fixtures(self) -> None:
-        """Plant the ruling-127/187/192 CI fixtures for --seeded runs:
+        """Plant the ruling-127/187/192/215 CI fixtures for --seeded runs:
         1. Two deterministic GET recordings via X-Debug-Record: true (F-154..F-156);
         2. An unreferenced file under /app/data/thumbnails (F-186);
         3. Fill the 20 MiB /app/data volume (parent of VIDEO_THUMBNAILS_DIR) past 90%
            for GET /api/system/storage (F-012, ruling 192 item 2);
-        4. Verification that HSI_FAULT_SEED=1 opened a circuit breaker (F-138) and
+        4. One KnownPerson and one FaceEmbedding row with a fixed 512-dim float32
+           vector and test-only model_id (F-278, ruling 215 item 1);
+        5. Verification that HSI_FAULT_SEED=1 opened a circuit breaker (F-138) and
            a burst of Redis misses trips the hit-ratio threshold (F-171).
         """
         for path in ("/api/system/config", "/api/system/health/ready"):
@@ -2190,6 +2192,47 @@ class Run:
                 f"got {storage_status}: {storage_body}"
             )
 
+        seeded_face = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import asyncio, struct\n"
+            "from backend.core.database import close_db, get_session, init_db\n"
+            "from backend.models.face_identity import FaceEmbedding, KnownPerson\n"
+            "async def _seed():\n"
+            "  await init_db()\n"
+            "  try:\n"
+            "    async with get_session() as s:\n"
+            "      p = KnownPerson(name='Seeded Known Person', is_household_member=True, notes='Seeded by feature_check.py for F-278')\n"
+            "      s.add(p)\n"
+            "      await s.flush()\n"
+            "      e = FaceEmbedding(person_id=p.id, embedding=struct.pack('<512f', 1.0, *([0.0] * 511)), model_id='test-only-seeded-vector', quality_score=0.95)\n"
+            "      s.add(e)\n"
+            "      await s.commit()\n"
+            "      print(f'{p.id}:{e.id}')\n"
+            "  finally:\n"
+            "    await close_db()\n"
+            "asyncio.run(_seed())",
+        )
+        if not seeded_face.stdout.strip().splitlines()[-1:]:
+            raise HarnessError("seeding known person and face embedding produced no output")
+        kp_status, kp_body = _http("GET", self.api + "/api/known-persons")
+        kp_items = kp_body.get("items") if isinstance(kp_body, Mapping) else None
+        if (
+            kp_status != 200
+            or not isinstance(kp_items, list)
+            or not any(
+                isinstance(item, Mapping) and int(item.get("embedding_count") or 0) >= 1
+                for item in kp_items
+            )
+        ):
+            raise HarnessError(
+                f"expected >= 1 seeded known person with embedding_count >= 1 from "
+                f"GET /api/known-persons, got {kp_status}: {kp_body}"
+            )
+
         cb_status, cb_body = _http("GET", self.api + "/api/system/circuit-breakers")
         if (
             cb_status != 200
@@ -2211,7 +2254,8 @@ class Run:
 
         self.summary["results"]["seeded"] = "ok"
         _log(
-            "seeded debug fixtures: 2 recordings, 1 orphan file, >90% disk fill, open redis breaker"
+            "seeded debug fixtures: 2 recordings, 1 orphan file, >90% disk fill, "
+            "1 known person + face embedding, open redis breaker"
         )
 
     def check_isolation(self) -> list[str]:
