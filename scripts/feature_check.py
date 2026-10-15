@@ -429,7 +429,12 @@ def snapshot_brief(snapshot: Snapshot) -> dict[str, list[str]]:
 
 
 def as_test_deployment(
-    base: Mapping[str, Any], *, project: str, run_dir: Path, vlm_url: str | None = None
+    base: Mapping[str, Any],
+    *,
+    project: str,
+    run_dir: Path,
+    vlm_url: str | None = None,
+    seeded: bool = False,
 ) -> dict[str, Any]:
     """Turn the rendered CI + fake stack into this run's test deployment.
 
@@ -492,6 +497,13 @@ def as_test_deployment(
     backend["tmpfs"] = [
         entry for entry in backend.get("tmpfs") or [] if entry.split(":", 1)[0] != CAMERA_TARGET
     ]
+    if seeded:
+        environment["DEBUG"] = "true"
+        environment["REQUEST_RECORDING_ENABLED"] = "true"
+        environment["REQUEST_RECORDING_SAMPLE_RATE"] = "0.0"
+        environment["HSI_FAULT_SEED"] = "1"
+        if not any(entry.split(":", 1)[0].rstrip("/") == "/app/data" for entry in backend["tmpfs"]):
+            backend["tmpfs"].append("/app/data:mode=1777,uid=1000,gid=1000")
     backend.setdefault("volumes", []).append(
         {
             "type": "bind",
@@ -1656,17 +1668,25 @@ class Run:
         image_tag: str,
         mode: str,
         prod_shape: bool = False,
+        seeded: bool = False,
     ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
         self.engine = engine
         self.mode = mode
         self.prod_shape = prod_shape
+        self.seeded = seeded
         # A run record that does not say WHICH compose shape was rendered cannot
         # witness ruling 127's 12 real-tier rows, which is the whole point of the
         # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
-        # prod shape gets a distinct one -- so nothing that greps today shifts.
-        self.shape = f"{mode}-prod-shape" if prod_shape else mode
+        # prod shape and the ruling-127/187 seeded CI project get distinct ones --
+        # so nothing that greps today shifts.
+        if prod_shape:
+            self.shape = f"{mode}-prod-shape"
+        elif seeded:
+            self.shape = f"{mode}-seeded"
+        else:
+            self.shape = mode
         self.image_tag = image_tag
         self.dir = (root / self.project).resolve()
         self.cameras = self.dir / "cameras"
@@ -1817,7 +1837,11 @@ class Run:
             self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
         )
         deployment = as_test_deployment(
-            base, project=self.project, run_dir=self.dir, vlm_url=vlm.url if vlm else None
+            base,
+            project=self.project,
+            run_dir=self.dir,
+            vlm_url=vlm.url if vlm else None,
+            seeded=self.seeded,
         )
         self.compose_file.write_text(json.dumps(deployment, indent=2) + "\n", encoding="utf-8")
         rendered = json.loads(self.deployment("config", "--format", "json").stdout)
@@ -2082,6 +2106,83 @@ class Run:
         self._write("cameras.json", self.camera_ids)
         _log(f"seeded {len(self.camera_ids)} cameras: {', '.join(self.camera_ids.values())}")
 
+    def seed_debug_fixtures(self) -> None:
+        """Plant the ruling-127/187 CI fixtures for --seeded runs:
+        1. Two deterministic GET recordings via X-Debug-Record: true (F-154..F-156);
+        2. An unreferenced file under /app/data/thumbnails (F-186);
+        3. Verification that HSI_FAULT_SEED=1 opened a circuit breaker (F-138) and
+           a burst of Redis misses trips the hit-ratio threshold (F-171).
+        """
+        for path in ("/api/system/config", "/api/system/health/ready"):
+            status, body = _http(
+                "GET",
+                self.api + path,
+                headers={"X-Debug-Record": "true"},
+            )
+            if status != 200:
+                raise HarnessError(f"seeding recorded request {path} answered {status}: {body}")
+        rec_status, rec_body = _http("GET", self.api + "/api/debug/recordings")
+        if (
+            rec_status != 200
+            or not isinstance(rec_body, Mapping)
+            or int(rec_body.get("total") or 0) < 2
+        ):
+            raise HarnessError(
+                f"expected >= 2 seeded recordings from GET /api/debug/recordings, "
+                f"got {rec_status}: {rec_body}"
+            )
+
+        planted = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import os, time; from pathlib import Path; "
+            "p = Path('/app/data/thumbnails/seeded-orphan.jpg'); "
+            "p.parent.mkdir(parents=True, exist_ok=True); "
+            "p.write_bytes(b'seeded-orphan-fixture'); "
+            "old = time.time() - 48 * 3600; "
+            "os.utime(p, (old, old)); "
+            "print(p.stat().st_size)",
+        )
+        if not planted.stdout.strip().splitlines()[-1:]:
+            raise HarnessError("planting seeded-orphan.jpg produced no size output")
+        orphan_status, orphan_body = _http(
+            "POST", self.api + "/api/system/cleanup/orphaned-files?dry_run=true"
+        )
+        if (
+            orphan_status != 200
+            or not isinstance(orphan_body, Mapping)
+            or int(orphan_body.get("orphaned_count") or 0) < 1
+        ):
+            raise HarnessError(
+                f"expected >= 1 orphaned file after planting fixture, "
+                f"got {orphan_status}: {orphan_body}"
+            )
+
+        cb_status, cb_body = _http("GET", self.api + "/api/system/circuit-breakers")
+        if (
+            cb_status != 200
+            or not isinstance(cb_body, Mapping)
+            or int(cb_body.get("open_count") or 0) < 1
+        ):
+            raise HarnessError(
+                f"expected >= 1 open circuit breaker from HSI_FAULT_SEED=1, "
+                f"got {cb_status}: {cb_body}"
+            )
+
+        for _ in range(4):
+            ps_status, ps_body = _http("GET", self.api + "/api/debug/pipeline-state")
+            if ps_status != 200:
+                raise HarnessError(
+                    f"seeding Redis misses via GET /api/debug/pipeline-state "
+                    f"answered {ps_status}: {ps_body}"
+                )
+
+        self.summary["results"]["seeded"] = "ok"
+        _log("seeded debug fixtures: 2 recordings, 1 orphan file, open redis breaker")
+
     def check_isolation(self) -> list[str]:
         ids = self._run(
             [
@@ -2166,7 +2267,8 @@ class Run:
         }
         problems = []
         results: dict[str, Any] = {}
-        if sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
+        project_name = "golden-seeded" if self.seeded else "golden"
+        if not self.seeded and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
             junit = self.artifacts / "golden-backend.xml"
             result = self._run(
                 [
@@ -2190,10 +2292,13 @@ class Run:
             # Ruling 114: the exit code above says the runner finished, not that a
             # spec ran. Judged on the report this run wrote, never on a previous one.
             problems += golden_execution_problems("backend", results["backend_specs"])
+        elif self.seeded:
+            results["backend"] = "skipped on seeded"
         else:
             results["backend"] = "no specs yet"
         if PLAYWRIGHT_CONFIG.exists() and re.search(
-            r"name:\s*['\"]golden['\"]", PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+            rf"name:\s*['\"]{re.escape(project_name)}['\"]",
+            PLAYWRIGHT_CONFIG.read_text(encoding="utf-8"),
         ):
             report = self.artifacts / "golden-playwright"
             junit = self.artifacts / "golden-playwright.xml"
@@ -2321,7 +2426,7 @@ class Run:
                     "--no-install",
                     "playwright",
                     "test",
-                    "--project=golden",
+                    f"--project={project_name}",
                     shlex.quote(f"--output={report}"),
                     "--reporter=list,junit",
                 ]
@@ -2744,6 +2849,7 @@ def _http(
     timeout: float = 15,
     *,
     origin: str | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> tuple[int, Any]:
     """(status, JSON body or text); status 0 when nothing answered.
 
@@ -2761,8 +2867,9 @@ def _http(
         also = f" and {origin}" if origin else ""
         raise HarnessError(f"the harness talks only to its own 127.0.0.1 ports{also}, not {url}")
     data = json.dumps(payload).encode() if payload is not None else None
+    req_headers = {"Content-Type": "application/json", **(dict(headers) if headers else {})}
     request = urllib.request.Request(  # noqa: S310 (127.0.0.1 or the VLM, checked above)
-        url, data=data, method=method, headers={"Content-Type": "application/json"}
+        url, data=data, method=method, headers=req_headers
     )
     try:
         with opener.open(request, timeout=timeout) as response:
@@ -2824,12 +2931,14 @@ def _interrupt(signum: int, _frame: Any) -> None:
 
 
 def run_check(args: argparse.Namespace, *, mode: str) -> int:
+    seeded = bool(getattr(args, "seeded", False))
     run = Run(
         engine=args.engine,
         root=args.root,
         image_tag=args.image_tag,
         mode=mode,
         prod_shape=args.prod_shape,
+        seeded=seeded,
     )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
@@ -2853,6 +2962,8 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         run.up(vlm)
         run.register_admin()
         run.seed_cameras()
+        if getattr(run, "seeded", False):
+            run.seed_debug_fixtures()
         problems = run.check_isolation()
         problems += run.smoke(vlm)
         if not problems:
@@ -2961,6 +3072,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "stack. Refused without --real — the prod shape is the real tier's prod shape.",
     )
     parser.add_argument(
+        "--seeded",
+        action="store_true",
+        help="with --fake, boot the ruling-127/187 seeded CI stack (DEBUG=true, "
+        "request recorder enabled, breaker/threshold fault seed, orphan file fixture) "
+        "and run the golden-seeded Playwright project.",
+    )
+    parser.add_argument(
         "--image-tag",
         default=os.environ.get("FEATURE_CHECK_IMAGE_TAG", "latest"),
         help="backend/frontend image tag (default: $FEATURE_CHECK_IMAGE_TAG or latest)",
@@ -2997,6 +3115,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         # would let a reader of a run record believe prod was exercised when the CI
         # stack ran. Refused at parse time, before any engine call.
         parser.error("--prod-shape needs --real (it is the real tier's production shape)")
+    if args.seeded and not args.fake:
+        parser.error("--seeded needs --fake (it is the fake tier's seeded CI project)")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:

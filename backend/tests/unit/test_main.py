@@ -128,6 +128,42 @@ class TestInitCircuitBreakers:
         all_status = registry.get_all_status()
         assert len(all_status) == 3
 
+    def test_fault_seed_opens_redis_breaker_only_when_debug_enabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Ruling 127/187 fault seed behind the debug guard trips redis only when debug=True."""
+        from backend.main import init_circuit_breakers
+
+        mock_settings = MagicMock()
+
+        # 1. debug=False + HSI_FAULT_SEED=1 -> guard blocks fault seed
+        mock_settings.debug = False
+        monkeypatch.setenv("HSI_FAULT_SEED", "1")
+        with patch("backend.main.get_settings", return_value=mock_settings, autospec=True):
+            init_circuit_breakers()
+        assert _get_registry().get_all_status()["redis"]["state"] == "closed"
+
+        reset_circuit_breaker_registry()
+
+        # 2. debug=True + HSI_FAULT_SEED unset -> no fault seed
+        mock_settings.debug = True
+        monkeypatch.delenv("HSI_FAULT_SEED", raising=False)
+        with patch("backend.main.get_settings", return_value=mock_settings, autospec=True):
+            init_circuit_breakers()
+        assert _get_registry().get_all_status()["redis"]["state"] == "closed"
+
+        reset_circuit_breaker_registry()
+
+        # 3. debug=True + HSI_FAULT_SEED=1 -> redis breaker force-opened, others stay closed
+        mock_settings.debug = True
+        monkeypatch.setenv("HSI_FAULT_SEED", "1")
+        with patch("backend.main.get_settings", return_value=mock_settings, autospec=True):
+            init_circuit_breakers()
+        all_status = _get_registry().get_all_status()
+        assert all_status["redis"]["state"] == "open"
+        assert all_status["yolo26"]["state"] == "closed"
+        assert all_status["postgresql"]["state"] == "closed"
+
 
 @pytest.fixture
 def reset_signal_handler_state():

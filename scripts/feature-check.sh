@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The feature-check harness (O2.2): golden paths against a test deployment.
 #
-#   scripts/feature-check.sh --fake [--image-tag <tag>]
+#   scripts/feature-check.sh --fake [--seeded] [--image-tag <tag>]
 #   scripts/feature-check.sh drop <image> <camera>    # inside a golden spec
 #
 # --fake brings up the CI stack with the fake-AI overlay under its own compose
