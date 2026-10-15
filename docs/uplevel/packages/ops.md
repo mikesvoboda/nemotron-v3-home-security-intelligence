@@ -513,7 +513,7 @@ output with its status comment drafted by `status_draft.py`.
 ### [r181] The lane-tick digest and the signed-activity snapshot
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after its `F2.3` OP-3 rows and before `[r172]`;
-ops-a reviews. **Depends on:** none. **PR:** #7164 (open). (ruling 181)
+ops-a reviews. **Depends on:** none. **PR:** #7164 (merged). (ruling 181)
 
 - [x] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
       agent's heartbeat id and age, the coordinator's heartbeat age (UR-162), and disk use of `/`
