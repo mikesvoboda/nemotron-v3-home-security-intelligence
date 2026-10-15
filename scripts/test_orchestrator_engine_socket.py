@@ -1,16 +1,23 @@
 """[r162] The engine socket follows the orchestrator setting.
 
 Done-when (`docs/uplevel/packages/ops.md:450-451` — the file is 451 lines, ruling 162 `6156947315`),
+as narrowed by owner ruling 186 `6181436641` (2026-10-15T00:20Z, option b — gate backend only),
 rendered contract:
 
-  1. a production config rendered with the orchestrator OFF mounts NO engine socket;
-  2. one with it ON mounts it as before;
+  1. a production config rendered with the orchestrator OFF mounts NO engine socket **in
+     `backend`** — and `alloy` KEEPS its unconditional mount (ruling 186 item 2), because Alloy
+     uses the socket for monitoring, not orchestration (`monitoring/alloy/config.alloy:19`,
+     `:52`, `:161`);
+  2. one with it ON mounts it in both, as before;
   3. `O2.5`'s override drift test still passes (that clause is owned by
      `test_prodshape_override.py`; this file must not break it, and does not re-run it here).
 
-Plus the package's scope box: "the `:?` interpolation no longer demands a value when nothing uses
-it" — so a render with the orchestrator OFF and `PODMAN_SOCKET` UNSET must SUCCEED, not die on the
-hard-interpolation the way `docker-compose.prod.yml:473`/`:1584` do today.
+The package's scope box said "the `:?` interpolation no longer demands a value when nothing uses
+it"; ruling 186 item 2 STRUCK that clause — with alloy's mount unconditional, alloy's
+`${PODMAN_SOCKET:?…}` (`docker-compose.prod.yml:1584`) still demands the value on every render,
+which #7114's owner letter showed is accidental protection worth keeping (a prod stack with an
+invalid Alloy config cannot boot at all today). `test_alloy_always_demands_the_socket_value`
+pins that protection against a future relaxation.
 
 These are RENDER assertions on purpose. The mechanism is an open owner-tier design question
 (Compose has no conditional volume item: an interpolated entry that expands to nothing is
@@ -111,13 +118,18 @@ def _require_cli() -> None:
 
 # ------------------------------------------------------------------ Done-when clause 1 ----------
 def test_orchestrator_off_mounts_no_engine_socket():
-    """Clause 1: with the orchestrator OFF (and the socket value still supplied, to isolate the
-    mount condition from the `:?` demand), neither backend nor alloy mounts an engine socket."""
+    """Clause 1 as ruled (ruling 186 items 1-2): with the orchestrator OFF (and the socket value
+    still supplied, to isolate the mount condition from the `:?` demand), `backend` mounts no
+    engine socket. `alloy` KEEPS its mount — its use of the socket is monitoring, not
+    orchestration, so a flag-gated alloy would boot "running" with no container logs or profiling.
+    Both halves are asserted: a fix that dropped alloy's mount too would pass a `not any()` check
+    while breaking monitoring, so this pin cannot be satisfied by over-gating."""
     _require_cli()
     rc, err, services = _render(PODMAN_SOCKET=SOCKET_SENTINEL, ORCHESTRATOR_ENABLED="false")
     assert rc == 0, f"orchestrator-off render failed rc={rc}: {err[:400]}"
     hits = _socket_mounts(services)
-    assert not any(hits.values()), f"engine socket survives with the orchestrator OFF: {hits}"
+    assert not hits["backend"], f"backend keeps the engine socket with the orchestrator OFF: {hits}"
+    assert hits["alloy"], f"alloy LOST its monitoring socket (ruling 186 keeps it unconditional): {hits}"
 
 
 # ------------------------------------------------------------------ Done-when clause 2 ----------
@@ -145,15 +157,23 @@ def test_the_unset_flag_keeps_the_socket():
         assert hits[n], f"{n} lost its engine socket on an UNSET flag (default must be ON): {hits}"
 
 
-# ------------------------------------------------------------------ scope box: the `:?` ----------
-def test_orchestrator_off_needs_no_socket_value():
-    """Package scope box: "the `:?` interpolation no longer demands a value when nothing uses it."
-    Today `docker-compose.prod.yml:473` uses `${PODMAN_SOCKET:?…}`, so an unset value fails the
-    WHOLE render even with the orchestrator off and nothing wanting the socket — measured rc=1,
-    `error while interpolating services.backend.volumes`. After the fix this render must succeed."""
+# ------------------------------------------------------------------ kept protection: the `:?` ----------
+def test_alloy_always_demands_the_socket_value():
+    """The struck scope box, pinned in its ruled shape (ruling 186 item 2): alloy's mount stays
+    unconditional and its `${PODMAN_SOCKET:?…}` stays, so a render with the orchestrator OFF and
+    `PODMAN_SOCKET` UNSET must still FAIL. #7114's owner letter showed this is worth keeping:
+    alloy reads env("PODMAN_SOCKET") for container discovery, log scraping and profiling targets,
+    so an unset path with a surviving mount means a monitoring stack that looks healthy while
+    starved — the `:?` is what makes that state unrenderable today. The error must name ALLOY's
+    interpolation (not backend's): backend's `:?` goes away with the fix; alloy's must survive,
+    and an error only naming backend would mean alloy's got relaxed too."""
     _require_cli()
     rc, err, _services = _render(PODMAN_SOCKET=None, ORCHESTRATOR_ENABLED="false")
-    assert rc == 0, (
-        "orchestrator-off render still demands PODMAN_SOCKET (the `:?` survives): "
-        f"rc={rc}: {err[:400]}"
+    assert rc != 0, (
+        "orchestrator-off render SUCCEEDED with PODMAN_SOCKET unset — the `:?` demand was "
+        "relaxed, which ruling 186 item 2 forbids while alloy's mount stays unconditional"
+    )
+    assert re.search(r"services\.alloy\.volumes", err), (
+        f"the failing interpolation is not alloy's (expected services.alloy.volumes in the "
+        f"demand): rc={rc}: {err[:400]}"
     )

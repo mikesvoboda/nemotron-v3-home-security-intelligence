@@ -442,9 +442,12 @@ is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
 **Flags:** owner (production safety). **Assigned:** `uplevel-ops-a`. **Depends on:** `O2.5`
 merged. **PR:** none yet. (ruling 162)
 
-- [ ] `backend` and `alloy` mount `${PODMAN_SOCKET}` only when the orchestrator is enabled
-      (`docker-compose.prod.yml:473`, `:1584` at ruling 162), not unconditionally; the `:?`
-      interpolation no longer demands a value when nothing uses it.
+- [ ] `backend` mounts `${PODMAN_SOCKET}` only when the orchestrator is enabled
+      (`docker-compose.prod.yml:473` at ruling 162), not unconditionally. ~~and `alloy` … the `:?`
+      interpolation no longer demands a value when nothing uses it~~ — owner ruling 186
+      (`6181436641`, 2026-10-15T00:20Z) gates **backend only**: alloy's mount stays unconditional and
+      its `${PODMAN_SOCKET:?…}` (`:1584`) stays, because alloy uses the socket for monitoring
+      (`monitoring/alloy/config.alloy:19`, `:52`, `:161`), not orchestration.
 - [ ] A migration note for the live deployment's next redeploy.
 
 **Done when:** a production config rendered with the orchestrator off mounts no engine socket, one
