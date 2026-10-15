@@ -300,6 +300,7 @@ jobs:
           scripts/test_r2_python_dead_list.py
           scripts/test_coordinator_snapshot.py
           scripts/test_lane_tick.py
+          scripts/test_plan_lint.py
           scripts/test_post_record.py
           scripts/test_prodshape_override.py
           -q

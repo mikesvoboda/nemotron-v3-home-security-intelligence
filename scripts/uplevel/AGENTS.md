@@ -191,3 +191,18 @@ a roster sandbox without its `agent-`/`uplevel-` prefixes, a body that already c
 a record whose first line does not start `BINDING NOW · ruling N`. `--dry-run` prints the final body
 and posts nothing; a failed post exits 1. It posts with `gh api ... -F body=@-` (the body on stdin)
 through one injectable runner. Tests: `scripts/test_post_record.py`.
+
+### plan_lint.py
+
+The plan fields `lane_tick.py` acts on, checked where they are written (ruling 197).
+`uv run python scripts/uplevel/plan_lint.py [--root DIR]` reads the working tree's roster
+(`docs/uplevel/roles/lane.md`), package files and ruling map with `lane_tick.py`'s own parsers
+(imported, never copied: `ROW`, `queue_entries`, `BLOCK`, `PKG_FIELD`, `NONE_YET`, `PR_NUMBER`,
+`next_claimable`, `held_claims`). It fails when a roster queue token has no `### ` block in its
+lane's package file, when a `**PR:**` field reads as neither `none yet` nor a `#N` (a `none` /
+`yet.` wrapped across two lines is that case), when one token is on two lanes' queues, or when a
+ruling-map row from 177 on names no 10-digit record id. Rows labelled `none` are skipped, and
+`F2.3` (one package split across every lane, rulings 87 and 175) is held to its block in
+`frontend.md` instead. Exit 0 clean, 1 with one `file:line: message` per finding; the last line
+counts what it read. Tests: `scripts/test_plan_lint.py`, whose `test_the_real_tree_is_clean` runs
+the lint over this checkout in CI.
