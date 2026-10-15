@@ -167,16 +167,16 @@ test.describe('DO-2 browser permissions golden path (F-234)', () => {
     await expect(sectionTitle(page, 'Notification Settings')).toBeVisible();
 
     // RUNTIME SELF-SKIP, stated not faked (owner note 6103539478's self-skip
-    // law): the feature-check image's Chromium does not honour the grant —
-    // CI run 38148818888 painted Denied inside THIS test after
+    // law): the binary that will not honour the grant is headless-shell, and
+    // CI run 38148818888 used it — it painted Denied inside THIS test after
     // grantNotifications, and the lane's solo probe stack measured the same
-    // with the per-origin form. So measure before asserting: if the browser
-    // will not enter the granted world, say what it reports and skip the
-    // granted arm (which the row's real tier owns) rather than bank a red
-    // that indicts the product. If a future image DOES honour it, this line
-    // stops firing and every assert below runs — nothing here is widened or
-    // loosened to accommodate the failure. The mirror test above pins the
-    // one-singleton law in both worlds regardless.
+    // with the per-origin form. `test.use({ channel: 'chromium' })` above is
+    // the change: on run 38781211294 the grant took, this skip did NOT fire,
+    // and every assert below ran (junit: that testcase has no <skipped> child).
+    // So measure before asserting: if a future image will not enter the granted
+    // world, say what it reports and skip the granted arm (which the row's real
+    // tier owns) rather than bank a red that indicts the product. The mirror
+    // test above pins the one-singleton law in both worlds regardless.
     const granted = await page.evaluate(() => Notification.permission);
     test.skip(
       granted !== 'granted',
