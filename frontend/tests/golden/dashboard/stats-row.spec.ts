@@ -88,7 +88,7 @@
  *   page.on('request') — observation, not interception), not a hand-picked
  *   trio, because on this page THREE cache misses each replace the layout
  *   with a coat: a shed GET /api/auth/setup-status fail-closes to /setup
- *   (ProtectedRoute.tsx:80-82, AuthContext.tsx:137 retry:false), a missing
+ *   (ProtectedRoute.tsx:79-81, AuthContext.tsx:137 retry:false), a missing
  *   /api/auth/me lands on /login (AuthContext.tsx:162), and a failing
  *   loadInitialData — Promise.all([fetchCameras, fetchEventStats]) — or
  *   events query error renders "Error Loading Dashboard"
@@ -517,13 +517,33 @@ test.describe('golden path: dashboard stats row @critical', () => {
     // removes. The 15-attempt budget (exhaustion 331–414 s away) never fires:
     // this leg held the offline boot under ~30 s of polls.
     await page.context().setOffline(false);
+    // The clause is "clears WHEN THEY RETURN" — a POSITIVE post-restore state,
+    // not a bare absence. An absence alone greens on the err429 coat: the
+    // online event fires a reconnect-refetch burst (queryClient.ts:752
+    // refetchOnReconnect:true) that can land BEFORE the sockets' next scheduled
+    // slot, and one shed recent-events refetch (useRecentEventsQuery.ts:176,
+    // retry:1) flips DashboardPage's error branch (:446-447), which UNMOUNTS
+    // DashboardLayout — this dir's harness.ts:150-154 documents exactly that.
+    // Hint gone, sockets never returned, leg green: the UR-128 both-ways pass.
+    // Same positive conjunction as the shipped precedent
+    // shell/ws-status.spec.ts:522-531 (chip Connected AND banner null): the
+    // layout must be painted AND the hint gone, so a coat reads as a RED.
     await expect
-      .poll(async () => (await hint.count()) === 0, {
-        timeout: 90_000,
-        intervals: [1_000],
-        message:
-          'after the restore: the both-down hint never cleared (both sockets did not reconnect)',
-      })
+      .poll(
+        async () => {
+          const painted = await page
+            .getByTestId('dashboard-layout')
+            .isVisible()
+            .catch(() => false);
+          return painted && (await hint.count()) === 0;
+        },
+        {
+          timeout: 90_000,
+          intervals: [1_000],
+          message:
+            'after the restore: layout unpainted (a coat unmounted it — sockets unproven) or the both-down hint never cleared',
+        }
+      )
       .toBe(true);
 
     // This leg hammered /api through the worker while partitioned; drain so the
