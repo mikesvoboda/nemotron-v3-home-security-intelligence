@@ -6,7 +6,7 @@ decision to the owner, relays the answer as a numbered ruling, and opens the own
 this role, read this file in full, then the files in "Read first".
 
 The fleet does the work: `uplevel-coordinator` routes and merges; the lanes (`backend`, `frontend`, `ops-a`, `ops-b`,
-`docs`), the two heavy agents (`heavy`, `heavy-2`) and `uplevel-operator` build. You keep them honest and keep the
+`docs`), the two heavy agents (`heavy-a`, `heavy-b`) and `uplevel-operator` build. You keep them honest and keep the
 owner unblocked.
 
 ## Read first
@@ -144,7 +144,7 @@ Owner ruling <NN> (merged in PR #<M>, or its BINDING NOW record on #6854) assign
 
 Launching a sandbox, from a clean host checkout of `main` (UR-28): `agent-dgx run <name> --agent claude [--endpoint dgx] [--mount <host>:ro] [--gpu] --split`, then
 the kickoff from `scripts/uplevel/sandboxes.toml` and `/loop` at the interval UR-36 sets. The strongest model is
-`--agent claude` with no endpoint (heavy, heavy-2). Only the operator has `--gpu` and the `/synthbench` mounts (UR-30).
+`--agent claude` with no endpoint; heavy-a and heavy-b start with `agent-dgx <name> pi --split` (ruling 184). Only the operator has `--gpu` and the `/synthbench` mounts (UR-30).
 
 ## What has gone wrong before
 
@@ -166,8 +166,8 @@ Check for these first; each has happened.
 - **Merges** take about 16 to 20 minutes each, one at a time: `main` protection is `strict: true`, there is no merge
   queue (user-owned repo), and the coordinator updates branches with
   `gh api -X PUT repos/$R/pulls/<n>/update-branch`. What an update-branch keeps: UR-106.
-- **Labels:** `lane:<lane>`, `heavy`, `owner`, `cell:a` / `cell:b` (ops-a / ops-b), `cell:heavy-2` (a `heavy` PR with
-  it is heavy-2's; without it, `uplevel-heavy`'s), `review:<lane>`.
+- **Labels:** `lane:<lane>`, `heavy`, `owner`, `cell:a` / `cell:b` (ops-a / ops-b), `cell:heavy-b` (a `heavy` PR with
+  it is heavy-b's; without it, `uplevel-heavy-a`'s), `review:<lane>`.
 - **Status comment:** edited every tick, no fixed time (UR-25); the urgent path is UR-168.
 - **maui (the GPU host):** each sandbox's `$AGENT_GPU_DIR` is `/agents/<sandbox>/gpu`; `/var/lib/agent-gpu` is the
   `agent-gpu` user's home. `/synthbench/corpus` is a nested ZFS dataset, so mount it explicitly. The B1.2 eval store

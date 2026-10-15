@@ -73,8 +73,8 @@ OPS_B = "uplevel-ops-b"
 BACKEND = "uplevel-backend"
 FRONTEND = "uplevel-frontend"
 DOCS = "uplevel-docs"
-HEAVY = "uplevel-heavy"
-HEAVY_2 = "uplevel-heavy-2"
+HEAVY = "uplevel-heavy-a"
+HEAVY_2 = "uplevel-heavy-b"
 OPERATOR = "uplevel-operator"
 
 RUNNING = {"head": MAIN_SHA, "sandbox": "running"}
@@ -384,15 +384,15 @@ def test_the_operator_row_mounts_only_synthbench_read_only() -> None:
 
 
 def test_the_second_heavy_kickoff_names_itself_and_its_label() -> None:
-    """Both heavy agents paste the same prompt, so heavy-2's line carries the sentence
+    """Both heavy agents paste the same prompt, so heavy-b's line carries the sentence
     that tells it which heavy PRs are its (roles/lane.md, "Heavy agents")."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     lines = {s.name: (s.model, s.kickoff) for s in phases[1]}
     assert lines[HEAVY_2][0] == "strongest"
     assert (
-        "You are uplevel-heavy-2; take only heavy PRs labelled cell:heavy-2." in lines[HEAVY_2][1]
+        "You are uplevel-heavy-b; take only heavy PRs labelled cell:heavy-b." in lines[HEAVY_2][1]
     )
-    assert "cell:heavy-2" not in lines[HEAVY][1]
+    assert "cell:heavy-b" not in lines[HEAVY][1]
 
 
 def test_operator_kickoff_names_the_prompt_section_not_a_position() -> None:
@@ -625,7 +625,7 @@ def test_heavy_kickoff_names_the_heavy_prompt_instead_of_a_position() -> None:
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     line = {s.name: s.kickoff for s in phases[1]}[HEAVY]
     assert line.startswith("Follow the kickoff prompt in docs/uplevel/roles/lane.md.")
-    assert "You are uplevel-heavy." in line
+    assert "You are uplevel-heavy-a." in line
     assert "end of that file" not in line
 
 

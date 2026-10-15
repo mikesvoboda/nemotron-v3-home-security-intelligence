@@ -45,7 +45,7 @@ Point `LLM_MODEL_PATH` at `NVIDIA-Nemotron-3-Nano-4B` Q4_K_M (official GGUF, 2.6
 - Stale `__pycache__` directories for deleted modules false-redden deletion guards.
 - repo verdict: `tmpdir_trap`: **WARN** - TMPDIR=/ephemeral/podman-tmp in the env file: \_runtime_env_path() gates against tempfile.gettempdir(), so an env TMPDIR unlike pytest's tmp_path false-reddens the four write_runtime_env tests (test_system.py x2, test_system_routes.py x2); CI sets no TMPDIR - unset it for test runs
 - repo verdict: `pycache_stale`: **WARN** - 1 stale .pyc file(s) whose module source is gone - these false-redden deletion guards: backend/tests/integration/**pycache**/t_sparse_probe_tmp.cpython-314-pytest-9.1.1.pyc
-- [V 2026-09-25] TMPDIR=/ephemeral/podman-tmp at .env.example:58; backend/api/routes/system.py:2508-2530 \_runtime_env_path() gates on tempfile.gettempdir() -> the four write_runtime_env tests (unit/api/routes/test_system.py:576,:598; unit/routes/test_system_routes.py:106,:2301) false-redden when env TMPDIR differs from pytest tmp_path. CI sets no TMPDIR
+- [V 2026-09-25] TMPDIR=/ephemeral/podman-tmp at .env.example:58; backend/api/routes/system.py:2508-2530 \_runtime_env_path() gates on tempfile.gettempdir() -> the four write_runtime_env tests (unit/api/routes/test_system.py:577,:599; unit/routes/test_system_routes.py:106,:2301) false-redden when env TMPDIR differs from pytest tmp_path. CI sets no TMPDIR
 - [V 2026-09-25] pycache trap: scripts/a5500_precheck.py scan_stale_pycache() lists .pyc files whose source module is deleted (run it before trusting any deletion-guard run)
 
 ## - [ ] Health

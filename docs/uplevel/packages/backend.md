@@ -60,7 +60,7 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-2`. **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b`. **Depends on:** `O2.4` (its `RESULT: PASS` posted).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
 
@@ -99,8 +99,10 @@ nothing in `backend/` outside the DROP runbook.
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first, then the
-      scene-change vertical — then the rest of the list the owner approved at `R2`.
+- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then the rest
+      of the list the owner approved at `R2`. The scene-change vertical stays: R2a row 24 ruled it
+      complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
+      183).
 - [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"
@@ -289,9 +291,9 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
 ### [r130b] Small bugs from `F2.3`'s demotions, backend half
 
 **Flags:** none. **Assigned:** backend, as lane bug fixes outside Phase 4's priority order.
-**Depends on:** queues after `[r129]`; frontend's `[r130f]` runs in parallel. **PR:** none yet.
+**Depends on:** queues after `[r129]`; frontend's `[r130f]` runs in parallel. **PR:** #7088 (merged).
 
-- [ ] **F-187, F-190, F-191.** `GET /api/v1/settings` returns 500: `settings_api.py:117` feeds
+- [x] **F-187, F-190, F-191.** `GET /api/v1/settings` returns 500: `settings_api.py:117` feeds
       `fast_path_confidence_threshold` (default `2.0`, the deliberate "disabled" value,
       `config.py:1952`) into `DetectionSettings.fast_path_threshold`, whose schema caps it at
       `le=1.0` (`schemas/settings_api.py:53`). Make the schema and the config agree, and keep the
@@ -299,7 +301,7 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
       state becomes an explicit `fast_path_enabled: bool` (default false) rather than an
       out-of-band threshold, so this row is met by `[r130b]` and the `2.0`/`le=10.0` above
       describe the base, not the fix.
-- [ ] **F-089.** Give the `job_type` query parameter `alias="type"` (`routes/jobs.py:296-299`),
+- [x] **F-089.** Give the `job_type` query parameter `alias="type"` (`routes/jobs.py:296-299`),
       matching `job_status`.
 - [ ] **F-034, link half.** `summary_detail_service.py:147` builds `/events/{id}`, a route the app
       does not have; it builds the app's working target, `/timeline?event=…`. If frontend adds an

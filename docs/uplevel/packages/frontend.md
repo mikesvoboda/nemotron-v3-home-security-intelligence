@@ -34,7 +34,7 @@ stopped and started on a running stack.
 
 ### F2.3 Golden paths for every working feature
 
-**Flags:** none; the heavy agents take none of it (ruling 87). **Depends on:** `F2.1`. Its status is
+**Flags:** none; the heavy agents take only FE-4 and OP-1 (rulings 87, 184). **Depends on:** `F2.1`. Its status is
 `in progress` (UR-144).
 
 - [ ] Write a golden path for every **unverified** row. A green golden path moves the row to
@@ -50,11 +50,13 @@ stopped and started on a running stack.
     the test deployment's compose (rulings 127, 144).
   - **Seeded on CI:** a golden project with `DEBUG=true`, which covers the debug-gated rows and the
     request recorder; a fault seed behind the debug guard that trips a breaker and a threshold; a
-    fixture that plants an orphan file; and a writable `runtime.env` in the CI compose. Ops-b owns
-    the compose and harness changes; the lane that owns each row writes its spec (ruling 127).
+    fixture that plants an orphan file; and a writable `runtime.env` in the CI compose. heavy-b
+    builds the compose and harness changes and ops-b reviews them, as a CI job separate from
+    `Feature check (fake AI)`; the lane that owns each row writes its spec (rulings 127, 187).
 - [ ] Which runs count as a witness for a row: rules.md §Test tiers and the real tier.
 
-**Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents.
+**Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents, and ruling
+184 gives two batches to the heavy agents.
 
 - **Frontend** owns `F2.3`: the shared harness, the split and the UI batches it keeps. On `F2.1`'s
   merge it posted the split on #6854 (comment `6103539478`): the **unverified** rows grouped into
@@ -103,6 +105,9 @@ same way after the owner's `R2b` session.
   priority columns for the 41 rows, returns ruling 127's 22 rows to **unverified** with their
   reachability notes, sets `R2b` to `in progress` in the README status table, and carries no code
   change.
+- **Ruling 182's record** (record `6174228588`, BINDING NOW 17:24Z): #7131 (merged) writes that
+  record's seven rows into the ruling and priority columns. It moves no status, so §2 is not in its
+  diff and it merges in any order with the three PRs that rewrite the `**all**` line.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).
@@ -126,7 +131,8 @@ Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrich
   - **F-023, the in-page PWA install prompt** (ruling 133): delete
     `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s engagement gates, its
     7-day dismissal store and its tests, including `frontend/tests/golden/shell/pwa-install.spec.ts`.
-    `frontend/public/manifest.json`, `/sw.js` and their registration stay.
+    `frontend/public/manifest.json` and its registration stay, and so does `/sw.js` — which is
+    never a tracked file: `frontend/vite.config.ts:59`'s `VitePWA(...)` generates it at build.
   - **F-135, batch statistics** (ruling 134): the active-batches view stays; the closure-reason
     chart, the per-camera table and the completed-batch timeline go, in
     `frontend/src/components/batch/BatchStatisticsDashboard.tsx` and any hook or type only those
@@ -211,24 +217,87 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 ### [r130f] Small bugs from `F2.3`'s demotions, frontend half
 
 **Flags:** none. **Assigned:** frontend, as lane bug fixes outside Phase 4's priority order.
-**Depends on:** none; it runs in parallel with backend's `[r130b]`. **PR:** #7039 (open draft, self-review dispositioned).
+**Depends on:** none; it runs in parallel with backend's `[r130b]`. **PR:** #7039 (merged
+2026-10-14T16:50:44Z as `01e02136d`, head `ec92ab3ec`; self-review dispositioned). The tick of its
+boxes is this file's own register work, below.
 
-- [ ] **F-125, F-129.** `/settings/ai-models` crashes on every load: `StatusIndicator` destructures
+- [x] **F-125, F-129.** `/settings/ai-models` crashes on every load: `StatusIndicator` destructures
       `config[status]`, and `GET /api/system/models` sends no `status` field at all
       (`model_management.py:631-639`). Give the indicator a fallback; whether the API should send a
       status is for the package to decide, and if it should, that half is backend's.
-- [ ] **F-158.** Map `body.config` instead of the envelope (`useDebugConfigQuery.ts:91`), so the
+      Witness: the fallback is structural — the parent looked up
+      `config[status]` bare (`ModelManagementPanel.tsx:81` at `932ec4aef`); at `origin/main` the
+      lookup carries `?? FALLBACK` (`:119`) and the render status gained an `'unknown'` member
+      (`ModelDisplayStatus`, `:72`, with its config entry at `:111`), so a missing `status` renders
+      instead of throwing. CI's
+      `Feature check (fake AI)` job `115961340950` (run 38594610450, head `ec92ab3ec`) passed the
+      leg "the AI Models tab mounts its panel and mirrors both live model feeds". **Deviation from
+      the `Done when`'s wording, stated rather than smoothed:** this row had NO golden spec before
+      #7039 (`git log --diff-filter=A` on `settings/ai-models-panel.spec.ts` returns `0f0134bac`, an
+      interior commit of that PR), so there was no pre-existing pin to flip; the box is ticked on the
+      added spec passing, which is what the row's own `awaiting real tier` status already reflects.
+- [x] **F-158.** Map `body.config` instead of the envelope (`useDebugConfigQuery.ts:91`), so the
       settings show and the redaction fires.
-- [ ] **F-017.** Make the Sidebar mount gate (`Layout.tsx:93`, `< 640`) and the hamburger
+      Witness: `useDebugConfigQuery.ts:106` reads `const config = body?.config;` at `origin/main`. CI's
+      `Feature check (fake AI)` job `115961340950` (run 38594610450) passed the leg "the table lists
+      the settings map, not the envelope, and flags masked values" — a leg that fails both ways if
+      either half regresses (`config-inspector.spec.ts:115` asserts `rowCount` equals
+      `settingsKeys.length`, and `:78` floors that map above 50 keys). **Deviation, stated:** this
+      spec is NEW at #7039 (`--diff-filter=A` → `2099deab6`, interior to that PR), so no pin was
+      flipped here. **Credit refined, in the second surface's favour:** the same bug reached a second
+      consumer — `LoggingSettings.tsx` read the envelope too and now reads `debugConfig?.config`
+      (`:120`, changed by #7039), so the fix is broader than the inspector. The approving review
+      (`6173593783`) counted `gpu-storage-admin/admin-logging` as that surface's golden witness; it is
+      a legitimate consumer of the fixed hook, but it is not a witness of the flip: #7039 never edits
+      that spec (`git diff --name-only 932ec4aef 01e02136d` omits it), it passed at the pre-fix
+      baseline (main's 175 rows = 162 passed + the 13 skips that review names, none of them this
+      spec), and no assert on its legs routes through `debugConfig.config` — the level assert compares
+      against `GET /api/debug/log-level`, which `effectiveLevel` prefers (`:246`, ahead of the
+      `loggingConfig` fallback), the slider is fed by `fetchConfig()` (`:138`, `/api/system/config`),
+      and the one clause that would render the debug-config readout — "sees log file/DB config" — is
+      the clause the spec itself declares NOT executed (`admin-logging.spec.ts:5-8`). What covers the
+      second surface is the unit tier: `useDebugConfigQuery.test.ts`, +14/−11 in #7039.
+- [x] **F-017.** Make the Sidebar mount gate (`Layout.tsx:93`, `< 640`) and the hamburger
       (`Header.tsx:287`, `md:hidden`) agree on what "mobile" means.
-- [ ] **F-021.** No tour step may target an element that never renders (`tourSteps.ts:115`, `:124`,
+      Witness: the flip is a polarity inversion on one selector — `shell/nav.spec.ts:180` at
+      `932ec4aef` asserted `getByTestId('sidebar')` `toHaveCount(0)` (the measured break) and `:267`
+      at `origin/main` asserts `toHaveCount(1)`. CI's `Feature check (fake AI)` job `115961340950`
+      (run 38594610450) passed both legs, desktop and "phone viewport (width < 640 ⇒ isMobile)". This
+      also discharges the row's own deferral: `docs/reference/feature-inventory.md` F-017 promised
+      "the golden witness for the shipped bytes is the first `Feature check (fake AI)` run on a ready
+      head, named at the flip" — the shipped spec blob `653010eec` is byte-identical at `ec92ab3ec`
+      and in the merged tree, so those are the bytes that ran.
+- [x] **F-021.** No tour step may target an element that never renders (`tourSteps.ts:115`, `:124`,
       `:133`); fix the steps or the targets.
-- [ ] **F-020.** Share settings state between the panel and `AmbientStatusProvider`, so a toggle
+      Witness: `shell/tour.spec.ts:168` at `932ec4aef` asserted the tour overlay `toHaveCount(0)`;
+      `:343` at `origin/main` asserts `tour.locator('[data-tour="risk-card"]')` `toHaveCount(1)`, i.e.
+      the named target renders. Job `115961340950` (run 38594610450) passed all five legs, including
+      "all 7 targets render on a camera-less stack" and "a hidden widget cannot kill the tour".
+- [x] **F-020.** Share settings state between the panel and `AmbientStatusProvider`, so a toggle
       takes effect in the same tab.
-- [ ] **F-038.** Render the DLQ count the row promises (`dlqItems` currently has no render site), or
+      Witness: `shell/ambient.spec.ts:233` at `932ec4aef` asserted
+      `expect(frozen.background, 'provider never re-read the settings jar').toBe(true)`; `:254` at
+      `origin/main` asserts `expect(off.background).toBe(false)` — the toggle now lands in the same
+      tab. Job `115961340950` (run 38594610450) passed all three legs, including the feed-truth
+      cross-check against the backend.
+- [x] **F-038.** Render the DLQ count the row promises (`dlqItems` currently has no render site), or
       drop the clause from the row. Frontend picks one and says which.
+      **Frontend picked RENDER** (#7039's body, recorded there). Witness: the flip inverts what the
+      word on screen means — `dashboard/ai-summary-row.spec.ts:245` at `932ec4aef` counted
+      `getByText(/dlq|dead[- ]letter/i)` as measured absence, and `:252` at `origin/main` takes
+      `row.getByTestId('dlq-indicator')`. Job `115961340950` (run 38594610450) passed both legs,
+      including "the row renders its DLQ count — the card the clause promised (ruling 130 flip)".
 - [ ] **F-034.** If frontend adds an `/events/:id` redirect, backend's `[r130b]` leaves its link
       line alone; one side changes, not both.
+      **Left unticked on purpose (UR-91's exception, already granted by the approving review
+      `6173593783`, which names this box, why, and where it is checked).** The redirect shipped
+      (#7039 built it per owner ruling 167 option b), and the panel leg passes, but the leg this box
+      rests on — "the per-event link … WHERE IT LANDS when followed", `summary-detail.spec.ts:410` —
+      self-skips on the CI stack at `:423` ("no summary exists to open"), so no golden run has
+      executed the landing. It is checked under the **Unit job**:
+      `frontend/src/components/common/EventDeepLinkRedirect.test.tsx:104` "lands a followed
+      /events/<id> on /timeline?event=<id>, not on the catch-all", with the unusable-id fallback at
+      `:112` as its negative control. F-034's inventory row therefore stays `half-built`.
 
 **Done when:** for each row, its golden spec, already written to pin the broken behaviour, is
 flipped to assert the fix and passes (ruling 130).
@@ -347,11 +416,24 @@ PR (UR-48).
 
 ### [r133] F-023: retire the in-page PWA install prompt
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 133, 150)
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7139 (merged).
+(rulings 133, 150)
 
-- [ ] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
+- [x] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
       dismissal store and its tests, `frontend/tests/golden/shell/pwa-install.spec.ts` included.
-- [ ] Keep `frontend/public/manifest.json`, `/sw.js` and their registration.
+      Witness: merge `1e1c241ed` lands five deletions — `InstallPrompt.tsx` (the component holds the
+      gates and the dismissal store), `InstallPrompt.test.tsx`, `pwa/index.ts`, `pwa/AGENTS.md`,
+      `tests/golden/shell/pwa-install.spec.ts`. `git grep InstallPrompt -- frontend` at that tip
+      returns 3 hits (unscoped it returns 6: three more are this file's own prose),
+      all inside the retired-path guard `src/__tests__/pwa-install-prompt-retired.test.tsx`, which
+      asserts the file is gone (`:115`) rather than importing it.
+- [x] Keep `frontend/public/manifest.json`, `/sw.js` and their registration. One deviation from the
+      box's literal text, recorded: `/sw.js` is not a tracked file — `vite.config.ts:59`'s
+      `VitePWA(...)` generates it at build — so the kept leg is the manifest (still tracked) plus the
+      generated-SW pipeline, which `tests/golden/shell/offline-cache.spec.ts:173` pins — the served
+      `/sw.js` by token (NetworkFirst, `cacheName:"api-cache"`, `skipWaiting`, the index fallback) and
+      the precached `index.html` byte-wise (its revision is the served bytes' md5) — and `main.tsx:42`
+      still registers.
 
 **Done when:** nothing imports `InstallPrompt`, and the golden project and unit tests are green.
 
@@ -379,7 +461,7 @@ its head.
 ### [r165a] F-007: cure the quarantined ws-status spec
 
 **Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none. **PR:** #7123
-(open). (rulings 123, 125, 165)
+(merged). (rulings 123, 125, 165)
 
 - [x] First commit: the ruling-125 mark's expiry in `frontend/tests/golden/shell/ws-status.spec.ts`
       reads 2026-10-16T00:00Z. Witness: `6f1066eba` adds the stamp beside the mark.

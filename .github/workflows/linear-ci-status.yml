@@ -91,10 +91,14 @@ jobs:
       - name: Extract Linear issue IDs
         id: extract-issues
         if: steps.pr-info.outputs.found == 'true'
+        env:
+          # A PR title/branch is free text a contributor wrote. Interpolated into
+          # the script body it is SOURCE CODE, not a value: GitHub substitutes
+          # ${{ }} textually before bash parses the line, so a quote character in
+          # the title closes the string early and the rest runs as a command.
+          PR_TITLE: ${{ steps.pr-info.outputs.title }}
+          PR_BRANCH: ${{ steps.pr-info.outputs.branch }}
         run: |
-          PR_TITLE="${{ steps.pr-info.outputs.title }}"
-          PR_BRANCH="${{ steps.pr-info.outputs.branch }}"
-
           # Extract issue IDs from PR title and branch name
           # Patterns: NEM-123, nem-123, NEM_123
           ISSUE_IDS=""
@@ -131,7 +135,6 @@ jobs:
         run: |
           ISSUE_IDS="${{ steps.extract-issues.outputs.ids }}"
           PR_NUMBER="${{ steps.pr-info.outputs.number }}"
-          PR_TITLE="${{ steps.pr-info.outputs.title }}"
 
           echo "CI passed - Moving issues to 'In Review': $ISSUE_IDS"
 
@@ -295,10 +298,13 @@ jobs:
       - name: Extract Linear issue IDs
         id: extract-issues
         if: steps.merged-pr.outputs.found == 'true'
+        env:
+          # See the ci-completion step of the same name: a title is text a
+          # contributor wrote, so it belongs in the environment, never in the
+          # generated script body.
+          PR_TITLE: ${{ steps.merged-pr.outputs.title }}
+          PR_BRANCH: ${{ steps.merged-pr.outputs.branch }}
         run: |
-          PR_TITLE="${{ steps.merged-pr.outputs.title }}"
-          PR_BRANCH="${{ steps.merged-pr.outputs.branch }}"
-
           # Extract issue IDs from PR title and branch name
           ISSUE_IDS=""
 
@@ -499,13 +505,15 @@ jobs:
         if: vars.LINEAR_ENABLED == 'true' && (steps.failed-jobs.outputs.has_failures == 'true' && steps.check-existing.outputs.exists == 'false')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          # display_title is the failing run's title — free text. This job runs
+          # with LINEAR_API_KEY in scope, so it must not reach the script body.
+          COMMIT_MSG: ${{ github.event.workflow_run.display_title }}
         run: |
           FAILED_JOBS="${{ steps.failed-jobs.outputs.failed_jobs }}"
           WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
           JOB_URL="${{ steps.failed-jobs.outputs.job_url }}"
           COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
           COMMIT_SHORT="${COMMIT_SHA:0:7}"
-          COMMIT_MSG="${{ github.event.workflow_run.display_title }}"
 
           echo "Creating new Linear issue for CI failure..."
 
@@ -699,10 +707,11 @@ jobs:
       - name: Extract Linear issue IDs
         id: extract-issues
         if: steps.pr-info.outputs.found == 'true'
+        env:
+          # See the ci-completion step of the same name.
+          PR_TITLE: ${{ steps.pr-info.outputs.title }}
+          PR_BRANCH: ${{ steps.pr-info.outputs.branch }}
         run: |
-          PR_TITLE="${{ steps.pr-info.outputs.title }}"
-          PR_BRANCH="${{ steps.pr-info.outputs.branch }}"
-
           # Extract issue IDs from PR title and branch name
           ISSUE_IDS=""
 
