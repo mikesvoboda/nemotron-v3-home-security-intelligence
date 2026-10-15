@@ -765,8 +765,10 @@ def shell_ur106_hash(diff: str) -> str:
     constant (no interpolation), and the ``returncode`` assert below keeps a broken ``grep``/``sed``
     from reading as agreement.
     """
-    got = subprocess.run(  # noqa: S602, PLW1510 - the pipeline is the rule's own text and
-        # reading its returncode by hand is the point (a broken grep must not read as agreement)
+    got = subprocess.run(  # noqa: S602, PLW1510  # nosemgrep: shell-injection
+        # The pipeline is the rule's own text and reading its returncode by hand is the point
+        # (a broken grep must not read as agreement). The command is a constant with no
+        # interpolation and the diff arrives on stdin, so nothing can be placed in the shell.
         "grep -v '^index ' | sed 's/^@@ .* @@/@@/' | sha256sum | cut -d' ' -f1",
         shell=True,
         input=diff.encode(),

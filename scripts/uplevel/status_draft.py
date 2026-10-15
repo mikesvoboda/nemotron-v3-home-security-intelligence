@@ -215,7 +215,9 @@ def read_questions(path: str | None) -> list[str]:
     """One question per non-empty line of a file; the coordinator writes these by hand."""
     if not path:
         return []
-    text = Path(path).read_text()
+    # The path is the operator's own --questions CLI argument, not request input; there is no
+    # caller-supplied string to validate against a base directory.
+    text = Path(path).read_text()  # nosemgrep: path-traversal-open
     return [ln.strip() for ln in text.splitlines() if ln.strip()]
 
 
