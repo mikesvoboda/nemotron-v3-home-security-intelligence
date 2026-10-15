@@ -536,7 +536,7 @@ The residency set is `yolo26` and `reid`, plus `threat` only when `GATEWAY_ENABL
 - **The image.** It is built on `nvcr.io/nvidia/tritonserver:26.01-py3` (`ai/gateway/Dockerfile:1`).
   On top of that it installs the export toolchain: `torch`, `transformers`, `ultralytics`, `onnx`,
   `onnxscript`, `onnxruntime-gpu`, `open_clip_torch`, `timm` and `einops`
-  (`ai/gateway/Dockerfile:19`-`35`). There are 12 export scripts (`ai/gateway/export/export_*.py`);
+  (the `pip install` block in `ai/gateway/Dockerfile`). There are 12 export scripts (`ai/gateway/export/export_*.py`);
   `export_all.sh` runs three of them (threat, `yolo26`, `reid`;
   `ai/gateway/export/export_all.sh:113`, `:123`, `:137`).
 - **Start-up machinery,** all of it run before Triton starts:

@@ -101,13 +101,20 @@ def run_instruction_flags(text: str) -> list[str]:
     ``RUN --mount=... cmd`` is a violation; ``RUN cmd --flag`` is not, because the
     flag belongs to the program, not the instruction. So only ``--...`` tokens that
     appear between ``RUN`` and the first command word count.
+
+    The instruction keyword is matched case-insensitively on purpose: Docker treats
+    it that way, and buildkit re-prints a lowercase ``run --mount=`` as ``RUN
+    --mount=`` in the step log — i.e. it really does parse the lowercase form and
+    the agent-gpu venue really does refuse it. Matching only ``RUN`` would wave a
+    ``run --mount=`` through this pin while the build failed, silently re-blocking
+    the venue the pin exists to keep open.
     """
     flags: list[str] = []
     for ins in logical_instructions(text):
-        m = re.match(r"^RUN\b(.*)$", ins)
-        if not m:
+        parts = ins.split(None, 1)
+        if not parts or parts[0].upper() != "RUN":
             continue
-        rest = m.group(1).strip().split()
+        rest = (parts[1] if len(parts) > 1 else "").split()
         for tok in rest:
             if tok.startswith("--"):
                 flags.append(tok)
@@ -117,7 +124,14 @@ def run_instruction_flags(text: str) -> list[str]:
 
 
 def onbuild_instructions(text: str) -> list[str]:
-    return [ins for ins in logical_instructions(text) if ins.startswith("ONBUILD")]
+    # Case-insensitive for the same reason as run_instruction_flags: the venue
+    # refuses ``onbuild RUN`` too. The returned string is the instruction verbatim
+    # so the witness can pin the exact spelling it fed in.
+    return [
+        ins
+        for ins in logical_instructions(text)
+        if (ins.split(None, 1) or [""])[0].upper() == "ONBUILD"
+    ]
 
 
 def pip_installed_packages(text: str) -> set[str]:
@@ -140,6 +154,48 @@ def pip_installed_packages(text: str) -> set[str]:
                     continue
                 pkgs.add(tok.strip("\"'"))
     return pkgs
+
+
+# Flags that change WHICH wheels pip resolves, not just where it looks for them
+# in the layer. `--no-cache-dir` / `--force-reinstall` are deliberately absent: the
+# fix itself carries both, and neither alters the resulting dependency graph.
+RESOLUTION_ALTERING_FLAGS: frozenset[str] = frozenset(
+    {
+        "--no-deps",
+        "--no-index",
+        "--index-url",
+        "--extra-index-url",
+        "--find-links",
+        "--no-build-isolation",
+        "--only-binary",
+        "--no-binary",
+        "--require-hashes",
+    }
+)
+
+
+def pip_resolution_flags(text: str) -> list[str]:
+    """Resolution-altering pip flags on any ``pip install`` in the file.
+
+    The package-set pin above compares names only, so ``pip install --no-deps``
+    (which drops the whole transitive closure while keeping every named package)
+    leaves that set untouched. This walks the same instructions and surfaces the
+    flags the name comparison is blind to.
+    """
+    found: list[str] = []
+    for ins in logical_instructions(text):
+        if "pip install" not in ins:
+            continue
+        for chunk in re.split(r"&&", ins):
+            part = chunk.strip()
+            if "pip install" not in part:
+                continue
+            after = part.split("pip install", 1)[1].strip()
+            for tok in after.split():
+                name = tok.split("=", 1)[0]
+                if name in RESOLUTION_ALTERING_FLAGS:
+                    found.append(tok)
+    return found
 
 
 class TestGatewayDockerfileAgentGpuBuildable:
@@ -165,6 +221,37 @@ class TestGatewayDockerfileAgentGpuBuildable:
         )
         assert run_instruction_flags(violating) == ["--mount=type=cache,target=/root/.cache/pip"]
         assert onbuild_instructions(violating) == ["ONBUILD RUN echo hi"]
+
+    def test_the_parser_detects_the_lowercase_instruction_forms(self) -> None:
+        # The Dockerfile grammar is case-insensitive and buildkit parses (and
+        # re-prints upper-cased) a lowercase `run --mount=`, so the venue refuses
+        # it. Without this arm the parser could certify a grammar narrower than the
+        # builder's: the uppercase witness passes and a lowercase defect survives.
+        lowercase = (
+            "from x\n"
+            "run --mount=type=cache,target=/root/.cache/pip pip install a\n"
+            "onbuild RUN echo hi\n"
+        )
+        assert run_instruction_flags(lowercase) == ["--mount=type=cache,target=/root/.cache/pip"]
+        assert onbuild_instructions(lowercase) == ["onbuild RUN echo hi"]
+
+    def test_a_pip_resolution_flag_is_pinned_absent(self) -> None:
+        # The package-set pin compares NAMES, so a resolution-altering flag
+        # (`--no-deps`, `--no-index`, an alternate `--index-url`) would change what
+        # the image installs while leaving the name set identical. This pin closes
+        # that gap directly rather than leaning on the set comparison.
+        text = GATEWAY_DOCKERFILE.read_text()
+        assert pip_resolution_flags(text) == [], (
+            "ai/gateway/Dockerfile carries a pip resolution-altering flag; the "
+            "18-name package-set pin cannot see it, so it would silently change "
+            "what the gateway image installs."
+        )
+
+    def test_the_resolution_flag_parser_detects_what_it_asserts_absent(self) -> None:
+        # Positive witness for the pin above: a fixture WITH --no-deps must be
+        # detected, so the clean-file pass isn't just an empty parse.
+        assert pip_resolution_flags("RUN pip install --no-deps foo\n") == ["--no-deps"]
+        assert pip_resolution_flags("RUN pip install --no-cache-dir --force-reinstall foo\n") == []
 
     def test_a_comment_mentioning_a_mount_is_not_read_as_a_live_flag(self) -> None:
         # Guards the comment-stripping in the parser: the fix's own rationale text
