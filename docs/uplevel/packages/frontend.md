@@ -555,6 +555,23 @@ retired with F-131 (R2a row 11). The labels are stored and round-trip `GET /api/
 **Done when:** all legs pass in `Feature check (fake AI)` at a ready head, and F-060 flips to
 **awaiting real tier** on that run (rulings 103, 114).
 
+### [r214] F-213 and F-277: the owner pick saves, and a saved person appears
+
+**Flags:** none. **Assigned:** frontend, after `[r213]` (fix now). **Depends on:** none.
+**PR:** none yet. (ruling 214, record 6200676782)
+
+- [ ] F-213: the owner `<Select>`'s listbox renders above the `z-50` configure modal
+      (`frontend/src/components/zones/ZoneOwnershipPanel.tsx:846`, `:883-899`), so choosing an
+      owner saves it; the leg at `frontend/tests/golden/settings-cameras/cameras-zones.spec.ts:223`
+      asserts the saved owner.
+- [ ] F-277: the person modal invalidates the key the page reads (`useKnownPersonsApi.ts:33`,
+      `:146` against `useFaceRecognitionApi.ts:58`); a leg in
+      `frontend/tests/golden/identity/persons.spec.ts` asserts the new person in the list with no
+      reload.
+
+**Done when:** each row flips to **awaiting real tier** on a run where its legs pass (rulings 103,
+114).
+
 ### [r204] One realtime connection owner
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.
