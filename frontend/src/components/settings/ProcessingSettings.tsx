@@ -1,5 +1,7 @@
 import { Card, Title, Text, Button } from '@tremor/react';
+import { Switch } from '@headlessui/react';
 import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useEffect, useState, useCallback } from 'react';
 
 import BatchPresetSelector from './BatchPresetSelector';
@@ -106,6 +108,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
       editedConfig.retention_days !== config.retention_days ||
       editedConfig.log_retention_days !== config.log_retention_days ||
       editedConfig.detection_confidence_threshold !== config.detection_confidence_threshold ||
+      editedConfig.fast_path_enabled !== config.fast_path_enabled ||
       editedConfig.fast_path_confidence_threshold !== config.fast_path_confidence_threshold)
   );
 
@@ -123,7 +126,13 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
         retention_days: editedConfig.retention_days,
         log_retention_days: editedConfig.log_retention_days,
         detection_confidence_threshold: editedConfig.detection_confidence_threshold,
-        fast_path_confidence_threshold: editedConfig.fast_path_confidence_threshold,
+        // ruling 168: the threshold is consulted only while the fast path is on,
+        // so the page never writes one while the switch is off — omitting the key
+        // leaves the stored threshold untouched (system.py applies non-null fields).
+        ...(editedConfig.fast_path_enabled
+          ? { fast_path_confidence_threshold: editedConfig.fast_path_confidence_threshold }
+          : {}),
+        fast_path_enabled: editedConfig.fast_path_enabled,
       };
 
       const updatedConfig = await updateConfig(updates);
@@ -393,40 +402,80 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               </div>
             </div>
 
-            {/* Fast-Path Confidence Threshold */}
-            <div>
-              <div className="mb-2 flex items-end justify-between">
+            {/* Fast Path master switch (ruling 168) */}
+            <div data-testid="fast-path-switch-row">
+              <div className="mb-2 flex items-center justify-between">
                 <div>
-                  <Text className="font-medium text-gray-300">Fast-Path Confidence Threshold</Text>
+                  <Text className="font-medium text-gray-300">Fast Path</Text>
                   <Text className="mt-1 text-xs text-gray-300">
-                    High-confidence threshold for immediate processing (0.0 - 1.0)
+                    Enable it only once enrichment runs BEFORE the LLM call; while off no detection
+                    takes the fast path, whatever the threshold says.
                   </Text>
                 </div>
-                <Text className="text-lg font-semibold text-white">
-                  {editedConfig.fast_path_confidence_threshold?.toFixed(2) ?? '0.90'}
-                </Text>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={editedConfig.fast_path_confidence_threshold}
-                onChange={(e) =>
-                  setEditedConfig((prev) =>
-                    prev
-                      ? { ...prev, fast_path_confidence_threshold: parseFloat(e.target.value) }
-                      : prev
-                  )
-                }
-                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-                aria-label="Fast-path confidence threshold"
-              />
-              <div className="mt-1 flex justify-between text-xs text-gray-300">
-                <span>0.00</span>
-                <span>1.00</span>
+                <Switch
+                  id="fast-path-enabled"
+                  checked={editedConfig.fast_path_enabled}
+                  onChange={(checked) =>
+                    setEditedConfig((prev) =>
+                      prev ? { ...prev, fast_path_enabled: checked } : prev
+                    )
+                  }
+                  aria-label="Fast path enabled"
+                  data-testid="switch-fast-path-enabled"
+                  className={clsx(
+                    'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors',
+                    'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]',
+                    editedConfig.fast_path_enabled ? 'bg-[#76B900]' : 'bg-gray-600'
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                      editedConfig.fast_path_enabled ? 'translate-x-6' : 'translate-x-1'
+                    )}
+                  />
+                </Switch>
               </div>
             </div>
+
+            {/* Fast-Path Confidence Threshold — shown only while the switch is on */}
+            {editedConfig.fast_path_enabled && (
+              <div>
+                <div className="mb-2 flex items-end justify-between">
+                  <div>
+                    <Text className="font-medium text-gray-300">
+                      Fast-Path Confidence Threshold
+                    </Text>
+                    <Text className="mt-1 text-xs text-gray-300">
+                      High-confidence threshold for immediate processing (0.0 - 1.0)
+                    </Text>
+                  </div>
+                  <Text className="text-lg font-semibold text-white">
+                    {editedConfig.fast_path_confidence_threshold?.toFixed(2) ?? '0.90'}
+                  </Text>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={editedConfig.fast_path_confidence_threshold}
+                  onChange={(e) =>
+                    setEditedConfig((prev) =>
+                      prev
+                        ? { ...prev, fast_path_confidence_threshold: parseFloat(e.target.value) }
+                        : prev
+                    )
+                  }
+                  className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
+                  aria-label="Fast-path confidence threshold"
+                />
+                <div className="mt-1 flex justify-between text-xs text-gray-300">
+                  <span>0.00</span>
+                  <span>1.00</span>
+                </div>
+              </div>
+            )}
 
             {/* Storage Dashboard */}
             <div className="border-t border-gray-800 pt-4">
