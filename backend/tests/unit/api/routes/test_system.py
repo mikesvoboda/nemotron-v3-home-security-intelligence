@@ -28,6 +28,7 @@ from backend.api.routes.system import (
     CircuitBreaker,
     _are_critical_pipeline_workers_healthy,
     _build_empty_batch_response,
+    _coerce_scalar,
     _decode_redis_value,
     _get_degradation_status,
     _get_directory_stats,
@@ -643,28 +644,61 @@ class TestBatchAggregatorStatus:
         result = _decode_redis_value(None)
         assert result is None
 
-    def test_parse_detections_valid_json(self) -> None:
-        """Test parsing valid JSON detections."""
-        import json
+    def test_parse_detections_decodes_lrange_reply(self) -> None:
+        """An LRANGE reply of id strings decodes element-wise, order preserved.
 
-        detections = [{"label": "person", "confidence": 0.95}]
-        json_bytes = json.dumps(detections).encode()
+        ``batch:<id>:detections`` is an RPUSH LIST (batch_aggregator.py:23), so the
+        reader hands this helper a list of byte strings — not a JSON document. The
+        length is the list's own length, which is what ``detection_count`` reports.
+        """
+        result = _parse_detections([b"900000", b"900001", b"900002"])
+        assert result == ["900000", "900001", "900002"]
 
-        result = _parse_detections(json_bytes)
-        assert len(result) == 1
-        assert result[0]["label"] == "person"
+    def test_parse_detections_accepts_str_elements(self) -> None:
+        """The str arm is defensive tolerance, not a shape seen in production.
 
-    def test_parse_detections_invalid_json(self) -> None:
-        """Test that invalid JSON raises JSONDecodeError."""
-        import json
+        Every pool here hardcodes ``decode_responses=True`` (core/redis.py:630,
+        :2429; redis_cluster.py:186), so both LRANGE readers get str today; the
+        bytes arm is what the signature admits, this arm a client configured off.
+        """
+        result = _parse_detections([b"900000", "900001"])
+        assert result == ["900000", "900001"]
 
-        with pytest.raises(json.JSONDecodeError):
-            _parse_detections(b"invalid json")
+    def test_parse_detections_empty_list(self) -> None:
+        """An empty LRANGE reply normalizes to an empty list."""
+        assert _parse_detections([]) == []
 
     def test_parse_detections_none(self) -> None:
         """Test that None returns empty list."""
         result = _parse_detections(None)
         assert result == []
+
+    def test_coerce_scalar_unwraps_wrapper_written_float(self) -> None:
+        """A float written through the ``set`` wrapper is stored JSON-quoted.
+
+        ``RedisClient.set`` json.dumps its value (core/redis.py:1228-1229), so
+        ``last_activity`` arrives as ``b'"1792027801.9"'`` and a bare ``float()``
+        of it raises — the exact ValueError that dropped the batch (the defect
+        this PR cures). One JSON layer must come off so the float() succeeds.
+        """
+        assert _coerce_scalar(b'"1792027801.9"') == "1792027801.9"
+
+    def test_coerce_scalar_passes_through_raw_client_value(self) -> None:
+        """A value written on the raw client (:started_at) is unquoted.
+
+        json.loads of ``1792027801.9`` yields a float, not a str, so the helper
+        leaves the decoded string alone rather than stringifying the number —
+        the same call site accepts both writers.
+        """
+        assert _coerce_scalar(b"1792027801.9") == "1792027801.9"
+
+    def test_coerce_scalar_passes_through_non_json(self) -> None:
+        """Legacy pre-wrapper data (not valid JSON) passes through unchanged."""
+        assert _coerce_scalar(b"legacy-value") == "legacy-value"
+
+    def test_coerce_scalar_none(self) -> None:
+        """A missing key normalizes to None."""
+        assert _coerce_scalar(None) is None
 
     def test_build_empty_batch_response(self, mock_settings: Settings) -> None:
         """Test building empty batch response."""

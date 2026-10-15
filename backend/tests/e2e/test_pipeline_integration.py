@@ -117,6 +117,10 @@ async def mock_redis_client():
     # Track batch data in memory
     batch_data = {}
     list_data = {}  # For rpush operations
+    # Keys the fake created with RPUSH, i.e. real Redis would report type=list.
+    # mock_get refuses a GET on these (see below) so this fake cannot hide a
+    # LIST-read-with-GET defect the way it used to.
+    list_keys = set()
     stream_data = {}  # For xadd operations (shipped analysis stream)
 
     # get_analysis_stream_service is first-client-wins; un-cache it so the
@@ -126,6 +130,21 @@ async def mock_redis_client():
     _redis_streams._analysis_stream_service = None
 
     async def mock_get(key):
+        # A LIST answers LRANGE/LLEN, never GET: redis-py raises
+        # ResponseError("WRONGTYPE Operation against a key holding the wrong
+        # kind of value"). This fake used to answer a LIST key with
+        # json.dumps(list_data[key]) — a string no real client can hand back —
+        # which is exactly how a GET-on-a-LIST reader passed here while
+        # returning null in production. Refusing is the point: a test that
+        # wants these ids must read them the way production does, with lrange.
+        #
+        # Scoped to keys this fake RPUSHed. Queue keys (add_to_queue_safe below)
+        # are excluded: they live in list_data as storage detail, and no
+        # wrapper-level GET of one exists on any path this file exercises.
+        if key in list_keys:
+            from redis.exceptions import ResponseError
+
+            raise ResponseError("WRONGTYPE Operation against a key holding the wrong kind of value")
         # Check batch_data first (for regular key-value storage)
         if key in batch_data:
             return batch_data.get(key)
@@ -144,6 +163,7 @@ async def mock_redis_client():
         for key in keys:
             batch_data.pop(key, None)
             list_data.pop(key, None)
+            list_keys.discard(key)
 
     async def mock_publish(channel, message):
         # Simulate publishing (return subscriber count)
@@ -180,6 +200,10 @@ async def mock_redis_client():
         if key not in list_data:
             list_data[key] = []
         list_data[key].append(value)
+        # A key created by RPUSH is a LIST in real Redis; mark it so mock_get
+        # refuses a GET on it (only _atomic_list_append RPUSHes, i.e. the
+        # batch:<id>:detections keys this file must not let anyone GET).
+        list_keys.add(key)
         return len(list_data[key])
 
     async def mock_expire(key, ttl):
@@ -462,8 +486,8 @@ async def test_complete_pipeline_flow_with_mocked_services(
     batch_camera_id = await mock_redis_client.get(f"batch:{batch_id}:camera_id")
     assert batch_camera_id == camera_id
 
-    batch_detections = await mock_redis_client.get(f"batch:{batch_id}:detections")
-    assert batch_detections is not None
+    batch_detections = await mock_redis_client._client.llen(f"batch:{batch_id}:detections")
+    assert batch_detections > 0  # the LIST exists and holds the detection
 
     # Step 4: Simulate batch timeout and close
     await asyncio.sleep(0.1)  # Small delay to simulate passage of time
@@ -604,9 +628,9 @@ async def test_pipeline_with_multiple_detections_in_batch(
     assert len(batch_ids) == 1
     batch_id = batch_ids.pop()
 
-    # Verify batch contains all detections
-    batch_detections_json = await mock_redis_client.get(f"batch:{batch_id}:detections")
-    batch_detections = json.loads(batch_detections_json)
+    # Verify batch contains all detections — read the LIST the way production
+    # does (LRANGE), since a GET on it now raises WRONGTYPE from this fake.
+    batch_detections = await mock_redis_client._client.lrange(f"batch:{batch_id}:detections", 0, -1)
     assert len(batch_detections) == 5
 
     # Close batch and verify summary

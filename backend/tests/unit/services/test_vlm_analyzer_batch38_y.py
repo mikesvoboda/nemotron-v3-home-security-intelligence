@@ -196,8 +196,15 @@ class SyncSpy:
 
 
 class FakeRedis:
-    def __init__(self, values: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        values: dict[str, str] | None = None,
+        lists: dict[str, list[str]] | None = None,
+    ) -> None:
         self.values: dict[str, str] = dict(values or {})
+        # batch:<id>:detections is a LIST in production (RPUSH,
+        # batch_aggregator.py:23) — analyze_batch reads it with lrange.
+        self.lists: dict[str, list[str]] = {k: list(v) for k, v in (lists or {}).items()}
         self.sets: list[tuple[str, str, Any]] = []
 
     async def get(self, key: str) -> str | None:
@@ -206,6 +213,10 @@ class FakeRedis:
     async def set(self, key: str, value: str, expire: Any = "UNSET") -> None:
         self.values[key] = value
         self.sets.append((key, value, expire))
+
+    async def lrange(self, key: str, start: int, stop: int) -> list[str]:
+        items = self.lists.get(key, [])
+        return items[start:] if stop == -1 else items[start : stop + 1]
 
 
 class FakeClient:

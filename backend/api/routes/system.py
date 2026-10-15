@@ -4016,17 +4016,43 @@ def _decode_redis_value(value: bytes | str | None) -> str | None:
     return value.decode() if isinstance(value, bytes) else value
 
 
-def _parse_detections(detections_data_raw: bytes | str | None) -> list[dict[str, Any]]:
-    """Parse detections from raw Redis value."""
+def _coerce_scalar(raw: bytes | str | None) -> str | None:
+    """Normalize a Redis scalar written through ``RedisClient.set``.
+
+    ``RedisClient.set`` always ``json.dumps`` its value (core/redis.py:1228-1229),
+    so a float written through the wrapper sits on disk as a JSON *string* —
+    ``'"1792027801.9"'`` — and a bare ``float()`` of it raises ValueError. This
+    unwraps one JSON layer when present and passes anything else through, so the
+    same call site accepts a wrapper-written value, a raw-client-written value,
+    and legacy pre-wrapper data. Mirrors the precedent in
+    ``batch_aggregator.check_batch_timeouts`` (:774-783, NEM-2540), which has
+    tolerated this asymmetry on its own reads all along; the API reader never
+    got the same treatment.
+    """
     import json
 
-    if not detections_data_raw:
+    value = _decode_redis_value(raw)
+    if value is None:
+        return None
+    try:
+        unwrapped = json.loads(value)
+    except json.JSONDecodeError, TypeError:
+        return value
+    return unwrapped if isinstance(unwrapped, str) else value
+
+
+def _parse_detections(detections_raw: list[bytes | str] | None) -> list[str]:
+    """Normalize the LRANGE reply for ``batch:<id>:detections`` into id strings.
+
+    The key is a Redis LIST of detection ids appended with RPUSH
+    (batch_aggregator.py:23, the writer's own docstring). The previous version of
+    this function expected a JSON array of objects and parsed the value as a
+    string — a shape the LIST key cannot produce through a ``GET``; the reader
+    now asks for the list it actually owns and this just decodes the elements.
+    """
+    if not detections_raw:
         return []
-    detections_data = _decode_redis_value(detections_data_raw)
-    if isinstance(detections_data, str):
-        parsed: list[dict[str, Any]] = json.loads(detections_data)
-        return parsed
-    return []
+    return [_decode_redis_value(item) or "" for item in detections_raw]
 
 
 def _build_empty_batch_response(settings: Settings) -> BatchAggregatorStatusResponse:
@@ -4082,11 +4108,13 @@ async def _get_batch_aggregator_status(
         if not batch_ids:
             return _build_empty_batch_response(settings)
 
-        # Second pass: pipeline all metadata fetches (4 keys per batch)
+        # Second pass: pipeline all metadata fetches (4 keys per batch).
+        # detections is a LIST (RPUSH'd by the writer) — ask for it with LRANGE;
+        # a GET there raises WRONGTYPE and the transaction aborts whole.
         pipe = redis_client.pipeline()
         for batch_id in batch_ids:
             pipe.get(f"batch:{batch_id}:camera_id")
-            pipe.get(f"batch:{batch_id}:detections")
+            pipe.lrange(f"batch:{batch_id}:detections", 0, -1)
             pipe.get(f"batch:{batch_id}:started_at")
             pipe.get(f"batch:{batch_id}:last_activity")
         metadata_results = await pipe.execute()
@@ -4100,8 +4128,12 @@ async def _get_batch_aggregator_status(
                     continue
 
                 detections = _parse_detections(metadata_results[i * 4 + 1])
-                started_at_str = _decode_redis_value(metadata_results[i * 4 + 2])
-                last_activity_str = _decode_redis_value(metadata_results[i * 4 + 3])
+                # _coerce_scalar, not _decode_redis_value: add_detection rewrites
+                # these through the set wrapper (batch_aggregator.py:641), which
+                # JSON-quotes them, so a bare float() raises and the per-batch
+                # handler below silently drops the batch.
+                started_at_str = _coerce_scalar(metadata_results[i * 4 + 2])
+                last_activity_str = _coerce_scalar(metadata_results[i * 4 + 3])
 
                 started_at = float(started_at_str) if started_at_str else current_time
                 last_activity = float(last_activity_str) if last_activity_str else started_at
