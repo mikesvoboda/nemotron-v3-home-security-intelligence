@@ -127,7 +127,12 @@ async def _drive_stream_pass(
             autospec=True,
             return_value=stream_service,
         ),
-        patch.object(stream_service, "consume_batches", side_effect=consume_once),
+        patch.object(
+            stream_service,
+            "consume_batches",
+            autospec=True,
+            side_effect=consume_once,
+        ),
     ):
         await worker._run_loop()
 
@@ -196,7 +201,9 @@ class TestRuling199AnalysisStreamDelivery:
         try:
             # Delivery 1: DB write fails before commit -> disposition is "retry"
             with patch(
-                "backend.services.vlm_analyzer.get_session", side_effect=failing_write_session
+                "backend.services.vlm_analyzer.get_session",
+                autospec=True,
+                side_effect=failing_write_session,
             ):
                 await _drive_stream_pass(worker, stream_service, trigger_reclaim=False)
 
@@ -265,7 +272,12 @@ class TestRuling199AnalysisStreamDelivery:
 
         try:
             # Delivery 1: commits Event, then stops before setting Redis key & notify decision
-            with patch.object(analyzer, "_set_idempotency", side_effect=stop_before_redis_key):
+            with patch.object(
+                analyzer,
+                "_set_idempotency",
+                autospec=True,
+                side_effect=stop_before_redis_key,
+            ):
                 await _drive_stream_pass(worker, stream_service, trigger_reclaim=False)
 
             assert vlm_client.assess_calls == 1
