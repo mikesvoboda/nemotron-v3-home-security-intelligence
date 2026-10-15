@@ -197,6 +197,9 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 182    | UR-182: RTX VSS positioning, Easy/Advanced modes; seven rows kept (record 6174228588)                       |
 | 183    | package B3.2: scene-change vertical kept, R2a row 24 over OD-28 (record 6175205677)                         |
 | 184    | heavy agents renamed heavy-a/-b; FE-4 and OP-1 batches; UR-59 label (record 6177514438)                     |
+| 185    | `O2.5`'s prod-shape run on maui, run by the owner (record 6181352718)                                       |
+| 186    | package `[r162]`: backend's socket only; alloy keeps its mount (record 6181436641)                          |
+| 187    | F2.3's seeded CI project to heavy-b, ops-b reviews (record 6182863643)                                      |
 
 ## Owner records
 

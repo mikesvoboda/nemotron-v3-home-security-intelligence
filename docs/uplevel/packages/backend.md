@@ -291,9 +291,9 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
 ### [r130b] Small bugs from `F2.3`'s demotions, backend half
 
 **Flags:** none. **Assigned:** backend, as lane bug fixes outside Phase 4's priority order.
-**Depends on:** queues after `[r129]`; frontend's `[r130f]` runs in parallel. **PR:** none yet.
+**Depends on:** queues after `[r129]`; frontend's `[r130f]` runs in parallel. **PR:** #7088 (merged).
 
-- [ ] **F-187, F-190, F-191.** `GET /api/v1/settings` returns 500: `settings_api.py:117` feeds
+- [x] **F-187, F-190, F-191.** `GET /api/v1/settings` returns 500: `settings_api.py:117` feeds
       `fast_path_confidence_threshold` (default `2.0`, the deliberate "disabled" value,
       `config.py:1952`) into `DetectionSettings.fast_path_threshold`, whose schema caps it at
       `le=1.0` (`schemas/settings_api.py:53`). Make the schema and the config agree, and keep the
@@ -301,7 +301,7 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
       state becomes an explicit `fast_path_enabled: bool` (default false) rather than an
       out-of-band threshold, so this row is met by `[r130b]` and the `2.0`/`le=10.0` above
       describe the base, not the fix.
-- [ ] **F-089.** Give the `job_type` query parameter `alias="type"` (`routes/jobs.py:296-299`),
+- [x] **F-089.** Give the `job_type` query parameter `alias="type"` (`routes/jobs.py:296-299`),
       matching `job_status`.
 - [ ] **F-034, link half.** `summary_detail_service.py:147` builds `/events/{id}`, a route the app
       does not have; it builds the app's working target, `/timeline?event=…`. If frontend adds an
