@@ -762,6 +762,18 @@ class DetectionQueueWorker:
         )
 
 
+class AnalysisDisposition(str):
+    """Disposition returned by AnalysisQueueWorker._process_analysis_item (ruling 199)."""
+
+    __slots__ = ("reason",)
+    reason: str
+
+    def __new__(cls, value: str, reason: str = "") -> AnalysisDisposition:
+        obj = super().__new__(cls, value)
+        obj.reason = reason
+        return obj
+
+
 class AnalysisQueueWorker:
     """Worker that consumes batches from analysis_queue and runs LLM analysis.
 
@@ -927,8 +939,15 @@ class AnalysisQueueWorker:
                             if msg.delivery_count >= stream_service._max_delivery_count:
                                 await stream_service.move_to_dlq(msg, "max_delivery_exceeded")
                             else:
-                                await self._process_analysis_item(msg.to_queue_dict())
-                                await stream_service.acknowledge(msg.id)
+                                disposition = await self._process_analysis_item(msg.to_queue_dict())
+                                if disposition == "terminal":
+                                    await stream_service.move_to_dlq(
+                                        msg,
+                                        getattr(disposition, "reason", "")
+                                        or "terminal_analysis_failure",
+                                    )
+                                elif disposition != "retry":
+                                    await stream_service.acknowledge(msg.id)
                         last_claim_check = now
 
                     # NEM-3469: Read from stream with consumer group (durable)
@@ -939,8 +958,14 @@ class AnalysisQueueWorker:
                         continue
 
                     for msg in messages:
-                        await self._process_analysis_item(msg.to_queue_dict())
-                        await stream_service.acknowledge(msg.id)
+                        disposition = await self._process_analysis_item(msg.to_queue_dict())
+                        if disposition == "terminal":
+                            await stream_service.move_to_dlq(
+                                msg,
+                                getattr(disposition, "reason", "") or "terminal_analysis_failure",
+                            )
+                        elif disposition != "retry":
+                            await stream_service.acknowledge(msg.id)
                 else:
                     # Legacy list-based queue (BLPOP)
                     item = await self._redis.get_from_queue(
@@ -975,8 +1000,12 @@ class AnalysisQueueWorker:
             extra={"items_processed": self._stats.items_processed},
         )
 
-    async def _process_analysis_item(self, item: dict[str, Any]) -> None:
-        """Process a single analysis queue item.
+    async def _process_analysis_item(self, item: dict[str, Any]) -> AnalysisDisposition:
+        """Process a single analysis queue item and return its disposition (ruling 199):
+        - "stored": the batch has an event; the stream loop acknowledges the message.
+        - "terminal": payload validation or batch lookup failed (ValueError); the
+          stream loop moves the message to the dead-letter stream with its reason.
+        - "retry": any other failure; the message stays pending for reclaim/retry.
 
         Security: Validates the queue payload using Pydantic before processing
         to prevent malicious data from reaching the LLM analyzer.
@@ -1005,7 +1034,7 @@ class AnalysisQueueWorker:
                     "error": str(e),
                 },
             )
-            return
+            return AnalysisDisposition("terminal", f"invalid_analysis_payload: {e}")
 
         # Use log_context to enrich all logs within this scope with batch context
         # This ensures batch_id, camera_id are included in all logs including downstream calls
@@ -1127,6 +1156,7 @@ class AnalysisQueueWorker:
                             f"Failed to broadcast batch.analysis_completed: {broadcast_err}",
                             extra={"batch_id": batch_id, "event_id": event.id},
                         )
+                return AnalysisDisposition("stored")
 
             except ValueError as e:
                 # Batch not found or no detections - log warning but don't count as error
@@ -1150,6 +1180,7 @@ class AnalysisQueueWorker:
                             f"Failed to broadcast batch.analysis_failed: {broadcast_err}",
                             extra={"batch_id": batch_id},
                         )
+                return AnalysisDisposition("terminal", str(e))
             except Exception as e:
                 self._stats.errors += 1
                 record_pipeline_error("analysis_batch_error")
@@ -1163,19 +1194,14 @@ class AnalysisQueueWorker:
                     try:
                         # Categorize error type for UI display
                         error_type = categorize_exception(e, "analysis").replace("analysis_", "")
-                        # Most analysis errors are retryable (timeouts, connection issues)
-                        retryable = error_type in (
-                            "timeout_error",
-                            "connection_error",
-                            "redis_error",
-                        )
+                        # Ruling 199 item 1: retryable follows the "retry" disposition
                         await broadcaster.broadcast_batch_analysis_failed(
                             {
                                 "batch_id": batch_id,
                                 "camera_id": camera_id or "",
                                 "error": str(e)[:500],  # Truncate long error messages
                                 "error_type": error_type,
-                                "retryable": retryable,
+                                "retryable": True,
                                 "failed_at": datetime.now(UTC).isoformat(),
                             }
                         )
@@ -1184,6 +1210,7 @@ class AnalysisQueueWorker:
                             f"Failed to broadcast batch.analysis_failed: {broadcast_err}",
                             extra={"batch_id": batch_id},
                         )
+                return AnalysisDisposition("retry", str(e))
 
 
 class BatchTimeoutWorker:
