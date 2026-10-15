@@ -342,9 +342,39 @@ jobs:
           scripts/test_r2_python_dead_list.py
           scripts/test_coordinator_snapshot.py
           scripts/test_lane_tick.py
+          scripts/test_plan_lint.py
+          scripts/test_post_record.py
           scripts/test_prodshape_override.py
           scripts/test_orchestrator_engine_socket.py
           -q
+      # Ruling 197: the plan fields the lane digest acts on (roster queues, package `**PR:**`
+      # fields, ruling-map record ids), linted with the digest's own parsers. On a PR it fails
+      # only on findings its BASE lacks: this job has no paths filter and feeds the CI Gate, so a
+      # plan defect already on main must red main's own push run, not every PR after it. The base
+      # is the checked-out merge commit's FIRST parent -- the main this run merged the PR into --
+      # not the event's pull_request.base.sha, which is main as of the PR's last update and so
+      # reads a defect that reached main since then as the PR's own. The checkout is depth-1: the
+      # commit object still names its parents (cat-file reads the raw object), and that one parent
+      # is fetched. No parent is a broken premise, so the step fails closed with exit 2 and says
+      # why. Named by module, not path, as the docs-citation step below is: naming a scripts path
+      # here makes it a declared reachability entry, which moves the R2 list's tool-inputs stamp
+      # for a walk-neutral reason (scripts/ is not a candidate tree).
+      - name: Plan lint (ruling 197)
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT}" = "pull_request" ]; then
+            BASE_SHA="$(git cat-file -p HEAD | awk '/^parent / { if (!n++) print $2 }')"
+            if [ -z "${BASE_SHA}" ]; then
+              echo "plan lint: HEAD $(git rev-parse HEAD) names no parent; no baseline, nothing judged" >&2
+              exit 2
+            fi
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+            uv run python -m scripts.uplevel.plan_lint --baseline "${BASE_SHA}"
+          else
+            uv run python -m scripts.uplevel.plan_lint
+          fi
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
       # --no-staleness) — that is what catches a dead source_ref, and it is

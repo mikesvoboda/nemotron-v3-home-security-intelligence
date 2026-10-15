@@ -60,17 +60,28 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
    the coordinator's age, with the UR-162 raise named when one is owed; disk use of `/` and
    `/var/lib/docker`, pointing at UR-180's cleanup ORDER above 90% (never a routine full prune,
    ruling 176); the live `BINDING NOW` records the ruling map does not yet carry (ruling 177's
-   filter, applied at the source -- the 48-hour window is never fetched unfiltered); the PRs
-   labelled `review:<lane>` and your own open PRs, each with head, merge state, `CI Gate` at that
-   head (re-read past 100 check runs; in-flight jobs named when it is still running), commits behind
-   `main`, and comments/reviews since your beat; and the next claimable roster package (UR-52). An
+   filter, applied at the source -- the 48-hour window is never fetched unfiltered); your own open
+   PRs, each with head, merge state, `CI Gate` at that head (re-read past 100 check runs; in-flight
+   jobs named when it is still running), commits behind `main`, comments/reviews since your beat,
+   and `needs your review` (ready, a non-draft CI run finished at the head, and no review of this
+   head: one whose first line names the head's sha, or a sha UR-106's carry takes to it) or
+   `arm auto-merge` (that review approves with `Plan text: none`, the gate is green, no `owner`
+   label, auto-merge off; ruling 198); `review names no head` when the newest review names no sha
+   (review the current head again as "Reviewing your PR" says, and post that review with that
+   head's sha -- never stamp a sha on a review of another head), and `review unread` when a read
+   for them failed; and the next claimable roster package (UR-52). An
    `ERROR <section>` line means that section was not read: read it yourself or say it is unread, and
    never fill it from an earlier tick (UR-29). A `NOTE no package file for lane <lane>` is the
    roster's answer for a lane with no package file (operator, heavy, coordinator), not a fault.
    Then act on the printed `BINDING NOW` records that name your lane or all agents and whose state
    does not already hold; one already carried out is a no-op (UR-40, rulings 163, 170, 177).
+   `for you:` lines, printed first, name the records of the last 48 hours and the owner pointers
+   since two hours before your beat whose footer addresses your lane; act on them
+   first (ruling 197). A `NOTE unparsed uplevel footer`
+   names a comment whose footer the digest could not read: read that comment yourself.
 
-2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, and
+2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, with
+   `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`, and
    keep your disks under 90% (UR-180). Read the coordinator's age from the digest; if it is older
    than 20 minutes with no live `URGENT PATH` on record, follow "Stale coordinator" below.
 3. **Review your ready PRs first** (UR-32): for each of your PRs that is ready, with CI finished at
@@ -94,9 +105,10 @@ PR it concerns. Only when you are blocked, add a third line, `BLOCKER: <one line
 <sandbox> · <HH:MMZ, read from date -u> · idle | working #<n> | waiting on <what> | paused · <why>
 ```
 
-Find the issue with `gh issue list --state open --search "Uplevel heartbeats in:title"`, find your
-comment by its first line, and edit it with
-`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`.
+Write it with `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`
+(a `BLOCKER:` line follows a newline in the same argument). The tool writes the marker line, finds
+your comment and edits it, or posts it if you have none, and refuses a beat over 600 characters.
+Never edit the marker line by hand (ruling 197).
 
 **Before a long step.** Before any step you expect to run over 15 minutes (a local test or golden
 run, a UR-89 self-review subagent), edit your heartbeat to
