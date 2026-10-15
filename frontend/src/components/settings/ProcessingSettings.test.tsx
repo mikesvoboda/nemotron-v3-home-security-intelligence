@@ -1161,10 +1161,18 @@ describe('ProcessingSettings', () => {
 
     it('saves the settings page with the fast path off and reads it back off', async () => {
       // The package's Done when: turn the switch, save, and the value the page
-      // re-renders from the saved config is still off. updateConfig resolves with
-      // mockConfig (fast_path_enabled false), standing in for the server.
+      // re-renders from the saved config is still off. The response below is what
+      // a server does: it echoes the fields it stored AND a normalised value the
+      // page never held locally (batch window 40, not the 90 it began with), so
+      // the post-save render is proven to come from the response — dropping the
+      // `setEditedConfig(updatedConfig)` in `handleSave` reddens the 40 below,
+      // which is the only assertion in this test the component could not already
+      // satisfy from its own click.
       vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
-      vi.mocked(api.updateConfig).mockResolvedValue(mockConfig);
+      vi.mocked(api.updateConfig).mockResolvedValue({
+        ...mockConfig,
+        batch_window_seconds: 40,
+      });
 
       renderWithProviders(<ProcessingSettings />);
 
@@ -1184,6 +1192,11 @@ describe('ProcessingSettings', () => {
         );
       });
 
+      // The read-back: both fields below are the SAVED config's, not the click's.
+      // 40 is the one the page never had, so this is a real round-trip assertion.
+      await waitFor(() => {
+        expect(screen.getByLabelText('Batch window duration in seconds')).toHaveValue('40');
+      });
       await waitFor(() => {
         expect(fastPathSwitch()).toHaveAttribute('aria-checked', 'false');
       });
