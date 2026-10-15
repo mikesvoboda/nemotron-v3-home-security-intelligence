@@ -577,6 +577,15 @@ def test_the_checked_in_known_list_reads() -> None:
     assert all(entry.legs and entry.why for entry in known.values())
 
 
+@pytest.mark.parametrize("known", ["", "# only comments\n#   [[known]]\n#   row = \"F-001\"\n"])
+def test_a_known_list_with_no_entries_is_valid(make, capsys, known: str) -> None:
+    # Ruling 219 emptied the checked-in list: an empty or comment-only file reads as no entries.
+    assert witness.read_known(known, {"F-001": witness.Row("F-001", "works", EV_FAKE)}) == {}
+    legs = {f"{JUNIT_FAKE}::F-001 thing › opens": "passed"}
+    assert make(inventory(("F-001", "works", EV_FAKE)), summary(playwright=legs), known=known) == 0
+    assert "0 failing, 0 known" in out(capsys)
+
+
 def test_both_feature_check_jobs_run_the_witness_after_the_harness_ran() -> None:
     yaml = pytest.importorskip("yaml")
     ci = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))

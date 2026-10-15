@@ -149,8 +149,9 @@ Read this section while you write a package's code, tests, docs and PR.
      numbers merges with the operator's command in its body at `awaiting real tier`, and the
      operator posts the output and sets `done` (UR-146). A phase exits when all its rows say `done`, except
      packages a ruling leaves open: `O2.4` and `B2.3` (ruling 117) and `O2.5` (ruling 144, which
-     gates only ruling 127's twelve real-tier rows) do not gate Phase 2's exit and may finish
-     alongside Phase 3; the coordinator does not hold Phase 3 for them. (rulings 117, 144)
+     gates only ruling 127's twelve real-tier rows and F-295, ruling 219) do not gate Phase 2's exit
+     and may finish alongside Phase 3; the coordinator does not hold Phase 3 for them. (rulings 117,
+     144, 219)
 - **UR-76** Mark package steps the house way: **MEASURE** produces the number and puts it in the PR;
   **DECIDE** chooses on evidence and records why in the PR; **RULING** stops and asks the owner.
   (README "Vocabulary")
