@@ -500,8 +500,11 @@ its head.
 
 - [ ] The processing settings show a "Fast path" switch bound to `fast_path_enabled`, off by default,
       with `config.py`'s warning as its help text; the threshold slider shows only when it is on.
-      Ticked from the first ready `Backend+Frontend Unit Tests` run naming this PR's leg
-      (`ProcessingSettings.test.tsx › fast-path switch (ruling 168)`); a draft skips every job.
+      Ticked from the first ready vitest run naming this PR's leg
+      (`ProcessingSettings.test.tsx › fast-path switch (ruling 168)`) — that is the
+      `Frontend Tests (Vitest)` job or its `Frontend Tests (Vitest N/8)` shards; there is no job named
+      "Backend+Frontend Unit Tests", which is what this row said until this commit. A draft skips
+      every job.
 - [ ] The page never writes a threshold while the switch is off. Two cards on this page write this
       one setting, so the witness is a pair, one per card: `ProcessingSettings.test.tsx` (never
       sends a fast-path threshold while the switch is off) and `DetectionThresholdsPanel.test.tsx`
