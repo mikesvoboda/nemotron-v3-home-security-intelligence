@@ -93,7 +93,6 @@ def pr_node(
         "number": number,
         "headRefOid": head,
         "state": state,
-        "isDraft": False,
         "labels": {"nodes": [{"name": n} for n in labels]},
         # the rollup's checks live under contexts.nodes, NOT nodes -- verified against the live
         # schema (introspection: StatusCheckRollup.fields = commit/contexts/id/state). A fixture
