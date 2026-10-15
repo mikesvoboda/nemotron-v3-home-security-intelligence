@@ -246,9 +246,17 @@ async def test_no_live_batch_returns_a_well_formed_empty_object(
     stack is a bug rather than a design choice.
     """
     client = real_redis._ensure_connected()
-    # Only meaningful on a stack with no batch pointers at all.
-    async for key in client.scan_iter(match="batch:*:current", count=10):
-        pytest.skip(f"batch key {key!r} alive in this db; run with -n0 on a clean db")
+    # A foreign pointer is an isolation bug, NOT a reason to skip: a skipped
+    # control reports green without having checked anything, which is the exact
+    # failure mode this file exists to fix. Fail loudly and name the intruder.
+    # The precondition is unreachable in CI: run 38701617347's Services job ran
+    # this test PASSED (not SKIPPED), and no CI job collects test_concurrency.py,
+    # the tier's only other real-Redis batch writer.
+    foreign = [k async for k in client.scan_iter(match="batch:*:current", count=100)]
+    assert not foreign, (
+        f"batch pointers {foreign} are alive in this db - the empty-stack control "
+        "needs a clean one (run this file with -n0 on a fresh worker db)"
+    )
 
     status = await _get_batch_aggregator_status(real_redis)
     assert status is not None
