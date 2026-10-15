@@ -173,6 +173,18 @@ async def test_startup_runs_exact_configured_worker_counts_and_reads_heartbeats(
                 assert info is not None
                 assert info.status == WorkerStatus.RUNNING
                 assert info.last_heartbeat_at is not None
+
+            # Manual stop/start round-trip via supervisor (F-143 / worker-management.spec.ts)
+            assert await supervisor.stop_worker("metrics") is True
+            metrics_info = supervisor.get_worker_info("metrics")
+            assert metrics_info is not None and metrics_info.status == WorkerStatus.STOPPED
+            assert manager._metrics_worker.running is False
+
+            assert await supervisor.start_worker("metrics") is True
+            metrics_info = supervisor.get_worker_info("metrics")
+            assert metrics_info is not None and metrics_info.status == WorkerStatus.RUNNING
+            await asyncio.sleep(0.02)
+            assert manager._metrics_worker.running is True
         finally:
             await supervisor.stop()
             await manager.stop()
