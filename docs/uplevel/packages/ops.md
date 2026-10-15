@@ -169,8 +169,9 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes.** `feature_check.py --real --prod-shape` (the flag's name is the package's
       call) brings up that stack and runs the golden suite against it, using the Playwright
-      container from ruling 143. The operator runs it nightly or on demand, not for every batch,
-      on a test deployment (UR-133), in the operator's sandbox (ruling 162).
+      container from ruling 143. The owner runs it on maui, on demand, from a command ops-a posts
+      on #7037, on a test deployment (UR-133). The operator's sandbox has no copy-on-write storage,
+      so it runs there only once a sandbox has some (ruling 185, amending ruling 162).
 - [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
       and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
       record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
@@ -185,7 +186,7 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
-deployment and the operator's run witnesses ruling 127's 12 rows; on no, the owner has ruled on the
+deployment and the owner's maui run witnesses ruling 127's 12 rows (ruling 185); on no, the owner has ruled on the
 blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
 (#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
 deployment, in a comment on each PR (ruling 154).
@@ -447,15 +448,17 @@ is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
 ### [r162] The engine socket follows the orchestrator setting
 
 **Flags:** owner (production safety). **Assigned:** `uplevel-ops-a`. **Depends on:** `O2.5`
-merged. **PR:** none yet. (ruling 162)
+merged. **PR:** #7114 (open). (rulings 162, 186)
 
-- [ ] `backend` and `alloy` mount `${PODMAN_SOCKET}` only when the orchestrator is enabled
-      (`docker-compose.prod.yml:473`, `:1584` at ruling 162), not unconditionally; the `:?`
-      interpolation no longer demands a value when nothing uses it.
+- [ ] `backend` mounts `${PODMAN_SOCKET}` only when the orchestrator is enabled
+      (`docker-compose.prod.yml:473` at ruling 162), not unconditionally. `alloy` keeps its
+      unconditional mount and its `:?` (`:1584`): it uses the socket for container discovery, log
+      scraping and profiler targets, not orchestration (ruling 186).
 - [ ] A migration note for the live deployment's next redeploy.
 
-**Done when:** a production config rendered with the orchestrator off mounts no engine socket, one
-with it on mounts it as before, and `O2.5`'s override drift test still passes.
+**Done when:** a production config rendered with the orchestrator off gives `backend` no engine
+socket, one with it on mounts it as before, `alloy`'s mount is unchanged in both, and `O2.5`'s
+override drift test still passes.
 
 ### [r164a] The coordinator's paperwork moves into scripts
 
