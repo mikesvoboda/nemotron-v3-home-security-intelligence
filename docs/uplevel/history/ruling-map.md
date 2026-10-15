@@ -201,6 +201,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 186    | package `[r162]`: backend's socket only; alloy keeps its mount (record 6181436641)                          |
 | 187    | F2.3's seeded CI project to heavy-b, ops-b reviews (record 6182863643)                                      |
 | 188    | `O2.4` and `O2.5` move to the operator: agent-gpu venue, in-sandbox store (record 6182950505)               |
+| 189    | package `[r189]`: the golden leg's cap follows measured time (record 6191177913)                            |
 
 ## Owner records
 
