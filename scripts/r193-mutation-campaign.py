@@ -246,13 +246,26 @@ MUTANTS = [
         ],
     ),
     (
-        "review-label-joins-lane-group",
-        "folds the review label into the lane group, so a PR to review is never found",
+        "two-labels-join-one-connection",
+        "merges two labels into one connection: OR still FINDS the PR (so no test about finding "
+        "it can catch this) but discovered() attributes it to the group that matched, so the watch "
+        "line names a label the PR does not carry",
         [
             (
-                "    groups.extend([[label] for label in review_labels if label])",
-                "    if groups:\n        groups[0].extend(label for label in review_labels if label)\n"
-                "    else:\n        groups.extend([[label] for label in review_labels if label])",
+                "    return [[label] for label in given if label]",
+                "    groups = [[label] for label in given if label]\n"
+                "    if len(groups) > 1:\n        groups[0].extend(groups.pop())\n    return groups",
+            )
+        ],
+    ),
+    (
+        "discovery-first-label-only",
+        "a PR two connections match keeps only the first label, so its line omits a match the "
+        "response proved (the ordinary case: #7175 carries lane:ops AND cell:a)",
+        [
+            (
+                "            reasons.extend(label for label in group if label not in reasons)",
+                "            if not reasons:\n                reasons.extend(label for label in group)",
             )
         ],
     ),

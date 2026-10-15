@@ -47,22 +47,19 @@ DISCOVERY_WINDOW = 100
 
 
 def label_groups(lane: str, cell: str, review_labels: Sequence[str]) -> list[list[str]]:
-    """The label sets to discover PRs by: my cell's, then each review label I was given.
+    """One single-label group per label ruling 193 names: my lane, my cell, then each review label.
 
-    Ruling 193 names three kinds -- "its lane, cell and `review:<lane>` labels" -- and a
-    connection's ``labels:`` argument is AND, measured: with ``[$a, $b]`` = ``lane:ops``,
-    ``cell:a`` the result held 7175/7114/7072 and NOT 7176/7125/7082, which are ``cell:b``. So each
-    set needs its own aliased connection (they stay one query), and a ``review:`` label never folds
-    into the lane group: a PR to review is a different set from a PR of my own cell.
+    Ruling 193 names three kinds -- "its lane, cell and `review:<lane>` labels" -- and each gets its
+    own aliased connection, never a merged one, for a reason measured against the live API: a
+    connection's ``labels:`` argument is **OR**, not AND. Two labels no PR can carry together
+    (``lane:ops``, 82 PRs, and ``lane:docs``, 56) came back as one query of 138 with an empty
+    intersection -- AND would have returned 0. So putting ``lane:ops`` and ``cell:a`` in one
+    connection cannot narrow anything (the union already includes every ops PR, of either cell), and
+    because ``discovered`` names the labels whose connection matched, a merged group would print a
+    label the PR does not carry. One connection per label keeps every word of the watch line true.
     """
-    groups: list[list[str]] = []
-    mine = [
-        label for label in (f"lane:{lane}" if lane else "", f"cell:{cell}" if cell else "") if label
-    ]
-    if mine:
-        groups.append(mine)
-    groups.extend([[label] for label in review_labels if label])
-    return groups
+    given = [f"lane:{lane}" if lane else "", f"cell:{cell}" if cell else "", *review_labels]
+    return [[label] for label in given if label]
 
 
 def query_variables(
@@ -133,8 +130,9 @@ def query_text(
         args = ", ".join(f"$a{i}_{j}" for j in range(len(group)))
         lines.append(f"    a{i}: pullRequests(labels: [{args}], states: [OPEN],")
         # `states: [OPEN]`, and `UPDATED_AT` with an explicit `orderBy`: measured without the state
-        # filter, `labels: ["lane:ops"]` returned 83 PRs, most of them long merged, and each would
-        # become a field alias in this same query. `UPDATED_DESC` is rejected outright -- this
+        # filter, `labels: ["lane:ops"]` matched 82 PRs against 6 open ones (measured 2026-10-15 --
+        # the count drifts, the ratio does not), most of them long merged, and each of the matches
+        # would become a field alias in this same query. `UPDATED_DESC` is rejected outright: this
         # connection orders by IssueOrderField, whose values are CREATED_AT/UPDATED_AT/COMMENTS.
         # `totalCount` because a full window and an empty one are otherwise indistinguishable.
         lines.append(
@@ -161,14 +159,23 @@ def query_text(
 
 
 def discovered(data: dict, groups: Sequence[Sequence[str]]) -> dict[int, list[str]]:
-    """{PR number: the label group that matched it} from this response's discovery connections."""
+    """{PR number: every label whose connection matched it} from this response's discovery.
+
+    EVERY, not the first: groups are one label each (see ``label_groups``), and a PR of my cell
+    sits in two connections -- the lane's and the cell's -- so the watch line and the state entry
+    name both. Dropping the second would not misreport membership (the PR is watched either way),
+    but the line is the agent's only record of WHY a PR joined, and half a reason is a claim about
+    a label match that the other connection proved did not happen alone.
+    """
     root = data.get("repository") or {}
     found: dict[int, list[str]] = {}
     for i, group in enumerate(groups):
         for node in _connection(root.get(f"a{i}")) or []:
             number = node.get("number")
-            if number is not None:
-                found.setdefault(number, list(group))
+            if number is None:
+                continue
+            reasons = found.setdefault(number, [])
+            reasons.extend(label for label in group if label not in reasons)
     return found
 
 
@@ -341,7 +348,8 @@ def check(
     every arm look like an event.
 
     The watched set lives in ``state["watched"]`` and only GROWS: label discovery filters
-    ``states: [OPEN]`` (an unfiltered lane query measured 83 PRs), so a merge takes a PR out of the
+    ``states: [OPEN]`` (an unfiltered lane query matched 82 PRs against 6 open ones, measured
+    2026-10-15), so a merge takes a PR out of the
     discovery result, and a set that followed the query each poll would stop asking and never
     report the merge. A newly discovered PR is registered as ``UNREAD`` and named once -- then its
     fields are seeded by the next poll, so the first thing reported about it is a real change.

@@ -138,19 +138,24 @@ failures, a "no change" line at its lifetime bound.
 
 Four GraphQL facts decided the shape, all measured against the live API before the query was
 written, and each the reason a plausible alternative is wrong: `pullRequests(labels: [...])` is
-**AND**, not OR, so each label group is its own connection alias and `review:<lane>` can never join
-the `lane`+`cell` group; the connection's `orderBy.field` is `UPDATED_AT` (`UPDATED_DESC` is
-rejected outright); `states: [OPEN]` is load-bearing because an unfiltered `lane:ops` query
-returned 82 PRs against 6 open ones (measured 2026-10-15 — the count drifts, the ratio does not);
+**OR**, not AND — `lane:ops` (82 PRs) and `lane:docs` (56), which no PR carries together, came back
+as one query of 138 with an empty intersection, and AND would have returned 0 — so putting
+`lane:ops` and `cell:a` in one connection narrows nothing (the union already holds every ops PR of
+either cell) while `discovered` names the labels whose connection matched, which would let the watch
+line print a label the PR does not carry. Hence one single-label group per connection alias, and
+`discovered` collecting **every** matching label, not the first; the connection's `orderBy.field` is
+`UPDATED_AT` (`UPDATED_DESC` is rejected outright); `states: [OPEN]` is load-bearing because an
+unfiltered `lane:ops` query matched 82 PRs against 6 open ones (measured 2026-10-15 — the count
+drifts, the ratio does not);
 and the watched set must stay **monotonic** even though discovery asks for OPEN, or
 a merge removes a PR from the set before its state is ever read. Label strings ride as `-f` String
 variables — a `-F` JSON array matches nothing **and returns no error**, which is a silently empty
 watch. A discovery page at `DISCOVERY_WINDOW` (100, GitHub's page cap) whose `totalCount` is higher
 raises instead of reporting a quiet tick.
 
-`scripts/test_pr_watch.py` (33 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`scripts/test_pr_watch.py` (34 tests, in ci.yml's anti-rot-gates list) drives one seam —
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching.
-`scripts/r193-mutation-campaign.py` reverts 27 properties in a throwaway worktree and fails if any
+`scripts/r193-mutation-campaign.py` reverts 28 properties in a throwaway worktree and fails if any
 survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
 registered in ci.yml — the campaign list holds suites, not drivers.
 
