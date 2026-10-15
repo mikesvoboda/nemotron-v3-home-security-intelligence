@@ -4849,10 +4849,14 @@ def test_as_test_deployment_seeded_enables_debug_recorder_fault_seed_and_data_tm
     base: dict[str, Any],
 ) -> None:
     unseeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR)
-    unseeded_env = unseeded["services"]["backend"]["environment"]
+    unseeded_backend = unseeded["services"]["backend"]
+    unseeded_env = unseeded_backend["environment"]
     assert unseeded_env.get("DEBUG") != "true"
     assert "REQUEST_RECORDING_ENABLED" not in unseeded_env
     assert "HSI_FAULT_SEED" not in unseeded_env
+    assert not any(
+        entry.split(":", 1)[0].rstrip("/") == "/app/data" for entry in unseeded_backend["tmpfs"]
+    )
 
     seeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR, seeded=True)
     backend = seeded["services"]["backend"]
@@ -4861,7 +4865,7 @@ def test_as_test_deployment_seeded_enables_debug_recorder_fault_seed_and_data_tm
     assert env["REQUEST_RECORDING_ENABLED"] == "true"
     assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
     assert env["HSI_FAULT_SEED"] == "1"
-    assert "/app/data:mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
+    assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
 
 
 def test_seeded_flag_is_refused_without_fake() -> None:
@@ -4900,6 +4904,8 @@ def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
             return 200, {"recordings": [{"recording_id": "r1"}, {"recording_id": "r2"}], "total": 2}
         if "/api/system/cleanup/orphaned-files" in url:
             return 200, {"orphaned_count": 1, "total_size": 21}
+        if url.endswith("/api/system/storage"):
+            return 200, {"disk_usage_percent": 93.0}
         if url.endswith("/api/system/circuit-breakers"):
             return 200, {"circuit_breakers": {"redis": {"state": "open"}}, "open_count": 1}
         return 200, {"ok": True}
@@ -4912,7 +4918,49 @@ def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
     assert run.summary["results"]["seeded"] == "ok"
     assert any(headers and headers.get("X-Debug-Record") == "true" for _, _, headers in http_calls)
     assert any("seeded-orphan.jpg" in " ".join(c) and "os.utime" in " ".join(c) for c in exec_calls)
+    assert any(
+        ".seeded-disk-fill" in " ".join(c) and "shutil.disk_usage" in " ".join(c)
+        for c in exec_calls
+    )
+    assert any(url.endswith("/api/system/storage") for _, url, _ in http_calls)
     assert sum(1 for _, url, _ in http_calls if url.endswith("/api/debug/pipeline-state")) == 4
+
+
+def test_seed_debug_fixtures_refuses_under_90_percent_disk_usage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
+    )
+    run.prepare()
+    run.api = "http://127.0.0.1:32772"
+    run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
+
+    monkeypatch.setattr(
+        run,
+        "deployment",
+        lambda *args, **_kwargs: subprocess.CompletedProcess(
+            list(args), 0, stdout="89.9\n", stderr=""
+        ),
+    )
+
+    def fake_http(
+        _method: str, url: str, _payload: Any = None, _timeout: float = 15, **_kwargs: Any
+    ) -> tuple[int, Any]:
+        if url.endswith("/api/debug/recordings"):
+            return 200, {"recordings": [{"recording_id": "r1"}, {"recording_id": "r2"}], "total": 2}
+        if "/api/system/cleanup/orphaned-files" in url:
+            return 200, {"orphaned_count": 1, "total_size": 21}
+        if url.endswith("/api/system/storage"):
+            return 200, {"disk_usage_percent": 89.9}
+        if url.endswith("/api/system/circuit-breakers"):
+            return 200, {"circuit_breakers": {"redis": {"state": "open"}}, "open_count": 1}
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(fc, "_http", fake_http)
+
+    with pytest.raises(fc.HarnessError, match="disk_usage_percent >= 90"):
+        run.seed_debug_fixtures()
 
 
 def test_golden_seeded_runs_golden_seeded_playwright_project(

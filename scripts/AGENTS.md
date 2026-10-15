@@ -803,7 +803,7 @@ under a compose project of its own, which touches nothing else on the machine.
 ./scripts/feature-check.sh drop <image> <camera>                # inside a golden spec
 ```
 
-The logic is `feature_check.py`, standard library only (`--seeded` adds `DEBUG=true`, request recorder, `HSI_FAULT_SEED=1`, and the orphan-file fixture, running `--project=golden-seeded` in `Feature check (seeded)`):
+The logic is `feature_check.py`, standard library only (`--seeded` adds `DEBUG=true`, request recorder, `HSI_FAULT_SEED=1`, the orphan-file fixture, and a 20 MiB `/app/data` tmpfs filled past 90 % for F-012, running `--project=golden-seeded` in `Feature check (seeded)`):
 
 - the preflight refuses a run that could write outside its run directory,
   reach an engine socket or the host, or overlap anything on the machine;
