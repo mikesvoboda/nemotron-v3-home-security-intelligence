@@ -155,7 +155,7 @@ Adjust these sliders to control event processing behavior:
 | Idle Timeout                   | 10-120s   | 30s     | Wait time before processing incomplete batches                                         |
 | Event Retention Period         | 1-90 days | 30 days | How long to keep events and detections                                                 |
 | Log Retention Period           | 1-90 days | 7 days  | How long to keep application logs                                                      |
-| Detection Confidence Threshold | 0.00-1.00 | 0.50    | Minimum confidence for object detection                                                |
+| Detection Confidence Threshold | 0.00-1.00 | 0.40    | Minimum confidence for object detection                                                |
 | Fast Path                      | on/off    | off     | Master switch; while off no detection takes the fast path, whatever the threshold says |
 | Fast-Path Confidence Threshold | 0.00-1.00 | 0.90    | Shown only while Fast Path is on; the page never writes a threshold while it is off    |
 
