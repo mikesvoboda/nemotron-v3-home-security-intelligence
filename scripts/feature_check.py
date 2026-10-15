@@ -71,8 +71,6 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-import yaml
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CI_STACK = REPO_ROOT / "docker-compose.ci.yml"
 FAKE_OVERLAY = REPO_ROOT / "docker-compose.fake-ai.yml"
@@ -2570,7 +2568,15 @@ class AgentGpu:
         ``backend/tests/unit/scripts/test_feature_check.py`` uses, so runtime and
         test now consult one source. Nothing about ai-vlm's ``environment`` is
         produced by compose that this read misses.
+
+        The ``import yaml`` is deliberately function-local: feature-check.sh
+        execs this file under bare ``python3``, and the golden Playwright
+        container's python3 has no pyyaml — a module-level import made every
+        subcommand (``drop`` included) die at import time there. Here is the
+        only reader; only ``start`` pays for it.
         """
+        import yaml
+
         raw = yaml.safe_load(PROD_STACK.read_text(encoding="utf-8"))
         return (raw.get("services") or {}).get("ai-vlm", {}).get("environment") or []
 
