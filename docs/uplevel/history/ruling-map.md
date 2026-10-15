@@ -215,6 +215,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 200    | package `[r200]`: one owner for the running pipeline workers (record 6198757258)                            |
 | 201    | `[r184]` gets its block: the launcher prints the heavy pi start line (record 6198825479)                    |
 | 202    | one-GPU installs wait for Phase 4 as `O4.1`; no lane now (record 6198876496)                                |
+| 203    | B3.3 owns schema upgrades; B3.1 drops tables as its upgrades (record 6198942052)                            |
 
 ## Owner records
 

@@ -88,12 +88,12 @@ one PR with `F3.1`.
 - [ ] For each feature ruled **retire**: delete its routes, schemas, services, settings, alert
       conditions and tests (batteries included). The frontend part (`F3.1`) lands in the same PR,
       so the client never calls a route that is gone.
-- [ ] Tables leave through a dated DROP runbook in `docs/api/migrations/`, following the R8-S4
-      precedent (`cafad910`).
+- [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
+      record 6198942052), not as a hand-run DROP runbook.
 - [ ] Regenerate `docs/openapi.json`.
 
 **Done when:** for every retired feature, a grep for the identifiers its inventory row lists finds
-nothing in `backend/` outside the DROP runbook.
+nothing in `backend/` outside its upgrade step.
 
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
@@ -127,10 +127,19 @@ outside `keep.toml`, and the suite is green.
       `summary_generator._call_nemotron`, Nemotron-named metrics); delete the uncalled metrics and
       unused exception classes `00 §4.1` lists.
 - [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
-- [ ] **DECIDE** whether the `alembic` dependency stays (`00 §7`: no Alembic directory exists).
+- [ ] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
+      `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
+      `docs/api/migrations/` is applied by hand. One ordered, checked upgrade command records which
+      upgrades a database has had; Alembic or a small runner over `docs/api/migrations/` is this
+      package's design choice, and the `alembic` dependency stays or goes with it (`00 §7`). The
+      four existing SQL files become its first recorded upgrades or are marked applied.
+- [ ] A test starts from a saved pre-upgrade schema with rows in it, upgrades it, and checks the
+      rows survive. The integration tests boot through the command; no fixture adds a column
+      (`backend/tests/integration/conftest.py:855` does today).
 
-**Done when:** the ratchet test passes, and the PR reports the before/after count of `nemotron`,
-`florence` and `enrichment` hits in `backend/`.
+**Done when:** the ratchet test passes; a database saved from today's `main` upgrades with its rows
+intact in CI; and the PR reports the before/after count of `nemotron`, `florence` and `enrichment`
+hits in `backend/`.
 
 ## Phase 4 — Complete the product
 
