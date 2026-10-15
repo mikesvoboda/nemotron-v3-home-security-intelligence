@@ -78,7 +78,8 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
 - **fake stack** — the CI compose stack plus a deterministic fake VLM and fake detector; runs
   anywhere, no GPU.
 - **real tier** — the same golden paths run by `scripts/feature-check.sh --real` on the GB300 with
-  real models (who runs it and where: UR-15, UR-133).
+  the real VLM (the production pin); the detector, re-ID and threat models stay fake (UR-136, ruling
+  207). Who runs it and where: UR-15, UR-133.
 - **test deployment** — a disposable stack created for one run: its own compose project, env file,
   host ports, volumes and camera directory, sharing only read-only model weights with anything
   else on the machine (`O2.2`). When one is required: UR-133.

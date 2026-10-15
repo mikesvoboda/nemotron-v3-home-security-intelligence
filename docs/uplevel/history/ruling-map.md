@@ -219,6 +219,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 204    | package `[r204]`: one realtime connection owner in the frontend (record 6199283332)                         |
 | 205    | package `[r205]`: no status is not healthy; health is not an alert count (record 6199725340)                |
 | 206    | OD-31 stands; F-236's design also settles what an event sends on (record 6199786907)                        |
+| 207    | real tier is real VLM, fake detector; `[r207]` holds detector rows back (record 6199844401)                 |
 
 ## Owner records
 
