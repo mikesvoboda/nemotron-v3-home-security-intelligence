@@ -4828,7 +4828,7 @@ def test_as_test_deployment_seeded_enables_debug_recorder_fault_seed_and_data_tm
     assert env["REQUEST_RECORDING_ENABLED"] == "true"
     assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
     assert env["HSI_FAULT_SEED"] == "1"
-    assert "/app/data" in backend["tmpfs"]
+    assert "/app/data:mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
 
 
 def test_seeded_flag_is_refused_without_fake() -> None:
@@ -4849,7 +4849,7 @@ def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
     )
     run.prepare()
     run.api = "http://127.0.0.1:32772"
-    run.admin = {"username": "feature-check", "password": "secret"}
+    run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
 
     exec_calls: list[tuple[str, ...]] = []
 
@@ -4891,7 +4891,7 @@ def test_golden_seeded_runs_golden_seeded_playwright_project(
     run.prepare()
     run.api = "http://127.0.0.1:32772"
     run.ui = "http://127.0.0.1:32773"
-    run.admin = {"username": "feature-check", "password": "secret"}
+    run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
 
     config = tmp_path / "playwright.config.ts"
     config.write_text(

@@ -104,11 +104,6 @@ services:
     tmpfs:
       - /tmp
       - /home/appuser/.cache
-      # Ruling 127 / 187: RequestRecorderMiddleware (data/recordings) and
-      # OrphanedFileCleanup (data/thumbnails, data/clips) write under /app/data
-      # inside the container's WORKDIR (/app). Mounting /app/data as a tmpfs
-      # makes those paths writable while keeping the rootfs read_only: true.
-      - /app/data
       # The lifespan FileWatcher inotify-watches FOSCAM_BASE_PATH=/cameras
       # unconditionally; on a read-only rootfs the mkdir/watch raises
       # [Errno 30] inside the Redis try-block, which swallows it and leaves

@@ -139,7 +139,7 @@ class TestInitCircuitBreakers:
         # 1. debug=False + HSI_FAULT_SEED=1 -> guard blocks fault seed
         mock_settings.debug = False
         monkeypatch.setenv("HSI_FAULT_SEED", "1")
-        with patch("backend.main.get_settings", return_value=mock_settings):
+        with patch("backend.main.get_settings", return_value=mock_settings, autospec=True):
             init_circuit_breakers()
         assert _get_registry().get_all_status()["redis"]["state"] == "closed"
 
@@ -148,7 +148,7 @@ class TestInitCircuitBreakers:
         # 2. debug=True + HSI_FAULT_SEED unset -> no fault seed
         mock_settings.debug = True
         monkeypatch.delenv("HSI_FAULT_SEED", raising=False)
-        with patch("backend.main.get_settings", return_value=mock_settings):
+        with patch("backend.main.get_settings", return_value=mock_settings, autospec=True):
             init_circuit_breakers()
         assert _get_registry().get_all_status()["redis"]["state"] == "closed"
 
@@ -157,7 +157,7 @@ class TestInitCircuitBreakers:
         # 3. debug=True + HSI_FAULT_SEED=1 -> redis breaker force-opened, others stay closed
         mock_settings.debug = True
         monkeypatch.setenv("HSI_FAULT_SEED", "1")
-        with patch("backend.main.get_settings", return_value=mock_settings):
+        with patch("backend.main.get_settings", return_value=mock_settings, autospec=True):
             init_circuit_breakers()
         all_status = _get_registry().get_all_status()
         assert all_status["redis"]["state"] == "open"

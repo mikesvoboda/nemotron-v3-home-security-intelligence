@@ -57,8 +57,9 @@ import { defineConfig, devices } from '@playwright/test';
 const GOLDEN_UI = process.env.FEATURE_CHECK_UI_URL;
 const goldenRequested =
   process.argv.includes('--project=golden') ||
+  process.argv.includes('--project=golden-seeded') ||
   (process.argv.includes('--project') &&
-    process.argv[process.argv.indexOf('--project') + 1] === 'golden');
+    ['golden', 'golden-seeded'].includes(process.argv[process.argv.indexOf('--project') + 1]));
 const goldenMode = Boolean(GOLDEN_UI) || goldenRequested;
 
 export default defineConfig({

@@ -325,9 +325,7 @@ class TestSeededFeatureCheckJobWired(_CiYml):
         assert job.get("name") == self.LEG
 
     def test_ci_gate_needs_it_and_reads_its_result(self) -> None:
-        assert self.JOB in _needs_of(self.jobs["ci-gate"]), (
-            f"ci-gate does not need {self.JOB}"
-        )
+        assert self.JOB in _needs_of(self.jobs["ci-gate"]), f"ci-gate does not need {self.JOB}"
         gate_run = "\n".join(
             step.get("run", "") for step in self.jobs["ci-gate"]["steps"] if step.get("run")
         )

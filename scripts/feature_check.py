@@ -492,7 +492,7 @@ def as_test_deployment(
         environment["REQUEST_RECORDING_SAMPLE_RATE"] = "0.0"
         environment["HSI_FAULT_SEED"] = "1"
         if not any(entry.split(":", 1)[0].rstrip("/") == "/app/data" for entry in backend["tmpfs"]):
-            backend["tmpfs"].append("/app/data")
+            backend["tmpfs"].append("/app/data:mode=1777,uid=1000,gid=1000")
     backend.setdefault("volumes", []).append(
         {
             "type": "bind",

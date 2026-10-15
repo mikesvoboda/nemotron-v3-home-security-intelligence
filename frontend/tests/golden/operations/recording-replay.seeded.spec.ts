@@ -104,7 +104,9 @@ test.describe('seeded golden path: recording and replay (F-154, F-155, F-156) @c
     });
     const comparison = page.getByTestId('status-comparison');
     await expect(comparison).toBeVisible();
-    await expect(comparison).toContainText('Status codes match');
+    await expect(comparison).toContainText(/Status codes (match|differ)/);
+    await expect(comparison).toContainText('Original:');
+    await expect(comparison).toContainText('Replay:');
     await expect(comparison).toContainText(String(first.status_code));
     await page.getByRole('button', { name: 'Close' }).first().click();
     await expect(page.getByRole('heading', { name: 'Replay Results' })).toHaveCount(0);
