@@ -431,30 +431,43 @@ def _path_cites(text: str) -> list[str]:
     """Every backticked, extension-ending span in ``text``, in one OR two backticks.
 
     Split on the DOUBLE delimiter first so a double cite consumes both backticks and is never also
-    read as two single cites; then take the single-backtick spans of what remains. This delimiter-
-    consuming split is why the extractor is sound where a newline-spanning REGEX is not: regex
-    backtick-pairing straddles two adjacent cites and invents spans the file does not contain
-    (measured: ~20 phantom spans on clean prose). A span that CONTAINS a newline — a cite rewrapped
-    across a line — flattens to a path with an interior space and so resolves to nothing and fails
-    the pin, rather than silently escaping coverage; the file therefore keeps every path cite
-    contiguous on one line.
+    read as two single cites; then take the single-backtick spans of what remains. What matters is
+    that the DOUBLE pass DELETES THE DELIMITERS (``text.replace("``", "")``), not the spans
+    (``" ".join(halves[0::2])``): joining the even halves deletes each double-quoted cite too, so
+    every single-backtick count downstream is measured against a corrupted base and a real cite in
+    a region of odd true-parity lands at a DROPPED (even) index and vanishes. Measured four ways on
+    a single-backtick stale cite planted in a #: comment: the span-deleting body misses it, this
+    delimiter-deleting body catches it. A delimiter-consuming split is also why the extractor is
+    sound where a newline-spanning REGEX is not — regex backtick-pairing straddles two adjacent
+    cites and invents spans the file does not contain (measured: ~20 phantom spans on clean prose).
+    It is called on ONE REGION at a time as defense-in-depth behind the parity assert below: a
+    region's delimiter could otherwise close the NEXT region's cite and drop it, but that needs an
+    ODD-parity region, which the assert already rejects — so on any file that passes parity, region
+    and joined harvests agree (measured: identical cite sets on this file's 20 prose regions).
+    A span that CONTAINS a newline — a cite rewrapped across a line — flattens to a path with an
+    interior space and so resolves to nothing and fails the pin, rather than silently escaping
+    coverage; the file therefore keeps every path cite contiguous on one line.
     """
     halves = text.split("``")
-    spans = list(halves[1::2]) + " ".join(halves[0::2]).split("`")[1::2]
+    spans = list(halves[1::2]) + text.replace("``", "").split("`")[1::2]
     return [s.strip() for s in spans if _PATH_EXT.search(" ".join(s.split()))]
 
 
-def _prose(path: Path) -> str:
-    """Docstrings of every module/class/function PLUS the ``#:` comment block — prose only.
+def _prose(path: Path) -> list[str]:
+    """Every PROSE region of ``path``: each module/class/function docstring, plus each ``#:` comment.
 
-    Code is excluded on purpose: this file's own fixtures quote report text that contains
-    backticked, extension-ending strings, and the pin below plants a control cite of its own; a
-    whole-file scan would match those and read red on a file whose prose is clean. ``#:` block
-    comments ARE prose (Sphinx documents them as such, and this file documents the extractor in
-    one), so they are harvested too — a cite there is as load-bearing as one in a docstring, and
-    leaving them out would make the pin's name ("every path cite in this file") a lie by exactly
-    that medium. Only real tokenize COMMENT tokens beginning with ``#:`` are taken, so a ``#:``
-    that appears inside a string literal is never mistaken for a comment.
+    Returned as separate REGIONS, not one joined string, so the extractor's delimiter pairing never
+    crosses a region boundary — a joined harvest lets one region's closing backtick pair with the
+    next region's opening one and silently drop a cite between them. The gate's parity assert makes
+    that a second line of defense (it rejects the odd-parity region the drop needs), but the pin
+    should not depend on an assert upstream of it passing. Code is excluded on
+    purpose: this file's own fixtures quote report text that contains backticked, extension-ending
+    strings, and the pin below plants a control cite of its own; a whole-file scan would match those
+    and read red on a file whose prose is clean. ``#:` block comments ARE prose (Sphinx documents
+    them as such, and this file documents the extractor in one), so they are harvested too — a cite
+    there is as load-bearing as one in a docstring, and leaving them out would make the pin's name
+    ("every path cite in this file") a lie by exactly that medium. Only real tokenize COMMENT tokens
+    beginning with ``#:`` are taken, so a ``#:`` inside a string literal is never mistaken for one.
     """
     src = path.read_text(encoding="utf-8")
     tree = ast.parse(src)
@@ -466,7 +479,7 @@ def _prose(path: Path) -> str:
         for tok in tokenize.generate_tokens(io.StringIO(src).readline)
         if tok.type == tokenize.COMMENT and tok.string.startswith("#:")
     ]
-    return "\n".join(found)
+    return found
 
 
 def test_every_path_cite_in_this_file_resolves() -> None:
@@ -495,7 +508,13 @@ def test_every_path_cite_in_this_file_resolves() -> None:
     pair, and the cited files must be git-TRACKED (a cite to an untracked scratch file would pass a
     bare ``is_file()`` check while violating UR-10 contract rule 3, "commit every fixture").
     """
-    cites = sorted(set(_path_cites(_prose(Path(__file__)))))
+    regions = _prose(Path(__file__))
+    # Parity, policed per region: an odd backtick count means an unpaired delimiter, which is
+    # exactly what would let a cite vanish from the harvest. Checked before anything else, because a
+    # green from an unbalanced region is a green from an instrument that skipped part of the file.
+    ragged = [r.splitlines()[0][:60] for r in regions if (r.count("`") - 2 * r.count("``")) % 2]
+    assert not ragged, f"prose regions with an unpaired single backtick: {ragged}"
+    cites = sorted({c for r in regions for c in _path_cites(r)})
     assert cites, "the cite extractor matched nothing — a dead extractor would certify any path"
 
     # Control covers both spellings: the stale bug was single-backtick, so a control that only
@@ -548,7 +567,7 @@ def test_every_path_cite_in_this_file_resolves() -> None:
     module_only = "(ruling 149 follow-up)"
     function_only = "must not retire the analysis that produces the list"
     comment_only = "wave the exact failure mode through"
-    prose = _prose(Path(__file__))
+    prose = "\n".join(_prose(Path(__file__)))
     assert module_only in prose, (
         "the MODULE docstring left the harvest — half the file is unchecked"
     )
