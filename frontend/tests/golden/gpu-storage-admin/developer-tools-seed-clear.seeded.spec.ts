@@ -29,40 +29,86 @@
  * slug-derived and STABLE across delete+recreate, so re-POSTing each name must
  * return the recorded id. The leg skips unless that book is exported: the
  * restore contract is not optional.
+ *
+ * READS THAT OBSERVE A MUTATION GO PER-ID, NOT OVER THE CAMERA LIST. The camera
+ * LIST (GET /api/cameras) is cache-aside over Redis for SHORT_TTL=60s
+ * (cameras.py:261), and NEITHER seed_cameras NOR clear_seeded_data invalidates
+ * it — only /maintenance/clear-cache does (admin.py:1134). The create/update/
+ * delete handlers in cameras.py each schedule their own invalidation
+ * (:815/:913/:992); the admin seed+clear paths do not. So the first CI run of
+ * this leg (job 116664916467, run 38804341602, head 0642f8348) reddened at the
+ * seed count DELTA with OPPOSITE signs on consecutive retries — attempt1
+ * Expected 5 / Received 0, retry1 Expected 0 / Received 5, retry2 Expected 5 /
+ * Received 0 — which is two reads of one cached key straddling a 60 s expiry,
+ * not arithmetic (a wrong formula fails identically every retry). Every check
+ * below that asks "did this seed/clear/restore change the row set?" therefore
+ * probes GET /api/cameras/{id} per id: get_camera (cameras.py:684) injects only
+ * db:DbSession, takes no CacheDep, reads the table directly, and 404s on
+ * absence. Do NOT "simplify" this back to a list total — that reintroduces the
+ * stale-read red. The events LIST is not cached (list_events makes no cache
+ * call; only /stats and /timeline-summary do) so the event polls keep using it.
  */
 import { readFileSync } from 'node:fs';
 
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   api,
+  apiCookie,
   authPost,
   closedByGuard,
   loginAsAdmin,
   openAdminSection,
   pollApi,
   readOpsHarness,
+  type OpsHarness,
+  type Session,
 } from './harness';
 
 const harness = readOpsHarness();
 const CAMERAS_FILE = process.env.FEATURE_CHECK_CAMERAS ?? '';
 const CAMERA_TARGET = '/cameras'; // the watcher's root inside the backend container
 
-interface CameraList {
-  items?: { id: string }[];
-  pagination?: { total?: number };
-}
-
 interface EventList {
   pagination?: { total?: number };
 }
 
+/** The five cameras the Developer Tools seed button creates, in
+ * _get_sample_cameras order (admin.py:169-197), stored under these DASHED ids
+ * verbatim by seed_cameras (admin.py:359-360). Copied from the F-160 precedent's
+ * asserted set (test-data.spec.ts:135), which measured them after a first draft
+ * wrongly expected slugified ids. */
+const SAMPLE_IDS = ['front-door', 'backyard', 'garage', 'driveway', 'side-gate'];
+
 /**
- * Camera total at the API the app reads. items.length when the envelope omits
- * pagination, pagination.total when it carries one (CameraListResponse,
- * backend/api/schemas/camera.py:396).
+ * Cache-immune per-row existence. GET /api/cameras/{id} is get_camera
+ * (cameras.py:684): it injects only db:DbSession — no CacheDep — and looks the
+ * row up with Camera.id == camera_id and NO id normalization
+ * (dependencies.py:461), so it reads the table directly and is unaffected by the
+ * camera-LIST Redis cache (SHORT_TTL=60s) that seed/clear never invalidate.
+ * 200 → present, 404 → absent; any other status throws (that is not a "row is
+ * missing" answer and must not be swallowed as absence). This is the primitive
+ * every mutation-observing check in this leg uses — a list total would read
+ * through a cached entry the mutation did not touch.
  */
-function total(body: CameraList): number {
-  return body.pagination?.total ?? body.items?.length ?? 0;
+async function cameraExists(h: OpsHarness, session: Session, id: string): Promise<boolean> {
+  const res = await fetch(`${h.api}/api/cameras/${encodeURIComponent(id)}`, {
+    headers: apiCookie(session),
+  });
+  if (res.status === 200) return true;
+  if (res.status === 404) return false;
+  throw new Error(
+    `GET /api/cameras/${id} answered ${res.status}: ${(await res.text()).slice(0, 200)}`
+  );
+}
+
+/** How many of `ids` exist right now, read straight from the table. */
+async function countPresentCameras(
+  h: OpsHarness,
+  session: Session,
+  ids: string[]
+): Promise<number> {
+  const present = await Promise.all(ids.map((id) => cameraExists(h, session, id)));
+  return present.filter(Boolean).length;
 }
 
 test.describe('seeded golden path: developer tools seed and clear (F-197) @critical', () => {
@@ -102,17 +148,18 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
     await debugSwitch.click();
     await expect(debugSwitch).toHaveAttribute('aria-checked', 'true');
 
-    // Baselines read before anything is added, so the toast counts below are
+    // Baselines read before anything is added, so the toast count below is
     // arithmetically checked rather than matched on a permissive \d+. The boot
     // already registered the scenario cameras (feature_check.py:2093-2106) and
     // AdminSettings' button sends the fixed sample set (AdminSettings.tsx:380
-    // count:5, :396 count:50), whose names do not overlap the scenario names —
-    // but seed_cameras skips existing names and counts only new rows
-    // (admin.py:341-366), so 0 is an HONEST answer here and the precedent
-    // test-data.spec.ts:118-125 says so. Reading the delta is what lets this
-    // leg distinguish "5 new cameras" from "0 because they already existed"
-    // without pinning a number the stack is allowed to answer differently.
-    const camerasBefore = total(await api<CameraList>(h, session, '/api/cameras'));
+    // count:5), whose names do not overlap the scenario names — but seed_cameras
+    // skips existing ids and counts only new rows (admin.py:341-366), so 0 is an
+    // HONEST answer here and the precedent test-data.spec.ts:118-125 says so.
+    // The delta is taken over PER-ID reads, not the list total: on a retry the
+    // sample ids already exist, so a genuine "created 0" must be observable as
+    // "0 newly present" rather than being lost in a list count the seed did not
+    // change.
+    const camerasBefore = await countPresentCameras(h, session, SAMPLE_IDS);
     const eventsBefore = (await api<EventList>(h, session, '/api/events?limit=1')).pagination
       ?.total;
 
@@ -137,11 +184,16 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
     // sonner dismiss it rather than re-resolving the locator later.
     const toastText = (await seedCamerasToast.textContent()) ?? '';
 
-    const camerasAfterSeed = total(await api<CameraList>(h, session, '/api/cameras'));
+    // The number the toast showed is the number of sample cameras the table
+    // gained — the same "the toast must not lie" discipline as
+    // admin-cache-clear.spec.ts:89, which compares the toast against the
+    // endpoint's own count. Read per-id, not as a list total: the list is
+    // cached for SHORT_TTL=60s and seed_cameras never invalidates it, so a list
+    // delta reads a stale snapshot (this leg's first CI run failed exactly
+    // there, with opposite signs on consecutive retries). Per-id GETs hit the
+    // DB, so the delta is arithmetically meaningful.
+    const camerasAfterSeed = await countPresentCameras(h, session, SAMPLE_IDS);
     expect(camerasAfterSeed).toBeGreaterThanOrEqual(camerasBefore);
-    // The number the toast showed is the number of rows the table gained — the
-    // same "the toast must not lie" discipline as admin-cache-clear.spec.ts:89,
-    // which compares the toast against the endpoint's own count.
     const promised = /Created (\d+) cameras/.exec(toastText)?.[1];
     expect(promised).toBeDefined();
     expect(camerasAfterSeed - camerasBefore).toBe(Number(promised));
@@ -185,12 +237,18 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
       page.locator('[data-sonner-toast]').filter({ hasText: /Test data cleared/ })
     ).toBeVisible({ timeout: 20_000 });
 
-    // The wipe is real at the API, not just in the toast.
-    await expect
-      .poll(async () => total(await api<CameraList>(h, session, '/api/cameras')), {
-        timeout: 20_000,
-      })
-      .toBe(0);
+    // The wipe's camera leg is proved by the RESTORE LOOP below, not by a
+    // per-id absence poll here, and the reason is deliberate: FileWatcher
+    // auto-creates camera rows for directories (file_watcher.py:31,407 default
+    // True) and the clear is DB-only — delete(Event)/delete(Detection)/
+    // delete(Camera) + commit (admin.py:44-46) leaves every folder on disk — so
+    // "no rows right now" can race a resurrection and is not the invariant the
+    // row promises. The precedent for this same reset (F-162,
+    // test-data.spec.ts:235-253) proves camera absence the watcher-safe way:
+    // create_camera answers 409 for an existing name OR folder_path
+    // (cameras.py:25-29,:39-40) and authPost throws on any non-2xx, so each
+    // successful restore POST below is a positive proof the row was gone moments
+    // earlier. Events (whose LIST is uncached) are polled to zero below.
 
     // --- Restore. Recreate every camera from the book by name; slug-derived
     // ids are stable across delete+recreate, so each POST must answer the id
@@ -204,13 +262,15 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
       expect(created.id).toBe(expectedId);
     }
 
-    // Polled, not read-once: the measured stale-read lag after a clear means a
-    // single immediate read proves nothing about the commit.
+    // The invariant the row promises: every harness camera the boot registered
+    // is back, under the id the boot recorded. Counted per book id over
+    // get_camera (a direct DB read) rather than as a list total, because the
+    // POSTs above just changed the table and the camera list is cached
+    // SHORT_TTL=60s on a key none of these handlers invalidate.
+    const bookIds = Object.values(book);
     await expect
-      .poll(async () => total(await api<CameraList>(h, session, '/api/cameras')), {
-        timeout: 20_000,
-      })
-      .toBe(Object.keys(book).length);
+      .poll(() => countPresentCameras(h, session, bookIds), { timeout: 20_000 })
+      .toBe(bookIds.length);
     await pollApi<EventList>(
       h,
       session,
