@@ -749,12 +749,26 @@ def test_a_malformed_footer_is_named_not_silently_dropped():
     assert not has(out, "for you")
 
 
-def test_the_pointer_window_is_my_beat_or_two_hours_back_capped_at_48():
-    floor, cap = NOW - tick.POINTER_FLOOR, NOW - snap.BINDING_LIFE
-    assert tick.pointer_window(NOW, None) == floor  # no beat: the floor
-    assert tick.pointer_window(NOW, NOW - timedelta(minutes=3)) == floor  # fresh beat: the floor
-    assert tick.pointer_window(NOW, NOW - timedelta(hours=5)) == NOW - timedelta(hours=5)  # stale
+def test_the_pointer_window_starts_two_hours_before_my_beat_capped_at_48():
+    floor, cap = tick.POINTER_FLOOR, NOW - snap.BINDING_LIFE
+    beat = NOW - timedelta(minutes=3)
+    assert tick.pointer_window(NOW, None) == NOW - floor  # no beat: two hours before now
+    assert tick.pointer_window(NOW, beat) == beat - floor  # fresh beat: two hours before it
+    stale = NOW - timedelta(hours=5)
+    assert tick.pointer_window(NOW, stale) == stale - floor  # stale: what it slept through, too
+    assert (
+        tick.pointer_window(NOW, NOW + timedelta(minutes=1)) == NOW - floor
+    )  # a clock-skewed beat
     assert tick.pointer_window(NOW, NOW - timedelta(hours=60)) == cap  # never past a record's life
+
+
+def test_a_pointer_posted_just_before_a_three_hour_old_beat_still_prints():
+    # The probe that failed with the floor measured back from NOW (`min(beat, now - 2h)`): the
+    # window then started AT the 3-hour-old beat, and a pointer posted five minutes before that
+    # beat -- after the digest that beat acted on -- was never printed.
+    probe = pointer(98, 7158, "pointer ruling=196 lane=ops-b", minutes=-(180 + 5))
+    out = text(repo_comments=[probe], beat_min=180)
+    assert has(out, "for you: owner pointer on #7158 (ruling 196) comment 98")
 
 
 def test_an_owner_pointer_on_my_pr_is_for_me():
@@ -764,9 +778,9 @@ def test_an_owner_pointer_on_my_pr_is_for_me():
 
 
 def test_the_pointer_read_is_one_repo_wide_call_from_the_window_start():
-    # A 150-minute-old beat, so the window is the beat itself. The coordinator's read-through is
-    # set 3 hours back so no snapshot read shares the URL: its comments read starts at the cursor,
-    # and its activity read runs only for a beat older than the cursor.
+    # A 150-minute-old beat, so the window starts two hours before it (270 minutes back). The
+    # coordinator's read-through is set 3 hours back so no snapshot read shares the URL: its
+    # comments read starts at the cursor, and its activity read runs only for a beat older than it.
     old_cursor = t(timedelta(hours=-3))
     beats = [
         heartbeat(
@@ -775,7 +789,7 @@ def test_the_pointer_read_is_one_repo_wide_call_from_the_window_start():
         heartbeat(SANDBOX, 150),
     ]
     fake, _ = run_tick(beats=beats)
-    since = snap.iso(NOW - timedelta(minutes=150))
+    since = snap.iso(NOW - timedelta(minutes=150 + 120))
     assert fake.asked(f"repos/{REPO}/issues/comments?since={since}&per_page=100 --paginate") == [
         f"gh api repos/{REPO}/issues/comments?since={since}&per_page=100 --paginate"
     ]
@@ -814,7 +828,7 @@ def test_a_pointer_for_another_lane_or_past_the_48_hour_cap_is_not_for_me():
 
 def test_a_failed_pointer_read_says_so():
     fake = Fake(repo_comments=[pointer(96, 7158, "pointer ruling=196 lane=ops-b")], beat_min=300)
-    fake.fail(f"issues/comments?since={snap.iso(NOW - timedelta(minutes=300))}")
+    fake.fail(f"issues/comments?since={snap.iso(NOW - timedelta(minutes=300 + 120))}")
     out = "\n".join(tick.build(fake, lambda: NOW, REPO, SANDBOX))
     assert has(out, "ERROR pointers:") and not has(out, "for you")
 

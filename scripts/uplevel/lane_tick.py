@@ -5,7 +5,7 @@
     uv run python scripts/uplevel/lane_tick.py --sandbox <name> --beat "<line 2>"
 
 Prints, in tick order: the ``for you:`` lines (ruling 197: each record of the last 48 hours, and
-each owner pointer since my beat or the last two hours, whose machine footer names me), my
+each owner pointer since two hours before my beat, whose machine footer names me), my
 heartbeat id and age, the coordinator's age
 (UR-162), disk use of `/` and `/var/lib/docker` (UR-180 pointer above 90%), the live ``BINDING NOW``
 records the ruling map does not carry (ruling 177), my own open PRs with their one CI read (UR-38)
@@ -100,7 +100,7 @@ NAMES = (
     "frontend", "backend", "docs", "ops-a", "ops-b", "operator", "heavy-a", "heavy-b", "coordinator",
 )  # fmt: skip
 BEAT_CAP = 600  # UR-155: a whole heartbeat, marker line included, is at most 600 characters.
-POINTER_FLOOR = timedelta(hours=2)  # the pointer read reaches at least this far back (see below)
+POINTER_FLOOR = timedelta(hours=2)  # the pointer read starts this far before my beat (see below)
 
 
 class LaneSnap(snap.Snapshot):
@@ -212,17 +212,18 @@ def records_for(me: str, binding: list[dict], owner: list[dict]) -> list[str]:
 
 
 def pointer_window(now, beat):
-    """Where the pointer read starts: my beat or ``POINTER_FLOOR`` back, whichever is earlier,
+    """Where the pointer read starts: ``POINTER_FLOOR`` before my beat (before now, with no beat),
     never further back than a record lives (``BINDING_LIFE``).
 
     Read repo-wide in one call -- not "my open PRs since my beat": a pointer on a merged, closed or
     other lane's PR was never read at all, and one posted between a digest and the next beat fell
-    out of a since-my-beat window for good (the two-hour floor keeps it in view for the ticks after
-    that beat). Not a flat 48 hours either: measured, that is 1285 comments in 13 pages per read,
-    about 400 requests an hour across the lanes. A stalled agent's old beat widens the window to
-    cover what it slept through, up to the 48-hour cap.
+    out of a since-my-beat window for good. The floor is measured back from the BEAT, not from now:
+    ``min(beat, now - 2h)`` lost a pointer posted five minutes before a 3-hour-old beat, because
+    the window then started at the beat itself. Not a flat 48 hours either: measured, that is 1285
+    comments in 13 pages per read, about 400 requests an hour across the lanes. A stalled agent's
+    old beat widens the window to cover what it slept through, up to the 48-hour cap.
     """
-    start = now - POINTER_FLOOR if beat is None else min(beat, now - POINTER_FLOOR)
+    start = (now if beat is None else min(beat, now)) - POINTER_FLOOR
     return max(start, now - snap.BINDING_LIFE)
 
 
@@ -691,8 +692,8 @@ def build(
             if (r.get("submitted_at") or r.get("created_at") or "") >= since
         ]
         out.append(row(p, f"{tail} {len(cmts)}c/{len(revs)}r since beat{marker(p)}"))
-    # Ruling 197's pointers: one repo-wide read, from my beat or two hours back, whichever is
-    # earlier, and never past the records' 48 hours (`pointer_window`). GitHub's `since` bounds it
+    # Ruling 197's pointers: one repo-wide read, from two hours before my beat, and never past the
+    # records' 48 hours (`pointer_window`). GitHub's `since` bounds it
     # by update time; `pointers_for` bounds it by posting time, as `_binding_now` does.
     start = pointer_window(now, snap.parse_time(mybeat["updated_at"]) if mybeat else None)
     raw = call(["gh", "api", f"repos/{repo}/issues/comments?since={snap.iso(start)}&per_page=100", "--paginate"], "pointers")  # fmt: skip

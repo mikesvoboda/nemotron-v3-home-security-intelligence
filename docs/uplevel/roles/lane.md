@@ -67,15 +67,16 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
    head: one whose first line names the head's sha, or a sha UR-106's carry takes to it) or
    `arm auto-merge` (that review approves with `Plan text: none`, the gate is green, no `owner`
    label, auto-merge off; ruling 198); `review names no head` when the newest review names no sha
-   (post it again with the head's sha on its first line), and `review unread` when a read for them
-   failed; and the next claimable roster package (UR-52). An
+   (review the current head again as "Reviewing your PR" says, and post that review with that
+   head's sha -- never stamp a sha on a review of another head), and `review unread` when a read
+   for them failed; and the next claimable roster package (UR-52). An
    `ERROR <section>` line means that section was not read: read it yourself or say it is unread, and
    never fill it from an earlier tick (UR-29). A `NOTE no package file for lane <lane>` is the
    roster's answer for a lane with no package file (operator, heavy, coordinator), not a fault.
    Then act on the printed `BINDING NOW` records that name your lane or all agents and whose state
    does not already hold; one already carried out is a no-op (UR-40, rulings 163, 170, 177).
    `for you:` lines, printed first, name the records of the last 48 hours and the owner pointers
-   since your beat (at least the last two hours) whose footer addresses your lane; act on them
+   since two hours before your beat whose footer addresses your lane; act on them
    first (ruling 197). A `NOTE unparsed uplevel footer`
    names a comment whose footer the digest could not read: read that comment yourself.
 
