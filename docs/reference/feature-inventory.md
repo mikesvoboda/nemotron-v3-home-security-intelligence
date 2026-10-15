@@ -92,14 +92,17 @@ changes; a row whose cite no longer says what the evidence claims is re-traced, 
 The `status` column is held to the golden run (ruling 218). After the golden project, both
 Feature check jobs run `scripts/uplevel/inventory_witness.py`, which maps each golden test the run
 executed to the rows whose `F-nnn` its title carries (the innermost describe or test title naming
-any; a pytest test spells it `test_f100_…`). A row at **awaiting real tier** or **works** fails the
-job unless at least one such test ran there and every one passed; a failed or skipped test fails
-it. An **unverified** row whose tests all passed is printed as ready to flip, with evidence text to
-paste. A row the run contradicts that the owner is ruling on is listed, with why, in
-`scripts/uplevel/inventory_witness_known.toml`. So a golden spec's title names the rows it
-witnesses, and an evidence cell names the spec and its legs **without a run or job id**: the check
-re-proves the claim at every head the jobs run. Cells that still carry a run id keep it until their
-row is next edited (UR-181).
+any; `F-240 to F-243` and `F-164..F-167` name every id between; a pytest test spells it
+`test_f100_…`). For a row at **awaiting real tier** or **works**, a mapped test that failed or was
+skipped fails the job that ran it. A job also fails such a row when no test in its run names it
+and the job is the row's home: the seeded job for a row that only `*.seeded.spec.ts` titles name,
+the fake AI job for a row only other golden specs' titles name, both jobs when both do; a row no
+title names takes its home from the specs its evidence cites. An **unverified** row whose tests
+all passed is printed as ready to flip, with evidence text to paste. Legs the owner is ruling on
+are excused by name, with why, in `scripts/uplevel/inventory_witness_known.toml`. So a golden
+spec's title names the rows it witnesses, and an evidence cell names the spec and its legs. Run and
+job ids are no longer required there, since the check re-proves the claim at every head the jobs
+run; existing ones may stay.
 
 ## 2. Summary
 

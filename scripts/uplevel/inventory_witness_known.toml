@@ -1,20 +1,24 @@
 # Known disagreements for scripts/uplevel/inventory_witness.py ([r218], ruling 218).
 #
-# Each entry is an inventory row whose status the golden run contradicts and that the owner is
-# ruling on. The check reports it as KNOWN in the jobs it names instead of failing them. An entry
-# whose row AGREES with the run in a job it names fails the check, so remove the entry in the PR
-# that makes the row agree (a status change, a leg that now passes, or a title that now names it).
-# Never add an entry to make a red run green without the owner's ruling on the row.
+# Each entry excuses named LEGS of an inventory row whose status the golden run contradicts, while
+# the owner rules on the row. In the jobs it names, a listed leg may fail or skip and the row is
+# reported as KNOWN; any other mapped leg that does not pass, or no mapped leg at all, still fails
+# the row. An entry that excuses nothing fails the check -- a listed leg that now passes or that
+# the run no longer maps to the row, or a row that no longer claims `awaiting real tier`/`works` --
+# so remove the leg (or the entry) in the PR that makes it agree. Never add an entry to make a red
+# run green without the owner's ruling on the row.
 #
 #   row  - the inventory id
 #   jobs - "fake" (Feature check (fake AI)) and/or "seeded" (Feature check (seeded))
-#   why  - the leg and the outcome that contradicts the status, and what the owner is asked
+#   legs - each excused test's own title, exactly as written in the spec (a pytest leg: its name)
+#   why  - the outcome that contradicts the status, and what the owner is asked
 
 [[known]]
 row = "F-033"
 jobs = ["fake"]
-why = """awaiting real tier, but its leg `F-033: a pushed summary refreshes the cards` \
-(frontend/tests/golden/dashboard/summary-cards.spec.ts) self-skips on every fake-tier run: no \
-summary_update frame can arrive inside a golden run (the summary job runs once at boot, then \
-sleeps an hour), so the push clause is stated, not witnessed (ruling 86). Listed at arrival, \
-main d4f8c0693; the owner rules whether the row keeps its status with that clause unwitnessed."""
+legs = ["F-033: a pushed summary refreshes the cards — WITNESSED on the app’s own /ws/events socket"]
+why = """awaiting real tier, but this leg (frontend/tests/golden/dashboard/summary-cards.spec.ts) \
+self-skips on every fake-tier run: no summary_update frame can arrive inside a golden run (the \
+summary job runs once at boot, then sleeps an hour), so the push clause is stated, not witnessed \
+(ruling 86). Listed at arrival, main d4f8c0693; the owner rules whether the row keeps its status \
+with that clause unwitnessed."""

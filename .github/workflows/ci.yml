@@ -3800,6 +3800,7 @@ jobs:
         run: cd frontend && npx playwright install-deps chromium
 
       - name: Feature check (--fake)
+        id: harness
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
         run: scripts/feature-check.sh --fake --image-tag "$TAG"
@@ -3810,10 +3811,12 @@ jobs:
       # prints `unverified` rows ready to flip, lists specs that name no row, and exits 2 with
       # the reason when it cannot read the run (fail closed). The rules and how a row split
       # across this job and the seeded one is judged are in the inventory_witness module's
-      # docstring. `!cancelled()` so a red golden leg still names the rows it contradicts. Named
-      # by module, not path, for the plan-lint step's reachability reason.
+      # docstring. It runs whenever the harness step ran, red or green, so a red golden leg still
+      # names the rows it contradicts; not when the harness never started (an image build failed),
+      # which would only add a second red saying no run exists. Named by module, not path, for
+      # the plan-lint step's reachability reason.
       - name: Inventory witness (ruling 218)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.harness.outcome != 'skipped' }}
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
         run: python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"
@@ -4037,13 +4040,14 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Feature check (--fake --seeded)
+        id: harness
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check-seeded
         run: scripts/feature-check.sh --fake --seeded --image-tag "$TAG"
 
       # Ruling 218: the same inventory witness as Feature check (fake AI), over this job's legs.
       - name: Inventory witness (ruling 218)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.harness.outcome != 'skipped' }}
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check-seeded
         run: python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"
