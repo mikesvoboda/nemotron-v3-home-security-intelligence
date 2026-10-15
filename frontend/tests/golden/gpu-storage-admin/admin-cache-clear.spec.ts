@@ -30,7 +30,7 @@ interface ClearCacheBody {
   message: string;
 }
 
-test.describe('golden path: admin maintenance clear cache @critical', () => {
+test.describe('golden path: admin maintenance clear cache (F-192) @critical', () => {
   test.setTimeout(60_000);
 
   test('confirming Clear Cache runs the POST and the toast carries the endpoint message', async ({

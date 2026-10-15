@@ -13,7 +13,7 @@ import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '.
 
 const harness = readOpsHarness();
 
-test.describe('golden path: gpu history @critical', () => {
+test.describe('golden path: gpu history (F-149) @critical', () => {
   test.setTimeout(90_000);
 
   test('the chart renders over real historical samples', async ({ page }) => {

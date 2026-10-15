@@ -57,7 +57,7 @@ function levelOf(body: LogLevelBody): string {
   return String(body.level ?? body.current_level ?? '');
 }
 
-test.describe('golden path: admin logging level control and retention save @critical', () => {
+test.describe('golden path: admin logging level control and retention save (F-195) @critical', () => {
   test.setTimeout(90_000);
 
   test('the level buttons change and restore the root logger, and the retention save round-trips to the backend', async ({

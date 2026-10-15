@@ -150,7 +150,7 @@ def completed_backup(logged_in_api: httpx.Client) -> dict:
     return _create_and_wait(logged_in_api)
 
 
-def test_completed_backup_reports_file_and_manifest(completed_backup: dict) -> None:
+def test_f100_completed_backup_reports_file_and_manifest(completed_backup: dict) -> None:
     """The status endpoint claims a file and a manifest for the job."""
     job_id = completed_backup["_job_id"]
     assert completed_backup["file_path"], completed_backup
@@ -165,7 +165,7 @@ def test_completed_backup_reports_file_and_manifest(completed_backup: dict) -> N
         assert entry["checksum"], f"table {name!r} has no checksum in the manifest"
 
 
-def test_completed_backup_appears_in_list_with_download_url(
+def test_f100_completed_backup_appears_in_list_with_download_url(
     logged_in_api: httpx.Client, completed_backup: dict
 ) -> None:
     """``GET /api/backup`` shows the job and points at the real download route.
@@ -189,7 +189,7 @@ def test_completed_backup_appears_in_list_with_download_url(
     assert entry["file_size_bytes"] == completed_backup["file_size_bytes"], entry
 
 
-def test_download_is_a_zip_whose_manifest_names_this_job(
+def test_f100_download_is_a_zip_whose_manifest_names_this_job(
     logged_in_api: httpx.Client, completed_backup: dict
 ) -> None:
     """The artefact: a real ZIP whose embedded manifest identifies this job.
@@ -231,7 +231,7 @@ def test_download_is_a_zip_whose_manifest_names_this_job(
     )
 
 
-def test_delete_removes_the_record_and_the_file(logged_in_api: httpx.Client) -> None:
+def test_f100_delete_removes_the_record_and_the_file(logged_in_api: httpx.Client) -> None:
     """The row's fifth call, on a backup created just for it.
 
     Own job, own file: the module fixture's backup stays intact for the other

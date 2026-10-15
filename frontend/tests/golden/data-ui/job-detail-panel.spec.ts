@@ -80,7 +80,7 @@ async function ensureJobExists(h: OpsHarness, session: Session): Promise<void> {
   }
 }
 
-test.describe('golden path: job detail panel mirrors GET /api/jobs/{id} @critical', () => {
+test.describe('golden path: job detail panel mirrors GET /api/jobs/{id} (F-090) @critical', () => {
   test.setTimeout(90_000);
 
   test('selecting a job renders its header, progress, metadata and result JSON from the detail response', async ({
