@@ -126,6 +126,34 @@ keeps the CI comparison machine-independent. The socket mounts are only findable
 a sentinel `PODMAN_SOCKET`, because `prod.yml` interpolates that variable into **both** fields on
 `alloy` and into only the source on `backend`.
 
+### pr_watch.py + test_pr_watch.py + r193-mutation-campaign.py
+
+`pr_watch.py` is ruling 193's lane watcher: an agent arms it as a background task at the end of a
+turn and the line it prints starts the next one (UR-38 — a backgrounded watcher is not waiting
+inside a turn). One `gh api graphql` call per poll, never the search API (its 30/min is shared by
+every agent on the owner's token), watching the PRs named by `--pr` plus those a label group
+discovers, and the last 100 comments of #6854. It exits with one line per change class and no
+comment bodies, survives transient failures, and always ends — an error line after repeated
+failures, a "no change" line at its lifetime bound.
+
+Four GraphQL facts decided the shape, all measured against the live API before the query was
+written, and each the reason a plausible alternative is wrong: `pullRequests(labels: [...])` is
+**AND**, not OR, so each label group is its own connection alias and `review:<lane>` can never join
+the `lane`+`cell` group; the connection's `orderBy.field` is `UPDATED_AT` (`UPDATED_DESC` is
+rejected outright); `states: [OPEN]` is load-bearing because an unfiltered `lane:ops` query
+returned 82 PRs against 6 open ones (measured 2026-10-15 — the count drifts, the ratio does not);
+and the watched set must stay **monotonic** even though discovery asks for OPEN, or
+a merge removes a PR from the set before its state is ever read. Label strings ride as `-f` String
+variables — a `-F` JSON array matches nothing **and returns no error**, which is a silently empty
+watch. A discovery page at `DISCOVERY_WINDOW` (100, GitHub's page cap) whose `totalCount` is higher
+raises instead of reporting a quiet tick.
+
+`scripts/test_pr_watch.py` (33 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching.
+`scripts/r193-mutation-campaign.py` reverts 27 properties in a throwaway worktree and fails if any
+survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
+registered in ci.yml — the campaign list holds suites, not drivers.
+
 ### sandboxes.toml
 
 The roster: per phase, each session's name, model (a `[models]` key) and kickoff line,
