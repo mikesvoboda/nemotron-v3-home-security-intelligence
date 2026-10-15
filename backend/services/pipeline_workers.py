@@ -1927,6 +1927,14 @@ class PipelineWorkerManager:
         logger.info("Stopping PipelineWorkerManager")
         self._running = False
 
+        supervisor = getattr(self, "_supervisor", None)
+        if supervisor is not None and getattr(supervisor, "is_running", False) is True:
+            stop_sup = getattr(supervisor, "stop", None)
+            if callable(stop_sup):
+                maybe_coro = stop_sup()
+                if asyncio.iscoroutine(maybe_coro):
+                    await maybe_coro
+
         # Stop workers in parallel using TaskGroup for structured concurrency (NEM-5375)
         # Catch ExceptionGroup for best-effort shutdown (equivalent to return_exceptions=True)
         try:
@@ -1988,6 +1996,87 @@ class PipelineWorkerManager:
                 "metrics_worker",
                 "metrics",
                 reason="graceful_shutdown",
+            )
+
+    @staticmethod
+    def _make_supervised_runner(
+        worker: DetectionQueueWorker
+        | AnalysisQueueWorker
+        | BatchTimeoutWorker
+        | QueueMetricsWorker,
+        supervisor: WorkerSupervisor,
+    ) -> Callable[[], Awaitable[None]]:
+        """Build a supervisor factory that watches and restarts an existing worker instance."""
+
+        async def _run_managed_worker() -> None:
+            if not worker.running or worker._task is None or worker._task.done():
+                worker._running = False
+                worker._task = None
+                await worker.start()
+            task = worker._task
+            if task is None:
+                return
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                if not supervisor.is_running or not worker.running:
+                    raise
+                if not task.done():
+                    await worker.stop()
+                    raise
+                raise RuntimeError(
+                    f"Worker '{worker._worker_name}' task was cancelled unexpectedly"
+                ) from None
+            if worker.running and supervisor.is_running:
+                raise RuntimeError(f"Worker '{worker._worker_name}' task exited unexpectedly")
+
+        return _run_managed_worker
+
+    async def register_workers_with_supervisor(
+        self,
+        supervisor: WorkerSupervisor,
+        max_restarts: int | None = None,
+        analysis_heartbeat_timeout: float = 180.0,
+    ) -> None:
+        """Attach and register the manager's own workers with a WorkerSupervisor.
+
+        The supervisor reads heartbeats from and restarts the exact worker
+        instances built by this manager rather than spawning a second set
+        (owner ruling 200).
+        """
+        self._supervisor = supervisor
+
+        for detection_worker in self._detection_workers:
+            detection_worker._supervisor = supervisor
+            await supervisor.register_worker(
+                detection_worker._worker_name,
+                self._make_supervised_runner(detection_worker, supervisor),
+                max_restarts=max_restarts,
+            )
+
+        for analysis_worker in self._analysis_workers:
+            analysis_worker._supervisor = supervisor
+            await supervisor.register_worker(
+                analysis_worker._worker_name,
+                self._make_supervised_runner(analysis_worker, supervisor),
+                max_restarts=max_restarts,
+                heartbeat_timeout=analysis_heartbeat_timeout,
+            )
+
+        if self._timeout_worker is not None:
+            self._timeout_worker._supervisor = supervisor
+            await supervisor.register_worker(
+                self._timeout_worker._worker_name,
+                self._make_supervised_runner(self._timeout_worker, supervisor),
+                max_restarts=max_restarts,
+            )
+
+        if self._metrics_worker is not None:
+            self._metrics_worker._supervisor = supervisor
+            await supervisor.register_worker(
+                self._metrics_worker._worker_name,
+                self._make_supervised_runner(self._metrics_worker, supervisor),
+                max_restarts=max_restarts,
             )
 
     def _install_signal_handlers(self) -> None:
@@ -2127,134 +2216,6 @@ def reset_pipeline_manager_state() -> None:
     global _pipeline_manager, _pipeline_manager_lock  # noqa: PLW0603
     _pipeline_manager = None
     _pipeline_manager_lock = None
-
-
-# Factory functions for WorkerSupervisor integration (NEM-2460)
-# These return async callables that the WorkerSupervisor can manage
-
-
-def create_detection_worker(
-    redis_client: RedisClient,
-    supervisor: WorkerSupervisor | None = None,
-) -> Callable[[], Awaitable[None]]:
-    """Create a detection worker factory for WorkerSupervisor.
-
-    Returns a callable that creates and runs a DetectionQueueWorker.
-    The supervisor will call this to start/restart the worker.
-
-    Args:
-        redis_client: Redis client for queue operations
-        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
-
-    Returns:
-        Async callable that runs the detection worker
-    """
-
-    async def _run_detection_worker() -> None:
-        worker = DetectionQueueWorker(
-            redis_client=redis_client,
-            supervisor=supervisor,
-            worker_name="detection",
-        )
-        await worker.start()
-        # Wait for worker to complete (it runs until stopped)
-        if worker._task:
-            await worker._task
-
-    return _run_detection_worker
-
-
-def create_analysis_worker(
-    redis_client: RedisClient,
-    supervisor: WorkerSupervisor | None = None,
-) -> Callable[[], Awaitable[None]]:
-    """Create an analysis worker factory for WorkerSupervisor.
-
-    Returns a callable that creates and runs an AnalysisQueueWorker.
-    The supervisor will call this to start/restart the worker.
-
-    Args:
-        redis_client: Redis client for queue operations
-        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
-
-    Returns:
-        Async callable that runs the analysis worker
-    """
-
-    async def _run_analysis_worker() -> None:
-        worker = AnalysisQueueWorker(
-            redis_client=redis_client,
-            supervisor=supervisor,
-            worker_name="analysis",
-        )
-        await worker.start()
-        # Wait for worker to complete (it runs until stopped)
-        if worker._task:
-            await worker._task
-
-    return _run_analysis_worker
-
-
-def create_timeout_worker(
-    redis_client: RedisClient,
-    supervisor: WorkerSupervisor | None = None,
-) -> Callable[[], Awaitable[None]]:
-    """Create a batch timeout worker factory for WorkerSupervisor.
-
-    Returns a callable that creates and runs a BatchTimeoutWorker.
-    The supervisor will call this to start/restart the worker.
-
-    Args:
-        redis_client: Redis client for queue operations
-        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
-
-    Returns:
-        Async callable that runs the timeout worker
-    """
-
-    async def _run_timeout_worker() -> None:
-        worker = BatchTimeoutWorker(
-            redis_client=redis_client,
-            supervisor=supervisor,
-            worker_name="batch_timeout",
-        )
-        await worker.start()
-        # Wait for worker to complete (it runs until stopped)
-        if worker._task:
-            await worker._task
-
-    return _run_timeout_worker
-
-
-def create_metrics_worker(
-    redis_client: RedisClient,
-    supervisor: WorkerSupervisor | None = None,
-) -> Callable[[], Awaitable[None]]:
-    """Create a queue metrics worker factory for WorkerSupervisor.
-
-    Returns a callable that creates and runs a QueueMetricsWorker.
-    The supervisor will call this to start/restart the worker.
-
-    Args:
-        redis_client: Redis client for queue operations
-        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
-
-    Returns:
-        Async callable that runs the metrics worker
-    """
-
-    async def _run_metrics_worker() -> None:
-        worker = QueueMetricsWorker(
-            redis_client=redis_client,
-            supervisor=supervisor,
-            worker_name="metrics",
-        )
-        await worker.start()
-        # Wait for worker to complete (it runs until stopped)
-        if worker._task:
-            await worker._task
-
-    return _run_metrics_worker
 
 
 if __name__ == "__main__":

@@ -3003,58 +3003,6 @@ async def test_get_pipeline_manager_concurrent_initialization():
 # =============================================================================
 # Test worker factory functions (lines 1903-1910, 1926-1933, 1949-1956, 1972-1979)
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_create_detection_worker_factory():
-    """Test create_detection_worker factory function."""
-    from backend.services.pipeline_workers import create_detection_worker
-
-    mock_redis = AsyncMock(spec=RedisClient)
-
-    worker_func = create_detection_worker(mock_redis)
-    assert callable(worker_func)
-    # Just verify it returns a coroutine function, don't actually run it
-    # (running it would require mocking detector, batch aggregator, etc.)
-
-
-@pytest.mark.asyncio
-async def test_create_analysis_worker_factory():
-    """Test create_analysis_worker factory function."""
-    from backend.services.pipeline_workers import create_analysis_worker
-
-    mock_redis = AsyncMock(spec=RedisClient)
-
-    worker_func = create_analysis_worker(mock_redis)
-    assert callable(worker_func)
-    # Just verify it returns a coroutine function
-
-
-@pytest.mark.asyncio
-async def test_create_timeout_worker_factory():
-    """Test create_timeout_worker factory function."""
-    from backend.services.pipeline_workers import create_timeout_worker
-
-    mock_redis = AsyncMock(spec=RedisClient)
-
-    worker_func = create_timeout_worker(mock_redis)
-    assert callable(worker_func)
-    # Just verify it returns a coroutine function
-
-
-@pytest.mark.asyncio
-async def test_create_metrics_worker_factory():
-    """Test create_metrics_worker factory function."""
-    from backend.services.pipeline_workers import create_metrics_worker
-
-    mock_redis = AsyncMock(spec=RedisClient)
-
-    worker_func = create_metrics_worker(mock_redis)
-    assert callable(worker_func)
-    # Just verify it returns a coroutine function
-
-
-# =============================================================================
 # Additional edge case tests for higher coverage
 # =============================================================================
 
