@@ -169,10 +169,10 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes.** `feature_check.py --real --prod-shape` (the flag's name is the package's
       call) brings up that stack and runs the golden suite against it, using the Playwright
-      container from ruling 143, on a test deployment (UR-133). The operator runs it in its own
-      sandbox once rootless Podman's store on the sandbox's `/var/lib/docker` filesystem gives the
-      `overlay` driver and 40 GB free; until then the owner runs it on maui from the command ops-a
-      posts on #7037 (rulings 185, 188; ruling 162 placed it in the operator's sandbox).
+      container from ruling 143, on a test deployment (UR-133). The owner runs it on maui from the
+      command ops-a posts on #7037 once `[r195]` makes the harness work from a host login. The
+      operator's sandbox cannot run it: `ai-gateway`'s CDI GPU device cannot resolve where
+      `agent-gpu` keeps the GPU out by design (attempt 2, `6195692210`) (rulings 185, 188, 195).
 - [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
       and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
       record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
@@ -187,7 +187,7 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
-deployment and its run (the operator's, or the owner's on maui) witnesses ruling 127's 12 rows
+deployment and its run (the owner's on maui, ruling 195) witnesses ruling 127's 12 rows
 (rulings 185, 188); on no, the owner has ruled on the
 blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
 (#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
@@ -484,6 +484,54 @@ none. **PR:** #7169. (ruling 189)
 
 **Done when:** the new cap is on `main` with its measurement, and #7114's golden leg completes under
 it.
+
+### [r193] Lanes wake on GitHub events
+
+**Flags:** `owner` (the role files' tick text). **Assigned:** `uplevel-ops-a`, after `[r189]`;
+ops-b reviews. **Depends on:** none. **PR:** none yet. (ruling 193)
+
+Fixed-interval ticks add up to one tick of delay to every handoff, and an agent's view of a PR is
+only as fresh as its last tick.
+
+- [ ] A watcher script in `scripts/uplevel/` that an agent keeps armed as a background task. It
+      polls GitHub about every 60 s with one GraphQL query per poll and never the search API (its
+      30-per-minute limit is shared by every agent on the owner's token). It watches the PRs the
+      agent owns or must review (its lane, cell and `review:<lane>` labels, plus PR numbers it is
+      given) and new `BINDING NOW` records on #6854.
+- [ ] It exits with one line naming the PR and the change on a new head commit, a check reaching a
+      conclusion, a review, a comment, a label change, or a merge or close, and prints no comment
+      bodies. Transient API errors do not end it; repeated failures do, with an error line. It
+      exits after a bounded lifetime with a "no change" line, so the agent re-arms it.
+- [ ] Tests pin the change detection and the error exit.
+- [ ] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
+      Claude Code lane agents re-arm the watcher at the end of every turn, and their `/loop` tick
+      becomes a 30-minute fallback; the coordinator (5 minutes), the operator (30 minutes) and the
+      heavy agents under pi (15 minutes) keep their ticks. The PR says whether pi wakes an agent on
+      a finished background task, if ops-a can measure it.
+
+**Done when:** the watcher is on `main` with its tests, and the role files' tick sections say how
+each agent wakes.
+
+### [r195] O2.5 runs from a host login
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, after `[r193]`; ops-b reviews. **Depends on:**
+none. **PR:** none yet. (ruling 195)
+
+The owner's maui run (`6193951294`) died at VLM readiness: the harness reaches the VLM only at
+`host.docker.internal` (`scripts/feature_check.py:1374`, `:1385`), which does not resolve from a
+host login.
+
+- [ ] Outside a sandbox, the harness reaches the VLM on loopback at the runner's port, and still
+      refuses any port outside `AGENT_GPU_PORTS`.
+- [ ] The backend container reaches that port on maui's loopback under rootless Podman, by a
+      route the PR measures and names.
+- [ ] The run's `loki` (3100 + 15000 = 18100) no longer collides with the VLM's pool, which shares
+      maui's loopback.
+- [ ] The command names `AGENT_GPU_TOKEN_FILE`, and its stop-test states the GPU memory the run's
+      `ai-gateway` takes on the GB300 beside production, outside `agent-gpu`'s VRAM limit.
+
+**Done when:** the fixes are on `main` with tests, and ops-a has posted the new command on its PR
+and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the output).
 
 ### [r164a] The coordinator's paperwork moves into scripts
 

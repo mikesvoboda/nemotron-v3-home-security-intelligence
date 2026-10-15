@@ -21,8 +21,12 @@ vi.mock('../../hooks/useSettingsApi', () => ({
 
 describe('DetectionThresholdsPanel', () => {
   const mockSettings: SettingsResponse = {
+    // The card's slider/save tests below exercise the threshold contract, so the
+    // shared fixture loads with the fast path ON; the gate's OFF behaviour is
+    // covered by the dedicated tests at the end of this file (ruling 168).
     detection: {
       confidence_threshold: 0.5,
+      fast_path_enabled: true,
       fast_path_threshold: 0.8,
     },
     batch: {
@@ -461,6 +465,7 @@ describe('DetectionThresholdsPanel', () => {
           ...mockSettings,
           detection: {
             confidence_threshold: 0,
+            fast_path_enabled: true,
             fast_path_threshold: 0,
           },
         },
@@ -487,6 +492,7 @@ describe('DetectionThresholdsPanel', () => {
           ...mockSettings,
           detection: {
             confidence_threshold: 1,
+            fast_path_enabled: true,
             fast_path_threshold: 1,
           },
         },
@@ -544,6 +550,121 @@ describe('DetectionThresholdsPanel', () => {
       expect(fastPathSlider).toHaveAttribute('min', '0');
       expect(fastPathSlider).toHaveAttribute('max', '1');
       expect(fastPathSlider).toHaveAttribute('step', '0.05');
+    });
+  });
+
+  describe('fast-path gate (ruling 168)', () => {
+    // This card edits the SAME stored setting as the "Fast path" switch in
+    // ProcessingSettings.tsx (both resolve to FAST_PATH_CONFIDENCE_THRESHOLD), so
+    // it has to honour the master switch too: while fast_path_enabled is false no
+    // detection takes the fast path, and the page must not offer — or write — a
+    // threshold that does nothing.
+    const loadWithFastPath = (enabled: boolean) => {
+      mockUseSettingsQuery.mockReturnValue({
+        settings: {
+          ...mockSettings,
+          detection: { ...mockSettings.detection, fast_path_enabled: enabled },
+        },
+        isLoading: false,
+        isFetching: false,
+        error: null,
+        isError: false,
+        isSuccess: true,
+        refetch: vi.fn(),
+      });
+    };
+
+    it('hides the fast-path threshold control while the master switch is off', async () => {
+      loadWithFastPath(false);
+      renderWithQueryClient(<DetectionThresholdsPanel />);
+
+      // Anchor the negative: the card itself rendered and its ungated slider is
+      // present, so an absent fast-path block is a real absence, not a blank panel.
+      await waitFor(() => {
+        expect(screen.getByTestId('confidence-slider')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('fast-path-slider')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('fast-path-value')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Fast path confidence threshold')).not.toBeInTheDocument();
+    });
+
+    it('does not promise fast-track processing while the master switch is off', async () => {
+      loadWithFastPath(false);
+      renderWithQueryClient(<DetectionThresholdsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('confidence-slider')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/fast-tracked/i)).not.toBeInTheDocument();
+    });
+
+    it('points at the master switch instead of the hidden threshold while off', async () => {
+      loadWithFastPath(false);
+      renderWithQueryClient(<DetectionThresholdsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('confidence-slider')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('fast-path-off-note')).toHaveTextContent(/fast path is off/i);
+    });
+
+    it('shows the fast-path threshold control while the master switch is on', async () => {
+      loadWithFastPath(true);
+      renderWithQueryClient(<DetectionThresholdsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('fast-path-slider')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('fast-path-value')).toHaveTextContent('80%');
+      expect(screen.queryByTestId('fast-path-off-note')).not.toBeInTheDocument();
+    });
+
+    it('omits fast_path_threshold from the saved settings while the switch is off', async () => {
+      loadWithFastPath(false);
+      mockMutateAsync.mockResolvedValue(mockSettings);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<DetectionThresholdsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('confidence-slider')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByTestId('confidence-slider'), { target: { value: '0.6' } });
+      await user.click(screen.getByTestId('save-thresholds-button'));
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalled();
+      });
+      const payload = mockMutateAsync.mock.calls[0][0] as {
+        detection: Record<string, unknown>;
+      };
+      expect(payload.detection.confidence_threshold).toBe(0.6);
+      expect(payload.detection).not.toHaveProperty('fast_path_threshold');
+    });
+
+    it('saves fast_path_threshold while the master switch is on', async () => {
+      loadWithFastPath(true);
+      mockMutateAsync.mockResolvedValue(mockSettings);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<DetectionThresholdsPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('confidence-slider')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByTestId('confidence-slider'), { target: { value: '0.6' } });
+      await user.click(screen.getByTestId('save-thresholds-button'));
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith({
+          detection: { confidence_threshold: 0.6, fast_path_threshold: 0.8 },
+        });
+      });
     });
   });
 });

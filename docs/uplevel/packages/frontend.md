@@ -88,7 +88,9 @@ stopped and started on a running stack.
   (F-278 follows UR-153 if the fake stack cannot seed a face embedding); frontend writes FE-3's six
   unwritten rows (F-045, F-052–F-054, F-059, F-064) after its `[r134]` PR #7145. Ruling 192 adds
   two rows whose legs skip on CI: frontend fixes F-028's leg 2 with F-007's offline-then-reload
-  approach, and docs makes F-234's notification grant take effect or returns the row to the owner.
+  approach, and docs makes F-234's notification grant take effect or returns the row to the owner;
+  docs tests the grant with `channel: 'chromium'` set in `permission.spec.ts` alone, leaving the
+  golden project's config unchanged (ruling 194).
 
 **Done when:** no row says **unverified**; every **works** row cites a green golden path and a
 real-tier date; the `R2` sheet is final.
@@ -496,11 +498,19 @@ its head.
 ### [r168] The fast-path switch
 
 **Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s
-`fast_path_enabled` field merged. **PR:** none yet. (ruling 168)
+`fast_path_enabled` field merged. **PR:** #7174 (open). (ruling 168)
 
 - [ ] The processing settings show a "Fast path" switch bound to `fast_path_enabled`, off by default,
       with `config.py`'s warning as its help text; the threshold slider shows only when it is on.
-- [ ] The page never writes a threshold while the switch is off.
+      Ticked from the first ready vitest run naming this PR's leg
+      (`ProcessingSettings.test.tsx › fast-path switch (ruling 168)`) — that is the
+      `Frontend Tests (Vitest)` job or its `Frontend Tests (Vitest N/8)` shards; there is no job named
+      "Backend+Frontend Unit Tests", which is what this row said until this commit. A draft skips
+      every job.
+- [ ] The page never writes a threshold while the switch is off. Two cards on this page write this
+      one setting, so the witness is a pair, one per card: `ProcessingSettings.test.tsx` (never
+      sends a fast-path threshold while the switch is off) and `DetectionThresholdsPanel.test.tsx`
+      (omits fast_path_threshold from the saved settings while the switch is off).
 
 **Done when:** a test saves the settings page with the fast path off and reads it back off; backend
 then removes the two read clamps in `system.py` as UR-48 lane work.
