@@ -87,11 +87,36 @@
  * hair over the ceiling, and attempt 0 admitted BOTH clicks (POST 200 119, POST
  * 200 122) while shedding the panel's own refetch GETs 14 ms later.
  *
- * So the click is now ARMED, not timed: probe until a request is ACCEPTED and
- * click in the same JS turn. After an admit, excess sits a hair over the
- * ceiling and needs ~100 ms of decay to admit again, so a click within a few ms
- * of that admit CANNOT be admitted — measured 15/15 shed at delta 0.0-0.2 ms on
- * the live stack (probe file /tmp/rl7077/repro/dump4.mjs, not committed).
+ * WITNESS-FIRST, which is what run 38708268611 (CI, #7156's leg, three
+ * attempts) paid for. The fix above shipped as "probe until a request is
+ * ACCEPTED and click in the same JS turn", and its own 15/15-shed measurement
+ * was TRUE — on a saturated live stack. CI was not saturated: the leg's burst
+ * parked excess at ~20.02-20.26 (nginx logged 147 `limiting requests` lines in
+ * that band), then the flood's own scheduling left a 969 ms gap before the drip
+ * began, which at 10 r/s decayed the pin, and the drip re-pinned only partway —
+ * first shed at D31, 2.47 s in, with 41 of 45 drips ADMITTED. The armed click
+ * fired 0.42 s into that drip: probe 200, click 13 ms later, POST 200. nginx
+ * never once logged the POST as a 429 on any attempt, which is exactly the
+ * `statuses [200]` in the failure text. The 15/15 was not wrong; it was
+ * measuring a state the runner was not in. An instrument whose premise is about
+ * a SHARED, externally-loaded resource has to prove that premise at run time
+ * instead of inheriting it from wherever it was last measured.
+ *
+ * So the aim is now two stages, and only the first is new: (1) keep probing
+ * until a probe is SHED — a 429 is the observation that the bucket is pinned
+ * NOW; (2) only then take the next ADMITTED probe and click in the same turn.
+ * Stage 2's window is the old, sound one — an admit leaves stored excess at or
+ * just under the ceiling and the following stretch is closed *while the pin
+ * holds* — and stage 1 is what makes "while the pin holds" a witnessed fact
+ * rather than a hope. The stretch is ~37-100 ms, not a flat 100: see the
+ * E > 19370 bound in armedShedClick (E = 20000 exactly under unlimited
+ * demand, which is where the 100 ms metronome figure comes from). Arming
+ * on the 429 itself is the near-miss to avoid: rejections store nothing, so a
+ * shed reveals only the computed excess at its arrival — 20.02-20.26 in this
+ * run, i.e. a 2-26 ms window, not 100 ms. If no shed ever appears the helper
+ * returns THAT reason rather than clicking; the leg then goes red with the true
+ * diagnosis (flood did not pin the bucket) instead of a downstream "no POST was
+ * shed" that reads like a product regression.
  *
  * INSTRUMENT CHOICES, each measured against a failed alternative:
  * - Flood rides context.request (Node-side): the probes' ONE in-main-page
@@ -154,7 +179,9 @@ const BURST = 60; // >> burst=20 -> parks the bucket above the ceiling in ms
 const DRIP_MS = 80; // 12.5 req/s > the 10 r/s refill -> the metronome never stops
 const DRIPS = 45; // ~3.5 s of pinned window; the armed click lands inside it
 /** Arm probes wait this long between tries; < the 100 ms admit tick, so the
- *  leg's own traffic keeps the bucket pinned while it hunts for an admit. */
+ *  leg's own traffic keeps the bucket pinned while the hunt runs — the hunt
+ *  needs TWO findings in order: a shed (the pin witness), then an admit
+ *  (the moment that opens the window). */
 const ARM_PROBE_MS = 60;
 const ARM_TRIES = 25; // ~2.5 s of hunting = 25 admit ticks; far above need
 
@@ -283,27 +310,49 @@ async function openOperations(
 }
 
 /**
- * Arm the nginx bucket, then click a level button IN THE SAME JS TURN.
+ * Witness the nginx bucket PINNED, then click a level button IN THE SAME JS
+ * TURN as the next admitted probe.
  *
- * Why arming instead of waiting: nginx's ngx_http_limit_req rejects WITHOUT
- * storing the new excess/timestamp, so after any ACCEPT the bucket sits a hair
- * over the ceiling and needs ~1000/rate = 100 ms of decay before it can admit
- * again. A click issued microseconds after a request we PROVED was accepted is
- * therefore inside that window by construction — measured 15/15 shed at
- * delta 0.0-0.2 ms. A click issued at an arbitrary wall-clock moment is inside
- * it with probability 1 - delta/100ms, i.e. a coin flip; that is what CI's run
- * 38477914966 showed (attempt 0 admitted both POSTs, attempts 1-2 shed them).
+ * Two stages, and the first one is load-bearing. Stage 1: keep probing until a
+ * probe is SHED (429). A shed is the only observation that says "excess is
+ * above the ceiling RIGHT NOW" — see the WITNESS-FIRST block in the header.
+ * Stage 2: from then on, the first probe that is ADMITTED (200) opens the
+ * window the click hides inside, and stage 1 BOUNDS that window numerically
+ * rather than rhetorically. Units: nginx keeps excess in thousandths of a
+ * request (logged as excess: 20.260 = 20260), so at 10 r/s one request costs
+ * 1000 and decay is 10/ms, and burst=20 puts the ceiling at 20000. A shed at t1
+ * reveals a COMPUTED excess over the ceiling, and because a rejection stores
+ * nothing, the decayed level D(t) keeps falling from the last ACCEPT — so the
+ * shed says D(t1) > 19000. The next admit stores E = D(t2)+1000, and the loop
+ * makes successive probe STARTS exactly probeMs = 60 ms apart (the wait is
+ * computed from the previous round-trip), so arrivals differ by 60 ms plus the
+ * one-way transit delta — ~1 ms each on loopback, call it 63 generously — and
+ * E = D(t1) - 10·gap + 1000 > 20000 - 630 = 19370. A click d ms after that
+ * admit sheds while E - 10·d + 1000 > 20000, i.e. d < (E-19000)/10 >= ~37 ms,
+ * against a d measured at 0.0-0.2 ms — a ~185x margin, every term arithmetic.
+ * Under unlimited demand the sample lands on the tick, E -> 20000, and the
+ * window is the full 100 ms the metronome figure comes from.
  *
- * The probe request rides in-page fetch so it shares the bucket AND the event
- * loop turn we then click in. The target is any ENABLED level button rather
- * than a named one: the panel gates buttons on disabled={isPending||isActive}
+ * Why not arm on the 429 itself, which looks equivalent: a rejection stores
+ * nothing (the BUCKET MATH block), so it reveals only the COMPUTED excess X at
+ * its arrival, and a click δ ms later sheds only while X - 0.01·δ > 20 (in ms
+ * units: X - 10·δ > 20000). Run 38708268611's logged X was 20.02-20.26 — a 2
+ * to 26 ms window, too thin to gate on. The admit is the provable moment; the
+ * shed only proves the STATE that makes the admit's window real.
+ *
+ * The probe rides in-page fetch so it shares the bucket AND the event-loop
+ * turn we then click in. The target is any ENABLED level button rather than a
+ * named one: the panel gates buttons on disabled={isPending||isActive}
  * (LogLevelPanel.tsx:123), so naming a level deadlocks the leg if the click
  * happens to be admitted (the named level becomes active, hence disabled).
- * Returns the POST's status as the page saw it, or a skip reason.
+ * Returns the aim's anatomy (shedProbes = sheds witnessed before arming) or a
+ * named skip reason — a hunt that never saw a 429 reports THAT, instead of
+ * clicking into an open bucket and going red downstream.
  */
 async function armedShedClick(page: import('@playwright/test').Page): Promise<{
   level: string | null;
   msSinceAdmit: number | null;
+  shedProbes: number | null;
   tries: number | null;
   skipped: string | null;
 }> {
@@ -316,14 +365,22 @@ async function armedShedClick(page: import('@playwright/test').Page): Promise<{
         );
       const target = pick();
       if (!target)
-        return { level: null, msSinceAdmit: null, tries: null, skipped: 'no enabled level button' };
+        return {
+          level: null,
+          msSinceAdmit: null,
+          shedProbes: null,
+          tries: null,
+          skipped: 'no enabled level button',
+        };
       const level = target.textContent?.trim() ?? '';
+      let shedProbes = 0;
       for (let a = 0; a < tries; a++) {
         const t0 = performance.now();
-        // A 429 here means the bucket has not ticked yet; only a 200 starts the
-        // 100 ms window the click is aimed inside.
         const probe = await fetch(`/api/system/health?ARM=${a}`);
-        if (probe.status !== 200) {
+        if (probe.status === 429) shedProbes++; // stage 1: the pin witness
+        // Arm only on an admit AFTER a shed was witnessed. A 200 on an unpinned
+        // bucket is worthless — that is what run 38708268611's leg clicked into.
+        if (probe.status !== 200 || shedProbes === 0) {
           const wait = probeMs - (performance.now() - t0);
           if (wait > 0) await new Promise((r) => setTimeout(r, wait));
           continue;
@@ -331,12 +388,33 @@ async function armedShedClick(page: import('@playwright/test').Page): Promise<{
         const admitAt = performance.now();
         const btn = pick();
         if (!btn || btn.textContent?.trim() !== level)
-          return { level, msSinceAdmit: null, tries: a, skipped: 'target button vanished' };
+          return {
+            level,
+            msSinceAdmit: null,
+            shedProbes,
+            tries: a,
+            skipped: 'target button vanished',
+          };
         const clickAt = performance.now();
         btn.click(); // React's own handler -> fetchApi -> POST, same turn
-        return { level, msSinceAdmit: +(clickAt - admitAt).toFixed(1), tries: a, skipped: null };
+        return {
+          level,
+          msSinceAdmit: +(clickAt - admitAt).toFixed(1),
+          shedProbes,
+          tries: a,
+          skipped: null,
+        };
       }
-      return { level, msSinceAdmit: null, tries, skipped: 'no admitted probe within the budget' };
+      return {
+        level,
+        msSinceAdmit: null,
+        shedProbes,
+        tries,
+        skipped:
+          shedProbes === 0
+            ? 'bucket never pinned — no probe 429 inside the hunt budget'
+            : 'no admitted probe after the pin was witnessed',
+      };
     },
     { probeMs: ARM_PROBE_MS, tries: ARM_TRIES }
   );
@@ -429,12 +507,32 @@ test.describe('golden path: rate-limit pill @critical', () => {
 
     // FLOOD from Node (context.request): same nginx client-IP bucket, zero
     // renderer load, no hidden-page timer throttling (probe7/probe10).
-    const burstCodes = await Promise.all(
+    //
+    // SCHEDULING ORDER IS THE FLOOD, not a detail. The 60 GETs are in flight
+    // the moment the map runs, so the burst is fired before anything is
+    // awaited; the drip timers must be armed in the SAME tick. Awaiting the
+    // burst first — which this leg used to do — starts the drip clocks ~1.0 s
+    // late (the ~20 admitted /health responses are backend-slow and keep
+    // Promise.all waiting), and run 38708268611 measured exactly that: a 969 ms
+    // gap that decayed the parked pin before D0, a drip that then had to re-pin
+    // from scratch (first shed at D31, 41 of 45 admitted), and an aim that
+    // clicked into an open bucket. A gap here is not slack, it is the premise
+    // dissolving.
+    // burstCodes is written IN PLACE by each settling request, so the failure
+    // strings below can read it synchronously — binding it through `await` is
+    // precisely the gate that must not come back (a 0 means "still in flight",
+    // which is itself the diagnosis when the aim could not arm).
+    const burstCodes = new Array<number>(BURST).fill(0);
+    const burstPending = Promise.all(
       Array.from({ length: BURST }, (_, i) =>
         context.request
           .get(`${h.ui}/api/system/health?F${i}`)
           .then((r) => r.status())
           .catch(() => -1)
+          .then((s) => {
+            burstCodes[i] = s;
+            return s;
+          })
       )
     );
     const drips: Promise<unknown>[] = [];
@@ -454,13 +552,13 @@ test.describe('golden path: rate-limit pill @critical', () => {
         )
       );
 
-    // ONE aim, not two. The bucket is a 100 ms metronome while pinned (see the
-    // BUCKET MATH block), so timing this click off the clock was a coin flip;
-    // arming it off a PROVEN admit makes the shed deterministic. A second click
-    // was never observable anyway: a successful first click makes its own
-    // button disabled via isActive (LogLevelPanel.tsx:123), which is where CI's
-    // attempts 1-2 died (waitForFunction, :245 before this head).
-    await page.waitForTimeout(400); // let the drip establish the tick
+    // ONE aim, not two. While the bucket is pinned it is a 100 ms metronome
+    // (BUCKET MATH), so timing this click off the clock was a coin flip; the
+    // witness-first arm makes the shed deterministic — see armedShedClick. A
+    // second click was never observable anyway: a successful first click makes
+    // its own button disabled via isActive (LogLevelPanel.tsx:123), which is
+    // where CI's attempts 1-2 died (waitForFunction, :245 before this head).
+    await page.waitForTimeout(400); // burst still draining INTO the drip: no gap
     const aim = await armedShedClick(page);
     expect(
       aim.skipped,
@@ -491,7 +589,9 @@ test.describe('golden path: rate-limit pill @critical', () => {
     ).toBe(true);
 
     // THE NEGATIVE LEG — and it must stay negative for the whole flood tail.
-    await Promise.all(drips);
+    // The burst joins the drain here (never before the aim: awaiting it early
+    // is the gap that caused run 38708268611) so no request outlives the test.
+    await Promise.all([...drips, burstPending]);
     const frames = await trace;
     expect(
       frames.some((f) => f.k === 'P'),
