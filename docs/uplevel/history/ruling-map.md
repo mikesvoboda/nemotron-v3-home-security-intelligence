@@ -218,6 +218,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 203    | B3.3 owns schema upgrades; B3.1 drops tables as its upgrades (record 6198942052)                            |
 | 204    | package `[r204]`: one realtime connection owner in the frontend (record 6199283332)                         |
 | 205    | package `[r205]`: no status is not healthy; health is not an alert count (record 6199725340)                |
+| 206    | OD-31 stands; F-236's design also settles what an event sends on (record 6199786907)                        |
 
 ## Owner records
 

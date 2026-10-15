@@ -183,6 +183,14 @@ with the same one-minute inclusion. Its tests pin the boundary with a fixed cloc
 matches, 00:00:00 the next day matches for an all-day rule, and the instant after the end minute
 does not (ruling 139).
 
+**Notification history** (F-236, P1) is another. Its delivery log is written where notifications are
+sent, and today nothing sends on an event: `NotificationService` (email, webhook) is called only by
+the settings page's test buttons (`backend/api/routes/notification.py`), while the per-event notify
+decision is the record under OD-31's narrow reading (ISS-001). Its design session also settles
+which channels an event with `notify: true` sends on (email, webhook, or none), with each attempt
+and its outcome in the log; settle it with Arming's "notification delivery" question and OD-22
+(ruling 206, record 6199786907).
+
 **Prompt management** (row 27 of ruling 89) starts with a design note on how activating a prompt
 version relates to replay measurement; the package is flagged `owner` and the owner reviews that
 note. OD-36 (debug tooling) and OD-37 ("Clear All Test Data") packages are flagged `owner`
