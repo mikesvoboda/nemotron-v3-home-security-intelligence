@@ -91,6 +91,7 @@ function createMockResponse(data: unknown, status = 200, ok = true): Response {
 const mockSettingsResponse: SettingsResponse = {
   detection: {
     confidence_threshold: 0.5,
+    fast_path_enabled: false,
     fast_path_threshold: 0.85,
   },
   batch: {
@@ -371,6 +372,7 @@ describe('useUpdateSettings', () => {
       ...mockSettingsResponse,
       detection: {
         confidence_threshold: 0.6,
+        fast_path_enabled: false,
         fast_path_threshold: 0.9,
       },
     };

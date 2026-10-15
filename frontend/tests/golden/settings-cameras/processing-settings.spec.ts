@@ -57,6 +57,7 @@ test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, 
       log_retention_days: Number(beforeRes.body?.log_retention_days),
       detection_confidence_threshold: Number(beforeRes.body?.detection_confidence_threshold),
       fast_path_confidence_threshold: Number(beforeRes.body?.fast_path_confidence_threshold),
+      fast_path_enabled: Boolean(beforeRes.body?.fast_path_enabled),
     };
 
     // Pick a preset distinct from the current batch window (BatchPresetSelector.tsx:73-122)
@@ -70,7 +71,7 @@ test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, 
         p.getByTestId('batch-preset-selector')
       );
 
-      // 2. Verify all 6 sliders and preset/tooltip panels mirror GET /api/system/config
+      // 2. Verify the sliders and preset/tooltip panels mirror GET /api/system/config
       const windowSlider = page.getByLabel('Batch window duration in seconds', { exact: true });
       const idleSlider = page.getByLabel('Batch idle timeout in seconds', { exact: true });
       const retentionSlider = page.getByLabel('Retention period in days', { exact: true });
@@ -83,7 +84,21 @@ test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, 
       await expect(retentionSlider).toHaveValue(String(before.retention_days));
       await expect(logRetentionSlider).toHaveValue(String(before.log_retention_days));
       await expect(detSlider).toHaveValue(String(before.detection_confidence_threshold));
-      await expect(fastPathSlider).toHaveValue(String(before.fast_path_confidence_threshold));
+
+      // ruling 168: the fast-path threshold slider is gated on the switch. The
+      // switch is a role=switch button (its testid lands on the real node), so it
+      // is the anchor; the threshold's presence mirrors the fetched enable flag.
+      const fastPathSwitch = page.getByTestId('switch-fast-path-enabled');
+      await expect(fastPathSwitch).toHaveAttribute(
+        'aria-checked',
+        String(before.fast_path_enabled)
+      );
+      if (before.fast_path_enabled) {
+        await expect(fastPathSlider).toHaveValue(String(before.fast_path_confidence_threshold));
+      } else {
+        // Anchor the absence: the switch is present (gate ran) yet the slider is not.
+        await expect(fastPathSlider).toHaveCount(0);
+      }
 
       await expect(page.getByTestId('batch-settings-tooltips')).toBeVisible();
       await expect(page.getByTestId('batch-latency-preview')).toBeVisible();
@@ -247,7 +262,8 @@ test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, 
       const afterBurst = await api.getJson('/api/v1/settings');
       expect(afterBurst.body?.rate_limiting?.burst_size).toBe(targetBurst);
 
-      // 4. Verify & update DetectionThresholdsPanel (DetectionThresholdsPanel.tsx:86-205)
+      // 4. Verify & update DetectionThresholdsPanel (handleSave through the action
+      //    buttons: DetectionThresholdsPanel.tsx:69-250 at this revision)
       const detCard = page.getByTestId('detection-thresholds-card');
       await expect(detCard).toBeVisible();
       const confSlider = detCard.getByTestId('confidence-slider');
@@ -256,9 +272,19 @@ test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, 
       const detSaveBtn = detCard.getByTestId('save-thresholds-button');
 
       await expect(confValue).toHaveText(`${(beforeDet.confidence_threshold * 100).toFixed(0)}%`);
-      await expect(fastPathValue).toHaveText(
-        `${(beforeDet.fast_path_threshold * 100).toFixed(0)}%`
-      );
+      // ruling 168: this card's fast-path threshold renders only while the master
+      // switch is on, so the leg follows the server's flag instead of assuming the
+      // control exists. Asserting the off-note first is what makes the missing
+      // readout a real absence: a card that failed to render at all has no note
+      // either, and that assertion would fail.
+      if (beforeDet.fast_path_enabled) {
+        await expect(fastPathValue).toHaveText(
+          `${(beforeDet.fast_path_threshold * 100).toFixed(0)}%`
+        );
+      } else {
+        await expect(detCard.getByTestId('fast-path-off-note')).toContainText(/fast path is off/i);
+        await expect(fastPathValue).toHaveCount(0);
+      }
       await expect(detSaveBtn).toBeDisabled();
 
       const stepKey = beforeDet.confidence_threshold >= 0.9 ? 'ArrowLeft' : 'ArrowRight';

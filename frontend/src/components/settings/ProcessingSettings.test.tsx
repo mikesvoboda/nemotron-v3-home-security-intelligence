@@ -216,7 +216,9 @@ describe('ProcessingSettings', () => {
   });
 
   it('displays all configuration fields after loading', async () => {
-    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    // The fast-path threshold slider is gated on the switch (ruling 168), so this
+    // form-wide field check loads with the fast path on to see all six sliders.
+    vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
 
     renderWithProviders(<ProcessingSettings />);
 
@@ -382,7 +384,9 @@ describe('ProcessingSettings', () => {
 
   it('saves configuration changes successfully', async () => {
     const updatedConfig = { ...mockConfig, batch_window_seconds: 120 };
-    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    // Fast path on, so this save-contract test still round-trips all six fields;
+    // the off-case (threshold omitted) is covered in the fast-path switch block.
+    vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
     vi.mocked(api.updateConfig).mockResolvedValue(updatedConfig);
 
     renderWithProviders(<ProcessingSettings />);
@@ -405,6 +409,7 @@ describe('ProcessingSettings', () => {
         log_retention_days: 7,
         detection_confidence_threshold: 0.5,
         fast_path_confidence_threshold: 0.9,
+        fast_path_enabled: true,
       });
     });
 
@@ -713,7 +718,7 @@ describe('ProcessingSettings', () => {
     });
 
     it('shows description for fast-path confidence threshold', async () => {
-      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+      vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
 
       renderWithProviders(<ProcessingSettings />);
 
@@ -800,7 +805,8 @@ describe('ProcessingSettings', () => {
 
   describe('input types', () => {
     it('uses range input type for all slider fields', async () => {
-      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+      // Fast path on so the gated fast-path slider is present for the all-sliders sweep.
+      vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
 
       renderWithProviders(<ProcessingSettings />);
 
@@ -828,7 +834,8 @@ describe('ProcessingSettings', () => {
 
   describe('accessibility', () => {
     it('includes proper aria-labels for all inputs', async () => {
-      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+      // Fast path on so the gated fast-path slider is present for the all-inputs sweep.
+      vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
 
       renderWithProviders(<ProcessingSettings />);
 
@@ -845,7 +852,8 @@ describe('ProcessingSettings', () => {
     });
 
     it('uses semantic text labels', async () => {
-      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+      // Fast path on so the gated Fast-Path Confidence Threshold label is present.
+      vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
 
       renderWithProviders(<ProcessingSettings />);
 
@@ -898,7 +906,7 @@ describe('ProcessingSettings', () => {
     });
 
     it('updates fast-path threshold with decimal precision', async () => {
-      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+      vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
 
       renderWithProviders(<ProcessingSettings />);
 
@@ -1022,6 +1030,177 @@ describe('ProcessingSettings', () => {
 
       // Verify the severity thresholds card is rendered with correct test id
       expect(screen.getByTestId('severity-thresholds-card')).toBeInTheDocument();
+    });
+  });
+
+  describe('fast-path switch (ruling 168)', () => {
+    // The switch is bound to `fast_path_enabled`; the threshold slider exists only
+    // while it is on, and the page never sends a threshold while it is off.
+    const fastPathSwitch = () => screen.getByTestId('switch-fast-path-enabled');
+
+    it('shows a Fast path switch that is off when the fetched config has fast_path_enabled false', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig); // fast_path_enabled: false
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Fast Path')).toBeInTheDocument();
+      expect(fastPathSwitch()).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('reads fast_path_enabled back from the server rather than hardcoding off', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+      });
+
+      expect(fastPathSwitch()).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('uses the backend warning as the switch help text', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByText(/Enable it only once enrichment runs BEFORE the LLM call/i)
+      ).toBeInTheDocument();
+    });
+
+    it('hides the fast-path threshold slider while the switch is off', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      // Anchor the absence: the panel rendered and the switch is present, so the
+      // slider being gone is the gate working, not a render that never happened.
+      await waitFor(() => {
+        expect(fastPathSwitch()).toBeInTheDocument();
+      });
+
+      expect(screen.queryByLabelText('Fast-path confidence threshold')).toBeNull();
+      expect(screen.queryByText('Fast-Path Confidence Threshold')).toBeNull();
+      // The sibling threshold is untouched by the gate.
+      expect(screen.getByLabelText('Detection confidence threshold')).toBeInTheDocument();
+    });
+
+    it('shows the fast-path threshold slider while the switch is on', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(fastPathSwitch()).toBeInTheDocument();
+      });
+
+      expect(screen.getByLabelText('Fast-path confidence threshold')).toBeInTheDocument();
+    });
+
+    it('never sends a fast-path threshold while the switch is off', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+      vi.mocked(api.updateConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Batch window duration in seconds')).toBeInTheDocument();
+      });
+
+      const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+      fireEvent.input(batchWindowInput, { target: { value: '150' } });
+
+      const saveButton = screen.getByText('Save Changes').closest('button');
+      fireEvent.click(saveButton!);
+
+      await waitFor(() => {
+        expect(api.updateConfig).toHaveBeenCalled();
+      });
+
+      const payload = vi.mocked(api.updateConfig).mock.calls[0][0];
+      expect(payload.batch_window_seconds).toBe(150);
+      expect(payload).not.toHaveProperty('fast_path_confidence_threshold');
+      expect(payload.fast_path_enabled).toBe(false);
+    });
+
+    it('sends a fast-path threshold while the switch is on', async () => {
+      const onConfig: api.SystemConfig = { ...mockConfig, fast_path_enabled: true };
+      vi.mocked(api.fetchConfig).mockResolvedValue(onConfig);
+      vi.mocked(api.updateConfig).mockResolvedValue(onConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Batch window duration in seconds')).toBeInTheDocument();
+      });
+
+      const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+      fireEvent.input(batchWindowInput, { target: { value: '150' } });
+
+      const saveButton = screen.getByText('Save Changes').closest('button');
+      fireEvent.click(saveButton!);
+
+      await waitFor(() => {
+        expect(api.updateConfig).toHaveBeenCalled();
+      });
+
+      const payload = vi.mocked(api.updateConfig).mock.calls[0][0];
+      expect(payload.batch_window_seconds).toBe(150);
+      expect(payload.fast_path_confidence_threshold).toBe(0.9);
+      expect(payload.fast_path_enabled).toBe(true);
+    });
+
+    it('saves the settings page with the fast path off and reads it back off', async () => {
+      // The package's Done when: turn the switch, save, and the value the page
+      // re-renders from the saved config is still off. The response below is what
+      // a server does: it echoes the fields it stored AND a normalised value the
+      // page never held locally (batch window 40, not the 90 it began with), so
+      // the post-save render is proven to come from the response — dropping the
+      // `setEditedConfig(updatedConfig)` in `handleSave` reddens the 40 below,
+      // which is the only assertion in this test the component could not already
+      // satisfy from its own click.
+      vi.mocked(api.fetchConfig).mockResolvedValue({ ...mockConfig, fast_path_enabled: true });
+      vi.mocked(api.updateConfig).mockResolvedValue({
+        ...mockConfig,
+        batch_window_seconds: 40,
+      });
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(fastPathSwitch()).toHaveAttribute('aria-checked', 'true');
+      });
+
+      fireEvent.click(fastPathSwitch());
+      expect(fastPathSwitch()).toHaveAttribute('aria-checked', 'false');
+
+      const saveButton = screen.getByText('Save Changes').closest('button');
+      fireEvent.click(saveButton!);
+
+      await waitFor(() => {
+        expect(api.updateConfig).toHaveBeenCalledWith(
+          expect.objectContaining({ fast_path_enabled: false })
+        );
+      });
+
+      // The read-back: both fields below are the SAVED config's, not the click's.
+      // 40 is the one the page never had, so this is a real round-trip assertion.
+      await waitFor(() => {
+        expect(screen.getByLabelText('Batch window duration in seconds')).toHaveValue('40');
+      });
+      await waitFor(() => {
+        expect(fastPathSwitch()).toHaveAttribute('aria-checked', 'false');
+      });
+      expect(screen.queryByLabelText('Fast-path confidence threshold')).toBeNull();
     });
   });
 });

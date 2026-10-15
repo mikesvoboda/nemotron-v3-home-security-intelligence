@@ -36,7 +36,7 @@ suites (`CamerasSettings.motionSensitivity.test.tsx`,
 | `BatchStatusMonitor.tsx`                 | Live batch aggregator status                                       |
 | `CleanupPreviewPanel.tsx`                | Dry-run preview of retention cleanup                               |
 | `OrphanCleanupPanel.tsx`                 | Orphan-file cleanup with configurable parameters                   |
-| `DetectionThresholdsPanel.tsx`           | Per-detector confidence thresholds                                 |
+| `DetectionThresholdsPanel.tsx`           | Two confidence sliders; fast path gated on master switch           |
 | `DetectorSettings.tsx`                   | Detector configuration                                             |
 | `DlqMonitor.tsx`                         | Dead-letter queue monitor (+ `.msw.test.tsx`)                      |
 | `QueueSettings.tsx`                      | Queue config panel (no co-located test)                            |
@@ -170,6 +170,10 @@ related admin panels.
 | Log Retention Period           | 1-90 days | 1    |
 | Detection Confidence Threshold | 0.00-1.00 | 0.01 |
 | Fast-Path Confidence Threshold | 0.00-1.00 | 0.01 |
+
+The Fast-Path Confidence Threshold slider renders only while the "Fast Path"
+switch (`fast_path_enabled`, off by default) is on (ruling 168); while off the
+save payload omits `fast_path_confidence_threshold` entirely.
 
 Detection confidence is marked DEPRECATED in the backend
 (`ConfigResponse.detection_confidence_threshold`); the settings API

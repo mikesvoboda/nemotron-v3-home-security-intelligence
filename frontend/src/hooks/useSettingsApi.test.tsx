@@ -31,6 +31,7 @@ import type { ReactNode } from 'react';
 const mockSettingsResponse: SettingsResponse = {
   detection: {
     confidence_threshold: 0.5,
+    fast_path_enabled: false,
     fast_path_threshold: 0.9,
   },
   batch: {

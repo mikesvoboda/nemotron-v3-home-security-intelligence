@@ -28,6 +28,13 @@ import { STATIC_STALE_TIME } from '../services/queryClient';
 export interface DetectionSettings {
   /** Minimum confidence threshold for object detections (0.0-1.0) */
   confidence_threshold: number;
+  /**
+   * Master switch for the fast path. Required, not optional: the backend model
+   * declares it required (`DetectionSettings` in `backend/api/schemas/settings_api.py`)
+   * and `GET /api/v1/settings` always returns it — leaving it out of this
+   * hand-written type is what let this card offer a threshold the switch disables.
+   */
+  fast_path_enabled: boolean;
   /** Confidence threshold for fast-path high-priority analysis (0.0-1.0) */
   fast_path_threshold: number;
 }
