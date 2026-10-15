@@ -447,15 +447,17 @@ is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
 ### [r162] The engine socket follows the orchestrator setting
 
 **Flags:** owner (production safety). **Assigned:** `uplevel-ops-a`. **Depends on:** `O2.5`
-merged. **PR:** none yet. (ruling 162)
+merged. **PR:** #7114 (open). (rulings 162, 186)
 
-- [ ] `backend` and `alloy` mount `${PODMAN_SOCKET}` only when the orchestrator is enabled
-      (`docker-compose.prod.yml:473`, `:1584` at ruling 162), not unconditionally; the `:?`
-      interpolation no longer demands a value when nothing uses it.
+- [ ] `backend` mounts `${PODMAN_SOCKET}` only when the orchestrator is enabled
+      (`docker-compose.prod.yml:473` at ruling 162), not unconditionally. `alloy` keeps its
+      unconditional mount and its `:?` (`:1584`): it uses the socket for container discovery, log
+      scraping and profiler targets, not orchestration (ruling 186).
 - [ ] A migration note for the live deployment's next redeploy.
 
-**Done when:** a production config rendered with the orchestrator off mounts no engine socket, one
-with it on mounts it as before, and `O2.5`'s override drift test still passes.
+**Done when:** a production config rendered with the orchestrator off gives `backend` no engine
+socket, one with it on mounts it as before, `alloy`'s mount is unchanged in both, and `O2.5`'s
+override drift test still passes.
 
 ### [r164a] The coordinator's paperwork moves into scripts
 
