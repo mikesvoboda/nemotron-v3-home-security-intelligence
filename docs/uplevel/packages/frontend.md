@@ -50,8 +50,9 @@ stopped and started on a running stack.
     the test deployment's compose (rulings 127, 144).
   - **Seeded on CI:** a golden project with `DEBUG=true`, which covers the debug-gated rows and the
     request recorder; a fault seed behind the debug guard that trips a breaker and a threshold; a
-    fixture that plants an orphan file; and a writable `runtime.env` in the CI compose. Ops-b owns
-    the compose and harness changes; the lane that owns each row writes its spec (ruling 127).
+    fixture that plants an orphan file; and a writable `runtime.env` in the CI compose. heavy-b
+    builds the compose and harness changes and ops-b reviews them, as a CI job separate from
+    `Feature check (fake AI)`; the lane that owns each row writes its spec (rulings 127, 187).
 - [ ] Which runs count as a witness for a row: rules.md §Test tiers and the real tier.
 
 **Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents, and ruling
