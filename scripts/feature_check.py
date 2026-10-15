@@ -503,7 +503,7 @@ def as_test_deployment(
         environment["REQUEST_RECORDING_SAMPLE_RATE"] = "0.0"
         environment["HSI_FAULT_SEED"] = "1"
         if not any(entry.split(":", 1)[0].rstrip("/") == "/app/data" for entry in backend["tmpfs"]):
-            backend["tmpfs"].append("/app/data:mode=1777,uid=1000,gid=1000")
+            backend["tmpfs"].append("/app/data:size=20m,mode=1777,uid=1000,gid=1000")
     backend.setdefault("volumes", []).append(
         {
             "type": "bind",
@@ -2107,10 +2107,12 @@ class Run:
         _log(f"seeded {len(self.camera_ids)} cameras: {', '.join(self.camera_ids.values())}")
 
     def seed_debug_fixtures(self) -> None:
-        """Plant the ruling-127/187 CI fixtures for --seeded runs:
+        """Plant the ruling-127/187/192 CI fixtures for --seeded runs:
         1. Two deterministic GET recordings via X-Debug-Record: true (F-154..F-156);
         2. An unreferenced file under /app/data/thumbnails (F-186);
-        3. Verification that HSI_FAULT_SEED=1 opened a circuit breaker (F-138) and
+        3. Fill the 20 MiB /app/data volume (parent of VIDEO_THUMBNAILS_DIR) past 90%
+           for GET /api/system/storage (F-012, ruling 192 item 2);
+        4. Verification that HSI_FAULT_SEED=1 opened a circuit breaker (F-138) and
            a burst of Redis misses trips the hit-ratio threshold (F-171).
         """
         for path in ("/api/system/config", "/api/system/health/ready"):
@@ -2161,6 +2163,33 @@ class Run:
                 f"got {orphan_status}: {orphan_body}"
             )
 
+        filled = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import shutil; from pathlib import Path; "
+            "data = Path('/app/data'); "
+            "usage = shutil.disk_usage(data); "
+            "fill = max(0, int(usage.total * 0.93) - usage.used); "
+            "(data / '.seeded-disk-fill').write_bytes(b'\\x00' * fill); "
+            "after = shutil.disk_usage(data); "
+            "print(round(after.used / after.total * 100, 2))",
+        )
+        if not filled.stdout.strip().splitlines()[-1:]:
+            raise HarnessError("filling /app/data past 90% produced no output")
+        storage_status, storage_body = _http("GET", self.api + "/api/system/storage")
+        if (
+            storage_status != 200
+            or not isinstance(storage_body, Mapping)
+            or float(storage_body.get("disk_usage_percent") or 0) < 90.0
+        ):
+            raise HarnessError(
+                f"expected disk_usage_percent >= 90.0 from GET /api/system/storage, "
+                f"got {storage_status}: {storage_body}"
+            )
+
         cb_status, cb_body = _http("GET", self.api + "/api/system/circuit-breakers")
         if (
             cb_status != 200
@@ -2181,7 +2210,9 @@ class Run:
                 )
 
         self.summary["results"]["seeded"] = "ok"
-        _log("seeded debug fixtures: 2 recordings, 1 orphan file, open redis breaker")
+        _log(
+            "seeded debug fixtures: 2 recordings, 1 orphan file, >90% disk fill, open redis breaker"
+        )
 
     def check_isolation(self) -> list[str]:
         ids = self._run(
