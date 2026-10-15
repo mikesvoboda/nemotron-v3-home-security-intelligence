@@ -11,14 +11,21 @@ It reads GitHub through ``gh`` and the tree through ``git``, and prints one comp
 2. comments   - every comment updated since the cursor, repo-wide; heartbeat and status-comment
                 markers counted, not listed; ``BINDING NOW`` (UR-40) and ``URGENT PATH`` (UR-168)
                 flagged; plus the live ``BINDING NOW`` records on #6854 from the last 48 h;
-3. prs        - each open PR: head, merge-base, mergeStateStatus, ``CI Gate`` at the head, and the
-                newest ``Review: approve`` comment's sha against the head (UR-106);
+3. prs        - each open PR: head, merge-base, mergeStateStatus, ``CI Gate`` at the head, the
+                newest ``Review: approve`` comment's sha against the head (UR-106), and the
+                UR-106 own-diff hash at the head and at the approved head with ``carry:``;
 4. legs       - UR-102's three no-update-branch legs for each non-draft PR with a green gate,
                 measured from the `main` its gate's run merged the head into (read from that
                 run's checkout log), else from the merge-base, labelled as a fallback;
 5. main       - tip, CI (UR-111), Deploy, Nightly Full Gate and Flaky Test Detection (UR-116);
 6. heartbeats - every ``<!-- heartbeat:`` comment on #6958, its age and ``paused`` (UR-38, UR-160),
-                flagged when older than 20 minutes (UR-162).
+                flagged when older than 20 minutes (UR-162);
+7. auto-merge - each armed PR sorted ok / to-disable / unknown (UR-108: an armed head must be the
+                approved head or a UR-106 carry of it, and an unread carry is never a reason to
+                disable);
+8. merged     - each PR merged since the cursor: the verdict on whether its landed head (the merge
+                commit's second parent) is the approved head or a carry, what bars it (UR-94), and
+                a pre-filled UR-29 merge comment with its gaps marked ``unread``.
 
 It never writes to GitHub. A failed ``gh`` or ``git`` call prints ``ERROR <section>: <message>``
 in its section and the report goes on; the exit code is 0 unless the arguments are invalid.
@@ -28,6 +35,7 @@ Every subprocess call goes through one ``Runner`` so the tests replace it withou
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -48,6 +56,11 @@ GATE_CHECK = "CI Gate (Required Checks)"
 # the cut, which is why §3 printed gate=absent for a PR with a green gate. A batch of exactly
 # this length is known-truncated, so it is not evidence about the gate at all.
 LIST_ROLLUP_CAP = 100
+# The merged-PR scan is a client-side filter: REST /pulls has no ``since`` param. It is bounded by
+# an exit on ``updated_at`` (sound: a PR merged after the cursor was updated after it, so every
+# merge still in the window is on the first page of a ``sort=updated`` scan) and by one page. The
+# report says ``scanned:`` and sets ``possibly_more`` so "no merges" cannot read as "looked".
+SCAN_PAGE = 100
 DEFAULT_LOOKBACK = timedelta(hours=2)
 BINDING_LIFE = timedelta(hours=48)
 STALE_HEARTBEAT_MIN = 20
@@ -76,6 +89,10 @@ RUN_ID = re.compile(r"/actions/runs/([0-9]+)(?:/|$)")
 # `main` the run ran against. The run API's pull_requests[0].base.sha is the PR's stored base,
 # which a later push does not move, so it is not that sha.
 CHECKOUT_MERGE = re.compile(r"HEAD is now at [0-9a-f]+ Merge ([0-9a-f]{40}) into ([0-9a-f]{40})")
+# The sed in UR-106's pipeline: `s/^@@ .* @@/@@/`. Byte-level, because sed and sha256sum are.
+HUNK_HEADER = re.compile(rb"^@@ .* @@", re.MULTILINE)
+
+
 CHECKOUT_JOBS_JQ = (
     '[.jobs[] | select(.conclusion == "success" and any(.steps[]?; .name | test("checkout"; "i")))'
     " | {id, steps: (.steps | length)}]"
@@ -182,6 +199,27 @@ def issue_number(comment: dict[str, Any]) -> int | None:
 
 def error_text(exc: Exception) -> str:
     return str(exc) if isinstance(exc, CommandError) else f"{type(exc).__name__}: {exc}"
+
+
+def ur106_diff_hash(diff: str) -> str:
+    """The UR-106 hash of a PR's own diff, as ``roles/coordinator.md`` §Merging a PR step 2
+    defines it: drop the ``index`` lines, blank every hunk header, hash what is left.
+
+    The filter is written at the byte level because the pipeline it stands in for is: ``grep``
+    and ``sed`` act on bytes and ``sha256sum`` hashes bytes, so re-encoding the text here would
+    make the hash depend on an encoding choice. It matches the pipeline exactly -- a whole
+    ``index `` line is dropped with its newline, and ``^@@ .* @@`` becomes ``@@`` with the
+    trailing newline kept -- and
+    ``test_the_hash_equals_the_prose_pipeline_of_coordinator_md`` runs the real
+    ``grep -v '^index ' | sed 's/^@@ .* @@/@@/' | sha256sum`` over the same bytes, so prose and
+    code cannot drift apart quietly.
+
+    A base roll changes only ``index`` lines and ``@@ -l,n +m,k @@`` headers, so its hash is
+    unchanged (``carry: yes``); an author commit changes context or added lines, so it is not
+    (``carry: no``).
+    """
+    kept = [ln for ln in diff.encode().splitlines(keepends=True) if not ln.startswith(b"index ")]
+    return hashlib.sha256(HUNK_HEADER.sub(b"@@", b"".join(kept))).hexdigest()
 
 
 def approval_sha(body: str) -> str | None:
