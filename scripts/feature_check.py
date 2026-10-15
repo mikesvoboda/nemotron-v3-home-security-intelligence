@@ -2198,9 +2198,9 @@ class Run:
             "backend",
             "python",
             "-c",
-            "import asyncio, struct; "
-            "from backend.core.database import close_db, get_session, init_db; "
-            "from backend.models.face_identity import FaceEmbedding, KnownPerson; "
+            "import asyncio, struct\n"
+            "from backend.core.database import close_db, get_session, init_db\n"
+            "from backend.models.face_identity import FaceEmbedding, KnownPerson\n"
             "async def _seed():\n"
             "  await init_db()\n"
             "  try:\n"

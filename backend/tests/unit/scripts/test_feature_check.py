@@ -21,6 +21,7 @@ The harness end to end (boot, smoke check, teardown) runs in the
 
 from __future__ import annotations
 
+import ast
 import copy
 import importlib.util
 import json
@@ -4934,6 +4935,9 @@ def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
         and "struct.pack('<512f'" in " ".join(c)
         for c in exec_calls
     )
+    for c in exec_calls:
+        if "-c" in c:
+            ast.parse(c[c.index("-c") + 1])
     assert any(url.endswith("/api/system/storage") for _, url, _ in http_calls)
     assert any(url.endswith("/api/known-persons") for _, url, _ in http_calls)
     assert sum(1 for _, url, _ in http_calls if url.endswith("/api/debug/pipeline-state")) == 4
