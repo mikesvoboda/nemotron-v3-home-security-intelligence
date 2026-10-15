@@ -2127,10 +2127,12 @@ class Run:
             "backend",
             "python",
             "-c",
-            "from pathlib import Path; "
+            "import os, time; from pathlib import Path; "
             "p = Path('/app/data/thumbnails/seeded-orphan.jpg'); "
             "p.parent.mkdir(parents=True, exist_ok=True); "
             "p.write_bytes(b'seeded-orphan-fixture'); "
+            "old = time.time() - 48 * 3600; "
+            "os.utime(p, (old, old)); "
             "print(p.stat().st_size)",
         )
         if not planted.stdout.strip().splitlines()[-1:]:
@@ -2160,7 +2162,12 @@ class Run:
             )
 
         for _ in range(4):
-            _http("GET", self.api + "/api/debug/pipeline-state")
+            ps_status, ps_body = _http("GET", self.api + "/api/debug/pipeline-state")
+            if ps_status != 200:
+                raise HarnessError(
+                    f"seeding Redis misses via GET /api/debug/pipeline-state "
+                    f"answered {ps_status}: {ps_body}"
+                )
 
         self.summary["results"]["seeded"] = "ok"
         _log("seeded debug fixtures: 2 recordings, 1 orphan file, open redis breaker")

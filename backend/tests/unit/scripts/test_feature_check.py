@@ -4878,7 +4878,8 @@ def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
 
     assert run.summary["results"]["seeded"] == "ok"
     assert any(headers and headers.get("X-Debug-Record") == "true" for _, _, headers in http_calls)
-    assert any("seeded-orphan.jpg" in " ".join(c) for c in exec_calls)
+    assert any("seeded-orphan.jpg" in " ".join(c) and "os.utime" in " ".join(c) for c in exec_calls)
+    assert sum(1 for _, url, _ in http_calls if url.endswith("/api/debug/pipeline-state")) == 4
 
 
 def test_golden_seeded_runs_golden_seeded_playwright_project(
