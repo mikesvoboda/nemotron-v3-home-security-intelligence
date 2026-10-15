@@ -9,8 +9,9 @@ Each failure kind is planted in a small tree in ``tmp_path`` that is clean befor
 test fails for its own finding and not for some other line of the fixture. Nothing here lints this
 checkout's own plan files: this suite runs in collection-sanity on every PR, and a plan defect
 already on ``main`` would red every one of them. The real tree is the job of the CI step that runs
-the lint with the PR's base as ``--baseline``; the baseline logic it relies on is pinned here, on
-fixtures and on one throwaway git repository.
+the lint with the PR merge commit's first parent as ``--baseline``; the baseline logic it relies
+on, and the step's own first-parent line, are pinned here on fixtures and throwaway git
+repositories.
 """
 
 from __future__ import annotations
@@ -467,13 +468,51 @@ def test_the_baseline_reads_a_real_git_ref(tmp_path, capsys):
 # --- the CI step -----------------------------------------------------------------------------
 
 
-def test_ci_runs_the_lint_with_the_prs_base_as_its_baseline():
-    # The real tree is judged in CI, not in this suite: collection-sanity runs the lint with the
-    # PR's base sha as --baseline (fetched first: the checkout is depth-1), and with no baseline on
-    # a push to main. Pinned here so the step cannot quietly lose its baseline or its fetch.
+def ci_step() -> str:
     ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    step = ci[ci.index("- name: Plan lint (ruling 197)") :].split("\n      - name:", 1)[0]
-    assert "BASE_SHA: ${{ github.event.pull_request.base.sha }}" in step
+    return ci[ci.index("- name: Plan lint (ruling 197)") :].split("\n      - name:", 1)[0]
+
+
+def test_ci_runs_the_lint_with_the_merge_commits_first_parent_as_its_baseline():
+    # The real tree is judged in CI, not in this suite: collection-sanity runs the lint on a PR
+    # with the checked-out merge commit's FIRST parent as --baseline -- the main the run merged
+    # into -- and with no baseline on a push to main. pull_request.base.sha is main as of the PR's
+    # last update, so a defect that reached main since would read as the PR's own.
+    step = ci_step()
+    assert "pull_request.base.sha" not in step
+    assert "EVENT: ${{ github.event_name }}" in step and '[ "${EVENT}" = "pull_request" ]' in step
+    assert "git cat-file -p HEAD" in step
     assert 'git fetch --no-tags --depth=1 origin "${BASE_SHA}"' in step
     assert 'python -m scripts.uplevel.plan_lint --baseline "${BASE_SHA}"' in step
     assert step.count("python -m scripts.uplevel.plan_lint") == 2  # with and without a baseline
+    # fail closed: no parent to read a baseline from is exit 2 with its reason, never a full lint
+    assert "exit 2" in step and "no baseline, nothing judged" in step
+
+
+def test_the_steps_base_line_reads_the_first_parent_in_a_depth_1_clone(tmp_path):
+    # The step's premise, run for real: in a depth-1 checkout of a merge commit the parents are
+    # not fetched, yet `git cat-file -p HEAD` still names them (it prints the raw object), and the
+    # step's own line takes the FIRST -- the main side of the merge.
+    line = next(ln.strip() for ln in ci_step().splitlines() if ln.strip().startswith('BASE_SHA="$('))  # fmt: skip
+    src, clone = tmp_path / "src", tmp_path / "clone"
+
+    def sh(*args, cwd=src):
+        return subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+            cwd=cwd, check=True, capture_output=True, text=True,
+        ).stdout.strip()  # fmt: skip
+
+    src.mkdir()
+    sh("init", "-q", "-b", "main")
+    sh("commit", "-q", "--allow-empty", "-m", "base")
+    sh("checkout", "-q", "-b", "pr")
+    sh("commit", "-q", "--allow-empty", "-m", "pr work")
+    sh("checkout", "-q", "main")
+    sh("commit", "-q", "--allow-empty", "-m", "main moved on")
+    main_tip = sh("rev-parse", "HEAD")
+    sh("merge", "-q", "--no-ff", "-m", "merge pr into main", "pr")
+    sh("clone", "-q", "--depth=1", f"file://{src}", str(clone), cwd=tmp_path)
+    assert sh("rev-parse", "--is-shallow-repository", cwd=clone) == "true"
+    got = subprocess.run(["bash", "-c", f'set -euo pipefail\n{line}\necho "$BASE_SHA"'], cwd=clone,
+                         check=True, capture_output=True, text=True).stdout.strip()  # fmt: skip
+    assert got == main_tip

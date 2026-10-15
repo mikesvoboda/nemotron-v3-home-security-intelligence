@@ -206,7 +206,8 @@ when one token is on two lanes' queues, or when a ruling-map row other than 1-14
 lane, rulings 87 and 175) is held to its block in `frontend.md` instead. `--baseline REF` reads the
 same files at a git ref (`git show`) and fails only on findings REF lacks, matched by file and
 message, never line. Collection-sanity runs it as `python -m scripts.uplevel.plan_lint` with the
-PR's base as the baseline, so a defect already on `main` reds `main`'s run, not every PR. Exit 0
-clean, 1 with one `file:line: message` per (new) finding, 2 when the baseline ref is unreadable;
+PR merge commit's first parent (the `main` it merged into) as the baseline, so a defect already on
+`main` reds `main`'s run, not every PR. Exit 0 clean, 1 with one `file:line: message` per (new)
+finding, 2 when the baseline ref is unreadable (the CI step also exits 2 when HEAD names no parent);
 the last line counts what it read. Tests: `scripts/test_plan_lint.py` (fixtures and one throwaway
 git repository; it never lints this checkout, which is the CI step's job).

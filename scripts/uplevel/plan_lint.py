@@ -26,8 +26,8 @@ Rows whose review label is ``none`` (coordinator, heavy-a, heavy-b, operator) ar
 digest gives them no package file to claim from.
 
 ``--baseline REF`` reads the same files at a git ref (``git show REF:<path>``) and fails only on
-findings that ref lacks -- what CI passes as a PR's base, so a plan defect already on ``main`` reds
-``main``'s own run and not every PR opened after it. A finding is matched by file and message, not
+findings that ref lacks -- CI passes the PR merge commit's first parent (the ``main`` it merged
+into), so a plan defect already on ``main`` reds ``main``'s own run and not every PR opened after it. A finding is matched by file and message, not
 line, so an edit above it cannot make an old defect read as new. Without ``--baseline`` every
 finding counts (a push to ``main``).
 
@@ -308,7 +308,7 @@ def main(argv: Sequence[str] | None = None, run: Runner = snap.run_command) -> i
         description="lint the plan fields lane_tick.py acts on (ruling 197)",
     )
     ap.add_argument("--root", type=Path, default=REPO_ROOT, help="checkout to read (default: this one)")  # fmt: skip
-    ap.add_argument("--baseline", metavar="REF", help="fail only on findings REF's files lack (a PR's base)")  # fmt: skip
+    ap.add_argument("--baseline", metavar="REF", help="fail only on findings REF's files lack (CI: the merge's first parent)")  # fmt: skip
     a = ap.parse_args(argv)
     findings, read_note = lint(Disk(a.root))
     if a.baseline is None:
