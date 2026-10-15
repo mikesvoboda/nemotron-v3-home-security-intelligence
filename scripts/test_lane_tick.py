@@ -252,11 +252,14 @@ class Fake:
             ref = cmd[-1].lstrip(":/")
             return f"100644 blob abc\t{ref}\n" if ref.endswith("ops.md") else ""
         if cmd[:2] == ["git", "show"]:
-            return {
-                "ruling-map.md": self.map,
-                "lane.md": self.roster,
-                "ops.md": self.packages,
-            }.get(cmd[-1].rsplit("/", 1)[-1], "")
+            # Raises on a doc nobody scripted (the class contract), rather than answering "" the way
+            # this arm once did: a fourth `git show` added to the tool would have read as an EMPTY
+            # file and every section keyed off it would have passed while reading nothing.
+            doc = cmd[-1].rsplit("/", 1)[-1]
+            docs = {"ruling-map.md": self.map, "lane.md": self.roster, "ops.md": self.packages}
+            if doc not in docs:
+                raise AssertionError(f"unscripted git show: {cmd[-1]}")
+            return docs[doc]
         if cmd[:2] == ["git", "branch"]:
             return "\n".join(self.branches) + "\n"
         if cmd[:2] == ["git", "rev-list"]:
@@ -335,7 +338,7 @@ def test_main_prints_the_same_digest_through_the_injected_runner(capsys):
     fake = Fake()
     assert tick.main(["--sandbox", SANDBOX, "--repo", REPO], run=fake, clock=lambda: NOW) == 0
     printed = capsys.readouterr().out
-    assert "#7164" in printed and "next claimable" in printed
+    assert "#7164" in printed and "holding open claim" in printed
 
 
 # --- identity -------------------------------------------------------------------------------
@@ -461,9 +464,16 @@ def test_disk_under_the_ceiling_names_no_rule_and_reads_both_mounts_in_one_call(
 
 
 def test_disk_over_ninety_points_at_ur180s_order_and_never_at_a_full_prune():
-    warn = " ".join(has(text(df=DF_OVER), "UR-180"))
-    assert "92%" in warn
-    assert "prune" not in warn.lower().replace("full prune", "")
+    # Ruling 176's prohibition is on a ROUTINE full prune (it re-pulls base images and CI has already
+    # hit Docker Hub's anonymous pull limit), so the digest must send the lane to UR-180's ORDER --
+    # which legitimately names builder/image prunes itself. A bare `"prune" not in warn` would
+    # enforce the wrong rule and pass on a line that said nothing at all. Pin what it MUST say, then
+    # the one command it must never name.
+    lines = has(text(df=DF_OVER), "disk")
+    warn = " ".join(lines)
+    assert "92%" in warn  # the mount over the ceiling is named with its number
+    assert "UR-180" in warn and re.search(r"order", warn, re.I), warn
+    assert not re.search(r"system prune", warn, re.I), warn
 
 
 def test_a_mount_the_answer_does_not_carry_is_named_unread_not_skipped():
@@ -675,9 +685,44 @@ def test_the_next_claimable_package_follows_MY_roster_queue_not_the_files_order(
     assert "next claimable: r181" in out  # fmt: skip
 
 
-def test_a_package_my_open_pr_titles_is_not_offered_again():
-    # The row's **PR:** field is coordinator-owned and lags the claim, so the title is the check.
-    assert "next claimable: r172" in text()
+def test_holding_a_package_on_my_queue_offers_no_claim_and_says_why():
+    # UR-52: "on any tick where it has no open package". The default scenario is the live one -- an
+    # open PR titles [r181], which sits on my queue -- so the digest must NOT offer a fresh claim.
+    # It was the bug this box fixes: the old pin here asserted `next claimable: r172` while [r181]
+    # was open, i.e. it pinned the invitation to queue-jump. Silence would be no better: it could
+    # mean "nothing left claimable" or "not eligible", and a lane cannot act on the difference.
+    out = text()
+    assert "holding open claim: [r181]" in out
+    assert "UR-52" in has(out, "holding open claim")[0]
+    assert "next claimable" not in out
+
+
+def test_a_ur_nn_defect_fix_gates_nothing_and_the_queue_is_still_offered():
+    # The other side of the same rule, and the control that the gate above is not a blanket refusal.
+    # A `[UR-nn]` fix has no package number (UR-48: a lane defect needs no package), so it occupies
+    # no queue slot -- it is NOT an open package and must not freeze the queue. That is this very
+    # sandbox's shape for hours: uplevel/lane-panel-recommendation-leg, titled `[UR-48] fix: ...`.
+    defect = pr(7151, labels=["lane:ops"], head=MY_HEAD, title="[UR-48] fix: re-anchor a panel leg")
+    out = text(
+        prs=[defect],
+        heads=[head_row(7151, MY_BRANCH, PLAN, "[UR-48] fix: re-anchor a panel leg")],
+    )
+    assert "holding open claim" not in out
+    assert "next claimable: r181" in out
+
+
+def test_a_package_whose_pr_field_names_one_of_my_prs_is_held_by_that_reason_too():
+    # Two independent readings, because they disagree in both directions. Here the title names
+    # nothing on my queue, but [r172]'s block carries `**PR:** #7164` and #7164 is mine: an
+    # acknowledged claim with an un-reflective title. The digest still has to say the state.
+    pkg = PKG.replace("none yet. (ruling 172", "#7164. (ruling 172")
+    out = text(
+        packages=pkg,
+        prs=[pr(7164, labels=["lane:ops", "cell:b"], head=MY_HEAD, title="an unrelated title")],
+        heads=[head_row(7164, MY_BRANCH, PLAN, "an unrelated title")],
+    )
+    assert "holding open claim: [r172]" in out
+    assert "next claimable" not in out
 
 
 def test_a_package_whose_pr_field_wrapped_to_the_next_line_is_still_read():
@@ -698,30 +743,65 @@ def test_a_package_that_names_a_pr_is_not_offered():
     assert tick.next_claimable(PKG, ["r157", "r172"], []) == "r172"
 
 
+def test_held_claims_reads_a_hold_from_the_title_and_from_the_pr_field():
+    mine = [{"number": 7164, "title": "[r181] the lane-tick digest"}]
+    assert tick.held_claims(PKG, ["r157", "r151", "r181", "r172"], mine) == ["r181"]
+    # by the field alone (the title names nothing here, `**PR:**` on [r172] names my #7164)
+    field = PKG.replace("none yet. (ruling 172", "#7164. (ruling 172")
+    assert tick.held_claims(field, ["r181", "r172"], [{"number": 7164, "title": "nothing here"}]) == [
+        "r172"
+    ]  # fmt: skip
+    # neither: a [UR-nn] fix on a queue package's branch titles no package and no field names it
+    assert tick.held_claims(PKG, ["r157", "r181", "r172"], []) == []
+    assert tick.held_claims(PKG, ["r181"], [{"number": 7151, "title": "[UR-48] fix: a leg"}]) == []
+    # a queue token with no block here (an F2.3 batch, a trigger) is not a package and holds nothing
+    assert tick.held_claims(PKG, ["F2.3", "O3.4"], mine) == []
+
+
+def test_a_hold_and_a_claimable_are_never_both_printed():
+    # The branch order in `build` is the rule: the hold wins and the offer is suppressed, so a lane
+    # never reads a package it may claim from a digest that also says it is mid-flight.
+    mine = [{"number": 7164, "title": "[r181] the lane-tick digest"}]
+    assert tick.held_claims(PKG, ["r181", "r172"], mine) == ["r181"]
+    assert tick.next_claimable(PKG, ["r181", "r172"], mine) == "r172"  # the offer EXISTS...
+    out = text()
+    assert "next claimable" not in out  # ...and is the line the gate suppresses.
+
+
 # --- the error shape the package names ------------------------------------------------------
 
 
 @pytest.mark.parametrize(
-    "needle",
+    ("needle", "section"),
     [
-        "df -h",
-        "/issues/6958/comments",
-        "/issues/6854/comments",
-        "headRefName",
-        "git branch",
-        "rev-list",
-        "roles/lane.md",
-        "packages/ops.md",
-        "ruling-map.md",
+        ("df -h", "disk"),
+        # #6958's comments are BOTH the read-through cursor and the heartbeat rows, so one failure
+        # legitimately reports under two tags; the beat is the one the tick cannot act without.
+        ("/issues/6958/comments", "heartbeats"),
+        ("/issues/6854/comments", "binding_now"),
+        ("headRefName", "heads"),
+        ("git branch", "branches"),
+        ("rev-list", "behind #7158"),
+        ("roles/lane.md", "identities"),
+        ("packages/ops.md", "packages"),
+        ("ruling-map.md", "ruling map"),
     ],
 )
-def test_a_failing_call_prints_error_for_its_section_never_an_empty_one(needle):
+def test_a_failing_call_prints_error_for_its_named_section_never_an_empty_one(needle, section):
+    # The section NAME is asserted, not just that some ERROR appeared: a report that prints the
+    # right number of errors under renamed tags would pass a bare `assert errs`, and UR-29 is about
+    # the lane knowing WHICH reading it is missing.
     fake = Fake()
     fake.fail(needle)
     out = "\n".join(tick.build(fake, lambda: NOW, REPO, SANDBOX))
     errs = has(out, "ERROR")
     assert errs, f"{needle} failed silently"
-    assert "HTTP 502" in " ".join(errs)
+    named = [ln for ln in errs if ln.strip().startswith(f"ERROR {section}:")]
+    assert named, f"no error named {section}; printed: {[ln.strip() for ln in errs]}"
+    # The CAUSE must be among them. #6958's comments feed two sections, so a broken read there
+    # legitimately yields the 502 plus a derived "no beat" line -- both under one tag, and a pin
+    # that read only the first would fail for the wrong reason.
+    assert any("HTTP 502" in ln for ln in named), [ln.strip() for ln in named]
 
 
 def test_a_lane_with_no_package_file_notes_it_rather_than_erroring():
@@ -798,6 +878,29 @@ def test_a_lane_tick_fits_the_tools_own_line_cap():
     # So the cap reads on the printed digest, and overrunning it reports itself rather than cutting
     # a section off. ops-a can overrule the reading; the pin moves with the ruling.
     assert len(text().splitlines()) <= tick.CAP_LINES
+
+
+def test_an_over_cap_digest_reports_its_own_overflow_and_cuts_nothing():
+    # The other half of the cap reading (the test above pins the under-cap default). "at most 80
+    # lines" is a bound we pay with a REPORT, not a truncation: cutting a section to fit would
+    # silently delete a PR row or a BINDING NOW record, which is the UR-29 failure this tool exists
+    # to prevent. So a 30-PR queue must print every row AND name the excess.
+    # Measured growth: one line per PR row on an 11-line default, so 80 rows puts the digest past
+    # the cap. The number is checked against the printed output, not against the expression that
+    # produced it -- and it excludes the NOTE itself, which is the shape worth pinning.
+    n = tick.CAP_LINES
+    many = [
+        pr(7300 + i, labels=["review:ops-b"], head=THEIRS_HEAD, draft=False, title=f"leg {i}")
+        for i in range(n)
+    ]
+    heads = [head_row(7300 + i, THEIRS, PLAN, f"leg {i}") for i in range(n)]
+    lines = text(prs=many, heads=heads).splitlines()
+    note = [ln for ln in lines if "lines over" in ln]
+    assert len(note) == 1
+    excess = int(note[0].split()[1])
+    assert excess > 0 and excess == len(lines) - 1 - n
+    assert len(has("\n".join(lines), "leg 79")) == 1  # the LAST row survives: it reports, not cuts
+    assert f"== review:ops-b ({n})" in "\n".join(lines)
 
 
 def test_the_digest_stays_under_the_programmes_character_bound():

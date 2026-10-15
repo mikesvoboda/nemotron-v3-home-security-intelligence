@@ -49,6 +49,9 @@ QUEUE_TOKEN = re.compile(r"`\[?([\w.]+)\]?`")
 # Bounded by the blank line after the header, so the value is the field's own continuation.
 PKG_FIELD = re.compile(r"\*\*PR:\*\*([\s\S]*?)(?:\n\s*\n|\Z)", re.I)
 NONE_YET = re.compile(r"[^\n#]*none yet", re.I)
+# The number a package block's `**PR:**` field names. `NONE_YET`'s `[^#]` class is the proof the
+# field's value carries a literal `#`, so the number is read from the same captured text.
+PR_NUMBER = re.compile(r"#(\d+)")
 # The package header line, as it stands AFTER splitting on "### " (the marker is gone).
 BLOCK = re.compile(r"\[?([\w.]+)\]?\s")
 
@@ -166,13 +169,45 @@ def disk(df: str | None, mounts: Sequence[str] = MOUNTS) -> list[str]:
     return out  # fmt: skip
 
 
+def held_claims(packages: str, queue: list[str], mine: list[dict]) -> list[str]:
+    """Packages on MY queue that I already hold -- the open claims UR-52 counts, with BOTH reasons.
+
+    UR-52 lets an agent claim only "on any tick where it has no open package", so an open package is
+    what closes the claim leg. Two independent readings, because the two sources disagree in both
+    directions and either can be the only live one: the ``[<pkg>]`` **title token** of an open PR
+    (authoritative: a PR is a claim on the package it titles, and a ``[UR-nn]`` defect fix -- UR-48,
+    no package number -- occupies no queue slot and gates nothing), or the block's own ``**PR:**``
+    number naming a PR of mine (the field is what ``next_claimable`` already refuses to offer
+    against, so when it alone is the reason the digest must still say *why* nothing is offered --
+    printing neither line is the silence UR-29 forbids a lane to act on).
+    """
+    numbers = {str(p.get("number")) for p in mine}
+    titles = " ".join(p.get("title", "") for p in mine)
+    blocks = {m.group(1): b for b in packages.split("### ")[1:] if (m := BLOCK.match(b))}
+    held = []
+    for token in queue:
+        block = blocks.get(token)
+        if block is None:
+            continue
+        if f"[{token}]" in titles:
+            held.append(token)
+            continue
+        field = PKG_FIELD.search(block)
+        named = PR_NUMBER.search(field.group(1)) if field else None
+        if named and named.group(1) in numbers:
+            held.append(token)
+    return held
+
+
 def next_claimable(packages: str, queue: list[str], mine: list[dict]) -> str | None:
     """First package on MY roster queue that carries no PR and that no open PR of mine titles.
 
-    Two readings the file's shapes force. (1) The queue, not the file: ``ops.md`` carries ops-a's
+    Three readings the file's shapes force. (1) The queue, not the file: ``ops.md`` carries ops-a's
     ``[r164a]`` with ``**PR:** none yet`` ahead of mine, so a scan of the file offers another cell's
     package. (2) The title, not the row: the ``**PR:**`` field is coordinator-owned and lags the
-    claim, so the package would be offered to me while I am mid-flight on it.
+    claim, so the package would be offered to me while I am mid-flight on it. (3) Only on a tick
+    with no open package, which ``held_claims`` enforces in ``build`` -- a claimable line printed
+    beside an open package is an invitation to queue-jump, which UR-52 forbids.
     """
     titles = " ".join(p.get("title", "") for p in mine)
     blocks = {m.group(1): b for b in packages.split("### ")[1:] if (m := BLOCK.match(b))}
@@ -326,7 +361,16 @@ def build(
             if (r.get("submitted_at") or r.get("created_at") or "") >= since
         ]
         out.append(row(p, f"{tail} {len(cmts)}c/{len(revs)}r since beat"))
-    if nxt := next_claimable(pkgs, ids["queue"], mine):
+    # UR-52's precondition, printed: an agent holding an open package on its own queue is not
+    # claim-eligible, and a `next claimable` line beside a held package invites the queue-jump the
+    # rule forbids. Silence would be worse than either line -- it could mean "nothing claimable" or
+    # "not eligible" -- so the digest says which of the two states it read.
+    if held := held_claims(pkgs, ids["queue"], mine):
+        names = ", ".join(f"[{t}]" for t in held)
+        out.append(
+            f"  holding open claim: {names} (UR-52: nothing to claim while a package is open)"
+        )
+    elif nxt := next_claimable(pkgs, ids["queue"], mine):
         out.append(f"  next claimable: {nxt}")
     for name in ("cursor", "comments", "binding_now", "main", "heartbeats", "prs"):
         out += [f"  ERROR {name}: {e}" for e in data.get(name, {}).get("errors", [])]
