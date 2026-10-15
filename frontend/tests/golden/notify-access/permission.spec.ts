@@ -68,6 +68,13 @@ import {
   type Harness,
 } from './harness';
 
+// Ruling 194: the golden project sets no `channel`, so Playwright 1.64 launches
+// chromium-headless-shell, and on that binary `grantPermissions(['notifications'])`
+// returns without applying — the grant never throws, so only the page-side read of
+// Notification.permission below can see it. The full Chromium binary takes the grant.
+// Scoped to THIS file on purpose: the shared golden config stays on headless-shell.
+test.use({ channel: 'chromium' });
+
 const harness = readHarness();
 test.skip(
   !harness.ready,
