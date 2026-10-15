@@ -415,11 +415,21 @@ PR (UR-48).
 
 ### [r133] F-023: retire the in-page PWA install prompt
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7139 (open). (rulings 133, 150)
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7139 (merged).
+(rulings 133, 150)
 
-- [ ] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
+- [x] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
       dismissal store and its tests, `frontend/tests/golden/shell/pwa-install.spec.ts` included.
-- [ ] Keep `frontend/public/manifest.json`, `/sw.js` and their registration.
+      Witness: merge `1e1c241ed` lands five deletions — `InstallPrompt.tsx` (the component holds the
+      gates and the dismissal store), `InstallPrompt.test.tsx`, `pwa/index.ts`, `pwa/AGENTS.md`,
+      `tests/golden/shell/pwa-install.spec.ts`. `git grep InstallPrompt` at that tip returns 3 hits,
+      all inside the retired-path guard `src/__tests__/pwa-install-prompt-retired.test.tsx`, which
+      asserts the file is gone (`:115`) rather than importing it.
+- [x] Keep `frontend/public/manifest.json`, `/sw.js` and their registration. One deviation from the
+      box's literal text, recorded: `/sw.js` is not a tracked file — `vite.config.ts:59`'s
+      `VitePWA(...)` generates it at build — so the kept leg is the manifest (still tracked) plus the
+      generated-SW pipeline, which `tests/golden/shell/offline-cache.spec.ts:173` pins byte-wise and
+      `main.tsx:42` still registers.
 
 **Done when:** nothing imports `InstallPrompt`, and the golden project and unit tests are green.
 
