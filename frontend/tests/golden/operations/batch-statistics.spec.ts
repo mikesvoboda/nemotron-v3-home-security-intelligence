@@ -16,7 +16,7 @@
  * /api/debug/* is documented live on this stack (databases.spec.ts:14). It
  * writes `batch:<camera>:current` atomically (batch_aggregator.py:623-630), which
  * GET /api/system/pipeline enumerates by scanning `batch:*:current`
- * (system.py:4092) with NO database validation, so a synthetic camera id is
+ * (system.py:4105) with NO database validation, so a synthetic camera id is
  * a legitimate active batch for a read that never consults Postgres.
  *
  * The probe camera is ATTEMPT-scoped, not a fixed name. playwright.config.ts:79
@@ -64,15 +64,15 @@
  * Why the poll is IDENTITY-keyed and the row assert is count-free: the
  * pipeline read's `detection_count` WAS entangled with TWO stacked key-type
  * mismatches, both cured ON THIS HEAD by `f9a18d028` (#7156), which reads the
- * LIST with `pipe.lrange` (system.py:4117, in the 4-key pipeline :4114-4120)
- * and unwraps the JSON-quoted scalars (`_coerce_scalar` def :4019, called
- * :4135-4136) before `float()` (:4138). Pre-cure it `pipe.get`s the LIST the
+ * LIST with `pipe.lrange` (system.py:4130, in the 4-key pipeline :4127-4133)
+ * and unwraps the JSON-quoted scalars (`_coerce_scalar` def :4032, called
+ * :4148-4149) before `float()` (:4151). Pre-cure it `pipe.get`s the LIST the
  * aggregator RPUSHes (batch_aggregator.py:638, helper :335-357): WRONGTYPE ⊂
- * RedisError → `except RedisError` (:4130 then, :4162 now) →
+ * RedisError → `except RedisError` (:4130 then, :4175 now) →
  * `batch_aggregator: null` for any live batch. MASKED behind that, the `set`
  * wrapper JSON-quotes the timestamps (core/redis.py:1229), so `float()`
  * raised ValueError and the per-batch `except (ValueError, TypeError,
- * KeyError)` (:4151) SKIPPED the batch — lrange alone looked like progress
+ * KeyError)` (:4164) SKIPPED the batch — lrange alone looked like progress
  * and returned `{active_batches: 0}`, exactly as `f9a18d028`'s own message
  * records. CI could not have seen either break: the unit fake seeds that key
  * with SET and reads it back through the fake, never the endpoint
