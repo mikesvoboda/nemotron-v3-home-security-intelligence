@@ -88,7 +88,9 @@ stopped and started on a running stack.
   (F-278 follows UR-153 if the fake stack cannot seed a face embedding); frontend writes FE-3's six
   unwritten rows (F-045, F-052–F-054, F-059, F-064) after its `[r134]` PR #7145. Ruling 192 adds
   two rows whose legs skip on CI: frontend fixes F-028's leg 2 with F-007's offline-then-reload
-  approach, and docs makes F-234's notification grant take effect or returns the row to the owner.
+  approach, and docs makes F-234's notification grant take effect or returns the row to the owner;
+  docs tests the grant with `channel: 'chromium'` set in `permission.spec.ts` alone, leaving the
+  golden project's config unchanged (ruling 194).
 
 **Done when:** no row says **unverified**; every **works** row cites a green golden path and a
 real-tier date; the `R2` sheet is final.

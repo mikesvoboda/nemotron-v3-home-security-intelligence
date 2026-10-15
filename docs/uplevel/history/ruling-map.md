@@ -205,6 +205,9 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 190    | heavy-b out of service; heavy-a takes #7155, OP-1's seeded rows, B2.3 (record 6191930218)                   |
 | 191    | docs flips F-256, specs F-254, F-278; frontend FE-3's six after #7145 (record 6192225830)                   |
 | 192    | routes F-028 (frontend), F-012's disk seed (heavy-a), F-234 (docs) (record 6192470752)                      |
+| 193    | package `[r193]`: lanes wake on GitHub events; ticks become a fallback (record 6195149856)                  |
+| 194    | F-234: docs sets `channel: 'chromium'` in permission.spec.ts only (record 6197728882)                       |
+| 195    | O2.5 runs on maui after package `[r195]` (host-login harness) (record 6197833896)                           |
 
 ## Owner records
 
