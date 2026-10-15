@@ -88,12 +88,12 @@ one PR with `F3.1`.
 - [ ] For each feature ruled **retire**: delete its routes, schemas, services, settings, alert
       conditions and tests (batteries included). The frontend part (`F3.1`) lands in the same PR,
       so the client never calls a route that is gone.
-- [ ] Tables leave through a dated DROP runbook in `docs/api/migrations/`, following the R8-S4
-      precedent (`cafad910`).
+- [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
+      record 6198942052), not as a hand-run DROP runbook.
 - [ ] Regenerate `docs/openapi.json`.
 
 **Done when:** for every retired feature, a grep for the identifiers its inventory row lists finds
-nothing in `backend/` outside the DROP runbook.
+nothing in `backend/` outside its upgrade step.
 
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
@@ -127,10 +127,19 @@ outside `keep.toml`, and the suite is green.
       `summary_generator._call_nemotron`, Nemotron-named metrics); delete the uncalled metrics and
       unused exception classes `00 §4.1` lists.
 - [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
-- [ ] **DECIDE** whether the `alembic` dependency stays (`00 §7`: no Alembic directory exists).
+- [ ] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
+      `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
+      `docs/api/migrations/` is applied by hand. One ordered, checked upgrade command records which
+      upgrades a database has had; Alembic or a small runner over `docs/api/migrations/` is this
+      package's design choice, and the `alembic` dependency stays or goes with it (`00 §7`). The
+      four existing SQL files become its first recorded upgrades or are marked applied.
+- [ ] A test starts from a saved pre-upgrade schema with rows in it, upgrades it, and checks the
+      rows survive. The integration tests boot through the command; no fixture adds a column
+      (`backend/tests/integration/conftest.py:855` does today).
 
-**Done when:** the ratchet test passes, and the PR reports the before/after count of `nemotron`,
-`florence` and `enrichment` hits in `backend/`.
+**Done when:** the ratchet test passes; a database saved from today's `main` upgrades with its rows
+intact in CI; and the PR reports the before/after count of `nemotron`, `florence` and `enrichment`
+hits in `backend/`.
 
 ## Phase 4 — Complete the product
 
@@ -173,6 +182,14 @@ verdict). Its schedule includes its end minute in full: a window matches when
 with the same one-minute inclusion. Its tests pin the boundary with a fixed clock: 23:59:30
 matches, 00:00:00 the next day matches for an all-day rule, and the instant after the end minute
 does not (ruling 139).
+
+**Notification history** (F-236, P1) is another. Its delivery log is written where notifications are
+sent, and today nothing sends on an event: `NotificationService` (email, webhook) is called only by
+the settings page's test buttons (`backend/api/routes/notification.py`), while the per-event notify
+decision is the record under OD-31's narrow reading (ISS-001). Its design session also settles
+which channels an event with `notify: true` sends on (email, webhook, or none), with each attempt
+and its outcome in the log; settle it with Arming's "notification delivery" question and OD-22
+(ruling 206, record 6199786907).
 
 **Prompt management** (row 27 of ruling 89) starts with a design note on how activating a prompt
 version relates to replay measurement; the package is flagged `owner` and the owner reviews that
@@ -336,3 +353,61 @@ on the CI compose before their save leg can go green; until then they flip on th
 
 **Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
 head.
+
+### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
+
+**Flags:** `heavy`. **Assigned:** heavy-a, ahead of `B2.3`; heavy-a opens its own draft PR.
+**Depends on:** none. **PR:** none yet. (ruling 199, record 6198662741)
+
+The analysis worker acknowledges each stream message once `_process_analysis_item` returns
+(`backend/services/pipeline_workers.py:943`, and `:931` on the reclaim path), and that method
+catches every exception and returns (`:1153`). So a failure other than a VLM error (a Postgres
+write error, a Redis error, a bug) is acknowledged with no event stored. VLM errors are already
+stored as a `verification_failed` event (`backend/services/vlm_analyzer.py:656`).
+
+- [ ] `_process_analysis_item` returns a disposition, and the loop acts on it. **Stored** (the
+      batch has an event): acknowledge. **Terminal** (the payload fails validation, or the batch is
+      missing or has no detections): move it to the dead-letter stream with its reason. **Retry**
+      (anything else): leave it pending for the existing reclaim (`:925-931`), whose third
+      delivery goes to the dead-letter stream. The `batch.analysis_failed` broadcast's `retryable`
+      field follows the disposition.
+- [ ] When the Redis key misses (`vlm_analyzer.py:468`), `analyze_batch` looks up `events.batch_id`
+      (unique, `backend/models/event.py:54`). If an event exists, it returns that event without
+      calling the VLM, and writes whatever post-commit step is missing: the Redis key, and the
+      notify decision when the event has none.
+- [ ] Test (a), integration tier: a write that fails before the commit leaves the message pending,
+      and a redelivery stores exactly one event.
+- [ ] Test (b): a process that stops after the commit, before the Redis key and the notify
+      decision. The redelivery stores no second event, makes no VLM call, and writes the notify
+      decision.
+- [ ] Test (c): an invalid payload leaves one dead-letter entry and nothing pending. Test (d): a
+      failure on all three deliveries leaves one dead-letter entry.
+- [ ] The PR body says whether the detection worker's stream loop (`pipeline_workers.py:400-418`)
+      has the same shape. It changes nothing there.
+
+**Done when:** tests (a) to (d) pass in CI at a ready head, and the PR body names the line where
+each disposition is decided.
+
+### [r200] One owner for the running pipeline workers
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
+**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`). **PR:** none yet. (ruling 200)
+
+`PipelineWorkerManager.start()` (`backend/main.py:964`) starts the configured detection and
+analysis workers (default 2 each, `backend/core/config.py:1077`, `:1085`), one batch-timeout worker
+and one metrics worker. `main.py:1008-1030` then registers the four `create_*_worker` factories
+(`backend/services/pipeline_workers.py:2109`, `:2140`, `:2171`, `:2202`) with `WorkerSupervisor`,
+and each builds and starts one more worker: three analysis consumers where two are configured, and
+two batch-timeout and two metrics workers. The manager passes no supervisor to its own workers, so
+the supervisor's heartbeats and restarts cover only the extra set. Record 6198757258.
+
+- [ ] The supervisor restarts the workers the manager built and reads their heartbeats; the
+      factories that build a second set are deleted.
+- [ ] Shutdown has one path: whichever owner stays stops each worker once.
+- [ ] Tests: after startup the process runs exactly the configured number of detection and
+      analysis consumers, one batch-timeout worker and one metrics worker; a worker whose task dies
+      is restarted without the count growing; shutdown stops each worker once.
+- [ ] The PR body reports whether today's two batch-timeout workers can close the same batch twice.
+
+**Done when:** the tests pass in CI at a ready head, and `backend/main.py` builds no pipeline worker
+outside `PipelineWorkerManager`.

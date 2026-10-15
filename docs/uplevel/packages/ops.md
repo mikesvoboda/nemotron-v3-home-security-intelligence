@@ -282,6 +282,27 @@ consolidation depends on it.
 **Done when:** every file in `scripts/` is referenced by CI, a hook, `setup.py`, another script, or
 the operator docs, and `scripts/` passes ruff in pre-commit.
 
+## Phase 4 — Complete the product
+
+### O4.1 One-GPU installs
+
+**Flags:** none. **Depends on:** Phase 4's start (ruling 202, record 6198876496).
+**PR:** none yet.
+
+`README.md:242` promises a one-card install, but `setup.py` writes `gpu_llm: 0` and
+`gpu_ai_services: 1` in all three modes (`:820`, `:1070`, `:1252`) whatever `get_gpu_info()` finds
+(`:795`), and `docker-compose.prod.yml` gives the AI services
+`CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}`. On a one-card machine they see no GPU.
+
+- [ ] A design session chooses: setup derives the split from the detected GPUs (one card puts both
+      on GPU 0, keeping a saved answer on re-run as `[r94]` does), or two GPUs become a stated
+      requirement that setup enforces and the README's hardware table states.
+- [ ] Whether detection, re-ID and the VLM fit one 24GB card is a real-tier run, settled in that
+      session.
+
+**Done when:** a one-GPU setup either runs with every service on a visible GPU or is refused with
+the requirement named, and unit tests cover one and two detected GPUs.
+
 ## Background (any phase after Phase 1)
 
 ### OB.3 Image weight
@@ -641,3 +662,24 @@ UR-180's order, never at a routine full prune (ruling 176).
 
 **Done when:** the module budget fails CI on a reproduced import breach, the warning-only nightly's
 list is posted, and the existing duration pins pass.
+
+### [r184] The launcher prints the heavy sessions' pi start line
+
+**Flags:** none. **Assigned:** ops-a. **Depends on:** none.
+**PR:** none yet. (rulings 184 and 201, records 6177514438 and 6198825479)
+
+Ruling 184's commit renamed the heavy rows in `scripts/uplevel/sandboxes.toml`. The owner starts
+both with `agent-dgx <name> pi --split`, but `launch.py` still builds
+`agent-dgx run <name> --agent claude --split` for them (`[models] strongest`).
+
+- [ ] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
+      Take its exact form from `agent-dgx help` output the owner posts from maui, or from a line
+      the owner pastes on the PR; the launcher never invents a flag (`history/packages-done.md`
+      §O0.1).
+- [ ] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
+      rows, naming the hand-start line, and prints no wrong line.
+- [ ] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
+      refusal, and no other row's line changes.
+
+**Done when:** the launcher test passes in CI at a ready head, and `sandboxes.toml`'s comment no
+longer says the launcher does not print the form.

@@ -211,6 +211,15 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 196    | packages `[r196a]` frontend, `[r196b]` docs, `[r196c]` ops-b: last F2.3 rows (record 6198072340)            |
 | 197    | `[r197]`, owner's session: plan lint, footers, `--beat` (records 6198161166, 6198199744)                    |
 | 198    | one review per PR, the author's UR-89 subagent; author arms auto-merge (record 6198314579)                  |
+| 199    | package `[r199]`: analysis acks follow a stored event or a terminal failure (record 6198662741)             |
+| 200    | package `[r200]`: one owner for the running pipeline workers (record 6198757258)                            |
+| 201    | `[r184]` gets its block: the launcher prints the heavy pi start line (record 6198825479)                    |
+| 202    | one-GPU installs wait for Phase 4 as `O4.1`; no lane now (record 6198876496)                                |
+| 203    | B3.3 owns schema upgrades; B3.1 drops tables as its upgrades (record 6198942052)                            |
+| 204    | package `[r204]`: one realtime connection owner in the frontend (record 6199283332)                         |
+| 205    | package `[r205]`: no status is not healthy; health is not an alert count (record 6199725340)                |
+| 206    | OD-31 stands; F-236's design also settles what an event sends on (record 6199786907)                        |
+| 207    | real tier is real VLM, fake detector; `[r207]` holds detector rows back (record 6199844401)                 |
 
 ## Owner records
 

@@ -512,6 +512,51 @@ as a claim; ruling 196 makes them a package. Each PR's title carries `[r196a]`.
 **Done when:** none of these eight rows says **unverified**; each flipped on a CI run where its
 leg executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
 
+### [r204] One realtime connection owner
+
+**Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.
+**PR:** none yet. (ruling 204, record 6199283332)
+
+`webSocketManager.ts` shares one connection per URL (`subscribe`, `:254`), but `useConnectionStatus`
+opens its own events and system sockets through `useWebSocketStatus` (`:290`, `:298`;
+`new WebSocket` at `useWebSocketStatus.ts:145`), and both `Layout.tsx:38` and `Header.tsx:171` call
+it. The manager stops on the auth close codes (`AUTH_TERMINAL_CLOSE_CODES`, `:155`);
+`useWebSocketStatus`'s `onclose` (`:176`) reads no code and keeps reconnecting.
+
+- [ ] `useConnectionStatus` reads channel state from `webSocketManager` (`subscribe`,
+      `getConnectionState`, `reconnect`) and opens no socket; one provider feeds Layout and Header;
+      `useWebSocketStatus`'s socket code and its tests are deleted.
+- [ ] `isPollingFallback` and `retryConnection` keep their meaning; a terminal auth close shows as
+      such and is not retried.
+- [ ] Tests: the mounted shell holds one manager connection per channel; neither Layout nor Header
+      opens a socket; a `4001` close stops reconnection on the status path.
+- [ ] F-007's `frontend/tests/golden/shell/ws-status.spec.ts` passes unchanged in
+      `Feature check (fake AI)`.
+
+**Done when:** these pass in CI at a ready head, and under `frontend/src/` (tests and mocks aside)
+`new WebSocket(` appears only in `webSocketManager.ts`.
+
+### [r205] No status is not "healthy"; health is not an alert count
+
+**Flags:** none. **Assigned:** frontend, after `[r204]`. **Depends on:** `[r204]` merged.
+**PR:** none yet. (ruling 205, record 6199725340)
+
+`DashboardPage.tsx:289` reads `deferredSystemStatus?.health ?? 'healthy'`, so a dashboard that
+never receives a status reads as healthy. `AmbientStatusProvider.tsx:94-109` turns service health
+into the favicon's alert count (`unhealthy` 3, `degraded` 1).
+
+- [ ] Until a system status arrives, the dashboard shows a neutral connecting or unknown state,
+      never `healthy`; a no-flash treatment must not render healthy's word or colour.
+- [ ] The badge shows health as health (colour or icon) and a number only from a real alert count;
+      with no such source it shows no number. `alertCountOverride` keeps working.
+- [ ] Tests: no status, or a dashboard that never connects, never renders "healthy"; an unhealthy
+      or degraded service gives no numeric badge without a real count; a real count shows as given.
+- [ ] The golden specs over the dashboard and ambient status pass unchanged, or the PR names the leg
+      it changes and why.
+
+**Done when:** these pass in CI at a ready head, and under `frontend/src/` (tests aside) no
+`?? 'healthy'` default and no health-to-count mapping remain.
+
 ### [r168] The fast-path switch
 
 **Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s
