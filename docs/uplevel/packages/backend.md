@@ -99,8 +99,10 @@ nothing in `backend/` outside its upgrade step.
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then the rest
-      of the list the owner approved at `R2`. The scene-change vertical stays: R2a row 24 ruled it
+- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
+      module under `backend/` the reachability check reports non-shipping at this PR's head,
+      outside `keep.toml`: `R2`'s §3 is approved as that rule, not as the measured snapshot
+      (ruling 210, record 6200282082). The scene-change vertical stays: R2a row 24 ruled it
       complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
       183).
 - [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to

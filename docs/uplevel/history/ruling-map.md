@@ -220,6 +220,9 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 205    | package `[r205]`: no status is not healthy; health is not an alert count (record 6199725340)                |
 | 206    | OD-31 stands; F-236's design also settles what an event sends on (record 6199786907)                        |
 | 207    | real tier is real VLM, fake detector; `[r207]` holds detector rows back (record 6199844401)                 |
+| 208    | owner's session measures record repair; result 6200252063 (record 6199979513)                               |
+| 209    | claim drafts that hold nothing close: #7072 now, #6996 after `[r196b]` (record 6200064485)                  |
+| 210    | R2b round 2: R2 §3 approved as a rule; export tooling stays; spikes go (record 6200282082)                  |
 
 ## Owner records
 

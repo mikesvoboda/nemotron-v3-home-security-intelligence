@@ -174,8 +174,8 @@ Read this section while you write a package's code, tests, docs and PR.
   it in the same PR; docs reviews such edits against the standard only if asked. The docs lane owns
   every `AGENTS.md` except those lines. (README "Lanes and ownership"; ruling 121)
 - **UR-82** Touch `synthbench/` only under the cross-lane rule, when a deletion removes something
-  synthbench imports; the synthbench workstream continues alongside this programme. (README "Lanes
-  and ownership")
+  synthbench imports; the synthbench workstream continues alongside this programme. `O3.1` deletes
+  `synthbench/spikes/` (ruling 210). (README "Lanes and ownership")
 - **UR-83** Hot files; the coordinator sequences their merges: (the deleted 50-coordination.md "Hot
   files")
   - `docs/openapi.json`, `frontend/src/types/generated/api.ts`: regenerate after rebasing, never
