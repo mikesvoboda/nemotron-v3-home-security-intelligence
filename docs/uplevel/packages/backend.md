@@ -336,3 +336,37 @@ on the CI compose before their save leg can go green; until then they flip on th
 
 **Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
 head.
+
+### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
+
+**Flags:** `heavy`. **Assigned:** heavy-a, ahead of `B2.3`; heavy-a opens its own draft PR.
+**Depends on:** none. **PR:** none yet. (ruling 199, record 6198662741)
+
+The analysis worker acknowledges each stream message once `_process_analysis_item` returns
+(`backend/services/pipeline_workers.py:943`, and `:931` on the reclaim path), and that method
+catches every exception and returns (`:1153`). So a failure other than a VLM error (a Postgres
+write error, a Redis error, a bug) is acknowledged with no event stored. VLM errors are already
+stored as a `verification_failed` event (`backend/services/vlm_analyzer.py:656`).
+
+- [ ] `_process_analysis_item` returns a disposition, and the loop acts on it. **Stored** (the
+      batch has an event): acknowledge. **Terminal** (the payload fails validation, or the batch is
+      missing or has no detections): move it to the dead-letter stream with its reason. **Retry**
+      (anything else): leave it pending for the existing reclaim (`:925-931`), whose third
+      delivery goes to the dead-letter stream. The `batch.analysis_failed` broadcast's `retryable`
+      field follows the disposition.
+- [ ] When the Redis key misses (`vlm_analyzer.py:468`), `analyze_batch` looks up `events.batch_id`
+      (unique, `backend/models/event.py:54`). If an event exists, it returns that event without
+      calling the VLM, and writes whatever post-commit step is missing: the Redis key, and the
+      notify decision when the event has none.
+- [ ] Test (a), integration tier: a write that fails before the commit leaves the message pending,
+      and a redelivery stores exactly one event.
+- [ ] Test (b): a process that stops after the commit, before the Redis key and the notify
+      decision. The redelivery stores no second event, makes no VLM call, and writes the notify
+      decision.
+- [ ] Test (c): an invalid payload leaves one dead-letter entry and nothing pending. Test (d): a
+      failure on all three deliveries leaves one dead-letter entry.
+- [ ] The PR body says whether the detection worker's stream loop (`pipeline_workers.py:400-418`)
+      has the same shape. It changes nothing there.
+
+**Done when:** tests (a) to (d) pass in CI at a ready head, and the PR body names the line where
+each disposition is decided.

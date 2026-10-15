@@ -211,6 +211,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 196    | packages `[r196a]` frontend, `[r196b]` docs, `[r196c]` ops-b: last F2.3 rows (record 6198072340)            |
 | 197    | `[r197]`, owner's session: plan lint, footers, `--beat` (records 6198161166, 6198199744)                    |
 | 198    | one review per PR, the author's UR-89 subagent; author arms auto-merge (record 6198314579)                  |
+| 199    | package `[r199]`: analysis acks follow a stored event or a terminal failure (record 6198662741)             |
 
 ## Owner records
 
