@@ -415,7 +415,7 @@ PR (UR-48).
 
 ### [r133] F-023: retire the in-page PWA install prompt
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 133, 150)
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7139 (open). (rulings 133, 150)
 
 - [ ] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
       dismissal store and its tests, `frontend/tests/golden/shell/pwa-install.spec.ts` included.
