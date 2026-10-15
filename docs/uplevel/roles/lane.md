@@ -60,17 +60,22 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
    the coordinator's age, with the UR-162 raise named when one is owed; disk use of `/` and
    `/var/lib/docker`, pointing at UR-180's cleanup ORDER above 90% (never a routine full prune,
    ruling 176); the live `BINDING NOW` records the ruling map does not yet carry (ruling 177's
-   filter, applied at the source -- the 48-hour window is never fetched unfiltered); the PRs
-   labelled `review:<lane>` and your own open PRs, each with head, merge state, `CI Gate` at that
-   head (re-read past 100 check runs; in-flight jobs named when it is still running), commits behind
-   `main`, and comments/reviews since your beat; and the next claimable roster package (UR-52). An
+   filter, applied at the source -- the 48-hour window is never fetched unfiltered); your own open
+   PRs, each with head, merge state, `CI Gate` at that head (re-read past 100 check runs; in-flight
+   jobs named when it is still running), commits behind `main`, comments/reviews since your beat,
+   and `needs your review` (ready, CI finished, no review since the head's commit) or
+   `arm auto-merge` (an approve at the head with `Plan text: none`, a green gate, no `owner` label,
+   auto-merge off; ruling 198); and the next claimable roster package (UR-52). An
    `ERROR <section>` line means that section was not read: read it yourself or say it is unread, and
    never fill it from an earlier tick (UR-29). A `NOTE no package file for lane <lane>` is the
    roster's answer for a lane with no package file (operator, heavy, coordinator), not a fault.
    Then act on the printed `BINDING NOW` records that name your lane or all agents and whose state
    does not already hold; one already carried out is a no-op (UR-40, rulings 163, 170, 177).
+   `for you:` lines, printed first, name the records and owner pointers whose footer addresses your
+   lane; act on them first (ruling 197).
 
-2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, and
+2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, with
+   `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`, and
    keep your disks under 90% (UR-180). Read the coordinator's age from the digest; if it is older
    than 20 minutes with no live `URGENT PATH` on record, follow "Stale coordinator" below.
 3. **Review your ready PRs first** (UR-32): for each of your PRs that is ready, with CI finished at

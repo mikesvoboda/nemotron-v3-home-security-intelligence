@@ -177,3 +177,17 @@ re-snapshots both podman and docker and fails the run on any diff. Verified here
 shellcheck clean, the three embedded python scripts byte-compile, and the cosine table's
 four verdict branches tested against synthetic stage files. **Not run here:** the GPU legs
 (1-4) and the gateway leg need the serving host; the owner runs it on maui.
+
+### post_record.py
+
+The owner's side of ruling 197's machine footers. `post_record.py record --ruling N --lanes a,b|all
+--packages r1,r2|none --body-file F` posts a record on #6854; `post_record.py pointer --ruling N
+--lane x --pr P --body-file F` posts a pointer on PR `P`. Each appends ONE footer line
+(`<!-- uplevel: ruling=<n> lanes=<names|all> packages=<tokens|none> -->` or
+`<!-- uplevel: pointer ruling=<n> lane=<name> -->`), which `lane_tick.py` turns into a `for you:`
+line for the lane it names. The footer is parsed back with `lane_tick.py`'s own reader before
+anything is posted, so the writer and the digest cannot drift. Refused (exit 2): a name that is not
+a roster sandbox without its `agent-`/`uplevel-` prefixes, a body that already carries a footer, and
+a record whose first line does not start `BINDING NOW · ruling N`. `--dry-run` prints the final body
+and posts nothing; a failed post exits 1. It posts with `gh api ... -F body=@-` (the body on stdin)
+through one injectable runner. Tests: `scripts/test_post_record.py`.
