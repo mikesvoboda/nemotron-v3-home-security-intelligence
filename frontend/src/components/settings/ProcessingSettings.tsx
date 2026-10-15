@@ -403,7 +403,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
             </div>
 
             {/* Fast Path master switch (ruling 168) */}
-            <div data-testid="fast-path-switch-row">
+            <div>
               <div className="mb-2 flex items-center justify-between">
                 <div>
                   <Text className="font-medium text-gray-300">Fast Path</Text>
