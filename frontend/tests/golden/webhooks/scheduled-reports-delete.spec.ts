@@ -50,7 +50,7 @@
  *   against the shipped template carrying THIS row's name, the row still in the DOM, and the row
  *   still in the STORE (an API read — a UI that still shows a row proves only the UI).
  * - ACCEPT deletes. `delete_scheduled_report` answers 204 with no body
- *   (status_code=HTTP_204_NO_CONTENT, scheduled_reports.py:342) after db.delete + commit, so the
+ *   (status_code=HTTP_204_NO_CONTENT, scheduled_reports.py:335) after db.delete + commit, so the
  *   spec witnesses the 204, then the list refetch, and only then asserts absence.
  */
 import { expect, test } from '../guard';

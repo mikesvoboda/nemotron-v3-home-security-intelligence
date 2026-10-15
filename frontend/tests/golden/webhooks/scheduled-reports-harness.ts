@@ -60,10 +60,12 @@ export {
 export const SCHEDULED_REPORTS_URL = '/api/scheduled-reports';
 
 /** Create a scheduled report the real way — the route `ScheduledReportsPage`'s create modal posts
- *  to (`create_scheduled_report`, scheduled_reports.py:41, answers 201).
+ *  to (`create_scheduled_report`, scheduled_reports.py:41-53 — decorator at :41, the 201 at :44,
+ *  the def at :53).
  *
  *  Required vs defaulted, read from `ScheduledReportCreate`
- *  (`backend/api/schemas/scheduled_report.py:90-150`): `name` (`...`, min_length 1) and
+ *  (`backend/api/schemas/scheduled_report.py:66-179`; its field block is :90-149):
+ *  `name` (`...`, min_length 1) and
  *  `frequency` (`...`) are required; `hour` (8), `minute` (0), `timezone` ("UTC"), `format`
  *  (ReportFormat.PDF), `enabled` (True), `include_charts`/`include_event_details` (True) carry
  *  defaults, and `day_of_week`/`day_of_month` are None — with an after-validator that REQUIRES
@@ -92,7 +94,7 @@ export async function createScheduledReport(api: AuthedFetch, name: string): Pro
 }
 
 /** Teardown: `delete_scheduled_report` (scheduled_reports.py:343) answers 204 with no body
- *  (`status_code=HTTP_204_NO_CONTENT` at :342) after `db.delete` + `db.commit`. A teardown that
+ *  (`status_code=HTTP_204_NO_CONTENT` at :335) after `db.delete` + `db.commit`. A teardown that
  *  asserts is a teardown that reports its own failure instead of hiding a leak. */
 export async function deleteScheduledReport(api: AuthedFetch, id: string): Promise<void> {
   const res = await api.send(`${SCHEDULED_REPORTS_URL}/${id}`, 'DELETE');
