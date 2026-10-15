@@ -567,6 +567,10 @@ comment count, and heartbeat markers drift.
       both with the exact footer.
 - [ ] A `--beat "<text>"` mode writes the agent's heartbeat itself, marker line first, with
       UR-155's 600-character cap.
+- [ ] For ruling 198, the digest drops its `review:<lane>` section and marks the agent's own PRs:
+      `needs your review` (ready, CI finished at the head, no review for that head) and
+      `arm auto-merge` (approved at the head, `Plan text: none`, `CI Gate` green, not a draft, not
+      owner-tier, auto-merge off).
 - [ ] The tick sections of the role files name the footer lines and `--beat`. `[r193]` edits the
       same sections, so whichever merges second rebases onto the first.
 
