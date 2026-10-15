@@ -35,13 +35,23 @@
  *   locator is still scoped to `report-card-<id>` (:137) because `Delete` and `Edit` render once per
  *   card and the page lists many cards: a page-wide getByText('Delete') strict-modes the moment the
  *   stack has two reports. Row scope is sufficient because the button lives inside that card.
- * - THE ACCEPT'S REPAINT IS A LIST REFETCH, AND ONLY A LIST REFETCH. `useDeleteScheduledReportMutation`
- *   onSuccess invalidates `['scheduled-reports','list']` and removeQueries the row's detail
- *   (useScheduledReports.ts:418-433); there is no `['webhooks','health']`-style second card on this
- *   page. So the only refetch the spec can witness is `GET /api/scheduled-reports` — and it must be
- *   EXACT-path matched, because a detail GET (`/api/scheduled-reports/<id>`) shares the prefix and
- *   would satisfy an endsWith() matcher that never proved the list refreshed (webhooks/harness.ts:154-158,
- *   and `apiPath()` is exact-after-normalization for exactly that reason).
+ * - THE ACCEPT'S REPAINT COMES FROM A LIST REFETCH, AND THE ONLY REFETCH THIS SPEC CAN COUNT IS THE
+ *   LIST's. `useDeleteScheduledReportMutation` onSuccess invalidates `['scheduled-reports','list']`
+ *   and removeQueries the row's detail (useScheduledReports.ts:418-433); there is no
+ *   `['webhooks','health']`-style second card on this page. The count must be EXACT-path matched,
+ *   because a detail GET (`/api/scheduled-reports/<id>`) shares the prefix and would satisfy an
+ *   endsWith() matcher that never proved the list refreshed (webhooks/harness.ts:154-158, and
+ *   `apiPath()` is exact-after-normalization for exactly that reason).
+ *   WHAT THE COUNT DOES NOT PROVE, stated because the poll message cannot: the page mounts the same
+ *   query with `refetchInterval: 30000` (ScheduledReportsPage.tsx:269), and a tick of that timer
+ *   appends the BYTE-IDENTICAL request line `GET /api/scheduled-reports`. So a rising count proves
+ *   A list refetch happened, not that the invalidation caused it — no ordering or timestamp trick
+ *   fixes that, since a tick landing after the delete is also "after", and bounding the gap to
+ *   milliseconds just moves the flake into CI. The row's removal is proven by the two id-keyed legs
+ *   that follow (the card is gone; the STORE no longer has it), and a no-op delete fails loudly at
+ *   the 204 leg, which matches this row's exact `/api/scheduled-reports/<id>` DELETE. Window for the
+ *   confusion is small — `expect.timeout: 3000` (playwright.config.ts:123) gives each poll ~3 s of a
+ *   30 s period — but small is not zero, and the header used to claim causal exclusivity here.
  *
  * The two arms and their anchors are F-248's, because the failure modes are identical:
  * - DISMISS fires nothing. handleDelete early-returns on a false confirm
@@ -192,11 +202,16 @@ test.describe('DO-4 delete a scheduled report through the native confirm (F-254)
       expect(await deleted, 'the accept DELETEs and answers 204').toBe(204);
       deletedThroughUi = true;
 
-      // The row's removal is a refetch of ['scheduled-reports','list'], not a local splice
-      // (useScheduledReports.ts:418-433; no optimistic path).
+      // A list refetch follows the 204 — the mechanism the app uses is invalidation of
+      // ['scheduled-reports','list'], not a local splice (useScheduledReports.ts:418-433; no
+      // optimistic path). The COUNT cannot tell that invalidation apart from the page's own
+      // refetchInterval: 30000 tick (ScheduledReportsPage.tsx:269), which logs the same line, so
+      // the message names only what this witness sees. Causality is not lost — the next two lines
+      // are id-keyed (this card gone, this id out of the store) and they are what actually proves
+      // the delete repaints.
       await expect
         .poll(() => countOf(log, `GET ${SCHEDULED_REPORTS_URL}`) > listGetsBefore, {
-          message: 'the list refetch is what removes the card',
+          message: 'a list GET follows the 204 (count sees any list refetch, incl. the 30s tick)',
         })
         .toBe(true);
 
@@ -220,8 +235,20 @@ test.describe('DO-4 delete a scheduled report through the native confirm (F-254)
     await signIn(page, h);
     await page.goto(`${h.ui}/scheduled-reports`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('scheduled-reports-page')).toBeVisible();
+    // The testid alone does NOT prove the list loaded: ScheduledReportsPage stamps
+    // `scheduled-reports-page` on the SUCCESS branch (:414) AND on the list-error card (:395), so
+    // the line above is visible even when the query failed. The h1 below is success-branch-only
+    // (measured: 'Scheduled Reports</h1>' renders exactly once in the file, at :421; the error card
+    // shows "Failed to load scheduled reports" instead), so this is the leg that actually witnesses
+    // "the page is up". The twin needs no such leg — `webhooks-page` stamps once, success only
+    // (WebhooksPage.tsx:261).
+    await expect(
+      page.getByRole('heading', { name: 'Scheduled Reports', exact: true })
+    ).toBeVisible();
     // Proves the dialog handler did not require — and does not license — any route interception:
-    // the F2.1 tripwire still throws the same message (guard.ts:46).
+    // the F2.1 tripwire still throws GUARD_MESSAGE (guard.ts:51-53 throw, message text at :42-43;
+    // :46 is the method LIST the tripwire wraps — my earlier draft cited it as "the same message",
+    // which is the right line and the wrong antecedent; the twin pairs them at harness.ts:16).
     await assertGuardSurvives(page, h);
   });
 });
