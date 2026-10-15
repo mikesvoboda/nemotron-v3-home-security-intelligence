@@ -63,16 +63,19 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
    filter, applied at the source -- the 48-hour window is never fetched unfiltered); your own open
    PRs, each with head, merge state, `CI Gate` at that head (re-read past 100 check runs; in-flight
    jobs named when it is still running), commits behind `main`, comments/reviews since your beat,
-   and `needs your review` (ready, CI finished, no review since the head's commit) or
-   `arm auto-merge` (an approve at the head with `Plan text: none`, a green gate, no `owner` label,
-   auto-merge off; ruling 198); and the next claimable roster package (UR-52). An
+   and `needs your review` (ready, CI finished, and no review of this head as the coordinator
+   judges one: the sha it names, or UR-106's carry) or `arm auto-merge` (that review approves with
+   `Plan text: none`, the gate is green from a non-draft run, no `owner` label, auto-merge off;
+   ruling 198), or `review unread` when a read for them failed; and the next claimable roster
+   package (UR-52). An
    `ERROR <section>` line means that section was not read: read it yourself or say it is unread, and
    never fill it from an earlier tick (UR-29). A `NOTE no package file for lane <lane>` is the
    roster's answer for a lane with no package file (operator, heavy, coordinator), not a fault.
    Then act on the printed `BINDING NOW` records that name your lane or all agents and whose state
    does not already hold; one already carried out is a no-op (UR-40, rulings 163, 170, 177).
-   `for you:` lines, printed first, name the records and owner pointers whose footer addresses your
-   lane; act on them first (ruling 197).
+   `for you:` lines, printed first, name the records and owner pointers of the last 48 hours whose
+   footer addresses your lane; act on them first (ruling 197). A `NOTE unparsed uplevel footer`
+   names a comment whose footer the digest could not read: read that comment yourself.
 
 2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, with
    `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`, and
@@ -99,9 +102,10 @@ PR it concerns. Only when you are blocked, add a third line, `BLOCKER: <one line
 <sandbox> · <HH:MMZ, read from date -u> · idle | working #<n> | waiting on <what> | paused · <why>
 ```
 
-Find the issue with `gh issue list --state open --search "Uplevel heartbeats in:title"`, find your
-comment by its first line, and edit it with
-`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`.
+Write it with `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`
+(a `BLOCKER:` line follows a newline in the same argument). The tool writes the marker line, finds
+your comment and edits it, or posts it if you have none, and refuses a beat over 600 characters.
+Never edit the marker line by hand (ruling 197).
 
 **Before a long step.** Before any step you expect to run over 15 minutes (a local test or golden
 run, a UR-89 self-review subagent), edit your heartbeat to

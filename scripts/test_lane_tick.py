@@ -124,6 +124,11 @@ def filler():
     }
 
 
+def job(conclusion="SUCCESS", run=GATE_RUN, name="Backend Unit Tests"):
+    """A non-gate check of the gate's OWN run: SUCCESS on a ready run, SKIPPED on a draft run."""
+    return {**filler(), "name": name, "conclusion": conclusion, "detailsUrl": f"https://github.com/{REPO}/actions/runs/{run}/job/2"}  # fmt: skip
+
+
 def pr(number, *, labels, head, draft=True, merge="BEHIND", rollup=None, title="pr", armed=False):
     """A row of the snapshot's batched ``gh pr list`` (the verdict-carrying read)."""
     return {
@@ -157,9 +162,13 @@ GREEN_HEADS = [
     head_row(7164, MY_BRANCH, MINE1),
     head_row(7200, THEIRS, NOTMINE),
 ]  # fmt: skip
-# #7158's head commit time: what a review must post after to be "for the head" (ruling 198).
+# #7158's head commit time: the date fallback ruling 198's markers use only when the coordinator's
+# judge cannot decide (a review naming no sha).
 HEAD_AT = "2026-10-15T09:00:00Z"
-APPROVE = "Review: approve\nReviewer lane: ops (UR-89 subagent)\nDone when: all observed\nContract: rules 1-5 — ok\n- **Plan text:** none.\nNotes:\n"  # fmt: skip
+OLD_HEAD = "e" * 40  # a head #7158 had before; an approval naming it is judged by UR-106's carry
+# The review form roles/lane.md gives, naming the head it read on its first line as the live ones do.
+APPROVE = f"Review: approve `{MINE2_HEAD[:9]}`\nReviewer lane: ops (UR-89 subagent)\nDone when: all observed\nContract: rules 1-5 — ok\n- **Plan text:** none.\nNotes:\n"  # fmt: skip
+SAME_DIFF = "diff --git a/backend/x.py b/backend/x.py\n@@ -1 +1 @@\n-a\n+b\n"
 
 # The rows below carry main's roles/lane.md shape (agent | tier | queue | review label), shortened.
 # `none` is a real label value -- a cell with no review queue -- and the roster is 141 columns wide.
@@ -227,6 +236,10 @@ class Fake:
         # a PR's WHOLE thread; the digest's windowed reads get the part GitHub's `since` would send
         self.pr_comments = over.get("pr_comments", {})
         self.head_dates = over.get("head_dates", {})
+        # UR-106's own-diff inputs: the PR's files, and each rev's diff (default: identical diffs,
+        # i.e. a carry -- a test that wants an author change gives the rev a different diff)
+        self.files = over.get("files", ["backend/x.py"])
+        self.diffs = over.get("diffs", {})
         self.pr_reviews = over.get("pr_reviews", {})
         self.df = over.get("df", DF_OK)
         self.map = over.get("map", MAP)
@@ -281,17 +294,37 @@ class Fake:
             return self.head_dates.get(cmd[-1], HEAD_AT) + "\n"
         if cmd[:2] == ["git", "log"]:
             return self.commits
+        if cmd[:2] == ["git", "diff"]:
+            # `git diff <base>..<rev> -- <files>`: the UR-106 own diff of one rev
+            return self.diffs.get(cmd[2].split("..", 1)[1], SAME_DIFF)
         if cmd[:3] == ["gh", "pr", "list"]:
             # The snapshot's batch and the digest's own read differ by exactly the fields asked for.
             return json.dumps(self.heads if "headRefName" in cmd[-1] else self.prs)
         if cmd[:3] == ["gh", "pr", "view"]:
+            if cmd[-1] == "files":
+                return json.dumps({"files": [{"path": f} for f in self.files]})
             return json.dumps({"statusCheckRollup": self.rollup_reread[int(cmd[3])]})
         if cmd[:3] == ["gh", "api", "-X"]:
             # `--beat`'s one write, answered the way gh answers it: the comment it wrote.
             return json.dumps({"id": NEW_BEAT_ID})
         if cmd[:2] == ["gh", "api"]:
-            return self.api(cmd[2])
+            answer = self.api(cmd[2])
+            if "--jq" in cmd:
+                answer = json.dumps(self.jq(json.loads(answer), cmd[cmd.index("--jq") + 1]))
+            return answer
         raise AssertionError(f"unexpected command {cmd}")
+
+    @staticmethod
+    def jq(rows, expr):
+        """gh applies `--jq` client-side, so the fake must too, or a pin about which comments are
+        reviews would measure the fixture. Only the snapshot's verdict filter is scripted."""
+        if expr != snap.REVIEWS_JQ:
+            raise AssertionError(f"unscripted jq: {expr}")
+        return [
+            {"id": c["id"], "created_at": c["created_at"], "user": c["user"]["login"], "body": c["body"]}
+            for c in rows
+            if c["body"].startswith("Review:")
+        ]  # fmt: skip
 
     def api(self, path):
         if "/issues/6958/comments" in path:
@@ -723,31 +756,43 @@ def test_a_malformed_footer_is_named_not_silently_dropped():
     assert not has(out, "for you")
 
 
-def test_an_owner_pointer_on_my_pr_since_my_beat_is_for_me():
+def test_an_owner_pointer_on_my_pr_is_for_me():
     # The other original failure: a pointer reached the digest only as `1c/0r since beat`.
-    out = text(pr_comments={7158: [pointer(91, 7158, "pointer ruling=196 lane=ops-b")]})
+    fake, out = run_tick(repo_comments=[pointer(91, 7158, "pointer ruling=196 lane=ops-b")])
     assert has(out, "for you: owner pointer on #7158 (ruling 196) comment 91")
-    assert "1c/0r since beat" in row(out, 7158)  # still counted: the line is in addition
+    # read once, repo-wide, over the records' 48-hour window -- not per PR, not since my beat
+    window = snap.iso(NOW - snap.BINDING_LIFE)
+    assert len(fake.asked(f"repos/{REPO}/issues/comments?since={window}")) == 1
 
 
-def test_an_owner_pointer_is_read_from_the_since_beat_read_my_row_already_makes():
-    fake, out = run_tick(pr_comments={7164: [pointer(92, 7164, "pointer ruling=196 lane=ops-b")]})
-    assert has(out, "for you: owner pointer on #7164 (ruling 196) comment 92")
-    # no extra call for it: the row's `Nc since beat` read is the one the pointer arrives through
-    reads = [c for c in fake.asked("issues/7164/comments") if "since=" in c]
-    assert len(reads) == 1 and f"since={BEAT_AT}" in reads[0]
+def test_a_pointer_posted_before_my_beat_still_prints_inside_48_hours():
+    # Posted 90 minutes ago, my beat is 3 minutes old: a digest that read only "since my beat" lost
+    # it for good the moment the agent beat once without acting on it.
+    out = text(repo_comments=[pointer(92, 7158, "pointer ruling=196 lane=ops-b", minutes=-90)])
+    assert has(out, "for you: owner pointer on #7158 (ruling 196) comment 92")
 
 
-def test_a_pointer_for_another_lane_or_older_than_my_beat_is_not_for_me():
+@pytest.mark.parametrize("number", [7100, 7200])  # merged/closed (not open at all); another lane's
+def test_a_pointer_on_a_pr_that_is_not_my_open_pr_still_prints(number):
+    out = text(repo_comments=[pointer(93, number, "pointer ruling=196 lane=ops-b")])
+    assert has(out, f"for you: owner pointer on #{number} (ruling 196) comment 93")
+
+
+def test_a_pointer_for_another_lane_or_older_than_48_hours_is_not_for_me():
     out = text(
-        pr_comments={
-            7158: [
-                pointer(93, 7158, "pointer ruling=196 lane=ops-a"),
-                pointer(94, 7158, "pointer ruling=196 lane=ops-b", minutes=-90),
-            ]
-        }
+        repo_comments=[
+            pointer(94, 7158, "pointer ruling=196 lane=ops-a"),
+            pointer(95, 7158, "pointer ruling=150 lane=ops-b", minutes=-49 * 60),
+        ]
     )
     assert not has(out, "for you")
+
+
+def test_a_failed_pointer_read_says_so():
+    fake = Fake(repo_comments=[pointer(96, 7158, "pointer ruling=196 lane=ops-b")])
+    fake.fail(f"issues/comments?since={snap.iso(NOW - snap.BINDING_LIFE)}")
+    out = "\n".join(tick.build(fake, lambda: NOW, REPO, SANDBOX))
+    assert has(out, "ERROR pointers:") and not has(out, "for you")
 
 
 def test_the_for_you_lines_come_first_records_then_pointers():
@@ -755,7 +800,7 @@ def test_the_for_you_lines_come_first_records_then_pointers():
         owner_comments=[
             record(31, "BINDING NOW · ruling 189", "ruling=189 lanes=ops-b packages=r181")
         ],
-        pr_comments={7158: [pointer(95, 7158, "pointer ruling=196 lane=ops-b")]},
+        repo_comments=[pointer(95, 7158, "pointer ruling=196 lane=ops-b")],
     )
     lines = out.splitlines()
     assert lines[1].startswith("  for you: ruling 189 record 31")
@@ -835,6 +880,15 @@ def test_beat_text_carrying_its_own_marker_is_refused(capsys):
     assert "marker" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("sandbox", ["agent-uplevel-coordinator", "uplevel-coordinator"])
+def test_beat_refuses_the_coordinator_whose_beat_carries_its_read_through(sandbox, capsys):
+    # The coordinator's heartbeat holds the `read-through:` cursor every tick reads from; a
+    # two-line beat written over it would erase that cursor (roles/coordinator.md owns it).
+    code, fake, _ = beat("coordinator · 09:30Z · tick", sandbox=sandbox)
+    assert code == 2 and fake.calls == []
+    assert "read-through" in capsys.readouterr().err
+
+
 def test_beat_after_a_failed_read_writes_nothing(capsys):
     # "No beat found" from a read that never happened would POST a duplicate row.
     fake = Fake()
@@ -849,7 +903,9 @@ def test_beat_after_a_failed_read_writes_nothing(capsys):
 
 
 def ready(rollup=None, labels=("lane:ops", "cell:b"), armed=False, draft=False):
-    """#7158 -- mine, on OTHER_BRANCH -- alone, in the shape a marker test varies."""
+    """#7158 -- mine, on OTHER_BRANCH -- alone, in the shape a marker test varies. Its default
+    rollup is a READY run: the green gate plus a job of the same run that really ran."""
+    rollup = rollup if rollup is not None else [gate(), job()]
     p = pr(7158, labels=list(labels), head=MINE2_HEAD, draft=draft, rollup=rollup, title=MINE2, armed=armed)  # fmt: skip
     return {"prs": [p], "heads": [head_row(7158, OTHER_BRANCH, MINE2)]}
 
@@ -884,11 +940,19 @@ def test_a_gate_beyond_the_list_apis_100_row_cap_is_re_read_before_it_prints():
 
 
 # --- ruling 198: `needs your review` and `arm auto-merge` on my own PRs ----------------------
+# The markers read reviews as the coordinator's tick and merge audit do: REVIEWS_JQ's comments,
+# `is_approval` on the first line, and `Snapshot.judge` (the sha named, else the UR-106 carry).
+# The head commit's date is consulted only when that judge cannot decide.
 
 
 def review(cid, body=APPROVE, minutes=-10):
-    """A review comment on #7158; the default, 10 minutes ago, is after HEAD_AT (09:00Z)."""
+    """A comment on #7158; the default, 10 minutes ago, is after HEAD_AT (09:00Z)."""
     return comment(cid, 7158, body, t(timedelta(minutes=minutes)), pr=True)
+
+
+def approve_of(rev):
+    """The default approval, naming ``rev`` instead of the head on its first line."""
+    return APPROVE.replace(MINE2_HEAD[:9], rev[:9])
 
 
 def marked(**over) -> str:
@@ -901,6 +965,76 @@ def test_a_ready_pr_with_finished_ci_and_no_review_needs_my_review():
     assert "— needs your review" in marked(**ready(rollup=[gate("FAILURE")]))
 
 
+def test_an_approve_naming_the_head_with_plan_text_none_and_a_real_green_run_arms_auto_merge():
+    fake, out = run_tick(**ready(), pr_comments={7158: [review(45)]})
+    assert row(out, 7158).endswith("— arm auto-merge")
+    # identity: the approval names the head, so no UR-106 diff and no date is read
+    assert not fake.asked("--format=%cI") and not fake.asked("--json files")
+    # the reviews are the snapshot's own verdict read, filter and all
+    assert fake.asked(f"issues/7158/comments?per_page=100 --paginate --jq {snap.REVIEWS_JQ}")
+
+
+def test_a_self_review_heading_is_no_approval_as_the_audit_reads_it():
+    # Reproduction (a): the merge audit keys on the FIRST line (REVIEWS_JQ, is_approval) and reads
+    # this as "no approving review", so arming it would merge what the audit then flags.
+    body = f"## Self-review\n**Review: approve** `{MINE2_HEAD[:9]}`\n- **Plan text:** none.\n"
+    line = marked(**ready(), pr_comments={7158: [review(44, body)]})
+    assert "arm auto-merge" not in line
+    assert "— needs your review" in line  # no review the coordinator counts: still owed
+
+
+def test_an_approve_of_an_old_head_posted_after_the_new_commit_is_not_for_it():
+    # Reproduction (b): posted after the head's commit date, but it names OLD_HEAD and the author's
+    # later commit changed the own diff -- UR-106 says no carry, so the date must not decide it.
+    fake, out = run_tick(
+        **ready(),
+        pr_comments={7158: [review(46, approve_of(OLD_HEAD), minutes=-5)]},
+        diffs={OLD_HEAD[:9]: SAME_DIFF.replace("+b", "+c")},
+    )
+    line = row(out, 7158)
+    assert "arm auto-merge" not in line and "— needs your review" in line
+    assert fake.asked("--json files")  # the carry was read, the judge's way
+    assert not fake.asked("--format=%cI")  # ...so the date never was
+
+
+def test_an_update_branch_head_the_approval_carries_needs_no_new_review():
+    # Reproduction (c): the coordinator's update-branch made a new head whose own diff equals the
+    # approved one (UR-106 carry). The approval still holds, so no re-review is owed -- even
+    # though it was posted BEFORE the new head's commit date.
+    line = marked(
+        **ready(),
+        pr_comments={7158: [review(47, approve_of(OLD_HEAD), minutes=-40)]},
+        diffs={},  # same diff at both revs: the carry
+    )
+    assert "needs your review" not in line
+    assert line.endswith("— arm auto-merge")
+
+
+def test_a_reply_quoting_a_verdict_is_not_a_review():
+    # Reproduction (d): a quote starts with `>`, so REVIEWS_JQ (body starts `Review:`) skips it,
+    # as the coordinator does; it must not stand in for the review the PR still needs.
+    body = "> Review: changes requested\n\nFixed in the next push.\n"
+    line = marked(**ready(), pr_comments={7158: [review(48, body)]})
+    assert "— needs your review" in line
+
+
+def test_a_changes_requested_review_of_the_head_is_a_review_and_arms_nothing():
+    body = f"Review: changes requested `{MINE2_HEAD[:9]}`\nPlan text: none\n"
+    line = marked(**ready(), pr_comments={7158: [review(49, approve_of(MINE2_HEAD), minutes=-20), review(50, body, minutes=-5)]})  # fmt: skip
+    assert "needs your review" not in line and "arm auto-merge" not in line
+
+
+def test_a_review_naming_no_sha_falls_back_to_the_head_commit_date():
+    # The judge cannot decide ("the approval names no sha"); the head commit's committed date,
+    # read from the head ref the snapshot fetched, decides instead -- and an arm says it did.
+    no_sha = APPROVE.replace(f" `{MINE2_HEAD[:9]}`", "")
+    fake, out = run_tick(**ready(), pr_comments={7158: [review(51, no_sha, minutes=-10)]})
+    assert row(out, 7158).endswith("— arm auto-merge (by date: the approval names no sha)")
+    assert fake.asked(f"git log -1 --format=%cI {MINE2_HEAD}")
+    older = marked(**ready(), pr_comments={7158: [review(52, no_sha, minutes=-40)]})
+    assert "— needs your review" in older and "arm auto-merge" not in older
+
+
 @pytest.mark.parametrize(
     ("why", "case"),
     [
@@ -908,51 +1042,24 @@ def test_a_ready_pr_with_finished_ci_and_no_review_needs_my_review():
         ("CI still running at the head", dict(ready(rollup=[gate(None, "IN_PROGRESS")]))),
         ("CI queued", dict(ready(rollup=[gate(None, "QUEUED")]))),
         ("no gate at the head at all", dict(ready(rollup=[filler()]))),
-        ("a review at the head exists", {**ready(), "pr_comments": {7158: [review(41)]}}),
-        (
-            "a changes-requested review at the head exists",
-            {
-                **ready(),
-                "pr_comments": {7158: [review(42, "Review: changes requested\nPlan text: none\n")]},
-            },
-        ),
+        ("an approve at the head exists", {**ready(), "pr_comments": {7158: [review(53)]}}),
     ],
 )
 def test_needs_your_review_is_not_printed_when(why, case):
     assert "needs your review" not in marked(**case), why
 
 
-def test_a_review_older_than_the_head_commit_is_not_a_review_of_it():
-    # Reviewed at 08:50Z, head committed 09:00Z: the review read an earlier head (UR-106 resets it).
-    old = review(43, minutes=-40)
-    line = marked(**ready(), pr_comments={7158: [old]})
-    assert "— needs your review" in line and "arm auto-merge" not in line
-    # the head date is the head commit's committed date, read from the ref the snapshot fetched
-    fake, _ = run_tick(**ready(), pr_comments={7158: [old]})
-    assert fake.asked(f"git log -1 --format=%cI {MINE2_HEAD}")
-
-
-def test_a_review_line_anywhere_in_the_comment_counts():
-    # "a line starting `Review: approve`" -- not only the first line, and through markdown.
-    body = "## Self-review\n\n**Review: approve**\n- **Plan text:** `none`.\n"
-    assert "— arm auto-merge" in marked(**ready(), pr_comments={7158: [review(44, body)]})
-
-
-def test_an_approve_at_the_head_with_plan_text_none_and_a_green_gate_arms_auto_merge():
-    assert "— arm auto-merge" in marked(**ready(), pr_comments={7158: [review(45)]})
-
-
 @pytest.mark.parametrize(
     ("why", "case"),
     [
         (
-            "the latest review requests changes",
+            "the newest review requests changes",
             {
                 **ready(),
                 "pr_comments": {
                     7158: [
-                        review(46, minutes=-20),
-                        review(47, "Review: changes requested\nPlan text: none\n", minutes=-5),
+                        review(54, minutes=-20),
+                        review(55, f"Review: changes requested `{MINE2_HEAD[:9]}`\n", minutes=-5),
                     ]
                 },
             },
@@ -962,31 +1069,51 @@ def test_an_approve_at_the_head_with_plan_text_none_and_a_green_gate_arms_auto_m
             {
                 **ready(),
                 "pr_comments": {
-                    7158: [review(48, APPROVE.replace("none.", "rule text (UR-47 owner kind)."))]
+                    7158: [review(56, APPROVE.replace("none.", "rule text (UR-47 owner kind)."))]
                 },
             },
         ),
         (
             "the review states no Plan text",
-            {**ready(), "pr_comments": {7158: [review(49, "Review: approve\nNotes:\n")]}},
+            {
+                **ready(),
+                "pr_comments": {
+                    7158: [review(57, f"Review: approve `{MINE2_HEAD[:9]}`\nNotes:\n")]
+                },
+            },
         ),
         (
             "the owner label",
-            {**ready(labels=("lane:ops", "owner")), "pr_comments": {7158: [review(50)]}},
+            {**ready(labels=("lane:ops", "owner")), "pr_comments": {7158: [review(58)]}},
         ),
-        ("auto-merge already on", {**ready(armed=True), "pr_comments": {7158: [review(51)]}}),
+        ("auto-merge already on", {**ready(armed=True), "pr_comments": {7158: [review(59)]}}),
         (
             "the gate is red",
-            {**ready(rollup=[gate("FAILURE")]), "pr_comments": {7158: [review(52)]}},
+            {**ready(rollup=[gate("FAILURE"), job()]), "pr_comments": {7158: [review(60)]}},
         ),
         (
             "CI still running",
-            {**ready(rollup=[gate(None, "IN_PROGRESS")]), "pr_comments": {7158: [review(53)]}},
+            {
+                **ready(rollup=[gate(None, "IN_PROGRESS"), job()]),
+                "pr_comments": {7158: [review(61)]},
+            },
         ),
-        ("a draft", {**ready(draft=True), "pr_comments": {7158: [review(54)]}}),
+        ("a draft", {**ready(draft=True), "pr_comments": {7158: [review(62)]}}),
+        # item 5: a draft run skips every job and its gate still reads SUCCESS
         (
-            "the approve is older than the head",
-            {**ready(), "pr_comments": {7158: [review(55, minutes=-40)]}},
+            "the gate's run was a draft run (every job skipped)",
+            {**ready(rollup=[gate(), job("SKIPPED")]), "pr_comments": {7158: [review(63)]}},
+        ),
+        (
+            "the gate's run ran nothing but the gate",
+            {**ready(rollup=[gate()]), "pr_comments": {7158: [review(64)]}},
+        ),
+        (
+            "the only real job belongs to another run",
+            {
+                **ready(rollup=[gate(), job("SKIPPED"), filler()]),
+                "pr_comments": {7158: [review(65)]},
+            },
         ),
     ],
 )
@@ -994,15 +1121,33 @@ def test_arm_auto_merge_is_not_printed_when(why, case):
     assert "arm auto-merge" not in marked(**case), why
 
 
-def test_a_draft_pays_neither_marker_read():
+def test_a_real_run_is_one_whose_own_non_gate_check_succeeded():
+    assert tick.ran_for_real([gate(), job("SKIPPED"), job("SUCCESS", name="Lint")], GATE_RUN)
+    assert not tick.ran_for_real([gate(), job("SKIPPED")], GATE_RUN)
+    assert not tick.ran_for_real([gate(), filler()], GATE_RUN)  # run 901, not the gate's
+    assert not tick.ran_for_real([gate(), job()], None)
+
+
+def test_a_draft_pays_no_marker_read():
     fake, _ = run_tick(**ready(draft=True))
     assert not fake.asked("--format=%cI")
-    assert not [c for c in fake.asked("issues/7158/comments") if "since=" not in c]
+    assert not fake.asked("--jq")
 
 
-@pytest.mark.parametrize(("needle", "tag"), [("--format=%cI", "head date #7158"), ("issues/7158/comments?per_page", "review comments #7158")])  # fmt: skip
-def test_an_unread_marker_input_says_review_unread_never_nothing(needle, tag):
-    fake = Fake(**ready())
+@pytest.mark.parametrize(
+    ("needle", "tag", "comments"),
+    [
+        ("issues/7158/comments?per_page", "review comments #7158", []),
+        # the date is read only when the judge cannot decide: a review naming no sha
+        (
+            "--format=%cI",
+            "head date #7158",
+            [review(66, APPROVE.replace(f" `{MINE2_HEAD[:9]}`", ""))],
+        ),
+    ],
+)
+def test_an_unread_marker_input_says_review_unread_never_nothing(needle, tag, comments):
+    fake = Fake(**ready(), pr_comments={7158: comments})
     fake.fail(needle)
     out = "\n".join(tick.build(fake, lambda: NOW, REPO, SANDBOX))
     assert "— review unread" in row(out, 7158)
@@ -1257,9 +1402,10 @@ def test_a_hold_and_a_claimable_are_never_both_printed():
         ("headRefName", "heads"),
         ("git branch", "branches"),
         ("rev-list", "behind #7158"),
-        # ruling 198's two marker reads on my ready #7158: unread, never "no marker owed"
-        ("--format=%cI", "head date #7158"),
+        # ruling 198's verdict read on my ready #7158: unread, never "no marker owed"
         ("issues/7158/comments?per_page", "review comments #7158"),
+        # ruling 197's pointer read, repo-wide over the records' 48-hour window
+        (f"issues/comments?since={snap.iso(NOW - snap.BINDING_LIFE)}", "pointers"),
         ("roles/lane.md", "identities"),
         ("packages/ops.md", "packages"),
         ("ruling-map.md", "ruling map"),

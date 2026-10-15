@@ -4,8 +4,8 @@
     uv run python scripts/uplevel/lane_tick.py --sandbox <name> [--repo OWNER/REPO]
     uv run python scripts/uplevel/lane_tick.py --sandbox <name> --beat "<line 2>"
 
-Prints, in tick order: the ``for you:`` lines (ruling 197: each live record and each owner pointer
-since my beat whose machine footer names me), my heartbeat id and age, the coordinator's age
+Prints, in tick order: the ``for you:`` lines (ruling 197: each record and each owner pointer of
+the last 48 hours whose machine footer names me), my heartbeat id and age, the coordinator's age
 (UR-162), disk use of `/` and `/var/lib/docker` (UR-180 pointer above 90%), the live ``BINDING NOW``
 records the ruling map does not carry (ruling 177), my own open PRs with their one CI read (UR-38)
 and ruling 198's ``needs your review`` / ``arm auto-merge`` markers (each PR's one review is its
@@ -49,13 +49,13 @@ MOUNTS = ("/", "/var/lib/docker")
 CAP_LINES = 80  # ops.md's "at most 80 lines" for this tool -- read on the printed digest, below.
 URGENT_LIFE = timedelta(hours=1)  # UR-162's one-raise-per-hour dedup window.
 PLAN_TEXT = re.compile(r"^[ \t>*_#`-]*\*{0,2}Plan text:\*{0,2}[ \t]*(.*)$", re.IGNORECASE | re.M)
-# Ruling 198: a review comment is a PR comment with a LINE starting `Review: approve` or
-# `Review: changes requested` -- the form roles/lane.md gives the author's UR-89 subagent review.
-# A line anywhere in the body, not only the first: the snapshot's verdict read keys on the first
-# line, and a review the author opened with a heading would otherwise read as no review at all.
-REVIEW_VERDICT = re.compile(
-    r"^[ \t>*_]*Review:[ \t*_`]*(approved?|changes requested)\b", re.IGNORECASE | re.M
-)
+# Ruling 198's markers read reviews EXACTLY as the coordinator does: a review is a comment whose
+# body starts `Review:` (the snapshot's REVIEWS_JQ), an approval is `is_approval(first_line)`, and
+# "for this head" is `Snapshot.judge` -- the sha the review names, else the UR-106 carry. A reading
+# of its own ("a `Review: approve` on any line, posted after the head's commit") disagreed with the
+# merge audit both ways: it armed a `## Self-review` heading the audit reads as no approving review,
+# and it asked for a re-review of an update-branch head the audit reads as carried (see
+# `review_marker`).
 # `CI Gate` states that mean the run at the head has FINISHED. Anything else -- in progress,
 # queued, pending, absent, or a state this list does not know -- is "not finished": the marker
 # waits a tick rather than send the author to review a head whose CI-only clauses are unread.
@@ -105,12 +105,22 @@ class LaneSnap(snap.Snapshot):
     """The snapshot minus the coordinator's own reads. ``_main`` shrinks to the ``git fetch`` the
     later sections assume (UR-38's lane CI read is the gate inside ``_prs``); ``_legs`` and the
     ``_merged_audit`` are the coordinator's update-branch and merge verdicts, never a lane's, and so
-    is ``_review`` -- the approval-sha verdict and UR-106 carry over EVERY open PR, which the digest
-    never printed. Ruling 198's review markers are read in ``build`` for my own ready PRs only.
+    is ``_review`` over EVERY open PR -- ``build`` runs the same read and the same ``judge`` for my
+    own ready PRs only, which is all ruling 198's markers need. ``_rollup`` is kept, and each PR's
+    rollup is remembered, because ``arm auto-merge`` asks whether the gate's run was a draft run.
     ``_comments`` is kept because it sets ``self.now``, which ``_binding_now``/``_heartbeats`` read."""
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.rollups: dict[int, list[dict]] = {}
+
     def _review(self, item: dict) -> None:
-        """The coordinator's UR-106 verdict read; the lane's own review read is in ``build``."""
+        """The coordinator's verdict read over every PR; ``build`` reads it for mine (``judge``)."""
+
+    def _rollup(self, pr: dict, errors: list[str]) -> list[dict]:
+        rollup = super()._rollup(pr, errors)
+        self.rollups[pr["number"]] = rollup
+        return rollup
 
     def _main(self) -> None:
         self.data["main"] = {"errors": []}
@@ -199,14 +209,20 @@ def records_for(me: str, binding: list[dict], owner: list[dict]) -> list[str]:
     return out
 
 
-def pointers_for(me: str, number: int, comments: list[dict]) -> list[str]:
-    """``for you:`` per comment on PR ``number`` whose footer is an owner pointer naming me.
+def pointers_for(me: str, comments: list[dict], now) -> list[str]:
+    """``for you:`` per owner pointer naming me, posted anywhere in the last 48 hours.
 
-    The comments are the ones already windowed to my beat (GitHub's ``since``); a comment without a
-    footer still only counts toward the row's ``Nc`` as before.
+    The same window as a record (``BINDING_LIFE``), read repo-wide in one call -- not "my open PRs
+    since my beat": a pointer posted between one digest and the next beat fell outside that window
+    for good, and one on a merged, closed or other lane's PR was never read at all. #6854's own
+    comments are skipped here; ``records_for`` reads that issue.
     """
+    start = now - snap.BINDING_LIFE
     out = []
-    for c in comments:
+    for c in sorted(comments, key=lambda c: c.get("created_at") or ""):
+        number = snap.issue_number(c)
+        if number == snap.OWNER_ISSUE or snap.parse_time(c["created_at"]) <= start:
+            continue
         f = footer(c.get("body"))
         if f and f["kind"] == "pointer" and f["lane"] == me:
             out.append(f"  for you: owner pointer on #{number} (ruling {f['ruling']}) comment {c.get('id')}")  # fmt: skip
@@ -229,14 +245,6 @@ def my_beat(items, sandbox: str) -> dict | None:
     return max(mine, key=lambda h: h["updated_at"]) if mine else None
 
 
-def review_verdict(body: str | None) -> str | None:
-    """``approve`` / ``changes requested`` for a review comment (ruling 198), else ``None``."""
-    match = REVIEW_VERDICT.search(body or "")
-    if not match:
-        return None
-    return "approve" if match.group(1).lower().startswith("approve") else "changes requested"
-
-
 def plan_text(body: str | None) -> str | None:
     """A review's ``Plan text:`` value, lower-cased, read through its markdown; ``None`` if absent.
 
@@ -251,36 +259,83 @@ def plan_text(body: str | None) -> str | None:
     return match.group(1).replace("`", "").strip(" \t*_").rstrip(".").strip(" \t*_").lower()
 
 
-def review_marker(p: dict, thread: list[dict], head_at) -> str:
-    """Ruling 198's marker for one of MY ready PRs, from its whole comment thread.
+def ran_for_real(rollup: list[dict], run_id: int | None) -> bool:
+    """Did the gate's run run anything? On a draft every job but the gate is skipped and the gate
+    still reports SUCCESS over the skipped legs, so a draft run's green gate armed by ruling 198's
+    author merges with no CI at all. A real run has some OTHER check of that same run (matched by
+    the run id in its ``detailsUrl``) that concluded SUCCESS -- SKIPPED is not success."""
+    for c in rollup:
+        if (c.get("name") or c.get("context")) == snap.GATE_CHECK:
+            continue
+        m = snap.RUN_ID.search(c.get("detailsUrl") or c.get("targetUrl") or "")
+        if m and run_id is not None and int(m.group(1)) == run_id:
+            if (c.get("conclusion") or "").upper() == "SUCCESS":
+                return True
+    return False
 
-    A review is "for the head" when it was posted after the head commit's COMMITTED date (read from
-    the PR head ref the snapshot already fetched; the push time itself is in no read the digest
-    makes, and a commit is never pushed before it is committed). ``needs your review``: CI at the
-    head has finished and no review is for the head. ``arm auto-merge``: the latest review for the
-    head approves with ``Plan text: none``, the gate is green, auto-merge is off and the PR carries
-    no ``owner`` label -- an owner-tier PR waits for the owner's record, and a ``Plan text:`` other
-    than ``none`` is the author's call to read, never this marker's.
+
+def at_head(s: snap.Snapshot, p: dict, review: dict) -> tuple[bool | None, str]:
+    """Is ``review`` a review of PR ``p``'s head, read as the coordinator reads it?
+
+    The newest approval is ``Snapshot.judge``'s own verdict on ``p`` (its ``own_diff`` carry). Any
+    other review goes through the same three arms ``judge`` has: the sha it names is the head
+    (identity), names no sha (undecided), or names another rev, whose UR-106 own-diff hash either
+    carries to the head or not (``Snapshot._own_diff``, the same reads). ``None`` with the reason
+    is "the judge cannot decide", the one case the caller falls back to dates for.
     """
-    at_head = sorted(
-        (
-            c
-            for c in thread
-            if review_verdict(c.get("body")) and snap.parse_time(c["created_at"]) > head_at
-        ),
-        key=lambda c: snap.parse_time(c["created_at"]),
-    )
-    if not at_head:
-        return " — needs your review" if p["gate"] in GATE_DONE else ""
-    latest = at_head[-1]["body"]
+    approval = p.get("approval") or {}
+    if review.get("id") == approval.get("id"):
+        own = p.get("own_diff") or {}
+        if own.get("carry") is None:
+            return None, p.get("verdict_reason") or own.get("error") or "the carry is unread"
+        return own["carry"], ""
+    sha = snap.approval_sha(review.get("body") or "")
+    if not sha:
+        return None, "the review names no sha"
+    if p["head"].startswith(sha):
+        return True, ""
+    probe = {"number": p["number"], "head": p["head"], "errors": p["errors"]}
+    s._own_diff(probe, sha, judged_first=True)
+    own = probe["own_diff"]
+    return own["carry"], ("" if own["carry"] is not None else own.get("error") or "the carry is unread")  # fmt: skip
+
+
+def review_marker(s: snap.Snapshot, p: dict, reviews: list[dict], head_at: Callable) -> str:
+    """Ruling 198's marker for one of MY ready PRs, from its review comments (REVIEWS_JQ's read).
+
+    The reviews are judged exactly as the coordinator's tick and merge audit judge them
+    (``Snapshot.judge``, then ``at_head`` for a newest review that is not the newest approval), so
+    a marker cannot ask for what the audit then refuses. Only when the judge cannot decide -- the
+    review names no sha, or a rev's diff is unread -- is "for this head" read off the head commit's
+    COMMITTED date (``head_at``, read lazily: a decided PR pays no date read); an ``arm auto-merge``
+    decided that way says so. ``needs your review``: CI at the head has finished and the newest
+    review is not for this head. ``arm auto-merge``: the newest review is for this head, approves
+    (``is_approval`` on its first line) with ``Plan text: none``, the gate is green from a real
+    (non-draft) run, auto-merge is off and there is no ``owner`` label -- an owner-tier PR waits
+    for the owner's record, and any other ``Plan text:`` is the author's call, never this marker's.
+    """
+    s.judge(p, reviews, judged_first=True)  # sorts `reviews` oldest first, as the audit does
+    done = p["gate"] in GATE_DONE
+    if not reviews:
+        return " — needs your review" if done else ""
+    newest = reviews[-1]
+    here, why = at_head(s, p, newest)
+    if here is None:
+        when = head_at()
+        if when is None:
+            return " — review unread"
+        here = snap.parse_time(newest["created_at"]) > when
+    if not here:
+        return " — needs your review" if done else ""
     if (
-        review_verdict(latest) == "approve"
-        and plan_text(latest) == "none"
+        snap.is_approval(snap.first_line(newest["body"]))
+        and plan_text(newest["body"]) == "none"
         and p["gate"] == "SUCCESS"
+        and ran_for_real(getattr(s, "rollups", {}).get(p["number"], []), p.get("gate_run"))
         and not p.get("armed")
         and "owner" not in p["labels"]
     ):
-        return " — arm auto-merge"
+        return " — arm auto-merge" + (f" (by date: {why})" if why else "")
     return ""
 
 
@@ -581,23 +636,30 @@ def build(
     mine = [p for p in items if heads.get(p["number"], {}).get("headRefName") in branches]
 
     def marker(p: dict) -> str:
-        """Ruling 198's ``needs your review`` / ``arm auto-merge`` for a ready PR of mine. Two reads,
-        both through the runner: the head's committed date from the head ref the snapshot fetched,
-        and the PR's whole thread (a review older than my beat still decides the marker). A failed
-        read prints ``review unread`` on the row and an ERROR line, never a missing marker that
-        would read as "nothing to do"."""
+        """Ruling 198's ``needs your review`` / ``arm auto-merge`` for a ready PR of mine. Its reads
+        go through the runner: the snapshot's own verdict read (REVIEWS_JQ, the call ``_review``
+        makes), the UR-106 own-diff reads ``judge`` makes for an approval of another rev, and --
+        only when the judge cannot decide -- the head commit's committed date from the head ref the
+        snapshot fetched. A failed read prints ``review unread`` on the row and an ERROR line, never
+        a missing marker that would read as "nothing to do"."""
         if p["draft"]:
             return ""  # a draft is neither reviewed nor armed (ruling 198: skipped jobs pass)
         n = p["number"]
         try:
-            head_at = snap.parse_time(run(["git", "log", "-1", "--format=%cI", p["head"]]))
+            path = f"repos/{repo}/issues/{n}/comments?per_page=100"
+            reviews = s.gh_paginated(path, "--jq", snap.REVIEWS_JQ)
         except Exception as exc:
-            extra.append(f"  ERROR head date #{n}: {snap.error_text(exc)}")
+            extra.append(f"  ERROR review comments #{n}: {snap.error_text(exc)}")
             return " — review unread"
-        raw = call(["gh", "api", f"repos/{repo}/issues/{n}/comments?per_page=100", "--paginate"], f"review comments #{n}")  # fmt: skip
-        if raw is None:
-            return " — review unread"
-        return review_marker(p, snap.parse_json_stream(raw), head_at)
+
+        def head_at():
+            try:
+                return snap.parse_time(run(["git", "log", "-1", "--format=%cI", p["head"]]))
+            except Exception as exc:
+                extra.append(f"  ERROR head date #{n}: {snap.error_text(exc)}")
+                return None
+
+        return review_marker(s, p, reviews, head_at)
 
     out.append(f"== mine ({len(mine)})")
     for p in mine:
@@ -614,7 +676,12 @@ def build(
             if (r.get("submitted_at") or r.get("created_at") or "") >= since
         ]
         out.append(row(p, f"{tail} {len(cmts)}c/{len(revs)}r since beat{marker(p)}"))
-        for_you += pointers_for(me, p["number"], cmts)
+    # Ruling 197's pointers: one repo-wide read over the records' 48-hour window. GitHub's `since`
+    # bounds it by update time; `pointers_for` bounds it by posting time, as `_binding_now` does.
+    window = snap.iso(now - snap.BINDING_LIFE)
+    raw = call(["gh", "api", f"repos/{repo}/issues/comments?since={window}&per_page=100", "--paginate"], "pointers")  # fmt: skip
+    if raw is not None:
+        for_you += pointers_for(me, snap.parse_json_stream(raw), now)
     # UR-52's precondition, printed: an agent holding an open package is not claim-eligible, and a
     # `next claimable` line beside a held package invites the queue-jump the rule forbids. The gate
     # reads the whole lane file, not the queue column, because a package the roster never lists is
@@ -658,9 +725,13 @@ def beat(
     PATCH "the two lines", and passing both here would put two markers in one beat). My comment is
     found by the snapshot's own #6958 read and ``my_beat``'s identity rule, so the beat the digest
     prints is the one this edits; with none, one is posted. A failed read writes nothing (exit 1):
-    "no beat found" from a read that did not happen would post a duplicate row.
+    "no beat found" from a read that did not happen would post a duplicate row. The coordinator is
+    refused outright: its beat carries the ``read-through:`` cursor every tick reads from, which a
+    two-line lane beat written over it would erase (``roles/coordinator.md`` owns that comment).
     """
     body = beat_body(sandbox, text)
+    if footer_name(sandbox) == "coordinator":
+        return 2, "refused: the coordinator's beat carries its read-through: cursor; write it as roles/coordinator.md says"  # fmt: skip
     if snap.HEARTBEAT_PREFIX in text:
         return 2, "refused: --beat takes the line(s) after the marker; the tool writes the marker"
     if len(body) > BEAT_CAP:
