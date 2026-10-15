@@ -285,3 +285,160 @@ async def test_search_returns_query_in_response(client, setup_searchable_events)
 
     assert data["total_count"] >= 0
     assert isinstance(data["results"], list)
+
+
+@pytest.fixture
+async def setup_severity_mismatch_events(db_session):
+    """Camera + events whose stored risk_level disagrees with their risk_score.
+
+    `[r211b]` break (2): the search filter tested the stored `risk_level` column
+    while the response recomputes it from `risk_score`
+    (backend/api/schemas/search.py:44 -> schemas/events.py:19), so a row can
+    display one level and be filtered by another. Each row here is written with
+    the *wrong* stored level on purpose; the displayed level is the derived one.
+    """
+    camera_id = unique_id("sev_mismatch_cam")
+    db_session.add(
+        Camera(
+            id=camera_id,
+            name=f"Severity mismatch {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+            status="online",
+        )
+    )
+    await db_session.flush()
+
+    # (risk_score, stored risk_level) pairs straddling every band boundary.
+    rows = [
+        (91, "high"),  # the ruling's measured instance: displays critical
+        (84, "medium"),  # displays high
+        (85, "low"),  # displays critical
+        (60, "low"),  # displays high
+        (59, "critical"),  # displays medium
+        (30, "low"),  # displays medium
+        (29, "medium"),  # displays low
+    ]
+    events = [
+        Event(
+            batch_id=unique_id(f"batch_sc{i}"),
+            camera_id=camera_id,
+            started_at=datetime.now(UTC) - timedelta(hours=1 + i),
+            risk_score=score,
+            risk_level=stored_level,
+            summary="Person seen near the camera",
+            reasoning="Test row for the severity derivation",
+            reviewed=False,
+            object_types="person",
+        )
+        for i, (score, stored_level) in enumerate(rows)
+    ]
+    for event in events:
+        db_session.add(event)
+    await db_session.commit()
+    return {"events": events, "camera_id": camera_id}
+
+
+@pytest.mark.asyncio
+async def test_search_never_returns_soft_deleted_events(
+    client, db_session, setup_searchable_events
+):
+    """`[r211b]` break (1): browse hides soft-deleted events, search did not.
+
+    GET /api/events filters on Event.deleted_at (routes/events.py:418); the
+    search service had no such predicate, so a deleted event stayed searchable
+    while invisible in the list the panel actually draws from.
+    """
+    # Scoped to this fixture's camera: the shared integration DB holds other
+    # rows that match the same text, so an unscoped total_count == len(results)
+    # assertion would measure other tests' data.
+    camera_id = setup_searchable_events["front_door_id"]
+    victim = setup_searchable_events["events"][0]
+    victim_id = victim.id
+
+    # Present before deletion, so the assertion below cannot pass by accident.
+    before = await client.get(
+        "/api/events/search", params={"q": "suspicious", "camera_id": camera_id}
+    )
+    assert before.status_code == 200
+    assert victim_id in [r["id"] for r in before.json()["results"]]
+
+    victim.deleted_at = datetime.now(UTC)
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/events/search", params={"q": "suspicious", "camera_id": camera_id}
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert victim_id not in [r["id"] for r in data["results"]]
+    # The count must agree with the page, or the panel renders "N of M" over a
+    # list that no longer holds the row (ruling 211's measured symptom).
+    assert data["total_count"] == len(data["results"])
+
+
+@pytest.mark.asyncio
+async def test_search_severity_filter_returns_the_level_a_result_displays(
+    client, setup_severity_mismatch_events
+):
+    """`[r211b]` break (2): filtering tested the stored column, the response
+    reports the derived level, so `severity=critical` missed a row displayed
+    critical. The filter and the response must read one derivation.
+    """
+    camera_id = setup_severity_mismatch_events["camera_id"]
+    events = setup_severity_mismatch_events["events"]
+
+    # What the API actually reports per row, keyed by score.
+    listed = await client.get("/api/events/search", params={"q": "person", "camera_id": camera_id})
+    assert listed.status_code == 200
+    displayed = {r["risk_score"]: r["risk_level"] for r in listed.json()["results"]}
+    assert displayed[91] == "critical", "the response recomputes from risk_score"
+    assert len(displayed) == len(events), "every mismatch row is searchable"
+
+    for score, level in displayed.items():
+        filtered = await client.get(
+            "/api/events/search",
+            params={"q": "person", "camera_id": camera_id, "severity": level},
+        )
+        assert filtered.status_code == 200
+        ids = [r["id"] for r in filtered.json()["results"]]
+        assert any(r["risk_score"] == score for r in filtered.json()["results"]), (
+            f"a row displaying {level} (score {score}) must be returned by severity={level}"
+        )
+        # and nothing in the page displays a different level
+        for r in filtered.json()["results"]:
+            assert r["risk_level"] == level
+
+
+@pytest.mark.asyncio
+async def test_search_severity_filter_agrees_at_band_boundaries(
+    client, setup_severity_mismatch_events
+):
+    """Every band boundary lands in the filter's result page, not just the middle.
+
+    Pins the SQL-side derivation to the same bands the Python echo uses
+    (models/event.py:426 emits 29/59/84; schemas/events.py:19 reads the same
+    values from settings), so the two cannot drift apart silently.
+    """
+    camera_id = setup_severity_mismatch_events["camera_id"]
+    expected = {
+        91: "critical",
+        85: "critical",
+        84: "high",
+        60: "high",
+        59: "medium",
+        30: "medium",
+        29: "low",
+    }
+
+    for level in ("low", "medium", "high", "critical"):
+        response = await client.get(
+            "/api/events/search",
+            params={"q": "person", "camera_id": camera_id, "severity": level},
+        )
+        assert response.status_code == 200
+        results = response.json()["results"]
+        assert {r["risk_score"] for r in results if r["camera_id"] == camera_id} == {
+            score for score, lvl in expected.items() if lvl == level
+        }, f"severity={level} should select exactly the scores that display {level}"
+        assert all(r["risk_level"] == level for r in results)
