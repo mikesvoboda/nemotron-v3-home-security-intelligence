@@ -193,6 +193,10 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 178    | lane.md beat before long steps; coordinator.md step 5 (record 6172424097)                                   |
 | 179    | UR-155 600-char heartbeats; UR-181 evidence cells (record 6172543400)                                       |
 | 180    | package `[r157]`: independent builds, `--plan-timeout` (record 6173140800)                                  |
+| 181    | package `[r181]`: lane-tick digest, activity snapshot; `BLOCKER:` line (record 6173920972)                  |
+| 182    | UR-182: RTX VSS positioning, Easy/Advanced modes; seven rows kept (record 6174228588)                       |
+| 183    | package B3.2: scene-change vertical kept, R2a row 24 over OD-28 (record 6175205677)                         |
+| 184    | heavy agents renamed heavy-a/-b; FE-4 and OP-1 batches; UR-59 label (record 6177514438)                     |
 
 ## Owner records
 

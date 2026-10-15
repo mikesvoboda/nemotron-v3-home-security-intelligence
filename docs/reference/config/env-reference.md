@@ -274,12 +274,13 @@ Camera images are expected at: `{FOSCAM_BASE_PATH}/{camera_name}/`
 
 High-confidence detections can bypass batching for immediate alerts.
 
-> **Status:** The fast path is **DISABLED by default**. The threshold ships at `2.0` (an impossible value > 1.0) and the object-type list ships empty, as a second safety net — a fast-path detection skips the batch's specialist lookups, and the score it returns is weaker for it. Do not lower the threshold or add object types without first running the lookups on the fast-path code path. In `vlm` mode the bypass routes the single detection through `VlmAnalyzer`'s batch gate rather than a second analysis path.
+> **Status:** The fast path is **OFF by default**. `FAST_PATH_ENABLED` is the master switch and ships `false`: while it is false no detection takes the fast path whatever the threshold says (ruling 168). The threshold ships at `0.9`, inside the `0.0-1.0` band its consumers enforce, and the object-type list ships empty as a second safety net. A fast-path detection skips the batch's specialist lookups, and the score it returns is weaker for it. Do not enable the switch, lower the threshold, or add object types without first running the lookups on the fast-path code path. In `vlm` mode the bypass routes the single detection through `VlmAnalyzer`'s batch gate rather than a second analysis path.
 
-| Variable                         | Required | Default | Range    | Description                                         |
-| -------------------------------- | -------- | ------- | -------- | --------------------------------------------------- |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | No       | `2.0`   | 0.0-10.0 | Confidence threshold for fast path (2.0 = disabled) |
-| `FAST_PATH_OBJECT_TYPES`         | No       | `[]`    | -        | Object types eligible for fast path (JSON array)    |
+| Variable                         | Required | Default | Range   | Description                                                      |
+| -------------------------------- | -------- | ------- | ------- | ---------------------------------------------------------------- |
+| `FAST_PATH_ENABLED`              | No       | `false` | bool    | Master switch; while false no detection takes the fast path      |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | No       | `0.9`   | 0.0-1.0 | Confidence threshold for fast path (consulted only when enabled) |
+| `FAST_PATH_OBJECT_TYPES`         | No       | `[]`    | -       | Object types eligible for fast path (JSON array)                 |
 
 ---
 

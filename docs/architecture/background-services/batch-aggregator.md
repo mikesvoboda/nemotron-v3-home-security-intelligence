@@ -16,14 +16,15 @@ The BatchAggregator service:
 
 ## Configuration
 
-| Environment Variable             | Default      | Description                         |
-| -------------------------------- | ------------ | ----------------------------------- |
-| `BATCH_WINDOW_SECONDS`           | 90           | Maximum batch window duration       |
-| `BATCH_IDLE_TIMEOUT_SECONDS`     | 30           | Batch idle timeout                  |
-| `BATCH_CHECK_INTERVAL_SECONDS`   | 5.0          | How often to check batch timeouts   |
-| `BATCH_MAX_DETECTIONS`           | 100          | Maximum detections per batch        |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.95         | Confidence threshold for fast path  |
-| `FAST_PATH_OBJECT_TYPES`         | `["person"]` | Object types eligible for fast path |
+| Environment Variable             | Default | Description                         |
+| -------------------------------- | ------- | ----------------------------------- |
+| `BATCH_WINDOW_SECONDS`           | 90      | Maximum batch window duration       |
+| `BATCH_IDLE_TIMEOUT_SECONDS`     | 30      | Batch idle timeout                  |
+| `BATCH_CHECK_INTERVAL_SECONDS`   | 5.0     | How often to check batch timeouts   |
+| `BATCH_MAX_DETECTIONS`           | 100     | Maximum detections per batch        |
+| `FAST_PATH_ENABLED`              | False   | Master switch (off = nothing fires) |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.9     | Confidence threshold for fast path  |
+| `FAST_PATH_OBJECT_TYPES`         | `[]`    | Object types eligible for fast path |
 
 ## Batch Lifecycle
 

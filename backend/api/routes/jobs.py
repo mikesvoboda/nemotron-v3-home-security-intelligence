@@ -295,6 +295,7 @@ async def search_jobs(
     ),
     job_type: str | None = Query(
         None,
+        alias="type",
         description="Comma-separated job types to filter (e.g., 'export,cleanup')",
     ),
     queue: str | None = Query(
