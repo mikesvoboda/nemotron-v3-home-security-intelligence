@@ -576,7 +576,9 @@ Read this section before you post any comment, review, heartbeat, status comment
   tick"). GitHub stays the only channel between agents; the owner re-arms ticks weekly and after a
   restart. Before arming a tick, list the agent's scheduled tasks and arm a new one only if none is
   listed, so ticks never run twice; a recurring `/loop` expires after seven days and a restart,
-  resume or `/clear` drops it. (UR-36; the deleted 50-coordination.md "Keeping ticks alive")
+  resume or `/clear` drops it. Once `[r193]` lands, the Claude Code lane agents also keep its
+  watcher armed, and their tick becomes a 30-minute fallback (ruling 193). (UR-36; the deleted
+  50-coordination.md "Keeping ticks alive")
 - **UR-38** No agent waits inside a turn on CI, a check run, a watcher or a sleep: it reads once,
   reports and ends the turn. Each tick edits its own heartbeat on the pinned "Uplevel heartbeats"
   issue; a stalled agent goes to the owner on the urgent path (`roles/lane.md`, "The tick").
