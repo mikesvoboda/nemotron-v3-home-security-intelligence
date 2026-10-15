@@ -160,7 +160,8 @@ class TestReadReturnsStoredValue:
         still bounds it, so nothing downstream loosens.
         """
         settings = _mock_settings(threshold=1.0)
-        with patch.object(system_routes, "get_settings", return_value=settings):
+        get_settings = create_autospec(system_routes.get_settings, return_value=settings)
+        with patch.object(system_routes, "get_settings", get_settings):
             response = await system_routes.get_config(response=Response())
 
         assert isinstance(response, ConfigResponse)
@@ -174,7 +175,8 @@ class TestReadReturnsStoredValue:
         pass the leg above and fail this one.
         """
         settings = _mock_settings(threshold=0.75)
-        with patch.object(system_routes, "get_settings", return_value=settings):
+        get_settings = create_autospec(system_routes.get_settings, return_value=settings)
+        with patch.object(system_routes, "get_settings", get_settings):
             response = await system_routes.get_config(response=Response())
 
         assert response.fast_path_confidence_threshold == 0.75
