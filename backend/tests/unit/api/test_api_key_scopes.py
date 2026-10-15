@@ -1022,9 +1022,7 @@ class TestLegacyRouteCopies:
         concrete = path
         for token, value in self._CONCRETE_PATH.items():
             concrete = concrete.replace(token, value)
-        client = self._guarded_app(
-            monkeypatch, [ScopedApiKey(SCOPED_KEY, MONITORING_SCOPE_PATHS)]
-        )
+        client = self._guarded_app(monkeypatch, [ScopedApiKey(SCOPED_KEY, MONITORING_SCOPE_PATHS)])
 
         missing = client.request(method, concrete, json={} if method in _BODY_METHODS else None)
         assert missing.status_code == 401, (method, concrete, missing.status_code)
