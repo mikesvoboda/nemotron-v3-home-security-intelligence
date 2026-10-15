@@ -533,6 +533,50 @@ host login.
 **Done when:** the fixes are on `main` with tests, and ops-a has posted the new command on its PR
 and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the output).
 
+### [r196c] The seeded rows F-186, F-196 and F-197
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue. **Depends on:** none. **PR:**
+none yet. (rulings 127, 187, 196)
+
+- [ ] Specs for F-186, F-196 and F-197 in ops-b's batch directory
+      `frontend/tests/golden/gpu-storage-admin/` (ruling 87) run in `Feature check (seeded)`, the
+      job #7155 built under ruling 187. The PR's title carries `[r196c]`; frontend reviews.
+
+**Done when:** none of the three rows says **unverified**; each flipped on a run where its leg
+executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
+
+### [r197] The digest's formats are checked where they are written
+
+**Flags:** `owner` (the role files' tick text). **Assigned:** the owner's session, as an owner PR;
+ops-b reviews. **Depends on:** none.
+**PR:** none yet. (ruling 197, as amended by `6198199744`)
+
+Lanes act on what `scripts/uplevel/lane_tick.py` parses, and nothing checks those fields where they
+are written: a wrapped `**PR:** none yet` goes unoffered, owner pointers reach the digest only as a
+comment count, and heartbeat markers drift.
+
+- [ ] A CI plan lint that imports `lane_tick.py`'s own parsers and runs them over the plan files in
+      the PR's tree. It fails when a roster token has no package block, a block's `**PR:**` field
+      reads neither `none yet` nor `#N`, a token sits in two lanes' queues, or a ruling-map row
+      lacks its record id. Tests pin each failure, and one runs the lint on the real tree.
+- [ ] Owner records and pointers end with one HTML-comment footer:
+      `<!-- uplevel: ruling=<n> lanes=<names|all> packages=<tokens|none> -->` for a record and
+      `<!-- uplevel: pointer ruling=<n> lane=<name> -->` for a pointer. `lane_tick.py` prints a
+      `for you:` line for each live record and each owner pointer since the beat that names the
+      lane or `all`; one without a footer prints as today. `scripts/uplevel/post_record.py` posts
+      both with the exact footer.
+- [ ] A `--beat "<text>"` mode writes the agent's heartbeat itself, marker line first, with
+      UR-155's 600-character cap.
+- [ ] For ruling 198, the digest drops its `review:<lane>` section and marks the agent's own PRs:
+      `needs your review` (ready, CI finished at the head, no review for that head) and
+      `arm auto-merge` (approved at the head, `Plan text: none`, `CI Gate` green, not a draft, not
+      owner-tier, auto-merge off).
+- [ ] The tick sections of the role files name the footer lines and `--beat`. `[r193]` edits the
+      same sections, so whichever merges second rebases onto the first.
+
+**Done when:** the lint runs in CI and passes on `main`, `lane_tick.py` prints `for you:` lines
+from footers, and `--beat` writes a heartbeat the coordinator's snapshot reads.
+
 ### [r164a] The coordinator's paperwork moves into scripts
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, next on its queue after `O2.5`; ops-b reviews.

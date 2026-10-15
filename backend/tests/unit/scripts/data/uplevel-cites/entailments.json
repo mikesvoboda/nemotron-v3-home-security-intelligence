@@ -3,7 +3,7 @@
     "rule": "UR-91-c4",
     "ref": "live",
     "file": "roles/lane.md",
-    "section": "Reviewing another lane's PR",
+    "section": "Reviewing your PR",
     "needles": ["reviewed again", "merge resolution"],
     "expect_present": false,
     "note": "ops-b approve 6142441382: UR-91 clause 4's only live home is rules.md itself. This pin FIRES the day that text is written here \u2014 forcing the cite to move with it. First test case, assigned by the reviewer."
@@ -12,7 +12,7 @@
     "rule": "UR-32-old-home",
     "ref": "live",
     "file": "roles/lane.md",
-    "section": "Reviewing another lane's PR",
+    "section": "Reviewing your PR",
     "needles": ["rotation", "labels the pr", "marks a head ready"],
     "expect_present": false,
     "note": "the circular home #7054 round 3 moved UR-32 OFF (opens 'Read rules.md \u00a7Reviewing first', states none of it). Pinned empty so a future edit cannot point the cite back here and score green."
@@ -37,8 +37,9 @@
     "rule": "UR-32b",
     "ref": "live",
     "file": "roles/coordinator.md",
-    "section": "Label for review",
-    "needles": ["review:", "ready"]
+    "section": "Route on reviews",
+    "needles": ["Plan text:", "author"],
+    "note": "ruling 198: the coordinator assigns no reviewing lane; this step routes on the author review's Plan text: line."
   },
   {
     "rule": "UR-32c",
@@ -46,7 +47,7 @@
     "file": "roles/lane.md",
     "section": "The tick",
     "item": 3,
-    "needles": ["clear the PRs", "Heavy agents skip"],
+    "needles": ["no review at that head", "CI finished"],
     "note": "strengthened at the #7064 fix head: the needle was \"review\", satisfied by item 3's own label **Reviews first** \u2014 a pin answered by the heading it points at. These two are the step's content: what it clears, and who skips it."
   },
   {
@@ -99,15 +100,15 @@
     "rule": "UR-91",
     "ref": "live",
     "file": "roles/lane.md",
-    "section": "Reviewing another lane's PR",
-    "needles": ["independently"]
+    "section": "Reviewing your PR",
+    "needles": ["Post the review as a PR comment"]
   },
   {
     "rule": "UR-89",
     "ref": "live",
     "file": "roles/lane.md",
-    "section": "Building a package",
-    "needles": ["run the fresh-context self-review"],
+    "section": "Reviewing your PR",
+    "needles": ["fresh-context subagent"],
     "note": "strengthened at the #7064 fix head: `have` is a filter, so a needle list is an OR ('lacks any of'), not a conjunction. Two of the three old needles were fragments of the same sentence and 'subagent' is rules.md's word for UR-89, never lane.md's (measured: absent from the whole file) \u2014 it had never matched anything and could not have. One needle now pins the step's own phrase, which is the whole claim."
   },
   {
