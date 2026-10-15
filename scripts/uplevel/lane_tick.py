@@ -44,7 +44,9 @@ PLAN_TEXT = re.compile(r"^[ \t>*_#`-]*\*{0,2}Plan text:\*{0,2}[ \t]*(.*)$", re.I
 # A roster row is | agent | tier | queue | review label |, and the label column reads `none` for a
 # cell with no review queue (coordinator, heavy-a, heavy-b, operator) -- a fact, not a missing read.
 ROW = re.compile(r"\|\s*`([\w.-]+)`\s*\|[^|]*\|(.*)\|\s*`?(review:[\w-]+|none)`?\s*\|")
-QUEUE_TOKEN = re.compile(r"`\[?([\w.]+)\]?`")
+# A queue entry's token: the BACKTICKED NAME AT THE START of the entry (see ``queue_entries`` -- a
+# backtick anywhere else in the cell is prose referring to some other package, not a slot).
+QUEUE_TOKEN = re.compile(r"\s*`\[?([\w.]+)\]?`")
 # The header wraps: `[r96i11]`'s and a frontend package's `**PR:**` value sits on the NEXT line.
 # Bounded by the blank line after the header, so the value is the field's own continuation.
 PKG_FIELD = re.compile(r"\*\*PR:\*\*([\s\S]*?)(?:\n\s*\n|\Z)", re.I)
@@ -96,7 +98,7 @@ def identities(roster: str, sandbox: str) -> dict[str, str]:
                 "lane": lane,
                 "cell": cell or "",
                 "review_label": None if label == "none" else label,
-                "queue": QUEUE_TOKEN.findall(row.group(2)),
+                "queue": queue_entries(row.group(2)),
             }
     raise snap.CommandError(f"no roster row for sandbox {sandbox}")
 
@@ -167,6 +169,41 @@ def disk(df: str | None, mounts: Sequence[str] = MOUNTS) -> list[str]:
             f"  disk {mount} {use}" + (" — over 90%: UR-180's cleanup order" if over else "")
         )
     return out  # fmt: skip
+
+
+def queue_entries(column: str) -> list[str]:
+    """The queue tokens of a roster cell, read as ENTRIES -- not as every backticked word.
+
+    The column is a comma/semicolon-separated list where each entry is a token plus prose, and prose
+    legitimately backticks other packages: ops-b's `F2.3` row says "after `[r157]`'s runner is ready
+    for the owner" (measured on the live digest, which then reported [r157] held twice), and
+    heavy-b's row says "`B2.3` once `O2.4` passes". A ``findall`` over the whole cell turns both of
+    those references into queue slots -- and a reference that becomes a queue entry is a package the
+    digest will OFFER TO CLAIM, including one that belongs to another lane. So: split on top-level
+    separators only (a comma inside `(OP-3, after ...)` separates prose, not entries), then take the
+    FIRST token of each entry, because the prose that follows it can name anything.
+    """
+    entries, depth, cur = [], 0, ""
+    for ch in column:
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth = max(0, depth - 1)
+        if ch in ",;" and depth == 0:
+            entries.append(cur)
+            cur = ""
+            continue
+        cur += ch
+    entries.append(cur)
+    out = []
+    for entry in entries:
+        # LEADING token only (measured: every real entry in main's roster starts with its token). An
+        # entry whose backtick appears mid-prose is routing prose -- "`B2.3` once `O2.4` passes" and
+        # "then assigned `heavy` PRs" -- and skipping it can only OMIT a slot, never INVENT one.
+        # That asymmetry is the point: an invented slot gets OFFERED for claim, another lane's work.
+        if m := QUEUE_TOKEN.match(entry):
+            out.append(m.group(1))
+    return out
 
 
 def held_claims(packages: str, queue: list[str], mine: list[dict]) -> list[str]:

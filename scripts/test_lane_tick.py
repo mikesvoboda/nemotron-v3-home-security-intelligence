@@ -672,6 +672,45 @@ def test_the_since_watermark_is_my_beats_updated_at():
 # --- the next claimable package -------------------------------------------------------------
 
 
+def test_a_queue_entry_is_the_token_that_LEADS_it_not_every_backticked_word():
+    # Both rows below are main's roster VERBATIM. ops-b's F2.3 entry says "after `[r157]`'s runner is
+    # ready for the owner" -- a cross-reference -- and heavy-b's says "`B2.3` once `O2.4` passes".
+    # A findall over the cell made each reference a queue slot: the live digest then printed
+    # `holding open claim: [r157], [r157]`, and heavy-b would have been OFFERED `O2.4`, another
+    # lane's package. Prose can name anything, so only a token that STARTS an entry is a slot.
+    ops_b = (
+        "`[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `F2.3` UI (OP-3, after `[r157]`'s "
+        "runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`; `OB.4` on its trigger"
+    )
+    assert tick.queue_entries(ops_b) == [
+        "r157",
+        "r141",
+        "r151",
+        "F2.3",
+        "r181",
+        "r172",
+        "O3.4",
+        "OB.4",
+    ]
+    heavy_b = (  # fmt: skip
+        "`F2.3` UI OP-1's `unverified` rows (ruling 184), then F2.3's seeded CI project (ruling 187); "
+        "assigned `heavy` PRs labelled `cell:heavy-b`: `B2.3` once `O2.4` passes"
+    )
+    got = tick.queue_entries(heavy_b)
+    assert "O2.4" not in got and "heavy" not in got and "unverified" not in got  # fmt: skip
+    assert got == ["F2.3"]  # the clause-leading entry leads with prose, so it is prose, not a slot
+    # The safe direction of the two: prose mid-entry can only OMIT a slot, never INVENT one. An
+    # invented slot is the one that does damage -- it gets offered to me to claim. The fixture's
+    # clean queue order is pinned by test_my_roster_queue_is_the_order_...
+    #
+    # The paren-depth guard is what separates a comma that SEPARATES entries from one that separates
+    # prose -- and unlike the case just above (" after `[r157]`", which the leading-token rule rejects
+    # by itself), this fragment BEGINS with the backtick, so only the depth check can tell it is
+    # prose. No cell on main reads this way today (measured); it is the shape the guard is for.
+    nested = "`F2.3` UI (OP-3, `[r157]` first, then `[r172]`), `[r181]`"
+    assert tick.queue_entries(nested) == ["F2.3", "r181"]
+
+
 def test_the_next_claimable_package_follows_MY_roster_queue_not_the_files_order():
     # ops.md carries ops-a's [r164a] with `**PR:** none yet` physically BEFORE my [r181], so a scan
     # in file order offers another cell's package -- and offering it is a claim on someone else's
