@@ -38,6 +38,7 @@ Run explicitly (scripts/test_*.py sits outside pyproject testpaths, like every g
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -85,12 +86,27 @@ def _clean_env(**extra: str | None) -> dict[str, str]:
     return env
 
 
+@functools.lru_cache(maxsize=1)
+def _cli_version() -> str:
+    """The render CLI's own version string, for failure messages.
+
+    Compose's merge rules for a top-level ``include:`` DIFFER between the CLIs this contract is
+    rendered with: the shipped file renders on ``podman-compose`` 1.6.0 (the boot command in
+    ``docs/operator/deployment/README.md``) and on a v5-line moby plugin, and is REJECTED by the
+    v2-line plugin the ``ubuntu-24.04`` runner image ships (``services.backend conflicts with
+    imported resource``, reproduced at #7114's run 38670581001). A render failure without the
+    version is undiagnosable, so every failure names its CLI.
+    """
+    probe = subprocess.run(["docker", "compose", "version"], capture_output=True, text=True)
+    return (probe.stdout or probe.stderr).strip() or "<version unreadable>"
+
+
 def _render(**extra: str | None) -> tuple[int, str, dict]:
     cmd = ["docker", "compose", "-p", "r162-audit", "--project-directory", str(REPO),
            "-f", str(PROD), "config", "--format", "json"]
     p = subprocess.run(cmd, cwd=REPO, env=_clean_env(**extra), capture_output=True, text=True)
     if p.returncode != 0:
-        return p.returncode, p.stderr.strip(), {}
+        return p.returncode, f"{p.stderr.strip()} [CLI: {_cli_version()}]", {}
     # A 0 rc that is not JSON raises here — a loud failure, never a silent green.
     return 0, "", json.loads(p.stdout)["services"]
 
