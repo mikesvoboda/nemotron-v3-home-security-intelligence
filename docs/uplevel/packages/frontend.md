@@ -105,7 +105,7 @@ same way after the owner's `R2b` session.
   priority columns for the 41 rows, returns ruling 127's 22 rows to **unverified** with their
   reachability notes, sets `R2b` to `in progress` in the README status table, and carries no code
   change.
-- **Ruling 182's record** (record `6174228588`, BINDING NOW 17:24Z): #7131 (open) writes that
+- **Ruling 182's record** (record `6174228588`, BINDING NOW 17:24Z): #7131 (merged) writes that
   record's seven rows into the ruling and priority columns. It moves no status, so §2 is not in its
   diff and it merges in any order with the three PRs that rewrite the `**all**` line.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
@@ -461,7 +461,7 @@ its head.
 ### [r165a] F-007: cure the quarantined ws-status spec
 
 **Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none. **PR:** #7123
-(open). (rulings 123, 125, 165)
+(merged). (rulings 123, 125, 165)
 
 - [x] First commit: the ruling-125 mark's expiry in `frontend/tests/golden/shell/ws-status.spec.ts`
       reads 2026-10-16T00:00Z. Witness: `6f1066eba` adds the stamp beside the mark.
