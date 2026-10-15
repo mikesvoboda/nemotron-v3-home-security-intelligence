@@ -667,6 +667,18 @@ UR-180's order, never at a routine full prune (ruling 176).
 **Done when:** the module budget fails CI on a reproduced import breach, the warning-only nightly's
 list is posted, and the existing duration pins pass.
 
+### [r215a] F-278: a test-only face vector in the seeded project
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
+**Depends on:** none. **PR:** none yet. (ruling 215, record 6200719567)
+
+- [ ] `Feature check (seeded)`'s setup inserts one known person and one face-embedding row with a
+      fixed vector and a `model_id` marked test-only, as F-012's disk seed did (#7178, ruling 192).
+      No production route or model changes.
+
+**Done when:** the seeded job's stack holds that person and embedding at a ready head, and
+`[r215d]`'s leg can run against it.
+
 ### [r184] The launcher prints the heavy sessions' pi start line
 
 **Flags:** none. **Assigned:** ops-a. **Depends on:** none.

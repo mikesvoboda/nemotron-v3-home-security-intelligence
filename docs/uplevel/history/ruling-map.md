@@ -227,6 +227,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 212    | R2b: F-061, F-062 complete, P1, fix now; `[r212]` frontend (record 6200384247)                              |
 | 213    | R2b: F-060 split, labelling fix-now `[r213]`; learning retired with F-131 (record 6200455263)               |
 | 214    | R2b: F-213, F-277 complete, P1, fix now; `[r214]` frontend (record 6200676782)                              |
+| 215    | R2b: F-278 by a seeded test-only face vector; `[r215a]`, `[r215d]` (record 6200719567)                      |
 
 ## Owner records
 
