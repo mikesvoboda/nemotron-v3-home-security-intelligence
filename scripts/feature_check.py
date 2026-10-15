@@ -71,6 +71,8 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CI_STACK = REPO_ROOT / "docker-compose.ci.yml"
 FAKE_OVERLAY = REPO_ROOT / "docker-compose.fake-ai.yml"
@@ -1272,7 +1274,7 @@ def vlm_run_environment(prod: Sequence[str] | Mapping[str, Any]) -> list[str]:
     """``--env`` for ``agent-gpu run`` (operator.md step 3): the library's pin,
     then each other ai-vlm variable of docker-compose.prod.yml verbatim, at its
     default, since the run's env file sets none of them. ``prod`` is that
-    environment as written (``config --no-interpolate``)."""
+    environment as written (``prod_environment``'s raw YAML read)."""
     if isinstance(prod, Mapping):
         entries = [key if value is None else f"{key}={value}" for key, value in prod.items()]
     else:
@@ -2292,14 +2294,25 @@ class AgentGpu:
         ).stdout.strip()
 
     def prod_environment(self) -> Sequence[str] | Mapping[str, Any]:
-        """ai-vlm's environment as docker-compose.prod.yml writes it (rendered
-        without interpolation, never started)."""
-        rendered = json.loads(
-            self.run.compose(
-                [PROD_STACK], "config", "--no-interpolate", "--format", "json", echo=False
-            ).stdout
-        )
-        return rendered["services"]["ai-vlm"].get("environment") or []
+        """ai-vlm's environment as docker-compose.prod.yml writes it, raw
+        (never interpolated, never started): the `${VAR:-default}` tokens
+        `vlm_run_environment` needs, verbatim.
+
+        Read from the file with ``yaml.safe_load``, NOT from
+        ``compose config --no-interpolate``. [r162] (owner ruling 186) made the
+        top-level ``include:`` path itself interpolated
+        (``docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml``), and
+        ``--no-interpolate`` does not expand an include path — it tries to open
+        the literal ``engine-${…}.yml`` and exits 1, which would crash the
+        real-tier VLM start (``start`` → this method → ``json.loads``). Measured:
+        this YAML read yields the byte-identical 17-entry list on the current
+        prod.yml, and it is the same read the unit test at
+        ``backend/tests/unit/scripts/test_feature_check.py`` uses, so runtime and
+        test now consult one source. Nothing about ai-vlm's ``environment`` is
+        produced by compose that this read misses.
+        """
+        raw = yaml.safe_load(PROD_STACK.read_text(encoding="utf-8"))
+        return (raw.get("services") or {}).get("ai-vlm", {}).get("environment") or []
 
     def prepare(self) -> None:
         """Steps 1-2: the weights against the pin, the budget, the image."""

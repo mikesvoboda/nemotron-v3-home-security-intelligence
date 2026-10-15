@@ -264,6 +264,14 @@ class TestComposeConfigValidation:
 TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     "config/docker-compose.gb300.yml",
     "docker-compose.ci.yml",
+    # [r162] (owner ruling 186): the two include-fragments that make backend's
+    # engine socket conditional. Listed because `docker-compose.engine-true.yml`
+    # IS now the file that mounts the engine socket -- prod.yml's top-level
+    # `include:` names it by an interpolated path, so a grep for the mount finds
+    # only these fragments. Excluding them would hide the socket mount from the
+    # one census whose purpose is that no shipped compose file escapes it.
+    "docker-compose.engine-false.yml",
+    "docker-compose.engine-true.yml",
     "docker-compose.fake-ai.yml",
     "docker-compose.prod.yml",
     "docker-compose.test.yml",

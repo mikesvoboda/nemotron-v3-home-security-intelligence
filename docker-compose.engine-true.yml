@@ -1,0 +1,29 @@
+# r162 socket fragment — the orchestrator-ON state.
+#
+# Included by docker-compose.prod.yml only when ORCHESTRATOR_ENABLED resolves to
+# `true` (or is unset, whose default is ON — backend/core/config.py:134, the
+# orchestrator's `enabled: bool = Field(True)`). Compose has no conditional
+# volume item, so the mount's CONDITION lives in the filename: prod.yml includes
+# `docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml`, and exactly two
+# files exist (this one, and docker-compose.engine-false.yml). A non-canonical
+# spelling of the flag (`1`, `yes`, `on`) has no matching fragment and fails the
+# render loudly with "no such file" rather than booting the wrong shape — see
+# the package note in docs/uplevel/packages/ops.md and owner ruling 186
+# (6181436641).
+#
+# This fragment's `volumes:` MERGE INTO backend as prod.yml declares it (proved
+# on the repo's CLI, compose v5.5.1 and podman-compose 1.6.0). prod.yml's
+# backend keeps every other mount; only the engine socket moves here, so the
+# OFF render can drop exactly it. The `${PODMAN_SOCKET:?…}` demand moves with
+# the mount: with the orchestrator off, nothing here reads the socket, so the
+# OFF fragment (docker-compose.engine-false.yml) demands nothing. backend's
+# socket is the orchestrator's tool (auto-recovery, NEM-4xxx); alloy's separate
+# socket stays unconditional in prod.yml because alloy uses it for monitoring,
+# not orchestration (monitoring/alloy/config.alloy:19, :52, :161).
+services:
+  backend:
+    volumes:
+      # Podman socket for container orchestrator auto-recovery (NEM-4xxx).
+      # Mounted to a fixed container path so the backend has it regardless of
+      # the host's /run/user/<uid> layout.
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:/var/run/podman/podman.sock

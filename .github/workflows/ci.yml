@@ -300,6 +300,13 @@ jobs:
           scripts/test_r2_python_dead_list.py
           scripts/test_coordinator_snapshot.py
           scripts/test_prodshape_override.py
+          # [r162] (owner ruling 186): the render pins for the conditional engine
+          # socket. Same leg as the prod-shape drift test it complements — both
+          # need the moby `docker compose` CLI this job already provides, and a
+          # missing binary FAILS there rather than skipping (a skipped socket
+          # guard would read as a green package, the doctrine the drift test
+          # states at scripts/test_prodshape_override.py:126-130).
+          scripts/test_orchestrator_engine_socket.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref

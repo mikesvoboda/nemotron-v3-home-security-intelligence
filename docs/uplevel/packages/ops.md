@@ -440,7 +440,7 @@ is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
 ### [r162] The engine socket follows the orchestrator setting
 
 **Flags:** owner (production safety). **Assigned:** `uplevel-ops-a`. **Depends on:** `O2.5`
-merged. **PR:** none yet. (ruling 162)
+merged. **PR:** #7114 (open, draft — owner approval required, UR-98). (ruling 162)
 
 - [ ] `backend` mounts `${PODMAN_SOCKET}` only when the orchestrator is enabled
       (`docker-compose.prod.yml:473` at ruling 162), not unconditionally. ~~and `alloy` … the `:?`

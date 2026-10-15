@@ -1,0 +1,29 @@
+# r162 socket fragment — the orchestrator-OFF state.
+#
+# Included by docker-compose.prod.yml when ORCHESTRATOR_ENABLED is `false`. It
+# adds NO volume to the backend, so the backend boots with no container-engine
+# control. Compose has no conditional volume item — an interpolated volume that
+# expands to nothing is rejected outright (`invalid empty volume spec`) — so
+# "off" has to be a file that adds nothing, not an empty entry inside one.
+#
+# This is the whole point of package [r162]: with the orchestrator disabled the
+# backend must not hold a mount it will not use. The `${PODMAN_SOCKET:?…}`
+# demand lives in docker-compose.engine-true.yml with the mount it gates, so
+# this render requires no socket value — nothing in the OFF state reads one.
+#
+# alloy's engine socket is deliberately NOT gated (owner ruling 186,
+# 6181436641): alloy uses it for container discovery, log scraping and profiling
+# targets (monitoring/alloy/config.alloy:19, :52, :161), none of which is
+# orchestration, so its mount and its `:?` stay unconditional in prod.yml.
+#
+# Why `backend: {}` and not `services: {}`: both render identically (measured on
+# compose v5.5.1 and podman-compose 1.6.0 — an empty service mapping adds no
+# volume, so prod.yml's base mounts survive untouched, and the engine socket is
+# simply absent). The named form is used because this file is tracked by the
+# compose census, and backend/tests/security/test_docker_compose_security.py
+# refuses any tracked compose file that parses to ZERO services — its ai-llm
+# absence pins would silently degenerate into reads over an empty dict (that
+# class's own thesis, :353-372). Naming `backend`, the real subject of the
+# fragment, satisfies that sentinel honestly instead of adding a dummy service.
+services:
+  backend: {}

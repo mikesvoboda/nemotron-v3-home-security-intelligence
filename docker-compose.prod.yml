@@ -40,6 +40,21 @@
 #   - GPU_LLM: GPU for the ai-vlm serve (default: 0)
 #   - GPU_AI_SERVICES: GPU for AI Gateway / Triton (default: 1)
 
+# [r162] The engine socket follows the orchestrator setting (owner ruling 186,
+# 6181436641). Compose has no conditional volume item, so the condition lives
+# in the included FILENAME: the fragment named here mounts
+# ${PODMAN_SOCKET:?…}:/var/run/podman/podman.sock into `backend` when
+# ORCHESTRATOR_ENABLED resolves to `true` (or is unset — the app's default is
+# ON, `backend/core/config.py`), and mounts nothing when it is `false`. Two
+# fragments ship: `docker-compose.engine-true.yml` and
+# `docker-compose.engine-false.yml`. A spelling pydantic accepts but the
+# filename cannot (`1`, `yes`, `on`, …) fails the render loudly with
+# "no such file" rather than booting the wrong shape. The `:-true` default is
+# deliberate: prod.yml is the deployment contract, and the live host must keep
+# its socket if an env file omits the variable.
+include:
+  - docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml
+
 services:
   postgres:
     # Security hardening: Read-only root filesystem (NEM-4978)
@@ -468,9 +483,10 @@ services:
       # HF_HOME in environment points here so HF_HUB_OFFLINE=1 can serve models
       # without network access.
       - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/models/huggingface-cache:ro
-      # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
-      # Mount to fixed path so container has access regardless of /run/user layout
-      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:/var/run/podman/podman.sock
+      # Podman socket for container orchestrator auto-recovery (NEM-4xxx) is
+      # NOT mounted here: it moved to docker-compose.engine-true.yml, which the
+      # top-level `include:` selects by ORCHESTRATOR_ENABLED ([r162], ruling 186).
+      # The base keeps every other mount; the fragment merges into this service.
       # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
