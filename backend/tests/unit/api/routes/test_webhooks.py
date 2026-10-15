@@ -469,7 +469,10 @@ class TestAlertmanagerLogSanitisation:
         # carries only an ANSI sequence, which the wrapper deletes rather than
         # marks, and ``description`` is not interpolated on this branch.
         assert message.count("[EXPRESSION_REMOVED]") == 2
-        # startsAt is a parsed datetime, so it needs no sanitising and still shows.
+        # startsAt is a parsed datetime, so it needs no sanitising. That it still
+        # SHOWS is not observable here -- this counts markers, and deleting the
+        # field changes none of them -- so test_resolved_line_text_is_unchanged
+        # pins the whole line as exact text.
         assert "resolved after firing since" in message
 
     @pytest.mark.asyncio
@@ -522,6 +525,63 @@ class TestAlertmanagerLogSanitisation:
         assert result.status == "ok"
         mock_logger.warning.assert_called_once_with(
             "[ALERT FIRING] HSIGPUMemoryHigh (warning) - component=gpu: GPU memory usage is high"
+        )
+
+    @pytest.mark.asyncio
+    async def test_resolved_line_text_is_unchanged(self) -> None:
+        """Done-when 2 on the RESOLVED branch: the line is identical, pinned as exact text.
+
+        The FIRING branch above is pinned to the character; this branch was only
+        pinned by "contains", which cannot see a dropped field -- ``startsAt``
+        interpolated nothing caller-controlled, so the sanitising tests passed
+        while the line silently lost its timestamp. The two marker-count tests
+        cannot see it either: they count markers, and deleting a field changes
+        none of them.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.RESOLVED,
+            {"alertname": "HSIGPUMemoryHigh", "severity": "warning", "component": "gpu"},
+            {"description": "GPU memory usage is back below 90%"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        # ``_alert`` fixes startsAt at 2026-01-17 12:00 UTC; the handler renders the
+        # parsed datetime with f-string default formatting, not ISO 8601.
+        mock_logger.info.assert_called_once_with(
+            "[ALERT RESOLVED] HSIGPUMemoryHigh (warning) - component=gpu: "
+            "resolved after firing since 2026-01-17 12:00:00+00:00"
+        )
+
+    @pytest.mark.asyncio
+    async def test_high_severity_firing_alert_logs_warning(self) -> None:
+        """``severity="high"`` logs at WARNING, the arm docs/developer/api/webhooks.md documents.
+
+        Pre-existing routing, untouched by the cure -- but it sat in the middle of
+        the ``severity`` line this PR rewrites, and nothing pinned it: narrowing
+        the ``("warning", "high")`` arm to ``("warning",)`` kept every test green.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {"alertname": "HSIGPUMemoryHigh", "severity": "high", "component": "gpu"},
+            {"description": "GPU memory usage is above 90% for 5 minutes"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        mock_logger.warning.assert_called_once_with(
+            "[ALERT FIRING] HSIGPUMemoryHigh (high) - component=gpu: "
+            "GPU memory usage is above 90% for 5 minutes"
         )
 
 
