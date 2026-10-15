@@ -442,3 +442,78 @@ async def test_search_severity_filter_agrees_at_band_boundaries(
             score for score, lvl in expected.items() if lvl == level
         }, f"severity={level} should select exactly the scores that display {level}"
         assert all(r["risk_level"] == level for r in results)
+
+
+@pytest.mark.asyncio
+async def test_computed_risk_level_sql_and_python_agree_on_moved_bands(db_session, monkeypatch):
+    """The SQL CASE and the Python echo must be ONE derivation, machine-checked.
+
+    `[r211b]` routes both the search filter (services/search.py) and the API
+    response (api/schemas/search.py:44) through the score-to-level rule, so the
+    two halves of Event.computed_risk_level cannot be allowed to drift. With the
+    bands moved off their shipped defaults, a SQL side that still carried the
+    old hardcoded 29/59/84 would classify a different set of scores than the
+    Python side and this fails for every score between the old and new edges.
+    """
+    from unittest.mock import MagicMock
+
+    from sqlalchemy import select
+
+    from backend.api.schemas.events import _compute_risk_level
+    from backend.core import config as config_module
+    from backend.models.event import Event
+
+    moved = MagicMock()
+    moved.severity_low_max = 10
+    moved.severity_medium_max = 20
+    moved.severity_high_max = 30
+    monkeypatch.setattr(config_module, "get_settings", lambda: moved)
+
+    # One row per score straddling the NEW edges (10/11, 20/21, 30/31) and the
+    # OLD ones (29/30, 59/60, 84/85) — the latter are what a stale literal leaks.
+    camera_id = unique_id("derivation_cam")
+    db_session.add(
+        Camera(
+            id=camera_id,
+            name=f"Derivation {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+            status="online",
+        )
+    )
+    await db_session.flush()
+    scores = [0, 10, 11, 20, 21, 29, 30, 31, 59, 60, 84, 85, 100]
+    for i, score in enumerate(scores):
+        db_session.add(
+            Event(
+                batch_id=unique_id(f"batch_dv{i}"),
+                camera_id=camera_id,
+                started_at=datetime.now(UTC) - timedelta(hours=1 + i),
+                risk_score=score,
+                summary="Person seen near the derivation camera",
+                reviewed=False,
+            )
+        )
+    await db_session.commit()
+
+    for level in ("low", "medium", "high", "critical"):
+        rows = (
+            (
+                await db_session.execute(
+                    select(Event.risk_score)
+                    .where(Event.camera_id == camera_id)
+                    .where(Event.computed_risk_level == level)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        expected = {s for s in scores if _compute_risk_level(s) == level}
+        assert set(rows) == expected, (
+            f"SQL side put {sorted(set(rows))} in {level!r}; the Python derivation "
+            f"says {sorted(expected)} — the two halves of computed_risk_level disagree"
+        )
+    # The guard that makes the four loops above non-vacuous: if the patch had
+    # reached NEITHER side, both would still agree on the shipped bands and the
+    # loops would pass for the wrong reason. 25 is "low" on the shipped
+    # 29/59/84, "high" on 10/20/30, so this pins that the bands really moved.
+    assert _compute_risk_level(25) == "high", "bands did not actually move off 29/59/84"
