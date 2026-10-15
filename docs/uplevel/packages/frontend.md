@@ -540,6 +540,21 @@ deferred `Event.llm_prompt`, after these rows' evidence run at `7971475db`.
 **Done when:** each row flips to **awaiting real tier** on a run where its legs pass (rulings 103,
 114), or the PR posts the run where a leg still breaks and that row returns to the owner.
 
+### [r213] F-060: the saved feedback card shows what was stored
+
+**Flags:** none. **Assigned:** frontend, after `[r212]` (fix now). **Depends on:** none.
+**PR:** none yet. (ruling 213, record 6200455263)
+
+F-060 is split: the panel is a labelling tool (complete), and learning thresholds from feedback is
+retired with F-131 (R2a row 11). The labels are stored and round-trip `GET /api/feedback/event/{id}`.
+
+- [ ] The saved card (`frontend/src/components/feedback/FeedbackPanel.tsx:281-293`) shows every
+      field that was stored, not only the type, the notes and the date.
+- [ ] Remove the `test.fixme` mark in `frontend/tests/golden/timeline/event-feedback.spec.ts`.
+
+**Done when:** all legs pass in `Feature check (fake AI)` at a ready head, and F-060 flips to
+**awaiting real tier** on that run (rulings 103, 114).
+
 ### [r204] One realtime connection owner
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.
