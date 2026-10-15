@@ -197,6 +197,16 @@ async def test_live_batch_is_reported_by_the_status_reader(
     """
     camera_id, batch_id = await _open_live_batch(real_redis, opened_batches, n_detections=3)
 
+    # Re-arm both scalars with ages far from now and distinct from each other,
+    # each through the SAME writer production uses: started_at raw (:427),
+    # last_activity through the set wrapper so it lands JSON-quoted (:641) and
+    # cure #2 stays load-bearing here. The near-now values add_detection leaves
+    # would pass an age assert even if the reader ignored both keys and fell back
+    # to current_time (system.py:4106-4107); these do not.
+    past = time.time() - 120.0
+    await real_redis._ensure_connected().set(f"batch:{batch_id}:started_at", str(past), ex=600)
+    await real_redis.set(f"batch:{batch_id}:last_activity", str(time.time() - 60.0), expire=600)
+
     status = await _get_batch_aggregator_status(real_redis)
 
     assert status is not None, (
@@ -213,13 +223,14 @@ async def test_live_batch_is_reported_by_the_status_reader(
     info = by_id[batch_id]
     assert info.camera_id == camera_id
     assert info.detection_count == 3
-    # Both scalars parsed: a real timestamp near now, and a young last_activity.
-    now = time.time()
-    assert abs(info.started_at - now) < 5.0, f"started_at={info.started_at!r}"
-    assert abs(info.last_activity_seconds) < 5.0, (
-        f"last_activity_seconds={info.last_activity_seconds!r} - if this is the "
-        "age of started_at rather than of last_activity the scalar silently fell "
-        "back through the `else started_at` branch"
+    # The reader must echo the ages WRITTEN, not now-relative fallbacks: started
+    # 120s ago and last active 60s ago cannot both report ~0, which is exactly
+    # what the `else current_time` / `else started_at` fallbacks at
+    # system.py:4106-4107 emit if the scalars are never read. The two tolerances
+    # are disjoint, so a swap of the two scalars reddens too.
+    assert abs(info.age_seconds - 120.0) < 5.0, f"age_seconds={info.age_seconds!r}"
+    assert abs(info.last_activity_seconds - 60.0) < 5.0, (
+        f"last_activity_seconds={info.last_activity_seconds!r}"
     )
 
 
@@ -274,17 +285,16 @@ async def test_the_analyzer_finds_the_batch_detections_it_was_handed(
     integration_db is here because the leg's next step queries Detection; the
     assertion is about the Redis read, which happens BEFORE that query.
     """
-    import re
-
     from backend.services.vlm_analyzer import VlmAnalyzer
 
     camera_id, batch_id = await _open_live_batch(real_redis, opened_batches, n_detections=2)
     analyzer = VlmAnalyzer(redis_client=real_redis)
 
-    # Both legitimate refusals prove the Redis read SUCCEEDED: the empty-list one
-    # (:497, no rows in the LIST) and the no-DB-rows one (:511, ids read fine but
-    # this db has no Detection rows). Anything else — a redis ResponseError —
-    # propagates past pytest.raises and reddens this test: the LIST read is
-    # still a GET, which is exactly the un-cured state.
-    with pytest.raises(ValueError, match=re.compile("has no detections|No detections found")):
+    # The read SUCCEEDED only if the LRANGE returned the seeded ids, which then
+    # miss the (empty) Detection table and hit the no-DB-rows refusal at
+    # vlm_analyzer.py:515. The empty-list refusal (:496) is deliberately NOT
+    # accepted: it also fires when the read returns [] for the WRONG reason (a
+    # mis-keyed LRANGE), so accepting it let a wrong-key mutant survive. A redis
+    # ResponseError propagates past pytest.raises and reddens the un-cured state.
+    with pytest.raises(ValueError, match="No detections found"):
         await analyzer.analyze_batch(batch_id=batch_id, camera_id=camera_id)

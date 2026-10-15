@@ -655,11 +655,11 @@ class TestBatchAggregatorStatus:
         assert result == ["900000", "900001", "900002"]
 
     def test_parse_detections_accepts_str_elements(self) -> None:
-        """A client configured with ``decode_responses=True`` yields str elements.
+        """The str arm is defensive tolerance, not a shape seen in production.
 
-        Both shapes reach this helper in practice (the API reads through the
-        wrapper, the analyzer through the raw client), so the normalization must
-        accept them mixed rather than assume bytes.
+        Every pool here hardcodes ``decode_responses=True`` (core/redis.py:630,
+        :2429; redis_cluster.py:186), so both LRANGE readers get str today; the
+        bytes arm is what the signature admits, this arm a client configured off.
         """
         result = _parse_detections([b"900000", "900001"])
         assert result == ["900000", "900001"]
