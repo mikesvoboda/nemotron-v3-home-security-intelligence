@@ -397,7 +397,7 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 
 **Analysis Flow (spec §6 ladder):**
 
-1. Idempotency check first (the `batch_event:<id>` Redis key, same TTL as its replay twin)
+1. Idempotency check first (the `batch_event:<id>` Redis key, same TTL as its replay twin; when the Redis key misses, `analyze_batch` looks up `events.batch_id` in PostgreSQL and, if found, returns that event without calling the VLM and writes any missing post-commit Redis key or `EventNotifyDecision` row — ruling 199)
 2. Resolve batch identity from the queue payload, falling back to the Redis keys `close_batch` wrote; a batch with no camera from EITHER source raises loudly with zero writes (the VLM never originates an event)
 3. Session 1 (READ): camera/detections/zones/household — NO session is held across the VLM call
 4. The specialist stage (`vlm_specialists.py`) computes the three short lines — `faces`, `plates`, `person_reid` — over the batch's selected key frames; a specialist failure always degrades to the text "unavailable" and never fails the batch
@@ -2861,11 +2861,13 @@ rtsp_url = await service.get_rtsp_url_from_device(
    | Queues to Redis: analysis_queue
 
 5. [AnalysisQueueWorker]
-   | Consumes from: analysis_queue
+   | Consumes from: analysis_queue / analysis:stream
    | Calls: VlmAnalyzer.analyze_batch() (built by build_pipeline_analyzer)
    |   inside the analyzer: the vlm_specialists texts (faces/plates/person_reid),
    |   then ONE vlm_client vlm_assess call, then the verdict invariants
    | Stores: Event + EventVerification rows in PostgreSQL (one transaction)
+   | Stream disposition (ruling 199): acknowledges on "stored", moves to DLQ on
+   |   "terminal" (ValueError), or leaves pending on "retry" for reclaim/DLQ
 
 6. [VlmAnalyzer] (tail of analyze_batch)
    | Calls: EventBroadcaster.broadcast_event() (LAST, best-effort)

@@ -809,7 +809,7 @@ async def test_one_and_a_half_seconds_is_exactly_1500_ms() -> None:
         instrumentation() as d,
         patch_time([T0, T1]) as fake,
     ):
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
         # L989 start, L1059 last_processed_at, L1062 duration end - three reads.
         assert fake.uses == 3, (
@@ -841,9 +841,13 @@ async def test_two_successful_items_increment_the_processed_stat_once_each() -> 
     """
     worker = analysis_worker(broadcaster=None)
     with instrumentation(), patch_time([T0, T1, T1, T2, T3, T3]):
-        assert await worker._process_analysis_item(analysis_item(batch_id="batch-first")) is None
+        assert (
+            await worker._process_analysis_item(analysis_item(batch_id="batch-first")) == "stored"
+        )
         assert worker.stats.to_dict()["last_processed_at"] == T1
-        assert await worker._process_analysis_item(analysis_item(batch_id="batch-second")) is None
+        assert (
+            await worker._process_analysis_item(analysis_item(batch_id="batch-second")) == "stored"
+        )
 
     assert worker.stats.items_processed == 2, (
         f"two items must count 2 processed, got {worker.stats.items_processed}"
@@ -892,7 +896,8 @@ async def test_a_zulu_pipeline_start_time_records_the_total_pipeline_latency(
         win(caplog)
         base = baseline_fields(caplog)
         assert (
-            await worker._process_analysis_item(analysis_item(pipeline_start_time=PST_ZULU)) is None
+            await worker._process_analysis_item(analysis_item(pipeline_start_time=PST_ZULU))
+            == "stored"
         )
 
         assert calls_of(d.stage_latency) == [
@@ -943,7 +948,7 @@ async def test_a_lowercase_zulu_pipeline_start_time_still_parses(
         base = baseline_fields(caplog)
         assert (
             await worker._process_analysis_item(analysis_item(pipeline_start_time=PST_Z_LOWER))
-            is None
+            == "stored"
         )
 
         labels = [c.args[0] for c in calls_of(d.stage_latency)]
@@ -988,7 +993,7 @@ async def test_an_xx_wrapped_pipeline_start_time_warns_without_recording_total_p
         base = baseline_fields(caplog)
         assert (
             await worker._process_analysis_item(analysis_item(pipeline_start_time=PST_XXZXX))
-            is None
+            == "stored"
         )
 
         labels = [c.args[0] for c in calls_of(d.stage_latency)]
@@ -1031,7 +1036,7 @@ async def test_a_plain_iso_pipeline_start_time_gets_the_utc_tzinfo_branch(
         base = baseline_fields(caplog)
         assert (
             await worker._process_analysis_item(analysis_item(pipeline_start_time=PST_PLAIN))
-            is None
+            == "stored"
         )
 
         assert calls_of(d.stage_latency) == [
@@ -1066,7 +1071,7 @@ async def test_a_bare_payload_skips_the_total_pipeline_block_entirely(
         patch_time([T0, T1]),
     ):
         win(caplog)
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
         assert calls_of(d.stage_latency) == [call(BATCH_LABEL, DURATION_MS)], calls_of(
             d.stage_latency
@@ -1110,7 +1115,7 @@ async def test_the_success_info_carries_the_event_id_risk_score_and_stat(
     with instrumentation() as d:
         win(caplog)
         base = baseline_fields(caplog)
-        assert await worker._process_analysis_item(analysis_item(batch_id="batch-one")) is None
+        assert await worker._process_analysis_item(analysis_item(batch_id="batch-one")) == "stored"
 
         first = only(
             caplog, logging.INFO, f"Created event {EVENT_ID}: risk_score={RISK_SCORE}", where=1094
@@ -1121,7 +1126,7 @@ async def test_the_success_info_carries_the_event_id_risk_score_and_stat(
         surface_extras(caplog, base, INFO={"event_id", "risk_score", "items_processed"})
 
         caplog.clear()  # second window: the shipped line recurs per item
-        assert await worker._process_analysis_item(analysis_item(batch_id="batch-two")) is None
+        assert await worker._process_analysis_item(analysis_item(batch_id="batch-two")) == "stored"
         second = only(
             caplog, logging.INFO, f"Created event {EVENT_ID}: risk_score={RISK_SCORE}", where=1094
         )
@@ -1162,7 +1167,7 @@ async def test_an_enum_risk_level_publishes_its_value() -> None:
     broadcaster = broadcaster_double()
     worker = analysis_worker(broadcaster=broadcaster, event=event_double(RiskLevelish.HIGH))
     with instrumentation(), patch_time([T0, T1]):
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
     assert completed_payload(broadcaster) == CompletedRisk(
         batch_id=BATCH,
@@ -1186,7 +1191,7 @@ async def test_a_string_risk_level_publishes_its_str_form() -> None:
     broadcaster = broadcaster_double()
     worker = analysis_worker(broadcaster=broadcaster, event=event_double("medium"))
     with instrumentation(), patch_time([T0, T1]):
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
     assert completed_payload(broadcaster) == CompletedRisk(
         batch_id=BATCH,
@@ -1209,7 +1214,7 @@ async def test_a_missing_risk_level_publishes_the_low_default() -> None:
     broadcaster = broadcaster_double()
     worker = analysis_worker(broadcaster=broadcaster, event=event_double(None))
     with instrumentation(), patch_time([T0, T1]):
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
     assert completed_payload(broadcaster) == CompletedRisk(
         batch_id=BATCH,
@@ -1235,7 +1240,7 @@ async def test_the_completion_payload_follows_the_camera_arm(camera: str | None)
     item = analysis_item() if camera is not None else no_camera_item()
     worker = analysis_worker(broadcaster=broadcaster)
     with instrumentation(), patch_time([T0, T1]):
-        assert await worker._process_analysis_item(item) is None
+        assert await worker._process_analysis_item(item) == "stored"
 
     assert completed_payload(broadcaster).camera_id == (CAM if camera is not None else "")
 
@@ -1256,7 +1261,7 @@ async def test_the_completed_timestamp_is_the_shipped_utc_isoformat() -> None:
     broadcaster = broadcaster_double()
     worker = analysis_worker(broadcaster=broadcaster)
     with instrumentation():
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
     payload = broadcaster.broadcast_batch_analysis_completed.await_args.args[0]
     assert set(payload) == COMPLETED_KEYS, f"completion key set mutated: {sorted(payload)}"
@@ -1286,7 +1291,7 @@ async def test_a_started_publish_failure_does_not_stop_the_completed_publish(
     with instrumentation(), patch_time([T0, T1]):
         win(caplog)
         base = baseline_fields(caplog)
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
         only(caplog, logging.DEBUG, STARTED_FAILED_DEBUG.format("redis down"), where=1044)
         assert broadcaster.broadcast_batch_analysis_completed.await_count == 1
@@ -1321,7 +1326,7 @@ async def test_a_worker_without_a_broadcaster_still_runs_the_success_arm(
     worker = analysis_worker(broadcaster=None)
     with instrumentation() as d:
         win(caplog)
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
         assert d.factory.await_count == 1, "the shipped lazy getter must consult the factory once"
         assert calls_of(d.stage_latency) != [], (
