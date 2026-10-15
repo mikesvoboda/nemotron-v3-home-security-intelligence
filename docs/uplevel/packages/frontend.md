@@ -83,6 +83,9 @@ stopped and started on a running stack.
   cannot pass demotes its row as above, for `R2b`.
 - **Operator:** records real-tier dates per batch as batches merge, under `O2.2`'s `--real` (the
   real VLM, a fake detector; owner ruling 66).
+- **The last idle rows** (ruling 191): docs flips F-256, then writes the specs for F-254 and F-278
+  (F-278 follows UR-153 if the fake stack cannot seed a face embedding); frontend writes FE-3's six
+  unwritten rows (F-045, F-052–F-054, F-059, F-064) after its `[r134]` PR #7145.
 
 **Done when:** no row says **unverified**; every **works** row cites a green golden path and a
 real-tier date; the `R2` sheet is final.
