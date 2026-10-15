@@ -3599,6 +3599,8 @@ jobs:
     # 53.9 min, which under 60 min left 6.1 min — under the ruling's 10-minute floor. 64 min =
     # 3840 s restores 607 s. The margin is pinned in
     # backend/tests/unit/scripts/test_feature_check.py against this file.
+    # ops-b's review reads this job as shared, where UR-121 would otherwise bar a changed flag;
+    # UR-122 licenses the edit because ruling 189 orders it.
     timeout-minutes: 64
     needs: detect-changes
     # O2.2's filter, expressed through detect-changes: a change that touches
