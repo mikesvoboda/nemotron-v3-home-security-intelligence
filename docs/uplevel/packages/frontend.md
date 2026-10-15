@@ -495,6 +495,23 @@ its head.
 **Done when:** the spec passes in CI's `Feature check (fake AI)` with no mark, before
 2026-10-16T00:00Z.
 
+### [r196a] F2.3's last frontend rows
+
+**Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none.
+**PR:** none yet. (rulings 191, 192, 196)
+
+Rulings 191 and 192 assigned these rows as prose inside `F2.3`, which `lane_tick.py` cannot offer
+as a claim; ruling 196 makes them a package. Each PR's title carries `[r196a]`.
+
+- [ ] FE-3's six unwritten rows, F-045, F-052, F-053, F-054, F-059 and F-064, on one FE-3 build PR
+      off `main` (ruling 87's file rule). F-045's "arriving over the socket" clause needs the fake
+      VLM's drop path, not the bulk fixture.
+- [ ] F-028's leg 2, using F-007's offline-then-reload approach, in its own PR.
+- [ ] F-012's spec runs in `Feature check (seeded)` against #7178's volume.
+
+**Done when:** none of these eight rows says **unverified**; each flipped on a CI run where its
+leg executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
+
 ### [r168] The fast-path switch
 
 **Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s

@@ -533,6 +533,18 @@ host login.
 **Done when:** the fixes are on `main` with tests, and ops-a has posted the new command on its PR
 and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the output).
 
+### [r196c] The seeded rows F-186, F-196 and F-197
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue. **Depends on:** none. **PR:**
+none yet. (rulings 127, 187, 196)
+
+- [ ] Specs for F-186, F-196 and F-197 in ops-b's batch directory
+      `frontend/tests/golden/gpu-storage-admin/` (ruling 87) run in `Feature check (seeded)`, the
+      job #7155 built under ruling 187. The PR's title carries `[r196c]`; frontend reviews.
+
+**Done when:** none of the three rows says **unverified**; each flipped on a run where its leg
+executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
+
 ### [r164a] The coordinator's paperwork moves into scripts
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, next on its queue after `O2.5`; ops-b reviews.
