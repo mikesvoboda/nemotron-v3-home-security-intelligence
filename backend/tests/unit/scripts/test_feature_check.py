@@ -1727,18 +1727,23 @@ def test_the_feature_check_job_budget_covers_the_new_cap_with_10_minutes_of_marg
     """Ruling 189's second clause: the job's timeout-minutes rises when boot + the backend leg +
     the new cap would leave it under 10 minutes.
 
-    Measured on the same 10 green logs as the leg pin: worst boot+backend BEFORE the golden leg
-    was 560 s (job 116184218975), worst teardown after it 30 s. Conservative sum with the new cap:
-    560 + 2640 + 30 = 3230 s = 53.8 min, which under the old 60 min leaves 6.2 min — below the
-    ruling's floor. 64 min restores it: 3840 - 3230 = 610 s >= 600. Pinned against the workflow
-    file itself, so an edit to either side (the cap, or the budget) reds a test that says why.
+    Measured on the same 10 green runs as the leg pin, on the job's own clock (the Actions
+    `started_at`/`completed_at` bounds are what `timeout-minutes` counts): worst boot+backend
+    BEFORE the golden leg was 562 s (job 116184218975), worst teardown after it 31 s. Conservative
+    sum with the new cap: 562 + 2640 + 31 = 3233 s = 53.9 min, which under the old 60 min leaves
+    6.1 min — below the ruling's floor. 64 min restores it: 3840 - 3233 = 607 s >= 600. Pinned
+    against the workflow file itself, so an edit to either side (the cap, or the budget) reds a
+    test that says why.
     """
     yaml = pytest.importorskip("yaml")
-    ci = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+    ci = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
     job = ci["jobs"]["feature-check"]
     assert job["name"] == "Feature check (fake AI)", "the job this package budgets is this job"
     minutes = job["timeout-minutes"]
-    boot_backend_worst_s, teardown_worst_s = 560, 30  # ruling 189's measurement, same 10 logs
+    # ruling 189's measurement, same 10 runs, on the job's started_at/completed_at clock
+    boot_backend_worst_s, teardown_worst_s = 562, 31
     margin_s = minutes * 60 - (boot_backend_worst_s + fc.GOLDEN_LEG_TIMEOUT_S + teardown_worst_s)
     assert margin_s >= 600, (
         f"ruling 189: boot + backend + cap must leave the job >= 10 min; "

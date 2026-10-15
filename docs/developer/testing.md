@@ -585,15 +585,17 @@ spec list still running. The cap is now `GOLDEN_LEG_TIMEOUT_S` in
 `Feature check (fake AI)` runs on `main` measured 1739 s from the leg's
 `$ docker run … --project=golden` line to its `golden paths:` summary (both
 CI-stamped lines in the job log), so 1739 × 1.5 rounded up to a minute is 2640 s.
-`timeout-minutes` on the job rose 60 → 64 with it, because the same 10 logs put
-worst boot+backend at 560 s and worst teardown at 30 s and ruling 189 wants 10
-minutes of margin over the sum. Both numbers are pinned as literals in
-`backend/tests/unit/scripts/test_feature_check.py`, so moving either one is a
-deliberate act that has to arrive with its own measurement — and raising the
-ceiling excuses nothing: a spec that alone takes minutes is still `UR-48` work
-for its lane. The image pull and build timeouts stay at 1800 (ruling 189 names
-them unchanged), and the seeded job's budget (ruling 187) and the per-test
-timeouts are untouched.
+`timeout-minutes` on the job rose 60 → 64 with it, because the same 10 runs, read
+on the job's own Actions clock, put worst boot+backend at 562 s and worst teardown
+at 31 s, and ruling 189 wants 10 minutes of margin over the sum. Both numbers are
+pinned as literals in `backend/tests/unit/scripts/test_feature_check.py`, so
+moving either one is a deliberate act that has to arrive with its own measurement
+— and raising the ceiling excuses nothing: a spec that alone takes minutes is
+still `UR-48` work for its lane. The other three 1800 s timeouts stay 1800: the
+backend golden pytest leg, the frontend `npm ci`, and the Playwright image pull
+(ruling 189 names all three unchanged — it calls them "image pull and build", but
+two of the three are those other steps). The seeded job's budget (ruling 187) and
+the per-test timeouts are untouched.
 
 **A golden run that executes nothing (ruling 114).** A leg's exit code says the
 runner finished, not that a spec ran. The shape that hides is the one that exits

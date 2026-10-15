@@ -106,9 +106,11 @@ EXIT_UNAVAILABLE = 4  # the mode cannot run here (--real without agent-gpu)
 # The golden Playwright leg's deadline, ruling 189. Measured, not guessed: the slowest of the
 # last 10 GREEN `Feature check (fake AI)` runs on main took 1739 s from the leg's `$ docker run
 # … --project=golden` line to its `golden paths:` summary (job 116184218975 at c1b804a82; the
-# other nine 1492-1713 s). 1739 x 1.5 = 2608.5, rounded up to a minute = 2640. Green legs under
-# the old 1800 kept only 66-306 s of margin and #7114 died at test #199 twice with exit 124.
-# The image pull/build timeouts (2169/2207/2261) stay 1800 — ruling 189 names them unchanged.
+# other nine 1492-1713 s). 1739 x 1.5 = 2608.5, rounded up to a minute = 2640. Across these 10
+# legs the old 1800 kept only 61-308 s of margin (the ruling's earlier window said 66-306), and
+# #7114 died at test #199 twice with exit 124. The OTHER three 1800 s timeouts are untouched and
+# are not this leg: the backend golden pytest leg, the frontend `npm ci`, and the Playwright image
+# pull (at ruling 189: 2169/2207/2261). This raises only the Playwright golden leg's ceiling.
 # test_feature_check.py pins this value as a literal; moving it reds that pin on purpose.
 GOLDEN_LEG_TIMEOUT_S = 2640
 
