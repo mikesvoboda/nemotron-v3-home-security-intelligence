@@ -87,6 +87,20 @@ To read every cite beside the line it points at today, run
 `node frontend/scripts/feature-inventory-cites.mjs` from the repo root. Line numbers drift as code
 changes; a row whose cite no longer says what the evidence claims is re-traced, not re-numbered.
 
+### The witness
+
+The `status` column is held to the golden run (ruling 218). After the golden project, both
+Feature check jobs run `scripts/uplevel/inventory_witness.py`, which maps each golden test the run
+executed to the rows whose `F-nnn` its title carries (the innermost describe or test title naming
+any; a pytest test spells it `test_f100_…`). A row at **awaiting real tier** or **works** fails the
+job unless at least one such test ran there and every one passed; a failed or skipped test fails
+it. An **unverified** row whose tests all passed is printed as ready to flip, with evidence text to
+paste. A row the run contradicts that the owner is ruling on is listed, with why, in
+`scripts/uplevel/inventory_witness_known.toml`. So a golden spec's title names the rows it
+witnesses, and an evidence cell names the spec and its legs **without a run or job id**: the check
+re-proves the claim at every head the jobs run. Cells that still carry a run id keep it until their
+row is next edited (UR-181).
+
 ## 2. Summary
 
 <!-- prettier-ignore -->

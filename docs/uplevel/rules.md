@@ -542,9 +542,11 @@ when a phase exits, are UR-10 (contract rule 5).
   note saying why, and `F2.3` reaches it by the real tier or a seeded golden path; a row is ruled
   only if it fails once reachable, and that failure is a demotion in a later `R2b` round. (ruling 127)
 - **UR-181** An inventory evidence cell, whenever its row is edited, is at most three sentences
-  (about 500 characters): why the row has its status, the witness (`path:line` or the spec), and
-  the run id. Demotion history, supersessions and re-anchoring go in the PR body. A long cell is cut
-  to this shape when its row is next edited; there is no sweep. (ruling 179)
+  (about 500 characters): why the row has its status, and the witness: the spec and its legs, whose
+  titles carry the row's `F-nnn`. It needs no run or job id: `scripts/uplevel/inventory_witness.py`
+  re-proves every **awaiting real tier** and **works** row against each Feature check run. Demotion
+  history, supersessions and re-anchoring go in the PR body. A long cell is cut to this shape when
+  its row is next edited; there is no sweep. (rulings 179, 218)
 
 ## Posting, heartbeats and the urgent path
 

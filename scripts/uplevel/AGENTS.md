@@ -211,3 +211,24 @@ PR merge commit's first parent (the `main` it merged into) as the baseline, so a
 finding, 2 when the baseline ref is unreadable (the CI step also exits 2 when HEAD names no parent);
 the last line counts what it read. Tests: `scripts/test_plan_lint.py` (fixtures and one throwaway
 git repository; it never lints this checkout, which is the CI step's job).
+
+### inventory_witness.py + inventory_witness_known.toml
+
+The inventory's `status` column held to the golden run (`[r218]`, ruling 218). Both Feature check
+jobs run `python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"` right after
+the harness. It reads the run's `summary.json` (`results.golden.playwright_specs` and
+`backend_specs`, the per-test outcomes `scripts/feature_check.py` takes from JUnit) and maps each
+executed test to the `docs/reference/feature-inventory.md` rows its title names: the innermost
+describe or test title that carries any `F-nnn` (a pytest test spells it `test_f100_...`). A row at
+`awaiting real tier` or `works` fails the job unless at least one mapped test ran and every mapped
+test passed; `unverified` rows whose tests all passed print as ready to flip, with evidence text to
+paste; `half-built`/`leftover` are info only; specs naming no row are listed. Each job judges a row
+on its own tests; a row with no test in a job's run is that job's to fail only when its evidence
+names a spec the job runs (`*.seeded.spec.ts` for the seeded job, any other golden spec, or none,
+for the fake AI job). A `real` run is refused: real-tier confirmation is the operator's (ruling
+148). `inventory_witness_known.toml` lists rows the run contradicts that the owner is ruling on,
+reported as known; an entry whose row agrees fails the check until it is removed. Exit 0 agrees,
+1 a row claims more than the run shows (or a stale known entry, or a title naming no such row), 2
+an input could not be read, with its reason. The inventory's rows are parsed with
+`scripts/check-inventory-summary-arith.py`'s table helpers, loaded by path. Tests:
+`scripts/test_inventory_witness.py` (fixture inventories, summaries and known lists).

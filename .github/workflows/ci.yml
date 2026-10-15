@@ -85,6 +85,8 @@ jobs:
               - 'docker-compose.ci.yml'
               - 'docker-compose.fake-ai.yml'
               - '.github/workflows/ci.yml'
+              # Ruling 218: the inventory witness step reads it, so a status edit is judged.
+              - 'docs/reference/feature-inventory.md'
 
       - name: Log detected changes
         run: |
@@ -346,6 +348,7 @@ jobs:
           scripts/test_post_record.py
           scripts/test_prodshape_override.py
           scripts/test_orchestrator_engine_socket.py
+          scripts/test_inventory_witness.py
           -q
       # Ruling 197: the plan fields the lane digest acts on (roster queues, package `**PR:**`
       # fields, ruling-map record ids), linted with the digest's own parsers. On a PR it fails
@@ -3801,6 +3804,20 @@ jobs:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
         run: scripts/feature-check.sh --fake --image-tag "$TAG"
 
+      # Ruling 218 ([r218]; it orders this step into both Feature check jobs, so UR-122 applies):
+      # each golden leg this run executed is mapped to the inventory rows its title names, and a
+      # row at `awaiting real tier` or `works` must be witnessed by its legs passing here. It
+      # prints `unverified` rows ready to flip, lists specs that name no row, and exits 2 with
+      # the reason when it cannot read the run (fail closed). The rules and how a row split
+      # across this job and the seeded one is judged are in the inventory_witness module's
+      # docstring. `!cancelled()` so a red golden leg still names the rows it contradicts. Named
+      # by module, not path, for the plan-lint step's reachability reason.
+      - name: Inventory witness (ruling 218)
+        if: ${{ !cancelled() }}
+        env:
+          FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
+        run: python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"
+
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -4023,6 +4040,13 @@ jobs:
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check-seeded
         run: scripts/feature-check.sh --fake --seeded --image-tag "$TAG"
+
+      # Ruling 218: the same inventory witness as Feature check (fake AI), over this job's legs.
+      - name: Inventory witness (ruling 218)
+        if: ${{ !cancelled() }}
+        env:
+          FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check-seeded
+        run: python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"
 
       - name: Upload artifacts
         if: always()
