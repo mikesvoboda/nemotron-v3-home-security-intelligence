@@ -1,7 +1,7 @@
-import { Card, Title, Text, Button } from '@tremor/react';
 import { Switch } from '@headlessui/react';
-import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
+import { Card, Title, Text, Button } from '@tremor/react';
 import { clsx } from 'clsx';
+import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
 import BatchPresetSelector from './BatchPresetSelector';
