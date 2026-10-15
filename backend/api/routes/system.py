@@ -34,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_baseline_service_dep, get_cache_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
-from backend.api.middleware.auth import _validate_key_hash_constant_time
+from backend.api.middleware.auth import _key_scope, _validate_key_hash_constant_time
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -296,12 +296,6 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
 
     # Hash and validate the API key
     key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
-    # Support SecretStr for api_keys
-    valid_hashes = set()
-    for k in settings.api_keys:
-        key_value: str = k.get_secret_value() if hasattr(k, "get_secret_value") else str(k)
-        valid_hashes.add(hashlib.sha256(key_value.encode()).hexdigest())
-
     # R60 (ruling 60) touches this copy for the TIMING FIX ONLY: this compare
     # is the one place the copy-paste diverged from the middleware's standard.
     # auth.py compares digests with hmac.compare_digest (its
@@ -311,12 +305,31 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
     # sides here are SHA-256 digests, so no timing signal helps an attacker
     # recover a key (that would need a preimage) — the point is that three
     # copies of one check should not carry three different comparison rules,
-    # which is exactly how the next divergence gets introduced. Stated scope
-    # of this leg: the copies stay UNSCOPED — the gate (AuthMiddleware) is the
-    # outermost door this dependency can run behind, scope checks belong to
-    # it, and ~40 existing tests patch THIS module's get_settings binding with
-    # mocks carrying only api_keys/api_key_enabled. Flag-off early return
-    # above stays verbatim.
+    # which is exactly how the next divergence gets introduced. Stated scope of
+    # R60 as shipped: the copies STAYED UNSCOPED — the gate (AuthMiddleware) was
+    # the outermost door this dependency could run behind, scope checks belonged
+    # to it, and ~40 existing tests patch THIS module's get_settings binding
+    # with mocks carrying only api_keys/api_key_enabled. [r95] S1 supersedes
+    # that scoping half only; the timing fix and the flag-off early return above
+    # stay verbatim.
+    #
+    # [r95] S1 (ruling 95): a scoped entry contributes no digest here, so a
+    # monitoring key cannot authenticate this guard. S1's own configuration
+    # (EXPOSE_LAN=false) is AuthMiddleware's pass-through, so with the gate off
+    # nothing consulted scope at all — see the matching note in routes/dlq.py
+    # for the full derivation. _key_scope is the middleware's own type gate, so
+    # a MagicMock entry stays unscoped and those ~40 fixtures keep working
+    # (ruling 60's amendment-2 constraint, now pinned by
+    # test_a_mock_entry_stays_unscoped_after_the_fix). Absorption still holds: a
+    # value listed BOTH plain and scoped authenticates through its plain entry,
+    # whatever the order (ruling 60, amendment 10).
+    valid_hashes = set()
+    for k in settings.api_keys:
+        if _key_scope(k) is not None:
+            continue
+        key_value: str = k.get_secret_value() if hasattr(k, "get_secret_value") else str(k)
+        valid_hashes.add(hashlib.sha256(key_value.encode()).hexdigest())
+
     if not _validate_key_hash_constant_time(key_hash, valid_hashes):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
@@ -2521,13 +2534,7 @@ async def get_config(response: Response) -> ConfigResponse:
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
-        # Clamp fast_path_confidence_threshold to 1.0 for API response
-        # (values > 1.0 are used internally to disable fast path)
-        fast_path_confidence_threshold=(
-            min(settings.fast_path_confidence_threshold, 1.0)
-            if isinstance(settings.fast_path_confidence_threshold, int | float)
-            else settings.fast_path_confidence_threshold
-        ),
+        fast_path_confidence_threshold=settings.fast_path_confidence_threshold,
         fast_path_enabled=settings.fast_path_enabled,
         grafana_url=settings.grafana_url,
         debug=settings.debug,
@@ -2727,13 +2734,7 @@ async def patch_config(
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
-        # Clamp fast_path_confidence_threshold to 1.0 for API response
-        # (values > 1.0 are used internally to disable fast path)
-        fast_path_confidence_threshold=(
-            min(settings.fast_path_confidence_threshold, 1.0)
-            if isinstance(settings.fast_path_confidence_threshold, int | float)
-            else settings.fast_path_confidence_threshold
-        ),
+        fast_path_confidence_threshold=settings.fast_path_confidence_threshold,
         fast_path_enabled=settings.fast_path_enabled,
         grafana_url=settings.grafana_url,
         debug=settings.debug,
@@ -4016,17 +4017,43 @@ def _decode_redis_value(value: bytes | str | None) -> str | None:
     return value.decode() if isinstance(value, bytes) else value
 
 
-def _parse_detections(detections_data_raw: bytes | str | None) -> list[dict[str, Any]]:
-    """Parse detections from raw Redis value."""
+def _coerce_scalar(raw: bytes | str | None) -> str | None:
+    """Normalize a Redis scalar written through ``RedisClient.set``.
+
+    ``RedisClient.set`` always ``json.dumps`` its value (core/redis.py:1228-1229),
+    so a float written through the wrapper sits on disk as a JSON *string* —
+    ``'"1792027801.9"'`` — and a bare ``float()`` of it raises ValueError. This
+    unwraps one JSON layer when present and passes anything else through, so the
+    same call site accepts a wrapper-written value, a raw-client-written value,
+    and legacy pre-wrapper data. Mirrors the precedent in
+    ``batch_aggregator.check_batch_timeouts`` (:774-783, NEM-2540), which has
+    tolerated this asymmetry on its own reads all along; the API reader never
+    got the same treatment.
+    """
     import json
 
-    if not detections_data_raw:
+    value = _decode_redis_value(raw)
+    if value is None:
+        return None
+    try:
+        unwrapped = json.loads(value)
+    except json.JSONDecodeError, TypeError:
+        return value
+    return unwrapped if isinstance(unwrapped, str) else value
+
+
+def _parse_detections(detections_raw: list[bytes | str] | None) -> list[str]:
+    """Normalize the LRANGE reply for ``batch:<id>:detections`` into id strings.
+
+    The key is a Redis LIST of detection ids appended with RPUSH
+    (batch_aggregator.py:23, the writer's own docstring). The previous version of
+    this function expected a JSON array of objects and parsed the value as a
+    string — a shape the LIST key cannot produce through a ``GET``; the reader
+    now asks for the list it actually owns and this just decodes the elements.
+    """
+    if not detections_raw:
         return []
-    detections_data = _decode_redis_value(detections_data_raw)
-    if isinstance(detections_data, str):
-        parsed: list[dict[str, Any]] = json.loads(detections_data)
-        return parsed
-    return []
+    return [_decode_redis_value(item) or "" for item in detections_raw]
 
 
 def _build_empty_batch_response(settings: Settings) -> BatchAggregatorStatusResponse:
@@ -4082,11 +4109,13 @@ async def _get_batch_aggregator_status(
         if not batch_ids:
             return _build_empty_batch_response(settings)
 
-        # Second pass: pipeline all metadata fetches (4 keys per batch)
+        # Second pass: pipeline all metadata fetches (4 keys per batch).
+        # detections is a LIST (RPUSH'd by the writer) — ask for it with LRANGE;
+        # a GET there raises WRONGTYPE and the transaction aborts whole.
         pipe = redis_client.pipeline()
         for batch_id in batch_ids:
             pipe.get(f"batch:{batch_id}:camera_id")
-            pipe.get(f"batch:{batch_id}:detections")
+            pipe.lrange(f"batch:{batch_id}:detections", 0, -1)
             pipe.get(f"batch:{batch_id}:started_at")
             pipe.get(f"batch:{batch_id}:last_activity")
         metadata_results = await pipe.execute()
@@ -4100,8 +4129,12 @@ async def _get_batch_aggregator_status(
                     continue
 
                 detections = _parse_detections(metadata_results[i * 4 + 1])
-                started_at_str = _decode_redis_value(metadata_results[i * 4 + 2])
-                last_activity_str = _decode_redis_value(metadata_results[i * 4 + 3])
+                # _coerce_scalar, not _decode_redis_value: add_detection rewrites
+                # these through the set wrapper (batch_aggregator.py:641), which
+                # JSON-quotes them, so a bare float() raises and the per-batch
+                # handler below silently drops the batch.
+                started_at_str = _coerce_scalar(metadata_results[i * 4 + 2])
+                last_activity_str = _coerce_scalar(metadata_results[i * 4 + 3])
 
                 started_at = float(started_at_str) if started_at_str else current_time
                 last_activity = float(last_activity_str) if last_activity_str else started_at

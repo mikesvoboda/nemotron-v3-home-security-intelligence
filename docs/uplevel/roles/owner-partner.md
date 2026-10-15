@@ -167,7 +167,7 @@ Check for these first; each has happened.
   queue (user-owned repo), and the coordinator updates branches with
   `gh api -X PUT repos/$R/pulls/<n>/update-branch`. What an update-branch keeps: UR-106.
 - **Labels:** `lane:<lane>`, `heavy`, `owner`, `cell:a` / `cell:b` (ops-a / ops-b), `cell:heavy-b` (a `heavy` PR with
-  it is heavy-b's; without it, `uplevel-heavy-a`'s), `review:<lane>`.
+  it is heavy-b's; without it, `uplevel-heavy-a`'s); ruling 198 retired `review:<lane>`.
 - **Status comment:** edited every tick, no fixed time (UR-25); the urgent path is UR-168.
 - **maui (the GPU host):** each sandbox's `$AGENT_GPU_DIR` is `/agents/<sandbox>/gpu`; `/var/lib/agent-gpu` is the
   `agent-gpu` user's home. `/synthbench/corpus` is a nested ZFS dataset, so mount it explicitly. The B1.2 eval store

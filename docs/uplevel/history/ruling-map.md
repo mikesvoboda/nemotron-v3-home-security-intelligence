@@ -200,6 +200,26 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 185    | `O2.5`'s prod-shape run on maui, run by the owner (record 6181352718)                                       |
 | 186    | package `[r162]`: backend's socket only; alloy keeps its mount (record 6181436641)                          |
 | 187    | F2.3's seeded CI project to heavy-b, ops-b reviews (record 6182863643)                                      |
+| 188    | `O2.4` and `O2.5` move to the operator: agent-gpu venue, in-sandbox store (record 6182950505)               |
+| 189    | package `[r189]`: the golden leg's cap follows measured time (record 6191177913)                            |
+| 190    | heavy-b out of service; heavy-a takes #7155, OP-1's seeded rows, B2.3 (record 6191930218)                   |
+| 191    | docs flips F-256, specs F-254, F-278; frontend FE-3's six after #7145 (record 6192225830)                   |
+| 192    | routes F-028 (frontend), F-012's disk seed (heavy-a), F-234 (docs) (record 6192470752)                      |
+| 193    | package `[r193]`: lanes wake on GitHub events; ticks become a fallback (record 6195149856)                  |
+| 194    | F-234: docs sets `channel: 'chromium'` in permission.spec.ts only (record 6197728882)                       |
+| 195    | O2.5 runs on maui after package `[r195]` (host-login harness) (record 6197833896)                           |
+| 196    | packages `[r196a]` frontend, `[r196b]` docs, `[r196c]` ops-b: last F2.3 rows (record 6198072340)            |
+| 197    | `[r197]`, owner's session: plan lint, footers, `--beat` (records 6198161166, 6198199744)                    |
+| 198    | one review per PR, the author's UR-89 subagent; author arms auto-merge (record 6198314579)                  |
+| 199    | package `[r199]`: analysis acks follow a stored event or a terminal failure (record 6198662741)             |
+| 200    | package `[r200]`: one owner for the running pipeline workers (record 6198757258)                            |
+| 201    | `[r184]` gets its block: the launcher prints the heavy pi start line (record 6198825479)                    |
+| 202    | one-GPU installs wait for Phase 4 as `O4.1`; no lane now (record 6198876496)                                |
+| 203    | B3.3 owns schema upgrades; B3.1 drops tables as its upgrades (record 6198942052)                            |
+| 204    | package `[r204]`: one realtime connection owner in the frontend (record 6199283332)                         |
+| 205    | package `[r205]`: no status is not healthy; health is not an alert count (record 6199725340)                |
+| 206    | OD-31 stands; F-236's design also settles what an event sends on (record 6199786907)                        |
+| 207    | real tier is real VLM, fake detector; `[r207]` holds detector rows back (record 6199844401)                 |
 
 ## Owner records
 

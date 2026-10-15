@@ -105,6 +105,39 @@ list covers them, each directory added in the PR that fixes its citations (owner
 The ratchets hold the map true; who updates a boundary file's lines, and when this lane reviews
 them, is UR-81. This lane opens a package only on a trigger (UR-68).
 
+### [r196b] F-234's channel test
+
+**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** none yet.
+(rulings 192, 194, 196)
+
+- [ ] `test.use({ channel: 'chromium' })` at the top of
+      `frontend/tests/golden/notify-access/permission.spec.ts` only; `frontend/playwright.config.ts`
+      is unchanged (ruling 194). The PR's title carries `[r196b]`; frontend reviews.
+- [ ] One CI run decides. If the granted leg executes and passes, F-234 flips to **awaiting real
+      tier** on that run. If it still reads `denied`, or the browser cannot launch in the golden
+      container, revert the line, post the run on #6996, and the row returns to the owner.
+
+**Done when:** F-234 is **awaiting real tier**, or the run that returns it to the owner is posted.
+
+### [r207] Rows the real tier cannot confirm
+
+**Flags:** none. **Assigned:** docs, after `[r196b]`. **Depends on:** none.
+**PR:** none yet. (ruling 207, record 6199844401)
+
+The real tier serves the real VLM with the fake detector (UR-136), and no agent run exercises
+`yolo26`, `reid` or `threat` (`r2-sheet.md`, "The real-tier gap"). Yet **works** reads "confirmed
+on the real tier" (`docs/reference/feature-inventory.md:33`).
+
+- [ ] The inventory legend says the real tier is the real VLM with the detector, re-ID and threat
+      models fake (UR-136), as `README.md`'s vocabulary now does.
+- [ ] List the rows whose behaviour comes from detector, re-ID or threat output, each with the code
+      path that reads it. Each carries the note `needs real Triton models` and stays at
+      **awaiting real tier** until a host run with the real Triton models covers it; a listed row
+      now at **works** goes back, and the PR names it.
+
+**Done when:** the legend agrees with UR-136, and every listed row carries the note and is not
+**works**.
+
 ### [r165b] F-235: cure the quarantined notify channels spec
 
 **Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** #7122 (merged 2026-10-14T18:36:41Z as `8977e9457`, head `f1d923174`).

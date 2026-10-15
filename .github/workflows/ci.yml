@@ -121,6 +121,38 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Pin the compose CLI the render gates are certified against
+        # [r162] The compose files this job renders use a top-level `include:`
+        # that merges a volume into a service the importing file also declares
+        # (owner ruling 186's mechanism). That merge is spec-legal and renders
+        # identically on both CLIs this contract is written against -- compose
+        # v5.5.1 (every local dev + the sandbox these pins were certified on)
+        # and podman-compose 1.6.0 (the operator's CLI, per
+        # docs/operator/deployment/README.md). The ubuntu-24.04 runner image
+        # ships docker-compose v2.38.2 (runner-images tag 20261012.334
+        # "Docker Compose 2.38.2"), whose import-time check rejects the merge
+        # outright: `services.backend conflicts with imported resource`,
+        # reproduced at #7114 run 38670581001 AND locally by pointing the HOME
+        # plugin dir at that exact binary (sha256-verified). No include:
+        # SPELLING passes v2.38.2 -- the plain string form, the spec's
+        # `- path:`/`action: merge` form, all measured rc=1 there; the action
+        # flag is v2.20+ but its deep merge was added in v2.24.4, so the v2
+        # line is out at any pin. Rather than bend the config around an
+        # end-of-line runner plugin, pin the CLI to the version the suite is
+        # certified on. Control proving the pin regresses nothing: main's
+        # prod.yml (no include:) renders 123 passed on v5.5.1 across all four
+        # pre-existing render files. `docker compose config` is daemon-free
+        # (rc=0 against an unreachable DOCKER_HOST, measured), so this needs
+        # no daemon; $HOME/.docker/cli-plugins wins over the image's
+        # /usr/libexec copy (measured both directions with this exact plugin
+        # mechanism). Same shape/version as the Backend Unit Tests job's step.
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+            https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64
+          echo "db1889184726840f75c4f9c001048430d4f25b3be3cb084d3ddd762bc0aed576  $HOME/.docker/cli-plugins/docker-compose" | sha256sum -c -
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version # the witness: this leg's failures now name the CLI that rendered them
       - name: Check tracked test files collect real tests
         # `ai` added by WP6.5 - the tier was never even census-gated before.
         # Cheap and NOT sufficient (AST-only: rc=0 measured on a tree with 19
@@ -260,6 +292,16 @@ jobs:
       # data, so this step is the tier that reaches its subject — a cite
       # otherwise rots with every check green. Drafts stay uncovered:
       # detect-changes skips on drafts, so no docs-only condition can see one.
+      # [r162] (owner ruling 186) joined the list: the render pins for the
+      # conditional engine socket. Same leg as the prod-shape drift test it
+      # complements — both need the moby `docker compose` CLI this job already
+      # provides, and a missing binary FAILS there rather than skipping (a
+      # skipped socket guard would read as a green package, the doctrine the
+      # drift test states at scripts/test_prodshape_override.py:126-130).
+      # The rationale lives HERE, not beside its argv entry: this step's `run`
+      # is a folded scalar, where a `#` line comments out the rest of the
+      # folded sequence — scripts/test_check_gate_reachability.py's
+      # TestRunStepCommentSwallow caught exactly that when the note sat inside.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -299,8 +341,40 @@ jobs:
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py
           scripts/test_coordinator_snapshot.py
+          scripts/test_lane_tick.py
+          scripts/test_plan_lint.py
+          scripts/test_post_record.py
           scripts/test_prodshape_override.py
+          scripts/test_orchestrator_engine_socket.py
           -q
+      # Ruling 197: the plan fields the lane digest acts on (roster queues, package `**PR:**`
+      # fields, ruling-map record ids), linted with the digest's own parsers. On a PR it fails
+      # only on findings its BASE lacks: this job has no paths filter and feeds the CI Gate, so a
+      # plan defect already on main must red main's own push run, not every PR after it. The base
+      # is the checked-out merge commit's FIRST parent -- the main this run merged the PR into --
+      # not the event's pull_request.base.sha, which is main as of the PR's last update and so
+      # reads a defect that reached main since then as the PR's own. The checkout is depth-1: the
+      # commit object still names its parents (cat-file reads the raw object), and that one parent
+      # is fetched. No parent is a broken premise, so the step fails closed with exit 2 and says
+      # why. Named by module, not path, as the docs-citation step below is: naming a scripts path
+      # here makes it a declared reachability entry, which moves the R2 list's tool-inputs stamp
+      # for a walk-neutral reason (scripts/ is not a candidate tree).
+      - name: Plan lint (ruling 197)
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT}" = "pull_request" ]; then
+            BASE_SHA="$(git cat-file -p HEAD | awk '/^parent / { if (!n++) print $2 }')"
+            if [ -z "${BASE_SHA}" ]; then
+              echo "plan lint: HEAD $(git rev-parse HEAD) names no parent; no baseline, nothing judged" >&2
+              exit 2
+            fi
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+            uv run python -m scripts.uplevel.plan_lint --baseline "${BASE_SHA}"
+          else
+            uv run python -m scripts.uplevel.plan_lint
+          fi
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
       # --no-staleness) — that is what catches a dead source_ref, and it is
@@ -754,6 +828,23 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
+
+      - name: Pin the compose CLI the render gates are certified against
+        # [r162] Same pin as the collection-sanity job (see its step for the
+        # full measurement): this shard's unit tier renders docker-compose.prod
+        # .yml too -- backend/tests/unit/core/{test_compose_render_lists_ai_vlm,
+        # test_frontend_expose_lan_bind,test_monitoring_expose_lan_credentials}
+        # .py -- so it needs the same compose v5.5.1 the include: merge is
+        # certified on. The postgres service above is created by the RUNNER's
+        # own docker, not by `docker compose`, so overriding the compose plugin
+        # here cannot disturb it.
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+            https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64
+          echo "db1889184726840f75c4f9c001048430d4f25b3be3cb084d3ddd762bc0aed576  $HOME/.docker/cli-plugins/docker-compose" | sha256sum -c -
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
 
       - name: Run unit tests with coverage (shard ${{ matrix.shard }}/4)
         # Unit coverage here is COLLECTED, not gated (see --cov-fail-under=0
@@ -1321,7 +1412,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints" \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints or test_batch_aggregator_status_live" \
             -n0 \
             --timeout=30 \
             --cov=backend \
@@ -3593,7 +3684,15 @@ jobs:
   feature-check:
     name: Feature check (fake AI)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # ruling 189: 60 -> 64. With the leg's cap at GOLDEN_LEG_TIMEOUT_S=2640 (measured 1739 s x 1.5,
+    # see feature_check.py's GOLDEN_LEG_TIMEOUT_S), the same 10 green runs on the job's own Actions
+    # clock put worst boot+backend at 562 s and worst teardown at 31 s: 562+2640+31 = 3233 s =
+    # 53.9 min, which under 60 min left 6.1 min — under the ruling's 10-minute floor. 64 min =
+    # 3840 s restores 607 s. The margin is pinned in
+    # backend/tests/unit/scripts/test_feature_check.py against this file.
+    # ops-b's review reads this job as shared, where UR-121 would otherwise bar a changed flag;
+    # UR-122 licenses the edit because ruling 189 orders it.
+    timeout-minutes: 64
     needs: detect-changes
     # O2.2's filter, expressed through detect-changes: a change that touches
     # only Markdown cannot break a golden path, so `feature` (below) is the
@@ -3854,6 +3953,86 @@ jobs:
         # for, even though the config already sets it.
         run: cd frontend && npx tsc -p tsconfig.golden.json --noEmit
 
+  # Ruling 127 / 187: the seeded golden project (DEBUG=true, request recorder,
+  # breaker/threshold fault seed, orphan file fixture) runs in its own CI job
+  # so it does not lengthen Feature check (fake AI) (ruling 187 item 3).
+  feature-check-seeded:
+    name: Feature check (seeded)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: detect-changes
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
+      github.event_name == 'workflow_dispatch' ||
+      !cancelled() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.feature == 'true')
+      )
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Free disk space (minimal)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          use: false
+
+      - name: Image tag
+        run: echo "TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Build backend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./backend/Dockerfile
+          target: prod
+          tags: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:${{ env.TAG }}
+          cache-from: type=gha,scope=backend
+          load: true
+
+      - name: Build frontend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          target: prod
+          tags: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:${{ env.TAG }}
+          cache-from: type=gha,scope=frontend
+          load: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Feature check (--fake --seeded)
+        env:
+          FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check-seeded
+        run: scripts/feature-check.sh --fake --seeded --image-tag "$TAG"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: feature-check-seeded
+          path: ${{ runner.temp }}/feature-check-seeded/*/artifacts
+          retention-days: 14
+          if-no-files-found: warn
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -3950,6 +4129,7 @@ jobs:
       # scripts/test_check_gate_reachability.py pins; the next edge is a
       # review, not a silent edit.
       - feature-check
+      - feature-check-seeded
       # DOCS-NJT: docs' negative-tooling-claim gate. Own job per the hot-file
       # rule UR-121 (rules.md, cited by rule id, never by line: that file
       # renumbers with every ruling) — direct need + check_job below, the only
@@ -4013,6 +4193,8 @@ jobs:
           check_job "Frontend Coverage Floors" "${{ needs.frontend-coverage-merge.result }}"
           # Ruling 105: the golden paths' verdict, first time inside the gate.
           check_job "Feature Check (Fake AI)" "${{ needs.feature-check.result }}"
+          # Ruling 127 / 187: the seeded golden project's verdict.
+          check_job "Feature check (seeded)" "${{ needs.feature-check-seeded.result }}"
           # DOCS-NJT: a docs claim that no CI runs a tool is a claim this gate
           # now disproves on every PR. Own need + own line (WP0.6 wiring).
           check_job "Negative Tooling Claims in Docs (DOCS-NJT)" "${{ needs.docs-negative-claims.result }}"

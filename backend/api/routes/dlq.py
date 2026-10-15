@@ -15,7 +15,7 @@ from enum import Enum
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
-from backend.api.middleware.auth import _validate_key_hash_constant_time
+from backend.api.middleware.auth import _key_scope, _validate_key_hash_constant_time
 from backend.api.schemas.dlq import (
     DLQClearResponse,
     DLQJobsResponse,
@@ -77,21 +77,36 @@ async def verify_api_key(
 
     # Hash the provided key and compare against valid keys
     key_hash = hashlib.sha256(key.encode()).hexdigest()
-    # Support SecretStr for api_keys
-    valid_hashes = set()
-    for k in settings.api_keys:
-        key_value: str = k.get_secret_value() if hasattr(k, "get_secret_value") else str(k)
-        valid_hashes.add(hashlib.sha256(key_value.encode()).hexdigest())
-
     # R60 (ruling 60): TIMING FIX ONLY, same as the copy in routes/system.py.
     # The three copies of this check should carry one comparison rule; the
     # middleware's helper is that rule (hmac.compare_digest over the digest
     # set). No key-recovery signal exists either way — both operands are
     # SHA-256 digests — but a divergent fourth copy is how the next, worse
-    # divergence arrives. This copy stays UNSCOPED by design (the gate is the
-    # outermost door; tests patch this module's get_settings with mocks that
-    # carry only api_keys/api_key_enabled), and the flag-off early return
-    # above is untouched.
+    # divergence arrives. As R60 shipped, this copy stayed UNSCOPED by design
+    # (the gate was the outermost door; tests patch this module's get_settings
+    # with mocks that carry only api_keys/api_key_enabled), and the flag-off
+    # early return above is still untouched.
+    #
+    # [r95] S1 (ruling 95) narrows exactly that design note, and only its
+    # scoped-entry half: a scoped entry contributes no digest here, so a
+    # monitoring key cannot authenticate this guard. R60 left the copies
+    # unscoped because AuthMiddleware is "the outermost door", but S1's own
+    # configuration (EXPOSE_LAN=false) is that door's pass-through, so with the
+    # gate off nothing consulted scope at all. This dependency has no Request,
+    # so it cannot honour a path even partially: refusing every scoped entry is
+    # the one rule that cannot leak a grant. Plain and mock entries are
+    # untouched — _key_scope is the middleware's own type gate, so a MagicMock
+    # entry stays unscoped (ruling 60's amendment-2 constraint, still pinned).
+    # Absorption still holds: a value listed BOTH plain and scoped authenticates
+    # through its plain entry, whatever the order (ruling 60, amendment 10).
+    # The flag-off early return above stays verbatim.
+    valid_hashes = set()
+    for k in settings.api_keys:
+        if _key_scope(k) is not None:
+            continue
+        key_value: str = k.get_secret_value() if hasattr(k, "get_secret_value") else str(k)
+        valid_hashes.add(hashlib.sha256(key_value.encode()).hexdigest())
+
     if not _validate_key_hash_constant_time(key_hash, valid_hashes):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

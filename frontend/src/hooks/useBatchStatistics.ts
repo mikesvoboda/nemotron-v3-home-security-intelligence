@@ -7,9 +7,8 @@
  *
  * Provides:
  * - Active batch count and details
- * - Completed batch history from WebSocket
- * - Closure reason statistics
- * - Per-camera breakdown
+ * - Completed batch history from WebSocket (drives total closed + avg duration;
+ *   the closure-reason and per-camera aggregates retired with ruling 134)
  * - Average batch duration
  *
  * @module hooks/useBatchStatistics
@@ -26,40 +25,6 @@ import type { DetectionBatchData } from '../types/websocket';
 // ============================================================================
 // Types
 // ============================================================================
-
-/**
- * Closure reason statistics
- */
-export interface ClosureReasonStats {
-  timeout: number;
-  idle: number;
-  max_size: number;
-  [key: string]: number;
-}
-
-/**
- * Closure reason percentages
- */
-export interface ClosureReasonPercentages {
-  timeout: number;
-  idle: number;
-  max_size: number;
-  [key: string]: number;
-}
-
-/**
- * Per-camera batch statistics
- */
-export interface CameraStats {
-  completedBatchCount: number;
-  activeBatchCount: number;
-  totalDetections: number;
-}
-
-/**
- * Per-camera stats mapping
- */
-export type PerCameraStats = Record<string, CameraStats>;
 
 /**
  * Options for the useBatchStatistics hook
@@ -99,14 +64,6 @@ export interface UseBatchStatisticsReturn {
 
   /** Average batch duration in seconds */
   averageDurationSeconds: number;
-
-  /** Closure reason counts */
-  closureReasonStats: ClosureReasonStats;
-  /** Closure reason percentages */
-  closureReasonPercentages: ClosureReasonPercentages;
-
-  /** Statistics per camera */
-  perCameraStats: PerCameraStats;
 
   /** Whether WebSocket is connected */
   isWebSocketConnected: boolean;
@@ -189,81 +146,6 @@ export function useBatchStatistics(
   const batchWindowSeconds = batchAggregator?.batch_window_seconds ?? 0;
   const idleTimeoutSeconds = batchAggregator?.idle_timeout_seconds ?? 0;
 
-  // Calculate closure reason statistics
-  const closureReasonStats = useMemo<ClosureReasonStats>(() => {
-    const stats: ClosureReasonStats = {
-      timeout: 0,
-      idle: 0,
-      max_size: 0,
-    };
-
-    for (const batch of completedBatches) {
-      const reason = batch.close_reason ?? 'unknown';
-      if (reason in stats) {
-        stats[reason]++;
-      } else {
-        stats[reason] = 1;
-      }
-    }
-
-    return stats;
-  }, [completedBatches]);
-
-  // Calculate closure reason percentages
-  const closureReasonPercentages = useMemo<ClosureReasonPercentages>(() => {
-    const total = completedBatches.length;
-    if (total === 0) {
-      return { timeout: 0, idle: 0, max_size: 0 };
-    }
-
-    const percentages: ClosureReasonPercentages = {
-      timeout: 0,
-      idle: 0,
-      max_size: 0,
-    };
-
-    for (const [reason, count] of Object.entries(closureReasonStats)) {
-      percentages[reason] = (count / total) * 100;
-    }
-
-    return percentages;
-  }, [completedBatches, closureReasonStats]);
-
-  // Calculate per-camera statistics
-  const perCameraStats = useMemo<PerCameraStats>(() => {
-    const stats: PerCameraStats = {};
-
-    // Count active batches per camera
-    for (const batch of activeBatches) {
-      const cameraId = batch.camera_id;
-      if (!stats[cameraId]) {
-        stats[cameraId] = {
-          completedBatchCount: 0,
-          activeBatchCount: 0,
-          totalDetections: 0,
-        };
-      }
-      stats[cameraId].activeBatchCount++;
-      stats[cameraId].totalDetections += batch.detection_count;
-    }
-
-    // Count completed batches per camera
-    for (const batch of completedBatches) {
-      const cameraId = batch.camera_id;
-      if (!stats[cameraId]) {
-        stats[cameraId] = {
-          completedBatchCount: 0,
-          activeBatchCount: 0,
-          totalDetections: 0,
-        };
-      }
-      stats[cameraId].completedBatchCount++;
-      stats[cameraId].totalDetections += batch.detection_count;
-    }
-
-    return stats;
-  }, [activeBatches, completedBatches]);
-
   // Calculate average batch duration from completed batches
   const averageDurationSeconds = useMemo(() => {
     if (completedBatches.length === 0) return 0;
@@ -289,9 +171,6 @@ export function useBatchStatistics(
     batchWindowSeconds,
     idleTimeoutSeconds,
     averageDurationSeconds,
-    closureReasonStats,
-    closureReasonPercentages,
-    perCameraStats,
     isWebSocketConnected: isConnected,
     refetch: fetchData,
   };

@@ -229,27 +229,27 @@ Constraints on what you build; reopening one is a ruling (UR-44).
 
 Read this section before you self-review your own PR or review another lane's.
 
-- **UR-32** Reviews come first. The coordinator assigns each PR's reviewing lane by rotation, never
-  the author's own, preferring the lane that consumes the change, and names it when it assigns the
-  package. It labels the PR `review:<lane>` (`review:ops-a`/`review:ops-b` for ops) each time the
-  author marks a head ready; a lane agent clears its label's PRs before starting or resuming a
-  package. (UR-32; roles/coordinator.md "Remit", "Label for review"; roles/lane.md "The tick" §3;
-  the deleted 50-coordination.md "Roles", "Review and merge")
-- **UR-89** Before marking a PR ready, the author dispatches a fresh-context subagent given only the
-  package text, the diff and the PR body, to check each Done-when clause against the evidence, the
-  contract, the cross-lane parts and the hot-file rules; the author fixes or answers each finding
-  and records them in the PR. (roles/lane.md "Building a package")
-- **UR-91** The reviewer runs the same checks independently, posts the review as a PR comment in the
-  form `roles/lane.md` gives (the owner's account cannot approve its own PRs), and removes the
-  label. Each new head's merge resolution is reviewed again. A PR may merge with a Done-when box
+- **UR-32** Each PR has one review: its author's UR-89 subagent review. No lane reviews another
+  lane's PR; the coordinator assigns no reviewing lane and adds no `review:<lane>` label. An "X
+  reviews" clause in a package or an earlier ruling is superseded. An author reviews its ready PRs
+  before starting or resuming a package. (UR-32; ruling 198; roles/coordinator.md "Remit", "Route
+  on reviews"; roles/lane.md "The tick" §3)
+- **UR-89** Once a PR is ready and its CI at that head has finished, the author dispatches a
+  fresh-context subagent given only the package text, the diff and the PR body, to check each
+  Done-when clause against the evidence (CI-only clauses from that run, ruling 161), the contract,
+  the cross-lane parts and the hot-file rules. The author fixes or answers each finding and posts
+  the review on the PR; it is the PR's one review (UR-32, ruling 198). (roles/lane.md "Building a
+  package", "Reviewing your PR")
+- **UR-91** The author posts the review as a PR comment in the form `roles/lane.md` gives (the
+  owner's account cannot approve its own PRs). Each new head's merge resolution is reviewed again. A PR may merge with a Done-when box
   unticked only when the approving review names the box, says why this PR cannot tick it (it
   depends on another PR or a later run, or it is stale) and, if the clause still matters, where it
-  will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing another lane's PR";
+  will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing your PR";
   ruling 39 item G; ruling 149)
 - **UR-92** Every review carries `Plan text: none | <which kind in UR-47 it changes, and where>`,
   written `none` only after reading every `docs/uplevel/` hunk. The coordinator routes on it: the PR
   is owner-tier only when the named kind is one of UR-47's owner kinds, and a lane-review kind
-  merges on lane review. It asks the reviewer for a missing line rather than judging the diff,
+  merges on lane review. It asks the author for a missing line rather than judging the diff,
   except that a lane review with no `Plan text:` line, on a PR whose diff
   (`git diff --name-only <base>..<head>`) has no `docs/uplevel/` path, reads as `Plan text: none`.
   (rulings 40, 153, 156)
@@ -331,11 +331,12 @@ and the re-read and merge comment are UR-29.
   (ruling 97)
 - **UR-108** Owner PRs carry auto-merge and join the same queue; the coordinator updates one in its
   turn, and GitHub merges it once the gate passes. No owner watcher updates branches. (ruling 15)
-  - **Lane PRs** carry auto-merge too: the reviewing lane, approving a ready lane-tier PR (its
-    `Plan text:` is `none` or a UR-47 lane-review kind, and no other UR-98 trigger applies), runs
-    `gh pr merge <n> --auto --merge` and says so in the review. An author pushing to a PR on
-    auto-merge runs `gh pr merge <n> --disable-auto` first; the reviewer re-enables it on
-    re-approval. The coordinator disables auto-merge on any PR whose head is neither the approved
+  - **Lane PRs** carry auto-merge too: the author, once its review approves a ready lane-tier PR
+    (its `Plan text:` is `none` or a UR-47 lane-review kind, and no other UR-98 trigger applies)
+    whose `CI Gate` is green at the head from a non-draft run, runs `gh pr merge <n> --auto
+--merge` and says so in the review; a draft skips jobs, so auto-merge on one merges with no CI
+    (ruling 198). An author pushing to a PR on auto-merge runs `gh pr merge <n> --disable-auto`
+    first and re-enables it on re-approval. The coordinator disables auto-merge on any PR whose head is neither the approved
     head nor a UR-106 carry of it, and audits each merged PR the next tick: the merged head was the
     approved head and no owner ruling or record barred it (UR-94). It then posts UR-29's merge
     comment; a merge that fails the audit goes into the status comment and to the owning lane for a
@@ -569,14 +570,16 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-156** The coordinator asks an author to edit a comment that carries harness wrapper text
   (contract rule 2). (ruling 56)
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act
-  on where it looks, a `review:<lane>` label or a comment on that agent's own open PR. (coordinator
-  kickoff prompt; UR-35)
+  on where it looks, a comment on that agent's own open PR. (coordinator kickoff prompt; UR-35;
+  ruling 198)
 - **UR-36** Every agent runs on a `/loop` tick that checks GitHub — coordinator 5 minutes, lanes and
   heavy 15, operator 30 (`roles/coordinator.md`, `roles/lane.md` and `roles/operator.md`, "The
   tick"). GitHub stays the only channel between agents; the owner re-arms ticks weekly and after a
   restart. Before arming a tick, list the agent's scheduled tasks and arm a new one only if none is
   listed, so ticks never run twice; a recurring `/loop` expires after seven days and a restart,
-  resume or `/clear` drops it. (UR-36; the deleted 50-coordination.md "Keeping ticks alive")
+  resume or `/clear` drops it. Once `[r193]` lands, the Claude Code lane agents also keep its
+  watcher armed, and their tick becomes a 30-minute fallback (ruling 193). (UR-36; the deleted
+  50-coordination.md "Keeping ticks alive")
 - **UR-38** No agent waits inside a turn on CI, a check run, a watcher or a sleep: it reads once,
   reports and ends the turn. Each tick edits its own heartbeat on the pinned "Uplevel heartbeats"
   issue; a stalled agent goes to the owner on the urgent path (`roles/lane.md`, "The tick").

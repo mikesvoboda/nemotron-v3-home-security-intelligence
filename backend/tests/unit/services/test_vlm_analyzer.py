@@ -118,11 +118,22 @@ def make_verdict(
 
 
 class FakeRedis:
-    """The analyzer only gets/sets string keys (nemotron's analyzer fakes
-    use the same minimal surface)."""
+    """The analyzer's minimal Redis surface: string keys via get/set, and
+    ``batch:<id>:detections`` as a LIST via lrange.
 
-    def __init__(self, values: dict[str, str] | None = None) -> None:
+    The list half is not optional: BatchAggregator writes that key with RPUSH
+    (batch_aggregator.py:23), so a fake that only speaks GET about it pins the
+    fake, not production — analyze_batch reads it with LRANGE and a real client
+    refuses GET on a LIST with WRONGTYPE. Seed lists via the ``lists`` arg.
+    """
+
+    def __init__(
+        self,
+        values: dict[str, str] | None = None,
+        lists: dict[str, list[str]] | None = None,
+    ) -> None:
         self.values: dict[str, str] = dict(values or {})
+        self.lists: dict[str, list[str]] = {k: list(v) for k, v in (lists or {}).items()}
         self.sets: list[tuple[str, str]] = []
 
     async def get(self, key: str) -> str | None:
@@ -131,6 +142,10 @@ class FakeRedis:
     async def set(self, key: str, value: str, expire: int | None = None) -> None:
         self.values[key] = value
         self.sets.append((key, value))
+
+    async def lrange(self, key: str, start: int, stop: int) -> list[str]:
+        items = self.lists.get(key, [])
+        return items[start:] if stop == -1 else items[start : stop + 1]
 
 
 class FakeClient:
@@ -785,10 +800,10 @@ class TestAnalyzeBatchRefusals:
         # Queue payloads carry camera+detections; the Redis-fallback route
         # (nemotron's own shape) still works when only metadata exists.
         redis = FakeRedis(
-            {
-                "batch:b9:camera_id": "front_door",
-                "batch:b9:detections": json.dumps([11]),
-            }
+            {"batch:b9:camera_id": "front_door"},
+            # detections is a LIST in production (RPUSH), not a JSON string —
+            # seeded as one so this fake can't hide a LIST-vs-GET defect.
+            {"batch:b9:detections": ["11"]},
         )
         analyzer, _session, _ = make_analyzer(monkeypatch, redis=redis)
         event = await analyzer.analyze_batch("b9")

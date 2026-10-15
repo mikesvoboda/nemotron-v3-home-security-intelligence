@@ -103,6 +103,17 @@ EXIT_REFUSED = 2  # the preflight refused; the test deployment never started
 EXIT_CHANGED = 3  # the postflight found a pre-existing container or volume changed
 EXIT_UNAVAILABLE = 4  # the mode cannot run here (--real without agent-gpu)
 
+# The golden Playwright leg's deadline, ruling 189. Measured, not guessed: the slowest of the
+# last 10 GREEN `Feature check (fake AI)` runs on main took 1739 s from the leg's `$ docker run
+# … --project=golden` line to its `golden paths:` summary (job 116184218975 at c1b804a82; the
+# other nine 1492-1713 s). 1739 x 1.5 = 2608.5, rounded up to a minute = 2640. Across these 10
+# legs the old 1800 kept only 61-308 s of margin (the ruling's earlier window said 66-306), and
+# #7114 died at test #199 twice with exit 124. The OTHER three 1800 s timeouts are untouched and
+# are not this leg: the backend golden pytest leg, the frontend `npm ci`, and the Playwright image
+# pull (at ruling 189: 2169/2207/2261). This raises only the Playwright golden leg's ceiling.
+# test_feature_check.py pins this value as a literal; moving it reds that pin on purpose.
+GOLDEN_LEG_TIMEOUT_S = 2640
+
 # The harness smoke check: one scenario image in, one event out. Its scenario
 # has image bytes of its own: the backend deduplicates images by content for
 # 300 s across cameras, so a golden path dropping any other scenario image
@@ -418,7 +429,12 @@ def snapshot_brief(snapshot: Snapshot) -> dict[str, list[str]]:
 
 
 def as_test_deployment(
-    base: Mapping[str, Any], *, project: str, run_dir: Path, vlm_url: str | None = None
+    base: Mapping[str, Any],
+    *,
+    project: str,
+    run_dir: Path,
+    vlm_url: str | None = None,
+    seeded: bool = False,
 ) -> dict[str, Any]:
     """Turn the rendered CI + fake stack into this run's test deployment.
 
@@ -481,6 +497,13 @@ def as_test_deployment(
     backend["tmpfs"] = [
         entry for entry in backend.get("tmpfs") or [] if entry.split(":", 1)[0] != CAMERA_TARGET
     ]
+    if seeded:
+        environment["DEBUG"] = "true"
+        environment["REQUEST_RECORDING_ENABLED"] = "true"
+        environment["REQUEST_RECORDING_SAMPLE_RATE"] = "0.0"
+        environment["HSI_FAULT_SEED"] = "1"
+        if not any(entry.split(":", 1)[0].rstrip("/") == "/app/data" for entry in backend["tmpfs"]):
+            backend["tmpfs"].append("/app/data:size=20m,mode=1777,uid=1000,gid=1000")
     backend.setdefault("volumes", []).append(
         {
             "type": "bind",
@@ -1313,7 +1336,7 @@ def vlm_run_environment(prod: Sequence[str] | Mapping[str, Any]) -> list[str]:
     """``--env`` for ``agent-gpu run`` (operator.md step 3): the library's pin,
     then each other ai-vlm variable of docker-compose.prod.yml verbatim, at its
     default, since the run's env file sets none of them. ``prod`` is that
-    environment as written (``config --no-interpolate``)."""
+    environment as written (``prod_environment``'s raw YAML read)."""
     if isinstance(prod, Mapping):
         entries = [key if value is None else f"{key}={value}" for key, value in prod.items()]
     else:
@@ -1645,17 +1668,25 @@ class Run:
         image_tag: str,
         mode: str,
         prod_shape: bool = False,
+        seeded: bool = False,
     ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
         self.engine = engine
         self.mode = mode
         self.prod_shape = prod_shape
+        self.seeded = seeded
         # A run record that does not say WHICH compose shape was rendered cannot
         # witness ruling 127's 12 real-tier rows, which is the whole point of the
         # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
-        # prod shape gets a distinct one -- so nothing that greps today shifts.
-        self.shape = f"{mode}-prod-shape" if prod_shape else mode
+        # prod shape and the ruling-127/187 seeded CI project get distinct ones --
+        # so nothing that greps today shifts.
+        if prod_shape:
+            self.shape = f"{mode}-prod-shape"
+        elif seeded:
+            self.shape = f"{mode}-seeded"
+        else:
+            self.shape = mode
         self.image_tag = image_tag
         self.dir = (root / self.project).resolve()
         self.cameras = self.dir / "cameras"
@@ -1806,7 +1837,11 @@ class Run:
             self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
         )
         deployment = as_test_deployment(
-            base, project=self.project, run_dir=self.dir, vlm_url=vlm.url if vlm else None
+            base,
+            project=self.project,
+            run_dir=self.dir,
+            vlm_url=vlm.url if vlm else None,
+            seeded=self.seeded,
         )
         self.compose_file.write_text(json.dumps(deployment, indent=2) + "\n", encoding="utf-8")
         rendered = json.loads(self.deployment("config", "--format", "json").stdout)
@@ -2071,6 +2106,114 @@ class Run:
         self._write("cameras.json", self.camera_ids)
         _log(f"seeded {len(self.camera_ids)} cameras: {', '.join(self.camera_ids.values())}")
 
+    def seed_debug_fixtures(self) -> None:
+        """Plant the ruling-127/187/192 CI fixtures for --seeded runs:
+        1. Two deterministic GET recordings via X-Debug-Record: true (F-154..F-156);
+        2. An unreferenced file under /app/data/thumbnails (F-186);
+        3. Fill the 20 MiB /app/data volume (parent of VIDEO_THUMBNAILS_DIR) past 90%
+           for GET /api/system/storage (F-012, ruling 192 item 2);
+        4. Verification that HSI_FAULT_SEED=1 opened a circuit breaker (F-138) and
+           a burst of Redis misses trips the hit-ratio threshold (F-171).
+        """
+        for path in ("/api/system/config", "/api/system/health/ready"):
+            status, body = _http(
+                "GET",
+                self.api + path,
+                headers={"X-Debug-Record": "true"},
+            )
+            if status != 200:
+                raise HarnessError(f"seeding recorded request {path} answered {status}: {body}")
+        rec_status, rec_body = _http("GET", self.api + "/api/debug/recordings")
+        if (
+            rec_status != 200
+            or not isinstance(rec_body, Mapping)
+            or int(rec_body.get("total") or 0) < 2
+        ):
+            raise HarnessError(
+                f"expected >= 2 seeded recordings from GET /api/debug/recordings, "
+                f"got {rec_status}: {rec_body}"
+            )
+
+        planted = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import os, time; from pathlib import Path; "
+            "p = Path('/app/data/thumbnails/seeded-orphan.jpg'); "
+            "p.parent.mkdir(parents=True, exist_ok=True); "
+            "p.write_bytes(b'seeded-orphan-fixture'); "
+            "old = time.time() - 48 * 3600; "
+            "os.utime(p, (old, old)); "
+            "print(p.stat().st_size)",
+        )
+        if not planted.stdout.strip().splitlines()[-1:]:
+            raise HarnessError("planting seeded-orphan.jpg produced no size output")
+        orphan_status, orphan_body = _http(
+            "POST", self.api + "/api/system/cleanup/orphaned-files?dry_run=true"
+        )
+        if (
+            orphan_status != 200
+            or not isinstance(orphan_body, Mapping)
+            or int(orphan_body.get("orphaned_count") or 0) < 1
+        ):
+            raise HarnessError(
+                f"expected >= 1 orphaned file after planting fixture, "
+                f"got {orphan_status}: {orphan_body}"
+            )
+
+        filled = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import shutil; from pathlib import Path; "
+            "data = Path('/app/data'); "
+            "usage = shutil.disk_usage(data); "
+            "fill = max(0, int(usage.total * 0.93) - usage.used); "
+            "(data / '.seeded-disk-fill').write_bytes(b'\\x00' * fill); "
+            "after = shutil.disk_usage(data); "
+            "print(round(after.used / after.total * 100, 2))",
+        )
+        if not filled.stdout.strip().splitlines()[-1:]:
+            raise HarnessError("filling /app/data past 90% produced no output")
+        storage_status, storage_body = _http("GET", self.api + "/api/system/storage")
+        if (
+            storage_status != 200
+            or not isinstance(storage_body, Mapping)
+            or float(storage_body.get("disk_usage_percent") or 0) < 90.0
+        ):
+            raise HarnessError(
+                f"expected disk_usage_percent >= 90.0 from GET /api/system/storage, "
+                f"got {storage_status}: {storage_body}"
+            )
+
+        cb_status, cb_body = _http("GET", self.api + "/api/system/circuit-breakers")
+        if (
+            cb_status != 200
+            or not isinstance(cb_body, Mapping)
+            or int(cb_body.get("open_count") or 0) < 1
+        ):
+            raise HarnessError(
+                f"expected >= 1 open circuit breaker from HSI_FAULT_SEED=1, "
+                f"got {cb_status}: {cb_body}"
+            )
+
+        for _ in range(4):
+            ps_status, ps_body = _http("GET", self.api + "/api/debug/pipeline-state")
+            if ps_status != 200:
+                raise HarnessError(
+                    f"seeding Redis misses via GET /api/debug/pipeline-state "
+                    f"answered {ps_status}: {ps_body}"
+                )
+
+        self.summary["results"]["seeded"] = "ok"
+        _log(
+            "seeded debug fixtures: 2 recordings, 1 orphan file, >90% disk fill, open redis breaker"
+        )
+
     def check_isolation(self) -> list[str]:
         ids = self._run(
             [
@@ -2155,7 +2298,8 @@ class Run:
         }
         problems = []
         results: dict[str, Any] = {}
-        if sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
+        project_name = "golden-seeded" if self.seeded else "golden"
+        if not self.seeded and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
             junit = self.artifacts / "golden-backend.xml"
             result = self._run(
                 [
@@ -2179,10 +2323,13 @@ class Run:
             # Ruling 114: the exit code above says the runner finished, not that a
             # spec ran. Judged on the report this run wrote, never on a previous one.
             problems += golden_execution_problems("backend", results["backend_specs"])
+        elif self.seeded:
+            results["backend"] = "skipped on seeded"
         else:
             results["backend"] = "no specs yet"
         if PLAYWRIGHT_CONFIG.exists() and re.search(
-            r"name:\s*['\"]golden['\"]", PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+            rf"name:\s*['\"]{re.escape(project_name)}['\"]",
+            PLAYWRIGHT_CONFIG.read_text(encoding="utf-8"),
         ):
             report = self.artifacts / "golden-playwright"
             junit = self.artifacts / "golden-playwright.xml"
@@ -2310,7 +2457,7 @@ class Run:
                     "--no-install",
                     "playwright",
                     "test",
-                    "--project=golden",
+                    f"--project={project_name}",
                     shlex.quote(f"--output={report}"),
                     "--reporter=list,junit",
                 ]
@@ -2338,7 +2485,7 @@ class Run:
                     mounts=[self.dir],
                 ),
                 check=False,
-                timeout=1800,
+                timeout=GOLDEN_LEG_TIMEOUT_S,
                 env={**env, "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit)},
             )
             (self.artifacts / "golden-playwright.log").write_text(
@@ -2552,14 +2699,33 @@ class AgentGpu:
         ).stdout.strip()
 
     def prod_environment(self) -> Sequence[str] | Mapping[str, Any]:
-        """ai-vlm's environment as docker-compose.prod.yml writes it (rendered
-        without interpolation, never started)."""
-        rendered = json.loads(
-            self.run.compose(
-                [PROD_STACK], "config", "--no-interpolate", "--format", "json", echo=False
-            ).stdout
-        )
-        return rendered["services"]["ai-vlm"].get("environment") or []
+        """ai-vlm's environment as docker-compose.prod.yml writes it, raw
+        (never interpolated, never started): the `${VAR:-default}` tokens
+        `vlm_run_environment` needs, verbatim.
+
+        Read from the file with ``yaml.safe_load``, NOT from
+        ``compose config --no-interpolate``. [r162] (owner ruling 186) made the
+        top-level ``include:`` path itself interpolated
+        (``docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml``), and
+        ``--no-interpolate`` does not expand an include path — it tries to open
+        the literal ``engine-${…}.yml`` and exits 1, which would crash the
+        real-tier VLM start (``start`` → this method → ``json.loads``). Measured:
+        this YAML read yields the byte-identical 17-entry list on the current
+        prod.yml, and it is the same read the unit test at
+        ``backend/tests/unit/scripts/test_feature_check.py`` uses, so runtime and
+        test now consult one source. Nothing about ai-vlm's ``environment`` is
+        produced by compose that this read misses.
+
+        The ``import yaml`` is deliberately function-local: feature-check.sh
+        execs this file under bare ``python3``, and the golden Playwright
+        container's python3 has no pyyaml — a module-level import made every
+        subcommand (``drop`` included) die at import time there. Here is the
+        only reader; only ``start`` pays for it.
+        """
+        import yaml
+
+        raw = yaml.safe_load(PROD_STACK.read_text(encoding="utf-8"))
+        return (raw.get("services") or {}).get("ai-vlm", {}).get("environment") or []
 
     def prepare(self) -> None:
         """Steps 1-2: the weights against the pin, the budget, the image."""
@@ -2714,6 +2880,7 @@ def _http(
     timeout: float = 15,
     *,
     origin: str | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> tuple[int, Any]:
     """(status, JSON body or text); status 0 when nothing answered.
 
@@ -2731,8 +2898,9 @@ def _http(
         also = f" and {origin}" if origin else ""
         raise HarnessError(f"the harness talks only to its own 127.0.0.1 ports{also}, not {url}")
     data = json.dumps(payload).encode() if payload is not None else None
+    req_headers = {"Content-Type": "application/json", **(dict(headers) if headers else {})}
     request = urllib.request.Request(  # noqa: S310 (127.0.0.1 or the VLM, checked above)
-        url, data=data, method=method, headers={"Content-Type": "application/json"}
+        url, data=data, method=method, headers=req_headers
     )
     try:
         with opener.open(request, timeout=timeout) as response:
@@ -2794,12 +2962,14 @@ def _interrupt(signum: int, _frame: Any) -> None:
 
 
 def run_check(args: argparse.Namespace, *, mode: str) -> int:
+    seeded = bool(getattr(args, "seeded", False))
     run = Run(
         engine=args.engine,
         root=args.root,
         image_tag=args.image_tag,
         mode=mode,
         prod_shape=args.prod_shape,
+        seeded=seeded,
     )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
@@ -2823,6 +2993,8 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         run.up(vlm)
         run.register_admin()
         run.seed_cameras()
+        if getattr(run, "seeded", False):
+            run.seed_debug_fixtures()
         problems = run.check_isolation()
         problems += run.smoke(vlm)
         if not problems:
@@ -2931,6 +3103,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "stack. Refused without --real — the prod shape is the real tier's prod shape.",
     )
     parser.add_argument(
+        "--seeded",
+        action="store_true",
+        help="with --fake, boot the ruling-127/187 seeded CI stack (DEBUG=true, "
+        "request recorder enabled, breaker/threshold fault seed, orphan file fixture) "
+        "and run the golden-seeded Playwright project.",
+    )
+    parser.add_argument(
         "--image-tag",
         default=os.environ.get("FEATURE_CHECK_IMAGE_TAG", "latest"),
         help="backend/frontend image tag (default: $FEATURE_CHECK_IMAGE_TAG or latest)",
@@ -2967,6 +3146,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         # would let a reader of a run record believe prod was exercised when the CI
         # stack ran. Refused at parse time, before any engine call.
         parser.error("--prod-shape needs --real (it is the real tier's production shape)")
+    if args.seeded and not args.fake:
+        parser.error("--seeded needs --fake (it is the fake tier's seeded CI project)")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:

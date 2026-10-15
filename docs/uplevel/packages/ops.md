@@ -169,9 +169,10 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes.** `feature_check.py --real --prod-shape` (the flag's name is the package's
       call) brings up that stack and runs the golden suite against it, using the Playwright
-      container from ruling 143. The owner runs it on maui, on demand, from a command ops-a posts
-      on #7037, on a test deployment (UR-133). The operator's sandbox has no copy-on-write storage,
-      so it runs there only once a sandbox has some (ruling 185, amending ruling 162).
+      container from ruling 143, on a test deployment (UR-133). The owner runs it on maui from the
+      command ops-a posts on #7037 once `[r195]` makes the harness work from a host login. The
+      operator's sandbox cannot run it: `ai-gateway`'s CDI GPU device cannot resolve where
+      `agent-gpu` keeps the GPU out by design (attempt 2, `6195692210`) (rulings 185, 188, 195).
 - [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
       and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
       record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
@@ -186,7 +187,8 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
-deployment and the owner's maui run witnesses ruling 127's 12 rows (ruling 185); on no, the owner has ruled on the
+deployment and its run (the owner's on maui, ruling 195) witnesses ruling 127's 12 rows
+(rulings 185, 188); on no, the owner has ruled on the
 blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
 (#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
 deployment, in a comment on each PR (ruling 154).
@@ -279,6 +281,27 @@ consolidation depends on it.
 
 **Done when:** every file in `scripts/` is referenced by CI, a hook, `setup.py`, another script, or
 the operator docs, and `scripts/` passes ruff in pre-commit.
+
+## Phase 4 — Complete the product
+
+### O4.1 One-GPU installs
+
+**Flags:** none. **Depends on:** Phase 4's start (ruling 202, record 6198876496).
+**PR:** none yet.
+
+`README.md:242` promises a one-card install, but `setup.py` writes `gpu_llm: 0` and
+`gpu_ai_services: 1` in all three modes (`:820`, `:1070`, `:1252`) whatever `get_gpu_info()` finds
+(`:795`), and `docker-compose.prod.yml` gives the AI services
+`CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}`. On a one-card machine they see no GPU.
+
+- [ ] A design session chooses: setup derives the split from the detected GPUs (one card puts both
+      on GPU 0, keeping a saved answer on re-run as `[r94]` does), or two GPUs become a stated
+      requirement that setup enforces and the README's hardware table states.
+- [ ] Whether detection, re-ID and the VLM fit one 24GB card is a real-tier run, settled in that
+      session.
+
+**Done when:** a one-GPU setup either runs with every service on a visible GPU or is refused with
+the requirement named, and unit tests cover one and two detected GPUs.
 
 ## Background (any phase after Phase 1)
 
@@ -440,8 +463,14 @@ Triton, so CI never checks the model half.
       its wall time and `nvidia-smi` compute apps into the run directory. The owner's 10-14 run
       lost stage 3 when the FP16 build hit 600 s; the same build took 137.7 s on 10-13. The owner
       reruns with `--plan-timeout 1800` (ruling 180).
+- [ ] An agent-gpu venue for the runner, so the operator runs it (UR-15): `agent-gpu build` for the
+      gateway image; `agent-gpu job` for the export, the `trtexec` compiles and the stage-3/4 probe,
+      in an image whose Python imports a `tensorrt` matching the plans' builder; `agent-gpu run`
+      for the Triton leg; inputs from the operator's `$AGENT_GPU_DIR/models/`, results in `out/`.
+      The owner copies the checkpoint and crops there once; the crops never leave it. Until this
+      works, the owner's maui runs stay valid (ruling 188).
 
-**Done when:** the owner's one diagnostic run on maui is posted on this PR, and O2.4's command
+**Done when:** a diagnostic run (the operator's, or the owner's on maui) is posted on this PR, and O2.4's command
 (#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
 is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
 
@@ -459,6 +488,115 @@ merged. **PR:** #7114 (open). (rulings 162, 186)
 **Done when:** a production config rendered with the orchestrator off gives `backend` no engine
 socket, one with it on mounts it as before, `alloy`'s mount is unchanged in both, and `O2.5`'s
 override drift test still passes.
+
+### [r189] The golden Playwright leg's cap follows its measured time
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, first on its queue; ops-b reviews. **Depends on:**
+none. **PR:** #7169. (ruling 189)
+
+- [x] The golden Playwright leg's `timeout=1800` (`scripts/feature_check.py:2341` at ruling 189)
+      becomes the slowest golden-leg wall time on the last 10 green `Feature check (fake AI)` runs on
+      `main`, plus at least 50%, rounded up to a minute; the PR body lists the 10 times. #7114 died
+      at test #199 twice with exit 124, and green legs kept only 66-306 s of margin.
+- [x] The job's `timeout-minutes: 60` (`.github/workflows/ci.yml:3596` at ruling 189) rises if boot,
+      the backend leg and the new cap would leave it under 10 minutes of margin.
+- [x] A test pins the value, so a later change comes with its own measured note. The image pull and
+      build timeouts, the seeded job's budget (ruling 187) and per-test timeouts are unchanged.
+
+**Done when:** the new cap is on `main` with its measurement, and #7114's golden leg completes under
+it.
+
+### [r193] Lanes wake on GitHub events
+
+**Flags:** `owner` (the role files' tick text). **Assigned:** `uplevel-ops-a`, after `[r189]`;
+ops-b reviews. **Depends on:** none. **PR:** none yet. (ruling 193)
+
+Fixed-interval ticks add up to one tick of delay to every handoff, and an agent's view of a PR is
+only as fresh as its last tick.
+
+- [ ] A watcher script in `scripts/uplevel/` that an agent keeps armed as a background task. It
+      polls GitHub about every 60 s with one GraphQL query per poll and never the search API (its
+      30-per-minute limit is shared by every agent on the owner's token). It watches the PRs the
+      agent owns or must review (its lane, cell and `review:<lane>` labels, plus PR numbers it is
+      given) and new `BINDING NOW` records on #6854.
+- [ ] It exits with one line naming the PR and the change on a new head commit, a check reaching a
+      conclusion, a review, a comment, a label change, or a merge or close, and prints no comment
+      bodies. Transient API errors do not end it; repeated failures do, with an error line. It
+      exits after a bounded lifetime with a "no change" line, so the agent re-arms it.
+- [ ] Tests pin the change detection and the error exit.
+- [ ] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
+      Claude Code lane agents re-arm the watcher at the end of every turn, and their `/loop` tick
+      becomes a 30-minute fallback; the coordinator (5 minutes), the operator (30 minutes) and the
+      heavy agents under pi (15 minutes) keep their ticks. The PR says whether pi wakes an agent on
+      a finished background task, if ops-a can measure it.
+
+**Done when:** the watcher is on `main` with its tests, and the role files' tick sections say how
+each agent wakes.
+
+### [r195] O2.5 runs from a host login
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, after `[r193]`; ops-b reviews. **Depends on:**
+none. **PR:** none yet. (ruling 195)
+
+The owner's maui run (`6193951294`) died at VLM readiness: the harness reaches the VLM only at
+`host.docker.internal` (`scripts/feature_check.py:1374`, `:1385`), which does not resolve from a
+host login.
+
+- [ ] Outside a sandbox, the harness reaches the VLM on loopback at the runner's port, and still
+      refuses any port outside `AGENT_GPU_PORTS`.
+- [ ] The backend container reaches that port on maui's loopback under rootless Podman, by a
+      route the PR measures and names.
+- [ ] The run's `loki` (3100 + 15000 = 18100) no longer collides with the VLM's pool, which shares
+      maui's loopback.
+- [ ] The command names `AGENT_GPU_TOKEN_FILE`, and its stop-test states the GPU memory the run's
+      `ai-gateway` takes on the GB300 beside production, outside `agent-gpu`'s VRAM limit.
+
+**Done when:** the fixes are on `main` with tests, and ops-a has posted the new command on its PR
+and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the output).
+
+### [r196c] The seeded rows F-186, F-196 and F-197
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue. **Depends on:** none. **PR:**
+none yet. (rulings 127, 187, 196)
+
+- [ ] Specs for F-186, F-196 and F-197 in ops-b's batch directory
+      `frontend/tests/golden/gpu-storage-admin/` (ruling 87) run in `Feature check (seeded)`, the
+      job #7155 built under ruling 187. The PR's title carries `[r196c]`; frontend reviews.
+
+**Done when:** none of the three rows says **unverified**; each flipped on a run where its leg
+executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
+
+### [r197] The digest's formats are checked where they are written
+
+**Flags:** `owner` (the role files' tick text). **Assigned:** the owner's session, as an owner PR;
+ops-b reviews. **Depends on:** none.
+**PR:** none yet. (ruling 197, as amended by `6198199744`)
+
+Lanes act on what `scripts/uplevel/lane_tick.py` parses, and nothing checks those fields where they
+are written: a wrapped `**PR:** none yet` goes unoffered, owner pointers reach the digest only as a
+comment count, and heartbeat markers drift.
+
+- [ ] A CI plan lint that imports `lane_tick.py`'s own parsers and runs them over the plan files in
+      the PR's tree. It fails when a roster token has no package block, a block's `**PR:**` field
+      reads neither `none yet` nor `#N`, a token sits in two lanes' queues, or a ruling-map row
+      lacks its record id. Tests pin each failure, and one runs the lint on the real tree.
+- [ ] Owner records and pointers end with one HTML-comment footer:
+      `<!-- uplevel: ruling=<n> lanes=<names|all> packages=<tokens|none> -->` for a record and
+      `<!-- uplevel: pointer ruling=<n> lane=<name> -->` for a pointer. `lane_tick.py` prints a
+      `for you:` line for each live record and each owner pointer since the beat that names the
+      lane or `all`; one without a footer prints as today. `scripts/uplevel/post_record.py` posts
+      both with the exact footer.
+- [ ] A `--beat "<text>"` mode writes the agent's heartbeat itself, marker line first, with
+      UR-155's 600-character cap.
+- [ ] For ruling 198, the digest drops its `review:<lane>` section and marks the agent's own PRs:
+      `needs your review` (ready, CI finished at the head, no review for that head) and
+      `arm auto-merge` (approved at the head, `Plan text: none`, `CI Gate` green, not a draft, not
+      owner-tier, auto-merge off).
+- [ ] The tick sections of the role files name the footer lines and `--beat`. `[r193]` edits the
+      same sections, so whichever merges second rebases onto the first.
+
+**Done when:** the lint runs in CI and passes on `main`, `lane_tick.py` prints `for you:` lines
+from footers, and `--beat` writes a heartbeat the coordinator's snapshot reads.
 
 ### [r164a] The coordinator's paperwork moves into scripts
 
@@ -488,9 +626,9 @@ output with its status comment drafted by `status_draft.py`.
 ### [r181] The lane-tick digest and the signed-activity snapshot
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after its `F2.3` OP-3 rows and before `[r172]`;
-ops-a reviews. **Depends on:** none. **PR:** none yet. (ruling 181)
+ops-a reviews. **Depends on:** none. **PR:** #7164 (merged). (ruling 181)
 
-- [ ] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
+- [x] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
       agent's heartbeat id and age, the coordinator's heartbeat age (UR-162), and disk use of `/`
       and `/var/lib/docker` with a pointer to UR-180 above 90%; the live `BINDING NOW` records the
       ruling map does not yet carry (ruling 177's filter); PRs labelled `review:<lane>` with head,
@@ -499,10 +637,10 @@ ops-a reviews. **Depends on:** none. **PR:** none yet. (ruling 181)
       `CI Gate` at head (in-flight jobs read from the run's jobs), and comments and reviews since
       its heartbeat; and the next claimable roster package (UR-52) when it holds no open claim. A
       failed `gh` or `git` call prints `ERROR <section>`, never an empty section.
-- [ ] `coordinator_snapshot.py`'s heartbeats section prints, beside each non-paused agent's age, its
+- [x] `coordinator_snapshot.py`'s heartbeats section prints, beside each non-paused agent's age, its
       latest signed comment and its latest commit on its open PR branches since its heartbeat
       (ruling 178's signature rule), and any `BLOCKER:` line.
-- [ ] Red-first unit tests for both, with `gh` stubbed; `roles/lane.md` and `roles/operator.md`
+- [x] Red-first unit tests for both, with `gh` stubbed; `roles/lane.md` and `roles/operator.md`
       "The tick" and `roles/coordinator.md` step 5 point at them in the same PR.
 
 **Done when:** a lane tick reads through `lane_tick.py` alone, the snapshot shows each agent's
@@ -524,3 +662,24 @@ UR-180's order, never at a routine full prune (ruling 176).
 
 **Done when:** the module budget fails CI on a reproduced import breach, the warning-only nightly's
 list is posted, and the existing duration pins pass.
+
+### [r184] The launcher prints the heavy sessions' pi start line
+
+**Flags:** none. **Assigned:** ops-a. **Depends on:** none.
+**PR:** none yet. (rulings 184 and 201, records 6177514438 and 6198825479)
+
+Ruling 184's commit renamed the heavy rows in `scripts/uplevel/sandboxes.toml`. The owner starts
+both with `agent-dgx <name> pi --split`, but `launch.py` still builds
+`agent-dgx run <name> --agent claude --split` for them (`[models] strongest`).
+
+- [ ] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
+      Take its exact form from `agent-dgx help` output the owner posts from maui, or from a line
+      the owner pastes on the PR; the launcher never invents a flag (`history/packages-done.md`
+      §O0.1).
+- [ ] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
+      rows, naming the hand-start line, and prints no wrong line.
+- [ ] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
+      refusal, and no other row's line changes.
+
+**Done when:** the launcher test passes in CI at a ready head, and `sandboxes.toml`'s comment no
+longer says the launcher does not print the form.

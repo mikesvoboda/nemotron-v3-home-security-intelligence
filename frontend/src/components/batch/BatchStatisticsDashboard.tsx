@@ -4,8 +4,9 @@
  * Displays:
  * - Summary metrics (active batches, total closed, avg duration)
  * - Active batch timeline
- * - Closure reason distribution chart
- * - Per-camera breakdown table
+ *
+ * (The closure-reason chart and per-camera table retired with ruling 134; see
+ * `src/__tests__/batch-history-views-retired.test.tsx`.)
  *
  * Data sources:
  * - REST API /api/system/pipeline for active batch status
@@ -27,8 +28,6 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-import BatchClosureReasonChart from './BatchClosureReasonChart';
-import BatchPerCameraTable from './BatchPerCameraTable';
 import BatchTimelineChart from './BatchTimelineChart';
 import { useBatchStatistics } from '../../hooks/useBatchStatistics';
 
@@ -63,16 +62,14 @@ export default function BatchStatisticsDashboard({
     batchWindowSeconds,
     idleTimeoutSeconds,
     averageDurationSeconds,
-    closureReasonStats,
-    closureReasonPercentages,
-    perCameraStats,
     isWebSocketConnected,
     refetch,
   } = useBatchStatistics();
 
-  // Check if we have any data
-  const hasData =
-    activeBatchCount > 0 || totalClosedCount > 0 || Object.keys(perCameraStats).length > 0;
+  // Check if we have any data. (The perCameraStats arm of this test retired
+  // with ruling 134: that map was derived from the same active/completed
+  // batches these two counts already cover.)
+  const hasData = activeBatchCount > 0 || totalClosedCount > 0;
 
   // Loading state
   if (isLoading) {
@@ -239,19 +236,6 @@ export default function BatchStatisticsDashboard({
             activeBatches={activeBatches}
             batchWindowSeconds={batchWindowSeconds}
           />
-
-          {/* Two-column layout for charts */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Closure Reason Chart */}
-            <BatchClosureReasonChart
-              closureReasonStats={closureReasonStats}
-              closureReasonPercentages={closureReasonPercentages}
-              totalBatches={totalClosedCount}
-            />
-
-            {/* Per-Camera Table */}
-            <BatchPerCameraTable perCameraStats={perCameraStats} />
-          </div>
         </div>
       )}
     </Card>

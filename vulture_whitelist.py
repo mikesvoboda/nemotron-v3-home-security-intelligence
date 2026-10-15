@@ -34,6 +34,13 @@ _.no_pynvml
 _.scoped_only
 _.plain_only
 _.setup_complete
+# [r95] (PR #7135) monitoring field-ceiling pins: (a) again — gate_armed arms
+# the scoped gate (EXPOSE_LAN + API_KEYS + settings cache clear) and the seven
+# bodies assert on HTTP responses, never on the injected value. It could not
+# surface while the PR was draft: ci.yml's dead-code job skips drafts, and the
+# job is a CI Gate need, so the file met vulture only at the ready head
+# (measured 2026-10-15, run 38671466660 job 116218984106, 7 sites, 100%).
+_.gate_armed
 # (b) a parametrize value that exists to NAME the four boundary cases (the
 #     disjunct labels of the bbox rejection predicate); pytest injects it as a
 #     kwarg bound to the argname, so it cannot be renamed or dropped, and the
