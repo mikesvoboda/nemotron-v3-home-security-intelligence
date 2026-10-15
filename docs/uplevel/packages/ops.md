@@ -471,15 +471,15 @@ override drift test still passes.
 ### [r189] The golden Playwright leg's cap follows its measured time
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, first on its queue; ops-b reviews. **Depends on:**
-none. **PR:** none yet. (ruling 189)
+none. **PR:** #7169. (ruling 189)
 
-- [ ] The golden Playwright leg's `timeout=1800` (`scripts/feature_check.py:2341` at ruling 189)
+- [x] The golden Playwright leg's `timeout=1800` (`scripts/feature_check.py:2341` at ruling 189)
       becomes the slowest golden-leg wall time on the last 10 green `Feature check (fake AI)` runs on
       `main`, plus at least 50%, rounded up to a minute; the PR body lists the 10 times. #7114 died
       at test #199 twice with exit 124, and green legs kept only 66-306 s of margin.
-- [ ] The job's `timeout-minutes: 60` (`.github/workflows/ci.yml:3596` at ruling 189) rises if boot,
+- [x] The job's `timeout-minutes: 60` (`.github/workflows/ci.yml:3596` at ruling 189) rises if boot,
       the backend leg and the new cap would leave it under 10 minutes of margin.
-- [ ] A test pins the value, so a later change comes with its own measured note. The image pull and
+- [x] A test pins the value, so a later change comes with its own measured note. The image pull and
       build timeouts, the seeded job's budget (ruling 187) and per-test timeouts are unchanged.
 
 **Done when:** the new cap is on `main` with its measurement, and #7114's golden leg completes under

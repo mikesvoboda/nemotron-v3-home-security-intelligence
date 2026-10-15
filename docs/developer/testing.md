@@ -577,6 +577,26 @@ timeout (`subprocess.run` raises `TimeoutExpired` whatever `check` says), so
 out`, and `_exit_word` prints that word where a number would go, so summary.json
 never reads a stall as a refusal the owner should answer with an allow.
 
+**The leg's own deadline follows its measured time (ruling 189).** The golden
+`docker run` carried `timeout=1800` because that was the number on hand, not a
+measurement, and a full suite grew into it: #7114's leg died at exit 124 with the
+spec list still running. The cap is now `GOLDEN_LEG_TIMEOUT_S` in
+`feature_check.py`, and it is derived: the slowest of the last 10 GREEN
+`Feature check (fake AI)` runs on `main` measured 1739 s from the leg's
+`$ docker run … --project=golden` line to its `golden paths:` summary (both
+CI-stamped lines in the job log), so 1739 × 1.5 rounded up to a minute is 2640 s.
+`timeout-minutes` on the job rose 60 → 64 with it, because the same 10 runs, read
+on the job's own Actions clock, put worst boot+backend at 562 s and worst teardown
+at 31 s, and ruling 189 wants 10 minutes of margin over the sum. Both numbers are
+pinned as literals in `backend/tests/unit/scripts/test_feature_check.py`, so
+moving either one is a deliberate act that has to arrive with its own measurement
+— and raising the ceiling excuses nothing: a spec that alone takes minutes is
+still `UR-48` work for its lane. The other three 1800 s timeouts stay 1800: the
+backend golden pytest leg, the frontend `npm ci`, and the Playwright image pull
+(ruling 189 names all three unchanged — it calls them "image pull and build", but
+two of the three are those other steps). The seeded job's budget (ruling 187) and
+the per-test timeouts are untouched.
+
 **A golden run that executes nothing (ruling 114).** A leg's exit code says the
 runner finished, not that a spec ran. The shape that hides is the one that exits
 `0`: a suite where every spec skipped. (A `pytest` run that _collected_ nothing
