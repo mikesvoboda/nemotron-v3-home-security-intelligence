@@ -1718,7 +1718,7 @@ def test_the_leg_runs_in_the_image_with_the_same_argv_inside(
     # A literal, not fc.GOLDEN_LEG_TIMEOUT_S — a re-read would agree with whatever the constant
     # says (this file's own rule above: "not fc.playwright_image(...) re-evaluated"). The value
     # is ruling 189's measurement: the slowest of the last 10 green golden legs on main was
-    # 1739 s (job 116184218975 at c1b804a82), × 1.5 rounded up to a minute = 2640. A later edit
+    # 1739 s (job 116184218975 at c1b804a82), x 1.5 rounded up to a minute = 2640. A later edit
     # of the constant reds this line — that is the point — and its author brings new numbers here.
     assert kwargs["timeout"] == 2640, "a golden suite is minutes; 2640 = measured 1739 s x 1.5"
 
