@@ -524,6 +524,22 @@ for the spec's legs. **PR:** none yet. (ruling 211, record 6200331506)
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
 **awaiting real tier** on that run (rulings 103, 114).
 
+### [r212] F-061 and F-062: the audit tab can run an evaluation, and both legs re-run
+
+**Flags:** none. **Assigned:** frontend, after `[r211f]` (fix now). **Depends on:** none.
+**PR:** none yet. (ruling 212, record 6200384247)
+
+F-106 and F-108 share this surface and are fix-now; `[r129]` (#7031) made the batch audit load the
+deferred `Event.llm_prompt`, after these rows' evidence run at `7971475db`.
+
+- [ ] On an event with no audit, `EventAuditDetail.tsx` renders the Run control instead of returning
+      its error screen (`:241-257`) before the header that holds it (`:321`).
+- [ ] The golden fixture seeds an audit by running the batch audit on the fake stack; remove both
+      `test.fixme` marks in `frontend/tests/golden/timeline/event-reevaluate.spec.ts`.
+
+**Done when:** each row flips to **awaiting real tier** on a run where its legs pass (rulings 103,
+114), or the PR posts the run where a leg still breaks and that row returns to the owner.
+
 ### [r204] One realtime connection owner
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.
