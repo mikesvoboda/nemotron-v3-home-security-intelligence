@@ -509,22 +509,22 @@ it.
 ### [r193] Lanes wake on GitHub events
 
 **Flags:** `owner` (the role files' tick text). **Assigned:** `uplevel-ops-a`, after `[r189]`;
-ops-b reviews. **Depends on:** none. **PR:** none yet. (ruling 193)
+ops-b reviews. **Depends on:** none. **PR:** #7175. (ruling 193)
 
 Fixed-interval ticks add up to one tick of delay to every handoff, and an agent's view of a PR is
 only as fresh as its last tick.
 
-- [ ] A watcher script in `scripts/uplevel/` that an agent keeps armed as a background task. It
+- [x] A watcher script in `scripts/uplevel/` that an agent keeps armed as a background task. It
       polls GitHub about every 60 s with one GraphQL query per poll and never the search API (its
       30-per-minute limit is shared by every agent on the owner's token). It watches the PRs the
       agent owns or must review (its lane, cell and `review:<lane>` labels, plus PR numbers it is
       given) and new `BINDING NOW` records on #6854.
-- [ ] It exits with one line naming the PR and the change on a new head commit, a check reaching a
+- [x] It exits with one line naming the PR and the change on a new head commit, a check reaching a
       conclusion, a review, a comment, a label change, or a merge or close, and prints no comment
       bodies. Transient API errors do not end it; repeated failures do, with an error line. It
       exits after a bounded lifetime with a "no change" line, so the agent re-arms it.
-- [ ] Tests pin the change detection and the error exit.
-- [ ] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
+- [x] Tests pin the change detection and the error exit.
+- [x] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
       Claude Code lane agents re-arm the watcher at the end of every turn, and their `/loop` tick
       becomes a 30-minute fallback; the coordinator (5 minutes), the operator (30 minutes) and the
       heavy agents under pi (15 minutes) keep their ticks. The PR says whether pi wakes an agent on

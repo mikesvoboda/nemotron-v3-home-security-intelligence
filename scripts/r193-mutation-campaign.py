@@ -310,6 +310,40 @@ MUTANTS = [
         "asks no totalCount, so truncation cannot be detected at all",
         [('        lines.append("        totalCount")', "")],
     ),
+    # ---- the three fixes the UR-89 review of e0ba63e05 asked for, reverted to their before state.
+    # Each of these was a bug the review FOUND (not one a test caught), so the pin that now covers
+    # it is exactly what these reverts are for: if the dedup/`reopened`/ruling-guard line is ever
+    # dropped, the suite must go red, and these mutants are the proof it does.
+    (
+        "dup-pr-not-deduped",
+        "lets a repeated --pr through, so the query declares $p7175 twice and every poll dies "
+        "with variableNotUnique (the API rejection is what finding 2 was)",
+        [("    args.prs = list(dict.fromkeys(args.prs))\n", "")],
+    ),
+    (
+        "state-line-two-outcomes",
+        "restores `merged if MERGED else closed`, so a REOPENED PR prints 'closed' -- the opposite "
+        "of the event, on the one line the agent acts on",
+        [
+            (
+                '    return {"MERGED": "merged", "CLOSED": "closed", "OPEN": "reopened"}'
+                ".get(state, state.lower())\n",
+                '    return "merged" if state == "MERGED" else "closed"\n',
+            )
+        ],
+    ),
+    (
+        "ruling-guard-never-runs",
+        "un-hooks _check_ruling, so a poll answered with a null `issue` node seeds a BINDING NOW "
+        "channel that never compares again -- silent forever, which is the failure mode named "
+        "finding 4",
+        [
+            (
+                "    _check_windows(data, label_groups)\n    _check_ruling(data, ruling_issue)\n",
+                "    _check_windows(data, label_groups)\n",
+            )
+        ],
+    ),
 ]
 
 

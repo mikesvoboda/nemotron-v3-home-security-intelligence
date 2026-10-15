@@ -178,7 +178,7 @@ def discovered(data: dict, groups: Sequence[Sequence[str]]) -> dict[int, list[st
     return found
 
 
-def _connection(wrapper):
+def _connection(wrapper: dict | None) -> list[dict] | None:
     return (wrapper or {}).get("nodes") if wrapper else None
 
 
@@ -205,6 +205,27 @@ def _check_windows(data: dict, groups: Sequence[Sequence[str]]) -> None:
                 f"{DISCOVERY_WINDOW} is the most one poll can watch"
             )
             raise RuntimeError(msg)
+
+
+def _check_ruling(data: dict, ruling_issue: int) -> None:
+    """Refuse to watch a poll that cannot see the ruling issue.
+
+    ``snapshot`` stores ``state["ruling"] = None`` when the ``issue`` node is absent or null, and
+    ``diff_lines`` then compares only ``if old_ruling and new_ruling`` -- so a seed poll that
+    cannot see #6854 never compares it again: a ``BINDING NOW`` can arrive, be fetched, and
+    report nothing, for the watcher's whole lifetime, with zero errors. The discovery path has
+    ``_check_windows`` for exactly this shape of silence; the ruling channel had none. Raising
+    here sends it through ``watch``'s error path -- an error line and rc 2 -- instead of a calm
+    forever. The null can be a real event (issue deleted or made inaccessible), and then dying
+    loudly is still the honest answer: a lane that cannot see its rulings is not a watching lane.
+    """
+    root = data.get("repository") or {}
+    if root.get("issue") is None:
+        msg = (
+            f"ruling issue #{ruling_issue} came back null or absent -- the BINDING NOW channel"
+            " is unreadable and a watcher that ignores it reads as calm while rulings pass"
+        )
+        raise RuntimeError(msg)
 
 
 def snapshot(data: dict, prs: Sequence[int]) -> dict:
@@ -255,7 +276,7 @@ def _pr_fields(node: dict) -> dict:
     }
 
 
-def _comments(wrapper) -> list[tuple[str, str | None, str | None]]:
+def _comments(wrapper: dict | None) -> list[tuple[str, str | None, str | None]]:
     nodes = (wrapper or {}).get("nodes") or []
     return [
         (n.get("id"), (n.get("author") or {}).get("login"), n.get("body"))
@@ -264,7 +285,7 @@ def _comments(wrapper) -> list[tuple[str, str | None, str | None]]:
     ]
 
 
-def _checks(rollup) -> dict[str, str]:
+def _checks(rollup: dict | None) -> dict[str, str]:
     """{check name: conclusion} for checks that HAVE a conclusion.
 
     ``rollup`` is a StatusCheckRollup object; its checks live under ``contexts.nodes`` (see the
@@ -329,12 +350,16 @@ def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict)
 UNREAD = "unread"
 
 
-def _read(entry) -> bool:
+def _read(entry: object) -> bool:
     return isinstance(entry, dict) and UNREAD not in entry
 
 
 def _state_line(state: str) -> str:
-    return "merged" if state == "MERGED" else "closed"
+    # Three outcomes, not two. `else "closed"` was the whole function, and it made any
+    # non-MERGED change print "closed" -- so a REOPENED PR reported its opposite. A reopen is
+    # not one of ruling 193's six change classes, but the state already being watched is what
+    # the line exists to name, and naming it wrongly is worse than the class gap it exposes.
+    return {"MERGED": "merged", "CLOSED": "closed", "OPEN": "reopened"}.get(state, state.lower())
 
 
 def _watch_line(number: int, group: Sequence[str]) -> str:
@@ -344,7 +369,6 @@ def _watch_line(number: int, group: Sequence[str]) -> str:
 def check(
     runner: Callable[[str, dict], dict],
     state: dict,
-    now: datetime,
     *,
     repo: str = DEFAULT_REPO,
     prs: Sequence[int] = (),
@@ -379,8 +403,9 @@ def check(
     )
     data = response.get("data") or {}
     _check_windows(data, label_groups)
-    after = snapshot(data, known)
-    before = {"prs": dict(state.get("prs") or {}), "ruling": state.get("ruling")}
+    _check_ruling(data, ruling_issue)
+    after: dict = snapshot(data, known)
+    before: dict = {"prs": dict(state.get("prs") or {}), "ruling": state.get("ruling")}
 
     lines: list[str] = []
     watched = list(known)
@@ -425,12 +450,13 @@ def _from(login: str | None) -> str:
     return "" if not login else f" from {login}"
 
 
-def _new_actor(after: list, before: list) -> str | None:
+def _new_actor(after: Sequence[tuple], before: Sequence[tuple]) -> str | None:
     """The author of the first item in ``after`` that isn't in ``before``, if identifiable."""
     seen = {item[0] for item in before}
     for item in after:
         if item[0] not in seen:
-            return item[1]
+            login: str | None = item[1]
+            return login
     return None
 
 
@@ -468,7 +494,6 @@ def watch(
             lines = check(
                 runner,
                 state,
-                clock(),
                 repo=repo,
                 prs=prs,
                 ruling_issue=ruling_issue,
@@ -507,7 +532,7 @@ def gh_runner(query: str, variables: dict) -> dict:
     proc = subprocess.run(gh_args(query, variables), capture_output=True, text=True, check=False)
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout).strip()[:400])
-    payload = json.loads(proc.stdout)
+    payload: dict = json.loads(proc.stdout)
     if payload.get("errors"):
         raise RuntimeError(str(payload["errors"])[:400])
     return payload
@@ -539,6 +564,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lifetime", type=float, default=3600.0, help="seconds before quitting")
     parser.add_argument("--max-errors", type=int, default=3)
     args = parser.parse_args(argv)
+    # Dedup --pr here, in FIRST-OCCURRENCE order. `--pr 7175 --pr 7175` is what lane.md step 6's
+    # own sentence produces when one PR is both yours and a review row, and the flag is harmless
+    # until the query text declares $p7175 twice -- the API then answers variableNotUnique (live,
+    # measured) on EVERY poll, and the watcher dies at max_errors with an "API failure" line about
+    # a malformed arm. The watch of one PR is one alias.
+    args.prs = list(dict.fromkeys(args.prs))
     if not args.prs and not label_groups(args.lane, args.cell, args.review_labels):
         parser.error(
             "nothing to watch: give a --pr, or --lane/--cell/--review-label to discover by"

@@ -105,6 +105,13 @@ that died silently.
    inside a turn (UR-38): the turn ends, and the line it prints starts a new one. When it exits,
    act on the line and re-arm.
 
+   **Heavy agents under pi skip this step.** They keep the 15-minute `/loop` (UR-174) as their wake,
+   because whether pi wakes an agent when a background task finishes is unmeasured: `pi` is not
+   installed in the lane sandboxes (`command -v pi` exits 1 in `uplevel-ops-a`, read
+   2026-10-15T23:46Z), so #7175 cannot say it does. Ruling 193 asked the PR to say so "if ops-a can
+   measure it" -- this is the honest answer: said, not measured. A heavy agent that later finds pi
+   delivers a finished background task's output may arm the watcher too; nothing here forbids it.
+
 7. If none of these has work, say so in one line and end the turn.
 
 ## Heartbeat

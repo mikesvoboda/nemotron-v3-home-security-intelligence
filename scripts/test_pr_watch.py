@@ -26,6 +26,7 @@ of a live API call. The tests pin what ruling 193 requires:
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -169,14 +170,14 @@ def seed(prs=(PR,)) -> dict:
     )
     runner = Run(response)
     state: dict = {}
-    lines = watch.check(runner, state, NOW, repo=REPO, prs=list(prs), ruling_issue=RULING_ISSUE)
+    lines = watch.check(runner, state, repo=REPO, prs=list(prs), ruling_issue=RULING_ISSUE)
     assert lines == [], "the first poll seeds state; nothing is news yet"
     assert runner.calls == 1
     return state
 
 
-def second(runner, state, now=NOW):
-    return watch.check(runner, state, now, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+def second(runner, state):
+    return watch.check(runner, state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
 
 
 def test_new_head_commit_is_reported():
@@ -276,6 +277,49 @@ def test_close_is_reported():
     assert len(lines) == 1 and "clos" in lines[0].lower()
 
 
+def test_a_pr_that_reopens_prints_reopened_not_closed():
+    """A state change the watcher already reports must name the state it reached, not its opposite.
+
+    A reopen is not one of ruling 193's six change classes, but the STATE CHANGE is: the line
+    exists because the state moved, and ``else "closed"`` printed "closed" for every non-merge,
+    so a reopened PR reported the opposite of the event on the one line an agent acts on.
+    """
+    state = seed()
+    closed = envelope(
+        [pr_node(PR, state="CLOSED")],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: 45 live"},
+    )
+    lines = second(Run(closed), state)
+    assert len(lines) == 1 and "clos" in lines[0].lower()
+    reopened = envelope(
+        [pr_node(PR, state="OPEN")],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: 45 live"},
+    )
+    lines = second(Run(reopened), state)
+    assert len(lines) == 1 and "reopen" in lines[0].lower()
+
+
+def test_a_merged_pr_that_reopens_prints_reopened_too():
+    """The other direction, because `else "closed"` covered it too: MERGED -> OPEN."""
+    state = seed()
+    merged = envelope(
+        [pr_node(PR, state="MERGED")],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: 45 live"},
+    )
+    lines = second(Run(merged), state)
+    assert len(lines) == 1 and "merged" in lines[0].lower()
+    reopened = envelope(
+        [pr_node(PR, state="OPEN")],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: 45 live"},
+    )
+    lines = second(Run(reopened), state)
+    assert len(lines) == 1 and "reopen" in lines[0].lower()
+
+
 def test_new_binding_now_is_reported():
     state = seed()
     binding = envelope(
@@ -334,14 +378,13 @@ def test_a_label_only_watcher_still_reports_a_new_binding_now():
     state: dict = {}
     runner = Run(empty, binding)
     first = watch.check(
-        runner, state, NOW, repo=REPO, prs=[], ruling_issue=RULING_ISSUE, label_groups=[LANE_OPS]
+        runner, state, repo=REPO, prs=[], ruling_issue=RULING_ISSUE, label_groups=[LANE_OPS]
     )
     assert first == [], "the seed poll reports nothing"
     assert state["prs"] == {}, "the lane genuinely has nothing routed to it"
     later = watch.check(
         runner,
         state,
-        NOW + watch.timedelta(minutes=1),
         repo=REPO,
         prs=[],
         ruling_issue=RULING_ISSUE,
@@ -364,7 +407,7 @@ def test_a_non_binding_new_comment_on_the_ruling_issue_is_silent():
 def test_one_graphql_call_per_poll_and_never_the_search_api():
     state = seed()
     runner = Run(envelope([pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: 45 live"}))
-    watch.check(runner, state, NOW, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+    watch.check(runner, state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
     assert runner.calls == 1, "one batched GraphQL query per poll"
     assert "query" in runner.queries[0]
     # the variables the query declares are the ones the poll sends, or every alias reads null.
@@ -479,7 +522,6 @@ def test_a_labeled_pr_is_discovered_and_named_as_newly_watched():
         watch.check(
             first,
             state,
-            NOW,
             repo=REPO,
             prs=[],
             ruling_issue=RULING_ISSUE,
@@ -498,7 +540,6 @@ def test_a_labeled_pr_is_discovered_and_named_as_newly_watched():
     lines = watch.check(
         joined,
         state,
-        NOW,
         repo=REPO,
         prs=[],
         ruling_issue=RULING_ISSUE,
@@ -535,7 +576,6 @@ def test_a_pr_two_labels_match_is_watched_for_both_reasons():
     lines = watch.check(
         joined,
         state,
-        NOW,
         repo=REPO,
         prs=[PR],
         ruling_issue=RULING_ISSUE,
@@ -563,7 +603,6 @@ def test_a_discovered_pr_reports_its_events_once_seeded():
             )
         ),
         state,
-        NOW,
         repo=REPO,
         prs=[],
         ruling_issue=RULING_ISSUE,
@@ -581,7 +620,6 @@ def test_a_discovered_pr_reports_its_events_once_seeded():
             )
         ),
         state,
-        NOW,
         repo=REPO,
         prs=[],
         ruling_issue=RULING_ISSUE,
@@ -602,7 +640,6 @@ def test_a_discovered_pr_reports_its_events_once_seeded():
         watch.check(
             third,
             state,
-            NOW,
             repo=REPO,
             prs=[],
             ruling_issue=RULING_ISSUE,
@@ -620,7 +657,6 @@ def test_a_discovered_pr_reports_its_events_once_seeded():
     lines = watch.check(
         Run(moved),
         state,
-        NOW,
         repo=REPO,
         prs=[],
         ruling_issue=RULING_ISSUE,
@@ -649,7 +685,6 @@ def test_a_merged_pr_stays_watched_after_it_leaves_the_open_set():
             )
         ),
         state,
-        NOW,
         repo=REPO,
         prs=[],
         ruling_issue=RULING_ISSUE,
@@ -664,7 +699,7 @@ def test_a_merged_pr_stays_watched_after_it_leaves_the_open_set():
         )
     )
     lines = watch.check(
-        gone, state, NOW, repo=REPO, prs=[], ruling_issue=RULING_ISSUE, label_groups=[LANE_OPS]
+        gone, state, repo=REPO, prs=[], ruling_issue=RULING_ISSUE, label_groups=[LANE_OPS]
     )
     assert len(lines) == 1 and "merged" in lines[0].lower(), lines
 
@@ -688,7 +723,6 @@ def test_discovery_stays_inside_one_query_and_never_the_search_api():
     watch.check(
         runner,
         state,
-        NOW,
         repo=REPO,
         prs=[PR],
         ruling_issue=RULING_ISSUE,
@@ -764,7 +798,6 @@ def test_a_full_discovery_window_raises_instead_of_looking_quiet():
         watch.check(
             runner,
             state,
-            NOW,
             repo=REPO,
             prs=[PR],
             ruling_issue=RULING_ISSUE,
@@ -774,6 +807,27 @@ def test_a_full_discovery_window_raises_instead_of_looking_quiet():
         assert "300" in str(exc) and "100" in str(exc), exc
     else:
         raise AssertionError("a truncated discovery window must raise, not report nothing")
+
+
+def test_a_null_ruling_issue_raises_instead_of_looking_calm():
+    """A poll that cannot see #6854 must not seed a channel that never compares again.
+
+    `snapshot` stores `state["ruling"] = None` when the `issue` node comes back null, and
+    `diff_lines` then compares only `if old_ruling and new_ruling` -- so a SEED poll answered null
+    leaves the watcher permanently unable to report a BINDING NOW, with zero errors, for its whole
+    lifetime. The discovery path has `_check_windows` for that shape of silence; the ruling channel
+    is the one ruling 193 says a lane must never miss, so it gets the same guard. The trigger
+    (issue deleted or made inaccessible) is inference, not observed live; the SILENCE it causes is
+    what's pinned here, and it is a property of the code, not of GitHub.
+    """
+    state = {}
+    runner = Run(envelope([pr_node(PR)], ruling_ids=None))  # the `issue` node is absent
+    try:
+        watch.check(runner, state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+    except RuntimeError as exc:
+        assert str(RULING_ISSUE) in str(exc), exc
+    else:
+        raise AssertionError("a null ruling node must raise, not seed a permanently deaf channel")
 
 
 def test_window_size_is_bounded_by_a_named_constant():
@@ -797,7 +851,6 @@ def test_explicit_pr_numbers_are_watched_whether_or_not_a_label_matches():
     watch.check(
         runner,
         state,
-        NOW,
         repo=REPO,
         prs=[9999],
         ruling_issue=RULING_ISSUE,
@@ -815,7 +868,6 @@ def test_explicit_pr_numbers_are_watched_whether_or_not_a_label_matches():
     lines = watch.check(
         Run(moved),
         state,
-        NOW,
         repo=REPO,
         prs=[9999],
         ruling_issue=RULING_ISSUE,
@@ -846,7 +898,6 @@ def test_a_pr_that_merged_before_its_first_field_read_is_still_reported():
         watch.check(
             first,
             state,
-            NOW,
             repo=REPO,
             prs=[],
             ruling_issue=RULING_ISSUE,
@@ -865,7 +916,6 @@ def test_a_pr_that_merged_before_its_first_field_read_is_still_reported():
     lines = watch.check(
         merged_early,
         state,
-        NOW,
         repo=REPO,
         prs=[],
         ruling_issue=RULING_ISSUE,
@@ -918,7 +968,6 @@ def test_a_pr_named_by_number_AND_matched_by_a_label_is_read_on_the_first_poll()
     lines = watch.check(
         runner,
         state,
-        NOW,
         repo=REPO,
         prs=[PR],
         ruling_issue=RULING_ISSUE,
@@ -939,7 +988,6 @@ def test_a_pr_named_by_number_AND_matched_by_a_label_is_read_on_the_first_poll()
     lines = watch.check(
         Run(moved),
         state,
-        NOW,
         repo=REPO,
         prs=[PR],
         ruling_issue=RULING_ISSUE,
@@ -989,6 +1037,23 @@ def test_the_cli_builds_the_same_groups_the_ruling_names():
     args = watch.parse_args(argv)
     assert args.prs == [7175]
     assert watch.label_groups(args.lane, args.cell, args.review_labels) == OPS_A
+
+
+def test_a_repeated_pr_number_arms_one_watch_and_one_declaration():
+    """`--pr 7175 --pr 7175` is a legal arm that used to produce a query the API always rejects.
+
+    Two faces of the same bug, so both are pinned: the parsed list (dedup, first-occurrence order)
+    and the QUERY TEXT, which declares ``$p<number>`` once per list entry -- a duplicate entry
+    emits ``$p7175`` twice and every poll dies with ``variableNotUnique`` (measured live). Pinning
+    only the list would survive a refactor that moved the dedup somewhere the query never passes
+    through; the declaration census is the symptom's own shape. lane.md step 6 tells agents to
+    pass repeated ``--pr`` flags, where one number can legitimately arrive twice.
+    """
+    args = watch.parse_args(["--pr", "7175", "--pr", "7175", "--pr", "7168", "--pr", "7175"])
+    assert args.prs == [7175, 7168], "dedup keeps first-occurrence order"
+    text = watch.query_text(args.prs, REPO, RULING_ISSUE)
+    declared = re.findall(r"\$p\d+(?=[: ])", text.split("query(")[1].split(")")[0])
+    assert sorted(declared) == ["$p7168", "$p7175"], "every $p declared EXACTLY once"
 
 
 def test_the_cli_refuses_to_arm_with_nothing_to_watch():
@@ -1072,6 +1137,34 @@ def test_repeated_failures_exit_with_an_error_line():
         max_errors=3,
     )
     assert rc != 0, "repeated failures must exit non-zero: silence is not success"
+    assert len(lines) == 1 and "error" in lines[0].lower()
+
+
+def test_a_null_ruling_issue_ends_the_watch_with_an_error_line():
+    """The ruling guard's raise must route to the error EXIT, not print nothing and exit 0.
+
+    Same scripted envelope three times: the `issue` node is absent on every poll, so the guard
+    raises on every poll, and `max_errors=3` makes the streak fatal. The red alternative this pins
+    is the exit code -- a loop that swallowed the raise would run to its lifetime and print
+    "no change", the exact lie the guard exists to refuse.
+    """
+    state = seed()
+    deaf = envelope([pr_node(PR)], ruling_ids=None)
+    runner = Run(*([deaf] * 3))
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        state,
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=3600,
+        max_errors=3,
+    )
+    assert rc != 0, "a channel that cannot see its rulings is not a calm tick"
     assert len(lines) == 1 and "error" in lines[0].lower()
 
 
