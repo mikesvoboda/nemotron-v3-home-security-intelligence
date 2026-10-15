@@ -356,6 +356,22 @@ on the CI compose before their save leg can go green; until then they flip on th
 **Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
 head.
 
+### [r211b] F-048: search skips deleted events and filters the severity it reports
+
+**Flags:** none. **Assigned:** backend, first on its queue (fix now). **Depends on:** none.
+**PR:** none yet. (ruling 211, record 6200331506)
+
+- [ ] `search_events` (`backend/services/search.py`) takes the browse route's `deleted_at` predicate
+      (`backend/api/routes/events.py:410`), so search never lists a soft-deleted event.
+- [ ] The severity filter (`search.py:332`) tests the value the response reports
+      (`backend/api/schemas/search.py:44` derives `risk_level` from `risk_score`): one derivation,
+      read by both.
+- [ ] Tests: a soft-deleted event never appears in search; a filter on the level a result displays
+      finds it (a `high` row at score 91 is found by the level it shows).
+
+**Done when:** the tests pass in CI at a ready head; `[r211f]` then removes the two `test.fixme`
+marks in `timeline-search.spec.ts`.
+
 ### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
 
 **Flags:** `heavy`. **Assigned:** heavy-a, ahead of `B2.3`; heavy-a opens its own draft PR.

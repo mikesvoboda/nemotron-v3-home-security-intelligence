@@ -512,6 +512,18 @@ as a claim; ruling 196 makes them a package. Each PR's title carries `[r196a]`.
 **Done when:** none of these eight rows says **unverified**; each flipped on a CI run where its
 leg executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
 
+### [r211f] F-048: a search result opens what was clicked
+
+**Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
+for the spec's legs. **PR:** none yet. (ruling 211, record 6200331506)
+
+- [ ] Clicking a search result opens that result; `getModalEvent()` no longer looks the id up in the
+      browse list (`frontend/src/components/events/EventTimeline.tsx:1059`).
+- [ ] Remove both `test.fixme` marks in `frontend/tests/golden/timeline/timeline-search.spec.ts`.
+
+**Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
+**awaiting real tier** on that run (rulings 103, 114).
+
 ### [r204] One realtime connection owner
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.

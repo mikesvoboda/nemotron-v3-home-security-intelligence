@@ -223,6 +223,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 208    | owner's session measures record repair; result 6200252063 (record 6199979513)                               |
 | 209    | claim drafts that hold nothing close: #7072 now, #6996 after `[r196b]` (record 6200064485)                  |
 | 210    | R2b round 2: R2 §3 approved as a rule; export tooling stays; spikes go (record 6200282082)                  |
+| 211    | R2b: F-048 complete, P1, fix now; `[r211b]` backend, `[r211f]` frontend (record 6200331506)                 |
 
 ## Owner records
 
