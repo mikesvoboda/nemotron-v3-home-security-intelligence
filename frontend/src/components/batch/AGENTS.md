@@ -10,10 +10,13 @@ Components for visualizing batch processing statistics and lifecycle events in t
 | ----------------------------------- | ------------------------------------------- |
 | `BatchStatisticsDashboard.tsx`      | Main dashboard with all batch metrics       |
 | `BatchTimelineChart.tsx`            | Timeline visualization of active batches    |
-| `BatchClosureReasonChart.tsx`       | Donut chart showing batch closure reasons   |
-| `BatchPerCameraTable.tsx`           | Table of per-camera batch statistics        |
 | `BatchStatisticsDashboard.test.tsx` | Test suite for the dashboard                |
 | `index.ts`                          | Barrel exports for all components and types |
+
+Ruling 134 retired the closure-reason chart, the per-camera table and the
+completed-batch timeline view; the active-batches view above is the one that
+stays. Absence is guarded by
+`../../__tests__/batch-history-views-retired.test.tsx`.
 
 ## Component Details
 
@@ -27,8 +30,6 @@ Main dashboard orchestrating all batch statistics visualizations.
 - Batch configuration display (window size, idle timeout)
 - WebSocket connection status indicator
 - Active batch timeline
-- Closure reason distribution chart
-- Per-camera breakdown table
 - Loading, error, and empty states
 
 **Props:**
@@ -71,43 +72,6 @@ Visual timeline showing progress of active batches toward closure.
 - Yellow - 50-80% of window
 - Red - More than 80% of window (near timeout)
 
-### BatchClosureReasonChart
-
-Donut chart displaying distribution of batch closure reasons.
-
-**Closure Reasons:**
-
-- `timeout` - Batch window (90s) expired
-- `idle` - No activity for idle timeout period (30s)
-- `max_size` - Maximum batch size reached
-
-**Props:**
-
-| Prop                       | Type                       | Description              |
-| -------------------------- | -------------------------- | ------------------------ |
-| `closureReasonStats`       | `ClosureReasonStats`       | Counts per reason        |
-| `closureReasonPercentages` | `ClosureReasonPercentages` | Percentages per reason   |
-| `totalBatches`             | `number`                   | Total closed batch count |
-| `className`                | `string`                   | Optional CSS class       |
-
-### BatchPerCameraTable
-
-Table showing batch statistics broken down by camera.
-
-**Columns:**
-
-- Camera ID with icon
-- Active batch count (green badge if > 0)
-- Completed batch count
-- Total detection count
-
-**Props:**
-
-| Prop             | Type             | Description           |
-| ---------------- | ---------------- | --------------------- |
-| `perCameraStats` | `PerCameraStats` | Per-camera statistics |
-| `className`      | `string`         | Optional CSS class    |
-
 ## Data Flow
 
 ```
@@ -115,9 +79,7 @@ BatchStatisticsDashboard
 ├── useBatchStatistics()      → aggregates batch data
 │   ├── REST API /api/system/pipeline → active batches
 │   └── WebSocket detection.batch events → real-time updates
-├── BatchTimelineChart        → active batch progress
-├── BatchClosureReasonChart   → closure distribution
-└── BatchPerCameraTable       → per-camera breakdown
+└── BatchTimelineChart        → active batch progress
 ```
 
 ## Hooks Used
@@ -136,8 +98,6 @@ BatchStatisticsDashboard
 - Average duration display
 - Batch configuration display
 - WebSocket connection indicator (connected/disconnected)
-- Closure reason chart rendering
-- Per-camera table rendering
 - Loading state skeleton
 - Error state with retry button
 - Empty state with message
@@ -149,24 +109,18 @@ BatchStatisticsDashboard
 **From `frontend/src/hooks/useBatchStatistics.ts`:**
 
 ```typescript
-interface ClosureReasonStats {
-  timeout: number;
-  idle: number;
-  max_size: number;
-}
-
-interface ClosureReasonPercentages {
-  timeout: number;
-  idle: number;
-  max_size: number;
-}
-
-interface PerCameraStats {
-  [cameraId: string]: {
-    activeBatchCount: number;
-    completedBatchCount: number;
-    totalDetections: number;
-  };
+interface UseBatchStatisticsReturn {
+  isLoading: boolean;
+  error: string | null;
+  activeBatchCount: number;
+  activeBatches: BatchInfoResponse[];
+  completedBatches: DetectionBatchData[];
+  totalClosedCount: number;
+  batchWindowSeconds: number;
+  idleTimeoutSeconds: number;
+  averageDurationSeconds: number;
+  isWebSocketConnected: boolean;
+  refetch: () => Promise<void>;
 }
 ```
 
@@ -186,7 +140,7 @@ interface BatchInfoResponse {
 ## Styling
 
 - Uses NVIDIA dark theme (`bg-[#1A1A1A]`)
-- Tremor components for data visualization (DonutChart, Badge, Card)
+- Tremor components for data visualization (Card, Badge, Text)
 - NVIDIA green (`#76B900`) for primary accents
 - Color-coded status indicators (green/yellow/red)
 
