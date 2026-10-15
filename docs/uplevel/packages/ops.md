@@ -680,6 +680,32 @@ list is posted, and the existing duration pins pass.
 **Done when:** the seeded job's stack holds that person and embedding at a ready head, and
 `[r215d]`'s leg can run against it.
 
+### [r218] The inventory's status is checked against the golden run
+
+**Flags:** `owner` (CI and the witness convention). **Assigned:** the owner's session, as an owner
+PR. **Depends on:** none. **PR:** none yet. (ruling 218, record 6201875149)
+
+Ruling 208's count (`6200252063`): 106 of 254 record-repair commits mainly edit the inventory, and
+status flips, evidence cells and witness ids lead. Each Feature check job already records per-test
+results (`summary["results"]["golden"]["playwright_specs"]`, `scripts/feature_check.py`), and the
+golden specs carry their rows' `F-NNN` ids in their titles.
+
+- [ ] A script maps each executed golden test to the rows its title names, and lists golden specs
+      that name none.
+- [ ] Rules (UR-128; rulings 103, 114, 148): a row at **awaiting real tier** or **works** needs at
+      least one mapped leg, each executed and passed; a failed or skipped mapped leg fails that row;
+      an **unverified** row whose legs all passed prints as ready to flip, with the cell text.
+      Real-tier confirmation stays the operator's.
+- [ ] CI: the check runs after the golden project in `Feature check (fake AI)` and
+      `Feature check (seeded)`, fails on a row claiming more than the run shows, prints rows ready
+      to flip, and fails closed on a read error with its reason.
+- [ ] Evidence cells name the spec and legs; run and job ids are no longer required there.
+- [ ] Disagreements the check finds on `main` are fixed in this PR or listed for the owner, so
+      `main` stays green.
+
+**Done when:** the check runs in both Feature check jobs and passes on `main`, with unit tests
+for each rule.
+
 ### [r184] The launcher prints the heavy sessions' pi start line
 
 **Flags:** none. **Assigned:** ops-a. **Depends on:** none.

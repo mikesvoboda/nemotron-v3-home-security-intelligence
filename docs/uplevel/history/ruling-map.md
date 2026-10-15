@@ -230,6 +230,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 215    | R2b: F-278 by a seeded test-only face vector; `[r215a]`, `[r215d]` (record 6200719567)                      |
 | 216    | the owner's session writes R2b round 2's record; UR-149 amended once (record 6200852082)                    |
 | 217    | ops-b claims `[r196c]` now; UR-52 waived while `[r157]` waits (record 6200901387)                           |
+| 218    | package `[r218]`: CI checks inventory status against the golden run (record 6201875149)                     |
 
 ## Owner records
 
