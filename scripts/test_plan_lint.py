@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
-"""Tests for scripts/uplevel/plan_lint.py (ruling 197): one per failure kind, plus the real tree.
+"""Tests for scripts/uplevel/plan_lint.py (ruling 197): one per failure kind, and the baseline.
 
 Run explicitly; outside testpaths (like every scripts/test_*.py gate suite):
 
     uv run python -m pytest scripts/test_plan_lint.py -q
 
 Each failure kind is planted in a small tree in ``tmp_path`` that is clean before the plant, so a
-test fails for its own finding and not for some other line of the fixture. The last test runs the
-lint over this checkout's own plan files: the fixtures prove the checks can fire, the real tree
-proves the plan the lanes act on passes them.
+test fails for its own finding and not for some other line of the fixture. Nothing here lints this
+checkout's own plan files: this suite runs in collection-sanity on every PR, and a plan defect
+already on ``main`` would red every one of them. The real tree is the job of the CI step that runs
+the lint with the PR's base as ``--baseline``; the baseline logic it relies on is pinned here, on
+fixtures and on one throwaway git repository.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -99,6 +102,7 @@ DOCS = """\
 
 **Flags:** none. **PR:** none yet.
 """
+# Rows 1 and 147 carry no record id, as on main; every other ruling row must (146, 148 on).
 MAP = """\
 # Ruling map
 
@@ -107,7 +111,10 @@ MAP = """\
 | ruling | became |
 | ------ | ------ |
 | 1      | UR-33 (carried by a PR; no record id) |
-| 176    | UR-180 (no id: before the record filter) |
+| 146    | UR-39 (record 6128714278) |
+| 147    | the plan rewrite (owner design session 2026-10-12) |
+| 150    | packages (record 6147963319) |
+| 176    | UR-180 (record 6172107453) |
 | 177    | lane.md step 1 (record 6172198207) |
 | 178    | lane.md beat (6172424097) |
 
@@ -117,25 +124,37 @@ MAP = """\
 | ---------- | ------ |
 | 6074248201 | UR-52  |
 """
+FILES = {
+    "docs/uplevel/roles/lane.md": ROSTER,
+    "docs/uplevel/packages/backend.md": BACKEND,
+    "docs/uplevel/packages/frontend.md": FRONTEND,
+    "docs/uplevel/packages/ops.md": OPS,
+    "docs/uplevel/packages/docs.md": DOCS,
+    "docs/uplevel/history/ruling-map.md": MAP,
+}
+KEYS = {
+    "roster": "docs/uplevel/roles/lane.md",
+    "backend": "docs/uplevel/packages/backend.md",
+    "frontend": "docs/uplevel/packages/frontend.md",
+    "ops": "docs/uplevel/packages/ops.md",
+    "docs": "docs/uplevel/packages/docs.md",
+    "map": "docs/uplevel/history/ruling-map.md",
+}
+
+
+def files(**over: str) -> dict[str, str]:
+    return {**FILES, **{KEYS[k]: v for k, v in over.items()}}
 
 
 def tree(tmp_path: Path, **over: str) -> Path:
-    files = {
-        "docs/uplevel/roles/lane.md": over.get("roster", ROSTER),
-        "docs/uplevel/packages/backend.md": over.get("backend", BACKEND),
-        "docs/uplevel/packages/frontend.md": over.get("frontend", FRONTEND),
-        "docs/uplevel/packages/ops.md": over.get("ops", OPS),
-        "docs/uplevel/packages/docs.md": over.get("docs", DOCS),
-        "docs/uplevel/history/ruling-map.md": over.get("map", MAP),
-    }
-    for rel, text in files.items():
+    for rel, text in files(**over).items():
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / rel).write_text(text, encoding="utf-8")
     return tmp_path
 
 
 def findings(tmp_path: Path, **over: str) -> list[str]:
-    return lint.lint(tree(tmp_path, **over))[0]
+    return [str(f) for f in lint.lint(lint.Disk(tree(tmp_path, **over)))[0]]
 
 
 # --- the parsers are lane_tick's ------------------------------------------------------------
@@ -190,15 +209,15 @@ def test_a_none_label_row_is_skipped(clean):
 
 
 def test_the_shared_package_is_held_to_its_home_file(tmp_path):
-    # F2.3 sits on four queues in the fixture and is clean; delete its frontend block and every
-    # queue that carries it is a finding -- the exemption cannot hide a vanished block.
+    # F2.3 sits on three lane queues in the fixture and is clean; delete its frontend block and
+    # every queue that carries it is a finding -- the exemption cannot hide a vanished block.
     frontend = FRONTEND.replace("### F2.3 Golden paths for every working feature\n", "")
     got = findings(tmp_path, frontend=frontend)
     assert len(got) == 3, got
     assert all("F2.3 is shared" in f and "frontend.md has no block" in f for f in got), got
 
 
-# --- 2. a **PR:** field lane_tick reads as neither state ------------------------------------
+# --- 2. a **PR:** field lane_tick does not read as offered or held --------------------------
 
 
 def test_a_none_yet_wrapped_across_two_lines_is_a_finding(tmp_path):
@@ -212,11 +231,30 @@ def test_a_none_yet_wrapped_across_two_lines_is_a_finding(tmp_path):
     assert tick.held_claims(docs, []) == []
 
 
+def test_a_wrapped_none_yet_citing_an_issue_is_a_finding_not_a_hold(tmp_path):
+    # The same wrap with `[r172]`'s real tail: held_claims reads the first #N anywhere, so #7102 --
+    # an issue -- made the field look held, and the old lint passed it. A hold LEADS with #N.
+    ops = OPS.replace("**PR:**\nnone yet. (ruling 172; issue #7102)", "**PR:** none\nyet. (ruling 172; issue #7102)")  # fmt: skip
+    got = findings(tmp_path, ops=ops)
+    assert len(got) == 1 and "[r172] **PR:** reads 'none yet. (ruling 172; issue #7102)'" in got[0], got  # fmt: skip
+    # the digest's own two readings of it: not offered, and "held" by an issue number
+    assert tick.next_claimable(ops, ["r172"], []) is None
+    assert tick.held_claims(ops, [{"number": 7102, "title": ""}]) == ["r172"]
+
+
 @pytest.mark.parametrize(
     "value",
-    ["none.", "TBD", "pending (ruling 165)", "`none`", "n/a"],
+    [
+        "none.",
+        "TBD",
+        "pending (ruling 165)",
+        "`none`",
+        "n/a",
+        "see #7200",  # a number that does not LEAD is not a hold
+        "#7200 (open); none",  # a hold with a stray `none` NONE_YET does not read
+    ],
 )
-def test_a_pr_field_with_neither_none_yet_nor_a_number_is_a_finding(tmp_path, value):
+def test_a_pr_field_that_is_not_none_yet_or_a_leading_number_is_a_finding(tmp_path, value):
     got = findings(tmp_path, docs=DOCS.replace("none yet.", value))
     assert len(got) == 1 and "[r165b] **PR:**" in got[0], got
 
@@ -246,14 +284,14 @@ def test_a_block_with_no_pr_field_is_not_this_checks_business(clean):
 def test_a_token_on_two_lanes_queues_is_a_finding(tmp_path):
     roster = ROSTER.replace("`[r165b]`", "`[r165b]`, `[r157]`")
     got = findings(tmp_path, roster=roster)
-    assert "docs/uplevel/roles/lane.md:10: token r157 is on two lanes' queues: ops-b (line 9) and docs" in got  # fmt: skip
+    assert "docs/uplevel/roles/lane.md:10: token r157 is on two lanes' queues: ops-b and docs" in got  # fmt: skip
 
 
 def test_two_cells_of_one_lane_are_two_queues(tmp_path):
     # ops-a and ops-b claim from their own rows (UR-52): one token on both is offered to both.
     roster = ROSTER.replace("`[r189]`, ", "`[r189]`, `[r157]`, ")
     got = findings(tmp_path, roster=roster)
-    assert any("token r157 is on two lanes' queues: ops-a (line 8) and ops-b" in f for f in got), got  # fmt: skip
+    assert "docs/uplevel/roles/lane.md:9: token r157 is on two lanes' queues: ops-a and ops-b" in got  # fmt: skip
 
 
 def test_a_none_label_rows_queue_is_not_counted_against_a_lanes(clean):
@@ -264,22 +302,29 @@ def test_a_none_label_rows_queue_is_not_counted_against_a_lanes(clean):
 # --- 4. a ruling-map row without its record id ---------------------------------------------
 
 
-def test_a_ruling_row_from_177_on_without_a_record_id_is_a_finding(tmp_path):
-    rows = MAP.replace("| 178    | lane.md beat (6172424097) |", "| 178    | lane.md beat |")
-    got = findings(tmp_path, map=rows)
-    assert got == ["docs/uplevel/history/ruling-map.md:10: ruling 178's row names no record id"]
+@pytest.mark.parametrize(("ruling", "line"), [("146", 8), ("150", 10), ("176", 11), ("178", 13)])
+def test_a_ruling_row_outside_the_pre_record_rows_needs_its_record_id(tmp_path, ruling, line):
+    # Every row but 1-145 and 147: 146 and 148-176 carry ids on main too, so they are checked.
+    rows = "\n".join(
+        ln.split("(")[0].rstrip() + " |" if ln.startswith(f"| {ruling} ") else ln
+        for ln in MAP.splitlines()
+    )
+    got = findings(tmp_path, map=rows + "\n")
+    assert got == [f"docs/uplevel/history/ruling-map.md:{line}: ruling {ruling}'s row names no record id"]  # fmt: skip
 
 
-def test_rows_before_177_and_owner_record_rows_are_not_checked(clean):
-    # 1 and 176 carry no id in the fixture (as rows 1-145 and 147 do on main); owner-record rows
-    # are a different table, keyed by the id itself.
-    assert "| 176    | UR-180 (no id" in MAP
+def test_rows_1_to_145_and_147_and_owner_record_rows_are_not_checked(clean):
+    # 1 and 147 carry no id in the fixture, as on main; owner-record rows are a different table,
+    # keyed by the id itself.
+    exempt = frozenset(range(1, 146)) | {147}
+    assert exempt == lint.NO_RECORD_ID
+    assert "| 147    | the plan rewrite (owner design session 2026-10-12) |" in MAP
 
 
 def test_a_nine_or_eleven_digit_number_is_not_a_record_id(tmp_path):
     for digits in ("617242409", "61724240971"):
         rows = MAP.replace("6172424097", digits)
-        assert findings(tmp_path, map=rows) == ["docs/uplevel/history/ruling-map.md:10: ruling 178's row names no record id"]  # fmt: skip
+        assert findings(tmp_path, map=rows) == ["docs/uplevel/history/ruling-map.md:13: ruling 178's row names no record id"]  # fmt: skip
 
 
 # --- an empty read is never clean ----------------------------------------------------------
@@ -299,7 +344,7 @@ def test_a_read_that_finds_nothing_is_a_finding_not_a_pass(tmp_path, over, needl
 def test_a_missing_package_file_is_a_finding(tmp_path):
     root = tree(tmp_path)
     (root / "docs/uplevel/packages/docs.md").unlink()
-    got, _ = lint.lint(root)
+    got = [str(f) for f in lint.lint(lint.Disk(root))[0]]
     assert any(f.startswith("docs/uplevel/packages/docs.md:1: unreadable") for f in got), got
 
 
@@ -309,7 +354,7 @@ def test_a_missing_package_file_is_a_finding(tmp_path):
 def test_main_exits_0_on_a_clean_tree_and_says_what_it_read(tmp_path, capsys):
     assert lint.main(["--root", str(tree(tmp_path))]) == 0
     out = capsys.readouterr().out.splitlines()
-    assert out == ["plan_lint: 0 finding(s); read 8 roster rows, 4 package files (8 blocks), 4 ruling-map rows"]  # fmt: skip
+    assert out == ["plan_lint: 0 finding(s); read 8 roster rows, 4 package files (8 blocks), 7 ruling-map rows"]  # fmt: skip
 
 
 def test_main_exits_1_with_one_file_line_per_finding(tmp_path, capsys):
@@ -320,9 +365,115 @@ def test_main_exits_1_with_one_file_line_per_finding(tmp_path, capsys):
     assert out[1].startswith("plan_lint: 1 finding(s);")
 
 
-# --- the real tree --------------------------------------------------------------------------
+# --- the baseline: a PR fails only on what its base lacks ----------------------------------
 
 
-def test_the_real_tree_is_clean():
-    got, read = lint.lint(REPO_ROOT)
-    assert got == [], "\n".join([*got, read])
+class Base:
+    """``git`` at one ref, answered from a dict of files -- the shape ``Ref`` reads it in."""
+
+    def __init__(self, ref: str, tree_files: dict[str, str]) -> None:
+        self.ref, self.files, self.calls = ref, tree_files, []
+
+    def __call__(self, cmd):
+        cmd = [str(c) for c in cmd]
+        self.calls.append(cmd)
+        assert cmd[0] == "git" and cmd[1] == "-C", cmd
+        verb, args = cmd[3], cmd[4:]
+        if verb == "rev-parse":
+            if args[-1] != f"{self.ref}^{{commit}}":
+                raise snap.CommandError("git rev-parse exited 1: no output")
+            return "c" * 40 + "\n"
+        if verb == "show":
+            ref, _, rel = args[0].partition(":")
+            if ref != self.ref or rel not in self.files:
+                raise snap.CommandError(f"git show exited 128: fatal: path '{rel}' does not exist")
+            return self.files[rel]
+        if verb == "ls-tree":
+            return "\n".join(p for p in sorted(self.files) if p.startswith(args[-1])) + "\n"
+        raise AssertionError(f"unscripted git {cmd}")
+
+
+def run_baseline(tmp_path, base_files, capsys, **head_over):
+    root = tree(tmp_path, **head_over)
+    base = Base("BASE", base_files)
+    code = lint.main(["--root", str(root), "--baseline", "BASE"], run=base)
+    return code, capsys.readouterr(), base
+
+
+R184 = ROSTER.replace("`[r157]`, `[r172]`", "`[r157]`, `[r184]`, `[r172]`")
+
+
+def test_a_defect_already_on_the_base_does_not_fail_the_pr(tmp_path, capsys):
+    # main carries [r184] with no block; a PR that does not touch it must not go red for it.
+    code, out, _ = run_baseline(tmp_path, files(roster=R184), capsys, roster=R184)
+    assert code == 0
+    assert "(already on BASE) docs/uplevel/roles/lane.md:9: ops-b queue token r184" in out.out
+    assert "0 new finding(s) over BASE, 1 already there" in out.out
+
+
+def test_an_old_defect_that_moved_lines_is_still_the_base_s(tmp_path, capsys):
+    # Matched by file and message, not line: a row added above the defect moves it to line 10.
+    moved = R184.replace("| `uplevel-backend`", "| `uplevel-new`         | fast      | `[r129]`                                           | none              |\n| `uplevel-backend`")  # fmt: skip
+    code, out, _ = run_baseline(tmp_path, files(roster=R184), capsys, roster=moved)
+    assert code == 0 and "lane.md:10: ops-b queue token r184" in out.out
+
+
+def test_a_defect_the_pr_adds_fails_it_and_is_the_only_one_listed_as_new(tmp_path, capsys):
+    wrapped = DOCS.replace("**PR:** none yet.", "**PR:** none\nyet.")
+    code, out, _ = run_baseline(tmp_path, files(roster=R184), capsys, roster=R184, docs=wrapped)
+    assert code == 1
+    new = [ln for ln in out.out.splitlines() if not ln.startswith(("(already", "plan_lint:"))]
+    assert new == [ln for ln in new if ln.startswith("docs/uplevel/packages/docs.md:5: [r165b]")] and len(new) == 1  # fmt: skip
+    assert "1 new finding(s) over BASE, 1 already there" in out.out
+
+
+def test_a_file_the_base_lacks_is_judged_as_wholly_new(tmp_path, capsys):
+    base = {k: v for k, v in FILES.items() if not k.endswith("docs.md")}
+    wrapped = DOCS.replace("**PR:** none yet.", "**PR:** none\nyet.")
+    code, out, _ = run_baseline(tmp_path, base, capsys, docs=wrapped)
+    assert code == 1 and "docs/uplevel/packages/docs.md:5: [r165b]" in out.out
+
+
+def test_an_unreadable_baseline_judges_nothing(tmp_path, capsys):
+    root = tree(tmp_path)
+    code = lint.main(["--root", str(root), "--baseline", "nope"], run=Base("BASE", FILES))
+    assert code == 2 and "baseline nope is unreadable" in capsys.readouterr().err
+
+
+def test_over_baseline_counts_copies():
+    f = lint.Finding("a.md", 3, "m")
+    new, already = lint.over_baseline([f, f._replace(line=9)], [f])
+    assert (len(new), len(already)) == (1, 1)
+
+
+def test_the_baseline_reads_a_real_git_ref(tmp_path, capsys):
+    # One end-to-end run through the real runner: commit a base with [r184], add a wrapped field
+    # in the working tree, and only the field is new.
+    def sh(*args):
+        subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t",
+                        "-c", "commit.gpgsign=false", *args], check=True, capture_output=True)  # fmt: skip
+
+    tree(tmp_path, roster=R184)
+    sh("init", "-q")
+    sh("add", "-A")
+    sh("commit", "-q", "-m", "base")
+    (tmp_path / "docs/uplevel/packages/docs.md").write_text(DOCS.replace("**PR:** none yet.", "**PR:** none\nyet."))  # fmt: skip
+    assert lint.main(["--root", str(tmp_path), "--baseline", "HEAD"]) == 1
+    out = capsys.readouterr().out
+    assert "(already on HEAD) docs/uplevel/roles/lane.md:9: ops-b queue token r184" in out
+    assert "1 new finding(s) over HEAD, 1 already there" in out
+
+
+# --- the CI step -----------------------------------------------------------------------------
+
+
+def test_ci_runs_the_lint_with_the_prs_base_as_its_baseline():
+    # The real tree is judged in CI, not in this suite: collection-sanity runs the lint with the
+    # PR's base sha as --baseline (fetched first: the checkout is depth-1), and with no baseline on
+    # a push to main. Pinned here so the step cannot quietly lose its baseline or its fetch.
+    ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    step = ci[ci.index("- name: Plan lint (ruling 197)") :].split("\n      - name:", 1)[0]
+    assert "BASE_SHA: ${{ github.event.pull_request.base.sha }}" in step
+    assert 'git fetch --no-tags --depth=1 origin "${BASE_SHA}"' in step
+    assert 'python -m scripts.uplevel.plan_lint --baseline "${BASE_SHA}"' in step
+    assert step.count("python -m scripts.uplevel.plan_lint") == 2  # with and without a baseline

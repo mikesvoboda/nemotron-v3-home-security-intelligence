@@ -304,6 +304,25 @@ jobs:
           scripts/test_post_record.py
           scripts/test_prodshape_override.py
           -q
+      # Ruling 197: the plan fields the lane digest acts on (roster queues, package `**PR:**`
+      # fields, ruling-map record ids), linted with the digest's own parsers. On a PR it fails
+      # only on findings the PR's BASE lacks: this job has no paths filter and feeds the CI Gate,
+      # so a plan defect already on main must red main's own push run, not every PR after it. The
+      # checkout is depth-1, so the base commit is fetched first. Named by module, not path, as
+      # the docs-citation step below is: naming a scripts path here makes it a declared
+      # reachability entry, which moves the R2 list's tool-inputs stamp for a walk-neutral reason
+      # (scripts/ is not a candidate tree).
+      - name: Plan lint (ruling 197)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BASE_SHA}" ]; then
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+            uv run python -m scripts.uplevel.plan_lint --baseline "${BASE_SHA}"
+          else
+            uv run python -m scripts.uplevel.plan_lint
+          fi
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
       # --no-staleness) — that is what catches a dead source_ref, and it is

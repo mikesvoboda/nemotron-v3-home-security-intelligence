@@ -199,10 +199,14 @@ The plan fields `lane_tick.py` acts on, checked where they are written (ruling 1
 (`docs/uplevel/roles/lane.md`), package files and ruling map with `lane_tick.py`'s own parsers
 (imported, never copied: `ROW`, `queue_entries`, `BLOCK`, `PKG_FIELD`, `NONE_YET`, `PR_NUMBER`,
 `next_claimable`, `held_claims`). It fails when a roster queue token has no `### ` block in its
-lane's package file, when a `**PR:**` field reads as neither `none yet` nor a `#N` (a `none` /
-`yet.` wrapped across two lines is that case), when one token is on two lanes' queues, or when a
-ruling-map row from 177 on names no 10-digit record id. Rows labelled `none` are skipped, and
-`F2.3` (one package split across every lane, rulings 87 and 175) is held to its block in
-`frontend.md` instead. Exit 0 clean, 1 with one `file:line: message` per finding; the last line
-counts what it read. Tests: `scripts/test_plan_lint.py`, whose `test_the_real_tree_is_clean` runs
-the lint over this checkout in CI.
+lane's package file, when a `**PR:**` field is neither `none yet` on one line nor a leading `#N`
+(a `none` / `yet.` wrapped across two lines is that case, even when a later `issue #N` follows),
+when one token is on two lanes' queues, or when a ruling-map row other than 1-145 and 147 names no
+10-digit record id. Rows labelled `none` are skipped, and `F2.3` (one package split across every
+lane, rulings 87 and 175) is held to its block in `frontend.md` instead. `--baseline REF` reads the
+same files at a git ref (`git show`) and fails only on findings REF lacks, matched by file and
+message, never line. Collection-sanity runs it as `python -m scripts.uplevel.plan_lint` with the
+PR's base as the baseline, so a defect already on `main` reds `main`'s run, not every PR. Exit 0
+clean, 1 with one `file:line: message` per (new) finding, 2 when the baseline ref is unreadable;
+the last line counts what it read. Tests: `scripts/test_plan_lint.py` (fixtures and one throwaway
+git repository; it never lints this checkout, which is the CI step's job).
