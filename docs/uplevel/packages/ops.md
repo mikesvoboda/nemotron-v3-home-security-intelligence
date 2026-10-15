@@ -560,8 +560,9 @@ and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the
 
 ### [r196c] The seeded rows F-186, F-196 and F-197
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue. **Depends on:** none. **PR:**
-none yet. (rulings 127, 187, 196)
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
+waits on the operator (UR-52 waived, ruling 217). **Depends on:** none.
+**PR:** none yet. (rulings 127, 187, 196, 217; record 6200901387)
 
 - [ ] Specs for F-186, F-196 and F-197 in ops-b's batch directory
       `frontend/tests/golden/gpu-storage-admin/` (ruling 87) run in `Feature check (seeded)`, the
