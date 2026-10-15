@@ -329,7 +329,22 @@ def _build_filter_conditions(filters: SearchFilters) -> list:
     if filters.camera_ids:
         conditions.append(Event.camera_id.in_(filters.camera_ids))
     if filters.severity:
-        conditions.append(Event.risk_level.in_(filters.severity))
+        # `[r211b]` break (2): filter the level the response *reports*, not the
+        # stored column. SearchResponse.risk_level is recomputed from risk_score
+        # (api/schemas/search.py:44), so testing Event.risk_level here could
+        # drop a row that displays the level the user just filtered for — the
+        # ruling's measured case: a score-91 row displays `critical` while
+        # `severity=critical` returned 0. Both sides now read one derivation:
+        # Event.computed_risk_level, whose SQL form takes the same settings the
+        # Python side uses (models/event.py:426). Cost: this forfeits
+        # idx_events_risk_level_started_at, and a CASE predicate is not
+        # sargable, so Postgres uses idx_events_risk_score instead.
+        # Class-side access to a hybrid_property returns its SQL expression at
+        # runtime; mypy has no SQLAlchemy hybrid plugin and sees the overloaded
+        # Python form instead, so it cannot resolve .in_ here. The runtime
+        # behaviour is pinned by test_computed_risk_level_sql_expression_exists
+        # (models) and the two `[r211b]` severity legs (integration).
+        conditions.append(Event.computed_risk_level.in_(filters.severity))  # type: ignore[attr-defined]
     if filters.reviewed is not None:
         conditions.append(Event.reviewed == filters.reviewed)
     if filters.object_types:
@@ -416,6 +431,16 @@ async def search_events(
 
     tsquery_str = _convert_query_to_tsquery(query)
     base_query, has_search = _build_search_query(tsquery_str, query)
+
+    # `[r211b]` break (1): soft-deleted events must never be searchable. The
+    # browse route already hides them (routes/events.py:418); search did not, so
+    # a deleted event stayed findable while invisible in the list the panel
+    # draws from. This sits on base_query, before the count below is derived
+    # from it, so total_count and the page cannot disagree (the "21-26 of 26
+    # over a list of 25" symptom ruling 211 measured). Deliberately not inside
+    # _build_filter_conditions, whose unit tests assert an empty filter set
+    # yields no conditions.
+    base_query = base_query.where(Event.deleted_at.is_(None))
 
     # Apply filter conditions
     conditions = _build_filter_conditions(filters)
