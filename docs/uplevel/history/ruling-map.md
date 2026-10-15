@@ -213,6 +213,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 198    | one review per PR, the author's UR-89 subagent; author arms auto-merge (record 6198314579)                  |
 | 199    | package `[r199]`: analysis acks follow a stored event or a terminal failure (record 6198662741)             |
 | 200    | package `[r200]`: one owner for the running pipeline workers (record 6198757258)                            |
+| 201    | `[r184]` gets its block: the launcher prints the heavy pi start line (record 6198825479)                    |
 
 ## Owner records
 

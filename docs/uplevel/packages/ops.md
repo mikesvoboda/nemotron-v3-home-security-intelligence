@@ -641,3 +641,24 @@ UR-180's order, never at a routine full prune (ruling 176).
 
 **Done when:** the module budget fails CI on a reproduced import breach, the warning-only nightly's
 list is posted, and the existing duration pins pass.
+
+### [r184] The launcher prints the heavy sessions' pi start line
+
+**Flags:** none. **Assigned:** ops-a. **Depends on:** none.
+**PR:** none yet. (rulings 184 and 201, records 6177514438 and 6198825479)
+
+Ruling 184's commit renamed the heavy rows in `scripts/uplevel/sandboxes.toml`. The owner starts
+both with `agent-dgx <name> pi --split`, but `launch.py` still builds
+`agent-dgx run <name> --agent claude --split` for them (`[models] strongest`).
+
+- [ ] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
+      Take its exact form from `agent-dgx help` output the owner posts from maui, or from a line
+      the owner pastes on the PR; the launcher never invents a flag (`history/packages-done.md`
+      §O0.1).
+- [ ] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
+      rows, naming the hand-start line, and prints no wrong line.
+- [ ] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
+      refusal, and no other row's line changes.
+
+**Done when:** the launcher test passes in CI at a ready head, and `sandboxes.toml`'s comment no
+longer says the launcher does not print the form.
