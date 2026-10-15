@@ -15,7 +15,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import ORJSONResponse, StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm.exc import StaleDataError
@@ -619,8 +619,12 @@ async def get_event_stats(
     # This ensures date-only filters like "2026-01-15" include all events from that day
     normalized_end_date = normalize_end_date_to_end_of_day(end_date)
 
-    # Build filter conditions (reused across queries)
-    filters = []
+    # Build filter conditions (reused across queries). The annotation is not
+    # decoration: seeding this list with `.is_(None)` infers the narrow
+    # BinaryExpression[bool], and the date/camera appends below return the wider
+    # ColumnElement[bool] -- without it mypy (which CI runs over backend/,
+    # ci.yml:692) rejects all three appends.
+    filters: list[ColumnElement[bool]] = [Event.deleted_at.is_(None)]  # Exclude soft-deleted events
     if start_date:
         filters.append(Event.started_at >= start_date)
     if normalized_end_date:
