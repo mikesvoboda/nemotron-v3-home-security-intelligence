@@ -202,6 +202,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 187    | F2.3's seeded CI project to heavy-b, ops-b reviews (record 6182863643)                                      |
 | 188    | `O2.4` and `O2.5` move to the operator: agent-gpu venue, in-sandbox store (record 6182950505)               |
 | 189    | package `[r189]`: the golden leg's cap follows measured time (record 6191177913)                            |
+| 190    | heavy-b out of service; heavy-a takes #7155, OP-1's seeded rows, B2.3 (record 6191930218)                   |
 
 ## Owner records
 
