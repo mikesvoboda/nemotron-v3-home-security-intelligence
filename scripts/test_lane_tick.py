@@ -784,24 +784,57 @@ def test_a_package_that_names_a_pr_is_not_offered():
 
 def test_held_claims_reads_a_hold_from_the_title_and_from_the_pr_field():
     mine = [{"number": 7164, "title": "[r181] the lane-tick digest"}]
-    assert tick.held_claims(PKG, ["r157", "r151", "r181", "r172"], mine) == ["r181"]
+    assert tick.held_claims(PKG, mine) == ["r181"]
     # by the field alone (the title names nothing here, `**PR:**` on [r172] names my #7164)
     field = PKG.replace("none yet. (ruling 172", "#7164. (ruling 172")
-    assert tick.held_claims(field, ["r181", "r172"], [{"number": 7164, "title": "nothing here"}]) == [
-        "r172"
-    ]  # fmt: skip
-    # neither: a [UR-nn] fix on a queue package's branch titles no package and no field names it
-    assert tick.held_claims(PKG, ["r157", "r181", "r172"], []) == []
-    assert tick.held_claims(PKG, ["r181"], [{"number": 7151, "title": "[UR-48] fix: a leg"}]) == []
-    # a queue token with no block here (an F2.3 batch, a trigger) is not a package and holds nothing
-    assert tick.held_claims(PKG, ["F2.3", "O3.4"], mine) == []
+    assert tick.held_claims(field, [{"number": 7164, "title": "nothing here"}]) == ["r172"]  # fmt: skip
+    # neither: a [UR-nn] fix titles no package and no field names one (UR-48: gates nothing)
+    assert tick.held_claims(PKG, []) == []
+    assert tick.held_claims(PKG, [{"number": 7151, "title": "[UR-48] fix: a leg"}]) == []
+
+
+def test_a_hold_the_roster_queue_never_names_still_closes_the_claim_leg():
+    # ops-a's shape on live `main`, and the reason the scan walks the FILE and not the queue:
+    # `ops.md`'s own `### [r162]` field reads `**PR:** #7114 (open)` and the open PR titles
+    # `[r162]`, yet `roles/lane.md:23`'s ops-a column carries no `[r162]` token. A queue-driven
+    # scan answered "no holds" and the digest printed `next claimable: r164a` mid-flight -- the
+    # queue-jump UR-52 forbids. Reviewer ops-a reproduced it live at 11:21Z.
+    ops_a = PKG + (
+        "### [r162] The engine socket follows the orchestrator setting\n\n"
+        "**Flags:** owner. **Assigned:** `uplevel-ops-a`. **PR:** #7114 (open). (ruling 162)\n"
+    )
+    mine = [{"number": 7114, "title": "[r162] claim: engine socket follows the orchestrator"}]
+    assert tick.held_claims(ops_a, mine) == ["r162"]
+    # both readings hold it on their own, since the two sources can each be the only live one
+    assert tick.held_claims(ops_a, [{"number": 7114, "title": "[r162] anything"}]) == ["r162"]
+    assert tick.held_claims(ops_a, [{"number": 7114, "title": "no token here"}]) == ["r162"]
+    # and the offer the gate must suppress genuinely IS there -- a gate that suppressed an offer
+    # that was never produced would pass this file without protecting anything.
+    assert tick.next_claimable(ops_a, ["F2.3", "r164a", "O2.5"], mine) == "r164a"
+
+
+def test_a_none_yet_field_naming_an_issue_or_a_closed_pr_is_not_a_hold():
+    # The widened scan reads every block, so a `**PR:** none yet` field that merely CITES a number
+    # must not become a hold. main's real shapes: ops `[r172]` cites `issue #7102`, and frontend
+    # `[r160a]`/backend `[r160b]` cite CLOSED dependabot PRs -- measured 1 such field per file.
+    assert tick.held_claims(PKG, [{"number": 7102, "title": "an issue, not a claim"}]) == []
+    dependabot = PKG + (
+        "### [r160a] Deferred npm majors\n\n"
+        "**Flags:** none. **Assigned:** `uplevel-frontend`.\n**PR:** none yet.\n"
+        "(ruling 160; dependabot #7058, #7059, #7060, closed with `@dependabot ignore`)\n"
+    )
+    assert tick.held_claims(dependabot, [{"number": 7058, "title": "bump vite"}]) == []
+    # positive control: the SAME block with the disclaimer removed is a field-hold, so the arm
+    # above passes by honouring `none yet` and not by failing to find the number at all.
+    claimed = dependabot.replace("**PR:** none yet.\n", "**PR:** #7058 (open).\n")
+    assert tick.held_claims(claimed, [{"number": 7058, "title": "bump vite"}]) == ["r160a"]
 
 
 def test_a_hold_and_a_claimable_are_never_both_printed():
     # The branch order in `build` is the rule: the hold wins and the offer is suppressed, so a lane
     # never reads a package it may claim from a digest that also says it is mid-flight.
     mine = [{"number": 7164, "title": "[r181] the lane-tick digest"}]
-    assert tick.held_claims(PKG, ["r181", "r172"], mine) == ["r181"]
+    assert tick.held_claims(PKG, mine) == ["r181"]
     assert tick.next_claimable(PKG, ["r181", "r172"], mine) == "r172"  # the offer EXISTS...
     out = text()
     assert "next claimable" not in out  # ...and is the line the gate suppresses.

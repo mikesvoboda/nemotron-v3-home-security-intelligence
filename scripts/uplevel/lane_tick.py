@@ -206,30 +206,42 @@ def queue_entries(column: str) -> list[str]:
     return out
 
 
-def held_claims(packages: str, queue: list[str], mine: list[dict]) -> list[str]:
-    """Packages on MY queue that I already hold -- the open claims UR-52 counts, with BOTH reasons.
+def held_claims(packages: str, mine: list[dict]) -> list[str]:
+    """Every package in MY lane's file that I already hold -- the open claims UR-52 counts.
 
     UR-52 lets an agent claim only "on any tick where it has no open package", so an open package is
-    what closes the claim leg. Two independent readings, because the two sources disagree in both
-    directions and either can be the only live one: the ``[<pkg>]`` **title token** of an open PR
-    (authoritative: a PR is a claim on the package it titles, and a ``[UR-nn]`` defect fix -- UR-48,
-    no package number -- occupies no queue slot and gates nothing), or the block's own ``**PR:**``
-    number naming a PR of mine (the field is what ``next_claimable`` already refuses to offer
-    against, so when it alone is the reason the digest must still say *why* nothing is offered --
-    printing neither line is the silence UR-29 forbids a lane to act on).
+    what closes the claim leg. The scan walks the **package file**, not the roster queue: the two
+    sources disagree in both directions and a hold the queue does not name is still a hold. Measured
+    on ``main``: ops-a holds ``[r162]`` (#7114 open, titled ``[r162]``, and ``ops.md``'s own field
+    reads ``**PR:** #7114 (open)``) while its roster column at ``roles/lane.md:23`` carries no
+    ``[r162]`` token at all -- so a queue-driven scan answered "no holds" and the digest offered
+    ``next claimable: r164a`` mid-flight, the exact queue-jump UR-52 forbids. Gating on the queue was
+    the defect: an index built from one file used to answer a question the other file defines.
+    ``next_claimable`` stays queue-ordered -- a FRESH claim must be a queue slot -- only eligibility
+    widens to file-wide holds. Cannot over-suppress across a lane's cells, because ``mine`` is
+    already branch-filtered upstream.
+
+    Two independent hold readings, because either can be the only live one: the ``[<pkg>]`` **title
+    token** of an open PR (authoritative; a ``[UR-nn]`` defect fix -- UR-48, no package number --
+    titles no package and gates nothing), or the block's own ``**PR:**`` number naming a PR of mine.
+    A ``**PR:** none yet`` block is never a field-hold even when its prose cites a ``#`` issue:
+    ``[r172]`` reads ``none yet. (ruling 172; issue #7102)`` on main, and an issue reference is not
+    a claim, so ``NONE_YET`` is honoured here exactly as ``next_claimable`` honours it.
     """
     numbers = {str(p.get("number")) for p in mine}
     titles = " ".join(p.get("title", "") for p in mine)
-    blocks = {m.group(1): b for b in packages.split("### ")[1:] if (m := BLOCK.match(b))}
     held = []
-    for token in queue:
-        block = blocks.get(token)
-        if block is None:
+    for block in packages.split("### ")[1:]:
+        m = BLOCK.match(block)
+        if not m:
             continue
+        token = m.group(1)
         if f"[{token}]" in titles:
             held.append(token)
             continue
         field = PKG_FIELD.search(block)
+        if field and NONE_YET.match(field.group(1).lstrip()):
+            continue
         named = PR_NUMBER.search(field.group(1)) if field else None
         if named and named.group(1) in numbers:
             held.append(token)
@@ -398,11 +410,12 @@ def build(
             if (r.get("submitted_at") or r.get("created_at") or "") >= since
         ]
         out.append(row(p, f"{tail} {len(cmts)}c/{len(revs)}r since beat"))
-    # UR-52's precondition, printed: an agent holding an open package on its own queue is not
-    # claim-eligible, and a `next claimable` line beside a held package invites the queue-jump the
-    # rule forbids. Silence would be worse than either line -- it could mean "nothing claimable" or
-    # "not eligible" -- so the digest says which of the two states it read.
-    if held := held_claims(pkgs, ids["queue"], mine):
+    # UR-52's precondition, printed: an agent holding an open package is not claim-eligible, and a
+    # `next claimable` line beside a held package invites the queue-jump the rule forbids. The gate
+    # reads the whole lane file, not the queue column, because a package the roster never lists is
+    # still an open package ([r162] on ops-a's row is that shape). Silence would be worse than either
+    # line -- it could mean "nothing claimable" or "not eligible" -- so the digest says which it read.
+    if held := held_claims(pkgs, mine):
         names = ", ".join(f"[{t}]" for t in held)
         out.append(
             f"  holding open claim: {names} (UR-52: nothing to claim while a package is open)"
