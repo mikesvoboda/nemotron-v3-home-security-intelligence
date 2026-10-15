@@ -131,7 +131,8 @@ Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrich
   - **F-023, the in-page PWA install prompt** (ruling 133): delete
     `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s engagement gates, its
     7-day dismissal store and its tests, including `frontend/tests/golden/shell/pwa-install.spec.ts`.
-    `frontend/public/manifest.json`, `/sw.js` and their registration stay.
+    `frontend/public/manifest.json` and its registration stay, and so does `/sw.js` — which is
+    never a tracked file: `frontend/vite.config.ts:59`'s `VitePWA(...)` generates it at build.
   - **F-135, batch statistics** (ruling 134): the active-batches view stays; the closure-reason
     chart, the per-camera table and the completed-batch timeline go, in
     `frontend/src/components/batch/BatchStatisticsDashboard.tsx` and any hook or type only those
@@ -422,14 +423,17 @@ PR (UR-48).
       dismissal store and its tests, `frontend/tests/golden/shell/pwa-install.spec.ts` included.
       Witness: merge `1e1c241ed` lands five deletions — `InstallPrompt.tsx` (the component holds the
       gates and the dismissal store), `InstallPrompt.test.tsx`, `pwa/index.ts`, `pwa/AGENTS.md`,
-      `tests/golden/shell/pwa-install.spec.ts`. `git grep InstallPrompt` at that tip returns 3 hits,
+      `tests/golden/shell/pwa-install.spec.ts`. `git grep InstallPrompt -- frontend` at that tip
+      returns 3 hits (unscoped it returns 6: three more are this file's own prose),
       all inside the retired-path guard `src/__tests__/pwa-install-prompt-retired.test.tsx`, which
       asserts the file is gone (`:115`) rather than importing it.
 - [x] Keep `frontend/public/manifest.json`, `/sw.js` and their registration. One deviation from the
       box's literal text, recorded: `/sw.js` is not a tracked file — `vite.config.ts:59`'s
       `VitePWA(...)` generates it at build — so the kept leg is the manifest (still tracked) plus the
-      generated-SW pipeline, which `tests/golden/shell/offline-cache.spec.ts:173` pins byte-wise and
-      `main.tsx:42` still registers.
+      generated-SW pipeline, which `tests/golden/shell/offline-cache.spec.ts:173` pins — the served
+      `/sw.js` by token (NetworkFirst, `cacheName:"api-cache"`, `skipWaiting`, the index fallback) and
+      the precached `index.html` byte-wise (its revision is the served bytes' md5) — and `main.tsx:42`
+      still registers.
 
 **Done when:** nothing imports `InstallPrompt`, and the golden project and unit tests are green.
 
