@@ -24,6 +24,14 @@ built through the flag-forbidding builder, so only it is pinned here. A
 corpus-wide "no RUN flag anywhere" test would falsely fail three files that are
 correct as they are.
 
+Transparency about coverage: the transcribed contract has three clauses — (1) every
+``FROM`` names an explicit registry so builds never pull, (2) no flags on ``RUN``,
+(3) no ``ONBUILD``. This file pins (2) and (3). Clause (1) holds at this head
+(``FROM nvcr.io/nvidia/tritonserver:...`` is explicit) but is **unpinned**: a future
+``FROM tritonserver:...`` would read green here. It stays unpinned pending the digest
+follow-up, which is blocked on measurement, not effort — ``nvcr.io/v2/`` returns 401
+to anonymous requests, so the digest cannot be recorded from CI.
+
 The absence assertion is paired with a positive witness (a fixture that *does*
 carry ``RUN --mount=`` and ``ONBUILD`` must be detected), so an empty parse
 cannot masquerade as a pass. The installed package set is pinned by its own
@@ -275,9 +283,12 @@ class TestTheCorpusScanIsHonestAboutScope:
         "relpath",
         ["ai/vlm/Dockerfile", "docker/fake-ai/Dockerfile"],
     )
-    def test_the_files_built_by_agent_gpu_already_comply(self, relpath: str) -> None:
-        # ai/vlm is built by agent-gpu and already complies — proof the contract is
-        # satisfiable and this test's grammar is not unique to a hand-crafted case.
+    def test_the_control_dockerfiles_already_comply(self, relpath: str) -> None:
+        # Compliance controls, NOT a claim about who builds them: ai/vlm is the
+        # agent-gpu-built file that already follows the contract (proof it is
+        # satisfiable and that this test's grammar is not unique to a hand-made
+        # case); docker/fake-ai is built by plain compose, so it is here only as a
+        # second independent no-flag/no-ONBUILD sample.
         text = (REPO_ROOT / relpath).read_text()
         assert run_instruction_flags(text) == []
         assert onbuild_instructions(text) == []
