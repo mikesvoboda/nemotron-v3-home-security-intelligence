@@ -24,22 +24,32 @@ names the PR whose "Real tier" section holds the command.
 The owner arms it with `/loop 30m Run the operator tick in docs/uplevel/roles/operator.md, "The
 tick".`
 
-1. `git fetch origin`, then read this file and `rules.md` from `origin/main`
-   (`git show origin/main:docs/uplevel/roles/operator.md`).
-   Then read the live `BINDING NOW` records the plan files do not yet carry, with the command in
-   [`lane.md`](lane.md), "The tick", step 1. Act on each printed record that names the operator or
-   all agents and whose required state does not already hold; one already carried out is a no-op. A
-   record binds before the plan files catch up (UR-40, rulings 163, 170, 177).
-2. Edit your heartbeat ([`lane.md`](lane.md), "Heartbeat"), and keep your disks under 90% (UR-180). If the coordinator's is older than 20
-   minutes, follow `lane.md`, "Stale coordinator".
-3. Read the new comments on your own open PRs.
-4. Take the oldest README row on `main` that says `awaiting real tier` and run it: on the agent-gpu
+1. **Read the tick in one call.** Run
+
+   ```bash
+   uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox>
+   ```
+
+   (`scripts/uplevel/lane_tick.py`; `scripts/test_lane_tick.py` pins its lines.) It is read-only
+   and reads its own `origin/main`; read this file and `rules.md` from
+   `git show origin/main:...` as it does. It prints your heartbeat, the coordinator's age (UR-162),
+   disk use with UR-180's pointer, the live `BINDING NOW` records the ruling map does not carry
+   (ruling 177's filter), and your open PRs with `CI Gate` at the head and comments since your beat.
+   A `NOTE no package file for lane operator` is expected -- you take runs, not packages. Then: edit
+   your heartbeat in place ([`lane.md`](lane.md), "Heartbeat") and keep disks under 90% (UR-180);
+   if the coordinator's row is older than 20 minutes with no live `URGENT PATH`, follow `lane.md`,
+   "Stale coordinator"; act on each printed `BINDING NOW` record that names the operator or all
+   agents and whose state does not hold (UR-40, rulings 163, 170, 177); and read the full thread of
+   any PR the digest shows with new comments. An `ERROR <section>` means that section went unread --
+   read it or say so, never fill it from an earlier tick (UR-29).
+
+2. Take the oldest README row on `main` that says `awaiting real tier` and run it: on the agent-gpu
    path below, or "A no-GPU run" where the row's PR says so. Runs the owner keeps (UR-30): say so on
    the row's PR; the coordinator lists them in its status comment on #6854.
-5. Otherwise take the oldest open request for a run on your roster queue ([`lane.md`](lane.md),
+3. Otherwise take the oldest open request for a run on your roster queue ([`lane.md`](lane.md),
    "Who takes what"): an `F2.3` batch, ruling 142's verdict spread or an `O2.5` check, asked for on
    its PR with the command to run. Run it the same way and post the output on that PR.
-6. Otherwise say so in one line and end the turn (UR-38).
+4. Otherwise say so in one line and end the turn (UR-38).
 
 ## A test deployment, never the live stack
 

@@ -513,9 +513,9 @@ output with its status comment drafted by `status_draft.py`.
 ### [r181] The lane-tick digest and the signed-activity snapshot
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after its `F2.3` OP-3 rows and before `[r172]`;
-ops-a reviews. **Depends on:** none. **PR:** none yet. (ruling 181)
+ops-a reviews. **Depends on:** none. **PR:** #7164 (open). (ruling 181)
 
-- [ ] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
+- [x] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
       agent's heartbeat id and age, the coordinator's heartbeat age (UR-162), and disk use of `/`
       and `/var/lib/docker` with a pointer to UR-180 above 90%; the live `BINDING NOW` records the
       ruling map does not yet carry (ruling 177's filter); PRs labelled `review:<lane>` with head,
@@ -524,10 +524,10 @@ ops-a reviews. **Depends on:** none. **PR:** none yet. (ruling 181)
       `CI Gate` at head (in-flight jobs read from the run's jobs), and comments and reviews since
       its heartbeat; and the next claimable roster package (UR-52) when it holds no open claim. A
       failed `gh` or `git` call prints `ERROR <section>`, never an empty section.
-- [ ] `coordinator_snapshot.py`'s heartbeats section prints, beside each non-paused agent's age, its
+- [x] `coordinator_snapshot.py`'s heartbeats section prints, beside each non-paused agent's age, its
       latest signed comment and its latest commit on its open PR branches since its heartbeat
       (ruling 178's signature rule), and any `BLOCKER:` line.
-- [ ] Red-first unit tests for both, with `gh` stubbed; `roles/lane.md` and `roles/operator.md`
+- [x] Red-first unit tests for both, with `gh` stubbed; `roles/lane.md` and `roles/operator.md`
       "The tick" and `roles/coordinator.md` step 5 point at them in the same PR.
 
 **Done when:** a lane tick reads through `lane_tick.py` alone, the snapshot shows each agent's
