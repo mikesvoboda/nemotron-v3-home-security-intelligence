@@ -316,14 +316,15 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 ### [r96i11] The Python 2–shaped `except` in the fake VLM
 
 **Flags:** none. **Assigned:** `uplevel-ops-a` (ruling 96, item 11). **Depends on:** none. **PR:**
-#7052 (open, ready); item 8 of the same ruling merged as #6993.
+#7052 (merged 2026-10-14T12:58:10Z as `00a979c03`, head `67c5e0ac8`); item 8 of the same ruling merged as #6993.
 
-- [ ] `backend/ai_contract/fake/app.py:115` becomes `except (binascii.Error, ValueError):`,
+- [x] `backend/ai_contract/fake/app.py:115` becomes `except (binascii.Error, ValueError):`,
       behaviour-identical on 3.14 and parseable on older Pythons, so the reachability toolchain is
       no longer coupled to 3.14 by one line.
 
 **Done when:** the line reads `except (binascii.Error, ValueError):` on `main` and the fake VLM's
-tests pass (ruling 96).
+tests pass (ruling 96). Both re-verified at `c1b804a82`: `app.py:115` reads the tuple form, and
+`backend/tests/unit/test_r96i11_fake_vlm_except_tuple.py` passes 3/3.
 
 ### [r143] The golden stage runs inside the Playwright container
 
