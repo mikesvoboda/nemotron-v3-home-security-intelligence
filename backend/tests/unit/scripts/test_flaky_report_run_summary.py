@@ -62,10 +62,12 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import io
 import json
 import re
 import shutil
 import subprocess
+import tokenize
 from pathlib import Path
 
 import pytest
@@ -443,18 +445,27 @@ def _path_cites(text: str) -> list[str]:
 
 
 def _prose(path: Path) -> str:
-    """Concatenated docstring text of every module/class/function in ``path`` — prose only.
+    """Docstrings of every module/class/function PLUS the ``#:` comment block — prose only.
 
-    Code is excluded on purpose. This file's own fixtures quote report text that contains
+    Code is excluded on purpose: this file's own fixtures quote report text that contains
     backticked, extension-ending strings, and the pin below plants a control cite of its own; a
-    whole-file scan would match those and read red on a file whose prose is clean. "Every path
-    the prose cites exists" is the claim worth pinning; nothing here promises anything about
-    strings that appear in code.
+    whole-file scan would match those and read red on a file whose prose is clean. ``#:` block
+    comments ARE prose (Sphinx documents them as such, and this file documents the extractor in
+    one), so they are harvested too — a cite there is as load-bearing as one in a docstring, and
+    leaving them out would make the pin's name ("every path cite in this file") a lie by exactly
+    that medium. Only real tokenize COMMENT tokens beginning with ``#:`` are taken, so a ``#:``
+    that appears inside a string literal is never mistaken for a comment.
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    src = path.read_text(encoding="utf-8")
+    tree = ast.parse(src)
     found = [ast.get_docstring(tree) or ""]
     nodes = ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef
     found += [ast.get_docstring(node) or "" for node in ast.walk(tree) if isinstance(node, nodes)]
+    found += [
+        tok.string
+        for tok in tokenize.generate_tokens(io.StringIO(src).readline)
+        if tok.type == tokenize.COMMENT and tok.string.startswith("#:")
+    ]
     return "\n".join(found)
 
 
@@ -536,17 +547,34 @@ def test_every_path_cite_in_this_file_resolves() -> None:
     # _prose (the mutation that would silently un-check half the file) fails here first.
     module_only = "(ruling 149 follow-up)"
     function_only = "must not retire the analysis that produces the list"
+    comment_only = "wave the exact failure mode through"
     prose = _prose(Path(__file__))
     assert module_only in prose, (
         "the MODULE docstring left the harvest — half the file is unchecked"
     )
     assert function_only in prose, "a FUNCTION docstring left the harvest — the pins are unchecked"
-    # …and the negative witness: neither phrase is in the other's region, so these two asserts pin
-    # WHICH region is harvested, not merely that _prose returns a blob that happens to contain both.
-    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
-    assert module_only not in "".join(
+    assert comment_only in prose, "the #: COMMENT block left the harvest — its cites are unchecked"
+    # …and the negative witnesses: each phrase lives in exactly one region, so these three asserts
+    # pin WHICH regions are harvested, not merely that _prose returns a blob that contains them.
+    src = Path(__file__).read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn_docstrings = "".join(
         ast.get_docstring(n) or "" for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
-    ), "module_only is not module-only — the liveness control above proves nothing"
+    )
+    assert module_only not in fn_docstrings, (
+        "module_only is not module-only — the liveness control above proves nothing"
+    )
+    comment_block = "".join(
+        tok.string
+        for tok in tokenize.generate_tokens(io.StringIO(src).readline)
+        if tok.type == tokenize.COMMENT and tok.string.startswith("#:")
+    )
+    assert comment_only not in fn_docstrings + (ast.get_docstring(tree) or ""), (
+        "comment_only is not comment-only — the #: liveness control proves nothing"
+    )
+    assert module_only not in comment_block and function_only not in comment_block, (
+        "a docstring-only phrase leaked into the #: block — the region controls are entangled"
+    )
 
 
 def test_the_module_docstring_quotes_the_package_clause_verbatim() -> None:
