@@ -16,7 +16,7 @@ Components for visualizing batch processing statistics and lifecycle events in t
 Ruling 134 retired the closure-reason chart, the per-camera table and the
 completed-batch timeline view; the active-batches view above is the one that
 stays. Absence is guarded by
-`../__tests__/batch-history-views-retired.test.tsx`.
+`../../__tests__/batch-history-views-retired.test.tsx`.
 
 ## Component Details
 

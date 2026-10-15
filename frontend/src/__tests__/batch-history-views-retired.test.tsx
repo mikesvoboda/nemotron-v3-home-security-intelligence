@@ -7,9 +7,11 @@
  *     exact path, their barrel exports are gone, and the dashboard paints
  *     neither surface even with `hasData` ARMED. The arming is the point: the
  *     dashboard renders both views only inside `{hasData && …}`
- *     (`BatchStatisticsDashboard.tsx:234`), and `hasData` is
+ *     (`BatchStatisticsDashboard.tsx:232` at this head; the pre-deletion tree
+ *     had it at `:235`), and `hasData` was
  *     `activeBatchCount > 0 || totalClosedCount > 0 || perCameraStats non-empty`
- *     (`:74`), so a guard that left the hook mocked at zero data would assert
+ *     (base `:74-75`, narrowed to two terms at head `:72` when the map
+ *     retired), so a guard that left the hook mocked at zero data would assert
  *     an absence that was never reachable — the vacuity trap the rate-limit
  *     spec's `retiredSurface` comment names. Here the mocked hook supplies two
  *     active and two closed batches plus non-empty `perCameraStats`, so
@@ -20,17 +22,21 @@
  *     "completed-batch timeline". Measured at the base commit, NOTHING renders
  *     completed batches as a timeline: `BatchTimelineChart.tsx` takes
  *     `activeBatches: BatchInfoResponse[]` and nothing else (`:25`) and its
- *     heading is the literal "Active Batches" (`:65`), and every consumer of
- *     `useBatchStatistics().completedBatches` (`useBatchStatistics.ts:145`) is
- *     `totalClosedCount` (`:58`), `averageDurationSeconds` (`:43-50`) and the
- *     two surfaces in leg A — all stat cards or doomed views. So leg B pins
- *     what that claim actually covers: `completedBatches` is no longer
- *     reachable through the dashboard's rendered output, and the stat cards
- *     that legitimately derive from it are leg C's KEEP list. A separate
- *     unmounted component (`components/BatchProcessingIndicator.tsx:209`)
- *     consumes its OWN `completedBatches` from `useBatchProcessingStatus` with
- *     no importer anywhere in `src` — a dead component, not this ruling's
- *     three views, and deliberately not touched here.
+ *     heading is the literal "Active Batches" (`:63`), and every consumer of
+ *     `useBatchStatistics().completedBatches` (base
+ *     `useBatchStatistics.ts:145`) is
+ *     `totalClosedCount` (base `:58`), `averageDurationSeconds` (base
+ *     `:268-280`) and the two surfaces in leg A — all stat cards or doomed
+ *     views. So leg B pins what that claim actually covers: `completedBatches`
+ *     is no longer named anywhere in the dashboard's source — measured
+ *     `grep -c completedBatches BatchStatisticsDashboard.tsx` → 0 at this head
+ *     — and no heading or testid the retired views used paints with the hook
+ *     armed. The stat cards that legitimately derive from it are leg C's KEEP
+ *     list. A separate unmounted component
+ *     (`components/BatchProcessingIndicator.tsx:209`) consumes its OWN
+ *     `completedBatches` from `useBatchProcessingStatus` with no importer
+ *     anywhere in `src` — a dead component, not this ruling's three views, and
+ *     deliberately not touched here.
  *  C. KEEP — the active-batches view survives: `BatchTimelineChart.tsx`
  *     exists, the barrel still exports it, and the same armed render above
  *     paints `batch-timeline-chart`. That render is what makes leg C's

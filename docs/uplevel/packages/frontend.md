@@ -446,11 +446,18 @@ PR (UR-48).
 
 ### [r134] F-135: retire the batch-history views
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 134, 150)
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7145 (open).
+(rulings 134, 150)
 
-- [ ] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
+- [x] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
       `frontend/src/components/batch/BatchStatisticsDashboard.tsx`, and any hook or type only they
-      use. The active-batches view stays.
+      use. The active-batches view stays. Witness: `1a852f124` deletes both component files and
+      narrows the hook's three aggregates; the "completed-batch timeline" leg is a measurement, not
+      a deletion — `BatchTimelineChart` takes `activeBatches` alone, so nothing ever rendered
+      completed batches as a timeline, and the guard's leg B records that. Guard
+      `frontend/src/__tests__/batch-history-views-retired.test.tsx` was proven RED with the render
+      armed, then green; leg C pins the kept view. The package's `Done when` is NOT met yet: F-135
+      stays `half-built` until this PR's golden spec has executed in CI.
 
 **Done when:** F-135's row reads "expands the section; sees active batches", its golden path covers
 that, and nothing renders the three history views.
