@@ -117,6 +117,9 @@ same way after the owner's `R2b` session.
 - **Ruling 182's record** (record `6174228588`, BINDING NOW 17:24Z): #7131 (merged) writes that
   record's seven rows into the ruling and priority columns. It moves no status, so §2 is not in its
   diff and it merges in any order with the three PRs that rewrite the `**all**` line.
+- **Round 2's record** (rulings 210-215): the owner's session writes it in the owner PR that carries
+  them (ruling 216, record 6200852082), into the ruling and priority columns only; later rounds
+  return to this lane.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).

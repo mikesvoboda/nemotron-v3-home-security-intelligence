@@ -941,7 +941,11 @@ Measured at tool-inputs `33b93b9e1b` from the fixed tool (`scripts/reachability.
 
 Ruling: approve the list for deletion as a whole, naming any exceptions and why.
 
-**Ruling:**
+**Ruling:** approved as a rule, not as the measured snapshot (ruling 210, record 6200282082, R2b
+round 2). Each deletion package deletes what its own check reports non-shipping at its head,
+outside `scripts/reachability/keep.toml`. `O3.1` declares the `ai/` entry points first, so
+`ai/gateway/export/` (O2.4, B2.3) stays; `synthbench/host`, `generate` and `contract` stay (UR-82);
+`synthbench/spikes/` goes.
 
 ## 4. After the session
 
