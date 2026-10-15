@@ -4,8 +4,9 @@
     uv run python scripts/uplevel/lane_tick.py --sandbox <name> [--repo OWNER/REPO]
     uv run python scripts/uplevel/lane_tick.py --sandbox <name> --beat "<line 2>"
 
-Prints, in tick order: the ``for you:`` lines (ruling 197: each record and each owner pointer of
-the last 48 hours whose machine footer names me), my heartbeat id and age, the coordinator's age
+Prints, in tick order: the ``for you:`` lines (ruling 197: each record of the last 48 hours, and
+each owner pointer since my beat or the last two hours, whose machine footer names me), my
+heartbeat id and age, the coordinator's age
 (UR-162), disk use of `/` and `/var/lib/docker` (UR-180 pointer above 90%), the live ``BINDING NOW``
 records the ruling map does not carry (ruling 177), my own open PRs with their one CI read (UR-38)
 and ruling 198's ``needs your review`` / ``arm auto-merge`` markers (each PR's one review is its
@@ -99,6 +100,7 @@ NAMES = (
     "frontend", "backend", "docs", "ops-a", "ops-b", "operator", "heavy-a", "heavy-b", "coordinator",
 )  # fmt: skip
 BEAT_CAP = 600  # UR-155: a whole heartbeat, marker line included, is at most 600 characters.
+POINTER_FLOOR = timedelta(hours=2)  # the pointer read reaches at least this far back (see below)
 
 
 class LaneSnap(snap.Snapshot):
@@ -209,15 +211,28 @@ def records_for(me: str, binding: list[dict], owner: list[dict]) -> list[str]:
     return out
 
 
-def pointers_for(me: str, comments: list[dict], now) -> list[str]:
-    """``for you:`` per owner pointer naming me, posted anywhere in the last 48 hours.
+def pointer_window(now, beat):
+    """Where the pointer read starts: my beat or ``POINTER_FLOOR`` back, whichever is earlier,
+    never further back than a record lives (``BINDING_LIFE``).
 
-    The same window as a record (``BINDING_LIFE``), read repo-wide in one call -- not "my open PRs
-    since my beat": a pointer posted between one digest and the next beat fell outside that window
-    for good, and one on a merged, closed or other lane's PR was never read at all. #6854's own
-    comments are skipped here; ``records_for`` reads that issue.
+    Read repo-wide in one call -- not "my open PRs since my beat": a pointer on a merged, closed or
+    other lane's PR was never read at all, and one posted between a digest and the next beat fell
+    out of a since-my-beat window for good (the two-hour floor keeps it in view for the ticks after
+    that beat). Not a flat 48 hours either: measured, that is 1285 comments in 13 pages per read,
+    about 400 requests an hour across the lanes. A stalled agent's old beat widens the window to
+    cover what it slept through, up to the 48-hour cap.
     """
-    start = now - snap.BINDING_LIFE
+    start = now - POINTER_FLOOR if beat is None else min(beat, now - POINTER_FLOOR)
+    return max(start, now - snap.BINDING_LIFE)
+
+
+def pointers_for(me: str, comments: list[dict], start) -> list[str]:
+    """``for you:`` per owner pointer naming me, posted after ``start`` (``pointer_window``).
+
+    GitHub's ``since`` filters by update time, so the posting time is checked here, as
+    ``_binding_now`` checks it for records. #6854's own comments are skipped; ``records_for``
+    reads that issue.
+    """
     out = []
     for c in sorted(comments, key=lambda c: c.get("created_at") or ""):
         number = snap.issue_number(c)
@@ -274,68 +289,77 @@ def ran_for_real(rollup: list[dict], run_id: int | None) -> bool:
     return False
 
 
-def at_head(s: snap.Snapshot, p: dict, review: dict) -> tuple[bool | None, str]:
+def at_head(s: snap.Snapshot, p: dict, review: dict) -> bool | str:
     """Is ``review`` a review of PR ``p``'s head, read as the coordinator reads it?
+
+    ``True``/``False`` from the judge, or the reason it cannot judge: ``"no head"`` (the review
+    names no sha -- roles/lane.md's form puts the reviewed head's sha on the first line, which
+    ``approval_sha`` reads first) or ``"unread"`` (the UR-106 carry's files or diffs went unread).
+    There is no date fallback: a time comparison said "reviewed" for an approval of an old head
+    whose carry was never read, which is exactly the merge the audit then flags.
 
     The newest approval is ``Snapshot.judge``'s own verdict on ``p`` (its ``own_diff`` carry). Any
     other review goes through the same three arms ``judge`` has: the sha it names is the head
-    (identity), names no sha (undecided), or names another rev, whose UR-106 own-diff hash either
-    carries to the head or not (``Snapshot._own_diff``, the same reads). ``None`` with the reason
-    is "the judge cannot decide", the one case the caller falls back to dates for.
+    (identity), names no sha, or names another rev, whose UR-106 own-diff hash either carries to
+    the head or not (``Snapshot._own_diff``, the same reads).
     """
     approval = p.get("approval") or {}
     if review.get("id") == approval.get("id"):
-        own = p.get("own_diff") or {}
-        if own.get("carry") is None:
-            return None, p.get("verdict_reason") or own.get("error") or "the carry is unread"
-        return own["carry"], ""
+        if not approval.get("sha"):
+            return "no head"
+        carry = (p.get("own_diff") or {}).get("carry")
+        return "unread" if carry is None else carry
     sha = snap.approval_sha(review.get("body") or "")
     if not sha:
-        return None, "the review names no sha"
+        return "no head"
     if p["head"].startswith(sha):
-        return True, ""
+        return True
     probe = {"number": p["number"], "head": p["head"], "errors": p["errors"]}
     s._own_diff(probe, sha, judged_first=True)
-    own = probe["own_diff"]
-    return own["carry"], ("" if own["carry"] is not None else own.get("error") or "the carry is unread")  # fmt: skip
+    carry = probe["own_diff"]["carry"]
+    return "unread" if carry is None else carry
 
 
-def review_marker(s: snap.Snapshot, p: dict, reviews: list[dict], head_at: Callable) -> str:
+def review_marker(s: snap.Snapshot, p: dict, reviews: list[dict]) -> str:
     """Ruling 198's marker for one of MY ready PRs, from its review comments (REVIEWS_JQ's read).
 
     The reviews are judged exactly as the coordinator's tick and merge audit judge them
     (``Snapshot.judge``, then ``at_head`` for a newest review that is not the newest approval), so
-    a marker cannot ask for what the audit then refuses. Only when the judge cannot decide -- the
-    review names no sha, or a rev's diff is unread -- is "for this head" read off the head commit's
-    COMMITTED date (``head_at``, read lazily: a decided PR pays no date read); an ``arm auto-merge``
-    decided that way says so. ``needs your review``: CI at the head has finished and the newest
-    review is not for this head. ``arm auto-merge``: the newest review is for this head, approves
-    (``is_approval`` on its first line) with ``Plan text: none``, the gate is green from a real
-    (non-draft) run, auto-merge is off and there is no ``owner`` label -- an owner-tier PR waits
-    for the owner's record, and any other ``Plan text:`` is the author's call, never this marker's.
+    a marker cannot ask for what the audit then refuses. Both markers need CI to have finished at
+    the head in a REAL run (``ran_for_real``): a draft run skips every job and its gate still reads
+    SUCCESS, so neither "review this" nor "arm this" can be read off it.
+
+    - ``needs your review``: the run finished and the newest review is not of this head;
+    - ``arm auto-merge``: the newest review is of this head, approves (``is_approval`` on its first
+      line) with ``Plan text: none``, the gate is green, auto-merge is off and there is no ``owner``
+      label -- an owner-tier PR waits for the owner's record, and any other ``Plan text:`` is the
+      author's call, never this marker's;
+    - ``review names no head``: the newest review names no sha, so nothing can judge it; the author
+      posts it again with the head's sha on its first line;
+    - ``review unread``: the carry's reads failed (the row also prints their ERROR).
     """
     s.judge(p, reviews, judged_first=True)  # sorts `reviews` oldest first, as the audit does
-    done = p["gate"] in GATE_DONE
+    real = ran_for_real(getattr(s, "rollups", {}).get(p["number"], []), p.get("gate_run"))
+    done = p["gate"] in GATE_DONE and real
     if not reviews:
         return " — needs your review" if done else ""
     newest = reviews[-1]
-    here, why = at_head(s, p, newest)
-    if here is None:
-        when = head_at()
-        if when is None:
-            return " — review unread"
-        here = snap.parse_time(newest["created_at"]) > when
+    here = at_head(s, p, newest)
+    if here == "no head":
+        return " — review names no head"
+    if here == "unread":
+        return " — review unread"
     if not here:
         return " — needs your review" if done else ""
     if (
         snap.is_approval(snap.first_line(newest["body"]))
         and plan_text(newest["body"]) == "none"
         and p["gate"] == "SUCCESS"
-        and ran_for_real(getattr(s, "rollups", {}).get(p["number"], []), p.get("gate_run"))
+        and real
         and not p.get("armed")
         and "owner" not in p["labels"]
     ):
-        return " — arm auto-merge" + (f" (by date: {why})" if why else "")
+        return " — arm auto-merge"
     return ""
 
 
@@ -638,10 +662,9 @@ def build(
     def marker(p: dict) -> str:
         """Ruling 198's ``needs your review`` / ``arm auto-merge`` for a ready PR of mine. Its reads
         go through the runner: the snapshot's own verdict read (REVIEWS_JQ, the call ``_review``
-        makes), the UR-106 own-diff reads ``judge`` makes for an approval of another rev, and --
-        only when the judge cannot decide -- the head commit's committed date from the head ref the
-        snapshot fetched. A failed read prints ``review unread`` on the row and an ERROR line, never
-        a missing marker that would read as "nothing to do"."""
+        makes) and the UR-106 own-diff reads ``judge`` makes for a review of another rev. A failed
+        read prints ``review unread`` on the row and an ERROR line, never a missing marker that
+        would read as "nothing to do"."""
         if p["draft"]:
             return ""  # a draft is neither reviewed nor armed (ruling 198: skipped jobs pass)
         n = p["number"]
@@ -651,15 +674,7 @@ def build(
         except Exception as exc:
             extra.append(f"  ERROR review comments #{n}: {snap.error_text(exc)}")
             return " — review unread"
-
-        def head_at():
-            try:
-                return snap.parse_time(run(["git", "log", "-1", "--format=%cI", p["head"]]))
-            except Exception as exc:
-                extra.append(f"  ERROR head date #{n}: {snap.error_text(exc)}")
-                return None
-
-        return review_marker(s, p, reviews, head_at)
+        return review_marker(s, p, reviews)
 
     out.append(f"== mine ({len(mine)})")
     for p in mine:
@@ -676,12 +691,13 @@ def build(
             if (r.get("submitted_at") or r.get("created_at") or "") >= since
         ]
         out.append(row(p, f"{tail} {len(cmts)}c/{len(revs)}r since beat{marker(p)}"))
-    # Ruling 197's pointers: one repo-wide read over the records' 48-hour window. GitHub's `since`
-    # bounds it by update time; `pointers_for` bounds it by posting time, as `_binding_now` does.
-    window = snap.iso(now - snap.BINDING_LIFE)
-    raw = call(["gh", "api", f"repos/{repo}/issues/comments?since={window}&per_page=100", "--paginate"], "pointers")  # fmt: skip
+    # Ruling 197's pointers: one repo-wide read, from my beat or two hours back, whichever is
+    # earlier, and never past the records' 48 hours (`pointer_window`). GitHub's `since` bounds it
+    # by update time; `pointers_for` bounds it by posting time, as `_binding_now` does.
+    start = pointer_window(now, snap.parse_time(mybeat["updated_at"]) if mybeat else None)
+    raw = call(["gh", "api", f"repos/{repo}/issues/comments?since={snap.iso(start)}&per_page=100", "--paginate"], "pointers")  # fmt: skip
     if raw is not None:
-        for_you += pointers_for(me, snap.parse_json_stream(raw), now)
+        for_you += pointers_for(me, snap.parse_json_stream(raw), start)
     # UR-52's precondition, printed: an agent holding an open package is not claim-eligible, and a
     # `next claimable` line beside a held package invites the queue-jump the rule forbids. The gate
     # reads the whole lane file, not the queue column, because a package the roster never lists is
