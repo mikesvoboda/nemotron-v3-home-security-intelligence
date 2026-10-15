@@ -262,7 +262,8 @@ test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, 
       const afterBurst = await api.getJson('/api/v1/settings');
       expect(afterBurst.body?.rate_limiting?.burst_size).toBe(targetBurst);
 
-      // 4. Verify & update DetectionThresholdsPanel (DetectionThresholdsPanel.tsx:86-205)
+      // 4. Verify & update DetectionThresholdsPanel (handleSave through the action
+      //    buttons: DetectionThresholdsPanel.tsx:69-250 at this revision)
       const detCard = page.getByTestId('detection-thresholds-card');
       await expect(detCard).toBeVisible();
       const confSlider = detCard.getByTestId('confidence-slider');
@@ -271,9 +272,19 @@ test.describe('FE-4 processing settings & thresholds golden path (F-221, F-222, 
       const detSaveBtn = detCard.getByTestId('save-thresholds-button');
 
       await expect(confValue).toHaveText(`${(beforeDet.confidence_threshold * 100).toFixed(0)}%`);
-      await expect(fastPathValue).toHaveText(
-        `${(beforeDet.fast_path_threshold * 100).toFixed(0)}%`
-      );
+      // ruling 168: this card's fast-path threshold renders only while the master
+      // switch is on, so the leg follows the server's flag instead of assuming the
+      // control exists. Asserting the off-note first is what makes the missing
+      // readout a real absence: a card that failed to render at all has no note
+      // either, and that assertion would fail.
+      if (beforeDet.fast_path_enabled) {
+        await expect(fastPathValue).toHaveText(
+          `${(beforeDet.fast_path_threshold * 100).toFixed(0)}%`
+        );
+      } else {
+        await expect(detCard.getByTestId('fast-path-off-note')).toContainText(/fast path is off/i);
+        await expect(fastPathValue).toHaveCount(0);
+      }
       await expect(detSaveBtn).toBeDisabled();
 
       const stepKey = beforeDet.confidence_threshold >= 0.9 ? 'ArrowLeft' : 'ArrowRight';
