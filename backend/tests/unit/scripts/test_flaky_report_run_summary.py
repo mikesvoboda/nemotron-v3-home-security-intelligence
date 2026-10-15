@@ -1,6 +1,6 @@
 """`[r149f]`: Flaky Test Detection reports to its run summary (ruling 149 follow-up).
 
-The package, verbatim from ``docs/uplevel/packages/ops.md``:385-388:
+The package, verbatim from the ``[r149f]`` section of ``docs/uplevel/packages/ops.md``:
 
     Remove the issue-creation step from `.github/workflows/flaky-test-detection.yml`; the
     Analyze Flaky Tests job writes its flaky list (test id, pass/fail count over the runs) to
@@ -64,6 +64,7 @@ import ast
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -166,8 +167,8 @@ def _run_warn_step(tmp_path: Path, report_text: str | None) -> subprocess.Comple
 
 
 def test_the_warn_step_survives_a_malformed_report_under_bash_e(tmp_path: Path) -> None:
-    """ "Never fails the job" (the step's own comment, and `docs/developer/
-    flaky-test-detection.md`'s red/green split) is only true if the count line is
+    """ "Never fails the job" (the step's own comment, and the red/green split in
+    ``docs/developer/flaky-test-detection.md``) is only true if the count line is
     guarded, because Actions runs the step under `bash -e`.
 
     Three report states are run through the step body in that shell; each must
@@ -415,11 +416,30 @@ def test_the_analysis_command_still_runs_in_the_analyze_job() -> None:
     assert analyzers, "the job must still run scripts/analyze-flaky-tests.py — that is the analysis"
 
 
-#: A repo-path cite in this file's PROSE: a double-backtick span ending in a file extension. The
-#: extension must abut the closing backticks, so a LINE cite like ``analyze-flaky-tests.py:199-200``
-#: is deliberately NOT matched — it names a location, not a path, and its `scripts/` prefix is
-#: elided by design, so resolving it as a path would only ever produce a false red.
-_PATH_CITE = re.compile(r"``([^`\n]+?\.(?:json|md|py|yml|txt))``")
+#: A path cite in this file's PROSE is a backticked span — SINGLE or DOUBLE backticks — that ends
+#: in a file extension. Both spellings count on purpose: the bug that prompted this pin was written
+#: in SINGLE backticks (see the pin's docstring), so a pin that read only double backticks would
+#: wave the exact failure mode through. The extension must abut the closing backtick, so ``bash -e``,
+#: ``DATA``, and a LINE cite like ``analyze-flaky-tests.py:199-200`` are NOT matched — they name a
+#: shell, a constant, or a location (whose `scripts/` prefix is elided by design), not a repo path.
+_PATH_EXT = re.compile(r"\.(?:json|md|py|yml|txt)$")
+
+
+def _path_cites(text: str) -> list[str]:
+    """Every backticked, extension-ending span in ``text``, in one OR two backticks.
+
+    Split on the DOUBLE delimiter first so a double cite consumes both backticks and is never also
+    read as two single cites; then take the single-backtick spans of what remains. This delimiter-
+    consuming split is why the extractor is sound where a newline-spanning REGEX is not: regex
+    backtick-pairing straddles two adjacent cites and invents spans the file does not contain
+    (measured: ~20 phantom spans on clean prose). A span that CONTAINS a newline — a cite rewrapped
+    across a line — flattens to a path with an interior space and so resolves to nothing and fails
+    the pin, rather than silently escaping coverage; the file therefore keeps every path cite
+    contiguous on one line.
+    """
+    halves = text.split("``")
+    spans = list(halves[1::2]) + " ".join(halves[0::2]).split("`")[1::2]
+    return [s.strip() for s in spans if _PATH_EXT.search(" ".join(s.split()))]
 
 
 def _prose(path: Path) -> str:
@@ -442,38 +462,64 @@ def test_every_path_cite_in_this_file_resolves() -> None:
     """Every path this file's prose cites is a file that exists, and the fixture cite is EXACT.
 
     Why this exists: the #7090 review and my own retirement note both cited the committed nightly
-    report as `data/flaky-run-summary/nightly-38372397543.json` — one backticks, so this pin does
-    not match it — and no file lives at that repo-root path. The report is committed under the
-    test directory (the `DATA` constant above; the repo's own convention, the same shape
-    `check-uplevel-cites.py:41` uses for its baseline). The prose was written from memory of the
-    artifact's name rather than from a file listing, and a reader who follows the cite finds
-    nothing. UR-31 says a cited file comes from output the author ran; this makes that checkable
-    rather than a habit.
+    report at a repo-root path built by dropping the ``backend/tests/unit/scripts/`` prefix off the
+    real one — in SINGLE backticks — and no file lives there. The report is committed under the test
+    directory (the ``DATA`` constant above; the repo's own convention, the same shape
+    ``check-uplevel-cites.py:41`` uses for its baseline). The prose was written from memory of the
+    artifact's name rather than from a file listing, and a reader who follows the cite finds nothing.
+    UR-31 says a cited file comes from output the author ran; this makes that checkable rather than
+    a habit. That failure was single-backtick, so the extractor reads BOTH backtick spellings.
 
     The trap this pins AROUND is why the fixture assertion is EXACT-EQUALITY over extracted spans
-    and not a substring search: the stale spelling is a SUFFIX of the correct one
-    ("backend/tests/unit/scripts/" + the stale path), so the obvious
-    `stale_string not in text` guard fails against the FIXED file — an absence check written that
+    and not a substring search: the stale spelling is a SUFFIX of the correct one, so the obvious
+    "stale_string not in text" guard fails against the FIXED file — an absence check written that
     way certifies the bug and reports the repair as the red. Comparing whole extracted cites (list
     membership is element equality) is the shape that goes red on the stale cite, green on the
-    fixed one. The assertion below builds the stale string by concatenation so it never appears
-    here as a cite the extractor would (correctly) try to resolve.
+    fixed one. This docstring builds the stale string by concatenation and never spells it inside
+    backticks, because the extractor would (correctly) try to resolve it — and so must every future
+    edit to this file.
 
     Positive controls, because a clean verdict from a dead instrument certifies nothing: the
-    extractor is run on a planted pair and must return exactly that pair, and ``cites`` is
-    asserted non-empty before anything is said about it being clean.
+    extractor is run on a planted pair in BOTH backtick spellings and must return exactly that
+    pair, and the cited files must be git-TRACKED (a cite to an untracked scratch file would pass a
+    bare ``is_file()`` check while violating UR-10 contract rule 3, "commit every fixture").
     """
-    cites = sorted(set(_PATH_CITE.findall(_prose(Path(__file__)))))
-    assert cites, "the cite extractor matched nothing — a dead regex would certify any path"
+    cites = sorted(set(_path_cites(_prose(Path(__file__)))))
+    assert cites, "the cite extractor matched nothing — a dead extractor would certify any path"
 
-    control = "``docs/uplevel/packages/ops.md`` and ``data/planted/nothere.json``"
-    assert sorted(set(_PATH_CITE.findall(control))) == [
+    # Control covers both spellings: the stale bug was single-backtick, so a control that only
+    # planted double-backtick cites could not tell a working extractor from one that ignores singles.
+    control = "``docs/uplevel/packages/ops.md`` and `data/planted/nothere.json` and ``gone.md``"
+    assert sorted(_path_cites(control)) == [
         "data/planted/nothere.json",
         "docs/uplevel/packages/ops.md",
+        "gone.md",
     ], "the extractor itself is broken, so its verdict on this file means nothing"
 
+    # Two checks, two diagnoses, in that order: a path that does not EXIST is a different defect
+    # from one that exists but was never committed, and collapsing them (git ls-files drops both)
+    # would report "not committed" for a cite that no one ever wrote — misdirecting whoever reads it.
     missing = [c for c in cites if not (REPO_ROOT / c).is_file()]
-    assert not missing, f"path cites that resolve to nothing: {missing}"
+    assert not missing, (
+        f"path cites that resolve to nothing: {missing} — a cite whose last line is a wrapped "
+        "continuation lands here too, because flattening leaves an interior space"
+    )
+
+    # Committedness, not just existence (F5): a cite to an untracked file passes is_file() but
+    # breaks UR-10 rule 3. git ls-files lists only tracked paths, so an untracked cite is dropped.
+    git = shutil.which("git")
+    assert git, "git is not on PATH — the committedness check cannot run"
+    tracked = set(
+        subprocess.run(  # noqa: S603  # intentional - asks git about our own tree
+            [git, "ls-files", "--", *cites],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+    )
+    untracked = [c for c in cites if c not in tracked]
+    assert not untracked, f"path cites that are not committed to git: {untracked}"
 
     fixture = str(REAL_REPORT.relative_to(REPO_ROOT))
     assert fixture in cites, (
@@ -483,4 +529,58 @@ def test_every_path_cite_in_this_file_resolves() -> None:
     assert stale != fixture and stale not in cites, (
         f"the repo-root spelling {stale} is back in the prose; it is a SUFFIX of the real path, "
         "so it can only be caught by exact comparison, never by a substring search"
+    )
+
+    # F4 (self-review): a control that only exercises the REGEX certifies the regex, not the region
+    # harvest. These two strings live in exactly one region each, so dropping either region from
+    # _prose (the mutation that would silently un-check half the file) fails here first.
+    module_only = "(ruling 149 follow-up)"
+    function_only = "must not retire the analysis that produces the list"
+    prose = _prose(Path(__file__))
+    assert module_only in prose, (
+        "the MODULE docstring left the harvest — half the file is unchecked"
+    )
+    assert function_only in prose, "a FUNCTION docstring left the harvest — the pins are unchecked"
+    # …and the negative witness: neither phrase is in the other's region, so these two asserts pin
+    # WHICH region is harvested, not merely that _prose returns a blob that happens to contain both.
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    assert module_only not in "".join(
+        ast.get_docstring(n) or "" for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+    ), "module_only is not module-only — the liveness control above proves nothing"
+
+
+def test_the_module_docstring_quotes_the_package_clause_verbatim() -> None:
+    """The "verbatim from ops.md" quote IS the register clause, checked by TEXT not by line number.
+
+    F1 (self-review): the docstring used to cite ``docs/uplevel/packages/ops.md``:385-388, a range
+    that was true when the file shipped and then drifted when later register PRs pushed ops.md
+    down — the exact rot this PR exists to kill, reproduced one docstring line away from the two
+    cites it fixes. A line number is a brittle referent; the clause TEXT is not. So the claim is
+    pinned as text equality (whitespace-collapsed, because the register re-wraps as neighbours
+    change) between three places that must agree: this module docstring, the register file, and
+    the clause below.
+    """
+    clause = " ".join(
+        (
+            "Remove the issue-creation step from",
+            "`.github/workflows/flaky-test-detection.yml`;",
+            "the Analyze Flaky Tests job writes its flaky list",
+            "(test id, pass/fail count over the runs) to the run summary instead,",
+            "and goes green when the analysis itself succeeds.",
+            "The coordinator routes the list (UR-116).",
+        )
+    ).split()
+    clause = " ".join(clause)
+    register = (REPO_ROOT / "docs/uplevel/packages/ops.md").read_text(encoding="utf-8")
+    assert " ".join(register.split()).find(clause) != -1, (
+        "the clause this module docstring quotes verbatim is no longer in ops.md — the quote drifted"
+    )
+    docstring = ast.get_docstring(ast.parse(Path(__file__).read_text(encoding="utf-8"))) or ""
+    assert " ".join(docstring.split()).find(clause) != -1, (
+        "the module docstring no longer quotes the clause it claims to quote verbatim"
+    )
+    # Positive control: the search has teeth — one word off and it must NOT find the clause.
+    mutated = clause.replace("coordinator routes", "coordinator ignores", 1)
+    assert " ".join(register.split()).find(mutated) == -1, (
+        "a mutated clause still matched — the verbatim check is a no-op"
     )
