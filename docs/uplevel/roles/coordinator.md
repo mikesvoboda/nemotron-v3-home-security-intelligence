@@ -51,7 +51,9 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    (UR-40); the open PRs, each with its `CI Gate` at the head and whether its newest
    `Review: approve` names that head (UR-106); UR-102's three legs for each green non-draft PR,
    measured from the `main` its gate's run tested;
-   `main`'s CI, Deploy, Nightly Full Gate and flaky-test runs; and every heartbeat with its age.
+   `main`'s CI, Deploy, Nightly Full Gate and flaky-test runs; and every heartbeat with its age, and
+   -- beside each non-paused agent -- the signed-activity read step 5 acts on (its latest signed
+   comment, commits on its open PR branches since its beat, and any `BLOCKER:` line).
    Read a PR's whole thread only for a PR you are about to merge, route or label this tick. An
    `ERROR <section>` line means that section was not read: read it yourself or state that it is
    unread, and never fill it from an earlier tick (UR-29).
@@ -64,13 +66,18 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    carry each open `URGENT PATH` item (UR-166), and ask the author of a comment that carries
    harness wrapper text to edit it (UR-156).
 5. **Heartbeats.** Raise the urgent path for each stalled agent the report's heartbeats show
-   (UR-38); a `paused` agent is not stalled (UR-160). Before raising, read the comments updated
-   since that agent's heartbeat time, repo-wide
-   (`gh api "repos/<owner>/<repo>/issues/comments?since=<heartbeat updated_at>" --paginate --jq '.[] | "\(.updated_at) \(.html_url) \(.body | split("\n")[0])"'`),
-   and the commits on its open PR branches since then. A comment signed by the agent
-   (`Reviewer lane: <lane>`, or its lane or sandbox name in the first line) or one of those commits
-   means it is not stalled; say which you read in the raise (ruling 178). A heartbeat older than 20 minutes goes in the
-   status comment (UR-166).
+   (UR-38); a `paused` agent is not stalled (UR-160). §6 prints the ruling-178 read beside each
+   non-paused agent's age: its latest comment signed by it (a `Reviewer lane:` line, or its lane
+   or sandbox name leading the first line; one marked lane-named names the lane but not the cell,
+   so it signs the lane, not that agent), the commits on its open PR branches since its beat, and
+   any `BLOCKER:` line. `activity: none signed since the beat` plus `0 commit(s) since the beat`
+   is the stall; name in the raise which of the two you read
+   (`scripts/test_coordinator_snapshot.py`, §6, pins each line). Where §6 cannot answer -- an
+   `ERROR` line, or an agent it does not carry -- read it yourself per ruling 178 and say so.
+   For the comments: `gh api "repos/<owner>/<repo>/issues/comments?since=<beat>" --paginate`.
+   For the commits: `git log --since=<beat> refs/remotes/origin/pr/<n>`. A `lane:ops` PR with no
+   `cell:` row is listed beside both ops agents as uncellated and belongs to neither. A heartbeat
+   older than 20 minutes goes in the status comment (UR-166).
 6. **`main`.** On the first red `CI Gate` run the report shows on `main`, follow "Red `main`" below;
    a cancelled run is not red. On the first tick after the nightly schedule, raise and route a red
    Nightly Full Gate with the failing tests you read, and on the first tick after the 02:00Z flaky

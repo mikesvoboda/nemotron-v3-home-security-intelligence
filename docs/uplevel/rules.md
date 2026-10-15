@@ -233,8 +233,8 @@ Read this section before you self-review your own PR or review another lane's.
   the author's own, preferring the lane that consumes the change, and names it when it assigns the
   package. It labels the PR `review:<lane>` (`review:ops-a`/`review:ops-b` for ops) each time the
   author marks a head ready; a lane agent clears its label's PRs before starting or resuming a
-  package. (UR-32; roles/coordinator.md "Remit", "Label for review"; roles/lane.md "The tick" §3;
-  the deleted 50-coordination.md "Roles", "Review and merge")
+  package. (UR-32; roles/coordinator.md "Remit", "Label for review"; roles/lane.md "The tick",
+  "Reviews first"; the deleted 50-coordination.md "Roles", "Review and merge")
 - **UR-89** Before marking a PR ready, the author dispatches a fresh-context subagent given only the
   package text, the diff and the PR body, to check each Done-when clause against the evidence, the
   contract, the cross-lane parts and the hot-file rules; the author fixes or answers each finding

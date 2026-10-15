@@ -48,37 +48,41 @@ the package cites. You have no review label.
 The owner arms it with `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
 Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
-1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
-   (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
-   Then read the live `BINDING NOW` records on #6854 that the plan files do not yet carry: run the
-   command below and read what it prints. A record whose ruling number or comment id has a row in
-   `history/ruling-map.md` on `main` is already in the plan files you just read. Act on each printed
-   record that names your lane or all agents and whose required state does not already hold; one
-   already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings
-   163, 170, 177). Never fetch the 48-hour window unfiltered.
+1. **Read the tick in one call.** Run
 
    ```bash
-   MAP=$(git show origin/main:docs/uplevel/history/ruling-map.md)
-   gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate \
-     --jq '.[] | select(.body | startswith("BINDING NOW")) | "\(.id)\t\(.body | split("\n")[0])"' |
-   while IFS=$'\t' read -r id first; do
-     n=$(grep -oE 'ruling [0-9]+' <<<"$first" | head -1 | grep -oE '[0-9]+')
-     if [ -n "$n" ] && grep -qE "^\| $n " <<<"$MAP"; then continue; fi
-     grep -qF "$id" <<<"$MAP" && continue
-     gh api "repos/<owner>/<repo>/issues/comments/$id" --jq .body; echo
-   done
+   uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox>
    ```
 
-2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below), and keep your disks under 90% (UR-180). Read the coordinator's; if it is older
-   than 20 minutes, follow "Stale coordinator" below.
-3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
-   lane's PR" below). Heavy agents skip this step.
-4. **Your own open PRs** (UR-35): read the new comments and reviews on each
-   (`gh pr view <n> --comments`). Read CI at the head once, fix what is red, answer what is
-   requested, and rebase what conflicts with `main` (what a new head resets: UR-106). Before you
-   push to a PR on auto-merge, run `gh pr merge <n> --disable-auto` (UR-108).
-5. **Continue your package,** or take the next one ("Claiming a package" below).
-6. If none of these has work, say so in one line and end the turn.
+   (`scripts/uplevel/lane_tick.py`; `scripts/test_lane_tick.py` pins every line it prints.) It is
+   read-only and reads its own `origin/main`. Read this file and `rules.md` from
+   `git show origin/main:...` as it does, so a change to either needs no rebase. It prints, in tick
+   order: your heartbeat id, age and prose; the coordinator's age, with the UR-162 raise named when
+   one is owed; disk use of `/` and `/var/lib/docker`, pointing at UR-180's cleanup ORDER above 90%
+   (never a routine full prune, ruling 176); the live `BINDING NOW` records the ruling map does not
+   carry (ruling 177's filter, applied at the source -- the 48-hour window is never fetched
+   unfiltered); the PRs labelled `review:<lane>` and your own open PRs, each with head, merge state,
+   `CI Gate` at that head (re-read past 100 check runs; in-flight jobs named when it is still
+   running), commits behind `main`, and comments/reviews since your beat; and the next claimable
+   package on your own roster queue (UR-52). An `ERROR <section>` line means that section was not
+   read: read it yourself or say it is unread, and never fill it from an earlier tick (UR-29). A
+   `NOTE no package file for lane <lane>` is the roster's answer for a lane with no package file
+   (operator, heavy, coordinator), not a fault. Then act:
+   - **`BINDING NOW`.** Act on each printed record that names your lane or all agents and whose
+     required state does not already hold; one already carried out is a no-op. A record binds
+     before the plan files catch up (UR-40, rulings 163, 170, 177).
+   - **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) and keep your disks under 90%
+     (UR-180). If the digest shows the coordinator older than 20 minutes with no live `URGENT PATH`
+     on record, follow "Stale coordinator" below.
+   - **Reviews first** (UR-32): clear the `review:<lane>` rows ("Reviewing another lane's PR"
+     below), reading each PR's whole thread only now. Heavy agents have no review queue.
+   - **Your own open PRs** (UR-35): read the full thread of a row the digest shows with new
+     comments, reviews or a `DIRTY`/red gate; fix what is red, answer what is requested, rebase what
+     conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
+     run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
+
+2. **Continue your package,** or take the next one ("Claiming a package" below).
+3. If none of these has work, say so in one line and end the turn.
 
 ## Heartbeat
 

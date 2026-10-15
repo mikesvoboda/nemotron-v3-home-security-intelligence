@@ -218,6 +218,114 @@ def issue_number(comment: dict[str, Any]) -> int | None:
     return int(tail) if tail.isdigit() else None
 
 
+# --- signed activity (ruling 178) ------------------------------------------------------------
+
+# Every comment in this programme is posted with the owner's token and every commit is authored
+# as `mike svoboda`/`mikesvoboda` (measured on #7125/#7145/#7159/#7163/#7164), so neither an
+# author field nor a commit trailer identifies the agent that wrote it. Ruling 178 names what
+# does: a ``Reviewer lane: <lane>`` line (a review's lane is on its SECOND line, so it is read
+# from the body, not the first line), or the agent's lane/sandbox name leading the first line.
+# A PR's labels name who its commits belong to (``lane:<lane>`` plus ``cell:<cell>``/``heavy``).
+REVIEW_LANE = re.compile(
+    r"^[ \t]*Reviewer lane:[ \t]*([a-z-]+)(?:[ \t]*\(cell[ \t]*([ab])\))?", re.IGNORECASE | re.M
+)
+# The name leading an agent's own line: every lane and operator beat starts
+# ``<sandbox> · <HH:MMZ> · ...`` and every status comment ``<who> · <time> reads``, so the FIRST
+# token of the undecorated first line is the writer. A name anywhere else is the subject someone
+# else is writing ABOUT -- the live read showed ``URGENT PATH · stalled agent:
+# `agent-uplevel-heavy-b``` counted as heavy-b's own activity, refuting with the raise the very
+# stall it raises. Position is what tells the writer from the subject.
+HEAD_NAME = re.compile(r"^[ \t>*_#`]*([\w.-]+)")
+
+
+def agent_key(beat_agent: str) -> tuple[str, str | None]:
+    """``(lane, cell)`` from a heartbeat's marker name: ``agent-uplevel-ops-b``/``uplevel-ops-b``
+    (both spellings are live) -> ``("ops", "b")``; a one-cell lane -> cell ``None``.
+
+    The ``agent-`` prefix is not applied consistently -- ops-a beats as ``uplevel-ops-a`` while
+    ops-b beats as ``agent-uplevel-ops-b`` -- so it is stripped before the tail is split.
+    """
+    name = beat_agent.removeprefix("agent-")
+    tail = name.removeprefix("uplevel-")
+    lane, _, cell = tail.rpartition("-")
+    return (tail, None) if not lane else (lane, cell.lower())
+
+
+def head_name(line: str) -> str | None:
+    """The first token of an undecorated first line -- the writer, per the role docs' line shape."""
+    match = HEAD_NAME.match(undecorated(line))
+    return match.group(1) if match else None
+
+
+def review_lane(body: str) -> tuple[str, str | None] | None:
+    """The ``(lane, cell)`` a review's body declares, or ``None`` if it declares none.
+
+    The declared lane is normalized through ``agent_key`` so ``heavy-a`` and ``heavy (cell A)``
+    and ``ops`` all land in the same shape as the heartbeat marker's name.
+    """
+    if not (match := REVIEW_LANE.search(body or "")):
+        return None
+    lane, cell = agent_key(match.group(1).lower())
+    return (lane, (match.group(2) or "").lower() or cell)
+
+
+def signs_agent(comment: dict[str, Any], lane: str, cell: str | None) -> str | None:
+    """``"self"`` if the comment is signed by exactly this agent, ``"lane"`` if it names the lane
+    but leaves a two-cell lane's cell open (so it cannot refute one cell's stall), else ``None``.
+
+    Reads the two forms ruling 178 lists, from data a comment already carries: its ``review_lane``
+    (a review, whose lane may sit on line 2) and its leading ``head_name`` (the beat/lead line).
+    """
+    if named := comment.get("review_lane"):
+        named_lane, named_cell = named
+        if named_lane != lane.lower():
+            return None
+        if cell is None or named_cell == cell:
+            return "self"
+        if named_cell in ("a", "b"):
+            # It names THIS lane and the OTHER cell: it signs that agent, not this one. Reading
+            # it lane-wide would refute a stalled ops-a with ops-b's review -- the exact false
+            # negative ruling 178 exists to prevent.
+            return None
+        return "lane"
+    head = (comment.get("head_name") or "").lower()
+    if not head:
+        return None
+    full = f"{lane}{f'-{cell}' if cell else ''}".lower()
+    # The role docs put an agent's name in the author position: the FIRST token of the
+    # undecorated first line. A bare name elsewhere in a line is the SUBJECT of someone else's
+    # comment -- a coordinator's `URGENT PATH · stalled agent: agent-uplevel-heavy-b` naming the
+    # agent it raises about -- and counting it as the agent's own activity would refute the very
+    # stall it raises (measured live: heavy-b's row printed the coordinator's raise as its own).
+    if head in {f"agent-uplevel-{full}", f"uplevel-{full}", full}:
+        return "self"
+    if cell and head == lane.lower():
+        return "lane"  # the lane's own spelling leads the line: this lane, but not this cell
+    return None
+
+
+def owner_of_pr(labels: list[str]) -> tuple[str, str | None, bool] | None:
+    """``(lane, cell, named_exactly)`` for the agent a PR belongs to, or ``None`` if unlabeled.
+
+    `rules.md:92-93`: a claim PR carries ``lane:<lane>`` and, where they apply, ``cell:<cell>``
+    and ``heavy``; a ``heavy`` PR labelled ``cell:heavy-b`` is heavy-b's, every other heavy PR
+    heavy-a's. Every non-heavy lane has one agent except ops, which has two -- so a ``lane:ops``
+    PR with no ``cell:`` row belongs to one of two agents and comes back ``named_exactly=False``
+    (#7159 is that case). Printing it under either cell would tell the coordinator the other
+    cell's agent pushed it; it is listed beside both instead.
+    """
+    cells = {v for lbl in labels if (v := lbl.removeprefix("cell:")) != lbl}
+    lane = next((v for lbl in labels if (v := lbl.removeprefix("lane:")) != lbl), None)
+    if "heavy" in labels:
+        return ("heavy", "b" if "heavy-b" in cells else "a", True)
+    if lane is None:
+        return None
+    if lane == "ops":
+        cell = next((c for c in cells if c in ("a", "b")), None)
+        return (lane, cell, cell is not None)
+    return (lane, None, True)
+
+
 def error_text(exc: Exception) -> str:
     return str(exc) if isinstance(exc, CommandError) else f"{type(exc).__name__}: {exc}"
 
@@ -385,6 +493,10 @@ class Snapshot:
             "id": c.get("id"),
             "first_line": truncate(line),
             "flag": flag,
+            # Stamped here so §2's items and the activity extra-read are judged by the SAME
+            # signature rule (§6's signs_agent reads these two, never a re-parse).
+            "head_name": head_name(line),
+            "review_lane": review_lane(c.get("body")),
         }
 
     def _binding_now(self) -> None:
@@ -953,17 +1065,115 @@ class Snapshot:
                 continue
             agent = body[len(HEARTBEAT_PREFIX) :].split("-->", 1)[0].strip()
             age = (self.now - parse_time(c["updated_at"])).total_seconds() / 60
-            head_lines = "\n".join(body.splitlines()[:3]).lower()
+            lines = body.splitlines()
+            head_lines = "\n".join(lines[:3]).lower()
             section["items"].append(
                 {
                     "agent": agent,
                     "id": c.get("id"),
                     "updated_at": c["updated_at"],
+                    # Ruling 181: what the agent said it was doing, kept for the lane digest, which
+                    # prints its own beat's prose beside its age. The paused check above reads the
+                    # same lines; neither caller re-parses the body. The beat's own marker line is
+                    # skipped, so the head is prose and not the machine line that keys the row.
+                    "head": truncate(next((ln for ln in lines[1:] if ln.strip()), ""), 70),
                     "age_min": round(age, 1),
                     "paused": is_paused(head_lines),
                     "stale": age > STALE_HEARTBEAT_MIN,
+                    # Ruling 181: the third line a blocked lane is allowed to carry.
+                    "blocker": next(
+                        (
+                            ln.strip()
+                            for ln in body.splitlines()
+                            if undecorated(ln).startswith("BLOCKER:")
+                        ),
+                        None,
+                    ),
                 }
             )
+        self._activity(section)
+
+    def _activity(self, section: dict[str, Any]) -> None:
+        """Ruling 178's signed activity, beside each non-paused agent's age.
+
+        Read from what this tick already fetched: §2's comments and §3's PR heads
+        (``refs/remotes/origin/pr/<n>``), so the commit leg costs local ``git log`` only. One
+        extra comment call happens only when some non-paused beat predates §2's cursor -- and it
+        must happen then, because §2's window would otherwise miss that agent's activity and the
+        section would print a silence that reads "no activity since the beat" for comments the
+        snapshot never fetched. That is the difference between an unread section and an empty one.
+        """
+        live = [h for h in section["items"] if not h["paused"]]
+        for h in live:
+            h["lane"], h["cell"] = agent_key(h["agent"])
+        if not live:
+            return
+        cursor = self.data["cursor"]["cursor"]
+        seen = {c["id"]: c for c in self.data["comments"]["items"]}
+        window = min((h["updated_at"] for h in live if h["updated_at"] < cursor), default=None)
+        if window:
+            try:
+                raw = self.gh_paginated(
+                    f"repos/{self.repo}/issues/comments?since={window}&per_page=100"
+                )
+            except Exception as exc:  # the silence below is then labelled, not silent
+                section["errors"].append(f"activity since {window}: {error_text(exc)}")
+                raw = []
+            for c in raw:
+                line = first_line(c.get("body"))
+                author = (c.get("user") or {}).get("login") or ""
+                if c.get("id") in seen or is_marker(line) or author.endswith("[bot]"):
+                    continue
+                seen[c["id"]] = self._comment_item(c, line)
+        comments = list(seen.values())
+        owned: dict[tuple[str, str | None], list[int]] = {}
+        unnamed: dict[str, list[int]] = {}
+        for item in self.data["prs"].get("items", []):
+            who = owner_of_pr(item["labels"])
+            if who is None:
+                continue
+            lane, cell, definite = who
+            if definite:
+                owned.setdefault((lane, cell), []).append(item["number"])
+            else:  # a two-cell lane's PR with no cell row: nobody's to claim, everybody's to see
+                unnamed.setdefault(lane, []).append(item["number"])
+        for h in live:
+            signed = [
+                (c, signs_agent(c, h["lane"], h["cell"]))
+                for c in comments
+                if c["updated_at"] >= h["updated_at"]
+            ]
+            signed = [(c, sign) for c, sign in signed if sign]
+            signed.sort(key=lambda pair: pair[0]["updated_at"])
+            # The newest, as ruling 178 reads it, with the reading that made it count.
+            h["signed_comment"] = {**signed[-1][0], "sign": signed[-1][1]} if signed else None
+            commits, unread = [], []
+            for number in owned.get((h["lane"], h["cell"]), []):
+                try:
+                    out = self.git(
+                        "log",
+                        f"--since={h['updated_at']}",
+                        "--format=%ct%x09%H%x09%s",
+                        f"refs/remotes/origin/pr/{number}",
+                    )
+                    for row in out.splitlines():
+                        epoch, sha, subject = row.split("\t", 2)
+                        # ISO, not the raw epoch: an ISO stamp sorts chronologically as a string
+                        # (a digit-count change would make an epoch sort wrong) and prints
+                        # readable, in the same unit as every other time in the report.
+                        commits.append(
+                            (iso(datetime.fromtimestamp(int(epoch), UTC)), number, sha, subject)
+                        )
+                except Exception as exc:
+                    unread.append(f"#{number}: {error_text(exc)}")
+            commits.sort()
+            h["commits"] = [
+                {"stamp": s, "number": n, "sha": h_, "subject": truncate(subj, 70)}
+                for s, n, h_, subj in commits[-3:]
+            ]
+            h["commit_count"] = len(commits)
+            h["commit_errors"] = unread
+            h["uncellated_prs"] = sorted(unnamed.get(h["lane"], []))
 
 
 def _run_summary(run: dict[str, Any]) -> dict[str, Any]:
@@ -1136,6 +1346,31 @@ def render_text(data: dict[str, Any]) -> str:
             flags.append(f"STALE >{STALE_HEARTBEAT_MIN}m")
         flag = f" [{', '.join(flags)}]" if flags else ""
         out.append(f"  {h['agent']} {h['updated_at']} age {h['age_min']}m id={h['id']}{flag}")
+        if h.get("blocker"):
+            out.append(f"      {h['blocker']}")
+        if h["paused"]:
+            continue  # UR-160: a paused agent is not stalled, so its activity is not asked for
+        if sc := h.get("signed_comment"):
+            kind = {"self": "signed", "lane": "lane-named, cell not stated"}[sc["sign"]]
+            where = "PR" if sc["is_pr"] else "#"
+            out.append(
+                f"      activity: {where}{sc['number']} u={sc['updated_at']} "
+                f"id={sc['id']} ({kind}): {sc['first_line']}"
+            )
+        else:
+            out.append("      activity: none signed since the beat")
+        count = h.get("commit_count", 0)
+        for c in h.get("commits", []):
+            out.append(f"      commit #{c['number']} {c['sha'][:9]} {c['stamp']} {c['subject']}")
+        out.append(
+            f"      {count} commit(s) since the beat"
+            + (f" ({count - 3} more)" if count > 3 else "")
+        )
+        for err in h.get("commit_errors", []):
+            out.append(f"      ERROR commits: {err}")
+        if h.get("uncellated_prs"):
+            loose = ", ".join(f"#{v}" for v in h["uncellated_prs"])
+            out.append(f"      uncellated {h['lane']} PR(s), either cell: {loose}")
     out += _errors("heartbeats", hb)
 
     watch = data["auto_merge_watch"]

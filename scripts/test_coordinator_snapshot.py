@@ -196,6 +196,8 @@ class FakeRunner:
         ] = {}  # merge commit -> (main at merge, landed head)
         self.merged_prs: list[dict] = []  # REST /pulls rows: number/merged_at/merge_commit_sha/body
         self.pr_issue_comments: dict[int, list] = {}  # merged-PR Review: reads (7001 uses .reviews)
+        # ruling 181's commit leg: PR number -> [(stamp, sha, subject)], filtered by --since below.
+        self.pr_commits: dict[int, list[tuple[str, str, str]]] = {}
         # `gh pr view --json files` answers; keyed by PR number.
         self.pr_files_by_number: dict[int, list[str]] = {7001: ["docs/b.md"], 7002: ["docs/c.md"]}
         self.pr_bodies: dict[int, str] = {}
@@ -222,7 +224,18 @@ class FakeRunner:
             if "/issues/6854/comments" in path:
                 return json.dumps(self.owner_comments)
             if "/issues/comments?" in path:
-                return json.dumps(self.repo_comments)
+                # The real endpoint returns only comments touched at or after `since`, so the fake
+                # must too: §6's activity read is conditional on the window BECAUSE §2's is not the
+                # whole record, and a fake that answers every window with every comment turns a
+                # "no activity" pin green on a comment the API would never have handed over.
+                since = re.search(r"since=([^&]+)", path)
+                return json.dumps(
+                    [
+                        c
+                        for c in self.repo_comments
+                        if not since or c["updated_at"] >= since.group(1)
+                    ]
+                )  # fmt: skip
             if "/pulls?" in path:  # §7 merged-since-cursor list (rows carry body, as REST does)
                 return json.dumps(self.merged_prs)
             m = re.search(r"/issues/([0-9]+)/comments", path)
@@ -280,6 +293,19 @@ class FakeRunner:
             raise AssertionError(f"undeclared merge-base root {root} for {rev[:9]}")
         if cmd[:2] == ["git", "rev-list"]:
             return self.merges_behind[cmd[-1].split("..")[0]] + "\n"
+        if cmd[:2] == ["git", "log"]:  # ruling 181: commits on a PR head since that agent's beat
+            number = int(cmd[-1].rsplit("/", 1)[-1])
+            since = next(a.split("=", 1)[1] for a in cmd if a.startswith("--since="))
+            epoch = int(snap.parse_time(since).timestamp())
+            # git's --since filters by commit date, so the fake must filter too: a pin about
+            # "commits SINCE THE BEAT" that reads an unfiltered fixture measures the fixture.
+            # Rows print as `<commit-epoch>\\t<sha>\\t<subject>`, which is the %ct%x09%H%x09%s the
+            # implementation asks for — a fixture that printed ISO here would pass a wrong format.
+            return "".join(
+                f"{int(snap.parse_time(st).timestamp())}\t{sha}\t{subj}\n"
+                for st, sha, subj in sorted(self.pr_commits.get(number, []))
+                if int(snap.parse_time(st).timestamp()) >= epoch
+            )
         if cmd[:2] == ["git", "diff"]:
             if cmd[-1] == "origin/main":
                 return self.main_files[cmd[-2]]
@@ -674,6 +700,316 @@ def test_paused_is_the_status_field_not_a_word_in_the_prose():
     # §6 renders no body, so a `paused` flag there is unambiguous — exactly one lane earns it.
     sec6 = [ln for ln in snap.render_text(build(fake)).splitlines() if "paused" in ln]
     assert [ln.split()[0] for ln in sec6] == ["agent-uplevel-heavy"]
+
+
+# --- 6b. signed activity and commits beside each beat (ruling 178/181) -----------------------
+
+
+def hb(data: dict, agent: str = "agent-uplevel-backend") -> dict:
+    return next(h for h in data["heartbeats"]["items"] if h["agent"] == agent)
+
+
+def beat(fake: FakeRunner, agent: str, minutes: int = 6, head: str | None = None) -> None:
+    """Set AGENT's live heartbeat, replacing the default fixture's row for it if there is one.
+
+    The default carries only coordinator/backend/heavy(paused)/docs. A test about an ops or
+    heavy-b row has to ask for that row: reading ``hb(data, agent)`` for an agent with no beat
+    raises, and a test that guards its lookup would then certify nothing about the row it names.
+    """
+    tail = agent.removeprefix("agent-").removeprefix("uplevel-")
+    body = f"<!-- heartbeat:{agent} -->\n{head or f'{tail} · working'}"
+    row = comment(
+        900 + len(fake.heartbeats), 6958, body, t(-timedelta(days=2)), t(-timedelta(minutes=minutes))
+    )  # fmt: skip
+    for i, c in enumerate(fake.heartbeats):
+        if f"heartbeat:{agent} " in c["body"]:
+            fake.heartbeats[i] = row
+            return
+    fake.heartbeats.append(row)
+
+
+def sec6(data: dict, agent: str = "agent-uplevel-backend") -> list[str]:
+    """§6's rendered lines for ONE beat: its headline plus the six-space-indented detail rows.
+
+    Keyed by agent, not by "any line that starts with agent-uplevel-": §6 prints every agent's row,
+    so a locator without a key returns the coordinator's block for a question about heavy-b.
+    """
+    lines = snap.render_text(data).splitlines()
+    start = next(i for i, ln in enumerate(lines) if ln.lstrip().startswith(f"{agent} "))
+    block = [lines[start]]
+    for ln in lines[start + 1 :]:
+        if not ln.startswith("      "):
+            break
+        block.append(ln)
+    return block
+
+
+def signed(data: dict, agent: str = "agent-uplevel-backend"):
+    return hb(data, agent).get("signed_comment")
+
+
+def test_a_comment_leading_with_the_agents_own_name_is_its_signed_activity():
+    fake = FakeRunner()
+    fake.repo_comments.append(
+        comment(40, 7001, "backend · 15:10Z · pushed the fix", t(-timedelta(minutes=2)), pr=True)
+    )
+    item = signed(build(fake))
+    assert (item["id"], item["sign"]) == (40, "self")
+
+
+def test_a_reviews_declared_lane_signs_it_even_when_the_lane_sits_on_line_two():
+    # Ruling 178's signature rule. A review's first line is `Review: approve`; the lane name is on
+    # line 2, so a first-line-only reader sees no signature at all and reports a stall.
+    fake = FakeRunner()
+    beat(fake, "agent-uplevel-ops-b")
+    fake.repo_comments.append(
+        comment(
+            41,
+            7001,
+            "Review: approve\nReviewer lane: ops-b (cell B)\n\nPlan text: none",
+            t(-timedelta(minutes=2)),
+            pr=True,
+        )
+    )
+    data = build(fake)
+    assert signed(data, "agent-uplevel-ops-b")["sign"] == "self"
+
+
+def test_a_review_naming_the_OTHER_cell_of_a_two_cell_lane_does_not_sign_this_one():
+    # ops has two agents. An ops-b review cannot refute an ops-a stall, and reading the lane name
+    # lane-wide would do exactly that: the false negative ruling 178 exists to prevent.
+    fake = FakeRunner()
+    beat(fake, "agent-uplevel-ops-a")
+    beat(fake, "agent-uplevel-ops-b")
+    fake.repo_comments.append(
+        comment(
+            42, 7001, "Review: approve\nReviewer lane: ops-b", t(-timedelta(minutes=2)), pr=True
+        )
+    )
+    data = build(fake)
+    assert signed(data, "agent-uplevel-ops-a") is None
+    assert "activity: none signed since the beat" in " ".join(sec6(data, "agent-uplevel-ops-a"))
+    assert signed(data, "agent-uplevel-ops-b")["sign"] == "self"
+
+
+def test_a_lane_spelling_with_no_cell_is_reported_as_lane_named_not_signed():
+    # `ops · reviewed #7001` is this lane's work but not necessarily THIS cell's. The renderer says
+    # so in words, because a coordinator deciding whether to ping an agent needs the difference.
+    fake = FakeRunner()
+    beat(fake, "agent-uplevel-ops-b")
+    fake.repo_comments.append(
+        comment(43, 7001, "ops · reviewed #7001", t(-timedelta(minutes=2)), pr=True)
+    )
+    data = build(fake)
+    item = signed(data, "agent-uplevel-ops-b")
+    assert item["sign"] == "lane"
+    assert "lane-named, cell not stated" in " ".join(sec6(data, "agent-uplevel-ops-b"))
+
+
+def test_a_raise_ABOUT_an_agent_is_not_that_agents_activity():
+    # Measured live: the coordinator's `URGENT PATH · stalled agent: agent-uplevel-heavy-b` was
+    # printed as heavy-b's own signed activity, so the row said "active" beside a stall report about
+    # that same agent. A bare name counts only in the AUTHOR position -- the first token of the
+    # undecorated first line, which is where the role docs put an agent's identity.
+    fake = FakeRunner()
+    beat(fake, "agent-uplevel-heavy-b")
+    fake.repo_comments.append(
+        comment(
+            44,
+            6854,
+            "**URGENT PATH · stalled agent: `agent-uplevel-heavy-b` (`6188196491`)**",
+            t(-timedelta(minutes=2)),
+        )
+    )
+    data = build(fake)
+    assert signed(data, "agent-uplevel-heavy") is None
+
+
+def test_the_newest_signed_comment_since_the_beat_is_the_one_printed():
+    fake = FakeRunner()
+    fake.repo_comments += [
+        comment(50, 7001, "backend · 15:05Z · earlier", t(-timedelta(minutes=10)), pr=True),
+        comment(51, 7001, "backend · 15:12Z · newest", t(-timedelta(minutes=2)), pr=True),
+    ]
+    assert signed(build(fake))["id"] == 51
+
+
+def test_a_comment_older_than_the_beat_is_not_activity():
+    # The backend beat is 30 minutes old; a comment from 40 minutes ago predates it.
+    fake = FakeRunner()
+    fake.repo_comments.append(
+        comment(52, 7001, "backend · older than the beat", t(-timedelta(minutes=40)), pr=True)
+    )
+    assert signed(build(fake)) is None
+
+
+def test_the_beats_prose_is_kept_for_the_lane_digest():
+    data = build(FakeRunner())
+    assert hb(data)["head"].startswith("backend · working")
+
+
+def test_a_blocker_line_is_carried_beside_the_beat():
+    fake = FakeRunner()
+    beat(
+        fake,
+        "agent-uplevel-docs",
+        minutes=4,
+        head="docs · 14:59Z · working\nBLOCKER: [r165b] waits on ruling 190's gate",
+    )
+    data = build(fake)
+    assert "ruling 190" in hb(data, "agent-uplevel-docs")["blocker"]
+    assert any("BLOCKER:" in ln for ln in sec6(data, "agent-uplevel-docs"))  # rendered, not stored
+
+
+def test_a_paused_agent_pays_no_activity_read():
+    # UR-160: a paused agent is not stalled, so asking what it has done since its beat is not asked.
+    fake = FakeRunner()
+    data = build(fake)
+    assert "signed_comment" not in hb(data, "agent-uplevel-heavy")
+    assert not any("heavy" in ln and "activity" in ln for ln in snap.render_text(data).splitlines())
+
+
+def test_the_commit_leg_reads_the_agents_own_pr_head_and_reports_the_count():
+    fake = FakeRunner()
+    fake.prs.append(
+        {
+            "number": 7050,
+            "title": "backend claim",
+            "isDraft": True,
+            "labels": [{"name": "lane:backend"}],
+            "headRefOid": "e" * 40,
+            "mergeStateStatus": "BEHIND",
+            "statusCheckRollup": [gate()],
+        }
+    )
+    # The backend beat is 30 minutes old: one commit inside, one outside the window.
+    fake.pr_commits[7050] = [
+        (t(timedelta(minutes=-2)), "f" * 40, "fix: the thing"),
+        (t(timedelta(minutes=-90)), "9" * 40, "old commit before the beat"),
+    ]
+    data = build(fake)
+    assert hb(data)["commit_count"] == 1
+    assert hb(data)["commits"][0]["subject"] == "fix: the thing"
+    assert "1 commit(s) since the beat" in " ".join(sec6(data))
+
+
+def test_the_commit_rows_are_capped_but_the_count_is_not():
+    # §6 prints at most three rows per agent because the report is what a coordinator reads in one
+    # pass; the NUMBER underneath stays whole, or "3 commit(s)" would understate a busy lane.
+    fake = FakeRunner()
+    fake.prs.append(
+        {
+            "number": 7050,
+            "title": "backend claim",
+            "isDraft": True,
+            "labels": [{"name": "lane:backend"}],
+            "headRefOid": "e" * 40,
+            "mergeStateStatus": "BEHIND",
+            "statusCheckRollup": [gate()],
+        }
+    )
+    fake.pr_commits[7050] = [
+        (t(timedelta(minutes=-m)), f"{m}" * 40, f"commit {m}") for m in (2, 5, 9, 20)
+    ]
+    data = build(fake)
+    block = sec6(data)
+    assert hb(data)["commit_count"] == 4
+    assert len([ln for ln in block if " commit #" in ln]) == 3
+    assert "4 commit(s) since the beat (1 more)" in " ".join(block)
+    # The three kept are the three NEWEST (oldest-first, so they read chronologically), not the
+    # first three the log walked back to -- which for `git log` is the opposite end.
+    assert [c["subject"] for c in hb(data)["commits"]] == ["commit 9", "commit 5", "commit 2"]
+
+
+def test_a_pr_labelled_lane_only_on_a_two_cell_lane_is_listed_for_neither_cell():
+    # rules.md:92-93: ops has two cells; `lane:ops` with no `cell:` is genuinely ambiguous. Printing
+    # it under one cell would credit the other agent's push to this one, so §6 names it as
+    # uncellated beside each ops beat instead of guessing.
+    fake = FakeRunner()
+    fake.prs.append(
+        {
+            "number": 7159,
+            "title": "unlabelled cell",
+            "isDraft": True,
+            "labels": [{"name": "lane:ops"}],
+            "headRefOid": "1" * 40,
+            "mergeStateStatus": "BEHIND",
+            "statusCheckRollup": [gate()],
+        }
+    )
+    beat(fake, "agent-uplevel-ops-a")
+    data = build(fake)
+    assert hb(data, "agent-uplevel-ops-a")["uncellated_prs"] == [7159]
+    assert "uncellated ops PR(s), either cell: #7159" in snap.render_text(data)
+
+
+def test_a_heavy_pr_without_the_heavy_b_cell_is_heavy_a_s():
+    # rules.md's own tie-break: `cell:heavy-b` is heavy-b's, every other heavy PR heavy-a's.
+    assert snap.owner_of_pr(["heavy"]) == ("heavy", "a", True)
+    assert snap.owner_of_pr(["heavy", "cell:heavy-b"]) == ("heavy", "b", True)
+    assert snap.owner_of_pr(["lane:ops", "cell:b"]) == ("ops", "b", True)
+    assert snap.owner_of_pr(["lane:ops"]) == ("ops", None, False)
+    assert snap.owner_of_pr(["review:ops-b"]) is None  # a review label routes, it does not own
+
+
+def test_the_activity_extra_read_is_paid_only_when_a_beat_predates_the_comment_window():
+    # §2 fetched comments since the cursor (14:30Z). The backend beat is 30 min old (14:30Z), so the
+    # window already covers it and the read is free. A beat older than the cursor would make §2's
+    # items incomplete, and printing "no activity" from an unread window is a false stall.
+    fake = FakeRunner()
+    build(fake)
+    extra = [c[2] for c in fake.calls if c[:2] == ["gh", "api"] and "/issues/comments?" in c[2]]
+    assert len(extra) == 1  # §2's read only
+
+
+def test_a_beat_older_than_the_cursor_pays_one_comment_read_from_its_own_beat():
+    fake = FakeRunner()
+    fake.heartbeats[1] = comment(
+        2,
+        6958,
+        "<!-- heartbeat:agent-uplevel-backend -->\nbackend · working",
+        t(-timedelta(days=2)),
+        t(-timedelta(minutes=90)),  # 13:30Z, an hour before the 14:30Z cursor
+    )
+    build(fake)
+    reads = [c[2] for c in fake.calls if c[:2] == ["gh", "api"] and "/issues/comments?" in c[2]]
+    assert len(reads) == 2
+    assert f"since={t(timedelta(minutes=-90))}" in reads[1]
+
+
+def test_a_failing_activity_read_is_reported_and_the_silence_is_labelled():
+    fake = FakeRunner()
+    fake.heartbeats[1] = comment(
+        2,
+        6958,
+        "<!-- heartbeat:agent-uplevel-backend -->\nbackend · working",
+        t(-timedelta(days=2)),
+        t(-timedelta(minutes=90)),
+    )
+    fake.rules["issues/comments?since=2026-10-13T13:30"] = snap.CommandError("HTTP 502")
+    data = build(fake)
+    assert any("activity since" in e for e in data["heartbeats"]["errors"])
+
+
+def test_a_failing_commit_read_names_the_pr_instead_of_reporting_zero_commits():
+    # "0 commits since the beat" is a stall signal. An unread log must never print that number.
+    fake = FakeRunner()
+    fake.prs.append(
+        {
+            "number": 7050,
+            "title": "backend claim",
+            "isDraft": True,
+            "labels": [{"name": "lane:backend"}],
+            "headRefOid": "e" * 40,
+            "mergeStateStatus": "BEHIND",
+            "statusCheckRollup": [gate()],
+        }
+    )
+    fake.fail("git log")
+    data = build(fake)
+    assert hb(data)["commit_errors"]
+    assert not hb(data)["commits"]
+    assert "ERROR commits:" in " ".join(sec6(data))
 
 
 # --- robustness and read-only ---------------------------------------------------------------
