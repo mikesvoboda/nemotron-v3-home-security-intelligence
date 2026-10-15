@@ -212,6 +212,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 197    | `[r197]`, owner's session: plan lint, footers, `--beat` (records 6198161166, 6198199744)                    |
 | 198    | one review per PR, the author's UR-89 subagent; author arms auto-merge (record 6198314579)                  |
 | 199    | package `[r199]`: analysis acks follow a stored event or a terminal failure (record 6198662741)             |
+| 200    | package `[r200]`: one owner for the running pipeline workers (record 6198757258)                            |
 
 ## Owner records
 

@@ -370,3 +370,27 @@ stored as a `verification_failed` event (`backend/services/vlm_analyzer.py:656`)
 
 **Done when:** tests (a) to (d) pass in CI at a ready head, and the PR body names the line where
 each disposition is decided.
+
+### [r200] One owner for the running pipeline workers
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
+**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`). **PR:** none yet. (ruling 200)
+
+`PipelineWorkerManager.start()` (`backend/main.py:964`) starts the configured detection and
+analysis workers (default 2 each, `backend/core/config.py:1077`, `:1085`), one batch-timeout worker
+and one metrics worker. `main.py:1008-1030` then registers the four `create_*_worker` factories
+(`backend/services/pipeline_workers.py:2109`, `:2140`, `:2171`, `:2202`) with `WorkerSupervisor`,
+and each builds and starts one more worker: three analysis consumers where two are configured, and
+two batch-timeout and two metrics workers. The manager passes no supervisor to its own workers, so
+the supervisor's heartbeats and restarts cover only the extra set. Record 6198757258.
+
+- [ ] The supervisor restarts the workers the manager built and reads their heartbeats; the
+      factories that build a second set are deleted.
+- [ ] Shutdown has one path: whichever owner stays stops each worker once.
+- [ ] Tests: after startup the process runs exactly the configured number of detection and
+      analysis consumers, one batch-timeout worker and one metrics worker; a worker whose task dies
+      is restarted without the count growing; shutdown stops each worker once.
+- [ ] The PR body reports whether today's two batch-timeout workers can close the same batch twice.
+
+**Done when:** the tests pass in CI at a ready head, and `backend/main.py` builds no pipeline worker
+outside `PipelineWorkerManager`.
