@@ -41,19 +41,54 @@ from datetime import UTC, datetime, timedelta
 DEFAULT_REPO = "mikesvoboda/nemotron-v3-home-security-intelligence"
 RULING_ISSUE = 6854
 BINDING_MARKER = "BINDING NOW"
+# The most nodes a discovery connection asks for. GitHub caps any connection page at 100, so a
+# match beyond this is TRUNCATION, not a quiet tick -- see _check_windows.
+DISCOVERY_WINDOW = 100
 
 
-def query_variables(prs: Sequence[int], repo: str, ruling_issue: int) -> dict:
-    """The variables for one poll. Every watched PR gets its own ``$p<number>`` argument."""
+def label_groups(lane: str, cell: str, review_labels: Sequence[str]) -> list[list[str]]:
+    """The label sets to discover PRs by: my cell's, then each review label I was given.
+
+    Ruling 193 names three kinds -- "its lane, cell and `review:<lane>` labels" -- and a
+    connection's ``labels:`` argument is AND, measured: with ``[$a, $b]`` = ``lane:ops``,
+    ``cell:a`` the result held 7175/7114/7072 and NOT 7176/7125/7082, which are ``cell:b``. So each
+    set needs its own aliased connection (they stay one query), and a ``review:`` label never folds
+    into the lane group: a PR to review is a different set from a PR of my own cell.
+    """
+    groups: list[list[str]] = []
+    mine = [
+        label for label in (f"lane:{lane}" if lane else "", f"cell:{cell}" if cell else "") if label
+    ]
+    if mine:
+        groups.append(mine)
+    groups.extend([[label] for label in review_labels if label])
+    return groups
+
+
+def query_variables(
+    prs: Sequence[int], repo: str, ruling_issue: int, groups: Sequence[Sequence[str]] = ()
+) -> dict:
+    """The variables for one poll: every watched PR as ``$p<number>``, every label as ``$a<i>_<j>``.
+
+    Labels ride one variable each rather than a list: ``gh api graphql -F 'a0=["lane:ops"]'``
+    returned ``{"nodes": []}`` with NO error against the live API -- a silently empty watch -- while
+    a per-element ``String!`` on ``-f`` matched correctly.
+    """
     owner, name = repo.split("/", 1)  # a repo string without the owner is a caller error
     variables: dict = {"owner": owner, "name": name, "ri": ruling_issue}
     for number in prs:
         variables[f"p{number}"] = number
+    for i, group in enumerate(groups):
+        for j, label in enumerate(group):
+            variables[f"a{i}_{j}"] = label
     return variables
 
 
-def query_text(prs: Sequence[int], repo: str, ruling_issue: int) -> str:
-    """The one GraphQL query a poll runs: one aliased node per watched PR, plus #6854.
+def query_text(
+    prs: Sequence[int], repo: str, ruling_issue: int, groups: Sequence[Sequence[str]] = ()
+) -> str:
+    """The one GraphQL query a poll runs: discovery connections, one aliased node per watched PR,
+    plus #6854.
 
     One ``repository`` root, aliased children. A PR that is inaccessible comes back null under
     its own alias, so the parse below reads each alias independently and a deleted PR cannot
@@ -62,6 +97,7 @@ def query_text(prs: Sequence[int], repo: str, ruling_issue: int) -> str:
     """
     declarations = ["$owner: String!", "$name: String!", "$ri: Int!"]
     declarations += [f"$p{number}: Int!" for number in prs]
+    declarations += [f"$a{i}_{j}: String!" for i, g in enumerate(groups) for j in range(len(g))]
     fields = "\n".join(
         [
             "    number",
@@ -93,6 +129,20 @@ def query_text(prs: Sequence[int], repo: str, ruling_issue: int) -> str:
         ]
     )
     lines = [f"query({', '.join(declarations)}) {{", "  repository(owner: $owner, name: $name) {"]
+    for i, group in enumerate(groups):
+        args = ", ".join(f"$a{i}_{j}" for j in range(len(group)))
+        lines.append(f"    a{i}: pullRequests(labels: [{args}], states: [OPEN],")
+        # `states: [OPEN]`, and `UPDATED_AT` with an explicit `orderBy`: measured without the state
+        # filter, `labels: ["lane:ops"]` returned 83 PRs, most of them long merged, and each would
+        # become a field alias in this same query. `UPDATED_DESC` is rejected outright -- this
+        # connection orders by IssueOrderField, whose values are CREATED_AT/UPDATED_AT/COMMENTS.
+        # `totalCount` because a full window and an empty one are otherwise indistinguishable.
+        lines.append(
+            f"      first: {DISCOVERY_WINDOW}, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{"
+        )
+        lines.append("        nodes { number }")
+        lines.append("        totalCount")
+        lines.append("      }")
     for number in prs:
         lines.append(f"    p{number}: pullRequest(number: $p{number}) {{")
         lines.append(fields)
@@ -108,6 +158,47 @@ def query_text(prs: Sequence[int], repo: str, ruling_issue: int) -> str:
     lines.append("  }")
     lines.append("}")
     return "\n".join(lines)
+
+
+def discovered(data: dict, groups: Sequence[Sequence[str]]) -> dict[int, list[str]]:
+    """{PR number: the label group that matched it} from this response's discovery connections."""
+    root = data.get("repository") or {}
+    found: dict[int, list[str]] = {}
+    for i, group in enumerate(groups):
+        for node in _connection(root.get(f"a{i}")) or []:
+            number = node.get("number")
+            if number is not None:
+                found.setdefault(number, list(group))
+    return found
+
+
+def _connection(wrapper):
+    return (wrapper or {}).get("nodes") if wrapper else None
+
+
+def _check_windows(data: dict, groups: Sequence[Sequence[str]]) -> None:
+    """Refuse to watch a TRUNCATED discovery window.
+
+    A connection that returns exactly ``DISCOVERY_WINDOW`` nodes while ``totalCount`` says there
+    are more has hidden PRs -- and a watcher that quietly skips them reads as a calm tick, which is
+    the failure this module exists to avoid. ``totalCount`` is a real field (introspected:
+    PullRequestConnection = edges/nodes/pageInfo/totalCount), so the comparison is with the server's
+    own count rather than a heuristic. Raising routes through ``watch``'s error path: an error line
+    and a non-zero exit.
+    """
+    root = data.get("repository") or {}
+    for i in range(len(groups)):
+        wrapper = root.get(f"a{i}")
+        if not wrapper:
+            continue
+        nodes = wrapper.get("nodes") or []
+        total = wrapper.get("totalCount")
+        if len(nodes) >= DISCOVERY_WINDOW and (total is None or total > DISCOVERY_WINDOW):
+            msg = (
+                f"discovery window full: {len(nodes)} of {total} PRs matched -- "
+                f"{DISCOVERY_WINDOW} is the most one poll can watch"
+            )
+            raise RuntimeError(msg)
 
 
 def snapshot(data: dict, prs: Sequence[int]) -> dict:
@@ -176,15 +267,20 @@ def _checks(rollup) -> dict[str, str]:
 
 
 def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict) -> list[str]:
-    """The change lines: one per change class, each naming the PR and what moved."""
+    """The change lines: one per change class, each naming the PR and what moved.
+
+    Only numbers with a READ state on both sides are compared -- a PR registered but not yet read
+    (``UNREAD``) or read as null has nothing to diff, and reporting one would report a verdict read
+    from nothing.
+    """
     lines: list[str] = []
     for number in prs:
         old, new = before["prs"].get(number), after["prs"].get(number)
-        if old is None or new is None:
+        if not _read(old) or not _read(new):
             continue
         prefix = f"#{number} "
         if new["state"] != old["state"]:
-            lines.append(f"{prefix}{'merged' if new['state'] == 'MERGED' else 'closed'}")
+            lines.append(prefix + _state_line(new["state"]))
             continue  # a closed PR's other fields are noise; the merge/close IS the news
         if new["head"] != old["head"]:
             lines.append(f"{prefix}new head {old['head'][:7]} -> {new['head'][:7]}")
@@ -212,6 +308,91 @@ def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict)
     return lines
 
 
+# A PR discovered by label but not yet read: its number is known, its fields are not.
+UNREAD = "unread"
+
+
+def _read(entry) -> bool:
+    return isinstance(entry, dict) and UNREAD not in entry
+
+
+def _state_line(state: str) -> str:
+    return "merged" if state == "MERGED" else "closed"
+
+
+def _watch_line(number: int, group: Sequence[str]) -> str:
+    return f"#{number} watching (label {'+'.join(group)})"
+
+
+def check(
+    runner: Callable[[str, dict], dict],
+    state: dict,
+    now: datetime,
+    *,
+    repo: str = DEFAULT_REPO,
+    prs: Sequence[int] = (),
+    ruling_issue: int = RULING_ISSUE,
+    label_groups: Sequence[Sequence[str]] = (),
+) -> list[str]:
+    """One poll. Seeds ``state`` on the first call (reporting nothing); then reports changes.
+
+    The first poll is deliberately silent: an agent arms this watcher mid-tick, and the heads,
+    check verdicts and comments that already existed are not news -- reporting them would make
+    every arm look like an event.
+
+    The watched set lives in ``state["watched"]`` and only GROWS: label discovery filters
+    ``states: [OPEN]`` (an unfiltered lane query measured 83 PRs), so a merge takes a PR out of the
+    discovery result, and a set that followed the query each poll would stop asking and never
+    report the merge. A newly discovered PR is registered as ``UNREAD`` and named once -- then its
+    fields are seeded by the next poll, so the first thing reported about it is a real change.
+    """
+    known = list(state.get("watched") or prs)
+    seeding = not state.get("prs")
+    response = runner(
+        query_text(known, repo, ruling_issue, label_groups),
+        query_variables(known, repo, ruling_issue, label_groups),
+    )
+    data = response.get("data") or {}
+    _check_windows(data, label_groups)
+    after = snapshot(data, known)
+    before = {"prs": dict(state.get("prs") or {}), "ruling": state.get("ruling")}
+
+    lines: list[str] = []
+    watched = list(known)
+    for number, group in discovered(data, label_groups).items():
+        if number in before["prs"] or _read(after["prs"].get(number)):
+            continue  # already watched, or read this very poll (a --pr that also matches a label)
+        after["prs"][number] = {UNREAD: list(group)}
+        watched.append(number)
+        if not seeding:
+            lines.append(_watch_line(number, group))
+    for number in known:
+        old = before["prs"].get(number)
+        if isinstance(old, dict) and UNREAD in old and number in after["prs"]:
+            fields = after["prs"][number]
+            if fields is None:
+                pass  # asked and null: inaccessible. It stays UNREAD -- see the carry below.
+            elif fields["state"] in ("MERGED", "CLOSED"):
+                # Discovery saw this PR OPEN one poll ago, so the change happened under the watcher.
+                lines.append(f"#{number} " + _state_line(fields["state"]))
+    for number in watched:
+        # A PR asked about but answered null keeps the REASON it is watched instead of becoming an
+        # unknown: it may answer next poll, and the line it eventually prints names the label that
+        # pulled it in. A fresh registration is already carried by ``after`` -- restoring from
+        # ``before`` for every not-yet-read entry used to wipe the group off it, because the group
+        # lives in this poll's entry and `before` has no entry at all.
+        if after["prs"].get(number) is None and UNREAD in (before["prs"].get(number) or {}):
+            after["prs"][number] = before["prs"][number]
+    after["watched"] = watched
+    if seeding:
+        state.update(after)
+        return []
+    lines.extend(diff_lines(watched, ruling_issue, before, after))
+    state.clear()
+    state.update(after)
+    return lines
+
+
 def _from(login: str | None) -> str:
     return "" if not login else f" from {login}"
 
@@ -225,32 +406,6 @@ def _new_actor(after: list, before: list) -> str | None:
     return None
 
 
-def check(
-    runner: Callable[[str, dict], dict],
-    state: dict,
-    now: datetime,
-    *,
-    repo: str = DEFAULT_REPO,
-    prs: Sequence[int] = (),
-    ruling_issue: int = RULING_ISSUE,
-) -> list[str]:
-    """One poll. Seeds ``state`` on the first call (reporting nothing); then reports changes.
-
-    The first poll is deliberately silent: an agent arms this watcher mid-tick, and the heads,
-    check verdicts and comments that already existed are not news -- reporting them would make
-    every arm look like an event.
-    """
-    response = runner(query_text(prs, repo, ruling_issue), query_variables(prs, repo, ruling_issue))
-    after = snapshot(response.get("data") or {}, prs)
-    if not state:
-        state.update(after)
-        return []
-    lines = diff_lines(prs, ruling_issue, state, after)
-    state.clear()
-    state.update(after)
-    return lines
-
-
 def watch(
     runner: Callable[[str, dict], dict],
     state: dict,
@@ -260,6 +415,7 @@ def watch(
     repo: str = DEFAULT_REPO,
     prs: Sequence[int] = (),
     ruling_issue: int = RULING_ISSUE,
+    label_groups: Sequence[Sequence[str]] = (),
     interval: float = 60.0,
     lifetime: float = 3600.0,
     max_errors: int = 3,
@@ -274,9 +430,22 @@ def watch(
     errors = 0
     while True:
         if clock() - start >= timedelta(seconds=lifetime):
-            return 0, [f"no change in {int(lifetime)}s across {len(prs)} watched PR(s)"]
+            # The count is the watcher's OWN set, not the `--pr` flags: label discovery may have
+            # added PRs after arming, and a headline that names the launch count instead of the
+            # watched count would misreport what sat here for the whole lifetime.
+            watched = state.get("watched")
+            total = len(watched) if watched else len(prs)
+            return 0, [f"no change in {int(lifetime)}s across {total} watched PR(s)"]
         try:
-            lines = check(runner, state, clock(), repo=repo, prs=prs, ruling_issue=ruling_issue)
+            lines = check(
+                runner,
+                state,
+                clock(),
+                repo=repo,
+                prs=prs,
+                ruling_issue=ruling_issue,
+                label_groups=label_groups,
+            )
         except Exception as exc:
             # Deliberately broad: any transient API/parse failure is retried, and only the
             # max_errors streak makes it fatal. A narrow `except` here would let an unexpected
@@ -316,7 +485,8 @@ def gh_runner(query: str, variables: dict) -> dict:
     return payload
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """The CLI, split out of ``main`` so the flag-to-group mapping is testable without a poll."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", default=DEFAULT_REPO)
     parser.add_argument(
@@ -325,16 +495,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=int,
         dest="prs",
         default=[],
-        help="a PR to watch; repeat for each one",
+        help="a PR to watch regardless of its labels; repeat for each one",
+    )
+    parser.add_argument("--lane", default="", help="discover PRs labelled lane:<this>")
+    parser.add_argument("--cell", default="", help="and cell:<this> (the ops lane splits)")
+    parser.add_argument(
+        "--review-label",
+        action="append",
+        dest="review_labels",
+        default=[],
+        help="discover PRs labelled with this review label; repeat for each one",
     )
     parser.add_argument("--ruling-issue", type=int, default=RULING_ISSUE)
     parser.add_argument("--interval", type=float, default=60.0, help="seconds between polls")
     parser.add_argument("--lifetime", type=float, default=3600.0, help="seconds before quitting")
     parser.add_argument("--max-errors", type=int, default=3)
     args = parser.parse_args(argv)
-    if not args.prs:
-        parser.error("no --pr given: name the PRs to watch")
+    if not args.prs and not label_groups(args.lane, args.cell, args.review_labels):
+        parser.error(
+            "nothing to watch: give a --pr, or --lane/--cell/--review-label to discover by"
+        )
+    return args
 
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
     rc, lines = watch(
         gh_runner,
         {},
@@ -343,6 +528,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         repo=args.repo,
         prs=list(args.prs),
         ruling_issue=args.ruling_issue,
+        label_groups=label_groups(args.lane, args.cell, args.review_labels),
         interval=args.interval,
         lifetime=args.lifetime,
         max_errors=args.max_errors,

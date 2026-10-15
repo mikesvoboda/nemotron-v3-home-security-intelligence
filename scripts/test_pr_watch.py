@@ -122,15 +122,33 @@ def issue_node(ids, bodies=None):
     }
 
 
-def envelope(prs, ruling_ids=None, ruling_bodies=None):
+def discovery_node(numbers, total=None):
+    """One `pullRequests(labels: …)` connection: the numbers it matched, and the full count.
+
+    `totalCount` is a real field here (measured by introspection: PullRequestConnection.fields =
+    edges/nodes/pageInfo/totalCount) and it is the only way the watcher can tell a FULL window
+    from an EMPTY one -- 100 nodes could be everything, or the newest 100 of 300.
+    """
+    return {
+        "nodes": [{"number": n} for n in numbers],
+        "totalCount": total if total is not None else len(numbers),
+    }
+
+
+def envelope(prs, ruling_ids=None, ruling_bodies=None, found=None):
     """The single GraphQL response envelope, in the shape GitHub actually returns it.
 
     The aliases live INSIDE the one `repository` selection set (`data.repository.p7168`), because
     GraphQL has no top-level `pullRequest` field to alias. Getting this right is the point of the
     helper: a flat fixture would let a parser that misses the nesting pass every test and then
     find nothing in production.
+
+    `found` maps a discovery alias (`a`, `b`, …) to the connection it returns, so a test can say
+    "this label group matched these PRs" the same way it says what a watched PR looks like.
     """
     repository = {f"p{p['number']}": p for p in prs}
+    for alias, connection in (found or {}).items():
+        repository[alias] = connection
     if ruling_ids is not None:
         repository["issue"] = issue_node(ruling_ids, ruling_bodies)
     return {"data": {"repository": repository}}
@@ -347,6 +365,525 @@ def test_graphql_variables_use_the_flag_gh_actually_accepts():
     for key, value in variables.items():
         want = "-F" if isinstance(value, int) and not isinstance(value, bool) else "-f"
         assert carried[key] == want, f"{key}={value!r} on {carried[key]}, wanted {want}"
+
+
+# ---------------------------------------------------------------- label discovery (ruling 193)
+
+
+OPS_CELL_A = ["lane:ops", "cell:a"]
+REVIEW_A = ["review:ops-a"]
+
+
+def test_label_groups_are_the_lane_cell_and_review_sets():
+    """The three label kinds ruling 193 names, as the AND-groups it means by them.
+
+    A cell's PRs are `lane:ops` AND `cell:a` -- the connection's `labels:` is AND, measured: with
+    `[$a, $b]` = lane:ops, cell:a the result held 7175/7114/7072 and NOT 7176/7125/7082, which are
+    cell:b. So one connection per group, and a `review:` label never merges into the lane group --
+    a PR to review is a different set from a PR of my own cell.
+    """
+    assert watch.label_groups("ops", "a", ["review:ops-a"]) == [["lane:ops", "cell:a"], REVIEW_A]
+    assert watch.label_groups("ops", "", ["review:ops-a"]) == [["lane:ops"], REVIEW_A]
+    assert watch.label_groups("", "", []) == [], "no labels given: nothing to discover"
+    assert watch.label_groups("backend", "b", []) == [["lane:backend", "cell:b"]]
+
+
+def test_a_labeled_pr_is_discovered_and_named_as_newly_watched():
+    """Poll 1 seeds the set silently; a PR that joins the set later gets its one line.
+
+    The seed poll must NOT print a line per PR it discovers -- an agent arms the watcher with six
+    matching PRs already there, and six lines would read as six events.
+    """
+    state = {}
+    first = Run(
+        envelope(
+            [pr_node(PR)],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([PR]), "a1": discovery_node([])},
+        )
+    )
+    assert (
+        watch.check(
+            first,
+            state,
+            NOW,
+            repo=REPO,
+            prs=[],
+            ruling_issue=RULING_ISSUE,
+            label_groups=[OPS_CELL_A, REVIEW_A],
+        )
+        == []
+    ), "the seed poll is silent"
+    joined = Run(
+        envelope(
+            [pr_node(PR), pr_node(7176)],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([PR]), "a1": discovery_node([7176])},
+        )
+    )
+    lines = watch.check(
+        joined,
+        state,
+        NOW,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A, REVIEW_A],
+    )
+    assert len(lines) == 1, lines
+    assert lines[0].startswith("#7176 ") and "watch" in lines[0].lower(), lines
+    assert "review:ops-a" in lines[0], "the line names the label group that pulled it in"
+    # and the state keeps WHY it is watched, not just that it is: the carry-forward pass below the
+    # registration used to overwrite this entry with a group-less UNREAD, so the reason printed once
+    # was gone from the state that decides what to do next poll.
+    assert state["prs"][7176][watch.UNREAD] == ["review:ops-a"], state["prs"][7176]
+
+
+def test_a_discovered_pr_reports_its_events_once_seeded():
+    """Newly watched means seeded first, so its FIRST reported change is a real one.
+
+    Discovery gives only numbers; the head/check/comment fields come from the `p<n>` alias, which
+    next poll asks for. A watcher that reported the first poll's whole state as "changes" would
+    print a stale head and every existing check verdict the moment a PR got labelled.
+    """
+    state = {}
+    watch.check(
+        Run(
+            envelope(
+                [pr_node(PR)],
+                ruling_ids=[1],
+                ruling_bodies={1: "BINDING NOW: x"},
+                found={"a0": discovery_node([PR])},
+            )
+        ),
+        state,
+        NOW,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    # poll 2: 7176 appears; only its number is known, so its fields are not read yet -> no fields,
+    # no diff, and its number is the one line.
+    watch.check(
+        Run(
+            envelope(
+                [pr_node(PR)],
+                ruling_ids=[1],
+                ruling_bodies={1: "BINDING NOW: x"},
+                found={"a0": discovery_node([PR, 7176])},
+            )
+        ),
+        state,
+        NOW,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    # poll 3: its fields are asked for and match what the previous poll's node said -> still silent.
+    asked = state["watched"]
+    assert PR in asked and 7176 in asked, "both are now in the watched set"
+    third = Run(
+        envelope(
+            [pr_node(PR), pr_node(7176)],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([PR, 7176])},
+        )
+    )
+    assert (
+        watch.check(
+            third,
+            state,
+            NOW,
+            repo=REPO,
+            prs=[],
+            ruling_issue=RULING_ISSUE,
+            label_groups=[OPS_CELL_A],
+        )
+        == []
+    )
+    # poll 4: the head moves -> reported.
+    moved = envelope(
+        [pr_node(PR), pr_node(7176, head="e" * 40)],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+        found={"a0": discovery_node([PR, 7176])},
+    )
+    lines = watch.check(
+        Run(moved),
+        state,
+        NOW,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    assert len(lines) == 1 and lines[0].startswith("#7176 "), lines
+
+
+def test_a_merged_pr_stays_watched_after_it_leaves_the_open_set():
+    """The watched set only grows, because a merge takes the PR out of the discovery query.
+
+    `states: [OPEN]` is required -- unfiltered, `labels: ["lane:ops"]` returned 83 PRs by
+    measurement and would build 83 field aliases into one poll. But a PR merges OUT of an OPEN-only
+    connection, and a watcher that followed the set each poll would stop asking for the node and
+    never report the merge -- the one event the lane waits for. So discovery adds; nothing removes.
+    """
+    state = {}
+    watch.check(
+        Run(
+            envelope(
+                [pr_node(PR)],
+                ruling_ids=[1],
+                ruling_bodies={1: "BINDING NOW: x"},
+                found={"a0": discovery_node([PR])},
+            )
+        ),
+        state,
+        NOW,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    gone = Run(
+        envelope(
+            [pr_node(PR, state="MERGED")],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([])},
+        )
+    )
+    lines = watch.check(
+        gone, state, NOW, repo=REPO, prs=[], ruling_issue=RULING_ISSUE, label_groups=[OPS_CELL_A]
+    )
+    assert len(lines) == 1 and "merged" in lines[0].lower(), lines
+
+
+def test_discovery_stays_inside_one_query_and_never_the_search_api():
+    """Label groups cost aliases, not round trips -- ruling 193's limit is per poll.
+
+    Guarded against the two shapes that would pass a test and fail the ruling: a second call per
+    group, and a `search(type: PULL_REQUEST)` query, whose 30-per-minute limit the whole programme
+    shares on the owner's token.
+    """
+    state = {}
+    runner = Run(
+        envelope(
+            [pr_node(PR)],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([PR]), "a1": discovery_node([])},
+        )
+    )
+    watch.check(
+        runner,
+        state,
+        NOW,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A, REVIEW_A],
+    )
+    assert runner.calls == 1, "both label groups resolve inside the poll's one query"
+    query = runner.queries[0]
+    assert "search(" not in query.replace(" ", "")
+    assert query.count("repository(owner:") == 1, "still one repository root"
+    assert "a0: pullRequests(" in query and "a1: pullRequests(" in query
+    assert "states: [OPEN]" in query, "an unfiltered lane query returned 83 PRs by measurement"
+    assert "field: UPDATED_AT" in query, (
+        "IssueOrderField, not PullRequestOrderField: UPDATED_DESC is rejected outright --"
+        " measured: Argument 'field' on InputObject 'IssueOrder' has an invalid value"
+    )
+    # DESC, and the mutation battery is what caught this unpinned: ASC fills a full window with the
+    # LEAST recently updated matches and cuts the ones an agent is waiting on. The truncation guard
+    # fires in the same situation, but it is the backstop, not the design -- the window itself has
+    # to hold the newest activity.
+    for line in query.splitlines():
+        if "orderBy" in line:
+            assert "direction: DESC" in line, f"discovery must order newest-first: {line.strip()}"
+    assert "totalCount" in query, "a full window must be distinguishable from an empty one"
+
+
+def test_label_strings_ride_as_variables_and_never_in_the_query_text():
+    """Two measured reasons the labels cannot be inlined or sent as a JSON array.
+
+    `-F 'l0=["lane:ops"]'` returned `{"nodes": []}` with NO error -- a silently empty watch that
+    reads as a quiet tick -- while a per-element `$a0_0: String!` on `-f` matched correctly. Keeping
+    the value out of the text also means a label never has to survive GraphQL string escaping.
+    """
+    query = watch.query_text([PR], REPO, RULING_ISSUE, [OPS_CELL_A, REVIEW_A])
+    variables = watch.query_variables([PR], REPO, RULING_ISSUE, [OPS_CELL_A, REVIEW_A])
+    for label in ("lane:ops", "cell:a", "review:ops-a"):
+        assert label not in query, f"{label!r} is inlined; it must be a variable"
+        assert label in variables.values(), f"{label!r} is missing from the variables"
+    assert variables["a0_0"] == "lane:ops" and variables["a0_1"] == "cell:a"
+    assert variables["a1_0"] == "review:ops-a"
+    assert all(isinstance(v, (str, int)) for v in variables.values()), (
+        "no list values: gh's -F JSON array form silently matches nothing"
+    )
+    assert "$a0_0: String!" in query and "$a1_0: String!" in query
+    assert "labels: [$a0_0, $a0_1]" in query, "one AND-group per aliased connection"
+    assert "labels: [$a1_0]" in query
+    args = watch.gh_args(query, variables)
+    carried = {
+        args[i + 1].split("=", 1)[0]: a
+        for i, a in enumerate(args)
+        if a in ("-f", "-F") and not args[i + 1].startswith("query=")
+    }
+    assert carried["a0_0"] == "-f", "a String label on -f; -F would JSON-encode it"
+
+
+def test_a_full_discovery_window_raises_instead_of_looking_quiet():
+    """100 nodes with totalCount 300 means 200 PRs went unseen -- that must not be silence.
+
+    `totalCount` is a real field (introspected: PullRequestConnection = edges/nodes/pageInfo/
+    totalCount). Raising routes through the loop's existing error path, so the agent sees an error
+    line and a non-zero exit rather than a tick that watched nothing.
+    """
+    state = {}
+    full = discovery_node(list(range(1, 101)), total=300)
+    runner = Run(
+        envelope(
+            [pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"}, found={"a0": full}
+        )
+    )
+    try:
+        watch.check(
+            runner,
+            state,
+            NOW,
+            repo=REPO,
+            prs=[PR],
+            ruling_issue=RULING_ISSUE,
+            label_groups=[OPS_CELL_A],
+        )
+    except RuntimeError as exc:
+        assert "300" in str(exc) and "100" in str(exc), exc
+    else:
+        raise AssertionError("a truncated discovery window must raise, not report nothing")
+
+
+def test_window_size_is_bounded_by_a_named_constant():
+    """The `first:` a discovery connection asks for is the number the truncation guard compares to."""
+    query = watch.query_text([PR], REPO, RULING_ISSUE, [OPS_CELL_A])
+    assert f"first: {watch.DISCOVERY_WINDOW}" in query
+    assert watch.DISCOVERY_WINDOW <= 100, "GitHub caps a connection page at 100 nodes"
+
+
+def test_explicit_pr_numbers_are_watched_whether_or_not_a_label_matches():
+    """Ruling 193: the labels PLUS any PR numbers it is given."""
+    state = {}
+    runner = Run(
+        envelope(
+            [pr_node(9999)],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([])},
+        )
+    )
+    watch.check(
+        runner,
+        state,
+        NOW,
+        repo=REPO,
+        prs=[9999],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    assert "p9999: pullRequest(number: $p9999)" in runner.queries[0]
+    assert state["watched"] == [9999], "an unmatched number stays watched"
+    # ...and its events are reported, not just its number tracked.
+    moved = envelope(
+        [pr_node(9999, head="f" * 40)],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+        found={"a0": discovery_node([])},
+    )
+    lines = watch.check(
+        Run(moved),
+        state,
+        NOW,
+        repo=REPO,
+        prs=[9999],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    assert len(lines) == 1 and lines[0].startswith("#9999 "), lines
+
+
+def test_a_pr_that_merged_before_its_first_field_read_is_still_reported():
+    """A merge between discovery and the first field read must not vanish into the seed.
+
+    Discovery gives a NUMBER; the fields are asked from the next poll on, and the poll that first
+    reads them seeds them -- normally silently. But `states: [OPEN]` guarantees a discovered PR was
+    open when it appeared, so if the first read finds MERGED, the merge happened under the watcher
+    and IS news. Absent-vs-null is the distinction here: a not-asked alias is absent from the
+    response, an inaccessible PR is an explicit null, and only the null stays silent.
+    """
+    state = {}
+    first = Run(
+        envelope(
+            [],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([PR])},
+        )
+    )
+    assert (
+        watch.check(
+            first,
+            state,
+            NOW,
+            repo=REPO,
+            prs=[],
+            ruling_issue=RULING_ISSUE,
+            label_groups=[OPS_CELL_A],
+        )
+        == []
+    ), "seed"
+    merged_early = Run(
+        envelope(
+            [pr_node(PR, state="MERGED")],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([])},
+        )
+    )
+    lines = watch.check(
+        merged_early,
+        state,
+        NOW,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    assert len(lines) == 1 and "merged" in lines[0].lower(), lines
+
+
+def test_every_alias_is_a_child_of_the_repository_node():
+    """Braces must BALANCE and every alias must sit INSIDE `repository`, by depth, not by luck.
+
+    Found live, not in the fixture: the discovery loop closed its connection twice, which ended
+    `repository` early and pushed every `p<n>` alias to the query root -- GitHub answered "Expected
+    one of SCHEMA, SCALAR, TYPE, ENUM, INPUT, UNION, INTERFACE, actual: IDENTIFIER (\"p7175\")".
+    No change test could see that: ``envelope`` builds the response from the same aliases
+    independently of the query text, so a malformed query still yields a fixture the parser reads
+    happily. Depth is the invariant the parser relies on, so depth is what is asserted.
+    """
+    query = watch.query_text([7175, 7176], REPO, RULING_ISSUE, [OPS_CELL_A, REVIEW_A])
+    depth = 0
+    for line in query.splitlines():
+        stripped = line.strip()
+        opens, closes = stripped.count("{"), stripped.count("}")
+        assert depth + opens - closes >= 0, f"brace closes more than it opens: {stripped!r}"
+        if stripped.startswith(("p71", "a0:", "a1:", "issue(number")):
+            assert depth == 2, f"alias at depth {depth}, not inside repository: {stripped!r}"
+        depth += opens - closes
+    assert depth == 0, f"unbalanced query: depth {depth} at the end"
+
+
+def test_a_pr_named_by_number_AND_matched_by_a_label_is_read_on_the_first_poll():
+    """The overlap case, which the registration path can silently downgrade.
+
+    A PR an agent passed with ``--pr`` that also carries its lane label is in BOTH sets on the very
+    first poll: its fields were just read as ``p<n>`` AND its number came back from the discovery
+    connection. Registering it as "newly discovered" then would overwrite the fields it already has
+    with UNREAD -- and a watcher that forgets what it read reports nothing about its own PRs. The
+    mutation battery found this case untested; the mutant that wipes the fields survived nothing
+    until this test existed.
+    """
+    state = {}
+    runner = Run(
+        envelope(
+            [pr_node(PR)],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: x"},
+            found={"a0": discovery_node([PR])},
+        )
+    )
+    lines = watch.check(
+        runner,
+        state,
+        NOW,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    assert lines == [], "the seed poll is silent whatever the number came from"
+    assert watch._read(state["prs"][PR]), (
+        "its fields survived registration -- not downgraded to UNREAD"
+    )
+    assert state["watched"] == [PR], "watched once, not twice"
+    # and it still reports events, which is what a downgraded entry would break.
+    moved = envelope(
+        [pr_node(PR, head="9" * 40)],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+        found={"a0": discovery_node([PR])},
+    )
+    lines = watch.check(
+        Run(moved),
+        state,
+        NOW,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+    )
+    assert len(lines) == 1 and lines[0].startswith(f"#{PR} "), lines
+
+
+def test_the_no_change_line_counts_the_watched_set_not_the_launch_flags():
+    """The headline of a silent lifetime must describe what actually sat here.
+
+    An agent arms with `--lane ops --cell a` and NO `--pr`; discovery finds two PRs. Every other
+    lifetime test passes explicit numbers, where the launch count and the watched count are equal
+    and the two expressions are interchangeable -- the mutation battery found exactly that, and a
+    line saying "no change across 0 watched PR(s)" would be true of the flags and false of the
+    watch. Headline claims carry their n; this one has to carry the right n.
+    """
+    found = {"a0": discovery_node([7175, 7176])}
+    same = envelope(
+        [pr_node(7175), pr_node(7176)],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+        found=found,
+    )
+    sim = Sim()
+    rc, lines = watch.watch(
+        Run(*([same] * 40)),
+        {},
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[],  # armed by label alone
+        ruling_issue=RULING_ISSUE,
+        label_groups=[OPS_CELL_A],
+        interval=60,
+        lifetime=600,
+        max_errors=3,
+    )
+    assert rc == 0 and len(lines) == 1, lines
+    assert lines[0].lower().startswith("no change"), lines
+    assert "2 watched" in lines[0], f"the watched set, not the empty flag list: {lines[0]!r}"
+
+
+def test_the_cli_builds_the_same_groups_the_ruling_names():
+    """argv sits outside the runner seam, so the flag-to-group mapping is pinned directly."""
+    argv = ["--lane", "ops", "--cell", "a", "--review-label", "review:ops-a", "--pr", "7175"]
+    args = watch.parse_args(argv)
+    assert args.prs == [7175]
+    assert watch.label_groups(args.lane, args.cell, args.review_labels) == [
+        ["lane:ops", "cell:a"],
+        REVIEW_A,
+    ]
 
 
 # ---------------------------------------------------------------------------- the watch loop
