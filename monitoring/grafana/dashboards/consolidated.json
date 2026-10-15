@@ -5931,12 +5931,12 @@
           },
           "fields": [
             {
-              "jsonPath": "$[*].recommendation",
+              "jsonPath": "$.recommendations[*].suggestion",
               "name": "Recommendation",
               "type": "string"
             },
             {
-              "jsonPath": "$[*].frequency",
+              "jsonPath": "$.recommendations[*].frequency",
               "name": "Frequency",
               "type": "number"
             }
