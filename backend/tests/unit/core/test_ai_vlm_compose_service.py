@@ -428,9 +428,10 @@ class TestShippedServingIdentity:
     """ONE fact, five spellings: the shipped serving VLM's identity.
 
     Before this pin, nothing anywhere asserted what the shipped default *is*.
-    `test_vlm_analyzer.py:639` compares the degraded-path label against
-    ``get_settings().vlm_model_id`` - self-referential, so it passes on any
-    default - and the literal ``Qwen3VL-4B-Instruct-Q4_K_M`` sits in fixtures
+    `test_vlm_analyzer.py::test_transport_failure_writes_null_event_plus_row`
+    compares the degraded-path label against ``get_settings().vlm_model_id`` -
+    self-referential, so it passes on any default - and the literal
+    ``Qwen3VL-4B-Instruct-Q4_K_M`` sits in fixtures
     in two unit and one integration test, so those pass on a STALE default too.
     A default could therefore move to a new model while every existing pin kept
     asserting the old one.
