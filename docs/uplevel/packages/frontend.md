@@ -502,8 +502,10 @@ its head.
       with `config.py`'s warning as its help text; the threshold slider shows only when it is on.
       Ticked from the first ready `Backend+Frontend Unit Tests` run naming this PR's leg
       (`ProcessingSettings.test.tsx › fast-path switch (ruling 168)`); a draft skips every job.
-- [ ] The page never writes a threshold while the switch is off. Same witness as above
-      (`never sends a fast-path threshold while the switch is off`).
+- [ ] The page never writes a threshold while the switch is off. Two cards on this page write this
+      one setting, so the witness is a pair, one per card: `ProcessingSettings.test.tsx` (never
+      sends a fast-path threshold while the switch is off) and `DetectionThresholdsPanel.test.tsx`
+      (omits fast_path_threshold from the saved settings while the switch is off).
 
 **Done when:** a test saves the settings page with the fast path off and reads it back off; backend
 then removes the two read clamps in `system.py` as UR-48 lane work.
