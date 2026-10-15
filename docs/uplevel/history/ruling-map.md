@@ -217,6 +217,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 202    | one-GPU installs wait for Phase 4 as `O4.1`; no lane now (record 6198876496)                                |
 | 203    | B3.3 owns schema upgrades; B3.1 drops tables as its upgrades (record 6198942052)                            |
 | 204    | package `[r204]`: one realtime connection owner in the frontend (record 6199283332)                         |
+| 205    | package `[r205]`: no status is not healthy; health is not an alert count (record 6199725340)                |
 
 ## Owner records
 
