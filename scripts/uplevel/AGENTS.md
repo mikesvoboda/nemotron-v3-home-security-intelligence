@@ -153,9 +153,22 @@ variables — a `-F` JSON array matches nothing **and returns no error**, which 
 watch. A discovery page at `DISCOVERY_WINDOW` (100, GitHub's page cap) whose `totalCount` is higher
 raises instead of reporting a quiet tick.
 
-`scripts/test_pr_watch.py` (34 tests, in ci.yml's anti-rot-gates list) drives one seam —
-`run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching.
-`scripts/r193-mutation-campaign.py` reverts 28 properties in a throwaway worktree and fails if any
+Two facts the UR-89 review turned up, each a bug a green suite shipped. `seeding` is keyed on
+whether the state was ever seeded (`"seeded" not in state`), **not** on emptiness (`not state["prs"]`):
+a watcher armed by label alone over a lane with nothing routed to it has an empty `prs` on every poll,
+so emptiness kept it "seeding" forever and the seed poll's early `return []` meant its #6854 diff never
+ran — a new `BINDING NOW`, the one event ruling 193 names, woke nobody, which is precisely the idle
+lane that arms a watcher. And the marker match reads only a comment's **first line**, because UR-40
+binds an owner record on its first line; matching the phrase anywhere in the body wakes the lane for a
+comment that merely _mentions_ it — the live false-positive is #6854 comment `6180424930`, first line
+`URGENT PATH · coordinator stale again`, whose status prose counts "42 BINDING NOW rows in window"
+(verified at that id, 2026-10-15: 1 occurrence, 0 on the first line).
+
+`scripts/test_pr_watch.py` (37 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
+fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
+starts reading something new fails loudly instead of passing on `{}`.
+`scripts/r193-mutation-campaign.py` reverts 30 properties in a throwaway worktree and fails if any
 survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
 registered in ci.yml — the campaign list holds suites, not drivers.
 

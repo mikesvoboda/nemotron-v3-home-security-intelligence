@@ -94,9 +94,11 @@ that died silently.
    uv run python scripts/uplevel/pr_watch.py --pr <n> --pr <m> --lifetime 1800
    ```
 
-   It polls about every 60 s with **one GraphQL query and never the search API**, and exits with a
-   single line naming the PR and what moved -- a new head, a check conclusion, a review, a comment,
-   a label change, a merge or close, or a new `BINDING NOW` on #6854. It prints no comment bodies,
+   It polls about every 60 s with **one GraphQL query and never the search API**, and exits with one
+   line per change it saw, each naming the PR and what moved -- a new head, a check conclusion, a
+   review, a comment, a label change, a merge or close, or a new `BINDING NOW` on #6854. One poll can
+   therefore print several lines (a head moved _and_ a check concluded); read them all before
+   re-arming. It prints no comment bodies,
    survives transient API errors, and ends with an error line after repeated failures or a "no
    change" line at its lifetime bound, so silence never stands in for success. Its own suite
    `scripts/test_pr_watch.py` pins each of these. A watcher armed in the background is not waiting

@@ -30,6 +30,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "uplevel" / "pr_watch.py"
 
@@ -68,7 +70,9 @@ class Run:
         self.calls += 1
         self.queries.append(query)
         self.variables.append(variables)
-        item = self.responses.pop(0) if self.responses else {}
+        if not self.responses:
+            raise AssertionError(f"unscripted read: poll {self.calls} has no response")
+        item = self.responses.pop(0)
         if isinstance(item, Exception):
             raise item
         return item
@@ -283,6 +287,69 @@ def test_new_binding_now_is_reported():
     lines = second(Run(binding), state)
     assert len(lines) == 1
     assert lines[0].startswith(f"#{RULING_ISSUE} ") and "BINDING NOW" in lines[0]
+
+
+def test_a_binding_phrase_mentioned_off_the_first_line_is_not_a_new_record():
+    """UR-40 binds a record whose FIRST LINE carries the marker, so a mere mention is silent.
+
+    The live case is #6854 comment `6180424930`, whose first line is ``URGENT PATH · coordinator
+    stale again`` and whose status prose counts "42 BINDING NOW rows in window" on a later line
+    (verified at that id: one occurrence, none on the first line). A substring match on the whole
+    body treats that as a new binding record, which is the opposite of what the watcher is for: a
+    line it prints has to mean a record binds.
+    """
+    state = seed()
+    mentioned = envelope(
+        [pr_node(PR)],
+        ruling_ids=[1, 2],
+        ruling_bodies={
+            1: "BINDING NOW: 45 live",
+            2: "URGENT PATH · coordinator stale again\n\n"
+            "State this leaves: my tick acts on the filtered sweep directly "
+            "(42 BINDING NOW rows in window, all already carried).",
+        },
+    )
+    lines = second(Run(mentioned), state)
+    assert lines == [], lines
+
+
+def test_a_label_only_watcher_still_reports_a_new_binding_now():
+    """A watcher that discovers NOTHING still leaves its seed state, so #6854 is still watched.
+
+    The shape is the idle lane: armed by `--lane` alone, no `--pr`, and its lane label currently
+    matches no open PR. `seeding` keyed on emptiness (`not state["prs"]`) stayed True on every
+    poll of exactly this watcher, and the seed poll's `return []` ran before the ruling diff, so a
+    new `BINDING NOW` — the one event ruling 193 names — printed nothing and the run ended
+    `no change in 600s across 0 watched PR(s)`. Every other BINDING NOW test seeds with a non-empty
+    `prs`, so none of them could see it.
+    """
+    empty = envelope(
+        [], ruling_ids=[1], ruling_bodies={1: "routine"}, found={"a0": discovery_node([])}
+    )
+    binding = envelope(
+        [],
+        ruling_ids=[1, 2],
+        ruling_bodies={1: "routine", 2: "BINDING NOW: ruling 199 binds now"},
+        found={"a0": discovery_node([])},
+    )
+    state: dict = {}
+    runner = Run(empty, binding)
+    first = watch.check(
+        runner, state, NOW, repo=REPO, prs=[], ruling_issue=RULING_ISSUE, label_groups=[LANE_OPS]
+    )
+    assert first == [], "the seed poll reports nothing"
+    assert state["prs"] == {}, "the lane genuinely has nothing routed to it"
+    later = watch.check(
+        runner,
+        state,
+        NOW + watch.timedelta(minutes=1),
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[LANE_OPS],
+    )
+    assert len(later) == 1, later
+    assert later[0].startswith(f"#{RULING_ISSUE} ") and "BINDING NOW" in later[0], later
 
 
 def test_a_non_binding_new_comment_on_the_ruling_issue_is_silent():
@@ -923,6 +990,21 @@ def test_the_cli_builds_the_same_groups_the_ruling_names():
     args = watch.parse_args(argv)
     assert args.prs == [7175]
     assert watch.label_groups(args.lane, args.cell, args.review_labels) == OPS_A
+
+
+def test_the_cli_refuses_to_arm_with_nothing_to_watch():
+    """No `--pr` and no discovering label is a watcher that watches nothing — refused at the CLI.
+
+    This is the same blind spot as finding 4, one layer up: armed with no numbers and no label the
+    watched set is empty forever, so `parse_args` errors out rather than backgrounding a silent
+    poll. `parser.error` raises SystemExit(2), and an empty argv here is the whole hazard — the
+    defaults (`--lane ""`, empty `--review-label`) are exactly what a mistyped arm produces.
+    """
+    with pytest.raises(SystemExit) as caught:
+        watch.parse_args([])
+    assert caught.value.code == 2
+    # a label alone IS enough to watch (the idle-lane case finding 4 is about), so it must pass:
+    assert watch.parse_args(["--lane", "ops"]).lane == "ops"
 
 
 # ---------------------------------------------------------------------------- the watch loop

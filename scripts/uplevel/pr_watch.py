@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Watch the PRs this agent cares about and print one line when something changes (ruling 193).
+"""Watch the PRs this agent cares about, and exit with one line per change it saw (ruling 193).
 
 The problem this solves: an agent polling GitHub by hand burns a turn per check and still misses
 the moment. This watcher is armed as a background command and exits the instant a watched PR
@@ -100,7 +100,6 @@ def query_text(
             "    number",
             "    headRefOid",
             "    state",
-            "    isDraft",
             "    labels(first: 20) { nodes { name } }",
             # `contexts`, not `nodes`: measured against the live schema -- StatusCheckRollup is an
             # object exposing a `contexts` connection (introspection: fields = commit, contexts,
@@ -223,18 +222,29 @@ def snapshot(data: dict, prs: Sequence[int]) -> dict:
     if issue is not None:
         comments = _comments(issue.get("comments"))
         state["ruling"] = {
-            "binding": sorted(
-                (cid, login) for cid, login, body in comments if BINDING_MARKER in (body or "")
-            )
+            "binding": sorted((cid, login) for cid, login, body in comments if _binding(body))
         }
     return state
+
+
+def _binding(body: str | None) -> bool:
+    """True when ``body`` is a UR-40 owner record that binds at once.
+
+    UR-40 is exact: an owner record binds when its FIRST LINE carries ``BINDING NOW``. Matching the
+    marker anywhere in the body is wrong, and not hypothetically -- #6854 comment `6180424930` opens
+    with ``URGENT PATH · coordinator stale again`` and mentions ``BINDING NOW`` on a later line (its
+    status text counts "42 BINDING NOW rows in window"), so a substring match wakes the lane for a
+    comment that only names the marker, not one that issues a record. The whole point of the watcher
+    is to be trusted when it prints, so it prints only on the shape the rule names.
+    """
+    first = (body or "").lstrip().splitlines()
+    return bool(first) and BINDING_MARKER in first[0]
 
 
 def _pr_fields(node: dict) -> dict:
     return {
         "head": node.get("headRefOid"),
         "state": node.get("state"),
-        "isDraft": node.get("isDraft"),
         "labels": sorted(n.get("name") for n in (node.get("labels") or {}).get("nodes") or []),
         "checks": _checks(node.get("statusCheckRollup")),
         "reviews": sorted(
@@ -355,7 +365,14 @@ def check(
     fields are seeded by the next poll, so the first thing reported about it is a real change.
     """
     known = list(state.get("watched") or prs)
-    seeding = not state.get("prs")
+    # Seeded-ness, NOT emptiness. `not state.get("prs")` reads as the same question and is not:
+    # a watcher armed by label alone over a lane with nothing routed to it has an EMPTY pr dict on
+    # every poll, so it stayed "seeding" forever, and the `return []` below meant its #6854 diff
+    # was never reached -- a new BINDING NOW, the one event ruling 193 names, woke nobody. Measured
+    # at 8c6edb162: two polls, a new BINDING NOW on the second, zero discovery, printed nothing and
+    # exited `no change in 600s across 0 watched PR(s)`. That is the idle lane, which is precisely
+    # the lane that arms a watcher.
+    seeding = "seeded" not in state
     response = runner(
         query_text(known, repo, ruling_issue, label_groups),
         query_variables(known, repo, ruling_issue, label_groups),
@@ -392,6 +409,9 @@ def check(
         if after["prs"].get(number) is None and UNREAD in (before["prs"].get(number) or {}):
             after["prs"][number] = before["prs"][number]
     after["watched"] = watched
+    # Set on BOTH exits, so the next poll's `seeding` is False whatever the watched set looks like
+    # -- including the empty one above. The seed poll still returns [] before reaching it.
+    after["seeded"] = True
     if seeding:
         state.update(after)
         return []

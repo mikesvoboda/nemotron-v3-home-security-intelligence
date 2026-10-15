@@ -147,7 +147,31 @@ MUTANTS = [
     (
         "binding-any-comment",
         "any new ruling-issue comment counts as BINDING NOW",
-        [('if BINDING_MARKER in (body or "")', "if True")],
+        [("return bool(first) and BINDING_MARKER in first[0]", "return bool(body)")],
+    ),
+    (
+        "binding-any-line",
+        "matches BINDING NOW anywhere in the body, so a comment QUOTING a ruling wakes the lane "
+        "(UR-40 binds on the FIRST line; the live false-positive is #6854 6180424930)",
+        [
+            (
+                '    first = (body or "").lstrip().splitlines()\n'
+                "    return bool(first) and BINDING_MARKER in first[0]",
+                '    return BINDING_MARKER in (body or "")',
+            )
+        ],
+    ),
+    (
+        "seeding-keyed-on-emptiness",
+        "keys seeding on an empty pr dict, so a label-only watcher over a lane with nothing routed "
+        "to it seeds forever and never reads #6854 (finding 4: the idle lane slept through a new "
+        "BINDING NOW)",
+        [
+            (
+                '    seeding = "seeded" not in state',
+                '    seeding = not state.get("prs")',
+            )
+        ],
     ),
     (
         "binding-silently-missing",
