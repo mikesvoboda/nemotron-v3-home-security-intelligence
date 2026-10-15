@@ -155,10 +155,12 @@ Read rules.md §Reviewing first. Each PR has one review, its author's (UR-32, ru
    finished. Fix or answer each finding.
 2. Write the `Plan text:` line as UR-92 says. For a security-and-auth package, also dispatch
    `security-auditor` on the diff (UR-95, UR-96).
-3. Post the review as a PR comment in this form:
+3. Post the review as a PR comment in this form. The first line names the head you reviewed, in
+   backticks: the coordinator's merge audit and the digest's markers read it there, and a review
+   naming no head arms nothing (ruling 198).
 
    ```text
-   Review: approve | changes requested
+   Review: approve | changes requested at `<head sha>`
    Reviewer lane: <your lane> (UR-89 subagent)
    Done when: <each clause> — observed | not observed (where)
    Contract: rules 1-5 — ok | <which rule, why>
