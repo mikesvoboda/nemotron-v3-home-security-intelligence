@@ -402,6 +402,43 @@ class TestAlertmanagerLogSanitisation:
         assert "(critical FORGED)" in message
 
     @pytest.mark.asyncio
+    async def test_routing_reads_the_raw_severity_not_the_sanitized_one(self) -> None:
+        """Level selection must keep reading the raw ``severity``.
+
+        ``sanitize_log_value`` deletes ANSI sequences, so it can *manufacture*
+        the routing keyword: a crafted ``crit\\x1b[0mical`` sanitises to exactly
+        ``"critical"`` (measured: ``sanitize_log_value('crit\\x1b[0mical') ==
+        'critical'``). If level selection ever moved onto the sanitised value,
+        this payload would escalate itself to ERROR. It must not, so this asserts
+        ERROR was *not* taken - the only shape where raw and sanitised routing
+        disagree, which is what makes it a pin rather than a restatement.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {
+                "alertname": "GpuMem",
+                "severity": "crit\x1b[0mical",
+                "component": "gpu",
+            },
+            {"description": "GPU memory usage is above 90%"},
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        mock_logger.error.assert_not_called()
+        assert mock_logger.info.call_count == 1
+        # The ESC is gone from the text that was logged, ...
+        message = mock_logger.info.call_args.args[0]
+        assert "\x1b" not in message
+        # ... and what remains happens to read as "critical".
+        assert "(critical)" in message
+
+    @pytest.mark.asyncio
     async def test_resolved_line_sanitizes_every_interpolated_field(self) -> None:
         """The RESOLVED branch interpolates the same fields and is open too."""
         alert = self._alert(
@@ -458,6 +495,33 @@ class TestAlertmanagerLogSanitisation:
         mock_logger.warning.assert_called_once_with(
             "[ALERT FIRING] HSIGPUMemoryHigh (warning) - component=gpu: "
             "GPU memory usage is above 90% for 5 minutes"
+        )
+
+    @pytest.mark.asyncio
+    async def test_summary_is_still_the_fallback_when_description_is_absent(self) -> None:
+        """The ``description`` -> ``summary`` fallback is pre-existing behaviour.
+
+        Alertmanager sends one, the other, or both; the handler prefers
+        ``description`` and falls back to ``summary``. The sanitising cure must
+        not disturb that choice, and nothing else here observes it - a cure that
+        dropped the fallback would log an empty message for every summary-only
+        alert and keep every other test green.
+        """
+        alert = self._alert(
+            AlertmanagerStatus.FIRING,
+            {"alertname": "HSIGPUMemoryHigh", "severity": "warning", "component": "gpu"},
+            {"summary": "GPU memory usage is high"},  # no description key
+        )
+
+        with (
+            patch("backend.api.routes.webhooks.EventBroadcaster", autospec=True),
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
+        ):
+            result = await receive_alertmanager_webhook(self._payload(alert), BackgroundTasks())
+
+        assert result.status == "ok"
+        mock_logger.warning.assert_called_once_with(
+            "[ALERT FIRING] HSIGPUMemoryHigh (warning) - component=gpu: GPU memory usage is high"
         )
 
 
