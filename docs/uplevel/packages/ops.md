@@ -282,6 +282,27 @@ consolidation depends on it.
 **Done when:** every file in `scripts/` is referenced by CI, a hook, `setup.py`, another script, or
 the operator docs, and `scripts/` passes ruff in pre-commit.
 
+## Phase 4 — Complete the product
+
+### O4.1 One-GPU installs
+
+**Flags:** none. **Depends on:** Phase 4's start (ruling 202, record 6198876496).
+**PR:** none yet.
+
+`README.md:242` promises a one-card install, but `setup.py` writes `gpu_llm: 0` and
+`gpu_ai_services: 1` in all three modes (`:820`, `:1070`, `:1252`) whatever `get_gpu_info()` finds
+(`:795`), and `docker-compose.prod.yml` gives the AI services
+`CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}`. On a one-card machine they see no GPU.
+
+- [ ] A design session chooses: setup derives the split from the detected GPUs (one card puts both
+      on GPU 0, keeping a saved answer on re-run as `[r94]` does), or two GPUs become a stated
+      requirement that setup enforces and the README's hardware table states.
+- [ ] Whether detection, re-ID and the VLM fit one 24GB card is a real-tier run, settled in that
+      session.
+
+**Done when:** a one-GPU setup either runs with every service on a visible GPU or is refused with
+the requirement named, and unit tests cover one and two detected GPUs.
+
 ## Background (any phase after Phase 1)
 
 ### OB.3 Image weight
