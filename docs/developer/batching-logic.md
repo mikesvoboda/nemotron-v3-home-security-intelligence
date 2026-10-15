@@ -123,15 +123,17 @@ High-confidence detections of critical object types bypass batching:
 ```python
 def _is_fast_path_eligible(self, confidence: float, object_type: str) -> bool:
     return (
-        confidence >= self.fast_path_confidence_threshold
+        self.fast_path_enabled
+        and confidence >= self.fast_path_confidence_threshold
         and object_type in self.fast_path_object_types
     )
 ```
 
 **Default configuration:**
 
+- Fast path enabled: `False` (master switch — while off nothing fires, ruling 168)
 - Confidence threshold: 0.90
-- Object types: `["person"]`
+- Object types: `[]`
 
 ### Fast Path Flow
 
@@ -232,12 +234,13 @@ async def _close_batch(self, batch_id: str, reason: str):
 
 ## Configuration
 
-| Variable                         | Default    | Description            |
-| -------------------------------- | ---------- | ---------------------- |
-| `BATCH_WINDOW_SECONDS`           | 90         | Maximum batch duration |
-| `BATCH_IDLE_TIMEOUT_SECONDS`     | 30         | Close if no activity   |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.90       | Fast path threshold    |
-| `FAST_PATH_OBJECT_TYPES`         | ["person"] | Fast path object types |
+| Variable                         | Default | Description             |
+| -------------------------------- | ------- | ----------------------- |
+| `BATCH_WINDOW_SECONDS`           | 90      | Maximum batch duration  |
+| `BATCH_IDLE_TIMEOUT_SECONDS`     | 30      | Close if no activity    |
+| `FAST_PATH_ENABLED`              | False   | Fast path master switch |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.90    | Fast path threshold     |
+| `FAST_PATH_OBJECT_TYPES`         | []      | Fast path object types  |
 
 ---
 

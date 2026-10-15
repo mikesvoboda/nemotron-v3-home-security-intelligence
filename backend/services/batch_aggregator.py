@@ -196,6 +196,7 @@ class BatchAggregator:
         self._batch_window = settings.batch_window_seconds
         self._idle_timeout = settings.batch_idle_timeout_seconds
         self._analysis_queue = ANALYSIS_QUEUE
+        self._fast_path_enabled = settings.fast_path_enabled
         self._fast_path_threshold = settings.fast_path_confidence_threshold
         self._fast_path_types = settings.fast_path_object_types
         self._batch_max_detections = settings.batch_max_detections
@@ -1186,17 +1187,22 @@ class BatchAggregator:
         """Check if detection meets fast path criteria.
 
         # =================================================================
-        # FAST PATH IS DISABLED — DO NOT RE-ENABLE WITHOUT ENRICHMENT
+        # FAST PATH IS DISABLED BY DEFAULT — DO NOT ENABLE WITHOUT ENRICHMENT
         # =================================================================
         # Fast path bypasses the enrichment pipeline, so Nemotron receives
         # zero context (no pose, clothing, threat, re-ID, CLIP) and produces
-        # wildly inaccurate risk scores. The config defaults ensure this
-        # method always returns False (threshold=2.0, types=[]).
+        # wildly inaccurate risk scores. fast_path_enabled is the master
+        # switch and ships False, so this method returns False whatever the
+        # threshold is set to (ruling 168). Before that ruling the disabled
+        # state lived only in the shipped values — threshold 2.0, types [] —
+        # which collided with the settings schema's le=1.0 and 500s
+        # GET /api/v1/settings (F-187).
         #
-        # To re-enable: add enrichment to analyze_detection_fast_path first.
+        # To enable: add enrichment to analyze_detection_fast_path first.
         # =================================================================
 
         Fast path is triggered when:
+        - fast_path_enabled is True
         - Confidence is provided and >= threshold
         - Object type is provided and in fast path types list
 
@@ -1207,6 +1213,9 @@ class BatchAggregator:
         Returns:
             True if detection should use fast path, False otherwise
         """
+        if not self._fast_path_enabled:
+            return False
+
         if confidence is None or object_type is None:
             return False
 

@@ -107,7 +107,7 @@ them, is UR-81. This lane opens a package only on a trigger (UR-68).
 
 ### [r165b] F-235: cure the quarantined notify channels spec
 
-**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** #7122 (open).
+**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** #7122 (merged 2026-10-14T18:36:41Z as `8977e9457`, head `f1d923174`).
 (rulings 125, 165)
 
 - [x] First commit: the ruling-125 mark's expiry in

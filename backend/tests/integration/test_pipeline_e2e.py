@@ -1111,15 +1111,16 @@ async def test_fast_path_high_priority_detection(
 ) -> None:
     """Test that high-confidence person detections trigger fast path analysis.
 
-    Fast path SHIPS disabled (R-T9-PIPELINE-E2E): settings default to
-    fast_path_confidence_threshold=2.0 and fast_path_object_types=[] so
-    _should_use_fast_path is always False (batch_aggregator.py:1163-1178 —
-    "FAST PATH IS DISABLED — DO NOT RE-ENABLE WITHOUT ENRICHMENT"). The old
-    test relied on the removed permissive defaults and asserted
+    Fast path SHIPS disabled (R-T9-PIPELINE-E2E): fast_path_enabled defaults
+    False (ruling 168), so _should_use_fast_path is always False whatever the
+    threshold says — the banner in batch_aggregator._should_use_fast_path
+    ("FAST PATH IS DISABLED BY DEFAULT — DO NOT ENABLE WITHOUT ENRICHMENT")
+    is enforced by the guard, not by an out-of-band sentinel value any more.
+    The old test relied on the removed permissive defaults and asserted
     batch_id.startswith("fast_path_") under them. The shipped GATE is still
-    exercised here, honestly: the aggregator's threshold/types are
-    explicitly overridden to the legacy 0.90/person values, then the fast
-    path must fire.
+    exercised here, honestly: the aggregator's switch/threshold/types are
+    explicitly overridden to an enabled 0.90/person configuration, then the
+    fast path must fire.
 
     This used to be a LEGACY-wire subject (1.5, rule 5): it stubbed
     `nemotron_analyzer.httpx.AsyncClient` and asserted `is_fast_path=True` —
@@ -1181,8 +1182,9 @@ async def test_fast_path_high_priority_detection(
             fast_path_calls.append((camera_id, detection_id))
 
     aggregator = BatchAggregator(redis_client=mock_redis, analyzer=_RecordingAnalyzer())
-    # Ship defaults disable fast path (threshold 2.0, types []); opt the
-    # instance into the gate to exercise it (R-T9-PIPELINE-E2E).
+    # Ship defaults disable fast path (fast_path_enabled False, types []);
+    # opt the instance into the gate to exercise it (R-T9-PIPELINE-E2E).
+    aggregator._fast_path_enabled = True
     aggregator._fast_path_threshold = 0.90
     aggregator._fast_path_types = ["person"]
     batch_id = await aggregator.add_detection(

@@ -30,6 +30,7 @@ Run explicitly (outside testpaths, like the other scripts/test_*.py):
 """
 from __future__ import annotations
 
+import ast
 import copy
 import importlib.util
 import json
@@ -40,6 +41,14 @@ import sys
 from pathlib import Path
 
 import pytest
+
+# Every node in this file may pay for a `docker compose config` spawn — its own, or a module-scoped
+# fixture's, which `timeout_func_only = false` bills to whichever node runs first. 30 s is ~12x the
+# worst figure measured on the heaviest node under deliberate saturation (2.42 s call at load 20,
+# this box idle-base 0.38 s) and sits with the job's other spawn/scan suites (60/180/300). See
+# test_no_compose_spawning_node_rides_the_five_second_tier_default for the pin and its two-sided
+# control. A ceiling on THIS file, not a raise of the tier's root `timeout = 5`.
+pytestmark = pytest.mark.timeout(30)
 
 REPO = Path(__file__).resolve().parent.parent
 PROD = REPO / "docker-compose.prod.yml"
@@ -637,6 +646,140 @@ def test_the_generated_boot_file_rebinds_its_objects_to_the_live_project(tmp_pat
     reblessed = _render_full([boot_file], source_project)
     assert reblessed == full, (
         "boot_render changed what would be deployed, not just who owns the objects")
+
+# ------------------------------------------------ the anti-rot ceiling this file rides ----------
+# This file is a member of Collection Sanity's ONE-argv anti-rot battery (ci.yml:263), so every node
+# here runs under the root `timeout = 5` in pyproject's [tool.pytest.ini_options] unless something
+# marks it otherwise. A `docker compose config` spawn does not fit 5 seconds on a loaded runner:
+# measured >5.0s twice in one day — #7122 `f1d923174` FAILED one node IN-CALL inside
+# `process.communicate()` (`_render_full` issues five renders), and #7123 `68f64bb6b` reported 13
+# `ERROR at setup` when the module-scoped fixtures' own spawns landed on whichever nodes
+# pytest-randomly ran first. `timeout_func_only = false`, so a fixture's spawn bills the victim node,
+# and the victim is chosen by a per-run lottery — which is why the ceiling belongs on the WHOLE file
+# (`pytestmark` below), not on the nodes that visibly spawn. The floor is set the way the job's other
+# spawn/scan suites set theirs (test_suppression_census.py 180/300, test_ai_surface_census.py 60):
+# the ceiling must exceed the inflation, and 15 s is already ~6x the worst figure measured on the
+# heaviest node under deliberate saturation (2.42 s call, load 20). This is a ceiling, not a budget:
+# the node finishes in well under a second when the box is idle. It is deliberately NOT a raise of
+# the root `timeout` — that number is the tier's gate, and per the coordinator's routing
+# (`6173401735`) raising it is not this cell's to give.
+_CEILING_FLOOR = 15
+
+
+def _ceiling_seconds(marks: list) -> int:
+    """Highest @pytest.mark.timeout(N) in a decorator list (0 = no ceiling raised).
+
+    Reads BOTH shapes a decorator arrives in, because the guard walks a parsed tree while the file's
+    own `pytestmark` is a live object: `pytest.MarkDecorator` at runtime, `ast.Call` after
+    `ast.parse`. Handling only the first would make per-node marks invisible — the ceiling would read
+    as absent on a file that raised it correctly, and a guard with a false-red direction gets deleted.
+    """
+    best = 0
+    for mark in marks:
+        name: str | None = None
+        arg: object | None = None
+        if isinstance(mark, pytest.MarkDecorator):
+            name, arg = mark.name, (mark.args[0] if mark.args else None)
+        elif isinstance(mark, ast.Call):
+            # pytest.mark.timeout(N) → Attribute(attr="timeout") on Attribute(attr="mark") on Name.
+            func = mark.func
+            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Attribute):
+                name = func.attr
+                if mark.args and isinstance(mark.args[0], ast.Constant):
+                    arg = mark.args[0].value
+        if name == "timeout" and isinstance(arg, int) and not isinstance(arg, bool):
+            best = max(best, arg)
+    return best
+
+
+def _nodes_owed_a_ceiling(tree: ast.Module, module_marks: list) -> set[str]:
+    """Module-level test functions that can pay for a compose spawn without a ceiling above the floor.
+
+    `module_marks` is the file's own `pytestmark` list, which covers every node the way the fixtures
+    do. The trigger is that the MODULE spawns at all, not that this node does: under
+    `timeout_func_only = false`, a module-scoped fixture's render is billed to whichever node the
+    randomiser runs first, so an unmarked node that only reads a fixture is still exposed — the exact
+    shape of the 13-error #7123 red. A module that spawns nothing owes nothing, which is the
+    must-ignore side the companion test pins.
+    """
+    if _ceiling_seconds(module_marks) >= _CEILING_FLOOR:
+        return set()
+    spawns = any(
+        isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Attribute)
+        and call.func.attr == "run"
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "subprocess"
+        for call in ast.walk(tree)
+    )
+    if not spawns:
+        return set()
+    return {
+        fn.name
+        for fn in tree.body
+        if isinstance(fn, ast.FunctionDef)
+        and fn.name.startswith("test_")
+        and _ceiling_seconds(fn.decorator_list) < _CEILING_FLOOR
+    }
+
+
+def test_no_compose_spawning_node_rides_the_five_second_tier_default() -> None:
+    """The ceiling is pinned, so it cannot rot out of this file (anti-rot doctrine, WP0.1 et al.).
+
+    must-catch: drop the marks and this is red naming every spawn-exposed node. must-ignore: a module
+    that spawns no subprocess owes no ceiling — otherwise the guard is a demand for marks everywhere
+    and the next person deletes it instead of the bug.
+    """
+    tree = ast.parse(Path(__file__).resolve().read_text(encoding="utf-8"))
+    module_marks = globals().get("pytestmark", [])
+    assert isinstance(module_marks, (list, pytest.MarkDecorator)), (
+        "pytestmark must be a mark or a list"
+    )
+    if isinstance(module_marks, pytest.MarkDecorator):
+        module_marks = [module_marks]
+    owed = _nodes_owed_a_ceiling(tree, module_marks)
+    assert not owed, (
+        f"{len(owed)} node(s) in this file can pay for a `docker compose config` spawn while riding "
+        f"the root `timeout = 5` — a loaded runner has measured this red twice ({sorted(owed)[:3]}…). "
+        f"Raise the file's ceiling with `pytestmark = pytest.mark.timeout(N)`, N >= {_CEILING_FLOOR}, "
+        "because a module-scoped fixture's spawn bills a lottery-chosen node, not only the spawner."
+    )
+
+
+def test_the_ceiling_guard_itself_discriminates() -> None:
+    """Two-sided control for the guard above: it must fire on the bad tree and stay silent on the
+    good one AND on a spawn-free module — a guard that cannot fail is a comment, not a gate."""
+    spawn_src = (
+        "import subprocess, pytest\n"
+        "def _render(): subprocess.run(['docker', 'compose', 'config'])\n"
+        "def test_a(): _render()\n"
+        "def test_b(): assert True\n"
+    )
+    unmarked = ast.parse(spawn_src)
+    assert _nodes_owed_a_ceiling(unmarked, []) == {"test_a", "test_b"}, (
+        "the guard did not flag unmarked tests in a spawning module: it is vacuous"
+    )
+    # covered by a module-level ceiling → nothing owed.
+    covered = [pytest.mark.timeout(_CEILING_FLOOR)]
+    assert _nodes_owed_a_ceiling(unmarked, covered) == set(), "a covered module must owe nothing"
+    # covered per-node, no module mark → still nothing owed.
+    per_node = ast.parse(
+        spawn_src.replace("def test_a():", "@pytest.mark.timeout(20)\ndef test_a():").replace(
+            "def test_b():", "@pytest.mark.timeout(20)\ndef test_b():"
+        )
+    )
+    assert _nodes_owed_a_ceiling(per_node, []) == set(), "every node marked => nothing owed"
+    # must-ignore: a module that never spawns owes nothing, marked or not.
+    quiet = ast.parse("def test_c(): assert True\ndef test_d(): assert True\n")
+    assert _nodes_owed_a_ceiling(quiet, []) == set(), "a spawn-free module must not be flagged"
+    # the floor is real: a ceiling AT the tier default buys nothing, so both nodes are still owed.
+    weak = ast.parse(spawn_src.replace("def test_a():", "@pytest.mark.timeout(5)\ndef test_a():"))
+    assert _nodes_owed_a_ceiling(weak, []) == {"test_a", "test_b"}, (
+        f"a timeout at the tier default (5) is not a ceiling; only >= {_CEILING_FLOOR} counts. If "
+        "this fails, the guard has started crediting a mark that does not lift anything, which is "
+        "the exact shape that leaves the real red in place while looking green."
+    )
+
 
 if __name__ == "__main__":   # pragma: no cover
     sys.exit(pytest.main([__file__, "-q"]))

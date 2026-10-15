@@ -100,26 +100,30 @@ if pipeline_start_time:  # Line 1070
 For a critical detection, the analysis fast path skips the batch window and
 sends the single detection straight to the analyzer.
 
-**Source:** `backend/services/batch_aggregator.py` (gate at lines 1185-1216,
-processing at 1218-1251)
+**Source:** `backend/services/batch_aggregator.py` (gate at lines 1186-1225,
+processing at 1227-1260)
 
-### Criteria (Lines 1185-1216)
+### Criteria (Lines 1186-1225)
 
 ```python
 def _should_use_fast_path(self, confidence: float | None, object_type: str | None) -> bool:
+    if not self._fast_path_enabled:  # master switch, ships False (ruling 168)
+        return False
     if confidence is None or object_type is None:
         return False
-    if confidence < self._fast_path_threshold:  # 2.0 default
+    if confidence < self._fast_path_threshold:
         return False
     return object_type.lower() in [t.lower() for t in self._fast_path_types]
 ```
 
-**Shipped criteria:** `fast_path_confidence_threshold = 2.0` (a confidence can
-never reach it) and `fast_path_object_types = []` — the gate ships closed, so no
-detection takes this path under the shipped config. The code path is live and
-tested; setting a confidence <= 1.0 and a non-empty type list opens it. Weapon
+**Shipped criteria:** `fast_path_enabled = False` is the master switch — while it is
+false the gate never opens, whatever the threshold says (ruling 168). The threshold
+(`0.9`) and the empty `fast_path_object_types = []` are second nets, so no detection
+takes this path under the shipped config. The code path is live and
+tested; setting the switch true with a confidence <= 1.0 and a non-empty type list opens
+it. Weapon
 and smoke/fire detections have their own alert bypasses that do run
-(`should_bypass_batch`, lines 1294-1352).
+(`should_bypass_batch`, lines 1303-1361).
 
 When the gate opens, `analyze_detection_fast_path`
 (`backend/services/vlm_analyzer.py:690-705`) routes the single detection through

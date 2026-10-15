@@ -9,7 +9,9 @@
  * WHY THIS SPEC CAN BE HONEST AT ALL (and what it is NOT faking)
  *   The row's whole surface is an offline partition, and Playwright's
  *   context.setOffline() is the browser's REAL network partition (Chromium
- *   NetworkStateConditions — requests genuinely fail; ws-status.spec.ts:198
+ *   NetworkStateConditions — requests genuinely fail; ws-status.spec.ts's
+ *   "PARTITION + RELOAD" section (its context.setOffline(true), :398-401
+ *   measured at [r165a]'s head)
  *   already leans on it to prove a real WS disconnect, and that spec still
  *   ends with the interception guard tripped). setOffline is browser-level
  *   partition, NOT one of the guard's INTERCEPTION_METHODS (guard.ts:46 lists
@@ -340,7 +342,8 @@ test.describe('golden path: service worker + offline cache on the built stack @c
       )
       .toContain('"cameras"');
 
-    // --- the partition (browser-level; ws-status.spec.ts:198 precedent) ---
+    // --- the partition (browser-level; ws-status.spec.ts "PARTITION +
+    // RELOAD" section precedent) ---
     const responses: Response[] = [];
     page.on('response', (r) => responses.push(r));
     await page.context().setOffline(true);
