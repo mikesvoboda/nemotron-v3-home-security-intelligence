@@ -119,11 +119,9 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    **Otherwise update** the PR, one at a time (UR-102):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
-   (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | grep -v '^index ' | sed 's/^@@ .* @@/@@/' | sha256sum`,
-   after `git fetch origin main`, then `git fetch origin pull/<n>/head` (`<head>` is its
-   `FETCH_HEAD`), with `<merge-base>` from `git merge-base origin/main <head>` and the files from
-   `gh pr view <n> --json files`. Conflicts go to the author (UR-102). End the turn; the next tick
-   reads its CI.
+   (UR-106) before and after the update from `coordinator_snapshot.py` (its `ur106_diff_hash`; §3
+   prints it per open PR). Conflicts go to the author (UR-102). End the turn; the next tick reads
+   its CI.
 3. **Re-read** the PR (UR-29): `gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`,
    and `gh run list --commit <head>`; merge only on green (UR-34).
 4. **Read the owner's word on it** (UR-94). Merge an owner-tier PR only on an owner approval UR-100
@@ -136,13 +134,10 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    update-branch of an owner PR, the two diff hashes from step 2. The status comment counts
    auto-merged owner PRs (UR-166).
 
-**Auditing an auto-merge** (UR-108, ruling 156). A lane-tier PR merges by the auto-merge its
-reviewer turned on at approval. For each PR merged since the cursor, read the merged head
-(`gh pr view <n> --json headRefOid,mergeCommit,comments`) and check it is the head the approving
-review names, or a UR-106 carry of it, and that no owner ruling or record barred it (UR-94); then
-post the merge comment (step 6). A merge that fails the check goes into the status comment and to
-the owning lane for a revert PR. Disable auto-merge (`gh pr merge <n> --disable-auto`) on any open
-PR whose head is neither the approved head nor a carry of it.
+**Auditing an auto-merge** (UR-108, ruling 156). `coordinator_snapshot.py` computes it (§7 lists the
+open PRs armed on an uncarried head to disable, §8 the merged-since-cursor verdicts with a pre-filled
+UR-29 merge comment); read those, post each merge comment (step 6), and route any failed check to
+the owning lane for a revert PR.
 
 **Red `main`.** On the first red `CI Gate` run on `main`, raise the urgent path with the failing
 job and the log lines you read that tick, disable auto-merge on every queued lane PR until `main` is
@@ -166,21 +161,10 @@ on #6854, never by replying to it.
    as with your heartbeat (UR-38). Show current state only, in about 4,000 characters (UR-166):
    your beat's history and corrections go in your heartbeat or on the PR they concern; link to PRs
    and comments for evidence instead of quoting them.
-3. **Write its contents in this order** (UR-166), each item only as you read it this tick (UR-29):
-   1. the live `BINDING NOW` records (UR-40), or "BINDING NOW: none live", then every open
-      `URGENT PATH` item, each with its link;
-   2. `main`'s state: green, or red with the failing job and its link;
-   3. open questions for the owner, each with its facts, lettered options, your recommendation and
-      its PR or comment link, and proposed queue jumps with their reason (UR-104);
-   4. owner-tier PRs ready for the owner's approval, each with its link and its reviewer's verdict;
-   5. real-tier runs only the owner can make (UR-30), already vetted against
-      [`operator.md`](operator.md), and operator results waiting on the owner;
-   6. status rows owed, each with the PR that owes it;
-   7. stalled agents and heartbeats older than 20 minutes;
-   8. packages ready but unclaimed, with the agent whose queue holds each (UR-63); idle lanes, and
-      any that has work again (UR-64); parked claims (UR-67);
-   9. one closing line of counts: open programme PRs, and PRs merged since the newest owner ruling
-      pointer or owner record on #6854, auto-merged ones included.
+3. **Write its contents** with `uv run python scripts/uplevel/status_draft.py`, which renders
+   UR-166's nine parts in order from the snapshot; edit the judgement lines it leaves as `TODO`
+   (the questions' options and recommendation, the real-tier and status-rows rows, the queue
+   judgements) and post the result through step 2.
 4. **Drop what is settled.** An answered question leaves the comment; its answer lives in the
    ruling's PR. A decided ruling is never asked again (UR-25).
 
