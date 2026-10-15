@@ -103,6 +103,17 @@ EXIT_REFUSED = 2  # the preflight refused; the test deployment never started
 EXIT_CHANGED = 3  # the postflight found a pre-existing container or volume changed
 EXIT_UNAVAILABLE = 4  # the mode cannot run here (--real without agent-gpu)
 
+# The golden Playwright leg's deadline, ruling 189. Measured, not guessed: the slowest of the
+# last 10 GREEN `Feature check (fake AI)` runs on main took 1739 s from the leg's `$ docker run
+# … --project=golden` line to its `golden paths:` summary (job 116184218975 at c1b804a82; the
+# other nine 1492-1713 s). 1739 x 1.5 = 2608.5, rounded up to a minute = 2640. Across these 10
+# legs the old 1800 kept only 61-308 s of margin (the ruling's earlier window said 66-306), and
+# #7114 died at test #199 twice with exit 124. The OTHER three 1800 s timeouts are untouched and
+# are not this leg: the backend golden pytest leg, the frontend `npm ci`, and the Playwright image
+# pull (at ruling 189: 2169/2207/2261). This raises only the Playwright golden leg's ceiling.
+# test_feature_check.py pins this value as a literal; moving it reds that pin on purpose.
+GOLDEN_LEG_TIMEOUT_S = 2640
+
 # The harness smoke check: one scenario image in, one event out. Its scenario
 # has image bytes of its own: the backend deduplicates images by content for
 # 300 s across cameras, so a golden path dropping any other scenario image
@@ -2338,7 +2349,7 @@ class Run:
                     mounts=[self.dir],
                 ),
                 check=False,
-                timeout=1800,
+                timeout=GOLDEN_LEG_TIMEOUT_S,
                 env={**env, "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit)},
             )
             (self.artifacts / "golden-playwright.log").write_text(

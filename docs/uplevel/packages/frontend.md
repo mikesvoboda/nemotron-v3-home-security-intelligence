@@ -50,8 +50,11 @@ stopped and started on a running stack.
     the test deployment's compose (rulings 127, 144).
   - **Seeded on CI:** a golden project with `DEBUG=true`, which covers the debug-gated rows and the
     request recorder; a fault seed behind the debug guard that trips a breaker and a threshold; a
-    fixture that plants an orphan file; and a writable `runtime.env` in the CI compose. Ops-b owns
-    the compose and harness changes; the lane that owns each row writes its spec (ruling 127).
+    fixture that plants an orphan file; a writable `runtime.env` in the CI compose; and, after the
+    OP-1 rows flip, a small volume filled past 90 % at the parent of `VIDEO_THUMBNAILS_DIR` for
+    F-012. heavy-a builds the compose and harness changes (heavy-b's work while it is out of
+    service) and ops-b reviews them, as a CI job separate from `Feature check (fake AI)`; the lane
+    that owns each row writes its spec (rulings 127, 187, 190, 192).
 - [ ] Which runs count as a witness for a row: rules.md §Test tiers and the real tier.
 
 **Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents, and ruling
@@ -81,6 +84,11 @@ stopped and started on a running stack.
   cannot pass demotes its row as above, for `R2b`.
 - **Operator:** records real-tier dates per batch as batches merge, under `O2.2`'s `--real` (the
   real VLM, a fake detector; owner ruling 66).
+- **The last idle rows** (ruling 191): docs flips F-256, then writes the specs for F-254 and F-278
+  (F-278 follows UR-153 if the fake stack cannot seed a face embedding); frontend writes FE-3's six
+  unwritten rows (F-045, F-052–F-054, F-059, F-064) after its `[r134]` PR #7145. Ruling 192 adds
+  two rows whose legs skip on CI: frontend fixes F-028's leg 2 with F-007's offline-then-reload
+  approach, and docs makes F-234's notification grant take effect or returns the row to the owner.
 
 **Done when:** no row says **unverified**; every **works** row cites a green golden path and a
 real-tier date; the `R2` sheet is final.
@@ -104,7 +112,7 @@ same way after the owner's `R2b` session.
   priority columns for the 41 rows, returns ruling 127's 22 rows to **unverified** with their
   reachability notes, sets `R2b` to `in progress` in the README status table, and carries no code
   change.
-- **Ruling 182's record** (record `6174228588`, BINDING NOW 17:24Z): #7131 (open) writes that
+- **Ruling 182's record** (record `6174228588`, BINDING NOW 17:24Z): #7131 (merged) writes that
   record's seven rows into the ruling and priority columns. It moves no status, so §2 is not in its
   diff and it merges in any order with the three PRs that rewrite the `**all**` line.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
@@ -130,7 +138,8 @@ Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrich
   - **F-023, the in-page PWA install prompt** (ruling 133): delete
     `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s engagement gates, its
     7-day dismissal store and its tests, including `frontend/tests/golden/shell/pwa-install.spec.ts`.
-    `frontend/public/manifest.json`, `/sw.js` and their registration stay.
+    `frontend/public/manifest.json` and its registration stay, and so does `/sw.js` — which is
+    never a tracked file: `frontend/vite.config.ts:59`'s `VitePWA(...)` generates it at build.
   - **F-135, batch statistics** (ruling 134): the active-batches view stays; the closure-reason
     chart, the per-camera table and the completed-batch timeline go, in
     `frontend/src/components/batch/BatchStatisticsDashboard.tsx` and any hook or type only those
@@ -414,21 +423,47 @@ PR (UR-48).
 
 ### [r133] F-023: retire the in-page PWA install prompt
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 133, 150)
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7139 (merged).
+(rulings 133, 150)
 
-- [ ] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
+- [x] Delete `frontend/src/components/pwa/InstallPrompt.tsx`, its 2-visit and 30 s gates, its 7-day
       dismissal store and its tests, `frontend/tests/golden/shell/pwa-install.spec.ts` included.
-- [ ] Keep `frontend/public/manifest.json`, `/sw.js` and their registration.
+      Witness: merge `1e1c241ed` lands five deletions — `InstallPrompt.tsx` (the component holds the
+      gates and the dismissal store), `InstallPrompt.test.tsx`, `pwa/index.ts`, `pwa/AGENTS.md`,
+      `tests/golden/shell/pwa-install.spec.ts`. `git grep InstallPrompt -- frontend` at that tip
+      returns 3 hits (unscoped it returns 6: three more are this file's own prose),
+      all inside the retired-path guard `src/__tests__/pwa-install-prompt-retired.test.tsx`, which
+      asserts the file is gone (`:115`) rather than importing it.
+- [x] Keep `frontend/public/manifest.json`, `/sw.js` and their registration. One deviation from the
+      box's literal text, recorded: `/sw.js` is not a tracked file — `vite.config.ts:59`'s
+      `VitePWA(...)` generates it at build — so the kept leg is the manifest (still tracked) plus the
+      generated-SW pipeline, which `tests/golden/shell/offline-cache.spec.ts:173` pins — the served
+      `/sw.js` by token (NetworkFirst, `cacheName:"api-cache"`, `skipWaiting`, the index fallback) and
+      the precached `index.html` byte-wise (its revision is the served bytes' md5) — and `main.tsx:42`
+      still registers.
 
 **Done when:** nothing imports `InstallPrompt`, and the golden project and unit tests are green.
 
 ### [r134] F-135: retire the batch-history views
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** none yet. (rulings 134, 150)
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7145 (open).
+(rulings 134, 150)
 
-- [ ] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
+- [x] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
       `frontend/src/components/batch/BatchStatisticsDashboard.tsx`, and any hook or type only they
-      use. The active-batches view stays.
+      use. The active-batches view stays. Witness: #7145's first commit deletes both component files
+      and narrows the hook's three aggregates (a branch SHA is no witness here — every rebase of this
+      branch rewrote it twice); the "completed-batch timeline" leg is a measurement, not
+      a deletion — `BatchTimelineChart` takes `activeBatches` alone, so nothing ever rendered
+      completed batches as a timeline, and the guard's leg B records that. Guard
+      `frontend/src/__tests__/batch-history-views-retired.test.tsx` was proven RED with the render
+      armed, then green; leg C pins the kept view. The package's `Done when` is met: the row's action
+      cell reads the required text verbatim, its golden spec passed first-attempt in CI (run
+      `38725128069` attempt 2, `operations/batch-statistics.spec.ts:150` — the declaration's line in
+      the tree that run stamped AND in this head, so the cite holds on both sides of the later
+      rebase, with no failed-attempt child in its JUnit), and both retired component files are absent
+      with the guard pinning it. The row sits at `awaiting real tier`, not `works`: a fake-tier green
+      is the lane's ceiling (rulings 103, 148) and `F2.3` owns the real-tier flip.
 
 **Done when:** F-135's row reads "expands the section; sees active batches", its golden path covers
 that, and nothing renders the three history views.
@@ -446,7 +481,7 @@ its head.
 ### [r165a] F-007: cure the quarantined ws-status spec
 
 **Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none. **PR:** #7123
-(open). (rulings 123, 125, 165)
+(merged). (rulings 123, 125, 165)
 
 - [x] First commit: the ruling-125 mark's expiry in `frontend/tests/golden/shell/ws-status.spec.ts`
       reads 2026-10-16T00:00Z. Witness: `6f1066eba` adds the stamp beside the mark.

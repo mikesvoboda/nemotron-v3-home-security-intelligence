@@ -319,8 +319,8 @@ start_gateway() {
   OWN_CTR=1
   # UR-134 is unconditional: a test deployment ALWAYS runs with
   # ORCHESTRATOR_ENABLED=false. Nothing in this image reads it today -- the
-  # gateway image COPYs only ai/gateway and ai/triton (ai/gateway/Dockerfile:38
-  # -55), and the flag's sole reader is backend/core/config.py -- so omitting it
+  # gateway image COPYs only ai/gateway and ai/triton (the two COPY lines that
+  # name them in ai/gateway/Dockerfile), and the flag's sole reader is backend/core/config.py -- so omitting it
   # was inert, not unsafe. It is set anyway: the rule is not conditional on the
   # image happening to lack the code, and a container that later gains the
   # backend must not inherit an orchestrator-enabled default from this script.

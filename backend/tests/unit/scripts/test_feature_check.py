@@ -1715,7 +1715,40 @@ def test_the_leg_runs_in_the_image_with_the_same_argv_inside(
     assert inner.startswith("npx --no-install playwright test --project=golden "), inner
     assert "--reporter=list,junit" in inner, "the same reporters, so the same counts"
     assert f"{run.artifacts / 'golden-playwright'}" in inner, "the same --output path, both sides"
-    assert kwargs["timeout"] == 1800, "a golden suite is minutes, not the 300 s default"
+    # A literal, not fc.GOLDEN_LEG_TIMEOUT_S — a re-read would agree with whatever the constant
+    # says (this file's own rule above: "not fc.playwright_image(...) re-evaluated"). The value
+    # is ruling 189's measurement: the slowest of the last 10 green golden legs on main was
+    # 1739 s (job 116184218975 at c1b804a82), x 1.5 rounded up to a minute = 2640. A later edit
+    # of the constant reds this line — that is the point — and its author brings new numbers here.
+    assert kwargs["timeout"] == 2640, "a golden suite is minutes; 2640 = measured 1739 s x 1.5"
+
+
+def test_the_feature_check_job_budget_covers_the_new_cap_with_10_minutes_of_margin() -> None:
+    """Ruling 189's second clause: the job's timeout-minutes rises when boot + the backend leg +
+    the new cap would leave it under 10 minutes.
+
+    Measured on the same 10 green runs as the leg pin, on the job's own clock (the Actions
+    `started_at`/`completed_at` bounds are what `timeout-minutes` counts): worst boot+backend
+    BEFORE the golden leg was 562 s (job 116184218975), worst teardown after it 31 s. Conservative
+    sum with the new cap: 562 + 2640 + 31 = 3233 s = 53.9 min, which under the old 60 min leaves
+    6.1 min — below the ruling's floor. 64 min restores it: 3840 - 3233 = 607 s >= 600. Pinned
+    against the workflow file itself, so an edit to either side (the cap, or the budget) reds a
+    test that says why.
+    """
+    yaml = pytest.importorskip("yaml")
+    ci = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    job = ci["jobs"]["feature-check"]
+    assert job["name"] == "Feature check (fake AI)", "the job this package budgets is this job"
+    minutes = job["timeout-minutes"]
+    # ruling 189's measurement, same 10 runs, on the job's started_at/completed_at clock
+    boot_backend_worst_s, teardown_worst_s = 562, 31
+    margin_s = minutes * 60 - (boot_backend_worst_s + fc.GOLDEN_LEG_TIMEOUT_S + teardown_worst_s)
+    assert margin_s >= 600, (
+        f"ruling 189: boot + backend + cap must leave the job >= 10 min; "
+        f"timeout-minutes: {minutes} leaves {margin_s} s"
+    )
 
 
 def test_the_container_gets_environment_names_never_values(

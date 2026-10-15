@@ -169,9 +169,10 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes.** `feature_check.py --real --prod-shape` (the flag's name is the package's
       call) brings up that stack and runs the golden suite against it, using the Playwright
-      container from ruling 143. The owner runs it on maui, on demand, from a command ops-a posts
-      on #7037, on a test deployment (UR-133). The operator's sandbox has no copy-on-write storage,
-      so it runs there only once a sandbox has some (ruling 185, amending ruling 162).
+      container from ruling 143, on a test deployment (UR-133). The operator runs it in its own
+      sandbox once rootless Podman's store on the sandbox's `/var/lib/docker` filesystem gives the
+      `overlay` driver and 40 GB free; until then the owner runs it on maui from the command ops-a
+      posts on #7037 (rulings 185, 188; ruling 162 placed it in the operator's sandbox).
 - [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
       and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
       record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
@@ -186,7 +187,8 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
-deployment and the owner's maui run witnesses ruling 127's 12 rows (ruling 185); on no, the owner has ruled on the
+deployment and its run (the operator's, or the owner's on maui) witnesses ruling 127's 12 rows
+(rulings 185, 188); on no, the owner has ruled on the
 blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
 (#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
 deployment, in a comment on each PR (ruling 154).
@@ -440,8 +442,14 @@ Triton, so CI never checks the model half.
       its wall time and `nvidia-smi` compute apps into the run directory. The owner's 10-14 run
       lost stage 3 when the FP16 build hit 600 s; the same build took 137.7 s on 10-13. The owner
       reruns with `--plan-timeout 1800` (ruling 180).
+- [ ] An agent-gpu venue for the runner, so the operator runs it (UR-15): `agent-gpu build` for the
+      gateway image; `agent-gpu job` for the export, the `trtexec` compiles and the stage-3/4 probe,
+      in an image whose Python imports a `tensorrt` matching the plans' builder; `agent-gpu run`
+      for the Triton leg; inputs from the operator's `$AGENT_GPU_DIR/models/`, results in `out/`.
+      The owner copies the checkpoint and crops there once; the crops never leave it. Until this
+      works, the owner's maui runs stay valid (ruling 188).
 
-**Done when:** the owner's one diagnostic run on maui is posted on this PR, and O2.4's command
+**Done when:** a diagnostic run (the operator's, or the owner's on maui) is posted on this PR, and O2.4's command
 (#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
 is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
 
@@ -459,6 +467,23 @@ merged. **PR:** #7114 (open). (rulings 162, 186)
 **Done when:** a production config rendered with the orchestrator off gives `backend` no engine
 socket, one with it on mounts it as before, `alloy`'s mount is unchanged in both, and `O2.5`'s
 override drift test still passes.
+
+### [r189] The golden Playwright leg's cap follows its measured time
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, first on its queue; ops-b reviews. **Depends on:**
+none. **PR:** #7169. (ruling 189)
+
+- [x] The golden Playwright leg's `timeout=1800` (`scripts/feature_check.py:2341` at ruling 189)
+      becomes the slowest golden-leg wall time on the last 10 green `Feature check (fake AI)` runs on
+      `main`, plus at least 50%, rounded up to a minute; the PR body lists the 10 times. #7114 died
+      at test #199 twice with exit 124, and green legs kept only 66-306 s of margin.
+- [x] The job's `timeout-minutes: 60` (`.github/workflows/ci.yml:3596` at ruling 189) rises if boot,
+      the backend leg and the new cap would leave it under 10 minutes of margin.
+- [x] A test pins the value, so a later change comes with its own measured note. The image pull and
+      build timeouts, the seeded job's budget (ruling 187) and per-test timeouts are unchanged.
+
+**Done when:** the new cap is on `main` with its measurement, and #7114's golden leg completes under
+it.
 
 ### [r164a] The coordinator's paperwork moves into scripts
 
@@ -488,9 +513,9 @@ output with its status comment drafted by `status_draft.py`.
 ### [r181] The lane-tick digest and the signed-activity snapshot
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after its `F2.3` OP-3 rows and before `[r172]`;
-ops-a reviews. **Depends on:** none. **PR:** none yet. (ruling 181)
+ops-a reviews. **Depends on:** none. **PR:** #7164 (open). (ruling 181)
 
-- [ ] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
+- [x] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
       agent's heartbeat id and age, the coordinator's heartbeat age (UR-162), and disk use of `/`
       and `/var/lib/docker` with a pointer to UR-180 above 90%; the live `BINDING NOW` records the
       ruling map does not yet carry (ruling 177's filter); PRs labelled `review:<lane>` with head,
@@ -499,10 +524,10 @@ ops-a reviews. **Depends on:** none. **PR:** none yet. (ruling 181)
       `CI Gate` at head (in-flight jobs read from the run's jobs), and comments and reviews since
       its heartbeat; and the next claimable roster package (UR-52) when it holds no open claim. A
       failed `gh` or `git` call prints `ERROR <section>`, never an empty section.
-- [ ] `coordinator_snapshot.py`'s heartbeats section prints, beside each non-paused agent's age, its
+- [x] `coordinator_snapshot.py`'s heartbeats section prints, beside each non-paused agent's age, its
       latest signed comment and its latest commit on its open PR branches since its heartbeat
       (ruling 178's signature rule), and any `BLOCKER:` line.
-- [ ] Red-first unit tests for both, with `gh` stubbed; `roles/lane.md` and `roles/operator.md`
+- [x] Red-first unit tests for both, with `gh` stubbed; `roles/lane.md` and `roles/operator.md`
       "The tick" and `roles/coordinator.md` step 5 point at them in the same PR.
 
 **Done when:** a lane tick reads through `lane_tick.py` alone, the snapshot shows each agent's

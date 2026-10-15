@@ -26,6 +26,7 @@ NOT copied.
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -756,6 +757,81 @@ def test_port_doc_family_states_the_landed_bind_by_claim(doc: str) -> None:
                 f"{doc} still {description} — O1.6 landed the loopback default, "
                 f"so this is false operator advice. Matched: {match.group(0)!r}"
             )
+
+
+#: The four copies of the compose-argv probe: three test modules plus the
+#: conftest that warms the binary they all select. A probe drift is invisible
+#: to every other test here -- the warm-up would silently warm one binary while
+#: the tests spawned another -- so the copies are pinned equal, not just similar.
+_PROBE_SITES = {
+    "backend/tests/unit/core/test_frontend_expose_lan_bind.py": "_compose_argv",
+    "backend/tests/unit/core/test_compose_render_lists_ai_vlm.py": "_compose_argv",
+    "backend/tests/unit/core/test_monitoring_expose_lan_credentials.py": "_compose_argv",
+    "backend/tests/unit/core/conftest.py": "_compose_argv_probe",
+}
+
+
+def _normalized_probe(path: str, func_name: str) -> str:
+    """AST dump of one probe function, name and docstring stripped.
+
+    Parsing rather than importing: a conftest is not importable as a plain
+    module from here, and an import would also execute it. Two things are
+    normalized away because they cannot change what a probe decides: the line
+    attributes (``include_attributes=False``, so formatting and position are
+    out) and the two fields below. Everything that does decide -- the
+    ``shutil.which`` order, the candidate strings, the signature, any decorator
+    -- stays in the compared bytes.
+
+    The local name is stripped because the conftest's copy is deliberately
+    ``_compose_argv_probe``: conftest module-level names land in a plugin
+    namespace and reusing ``_compose_argv`` there invites confusion with the
+    test modules' own. The docstring is stripped because prose is expected to
+    differ (only one copy can carry the full reason).
+    """
+    tree = ast.parse((REPO_ROOT / path).read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == func_name:
+            if (
+                node.body
+                and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+                and isinstance(node.body[0].value.value, str)
+            ):
+                node.body.pop(0)
+            node.name = "_probe"
+            return ast.dump(node, include_attributes=False)
+    raise AssertionError(f"{path} no longer defines {func_name}()")
+
+
+def test_the_compose_probes_have_not_drifted_apart() -> None:
+    """All four probe copies must be the same function.
+
+    The warm-up only helps if it warms the binary the tests spawn. Copying the
+    probe was the right call over importing it across module boundaries (a test
+    module is not importable from a conftest at hook time), but four hand-kept
+    copies are exactly the shape that drifts -- so the copy is allowed only
+    while it stays byte-equivalent in behaviour.
+    """
+    dumps = {site: _normalized_probe(site, name) for site, name in _PROBE_SITES.items()}
+    unique = set(dumps.values())
+    assert len(unique) == 1, "compose-argv probes drifted: " + "; ".join(
+        f"{site}" for site, dump in dumps.items() if dump != next(iter(unique))
+    )
+
+
+def test_the_warmup_probe_picks_the_tests_binary(compose_warmup: list[str] | None) -> None:
+    """The conftest hook must have run, and warmed THIS machine's compose.
+
+    ``compose_warmup`` reports what ``pytest_configure`` actually executed, so
+    this is the pin's execution-site check: a conftest whose hook never fires
+    (renamed, moved out of the collected tree, or raised) reports ``None``
+    while this module's own probe finds a binary -- the exact silent failure
+    that would let the cold-boot breach come back unnoticed.
+    """
+    assert compose_warmup == _compose_argv(), (
+        f"the session warmed {compose_warmup!r} but these tests would spawn "
+        f"{_compose_argv()!r} -- the render tests would pay the cold boot again"
+    )
 
 
 def test_shipped_field_descriptions_do_not_defer_o16() -> None:

@@ -341,6 +341,7 @@ jobs:
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py
           scripts/test_coordinator_snapshot.py
+          scripts/test_lane_tick.py
           scripts/test_prodshape_override.py
           scripts/test_orchestrator_engine_socket.py
           -q
@@ -1381,7 +1382,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints" \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints or test_batch_aggregator_status_live" \
             -n0 \
             --timeout=30 \
             --cov=backend \
@@ -3653,7 +3654,15 @@ jobs:
   feature-check:
     name: Feature check (fake AI)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # ruling 189: 60 -> 64. With the leg's cap at GOLDEN_LEG_TIMEOUT_S=2640 (measured 1739 s x 1.5,
+    # see feature_check.py's GOLDEN_LEG_TIMEOUT_S), the same 10 green runs on the job's own Actions
+    # clock put worst boot+backend at 562 s and worst teardown at 31 s: 562+2640+31 = 3233 s =
+    # 53.9 min, which under 60 min left 6.1 min — under the ruling's 10-minute floor. 64 min =
+    # 3840 s restores 607 s. The margin is pinned in
+    # backend/tests/unit/scripts/test_feature_check.py against this file.
+    # ops-b's review reads this job as shared, where UR-121 would otherwise bar a changed flag;
+    # UR-122 licenses the edit because ruling 189 orders it.
+    timeout-minutes: 64
     needs: detect-changes
     # O2.2's filter, expressed through detect-changes: a change that touches
     # only Markdown cannot break a golden path, so `feature` (below) is the

@@ -156,7 +156,9 @@ dev = [
     # True with a warning, which is exactly how O2.4 shipped a cosine-0.23 model
     # past a reported PASS. These are the CPU wheels (no GPU provider), so the test
     # runs on ubuntu-latest with no CUDA. The gateway image ships the same three
-    # (ai/gateway/Dockerfile:30-32); onnxruntime here is CPUExecutionProvider only,
+    # (ai/gateway/Dockerfile:39-41, `onnx`/`onnxscript`/`onnxruntime-gpu` — names
+    # given so a future edit to that block cannot silently stale this cite);
+    # onnxruntime here is CPUExecutionProvider only,
     # matching the face extra's deliberate no-GPU-provider rule.
     "onnx>=1.17",
     "onnxscript>=0.7.0",

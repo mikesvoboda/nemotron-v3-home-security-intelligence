@@ -60,7 +60,7 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-b`. **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b`, none while heavy-b is out of service (ruling 190). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
 
@@ -232,14 +232,14 @@ already scoped is left alone; and the docs line is updated (ruling 94).
 ### [r95] Close both monitoring-key gaps (S1, S4)
 
 **Flags:** owner tier (security and auth), pre-approved by ruling 95 (UR-101); ops-b reviews.
-**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** none yet.
+**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** #7135 (open).
 
-- [ ] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
+- [x] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
       `verify_api_key` copies (`backend/api/routes/dlq.py`, `backend/api/routes/system.py`;
       including `POST /api/dlq/requeue/{q}`, `POST /api/dlq/requeue-all/{q}`, `DELETE /api/dlq/{q}`
       and `PATCH /api/system/config…`) accept a key that holds only the `monitoring` scope. The
       legacy copies refuse scoped entries, so scope has one rule.
-- [ ] **S4:** the `monitoring` scope admits `GET /api/events`, which serves sparse fieldsets
+- [x] **S4:** the `monitoring` scope admits `GET /api/events`, which serves sparse fieldsets
       including `reasoning`, and `include_deleted`. Enumerate what each monitoring consumer
       (Prometheus, json-exporter, Grafana, the frontend machine listener) actually calls, record
       that list in the PR, and narrow the scope to exactly it. If a consumer needs `/api/events`,

@@ -15,7 +15,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import ORJSONResponse, StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm.exc import StaleDataError
@@ -26,6 +26,7 @@ from backend.api.dependencies import (
     get_event_or_404,
     get_nemotron_analyzer_dep,
 )
+from backend.api.middleware.auth import scoped_key_ceiling
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.pagination import (
     CursorData,
@@ -309,6 +310,7 @@ async def list_events(
         description="Include soft-deleted events in results. Default is False to hide deleted events.",
     ),
     db: AsyncSession = Depends(get_read_db),
+    key_ceiling: bool = Depends(scoped_key_ceiling),
 ) -> EventListResponse:
     """List events with optional filtering and cursor-based pagination.
 
@@ -405,7 +407,16 @@ async def list_events(
     query = select(Event).options(joinedload(Event.camera), undefer(Event.reasoning))
 
     # Filter out soft-deleted events by default (consistent with get_event_or_404)
-    # Use include_deleted=true to include soft-deleted events in results
+    # Use include_deleted=true to include soft-deleted events in results.
+    # [r95] S4: a scoped key's request does not get the widening. The scope
+    # predicate cannot express it -- `_key_admits` is `call in scope` over
+    # (method, path) and query strings never participate (test_query_strings_
+    # do_not_escape_the_scope), so ("GET", "/api/events") admits
+    # ?include_deleted=true as readily as the panel's own query. Deliberately a
+    # forced-off rather than a 400: "admit only the fields it reads" narrows a
+    # grant, it does not add a failure mode to a path Grafana refreshes.
+    if key_ceiling is True:
+        include_deleted = False
     if not include_deleted:
         query = query.where(Event.deleted_at.is_(None))
 
@@ -506,7 +517,17 @@ async def list_events(
             "risk_score": event.risk_score,
             "risk_level": event.risk_level,
             "summary": event.summary,
-            "reasoning": event.reasoning,
+            # [r95] S4: the monitoring grant is a FIELD ceiling, so this is the
+            # one place a scoped caller's value can be stopped -- and it has to
+            # be stopped as a VALUE. Omitting the key is not a remedy: the dict
+            # is re-validated against EventResponse, whose `reasoning` defaults
+            # to None, so an omitted key still reaches the wire as
+            # "reasoning": null (measured at this head; the identical
+            # absence-is-not-a-witness trap the `notes` block below records for
+            # F-057, read in the other direction). `?fields=reasoning` cannot
+            # be a door back around it either, because filter_fields only ever
+            # SUBSETS what is written here.
+            "reasoning": None if key_ceiling is True else event.reasoning,
             "reviewed": event.reviewed,
             # F-057: this key must be WRITTEN, not merely declared. The dict is
             # re-validated against EventResponse, whose `notes` defaults to None
@@ -525,7 +546,17 @@ async def list_events(
             "thumbnail_url": thumbnail_url,
             # P0.4: None for legacy events; dropped from the payload by the
             # schema's exclude_if (spec §4: legacy carries NO verification key)
-            "verification": verification_payload(event),
+            # [r95] S4: a scoped key gets that same None. `verification` is not
+            # a bookkeeping field -- it renders the verifier VLM's own prose
+            # (`scene_description`, and each criterion's `evidence`;
+            # schemas/event_verification.py:51,:34, written from
+            # services/vlm_analyzer.py:695), which is the class of text S4's
+            # "no reasoning" names, and 0 hits for `verification` anywhere
+            # under monitoring/ means no scoped consumer reads it. The clamp
+            # drops rather than nulls, which is safe here precisely because the
+            # schema already strips a None (the line above), so the response is
+            # the legacy shape rather than a half-built object.
+            "verification": None if key_ceiling is True else verification_payload(event),
             # ISS-001: the persisted notify decision. None (no row) is dropped
             # below by the EventListResponse revalidation: the dict is
             # re-validated against EventResponse, whose exclude_if strips the
@@ -619,8 +650,12 @@ async def get_event_stats(
     # This ensures date-only filters like "2026-01-15" include all events from that day
     normalized_end_date = normalize_end_date_to_end_of_day(end_date)
 
-    # Build filter conditions (reused across queries)
-    filters = []
+    # Build filter conditions (reused across queries). The annotation is not
+    # decoration: seeding this list with `.is_(None)` infers the narrow
+    # BinaryExpression[bool], and the date/camera appends below return the wider
+    # ColumnElement[bool] -- without it mypy (which CI runs over backend/,
+    # ci.yml:692) rejects all three appends.
+    filters: list[ColumnElement[bool]] = [Event.deleted_at.is_(None)]  # Exclude soft-deleted events
     if start_date:
         filters.append(Event.started_at >= start_date)
     if normalized_end_date:

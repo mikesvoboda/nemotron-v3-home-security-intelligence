@@ -44,13 +44,14 @@ from collections.abc import Awaitable, Callable, Iterator
 from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlsplit
 
 import pytest
 import yaml
 from fastapi import HTTPException
+from pydantic import SecretStr
 from pydantic_settings import SettingsError
 from starlette.requests import HTTPConnection, Request
 from starlette.testclient import TestClient
@@ -63,6 +64,7 @@ from backend.api.middleware.auth import (
     _hash_key,
     _key_admits,
     _key_entry_for_digest,
+    _key_scope,
     require_api_key,
     validate_websocket_api_key,
 )
@@ -70,7 +72,7 @@ from backend.api.middleware.setup_guard import SetupGuardMiddleware
 from backend.api.routes import dlq as dlq_routes
 from backend.api.routes import system as system_routes
 from backend.core.config import ScopedApiKey, get_settings
-from backend.core.constants import MONITORING_SCOPE_PATHS
+from backend.core.constants import DLQ_DETECTION_QUEUE, MONITORING_SCOPE_PATHS
 from backend.services.session_service import SESSION_COOKIE_NAME
 from backend.tests.unit.api.middleware.test_auth import (
     _client,
@@ -741,14 +743,73 @@ class TestValidateWebsocketApiKey:
         assert await validate_websocket_api_key(_fake_ws(SCOPED_KEY)) is True
 
 
-class TestLegacyRouteCopies:
-    """routes/system.py + routes/dlq.py: TIMING FIX ONLY (amendment 2).
+# [r95] S1: the nine routes the two legacy copies guard, and the one scope rule.
+#
+# ``_entry_is_scoped`` is the predicate the fix must use — the middleware's own
+# ``_key_scope`` behind a boolean, so the copies and the gate cannot drift into a
+# third and fourth reading of "scoped". ``_routes_guarded_by`` resolves the guard
+# from the route table instead of trusting a hand-written list.
+_NINE_ROUTES: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("POST", "/api/dlq/requeue/{queue_name}"),
+        ("POST", "/api/dlq/requeue-all/{queue_name}"),
+        ("DELETE", "/api/dlq/{queue_name}"),
+        ("PATCH", "/api/system/config"),
+        ("PATCH", "/api/system/anomaly-config"),
+        ("POST", "/api/system/cleanup"),
+        ("POST", "/api/system/cleanup/orphaned-files"),
+        ("PUT", "/api/system/severity"),
+        ("POST", "/api/system/circuit-breakers/{name}/reset"),
+    }
+)
 
-    These copies stay unscoped by design — the gate is the outermost door —
-    and their flag-off early returns are untouched. Pinning THAT is what
-    stops a later "consistency" sweep from scoping them into a boot-order
-    dependency on constants.py, or from deleting a return three tests depend
-    on. (A mutation pin must patch THIS module's get_settings binding — the
+
+def _entry_is_scoped(entry: object) -> bool:
+    """True only for an entry carrying a real scope set (None → unscoped)."""
+    return _key_scope(entry) is not None
+
+
+def _route_labels(routes: set[tuple[str, str]]) -> list[str]:
+    """Readable parametrisation ids: ``POST /api/dlq/requeue/{queue_name}``.
+
+    A LIST, not a callable: with two ``argnames`` pytest hands an ids callable
+    each VALUE separately, so a callable here unpacks the string ``"POST"`` and
+    dies at collection.
+    """
+    return [f"{method} {path}" for method, path in sorted(routes)]
+
+
+def _routes_guarded_by(router, guard) -> set[tuple[str, str]]:
+    """Every (method, path) on ``router`` whose dependency graph resolves to ``guard``.
+
+    Both mounting styles are covered because ``FastAPI`` folds each into the
+    route's ``dependant``: the ``Depends(verify_api_key)`` parameter default the
+    dlq routes use, and the ``dependencies=[...]`` the system routes pass.
+    """
+    from fastapi.routing import APIRoute
+
+    found: set[tuple[str, str]] = set()
+
+    def uses(dependant) -> bool:
+        return any(sub.call is guard or uses(sub) for sub in dependant.dependencies)
+
+    for route in router.routes:
+        if isinstance(route, APIRoute) and uses(route.dependant):
+            found |= {(m, route.path) for m in route.methods}
+    return found
+
+
+class TestLegacyRouteCopies:
+    """routes/system.py + routes/dlq.py after [r95] S1 (supersedes amendment 2).
+
+    Amendment 2 held that these copies stay unscoped because the gate is the
+    outermost door; ruling 95 closes the gap that assumption opens when the gate
+    is off (EXPOSE_LAN=false is its pass-through), so a scoped entry now
+    contributes no digest here and a monitoring key is refused. What these legs
+    pin is the SHAPED fix, not a blanket refusal: the flag-off early returns stay
+    untouched, an unscoped (plain or MagicMock) key still authenticates, and the
+    nine routes carrying the two copies are a census resolved from the route
+    table. (A mutation pin must patch THIS module's get_settings binding — the
     from-import in the routes copied it at import time.)
     """
 
@@ -774,18 +835,223 @@ class TestLegacyRouteCopies:
             await dlq_routes.verify_api_key(x_api_key="bogus-key")  # pragma: allowlist secret
         assert excinfo.value.status_code == 401
 
-    @pytest.mark.asyncio
-    async def test_copies_stay_unscoped_by_amendment(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A ScopedApiKey with an EMPTY scope still passes these copies.
+    def test_exactly_nine_routes_carry_the_two_copies(self) -> None:
+        """The 9 is a measured census, so "all 9" in [r95]'s Done-when is checkable.
 
-        That is amendment 2, stated as a test: scope lives at the gate, not
-        in the route-local dependencies. (The gate refuses the same key on
-        the same route whenever EXPOSE_LAN=true — TestExhaustiveGateWalk —
-        so this is not an open door; it is the flag-independent layering.)
+        Ruling 95's S1 names nine routes. This walks the two live routers and
+        collects every (method, path) whose resolved guard IS one of these
+        modules' own ``verify_api_key`` — both mounting styles count: the dlq
+        routes take it as a parameter default, the system routes pass it in
+        ``dependencies=[...]``. A tenth guarded route added later lands here
+        red rather than slipping past a hardcoded count.
         """
-        on = SimpleNamespace(api_key_enabled=True, api_keys=[ScopedApiKey(SCOPED_KEY, frozenset())])
-        monkeypatch.setattr("backend.api.routes.system.get_settings", lambda: on)
-        assert await system_routes.verify_api_key(x_api_key=SCOPED_KEY) is None
+        guarded = _routes_guarded_by(dlq_routes.router, dlq_routes.verify_api_key)
+        guarded |= _routes_guarded_by(system_routes.router, system_routes.verify_api_key)
+        assert guarded == _NINE_ROUTES
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "module, guard",
+        [(dlq_routes, dlq_routes.verify_api_key), (system_routes, system_routes.verify_api_key)],
+        ids=["dlq", "system"],
+    )
+    async def test_a_monitoring_only_key_is_refused(
+        self, module, guard, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """[r95] S1: scope has ONE rule, so the route-local copies refuse it too.
+
+        The configuration is S1's own: ``API_KEY_ENABLED=true`` with the gate
+        inert (``EXPOSE_LAN=false`` is the middleware's pass-through, and this
+        dependency never consults it — that is the point). R60's amendment 2
+        left these copies unscoped because the gate is "the outermost door";
+        ruling 95 closes the gap that assumption opens exactly here, with the
+        gate off. A key scoped to ``MONITORING_SCOPE_PATHS`` is presented, and
+        none of those pairs is any of the 9 routes — the census test above
+        proves the disjointness, so this is not a key that merely happens to
+        lack a grant.
+        """
+        on = SimpleNamespace(
+            api_key_enabled=True,
+            api_keys=[ScopedApiKey(SCOPED_KEY, MONITORING_SCOPE_PATHS)],
+        )
+        monkeypatch.setattr(module, "get_settings", lambda: on)
+        # The premise, asserted rather than assumed: this entry IS scoped, and
+        # its scope admits none of the 9 routes. Without these two lines the
+        # refusal could pass for a key that merely lacks a grant.
+        assert _entry_is_scoped(on.api_keys[0]) is True
+        assert not (MONITORING_SCOPE_PATHS & _NINE_ROUTES)
+        with pytest.raises(HTTPException) as excinfo:
+            await guard(x_api_key=SCOPED_KEY)
+        assert excinfo.value.status_code == 401
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "module, guard",
+        [(dlq_routes, dlq_routes.verify_api_key), (system_routes, system_routes.verify_api_key)],
+        ids=["dlq", "system"],
+    )
+    async def test_an_unscoped_key_is_still_accepted(
+        self, module, guard, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """[r95] S1's other half: refusing scope must not refuse the operator.
+
+        The Done-when asks for BOTH clauses, because the obvious way to make
+        the first one pass is a guard that rejects everything.
+        """
+        on = SimpleNamespace(api_key_enabled=True, api_keys=[PLAIN_KEY])
+        monkeypatch.setattr(module, "get_settings", lambda: on)
+        assert await guard(x_api_key=PLAIN_KEY) is None
+
+    # --- over real HTTP, through the route table, not just the guards ---------
+    #
+    # The legs above compose: each copy refuses a scoped entry, and the census
+    # proves the 9 routes carry exactly those two copies. Composition is
+    # arithmetic, and arithmetic leaves the route itself unexamined — whether the
+    # raise survives the framework into a client-visible 401. These legs send
+    # real requests. The bare app IS S1's configuration: with ``EXPOSE_LAN=false``
+    # AuthMiddleware is a documented pass-through, so mounting it would test the
+    # gate rather than the two copies under test.
+    #
+    # Only the REFUSAL direction is sent over HTTP, on all 9, because a
+    # dependency's HTTPException is raised before the endpoint body runs — so
+    # nothing is mutated. The ACCEPT clause deliberately stays at guard level
+    # above: 8 of these 9 are cleanup and config endpoints, and a passing accept
+    # leg would run those bodies for real. The accept claim is therefore
+    # ``guard returns None`` AND ``the 9 carry these guards``, and this file does
+    # not claim a per-route HTTP accept witness.
+
+    _CONCRETE_PATH: ClassVar[dict[str, str]] = {
+        "{queue_name}": DLQ_DETECTION_QUEUE,  # a real DLQName value: an invalid
+        # one could 422 before the guard, and param-vs-dependency ordering is
+        # framework behaviour this test must not depend on.
+        "{name}": "vlm",
+    }
+
+    @staticmethod
+    def _guarded_app(monkeypatch: pytest.MonkeyPatch, api_keys: list[Any]) -> TestClient:
+        """The two REAL routers, every collaborator but the guard overridden.
+
+        Collaborators are collected by walking each route's ``dependant`` rather
+        than by a hand-written list, so a new ``get_something`` on a guarded route
+        cannot make this tier fail on a missing service and report a 500 where the
+        guard's 401 belongs. The guard itself is never overridden.
+
+        **Walk the routers, never ``app.routes``.** FastAPI 0.142 keeps
+        ``include_router`` lazy: ``app.routes`` yields ``_IncludedRouter``
+        objects (a private ``BaseRoute`` subclass carrying ``original_router``,
+        with NO ``.routes``), so ``isinstance(route, APIRoute)`` is false for
+        every one and a walk of the app collects ZERO — silently. Measured at
+        this head: 0 APIRoutes via ``app.routes``, 45 via each router's own
+        ``.routes`` (ops-b's #7135 finding, reproduced here with ``REDIS_URL``
+        pointed at a dead port: 3 failed, the three dlq legs). A zero-collecting
+        walk installs no overrides, so ``get_redis`` dials a real server and the
+        leg's answer depends on whether one happens to be listening — the exact
+        environment dependence ruling 60's witness must not have. Hence the
+        explicit floor below: a harness that collects nothing is a failure, not
+        a green.
+        """
+        from fastapi import FastAPI
+        from fastapi.routing import APIRoute
+
+        armed = SimpleNamespace(api_key_enabled=True, api_keys=api_keys)
+        # Each route module copied the get_settings BINDING at import; patching
+        # backend.core.config would leave both copies reading the old one.
+        monkeypatch.setattr(dlq_routes, "get_settings", lambda: armed)
+        monkeypatch.setattr(system_routes, "get_settings", lambda: armed)
+
+        app = FastAPI()
+        routers = (dlq_routes.router, system_routes.router)
+        for router in routers:
+            app.include_router(router)
+        guards = {dlq_routes.verify_api_key, system_routes.verify_api_key}
+
+        def collaborators(dependant):
+            for sub in dependant.dependencies:
+                if sub.call not in guards:
+                    yield sub.call
+                yield from collaborators(sub)
+
+        owners = {id(dlq_routes.router): "dlq", id(system_routes.router): "system"}
+        collected: dict[str, int] = {}
+        for router in routers:
+            label = owners[id(router)]
+            for route in router.routes:
+                if not isinstance(route, APIRoute):
+                    continue
+                collected[label] = collected.get(label, 0) + 1
+                for call in collaborators(route.dependant):
+                    app.dependency_overrides.setdefault(call, lambda: MagicMock())
+        # Non-vacuity, stated as a FLOOR rather than an inventory count: the
+        # count moves whenever either module gains a route, and a harness that
+        # fails on ordinary growth gets relaxed into nothing. What must never
+        # happen is a router contributing zero — that is the silent-zero shape
+        # this whole block exists to make loud. Measured: the ``app.routes``
+        # walk yields 0 for BOTH routers, and the failure names them.
+        assert all(collected.get(owners[id(r)], 0) > 0 for r in routers), (
+            f"route walk collected {collected}; every router must contribute "
+            "routes, or no collaborator is overridden and the legs answer from "
+            "the environment instead of from the guard"
+        )
+        # The dlq legs' own collaborator must be among the overridden calls —
+        # the one that reaches for Redis before the guard runs (dlq.py:249).
+        assert dlq_routes.get_redis in app.dependency_overrides, (
+            "get_redis was not overridden: the dlq legs would dial a real "
+            "Redis and answer from the environment, not from the guard"
+        )
+        return TestClient(app)
+
+    @pytest.mark.parametrize(
+        ("method", "path"),
+        sorted(_NINE_ROUTES),
+        ids=_route_labels(sorted(_NINE_ROUTES)),
+    )
+    def test_the_route_itself_answers_401_over_http(
+        self, method: str, path: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """[r95] S1's literal clause: the ROUTE refuses, not only the function.
+
+        Three assertions, each closing a different way this could pass empty:
+
+        1. no header → 401 with the "key required" detail — the route really is
+           guarded at HTTP level, so a 401 below cannot be a static rejection;
+        2. scoped key → 401 with the "Invalid API key" detail — naming the
+           detail distinguishes the digest-comparison branch from the missing-key
+           branch, so the refusal is the fix firing rather than a header accident;
+        3. the 401's body is the guard's own, proving the raise reached the client.
+        """
+        concrete = path
+        for token, value in self._CONCRETE_PATH.items():
+            concrete = concrete.replace(token, value)
+        client = self._guarded_app(monkeypatch, [ScopedApiKey(SCOPED_KEY, MONITORING_SCOPE_PATHS)])
+
+        missing = client.request(method, concrete, json={} if method in _BODY_METHODS else None)
+        assert missing.status_code == 401, (method, concrete, missing.status_code)
+        assert missing.json()["detail"].startswith("API key required"), missing.json()
+
+        refused = client.request(
+            method,
+            concrete,
+            headers={_KEY_HEADER: SCOPED_KEY},
+            json={} if method in _BODY_METHODS else None,
+        )
+        assert refused.status_code == 401, (method, concrete, refused.status_code)
+        assert refused.json()["detail"] == "Invalid API key", refused.json()
+
+    def test_a_mock_entry_stays_unscoped_after_the_fix(self) -> None:
+        """The fix must keep ruling 60's type gate, or ~40 fixtures break.
+
+        Amendment 2's real constraint was never "these copies ignore scope" —
+        it is that test mocks carry only ``api_keys``/``api_key_enabled``, and
+        a mock entry's ``scoped_paths`` is a ``MagicMock``, not a set. The
+        middleware already answers that with a type gate in ``_key_scope``;
+        this pins that the copies use the SAME rule, so a mock entry reads as
+        unscoped instead of tripping the new refusal.
+        """
+        mock_entry = MagicMock()
+        on = SimpleNamespace(api_key_enabled=True, api_keys=[mock_entry])
+        assert _entry_is_scoped(mock_entry) is False
+        assert _entry_is_scoped(ScopedApiKey(SCOPED_KEY, frozenset())) is True
+        assert _entry_is_scoped(SecretStr(PLAIN_KEY)) is False
 
 
 # =============================================================================

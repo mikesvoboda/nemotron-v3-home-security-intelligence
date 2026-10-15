@@ -20,11 +20,11 @@ fixes (`[r130b]`, `[r130f]`) keep their place. Ruling 184 gave the heavy agents 
 | `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                | none              |
 | `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                                                                             | `review:backend`  |
 | `uplevel-frontend`    | fast      | `[r165a]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3` | `review:frontend` |
-| `uplevel-ops-a`       | fast      | `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                                    | `review:ops-a`    |
+| `uplevel-ops-a`       | fast      | `[r189]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                          | `review:ops-a`    |
 | `uplevel-ops-b`       | fast      | `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger  | `review:ops-b`    |
 | `uplevel-docs`        | fast      | `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                          | `review:docs`     |
-| `uplevel-heavy-a`     | strongest | `F2.3` UI FE-4 (ruling 184); then assigned `heavy` PRs without `cell:heavy-b`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused between (ruling 88)                                          | none              |
-| `uplevel-heavy-b`     | strongest | `F2.3` UI OP-1's `unverified` rows (ruling 184); assigned `heavy` PRs labelled `cell:heavy-b`: `B2.3` once `O2.4` passes                                                                                        | none              |
+| `uplevel-heavy-a`     | strongest | heavy-b's queue (ruling 190): #7155, OP-1's seeded rows, F-012's disk seed (ruling 192), then `B2.3`; then `heavy` PRs without `cell:heavy-b`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions      | none              |
+| `uplevel-heavy-b`     | strongest | out of service (ruling 190); its queue is heavy-a's until the owner restarts it with a record                                                                                                                   | none              |
 | `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                          | none              |
 
 **Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. Each
@@ -48,35 +48,37 @@ the package cites. You have no review label.
 The owner arms it with `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
 Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
-1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
-   (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
-   Then read the live `BINDING NOW` records on #6854 that the plan files do not yet carry: run the
-   command below and read what it prints. A record whose ruling number or comment id has a row in
-   `history/ruling-map.md` on `main` is already in the plan files you just read. Act on each printed
-   record that names your lane or all agents and whose required state does not already hold; one
-   already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings
-   163, 170, 177). Never fetch the 48-hour window unfiltered.
+1. **Read the tick in one call.** Run
 
    ```bash
-   MAP=$(git show origin/main:docs/uplevel/history/ruling-map.md)
-   gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate \
-     --jq '.[] | select(.body | startswith("BINDING NOW")) | "\(.id)\t\(.body | split("\n")[0])"' |
-   while IFS=$'\t' read -r id first; do
-     n=$(grep -oE 'ruling [0-9]+' <<<"$first" | head -1 | grep -oE '[0-9]+')
-     if [ -n "$n" ] && grep -qE "^\| $n " <<<"$MAP"; then continue; fi
-     grep -qF "$id" <<<"$MAP" && continue
-     gh api "repos/<owner>/<repo>/issues/comments/$id" --jq .body; echo
-   done
+   uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox>
    ```
 
-2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below), and keep your disks under 90% (UR-180). Read the coordinator's; if it is older
-   than 20 minutes, follow "Stale coordinator" below.
+   (`scripts/uplevel/lane_tick.py`; `scripts/test_lane_tick.py` pins every line it prints.) It is
+   read-only: it does the `git fetch`, reads this file and `rules.md` from `origin/main` itself (so
+   a change to either needs no rebase), and prints, in tick order: your heartbeat id, age and prose;
+   the coordinator's age, with the UR-162 raise named when one is owed; disk use of `/` and
+   `/var/lib/docker`, pointing at UR-180's cleanup ORDER above 90% (never a routine full prune,
+   ruling 176); the live `BINDING NOW` records the ruling map does not yet carry (ruling 177's
+   filter, applied at the source -- the 48-hour window is never fetched unfiltered); the PRs
+   labelled `review:<lane>` and your own open PRs, each with head, merge state, `CI Gate` at that
+   head (re-read past 100 check runs; in-flight jobs named when it is still running), commits behind
+   `main`, and comments/reviews since your beat; and the next claimable roster package (UR-52). An
+   `ERROR <section>` line means that section was not read: read it yourself or say it is unread, and
+   never fill it from an earlier tick (UR-29). A `NOTE no package file for lane <lane>` is the
+   roster's answer for a lane with no package file (operator, heavy, coordinator), not a fault.
+   Then act on the printed `BINDING NOW` records that name your lane or all agents and whose state
+   does not already hold; one already carried out is a no-op (UR-40, rulings 163, 170, 177).
+
+2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, and
+   keep your disks under 90% (UR-180). Read the coordinator's age from the digest; if it is older
+   than 20 minutes with no live `URGENT PATH` on record, follow "Stale coordinator" below.
 3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
-   lane's PR" below). Heavy agents skip this step.
-4. **Your own open PRs** (UR-35): read the new comments and reviews on each
-   (`gh pr view <n> --comments`). Read CI at the head once, fix what is red, answer what is
-   requested, and rebase what conflicts with `main` (what a new head resets: UR-106). Before you
-   push to a PR on auto-merge, run `gh pr merge <n> --disable-auto` (UR-108).
+   lane's PR" below), reading each one's whole thread only now. Heavy agents skip this step.
+4. **Your own open PRs** (UR-35): read the full thread of a row the digest shows with new comments,
+   reviews or a `DIRTY`/red gate; fix what is red, answer what is requested, and rebase what
+   conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
+   run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. If none of these has work, say so in one line and end the turn.
 
