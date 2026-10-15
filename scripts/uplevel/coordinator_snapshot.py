@@ -91,7 +91,28 @@ RUN_ID = re.compile(r"/actions/runs/([0-9]+)(?:/|$)")
 CHECKOUT_MERGE = re.compile(r"HEAD is now at [0-9a-f]+ Merge ([0-9a-f]{40}) into ([0-9a-f]{40})")
 # The sed in UR-106's pipeline: `s/^@@ .* @@/@@/`. Byte-level, because sed and sha256sum are.
 HUNK_HEADER = re.compile(rb"^@@ .* @@", re.MULTILINE)
+# An owner hold in the owner's own voice: UR-45 reserves "RULING" for the owner and UR-40
+# reserves "BINDING NOW", so the bar keys on those first-line shapes plus the hold phrase and
+# the PR number -- never on the author, which is the same account for everything (memory
+# shared-token-pr-ownership-not-author). The coordinator's status comment is excluded upstream
+# by its marker, so its "#7106 merged" mention of an open PR cannot bar.
+OWNER_VOICE = re.compile(r"^(RULING|BINDING NOW)\b")
+OWNER_HOLD = re.compile(r"\bdo not merge\b", re.IGNORECASE)
+# A hold recorded in the PR body's Notes, the coordinator's own bookkeeping area: a
+# ``Notes: owner:`` line quotes an owner instruction into the PR (the same slot the
+# ``Notes: Auto-merge:`` marker occupies, ruling 156). A bare "do not merge" in prose is not
+# that shape; the prefix is what marks it as a recorded instruction, not discussion text.
+BODY_HOLD = re.compile(
+    r"^\s*[-*]?\s*Notes:\s*owner:.*\bdo not merge\b", re.IGNORECASE | re.MULTILINE
+)
+OWNER_PR_REF = re.compile(r"#([0-9]{3,6})\b")
 
+
+# The verdict-shape filter, shared by §3's review read and §8's so the two cannot drift on what
+# counts as a verdict thread.
+REVIEWS_JQ = (
+    '[.[] | select(.body | startswith("Review:")) | {id, created_at, user: .user.login, body}]'
+)
 
 CHECKOUT_JOBS_JQ = (
     '[.jobs[] | select(.conclusion == "success" and any(.steps[]?; .name | test("checkout"; "i")))'
@@ -273,6 +294,7 @@ class Snapshot:
         self._main()
         self._prs()
         self._heartbeats(heartbeat_comments)
+        self._merged_audit()
         return self.data
 
     # 1. cursor -------------------------------------------------------------------------------
@@ -368,6 +390,10 @@ class Snapshot:
     def _binding_now(self) -> None:
         section: dict[str, Any] = {"items": [], "errors": []}
         self.data["binding_now"] = section
+        # Owner records share this one read (the test pins the call set on #6854): the voice on
+        # the owner's own issue that is neither a heartbeat nor the coordinator's status comment.
+        records: dict[str, Any] = {"items": [], "errors": section["errors"]}
+        self.data["owner_records"] = records
         window_start = self.now - BINDING_LIFE
         try:
             comments = self.gh_paginated(
@@ -389,6 +415,20 @@ class Snapshot:
                         "first_line": truncate(line),
                     }
                 )
+            if created > window_start and not is_marker(undecorated(line)):
+                # UR-166's count window reads #6854's own voice -- UR-40 defines an *owner
+                # record* as a comment on that issue, with BINDING NOW a property of some of
+                # them -- minus the machine comments it also carries (the heartbeat row and the
+                # coordinator's status comment, both marker-prefixed).
+                records["items"].append(
+                    {"id": c.get("id"), "created_at": c["created_at"], "text": c.get("body") or ""}
+                )
+        if records["items"]:
+            # UR-166 part 9's window opens at the newest owner record; §8's window opens at the
+            # cursor. They are different numbers on purpose -- see status_draft's test.
+            newest = max(records["items"], key=lambda r: parse_time(r["created_at"]))
+            records["newest"] = newest["created_at"]
+            records["newest_id"] = newest["id"]
 
     # 5. main (read before the PRs: UR-102's third leg needs it) -----------------------------
 
@@ -460,9 +500,13 @@ class Snapshot:
     def _prs(self) -> None:
         section: dict[str, Any] = {"items": [], "errors": []}
         self.data["prs"] = section
+        # §7 keys off this even when the PR read fails outright: a section that cannot be
+        # computed prints as empty, it never takes the report down with it.
+        self.data["auto_merge_watch"] = {"disable": [], "ok": [], "unknown": []}
         cmd = [
             "gh", "pr", "list", "--repo", self.repo, "--state", "open", "--limit", "200",
-            "--json", "number,title,isDraft,labels,headRefOid,mergeStateStatus,statusCheckRollup",
+            "--json",
+            "number,title,isDraft,labels,headRefOid,mergeStateStatus,autoMergeRequest,statusCheckRollup",
         ]  # fmt: skip
         prs = None
         for attempt in range(2):  # the rollup query is heavy; GitHub sometimes answers 504 once
@@ -484,7 +528,26 @@ class Snapshot:
             except Exception as exc:  # reported, not fatal
                 section["errors"].append(f"git fetch PR heads: {error_text(exc)}")
         for pr in prs:
-            section["items"].append(self._pr_item(pr))
+            item = self._pr_item(pr)
+            section["items"].append(item)
+        self.data["auto_merge_watch"] = self._watch(section["items"])
+
+    def _watch(self, items: list[dict[str, Any]]) -> dict[str, list[int]]:
+        """UR-108's three-way sort of armed PRs. An unread carry is ``unknown``, never
+        ``disable``: the coordinator disables on evidence, and a failed read is not evidence
+        that the head is unapproved. The identity case (``carry: True`` with no reads) is ok."""
+        watch: dict[str, list[int]] = {"disable": [], "ok": [], "unknown": []}
+        for item in items:
+            if not item.get("armed"):
+                continue
+            carry = (item.get("own_diff") or {}).get("carry")
+            if carry is False:
+                watch["disable"].append(item["number"])
+            elif carry is None:
+                watch["unknown"].append(item["number"])
+            else:
+                watch["ok"].append(item["number"])
+        return watch
 
     def _rollup(self, pr: dict[str, Any], errors: list[str]) -> list[dict[str, Any]]:
         """The PR's check runs, re-read per-PR only when the batch is known-truncated.
@@ -521,6 +584,7 @@ class Snapshot:
             "merge_state": pr.get("mergeStateStatus"),
             "gate": gate_state(rollup),
             "gate_run": gate_run_id(rollup),
+            "armed": bool(pr.get("autoMergeRequest")),
             "errors": errors,
         }
         try:
@@ -540,12 +604,22 @@ class Snapshot:
             reviews = self.gh_paginated(
                 f"repos/{self.repo}/issues/{item['number']}/comments?per_page=100",
                 "--jq",
-                '[.[] | select(.body | startswith("Review:"))'
-                " | {id, created_at, user: .user.login, body}]",
+                REVIEWS_JQ,
             )
         except Exception as exc:  # reported, not fatal
             item["errors"].append(f"reviews: {error_text(exc)}")
             return
+        self.judge(item, reviews, judged_first=True)
+
+    def judge(
+        self, item: dict[str, Any], reviews: list[dict[str, Any]], judged_first: bool
+    ) -> None:
+        """The approval verdict and the UR-106 carry, for an open PR or a merged one.
+
+        One code path for both, so §3 and §8 cannot disagree about what an approval is worth: the
+        rev under judgment is an open PR's head or a merged PR's landed head, and everything
+        below reads the same way for each.
+        """
         reviews.sort(key=lambda r: r.get("created_at") or "")
         if reviews:
             item["latest_review"] = truncate(first_line(reviews[-1]["body"]), 60)
@@ -555,12 +629,260 @@ class Snapshot:
             return
         newest = approvals[-1]
         sha = approval_sha(newest["body"])
+        rev = item["head"]
+        matches = bool(sha) and rev.startswith(sha)
         item["approval"] = {
             "id": newest["id"],
             "by": newest.get("user"),
             "sha": sha,
-            "matches_head": bool(sha) and item["head"].startswith(sha),
+            "matches_head": matches,
         }
+        if matches:
+            # The approved rev *is* the rev under judgment: the carry is settled by identity and
+            # no diff is read. Hashing a rev against itself would report a carry for free -- the
+            # vacuity the merged path dodges by reaching for the merge commit's parents -- and
+            # the merged test that counts reads (one per rev of a *differing* approval) depends
+            # on an identity approval costing none.
+            item["own_diff"] = {"head": None, "approved": None, "carry": True, "reads": 0}
+        elif not sha:
+            item["own_diff"] = {
+                "head": None,
+                "approved": None,
+                "carry": None,
+                "reads": 0,
+                "error": "the approval names no sha",
+            }
+            item["verdict_reason"] = "the approval names no sha"
+        else:
+            self._own_diff(item, sha, judged_first)
+
+    def _own_diff(self, item: dict[str, Any], approved: str, judged_first: bool) -> None:
+        """UR-106's own-diff hashes, for an approval on a rev *other* than the one judged.
+
+        Each rev is hashed against *its own* merge-base, ``merge-base <root> <rev>`` per rev: a
+        base roll moves ``merge-base origin/main <head>``, and the rolled base is not an ancestor
+        of the old approved sha, so hashing both revs against today's merge-base reports
+        ``carry: no`` for a roll that carries. ``approved`` is the string the review names -- a
+        7-hex prefix in the wild -- handed to git verbatim, because git resolves an unambiguous
+        abbreviation itself and UR-106's prose pipeline never sees a full sha either.
+
+        Read order is §3's (judged rev first) and §8's (approved first) in one primitive, chosen
+        by ``judged_first``, so the two sections order their git calls as their tests pin them.
+        """
+        own: dict[str, Any] = {"head": None, "approved": None, "carry": None, "reads": 0}
+        item["own_diff"] = own
+        files = self._pr_files(item["number"], item["errors"])
+        if files is None:
+            own["error"] = "the PR's files are unread"
+            return
+        root = item.get("diff_root") or "origin/main"
+        if judged_first:
+            own["head"] = self._hash_own(item, root, item["head"], files, own)
+            own["approved"] = self._hash_own(item, root, approved, files, own)
+        else:
+            own["approved"] = self._hash_own(item, root, approved, files, own)
+            own["head"] = self._hash_own(item, root, item["head"], files, own)
+        if own["head"] is None or own["approved"] is None:
+            own["error"] = own.get("error") or "a rev needed for the carry is unhashed"
+            item["verdict_reason"] = own["error"]
+            return
+        own["carry"] = own["head"] == own["approved"]
+
+    def _hash_own(
+        self,
+        item: dict[str, Any],
+        root: str,
+        rev: str,
+        files: list[str],
+        own: dict[str, Any],
+    ) -> str | None:
+        """``sha256`` of the rev's own diff at its own merge-base, or None with an error named
+        ``own-diff`` -- a failed read must never read as a carry (UR-106, UR-154)."""
+        try:
+            base = self.git("merge-base", root, rev)
+            diff = self.run(["git", "diff", f"{base}..{rev}", "--", *files])
+        except Exception as exc:  # reported, not fatal; carry stays None
+            item["errors"].append(f"own-diff {rev[:9]}: {error_text(exc)}")
+            own["reads"] += 1
+            return None
+        own["reads"] += 1
+        return ur106_diff_hash(diff)
+
+    def _pr_files(self, number: int, errors: list[str]) -> list[str] | None:
+        """The PR's own paths, which bound the UR-106 diff to the PR: the full-tree diff would
+        fold in main's changes and the hash would move with every roll of main."""
+        cmd = [
+            "gh", "pr", "view", str(number), "--repo", self.repo, "--json", "files",
+        ]  # fmt: skip
+        try:
+            files = json.loads(self.run(cmd) or "{}").get("files") or []
+        except Exception as exc:  # reported into the caller's own error list
+            errors.append(f"own-diff files of #{number}: {error_text(exc)}")
+            return None
+        return [f["path"] for f in files if f.get("path")]
+
+    # 8. merged audit -------------------------------------------------------------------------
+
+    def _merged_audit(self) -> None:
+        """Every PR merged since the cursor, judged as UR-164 step 12 asks: did the head that
+        landed match what was approved, or is it a UR-106 carry of it, and does an owner record
+        bar it? The window is the CURSOR's; UR-166 part 9's count is a different window -- since
+        the newest owner record -- so both are computed from one scan here."""
+        section: dict[str, Any] = {
+            "items": [],
+            "errors": [],
+            "since": self.data["cursor"]["cursor"],
+            "scanned": 0,
+            "possibly_more": False,
+        }
+        self.data["merged_audit"] = section
+        window = self._merged_window(section)
+        since_owner = self.data["owner_records"].get("newest")
+        self.data["merged_window"] = {
+            "since": since_owner,
+            "count": (
+                sum(1 for r in window if parse_time(r["merged_at"]) > parse_time(since_owner))
+                if since_owner
+                else None
+            ),
+            "errors": [],
+        }
+        cursor = parse_time(section["since"])
+        holds = self._owner_holds()
+        for row in window:
+            if parse_time(row["merged_at"]) <= cursor:
+                continue  # outside the audit window: not one per-PR read
+            section["items"].append(self._merge_item(row, holds))
+
+    def _merged_window(self, section: dict[str, Any]) -> list[dict[str, Any]]:
+        """The merged PRs, newest-updated first. REST has no ``since`` for pulls, so this is a
+        client-side filter; ``sort=updated`` makes it sound to stop at the first row whose
+        ``updated_at`` predates the cursor, because a merge inside the window updated the PR."""
+        try:
+            rows = self.gh_paginated(
+                f"repos/{self.repo}/pulls?state=closed&sort=updated&direction=desc&per_page=100",
+                "--jq",
+                "[.[] | select(.merged_at != null) | "
+                "{number, title, merged_at, updated_at, merge_commit_sha, body,"
+                " user: .user.login}]",
+            )
+        except Exception as exc:  # reported, not fatal
+            section["errors"].append(f"merged list: {error_text(exc)}")
+            return []
+        section["scanned"] = len(rows)
+        cursor = parse_time(section["since"])
+        live = [r for r in rows if parse_time(r["merged_at"]) > cursor]
+        if len(rows) >= SCAN_PAGE and rows and parse_time(rows[-1]["updated_at"]) > cursor:
+            section["possibly_more"] = True
+        live.sort(key=lambda r: parse_time(r["merged_at"]))
+        self._merged_rows = live
+        return [r for r in rows if r.get("merged_at")]
+
+    def _owner_holds(self) -> list[tuple[int, str]]:
+        """``(pr number, first line)`` for each owner hold on #6854 -- the owner's voice only."""
+        holds: list[tuple[int, str]] = []
+        for rec in self.data["owner_records"]["items"]:
+            text = rec["text"]
+            line = first_line(text)
+            if not OWNER_VOICE.match(undecorated(line)) or not OWNER_HOLD.search(text):
+                continue
+            for number in OWNER_PR_REF.findall(text):
+                holds.append((int(number), truncate(line, 90)))
+        return holds
+
+    def _merge_item(self, row: dict[str, Any], holds: list[tuple[int, str]]) -> dict[str, Any]:
+        number = row["number"]
+        merge = row.get("merge_commit_sha") or ""
+        item: dict[str, Any] = {
+            "number": number,
+            "title": truncate(row.get("title") or "", 70),
+            "merged_at": row.get("merged_at"),
+            "merge": merge,
+            "errors": [],
+        }
+        barred = [h for h in holds if h[0] == number]
+        body = row.get("body") or ""
+        if not barred and BODY_HOLD.search(body):
+            # A hold recorded in the PR's own Notes (the lane quoting an owner instruction into
+            # the body, the ``Notes:`` slot ruling 156 uses) bars its own PR. It is checked in
+            # addition to the #6854 holds, not instead: the owner can hold a PR by ruling or in
+            # the body, and a merge audit that reads only one of the two misses the other.
+            held_line = next(ln for ln in body.splitlines() if BODY_HOLD.match(ln))
+            barred = [(number, truncate(held_line.strip(), 90))]
+        landed = None
+        reviews = self._merge_reviews(number)
+        approvals = (
+            []
+            if isinstance(reviews, Exception)
+            else [r for r in reviews if is_approval(first_line(r["body"]))]
+        )
+        if merge and not (isinstance(reviews, Exception) or not approvals):
+            # The parents only matter once something was approved: "no approving review" is the
+            # verdict the audit exists to print, and it needs no git read to say it.
+            try:
+                landed = self.git("rev-parse", f"{merge}^2")
+                item["landed"] = landed
+                item["main_at_merge"] = self.git("rev-parse", f"{merge}^1")
+            except Exception as exc:  # reported, not fatal
+                item["errors"].append(f"merge parents of {merge[:9]}: {error_text(exc)}")
+        if isinstance(reviews, Exception):
+            item["errors"].append(f"reviews: {error_text(reviews)}")
+            item["verdict"] = f"unknown: reviews unread ({error_text(reviews)})"
+        elif not approvals:
+            item["approval"] = None
+            item["verdict"] = "no approving review"
+        elif landed is None:
+            item["verdict"] = "unknown: the merge commit's landed head is unread"
+        else:
+            # The base root is main *at the merge*, not the live origin/main: a merged head is an
+            # ancestor of the merge commit, so merge-base origin/main <head> IS the head, the own
+            # diff is empty, and every carry check passes for free.
+            item["head"] = landed
+            item["diff_root"] = item.get("main_at_merge") or "origin/main"
+            self.judge(item, reviews, judged_first=False)
+            carry = (item.get("own_diff") or {}).get("carry")
+            named = (item.get("approval") or {}).get("sha") or ""
+            if carry is True:
+                # Two ways a merge holds: the approval names the landed head (identity -- no diff
+                # read, a 7-char prefix never startswith-matches a 40-char landed sha), or the
+                # landed head is a UR-106 carry of what was approved, which cost two reads.
+                item["verdict"] = "ok" if not item["own_diff"]["reads"] else "ok (UR-106 carry)"
+            elif carry is False:
+                item["verdict"] = (
+                    f"NOT APPROVED at the landed head `{landed[:9]}` (approved `{named[:9]}`)"
+                )
+            else:
+                item["verdict"] = f"unknown: {item.get('verdict_reason', 'carry unread')}"
+        item["carry"] = (item.get("own_diff") or {}).get("carry")
+        if barred:
+            item["barred_by"] = [h[1] for h in barred]
+            item["verdict"] = f"BARRED by owner: {barred[0][1]}"
+        item["merge_comment"] = self._merge_comment(item)
+        return item
+
+    def _merge_reviews(self, number: int) -> list[dict[str, Any]] | Exception:
+        try:
+            return self.gh_paginated(
+                f"repos/{self.repo}/issues/{number}/comments?per_page=100", "--jq", REVIEWS_JQ
+            )
+        except Exception as exc:  # the caller reports it as its own verdict gap
+            return exc
+
+    def _merge_comment(self, item: dict[str, Any]) -> str:
+        """The UR-29 merge comment pre-filled, with what this snapshot never read marked
+        ``unread`` rather than omitted (UR-154: a clean-looking comment that hides a gap is
+        worse than an untidy one)."""
+        number = item["number"]
+        lines = [
+            f"Merged #{number} {item['title']} at `{(item.get('merge') or '?')[:9]}`"
+            f" (landed head `{(item.get('landed') or '?')[:9]}`).",
+            f"verdict: {item['verdict']}",
+            "checks: unread (the snapshot ran after the merge; read the run before posting)",
+            "no owner ruling names this PR"
+            if not item.get("barred_by")
+            else "owner hold: " + "; ".join(item["barred_by"]),
+        ]
+        return "\n".join(lines)
 
     def run_base(self, run_id: int | None, head: str) -> str:
         """The `main` sha the gate's run merged the head into, read from a checkout job's log."""
@@ -688,6 +1010,10 @@ def _errors(name: str, section: dict[str, Any]) -> list[str]:
     return [f"  ERROR {name}: {e}" for e in section.get("errors", [])]
 
 
+def _hash_txt(h: str | None) -> str:
+    return h[:12] if h else "unread"
+
+
 def _run_text(run: dict[str, Any] | None) -> str:
     if not run:
         return "none"
@@ -745,11 +1071,22 @@ def render_text(data: dict[str, Any]) -> str:
                     line += f" approve={appr['sha'][:9]}({match}, {appr['id']})"
             elif "approval" in p:
                 line += " approve=none"
+            if p.get("armed"):
+                line += " armed"
         out.append(line)
         labels = ",".join(p["labels"]) or "-"
         out.append(f"      {p['title']} [{labels}]")
         if p.get("latest_review") and not is_approval(p["latest_review"]):
             out.append(f"      latest review: {p['latest_review']}")
+        own = p.get("own_diff")
+        if own:
+            head_h, appr_h = own.get("head"), own.get("approved")
+            carry = own.get("carry")
+            txt = {True: "yes", False: "no", None: "?"}[carry]
+            out.append(
+                f"      own-diff head={_hash_txt(head_h)} approved={_hash_txt(appr_h)}"
+                f" carry={txt}" + (f" ({own['error']})" if own.get("error") else "")
+            )
         out += [f"      ERROR prs: {e}" for e in p["errors"]]
     out += _errors("prs", prs)
 
@@ -800,6 +1137,31 @@ def render_text(data: dict[str, Any]) -> str:
         flag = f" [{', '.join(flags)}]" if flags else ""
         out.append(f"  {h['agent']} {h['updated_at']} age {h['age_min']}m id={h['id']}{flag}")
     out += _errors("heartbeats", hb)
+
+    watch = data["auto_merge_watch"]
+    out.append("== 7. auto-merge (UR-108)")
+    for key, label in (("disable", "auto-merge to disable"), ("ok", "ok"), ("unknown", "unknown")):
+        nums = ", ".join(f"#{n}" for n in watch[key]) or "none"
+        out.append(f"  {label}: {nums}")
+    out.append(
+        "  a UR-108 disable needs the owner's own ruling naming the PR; an unknown carry is "
+        "not evidence to disable -- read the diff, then act"
+    )
+
+    au = data["merged_audit"]
+    since = f"{au['since']} (read {au['scanned']} closed PRs)" + (
+        ", possibly more — the page filled before a pre-cursor update"
+        if au.get("possibly_more")
+        else ""
+    )
+    out.append(f"== 8. merged since the cursor: {len(au['items'])} · since {since}")
+    for it in au["items"]:
+        out.append(
+            f"  #{it['number']} {it['verdict']} · landed `{(it.get('landed') or '?')[:9]}` "
+            f"at merge `{(it.get('merge') or '?')[:9]}` · carry={it['carry']} · {it['merged_at']}"
+        )
+        out += [f"      ERROR merged: {e}" for e in it["errors"]]
+    out += _errors("merged", au)
     return "\n".join(out) + "\n"
 
 

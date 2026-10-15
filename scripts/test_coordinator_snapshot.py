@@ -262,6 +262,16 @@ class FakeRunner:
             root, rev = cmd[-2], cmd[-1]
             if f"{root}::{rev}" in self.merge_bases:  # a base the test declared wins
                 return self.merge_bases[f"{root}::{rev}"] + "\n"
+            # git resolves an unambiguous abbreviation against what the repo holds, and the
+            # implementation passes the review's named prefix straight through -- so a declared
+            # full sha answers its own prefix, and only its own.
+            cands = [
+                k
+                for k in self.merge_bases
+                if k.startswith(f"{root}::") and k.split("::", 1)[1].startswith(rev)
+            ]
+            if len(cands) == 1:
+                return self.merge_bases[cands[0]] + "\n"
             if root == "origin/main":  # the live base of an OPEN head
                 return BASE + "\n"
             # An undeclared root means the implementation picked a base root nobody asserted.
@@ -274,7 +284,20 @@ class FakeRunner:
             if cmd[-1] == "origin/main":
                 return self.main_files[cmd[-2]]
             if "--" in cmd:  # the UR-106 own diff: keyed by its exact <base>..<rev> range
-                return self.own_diffs[cmd[2]]
+                key = cmd[2]
+                if key in self.own_diffs:
+                    return self.own_diffs[key]
+                # git resolves the review's 7-char prefix against the repo, so the implementation
+                # hands it to ``diff`` verbatim; a declared full-sha range answers its own prefix.
+                base, _, rev = key.partition("..")
+                cands = [
+                    k
+                    for k in self.own_diffs
+                    if k.split("..", 1)[0] == base and k.split("..", 1)[1].startswith(rev)
+                ]
+                if len(cands) == 1:
+                    return self.own_diffs[cands[0]]
+                raise AssertionError(f"undeclared own diff {key}")
             # From the run base (not an ancestor of the head) the diff would carry main's file too.
             return self.pr_files if cmd[-2] == BASE else "docs/a.md\n" + self.pr_files
         raise AssertionError(f"unexpected command {cmd}")
@@ -753,6 +776,17 @@ def shell_ur106_hash(diff: str) -> str:
     return got.stdout.decode().strip()
 
 
+def named(rev: str) -> str:
+    """The string a review comment names for ``rev`` -- git resolves the abbreviation itself.
+
+    Reviews name 7-hex prefixes (the shipped verdict convention: ``Head reviewed: `a1b2c3d```),
+    and the implementation interpolates the named string straight into ``merge-base``/``diff``
+    because git resolves an unambiguous abbreviation natively -- UR-106's prose pipeline never
+    sees a full sha either. So the fake's git answers are keyed by this, not by the full sha.
+    """
+    return rev[:7]
+
+
 def _recorded_reads(fake: FakeRunner, head_diff: str) -> FakeRunner:
     """The UR-106 reads for #7001: head diff at its own base, approved-head diff at its own base.
 
@@ -840,7 +874,7 @@ def test_own_diff_reads_scope_to_pr_files_and_use_two_ranges():
     fake = _approved_not_head(_recorded_reads(FakeRunner(), COMMIT_DIFF))
     build(fake)
     diffs = [c for c in fake.calls if c[:2] == ["git", "diff"] and "--" in c]
-    assert [c[2] for c in diffs] == [f"{BASE}..{HEAD}", f"{APPROVED_BASE}..{APPROVED_HEAD}"]
+    assert [c[2] for c in diffs] == [f"{BASE}..{HEAD}", f"{APPROVED_BASE}..{named(APPROVED_HEAD)}"]
     for c in diffs:
         assert c[3] == "--" and c[4:] == ["docs/b.md"], "UR-106 hashes the OWN diff, not the tree"
 
@@ -861,7 +895,7 @@ def test_drafts_get_no_own_diff_reads():
 
 def test_a_failed_own_diff_read_reports_carry_unknown():
     fake = _approved_not_head(_recorded_reads(FakeRunner(), COMMIT_DIFF))
-    fake.fail(f"{APPROVED_BASE}..{APPROVED_HEAD}", "fatal: bad object")
+    fake.fail(f"{APPROVED_BASE}..{named(APPROVED_HEAD)}", "fatal: bad object")
     data = build(fake)
     p = pr(data)
     assert p["own_diff"]["carry"] is None
@@ -903,7 +937,7 @@ def test_armed_on_a_carried_head_is_ok_too():
 
 def test_an_armed_head_whose_carry_is_unknown_is_never_told_to_disable():
     fake = _approved_not_head(_recorded_reads(FakeRunner(), COMMIT_DIFF))
-    fake.fail(f"{BASE}..{APPROVED_HEAD}", "fatal: bad object")
+    fake.fail(f"{APPROVED_BASE}..{named(APPROVED_HEAD)}", "fatal: bad object")
     fake.prs[0]["autoMergeRequest"] = _armed()
     data = build(fake)
     assert data["auto_merge_watch"]["disable"] == []
@@ -1063,7 +1097,7 @@ def test_an_unreachable_approved_rev_reports_unknown_rather_than_ok():
     merge_of(fake, 7105, APPROVED_DIFF, CARRY_DIFF, approved=LANDED_OTHER)
     # A deleted key would raise AssertionError from the fake, which production never does: the
     # real runner raises CommandError, so the read has to fail the way a gc'd rev fails it.
-    fake.fail(f"{base_of(LANDED_OTHER)}..{LANDED_OTHER}", "fatal: bad object")
+    fake.fail(f"{base_of(LANDED_OTHER)}..{named(LANDED_OTHER)}", "fatal: bad object")
     data = build(fake)
     audit = {i["number"]: i for i in data["merged_audit"]["items"]}
     assert audit[7105]["verdict"].startswith("unknown")
