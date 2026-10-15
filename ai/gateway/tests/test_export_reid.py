@@ -27,8 +27,8 @@ from torch import nn
 
 from ai.gateway.export import export_reid
 
-# The 5s tier default (pyproject.toml:584) is too tight for this module. Every
-# test needs `build_reference`, whose module-scoped fixture cold-imports
+# The 5s tier default — pyproject.toml's `integration` mark — is too tight here.
+# Every test needs `build_reference`, whose module-scoped fixture cold-imports
 # torchreid's real model factory (:66, behind a tensorboard stub the backend
 # loader also needs) and builds osnet_ain_x1_0 — the module has no module-level
 # torchreid import, so that cost lands inside the timed setup, once per xdist

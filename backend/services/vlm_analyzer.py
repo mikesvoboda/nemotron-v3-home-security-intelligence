@@ -46,7 +46,6 @@ the eval store, not the console).
 
 from __future__ import annotations
 
-import json
 import time
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, tzinfo
@@ -490,8 +489,11 @@ class VlmAnalyzer:
                 "closed it; the VLM never originates events (spec §6)"
             )
         if detection_ids is None and self._redis is not None:
-            raw = await self._redis.get(f"batch:{batch_id}:detections")
-            detection_ids = json.loads(raw) if raw else []
+            # The key is a LIST (RPUSH'd by BatchAggregator — see
+            # batch_aggregator.py:23), so it is read with LRANGE. A GET here
+            # raises WRONGTYPE against real Redis; the json.loads it paired with
+            # expected a shape the writer never produces.
+            detection_ids = await self._redis.lrange(f"batch:{batch_id}:detections", 0, -1)
         if not detection_ids:
             raise ValueError(f"Batch {batch_id} has no detections")
         try:
