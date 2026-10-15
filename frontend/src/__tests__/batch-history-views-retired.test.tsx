@@ -22,17 +22,22 @@
  *     "completed-batch timeline". Measured at the base commit, NOTHING renders
  *     completed batches as a timeline: `BatchTimelineChart.tsx` takes
  *     `activeBatches: BatchInfoResponse[]` and nothing else (`:25`) and its
- *     heading is the literal "Active Batches" (`:63`), and every consumer of
- *     `useBatchStatistics().completedBatches` (base
- *     `useBatchStatistics.ts:145`) is
- *     `totalClosedCount` (base `:58`), `averageDurationSeconds` (base
- *     `:268-280`) and the two surfaces in leg A — all stat cards or doomed
- *     views. So leg B pins what that claim actually covers: `completedBatches`
- *     is no longer named anywhere in the dashboard's source — measured
- *     `grep -c completedBatches BatchStatisticsDashboard.tsx` → 0 at this head
- *     — and no heading or testid the retired views used paints with the hook
- *     armed. The stat cards that legitimately derive from it are leg C's KEEP
- *     list. A separate unmounted component
+ *     heading is the literal "Active Batches" (`:63`), and the base hook read
+ *     `completedBatches` into exactly four derived values
+ *     (base `useBatchStatistics.ts:145`, the `useDetectionStream` destructure):
+ *     `closureReasonStats` (base `:193`), `closureReasonPercentages` (base
+ *     `:213`), `perCameraStats` (base `:233`) — the three aggregates the leg A
+ *     surfaces rendered — and `averageDurationSeconds` (base `:268-280`), which
+ *     survives as a stat card (head `:150-162`). `totalClosedCount` is NOT one
+ *     of them: base `:288` returns it as `batchCount`, the count the stream
+ *     already carried, which is why it lives on. So leg B pins what that claim
+ *     actually covers: the three aggregates are gone from the hook and from the
+ *     dashboard's destructure (base `:66-68`, absent at head, where the name
+ *     `perCameraStats` survives only in the `:69` comment), and no heading or
+ *     testid the retired views used paints with the hook armed. The measured
+ *     `grep -c completedBatches BatchStatisticsDashboard.tsx` is 0 at BOTH
+ *     revisions — the dashboard never named it, only its derived aggregates —
+ *     so that count is stated as a baseline, not as the removal. A separate unmounted component
  *     (`components/BatchProcessingIndicator.tsx:209`) consumes its OWN
  *     `completedBatches` from `useBatchProcessingStatus` with no importer
  *     anywhere in `src` — a dead component, not this ruling's three views, and
