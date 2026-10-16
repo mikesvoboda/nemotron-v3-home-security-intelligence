@@ -216,8 +216,39 @@ describe('useDateRangeState', () => {
     );
     expect(result.current.preset).toBe('today'); // URL ignored
     act(() => result.current.setPreset('90d'));
+    expect(result.current.preset).toBe('90d');
     expect(setSearchParams).not.toHaveBeenCalled();
     expect(initialParams.get('range')).toBe('30d'); // untouched
+  });
+
+  it('persistToUrl=false keeps custom range and preset in local state and resets to defaultPreset (ruling 234)', () => {
+    const { result } = renderHook(() =>
+      useDateRangeState({ persistToUrl: false, defaultPreset: 'all' })
+    );
+    expect(result.current.preset).toBe('all');
+    expect(result.current.apiParams).toEqual({ start_date: '', end_date: '' });
+
+    act(() =>
+      result.current.setCustomRange(
+        new Date('2026-04-01T00:00:00Z'),
+        new Date('2026-04-10T23:59:59Z')
+      )
+    );
+    expect(result.current.preset).toBe('custom');
+    expect(result.current.isCustom).toBe(true);
+    expect(result.current.apiParams).toEqual({
+      start_date: '2026-04-01',
+      end_date: '2026-04-10',
+    });
+    expect(result.current.range.startDate.toISOString()).toBe('2026-04-01T00:00:00.000Z');
+    expect(result.current.range.endDate.toISOString()).toBe('2026-04-10T23:59:59.999Z');
+    expect(setSearchParams).not.toHaveBeenCalled();
+
+    act(() => result.current.reset());
+    expect(result.current.preset).toBe('all');
+    expect(result.current.isCustom).toBe(false);
+    expect(result.current.apiParams).toEqual({ start_date: '', end_date: '' });
+    expect(setSearchParams).not.toHaveBeenCalled();
   });
 
   it('a custom urlParam reads its own key, leaving others alone', () => {

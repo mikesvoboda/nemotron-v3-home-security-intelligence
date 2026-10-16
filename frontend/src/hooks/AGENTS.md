@@ -132,18 +132,18 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 ### UI/UX Hooks
 
-| Hook                      | Purpose                                    | Parameters                               | Return Value                                                   |
-| ------------------------- | ------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------- |
-| `useKeyboardShortcuts`    | Global keyboard navigation (g+d, ?, Cmd+K) | `{ onOpenHelp?, onOpenCommandPalette? }` | `{ isPendingChord }`                                           |
-| `useListNavigation`       | j/k style list navigation                  | `{ itemCount, onSelect?, wrap? }`        | `{ selectedIndex, setSelectedIndex, resetSelection }`          |
-| `useToast`                | Toast notifications via sonner             | None                                     | `{ success, error, warning, info, loading, dismiss, promise }` |
-| `useIsMobile`             | Mobile viewport detection                  | `breakpoint?: number`                    | `boolean`                                                      |
-| `useSwipeGesture`         | Touch swipe detection                      | `{ onSwipe, threshold?, timeout? }`      | `ref callback`                                                 |
-| `useInfiniteScroll`       | Intersection observer for infinite scroll  | `{ onLoadMore, hasMore, threshold? }`    | `{ ref, isLoading }`                                           |
-| `useDateRangeState`       | Date range with URL persistence            | `{ defaultPreset? }`                     | `{ range, preset, setPreset, setCustomRange }`                 |
-| `usePaginationState`      | Pagination state with URL sync             | `{ type, defaultPageSize? }`             | Cursor or offset pagination state                              |
-| `useAudioNotifications`   | Audio alert sounds                         | `{ enabled? }`                           | `{ playSound, stopSound }`                                     |
-| `useDesktopNotifications` | Desktop notification API                   | `{ enabled? }`                           | `{ show, permission, requestPermission }`                      |
+| Hook                      | Purpose                                    | Parameters                                     | Return Value                                                                            |
+| ------------------------- | ------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `useKeyboardShortcuts`    | Global keyboard navigation (g+d, ?, Cmd+K) | `{ onOpenHelp?, onOpenCommandPalette? }`       | `{ isPendingChord }`                                                                    |
+| `useListNavigation`       | j/k style list navigation                  | `{ itemCount, onSelect?, wrap? }`              | `{ selectedIndex, setSelectedIndex, resetSelection }`                                   |
+| `useToast`                | Toast notifications via sonner             | None                                           | `{ success, error, warning, info, loading, dismiss, promise }`                          |
+| `useIsMobile`             | Mobile viewport detection                  | `breakpoint?: number`                          | `boolean`                                                                               |
+| `useSwipeGesture`         | Touch swipe detection                      | `{ onSwipe, threshold?, timeout? }`            | `ref callback`                                                                          |
+| `useInfiniteScroll`       | Intersection observer for infinite scroll  | `{ onLoadMore, hasMore, threshold? }`          | `{ ref, isLoading }`                                                                    |
+| `useDateRangeState`       | Date range with URL or local persistence   | `{ defaultPreset?, urlParam?, persistToUrl? }` | `{ range, preset, setPreset, setCustomRange, apiParams, isCustom, presetLabel, reset }` |
+| `usePaginationState`      | Pagination state with URL sync             | `{ type, defaultPageSize? }`                   | Cursor or offset pagination state                                                       |
+| `useAudioNotifications`   | Audio alert sounds                         | `{ enabled? }`                                 | `{ playSound, stopSound }`                                                              |
+| `useDesktopNotifications` | Desktop notification API                   | `{ enabled? }`                                 | `{ show, permission, requestPermission }`                                               |
 
 ### PWA/Offline Hooks
 
