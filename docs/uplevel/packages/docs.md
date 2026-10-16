@@ -140,7 +140,7 @@ moot rather than pending.)
 ### [r215d] F-278's leg on the seeded face vector
 
 **Flags:** none. **Assigned:** docs, now, alongside `[r196b]`, with UR-52 waived (ruling 226).
-**Depends on:** `[r215a]` merged (#7188). **PR:** #7204 (open). (rulings 215, 226; records
+**Depends on:** `[r215a]` merged (#7188). **PR:** #7204 (merged 2026-10-16T06:47:23Z as `f1c300662`, head `0981aa40b`). (rulings 215, 226; records
 6200719567, 6206280092)
 
 - [x] F-278's leg runs in `Feature check (seeded)`: it opens the seeded person, sees the enrolled
