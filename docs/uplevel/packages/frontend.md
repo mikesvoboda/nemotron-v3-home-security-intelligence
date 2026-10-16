@@ -561,7 +561,7 @@ for the spec's legs. **PR:** #7210, #7225 (rulings 211, 221, 233; records 620033
       Witness: the file has zero `test.fixme(` calls at this head (it had 2 at `4cefe81e4`, at
       `:474` and `:535`), and both legs that carried them ran green in the same run, at reporter
       positions `:472:3` (5.4s) and `:520:3` (861ms).
-- [ ] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
+- [x] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
       `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:598` in this PR or
       one right after it. F-045 flips to **awaiting real tier** on the run where that leg and the
       row's other legs pass. **Both halves land here.** The mark is gone and the leg is un-skipped —
@@ -571,9 +571,13 @@ for the spec's legs. **PR:** #7210, #7225 (rulings 211, 221, 233; records 620033
       not behaviour: its drop re-sent bytes `dropAndAwaitCard` had already sent, which the 300 s
       content-hash window swallows (`backend/services/file_watcher.py:871-873`). The supply ruling
       233 assigns to a PR titled `[r211f]` is this PR: the leg now re-drops the same bytes after
-      the window lapses (`live-socket-arrival.spec.ts:375`, after `SUPPLY_TTL_WAIT_MS`). Nothing
-      here ticks the box — that needs a `Feature check (fake AI)` run where this leg passes, and
-      until that run exists the row stays `half-built`.
+      the window lapses (`live-socket-arrival.spec.ts:375`, after `SUPPLY_TTL_WAIT_MS`). The run the
+      box was waiting on is `38966718386` (attempt 1, `head_sha` proven `dabd3dd34`): its
+      `Feature check (fake AI)` job 117196287379 read all three `F-045` legs `passed` in
+      `summary.json`, and the inventory witness re-run over that summary prints
+      `F-045 (half-built): 3 leg(s) mapped (3 passed); not judged` — the row was unjudged only
+      because of its own cell. This commit flips the cell, so the next head's run judges it
+      (ruling 218); the text pasted into the row is `paste_text()` output, not hand-written prose.
 
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
 **awaiting real tier** on that run (rulings 103, 114); and F-045 flips the same way once its `:598`
