@@ -128,7 +128,8 @@ minutes; at 20 to 90 minutes, post none (ruling 239).
 Read rules.md §Claiming and assigning work first.
 
 1. **Look for an assignment**: an open draft PR the coordinator created, labelled with your lane and
-   cell (`heavy` for a heavy agent); continue on its branch. Heavy agents stop here (UR-59).
+   cell (`heavy` for a heavy agent); continue on its branch. Heavy agents stop here (UR-59), and
+   still write the PR's number into the block's `**PR:**` field as step 4 says (UR-183).
 2. **Choose** the next package in your roster queue as UR-52 and UR-65 say, or, when your queue has
    nothing you can claim, from another queue in your lane's area as UR-52 says; a Phase 3 package
    only as UR-66 allows. Claim your
@@ -167,14 +168,17 @@ PR" below says, and approve only with those clauses green (rulings 161, 198).
 Read rules.md §Reviewing first. Each PR has one review, its author's (UR-32, ruling 198).
 
 1. Dispatch the fresh-context subagent UR-89 describes on the ready head, after its CI has
-   finished. It marks each finding `blocking (<kind>)` (done-when, test, defect, contract, security
-   or plan-text) or `note`. At the first review fix anything you choose. From the second review on,
-   only blocking findings change the head: list the notes under `Notes:` in the approving review,
-   and open no PR only for notes. A re-review reads the diff from the last reviewed head to this
-   one, plus the merge resolution with `main`; give the subagent that head's sha. Fix a wrong claim
-   in the PR body by editing the body, not with a commit (ruling 250).
+   finished. It marks each finding `blocking (<kind>)` or `note`, with the kinds and the notes UR-89
+   lists. At the first review fix anything you choose. From the second review on, only blocking
+   findings change the head: list the notes under `Notes:` in the approving review, and open no PR
+   only for notes. A re-review reads the diff from the last reviewed head to this one, plus the
+   merge resolution with `main`, and gives the subagent that head's sha; a blocking finding anywhere
+   still blocks, and a note on hunks an earlier round reviewed is not raised again. A head whose
+   diff carries (UR-106) keeps its review. Fix a wrong claim in the PR body by editing the body, not
+   with a commit (ruling 250).
 2. Write the `Plan text:` line as UR-92 says. For a security-and-auth package, also dispatch
-   `security-auditor` on the diff (UR-95, UR-96).
+   `security-auditor` on the diff (UR-95, UR-96). For a `B3.1`/`F3.1` retirement, the review
+   checks and names each condition of UR-98's plain retirement (ruling 249).
 3. Post the review as a PR comment in this form. The first line names the head you reviewed, in
    backticks: the coordinator's merge audit and the digest's markers read it there, and a review
    naming no head arms nothing (ruling 198).

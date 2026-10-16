@@ -9,14 +9,30 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import backend.api.routes.reid as reid_routes
+import backend.api.schemas.reid as reid_schemas
 from backend.api.routes.reid import (
     _get_thumbnail_url,
     find_similar_by_detection,
-    search_similar_entities,
 )
-from backend.api.schemas.reid import SimilaritySearchRequest
+from backend.api.routes.reid import (
+    router as reid_router,
+)
 from backend.services.hybrid_entity_storage import HybridEntityMatch
 from backend.services.reid_service import EntityEmbedding
+
+
+class TestReidSearchRetired:
+    """Ruling 236 / B3.1: POST /api/reid/search and SimilaritySearchRequest are retired."""
+
+    def test_post_reid_search_route_is_retired(self) -> None:
+        routes = [
+            (getattr(route, "path", None), tuple(sorted(getattr(route, "methods", ()))))
+            for route in reid_router.routes
+        ]
+        assert ("/api/reid/search", ("POST",)) not in routes
+        assert not hasattr(reid_routes, "search_similar_entities")
+        assert not hasattr(reid_schemas, "SimilaritySearchRequest")
 
 
 class TestThumbnailUrl:
@@ -36,177 +52,6 @@ class TestThumbnailUrl:
         """Test thumbnail URL generation for non-integer detection IDs."""
         url = _get_thumbnail_url("det_abc123")
         assert url == "/api/detections/det_abc123/image"
-
-
-class TestSearchSimilarEntities:
-    """Tests for POST /api/reid/search endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_search_returns_matches(self) -> None:
-        """Test searching for similar entities returns matches."""
-        mock_storage = MagicMock()
-
-        # Create test matches
-        matches = [
-            HybridEntityMatch(
-                entity_id="entity_001",
-                entity_type="person",
-                embedding=[0.1] * 512,
-                camera_id="front_door",
-                timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
-                detection_id="det_001",
-                attributes={"clothing": "blue jacket"},
-                similarity=0.92,
-                time_gap_seconds=3600.0,
-                source="redis",
-            ),
-            HybridEntityMatch(
-                entity_id="entity_002",
-                entity_type="person",
-                embedding=[0.2] * 512,
-                camera_id="backyard",
-                timestamp=datetime(2025, 12, 23, 8, 0, 0, tzinfo=UTC),
-                detection_id="det_002",
-                attributes={},
-                similarity=0.88,
-                time_gap_seconds=7200.0,
-                source="postgresql",
-            ),
-        ]
-
-        mock_storage.find_matches = AsyncMock(return_value=matches)
-
-        request = SimilaritySearchRequest(
-            embedding=[0.1] * 512,
-            entity_type="person",
-            threshold=0.85,
-            limit=10,
-            include_historical=True,
-        )
-
-        result = await search_similar_entities(
-            request=request,
-            hybrid_storage=mock_storage,
-        )
-
-        assert result.total_matches == 2
-        assert len(result.matches) == 2
-        assert result.threshold == 0.85
-        assert result.entity_type == "person"
-        assert result.include_historical is True
-
-        # Check first match
-        assert result.matches[0].entity_id == "entity_001"
-        assert result.matches[0].similarity == 0.92
-        assert result.matches[0].source == "redis"
-        assert result.matches[0].thumbnail_url == "/api/detections/det_001/image"
-
-    @pytest.mark.asyncio
-    async def test_search_with_limit(self) -> None:
-        """Test searching with a limit returns at most that many results."""
-        mock_storage = MagicMock()
-
-        # Create 5 matches
-        matches = [
-            HybridEntityMatch(
-                entity_id=f"entity_{i:03d}",
-                entity_type="person",
-                embedding=[0.1] * 512,
-                camera_id="front_door",
-                timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
-                detection_id=f"det_{i:03d}",
-                attributes={},
-                similarity=0.90 - (i * 0.01),
-                time_gap_seconds=float(i * 100),
-                source="redis",
-            )
-            for i in range(5)
-        ]
-
-        mock_storage.find_matches = AsyncMock(return_value=matches)
-
-        request = SimilaritySearchRequest(
-            embedding=[0.1] * 512,
-            entity_type="person",
-            threshold=0.80,
-            limit=3,  # Request only 3
-            include_historical=False,
-        )
-
-        result = await search_similar_entities(
-            request=request,
-            hybrid_storage=mock_storage,
-        )
-
-        assert result.total_matches == 5  # Total found
-        assert len(result.matches) == 3  # Limited to 3
-
-    @pytest.mark.asyncio
-    async def test_search_no_matches(self) -> None:
-        """Test searching when no matches are found."""
-        mock_storage = MagicMock()
-        mock_storage.find_matches = AsyncMock(return_value=[])
-
-        request = SimilaritySearchRequest(
-            embedding=[0.1] * 512,
-            entity_type="vehicle",
-            threshold=0.95,
-        )
-
-        result = await search_similar_entities(
-            request=request,
-            hybrid_storage=mock_storage,
-        )
-
-        assert result.total_matches == 0
-        assert len(result.matches) == 0
-        assert result.entity_type == "vehicle"
-
-    @pytest.mark.asyncio
-    async def test_search_excludes_detection_id(self) -> None:
-        """Test that exclude_detection_id is passed to find_matches."""
-        mock_storage = MagicMock()
-        mock_storage.find_matches = AsyncMock(return_value=[])
-
-        request = SimilaritySearchRequest(
-            embedding=[0.1] * 512,
-            entity_type="person",
-            threshold=0.85,
-            exclude_detection_id="det_exclude",
-        )
-
-        await search_similar_entities(
-            request=request,
-            hybrid_storage=mock_storage,
-        )
-
-        mock_storage.find_matches.assert_called_once_with(
-            embedding=[0.1] * 512,
-            entity_type="person",
-            threshold=0.85,
-            exclude_detection_id="det_exclude",
-            include_historical=True,
-        )
-
-    @pytest.mark.asyncio
-    async def test_search_handles_error(self) -> None:
-        """Test searching handles errors gracefully."""
-        mock_storage = MagicMock()
-        mock_storage.find_matches = AsyncMock(side_effect=Exception("Database error"))
-
-        request = SimilaritySearchRequest(
-            embedding=[0.1] * 512,
-            entity_type="person",
-        )
-
-        with pytest.raises(Exception) as exc_info:
-            await search_similar_entities(
-                request=request,
-                hybrid_storage=mock_storage,
-            )
-
-        assert exc_info.value.status_code == 500
-        assert "Database error" in str(exc_info.value.detail)
 
 
 class TestFindSimilarByDetection:
@@ -328,33 +173,3 @@ class TestFindSimilarByDetection:
 
         assert exc_info.value.status_code == 503
         assert "Redis service unavailable" in str(exc_info.value.detail)
-
-
-class TestSimilaritySearchSchemas:
-    """Tests for Re-ID similarity search schemas."""
-
-    def test_search_request_defaults(self) -> None:
-        """Test SimilaritySearchRequest has correct defaults."""
-        request = SimilaritySearchRequest(embedding=[0.1] * 512)
-
-        assert request.entity_type == "person"
-        # the shared OSNet-space constant (D-2, ledger 20) — not the retired
-        # CLIP-era 0.85
-        assert request.threshold == 0.7
-        assert request.limit == 10
-        assert request.include_historical is True
-        assert request.exclude_detection_id is None
-
-    def test_search_request_validation(self) -> None:
-        """Test SimilaritySearchRequest validates inputs."""
-        # Threshold out of range
-        with pytest.raises(ValueError):
-            SimilaritySearchRequest(embedding=[0.1], threshold=1.5)
-
-        # Limit out of range
-        with pytest.raises(ValueError):
-            SimilaritySearchRequest(embedding=[0.1], limit=0)
-
-        # Invalid entity type
-        with pytest.raises(ValueError):
-            SimilaritySearchRequest(embedding=[0.1], entity_type="invalid")

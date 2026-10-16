@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220.
+`B2.3` (ruling 241). **PR:** #7220, #7224.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -96,7 +96,7 @@ one PR with `F3.1`.
 - [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
       record 6198942052), not as a hand-run DROP runbook. Until it lands, take the retirements
       that drop no table; one that drops a table waits for it (ruling 241).
-- [ ] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
+- [x] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
       `search_similar_entities`): route, handler, tests and both its `docs/developer/api/coverage.md`
       lines (`:692`, `:856`). It has no client and no guide; Phase 4's design sessions may bring
       re-ID search back (ruling 236).
@@ -456,8 +456,9 @@ the three handlers change, each invalidated.
 
 ### [r244] The monitoring key gets no recommendation prose
 
-**Flags:** `owner` (security and auth). **Assigned:** `uplevel-backend`, after `[r223]`, built
-from #7157's draft (ruling 244). **Depends on:** none. **PR:** none yet. (ruling 244, record 6222984876)
+**Flags:** `owner` (security and auth). **Assigned:** `uplevel-backend`, after `[r223]`. #7157
+becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 3 put on it ends.
+**Depends on:** none. **PR:** none yet. (ruling 244, record 6222984876)
 
 `GET /api/ai-audit/recommendations` is in the monitoring scope (`backend/core/constants.py`,
 `MONITORING_SCOPE_PATHS`), and each item's `suggestion` is the LLM's free-text advice

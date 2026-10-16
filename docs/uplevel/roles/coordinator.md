@@ -80,7 +80,9 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    older than 20 minutes goes in the status comment (UR-166).
 6. **`main`.** On the first red `CI Gate` run the report shows on `main`, follow "Red `main`" below;
    a cancelled run is not red. On the first tick after the nightly schedule, raise and route a red
-   Nightly Full Gate with the failing tests you read, and on the first tick after the 02:00Z flaky
+   Nightly Full Gate with the failing tests you read. The 8 compose-render tests of raise
+   `6216622756` are `[r243]`'s, not backend's: close that raise when `[r243]`'s nightly run is green
+   (ruling 243). On the first tick after the 02:00Z flaky
    run, route each flaky test in its summary (UR-116). Raise the urgent path for a time-boxed
    quarantine mark still on `main` at its expiry (UR-114).
 7. **Assign.** Assign any `heavy` package whose dependencies have merged, and any package on no

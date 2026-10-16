@@ -663,7 +663,7 @@ minutes old prints no UR-162 line in `lane_tick.py`'s digest.
 
 **Flags:** `owner` (the role files' tick text). **Assigned:** the owner's session, as an owner PR;
 ops-b reviews. **Depends on:** none.
-**PR:** none yet. (ruling 197, as amended by `6198199744`)
+**PR:** #7186. (ruling 197, as amended by `6198199744`)
 
 Lanes act on what `scripts/uplevel/lane_tick.py` parses, and nothing checks those fields where they
 are written: a wrapped `**PR:** none yet` goes unoffered, owner pointers reach the digest only as a
@@ -716,8 +716,9 @@ queues) checked nothing, and ruling 241's missing `B3.1` slot surfaced only by h
 
 ### [r243] prod.yml's engine-socket condition renders on every supported Compose
 
-**Flags:** `owner` (production safety). **Assigned:** `uplevel-ops-a`, first on its queue.
-**Depends on:** none. **PR:** none yet. (ruling 243, record 6222454848)
+**Flags:** `owner` (production safety). **Assigned:** `uplevel-ops-a`, first on its queue, and
+claimable while #7175 waits on review (UR-52 waived, as rulings 217 and 235 did). **Depends on:**
+none. **PR:** none yet. (ruling 243, record 6222454848)
 
 `[r162]` (#7114) gave `docker-compose.prod.yml` a top-level `include:` of
 `docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml`, which redeclares `services.backend`. The
@@ -730,6 +731,8 @@ compose-render tests in `backend/tests/unit/core/` fail (run 38877698644).
       alloy's unconditional mount are unchanged.
 - [ ] The PR body names the command the live host runs to check its own render before the next
       redeploy.
+- [ ] The routing of the 8 tests to backend is withdrawn: backend owes nothing for raise
+      `6216622756`, and the coordinator closes it when this package's nightly run is green.
 
 **Done when:** the Nightly Full Gate, re-run by `workflow_dispatch` at the PR's head or after
 merge, is green with the 8 tests passing; and the PR shows `docker-compose.prod.yml` rendering, with
@@ -761,8 +764,10 @@ process that can die or hang.
       `roles/coordinator.md` "Kickoff prompt" for the supervisor (and `sandboxes.toml` if the
       coordinator's row changes). The owner switches over: first ends the pane's `/loop` session,
       then enables the timer.
-- [ ] The coordinator only. Lanes, heavy agents and the operator keep their panes until a new
-      ruling, after 48 hours of supervised ticks.
+- [ ] Two dispatchers never run at once.
+- [ ] The coordinator only. Lanes, heavy agents and the operator keep their panes. After 48 hours
+      of supervised ticks, the owner decides by a new ruling whether the supervisor extends to
+      them.
 
 **Done when:** the PR shows `--dry-run`'s output and one real manual fire: its log line, and the
 heartbeat patch that tick made.
@@ -772,8 +777,8 @@ heartbeat patch that tick made.
 **Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 248).
 **Depends on:** none. **PR:** none yet. (ruling 248, record 6223962176)
 
-UR-183 has each package PR write its own number into its block's `**PR:**` field. Since 2026-10-14,
-17 of the 130 merged PRs were register or stamp fixups that rewrote such a field after a merge.
+UR-183 has each package PR write its own number into its block's `**PR:**` field. Of the 130 PRs
+merged since 2026-10-14, 17 were register or stamp fixups that rewrote such a field after a merge.
 
 - [ ] `scripts/uplevel/plan_lint.py` reads the pull request from `GITHUB_EVENT_PATH` when CI runs on
       one, so `ci.yml`'s step does not change. On a ready (not draft) PR, for each leading
@@ -783,6 +788,8 @@ UR-183 has each package PR write its own number into its block's `**PR:**` field
       skipped, and a push to `main` is unaffected.
 - [ ] Tests pin a ready PR whose block says `none yet` (a finding), one that names itself (clean), a
       draft (skipped), a title with no block (skipped), and two tokens in one title.
+- [ ] `scripts/uplevel/lane_tick.py`'s `next_claimable` docstring stops calling the field
+      "coordinator-owned" (UR-183).
 
 **Done when:** the suites pass, and the check reports this PR's own block until the block names this
 PR.
@@ -803,7 +810,11 @@ across 11 PRs since 2026-10-14.
       §2 again.
 - [ ] The row checks keep their exit codes (a status outside the legend 1; a section listed twice
       or an unreadable table 2), and `inventory_witness.py`'s helpers and `check()`'s census stay.
-- [ ] No PR edits §2's counts: a PR that changes a row's status edits only that row.
+- [ ] `scripts/test_check_inventory_summary_arith.py` pins the computed table on fixtures and the
+      real file's rows parsing cleanly. The PR runs the full Feature check once.
+- [ ] No PR edits §2's counts: a PR that changes a row's status edits only that row. Until this
+      package lands, an open PR drops its §2 hunk at its next push, and may merge with
+      `check-inventory-summary-arith.py` failing on §2 alone, if its review names that failure.
 
 **Done when:** the suites pass, and the printed table equals the stored one it replaces.
 
@@ -888,7 +899,7 @@ list is posted, and the existing duration pins pass.
 ### [r218] The inventory's status is checked against the golden run
 
 **Flags:** `owner` (CI and the witness convention). **Assigned:** the owner's session, as an owner
-PR. **Depends on:** none. **PR:** none yet. (ruling 218, record 6201875149)
+PR. **Depends on:** none. **PR:** #7193. (ruling 218, record 6201875149)
 
 Ruling 208's count (`6200252063`): 106 of 254 record-repair commits mainly edit the inventory, and
 status flips, evidence cells and witness ids lead. Each Feature check job already records per-test

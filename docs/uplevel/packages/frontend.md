@@ -136,7 +136,7 @@ same way after the owner's `R2b` session.
 
 **Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220.
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
@@ -581,7 +581,7 @@ in its title, and the package is not done until it does.
 ### [r234] F-052: the export modal's dates reach the export
 
 **Flags:** none. **Assigned:** heavy-a, now, ahead of `B2.3` (fix now; ruling 234). **Depends on:**
-none. **PR:** none yet. (ruling 234, record 6216216005)
+none. **PR:** #7213. (ruling 234, record 6216216005)
 
 ExportModal uses `useDateRangeState({ persistToUrl: false })`
 (`frontend/src/components/exports/ExportModal.tsx:59`). In that mode the hook reads its range only
@@ -602,7 +602,7 @@ among them, pass (rulings 103, 114).
 ### [r238] F-057: the saved note reads back
 
 **Flags:** none. **Assigned:** heavy-a, after `[r234]`, ahead of `B2.3` (ruling 238). **Depends
-on:** none. **PR:** none yet. (rulings 149, 238; record 6216702824)
+on:** none. **PR:** #7219. (rulings 149, 238; record 6216702824)
 
 `[r149d]` (#7070) made `list_events` return `notes` (`backend/api/routes/events.py:543`), but its
 second box, the golden read-back leg, never had a roster slot, so F-057 stays **half-built** with

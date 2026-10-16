@@ -225,6 +225,7 @@ class TestPlantedDefects:
         lane.write_text(text.replace(anchor, anchor + inject))
         result = run_gate(root)
         assert result.returncode == 1
+        assert "UR-32-old-home" in result.stdout, result.stdout
         assert "must NOT say" in result.stdout
 
     def test_snapshot_prose_quote_still_resolves_case_sensitively(self, tmp_path: Path) -> None:
