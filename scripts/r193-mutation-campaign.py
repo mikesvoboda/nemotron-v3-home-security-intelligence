@@ -113,11 +113,14 @@ MUTANTS = [
             # list, so the old one-line anchor matched 0x and the driver reported BAD-PATTERN
             # rather than a verdict. Deleting only the headline would leave the caveat lines
             # printing, which is a different (and still red) mutant; this one deletes the whole
-            # return value, which is what "exits silently" means.
+            # return value, which is what "exits silently" means. Re-anchored AGAIN when the
+            # zero-clean-poll fix grew the trailing-failures caveat into the same list (round
+            # eight's HIGH) -- the campaign's own drift tax, paid by the census every commit.
             (
                 "            return 0, [\n"
                 '                f"no change in {int(lifetime)}s across {total} watched PR(s)",\n'
                 "                *_window_qualifiers(state),\n"
+                "                *trailing,\n"
                 "            ]\n",
                 "            return 0, []\n",
             )
@@ -498,7 +501,7 @@ MUTANTS = [
         "the mutant never consults)",
         [
             (
-                "                return cid in idx and idx[cid] > top_shared",
+                "            return cid in idx and idx[cid] > top_shared",
                 "                return True",
             ),
         ],
@@ -543,9 +546,9 @@ MUTANTS = [
         "so nothing but the false-wake pin dies",
         [
             (
-                '            truncated = new_ruling.get("window_full", False) or '
+                '        truncated = new_ruling.get("window_full", False) or '
                 'old_ruling.get("window_full", False)\n',
-                '            truncated = new_ruling.get("window_full", False)\n',
+                '        truncated = new_ruling.get("window_full", False)\n',
             )
         ],
     ),
@@ -572,8 +575,8 @@ MUTANTS = [
         "turnover scenario exercises on this channel",
         [
             (
-                "                if top_shared < 0:\n"
-                "                    return False  # no shared id: position is unprovable, so announce no arrival\n",
+                "            if top_shared < 0:\n"
+                "                return False  # no shared id: position is unprovable, so announce no arrival\n",
                 "",
             )
         ],
@@ -667,6 +670,42 @@ MUTANTS = [
                 "    )\n",
                 '    lines.append("      comments(last: 100) { nodes { id author { login } body } }")\n',
             )
+        ],
+    ),
+    (
+        "all-clear-ignores-zero-clean-polls",
+        "the lifetime all-clear fires even when the watch read NO window, so a degraded or "
+        "never-polled watch prints the same calm rc-0 line a healthy one does -- the "
+        "impersonation the module docstring forbids. Round eight's finding: `errors` resets to 0 "
+        "on every success and the bound is checked before poll one, so neither a dead stretch nor "
+        "a mistyped --lifetime reached the error exit. Killed only by the two 0-clean-poll tests",
+        [
+            ("            if clean_polls == 0:\n", "            if False:\n"),
+        ],
+    ),
+    (
+        "clean-poll-never-counted",
+        "a successful poll leaves the clean-poll counter at 0, so EVERY healthy watch would take "
+        "the error exit and no watch could ever print an all-clear -- the opposite failure of the "
+        "mutant above, and the reason the counter needs its own revert: an un-incremented counter "
+        "is invisible to every test that only exercises failure paths",
+        [
+            (
+                "            errors = 0\n            clean_polls += 1\n",
+                "            errors = 0\n",
+            ),
+        ],
+    ),
+    (
+        "trailing-failures-unreported",
+        "an all-clear that ENDED on unresolved poll failures reports the tail as if it were read, "
+        "because the caveat line is gated off. The headline still says 'no change' with the last "
+        "window unanswered -- the truncated-window class, one surface over",
+        [
+            (
+                "                if errors\n                else []\n",
+                "                if False\n                else []\n",
+            ),
         ],
     ),
 ]

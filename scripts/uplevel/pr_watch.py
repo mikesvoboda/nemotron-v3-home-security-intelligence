@@ -476,32 +476,33 @@ def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict)
         # shared. The pre-position helper is bypassed here because the binding diff is not a plain
         # added-set: the edited-to-bind id is shared, not fresh, yet genuine -- so the gate is a
         # per-cid predicate, not "above the last shared id".
-        new_ids = new_ruling.get("window_ids")
-        old_ids = old_ruling.get("window_ids")
+        # `window_ids` is unconditional here: snapshot()'s only two writes to state["ruling"] are
+        # None (which this guard's truthiness already rejects) and a dict that always carries the
+        # key, and the `before` copy at check() just moves that dict. So the position logic needs
+        # no "shape without a window" fallback -- round eight's LOW named one, and the census of
+        # every writer in this file shows it could never run. A branch no producer can reach is a
+        # branch no test can distinguish, which is a claim about behavior that nothing can check.
+        new_ids = new_ruling["window_ids"]
+        old_ids = old_ruling["window_ids"]
         old_bind = {cid for cid, _ in old_ruling["binding"]}
-        if (
-            new_ids is None or old_ids is None
-        ):  # a snapshot shape without the window: prior behavior
-            fresh = lambda cid: cid not in old_bind  # noqa: E731
-        else:
-            old_set = set(old_ids)
-            idx = {cid: i for i, cid in enumerate(new_ids)}
-            top_shared = max((idx[c] for c in old_set if c in idx), default=-1)
-            # Re-entry is possible when EITHER window was truncated: an id that aged out of a FULL
-            # previous window comes back once deletions shrink the window, and a window in hand that
-            # reads SHORT does not prove the previous snapshot held every comment that exists.
-            truncated = new_ruling.get("window_full", False) or old_ruling.get("window_full", False)
+        old_set = set(old_ids)
+        idx = {cid: i for i, cid in enumerate(new_ids)}
+        top_shared = max((idx[c] for c in old_set if c in idx), default=-1)
+        # Re-entry is possible when EITHER window was truncated: an id that aged out of a FULL
+        # previous window comes back once deletions shrink the window, and a window in hand that
+        # reads SHORT does not prove the previous snapshot held every comment that exists.
+        truncated = new_ruling.get("window_full", False) or old_ruling.get("window_full", False)
 
-            def fresh(cid: object) -> bool:
-                if cid in old_bind:
-                    return False  # still binding -- not a new event either way
-                if not truncated:
-                    return True  # neither window truncated: every id that exists was in one poll
-                if top_shared < 0:
-                    return False  # no shared id: position is unprovable, so announce no arrival
-                if cid in old_set:
-                    return True  # edited-to-bind: was visible last poll, position rules don't apply
-                return cid in idx and idx[cid] > top_shared  # a window-new id, at the new end
+        def fresh(cid: object) -> bool:
+            if cid in old_bind:
+                return False  # still binding -- not a new event either way
+            if not truncated:
+                return True  # neither window truncated: every id that exists was in one poll
+            if top_shared < 0:
+                return False  # no shared id: position is unprovable, so announce no arrival
+            if cid in old_set:
+                return True  # edited-to-bind: was visible last poll, position rules don't apply
+            return cid in idx and idx[cid] > top_shared  # a window-new id, at the new end
 
         for cid, login in new_ruling["binding"]:
             if fresh(cid):
@@ -749,6 +750,8 @@ def watch(
     """
     start = clock()
     errors = 0
+    clean_polls = 0
+    last_error: Exception | None = None
     while True:
         if clock() - start >= timedelta(seconds=lifetime):
             # The count is the watcher's OWN set, not the `--pr` flags: label discovery may have
@@ -756,15 +759,32 @@ def watch(
             # watched count would misreport what sat here for the whole lifetime.
             watched = state.get("watched")
             total = len(watched) if watched else len(prs)
-            # The all-clear gets the caveat. "no change" means "nothing moved in the windows I
-            # read", not "nothing moved", and a check window that came back FULL is exactly the
-            # case where the two differ: a run that aged out of a `last: EVENT_WINDOW` window would
-            # change here without being seen (see _truncated). Putting the qualifier on this line
-            # and nowhere else would be the misleading half of the design -- an agent reads "no
-            # change in 1800s" as an all-clear for the whole lane.
+            # "no change" means "nothing moved in the windows I read" -- and a watch that read NO
+            # window cannot say it at all. Zero clean polls (a mistyped --lifetime, or every poll
+            # failing just under the fatal streak) is the error exit's shape, not the all-clear's;
+            # printing the calm line there is the impersonation the module docstring forbids.
+            if clean_polls == 0:
+                return 2, [
+                    f"error: {int(lifetime)}s elapsed with 0 successful polls"
+                    + (f"; last: {last_error}" if last_error else "; the first poll never ran")
+                ]
+            # The all-clear gets the caveat. A check window that came back FULL is one case where
+            # "no change" and "nothing moved" differ: a run that aged out of a `last: EVENT_WINDOW`
+            # window would change here without being seen (see _truncated). Putting the qualifier
+            # on this line and nowhere else would be the misleading half of the design -- an agent
+            # reads "no change in 1800s" as an all-clear for the whole lane.
+            trailing = (
+                [
+                    f"warning: watch ended on {errors} consecutive poll failures;"
+                    " the windows behind them were never read"
+                ]
+                if errors
+                else []
+            )
             return 0, [
                 f"no change in {int(lifetime)}s across {total} watched PR(s)",
                 *_window_qualifiers(state),
+                *trailing,
             ]
         try:
             lines = check(
@@ -780,10 +800,12 @@ def watch(
             # max_errors streak makes it fatal. A narrow `except` here would let an unexpected
             # error type kill the background watch on tick one -- which reads as "no change".
             errors += 1
+            last_error = exc
             if errors >= max_errors:
                 return 2, [f"error: {errors} consecutive poll failures; last: {exc}"]
         else:
             errors = 0
+            clean_polls += 1
             if lines:
                 return 0, lines
         sleep(interval)
@@ -863,6 +885,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     if not args.prs and not label_groups(args.lane, args.cell, args.review_labels):
         parser.error(
             "nothing to watch: give a --pr, or --lane/--cell/--review-label to discover by"
+        )
+    # A non-positive lifetime arms a watch that cannot make a single poll: `watch` checks the
+    # lifetime bound BEFORE its first read, so `lifetime <= 0` returns the "no change" headline on
+    # the first pass having seen zero windows -- an all-clear with no window behind it, the exact
+    # impersonation the module docstring forbids. Reject it here, where a mistyped `--lifetime 0`
+    # is louder than a calm rc-0 line, the same place the empty-target arm already fails.
+    if args.lifetime <= 0:
+        parser.error(
+            f"--lifetime must be positive, not {args.lifetime:g}s: a watch that never "
+            "polls still prints 'no change'"
         )
     return args
 

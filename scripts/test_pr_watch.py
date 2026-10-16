@@ -1925,6 +1925,136 @@ def test_repeated_failures_exit_with_an_error_line():
     assert len(lines) == 1 and "error" in lines[0].lower()
 
 
+def test_a_watch_that_never_read_a_window_cannot_print_the_all_clear():
+    """A degraded lifetime (all polls fail, just under the fatal streak) is the error exit.
+
+    The finding this pins: two polls fail (``max_errors=3`` so the streak is not yet fatal), the
+    bound fires before a third can trip it, and the OLD code fell through to the calm
+    ``no change in Ns`` headline -- an all-clear from a watcher that read zero windows. ``errors``
+    resets to 0 on any success, so the calm path never saw the dead stretch. The witness is
+    ``runner.calls == 2``: the bound is checked at the TOP of the loop, so with ``lifetime=120``
+    and ``interval=60`` the watch attempts the polls at t=0 and t=60 (both scripted to fail) and
+    reaches the bound before a third is attempted -- a script with a third response would sit
+    unconsumed and the test would pin a shape that never happened.
+    """
+    runner = Run(
+        RuntimeError("gh: 502 bad gateway"),
+        RuntimeError("gh: 502 bad gateway"),
+    )
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        {},  # no prior state: the one clean poll would be the seed, and it never happens
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=120,  # polls at t=0, t=60 (both fail), then t=120 hits the bound
+        max_errors=3,
+    )
+    assert runner.calls == 2, "both polls in the budget ran and failed; the bound cut it off"
+    assert rc == 2, f"a watch with 0 clean polls cannot certify 'no change': rc={rc} {lines}"
+    assert len(lines) == 1 and "0 successful polls" in lines[0], lines
+    assert "502" in lines[0], (
+        f"the line must carry the last failure, not just the count: {lines[0]}"
+    )
+
+
+def test_a_lifetime_that_prevents_the_first_poll_is_the_error_exit():
+    """A bound met before poll one reports an error, not a calm zero-window all-clear.
+
+    ``lifetime <= 0`` reaches the bound on the loop's first pass, before any poll; the OLD code
+    printed ``no change in 0s across 1 watched PR(s)`` with rc 0 -- an all-clear backed by zero
+    API calls. The runner here scripts NOTHING, so a single attempted poll raises ``unscripted
+    read``: ``calls == 0`` is the positive control proving the exit came from the never-polled
+    guard and not from a runner that ran out. (The CLI now also refuses to arm this; this test
+    pins the seam, which any non-CLI caller -- or a future default change -- reaches too.)
+    """
+    runner = Run()  # scripted empty: any poll raises, so a nonzero call count is caught here
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        {},
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=0,
+        max_errors=3,
+    )
+    assert runner.calls == 0, "the whole point: not one poll was attempted"
+    assert rc == 2, f"an all-clear with no window behind it must not be rc 0: {lines}"
+    assert (
+        len(lines) == 1 and "0 successful polls" in lines[0] and "first poll never ran" in lines[0]
+    )
+
+
+def test_a_clean_watch_that_ended_on_failures_says_so():
+    """The all-clear survives one clean poll, but the tail it ended on gets named.
+
+    One clean poll at t=0, a failure at t=60, the bound at t=120: ``clean_polls`` is 1, so the
+    all-clear stands (rc 0) -- this is a watch that really did read its windows -- but the last
+    poll never answered, and a bare "no change" would imply the opposite. The caveat rides the
+    same two surfaces the truncated-window caveat rides, for the same reason: the headline is the
+    only line that claims nothing happened.
+    """
+    runner = Run(
+        envelope([pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: 45 live"}),
+        RuntimeError("gh: 502 bad gateway"),
+    )
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        {},
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=120,
+        max_errors=3,
+    )
+    assert runner.calls == 2, "the clean poll ran, then the failing one, then the bound"
+    assert rc == 0, f"a watch that DID read a window keeps the all-clear: {lines}"
+    assert lines[0].lower().startswith("no change"), lines
+    assert len(lines) == 2, f"the all-clear must carry its tail caveat as its own line: {lines}"
+    assert "failures" in lines[1] and "never read" in lines[1], lines
+
+
+def test_the_cli_refuses_a_lifetime_that_could_never_poll():
+    """``--lifetime 0`` / negative is a nonsense arm; ``parse_args`` fails it, not the watch.
+
+    The file already fails a nonsense arm this way (``nothing to watch``), so a non-positive
+    lifetime joins it rather than arming a zero-poll watch that prints a calm rc-0 line. Positive
+    control at the bottom: a positive lifetime still parses, so the guard rejects the boundary and
+    not all input.
+    """
+    for bad in ("0", "-1"):
+        with pytest.raises(SystemExit):
+            watch.parse_args(["--pr", "7175", "--lifetime", bad])
+    assert watch.parse_args(["--pr", "7175", "--lifetime", "1"]).lifetime == 1.0
+
+
+def test_the_cli_defaults_are_the_ones_the_package_text_promises():
+    """The package says "about every 60 s" and "repeated failures" end the watch; 3 is what
+    `repeated` means here. Every ``watch()`` test passed ``interval``/``max_errors`` explicitly,
+    so the shipped defaults could drift to any other value with nothing red -- a promise in the
+    package text held only by prose. Pinned at the parse surface, which is where an arm without
+    those flags actually reads them.
+    """
+    args = watch.parse_args(["--pr", "7175"])
+    assert args.interval == 60.0, f"the package says 'about every 60 s': {args.interval}"
+    assert args.max_errors == 3, f"'repeated failures' is 3 consecutive polls: {args.max_errors}"
+    # The lifetime default is the one an agent that FORGETS --lifetime gets; it must terminate on
+    # its own (that is the whole point of the bound) rather than run unseen forever.
+    assert args.lifetime == 3600.0, args.lifetime
+
+
 def test_a_guard_that_raises_routes_to_the_error_exit_and_not_to_a_calm_tick():
     """The ruling guard's raise must reach the error EXIT, not print nothing and exit 0.
 
