@@ -16,7 +16,7 @@
  *     /api/events/search requests; only Enter submits (`handleSubmit`,
  *     SearchBar.tsx:142-147, which additionally refuses while `!query.trim()`).
  *     The submit shape is `?q=<trimmed>&limit=20&offset=0`: `limit` is the
- *     component's `defaultLimit` (EventTimeline.tsx:163-170), NOT the route's own
+ *     component's `defaultLimit` (EventTimeline.tsx:164-171), NOT the route's own
  *     default of 50.
  *   - filters ride along and STACK. `severity=high` on the wire (api.ts:3806 —
  *     the client's param name, while the route also accepts `risk_level`),
@@ -33,29 +33,31 @@
  *     note is honest about it — saves are browser-local (useSavedSearches.ts's
  *     STORAGE_KEY, MAX_SAVED_SEARCHES=10), so this asserts storage, not a server
  *     round-trip. There IS no endpoint to assert against.
- *   - "clicks a result to open its detail": HALF TRUE, and the file says which
- *     half. A page-1 result opens the modal. A result the browse list has never
- *     seen does not.
+ *   - "clicks a result to open its detail": proven for BOTH halves. A page-1
+ *     result opens the modal from the browse cache; a page-2 result the browse
+ *     list has never seen now opens it too, fetched by id.
  *
- * DEFECT — a search result can be a row the modal cannot render.
- *   `handleSearchResultClick` sets only `selectedEventForModal`; the modal's
- *   `event` prop comes from `getModalEvent()` (EventTimeline.tsx:1059-1090), which
- *   looks the id up in `filteredEvents` — the BROWSE list — and returns null when
- *   it is not there, while `isOpen` is already true. Nothing fetches the clicked
- *   row by id.
- *   The naive version of this leg ("click a page-2 result") is FLAKY, because
- *   whether page 2's ids happen to be cached depends on whether the user scrolled
- *   while browsing (`useInfiniteScroll`, :297, disabled in search mode). The
- *   construction this file used pre-`[r211b]` — a SOFT-DELETED victim listed by
- *   search but hidden from browse — is GONE: `[r211b]` gave search the same
- *   `deleted_at` predicate browse has (`backend/services/search.py:451`; the
- *   browse route's is `events.py:421`), so the victim is now invisible to BOTH
- *   readers and nothing can click it. The leg's live subject instead: search
- *   paginates server-side while `filteredEvents` holds only the browse query's
- *   loaded page-1 newest 20, so every OLDER live row — search page 2 — is offered
- *   by search and unresolvable by the modal. Liveness is pinned in-leg:
- *   `GET /api/events/{id}` answers 200 for that row, so the failure is the
- *   client-side lookup, not missing data.
+ * REPAIRED — a search result is no longer a row the modal could not render.
+ *   This was the second of F-048's two half-built breaks; [r211f] closes it. The
+ *   defect was that `handleSearchResultClick` set only `selectedEventForModal`,
+ *   and the modal's row came from a lookup in `filteredEvents` — the BROWSE list —
+ *   returning null for any id that list did not hold while `isOpen` was already
+ *   true, so the click opened nothing. `useEventModalRow` now completes that
+ *   lookup: the browse list is tried first (so a browse-mode click still issues no
+ *   new request), and a miss fetches the row from `GET /api/events/{id}`, which
+ *   already served it.
+ *   The subject of that click, and why it is deterministic: the naive "click a
+ *   page-2 result" is FLAKY, because whether page 2's ids happen to be cached
+ *   depends on whether the user scrolled while browsing (`useInfiniteScroll`, :297,
+ *   disabled in search mode). The pre-`[r211b]` construction — a SOFT-DELETED
+ *   victim listed by search but hidden from browse — is GONE: `[r211b]` gave search
+ *   the same `deleted_at` predicate browse has (`backend/services/search.py:451`;
+ *   the browse route's is `events.py:421`), so the victim is invisible to BOTH
+ *   readers. The leg's live subject instead: search paginates server-side while
+ *   the browse cache holds only its loaded page-1 newest 20, so every OLDER live
+ *   row — search page 2 — is the one the modal had to fetch. Liveness is pinned
+ *   in-leg (`GET /api/events/{id}` answers 200) because that 200 IS the request the
+ *   fix makes; the old failure was the client-side lookup, not missing data.
  *
  * LOCATOR TRAPS in this surface, each of which cost a probe run:
  *   - The query box has NO data-testid: `getByLabel('Search events')`
@@ -82,8 +84,9 @@
  *     `normalize_end_date_to_end_of_day` (which IS applied at events.py:400, :607,
  *     :915, :1282 via api/validators.py:208) and builds `started_at <= end_date`
  *     raw (search.py:321-342), so `end_date=<day>` truncates to midnight and drops
- *     rows from later that day. Two probe runs failed to reach a clean read of it
- *     (see the `test.fixme` below), so it is NOT asserted either way.
+ *     rows from later that day. Two probe runs failed to reach a clean read of
+ *     it, so it is NOT asserted either way — and no leg of this file carries a
+ *     mark for it, so the clause is simply unclaimed here.
  *   - `SearchResultCard`'s `aria-pressed` is DEAD: `isSelected` defaults false and
  *     SearchResultsPanel never passes it, so it always renders
  *     `aria-pressed="false"`.
@@ -262,9 +265,11 @@ test.describe('F-048 full-text search', () => {
 
     // Counted by the fixture asking the SERVER (a `severity=high` read of the same
     // route the UI calls), never derived from the fixture's own labels: the first
-    // version of this leg read the rows' `risk_level` field and got 0, because the
-    // payload field is a computed CASE over risk_score while the filter compares
-    // the stored column. See the `test.fixme` contradiction leg for that gap.
+    // version of this leg read the rows' `risk_level` field and got 0, because
+    // that payload field is a `@computed_field` re-derived from risk_score
+    // (schemas/search.py:44) — which is the level the filter now matches
+    // (search.py:355, [r211b]). The leg that pins that agreement is
+    // "the severity filter matches the level the response reports" below.
     await page.locator('#search-severity-filter').selectOption({ value: 'high' });
     await submit(page, SEARCH_QUERY_TOKEN);
     const first = searches[searches.length - 1].searchParams;
@@ -374,7 +379,7 @@ test.describe('F-048 full-text search', () => {
     // The browse counter is the instrument, NOT `event-card-*`: this stack's saved
     // view mode renders ROWS (F-043's own test is named "list view: rows replace
     // cards"), and the card testid only exists in card mode. The counter
-    // (`Showing N of M events`, EventTimeline.tsx:1459) is the shape browse takes
+    // (`Showing N of M events`, EventTimeline.tsx:1492) is the shape browse takes
     // in every view mode, and its N-of-M form cannot be confused with the search
     // panel's `Showing N-M of T results` — so this also proves search mode ENDED
     // rather than merely repainting.
@@ -443,35 +448,28 @@ test.describe('F-048 full-text search', () => {
   });
 
   /**
-   * WRITTEN FROM THE CODE, NEVER EXECUTED — which is a weaker claim than the
-   * other `test.fixme` in this package makes, so it is stated here in those words.
+   * WHAT A LOADED SAVED SEARCH DOES — measured, this time.
    *
    * The clause "saves searches" has a second half the row does not mention: what a
-   * saved search DOES when clicked. `handleLoadSearch` (SearchBar.tsx:189-198)
-   * calls `onQueryChange(loaded.query)` and `setFilters(loaded.filters)`, closes
-   * the dropdown, and — the part that matters — never submits. So loading a saved
+   * saved search DOES when clicked. `handleLoadSearch` (SearchBar.tsx:189-198) calls
+   * `onQueryChange(loaded.query)` and `setFilters(loaded.filters)`, closes the
+   * dropdown, and — the part that matters — never submits. So loading a saved
    * search refills the form and shows nothing, and the user's next Enter is what
-   * actually searches.
+   * actually searches. The leg asserts exactly that: the box holds the saved text
+   * and the `/api/events/search` request count does not move.
    *
-   * WHY IT IS PARKED rather than shipped as a passing leg: the request-count delta
-   * was never measured. Two probe runs failed to reach the read — v5 died on a
-   * strict-mode violation at this very click (its locator was an unanchored
-   * /name/, which resolves to the entry AND its nested delete button), and v6's
-   * browser was killed by the sandbox before the read printed (/var/lib/docker is
-   * at 100 %, and Playwright's browser died 5 s into a run that had already
-   * reached the dropdown). Nothing here claims to know the outcome.
-   *
-   * WHY IT CANNOT BE A GREEN LEG EVEN IF THE READ SUCCEEDS, on the code: the two
-   * facts this file needs about loading do not coexist. If a load restores only the
-   * text, the row's "saves searches" round-trips only after a manual Enter; if it
-   * also restored `isSearchMode` there would be nothing to assert. Either way this
-   * is a judgement about an unfinished affordance, not a pass, so the inventory row
-   * must not gain a witness from it.
-   *
-   * To lift this: delete `.fixme`, run it, and replace the two `expect`s'
-   * expectations with what the measurement actually showed.
+   * HISTORY OF THIS MARK. The leg shipped as `test.fixme` with a docblock saying it
+   * was "WRITTEN FROM THE CODE, NEVER EXECUTED": two probe runs had failed to reach
+   * the read (one died on a strict-mode violation — its unanchored /name/ locator
+   * resolved to the entry AND its nested delete button; the other lost its browser
+   * to a full /var/lib/docker mid-run), and the parked note argued the leg could
+   * not be a pass either way. Running it against a stack was the cheapest way to
+   * settle that, and the measurement is unambiguous: the restore happens, zero
+   * searches fire, the leg is GREEN. The parked judgement was a hypothesis about a
+   * read nobody had taken; the read says the affordance is a real (if deliberately
+   * non-submitting) restore, which the row's "saves searches" clause covers.
    */
-  test.fixme('loading a saved search restores the form without submitting', async ({ page }) => {
+  test('loading a saved search restores the form without submitting', async ({ page }) => {
     test.setTimeout(90_000);
     await bootTimeline(page);
     const searches = captureSearches(page);
@@ -490,49 +488,36 @@ test.describe('F-048 full-text search', () => {
   });
 
   /**
-   * THE SEVERITY FILTER FILTERS A VALUE THE ROW DOES NOT CLAIM TO HAVE.
+   * THE SEVERITY FILTER NOW TESTS THE LEVEL THE RESPONSE REPORTS ([r211b]).
    *
-   * `risk_level` is decided at THREE sites and they do not agree. On the model
-   * (`backend/models/event.py`) there is a stored column carrying whatever the
-   * create request declared (`:61-63`, "the persisted risk level from LLM
-   * analysis") and a `computed_risk_level` hybrid CASE over `risk_score`
-   * (`:392-424`: ≤29 low, ≤59 medium, ≤84 high, else critical). The search route
-   * FILTERS with the COLUMN (`Event.risk_level.in_(filters.severity)`,
-   * services/search.py:331-332) but its result object assigns the column
-   * (`risk_level=event.risk_level`, `:380`) into a pydantic response model that
-   * RE-DECLARES `risk_level` as a `@computed_field` over `risk_score`
-   * (backend/api/schemas/search.py:44, `:172-183` in schemas/events.py) — so that
-   * `:380` assignment is silently discarded and the JSON the client reads is the
-   * SCHEMA's computed value, a third implementation of the same thresholds.
-   * The filter compares field A; the wire reports field C. (This is why a
-   * reviewer must not trust the `:380` line alone — re-measure, as below.)
+   * `risk_level` has two live implementations and one dormant one. The stored
+   * COLUMN carries whatever the create request declared
+   * (`backend/models/event.py:61-63`); `computed_risk_level` is a hybrid CASE over
+   * `risk_score` (`:393`: ≤29 low, ≤59 medium, ≤84 high, else critical); and the
+   * response model RE-DECLARES `risk_level` as a `@computed_field`
+   * (`backend/api/schemas/search.py:44`, returning `_compute_risk_level(risk_score)`
+   * at `:61`), so the route's `risk_level=event.risk_level` assignment
+   * (`backend/services/search.py:403`) is silently DISCARDED and the wire always
+   * carries the computed value.
    *
-   * Measured on the probe stack, one row at a time, all three readers
-   * (single-row, browse, search) agreeing with each other and none with the
-   * filter, in BOTH directions:
-   *   declared `high` + score 91 → every reader says `critical`; `severity=high`
-   *                              matches it (1), `severity=critical` returns 0.
-   *   declared `critical` + 45   → every reader says `medium`; `severity=critical`
-   *                              matches it (1), `severity=medium` returns 0.
-   * So a user who filters for the level the card itself displays gets nothing,
-   * and a level they never see on a card is what actually matches. The row's
-   * clause is "optional … severity … filters" — the filter runs, so this is not a
-   * broken control; it is a filter over a field the UI never shows. Which makes
-   * it a judgement about the surface rather than a pass, i.e. `half-built`, and
-   * `test.fixme` is how this repo records that (event-detail.spec.ts's read-back
-   * leg is the sibling).
+   * Before [r211b] the predicate ran on the dormant one
+   * (`Event.risk_level.in_(…)`) while the wire reported the computed one, so a
+   * user filtering for the level the card displays got nothing and a level no card
+   * shows is what matched — measured both directions on the probe stack (declared
+   * `high` + score 91 matched `severity=high`, never `critical`). The repair (ruling
+   * 211) moved the predicate onto the hybrid the payload already reports:
+   * `Event.computed_risk_level.in_(filters.severity)`, `search.py:355`. That is
+   * candidate (a) of the two this leg used to list; (b) — deriving the column at
+   * write time — was rejected because it leaves already-stored rows mismatched.
    *
-   * TWO CANDIDATE REPAIRS, both backend, both outside this package (ruling 87):
-   * (a) filter on `Event.computed_risk_level`, so the predicate and the payload
-   * are the same function; or (b) make the bulk create derive the column from the
-   * score so the two cannot diverge at write time. (a) is smaller and fixes rows
-   * already stored; (b) leaves existing rows mismatched.
-   *
-   * To lift: delete `.fixme`. The expectations below are what the measurement
-   * says is TRUE today, which is why they are written as the defect's evidence
-   * rather than as a passing contract — a repair should FLIP the second one.
+   * So this leg is now a PASSING contract for the row's "optional … severity …
+   * filters" clause, and the interesting part of its shape is deliberate: the row
+   * is created declaring `high` with a score of 91, i.e. a row whose stored column
+   * and computed level DISAGREE. The column value is what the old predicate read,
+   * so if anyone moves the filter back, the third expect reddens. The stored-column
+   * disagreement is the mutation control baked into the fixture.
    */
-  test.fixme('the severity filter matches the stored column while the UI reports a computed level', async () => {
+  test('the severity filter matches the level the response reports, not the stored column', async () => {
     const session = await adminSession(harness);
     const stamp = Date.now();
     // Declared high, but a score every reader will call critical.
@@ -562,9 +547,9 @@ test.describe('F-048 full-text search', () => {
         `/api/events/${id}`
       );
       expect(row.risk_level, 'the payload reports the COMPUTED level').toBe('critical');
-      // The mismatch: the row says `critical` and the only filter that finds it
-      // is `high`. A repair that filters on the computed level must return 0
-      // here and 1 for `critical` — i.e. this is the assertion that should flip.
+      // The filter now reads the same field the payload reports: the level the
+      // card displays (`critical`, from score 91) finds the row, and the stored
+      // column value it used to test (`high`) finds nothing.
       const asHigh = await api<{ total_count: number }>(
         harness,
         session,
@@ -575,14 +560,14 @@ test.describe('F-048 full-text search', () => {
         session,
         `/api/events/search?q=${SEARCH_QUERY_TOKEN}%20mismatch%20${stamp}&severity=critical`
       );
-      expect(asHigh.total_count, 'the filter matched the column it was written').toBe(1);
-      expect(asCritical.total_count, 'the level the UI actually displays finds nothing').toBe(0);
+      expect(asHigh.total_count, 'the stored column value no longer matches').toBe(0);
+      expect(asCritical.total_count, 'the displayed level finds its own row').toBe(1);
     } finally {
       await hardDeleteFixtureRows(harness, session, [id]);
     }
   });
 
-  test('a page-1 result opens the modal; a page-2 result the browse list does not have does not', async ({
+  test('a page-1 result opens the modal and so does a page-2 result the browse list does not have', async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -592,12 +577,13 @@ test.describe('F-048 full-text search', () => {
     await submit(page, SEARCH_QUERY_TOKEN);
     await expect(panelHeader(page).first()).toBeVisible();
 
-    // POSITIVE CONTROL, and it has to be page 1: search's tie-break is
-    // `started_at DESC` (search.py:465; the line moved from :432 when [r211b]
-    // inserted the deleted_at predicate above it) and the browse list is ordered the same
-    // way, so page 1 of search and page 1 of browse are the same 20 rows — the
-    // newest (`alpha 24`) is certainly in `filteredEvents`, and its click opening
-    // the modal is the shipped behaviour, not luck.
+    // POSITIVE CONTROL, page 1: search's tie-break is `started_at DESC` (search.py:465; it moved
+    // from :432 when [r211b] inserted the deleted_at predicate) and browse orders the same way, so
+    // search page 1 and browse page 1 are the same 20 rows — the newest (`alpha 24`) is certainly
+    // in `filteredEvents` and its click opening the modal is shipped behaviour, not luck. This half
+    // is NO-REGRESSION only: it proves a browse hit still OPENS. It cannot count requests —
+    // `captureSearches` (:166) records only `/api/events/search` — so "a browse hit sends no
+    // request" is pinned in the unit test (`useEventModalRow.test.ts:86`), not here.
     const newest = searchCard(page, 24);
     await expect(newest, 'exactly one card for this fixture row').toHaveCount(1);
     await newest.click();
@@ -605,14 +591,16 @@ test.describe('F-048 full-text search', () => {
     await page.keyboard.press('Escape');
     await expect(modal).toHaveCount(0);
 
-    // THE DEFECT. Since [r211b] search hides soft-deleted rows, the victim is no
-    // longer a subject this leg can click — so the defect moves to its real,
-    // still-shipped cause: the modal resolves its row from the BROWSE page-1 cache
-    // (`filteredEvents`, EventTimeline.tsx:1063, which is the infinite query's
-    // loaded pages — the newest 20, `alpha 5 … alpha 24`), while the search panel
-    // paginates server-side. Every live row on search page 2 (`alpha 0 … alpha 4`,
-    // the oldest five) is therefore offered by search and unresolvable by the
+    // THE REPAIRED CLICK. This is the row that used to open nothing. Since
+    // [r211b] search hides soft-deleted rows, the victim is not a subject this leg
+    // can click, so the click-under-test is a search-PAGE-2 live row: the modal
+    // used to resolve its row from the BROWSE page-1 cache (`filteredEvents`, the
+    // infinite query's loaded pages — the newest 20, `alpha 5 … alpha 24`), while
+    // the search panel paginates server-side, so every OLDER live row on search
+    // page 2 (`alpha 0 … alpha 4`) was offered by search and unresolvable by the
     // modal. `alpha 0` is the oldest live row, so it is page 2's first card.
+    // The modal now fetches a row the browse list does not hold by id
+    // (`useEventModalRow`), so the same click opens it.
     await page.getByRole('button', { name: 'Next page' }).click();
     await expect(panelHeader(page).first()).toHaveText(new RegExp(` of ${fx.searchTotal} results`));
     const pageTwoRow = searchCard(page, 0);
@@ -622,20 +610,27 @@ test.describe('F-048 full-text search', () => {
     ).toHaveCount(1);
 
     await pageTwoRow.click();
-    // The click does reach the handler — the panel survives and nothing else
-    // changes — but the modal's lookup cannot resolve the id, so `isOpen` is true
-    // over a null event and NOTHING renders (EventTimeline.tsx:1059-1090).
-    await expect(modal).toHaveCount(0);
+    // Identity, not mere presence: assert the modal opened ON THIS ROW. The header
+    // only shows `camera_name` (identical for every fixture row), so the row's
+    // unique summary — rendered in `ai-analysis-section` on the default details tab
+    // (EventDetailModal.tsx:883) — is what proves the fetched row is `alpha 0` and
+    // not some cached row leaking through.
+    await expect(modal).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByTestId('ai-analysis-section').filter({ hasText: `${SEARCH_QUERY_TOKEN} alpha 0` })
+    ).toBeVisible();
+    // The search panel survives the open and the query box is untouched: the fix
+    // completes the modal's lookup, it does not leave search mode.
     await expect(panelHeader(page).first()).toHaveText(new RegExp(` of ${fx.searchTotal} results`));
     await expect(queryBox(page)).toHaveValue(SEARCH_QUERY_TOKEN);
 
     // And the row is not merely "not in this page's cache": it is live — the
-    // browse route SERVES it by id (200, not the victim's 404) — so a modal that
-    // fetched on open could have shown it. The failure is the client-side lookup,
-    // not missing data.
+    // browse route SERVES it by id (200, not the victim's 404) — which is exactly
+    // the request the modal now issues. The old failure was the client-side
+    // lookup, not missing data; this line is why the fetch was the right repair.
     expect(
       await rawStatus(session, `/api/events/${fx.eventIds[0]}`),
-      'the oldest live row is served by id — the modal had the bytes available'
+      'the oldest live row is served by id — the route the modal now fetches'
     ).toBe(200);
 
     // The soft-deleted victim, the leg's OLD subject, is now correctly hidden from

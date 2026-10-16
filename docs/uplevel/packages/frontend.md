@@ -537,24 +537,40 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 ### [r211f] F-048: a search result opens what was clicked
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
-for the spec's legs. **PR:** none yet. (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
+for the spec's legs. **PR:** #7210 (open). (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
-- [ ] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
-      #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1180` requires search
-      to exclude the soft-deleted row, and `harness.ts:1203`'s `searchTotal` is the live count. In
+- [x] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
+      #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1191` requires search
+      to exclude the soft-deleted row, and `harness.ts:1215`'s `searchTotal` is the live count. In
       `frontend/tests/golden/timeline/timeline-search.spec.ts` the `fx.searchTotal` reads follow,
-      `timeline-search.spec.ts:638` reads `false`, `timeline-search.spec.ts:627`'s 404 stays, and
-      the `timeline-search.spec.ts:585` leg's defect half takes a live row on search page 2 that the
+      `timeline-search.spec.ts:650` reads `false`, `timeline-search.spec.ts:654`'s 404 stays, and
+      the `timeline-search.spec.ts:570` leg's defect half takes a live row on search page 2 that the
       browse list's first page does not hold. No leg gains a mark. Neither lane force-pushes the
-      branch, and each fetches it before it pushes.
-- [ ] Clicking a search result opens that result; `getModalEvent()` no longer looks the id up in the
-      browse list (`frontend/src/components/events/EventTimeline.tsx:1059`). The
-      `timeline-search.spec.ts:585` leg's defect half becomes "the page-2 row opens".
-- [ ] Remove both `test.fixme` marks in `frontend/tests/golden/timeline/timeline-search.spec.ts`.
+      branch, and each fetches it before it pushes. Witness: run 38932915995's
+      `Feature check (fake AI)` passed all eight legs of that file (`:214`–`:570`, job
+      117083054790), including the `:650` read and the `:654` 404 inside the `:570` leg. (Those three
+      line numbers are this PR's own re-authoring of the file; the numbers this box first carried —
+      `:585`/`:627`/`:638` — were the same three sites before it shifted them.)
+- [x] Clicking a search result opens that result; `getModalEvent()` no longer looks the id up in the
+      browse list (`frontend/src/components/events/EventTimeline.tsx:1096`). The
+      `timeline-search.spec.ts:570` leg's defect half becomes "the page-2 row opens". Witness: that
+      run's reporter log prints the leg green at its own line number —
+      `timeline-search.spec.ts:570:3` then the leg title then `(24.8s)` with a ✓ — and
+      `frontend/src/hooks/useEventModalRow.ts:69` is the lookup that leg exercises.
+- [x] Remove both `test.fixme` marks in `frontend/tests/golden/timeline/timeline-search.spec.ts`.
+      Witness: the file has zero `test.fixme(` calls at this head (it had 2 at `4cefe81e4`, at
+      `:474` and `:535`), and both legs that carried them ran green in the same run, at reporter
+      positions `:472:3` (5.4s) and `:520:3` (861ms).
 - [ ] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
       `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:530` in this PR or
       one right after it. F-045 flips to **awaiting real tier** on the run where that leg and the
-      row's other legs pass.
+      row's other legs pass. **Half done here, and the other half cannot be done here.** The mark is
+      gone at this head — the leg is `test.skip` now, because `fixme` publishes "this would fail"
+      and this head refutes that (the modal opens on a socket-only click; `Expected: 0, Received: 1`
+      at job 117083054790). The leg still does not _pass_ in this file: its drop re-sends bytes
+      `dropAndAwaitCard` already sent, which the 300 s content-hash window swallows
+      (`backend/services/file_watcher.py:871-873`), so it reports skipped. That is the supply ruling
+      233 assigns to the follow-up PR titled `[r211f]`; the box ticks and the row flips there.
 
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
 **awaiting real tier** on that run (rulings 103, 114); and F-045 flips the same way once its `:530`

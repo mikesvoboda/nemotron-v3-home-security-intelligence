@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { useEventModalRow, useEventWriteInvalidation } from '../../hooks/useEventModalRow';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
 import { useEventStats } from '../../hooks/useEventStats';
 import { useEventStream } from '../../hooks/useEventStream';
@@ -522,6 +523,20 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // The filter UI still provides value as it indicates user intent and could be passed to backend.
   const filteredEvents = pipe(getSortTransform<Event>(sortOption))(events);
 
+  // [r211f] The modal's row, resolved by id rather than only inside the browse
+  // list. A search result, a live-activity click or a `?event=<id>` deep link can
+  // name a row the browse pages never fetched, and a browse-only lookup returned
+  // null over an already-open dialog — the click did nothing. Browse stays the
+  // first choice, so browse clicks issue no new request.
+  const { row: selectedModalRow, discard: discardModalRow } = useEventModalRow(
+    selectedEventForModal,
+    filteredEvents
+  );
+  // Replaces the per-handler `refetch()`: `eventsQueryKeys.all` covers both the
+  // browse query and the fetched row, and it is the one that works when the row
+  // the user just edited is not in the browse list at all.
+  const invalidateEventWrites = useEventWriteInvalidation();
+
   // Handle select all toggle - needs filteredEvents so defined after
   const handleToggleSelectAll = useCallback(() => {
     setSelectedEventIds((prev) => {
@@ -812,36 +827,53 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
   // Handle modal close
   const handleModalClose = useCallback(() => {
+    // A row that was FETCHED for the modal is dropped on close: the modal's
+    // flag/notes/reviewed writes report success against it while the cache under
+    // it still holds the pre-write version, so reopening must re-read rather than
+    // show a row the server no longer agrees with. A browse-list row is untouched
+    // — the list invalidation in the write handlers keeps that one honest.
+    discardModalRow();
     setSelectedEventForModal(null);
-  }, []);
+  }, [discardModalRow]);
+
+  // [r211f] A modal write can target a row the browse pages never loaded, so
+  // the optimistic-lock version comes from the modal's own resolved row when the
+  // browse list has no copy. (A browse hit still wins: it is the freshest entry
+  // for a row the list is actively keeping current.)
+  const rowForModalWrite = useCallback(
+    (id: number) =>
+      filteredEvents.find((e) => e.id === id) ??
+      (id === selectedEventForModal ? selectedModalRow : undefined),
+    [filteredEvents, selectedEventForModal, selectedModalRow]
+  );
 
   // Handle mark as reviewed from modal with optimistic locking (NEM-3625)
   const handleMarkReviewed = useCallback(
     async (eventId: string) => {
       const id = parseInt(eventId, 10);
-      const event = filteredEvents.find((e) => e.id === id);
+      const event = rowForModalWrite(id);
       try {
         // Include version for optimistic locking if available
         await updateEvent(id, {
           reviewed: true,
           version: event?.version,
         });
-        // Refetch events to reflect changes
-        void refetch();
+        // Refresh the browse list AND the modal's own fetched row
+        invalidateEventWrites();
       } catch (err) {
         if (err instanceof EventVersionConflictError) {
           // Event was modified by another request - refetch and show message
           console.warn(
             `Event ${id} was modified concurrently (current version: ${err.currentVersion})`
           );
-          void refetch(); // Refresh to get latest version
+          invalidateEventWrites(); // Refresh to get latest version
           // TODO: Consider adding toast notification for user feedback
         } else {
           console.error('Failed to mark event as reviewed:', err);
         }
       }
     },
-    [filteredEvents, refetch]
+    [rowForModalWrite, invalidateEventWrites]
   );
 
   // Handle mark as reviewed from list view (takes number instead of string) with optimistic locking
@@ -875,22 +907,21 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const handleFlagEvent = useCallback(
     async (eventId: string, flagged: boolean) => {
       const id = parseInt(eventId, 10);
-      const event = filteredEvents.find((e) => e.id === id);
+      const event = rowForModalWrite(id);
       try {
         // Include version for optimistic locking if available
         await updateEvent(id, {
           flagged,
           version: event?.version,
         });
-        // Refetch events to reflect changes
-        void refetch();
+        invalidateEventWrites();
         toastSuccess(flagged ? 'Event flagged for follow-up' : 'Event unflagged');
       } catch (err) {
         if (err instanceof EventVersionConflictError) {
           console.warn(
             `Event ${id} was modified concurrently (current version: ${err.currentVersion})`
           );
-          void refetch();
+          invalidateEventWrites();
           toastError('Event was modified by another user. Please try again.');
         } else {
           console.error('Failed to flag event:', err);
@@ -899,7 +930,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         throw err; // Re-throw to update modal loading state
       }
     },
-    [filteredEvents, refetch, toastSuccess, toastError]
+    [rowForModalWrite, invalidateEventWrites, toastSuccess, toastError]
   );
 
   // Handle download media from modal (NEM-3839)
@@ -922,20 +953,20 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const handleSaveNotes = useCallback(
     async (eventId: string, notes: string) => {
       const id = parseInt(eventId, 10);
-      const event = filteredEvents.find((e) => e.id === id);
+      const event = rowForModalWrite(id);
       try {
         await updateEvent(id, {
           notes,
           version: event?.version,
         });
-        void refetch();
+        invalidateEventWrites();
         toastSuccess('Notes saved');
       } catch (err) {
         if (err instanceof EventVersionConflictError) {
           console.warn(
             `Event ${id} was modified concurrently (current version: ${err.currentVersion})`
           );
-          void refetch();
+          invalidateEventWrites();
           toastError('Event was modified by another user. Please try again.');
         } else {
           console.error('Failed to save notes:', err);
@@ -944,7 +975,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         throw err;
       }
     },
-    [filteredEvents, refetch, toastSuccess, toastError]
+    [rowForModalWrite, invalidateEventWrites, toastSuccess, toastError]
   );
 
   // Handle list view column sort
@@ -1057,10 +1088,12 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   );
 
   // Convert API Event to ModalEvent format
+  // The row itself comes from useEventModalRow (declared above); this only
+  // shapes it into the modal's prop type.
   const getModalEvent = useCallback((): ModalEvent | null => {
     if (selectedEventForModal === null) return null;
 
-    const event = filteredEvents.find((e) => e.id === selectedEventForModal);
+    const event = selectedModalRow;
     if (!event) return null;
 
     const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
@@ -1087,7 +1120,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       flagged: event.flagged, // Include flagged state (NEM-3839)
       version: event.version, // Include version for optimistic locking (NEM-3625)
     };
-  }, [selectedEventForModal, filteredEvents, cameraNameMap]);
+  }, [selectedEventForModal, selectedModalRow, cameraNameMap]);
 
   return (
     <div className={`flex flex-col ${className}`} data-testid="timeline-page">
