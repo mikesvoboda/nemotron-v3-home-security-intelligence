@@ -124,9 +124,9 @@ defined inside `model_zoo.py` itself.
 
 ### Pipeline Workers
 
-| Service               | Purpose                              | Exported via `__init__.py` |
-| --------------------- | ------------------------------------ | -------------------------- |
-| `pipeline_workers.py` | Background queue workers and manager | No (import directly)       |
+| Service               | Purpose                                                                                                                                          | Exported via `__init__.py` |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| `pipeline_workers.py` | Background queue workers and manager (`PipelineWorkerManager` is the single owner and registers its workers with `WorkerSupervisor`, ruling 200) | No (import directly)       |
 
 ### Background Services
 
