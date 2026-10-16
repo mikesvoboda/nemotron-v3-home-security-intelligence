@@ -516,8 +516,10 @@ as a claim; ruling 196 makes them a package. Each PR's title carries `[r196a]`.
       new spec under `frontend/tests/golden/timeline/`, in its own PR, running in
       `Feature check (seeded)` if it needs `[r215a]`'s seeded person. If no sanctioned supply gives
       the enroll a person detection, the PR states the measured cause and the row goes to `R2b`
-      with it; the supply is never faked (ruling 86). Frontend reads heavy-a's `frontend/` diffs
-      (ruling 184).
+      with it; the supply is never faked (ruling 86).
+
+For F-012 and F-064, heavy-a edits only those two inventory rows (ruling 87's file rule), frontend
+does no work on either, and frontend reads heavy-a's `frontend/` diffs for both (ruling 184).
 
 **Done when:** none of these eight rows says **unverified**; each flipped on a CI run where its
 leg executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).

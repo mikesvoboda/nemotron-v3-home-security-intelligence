@@ -183,9 +183,9 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
 - [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
-      F-182), F-295 (ruling 219) and F-296 (ruling 222) get their witness from the `O2.5` run. If the spike says no,
-      they fall back to ruling 127's original route: ops adds what they need to the test
-      deployment's compose.
+      F-182), F-295 (ruling 219) and F-296 (ruling 222) get their witness from the `O2.5` run. If
+      the spike says no, they fall back to ruling 127's original route: ops adds what they need to
+      the test deployment's compose.
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
