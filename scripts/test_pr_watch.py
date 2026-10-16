@@ -91,6 +91,7 @@ def pr_node(
     labels=("lane:backend", "review:ops-a"),
     checks=(("CI Gate (Required Checks)", "SUCCESS", "COMPLETED"),),
     raw_checks=(),
+    check_total=None,
     reviews=(),
     comments=(),
 ):
@@ -109,8 +110,13 @@ def pr_node(
         # only a raw node can pin the clause that filters that string.
         "statusCheckRollup": {
             "contexts": {
+                # `totalCount` defaults to the node count -- "nothing is hidden" -- because the
+                # field is what lets `_truncated` tell a short window (proof every check exists)
+                # from a full one that dropped runs. A fixture that omitted it would seed
+                # truncation into every test that builds a node.
+                "totalCount": len(checks) + len(raw_checks) if check_total is None else check_total,
                 "nodes": [{"name": n, "conclusion": c, "status": s} for n, c, s in checks]
-                + list(raw_checks)
+                + list(raw_checks),
             }
         },
         "reviews": {"nodes": [{"id": i, "author": {"login": "mikesvoboda"}} for i in reviews]},
@@ -1564,18 +1570,27 @@ def test_window_size_is_bounded_by_a_named_constant():
     # sorted(), not a fixed sequence: ast.walk is breadth-first and interleaves the two groups, so
     # the order is an artifact of the parse, not a property worth pinning. Sorting keeps the COUNT
     # (which is the point) while ignoring which line the parser reached first.
-    # 1. Graded asks must name a constant. Three EVENT_WINDOW (reviews, comments, #6854 rulings) +
-    #    one DISCOVERY_WINDOW (the label connection). A digit in this group is the drift itself.
+    # 1. Graded asks must name a constant. Four EVENT_WINDOW (reviews, comments, #6854 rulings, and
+    #    the check `contexts` -- whose fullness `_truncated` now grades against that same constant,
+    #    which is what moved it out of group 2) + one DISCOVERY_WINDOW (the label connection). A
+    #    digit in this group is the drift itself: the guard would compare one window's length
+    #    against the constant while the query asks for another size.
     graded = sorted(s for _k, s in asks if s.startswith("{"))
     assert graded == sorted(
-        ["{EVENT_WINDOW}", "{EVENT_WINDOW}", "{EVENT_WINDOW}", "{DISCOVERY_WINDOW}"]
+        [
+            "{EVENT_WINDOW}",
+            "{EVENT_WINDOW}",
+            "{EVENT_WINDOW}",
+            "{EVENT_WINDOW}",
+            "{DISCOVERY_WINDOW}",
+        ]
     ), asks
     # 2. The bare digits are an enumerated, reasoned residue -- not an unchecked remainder.
-    #    `labels` and `contexts` are page sizes nothing measures: `_pr_fields` sorts a label SET
-    #    (no chronology, no fullness test) and `_checks` maps names to conclusions without ever
-    #    comparing a count, so no guard can grade a different window than the one they ask for.
+    #    `labels(first: 20)` is the last one: `_pr_fields` sorts a label SET, which has no
+    #    chronology and no fullness test, so no guard can grade a different window than it asks for.
+    #    (`contexts` left this group when `_truncated` started measuring it.)
     literal = sorted(s for _k, s in asks if not s.startswith("{"))
-    assert literal == sorted(["20", "100"]), (
+    assert literal == sorted(["20"]), (
         f"a new typed page size appeared, or one lost its reason: {literal}"
     )
     # 3. The rendered query, so the constant's VALUE is checked against GitHub's cap, not just its
@@ -1583,6 +1598,9 @@ def test_window_size_is_bounded_by_a_named_constant():
     query = watch.query_text([PR], REPO, RULING_ISSUE, [LANE_OPS])
     assert f"comments(last: {watch.EVENT_WINDOW})" in query
     assert f"reviews(last: {watch.EVENT_WINDOW})" in query
+    # The braces survive the f-string: `{{` must render one `{`, or the query is malformed and
+    # GitHub rejects the whole poll -- a break the AST census cannot see (it reads source, not text).
+    assert f"contexts(last: {watch.EVENT_WINDOW}) {{" in query
     assert watch.EVENT_WINDOW <= 100, "GitHub caps a connection page at 100 nodes"
     assert watch.DISCOVERY_WINDOW <= 100
 
@@ -1930,6 +1948,93 @@ def test_a_guard_that_raises_routes_to_the_error_exit_and_not_to_a_calm_tick():
     assert len(lines) == 1 and "error" in lines[0].lower()
     assert "ruling issue" in lines[0], f"the line must name the guard that raised: {lines}"
     assert len(polls) == 3, "the streak is fatal at max_errors, not after the lifetime"
+
+
+def _busy(number=PR, *, returned=100, total=140, head="a" * 40):
+    """A head whose check window came back FULL while the server counts more runs than it holds."""
+    return envelope(
+        [
+            pr_node(
+                number,
+                head=head,
+                checks=tuple((f"check-{i}", "SUCCESS", "COMPLETED") for i in range(returned)),
+                check_total=total,
+            )
+        ],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+    )
+
+
+def test_a_full_check_window_qualifies_the_news_it_reports():
+    """A `last:` window that came back full says so on the report it produces.
+
+    Round six's second MEDIUM, measured by the reviewer at 79/100 on the head under review and by me
+    at 31/31 on the next one -- the count tracks pushes, so a fixture can't wait for it. The harm is
+    silent and it is an OMISSION: `_checks` maps name to conclusion and `diff_lines` iterates only
+    the new side, so a run that aged out of the window reports neither a transition nor its absence.
+    """
+    state = {}
+    runner = Run(_busy(), _busy(head="b" * 40))
+    assert watch.check(runner, state, prs=[PR], ruling_issue=RULING_ISSUE) == []  # seed poll
+    lines = watch.check(runner, state, prs=[PR], ruling_issue=RULING_ISSUE)
+    assert f"#{PR} new head {'a' * 7} -> {'b' * 7}" in lines, lines
+    assert f"#{PR} checks truncated: 100 of 140 watched" in lines, lines
+
+
+def test_a_full_check_window_qualifies_the_all_clear_too():
+    """The lifetime headline is where the caveat MUST land: it is the line read as an all-clear.
+
+    The other half of the design, and the half a per-diff line alone misses: a head that is
+    truncated and NEVER changes produces no diff, so the watch runs to its bound and prints "no
+    change in 600s" -- which reads as "nothing moved", when what it means is "nothing moved in the
+    windows I read". A truncated head that never changes still gets named, at expiry.
+    """
+    state = {}
+    runner = Run(*([_busy()] * 200))
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        state,
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=600,
+        max_errors=3,
+    )
+    assert rc == 0, lines
+    assert lines[0].lower().startswith("no change"), lines
+    assert lines[1:] == [f"#{PR} checks truncated: 100 of 140 watched"], lines
+
+
+def test_a_short_check_window_claims_no_caveat():
+    """The other side of the guard, so it cannot pass by always complaining.
+
+    A window SHORTER than the cap returned every check that exists -- that is the proof behind the
+    diff's precise words -- so a head with room to spare must produce no qualifier on either
+    surface. Without this leg, `_truncated` returning a constant string would survive.
+    """
+    # Leg 1: a head with room to spare (one check, server agrees) must be silent even when it
+    # changes -- otherwise a head at 1/100 would carry a caveat it has not earned.
+    state = seed()
+    lines = second(
+        Run(envelope([pr_node(PR, head="b" * 40)], ruling_ids=[1], ruling_bodies={1: "x"})), state
+    )
+    assert any("new head" in line for line in lines), lines
+    assert not any("truncated" in line for line in lines), lines
+    # Leg 2: a FULL window whose totalCount EQUALS the node count holds everything. The cap is
+    # reached but nothing is hidden, so complaining here is the false-alarm half of this bug -- the
+    # count is 100 because there are exactly 100 checks, not because 40 were dropped.
+    exact = _busy(returned=100, total=100)
+    st2 = {}
+    assert watch.check(Run(exact), st2, prs=[PR], ruling_issue=RULING_ISSUE) == []
+    moved = _busy(returned=100, total=100, head="b" * 40)
+    lines = second(Run(moved), st2)
+    assert any("new head" in line for line in lines), lines
+    assert not any("truncated" in line for line in lines), lines
 
 
 def test_bounded_lifetime_exits_with_a_no_change_line():

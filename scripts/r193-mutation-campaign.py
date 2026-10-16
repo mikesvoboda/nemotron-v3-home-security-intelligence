@@ -571,6 +571,67 @@ MUTANTS = [
         ],
     ),
     (
+        "full-check-window-reports-its-news-but-not-its-blindness",
+        "keeps the truncation guard and drops its OTHER emission: the report surface goes quiet while "
+        "the lifetime headline still carries the caveat. Round six's second MEDIUM asked for "
+        "`totalCount` on the `contexts` connection or a truncation caveat line, and a guard that "
+        "prints on only one of the two surfaces leaves the more-read one clean -- a tick that found "
+        "news would state a check verdict it cannot fully support. Killed by the diff-surface test "
+        "and nothing else, which is the point: the two surfaces need separate witnesses",
+        [
+            (
+                "    lines.extend(diff_lines(watched, ruling_issue, before, after))\n"
+                "    lines.extend(_window_qualifiers(after) if lines else [])\n",
+                "    lines.extend(diff_lines(watched, ruling_issue, before, after))\n",
+            )
+        ],
+    ),
+    (
+        "truncated-all-clear-keeps-its-own-word",
+        "the mirror mutant: the report surface keeps the caveat and the LIFETIME headline loses it. "
+        "This is the one that matters most, because a head that is truncated and never changes "
+        "produces no diff at all, so the only line the watcher ever prints is `no change in 1800s "
+        "across N watched PR(s)` -- read as an all-clear while a run that aged out of the window "
+        "changed underneath it unseen. Killed by the all-clear test, which is the only test that "
+        "drives watch() to its lifetime bound over a busy head",
+        [
+            (
+                '                f"no change in {int(lifetime)}s across {total} watched PR(s)",\n'
+                "                *_window_qualifiers(state),\n",
+                '                f"no change in {int(lifetime)}s across {total} watched PR(s)",\n',
+            )
+        ],
+    ),
+    (
+        "fullness-invented-on-a-window-with-room",
+        "flips the boundary the OTHER way: `total >= len(nodes)` calls a window truncated when the "
+        "server counts exactly as many checks as it returned, so every head at exactly 100 checks -- "
+        "a state any busy PR reaches -- carries a caveat it has not earned. The false-alarm half of "
+        "the same guard, and a guard that always complains trains the reader to skip the line, "
+        "which is how a real truncation gets missed. Killed by the equal-count leg of "
+        "test_a_short_check_window_claims_no_caveat",
+        [
+            (
+                "    if total is None or total > len(nodes):",
+                "    if total is None or total >= len(nodes):",
+            )
+        ],
+    ),
+    (
+        "check-window-fullness-graded-one-short-of-the-cap",
+        "changes the length test to `<= EVENT_WINDOW`: a window that came back exactly full is "
+        "treated as if it held everything, which is precisely the case where it may not -- GitHub "
+        "returns at most 100 nodes, and the newest run is the one the lane needs. Distinct from the "
+        "emission mutants: this one breaks the PREDICATE, so both surfaces go quiet together and "
+        "only a test that seeds a full window can see it",
+        [
+            (
+                '    nodes = wrapper.get("nodes") or []\n    if len(nodes) < EVENT_WINDOW:\n',
+                '    nodes = wrapper.get("nodes") or []\n    if len(nodes) <= EVENT_WINDOW:\n',
+            )
+        ],
+    ),
+    (
         "ruling-ask-detached-from-the-constant",
         "types #6854's ruling-window size back in as a literal instead of interpolating EVENT_WINDOW -- "
         "round six's finding, verbatim. The rendered query is byte-for-byte identical at the constant's "

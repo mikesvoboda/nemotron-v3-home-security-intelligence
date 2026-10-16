@@ -118,8 +118,13 @@ def query_text(
             # `last:` here too: check runs append, so a first:-100 window would drop the NEWEST
             # runs once a head exceeds 100 checks -- and `CI Gate (Required Checks)` is created
             # after its `needs`, i.e. at the new end. Measured 53 contexts for #7175 today.
+            # `totalCount` is asked beside the nodes because `last:` makes the window a CLAIM about
+            # the new end, and only the server's own count can say whether it holds everything.
+            # Round six found this connection unpinned on both counts (measured 79/100 on the head
+            # under review; 31/31 at 14:05Z on the next one -- the count moves with every push).
             "    statusCheckRollup {",
-            "      contexts(last: 100) {",
+            f"      contexts(last: {EVENT_WINDOW}) {{",
+            "        totalCount",
             "        nodes {",
             "          ... on CheckRun { name conclusion status }",
             "          ... on StatusContext { context state }",
@@ -343,6 +348,10 @@ def _pr_fields(node: dict) -> dict:
         "state": node.get("state"),
         "labels": sorted(n.get("name") for n in (node.get("labels") or {}).get("nodes") or []),
         "checks": _checks(node.get("statusCheckRollup")),
+        # Fullness of the CHECK window, raw length vs the server's own `totalCount` -- not the
+        # length of `_checks`, which drops in-flight rows and would understate it. Empty when the
+        # head answers short of the cap, which is the proof the window held every check that exists.
+        "checks_truncated": _truncated(node.get("statusCheckRollup")),
         # reviews/comments keep the CONNECTION's order, NOT a sort. `last: EVENT_WINDOW` returns them
         # oldest-first (measured on #6854: the 100 comments run strictly ascending by createdAt), and
         # `_event_lines` reads that position to tell a genuine arrival (above the window) from a
@@ -366,6 +375,35 @@ def _comments(wrapper: dict | None) -> list[tuple[str, str | None, str | None]]:
         for n in nodes
         if n.get("id") is not None
     ]
+
+
+def _truncated(rollup: dict | None) -> str:
+    """Why the check window cannot name every check on this head, or "" when it can.
+
+    A `last:` window that came back SHORTER than the cap returned every check that exists, so a
+    check that is not in it does not exist -- the precise claim the diff makes. A FULL window is a
+    different claim: it holds the newest ``EVENT_WINDOW`` runs and nothing else, so a check that
+    aged out is invisible here, and the aged-out side of a pair prints nothing at all. That is the
+    silent direction -- `_checks` maps name to conclusion and `diff_lines` iterates only the new
+    side, so a run that vanished from the window reports neither a transition nor its absence, and
+    the tick reads as calm. `_check_windows` raises for the same shape on the DISCOVERY connection,
+    but the tradeoff was already rejected here for comments (see ``_event_lines``): refusing the
+    poll would make every busy PR unwatchable, which is worse than a watch that says what it
+    cannot see. Hence a line, not an exception. `totalCount` is the server's own number
+    (introspected: StatusCheckRollupContextConnection = checkRunCount/edges/nodes/pageInfo/
+    statusContextCount/totalCount), so the comparison is with GitHub rather than with a guess, and
+    a missing totalCount is treated as truncation -- an unanswerable count cannot prove fullness.
+    """
+    wrapper = (rollup or {}).get("contexts")
+    if not wrapper:
+        return ""
+    nodes = wrapper.get("nodes") or []
+    if len(nodes) < EVENT_WINDOW:
+        return ""
+    total = wrapper.get("totalCount")
+    if total is None or total > len(nodes):
+        return f"checks truncated: {len(nodes)} of {total if total is not None else '?'} watched"
+    return ""
 
 
 def _checks(rollup: dict | None) -> dict[str, str]:
@@ -568,9 +606,29 @@ def check(
         state.update(after)
         return []
     lines.extend(diff_lines(watched, ruling_issue, before, after))
+    lines.extend(_window_qualifiers(after) if lines else [])
     state.clear()
     state.update(after)
     return lines
+
+
+def _window_qualifiers(state: dict) -> list[str]:
+    """A line per watched PR whose CURRENT read cannot see every check, newest-first window.
+
+    These are not events and are deliberately not mixed into the diff: ``watch`` returns on the
+    first non-empty poll, so a condition that is merely TRUE each poll would end the background
+    watch on poll one, and re-arming would end it again -- a busy PR would make the watcher
+    unusable, which is the same tradeoff ``_event_lines`` refuses for comments. So the caveat rides
+    on the two surfaces that already speak: a poll that has news (appended here, after the diff, so
+    a report carries its own limitation) and the calm lifetime headline (see ``watch``), which is
+    the only place that claims nothing happened. A truncated head that never changes is therefore
+    still named -- at expiry, on the line that would otherwise read as an all-clear.
+    """
+    return [
+        f"#{number} {fields['checks_truncated']}"
+        for number, fields in sorted((state.get("prs") or {}).items())
+        if _read(fields) and fields.get("checks_truncated")
+    ]
 
 
 def _from(login: str | None) -> str:
@@ -698,7 +756,16 @@ def watch(
             # watched count would misreport what sat here for the whole lifetime.
             watched = state.get("watched")
             total = len(watched) if watched else len(prs)
-            return 0, [f"no change in {int(lifetime)}s across {total} watched PR(s)"]
+            # The all-clear gets the caveat. "no change" means "nothing moved in the windows I
+            # read", not "nothing moved", and a check window that came back FULL is exactly the
+            # case where the two differ: a run that aged out of a `last: EVENT_WINDOW` window would
+            # change here without being seen (see _truncated). Putting the qualifier on this line
+            # and nowhere else would be the misleading half of the design -- an agent reads "no
+            # change in 1800s" as an all-clear for the whole lane.
+            return 0, [
+                f"no change in {int(lifetime)}s across {total} watched PR(s)",
+                *_window_qualifiers(state),
+            ]
         try:
             lines = check(
                 runner,
