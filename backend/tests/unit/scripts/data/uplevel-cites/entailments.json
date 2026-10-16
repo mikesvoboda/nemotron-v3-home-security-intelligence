@@ -4,9 +4,9 @@
     "ref": "live",
     "file": "roles/lane.md",
     "section": "Reviewing your PR",
-    "needles": ["reviewed again", "merge resolution"],
-    "expect_present": false,
-    "note": "ops-b approve 6142441382: UR-91 clause 4's only live home is rules.md itself. This pin FIRES the day that text is written here \u2014 forcing the cite to move with it. First test case, assigned by the reviewer."
+    "needles": ["last reviewed head", "merge resolution"],
+    "expect_present": true,
+    "note": "ops-b approve 6142441382 pinned UR-91 clause 4's home as rules.md alone, to fire the day the text was written here. Ruling 250 wrote it here (a re-review reads the diff from the last reviewed head plus the merge resolution), and UR-91 cites this section, so the pin now holds the text present."
   },
   {
     "rule": "UR-32-old-home",

@@ -18,10 +18,10 @@ fixes (`[r130b]`, `[r130f]`) keep their place. Ruling 184 gave the heavy agents 
 | sandbox               | model     | queue                                                                                                                                                                                                                                                                                                                                       | review label |
 | --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                                                                                                                                            | none         |
-| `uplevel-backend`     | fast      | `[r211b]`, `[r228]`, `[r223]`, `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`, `[r236]`; cells A and B for Phase 3's deletions                                                                                                                                                                                | none         |
+| `uplevel-backend`     | fast      | `[r211b]`, `[r228]`, `[r223]`, `[r244]`, `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`, `[r236]`; cells A and B for Phase 3's deletions                                                                                                                                                                      | none         |
 | `uplevel-frontend`    | fast      | `[r196a]`, `[r211f]`, `[r204]`, `[r205]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3`                                                                                              | none         |
-| `uplevel-ops-a`       | fast      | `[r189]`, `[r193]`, `[r195]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                                                                                  | none         |
-| `uplevel-ops-b`       | fast      | `[r235]`, `[r240]`, `[r239]`, `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                                                                     | none         |
+| `uplevel-ops-a`       | fast      | `[r243]`, `[r189]`, `[r193]`, `[r195]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                                                                        | none         |
+| `uplevel-ops-b`       | fast      | `[r235]`, `[r247]`, `[r240]`, `[r239]`, `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                                                           | none         |
 | `uplevel-docs`        | fast      | `[r196b]`, `[r215d]`, `[r207]`, `[r231]`, `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                                                                                            | none         |
 | `uplevel-heavy-a`     | strongest | heavy-b's queue (ruling 190): #7155, OP-1's seeded rows, F-012's disk seed (ruling 192), `[r199]`, `[r215a]`, `[r200]`, F-012 then F-064 of `[r196a]` (ruling 226), `[r212]`, `[r213]`, `[r214]` (ruling 224), `[r234]`, `[r238]`, `B3.1` with `F3.1` (ruling 241), `B2.3` once `O2.4` passes, `B3.2`, `O3.6`; then Phase 4 design sessions | none         |
 | `uplevel-heavy-b`     | strongest | out of service (ruling 190); its queue is heavy-a's until the owner restarts it with a record                                                                                                                                                                                                                                               | none         |
@@ -137,7 +137,9 @@ Read rules.md §Claiming and assigning work first.
 4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from
    `main`, commit nothing but an empty commit (`git commit --allow-empty -m "[<package>] claim"`),
    push it, and open a draft PR titled `[<package>] <name>` with
-   `gh pr create --draft --template uplevel.md --label lane:<lane>`.
+   `gh pr create --draft --template uplevel.md --label lane:<lane>`. Then write the PR's number
+   into the package block's `**PR:**` field in the PR's own diff, as `#N` with no state word
+   (UR-183).
 5. **Release** a claim you abandon by closing its draft PR with a comment saying why (UR-55).
 
 ## Building a package
@@ -165,7 +167,12 @@ PR" below says, and approve only with those clauses green (rulings 161, 198).
 Read rules.md §Reviewing first. Each PR has one review, its author's (UR-32, ruling 198).
 
 1. Dispatch the fresh-context subagent UR-89 describes on the ready head, after its CI has
-   finished. Fix or answer each finding.
+   finished. It marks each finding `blocking (<kind>)` (done-when, test, defect, contract, security
+   or plan-text) or `note`. At the first review fix anything you choose. From the second review on,
+   only blocking findings change the head: list the notes under `Notes:` in the approving review,
+   and open no PR only for notes. A re-review reads the diff from the last reviewed head to this
+   one, plus the merge resolution with `main`; give the subagent that head's sha. Fix a wrong claim
+   in the PR body by editing the body, not with a commit (ruling 250).
 2. Write the `Plan text:` line as UR-92 says. For a security-and-auth package, also dispatch
    `security-auditor` on the diff (UR-95, UR-96).
 3. Post the review as a PR comment in this form. The first line names the head you reviewed, in
@@ -178,7 +185,7 @@ Read rules.md §Reviewing first. Each PR has one review, its author's (UR-32, ru
    Done when: <each clause> — observed | not observed (where)
    Contract: rules 1-5 — ok | <which rule, why>
    Plan text: none | <which kind of plan text it changes (rules.md §Authority: rulings, plan text and IDs), and where>
-   Notes:
+   Notes: <each finding, marked blocking (<kind>) or note, and what was done>
    ```
 
 4. On `approve` of a lane-tier PR (its `Plan text:` is `none` or a UR-47 lane-review kind, and no

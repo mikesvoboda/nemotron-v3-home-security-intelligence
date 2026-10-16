@@ -108,7 +108,9 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    (`git commit --allow-empty -m "[<package>] claim"`), and push it; a PR needs a commit.
 2. Open the draft PR titled `[<package>] <name>` with
    `gh pr create --draft --template uplevel.md`, labelled `lane:<lane>` and `cell:<cell>`, plus
-   `heavy` and `owner` where the status table's flags say so.
+   `heavy` and `owner` where the status table's flags say so. A `B3.1`/`F3.1` retirement draft
+   gets `lane:backend` and `heavy`, without `owner`; its author adds `owner` when UR-98's
+   plain-retirement exception does not cover it (ruling 249).
 3. For a heavy agent, label the PR as UR-59 says.
 4. Name no reviewing lane: the author reviews its own PR (UR-32, ruling 198).
 
@@ -143,7 +145,11 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
 **Auditing an auto-merge** (UR-108, ruling 156). `coordinator_snapshot.py` computes it (§7 lists the
 open PRs armed on an uncarried head to disable, §8 the merged-since-cursor verdicts with a pre-filled
 UR-29 merge comment); read those, post each merge comment (step 6), and route any failed check to
-the owning lane for a revert PR.
+the owning lane for a revert PR. For a `B3.1`/`F3.1` retirement merged without `owner` (ruling 249),
+check the merged diff's paths against UR-98's plain-retirement exception: an excluded path raises
+the urgent path naming the PR and the path, and the owner decides whether to revert. Its merge
+comment lists the deleted files, and the status comment carries one line for each retirement merged
+in the last 24 hours: the PR, the feature or OD retired, files deleted and lines removed.
 
 **Red `main`.** On the first red `CI Gate` run on `main`, raise the urgent path with the failing
 job and the log lines you read that tick, disable auto-merge on every queued lane PR until `main` is

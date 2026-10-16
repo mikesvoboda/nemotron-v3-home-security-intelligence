@@ -38,6 +38,12 @@ give work a number.
   table, so leave the other rows' padding alone. The table on `main` changes only when a PR merges.
   (README "Lanes and ownership", "Status"; the deleted 50-coordination.md "Hot files", "Claiming a
   package")
+- **UR-183** A package PR writes its own number into its block's `**PR:**` field, in its own diff:
+  `#N`, or `#N, #M` for a package with several PRs, and no state word. The field reaches `main` only
+  when that PR merges, so a number there names a merged PR; GitHub says whether a PR is open, merged
+  or closed. No one writes `(open)`, `(merged)`, or a merge time or sha into a `**PR:**` field, and
+  no PR is opened only to update one. `[r248]` adds the CI check. (ruling 248; roles/lane.md
+  "Claiming a package")
 - **UR-47** A PR needs the owner for `docs/uplevel/` edits only if they change a ruling, the
   contract, the phases or exit gates, or a package's scope, Done when, dependencies or flags.
   Everything else there (status rows, `file:line` references, moves or artifacts a package's own
@@ -238,11 +244,17 @@ Read this section before you self-review your own PR or review another lane's.
 - **UR-89** Once a PR is ready and its CI at that head has finished, the author dispatches a
   fresh-context subagent given only the package text, the diff and the PR body, to check each
   Done-when clause against the evidence (CI-only clauses from that run, ruling 161), the contract,
-  the cross-lane parts and the hot-file rules. The author fixes or answers each finding and posts
-  the review on the PR; it is the PR's one review (UR-32, ruling 198). (roles/lane.md "Building a
-  package", "Reviewing your PR")
+  the cross-lane parts and the hot-file rules. It marks each finding `blocking (<kind>)` (done-when,
+  test, defect, contract, security or plan-text) or `note`. At the first review the author may fix
+  anything; from the second on, only blocking findings change the head, and notes are listed under
+  `Notes:` in the approving review, with no PR opened only for notes. A re-review reads the diff
+  from the last reviewed head (its sha goes to the subagent) plus the merge resolution with `main`,
+  and a wrong claim in the PR body is fixed by editing the body. The author posts the review on the
+  PR; it is the PR's one review (UR-32, rulings 198, 250). (roles/lane.md "Building a package",
+  "Reviewing your PR")
 - **UR-91** The author posts the review as a PR comment in the form `roles/lane.md` gives (the
-  owner's account cannot approve its own PRs). Each new head's merge resolution is reviewed again. A PR may merge with a Done-when box
+  owner's account cannot approve its own PRs). Each new head is reviewed again, reading what changed
+  since the last reviewed head and its merge resolution (UR-89, ruling 250). A PR may merge with a Done-when box
   unticked only when the approving review names the box, says why this PR cannot tick it (it
   depends on another PR or a later run, or it is stale) and, if the clause still matters, where it
   will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing your PR";
@@ -285,7 +297,16 @@ and the re-read and merge comment are UR-29.
   - risk acceptance (dismissing an alert or a finding);
   - production safety;
   - privileged host tooling (the launcher and anything run with host privileges);
-  - destructive work;
+  - destructive work, except a plain `B3.1`/`F3.1` retirement (ruling 249): one that removes only
+    what a "retire" ruling lists, with only mechanical follow-ons (imports, router registrations,
+    the regenerated `docs/openapi.json` and `frontend/src/types/generated/api.ts`, its own plan
+    bookkeeping); that drops no table and adds no upgrade step; that touches nothing under
+    `backend/api/middleware/`, no file under `backend/` or `frontend/src/` whose path names `auth`,
+    `security`, `api_key`, `secret` or `permission`, no compose, deploy or setup file
+    (`docker-compose*.yml`, `setup.py`, `setup_lib/`, `ai/`) and nothing under `.github/`; under
+    which no baseline or limit gains an entry or rises; and that asks the owner nothing. Such a PR
+    carries no `owner` label, and its body's "Owner tier" line says it is a plain retirement under
+    ruling 249. Any other retirement keeps `owner`;
   - plan text, as UR-47 defines it;
   - any PR with an entry under "Questions for the owner".
 - **UR-99** Once the owner answers a PR's "Questions for the owner" and they leave its body, they no

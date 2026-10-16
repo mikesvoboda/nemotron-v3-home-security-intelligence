@@ -212,15 +212,16 @@ class TestPlantedDefects:
         assert "NOT dead" in result.stdout
 
     def test_text_written_into_an_emptiness_pinned_section_fires(self, tmp_path: Path) -> None:
-        """UR-91-c4 pins lane.md 'Reviewing your PR' EMPTY of 'reviewed again'.
-        Write that text there and the pin must fire, forcing cite and claim to move together."""
+        """UR-32-old-home pins lane.md 'Reviewing your PR' EMPTY of 'rotation'. Write that
+        text there and the pin must fire, forcing cite and claim to move together. (Until ruling
+        250 this arm used UR-91-c4, whose text now lives in that section.)"""
         root = make_tree(tmp_path)
         lane = root / "docs/uplevel/roles/lane.md"
         text = lane.read_text()
         anchor = "## Reviewing your PR\n"
         assert anchor in text, "fixture drifted: the pinned section moved"
-        # both UR-91-c4 needles, verbatim, in the pinned-empty section
-        inject = "\nThe head is reviewed again post merge resolution.\n"
+        # a UR-32-old-home needle, verbatim, in the pinned-empty section
+        inject = "\nA rotation picks the reviewer.\n"
         lane.write_text(text.replace(anchor, anchor + inject))
         result = run_gate(root)
         assert result.returncode == 1
@@ -484,17 +485,17 @@ class TestEntailmentArmEdges:
         came back. Plant the text and require the pin to say so."""
         root = make_tree(tmp_path)
         rows = _fixture(root)
-        row = next(r for r in rows if r["rule"] == "UR-91-c4")
-        row["needles"] = ["Reviewed Again"]  # capitals; 'reviewed again' is what we inject
+        row = next(r for r in rows if r["rule"] == "UR-32-old-home")
+        row["needles"] = ["Rotation Order"]  # capitals; 'Rotation Order' is what we inject
         _write_fixture(root, rows)
         lane = root / "docs/uplevel/roles/lane.md"
         anchor = "## Reviewing your PR\n"
         text = lane.read_text()
         assert anchor in text, "fixture drifted: the pinned section moved"
-        lane.write_text(text.replace(anchor, anchor + "\nThe head is Reviewed Again today.\n"))
+        lane.write_text(text.replace(anchor, anchor + "\nThe Rotation Order picks today.\n"))
         result = run_gate(root)
         assert result.returncode == 1, result.stdout
-        assert "UR-91-c4" in result.stdout, result.stdout
+        assert "UR-32-old-home" in result.stdout, result.stdout
         assert "must NOT say" in result.stdout
 
     def test_presence_row_with_no_needle_fires(self, tmp_path: Path) -> None:
