@@ -260,6 +260,9 @@ test.describe('F-060 event feedback', () => {
       panel.getByText('False Positive', { exact: true }),
       'the saved card names false positive'
     ).toBeVisible();
+    await expect(panel.getByText('Actual threat level: Genuine Threat')).toBeVisible();
+    await expect(panel.getByText('Actual identity: delivery driver')).toBeVisible();
+    await expect(panel.getByText('What was wrong: the delivery van idled too long')).toBeVisible();
 
     // Read back EVERY calibration field the form collected. This is the row's
     // "with optional notes and expected threat level" clause, proven on the wire.
@@ -304,6 +307,9 @@ test.describe('F-060 event feedback', () => {
       page.getByTestId('feedback-panel').getByText('Severity Wrong', { exact: true }),
       'the saved card names severity wrong'
     ).toBeVisible();
+    await expect(
+      page.getByTestId('feedback-panel').getByText(`Suggested score: ${FEEDBACK_RISK_SCORE}`)
+    ).toBeVisible();
 
     // The assertion is on the STORED string, which is what the derivation is:
     // "Current score: 45. " + typed text (FeedbackPanel.tsx:203-205). currentRiskScore
@@ -346,35 +352,22 @@ test.describe('F-060 event feedback', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test.fixme('the reopened card reports the threat level the user chose (it does not today)', async ({
-    page,
-  }) => {
+  test('the reopened card reports the threat level the user chose', async ({ page }) => {
     test.setTimeout(90_000);
-    // RED today, by design: this is the row's own clause — the user answered
-    // "expected threat level", so reopening should show it. It does not. The
-    // saved card (FeedbackPanel.tsx:278-296) renders type label + notes + date
-    // and NOTHING else; `actual_threat_level` is never rendered. The fixture
-    // seeded fx.seededEventId with actual_threat_level =
-    // FEEDBACK_SEEDED_THREAT_LEVEL, and the GET returns it (asserted in
-    // createFeedbackFixture's precondition), so the data is present and simply
-    // not shown. If a fix ever renders it, this leg turns green and F-060's
-    // half-built evidence loses its UI-end half (the no-backend-reader half in
-    // the file header would remain). test.fixme is this repo's instrument for a
-    // written-but-known-red leg (timeline/event-reevaluate.spec.ts:259); the rest
-    // of the project stays green so
-    // CI's verdict stays readable.
+    // Ruling 213 ([r213]): the saved card renders every stored field, including
+    // actual_threat_level. fx.seededEventId was seeded by createFeedbackFixture
+    // with actual_threat_level = FEEDBACK_SEEDED_THREAT_LEVEL ('no_threat',
+    // label 'No Threat').
     const session = await bootWithModal(page, fx.seededEventId);
-    // The premise, stated as a passing assertion so a reader can see WHICH
-    // half of "data present but not shown" is the broken one: the server has
-    // the value (this passes), the card does not show it (this is the red one).
     const truth = await feedbackTruth(session, fx.seededEventId);
     expect(
       truth.actual_threat_level,
-      'the stored threat level is readable — the break is at the UI end'
+      'the stored threat level is readable from GET /api/feedback/event/{id}'
     ).toBe(FEEDBACK_SEEDED_THREAT_LEVEL);
     await expect(
-      page.getByTestId('feedback-panel').getByText('Genuine Threat'),
-      'the reopened card should surface the stored threat level'
+      page.getByTestId('feedback-panel').getByText('Actual threat level: No Threat'),
+      'the reopened card surfaces the stored threat level'
     ).toBeVisible();
+    expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 });
