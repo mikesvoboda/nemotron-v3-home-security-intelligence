@@ -209,12 +209,15 @@ export default function EventAuditDetail({ eventId }: EventAuditDetailProps) {
   // Handle evaluate button click
   const handleEvaluate = async () => {
     setEvaluating(true);
-    setError(null);
+    if (audit) {
+      setError(null);
+    }
 
     try {
       const force = audit?.is_fully_evaluated ?? false;
       const data = await triggerEvaluation(eventId, force);
       setAudit(data);
+      setError(null);
     } catch (err) {
       if (err instanceof AuditApiError) {
         setError(err.message);
@@ -238,27 +241,43 @@ export default function EventAuditDetail({ eventId }: EventAuditDetailProps) {
     );
   }
 
-  // Render error state
-  if (error && !audit) {
+  // Render empty / error state while keeping the header Run Evaluation control mounted
+  if (!audit) {
     return (
-      <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-6">
-        <div className="flex flex-col items-center justify-center py-8">
-          <AlertCircle className="h-12 w-12 text-red-400" />
-          <p className="mt-3 text-gray-400">{error}</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Event #{eventId} Audit</h3>
+          </div>
           <button
-            onClick={() => window.location.reload()}
-            className="mt-4 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+            onClick={() => void handleEvaluate()}
+            disabled={evaluating}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 font-semibold transition-colors ${
+              evaluating
+                ? 'cursor-not-allowed bg-gray-700 text-gray-400'
+                : 'bg-[#76B900] text-black hover:bg-[#8ACE00]'
+            }`}
           >
-            Retry
+            <RefreshCw className={`h-4 w-4 ${evaluating ? 'animate-spin' : ''}`} />
+            {evaluating ? 'Evaluating...' : 'Run Evaluation'}
           </button>
         </div>
+        {error && (
+          <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-6">
+            <div className="flex flex-col items-center justify-center py-8">
+              <AlertCircle className="h-12 w-12 text-red-400" />
+              <p className="mt-3 text-gray-400">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
-  }
-
-  // Render content when audit is loaded
-  if (!audit) {
-    return null;
   }
 
   // Count contributing models

@@ -1438,9 +1438,11 @@ export const AUDIT_NOT_FOUND_DETAIL = (eventId: number): string =>
 
 export interface AuditFixture {
   cameraId: string;
-  /** The row at AUDIT_TARGET_RISK_SCORE — the only one any leg clicks. */
+  /** The row at AUDIT_TARGET_RISK_SCORE — seeded with an event_audits row by running POST /api/ai-audit/batch. */
+  auditedEventId: number;
+  /** An unaudited row clicked by the not-found / empty-state legs. */
   targetEventId: number;
-  /** A second row, never audited and never clicked: the negative control. */
+  /** A third row, never audited and never clicked: the negative control. */
   controlEventId: number;
 }
 
@@ -1514,6 +1516,7 @@ export async function createAuditFixture(
   const rows = [
     { risk_score: AUDIT_TARGET_RISK_SCORE, risk_level: 'critical' },
     { risk_score: 44, risk_level: 'medium' },
+    { risk_score: 43, risk_level: 'medium' },
   ];
   const bulk = await apiWrite<BulkBody>(h, session, 'POST', '/api/events/bulk', {
     events: rows.map((row, i) => ({
@@ -1533,7 +1536,7 @@ export async function createAuditFixture(
         String(bulk.results.find((r) => r.status !== 'success')?.error).slice(0, 200)
     );
   }
-  const [targetEventId, controlEventId] = eventIds;
+  const [auditedEventId, targetEventId, controlEventId] = eventIds;
 
   const requireFixture = (premise: boolean, why: string): void => {
     if (!premise) throw new Error(`audit fixture: ${why}`);
@@ -1551,15 +1554,15 @@ export async function createAuditFixture(
   );
   // The score is the batch-targeting lever (see AUDIT_TARGET_RISK_SCORE), so a
   // server that clamped or defaulted it silently disarms the isolation.
-  const storedTarget = await api<{ risk_score: number | null }>(
+  const storedAudited = await api<{ risk_score: number | null }>(
     h,
     session,
-    `/api/events/${targetEventId}`
+    `/api/events/${auditedEventId}`
   );
   requireFixture(
-    storedTarget.risk_score === AUDIT_TARGET_RISK_SCORE,
-    `the target row must store risk_score ${AUDIT_TARGET_RISK_SCORE} for ` +
-      `min_risk_score targeting to be exclusive (got ${String(storedTarget.risk_score)})`
+    storedAudited.risk_score === AUDIT_TARGET_RISK_SCORE,
+    `the audited row must store risk_score ${AUDIT_TARGET_RISK_SCORE} for ` +
+      `min_risk_score targeting to be exclusive (got ${String(storedAudited.risk_score)})`
   );
   for (const id of eventIds) {
     const probe = await readAuditLookup(h, session, id);
@@ -1567,11 +1570,60 @@ export async function createAuditFixture(
       probe.status === 404 && probe.detail === AUDIT_NOT_FOUND_DETAIL(id),
       `row ${id} must start with NO audit row, answered 404 with the ` +
         `"no audit" detail (got ${probe.status} ` +
-        `${JSON.stringify(probe.detail)?.slice(0, 120)}) — F-061/F-062 assert the ` +
-        `not-found branch, so a row that already HAS an audit makes the leg vacuous`
+        `${JSON.stringify(probe.detail)?.slice(0, 120)})`
     );
   }
-  return { cameraId, targetEventId, controlEventId };
+
+  // Seed an audit on auditedEventId by running the batch audit on the fake stack
+  // (ruling 212 / [r212]), while leaving targetEventId and controlEventId unaudited.
+  const batchJob = await apiWrite<{
+    job_id: string;
+    status: string;
+    total_events: number;
+  }>(h, session, 'POST', '/api/ai-audit/batch', {
+    limit: 10,
+    min_risk_score: AUDIT_TARGET_RISK_SCORE,
+    force_reevaluate: false,
+  });
+  requireFixture(
+    batchJob.total_events >= 1,
+    `batch audit targeting min_risk_score=${AUDIT_TARGET_RISK_SCORE} must queue >= 1 event (got ${batchJob.total_events})`
+  );
+  let jobCompleted = false;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const jobStatus = await api<{
+      status: string;
+      processed_events: number;
+      failed_events: number;
+    }>(h, session, `/api/ai-audit/batch/${encodeURIComponent(batchJob.job_id)}`);
+    if (jobStatus.status === 'completed') {
+      requireFixture(
+        jobStatus.processed_events >= 1 && jobStatus.failed_events === 0,
+        `batch audit job ${batchJob.job_id} completed with processed=${jobStatus.processed_events}, failed=${jobStatus.failed_events}`
+      );
+      jobCompleted = true;
+      break;
+    }
+    if (jobStatus.status === 'failed') {
+      throw new Error(`audit fixture: batch audit job ${batchJob.job_id} failed`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  requireFixture(jobCompleted, `batch audit job ${batchJob.job_id} did not complete within 20s`);
+
+  const auditedAfter = await readAuditLookup(h, session, auditedEventId);
+  requireFixture(
+    auditedAfter.status === 200,
+    `row ${auditedEventId} must have an audit row after batch audit (got ${auditedAfter.status} ${JSON.stringify(auditedAfter.detail)?.slice(0, 120)})`
+  );
+  for (const id of [targetEventId, controlEventId]) {
+    const probe = await readAuditLookup(h, session, id);
+    requireFixture(
+      probe.status === 404 && probe.detail === AUDIT_NOT_FOUND_DETAIL(id),
+      `row ${id} must remain unaudited after batch audit (got ${probe.status} ${JSON.stringify(probe.detail)?.slice(0, 120)})`
+    );
+  }
+  return { cameraId, auditedEventId, targetEventId, controlEventId };
 }
 
 /** The tripwire closing every golden spec (F2.1's; OP-1 calls it closedByGuard). */
