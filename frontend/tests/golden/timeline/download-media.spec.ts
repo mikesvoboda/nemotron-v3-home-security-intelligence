@@ -745,7 +745,7 @@ test.describe('F-059 download media', () => {
    * reach api.ts:3343-3344 and no download would land — legs 1 and 4 die. The
    * branch's video side is the fixme's, and this file claims nothing for it.
    */
-  test.fixme("the first detection's VIDEO downloads (the row's second disjunct) — UNPROVEN on this tier", async ({
+  test.fixme("F-296 the first detection's VIDEO downloads (the row's second disjunct) — UNPROVEN on this tier", async ({
     page,
   }) => {
     // Written, NOT executed; shows as "skipped" in the feature-check `golden
@@ -1052,7 +1052,7 @@ test.describe('F-059 download media', () => {
    * items[0] of the default ordering when those two disagree — which is precisely
    * the seam a ≥2 event could break, and the reason this belongs on the record.
    */
-  test.fixme('with two detections whose two orderings disagree, Download takes detection_ids[0]', async ({
+  test.fixme('F-296 with two detections whose two orderings disagree, Download takes detection_ids[0]', async ({
     page,
   }) => {
     // Never executed on this tier — see the docblock's two measured reasons.
