@@ -463,7 +463,7 @@ safety rails:
 
 **Evidence. They delete different files.**
 
-- The storage cleaner (`run_orphaned_file_cleanup`, `backend/api/routes/system.py:3403`) scans the
+- The storage cleaner (`run_orphaned_file_cleanup`, `backend/api/routes/system.py:3427`) scans the
   **thumbnails and clips** directories (`backend/services/cleanup_service.py:763`, `:768`): derived
   files whose `Detection` or `Event` row is gone. No age or size limit. Guarded by `verify_api_key`
   (`backend/api/routes/system.py:3401`), which passes everyone while `API_KEY_ENABLED` is off, its
