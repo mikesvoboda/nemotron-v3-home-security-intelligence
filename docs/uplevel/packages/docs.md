@@ -189,7 +189,9 @@ from the writers outward (`detector_client.py`, the re-ID embedding and clusteri
 consumers) rather than from the earlier row list, and the two boundaries that reading forced — a row
 about the fake value vs a surface that merely renders one, and a figure the row promises vs the pipeline
 counting its own running — are published in the §1 intro so a reader can re-check them; the same
-paragraph names every adjudicated non-member and its reason. The one listed row at **works** was F-097 and this PR
+paragraph names the adjudicated non-members whose own §3 evidence cites a coordinate §1 publishes as
+an exclusion ground, and states that bound plus what the claim does NOT cover rather than asserting
+it is total. The one listed row at **works** was F-097 and this PR
 names it back to **awaiting real tier** (§2's 3.6 and `all` rows re-derived); the sweep found no
 second one, and the closest call is named: F-031 renders the detector-drawn crop in its feed cards but
 promises the VLM-written verdict/notify/risk badges, which its own golden spec asserts and F-054's does
