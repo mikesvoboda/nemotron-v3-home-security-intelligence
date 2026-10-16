@@ -2,7 +2,11 @@
 # The feature-check harness (O2.2): golden paths against a test deployment.
 #
 #   scripts/feature-check.sh --fake [--seeded] [--image-tag <tag>]
+#   scripts/feature-check.sh --real --seeded [--image-tag <tag>]   # ruling 235
 #   scripts/feature-check.sh drop <image> <camera>    # inside a golden spec
+#
+# --seeded is a BOOT SHAPE, not a mode (ruling 235): it rides on --fake or --real,
+# and is refused only with --prod-shape, because production never runs DEBUG=true.
 #
 # --fake brings up the CI stack with the fake-AI overlay under its own compose
 # project, runs the harness smoke check and the golden paths, collects

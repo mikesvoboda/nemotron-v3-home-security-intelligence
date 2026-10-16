@@ -5136,15 +5136,27 @@ def test_the_seeded_refusals_are_distinguishable(monkeypatch: Any, capsys: Any) 
     Pinning the two messages separately also catches a guard reordered into the wrong slot: a
     reader who types `--seeded --prod-shape --real` should be told about DEBUG=true in production,
     not about choosing a mode.
+
+    The bare-`--seeded` pin is deliberately TWO-SIDED. Its substring `--fake or --real` is also a
+    substring of the unrelated generic fallback `choose --fake or --real`, which is what the
+    `if not args.fake` guard prints several lines later. So deleting the seeded guard entirely
+    still satisfies the positive half — the run falls through to the generic refusal and the
+    substring is present. The negative half is what makes this a pin: the operator has to be told
+    that the SHAPE needs a mode, not that they forgot to pick a tier.
     """
     _fake_boot(monkeypatch)
     with pytest.raises(SystemExit):
         fc.main(["--seeded", "--prod-shape", "--real"])
-    assert "prod-shape" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "prod-shape" in err, err
+    assert "DEBUG=true" in err, err
 
     with pytest.raises(SystemExit):
         fc.main(["--seeded"])
-    assert "--fake or --real" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "--seeded needs --fake or --real" in err, err
+    assert "boot shape" in err, err
+    assert "choose --fake or --real" not in err, f"fell through to the generic mode refusal: {err}"
 
 
 def test_a_real_seeded_run_gets_the_seeded_shape_and_overrides(
@@ -5168,3 +5180,83 @@ def test_a_real_seeded_run_gets_the_seeded_shape_and_overrides(
     assert env["DEBUG"] == "true"
     assert env["HSI_FAULT_SEED"] == "1"
     assert env["REQUEST_RECORDING_ENABLED"] == "true"
+
+
+def test_a_real_seeded_boot_forwards_the_flag_into_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The handoff at the top of ``run_check``, where the CLI flag becomes ``Run.seeded``.
+
+    Every flag-matrix test above replaces ``run_check`` wholesale, so none of them ever runs this
+    line. A ``seeded = False`` here would boot the real tier unseeded while every parse test stayed
+    green: the run would still print ``mode``, the seeded golden project would simply collect
+    nothing, and the operator's ``--real --seeded`` would report a clean run that seeded nothing.
+    So pin the exact handoff, not its two ends — the same shape as
+    test_run_check_builds_the_run_with_the_shape for prod_shape.
+    """
+    import argparse
+
+    captured: dict[str, Any] = {}
+    real_init = fc.Run.__init__
+
+    def spy(self: Any, **kwargs: Any) -> None:
+        captured.update(kwargs)
+        real_init(self, **kwargs)
+
+    monkeypatch.setattr(fc.Run, "__init__", spy)
+
+    class StopHere(Exception):
+        pass
+
+    monkeypatch.setattr(fc.Run, "prepare", lambda *_a, **_k: (_ for _ in ()).throw(StopHere))
+
+    args = argparse.Namespace(
+        engine="podman",
+        root=tmp_path / "runs",
+        image_tag="test",
+        prod_shape=False,
+        seeded=True,
+    )
+    with pytest.raises(StopHere):
+        fc.run_check(args, mode="real")
+    assert captured.get("seeded") is True, "run_check must forward --seeded to Run"
+    assert captured.get("mode") == "real"
+
+
+def test_a_real_and_seeded_deployment_takes_the_vlm_url_and_the_seeded_shape_together(
+    base: dict[str, Any], live: Any
+) -> None:
+    """The one call the real tier actually makes: ``vlm_url`` AND ``seeded`` set at once.
+
+    ``as_test_deployment`` takes both, and the two guards sit in different parts of the function —
+    ``vlm_url`` chooses the kept services and pops the in-stack ``ai-vlm`` dependency, ``seeded``
+    sets the DEBUG/recorder/fault-seed environment and the ``/app/data`` tmpfs. The seeded-only
+    test above never passes ``vlm_url``, and test_the_real_take... never passes ``seeded``, so
+    either half alone leaves this combination untested. If the overrides were ever gated on
+    ``vlm_url is None`` — a plausible-looking "seeded is a fake-tier shape" edit — the real tier
+    would boot WITHOUT the recorder or the fault seeds, and the seeded goldens it then runs would
+    read an unseeded backend and pass anyway.
+
+    It also has to survive the preflight, because the seeded tmpfs is a new mount on the real
+    tier's deployment.
+    """
+    both = fc.as_test_deployment(
+        base, project=PROJECT, run_dir=RUN_DIR, vlm_url=VLM_URL, seeded=True
+    )
+    backend = both["services"]["backend"]
+    env = backend["environment"]
+
+    # the real half: VLM from agent-gpu, in-stack ai-vlm gone from both services and depends_on
+    assert list(both["services"]) == list(fc.REAL_SERVICES)
+    assert env["AI_VLM_URL"] == VLM_URL
+    assert "ai-vlm" not in backend["depends_on"]
+
+    # the seeded half, on top of it, unchanged from the fake tier
+    assert env["DEBUG"] == "true"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+    assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
+
+    # and the combination is still a deployment the in-run check accepts
+    assert _preflight(both, live, allowed_host_ports=frozenset({18123})) == []
