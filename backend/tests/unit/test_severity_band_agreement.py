@@ -41,10 +41,15 @@ copies ISS-018's 2026-10-05 "full band census for the fix" update found:
 ``Event.computed_risk_level``'s Python-side arm is read off a transient
 ``Event(risk_score=n)`` instance: the hybrid_property's Python half is a plain
 attribute read plus a settings lookup, so it needs no database, no session and
-no flush. (Its ``.expression`` half - the SQL CASE - hard-codes the defaults
-too; that arm is covered by the SQL-side pins in
-``backend/tests/integration/test_models.py`` and is out of scope for a unit
-tier, so this file stays in the fast lane.)
+no flush. (Its ``.expression`` half - the SQL CASE - now reads the same
+settings as the Python half; it used to hard-code the defaults, which is what
+let ``[r211b]``'s search filter and its response drift apart. This census does
+not exercise that arm - a unit tier cannot compile it - and it is NOT covered by
+``backend/tests/integration/test_models.py``, which asserts stored ``risk_level``
+values only. Its witness is ``backend/tests/integration/test_search_api.py``:
+two legs drive the CASE through ``/api/events/search`` at the SHIPPED bands, and
+``test_computed_risk_level_sql_and_python_agree_on_moved_bands`` drives both
+halves under moved bands, so this file stays in the fast lane.)
 
 Copies EXEMPT on the record (deliberately NOT in the census - listed here so
 nobody re-adds them and a future reader knows the omission is a ruling):

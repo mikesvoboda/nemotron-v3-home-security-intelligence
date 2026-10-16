@@ -426,7 +426,7 @@ class Event(Base):
     @computed_risk_level.expression  # type: ignore[no-redef]
     @classmethod
     def computed_risk_level(cls) -> Any:
-        """SQL expression for computed_risk_level.
+        """SQL expression for computed_risk_level, mirroring the Python side.
 
         Generates a CASE expression for use in SQL queries:
         SELECT *, CASE WHEN risk_score IS NULL THEN NULL
@@ -436,13 +436,22 @@ class Event(Base):
                        ELSE 'critical' END AS computed_risk_level
         FROM events;
 
-        Note: Uses hardcoded default thresholds for SQL compatibility.
-        For dynamic thresholds, compute in Python or use a database function.
+        The bands are read from settings here, exactly as the Python side
+        above reads them, so a query that filters on this expression and the
+        API echo that renders `risk_level` cannot disagree after a runtime
+        PATCH /api/system/severity moves the bands. (They were hardcoded
+        literals here, which is what let `[r211b]`'s search filter and the
+        search response drift apart in the first place.) `get_settings()` is
+        cached, so this stays cheap per query build.
         """
+        # Lazy import: same reason as the Python half above (circular imports).
+        from backend.core.config import get_settings
+
+        settings = get_settings()
         return case(
             (cls.risk_score.is_(None), None),
-            (cls.risk_score <= 29, "low"),
-            (cls.risk_score <= 59, "medium"),
-            (cls.risk_score <= 84, "high"),
+            (cls.risk_score <= settings.severity_low_max, "low"),
+            (cls.risk_score <= settings.severity_medium_max, "medium"),
+            (cls.risk_score <= settings.severity_high_max, "high"),
             else_="critical",
         )
