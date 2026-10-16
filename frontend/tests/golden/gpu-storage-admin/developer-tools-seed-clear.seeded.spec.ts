@@ -20,9 +20,10 @@
  * (operations/test-data.spec.ts:33-40). Even a failure between the clear and
  * the restore leaves no later leg starved, since no later leg reads cameras.
  *
- * The row's warning is explicit — "Clear All Test Data" deletes ALL cameras,
- * events and detections, not only seeded ones (AdminSettings.tsx:971-974), and
- * the inventory repeats it. The restore mechanism is copied from
+ * The row's warning is explicit — the dialog states "permanently delete ALL
+ * cameras, events, and detections" (AdminSettings.tsx:983-984) and the card's
+ * own summary says "Delete all cameras, events, and detections" (:903), not
+ * only seeded ones; the inventory repeats it. The restore mechanism is copied from
  * test-data.spec.ts:195-253: the harness's camera book (FEATURE_CHECK_CAMERAS,
  * written unconditionally at scripts/feature_check.py:2106 — seeded runs
  * included) names every camera the boot registered, and camera ids are
@@ -35,7 +36,8 @@
  * (cameras.py:261), and NEITHER seed_cameras NOR clear_seeded_data invalidates
  * it — only /maintenance/clear-cache does (admin.py:1134). The create/update/
  * delete handlers in cameras.py each schedule their own invalidation
- * (:815/:913/:992); the admin seed+clear paths do not. So the first CI run of
+ * (create_camera :815, update_camera :913, delete_camera :992 — plus
+ * restore_camera :657); the admin seed+clear paths do not. So the first CI run of
  * this leg (job 116664916467, run 38804341602, head 0642f8348) reddened at the
  * seed count DELTA with OPPOSITE signs on consecutive retries — attempt1
  * Expected 5 / Received 0, retry1 Expected 0 / Received 5, retry2 Expected 5 /
@@ -73,7 +75,7 @@ interface EventList {
 }
 
 /** The five cameras the Developer Tools seed button creates, in
- * _get_sample_cameras order (admin.py:169-197), stored under these DASHED ids
+ * _get_sample_cameras order (admin.py:170-207 — six entries, living-room last), stored under these DASHED ids
  * verbatim by seed_cameras (admin.py:359-360). Copied from the F-160 precedent's
  * asserted set (test-data.spec.ts:135), which measured them after a first draft
  * wrongly expected slugified ids. */
@@ -83,7 +85,7 @@ const SAMPLE_IDS = ['front-door', 'backyard', 'garage', 'driveway', 'side-gate']
  * Cache-immune per-row existence. GET /api/cameras/{id} is get_camera
  * (cameras.py:684): it injects only db:DbSession — no CacheDep — and looks the
  * row up with Camera.id == camera_id and NO id normalization
- * (dependencies.py:461), so it reads the table directly and is unaffected by the
+ * (dependencies.py:459), so it reads the table directly and is unaffected by the
  * camera-LIST Redis cache (SHORT_TTL=60s) that seed/clear never invalidate.
  * 200 → present, 404 → absent; any other status throws (that is not a "row is
  * missing" answer and must not be swallowed as absence). This is the primitive
@@ -153,7 +155,7 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
     // already registered the scenario cameras (feature_check.py:2093-2106) and
     // AdminSettings' button sends the fixed sample set (AdminSettings.tsx:380
     // count:5), whose names do not overlap the scenario names — but seed_cameras
-    // skips existing ids and counts only new rows (admin.py:341-366), so 0 is an
+    // skips existing ids and counts only new rows (admin.py:342-366), so 0 is an
     // HONEST answer here and the precedent test-data.spec.ts:118-125 says so.
     // The delta is taken over PER-ID reads, not the list total: on a retry the
     // sample ids already exist, so a genuine "created 0" must be observable as
@@ -198,7 +200,7 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
     expect(promised).toBeDefined();
     expect(camerasAfterSeed - camerasBefore).toBe(Number(promised));
 
-    // --- Seed Test Events: needs cameras first (admin.py:450 docstring), which
+    // --- Seed Test Events: needs cameras first (admin.py:460 docstring), which
     // the leg above just guaranteed.
     await page.getByTestId('btn-seed-events').click();
     const eventDialog = page.getByTestId('confirm-dialog');
@@ -240,13 +242,14 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
     // The wipe's camera leg is proved by the RESTORE LOOP below, not by a
     // per-id absence poll here, and the reason is deliberate: FileWatcher
     // auto-creates camera rows for directories (file_watcher.py:31,407 default
-    // True) and the clear is DB-only — delete(Event)/delete(Detection)/
-    // delete(Camera) + commit (admin.py:44-46) leaves every folder on disk — so
+    // True) and the clear is DB-only — clear_seeded_data runs
+    // delete(Event)/delete(Detection)/delete(Camera) (admin.py:714-716) then
+    // commits (:761), leaving every folder on disk — so
     // "no rows right now" can race a resurrection and is not the invariant the
     // row promises. The precedent for this same reset (F-162,
     // test-data.spec.ts:235-253) proves camera absence the watcher-safe way:
-    // create_camera answers 409 for an existing name OR folder_path
-    // (cameras.py:25-29,:39-40) and authPost throws on any non-2xx, so each
+    // create_camera answers 409 for an existing name (cameras.py:742-751) OR
+    // folder_path (:753-764) and authPost throws on any non-2xx, so each
     // successful restore POST below is a positive proof the row was gone moments
     // earlier. Events (whose LIST is uncached) are polled to zero below.
 

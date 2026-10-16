@@ -15,7 +15,7 @@
  *
  * The witness is deliberately NOT "the warning disappeared". `fetchData()`
  * sets `orphanedPreview` to null on the ERROR path too (FileOperationsPanel
- * .tsx:452-468 wraps the preview in `.catch(() => null)`), so a vanished
+ * .tsx:453-468 wraps the preview in `.catch(() => null)`), so a vanished
  * warning is equally consistent with a failed POST. What is asserted instead
  * is the app's OWN re-scan: `handleOrphanedCleanup` awaits
  * `triggerOrphanedCleanup()` then `fetchData()` (:535-543), so a successful

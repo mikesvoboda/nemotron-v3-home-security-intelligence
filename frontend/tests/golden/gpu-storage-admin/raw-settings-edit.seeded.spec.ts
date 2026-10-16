@@ -9,8 +9,8 @@
  *    --seeded` runs project `golden-seeded`, which boots DEBUG=true
  *    (scripts/feature_check.py:500-501) and matches only `*.seeded.spec.ts`.
  * 2. CLIENT. `debugMode = isDebugAvailable && storedDebugMode`
- *    (contexts/DebugModeContext.tsx:69) and storedDebugMode comes from
- *    localStorage 'system-debug-mode' with default FALSE (:59). A fresh
+ *    (contexts/DebugModeContext.tsx:70) and storedDebugMode comes from
+ *    localStorage 'system-debug-mode' with default FALSE (:63). A fresh
  *    Playwright context therefore does NOT show the section even on a
  *    DEBUG=true backend, so this leg flips the real `Toggle debug mode` switch
  *    on /operations (the same control F-133 drives) rather than writing
