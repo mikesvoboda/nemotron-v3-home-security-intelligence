@@ -355,16 +355,16 @@ on the CI compose before their save leg can go green; until then they flip on th
 ### [r149d] F-057: the event list returns `notes`
 
 **Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** #7070 (merged).
-(ruling 149, record 6146380050)
+(rulings 149, 238; records 6146380050, 6216702824)
 
 - [x] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
       and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
       `GET /api/events`.
-- [ ] When it merges, frontend flips the read-back `test.fixme` in
-      `frontend/tests/golden/timeline/event-detail.spec.ts`; that golden path rules F-057. No `R2b`
-      entry.
+- [ ] The read-back `test.fixme` in `frontend/tests/golden/timeline/event-detail.spec.ts` is
+      flipped by `[r238]` (heavy-a; ruling 238); that golden path rules F-057. No `R2b` entry.
 
-**Done when:** `GET /api/events` returns a saved note, and F-057's read-back golden leg passes.
+**Done when:** `GET /api/events` returns a saved note, and `[r238]` merges with F-057's read-back
+golden leg passing.
 
 ### [r160b] Deferred Python major: huggingface-hub 2
 
