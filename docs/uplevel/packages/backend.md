@@ -377,6 +377,28 @@ head.
 head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green and its 2
 `test.fixme` marks unchanged (ruling 221); `[r211f]` then removes those marks.
 
+### [r223] The developer tools' seed and clear refresh the caches they change
+
+**Flags:** none. **Assigned:** backend, after `[r211b]` (a lane bug fix outside Phase 4's priority
+order). **Depends on:** none. **PR:** none yet. (ruling 223, record 6205796977)
+
+`seed_cameras` (`backend/api/routes/admin.py:299`) and `clear_seeded_data` (`:671`) commit without
+invalidating the camera list cache, which every camera route does
+(`_invalidate_cameras_cache_background`, `backend/api/routes/cameras.py:132`). `GET /api/cameras`
+caches for 60 s (`cameras.py:261`), so F-197's toast names cameras the list does not show yet.
+
+- [ ] `seed_cameras` and `clear_seeded_data` schedule the same background invalidation of the
+      cameras cache as the camera routes.
+- [ ] **MEASURE** every other cached read the three developer-tool writes change, and list it in the
+      PR: `clear_seeded_data` deletes all events and detections (`admin.py:714-715`), `seed_events`
+      (`:450`) adds events, and `backend/api/routes/events.py` caches `get_event_stats` (`:731`) and
+      `get_timeline_summary` (`:907`). Each one a handler's write changes is invalidated the same way.
+- [ ] Unit tests pin each handler scheduling its invalidations. No golden spec changes; #7189's
+      F-197 leg reads around the cache and does not wait for this.
+
+**Done when:** the unit tests pass in CI at a ready head, and the PR's list names every cached read
+the three handlers change, each invalidated.
+
 ### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
 
 **Flags:** `heavy`. **Assigned:** heavy-a, ahead of `B2.3`; heavy-a opens its own draft PR.
