@@ -121,14 +121,26 @@ them, is UR-81. This lane opens a package only on a trigger (UR-68).
 
 ### [r215d] F-278's leg on the seeded face vector
 
-**Flags:** none. **Assigned:** docs, after `[r196b]`. **Depends on:** `[r215a]` merged.
-**PR:** none yet. (ruling 215, record 6200719567)
+**Flags:** none. **Assigned:** docs, now, alongside `[r196b]`, with UR-52 waived (ruling 226).
+**Depends on:** `[r215a]` merged (#7188). **PR:** #7204 (open). (rulings 215, 226; records
+6200719567, 6206280092)
 
-- [ ] F-278's leg runs in `Feature check (seeded)`: it opens the seeded person, sees the enrolled
+- [x] F-278's leg runs in `Feature check (seeded)`: it opens the seeded person, sees the enrolled
       face, and deletes it (`DELETE /api/known-persons/{person_id}/embeddings/{embedding_id}`).
+      The leg is `frontend/tests/golden/identity/known-person-embedding.seeded.spec.ts:226` (#7199,
+      merged `25dda07c8`), and it EXECUTED rather than skipped: the fleet's own witness, CI's
+      `Inventory witness (ruling 218)` step in `Feature check (seeded)` at `a8a20e8b2`, prints
+      `READY to flip: F-278 (unverified -> awaiting real tier): 1 leg(s), each passed in this job`
+      with `0 failing`. On the artifact (run `38846528640`, job `116799424527`, artifact
+      `12024277094`): list stdout `✓ 1 … (F-278) … (3.9s)` and footer `4 passed (18.3s)`; junit
+      `<testcase time="3.919">` with NO child (a skip or a retry-absorbed failure would leave one);
+      `retries: 0` in the spec makes attempt 1 final, because the leg destroys its one-embedding
+      fixture. `summary.json` is not the no-retry witness — it stores only the final attempt.
 
 **Done when:** the leg passes and F-278 flips to **awaiting real tier** on that run (rulings 103,
-114).
+114). **MET** — the leg passed as above, and this PR sets F-278 to **awaiting real tier** (not
+**works**: the real tier has not run, ruling 148), with §2's §3.12 and `all` rows re-derived so
+`scripts/check-inventory-summary-arith.py` passes on this tree.
 
 ### [r207] Rows the real tier cannot confirm
 

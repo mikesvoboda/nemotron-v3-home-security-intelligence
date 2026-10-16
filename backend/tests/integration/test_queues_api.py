@@ -12,6 +12,7 @@ Tests verify:
 """
 
 import os
+import time
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import ExitStack
@@ -169,25 +170,38 @@ def mock_redis_for_queues() -> AsyncMock:
     return mock_redis_client
 
 
-@pytest.fixture
-async def queues_client(
-    integration_db: str, mock_redis_for_queues: AsyncMock
-) -> AsyncGenerator[AsyncClient]:
-    """Async HTTP client for Queue Status API tests.
+async def seed_first_admin_for_queues() -> None:
+    """Make the API post-setup: seed the first admin, then drop the guard's cache.
 
-    This fixture creates an HTTP client with mocked Redis.
+    SetupGuardMiddleware returns 503 for every non-whitelisted route until a user
+    exists (setup complete), so these tests seed one directly to reach the
+    post-setup contract.
+
+    The raw INSERT is not enough on its own. It bypasses the register route,
+    which is the only production caller of invalidate_setup_cache()
+    (backend/api/routes/auth.py:226), and the guard instance is built once for
+    the module-level `app` and caches a "setup required" verdict for
+    _SETUP_CHECK_TTL_SECONDS (60 s, setup_guard.py:42). So a pre-setup test
+    earlier in the SAME process keeps 503-ing these requests long after a user
+    exists — the request never reaches the route, and CI logs it as
+    `GET /api/queues/status completed with 503 in 0.76ms`. That is the flake
+    behind the six TestGetQueuesStatus nodes UR-116 routed here.
+
+    Unconditional, not inside `if count == 0`: the poison arrives just the same
+    when a previous test seeded and then truncated the user.
     """
-    # SetupGuardMiddleware returns 503 for every non-whitelisted route until a
-    # user exists (setup complete). These tests target the post-setup API
-    # contract, so seed the first admin directly to reach it.
     from sqlalchemy import func, select
 
+    from backend.api.middleware.setup_guard import invalidate_setup_cache
     from backend.core.database import get_engine
-    from backend.main import app
     from backend.models.user import User
 
     engine = get_engine()
     async with engine.begin() as conn:
+        # Re-checked per test: the integration tier's sweep empties `users`
+        # after every test that does not own a sweeping fixture (conftest.py's
+        # `_SWEEP_OWNERS`), so the table is empty here again even after an
+        # earlier test in this module seeded it.
         count = (await conn.execute(select(func.count(User.id)))).scalar() or 0
         if count == 0:
             await conn.execute(
@@ -200,6 +214,21 @@ async def queues_client(
                     is_admin=True,
                 )
             )
+
+    invalidate_setup_cache()
+
+
+@pytest.fixture
+async def queues_client(
+    integration_db: str, mock_redis_for_queues: AsyncMock
+) -> AsyncGenerator[AsyncClient]:
+    """Async HTTP client for Queue Status API tests.
+
+    This fixture creates an HTTP client with mocked Redis.
+    """
+    from backend.main import app
+
+    await seed_first_admin_for_queues()
 
     # Create settings
     test_settings = Settings(
@@ -749,3 +778,78 @@ class TestThroughputMetrics:
         assert dlq is not None
         assert dlq["throughput"]["jobs_per_minute"] == 0
         assert dlq["throughput"]["avg_processing_seconds"] == 0
+
+
+def _find_live_setup_guard():
+    """Return the SetupGuardMiddleware instance serving `app`, or None.
+
+    Starlette builds `app.middleware_stack` lazily on the first request, so this
+    returns None until something has actually made a request through the app.
+    """
+    from backend.api.middleware.setup_guard import SetupGuardMiddleware
+    from backend.main import app
+
+    node = getattr(app, "middleware_stack", None)
+    while node is not None:
+        if isinstance(node, SetupGuardMiddleware):
+            return node
+        node = getattr(node, "app", None)
+    return None
+
+
+class TestSetupGuardCacheIsInvalidated:
+    """The seed helper must clear the guard's cached "setup required" verdict.
+
+    UR-116 routed six `TestGetQueuesStatus` nodes here (pass_rate 0.571): they
+    failed `assert 503 == 200` when a pre-setup test happened to run earlier in
+    the same worker. This class pins the mechanism directly so the suite catches
+    a regression without depending on random test order.
+    """
+
+    @pytest.mark.asyncio
+    async def test_status_recovers_from_a_cached_setup_required_verdict(
+        self, queues_client: AsyncClient, mock_redis_for_queues: AsyncMock
+    ) -> None:
+        """A stale negative verdict yields 503; the helper's cure yields 200.
+
+        Both halves are load-bearing. The 503 half proves the armed state really
+        reaches the guard that serves this request — without it the 200 half
+        could pass on a guard that was never poisoned. The 200 half goes red the
+        moment `invalidate_setup_cache()` leaves `seed_first_admin_for_queues`.
+        """
+        # Warm the middleware stack: the guard instance does not exist until a
+        # request has been served, and arming a nonexistent instance would pass
+        # vacuously.
+        warm = await queues_client.get("/health")
+        assert warm.status_code == 200
+
+        guard = _find_live_setup_guard()
+        if guard is None:
+            pytest.fail(
+                "no SetupGuardMiddleware on app.middleware_stack — the 503 half "
+                "of this test cannot observe a poisoned cache and would be vacuous"
+            )
+
+        # Recreate the state a pre-setup test leaves behind: the sticky
+        # setup-complete flag down, and a *negative* verdict cached inside the
+        # TTL window. `_cached_result=False` is the poison — cached True means
+        # "allow", so arming the wrong sign here would silently pass.
+        guard._setup_complete = False
+        guard._cached_result = False
+        guard._cached_at = time.monotonic()
+
+        poisoned = await queues_client.get("/api/queues/status")
+        assert poisoned.status_code == 503, (
+            "arming a cached 'setup required' verdict did not 503 this request, "
+            "so the cure below proves nothing"
+        )
+
+        await seed_first_admin_for_queues()
+
+        cured = await queues_client.get("/api/queues/status")
+        assert cured.status_code == 200
+
+        # The sticky flag flipped back because the guard re-queried the database
+        # and saw the seeded user — not because a second cached verdict was
+        # installed in its place.
+        assert guard._setup_complete is True

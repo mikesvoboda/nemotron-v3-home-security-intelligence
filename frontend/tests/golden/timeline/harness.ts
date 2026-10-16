@@ -986,19 +986,19 @@ export async function createDetailFixture(
 /* can be driven at all — and the second page holds exactly 5 rows, which is a   */
 /* count a leg asserts rather than a count it hopes for.                        */
 /*                                                                              */
-/* THE VICTIM ROW IS THE POINT OF THIS FIXTURE. One extra row is SOFT-deleted    */
-/* after seeding, which is a state no other fixture wants and F-048's own        */
-/* "clicks a result to open its detail" clause needs to be measured honestly.    */
-/* Measured on the probe stack, same camera, same run:                           */
-/*   GET /api/events/search?q=…  → total 4, victim PRESENT                      */
-/*   GET /api/events?camera_id=… → total 3, victim ABSENT                       */
-/*   GET /api/events/{victim}    → 404                                           */
-/* The asymmetry is structural, not a race: the search route builds no          */
-/* `deleted_at` predicate (search.py:281-304) while the browse list excludes     */
-/* soft-deleted rows. So a clicked victim result CAN be a search hit that can    */
-/* NEVER be in `filteredEvents`, which the modal's lookup requires              */
-/* (EventTimeline.tsx:1059-1090) — the defect leg becomes deterministic instead  */
-/* of depending on whether the user happened to scroll while browsing.          */
+/* THE VICTIM ROW'S ROLE CHANGED WITH [r211b]. One extra row is still SOFT-      */
+/* deleted after seeding, but its PURPOSE inverted. Before [r211b] the search    */
+/* route had no `deleted_at` predicate while browse did, so the victim was a     */
+/* guaranteed search HIT that could never be in `filteredEvents` — the defect    */
+/* leg clicked it. [r211b] gave search the SAME predicate browse has             */
+/* (backend/services/search.py:451; browse's is events.py:421), so now BOTH      */
+/* readers hide it: search total drops by the victim, and GET /api/events/{id}   */
+/* still 404s. The victim is now the fixture's NEGATIVE control — createSearch-  */
+/* Fixture asserts search EXCLUDES it, and the defect leg's closing line reddens */
+/* if search ever re-lists it. The defect subject moved to a still-shipped cause:*/
+/* search paginates server-side while `filteredEvents` holds only browse's       */
+/* loaded page-1 newest-20, so an older live row on search page 2 is offered by  */
+/* search and unresolvable by the modal (EventTimeline.tsx:1059-1090).          */
 /* -------------------------------------------------------------------------- */
 
 /** FE-3's search camera: distinct from the browse, stats and detail cameras. */
@@ -1017,21 +1017,26 @@ export const SEARCH_FIXTURE_SIZE = 25;
 export const SEARCH_QUERY_TOKEN = 'fe3f048searchtoken';
 
 /**
- * The victim's summary. It carries SEARCH_QUERY_TOKEN (so the query matches it)
- * but NOT the `alpha <i>` form (so no live-row locator can ever aim at it by
+ * The victim's summary. It carries SEARCH_QUERY_TOKEN (so the query would match
+ * it) but NOT the `alpha <i>` form (so no live-row locator can ever aim at it by
  * accident, and a leg can name it out loud). Declared AFTER the token it
  * interpolates: these are `const`s, so the order is a TDZ error, not a style
- * preference.
+ * preference. Since [r211b] the search route hides soft-deleted rows, so this
+ * summary no longer appears in search results — the fixture keeps the row to
+ * prove THAT (`toBe(false)` in the defect leg), not to be listed.
  */
 export const SEARCH_VICTIM_SUMMARY = `${SEARCH_QUERY_TOKEN} deleted-but-still-listed`;
 
 /**
  * Rows actually seeded: the 25 live ones plus the soft-deleted victim. The victim
- * is given the OLDEST `started_at` deliberately: search's tie-break is
- * `started_at DESC` (search.py:432), so the stale row lands at the BOTTOM of the
- * result set — on page 2 — which leaves page 1 identical to the browse list's page
- * 1. That is what keeps the modal's positive control honest: a page-1 click opens
- * the modal because the row really is in the cached list, not by luck.
+ * is given the OLDEST `started_at` so that, were it ever to reappear in the
+ * result set (a search-route regression that un-hides soft-deleted rows), it
+ * would land at the BOTTOM — on page 2 — under the live rows, leaving page 1
+ * identical to the browse list's page 1. That is what keeps the modal's positive
+ * control honest: a page-1 click opens the modal because the row really is in the
+ * cached list, not by luck. The defect the leg measures now sits on page 2 of the
+ * LIVE rows (`alpha 0`, the oldest live row): search shows it, the browse cache
+ * does not, and the modal renders nothing over it ([r211f], ruling 221).
  */
 export const SEARCH_SEED_ROWS = SEARCH_FIXTURE_SIZE + 1;
 
@@ -1039,9 +1044,9 @@ export interface SearchFixture {
   cameraId: string;
   /** The 25 live rows, in seed order. `alpha <i>` in the summary is this index. */
   eventIds: number[];
-  /** The soft-deleted row: returned by search, absent from browse, 404 by id. */
+  /** The soft-deleted row: hidden by search, absent from browse, 404 by id. */
   victimId: number;
-  /** What the SEARCH route calls the total for this token — the victim included. */
+  /** What the SEARCH route calls the total for this token — the victim excluded. */
   searchTotal: number;
   /** What the BROWSE route calls the total — the victim excluded. */
   browseTotal: number;
@@ -1055,15 +1060,21 @@ export interface SearchFixture {
  * `risk_score` alternates 91/45 so `risk_level` alternates high/medium — that is
  * what makes the severity filter leg an ASSERTION (13 of 25 high) instead of a
  * restatement of the fixture. `started_at` is spread one minute apart over 3 h
- * ending now, because search's tie-break is `started_at DESC` (search.py:432) and
+ * ending now, because search's tie-break is `started_at DESC` (search.py:465, moved
+ * from :432 when [r211b] inserted the predicate above it) and
  * identical timestamps would make page contents arbitrary.
  *
  * The purge is HARD (`soft_delete:false`) and it asks the SEARCH route as well as
- * the browse list for this camera's ids, because the two disagree by design: if a
- * previous run died between the soft-delete and `afterAll`, the orphan is invisible
- * to `GET /api/events` but PRESENT in search results, so a browse-only purge would
- * leave it behind and the run would seed 26 rows and read "of 26" where it asserts
- * "of 25" — a red that has nothing to do with the product.
+ * the browse list for this camera's ids. Before [r211b] the two disagreed by
+ * design: a run that died between the soft-delete and `afterAll` left an orphan
+ * invisible to `GET /api/events` but PRESENT in search, so a browse-only purge
+ * would leave it and the next run would seed 26 rows and read "of 26" where it
+ * asserts "of 25". [r211b] made search hide soft-deleted rows
+ * (`backend/services/search.py:451`), so that orphan is now invisible to BOTH
+ * readers: the search-route read can no longer recover it, but neither can it
+ * corrupt the counts — it is excluded from `total_count` and from `items`, so a
+ * lingering orphan is inert. An orphan a run left BEFORE its soft-delete is fully
+ * live and both readers still list and purge it.
  */
 export async function createSearchFixture(
   h: TimelineHarness,
@@ -1178,10 +1189,11 @@ export async function createSearchFixture(
     if (!premise) throw new Error(`search fixture: ${why}`);
   };
   requireFixture(
-    searchTruth.results.some((row) => row.id === victimId),
-    'search must still RETURN the soft-deleted row (the search route builds no ' +
-      'deleted_at predicate, search.py:281-304) — without that asymmetry the defect ' +
-      'leg has nothing to measure'
+    !searchTruth.results.some((row) => row.id === victimId),
+    'search must EXCLUDE the soft-deleted row ([r211b]: the search route filters ' +
+      '`Event.deleted_at IS NULL`, backend/services/search.py:451) — the defect leg ' +
+      'measures a LIVE page-2 row now, so a search route that listed the victim again ' +
+      'would mean this fixture is pinning a different product than the leg claims'
   );
   requireFixture(
     !liveIds.includes(victimId),
@@ -1200,7 +1212,7 @@ export async function createSearchFixture(
     cameraId,
     eventIds: allIds.slice(1), // index 0 is the victim, not a live row
     victimId,
-    searchTotal: searchTruth.total_count, // includes the victim → SEEDED rows
+    searchTotal: searchTruth.total_count, // excludes the victim → SEARCH_FIXTURE_SIZE
     browseTotal: liveIds.length, // excludes it → SEARCH_FIXTURE_SIZE
     highTotal: searchTruth.results.filter((row) => row.risk_level === 'high').length,
   };
@@ -1438,9 +1450,11 @@ export const AUDIT_NOT_FOUND_DETAIL = (eventId: number): string =>
 
 export interface AuditFixture {
   cameraId: string;
-  /** The row at AUDIT_TARGET_RISK_SCORE — the only one any leg clicks. */
+  /** The row at AUDIT_TARGET_RISK_SCORE — seeded with an event_audits row by running POST /api/ai-audit/batch. */
+  auditedEventId: number;
+  /** An unaudited row clicked by the not-found / empty-state legs. */
   targetEventId: number;
-  /** A second row, never audited and never clicked: the negative control. */
+  /** A third row, never audited and never clicked: the negative control. */
   controlEventId: number;
 }
 
@@ -1514,6 +1528,7 @@ export async function createAuditFixture(
   const rows = [
     { risk_score: AUDIT_TARGET_RISK_SCORE, risk_level: 'critical' },
     { risk_score: 44, risk_level: 'medium' },
+    { risk_score: 43, risk_level: 'medium' },
   ];
   const bulk = await apiWrite<BulkBody>(h, session, 'POST', '/api/events/bulk', {
     events: rows.map((row, i) => ({
@@ -1533,7 +1548,7 @@ export async function createAuditFixture(
         String(bulk.results.find((r) => r.status !== 'success')?.error).slice(0, 200)
     );
   }
-  const [targetEventId, controlEventId] = eventIds;
+  const [auditedEventId, targetEventId, controlEventId] = eventIds;
 
   const requireFixture = (premise: boolean, why: string): void => {
     if (!premise) throw new Error(`audit fixture: ${why}`);
@@ -1551,15 +1566,15 @@ export async function createAuditFixture(
   );
   // The score is the batch-targeting lever (see AUDIT_TARGET_RISK_SCORE), so a
   // server that clamped or defaulted it silently disarms the isolation.
-  const storedTarget = await api<{ risk_score: number | null }>(
+  const storedAudited = await api<{ risk_score: number | null }>(
     h,
     session,
-    `/api/events/${targetEventId}`
+    `/api/events/${auditedEventId}`
   );
   requireFixture(
-    storedTarget.risk_score === AUDIT_TARGET_RISK_SCORE,
-    `the target row must store risk_score ${AUDIT_TARGET_RISK_SCORE} for ` +
-      `min_risk_score targeting to be exclusive (got ${String(storedTarget.risk_score)})`
+    storedAudited.risk_score === AUDIT_TARGET_RISK_SCORE,
+    `the audited row must store risk_score ${AUDIT_TARGET_RISK_SCORE} for ` +
+      `min_risk_score targeting to be exclusive (got ${String(storedAudited.risk_score)})`
   );
   for (const id of eventIds) {
     const probe = await readAuditLookup(h, session, id);
@@ -1567,11 +1582,60 @@ export async function createAuditFixture(
       probe.status === 404 && probe.detail === AUDIT_NOT_FOUND_DETAIL(id),
       `row ${id} must start with NO audit row, answered 404 with the ` +
         `"no audit" detail (got ${probe.status} ` +
-        `${JSON.stringify(probe.detail)?.slice(0, 120)}) — F-061/F-062 assert the ` +
-        `not-found branch, so a row that already HAS an audit makes the leg vacuous`
+        `${JSON.stringify(probe.detail)?.slice(0, 120)})`
     );
   }
-  return { cameraId, targetEventId, controlEventId };
+
+  // Seed an audit on auditedEventId by running the batch audit on the fake stack
+  // (ruling 212 / [r212]), while leaving targetEventId and controlEventId unaudited.
+  const batchJob = await apiWrite<{
+    job_id: string;
+    status: string;
+    total_events: number;
+  }>(h, session, 'POST', '/api/ai-audit/batch', {
+    limit: 10,
+    min_risk_score: AUDIT_TARGET_RISK_SCORE,
+    force_reevaluate: false,
+  });
+  requireFixture(
+    batchJob.total_events >= 1,
+    `batch audit targeting min_risk_score=${AUDIT_TARGET_RISK_SCORE} must queue >= 1 event (got ${batchJob.total_events})`
+  );
+  let jobCompleted = false;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const jobStatus = await api<{
+      status: string;
+      processed_events: number;
+      failed_events: number;
+    }>(h, session, `/api/ai-audit/batch/${encodeURIComponent(batchJob.job_id)}`);
+    if (jobStatus.status === 'completed') {
+      requireFixture(
+        jobStatus.processed_events >= 1 && jobStatus.failed_events === 0,
+        `batch audit job ${batchJob.job_id} completed with processed=${jobStatus.processed_events}, failed=${jobStatus.failed_events}`
+      );
+      jobCompleted = true;
+      break;
+    }
+    if (jobStatus.status === 'failed') {
+      throw new Error(`audit fixture: batch audit job ${batchJob.job_id} failed`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  requireFixture(jobCompleted, `batch audit job ${batchJob.job_id} did not complete within 20s`);
+
+  const auditedAfter = await readAuditLookup(h, session, auditedEventId);
+  requireFixture(
+    auditedAfter.status === 200,
+    `row ${auditedEventId} must have an audit row after batch audit (got ${auditedAfter.status} ${JSON.stringify(auditedAfter.detail)?.slice(0, 120)})`
+  );
+  for (const id of [targetEventId, controlEventId]) {
+    const probe = await readAuditLookup(h, session, id);
+    requireFixture(
+      probe.status === 404 && probe.detail === AUDIT_NOT_FOUND_DETAIL(id),
+      `row ${id} must remain unaudited after batch audit (got ${probe.status} ${JSON.stringify(probe.detail)?.slice(0, 120)})`
+    );
+  }
+  return { cameraId, auditedEventId, targetEventId, controlEventId };
 }
 
 /** The tripwire closing every golden spec (F2.1's; OP-1 calls it closedByGuard). */

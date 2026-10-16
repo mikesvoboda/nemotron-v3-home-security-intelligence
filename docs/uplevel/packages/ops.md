@@ -152,8 +152,8 @@ then. It does not flip `REID_BACKEND`; production stays `local`.
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
 `feature_check.py --real` and ruling 143's Playwright container. It is on ops-a's roster queue
 (UR-52); the operator runs its real-tier check.
-It gates only ruling 127's 12 real-tier rows and F-295 (ruling 219), not Phase 2's exit (UR-10,
-contract rule 5).
+It gates only ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222), not
+Phase 2's exit (UR-10, contract rule 5).
 
 Both test tiers run `docker-compose.ci.yml` on Docker (`feature_check.py` `--engine` defaults to
 `docker`, `:2189`). Production runs `docker-compose.prod.yml` on Podman (root `README.md:279-307`),
@@ -183,14 +183,14 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
 - [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
-      F-182) and F-295 (ruling 219) get their witness from the `O2.5` run. If the spike says no,
-      they fall back to ruling 127's original route: ops adds what they need to the test
-      deployment's compose.
+      F-182), F-295 (ruling 219) and F-296 (ruling 222) get their witness from the `O2.5` run. If
+      the spike says no, they fall back to ruling 127's original route: ops adds what they need to
+      the test deployment's compose.
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
-deployment and its run (the owner's on maui, ruling 195) witnesses ruling 127's 12 rows and
-F-295 (rulings 185, 188, 219); on no, the owner has ruled on the
+deployment and its run (the owner's on maui, ruling 195) witnesses ruling 127's 12 rows, F-295
+and F-296 (rulings 185, 188, 219, 222); on no, the owner has ruled on the
 blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
 (#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
 deployment, in a comment on each PR (ruling 154).
