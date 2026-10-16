@@ -44,6 +44,15 @@ import tempfile
 TARGET = "scripts/uplevel/pr_watch.py"
 SUITES = ["scripts/test_pr_watch.py"]
 
+# Files the suite READS but no mutant touches: AGENTS.md documents the suite size, and
+# r193-mutation-campaign.py holds the MUTANTS list the counting test parses. The worktree is at
+# HEAD, so anything the suite reads has to be copied from the working tree exactly like the suite
+# itself -- otherwise the guard compares a working-tree count against a HEAD-prose count and fails
+# on provenance rather than on the property it exists to check. Seen on 2026-10-16: the new
+# counting test aborted the pristine baseline ("says 37 tests; this file defines 48") because only
+# TARGET and SUITES were copied. A file listed here must never also be a mutant's target.
+CONTEXT = ["scripts/uplevel/AGENTS.md", "scripts/r193-mutation-campaign.py"]
+
 # (name, what it breaks, [(anchor, mutation), ...]). Every anchor must occur EXACTLY ONCE in
 # the pristine file, or the mutant is reported BAD-PATTERN rather than silently un-applied.
 MUTANTS = [
@@ -339,8 +348,45 @@ MUTANTS = [
         "finding 4",
         [
             (
-                "    _check_windows(data, label_groups)\n    _check_ruling(data, ruling_issue)\n",
-                "    _check_windows(data, label_groups)\n",
+                "    _check_explicit(data, prs)\n    _check_ruling(data, ruling_issue)\n",
+                "    _check_explicit(data, prs)\n",
+            )
+        ],
+    ),
+    (
+        "explicit-null-skipped",
+        "un-hooks _check_explicit, so an explicitly given --pr answered null is stored as None and "
+        "skipped by diff_lines: the head change straddling the null window is lost, silently and for "
+        "good, because the next poll's `before` IS the null snapshot -- named finding 1",
+        [
+            (
+                "    _check_explicit(data, prs)\n    _check_ruling(data, ruling_issue)\n",
+                "    _check_ruling(data, ruling_issue)\n",
+            )
+        ],
+    ),
+    (
+        "delete-reads-as-new",
+        "restores the one-directional diff: any set difference prints 'new review'/'new comment', so "
+        "a deleted comment announces an ADDITION that never happened and names no author -- named "
+        "finding 2",
+        [
+            (
+                '        f"{prefix}deleted {noun}{_from(item[1])}" for item in before if item[0] not in new_ids\n',
+                '        f"{prefix}new {noun}{_from(item[1])}" for item in before if item[0] not in new_ids\n',
+            )
+        ],
+    ),
+    (
+        "unread-carry-dropped",
+        "drops the UNREAD carry-forward, so a DISCOVERED PR answered null on its first field read "
+        "loses the label group that registered it and its later merge prints nothing -- named "
+        "finding 4",
+        [
+            (
+                '        if after["prs"].get(number) is None and UNREAD in (before["prs"].get(number) or {}):\n'
+                '            after["prs"][number] = before["prs"][number]\n',
+                '        if False:\n            after["prs"][number] = before["prs"][number]\n',
             )
         ],
     ),
@@ -420,7 +466,8 @@ def main() -> int:
         ).stdout.strip()
     )
     pristine = (root / TARGET).read_text(encoding="utf-8")
-    suites_from_disk = {s: (root / s).read_text(encoding="utf-8") for s in SUITES}
+    assert TARGET not in SUITES and TARGET not in CONTEXT, "a mutant target cannot also be copied"
+    suites_from_disk = {s: (root / s).read_text(encoding="utf-8") for s in [*SUITES, *CONTEXT]}
     stale = [
         s
         for s, text in suites_from_disk.items()
@@ -499,8 +546,8 @@ def main() -> int:
                 dest.write_text(text, encoding="utf-8")
             if stale:
                 print(
-                    f"note: {len(stale)}/{len(SUITES)} suite file(s) differ from HEAD; running the "
-                    "working-tree copies, as edited"
+                    f"note: {len(stale)}/{len(suites_from_disk)} read-file(s) differ from HEAD; "
+                    "running the working-tree copies, as edited"
                 )
             baseline, baseline_count, baseline_summary = run_suite(worktree, python)
             # POSITIVE CONTROL, twice over: the pristine watcher must be green, and the run must

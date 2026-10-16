@@ -25,6 +25,7 @@ of a live API call. The tests pin what ruling 193 requires:
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import re
 import sys
@@ -33,8 +34,11 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+HERE = Path(__file__).resolve()
+REPO_ROOT = HERE.parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "uplevel" / "pr_watch.py"
+CAMPAIGN = REPO_ROOT / "scripts" / "r193-mutation-campaign.py"
+AGENTS_DOC = REPO_ROOT / "scripts" / "uplevel" / "AGENTS.md"
 
 
 def _load(name, path):
@@ -241,6 +245,58 @@ def test_new_comment_is_reported_without_its_body():
     lines = second(Run(commented), state)
     assert len(lines) == 1 and "comment" in lines[0].lower()
     assert body not in lines[0]
+
+
+def test_a_deleted_comment_is_reported_as_deleted_not_as_new():
+    """A vanished comment must not announce an addition.
+
+    The diff used to fire on ANY set difference and then search ``after`` for an id missing from
+    ``before`` -- which in the delete direction finds nothing, so the line read ``#7175 new
+    comment`` naming no author while the real event was the opposite. Reproduced before the fix:
+    seed ids ``(1, 2, 3)``, answer the next poll with ``(1, 2)``, get ``['#7175 new comment']``.
+    A deletion is not one of ruling 193's six change classes, and `_state_line` already settled how
+    this file handles a non-class event on a channel it watches: name it rather than announce its
+    opposite. Bodies are still never printed -- only who and what.
+    """
+    state = seed()
+    three = envelope(
+        [
+            pr_node(
+                PR,
+                comments=(("C_1", "u1", "first"), ("C_2", "u2", "second"), ("C_3", "u3", "third")),
+            )
+        ],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+    )
+    added = second(Run(three), state)
+    assert len(added) == 3 and all("new comment" in line for line in added), added
+    two = envelope(
+        [pr_node(PR, comments=(("C_1", "u1", "first"), ("C_2", "u2", "second")))],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+    )
+    lines = second(Run(two), state)
+    assert lines == [f"#{PR} deleted comment from u3"], lines
+    assert not any("third" in line for line in lines), "the vanished body stays out of the line"
+
+
+def test_a_deleted_review_is_reported_as_deleted_not_as_new():
+    """The same defect on the review channel, where it printed ``new review`` for a retraction."""
+    state = seed()
+    both = envelope(
+        [pr_node(PR, reviews=("RV_1", "RV_2"))],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+    )
+    assert len(second(Run(both), state)) == 2
+    one = envelope(
+        [pr_node(PR, reviews=("RV_1",))],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+    )
+    lines = second(Run(one), state)
+    assert lines == [f"#{PR} deleted review from mikesvoboda"], lines
 
 
 def test_label_change_is_reported():
@@ -809,6 +865,120 @@ def test_a_full_discovery_window_raises_instead_of_looking_quiet():
         raise AssertionError("a truncated discovery window must raise, not report nothing")
 
 
+def test_an_explicit_pr_answered_null_raises_instead_of_looking_calm():
+    """A null for a number the agent TYPED is a broken watch, not a quiet tick.
+
+    `snapshot` stores None for an absent `p<number>` and `diff_lines` skips a pair whose either side
+    is unreadable, so a head change that straddles the null window never prints -- and it never
+    prints twice, because the next poll's `before` IS the null snapshot. Nothing recovers it: label
+    discovery will never hand back a number the agent already passed to `--pr`. Reproduced before
+    the guard: four polls (head `a`…, null, head `b`…, steady) printed `[] [] [] []`.
+    """
+    state = seed()
+    deaf = envelope([], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"})
+    with pytest.raises(RuntimeError, match=f"#{PR}"):
+        second(Run(deaf), state)
+
+
+def test_a_transient_null_for_an_explicit_pr_costs_one_error_not_the_change():
+    """The guard's routing, measured end to end: the straddling head change still gets printed.
+
+    Same envelope on every poll but the middle one, which answers `#7168` as null. Poll 2 raises, so
+    `watch` credits one error and `state` KEEPS the last good snapshot instead of overwriting it with
+    a null -- which is what makes the loss repairable: poll 3 diffs head `a` against head `b` and the
+    watcher reports the change it would otherwise have swallowed. A prolonged null is the other half
+    of the story and `test_repeated_failures_exit_with_an_error_line` pins that path.
+    """
+    state = seed()
+    same = envelope([pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"})
+    moved = envelope(
+        [pr_node(PR, head="b" * 40)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"}
+    )
+    deaf = envelope([], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"})
+    runner = Run(same, deaf, moved)
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        state,
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=3600,
+        max_errors=3,
+    )
+    assert rc == 0 and len(lines) == 1 and "head" in lines[0], lines
+    assert runner.calls == 3, "one error credit, then the change on the next good poll"
+
+
+def test_a_discovered_pr_answered_null_keeps_its_watch_reason_and_still_reports_its_merge():
+    """The UNREAD carry-forward is live behavior, and it only serves DISCOVERED PRs.
+
+    A PR that joined by label match, was registered UNREAD, and is answered null on its first field
+    read must (a) keep the label that pulled it in, and (b) still report a merge once it answers.
+    Without the carry line the entry is None on both sides of the next poll, so neither the
+    merged-before-read branch nor `diff_lines` can fire, and the merge of a PR the watcher was
+    explicitly watching prints nothing. `_check_explicit` does NOT cover this: it guards only the
+    numbers an agent typed, and a discovered PR can legitimately leave the OPEN set between polls.
+    """
+    state: dict = {}
+    watch.check(
+        Run(
+            envelope(
+                [],  # discovery matched it, but its fields were not in this poll's aliases
+                ruling_ids=[1],
+                ruling_bodies={1: "BINDING NOW: x"},
+                found={"a0": discovery_node([PR])},
+            )
+        ),
+        state,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[LANE_OPS],
+    )
+    # The seed poll names it; its fields are still unread.
+    assert state["prs"][PR] == {watch.UNREAD: ["lane:ops"]}, state["prs"][PR]
+    # Poll 2 asks for its fields and GitHub answers null: the watch REASON survives.
+    watch.check(
+        Run(
+            envelope(
+                [],
+                ruling_ids=[1],
+                ruling_bodies={1: "BINDING NOW: x"},
+                found={"a0": discovery_node([])},
+            )
+        ),
+        state,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[LANE_OPS],
+    )
+    assert state["prs"][PR] == {watch.UNREAD: ["lane:ops"]}, (
+        "the carry-forward keeps the label group that registered it"
+    )
+    # Poll 3: it answers, MERGED. The change happened under the watcher's interest, so it prints.
+    lines = watch.check(
+        Run(
+            envelope(
+                [pr_node(PR, state="MERGED")],
+                ruling_ids=[1],
+                ruling_bodies={1: "BINDING NOW: x"},
+                found={"a0": discovery_node([])},
+            )
+        ),
+        state,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[LANE_OPS],
+    )
+    assert len(lines) == 1 and "merged" in lines[0].lower(), lines
+
+
 def test_a_null_ruling_issue_raises_instead_of_looking_calm():
     """A poll that cannot see #6854 must not seed a channel that never compares again.
 
@@ -1140,20 +1310,32 @@ def test_repeated_failures_exit_with_an_error_line():
     assert len(lines) == 1 and "error" in lines[0].lower()
 
 
-def test_a_null_ruling_issue_ends_the_watch_with_an_error_line():
-    """The ruling guard's raise must route to the error EXIT, not print nothing and exit 0.
+def test_a_guard_that_raises_routes_to_the_error_exit_and_not_to_a_calm_tick():
+    """The ruling guard's raise must reach the error EXIT, not print nothing and exit 0.
 
-    Same scripted envelope three times: the `issue` node is absent on every poll, so the guard
-    raises on every poll, and `max_errors=3` makes the streak fatal. The red alternative this pins
-    is the exit code -- a loop that swallowed the raise would run to its lifetime and print
-    "no change", the exact lie the guard exists to refuse.
+    The fixture used to script EXACTLY `max_errors` responses, which made the test pass for a reason
+    it never named: drop the `_check_ruling` call and the scripted runner simply runs out, and
+    `watch`'s deliberately broad `except Exception` turns the runner's own "unscripted read"
+    AssertionError into the same error line -- three more polls later, but the same rc and the same
+    line. So the old test survived the mutant named after its own guard (measured: `1 passed` with
+    `ruling-guard-never-runs` applied). Scripting MORE finite responses does not fix that, it only
+    moves the exhaustion further out; the runner here answers forever, so exhaustion cannot happen at
+    any point and the guard's raise is the only thing that can produce an error. With the guard
+    removed every poll "succeeds", the loop runs its whole lifetime and prints "no change" -- the
+    exact lie the guard exists to refuse. `test_a_null_ruling_issue_raises_instead_of_looking_calm`
+    remains the guard's own pin at the `check()` seam; this one pins the ROUTING.
     """
     state = seed()
     deaf = envelope([pr_node(PR)], ruling_ids=None)
-    runner = Run(*([deaf] * 3))
+    polls: list[int] = []
+
+    def deaf_runner(query: str, variables: dict) -> dict:
+        polls.append(1)
+        return deaf
+
     sim = Sim()
     rc, lines = watch.watch(
-        runner,
+        deaf_runner,
         state,
         sim.clock,
         sim.sleep,
@@ -1166,6 +1348,8 @@ def test_a_null_ruling_issue_ends_the_watch_with_an_error_line():
     )
     assert rc != 0, "a channel that cannot see its rulings is not a calm tick"
     assert len(lines) == 1 and "error" in lines[0].lower()
+    assert "ruling issue" in lines[0], f"the line must name the guard that raised: {lines}"
+    assert len(polls) == 3, "the streak is fatal at max_errors, not after the lifetime"
 
 
 def test_bounded_lifetime_exits_with_a_no_change_line():
@@ -1219,6 +1403,40 @@ def test_watch_reports_the_first_change_it_sees_and_stops():
     assert rc == 0
     assert len(lines) == 1 and "head" in lines[0]
     assert runner.calls == 3, "it exits at the first change instead of polling on"
+
+
+def test_the_watcher_docs_count_its_own_suite_and_campaign_rather_than_restating_them():
+    """AGENTS.md's two numbers must EQUAL what the files contain, measured by AST.
+
+    The prose said "37 tests" and "reverts 30 properties" while the files held 42 and 33 -- five
+    tests and three mutants had landed without a re-stamp, and nothing could notice, because the
+    numbers were typed rather than counted. This is the same shape as every other counting test in
+    this package (a claim about a quantity read off the artifact rather than from memory), and it is
+    why the guard parses instead of grepping: `grep -c "def test_"` counts the word, and a comment
+    or a docstring mentioning `def test_` would satisfy it while the real count moved (the lesson
+    this repo already learned about grep-based censuses).
+    """
+    tests = [
+        node.name
+        for node in ast.parse(HERE.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+    ]
+    campaign = ast.parse(CAMPAIGN.read_text(encoding="utf-8"))
+    mutants = next(
+        node
+        for node in campaign.body
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "MUTANTS"
+    )
+    prose = AGENTS_DOC.read_text(encoding="utf-8")
+    suite = re.search(r"`scripts/test_pr_watch\.py` \((\d+) tests", prose)
+    driver = re.search(r"reverts (\d+) properties", prose)
+    assert suite and driver, f"AGENTS.md lost one of the two count sentences: {AGENTS_DOC}"
+    assert int(suite.group(1)) == len(tests), (
+        f"AGENTS.md says {suite.group(1)} tests; this file defines {len(tests)}"
+    )
+    assert int(driver.group(1)) == len(mutants.value.elts), (
+        f"AGENTS.md says {driver.group(1)} properties; the campaign lists {len(mutants.value.elts)}"
+    )
 
 
 def test_lines_name_the_pr_number_in_every_change_class():

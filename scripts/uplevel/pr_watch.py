@@ -207,6 +207,31 @@ def _check_windows(data: dict, groups: Sequence[Sequence[str]]) -> None:
             raise RuntimeError(msg)
 
 
+def _check_explicit(data: dict, prs: Sequence[int]) -> None:
+    """Refuse to watch a poll that answers an explicitly asked-for PR with null.
+
+    ``snapshot`` stores ``None`` for an absent/null ``p<number>`` and ``diff_lines`` then skips any
+    pair where either side is unreadable, so a PR that is answered null for one poll and comes back
+    changed on the next reports NOTHING: the head change that straddled the null window is gone, and
+    it is gone silently for good because ``before`` on the following poll is the null snapshot.
+    Discovered PRs have the UNREAD carry-forward for that shape; an explicit ``--pr`` has nothing,
+    and it is the one channel that cannot relearn its membership -- label discovery will never hand
+    back a number the agent already typed. Same reasoning as ``_check_ruling``: raise, and let
+    ``watch``'s error path decide, so a transient null costs one error credit (``state`` still holds
+    the last GOOD snapshot, so the straddling change prints on the next successful poll) and a
+    prolonged one exits rc 2 with an error line rather than reading as a calm tick.
+    """
+    root = data.get("repository") or {}
+    missing = [number for number in prs if root.get(f"p{number}") is None]
+    if missing:
+        numbers = ", ".join(f"#{number}" for number in missing)
+        msg = (
+            f"explicitly watched {numbers} came back null or absent -- its changes during the null"
+            " window are unrecoverable, and a watcher that skips them reads as calm while they pass"
+        )
+        raise RuntimeError(msg)
+
+
 def _check_ruling(data: dict, ruling_issue: int) -> None:
     """Refuse to watch a poll that cannot see the ruling issue.
 
@@ -327,11 +352,9 @@ def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict)
                 was = old["checks"].get(check_name, "no conclusion")
                 lines.append(f"{prefix}check {check_name}: {was} -> {conclusion}")
         if new["reviews"] != old["reviews"]:
-            who = _new_actor(new["reviews"], old["reviews"])
-            lines.append(f"{prefix}new review{_from(who)}")
+            lines.extend(_event_lines(prefix, "review", new["reviews"], old["reviews"]))
         if new["comments"] != old["comments"]:
-            who = _new_actor(new["comments"], old["comments"])
-            lines.append(f"{prefix}new comment{_from(who)}")  # author only; never the body
+            lines.extend(_event_lines(prefix, "comment", new["comments"], old["comments"]))
         if new["labels"] != old["labels"]:
             added = sorted(set(new["labels"]) - set(old["labels"]))
             removed = sorted(set(old["labels"]) - set(new["labels"]))
@@ -403,6 +426,7 @@ def check(
     )
     data = response.get("data") or {}
     _check_windows(data, label_groups)
+    _check_explicit(data, prs)
     _check_ruling(data, ruling_issue)
     after: dict = snapshot(data, known)
     before: dict = {"prs": dict(state.get("prs") or {}), "ruling": state.get("ruling")}
@@ -450,14 +474,28 @@ def _from(login: str | None) -> str:
     return "" if not login else f" from {login}"
 
 
-def _new_actor(after: Sequence[tuple], before: Sequence[tuple]) -> str | None:
-    """The author of the first item in ``after`` that isn't in ``before``, if identifiable."""
-    seen = {item[0] for item in before}
-    for item in after:
-        if item[0] not in seen:
-            login: str | None = item[1]
-            return login
-    return None
+def _event_lines(
+    prefix: str, noun: str, after: Sequence[tuple], before: Sequence[tuple]
+) -> list[str]:
+    """One line per item that appeared OR vanished, naming its author, never its body.
+
+    The old shape printed "new review"/"new comment" whenever the two sets differed, and a
+    DELETION makes them differ: seeding comments `(1, 2, 3)` and answering the next poll with
+    `(1, 2)` printed ``#7175 new comment`` while naming no author, because the item it searched for
+    -- an id in ``after`` that is not in ``before`` -- does not exist in that direction. So the
+    watcher announced an addition that had not happened, on the channel whose whole value is that
+    the agent trusts it when it prints. A deleted comment or review is not one of ruling 193's six
+    change classes, and this file already resolved that tension once in ``_state_line`` (a reopen
+    is not a class either, and the line names it anyway) -- naming what moved beats announcing its
+    opposite or hiding the difference behind the word "new".
+    """
+    old_ids = {item[0] for item in before}
+    new_ids = {item[0] for item in after}
+    lines = [f"{prefix}new {noun}{_from(item[1])}" for item in after if item[0] not in old_ids]
+    lines += [
+        f"{prefix}deleted {noun}{_from(item[1])}" for item in before if item[0] not in new_ids
+    ]
+    return lines
 
 
 def watch(

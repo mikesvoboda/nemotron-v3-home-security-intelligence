@@ -164,11 +164,26 @@ comment that merely _mentions_ it — the live false-positive is #6854 comment `
 `URGENT PATH · coordinator stale again`, whose status prose counts "42 BINDING NOW rows in window"
 (verified at that id, 2026-10-15: 1 occurrence, 0 on the first line).
 
-`scripts/test_pr_watch.py` (37 tests, in ci.yml's anti-rot-gates list) drives one seam —
+A second review round turned up three more ways to be silent, and all three were shapes where
+**difference had been mistaken for addition**. An explicitly typed `--pr` that GitHub answers as null
+was stored as `None` and then skipped forever, so a head change straddling that window never printed —
+and never could, because the next poll's `before` _is_ the null snapshot. `_check_explicit` now
+refuses that poll the way `_check_ruling` refuses a null ruling issue: a transient null costs one
+error credit (the state keeps the last good snapshot, so the straddling change prints on the next good
+poll) and a prolonged one exits rc 2. It guards only the numbers an agent typed, because those are
+the ones label discovery can never hand back. A discovered PR answered null has a different cure — the
+UNREAD carry-forward, which is what keeps its label group alive until it answers and its merge can
+still print. And a comment or review **deleted** between polls used to print `new comment`: the diff
+fired on any set difference and then searched the new side for an id missing from the old, which in
+the delete direction finds nothing, so the line announced an addition that had not happened and named
+no author. Deletion is not one of ruling 193's six change classes either, and the file resolves that
+the way `_state_line` does a reopen — name what moved.
+
+`scripts/test_pr_watch.py` (48 tests, in ci.yml's anti-rot-gates list) drives one seam —
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
 fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
 starts reading something new fails loudly instead of passing on `{}`.
-`scripts/r193-mutation-campaign.py` reverts 30 properties in a throwaway worktree and fails if any
+`scripts/r193-mutation-campaign.py` reverts 36 properties in a throwaway worktree and fails if any
 survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
 registered in ci.yml — the campaign list holds suites, not drivers.
 
