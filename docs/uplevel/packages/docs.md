@@ -186,8 +186,9 @@ on the real tier" (`docs/reference/feature-inventory.md:33`).
 
 Ruling 207 named the detector, re-ID and threat families. The real tier serves only the real VLM
 (UR-136), and `models.yml` serves more families through the AI gateway: face detection and
-recognition, license plates (`yolo11-license-plate`, `fast-alpr`, `paddleocr`) and general
-detection. Ruling 231 extends ruling 207 to every family except the VLM.
+recognition (`face-detector-scrfd`, `face-recognizer`, `yolo11-face`), license plates
+(`yolo11-license-plate`, `fast-alpr`, `paddleocr`) and general detection (`yolo26-general`).
+Ruling 231 extends ruling 207 to every family except the VLM.
 
 - [ ] **MEASURE** which `models.yml` families the real tier fakes, from its compose and UR-136, and
       list them in the PR.
@@ -196,10 +197,12 @@ detection. Ruling 231 extends ruling 207 to every family except the VLM.
       goes back to **awaiting real tier**, named in the PR. The inventory legend names the set.
 - [ ] F-270, F-271 and F-275's evidence cells cite the 2026-10-13 real-tier run that set them to
       **works** (commit `5db3c56f7`, project `hsi-check-20261013234949-a14ce4`) in place of the
-      stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87).
+      stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87),
+      unless the list above puts the row back to **awaiting real tier**.
 
 **Done when:** every listed row carries the note and is not **works**, the legend agrees with
-UR-136, and the three evidence cells cite their real-tier run.
+UR-136, and each of the three evidence cells cites its real-tier run unless the list put its row
+back.
 
 ### [r165b] F-235: cure the quarantined notify channels spec
 

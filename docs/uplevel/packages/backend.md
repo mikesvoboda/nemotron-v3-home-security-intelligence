@@ -390,12 +390,14 @@ prefix, and `get` (`:123`) and `set` (`:196`) prepend `CACHE_PREFIX` (`:82`) aga
 list is stored as `cache:hsi:cache:cameras:list:all`. `invalidate_pattern` (`:463`) prepends it to
 the short-form pattern (`:486`), which does not match. `_get_cache_prefix()` (`:75`) has no caller.
 
-- [ ] `CacheService`'s key builders and `CacheKeys` agree on one key shape, so each invalidator
-      reaches the key its route stores. The PR states the form chosen.
+- [ ] `CacheService`'s `get`, `set`, `invalidate_pattern` and the other `f"{CACHE_PREFIX}{key}"`
+      sites, and `CacheKeys`, agree on one key shape, so each invalidator reaches the key its route
+      stores. The PR states the form chosen (for example, `CacheKeys` authoritative and
+      `_get_cache_prefix()` used or deleted).
 - [ ] **MEASURE** against a real Redis, before and after: each cached route's stored key and
       whether its invalidator deletes it, as a table in the PR.
 - [ ] Tests: the short-form pins in `backend/tests/integration/test_cache_invalidation_comprehensive.py`
-      (`:440-447`) pin the stored shape, and a test proves an invalidator deletes a key its route
+      (`:440-448`) pin the stored shape, and a test proves an invalidator deletes a key its route
       stored.
 
 **Done when:** the tests pass in CI at a ready head, and the PR's table shows every listed
