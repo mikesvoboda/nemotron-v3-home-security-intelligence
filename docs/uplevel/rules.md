@@ -610,10 +610,13 @@ Read this section before you post any comment, review, heartbeat, status comment
   `paused · queue empty (ruling 88)` and ends its turn, and the owner stops its loop. When the owner
   stops an agent, the owner's session may write its `paused` heartbeat. An agent whose heartbeat
   reads `paused` is not stalled and gets no assignment. (ruling 88; record 6103795550)
-- **UR-162** A lane that reads the coordinator's heartbeat older than 20 minutes checks #6854 for an
+- **UR-162** A lane that reads the coordinator's heartbeat older than 90 minutes checks #6854 for an
   `URGENT PATH · coordinator stale` comment in the last hour; if there is none, it posts one
-  (heartbeat age, read time, nothing more) in UR-168's form. (rulings 64, 81; owner design session
-  2026-10-12, pass 2 Q8; corrects the deleted 50-coordination.md "Stalled agents")
+  (heartbeat age, read time, nothing more) in UR-168's form. The coordinator's loop fires every 30
+  minutes and a tick may run 60, so a healthy heartbeat can be about 90 minutes old; every other
+  heartbeat keeps 20 minutes. Until `[r239]` merges the digest flags the coordinator past 20
+  minutes, and a heartbeat 20 to 90 minutes old gets no raise. (rulings 64, 81, 239; owner design
+  session 2026-10-12, pass 2 Q8; corrects the deleted 50-coordination.md "Stalled agents")
 - **UR-163** Recovery of a stalled agent is the owner's, with no watchdog agent: Esc in the agent's
   pane, a catch-up prompt that names its open work, and a new tick only if the agent lists none
   scheduled. No agent reaches into another's sandbox. (ruling 64; roles/owner-partner.md "Stalls and

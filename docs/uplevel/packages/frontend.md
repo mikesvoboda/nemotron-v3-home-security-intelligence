@@ -579,6 +579,23 @@ from the URL (`frontend/src/hooks/useDateRangeState.ts:328`, `:340`) and every w
 **Done when:** F-052 flips to **awaiting real tier** on a CI run where its legs, the dates leg
 among them, pass (rulings 103, 114).
 
+### [r238] F-057: the saved note reads back
+
+**Flags:** none. **Assigned:** heavy-a, after `[r234]`, ahead of `B2.3` (ruling 238). **Depends
+on:** none. **PR:** none yet. (rulings 149, 238; record 6216702824)
+
+`[r149d]` (#7070) made `list_events` return `notes` (`backend/api/routes/events.py:543`), but its
+second box, the golden read-back leg, never had a roster slot, so F-057 stays **half-built** with
+that leg unrun.
+
+- [ ] In one PR with `[r238]` in its title: remove the `test.fixme` at
+      `frontend/tests/golden/timeline/event-detail.spec.ts:358` ("the saved note is read back"); the
+      leg passes. heavy-a edits only F-057's inventory row (ruling 87), and frontend reads heavy-a's
+      `frontend/` diff (ruling 184).
+
+**Done when:** F-057 flips to **awaiting real tier** on a CI run where its legs, the read-back leg
+among them, pass (rulings 103, 114).
+
 ### [r212] F-061 and F-062: the audit tab can run an evaluation, and both legs re-run
 
 **Flags:** none. **Assigned:** heavy-a, ahead of `B2.3` (fix now; ruling 224). **Depends on:** none.
