@@ -708,6 +708,71 @@ MUTANTS = [
             ),
         ],
     ),
+    # ---- round nine: the seed-only escape (MEDIUM 1) and the two un-pinned CLI guards (LOW 2) ----
+    (
+        "compared-flag-certified-by-the-seed",
+        "the seed's own early return gets its OWN copy of the marker, so the seed certifies itself "
+        "as compared and the seed-only watch is right back to printing the all-clear -- while the "
+        "healthy path is untouched, so ONLY the seed-escape test reddens. This is the mutant that "
+        "proves the guard's teeth live in WHERE the marker is set, not that the line exists: a "
+        "reviewer counting occurrences of `compared` would pass it. Killed by "
+        "test_a_watch_whose_only_clean_poll_was_the_seed_cannot_print_the_all_clear",
+        [
+            (
+                "    if seeding:\n        state.update(after)\n        return []",
+                '    if seeding:\n        after["compared"] = True\n'
+                "        state.update(after)\n        return []",
+            ),
+        ],
+    ),
+    (
+        "seed-only-all-clear-still-passes",
+        "the never-compared guard is switched off, so a watch whose ONLY clean poll was the seed "
+        "(lifetime == interval) prints the calm rc-0 all-clear from a window it read but never "
+        "diffed -- round nine's MEDIUM 1, the neighbour round eight's clean_polls==0 guard left "
+        "open. Reverting to `if False` reopens exactly that escape; killed by "
+        "test_a_watch_whose_only_clean_poll_was_the_seed_cannot_print_the_all_clear and NOT by the "
+        "two-sided control test (a genuinely resumed watch stays honest either way)",
+        [
+            ('            if not state.get("compared"):\n', "            if False:\n"),
+        ],
+    ),
+    (
+        "compared-flag-never-set",
+        "the comparison marker is dropped, so NO watch ever satisfies the never-compared guard: "
+        "every healthy multi-poll watch would take the error exit and no all-clear could ever "
+        "print -- the opposite failure, and the proof the marker is load-bearing and REACHABLE, not "
+        "dead code a test happens not to exercise. Killed by the bounded-lifetime and "
+        "resumed-watch controls",
+        [
+            (
+                '    after["compared"] = True\n'
+                "    lines.extend(diff_lines(watched, ruling_issue, before, after))",
+                "    lines.extend(diff_lines(watched, ruling_issue, before, after))",
+            ),
+        ],
+    ),
+    (
+        "cli-lifetime-guard-removed",
+        "round eight's `--lifetime <= 0` refusal is switched off, re-arming a watch that reaches "
+        "its bound before poll one and prints the zero-window all-clear from parse_args. LOW 2: "
+        "this guard SHIPPED hand-proven and un-mutated in round eight -- its only witness was the "
+        "CLI test's SystemExit, which a reviewer read but could not bite. Now it has a revert, so a "
+        "reader can. Killed by test_the_cli_refuses_a_lifetime_that_could_never_poll",
+        [
+            ("    if args.lifetime <= 0:\n", "    if False:\n"),
+        ],
+    ),
+    (
+        "cli-interval-guard-removed",
+        "this round's `--interval <= 0` refusal is switched off: `--interval 0` spins the poll loop "
+        "against the owner token's rate limit and a negative makes the out-of-try time.sleep raise "
+        "a ValueError that kills the background watch with a traceback instead of an acted-on line. "
+        "Killed by test_the_cli_refuses_an_interval_that_could_never_poll",
+        [
+            ("    if args.interval <= 0:\n", "    if False:\n"),
+        ],
+    ),
 ]
 
 

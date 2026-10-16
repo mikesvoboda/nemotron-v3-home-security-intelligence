@@ -133,8 +133,12 @@ turn and the line it prints starts the next one (UR-38 — a backgrounded watche
 inside a turn). One `gh api graphql` call per poll, never the search API (its 30/min is shared by
 every agent on the owner's token), watching the PRs named by `--pr` plus those a label group
 discovers, and the last 100 comments of #6854. It exits with one line per change class and no
-comment bodies, survives transient failures, and always ends — an error line after repeated
-failures, a "no change" line at its lifetime bound. A check window that came back full adds a
+comment bodies, survives transient failures, and always ends — one of three terminal lines, each
+naming itself so an agent acts on the right one: an `error: … 0 successful polls` line (it read
+nothing — a mistyped `--lifetime` or a dead poll streak), an `error: … none that compared a window`
+line (it read a window but every clean poll was a seed, so "nothing moved" is not something it saw),
+or the calm `no change in Ns` all-clear, which carries a `warning: watch ended on …` line whenever
+its last polls failed. A check window that came back full adds a
 `#<n> checks truncated: X of Y watched` line — beside its news and on the all-clear — because a
 "no change" over a truncated window means "nothing moved in what I could see", not "nothing moved";
 the line is the reader's cue to treat that all-clear as unevaluated rather than clean.
@@ -195,11 +199,11 @@ window that shrinks from full to short re-opened the bug (50 false `new comment`
 the last one has no anchor and announces no arrival — position it cannot prove, it does not claim —
 while the vanished side still prints, which is what keeps an honest append reporting.
 
-`scripts/test_pr_watch.py` (69 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`scripts/test_pr_watch.py` (72 tests, in ci.yml's anti-rot-gates list) drives one seam —
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
 fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
 starts reading something new fails loudly instead of passing on `{}`.
-`scripts/r193-mutation-campaign.py` reverts 56 properties in a throwaway worktree and fails if any
+`scripts/r193-mutation-campaign.py` reverts 61 properties in a throwaway worktree and fails if any
 survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
 registered in ci.yml — the campaign list holds suites, not drivers.
 

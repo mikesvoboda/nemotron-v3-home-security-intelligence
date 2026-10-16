@@ -606,6 +606,17 @@ def check(
     if seeding:
         state.update(after)
         return []
+    # The one place a window is actually COMPARED. The all-clear's claim is "nothing moved in the
+    # windows I read", and a claim about what moved needs a comparison behind it, not merely a
+    # successful read: the seed poll reads a window, answers cleanly and reports nothing BY DESIGN
+    # (the `return []` above), so a watch whose only clean poll was the seed saw nothing move
+    # because it never looked. Round eight's `clean_polls == 0` guard let that through -- measured at
+    # 3fd91e4c6 with `--lifetime == --interval` on a head that had already moved: diff_lines
+    # reached 0 times, headline `no change in 60s across 1 watched PR(s)`, rc 0. It rides `after`
+    # rather than a counter in `watch` because it must survive `state.clear()` and because a caller
+    # that arrives PRE-seeded (a resumed watch) compares from its very first poll: this key is set
+    # by the comparison, not by a poll count, so it says the true thing for both starts.
+    after["compared"] = True
     lines.extend(diff_lines(watched, ruling_issue, before, after))
     lines.extend(_window_qualifiers(after) if lines else [])
     state.clear()
@@ -763,10 +774,25 @@ def watch(
             # window cannot say it at all. Zero clean polls (a mistyped --lifetime, or every poll
             # failing just under the fatal streak) is the error exit's shape, not the all-clear's;
             # printing the calm line there is the impersonation the module docstring forbids.
+            #
+            # And zero clean polls is not the only never-compared watch. `state["compared"]` is set
+            # where diff_lines is reached (see check), so a watch that polled successfully exactly
+            # ONCE -- the seed, which reports nothing by design -- has clean_polls == 1 and still
+            # cannot say anything moved. Round eight stopped at the first shape and round nine's
+            # MEDIUM is the second, reproduced at 3fd91e4c6: `--lifetime` == `--interval` on a head
+            # that had already moved printed the calm line at rc 0 with diff_lines reached zero
+            # times. The two shapes get DIFFERENT lines on purpose: collapsing "never read" into
+            # "read, never compared" would just replace one impersonation with another.
             if clean_polls == 0:
                 return 2, [
                     f"error: {int(lifetime)}s elapsed with 0 successful polls"
                     + (f"; last: {last_error}" if last_error else "; the first poll never ran")
+                ]
+            if not state.get("compared"):
+                return 2, [
+                    f"error: {int(lifetime)}s elapsed with {clean_polls} successful poll(s), none"
+                    " that compared a window -- the seed reports nothing, so nothing moved is not"
+                    " something this watch saw"
                 ]
             # The all-clear gets the caveat. A check window that came back FULL is one case where
             # "no change" and "nothing moved" differ: a run that aged out of a `last: EVENT_WINDOW`
@@ -895,6 +921,20 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error(
             f"--lifetime must be positive, not {args.lifetime:g}s: a watch that never "
             "polls still prints 'no change'"
+        )
+    # The interval needs the same refusal for two DIFFERENT reasons, both measured here rather than
+    # assumed. Zero means no sleep between polls: the loop spins and hammers the owner token that
+    # ruling 193 limits to one shared search-API budget -- the very reason this watcher uses one
+    # GraphQL query per poll instead of the search API. A negative value is worse than slow: the
+    # `sleep(interval)` at the bottom of `watch` sits OUTSIDE its try/except (deliberately -- a sleep
+    # failure is not a transient API error to retry), so `time.sleep(-5)` raises
+    # `ValueError: sleep length must be non-negative` and the backgrounded watch dies printing a
+    # traceback instead of the one line an agent acts on. Both are a mistyped arm, so both fail
+    # where a mistyped --lifetime already fails.
+    if args.interval <= 0:
+        parser.error(
+            f"--interval must be positive, not {args.interval:g}s: 0 spins against the token's "
+            "rate limit and a negative makes time.sleep raise outside the retry handler"
         )
     return args
 

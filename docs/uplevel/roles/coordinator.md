@@ -36,7 +36,8 @@ agent's own open PR (UR-157).
 
 ## The tick
 
-**Unchanged by ruling 193:** the coordinator keeps its 5-minute tick and does not arm
+**Unchanged by ruling 193:** the coordinator keeps its own tick — whatever interval its kickoff
+line below sets, which this section deliberately does not restate — and does not arm
 `scripts/uplevel/pr_watch.py`. The watcher is for a lane agent waiting on a specific PR; the
 coordinator's job is to sweep every open PR each tick, which a per-PR watcher does not do. Named
 here because ruling 193's package edits this section's file (item 4), not because it changed.

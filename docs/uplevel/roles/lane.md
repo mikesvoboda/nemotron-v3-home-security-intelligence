@@ -115,8 +115,11 @@ watcher names the comment id and author, never which packages the ruling assigns
    `#<n> checks truncated: X of Y watched` line, beside any news and on the "no change" line -- it
    means "the last `Y` checks filled my window, so a change may have aged out unseen", not "nothing
    changed"; treat a truncated all-clear as unevaluated, not clean. It prints no comment bodies,
-   survives transient API errors, and ends with an error line after repeated failures or a "no
-   change" line at its lifetime bound, so silence never stands in for success. Its own suite
+   survives transient API errors, and ends with one of three self-named lines at its lifetime bound,
+   so silence never stands in for success: `error: … 0 successful polls` (read nothing — treat as a
+   broken arm), `error: … none that compared a window` (read but never compared — same treatment),
+   or the `no change in Ns` all-clear, which adds `warning: watch ended on … failures` when its last
+   polls failed and then asks the same question a truncated window does. Its own suite
    `scripts/test_pr_watch.py` pins each of these. A watcher armed in the background is not waiting
    inside a turn (UR-38): the turn ends, and the line it prints starts a new one. When it exits,
    act on the line and re-arm.

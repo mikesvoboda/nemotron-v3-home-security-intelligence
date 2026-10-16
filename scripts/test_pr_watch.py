@@ -1993,16 +1993,95 @@ def test_a_lifetime_that_prevents_the_first_poll_is_the_error_exit():
     )
 
 
-def test_a_clean_watch_that_ended_on_failures_says_so():
-    """The all-clear survives one clean poll, but the tail it ended on gets named.
+def test_a_watch_whose_only_clean_poll_was_the_seed_cannot_print_the_all_clear():
+    """Round nine's MEDIUM 1: one successful read is not a comparison, and ``no change`` claims one.
 
-    One clean poll at t=0, a failure at t=60, the bound at t=120: ``clean_polls`` is 1, so the
-    all-clear stands (rc 0) -- this is a watch that really did read its windows -- but the last
-    poll never answered, and a bare "no change" would imply the opposite. The caveat rides the
-    same two surfaces the truncated-window caveat rides, for the same reason: the headline is the
-    only line that claims nothing happened.
+    Round eight closed the zero-clean-poll watch; this is the neighbour it left open. With
+    ``lifetime == interval`` the bound is met right after the seed, and the seed -- which reads a
+    window, answers cleanly and reports NOTHING by design -- is the only clean poll. The old code
+    counted it and printed the calm headline: reproduced at 3fd91e4c6 as
+    ``no change in 60s across 1 watched PR(s)`` at rc 0 with ``diff_lines`` reached **zero** times,
+    on a head that had in fact moved. So the arm that terminates soonest is the one that lies most.
+
+    The witness is that the poll SUCCEEDED: ``runner.calls == 1`` and the scripted envelope was
+    consumed, so the error line cannot be blamed on a failed read -- this is the shape round eight's
+    ``clean_polls == 0`` guard could not see, and a mutant that reverts to that guard reddens exactly
+    this test. The line names the successful-poll count too, because the distinction an agent acts on
+    is "it read and did not look", not "it read nothing".
+    """
+    runner = Run(envelope([pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: 45 live"}))
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        {},
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=60,  # seed at t=0, sleep, bound met at t=60: exactly one poll, and it was the seed
+        max_errors=3,
+    )
+    assert runner.calls == 1, "one poll, scripted and successful -- no failure to blame"
+    assert rc == 2, f"a watch that compared no window cannot certify 'no change': rc={rc} {lines}"
+    assert len(lines) == 1, lines
+    assert "compared" in lines[0], f"the line must name the missing comparison: {lines[0]}"
+    assert "1 successful poll" in lines[0], f"and it must not miscount what it did: {lines[0]}"
+    assert "no change" not in lines[0], lines
+
+
+def test_a_resumed_watch_keeps_the_all_clear_on_its_first_comparing_poll():
+    """The two-sided control: the guard refuses SEED-ONLY watches, not every single-poll watch.
+
+    A one-sided test would be satisfied by a guard that refuses all short watches -- which is the
+    shape a ``clean_polls >= 2`` bound takes, and it is wrong: a caller that arrives with a state
+    that already seeded (a resumed watch) DOES compare on its very first poll, and its
+    ``no change in 60s`` is an honest report about a window it looked at. This watch is identical
+    to the one above except that its state comes from ``seed()``, so the pair pins the mechanism to
+    the comparison and not to the poll count. ``watched == [PR]`` after the run is the witness that
+    the all-clear here is the guard's correct answer rather than a pass-through.
+    """
+    state = seed()
+    same = envelope([pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: 45 live"})
+    runner = Run(same)
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        state,
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=60,
+        max_errors=3,
+    )
+    assert runner.calls == 1, "one poll, and that poll compared against the resumed state"
+    assert rc == 0, f"a watch that compared a window keeps its all-clear: {lines}"
+    assert len(lines) == 1 and lines[0].lower().startswith("no change"), lines
+    assert state["watched"] == [PR], state["watched"]
+
+
+def test_a_clean_watch_that_ended_on_failures_says_so():
+    """The all-clear survives real comparisons, but the failure tail it ended on gets named.
+
+    Seed at t=0, a comparing poll at t=60, a failure at t=120, the bound at t=180: the watch
+    really did look, so the all-clear stands (rc 0) -- but the last poll never answered, and a bare
+    "no change" would imply the opposite. The caveat rides the same two surfaces the
+    truncated-window caveat rides, for the same reason: the headline is the only line that claims
+    nothing happened.
+
+    This test needed one more poll when the seed-only escape was closed, and that is worth stating
+    rather than burying: as written it passed ``{}`` with a SINGLE clean poll, so the one poll it
+    counted was the seed, and its docstring's claim that this "is a watch that really did read its
+    windows" was false -- it is the same impersonation round nine's MEDIUM found in the watcher,
+    sitting in the test that documented the all-clear's honesty. The fix is the extra poll, not a
+    relaxed assertion.
     """
     runner = Run(
+        envelope([pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: 45 live"}),
         envelope([pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: 45 live"}),
         RuntimeError("gh: 502 bad gateway"),
     )
@@ -2016,10 +2095,10 @@ def test_a_clean_watch_that_ended_on_failures_says_so():
         prs=[PR],
         ruling_issue=RULING_ISSUE,
         interval=60,
-        lifetime=120,
+        lifetime=180,
         max_errors=3,
     )
-    assert runner.calls == 2, "the clean poll ran, then the failing one, then the bound"
+    assert runner.calls == 3, "the seed, one comparing poll, then the failing one, then the bound"
     assert rc == 0, f"a watch that DID read a window keeps the all-clear: {lines}"
     assert lines[0].lower().startswith("no change"), lines
     assert len(lines) == 2, f"the all-clear must carry its tail caveat as its own line: {lines}"
@@ -2038,6 +2117,26 @@ def test_the_cli_refuses_a_lifetime_that_could_never_poll():
         with pytest.raises(SystemExit):
             watch.parse_args(["--pr", "7175", "--lifetime", bad])
     assert watch.parse_args(["--pr", "7175", "--lifetime", "1"]).lifetime == 1.0
+
+
+def test_the_cli_refuses_an_interval_that_could_never_poll():
+    """``--interval 0`` / negative is refused at the arm. Round nine's MEDIUM 2.
+
+    Two distinct harms, both measured here rather than inferred from the flag's name.
+    ``interval == 0`` means no sleep between polls: the loop spins and hammers the owner token that
+    ruling 193 limits to one shared budget -- the same reason the watcher uses one GraphQL query
+    per poll instead of the 30/min search API. A negative value is worse than slow: the
+    ``sleep(interval)`` at the bottom of ``watch`` sits OUTSIDE its ``try``/``except`` (deliberately
+    -- a sleep failure is not a transient API error worth retrying), so ``time.sleep(-5)`` raises
+    ``ValueError: sleep length must be non-negative``.
+
+    Positive control at the bottom: a positive interval still parses, so the guard rejects the
+    boundary and not all input. Same shape as ``test_the_cli_refuses_a_lifetime_that_could_never_poll``.
+    """
+    for bad in ("0", "-1"):
+        with pytest.raises(SystemExit):
+            watch.parse_args(["--pr", "7175", "--interval", bad])
+    assert watch.parse_args(["--pr", "7175", "--interval", "1"]).interval == 1.0
 
 
 def test_the_cli_defaults_are_the_ones_the_package_text_promises():
