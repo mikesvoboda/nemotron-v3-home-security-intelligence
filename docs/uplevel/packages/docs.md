@@ -167,7 +167,7 @@ moot rather than pending.)
 ### [r207] Rows the real tier cannot confirm
 
 **Flags:** none. **Assigned:** docs, after `[r196b]`. **Depends on:** none.
-**PR:** #7209 (open). (ruling 207, record 6199844401)
+**PR:** #7209. (ruling 207, record 6199844401)
 
 The real tier serves the real VLM with the fake detector (UR-136), and no agent run exercises
 `yolo26`, `reid` or `threat` (`r2-sheet.md`, "The real-tier gap"). Yet **works** reads "confirmed
