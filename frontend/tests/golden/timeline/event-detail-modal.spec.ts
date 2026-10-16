@@ -624,8 +624,10 @@ const postBulk = (session: Session, body: string) =>
  *  WHY BULK AND WHY DETECTION-LESS: POST /api/events/bulk is the sanctioned supply
  *  for Event-shaped state and constructs Event rows ONLY (events.py:1553,
  *  :1599-1609) — it writes no Detection, which matters twice: this file's camera is
- *  the one face-enroll's prose assigns to F-054 (./face-enroll.spec.ts:154), and
- *  detection-shaped state is that spec's own supply to make. The legs need only
+ *  the one the F-064 spec's ownership prose assigns to F-054 (that spec is
+ *  heavy-a's per owner ruling 226, and its draft names cat-on-porch as F-054's by
+ *  elimination), and detection-shaped state is that spec's own supply to make.
+ *  The legs need only
  *  `id` + `started_at` (the walk order) and `camera_name`, and the metadata block
  *  renders `Revision` from the LIST projection's schema-default version (see
  *  revisionMatchesList), so a detection-less row satisfies the legs' closing
@@ -634,7 +636,9 @@ const postBulk = (session: Session, body: string) =>
  *  WHY ON THIS CAMERA RATHER THAN A SIXTH: cat-on-porch has exactly ONE writer in
  *  the corpus — every other file that mentions it does so in the ownership prose,
  *  not as a writer (./video-clip.spec.ts:131, ./download-media.spec.ts:135,
- *  ./live-socket-arrival.spec.ts:40, ./face-enroll.spec.ts:154). Rows here are
+ *  ./live-socket-arrival.spec.ts:40; the F-064 spec that once sat here was a
+ *  READER of this camera's prose too, and is heavy-a's now per ruling 226).
+ *  This file's own claim is the `CLAIMED_SCENARIO` constant above. Rows here are
  *  therefore self-attributing: step 1 of beforeAll already purges this camera of
  *  anything that is not the verified keeper, so a run that died between seeding and
  *  afterAll is cleaned by the NEXT run instead of poisoning one, and no foreign
