@@ -110,7 +110,7 @@ function watchRequests(page: Page): Watched {
 const SENTRY_URL = /sentry/i;
 const DSN_SHAPE = /https?:\/\/[^"'`\s]*@o\d+\.[^\s"'`]*/;
 
-test.describe('golden path: Sentry error tracking shipped-but-inert on the built stack @critical', () => {
+test.describe('golden path: Sentry error tracking shipped-but-inert on the built stack (F-025) @critical', () => {
   test.setTimeout(120_000);
 
   test("the wire negative: two REAL errors ride only the app's own backend POSTs — zero requests to any other origin, no Sentry URL, no Sentry client", async ({

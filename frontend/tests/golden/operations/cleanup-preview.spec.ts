@@ -19,7 +19,7 @@ import { closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harn
 
 const harness = readOpsHarness();
 
-test.describe('golden path: file operations cleanup preview @critical', () => {
+test.describe('golden path: file operations cleanup preview (F-163) @critical', () => {
   test.setTimeout(60_000);
 
   test('panel reads live state and the cleanup preview modal gates Delete Data', async ({

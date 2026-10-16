@@ -176,7 +176,7 @@ def failed_delivery(logged_in_api: httpx.Client, dead_webhook: dict[str, Any]) -
     return delivery
 
 
-def test_history_lists_the_attempt_with_its_error(
+def test_f250_history_lists_the_attempt_with_its_error(
     logged_in_api: httpx.Client, dead_webhook: dict[str, Any], failed_delivery: dict[str, Any]
 ) -> None:
     """F-250: the history endpoint shows the attempt, its status and its error.
@@ -219,7 +219,7 @@ def test_history_lists_the_attempt_with_its_error(
     assert body["has_more"] is (body["offset"] + len(body["deliveries"]) < body["total"]), body
 
 
-def test_history_of_an_unknown_webhook_is_404(logged_in_api: httpx.Client) -> None:
+def test_f250_history_of_an_unknown_webhook_is_404(logged_in_api: httpx.Client) -> None:
     """F-250's error path: an unknown webhook 404s instead of listing nothing.
 
     ``list_deliveries`` calls ``_get_webhook_or_404`` before querying
@@ -231,7 +231,7 @@ def test_history_of_an_unknown_webhook_is_404(logged_in_api: httpx.Client) -> No
     assert missing.status_code == 404, f"{missing.status_code}: {missing.text[:300]}"
 
 
-def test_retry_resends_the_same_row_and_counts_the_attempt(
+def test_f251_retry_resends_the_same_row_and_counts_the_attempt(
     logged_in_api: httpx.Client, dead_webhook: dict[str, Any], failed_delivery: dict[str, Any]
 ) -> None:
     """F-251: Retry re-sends inline, bumps ``attempt_count``, and stays one row.
@@ -276,7 +276,7 @@ def test_retry_resends_the_same_row_and_counts_the_attempt(
     assert rows[0]["status"] == "failed", rows[0]
 
 
-def test_retry_of_an_unknown_delivery_is_404(logged_in_api: httpx.Client) -> None:
+def test_f251_retry_of_an_unknown_delivery_is_404(logged_in_api: httpx.Client) -> None:
     """F-251's one implemented error path.
 
     The route has exactly two outcomes in code: ``retry_delivery`` returns

@@ -36,7 +36,7 @@ import {
 
 const harness = readOpsHarness();
 
-test.describe('golden path: pipeline latency history @critical', () => {
+test.describe('golden path: pipeline latency history (F-150) @critical', () => {
   test.setTimeout(60_000);
 
   test('stage chart renders and the Percentiles view toggles', async ({ page }) => {

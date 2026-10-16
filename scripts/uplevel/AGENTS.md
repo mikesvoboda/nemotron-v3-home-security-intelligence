@@ -272,3 +272,28 @@ PR merge commit's first parent (the `main` it merged into) as the baseline, so a
 finding, 2 when the baseline ref is unreadable (the CI step also exits 2 when HEAD names no parent);
 the last line counts what it read. Tests: `scripts/test_plan_lint.py` (fixtures and one throwaway
 git repository; it never lints this checkout, which is the CI step's job).
+
+### inventory_witness.py + inventory_witness_known.toml
+
+The inventory's `status` column held to the golden run (`[r218]`, ruling 218). Both Feature check
+jobs run `python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"` right after
+the harness step, whenever that step ran. It reads the run's `summary.json`
+(`results.golden.playwright_specs` and `backend_specs`, the per-test outcomes
+`scripts/feature_check.py` takes from JUnit) and maps each executed test to the
+`docs/reference/feature-inventory.md` rows its title names: the innermost describe or test title
+that carries any `F-nnn`, with `F-240 to F-243` and `F-164..F-167` naming every id between (a
+pytest test spells it `test_f100_...`). For a row at `awaiting real tier` or `works`, a mapped test
+that failed or skipped fails the job that ran it, and a job with no mapped test fails the row when
+it is the row's home: the jobs whose spec files name the row in a title, read statically from the
+checkout (`*.seeded.spec.ts` the seeded job, every other golden spec the fake AI job), or, for a
+row no title names, the specs its evidence cites. `unverified` rows whose tests all passed print as
+ready to flip, with evidence text to paste; `half-built`/`leftover` are info only; specs naming no
+row are listed. A `real` run, and a run whose Playwright project executed nothing, are refused:
+real-tier confirmation is the operator's (ruling 148), and an empty run witnesses nothing.
+`inventory_witness_known.toml` excuses named legs (exact test titles) of rows the owner is ruling
+on; any other non-passing leg still fails the row, and an entry whose listed leg passes or is gone
+fails the check until it is trimmed. Exit 0 agrees, 1 a row claims more than the run shows (or a
+stale known entry, or a title naming no such row), 2 an input could not be read, with its reason.
+The inventory's rows are parsed with `scripts/check-inventory-summary-arith.py`'s table helpers,
+loaded by path. Tests: `scripts/test_inventory_witness.py` (fixture inventories, summaries, known
+lists and spec trees).

@@ -22,7 +22,7 @@ import { api, authPost, closedByGuard, loginAsAdmin, pollApi, readOpsHarness } f
 
 const harness = readOpsHarness();
 
-test.describe('golden path: audit log @critical', () => {
+test.describe('golden path: audit log (F-175) @critical', () => {
   test.setTimeout(90_000);
 
   test('stats cards, action filter round trip, infinite scroll, detail modal', async ({ page }) => {

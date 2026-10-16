@@ -39,7 +39,7 @@ interface CleanupStatus {
   retention_days: number;
 }
 
-test.describe('golden path: storage run-cleanup preview modal @critical', () => {
+test.describe('golden path: storage run-cleanup preview modal (F-185) @critical', () => {
   test.setTimeout(60_000);
 
   test('Run Cleanup opens a preview modal that mirrors the dry-run the UI fetched, and Cancel deletes nothing', async ({

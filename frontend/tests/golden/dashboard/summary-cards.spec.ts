@@ -648,7 +648,7 @@ test.describe('golden path: dashboard hourly and daily summary cards @critical',
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test('F-033: a pushed summary refreshes the cards — WITNESSED on the app’s own /ws/events socket', async ({
+  test('F-295: a pushed summary refreshes the cards — WITNESSED on the app’s own /ws/events socket', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
