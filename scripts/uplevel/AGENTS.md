@@ -133,12 +133,15 @@ turn and the line it prints starts the next one (UR-38 — a backgrounded watche
 inside a turn). One `gh api graphql` call per poll, never the search API (its 30/min is shared by
 every agent on the owner's token), watching the PRs named by `--pr` plus those a label group
 discovers, and the last 100 comments of #6854. It exits with one line per change class and no
-comment bodies, survives transient failures, and always ends — one of three terminal lines, each
-naming itself so an agent acts on the right one: an `error: … 0 successful polls` line (it read
-nothing — a mistyped `--lifetime` or a dead poll streak), an `error: … none that compared a window`
-line (it read a window but every clean poll was a seed, so "nothing moved" is not something it saw),
-or the calm `no change in Ns` all-clear, which carries a `warning: watch ended on …` line whenever
-its last polls failed. A check window that came back full adds a
+comment bodies, survives transient failures, and always ends — one of four terminal lines, each
+naming itself so an agent acts on the right one (three at the lifetime bound, one when a streak
+trips mid-loop): an `error: … 0 successful polls` line (it read nothing — a mistyped `--lifetime`
+that expired before the streak could trip), an `error: … none that compared a window` line (it read
+a window but every clean poll was a seed, so "nothing moved" is not something it saw), the calm
+`no change in Ns` all-clear, which carries a `warning: watch ended on …` line whenever its last
+polls failed, or the `error: N consecutive poll failures` streak line (`--max-errors` polls failed
+with no clean poll between them — a clean poll resets the count — so the API or the arm is broken
+now). A check window that came back full adds a
 `#<n> checks truncated: X of Y watched` line — beside its news and on the all-clear — because a
 "no change" over a truncated window means "nothing moved in what I could see", not "nothing moved";
 the line is the reader's cue to treat that all-clear as unevaluated rather than clean.
