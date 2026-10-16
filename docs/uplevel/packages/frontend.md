@@ -537,7 +537,7 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 ### [r211f] F-048: a search result opens what was clicked
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
-for the spec's legs. **PR:** #7210 (open). (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
+for the spec's legs. **PR:** #7210, #7225 (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
 - [x] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
       #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1191` requires search
