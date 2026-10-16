@@ -249,7 +249,7 @@ Same as LogsDashboard:
 - Shows model contributions checklist (YOLO26, Florence, CLIP, Violence, Clothing, Vehicle, Pet, Weather, Quality, Zones, Baseline, Cross-cam)
 - Self-critique section from LLM evaluation
 - Improvement suggestions categorized by type
-- "Run Evaluation" / "Re-run Evaluation" action button
+- "Run Evaluation" / "Re-run Evaluation" action button (rendered in the header even when no audit record exists yet)
 - Consistency check with risk score comparison
 - Prompt length and token estimates
 - Enrichment utilization percentage
