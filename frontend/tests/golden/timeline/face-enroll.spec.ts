@@ -533,9 +533,18 @@ test.describe('F-064 event detail › add face to known persons', () => {
     // unrenderable. Measured on both sides, not feared: a held-stack run failed
     // leg 1's empty-copy assertion with the dialog's PICKER branch on screen
     // (its aria snapshot: dialog "Enroll Face" -> button "Select Person"), on a
-    // boot GET /api/known-persons that logged 192 B. The empty envelope is 22 B
-    // — re-measured live: GET answers exactly {"items":[],"total":0}, whose
-    // length is 22. So the drain takes every person, and the re-read below
+    // browser GET /api/known-persons the nginx access log recorded at 192 B
+    // (one row). Read logged numbers as WIRE bytes, not body bytes: the access
+    // line is formatted with $body_bytes_sent by the frontend IMAGE's base
+    // config (baked at /etc/nginx/nginx.conf — not this repo's file, which
+    // nginx includes only as a server block), and this repo's file turns gzip
+    // on for application/json (:92-95, no gunzip), so the SAME empty envelope —
+    // raw body exactly {"items":[],"total":0}, 22 B — logs 22 B to an
+    // `Accept-Encoding: identity` client and 64 B to a gzip browser. Witnessed
+    // boots logged the list `200 64` = EMPTY, then the low 190s after the
+    // create (192-195: one row's JSON drifts a byte or two with the salted
+    // name). Both empty readings sit well below every one-row reading, so the
+    // drain's premise holds under either encoding, and the re-read below
     // asserts the drained state as a shipped fact (the route returns
     // total=len(items), backend/api/routes/face_recognition.py:132).
     // Why draining the whole table is legitimate here and a no-op on CI, three
