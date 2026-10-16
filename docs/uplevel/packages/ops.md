@@ -686,6 +686,29 @@ comment count, and heartbeat markers drift.
 **Done when:** the lint runs in CI and passes on `main`, `lane_tick.py` prints `for you:` lines
 from footers, and `--beat` writes a heartbeat the coordinator's snapshot reads.
 
+### [r242] plan_lint checks every roster row again
+
+**Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 242).
+**Depends on:** none. **PR:** none yet. (ruling 242, record 6221764225)
+
+`[r197]`'s lint skipped every roster row whose review label is `none`, and ruling 198 set every
+label to `none`. So check 1 (a queue token with no block) and check 3 (a token on two lanes'
+queues) checked nothing, and ruling 241's missing `B3.1` slot surfaced only by hand.
+
+- [ ] Checks 1 and 3 run on every roster row, whatever its label. A lane with a package file keeps
+      check 1 against that file alone, since its digest reads no other. The lanes with none
+      (coordinator, heavy-a, heavy-b, operator; `lane_tick.py`'s `packages` docstring) are named,
+      and their tokens are looked up across every package file. The operator's row lists real-tier
+      runs (UR-15, ruling 188), so check 3 does not count it. The shared `F2.3` rule is kept.
+- [ ] Tests pin a `none`-labelled row with a missing block, a token on two lanes' queues (heavy-a's
+      among them), a heavy-a row whose tokens live in other lanes' files, and the real roster: a
+      token no block carries, planted on each real row, is caught on every one.
+- [ ] Each finding the fixed lint reports on `main` is fixed in the same PR: heavy-a's
+      `[r196a]` entry (ruling 226's split) no longer leads with the token frontend's row holds.
+
+**Done when:** the suites pass, the lint reports 0 findings on the PR's tree with no baseline (what
+`main`'s own run checks), and putting back the `none`-label skip fails the new tests.
+
 ### [r164a] The coordinator's paperwork moves into scripts
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, next on its queue after `O2.5`; ops-b reviews.
