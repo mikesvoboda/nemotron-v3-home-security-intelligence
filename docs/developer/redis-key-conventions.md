@@ -71,13 +71,13 @@ hsi:job:abc123:status               # Job status
 
 Managed by `CacheService` and `CacheKeys` class in `backend/services/cache_service.py`.
 
-| Pattern                                             | Purpose           | TTL   | Example                                            |
-| --------------------------------------------------- | ----------------- | ----- | -------------------------------------------------- |
-| `{prefix}:cache:cameras:list`                       | All cameras list  | 5 min | `hsi:cache:cameras:list`                           |
-| `{prefix}:cache:cameras:list:{status}`              | Cameras by status | 5 min | `hsi:cache:cameras:list:online`                    |
-| `{prefix}:cache:cameras:{id}`                       | Single camera     | 5 min | `hsi:cache:cameras:front_door`                     |
+| Pattern                                              | Purpose           | TTL   | Example                                            |
+| ---------------------------------------------------- | ----------------- | ----- | -------------------------------------------------- |
+| `{prefix}:cache:cameras:list`                        | All cameras list  | 5 min | `hsi:cache:cameras:list`                           |
+| `{prefix}:cache:cameras:list:{status}`               | Cameras by status | 5 min | `hsi:cache:cameras:list:online`                    |
+| `{prefix}:cache:cameras:{id}`                        | Single camera     | 5 min | `hsi:cache:cameras:front_door`                     |
 | `{prefix}:cache:stats:events:{start}:{end}:{camera}` | Event statistics  | 5 min | `hsi:cache:stats:events:2024-01-01:2024-01-31:all` |
-| `{prefix}:cache:system:status`                      | System status     | 1 min | `hsi:cache:system:status`                          |
+| `{prefix}:cache:system:status`                       | System status     | 1 min | `hsi:cache:system:status`                          |
 
 **One shape for both key dialects (`[r228]`):** routes pass keys two ways — short
 literals (`"summaries:latest"`) and `CacheKeys` values (which already embed
