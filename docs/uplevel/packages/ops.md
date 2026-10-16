@@ -564,7 +564,8 @@ and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
 waits on the operator (UR-52 waived, ruling 217). **Depends on:** none.
-**PR:** none yet. (rulings 127, 187, 196, 217; record 6200901387)
+**PR:** #7189 (merged 2026-10-16T13:02:29Z as `c941d1481`, head `ba4ff9495`). (rulings 127, 187,
+196, 217; record 6200901387)
 
 - [ ] Specs for F-186, F-196 and F-197 in ops-b's batch directory
       `frontend/tests/golden/gpu-storage-admin/` (ruling 87) run in `Feature check (seeded)`, the
@@ -572,6 +573,28 @@ waits on the operator (UR-52 waived, ruling 217). **Depends on:** none.
 
 **Done when:** none of the three rows says **unverified**; each flipped on a run where its leg
 executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
+
+### [r235] Seeded rows on the real tier
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
+waits (UR-52 waived, as ruling 217 did). **Depends on:** none. **PR:** none yet. (ruling 235,
+record 6216273821)
+
+About 11 rows are witnessed only by `*.seeded.spec.ts` legs (F-012, F-133, F-138, F-154–F-156,
+F-186, F-196, F-197, F-278), and `scripts/feature_check.py` refuses `--seeded` without `--fake`
+(`:3193-3194`), so no real-tier run executes them.
+
+- [ ] `--seeded` is accepted with `--real`: the real-tier boot (UR-136) applies the seeded
+      overrides (`:500-505`) and fixtures (`:2110-2257`) and runs `golden-seeded` (`:2345`).
+      `--seeded --prod-shape` stays refused.
+- [ ] Tests pin the flag matrix: `--fake --seeded` unchanged, `--real --seeded` accepted,
+      `--prod-shape --seeded` refused.
+- [ ] After merge, the operator runs `--real --seeded` (UR-15) and posts the output here. Each
+      seeded row whose leg passes moves to **works** with the run's date (ruling 153), except a row
+      ruling 207 or 231 lists, which keeps `needs real Triton models`.
+
+**Done when:** the tests pass in CI at a ready head, and the operator's `--real --seeded` run is
+posted on the PR.
 
 ### [r197] The digest's formats are checked where they are written
 
