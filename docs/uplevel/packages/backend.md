@@ -359,7 +359,8 @@ head.
 ### [r211b] F-048: search skips deleted events and filters the severity it reports
 
 **Flags:** none. **Assigned:** backend, first on its queue (fix now). **Depends on:** none.
-**PR:** none yet. (rulings 211, 221; records 6200331506, 6205729827)
+**PR:** #7187 (merged 2026-10-16T04:40:26Z as `5365165f8`, head `4819ce171`). (rulings 211, 221;
+records 6200331506, 6205729827)
 
 - [ ] `search_events` (`backend/services/search.py`) takes the browse route's `deleted_at` predicate
       (`backend/api/routes/events.py:410`), so search never lists a soft-deleted event.
@@ -378,10 +379,32 @@ head.
 head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green and its 2
 `test.fixme` marks unchanged (ruling 221); `[r211f]` then removes those marks.
 
+### [r228] One cache key shape
+
+**Flags:** none. **Assigned:** backend, first on its queue, ahead of `[r223]` (a lane bug fix
+outside Phase 4's priority order). **Depends on:** none. **PR:** none yet. (ruling 228, record 6215814018)
+
+`[r223]`'s MEASURE (`6208408388`) found the invalidators miss the keys their routes store.
+`CacheKeys` (`backend/services/cache_service.py:730`) builds keys that already carry the global
+prefix, and `get` (`:123`) and `set` (`:196`) prepend `CACHE_PREFIX` (`:82`) again, so a camera
+list is stored as `cache:hsi:cache:cameras:list:all`. `invalidate_pattern` (`:463`) prepends it to
+the short-form pattern (`:486`), which does not match. `_get_cache_prefix()` (`:75`) has no caller.
+
+- [ ] `CacheService`'s key builders and `CacheKeys` agree on one key shape, so each invalidator
+      reaches the key its route stores. The PR states the form chosen.
+- [ ] **MEASURE** against a real Redis, before and after: each cached route's stored key and
+      whether its invalidator deletes it, as a table in the PR.
+- [ ] Tests: the short-form pins in `backend/tests/integration/test_cache_invalidation_comprehensive.py`
+      (`:440-447`) pin the stored shape, and a test proves an invalidator deletes a key its route
+      stored.
+
+**Done when:** the tests pass in CI at a ready head, and the PR's table shows every listed
+invalidator deleting its route's stored key.
+
 ### [r223] The developer tools' seed and clear refresh the caches they change
 
-**Flags:** none. **Assigned:** backend, after `[r211b]` (a lane bug fix outside Phase 4's priority
-order). **Depends on:** none. **PR:** none yet. (ruling 223, record 6205796977)
+**Flags:** none. **Assigned:** backend, after `[r228]` (a lane bug fix outside Phase 4's priority
+order). **Depends on:** `[r228]` merged. **PR:** none yet. (rulings 223, 228; records 6205796977, 6215814018)
 
 `seed_cameras` (`backend/api/routes/admin.py:299`) and `clear_seeded_data` (`:671`) commit without
 invalidating the camera list cache, which every camera route does
