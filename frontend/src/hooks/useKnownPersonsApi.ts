@@ -17,6 +17,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { faceRecognitionQueryKeys } from './useFaceRecognitionApi';
 import { STATIC_STALE_TIME } from '../services/queryClient';
 
 import type { KnownPerson, KnownPersonCreate, KnownPersonUpdate } from '../types/faceRecognition';
@@ -37,16 +38,14 @@ type KnownPersonListResponse = components['schemas']['KnownPersonListResponse'];
 // Query Keys
 // ============================================================================
 
-/**
- * Query key factory for known persons API.
- */
+/** Query key factory for known persons API (shared with faceRecognitionQueryKeys). */
 export const knownPersonsQueryKeys = {
   /** Base key for all known persons queries */
-  all: ['known-persons'] as const,
+  all: faceRecognitionQueryKeys.all,
   /** Known persons list */
-  list: () => [...knownPersonsQueryKeys.all, 'list'] as const,
+  list: () => faceRecognitionQueryKeys.knownPersons(),
   /** Single known person */
-  detail: (id: number) => [...knownPersonsQueryKeys.all, 'detail', id] as const,
+  detail: (id: number) => faceRecognitionQueryKeys.knownPerson(id),
 };
 
 // ============================================================================
@@ -198,7 +197,7 @@ export function useUpdateKnownPerson() {
     mutationFn: ({ id, data }: { id: number; data: KnownPersonUpdate }) =>
       updateKnownPerson(id, data),
     onSuccess: (_, variables) => {
-      void queryClient.invalidateQueries({ queryKey: knownPersonsQueryKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: knownPersonsQueryKeys.list(), exact: true });
       void queryClient.invalidateQueries({
         queryKey: knownPersonsQueryKeys.detail(variables.id),
       });
