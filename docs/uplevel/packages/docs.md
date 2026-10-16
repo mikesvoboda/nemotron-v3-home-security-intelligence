@@ -28,6 +28,7 @@ Each package here starts on a lane's directories as UR-68 allows.
 ### W3.1 Boundaries only
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Delete every `AGENTS.md` outside the boundary list (`UR-21`), moving any non-discoverable
       knowledge it holds into the nearest boundary file.
@@ -40,6 +41,7 @@ removed.
 ### W3.2 Rewrite the boundary files to the standard
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
+**PR:** none yet. (ruling 241)
 
 One PR per lane's boundary files.
 
@@ -60,6 +62,7 @@ agent has approved its own files.
 ### W3.3 Living docs truth
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Delete the 30 redirect stubs in `docs/development/` (**DECIDE** whether mkdocs needs
       redirects for external links), the `docs/goal-prompt-*.txt` files and the goal prompts in
@@ -84,6 +87,7 @@ list covers them, each directory added in the PR that fixes its citations (owner
 ### W3.4 Carry out the docs rulings
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Apply the `R2` rulings from `W2.2`: the single plan home, the register's shape, the
       image-validation plans. `R2a` ruled them (ruling 89):
