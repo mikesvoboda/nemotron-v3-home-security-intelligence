@@ -71,13 +71,23 @@ hsi:job:abc123:status               # Job status
 
 Managed by `CacheService` and `CacheKeys` class in `backend/services/cache_service.py`.
 
-| Pattern                                             | Purpose           | TTL   | Example                                           |
-| --------------------------------------------------- | ----------------- | ----- | ------------------------------------------------- |
-| `{prefix}:cache:cameras:list`                       | All cameras list  | 5 min | `hsi:cache:cameras:list`                          |
-| `{prefix}:cache:cameras:list:{status}`              | Cameras by status | 5 min | `hsi:cache:cameras:list:online`                   |
-| `{prefix}:cache:cameras:{id}`                       | Single camera     | 5 min | `hsi:cache:cameras:front_door`                    |
-| `{prefix}:cache:event_stats:{start}:{end}:{camera}` | Event statistics  | 5 min | `hsi:cache:event_stats:2024-01-01:2024-01-31:all` |
-| `{prefix}:cache:system:status`                      | System status     | 1 min | `hsi:cache:system:status`                         |
+| Pattern                                              | Purpose           | TTL   | Example                                            |
+| ---------------------------------------------------- | ----------------- | ----- | -------------------------------------------------- |
+| `{prefix}:cache:cameras:list`                        | All cameras list  | 5 min | `hsi:cache:cameras:list`                           |
+| `{prefix}:cache:cameras:list:{status}`               | Cameras by status | 5 min | `hsi:cache:cameras:list:online`                    |
+| `{prefix}:cache:cameras:{id}`                        | Single camera     | 5 min | `hsi:cache:cameras:front_door`                     |
+| `{prefix}:cache:stats:events:{start}:{end}:{camera}` | Event statistics  | 5 min | `hsi:cache:stats:events:2024-01-01:2024-01-31:all` |
+| `{prefix}:cache:system:status`                       | System status     | 1 min | `hsi:cache:system:status`                          |
+
+**One shape for both key dialects (`[r228]`):** routes pass keys two ways — short
+literals (`"summaries:latest"`) and `CacheKeys` values (which already embed
+`{prefix}:cache:`). `CacheService` normalizes both through `_storage_key()` to the
+single stored shape `{redis_key_prefix}:cache:{logical}`, so an invalidator's scan
+namespace always equals the namespace that stores its keys. Before `[r228]`,
+`get`/`set` prepended a second `cache:` to `CacheKeys` values, so those routes
+stored `cache:hsi:cache:…` while `invalidate_pattern` scanned `cache:…` and deleted
+nothing. The event-statistics token is `stats:events` (what
+`invalidate_event_stats` scans), not `event_stats`.
 
 **Usage:**
 
@@ -86,6 +96,7 @@ from backend.services.cache_service import CacheKeys
 
 key = CacheKeys.cameras_list()  # Returns "hsi:cache:cameras:list"
 key = CacheKeys.camera("front_door")  # Returns "hsi:cache:cameras:front_door"
+# CacheService stores both this and a short "cameras:list" at the same shape.
 ```
 
 ### Queue Keys (`queue:`)

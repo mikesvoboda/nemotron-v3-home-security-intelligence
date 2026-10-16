@@ -84,7 +84,10 @@ def test_cache_keys_event_stats_includes_prefix():
 
     key = CacheKeys.event_stats("2024-01-01", "2024-01-31")
     assert key.startswith(f"{CacheKeys.PREFIX}:")
-    assert "cache:event_stats" in key or "event_stats" in key
+    # [r228]: the token is stats:events, the namespace invalidate_event_stats
+    # scans and _infer_cache_type classifies. The old event_stats token was
+    # emitted here and nowhere else, so the key was unreachable by its invalidator.
+    assert "cache:stats:events" in key or "stats:events" in key
 
 
 def test_cache_keys_event_stats_format():
@@ -92,9 +95,9 @@ def test_cache_keys_event_stats_format():
     from backend.services.cache_service import CacheKeys
 
     key = CacheKeys.event_stats("2024-01-01", "2024-01-31")
-    # Expected: "{PREFIX}:cache:event_stats:{start}:{end}:{camera_id}"
+    # Expected: "{PREFIX}:cache:stats:events:{start}:{end}:{camera_id}"
     # NEM-2434: Added camera_id to support camera-specific stats
-    expected = f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31:all"
+    expected = f"{CacheKeys.PREFIX}:cache:stats:events:2024-01-01:2024-01-31:all"
     assert key == expected
 
 

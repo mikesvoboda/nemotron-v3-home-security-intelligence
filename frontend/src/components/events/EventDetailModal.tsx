@@ -71,7 +71,6 @@ import VideoPlayer from '../video/VideoPlayer';
 import type { ThreatData } from './ThreatBoundingBox';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
-import type { EnrichmentData } from '../../types/enrichment';
 import type { EventVerificationPayload } from '../../types/generated/websocket';
 import type {
   RiskEntity,
@@ -86,7 +85,6 @@ export interface Detection {
   label: string;
   confidence: number;
   bbox?: { x: number; y: number; width: number; height: number };
-  enrichment_data?: EnrichmentData;
 }
 
 export interface Event {
@@ -1041,20 +1039,6 @@ export default function EventDetailModal({
                           </div>
                         </div>
                       )}
-
-                      {/* R8 S5: the AI Enrichment Analysis block retired here.
-                          Its two panels drew their content from the pose /
-                          demographics / re-ID enrichment models, which the VLM
-                          path does not run (the storage side of the same
-                          retirement is slice S4), and the owner ruling of
-                          2026-09-29 turned 1.6's empty state into this deletion
-                          too - roadmap
-                          docs/vss-integration/12-postponed-roadmap.md:120-121,
-                          "the design's empty states become deletions". A
-                          detection's enrichment_data member stays on this
-                          type and on the API surface -- a pipeline that ran
-                          the models still fills it -- it is just no longer
-                          rendered. */}
 
                       {/* Action Recognition Events (ST-GCN++) - NEM-5024 Phase 7 */}
                       {!isNaN(eventIdNumber) && event.camera_id && (
