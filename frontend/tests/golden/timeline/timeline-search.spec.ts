@@ -45,17 +45,17 @@
  *   row by id.
  *   The naive version of this leg ("click a page-2 result") is FLAKY, because
  *   whether page 2's ids happen to be cached depends on whether the user scrolled
- *   while browsing (`useInfiniteScroll`, :297, disabled in search mode). So the
- *   leg uses a construction instead: one fixture row is SOFT-DELETED, and the two
- *   routes disagree about it by design — search builds no `deleted_at` predicate
- *   (`search.py:281-304`) while the browse list excludes soft-deleted rows. That
- *   row is therefore a guaranteed search HIT that can NEVER be in `filteredEvents`
- *   at any page size. Measured at fixture time (see createSearchFixture): search
- *   `total_count` counts it, `GET /api/events?camera_id=…` omits it, and
- *   `GET /api/events/{id}` answers 404 — so no amount of scrolling, caching or
- *   luck can supply it, and the assertion below is a construction, not a race.
- *   The panel still advertises it: `Showing 21-26 of 26` against a browse list
- *   that says 25.
+ *   while browsing (`useInfiniteScroll`, :297, disabled in search mode). The
+ *   construction this file used pre-`[r211b]` — a SOFT-DELETED victim listed by
+ *   search but hidden from browse — is GONE: `[r211b]` gave search the same
+ *   `deleted_at` predicate browse has (`backend/services/search.py:451`; the
+ *   browse route's is `events.py:421`), so the victim is now invisible to BOTH
+ *   readers and nothing can click it. The leg's live subject instead: search
+ *   paginates server-side while `filteredEvents` holds only the browse query's
+ *   loaded page-1 newest 20, so every OLDER live row — search page 2 — is offered
+ *   by search and unresolvable by the modal. Liveness is pinned in-leg:
+ *   `GET /api/events/{id}` answers 200 for that row, so the failure is the
+ *   client-side lookup, not missing data.
  *
  * LOCATOR TRAPS in this surface, each of which cost a probe run:
  *   - The query box has NO data-testid: `getByLabel('Search events')`
@@ -593,7 +593,8 @@ test.describe('F-048 full-text search', () => {
     await expect(panelHeader(page).first()).toBeVisible();
 
     // POSITIVE CONTROL, and it has to be page 1: search's tie-break is
-    // `started_at DESC` (search.py:432) and the browse list is ordered the same
+    // `started_at DESC` (search.py:465; the line moved from :432 when [r211b]
+    // inserted the deleted_at predicate above it) and the browse list is ordered the same
     // way, so page 1 of search and page 1 of browse are the same 20 rows — the
     // newest (`alpha 24`) is certainly in `filteredEvents`, and its click opening
     // the modal is the shipped behaviour, not luck.

@@ -986,19 +986,19 @@ export async function createDetailFixture(
 /* can be driven at all — and the second page holds exactly 5 rows, which is a   */
 /* count a leg asserts rather than a count it hopes for.                        */
 /*                                                                              */
-/* THE VICTIM ROW IS THE POINT OF THIS FIXTURE. One extra row is SOFT-deleted    */
-/* after seeding, which is a state no other fixture wants and F-048's own        */
-/* "clicks a result to open its detail" clause needs to be measured honestly.    */
-/* Measured on the probe stack, same camera, same run:                           */
-/*   GET /api/events/search?q=…  → total 4, victim PRESENT                      */
-/*   GET /api/events?camera_id=… → total 3, victim ABSENT                       */
-/*   GET /api/events/{victim}    → 404                                           */
-/* The asymmetry is structural, not a race: the search route builds no          */
-/* `deleted_at` predicate (search.py:281-304) while the browse list excludes     */
-/* soft-deleted rows. So a clicked victim result CAN be a search hit that can    */
-/* NEVER be in `filteredEvents`, which the modal's lookup requires              */
-/* (EventTimeline.tsx:1059-1090) — the defect leg becomes deterministic instead  */
-/* of depending on whether the user happened to scroll while browsing.          */
+/* THE VICTIM ROW'S ROLE CHANGED WITH [r211b]. One extra row is still SOFT-      */
+/* deleted after seeding, but its PURPOSE inverted. Before [r211b] the search    */
+/* route had no `deleted_at` predicate while browse did, so the victim was a     */
+/* guaranteed search HIT that could never be in `filteredEvents` — the defect    */
+/* leg clicked it. [r211b] gave search the SAME predicate browse has             */
+/* (backend/services/search.py:451; browse's is events.py:421), so now BOTH      */
+/* readers hide it: search total drops by the victim, and GET /api/events/{id}   */
+/* still 404s. The victim is now the fixture's NEGATIVE control — createSearch-  */
+/* Fixture asserts search EXCLUDES it, and the defect leg's closing line reddens */
+/* if search ever re-lists it. The defect subject moved to a still-shipped cause:*/
+/* search paginates server-side while `filteredEvents` holds only browse's       */
+/* loaded page-1 newest-20, so an older live row on search page 2 is offered by  */
+/* search and unresolvable by the modal (EventTimeline.tsx:1059-1090).          */
 /* -------------------------------------------------------------------------- */
 
 /** FE-3's search camera: distinct from the browse, stats and detail cameras. */
@@ -1060,7 +1060,8 @@ export interface SearchFixture {
  * `risk_score` alternates 91/45 so `risk_level` alternates high/medium — that is
  * what makes the severity filter leg an ASSERTION (13 of 25 high) instead of a
  * restatement of the fixture. `started_at` is spread one minute apart over 3 h
- * ending now, because search's tie-break is `started_at DESC` (search.py:432) and
+ * ending now, because search's tie-break is `started_at DESC` (search.py:465, moved
+ * from :432 when [r211b] inserted the predicate above it) and
  * identical timestamps would make page contents arbitrary.
  *
  * The purge is HARD (`soft_delete:false`) and it asks the SEARCH route as well as
