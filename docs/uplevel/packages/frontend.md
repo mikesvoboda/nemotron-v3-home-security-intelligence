@@ -121,6 +121,11 @@ same way after the owner's `R2b` session.
   them (ruling 216, record 6200852082), into the ruling and priority columns only; later rounds
   return to this lane.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
+- **The last round also rules** how a row witnessed only in `Feature check (seeded)` (a
+  `*.seeded.spec.ts` leg; F-133, F-186, F-196 and F-197 among them) reaches **works**: `--seeded`
+  is refused without `--fake` (`scripts/feature_check.py:3193-3194`), so the real tier never runs
+  those specs. Until then such rows stay at **awaiting real tier** (ruling 227; #7189's body states
+  the options).
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).
 
