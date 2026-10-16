@@ -83,7 +83,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220.
+`B2.3` (ruling 241). **PR:** #7224.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -95,7 +95,7 @@ one PR with `F3.1`.
 - [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
       record 6198942052), not as a hand-run DROP runbook. Until it lands, take the retirements
       that drop no table; one that drops a table waits for it (ruling 241).
-- [ ] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
+- [x] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
       `search_similar_entities`): route, handler, tests and both its `docs/developer/api/coverage.md`
       lines (`:692`, `:856`). It has no client and no guide; Phase 4's design sessions may bring
       re-ID search back (ruling 236).

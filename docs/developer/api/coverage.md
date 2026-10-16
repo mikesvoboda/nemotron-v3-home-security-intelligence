@@ -689,7 +689,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 
 | Endpoint                           | Method | Consumer(s) | Purpose                   |
 | ---------------------------------- | ------ | ----------- | ------------------------- |
-| `/api/reid/search`                 | POST   | —           | Search Similar Entities   |
 | `/api/reid/similar/{detection_id}` | GET    | `api.ts`    | Find Similar By Detection |
 
 ### RUM (Real User Monitoring)
@@ -853,7 +852,6 @@ backend-only surface:
 | `/api/plate-reads/camera/{camera_id}`                          | GET                 | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
 | `/api/plate-reads/recognize`                                   | POST                | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
 | `/api/plate-reads/statistics`                                  | GET                 | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
-| `/api/reid/search`                                             | POST                | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/scheduled-reports/{report_id}/run`                       | POST                | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/summaries/daily`                                         | GET                 | Summary detail/export endpoints — daily summary list consumed by `api.ts`                                                                                                    |
 | `/api/summaries/hourly`                                        | GET                 | Summary detail/export endpoints — daily summary list consumed by `api.ts`                                                                                                    |
