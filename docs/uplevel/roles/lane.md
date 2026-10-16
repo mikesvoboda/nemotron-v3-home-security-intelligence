@@ -50,9 +50,9 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 The 30-minute `/loop` is a **fallback** since ruling 193, not the main channel: step 6 arms a
 watcher that wakes you when a watched PR moves, so a handoff no longer waits up to a tick for its
-delay. Keep the `/loop` anyway -- it is what notices anything the watcher does not watch (a new
-`review:<lane>` label on a PR you were not watching, a stale coordinator) and it bounds a watcher
-that died silently.
+delay. Keep the `/loop` anyway -- it is what notices anything the watcher does not watch (a ruling
+directed at your packages, a stale coordinator, your disks -- all digest lines, none of them watcher
+output) and it bounds a watcher that died silently.
 
 1. **Read the tick in one call.** Run
 
@@ -98,8 +98,9 @@ that died silently.
    run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. **Re-arm the watcher** (ruling 193) unless one is already running for these PRs. Arm it as a
-   background task, naming the PRs the digest just showed you -- your own open PRs and every
-   `review:<lane>` row -- and exit the turn immediately:
+   background task, naming the PRs the digest just showed you -- your own open PRs, which is all the
+   digest's PR section holds now that ruling 198 retired `review:<lane>` -- and exit the turn
+   immediately:
 
    ```bash
    uv run python scripts/uplevel/pr_watch.py --pr <n> --pr <m> --lifetime 1800

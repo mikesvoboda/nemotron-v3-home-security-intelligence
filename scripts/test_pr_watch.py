@@ -1665,3 +1665,26 @@ def test_lines_name_the_pr_number_in_every_change_class():
             Run(envelope([change], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"})), state
         )
         assert lines and lines[0].startswith(f"#{PR} "), f"{label}: {lines}"
+
+
+def test_gh_result_raises_on_nonzero_rc_and_on_graphql_errors():
+    """``gh_result`` is the only place a transport failure can become visible, so both its raise
+    branches are pinned directly -- a return-instead-of-raise mutant must die here, not in the
+    injected seam. ``gh_args``/``parse_args`` are pure for the same reason (AGENTS.md: no network,
+    no monkeypatching), so the subprocess stays out of it and only the result object is built.
+    """
+    import subprocess as _sp
+
+    err = _sp.CompletedProcess(args=["gh"], returncode=1, stdout="", stderr="gh: Could not resolve")
+    with pytest.raises(RuntimeError, match="Could not resolve"):
+        watch.gh_result(err)
+    # stderr empty -> stdout is the message, so a silent-stderr failure still names something.
+    with pytest.raises(RuntimeError, match="boom"):
+        watch.gh_result(_sp.CompletedProcess(args=["gh"], returncode=1, stdout="boom", stderr=""))
+    errors = _sp.CompletedProcess(
+        args=["gh"], returncode=0, stdout='{"errors": [{"message": "Field X missing"}]}', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="Field X missing"):
+        watch.gh_result(errors)
+    ok = _sp.CompletedProcess(args=["gh"], returncode=0, stdout='{"data": {"rate": 1}}', stderr="")
+    assert watch.gh_result(ok) == {"data": {"rate": 1}}

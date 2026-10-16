@@ -179,11 +179,11 @@ the delete direction finds nothing, so the line announced an addition that had n
 no author. Deletion is not one of ruling 193's six change classes either, and the file resolves that
 the way `_state_line` does a reopen — name what moved.
 
-`scripts/test_pr_watch.py` (53 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`scripts/test_pr_watch.py` (54 tests, in ci.yml's anti-rot-gates list) drives one seam —
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
 fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
 starts reading something new fails loudly instead of passing on `{}`.
-`scripts/r193-mutation-campaign.py` reverts 39 properties in a throwaway worktree and fails if any
+`scripts/r193-mutation-campaign.py` reverts 40 properties in a throwaway worktree and fails if any
 survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
 registered in ci.yml — the campaign list holds suites, not drivers.
 

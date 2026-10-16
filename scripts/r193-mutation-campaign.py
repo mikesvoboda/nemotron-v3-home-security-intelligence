@@ -57,6 +57,18 @@ CONTEXT = ["scripts/uplevel/AGENTS.md", "scripts/r193-mutation-campaign.py"]
 # the pristine file, or the mutant is reported BAD-PATTERN rather than silently un-applied.
 MUTANTS = [
     (
+        "graphql-errors-swallowed",
+        "returns an empty payload instead of raising on a GraphQL errors response, so a broken "
+        "watch looks like a quiet one (the silently-empty class this module keeps meeting)",
+        [
+            (
+                '    if payload.get("errors"):\n'
+                '        raise RuntimeError(str(payload["errors"])[:400])',
+                '    if payload.get("errors"):\n        return {"data": {}}',
+            )
+        ],
+    ),
+    (
         "search-api",
         "adds the search API ruling 193 forbids (30/min shared across every agent)",
         [

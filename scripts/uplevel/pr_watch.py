@@ -609,15 +609,29 @@ def gh_args(query: str, variables: dict) -> list[str]:
     return args
 
 
-def gh_runner(query: str, variables: dict) -> dict:
-    """The production seam: one ``gh api graphql`` call, parsed -- or raised, never swallowed."""
-    proc = subprocess.run(gh_args(query, variables), capture_output=True, text=True, check=False)
+def gh_result(proc: subprocess.CompletedProcess) -> dict:
+    """Turn one ``gh api graphql`` result into a payload -- or raise, never swallow.
+
+    Split out of ``gh_runner`` for the same reason ``gh_args`` and ``parse_args`` are: the rule
+    lives here, the side effect does not. This is the ONLY place a GitHub GraphQL ``errors``
+    response can become visible, and it is the sole real trigger for ``watch``'s max-errors exit,
+    so returning ``{}`` instead of raising would make a broken watch look like a quiet one -- the
+    silently-empty class this module keeps meeting (an Int passed with ``-f`` matches nothing and
+    returns no error). Pinned by a test and by a campaign mutant, not by the injected seam alone.
+    """
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout).strip()[:400])
     payload: dict = json.loads(proc.stdout)
     if payload.get("errors"):
         raise RuntimeError(str(payload["errors"])[:400])
     return payload
+
+
+def gh_runner(query: str, variables: dict) -> dict:
+    """The production seam: one ``gh api graphql`` call, parsed by ``gh_result``."""
+    return gh_result(
+        subprocess.run(gh_args(query, variables), capture_output=True, text=True, check=False)
+    )
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
