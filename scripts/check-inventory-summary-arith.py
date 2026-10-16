@@ -1,40 +1,43 @@
 #!/usr/bin/env python3
-"""Re-derive feature-inventory.md's §2 summary table from the §3 rows it summarizes.
+"""Compute feature-inventory.md's §2 summary from the §3 rows it summarizes (ruling 251).
 
     uv run python scripts/check-inventory-summary-arith.py [PATH] [--json]
 
+Prints §2's table -- per `### 3.x` section, its row count and each status's count, then
+the `all` row -- from the rows themselves. §2 is not stored in the document any more:
+until ruling 251 it was a hand-kept copy of these numbers, and two PRs that flipped
+different rows both edited its `all` row, so they conflicted though their real edits
+did not (about 20 recount and conflict commits across 11 PRs in two days). The
+document's §2 now says how to print it.
+
 Call it by path, the way its only automated caller does:
-`scripts/test_check_inventory_summary_arith.py:88` runs
+`scripts/test_check_inventory_summary_arith.py` runs
 `sys.executable <this file> <doc> --json`, and CI runs that test
-(`.github/workflows/ci.yml:272`). No CI step names this file itself — a `scripts/`
-path written in that step trips the entries pin (`ci.yml:250-253`), which is why the
-`entry_points.toml` line this branch first added was then removed.
+(`.github/workflows/ci.yml`, the collection-sanity test list). No CI step names this
+file itself -- a `scripts/` path written in that step trips the entries pin.
 
 `-m scripts.check-inventory-summary-arith` is not the form to advertise: it happens
 to work from the repo root (no `scripts/__init__.py`, so it resolves as a namespace
 package) and fails from any other cwd with ModuleNotFoundError.
 
-Section 2 publishes, per `### 3.x` section, a row count and a per-status count, plus
-an `all` row. Until this checker existed NOTHING compared those numbers to the rows
-they claim to count — `frontend/src/__tests__/feature-inventory.test.ts` holds ROWS
-against code (routes, requests, cites, modules) and never opens the summary — so a
-stale `half-built 152` merged green. Status edits are exactly what the R2 rulings
-make constant, which makes this table the most-mutable arithmetic in `docs/`.
-
 Three parsing rules, each because the naive version manufactures a wrong answer:
 
-  * cell split is ESCAPE-AWARE. `\\|` inside a cell is content, not a delimiter —
-    F-006's action cell literally contains `42% \\| 61°C` — so a bare `split("|")`
+  * cell split is ESCAPE-AWARE. `\\|` inside a cell is content, not a delimiter --
+    F-006's action cell literally contains `42% \\| 61°C` -- so a bare `split("|")`
     invents a column and shifts every cell right of it, which lands on `status`.
   * columns are resolved by HEADER NAME, never by split index. A reordered table
     would otherwise tally the `evidence` column and still print plausible integers.
-  * the summary table's own header declares the STATUS VOCABULARY. A §3 row whose
-    `status` is not a summary column is an ERROR, not an uncounted row: a new tier
-    added to the rows without a column is the silent half of a split.
+  * the STATUS VOCABULARY is the legend table under §1's `### Statuses`. A §3 row whose
+    `status` is not in it is a failure, not an uncounted row: a new tier added to the
+    rows without the legend is the silent half of a split.
 
-Missing table, missing column, zero sections and a duplicate `F-nnn` are all
-failures. An empty pass is the defect this file exists to prevent, so every
-"found nothing" path exits 1 with its denominator printed.
+Exit 0 with the table printed; 1 when a row carries a status outside the legend, or §2
+stores a table again (ruling 251); 2 when the document cannot be scored -- a missing
+legend, no `### 3.x` section, a section table with no `id` or `status` column, a
+duplicate `F-nnn`, a table line that is not a row. Every "found nothing" path exits
+non-zero with its denominator printed, because an empty pass is the defect this
+file exists to prevent. `inventory_witness.py` reuses the table helpers and
+``check()``'s census.
 """
 
 from __future__ import annotations
@@ -55,6 +58,8 @@ ROW_ID = re.compile(r"^F-\d+$")
 SECTION_HEAD = re.compile(r"^### (3\.\d+) ")
 SEP_CELL = re.compile(r":?-{3,}:?")
 H2_HEAD = re.compile(r"^## ")
+SUMMARY_HEAD = re.compile(r"^## 2\. Summary\s*$", re.M)
+STATUSES_HEAD = re.compile(r"^### Statuses\s*$", re.M)
 
 
 class InventoryError(Exception):
@@ -149,11 +154,10 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
                 # NOT a silent skip. A row in an id table whose first cell is not an
                 # `F-nnn` is either a malformed id or a prose line that got absorbed
                 # into the table; counting it would invent a row, but SKIPPING it is
-                # worse -- it drops one from BOTH denominators this gate compares, so
-                # §2 and a re-derived §3 go stale together and the checker exits 0 on
-                # the very arithmetic it exists to police. Measured on the real
-                # document: 294 rows, 0 skipped, so this can only fire on content that
-                # is already wrong.
+                # worse -- it drops one from the census in silence, and the printed
+                # summary is wrong with nothing to compare it against. Measured on the
+                # real document: 294 rows, 0 skipped, so this can only fire on content
+                # that is already wrong.
                 unrowed.append(cells[0][:40] or "<empty first cell>")
                 continue
             rows += 1
@@ -181,112 +185,99 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
     return per_section, vocab
 
 
-def parse_summary(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int], list[str]]:
-    """The published §2 table: (per-section rows, the `all` row, the status vocabulary)."""
-    match = re.search(r"^## 2\. Summary\s*$", text, re.M)
+def legend_statuses(text: str) -> list[str]:
+    """The status vocabulary, in order: the first column of the table under `### Statuses`."""
+    match = STATUSES_HEAD.search(text)
     if not match:
-        raise InventoryError("no '## 2. Summary' heading — nothing to check the rows against")
-    body = text[match.end():].split("\n## ", maxsplit=1)[0]
-    candidates = [t for t in tables(body.splitlines()) if len(t) > 2 and is_separator(split_row(t[1]))]
-    if len(candidates) != 1:
-        raise InventoryError(f"§2: expected exactly 1 summary table, found {len(candidates)}")
-    table = candidates[0]
-    cols = header_columns(table)
-    for need in ("section", "rows"):
-        if need not in cols:
-            raise InventoryError(f"§2 summary header lacks `{need}`: {split_row(table[0])}")
-    ordered = [c.strip("` ").lower() for c in split_row(table[0])]
-    vocabulary = [c for c in ordered if c not in ("section", "rows")]
-    if not vocabulary:
-        raise InventoryError(f"§2 summary declares no status columns: {ordered}")
+        raise InventoryError("no '### Statuses' heading -- no legend to read the vocabulary from")
+    body = text[match.end():]
+    nxt = re.search(r"^#", body, re.M)
+    body = body[: nxt.start()] if nxt else body
+    found = [t for t in tables(body.splitlines()) if len(t) > 2 and is_separator(split_row(t[1]))]
+    if len(found) != 1:
+        raise InventoryError(f"'### Statuses': expected exactly 1 legend table, found {len(found)}")
+    table = found[0]
+    if "status" not in header_columns(table):
+        raise InventoryError(f"'### Statuses' legend has no `status` column: {split_row(table[0])}")
+    at = header_columns(table)["status"]
+    vocabulary = [split_row(line)[at].strip("*` ") for line in table[2:]]
+    if not vocabulary or not all(vocabulary):
+        raise InventoryError(f"'### Statuses' legend names no status: {vocabulary}")
+    return vocabulary
 
-    per_section: dict[str, dict[str, int]] = {}
-    all_row: dict[str, int] | None = None
-    seen: set[str] = set()
-    for line in table[1:]:
-        cells = split_row(line)
-        if is_separator(cells):
-            continue
-        first = cells[0].strip("* ").strip()
-        label = first.split("]")[0].strip("[* ") if first.startswith("[") else first
-        nums = re.match(r"^(3\.\d+)", label)
-        if nums:
-            key = nums.group(1)
-            if key in seen:
-                raise InventoryError(
-                    f"§2 summary lists section {key} twice — the later copy would silently "
-                    f"overwrite the earlier, and one of them is wrong"
-                )
-            seen.add(key)
-            target = per_section.setdefault(key, {})
-        elif label.lower().strip("* ") == "all":
-            # Bound HERE, on first sight. The old form bound `all_row` only if it was
-            # still None at the end of the loop body, so a SECOND `all` row routed to
-            # the same dict and last copy won: wrong-first-then-correct passed rc=0
-            # with the wrong copy never compared. Two `all` rows is the rot this gate
-            # exists to police, so it is refused, not adjudicated.
-            if "all" in seen:
-                raise InventoryError("§2 summary has two `all` rows — nothing may silently "
-                                     "pick which one the rows have to match")
-            seen.add("all")
-            all_row = {}
-            target = all_row
-        else:
-            raise InventoryError(f"§2 summary row is neither a section nor `all`: {first!r}")
-        try:
-            target["rows"] = int(cells[cols["rows"]].strip("* "))
-            for status in vocabulary:
-                target[status] = int(cells[cols[status]].strip("* "))
-        except (KeyError, ValueError) as exc:
-            raise InventoryError(f"§2 summary row {first!r}: unreadable cell: {exc}") from exc
-    if all_row is None:
-        raise InventoryError("§2 summary has no `all` row to check the column sums against")
-    return per_section, all_row, vocabulary
+
+def section_titles(text: str) -> dict[str, str]:
+    """`3.x` -> the heading's text after `### `, for the printed table's links."""
+    return {
+        m.group(1): line[4:].strip()
+        for line in text.splitlines()
+        if (m := SECTION_HEAD.match(line))
+    }
+
+
+def anchor(title: str) -> str:
+    """GitHub's heading slug: lower case, punctuation dropped, spaces to hyphens."""
+    return re.sub(r"[^\w\- ]", "", title.lower()).replace(" ", "-")
+
+
+def stored_summary(text: str) -> bool:
+    """Whether §2 holds a table again -- the hand-kept copy ruling 251 removed."""
+    match = SUMMARY_HEAD.search(text)
+    if not match:
+        return False
+    body = text[match.end():].split("\n## ", maxsplit=1)[0]
+    return any(len(t) > 1 and is_separator(split_row(t[1])) for t in tables(body.splitlines()))
+
+
+def order(num: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in num.split("."))
 
 
 def check(text: str) -> tuple[list[str], dict[str, object]]:
-    """Return (drift lines, a census of what was actually counted)."""
+    """Return (problems, the census the printed table is built from)."""
     derived, vocab = derive_sections(text)
-    published, all_row, vocabulary = parse_summary(text)
+    vocabulary = legend_statuses(text)
 
-    drift: list[str] = []
+    problems: list[str] = []
     unknown = sorted(s for s in vocab if s not in vocabulary)
     if unknown:
-        drift.append(
-            "status values in §3 rows are not columns of the §2 summary: "
+        problems.append(
+            "status values in §3 rows are not in the '### Statuses' legend: "
             + ", ".join(f"{s!r} ({vocab[s]} rows)" for s in unknown)
         )
-    missing_rows = sorted(set(published) - set(derived))
-    extra_rows = sorted(set(derived) - set(published))
-    if missing_rows:
-        drift.append("§2 lists sections with no §3 table: " + ", ".join(missing_rows))
-    if extra_rows:
-        drift.append("§3 has sections the §2 summary never lists: " + ", ".join(extra_rows))
+    if stored_summary(text):
+        problems.append(
+            "§2 stores a summary table again; ruling 251 computes it -- delete the table, "
+            "this script prints it"
+        )
 
-    def order(num: str) -> tuple[int, int]:
-        return tuple(int(x) for x in num.split("."))  # type: ignore[return-value]
-
-    for num in sorted(set(published) & set(derived), key=order):
-        for key in ("rows", *vocabulary):
-            want = published[num].get(key, 0)
-            got = derived[num].get(key, 0)
-            if want != got:
-                drift.append(f"§3.{num[2:]} {key}: published {want}, derived from rows {got}")
-
-    summed = {key: sum(derived[n].get(key, 0) for n in derived) for key in ("rows", *vocabulary)}
-    for key in ("rows", *vocabulary):
-        if all_row.get(key, 0) != summed[key]:
-            drift.append(f"all {key}: published {all_row.get(key, 0)}, column sum {summed[key]}")
-
+    sections = {num: derived[num] for num in sorted(derived, key=order)}
+    summed = {key: sum(s.get(key, 0) for s in sections.values()) for key in ("rows", *vocabulary)}
     census = {
-        "sections_derived": len(derived),
-        "sections_published": len(published),
+        "sections_derived": len(sections),
         "rows": summed["rows"],
         "statuses": {s: summed[s] for s in vocabulary},
         "statuses_seen_in_rows": vocab,
-        "drift_cells": len(drift),
+        "sections": {num: {key: s.get(key, 0) for key in ("rows", *vocabulary)} for num, s in sections.items()},
     }
-    return drift, census
+    return problems, census
+
+
+def render(text: str, census: dict[str, object]) -> list[str]:
+    """§2's table as Markdown: one row per section, then the `all` row."""
+    titles = section_titles(text)
+    statuses = list(census["statuses"])  # type: ignore[arg-type]
+    out = [
+        "| section | rows | " + " | ".join(statuses) + " |",
+        "| --- | --- | " + " | ".join("---" for _ in statuses) + " |",
+    ]
+    for num, counts in census["sections"].items():  # type: ignore[union-attr]
+        title = titles[num]
+        cells = [str(counts["rows"])] + [str(counts[s]) for s in statuses]
+        out.append(f"| [{title}](#{anchor(title)}) | " + " | ".join(cells) + " |")
+    total = [str(census["rows"])] + [str(census["statuses"][s]) for s in statuses]  # type: ignore[index]
+    out.append("| **all** | " + " | ".join(f"**{c}**" for c in total) + " |")
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -300,26 +291,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.path}: cannot read: {exc}", file=sys.stderr)
         return 2
     try:
-        drift, census = check(text)
+        problems, census = check(text)
     except InventoryError as exc:
         print(f"{args.path}: UNSCOREABLE — {exc}", file=sys.stderr)
         return 2
 
     if args.json:
-        print(json.dumps({"path": str(args.path), "ok": not drift, **census, "drift": drift}, indent=2))
-        return 1 if drift else 0
+        print(json.dumps({"path": str(args.path), "ok": not problems, **census, "problems": problems}, indent=2))
+        return 1 if problems else 0
 
-    print(
-        f"{args.path.name}: sections={census['sections_derived']} rows={census['rows']} "
-        + " ".join(f"{s}={n}" for s, n in census["statuses"].items())
-    )
-    if drift:
-        print(f"DRIFT — {len(drift)} cell(s) disagree with the rows:")
-        for line in drift:
-            print(f"  {line}")
-        return 1
-    print("summary table agrees with the rows it summarizes")
-    return 0
+    print("\n".join(render(text, census)))
+    for line in problems:
+        print(f"{args.path.name}: {line}", file=sys.stderr)
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":
