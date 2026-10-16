@@ -186,12 +186,6 @@ def sync_client_for_broadcast(integration_env):
     mock_performance_collector = MagicMock()
     mock_performance_collector.close = AsyncMock()
 
-    # Mock worker factories
-    mock_detection_worker = AsyncMock()
-    mock_analysis_worker = AsyncMock()
-    mock_timeout_worker = AsyncMock()
-    mock_metrics_worker = AsyncMock()
-
     # Clear rate limit Lua script cache to ensure fresh state with our mock
     from backend.api.middleware.rate_limit import clear_lua_script_cache
 
@@ -290,34 +284,6 @@ def sync_client_for_broadcast(integration_env):
         )
         stack.enter_context(patch("backend.main.register_workers", MagicMock()))
         stack.enter_context(patch("backend.main.enable_deferred_db_logging", MagicMock()))
-        stack.enter_context(
-            patch(
-                "backend.main.create_detection_worker",
-                autospec=True,
-                return_value=mock_detection_worker,
-            )
-        )
-        stack.enter_context(
-            patch(
-                "backend.main.create_analysis_worker",
-                autospec=True,
-                return_value=mock_analysis_worker,
-            )
-        )
-        stack.enter_context(
-            patch(
-                "backend.main.create_timeout_worker",
-                autospec=True,
-                return_value=mock_timeout_worker,
-            )
-        )
-        stack.enter_context(
-            patch(
-                "backend.main.create_metrics_worker",
-                autospec=True,
-                return_value=mock_metrics_worker,
-            )
-        )
         client = stack.enter_context(TestClient(app))
         yield client
 
