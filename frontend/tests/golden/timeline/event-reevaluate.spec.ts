@@ -333,7 +333,7 @@ test.describe('F-062 AI Audit tab', () => {
 
     await page.getByRole('button', { name: 'AI Audit', exact: true }).click();
     await expect(page.getByText(`Event #${id} Audit`)).toBeVisible();
-    await expect(page.getByText('Quality Scores')).toBeVisible();
+    await expect(page.getByText('Quality Scores', { exact: true })).toBeVisible();
     await expect(page.getByText('Model Contributions')).toBeVisible();
 
     const evaluateBtn = page.getByRole('button', { name: /Run Evaluation|Re-run Evaluation/ });
