@@ -90,6 +90,10 @@ one PR with `F3.1`.
       so the client never calls a route that is gone.
 - [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
       record 6198942052), not as a hand-run DROP runbook.
+- [ ] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
+      `search_similar_entities`): route, handler, tests and both its `docs/developer/api/coverage.md`
+      lines (`:692`, `:856`). It has no client and no guide; Phase 4's design sessions may bring
+      re-ID search back (ruling 236).
 - [ ] Regenerate `docs/openapi.json`.
 
 **Done when:** for every retired feature, a grep for the identifiers its inventory row lists finds
@@ -142,6 +146,23 @@ outside `keep.toml`, and the suite is green.
 **Done when:** the ratchet test passes; a database saved from today's `main` upgrades with its rows
 intact in CI; and the PR reports the before/after count of `nemotron`, `florence` and `enrichment`
 hits in `backend/`.
+
+### [r236] Two documented endpoints become External rows
+
+**Flags:** none. **Assigned:** backend, after `B3.3`. **Depends on:** `R2` (Phase 2's exit).
+**PR:** none yet. (ruling 236, record 6216306194)
+
+No client in `frontend/src` calls them, but the docs tell users to:
+`docs/guides/face-recognition.md:288` for `POST /api/household/members/{member_id}/embeddings`
+(`backend/api/routes/household.py:460-461`), and `docs/developer/api/core-resources.md:881` for
+`GET /api/detections/export` (`backend/api/routes/detections.py:2025-2026`).
+
+- [ ] Each gets an `External ›` inventory row (as F-290–F-294 are) with its documented action.
+- [ ] Each gets a backend golden test, as F-294's
+      `backend/tests/golden/external/test_metrics_scrape.py` is, and its row flips on the run where
+      it passes (rulings 103, 114).
+
+**Done when:** both rows exist and neither says **unverified**.
 
 ## Phase 4 — Complete the product
 
@@ -428,7 +449,8 @@ the three handlers change, each invalidated.
 ### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
 
 **Flags:** `heavy`. **Assigned:** heavy-a, ahead of `B2.3`; heavy-a opens its own draft PR.
-**Depends on:** none. **PR:** none yet. (ruling 199, record 6198662741)
+**Depends on:** none. **PR:** #7182 (merged 2026-10-15T20:25:39Z as `5d990377e`, head `3aca9abfc`).
+(ruling 199, record 6198662741)
 
 The analysis worker acknowledges each stream message once `_process_analysis_item` returns
 (`backend/services/pipeline_workers.py:943`, and `:931` on the reclaim path), and that method
@@ -462,7 +484,8 @@ each disposition is decided.
 ### [r200] One owner for the running pipeline workers
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
-**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`). **PR:** none yet. (ruling 200)
+**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`). **PR:** #7191 (merged
+2026-10-16T00:34:47Z as `78951c9b9`, head `2d8fce09f`). (ruling 200)
 
 `PipelineWorkerManager.start()` (`backend/main.py:964`) starts the configured detection and
 analysis workers (default 2 each, `backend/core/config.py:1077`, `:1085`), one batch-timeout worker
