@@ -4869,14 +4869,21 @@ def test_as_test_deployment_seeded_enables_debug_recorder_fault_seed_and_data_tm
     assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
 
 
-def test_seeded_flag_is_refused_without_fake() -> None:
+def test_seeded_needs_a_mode_but_no_longer_needs_fake() -> None:
+    """Ruling 235 rewrote the second half of this test.
+
+    `--seeded` alone is still refused (it is a shape, not a mode) — that half is unchanged. What
+    changed is `--real --seeded`: it used to exit 2 here, and ruling 235 rules it *accepted*, so
+    this parse-layer test now asserts it is NOT refused at the flag check. It is not stubbed, so
+    the real tier proceeds to its agent-gpu availability probe (EXIT_UNAVAILABLE, code 4) rather
+    than raising — reaching that probe at all is the point: the parse layer let it through. The
+    accept-and-boot path, with run_check stubbed, is test_seeded_with_real_boots_the_real_tier.
+    """
     with pytest.raises(SystemExit) as bare:
         fc.main(["--seeded"])
     assert bare.value.code == 2
 
-    with pytest.raises(SystemExit) as with_real:
-        fc.main(["--real", "--seeded"])
-    assert with_real.value.code == 2
+    assert fc.main(["--real", "--seeded"]) != 2  # not a parse refusal anymore
 
 
 def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
@@ -5062,3 +5069,102 @@ def test_golden_seeded_runs_golden_seeded_playwright_project(
     assert len(playwright_cmds) == 1
     assert "--project=golden-seeded" in playwright_cmds[0]
     assert "--project=golden " not in playwright_cmds[0]
+
+
+# --- ruling 235: the flag matrix for --seeded ---------------------------------------------
+#
+# Before ruling 235 the parse layer refused `--seeded` without `--fake`, and that one line was
+# doing double duty: it also blocked `--real --seeded --prod-shape`. Widening `--seeded` to the
+# real tier therefore has to carry its own prod-shape refusal, and the matrix below pins all four
+# edges together so the loosening cannot silently widen a third combination.
+#
+# Every case goes through main(), the same entry the CLI uses, because the thing under test is the
+# decision made before any engine call — so the engine is replaced by a recorder and the real
+# tier's agent-gpu probe is stubbed to "available". If a case ever boots anything, the assert fires.
+
+
+def _fake_boot(monkeypatch: Any) -> list[tuple[str, bool, bool]]:
+    """Record run_check calls instead of booting; pretend agent-gpu is on PATH."""
+    booted: list[tuple[str, bool, bool]] = []
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        booted.append((mode, bool(args.seeded), bool(args.prod_shape)))
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    return booted
+
+
+def test_seeded_with_real_boots_the_real_tier_seeded(monkeypatch: Any) -> None:
+    """Ruling 235's whole point: `--real --seeded` reaches run_check, seeded, on the real tier."""
+    booted = _fake_boot(monkeypatch)
+    assert fc.main(["--real", "--seeded"]) == 0
+    assert booted == [("real", True, False)]
+
+
+def test_seeded_with_fake_is_unchanged(monkeypatch: Any) -> None:
+    """The command the CI leg runs (`--fake --seeded`) behaves exactly as before."""
+    booted = _fake_boot(monkeypatch)
+    assert fc.main(["--fake", "--seeded"]) == 0
+    assert booted == [("fake", True, False)]
+
+
+def test_seeded_without_a_mode_is_still_refused(monkeypatch: Any) -> None:
+    """`--seeded` is still a shape, not a mode: with neither --fake nor --real it refuses."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded"])
+    assert booted == []
+
+
+def test_seeded_with_prod_shape_is_refused_under_real(monkeypatch: Any) -> None:
+    """The refusal the OLD `--seeded needs --fake` line covered by accident, now stated on its own.
+
+    This is the case that would silently have started booting prod.yml with DEBUG=true if the
+    change had only relaxed the fake requirement.
+    """
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--real", "--seeded", "--prod-shape"])
+    assert booted == []
+
+
+def test_the_seeded_refusals_are_distinguishable(monkeypatch: Any, capsys: Any) -> None:
+    """A refusal that cannot be told apart from another one teaches an operator nothing.
+
+    Pinning the two messages separately also catches a guard reordered into the wrong slot: a
+    reader who types `--seeded --prod-shape --real` should be told about DEBUG=true in production,
+    not about choosing a mode.
+    """
+    _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded", "--prod-shape", "--real"])
+    assert "prod-shape" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded"])
+    assert "--fake or --real" in capsys.readouterr().err
+
+
+def test_a_real_seeded_run_gets_the_seeded_shape_and_overrides(
+    tmp_path: Path, base: dict[str, Any]
+) -> None:
+    """Ruling 235's boot-level half: on `--real` the seeded shape still applies.
+
+    `as_test_deployment` takes `seeded` but not `mode`, so the overrides are mode-independent by
+    signature — that is the structural reason a real-tier seeded boot needs no new code path. This
+    pins the two user-visible consequences anyway, because a signature is easy to change later:
+    the run's shape string (which lands in the run record a reviewer reads) and the DEBUG/recorder
+    environment the seeded golden specs depend on.
+    """
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="real", seeded=True
+    )
+    assert run.shape == "real-seeded"
+
+    seeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR, seeded=True)
+    env = seeded["services"]["backend"]["environment"]
+    assert env["DEBUG"] == "true"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
