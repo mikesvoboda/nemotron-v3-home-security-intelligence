@@ -537,7 +537,7 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 ### [r211f] F-048: a search result opens what was clicked
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
-for the spec's legs. **PR:** none yet. (rulings 211, 221; records 6200331506, 6205729827)
+for the spec's legs. **PR:** none yet. (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
 - [ ] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
       #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1180` requires search
@@ -551,6 +551,10 @@ for the spec's legs. **PR:** none yet. (rulings 211, 221; records 6200331506, 62
       browse list (`frontend/src/components/events/EventTimeline.tsx:1059`). The
       `timeline-search.spec.ts:585` leg's defect half becomes "the page-2 row opens".
 - [ ] Remove both `test.fixme` marks in `frontend/tests/golden/timeline/timeline-search.spec.ts`.
+- [ ] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
+      `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:530` in this PR or
+      one right after it. F-045 flips to **awaiting real tier** on the run where that leg and the
+      row's other legs pass.
 
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
 **awaiting real tier** on that run (rulings 103, 114).
