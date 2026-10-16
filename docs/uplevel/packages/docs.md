@@ -121,8 +121,8 @@ them, is UR-81. This lane opens a package only on a trigger (UR-68).
 
 ### [r215d] F-278's leg on the seeded face vector
 
-**Flags:** none. **Assigned:** docs, after `[r196b]`. **Depends on:** `[r215a]` merged.
-**PR:** none yet. (ruling 215, record 6200719567)
+**Flags:** none. **Assigned:** docs, now, alongside `[r196b]`, with UR-52 waived (ruling 226).
+**Depends on:** `[r215a]` merged (#7188). **PR:** none yet. (rulings 215, 226; records 6200719567, 6206280092)
 
 - [ ] F-278's leg runs in `Feature check (seeded)`: it opens the seeded person, sees the enrolled
       face, and deletes it (`DELETE /api/known-persons/{person_id}/embeddings/{embedding_id}`).

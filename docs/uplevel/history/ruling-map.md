@@ -237,6 +237,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 223    | package `[r223]`: the developer tools' seed and clear refresh the caches (record 6205796977)                |
 | 224    | heavy-a takes `[r212]`, `[r213]`, `[r214]` from frontend now, ahead of B2.3 (record 6205825842)             |
 | 225    | the dispatcher stops a coordinator tick at 60 minutes, not 30 (record 6205915207)                           |
+| 226    | heavy-a takes F-012 and F-064 from `[r196a]`; docs claims `[r215d]` now (record 6206280092)                 |
 
 ## Owner records
 
