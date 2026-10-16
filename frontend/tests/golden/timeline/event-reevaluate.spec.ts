@@ -142,7 +142,11 @@ test.afterAll(async () => {
   const session = await adminSession(harness);
   // Hard delete: event_audits cascades off the event (models/event_audit.py:
   // 27-28), so this is also the audit-row cleanup if a leg ever produces one.
-  await hardDeleteFixtureRows(harness, session, [fx.targetEventId, fx.controlEventId]);
+  await hardDeleteFixtureRows(harness, session, [
+    fx.auditedEventId,
+    fx.targetEventId,
+    fx.controlEventId,
+  ]);
 });
 
 /** Boots /timeline filtered to this fixture with the modal already OPEN on one
@@ -236,37 +240,44 @@ test.describe('F-061 Re-evaluate button (AI Summary)', () => {
   });
 
   /**
-   * THE HALF THAT CANNOT BE RUN HERE: "sees 'Re-evaluation triggered
-   * successfully'".
-   *
-   * `data-testid="re-evaluate-success"` renders only when `triggerEvaluation`
-   * RESOLVES (EventDetailModal.tsx:322-325 ← auditApi.ts:321-336), which needs an
-   * `event_audits` row to exist (dependencies.py:666-692 404s first). Nothing in
-   * this tier writes one and the one shipped writer fails — the full measurement
-   * is in this file's header. `test.fixme` keeps the clause on the record and
-   * shows as `"skipped"` in the feature-check `golden paths:` dict rather than
-   * pretending to a green.
-   *
-   * WHAT MAKES IT GREEN: fix (a) in the header — undefer the two columns in the
-   * batch job's query — and give the fixture an event with a non-NULL
-   * `llm_prompt` (the bulk route never sets it, so this needs a row written by a
-   * path that does, or a fixture-level SQL insert the golden rules would have to
-   * accept explicitly). THEN this leg asserts the literal rendered string
-   * "Re-evaluation triggered successfully" (EventDetailModal.tsx:880) before the
-   * 3 s auto-dismiss, plus `GET /api/ai-audit/events/{id}` answering 200, and
-   * names AUDIT_TARGET_RISK_SCORE's batch aim as the way to reach it.
+   * "sees 'Re-evaluation triggered successfully'" (ruling 212 / [r212]):
+   * `fx.auditedEventId` was covered by `POST /api/ai-audit/batch` in `beforeAll`,
+   * so `POST /api/ai-audit/events/${id}/evaluate` resolves 200 and
+   * `data-testid="re-evaluate-success"` renders "Re-evaluation triggered successfully".
    */
-  test.fixme('a covered event reports the success banner', async ({ page }) => {
-    const id = fx.targetEventId;
-    await openModal(page, id);
-    await page.getByTestId('re-evaluate-button').click();
-    await expect(page.getByTestId('re-evaluate-success')).toBeVisible();
+  test('a covered event reports the success banner', async ({ page }) => {
+    const id = fx.auditedEventId;
+    const session = await openModal(page, id);
+
+    const before = await readAuditLookup(harness, session, id);
+    expect(before.status, 'the covered row has an audit row seeded by the batch audit').toBe(200);
+
+    const button = page.getByTestId('re-evaluate-button');
+    await expect(button, 'the AI Summary block offers Re-evaluate').toBeVisible();
+
+    const responded = page
+      .waitForResponse(
+        (res) => res.url().includes(`/api/ai-audit/events/${id}/evaluate`) && res.status() === 200,
+        { timeout: 20_000 }
+      )
+      .catch(() => null);
+    await button.click();
+    const res = await responded;
+    expect(
+      res,
+      `the click POSTs /api/ai-audit/events/${id}/evaluate and it answers 200`
+    ).not.toBeNull();
+
+    const success = page.getByTestId('re-evaluate-success');
+    await expect(success, 'the success banner renders for a covered event').toBeVisible();
+    await expect(success).toContainText('Re-evaluation triggered successfully');
+    await expect(page.getByTestId('re-evaluate-error')).toHaveCount(0);
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 });
 
 test.describe('F-062 AI Audit tab', () => {
-  test('opening the AI Audit tab on an unaudited event renders the shipped empty state, with no way to run an evaluation', async ({
+  test('opening the AI Audit tab on an unaudited event renders the shipped empty state, with the Run Evaluation control mounted', async ({
     page,
   }) => {
     const id = fx.targetEventId;
@@ -291,21 +302,14 @@ test.describe('F-062 AI Audit tab', () => {
       'the empty state offers the shipped Retry action'
     ).toBeVisible();
 
-    // The clause's other two branches, asserted as ABSENT rather than skipped, so
-    // the row's evidence can say which parts of "opens the AI Audit tab; sees
-    // quality scores, self-critique and prompt suggestions" are unreachable here:
-    // the loaded body (Quality Scores :325+, self-critique, prompt suggestions)
-    // renders only `if (!audit) return null` / `if (error && !audit)` have already
-    // returned, and so does the Run/Re-run button in the header (:270-322).
     await expect(
       page.getByText('Quality Scores'),
       'no quality scores are shown for an unaudited event'
     ).toHaveCount(0);
     await expect(
       page.getByRole('button', { name: /Run Evaluation|Re-run Evaluation/ }),
-      'the empty state mounts NO evaluate button — "can run or force an ' +
-        'evaluation" has no affordance at all here (fix (c) in the header)'
-    ).toHaveCount(0);
+      'on an event with no audit, EventAuditDetail renders the Run Evaluation control in its header (ruling 212)'
+    ).toBeVisible();
 
     // Same read-only premise as F-061's leg: opening a tab created nothing.
     const after = await readAuditLookup(harness, session, id);
@@ -314,25 +318,39 @@ test.describe('F-062 AI Audit tab', () => {
   });
 
   /**
-   * THE HALF THAT CANNOT BE RUN HERE: "sees quality scores, self-critique and
-   * prompt suggestions" and "can run or force an evaluation".
-   *
-   * Both need the same absent `event_audits` row. The second is worse than
-   * unwitnessed — with `audit` null the component returns its error screen
-   * before the header that holds the button is ever constructed, so there is no
-   * click to make. Fix (a) (undefer) plus a fixture event whose `llm_prompt` is
-   * non-NULL would give the scores half; the "force" half additionally reaches
-   * `run_full_evaluation`, which makes 4 ai-vlm calls of up to 120 s each
-   * (pipeline_quality_audit_service.py:343-379) and so needs the coordinator's
-   * say-so on real tier spend before any golden spec drives it.
+   * Audited event leg (ruling 212 / [r212]): `fx.auditedEventId` was seeded by
+   * running the batch audit on the fake stack. Opening the AI Audit tab renders
+   * the audit details and Run/Re-run Evaluation action.
    */
-  test.fixme('an audited event shows its scores, self-critique and suggestions, and can be re-run', async ({
+  test('an audited event shows its scores, self-critique and suggestions, and can be re-run', async ({
     page,
   }) => {
-    const id = fx.targetEventId;
-    await openModal(page, id);
+    const id = fx.auditedEventId;
+    const session = await openModal(page, id);
+
+    const before = await readAuditLookup(harness, session, id);
+    expect(before.status, 'the target row was audited by the batch audit').toBe(200);
+
     await page.getByRole('button', { name: 'AI Audit', exact: true }).click();
-    await expect(page.getByText('Quality Scores')).toBeVisible();
+    await expect(page.getByText(`Event #${id} Audit`)).toBeVisible();
+    await expect(page.getByText('Quality Scores', { exact: true })).toBeVisible();
+    await expect(page.getByText('Model Contributions')).toBeVisible();
+
+    const evaluateBtn = page.getByRole('button', { name: /Run Evaluation|Re-run Evaluation/ });
+    await expect(evaluateBtn, 'the audited tab offers the evaluate action').toBeVisible();
+
+    const responded = page
+      .waitForResponse(
+        (res) => res.url().includes(`/api/ai-audit/events/${id}/evaluate`) && res.status() === 200,
+        { timeout: 20_000 }
+      )
+      .catch(() => null);
+    await evaluateBtn.click();
+    const res = await responded;
+    expect(
+      res,
+      `clicking evaluate POSTs /api/ai-audit/events/${id}/evaluate and answers 200`
+    ).not.toBeNull();
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 });
