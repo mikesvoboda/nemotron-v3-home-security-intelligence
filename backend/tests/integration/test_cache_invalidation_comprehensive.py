@@ -34,7 +34,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.enums import CameraStatus
 from backend.models.event import Event
-from backend.services.cache_service import CACHE_PREFIX, CacheService
+from backend.services.cache_service import CacheKeys, CacheService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,6 +48,16 @@ pytestmark = pytest.mark.integration
 def _unique_id(prefix: str = "test") -> str:
     """Generate a unique ID for test objects to prevent conflicts."""
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
+
+
+async def _keys_matching(client, pattern: str) -> list[str]:
+    """Scan raw Redis for keys matching a pattern, for failure diagnostics.
+
+    Used only in assertion messages so a shape-mismatch failure shows what was
+    actually stored (e.g. a double-prefixed cache:hsi:cache:... key) rather than
+    just "key not found".
+    """
+    return [k async for k in client.scan_iter(match=pattern, count=100)]
 
 
 # =============================================================================
@@ -81,14 +91,16 @@ async def cleanup_cache(real_redis: RedisClient):
     """Clean up cache keys after each test."""
     yield
 
-    # Cleanup after test - remove all test-related cache keys
+    # Cleanup after test - remove all test-related cache keys. The stored shape
+    # is {global}:cache:{logical} (see [r228]), so the scan prefixes with the
+    # global prefix too -- a bare "cache:" pattern no longer matches anything.
     client = real_redis._ensure_connected()
     patterns = [
-        f"{CACHE_PREFIX}events:*",
-        f"{CACHE_PREFIX}detections:*",
-        f"{CACHE_PREFIX}alerts:*",
-        f"{CACHE_PREFIX}cameras:*",
-        f"{CACHE_PREFIX}stats:*",
+        f"{CacheKeys.PREFIX}:cache:events:*",
+        f"{CacheKeys.PREFIX}:cache:detections:*",
+        f"{CacheKeys.PREFIX}:cache:alerts:*",
+        f"{CacheKeys.PREFIX}:cache:cameras:*",
+        f"{CacheKeys.PREFIX}:cache:stats:*",
     ]
 
     for pattern in patterns:
@@ -404,6 +416,7 @@ class TestCrossEntityCacheInvalidation:
         self,
         db_session: AsyncSession,
         cache_service: CacheService,
+        real_redis: RedisClient,
         cleanup_cache: None,
     ) -> None:
         """Test that deleting a camera invalidates all related entity caches.
@@ -436,16 +449,34 @@ class TestCrossEntityCacheInvalidation:
         await db_session.commit()
         await db_session.refresh(event)
 
-        # Pre-populate caches for camera and related entities
-        camera_cache_key = f"cameras:{camera.id}"
+        # Pre-populate caches the way the REAL routes store them, not with a
+        # hand-typed short key. The camera list route (api/routes/cameras.py)
+        # stores CacheKeys.cameras_list_by_status(...) and the single-camera
+        # route stores CacheKeys.camera(id) -- keys that already carry the
+        # global prefix. A hand-typed "cameras:list" pin round-trips through
+        # set() and invalidate_cameras() symmetrically and so passes even when
+        # the stored shape is wrong (the r228 double-prefix bug): it never
+        # touched the physical key. Building the key from the generator is what
+        # makes this test able to see the bug.
+        camera_cache_key = CacheKeys.camera(camera.id)
         event_cache_key = f"events:{event.id}"
-        camera_list_key = "cameras:list"
+        camera_list_key = CacheKeys.cameras_list_by_status(None)
         event_list_key = "events:list"
 
         await cache_service.set(camera_cache_key, {"id": camera.id}, ttl=300)
         await cache_service.set(event_cache_key, {"id": event.id}, ttl=300)
         await cache_service.set(camera_list_key, {"count": 1}, ttl=300)
         await cache_service.set(event_list_key, {"count": 1}, ttl=300)
+
+        # Pin the STORED (physical) shape directly, not just the round-trip.
+        # After [r228] the one shape is {global}:cache:{logical}, and CacheKeys
+        # values already embed that prefix, so the stored key equals the
+        # generator output -- NOT a second "cache:" glued on the front.
+        client = real_redis._ensure_connected()
+        assert await client.exists(camera_list_key), (
+            f"camera list must store under {camera_list_key!r}, "
+            f"not double-prefixed (found {await _keys_matching(client, 'cache:*')})"
+        )
 
         # Verify all caches populated
         assert await cache_service.get(camera_cache_key) is not None
@@ -457,11 +488,14 @@ class TestCrossEntityCacheInvalidation:
         await cache_service.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_DELETED)
         await cache_service.invalidate_events(reason=CacheInvalidationReason.CAMERA_DELETED)
 
-        # Verify all related caches were invalidated
+        # Verify all related caches were invalidated -- via the service AND the
+        # raw store, since a symmetric round-trip can hide a stale physical key.
         assert await cache_service.get(camera_cache_key) is None
         assert await cache_service.get(event_cache_key) is None
         assert await cache_service.get(camera_list_key) is None
         assert await cache_service.get(event_list_key) is None
+        assert not await client.exists(camera_list_key)
+        assert not await client.exists(camera_cache_key)
 
     @pytest.mark.asyncio
     async def test_event_update_invalidates_detection_list_cache(
@@ -922,3 +956,108 @@ class TestTimeBasedCacheKeys:
         # Verify all time-based caches invalidated
         for key in time_cache_keys:
             assert await cache_service.get(key) is None
+
+
+# =============================================================================
+# Test: Route generators reach their invalidator (r228 key-shape spec)
+# =============================================================================
+
+
+class TestCacheKeysRoutesReachTheirInvalidator:
+    """A key built the way a route builds it must be deleted by its invalidator.
+
+    The other tests in this file mostly store short-form keys ("cameras:list"),
+    which round-trip symmetrically through ``set`` and ``invalidate_*`` and so
+    pass whether or not the stored shape is sane. The two routes that use
+    ``CacheKeys`` (api/routes/cameras.py, api/routes/events.py) were the broken
+    ones in [r223]'s MEASURE: ``set`` prepended ``cache:`` to an already-prefixed
+    ``CacheKeys`` value, and ``invalidate_pattern`` scanned a namespace the stored
+    key never lived in. This class stores keys through the *same generators the
+    routes use* and checks the raw store, so it can actually see that bug.
+    """
+
+    @pytest.mark.asyncio
+    async def test_camera_list_route_key_is_stored_unprefixed_and_deleted(
+        self,
+        cache_service: CacheService,
+        real_redis: RedisClient,
+    ) -> None:
+        """cameras.py stores CacheKeys.cameras_list_by_status; invalidate_cameras deletes it.
+
+        Also pins the single stored shape: {global}:cache:{logical}, with no
+        second ``cache:`` glued in front of an already-prefixed CacheKeys value.
+        """
+        client = real_redis._ensure_connected()
+        key = CacheKeys.cameras_list_by_status("online")
+
+        await cache_service.set(key, {"count": 1}, ttl=300)
+
+        # Stored under the CacheKeys value verbatim -- one shape, not two.
+        assert await client.exists(key), (
+            f"expected {key!r} in the store, found {await _keys_matching(client, '*cameras*')}"
+        )
+
+        assert await cache_service.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_UPDATED)
+        assert await cache_service.get(key) is None
+        assert not await client.exists(key)
+
+    @pytest.mark.asyncio
+    async def test_event_stats_route_key_is_deleted_by_invalidate_event_stats(
+        self,
+        cache_service: CacheService,
+        real_redis: RedisClient,
+    ) -> None:
+        """events.py stores CacheKeys.event_stats; invalidate_event_stats deletes it.
+
+        This is the second, independent half of the bug: the generator emitted an
+        ``event_stats:`` token while the invalidator scanned ``stats:events:*``,
+        so a prefix fix alone would not connect them.
+        """
+        client = real_redis._ensure_connected()
+        key = CacheKeys.event_stats("2026-01-01", "2026-01-31", "all")
+
+        await cache_service.set(key, {"total_events": 1}, ttl=300)
+        assert await client.exists(key), (
+            f"expected {key!r} in the store, found {await _keys_matching(client, '*event*stats*')}"
+        )
+
+        assert await cache_service.invalidate_event_stats(
+            reason=CacheInvalidationReason.EVENT_CREATED
+        )
+        assert await cache_service.get(key) is None
+        assert not await client.exists(key)
+
+    @pytest.mark.asyncio
+    async def test_short_form_and_generators_share_one_namespace(
+        self,
+        cache_service: CacheService,
+        real_redis: RedisClient,
+    ) -> None:
+        """A short literal and its CacheKeys spelling normalize to the same stored key.
+
+        The camera list route stores CacheKeys.cameras_list_by_status(None) while
+        cache_warming.py warms a bare "cameras:list"; both must land in the one
+        namespace invalidate_cameras scans, else a warm key is orphaned and a
+        cold key is unreachable. Here they differ only by the ``:all`` status
+        segment, so both must be visible to the same invalidator.
+        """
+        client = real_redis._ensure_connected()
+        gen_key = CacheKeys.cameras_list_by_status(None)  # {p}:cache:cameras:list:all
+        short_key = "cameras:list"
+        short_stored = f"{CacheKeys.PREFIX}:cache:{short_key}"
+
+        await cache_service.set(gen_key, {"v": "gen"}, ttl=300)
+        await cache_service.set(short_key, {"v": "short"}, ttl=300)
+
+        # Both spellings land in the one namespace invalidate_cameras scans.
+        assert await client.exists(gen_key)
+        assert await client.exists(short_stored), (
+            f"expected {short_stored!r}, found {await _keys_matching(client, '*cameras:list*')}"
+        )
+
+        deleted = await cache_service.invalidate_cameras(
+            reason=CacheInvalidationReason.CAMERA_UPDATED
+        )
+        assert deleted >= 2
+        assert await cache_service.get(gen_key) is None
+        assert await cache_service.get(short_key) is None
