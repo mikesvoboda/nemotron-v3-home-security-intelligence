@@ -232,9 +232,9 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 90    |
+| open        | 89    |
 | in-progress | 0     |
-| done        | 13    |
+| done        | 14    |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 103   |
@@ -244,13 +244,13 @@ when you add or close an issue (there is no script; the register is prose).
 | P0       | 1     | 0    |
 | P1       | 36    | 29   |
 | P2       | 51    | 46   |
-| P3       | 15    | 15   |
-| total    | 103   | 90   |
+| P3       | 15    | 14   |
+| total    | 103   | 89   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
 | agent-now      | 68    | 59   |
-| owner-decision | 29    | 25   |
+| owner-decision | 29    | 24   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
 
@@ -258,7 +258,7 @@ when you add or close an issue (there is no script; the register is prose).
 | -------- | ----- | ---- |
 | bug      | 19    | 16   |
 | gap      | 37    | 31   |
-| debt     | 18    | 18   |
+| debt     | 18    | 17   |
 | decision | 17    | 15   |
 | risk     | 12    | 10   |
 
@@ -273,7 +273,7 @@ when you add or close an issue (there is no script; the register is prose).
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 7    |
 | Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 6    |
 | Operator UI and explainability            | 0   | 1   | 3   | 0   | 4     | 4    |
-| Retired-architecture residue, docs and CI | 0   | 1   | 8   | 9   | 18    | 17   |
+| Retired-architecture residue, docs and CI | 0   | 1   | 8   | 9   | 18    | 16   |
 
 ### P0 and P1 issues
 
@@ -5450,31 +5450,9 @@ cryptography` then resolves 49.0.0 to 50.0.2 against that commit's lock files an
 
 #### ISS-073 — Dead enrichment surface left after R8 S5: hook, route and types with no renderer
 
-`P3` · `debt` · actor `owner-decision` · status `done` (OD-20 retired in `B3.1`/`F3.1` PR #7220: `useEventEnrichmentsQuery.ts`, `fetchEventEnrichments`, `GET /api/events/{event_id}/enrichments`, `EventEnrichmentsResponse`, `EventDetailModal` `enrichment_data` & tombstone comment removed and OpenAPI + generated types regenerated)
+`P3` · `debt` · actor `owner-decision` · status `done` · closed 2026-10-16 (see the closure note in [history/17-closed-issues.md](history/17-closed-issues.md))
 
-- **Evidence**
-  - `frontend/src/hooks/useEventEnrichmentsQuery.ts` has no non-test importer other than the hooks
-    barrel (grep of `frontend/src` excluding tests) [V]
-  - `backend/api/routes/events.py:2268` still serves `/{event_id}/enrichments`
-    (`backend/api/routes/events.py:2272` `get_event_enrichments`) [V]
-  - `frontend/src/components/events/EventDetailModal.tsx:1034` keeps a tombstone comment ('R8 S5:
-    the AI Enrichment Analysis block retired here') and `enrichment_data` on the type [V]
-  - No component calls the hook, so nothing fetches the route at runtime: the cost is dead code and
-    surface area only (verifier [A]). Ledger item 55 and the S5 guard docstring already name this
-    island and deliberately leave it out of S5 [A]
-- **Why it matters.** R8 turned the empty state into a deletion but left the data path in place. The
-  original's 'every detail open may call an endpoint nothing displays' is false; what remains is
-  dead code, a live route and a tombstone comment. Whether the response schema and generated types
-  are removable as a set was not read [?].
-- **World-class gap.** API surface equals rendered surface; deprecated endpoints have a dated
-  removal.
-- **Acceptance.** The owner confirms retirement (OD-20), then the hook, route, schema, generated
-  types and tombstone comment are removed in one commit with `api.ts` and the OpenAPI types
-  regenerated; grep for `useEventEnrichmentsQuery` and `/enrichments` returns nothing.
-- **Depends on.** OD-20; ISS-055 (same residue family).
-- **Tracked as.** Ledger item 55 and the R8 S5 guard docstring name this island and leave it out of
-  S5; the R8 section of `docs/vss-integration/12-postponed-roadmap.md:108` (at `5c605e1d`) does not
-  mention the hook or route.
+- **Closed (2026-10-16):** Moved to [`history/17-closed-issues.md`](history/17-closed-issues.md) — Retired in `B3.1`/`F3.1` (PR #7220, `OD-20`): `useEventEnrichmentsQuery`, `fetchEventEnrichments`, `GET /api/events/{event_id}/enrichments`, `EventEnrichmentsResponse`, and `EventDetailModal`'s `enrichment_data` & tombstone comment removed with OpenAPI and generated types regenerated.
 
 #### ISS-074 — Add a CI check that doc and comment anchors resolve (stop line-number rot)
 

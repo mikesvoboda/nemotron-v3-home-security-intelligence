@@ -1253,3 +1253,42 @@ design.md`, `2026-09-12-context-map-doc-updates.md`, `2026-09-22-docs-scan-findi
     `httpx_sse`, `httpx_retries`, `opentelemetry-exporter-prometheus`, `jsonpath-rust`, `pandas`,
     `pyarrow` or `data_designer`, except the word `pandas` in one skip-reason regex at
     `scripts/suppression-registry-gen.py:37` and the test name `test_prompt_toolkit_not_installed`].
+
+#### ISS-073 — Dead enrichment surface left after R8 S5: hook, route and types with no renderer
+
+`P3` · `debt` · actor `owner-decision` · status `done` · closed 2026-10-16 (see the closure note)
+
+- **Evidence**
+  - `frontend/src/hooks/useEventEnrichmentsQuery.ts` has no non-test importer other than the hooks
+    barrel (grep of `frontend/src` excluding tests) [V]
+  - `backend/api/routes/events.py:2268` still serves `/{event_id}/enrichments`
+    (`backend/api/routes/events.py:2272` `get_event_enrichments`) [V]
+  - `frontend/src/components/events/EventDetailModal.tsx:1034` keeps a tombstone comment ('R8 S5:
+    the AI Enrichment Analysis block retired here') and `enrichment_data` on the type [V]
+  - No component calls the hook, so nothing fetches the route at runtime: the cost is dead code and
+    surface area only (verifier [A]). Ledger item 55 and the S5 guard docstring already name this
+    island and deliberately leave it out of S5 [A]
+- **Why it matters.** R8 turned the empty state into a deletion but left the data path in place. The
+  original's 'every detail open may call an endpoint nothing displays' is false; what remains is
+  dead code, a live route and a tombstone comment. Whether the response schema and generated types
+  are removable as a set was not read [?].
+- **World-class gap.** API surface equals rendered surface; deprecated endpoints have a dated
+  removal.
+- **Acceptance.** The owner confirms retirement (OD-20), then the hook, route, schema, generated
+  types and tombstone comment are removed in one commit with `api.ts` and the OpenAPI types
+  regenerated; grep for `useEventEnrichmentsQuery` and `/enrichments` returns nothing.
+- **Depends on.** OD-20; ISS-055 (same residue family).
+- **Tracked as.** Ledger item 55 and the R8 S5 guard docstring name this island and leave it out of
+  S5; the R8 section of `docs/vss-integration/12-postponed-roadmap.md:108` (at `5c605e1d`) does not
+  mention the hook or route.
+- **Closure note — 2026-10-16 (`B3.1`/`F3.1`, PR #7220) [V].** Executed OD-20 (`ruling 241`):
+  deleted `frontend/src/hooks/useEventEnrichmentsQuery.ts` and `useEventEnrichmentsQuery.test.ts`
+  and its barrel re-exports in `frontend/src/hooks/index.ts`; removed `fetchEventEnrichments`,
+  `EventEnrichmentsQueryParams`, and `EventEnrichmentsResponse` from `frontend/src/services/api.ts`
+  and `api.test.ts`; removed `enrichment_data?: EnrichmentData` and the R8 S5 tombstone comment from
+  `frontend/src/components/events/EventDetailModal.tsx`; removed `GET /api/events/{event_id}/enrichments`
+  (`get_event_enrichments`), `EventEnrichmentsResponse`, and the `/api/events/{event_id}/enrichments`
+  HATEOAS link in `backend/api/schemas/hateoas.py`; regenerated `docs/openapi.json` and
+  `frontend/src/types/generated/api.ts` (`./scripts/validate-api-types.sh` green); and pinned
+  absence in `backend/tests/unit/frontend/test_r8_s5_frontend_panel_retirement.py` and
+  `backend/tests/unit/api/schemas/test_hateoas.py` (`210 passed`).

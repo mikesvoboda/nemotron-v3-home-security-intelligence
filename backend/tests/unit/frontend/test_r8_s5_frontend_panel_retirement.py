@@ -447,7 +447,9 @@ class TestTheKeptIslandIsUntouched:
         file it lives in. ``ast.Call`` nodes only -- string literals and
         comments cannot trip it, exactly like ``count_pytest_skip_imperative``.
         """
-        tree = ast.parse(Path(__file__).read_text())
+        tree = ast.parse(
+            _src("backend/tests/unit/frontend/test_r8_s5_frontend_panel_retirement.py")
+        )
         trips = [
             f"{node.lineno}: {_dotted(node.func)}"
             for node in ast.walk(tree)
