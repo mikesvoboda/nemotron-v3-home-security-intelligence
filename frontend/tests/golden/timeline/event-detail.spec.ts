@@ -329,33 +329,12 @@ test.describe('F-057 notes', () => {
   });
 
   /**
-   * THE BROKEN HALF. Written, documented, not executed — `test.fixme` is how this
-   * repo records a path that is built and known to fail
-   * (`timeline/event-reevaluate.spec.ts:259`), which keeps the rest of the golden
-   * project's verdict readable while the defect is open.
-   *
-   * WHY IT CANNOT PASS TODAY, measured on one row in one run: PATCH answered
-   * `notes="THE-NOTE-TEXT"`, `GET /api/events/{id}` returned it, and
-   * `GET /api/events?…&camera_id=…` returned `null` FOR THE SAME ROW — key
-   * present, value absent, because `list_events` hand-builds its response dict
-   * without `notes` (`backend/api/routes/events.py:502-523`; also absent from
-   * `VALID_EVENT_LIST_FIELDS` `:142`). The modal's textarea is seeded from that
-   * LIST projection (`EventTimeline.tsx:1063`, `:1086` → `EventDetailModal.tsx:
-   * 240`) and nothing calls the single-row route for display, so a stored note has
-   * no reader: a 10 s sampler after a reload read `""` at every 250 ms sample with
-   * the note stored and `?event=` still in the URL.
-   *
-   * TWO CANDIDATE REPAIRS, both backend and both outside this package's scope
-   * (ruling 87): (a) add `"notes": event.notes` to the dict in `list_events`, which
-   * makes the row's Evidence literally true; or (b) have the modal read the single
-   * uncached route it already has an id for. (a) is smaller and matches how
-   * `reviewed` already travels; (b) costs a request per modal open.
-   *
-   * To lift this: delete `.fixme`, and the assertions below are the contract —
-   * REOPEN_ROW is the fixture's fifth row, never written by any leg, so this
-   * still starts note-free.
+   * THE READ-BACK LEG (ruling 238, [r238]). `[r149d]` (#7070) added `"notes": event.notes`
+   * to `list_events` (`backend/api/routes/events.py:543`), so `GET /api/events` now
+   * returns the stored note and the reopened modal seeds its textarea from the list
+   * projection (`EventTimeline.tsx:1063`, `:1086` → `EventDetailModal.tsx:241`).
    */
-  test.fixme('the saved note is read back: reopening the modal shows the stored note', async ({
+  test('the saved note is read back: reopening the modal shows the stored note', async ({
     page,
   }) => {
     const id = fx.eventIds[REOPEN_ROW];
