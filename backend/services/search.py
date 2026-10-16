@@ -336,14 +336,22 @@ def _build_filter_conditions(filters: SearchFilters) -> list:
         # ruling's measured case: a score-91 row displays `critical` while
         # `severity=critical` returned 0. Both sides now read one derivation:
         # Event.computed_risk_level, whose SQL form takes the same settings the
-        # Python side uses (models/event.py:426). Cost: this forfeits
-        # idx_events_risk_level_started_at, and a CASE predicate is not
-        # sargable, so Postgres uses idx_events_risk_score instead.
+        # Python side uses (models/event.py:450). Cost, MEASURED not asserted
+        # (EXPLAIN ANALYZE, 200k rows; fragments on the PR): idx_events_risk_level_started_at
+        # is forfeited as expected, but a CASE predicate does NOT fall back to
+        # idx_events_risk_score -- Postgres seq-scans instead (Parallel Seq Scan
+        # unscoped; idx_events_camera_id + heap filter when camera-scoped, which
+        # is the panel's shape). There page 11.9 -> 16.9 ms, count 10.3 ->
+        # 15.4 ms. A second index buys nothing: the CASE is not sargable.
         # Class-side access to a hybrid_property returns its SQL expression at
         # runtime; mypy has no SQLAlchemy hybrid plugin and sees the overloaded
-        # Python form instead, so it cannot resolve .in_ here. The runtime
-        # behaviour is pinned by test_computed_risk_level_sql_expression_exists
-        # (models) and the two `[r211b]` severity legs (integration).
+        # Python form instead, so it cannot resolve .in_ here. What pins that
+        # runtime behaviour is the SQL half being exercised, not inspected:
+        # test_computed_risk_level_sql_and_python_agree_on_moved_bands (both
+        # halves under moved bands) and the two severity legs in
+        # test_search_api.py, which drive this predicate through the endpoint at
+        # the shipped bands. A pin that only reads `.expression` off the class
+        # would NOT pin it -- it stays green with the override deleted.
         conditions.append(Event.computed_risk_level.in_(filters.severity))  # type: ignore[attr-defined]
     if filters.reviewed is not None:
         conditions.append(Event.reviewed == filters.reviewed)
@@ -433,7 +441,7 @@ async def search_events(
     base_query, has_search = _build_search_query(tsquery_str, query)
 
     # `[r211b]` break (1): soft-deleted events must never be searchable. The
-    # browse route already hides them (routes/events.py:418); search did not, so
+    # browse route already hides them (routes/events.py:421); search did not, so
     # a deleted event stayed findable while invisible in the list the panel
     # draws from. This sits on base_query, before the count below is derived
     # from it, so total_count and the page cannot disagree (the "21-26 of 26

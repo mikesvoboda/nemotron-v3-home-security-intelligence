@@ -344,7 +344,7 @@ async def test_search_never_returns_soft_deleted_events(
 ):
     """`[r211b]` break (1): browse hides soft-deleted events, search did not.
 
-    GET /api/events filters on Event.deleted_at (routes/events.py:418); the
+    GET /api/events filters on Event.deleted_at (routes/events.py:421); the
     search service had no such predicate, so a deleted event stayed searchable
     while invisible in the list the panel actually draws from.
     """
@@ -416,9 +416,12 @@ async def test_search_severity_filter_agrees_at_band_boundaries(
 ):
     """Every band boundary lands in the filter's result page, not just the middle.
 
-    Pins the SQL-side derivation to the same bands the Python echo uses
-    (models/event.py:426 emits 29/59/84; schemas/events.py:19 reads the same
-    values from settings), so the two cannot drift apart silently.
+    Exercises the SQL half of Event.computed_risk_level -- the CASE behind
+    services/search.py's severity filter -- at the SHIPPED bands, which is what
+    makes it the witness for that arm: it reads settings like the Python half
+    (models/event.py:450), so the two cannot drift apart silently. Hardcoding
+    any band set into the expression reddens this leg (verified: baking in
+    10/20/30 fails both severity legs).
     """
     camera_id = setup_severity_mismatch_events["camera_id"]
     expected = {
