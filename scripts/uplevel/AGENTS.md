@@ -134,7 +134,10 @@ inside a turn). One `gh api graphql` call per poll, never the search API (its 30
 every agent on the owner's token), watching the PRs named by `--pr` plus those a label group
 discovers, and the last 100 comments of #6854. It exits with one line per change class and no
 comment bodies, survives transient failures, and always ends — an error line after repeated
-failures, a "no change" line at its lifetime bound.
+failures, a "no change" line at its lifetime bound. A check window that came back full adds a
+`#<n> checks truncated: X of Y watched` line — beside its news and on the all-clear — because a
+"no change" over a truncated window means "nothing moved in what I could see", not "nothing moved";
+the line is the reader's cue to treat that all-clear as unevaluated rather than clean.
 
 Four GraphQL facts decided the shape, all measured against the live API before the query was
 written, and each the reason a plausible alternative is wrong: `pullRequests(labels: [...])` is

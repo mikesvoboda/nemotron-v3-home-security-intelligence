@@ -530,11 +530,14 @@ only as fresh as its last tick.
       bodies. Transient API errors do not end it; repeated failures do, with an error line. It
       exits after a bounded lifetime with a "no change" line, so the agent re-arms it.
 - [x] Tests pin the change detection and the error exit.
-- [ ] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
+- [x] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
       Claude Code lane agents re-arm the watcher at the end of every turn, and their `/loop` tick
       becomes a 30-minute fallback; the coordinator (5 minutes), the operator (30 minutes) and the
       heavy agents under pi (15 minutes) keep their ticks. The PR says whether pi wakes an agent on
-      a finished background task, if ops-a can measure it.
+      a finished background task, if ops-a can measure it. (The PR says it is unmeasured: `pi` is not
+      installed in the lane sandboxes, so #7175 reports "said, not measured"; the box is ticked on
+      the same basis as the three above it — the role-file text is in this diff — while the package's
+      separate "Done when: the watcher is on `main`" line stays open until the merge.)
 
 **Done when:** the watcher is on `main` with its tests, and the role files' tick sections say how
 each agent wakes.

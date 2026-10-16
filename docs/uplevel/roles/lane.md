@@ -111,7 +111,10 @@ watcher names the comment id and author, never which packages the ruling assigns
    line per change it saw, each naming the PR and what moved -- a new head, a check conclusion, a
    review, a comment, a label change, a merge or close, or a new `BINDING NOW` on #6854. One poll can
    therefore print several lines (a head moved _and_ a check concluded); read them all before
-   re-arming. It prints no comment bodies,
+   re-arming. A PR whose bounded check window came back full also prints a
+   `#<n> checks truncated: X of Y watched` line, beside any news and on the "no change" line -- it
+   means "the last `Y` checks filled my window, so a change may have aged out unseen", not "nothing
+   changed"; treat a truncated all-clear as unevaluated, not clean. It prints no comment bodies,
    survives transient API errors, and ends with an error line after repeated failures or a "no
    change" line at its lifetime bound, so silence never stands in for success. Its own suite
    `scripts/test_pr_watch.py` pins each of these. A watcher armed in the background is not waiting
