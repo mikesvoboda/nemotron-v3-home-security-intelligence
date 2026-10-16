@@ -845,6 +845,46 @@ new tables and columns but never alters existing ones. Apply destructive schema
 changes by hand against the running database, see
 [Migrations](../../architecture/data-model/migrations.md).
 
+### [r162] — Conditional engine socket (next redeploy after this lands)
+
+`backend`'s Podman-socket mount now follows `ORCHESTRATOR_ENABLED`. The prod file
+gains a top-level `include:` that picks one of two new files by that variable:
+
+- `docker-compose.engine-true.yml` — mounts `${PODMAN_SOCKET}:/var/run/podman/podman.sock`
+  into `backend` (and demands a non-empty value; that `:?` moved with the mount).
+- `docker-compose.engine-false.yml` — declares `backend: {}` and mounts nothing.
+
+`ORCHESTRATOR_ENABLED` unset means ON (`backend/core/config.py`), so an `.env` that
+never names it keeps the socket exactly as before. The Upgrade Steps above are
+unchanged — compose resolves the `include:` path itself; the two fragments ship in
+the repo root and no operator action is needed for the default (ON) state.
+
+**Write the variable as exactly `true` or `false`.** The backend's config parser
+is lenient (`1`, `yes`, `on`, any case — all read as ON), but the condition above
+lives in a FILENAME, so only those two spellings resolve to a fragment. Any other
+value fails the render with `docker-compose.engine-<value>.yml: no such file or
+directory` — loud by design, because the alternative is booting a socket shape no
+fragment expresses. `scripts/test_orchestrator_engine_socket.py` pins that failure
+across the distinct spellings beyond `true`/`false` (case variants fail identically,
+on the same line of code).
+
+**Only check this if your deployment runs the orchestrator OFF.** A redeploy with
+`ORCHESTRATOR_ENABLED=false` in `.env` drops the socket mount from `backend` and
+container auto-recovery stops working (the NEM-4xxx feature). `alloy`'s socket
+mount is NOT affected by this change — alloy uses the socket for container
+discovery, log scraping and profiling targets, not orchestration, and stays
+unconditional per owner ruling 186.
+
+**CLI versions this was verified on**: `docker compose v5.5.1` and
+`podman-compose 1.6.0`. Compose resolves the `include:` path from the base file's
+own directory (not the working directory), which is why the fragments live beside
+`docker-compose.prod.yml`. If your host runs an older compose than those, run
+`podman compose -f docker-compose.prod.yml config` (or `docker compose -f
+docker-compose.prod.yml config`) BEFORE the `up -d` in step 5: the render either
+lists `backend` with no socket (flag off) or with it (flag on), and a config that
+cannot resolve the `include:` fails at that command rather than coming up with a
+wrong mount.
+
 ---
 
 ## Rollback Procedures

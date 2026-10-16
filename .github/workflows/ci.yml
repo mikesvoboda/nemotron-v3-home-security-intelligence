@@ -121,6 +121,38 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Pin the compose CLI the render gates are certified against
+        # [r162] The compose files this job renders use a top-level `include:`
+        # that merges a volume into a service the importing file also declares
+        # (owner ruling 186's mechanism). That merge is spec-legal and renders
+        # identically on both CLIs this contract is written against -- compose
+        # v5.5.1 (every local dev + the sandbox these pins were certified on)
+        # and podman-compose 1.6.0 (the operator's CLI, per
+        # docs/operator/deployment/README.md). The ubuntu-24.04 runner image
+        # ships docker-compose v2.38.2 (runner-images tag 20261012.334
+        # "Docker Compose 2.38.2"), whose import-time check rejects the merge
+        # outright: `services.backend conflicts with imported resource`,
+        # reproduced at #7114 run 38670581001 AND locally by pointing the HOME
+        # plugin dir at that exact binary (sha256-verified). No include:
+        # SPELLING passes v2.38.2 -- the plain string form, the spec's
+        # `- path:`/`action: merge` form, all measured rc=1 there; the action
+        # flag is v2.20+ but its deep merge was added in v2.24.4, so the v2
+        # line is out at any pin. Rather than bend the config around an
+        # end-of-line runner plugin, pin the CLI to the version the suite is
+        # certified on. Control proving the pin regresses nothing: main's
+        # prod.yml (no include:) renders 123 passed on v5.5.1 across all four
+        # pre-existing render files. `docker compose config` is daemon-free
+        # (rc=0 against an unreachable DOCKER_HOST, measured), so this needs
+        # no daemon; $HOME/.docker/cli-plugins wins over the image's
+        # /usr/libexec copy (measured both directions with this exact plugin
+        # mechanism). Same shape/version as the Backend Unit Tests job's step.
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+            https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64
+          echo "db1889184726840f75c4f9c001048430d4f25b3be3cb084d3ddd762bc0aed576  $HOME/.docker/cli-plugins/docker-compose" | sha256sum -c -
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version # the witness: this leg's failures now name the CLI that rendered them
       - name: Check tracked test files collect real tests
         # `ai` added by WP6.5 - the tier was never even census-gated before.
         # Cheap and NOT sufficient (AST-only: rc=0 measured on a tree with 19
@@ -260,6 +292,16 @@ jobs:
       # data, so this step is the tier that reaches its subject — a cite
       # otherwise rots with every check green. Drafts stay uncovered:
       # detect-changes skips on drafts, so no docs-only condition can see one.
+      # [r162] (owner ruling 186) joined the list: the render pins for the
+      # conditional engine socket. Same leg as the prod-shape drift test it
+      # complements — both need the moby `docker compose` CLI this job already
+      # provides, and a missing binary FAILS there rather than skipping (a
+      # skipped socket guard would read as a green package, the doctrine the
+      # drift test states at scripts/test_prodshape_override.py:126-130).
+      # The rationale lives HERE, not beside its argv entry: this step's `run`
+      # is a folded scalar, where a `#` line comments out the rest of the
+      # folded sequence — scripts/test_check_gate_reachability.py's
+      # TestRunStepCommentSwallow caught exactly that when the note sat inside.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -300,8 +342,39 @@ jobs:
           scripts/test_r2_python_dead_list.py
           scripts/test_coordinator_snapshot.py
           scripts/test_lane_tick.py
+          scripts/test_plan_lint.py
+          scripts/test_post_record.py
           scripts/test_prodshape_override.py
+          scripts/test_orchestrator_engine_socket.py
           -q
+      # Ruling 197: the plan fields the lane digest acts on (roster queues, package `**PR:**`
+      # fields, ruling-map record ids), linted with the digest's own parsers. On a PR it fails
+      # only on findings its BASE lacks: this job has no paths filter and feeds the CI Gate, so a
+      # plan defect already on main must red main's own push run, not every PR after it. The base
+      # is the checked-out merge commit's FIRST parent -- the main this run merged the PR into --
+      # not the event's pull_request.base.sha, which is main as of the PR's last update and so
+      # reads a defect that reached main since then as the PR's own. The checkout is depth-1: the
+      # commit object still names its parents (cat-file reads the raw object), and that one parent
+      # is fetched. No parent is a broken premise, so the step fails closed with exit 2 and says
+      # why. Named by module, not path, as the docs-citation step below is: naming a scripts path
+      # here makes it a declared reachability entry, which moves the R2 list's tool-inputs stamp
+      # for a walk-neutral reason (scripts/ is not a candidate tree).
+      - name: Plan lint (ruling 197)
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT}" = "pull_request" ]; then
+            BASE_SHA="$(git cat-file -p HEAD | awk '/^parent / { if (!n++) print $2 }')"
+            if [ -z "${BASE_SHA}" ]; then
+              echo "plan lint: HEAD $(git rev-parse HEAD) names no parent; no baseline, nothing judged" >&2
+              exit 2
+            fi
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+            uv run python -m scripts.uplevel.plan_lint --baseline "${BASE_SHA}"
+          else
+            uv run python -m scripts.uplevel.plan_lint
+          fi
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
       # --no-staleness) — that is what catches a dead source_ref, and it is
@@ -755,6 +828,23 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
+
+      - name: Pin the compose CLI the render gates are certified against
+        # [r162] Same pin as the collection-sanity job (see its step for the
+        # full measurement): this shard's unit tier renders docker-compose.prod
+        # .yml too -- backend/tests/unit/core/{test_compose_render_lists_ai_vlm,
+        # test_frontend_expose_lan_bind,test_monitoring_expose_lan_credentials}
+        # .py -- so it needs the same compose v5.5.1 the include: merge is
+        # certified on. The postgres service above is created by the RUNNER's
+        # own docker, not by `docker compose`, so overriding the compose plugin
+        # here cannot disturb it.
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+            https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64
+          echo "db1889184726840f75c4f9c001048430d4f25b3be3cb084d3ddd762bc0aed576  $HOME/.docker/cli-plugins/docker-compose" | sha256sum -c -
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
 
       - name: Run unit tests with coverage (shard ${{ matrix.shard }}/4)
         # Unit coverage here is COLLECTED, not gated (see --cov-fail-under=0
@@ -1322,7 +1412,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints or test_batch_aggregator_status_live" \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints or test_batch_aggregator_status_live or test_analysis_stream_delivery" \
             -n0 \
             --timeout=30 \
             --cov=backend \

@@ -201,7 +201,11 @@ deployment, in a comment on each PR (ruling 154).
 
 - [ ] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
       every build script a Dockerfile or workflow runs. Delete what does not ship (~27K of 35K
-      lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it.
+      lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it. The declaration lands
+      first, so `ai/gateway/export/` (O2.4, B2.3) is never on the deleted list (ruling 210).
+- [ ] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
+      "synthbench workstream (UR-82), ruling 210"; delete `synthbench/spikes/` (ruling 210 amends
+      UR-82 for it).
 - [ ] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
       timm, onnxruntime). Confirm each by import trace; a build-time-only need moves to a build
       stage. **MEASURE** the image size before and after.
@@ -281,6 +285,27 @@ consolidation depends on it.
 
 **Done when:** every file in `scripts/` is referenced by CI, a hook, `setup.py`, another script, or
 the operator docs, and `scripts/` passes ruff in pre-commit.
+
+## Phase 4 — Complete the product
+
+### O4.1 One-GPU installs
+
+**Flags:** none. **Depends on:** Phase 4's start (ruling 202, record 6198876496).
+**PR:** none yet.
+
+`README.md:242` promises a one-card install, but `setup.py` writes `gpu_llm: 0` and
+`gpu_ai_services: 1` in all three modes (`:820`, `:1070`, `:1252`) whatever `get_gpu_info()` finds
+(`:795`), and `docker-compose.prod.yml` gives the AI services
+`CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}`. On a one-card machine they see no GPU.
+
+- [ ] A design session chooses: setup derives the split from the detected GPUs (one card puts both
+      on GPU 0, keeping a saved answer on re-run as `[r94]` does), or two GPUs become a stated
+      requirement that setup enforces and the README's hardware table states.
+- [ ] Whether detection, re-ID and the VLM fit one 24GB card is a real-tier run, settled in that
+      session.
+
+**Done when:** a one-GPU setup either runs with every service on a visible GPU or is refused with
+the requirement named, and unit tests cover one and two detected GPUs.
 
 ## Background (any phase after Phase 1)
 
@@ -533,6 +558,51 @@ host login.
 **Done when:** the fixes are on `main` with tests, and ops-a has posted the new command on its PR
 and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the output).
 
+### [r196c] The seeded rows F-186, F-196 and F-197
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
+waits on the operator (UR-52 waived, ruling 217). **Depends on:** none.
+**PR:** none yet. (rulings 127, 187, 196, 217; record 6200901387)
+
+- [ ] Specs for F-186, F-196 and F-197 in ops-b's batch directory
+      `frontend/tests/golden/gpu-storage-admin/` (ruling 87) run in `Feature check (seeded)`, the
+      job #7155 built under ruling 187. The PR's title carries `[r196c]`; frontend reviews.
+
+**Done when:** none of the three rows says **unverified**; each flipped on a run where its leg
+executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
+
+### [r197] The digest's formats are checked where they are written
+
+**Flags:** `owner` (the role files' tick text). **Assigned:** the owner's session, as an owner PR;
+ops-b reviews. **Depends on:** none.
+**PR:** none yet. (ruling 197, as amended by `6198199744`)
+
+Lanes act on what `scripts/uplevel/lane_tick.py` parses, and nothing checks those fields where they
+are written: a wrapped `**PR:** none yet` goes unoffered, owner pointers reach the digest only as a
+comment count, and heartbeat markers drift.
+
+- [ ] A CI plan lint that imports `lane_tick.py`'s own parsers and runs them over the plan files in
+      the PR's tree. It fails when a roster token has no package block, a block's `**PR:**` field
+      reads neither `none yet` nor `#N`, a token sits in two lanes' queues, or a ruling-map row
+      lacks its record id. Tests pin each failure, and one runs the lint on the real tree.
+- [ ] Owner records and pointers end with one HTML-comment footer:
+      `<!-- uplevel: ruling=<n> lanes=<names|all> packages=<tokens|none> -->` for a record and
+      `<!-- uplevel: pointer ruling=<n> lane=<name> -->` for a pointer. `lane_tick.py` prints a
+      `for you:` line for each live record and each owner pointer since the beat that names the
+      lane or `all`; one without a footer prints as today. `scripts/uplevel/post_record.py` posts
+      both with the exact footer.
+- [ ] A `--beat "<text>"` mode writes the agent's heartbeat itself, marker line first, with
+      UR-155's 600-character cap.
+- [ ] For ruling 198, the digest drops its `review:<lane>` section and marks the agent's own PRs:
+      `needs your review` (ready, CI finished at the head, no review for that head) and
+      `arm auto-merge` (approved at the head, `Plan text: none`, `CI Gate` green, not a draft, not
+      owner-tier, auto-merge off).
+- [ ] The tick sections of the role files name the footer lines and `--beat`. `[r193]` edits the
+      same sections, so whichever merges second rebases onto the first.
+
+**Done when:** the lint runs in CI and passes on `main`, `lane_tick.py` prints `for you:` lines
+from footers, and `--beat` writes a heartbeat the coordinator's snapshot reads.
+
 ### [r164a] The coordinator's paperwork moves into scripts
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, next on its queue after `O2.5`; ops-b reviews.
@@ -561,7 +631,7 @@ output with its status comment drafted by `status_draft.py`.
 ### [r181] The lane-tick digest and the signed-activity snapshot
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after its `F2.3` OP-3 rows and before `[r172]`;
-ops-a reviews. **Depends on:** none. **PR:** #7164 (open). (ruling 181)
+ops-a reviews. **Depends on:** none. **PR:** #7164 (merged). (ruling 181)
 
 - [x] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
       agent's heartbeat id and age, the coordinator's heartbeat age (UR-162), and disk use of `/`
@@ -597,3 +667,62 @@ UR-180's order, never at a routine full prune (ruling 176).
 
 **Done when:** the module budget fails CI on a reproduced import breach, the warning-only nightly's
 list is posted, and the existing duration pins pass.
+
+### [r215a] F-278: a test-only face vector in the seeded project
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
+**Depends on:** none. **PR:** none yet. (ruling 215, record 6200719567)
+
+- [ ] `Feature check (seeded)`'s setup inserts one known person and one face-embedding row with a
+      fixed vector and a `model_id` marked test-only, as F-012's disk seed did (#7178, ruling 192).
+      No production route or model changes.
+
+**Done when:** the seeded job's stack holds that person and embedding at a ready head, and
+`[r215d]`'s leg can run against it.
+
+### [r218] The inventory's status is checked against the golden run
+
+**Flags:** `owner` (CI and the witness convention). **Assigned:** the owner's session, as an owner
+PR. **Depends on:** none. **PR:** none yet. (ruling 218, record 6201875149)
+
+Ruling 208's count (`6200252063`): 106 of 254 record-repair commits mainly edit the inventory, and
+status flips, evidence cells and witness ids lead. Each Feature check job already records per-test
+results (`summary["results"]["golden"]["playwright_specs"]`, `scripts/feature_check.py`), and the
+golden specs carry their rows' `F-NNN` ids in their titles.
+
+- [ ] A script maps each executed golden test to the rows its title names, and lists golden specs
+      that name none.
+- [ ] Rules (UR-128; rulings 103, 114, 148): a row at **awaiting real tier** or **works** needs at
+      least one mapped leg, each executed and passed; a failed or skipped mapped leg fails that row;
+      an **unverified** row whose legs all passed prints as ready to flip, with the cell text.
+      Real-tier confirmation stays the operator's.
+- [ ] CI: the check runs after the golden project in `Feature check (fake AI)` and
+      `Feature check (seeded)`, fails on a row claiming more than the run shows, prints rows ready
+      to flip, and fails closed on a read error with its reason.
+- [ ] Evidence cells name the spec and legs; run and job ids are no longer required there.
+- [ ] Disagreements the check finds on `main` are fixed in this PR or listed for the owner, so
+      `main` stays green.
+
+**Done when:** the check runs in both Feature check jobs and passes on `main`, with unit tests
+for each rule.
+
+### [r184] The launcher prints the heavy sessions' pi start line
+
+**Flags:** none. **Assigned:** ops-a. **Depends on:** none.
+**PR:** none yet. (rulings 184 and 201, records 6177514438 and 6198825479)
+
+Ruling 184's commit renamed the heavy rows in `scripts/uplevel/sandboxes.toml`. The owner starts
+both with `agent-dgx <name> pi --split`, but `launch.py` still builds
+`agent-dgx run <name> --agent claude --split` for them (`[models] strongest`).
+
+- [ ] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
+      Take its exact form from `agent-dgx help` output the owner posts from maui, or from a line
+      the owner pastes on the PR; the launcher never invents a flag (`history/packages-done.md`
+      §O0.1).
+- [ ] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
+      rows, naming the hand-start line, and prints no wrong line.
+- [ ] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
+      refusal, and no other row's line changes.
+
+**Done when:** the launcher test passes in CI at a ready head, and `sandboxes.toml`'s comment no
+longer says the launcher does not print the form.

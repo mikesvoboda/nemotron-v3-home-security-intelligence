@@ -117,6 +117,9 @@ same way after the owner's `R2b` session.
 - **Ruling 182's record** (record `6174228588`, BINDING NOW 17:24Z): #7131 (merged) writes that
   record's seven rows into the ruling and priority columns. It moves no status, so §2 is not in its
   diff and it merges in any order with the three PRs that rewrite the `**all**` line.
+- **Round 2's record** (rulings 210-215): the owner's session writes it in the owner PR that carries
+  them (ruling 216, record 6200852082), into the ruling and priority columns only; later rounds
+  return to this lane.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).
@@ -494,6 +497,128 @@ its head.
 
 **Done when:** the spec passes in CI's `Feature check (fake AI)` with no mark, before
 2026-10-16T00:00Z.
+
+### [r196a] F2.3's last frontend rows
+
+**Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none.
+**PR:** none yet. (rulings 191, 192, 196)
+
+Rulings 191 and 192 assigned these rows as prose inside `F2.3`, which `lane_tick.py` cannot offer
+as a claim; ruling 196 makes them a package. Each PR's title carries `[r196a]`.
+
+- [ ] FE-3's six unwritten rows, F-045, F-052, F-053, F-054, F-059 and F-064, on one FE-3 build PR
+      off `main` (ruling 87's file rule). F-045's "arriving over the socket" clause needs the fake
+      VLM's drop path, not the bulk fixture.
+- [ ] F-028's leg 2, using F-007's offline-then-reload approach, in its own PR.
+- [ ] F-012's spec runs in `Feature check (seeded)` against #7178's volume.
+
+**Done when:** none of these eight rows says **unverified**; each flipped on a CI run where its
+leg executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
+
+### [r211f] F-048: a search result opens what was clicked
+
+**Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
+for the spec's legs. **PR:** none yet. (ruling 211, record 6200331506)
+
+- [ ] Clicking a search result opens that result; `getModalEvent()` no longer looks the id up in the
+      browse list (`frontend/src/components/events/EventTimeline.tsx:1059`).
+- [ ] Remove both `test.fixme` marks in `frontend/tests/golden/timeline/timeline-search.spec.ts`.
+
+**Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
+**awaiting real tier** on that run (rulings 103, 114).
+
+### [r212] F-061 and F-062: the audit tab can run an evaluation, and both legs re-run
+
+**Flags:** none. **Assigned:** frontend, after `[r211f]` (fix now). **Depends on:** none.
+**PR:** none yet. (ruling 212, record 6200384247)
+
+F-106 and F-108 share this surface and are fix-now; `[r129]` (#7031) made the batch audit load the
+deferred `Event.llm_prompt`, after these rows' evidence run at `7971475db`.
+
+- [ ] On an event with no audit, `EventAuditDetail.tsx` renders the Run control instead of returning
+      its error screen (`:241-257`) before the header that holds it (`:321`).
+- [ ] The golden fixture seeds an audit by running the batch audit on the fake stack; remove both
+      `test.fixme` marks in `frontend/tests/golden/timeline/event-reevaluate.spec.ts`.
+
+**Done when:** each row flips to **awaiting real tier** on a run where its legs pass (rulings 103,
+114), or the PR posts the run where a leg still breaks and that row returns to the owner.
+
+### [r213] F-060: the saved feedback card shows what was stored
+
+**Flags:** none. **Assigned:** frontend, after `[r212]` (fix now). **Depends on:** none.
+**PR:** none yet. (ruling 213, record 6200455263)
+
+F-060 is split: the panel is a labelling tool (complete), and learning thresholds from feedback is
+retired with F-131 (R2a row 11). The labels are stored and round-trip `GET /api/feedback/event/{id}`.
+
+- [ ] The saved card (`frontend/src/components/feedback/FeedbackPanel.tsx:281-293`) shows every
+      field that was stored, not only the type, the notes and the date.
+- [ ] Remove the `test.fixme` mark in `frontend/tests/golden/timeline/event-feedback.spec.ts`.
+
+**Done when:** all legs pass in `Feature check (fake AI)` at a ready head, and F-060 flips to
+**awaiting real tier** on that run (rulings 103, 114).
+
+### [r214] F-213 and F-277: the owner pick saves, and a saved person appears
+
+**Flags:** none. **Assigned:** frontend, after `[r213]` (fix now). **Depends on:** none.
+**PR:** none yet. (ruling 214, record 6200676782)
+
+- [ ] F-213: the owner `<Select>`'s listbox renders above the `z-50` configure modal
+      (`frontend/src/components/zones/ZoneOwnershipPanel.tsx:846`, `:883-899`), so choosing an
+      owner saves it; the leg at `frontend/tests/golden/settings-cameras/cameras-zones.spec.ts:223`
+      asserts the saved owner.
+- [ ] F-277: the person modal invalidates the key the page reads (`useKnownPersonsApi.ts:33`,
+      `:146` against `useFaceRecognitionApi.ts:58`); a leg in
+      `frontend/tests/golden/identity/persons.spec.ts` asserts the new person in the list with no
+      reload.
+
+**Done when:** each row flips to **awaiting real tier** on a run where its legs pass (rulings 103,
+114).
+
+### [r204] One realtime connection owner
+
+**Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.
+**PR:** none yet. (ruling 204, record 6199283332)
+
+`webSocketManager.ts` shares one connection per URL (`subscribe`, `:254`), but `useConnectionStatus`
+opens its own events and system sockets through `useWebSocketStatus` (`:290`, `:298`;
+`new WebSocket` at `useWebSocketStatus.ts:145`), and both `Layout.tsx:38` and `Header.tsx:171` call
+it. The manager stops on the auth close codes (`AUTH_TERMINAL_CLOSE_CODES`, `:155`);
+`useWebSocketStatus`'s `onclose` (`:176`) reads no code and keeps reconnecting.
+
+- [ ] `useConnectionStatus` reads channel state from `webSocketManager` (`subscribe`,
+      `getConnectionState`, `reconnect`) and opens no socket; one provider feeds Layout and Header;
+      `useWebSocketStatus`'s socket code and its tests are deleted.
+- [ ] `isPollingFallback` and `retryConnection` keep their meaning; a terminal auth close shows as
+      such and is not retried.
+- [ ] Tests: the mounted shell holds one manager connection per channel; neither Layout nor Header
+      opens a socket; a `4001` close stops reconnection on the status path.
+- [ ] F-007's `frontend/tests/golden/shell/ws-status.spec.ts` passes unchanged in
+      `Feature check (fake AI)`.
+
+**Done when:** these pass in CI at a ready head, and under `frontend/src/` (tests and mocks aside)
+`new WebSocket(` appears only in `webSocketManager.ts`.
+
+### [r205] No status is not "healthy"; health is not an alert count
+
+**Flags:** none. **Assigned:** frontend, after `[r204]`. **Depends on:** `[r204]` merged.
+**PR:** none yet. (ruling 205, record 6199725340)
+
+`DashboardPage.tsx:289` reads `deferredSystemStatus?.health ?? 'healthy'`, so a dashboard that
+never receives a status reads as healthy. `AmbientStatusProvider.tsx:94-109` turns service health
+into the favicon's alert count (`unhealthy` 3, `degraded` 1).
+
+- [ ] Until a system status arrives, the dashboard shows a neutral connecting or unknown state,
+      never `healthy`; a no-flash treatment must not render healthy's word or colour.
+- [ ] The badge shows health as health (colour or icon) and a number only from a real alert count;
+      with no such source it shows no number. `alertCountOverride` keeps working.
+- [ ] Tests: no status, or a dashboard that never connects, never renders "healthy"; an unhealthy
+      or degraded service gives no numeric badge without a real count; a real count shows as given.
+- [ ] The golden specs over the dashboard and ambient status pass unchanged, or the PR names the leg
+      it changes and why.
+
+**Done when:** these pass in CI at a ready head, and under `frontend/src/` (tests aside) no
+`?? 'healthy'` default and no health-to-count mapping remain.
 
 ### [r168] The fast-path switch
 

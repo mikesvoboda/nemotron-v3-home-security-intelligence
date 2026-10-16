@@ -646,48 +646,24 @@ pytest_skip:
     tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
     expires: '2026-12-31'
     reason: Moved to test_model_management.py - NEW Model Management API tests
-  - id: backend/tests/unit/api/routes/test_system_models.py::TestGetModelsEndpoint::test_get_models_returns_model_list#2
-    kind: flaky
-    owner: mikesvoboda
-    tracking: UNTRACKED:APPINIT-TIMING
-    expires: '2026-10-15'
-    reason: Flaky test - fails in CI due to app initialization timing issues
   - id: backend/tests/unit/api/routes/test_system_models.py::TestGetModelsEndpoint::test_get_models_returns_registry
     kind: retired
     owner: mikesvoboda
     tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
     expires: '2026-12-31'
     reason: Moved to test_model_management.py - NEW Model Management API tests
-  - id: backend/tests/unit/api/routes/test_system_models.py::TestGetModelsEndpoint::test_get_models_returns_registry#2
-    kind: flaky
-    owner: mikesvoboda
-    tracking: UNTRACKED:APPINIT-TIMING
-    expires: '2026-10-15'
-    reason: Flaky test - fails in CI due to app initialization timing issues
   - id: backend/tests/unit/api/routes/test_system_models.py::TestGetModelsEndpoint::test_get_models_shows_loaded_status
     kind: retired
     owner: mikesvoboda
     tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
     expires: '2026-12-31'
     reason: Moved to test_model_management.py - NEW Model Management API tests
-  - id: backend/tests/unit/api/routes/test_system_models.py::TestGetModelsEndpoint::test_get_models_shows_loaded_status#2
-    kind: flaky
-    owner: mikesvoboda
-    tracking: UNTRACKED:APPINIT-TIMING
-    expires: '2026-10-15'
-    reason: Flaky test - fails in CI due to app initialization timing issues
   - id: backend/tests/unit/api/routes/test_system_models.py::TestGetModelsEndpoint::test_get_models_shows_unloaded_status
     kind: retired
     owner: mikesvoboda
     tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
     expires: '2026-12-31'
     reason: Moved to test_model_management.py - NEW Model Management API tests
-  - id: backend/tests/unit/api/routes/test_system_models.py::TestGetModelsEndpoint::test_get_models_shows_unloaded_status#2
-    kind: flaky
-    owner: mikesvoboda
-    tracking: UNTRACKED:APPINIT-TIMING
-    expires: '2026-10-15'
-    reason: Flaky test - fails in CI due to app initialization timing issues
   - id: backend/tests/unit/api/routes/test_system_models.py::TestModelStatusSchema::test_model_status_response_has_all_fields
     kind: retired
     owner: mikesvoboda
@@ -700,36 +676,18 @@ pytest_skip:
     tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
     expires: '2026-12-31'
     reason: Moved to test_model_management.py - NEW Model Management API tests
-  - id: backend/tests/unit/api/routes/test_system_models.py::TestModelStatusSchema::test_models_registry_response_has_all_fields#2
-    kind: flaky
-    owner: mikesvoboda
-    tracking: UNTRACKED:APPINIT-TIMING
-    expires: '2026-10-15'
-    reason: Flaky test - fails in CI due to app initialization timing issues
   - id: backend/tests/unit/api/routes/test_system_models.py::TestVRAMStats::test_vram_used_reflects_loaded_models
     kind: retired
     owner: mikesvoboda
     tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
     expires: '2026-12-31'
     reason: Moved to test_model_management.py - NEW Model Management API tests
-  - id: backend/tests/unit/api/routes/test_system_models.py::TestVRAMStats::test_vram_used_reflects_loaded_models#2
-    kind: flaky
-    owner: mikesvoboda
-    tracking: UNTRACKED:APPINIT-TIMING
-    expires: '2026-10-15'
-    reason: Flaky test - fails in CI due to app initialization timing issues
   - id: backend/tests/unit/api/routes/test_system_models.py::TestVRAMStats::test_vram_zero_when_no_models_loaded
     kind: retired
     owner: mikesvoboda
     tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
     expires: '2026-12-31'
     reason: Moved to test_model_management.py - NEW Model Management API tests
-  - id: backend/tests/unit/api/routes/test_system_models.py::TestVRAMStats::test_vram_zero_when_no_models_loaded#2
-    kind: flaky
-    owner: mikesvoboda
-    tracking: UNTRACKED:APPINIT-TIMING
-    expires: '2026-10-15'
-    reason: Flaky test - fails in CI due to app initialization timing issues
   - id: backend/tests/unit/services/test_alert_engine_new_conditions.py::TestCombinedConditions::test_multiple_new_conditions_and_logic
     kind: retired
     owner: mikesvoboda
@@ -1093,13 +1051,13 @@ pytest_skip_imperative:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:549
+  - id: backend/tests/security/test_docker_compose_security.py:557
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: git not available
-  - id: backend/tests/security/test_docker_compose_security.py:559
+  - id: backend/tests/security/test_docker_compose_security.py:567
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL

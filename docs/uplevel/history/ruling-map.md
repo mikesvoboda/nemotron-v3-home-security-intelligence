@@ -208,6 +208,29 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 193    | package `[r193]`: lanes wake on GitHub events; ticks become a fallback (record 6195149856)                  |
 | 194    | F-234: docs sets `channel: 'chromium'` in permission.spec.ts only (record 6197728882)                       |
 | 195    | O2.5 runs on maui after package `[r195]` (host-login harness) (record 6197833896)                           |
+| 196    | packages `[r196a]` frontend, `[r196b]` docs, `[r196c]` ops-b: last F2.3 rows (record 6198072340)            |
+| 197    | `[r197]`, owner's session: plan lint, footers, `--beat` (records 6198161166, 6198199744)                    |
+| 198    | one review per PR, the author's UR-89 subagent; author arms auto-merge (record 6198314579)                  |
+| 199    | package `[r199]`: analysis acks follow a stored event or a terminal failure (record 6198662741)             |
+| 200    | package `[r200]`: one owner for the running pipeline workers (record 6198757258)                            |
+| 201    | `[r184]` gets its block: the launcher prints the heavy pi start line (record 6198825479)                    |
+| 202    | one-GPU installs wait for Phase 4 as `O4.1`; no lane now (record 6198876496)                                |
+| 203    | B3.3 owns schema upgrades; B3.1 drops tables as its upgrades (record 6198942052)                            |
+| 204    | package `[r204]`: one realtime connection owner in the frontend (record 6199283332)                         |
+| 205    | package `[r205]`: no status is not healthy; health is not an alert count (record 6199725340)                |
+| 206    | OD-31 stands; F-236's design also settles what an event sends on (record 6199786907)                        |
+| 207    | real tier is real VLM, fake detector; `[r207]` holds detector rows back (record 6199844401)                 |
+| 208    | owner's session measures record repair; result 6200252063 (record 6199979513)                               |
+| 209    | claim drafts that hold nothing close: #7072 now, #6996 after `[r196b]` (record 6200064485)                  |
+| 210    | R2b round 2: R2 §3 approved as a rule; export tooling stays; spikes go (record 6200282082)                  |
+| 211    | R2b: F-048 complete, P1, fix now; `[r211b]` backend, `[r211f]` frontend (record 6200331506)                 |
+| 212    | R2b: F-061, F-062 complete, P1, fix now; `[r212]` frontend (record 6200384247)                              |
+| 213    | R2b: F-060 split, labelling fix-now `[r213]`; learning retired with F-131 (record 6200455263)               |
+| 214    | R2b: F-213, F-277 complete, P1, fix now; `[r214]` frontend (record 6200676782)                              |
+| 215    | R2b: F-278 by a seeded test-only face vector; `[r215a]`, `[r215d]` (record 6200719567)                      |
+| 216    | the owner's session writes R2b round 2's record; UR-149 amended once (record 6200852082)                    |
+| 217    | ops-b claims `[r196c]` now; UR-52 waived while `[r157]` waits (record 6200901387)                           |
+| 218    | package `[r218]`: CI checks inventory status against the golden run (record 6201875149)                     |
 
 ## Owner records
 

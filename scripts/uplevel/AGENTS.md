@@ -177,3 +177,37 @@ re-snapshots both podman and docker and fails the run on any diff. Verified here
 shellcheck clean, the three embedded python scripts byte-compile, and the cosine table's
 four verdict branches tested against synthetic stage files. **Not run here:** the GPU legs
 (1-4) and the gateway leg need the serving host; the owner runs it on maui.
+
+### post_record.py
+
+The owner's side of ruling 197's machine footers. `post_record.py record --ruling N --lanes a,b|all
+--packages r1,r2|none --body-file F` posts a record on #6854; `post_record.py pointer --ruling N
+--lane x --pr P --body-file F` posts a pointer on PR `P`. Each appends ONE footer line
+(`<!-- uplevel: ruling=<n> lanes=<names|all> packages=<tokens|none> -->` or
+`<!-- uplevel: pointer ruling=<n> lane=<name> -->`), which `lane_tick.py` turns into a `for you:`
+line for the lane it names. The footer is parsed back with `lane_tick.py`'s own reader before
+anything is posted, so the writer and the digest cannot drift. Refused (exit 2): a name that is not
+a roster sandbox without its `agent-`/`uplevel-` prefixes, a body that already carries a footer, and
+a record whose first line does not start `BINDING NOW · ruling N`. `--dry-run` prints the final body
+and posts nothing; a failed post exits 1. It posts with `gh api ... -F body=@-` (the body on stdin)
+through one injectable runner. Tests: `scripts/test_post_record.py`.
+
+### plan_lint.py
+
+The plan fields `lane_tick.py` acts on, checked where they are written (ruling 197).
+`uv run python scripts/uplevel/plan_lint.py [--root DIR]` reads the working tree's roster
+(`docs/uplevel/roles/lane.md`), package files and ruling map with `lane_tick.py`'s own parsers
+(imported, never copied: `ROW`, `queue_entries`, `BLOCK`, `PKG_FIELD`, `NONE_YET`, `PR_NUMBER`,
+`next_claimable`, `held_claims`). It fails when a roster queue token has no `### ` block in its
+lane's package file, when a `**PR:**` field is neither `none yet` on one line nor a leading `#N`
+(a `none` / `yet.` wrapped across two lines is that case, even when a later `issue #N` follows),
+when one token is on two lanes' queues, or when a ruling-map row other than 1-145 and 147 names no
+10-digit record id. Rows labelled `none` are skipped, and `F2.3` (one package split across every
+lane, rulings 87 and 175) is held to its block in `frontend.md` instead. `--baseline REF` reads the
+same files at a git ref (`git show`) and fails only on findings REF lacks, matched by file and
+message, never line. Collection-sanity runs it as `python -m scripts.uplevel.plan_lint` with the
+PR merge commit's first parent (the `main` it merged into) as the baseline, so a defect already on
+`main` reds `main`'s run, not every PR. Exit 0 clean, 1 with one `file:line: message` per (new)
+finding, 2 when the baseline ref is unreadable (the CI step also exits 2 when HEAD names no parent);
+the last line counts what it read. Tests: `scripts/test_plan_lint.py` (fixtures and one throwaway
+git repository; it never lints this checkout, which is the CI step's job).

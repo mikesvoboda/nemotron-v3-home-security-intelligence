@@ -212,6 +212,18 @@ def is_marker(line: str) -> bool:
     return line.startswith(("<!-- heartbeat", STATUS_MARKER))
 
 
+def heartbeat_agent(body: str | None) -> str | None:
+    """The agent a heartbeat comment's marker names (``<!-- heartbeat:<agent> -->``), else ``None``.
+
+    One reading for §6 and for ``lane_tick.py --beat`` (ruling 197), so the row the digest prints
+    and the comment the beat writer edits cannot be told apart by two parsers of one marker.
+    """
+    body = (body or "").lstrip()
+    if not body.startswith(HEARTBEAT_PREFIX):
+        return None
+    return body[len(HEARTBEAT_PREFIX) :].split("-->", 1)[0].strip()
+
+
 def issue_number(comment: dict[str, Any]) -> int | None:
     url = comment.get("issue_url") or ""
     tail = url.rstrip("/").rsplit("/", 1)[-1]
@@ -1060,10 +1072,10 @@ class Snapshot:
             section["errors"].append(error_text(heartbeat_comments))
             return
         for c in heartbeat_comments:
-            body = (c.get("body") or "").lstrip()
-            if not body.startswith(HEARTBEAT_PREFIX):
+            agent = heartbeat_agent(c.get("body"))
+            if agent is None:
                 continue
-            agent = body[len(HEARTBEAT_PREFIX) :].split("-->", 1)[0].strip()
+            body = (c.get("body") or "").lstrip()
             age = (self.now - parse_time(c["updated_at"])).total_seconds() / 60
             lines = body.splitlines()
             head_lines = "\n".join(lines[:3]).lower()
