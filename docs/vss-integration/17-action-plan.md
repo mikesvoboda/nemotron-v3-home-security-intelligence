@@ -5450,7 +5450,7 @@ cryptography` then resolves 49.0.0 to 50.0.2 against that commit's lock files an
 
 #### ISS-073 — Dead enrichment surface left after R8 S5: hook, route and types with no renderer
 
-`P3` · `debt` · actor `owner-decision` · status `open`
+`P3` · `debt` · actor `owner-decision` · status `done` (OD-20 retired in `B3.1`/`F3.1` PR #7220: `useEventEnrichmentsQuery.ts`, `fetchEventEnrichments`, `GET /api/events/{event_id}/enrichments`, `EventEnrichmentsResponse`, `EventDetailModal` `enrichment_data` & tombstone comment removed and OpenAPI + generated types regenerated)
 
 - **Evidence**
   - `frontend/src/hooks/useEventEnrichmentsQuery.ts` has no non-test importer other than the hooks
