@@ -122,7 +122,7 @@ run; existing ones may stay.
 | [3.11 Webhooks and scheduled reports](#311-webhooks-and-scheduled-reports) | 11 | 0 | 4 | 0 | 1 | 6 |
 | [3.12 Zones, plates, household, faces, heatmaps, scene changes, tracks](#312-zones-plates-household-faces-heatmaps-scene-changes-tracks) | 34 | 0 | 27 | 1 | 3 | 3 |
 | [3.13 External interfaces](#313-external-interfaces) | 5 | 0 | 4 | 0 | 0 | 1 |
-| **all** | **294** | **19** | **124** | **17** | **112** | **22** |
+| **all** | **294** | **18** | **124** | **17** | **113** | **22** |
 
 Counts are rows, not features weighted by size. Where one capability shows on two routes through
 one component, it is one row carrying both routes.
