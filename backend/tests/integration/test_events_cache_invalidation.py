@@ -30,7 +30,7 @@ from httpx import AsyncClient
 from backend.models.camera import Camera
 from backend.models.enums import CameraStatus
 from backend.models.event import Event
-from backend.services.cache_service import CACHE_PREFIX, CacheService
+from backend.services.cache_service import CacheKeys, CacheService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -213,8 +213,8 @@ async def cleanup_cache(real_redis: RedisClient):
     # Cleanup before test - ensure clean state
     client = real_redis._ensure_connected()
     patterns = [
-        f"{CACHE_PREFIX}events:*",
-        f"{CACHE_PREFIX}stats:events:*",
+        f"{CacheKeys.PREFIX}:cache:events:*",
+        f"{CacheKeys.PREFIX}:cache:stats:events:*",
     ]
 
     for pattern in patterns:

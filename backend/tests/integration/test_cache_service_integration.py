@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from backend.services.cache_service import (
-    CACHE_PREFIX,
+    CacheKeys,
     CacheService,
 )
 
@@ -69,7 +69,7 @@ async def cleanup_keys(real_redis: RedisClient, test_prefix: str):
     # Cleanup after test - delete all keys with this test's prefix
     client = real_redis._ensure_connected()
     keys = []
-    async for key in client.scan_iter(match=f"{CACHE_PREFIX}{test_prefix}*", count=100):
+    async for key in client.scan_iter(match=f"{CacheKeys.PREFIX}:cache:{test_prefix}*", count=100):
         keys.append(key)
     if keys:
         await client.delete(*keys)
@@ -160,7 +160,7 @@ class TestBasicCacheOperations:
 
         # Verify the key is stored with the prefix in Redis
         client = real_redis._ensure_connected()
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = f"{CacheKeys.PREFIX}:cache:{key}"
 
         # Use Redis EXISTS to verify the key exists
         exists = await client.exists(full_key)
