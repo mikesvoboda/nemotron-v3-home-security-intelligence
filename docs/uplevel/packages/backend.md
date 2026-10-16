@@ -83,11 +83,11 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** none yet.
+`B2.3` (ruling 241). **PR:** #7220.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
-- [ ] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
+- [x] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
       tombstone in one commit; ISS-073).
 - [ ] For each feature ruled **retire**: delete its routes, schemas, services, settings, alert
       conditions and tests (batteries included). The frontend part (`F3.1`) lands in the same PR,

@@ -167,7 +167,6 @@ def build_event_links(request: Request, event_id: int, camera_id: str) -> list[L
         build_link(request, "/api/events", LinkRel.COLLECTION, "GET"),
         build_link(request, f"/api/cameras/{camera_id}", LinkRel.CAMERA, "GET"),
         build_link(request, f"/api/events/{event_id}/detections", LinkRel.DETECTIONS, "GET"),
-        build_link(request, f"/api/events/{event_id}/enrichments", LinkRel.ENRICHMENT, "GET"),
         build_link(request, f"/api/events/{event_id}/clip", LinkRel.CLIP, "GET"),
         build_link(request, f"/api/events/{event_id}", LinkRel.UPDATE, "PATCH"),
     ]

@@ -6331,48 +6331,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/events/{event_id}/enrichments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Event Enrichments
-         * @description Get enrichment data for detections in an event with pagination.
-         *
-         *     Returns structured vision model results from the enrichment pipeline for
-         *     each detection in the event. Results include:
-         *     - License plate detection and OCR
-         *     - Face detection
-         *     - Vehicle classification and damage detection
-         *     - Clothing analysis (FashionCLIP and SegFormer)
-         *     - Violence detection
-         *     - Image quality assessment
-         *     - Pet classification
-         *
-         *     Args:
-         *         event_id: Event ID
-         *         limit: Maximum number of enrichments to return (1-200, default 50)
-         *         offset: Number of enrichments to skip (default 0)
-         *         db: Database session
-         *
-         *     Returns:
-         *         EventEnrichmentsResponse with enrichment data for each detection and pagination metadata
-         *
-         *     Raises:
-         *         HTTPException: 404 if event not found
-         */
-        get: operations["events_get_event_enrichments"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/events/{event_id}/restore": {
         parameters: {
             query?: never;
@@ -23225,88 +23183,6 @@ export interface components {
              * @description Number of events not belonging to any cluster
              */
             unclustered_events: number;
-        };
-        /**
-         * EventEnrichmentsResponse
-         * @description Enrichment data for all detections in an event with pagination support.
-         * @example {
-         *       "count": 2,
-         *       "enrichments": [
-         *         {
-         *           "detection_id": 1,
-         *           "enriched_at": "2026-01-03T10:30:00Z",
-         *           "face": {
-         *             "count": 0,
-         *             "detected": false
-         *           },
-         *           "license_plate": {
-         *             "detected": true,
-         *             "text": "ABC-1234"
-         *           },
-         *           "violence": {
-         *             "detected": false,
-         *             "score": 0
-         *           }
-         *         },
-         *         {
-         *           "detection_id": 2,
-         *           "enriched_at": "2026-01-03T10:30:05Z",
-         *           "face": {
-         *             "count": 1,
-         *             "detected": true
-         *           },
-         *           "license_plate": {
-         *             "detected": false
-         *           },
-         *           "violence": {
-         *             "detected": false,
-         *             "score": 0
-         *           }
-         *         }
-         *       ],
-         *       "event_id": 100,
-         *       "has_more": false,
-         *       "limit": 50,
-         *       "offset": 0,
-         *       "total": 10
-         *     }
-         */
-        EventEnrichmentsResponse: {
-            /**
-             * Count
-             * @description Number of enrichments in this response (page size)
-             */
-            count: number;
-            /**
-             * Enrichments
-             * @description Enrichment data per detection
-             */
-            enrichments: components["schemas"]["EnrichmentResponse"][];
-            /**
-             * Event Id
-             * @description Event ID
-             */
-            event_id: number;
-            /**
-             * Has More
-             * @description Whether there are more results available
-             */
-            has_more: boolean;
-            /**
-             * Limit
-             * @description Maximum number of results requested
-             */
-            limit: number;
-            /**
-             * Offset
-             * @description Number of results skipped
-             */
-            offset: number;
-            /**
-             * Total
-             * @description Total number of detections with enrichment data for this event
-             */
-            total: number;
         };
         /**
          * EventFeedbackCreate
@@ -52497,42 +52373,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DetectionListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    events_get_event_enrichments: {
-        parameters: {
-            query?: {
-                /** @description Maximum number of enrichments to return */
-                limit?: number;
-                /** @description Number of enrichments to skip */
-                offset?: number;
-            };
-            header?: never;
-            path: {
-                event_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EventEnrichmentsResponse"];
                 };
             };
             /** @description Validation Error */
