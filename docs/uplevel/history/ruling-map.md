@@ -253,6 +253,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 238    | package `[r238]`: heavy-a flips F-057's read-back leg after `[r234]` (record 6216702824)                    |
 | 239    | coordinator loop `/loop 30m`; UR-162 raises past 90 minutes, `[r239]` for ops-b (record 6217014151)         |
 | 240    | package `[r240]`: the fake-AI golden leg runs as two shards, ops-b (record 6217450751)                      |
+| 241    | heavy-a takes `B3.1` with `F3.1` ahead of `B2.3`; Phase 3 blocks gain `**PR:**` (record 6217824144)         |
 
 ## Owner records
 

@@ -200,6 +200,7 @@ deployment, in a comment on each PR (ruling 154).
 ### O3.1 Prune `ai/` to what ships
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
       every build script a Dockerfile or workflow runs. Delete what does not ship (~27K of 35K
@@ -222,6 +223,7 @@ image builds, and the golden paths stay green.
 ### O3.2 Compose base and overlays
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] The prod file is the base; the CI stack and the fake AI are overlays. No service is defined in
       two files.
@@ -237,6 +239,7 @@ tool's tests pass, and the golden paths stay green.
 ### O3.3 `models.yml` and env truth
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] `models.yml`: delete the dead rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`,
       `yolo26-general`), correct the `yolo26` row, and add the shipped Qwen3-VL GGUF and mmproj.
@@ -253,6 +256,7 @@ tool's tests pass, and the golden paths stay green.
 ### O3.4 Reachability gates in CI
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`, `F3.2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] A CI job fails when a new non-shipping Python module appears without a `keep.toml` entry
       (`O2.3`), and when `knip --production` finds a new unused frontend file or export (`F3.2`'s
@@ -264,12 +268,14 @@ run.
 ### O3.5 Weekly mutation scorer and history (`01` M2)
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`, `B2.1`.
+**PR:** none yet. (ruling 241)
 
 Specified in [`01-mutation-policy.md`](../01-mutation-policy.md) §M2. Needs `O2.3` and `B2.1`.
 
 ### O3.6 PR mutation evidence tool (`01` M4)
 
 **Flags:** `heavy`. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 Specified in [`01-mutation-policy.md`](../01-mutation-policy.md) §M4. Phase 4's just-in-time
 consolidation depends on it.
@@ -277,6 +283,7 @@ consolidation depends on it.
 ### O3.7 `scripts/` truth
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Delete the scripts nothing references (~14 at `d6ba78d5`, `00 §7`) and the one-off
       investigation scripts. Scripts referenced only by `scripts/AGENTS.md`: **DECIDE** keep (a
