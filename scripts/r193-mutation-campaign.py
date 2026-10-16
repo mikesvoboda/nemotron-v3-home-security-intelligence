@@ -106,6 +106,17 @@ MUTANTS = [
         [("            if errors >= max_errors:", "            if False:")],
     ),
     (
+        "consecutive-reset",
+        "a success no longer resets the failure counter, so scattered failures become fatal and "
+        "the error line's own word 'consecutive' becomes a lie (the property box 2 promises)",
+        [
+            (
+                "        else:\n            errors = 0\n            clean_polls += 1\n",
+                "        else:\n            clean_polls += 1\n",
+            )
+        ],
+    ),
+    (
         "no-lifetime-line",
         "a bounded lifetime exits silently (silence = success)",
         [

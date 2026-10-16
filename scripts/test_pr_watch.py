@@ -1925,6 +1925,50 @@ def test_repeated_failures_exit_with_an_error_line():
     assert len(lines) == 1 and "error" in lines[0].lower()
 
 
+def test_alternating_failures_do_not_end_the_watch_however_many_there_are():
+    """A failure streak broken by ANY success resets to zero, so scattered failures never die.
+
+    The property box 2 promises ("Transient API errors do not end it; repeated failures do") and
+    the error line's own wording ("``{errors} consecutive poll failures``") both hinge on the
+    ``errors = 0`` reset in ``watch``'s ``else`` branch -- a SUCCESS clears the streak, so only a
+    run of ``max_errors`` failures IN A ROW is fatal. Neither existing test could see the reset:
+    ``test_transient_error_does_not_end_the_watch`` scripts one blip then a reported change (the
+    watch returns rc 0 on the change long before the streak matters), and
+    ``test_repeated_failures_exit_with_an_error_line`` scripts three failures BACK TO BACK (both
+    the streak and a cumulative count reach three, so removing the reset changes nothing). This
+    interleaves success and failure so the two models separate: six polls alternating
+    fail/ok/fail/ok/fail/ok carry THREE failures total -- a cumulative counter would call it fatal
+    -- yet the longest streak is ONE, so the reset keeps the watch alive to a clean all-clear.
+    It starts from ``seed()`` so the first ``watch`` poll already compares (``seeding`` keys on
+    ``"seeded" in state``, not on emptiness), which is what lets it reach the calm headline
+    rather than the "none that compared a window" error. The campaign mutant
+    ``consecutive-reset`` deletes the reset and is caught ONLY by this test.
+    """
+    state = seed()
+    ok = envelope([pr_node(PR)], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: 45 live"})
+    boom = RuntimeError("gh: connection reset")
+    runner = Run(boom, ok, boom, ok, boom, ok)  # 3 failures total, none consecutive
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        state,
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+        interval=60,
+        lifetime=360,  # polls at t=0..300 (all six responses), bound at t=360
+        max_errors=3,
+    )
+    assert runner.calls == 6, "all six alternating polls ran; none tripped the streak"
+    assert rc == 0, f"three scattered failures never make a streak of 3: rc={rc} {lines}"
+    assert lines[0].startswith("no change in 360s"), lines
+    assert not any("failure" in line or "error" in line.lower() for line in lines), (
+        f"a clean all-clear must not carry the dead-stretch caveat when the last poll was ok: {lines}"
+    )
+
+
 def test_a_watch_that_never_read_a_window_cannot_print_the_all_clear():
     """A degraded lifetime (all polls fail, just under the fatal streak) is the error exit.
 
