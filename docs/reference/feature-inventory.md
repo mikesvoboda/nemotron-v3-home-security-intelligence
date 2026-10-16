@@ -109,20 +109,20 @@ run; existing ones may stay.
 <!-- prettier-ignore -->
 | section | rows | unverified | half-built | leftover | awaiting real tier | works |
 | --- | --- | --- | --- | --- | --- | --- |
-| [3.1 App shell and global chrome](#31-app-shell-and-global-chrome) | 26 | 0 | 5 | 2 | 12 | 7 |
+| [3.1 App shell and global chrome](#31-app-shell-and-global-chrome) | 26 | 0 | 5 | 2 | 13 | 6 |
 | [3.2 Dashboard](#32-dashboard) | 16 | 1 | 5 | 1 | 5 | 4 |
 | [3.3 Event timeline and event detail](#33-event-timeline-and-event-detail) | 28 | 1 | 9 | 3 | 14 | 1 |
 | [3.4 Analytics](#34-analytics) | 7 | 0 | 1 | 0 | 6 | 0 |
 | [3.5 Alerts, entities and re-ID](#35-alerts-entities-and-re-id) | 10 | 0 | 8 | 0 | 2 | 0 |
 | [3.6 Trash, jobs and data](#36-trash-jobs-and-data) | 15 | 0 | 12 | 0 | 2 | 1 |
 | [3.7 AI pages and AI settings](#37-ai-pages-and-ai-settings) | 30 | 3 | 16 | 7 | 4 | 0 |
-| [3.8 Operations and observability](#38-operations-and-observability) | 44 | 6 | 9 | 1 | 23 | 5 |
-| [3.9 GPU, storage and admin settings](#39-gpu-storage-and-admin-settings) | 22 | 3 | 10 | 1 | 5 | 3 |
+| [3.8 Operations and observability](#38-operations-and-observability) | 44 | 6 | 9 | 1 | 28 | 0 |
+| [3.9 GPU, storage and admin settings](#39-gpu-storage-and-admin-settings) | 22 | 3 | 10 | 1 | 8 | 0 |
 | [3.10 Settings: cameras, rules, processing, notifications, access](#310-settings-cameras-rules-processing-notifications-access) | 47 | 0 | 11 | 1 | 35 | 0 |
 | [3.11 Webhooks and scheduled reports](#311-webhooks-and-scheduled-reports) | 11 | 0 | 4 | 0 | 1 | 6 |
 | [3.12 Zones, plates, household, faces, heatmaps, scene changes, tracks](#312-zones-plates-household-faces-heatmaps-scene-changes-tracks) | 34 | 0 | 26 | 1 | 4 | 3 |
 | [3.13 External interfaces](#313-external-interfaces) | 5 | 0 | 4 | 0 | 0 | 1 |
-| **all** | **295** | **14** | **120** | **17** | **113** | **31** |
+| **all** | **295** | **14** | **120** | **17** | **122** | **22** |
 
 Counts are rows, not features weighted by size. Where one capability shows on two routes through
 one component, it is one row carrying both routes.
