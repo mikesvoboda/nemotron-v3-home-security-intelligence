@@ -50,9 +50,10 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
 
 The 30-minute `/loop` is a **fallback** since ruling 193, not the main channel: step 6 arms a
 watcher that wakes you when a watched PR moves, so a handoff no longer waits up to a tick for its
-delay. Keep the `/loop` anyway -- it is what notices anything the watcher does not watch (a ruling
-directed at your packages, a stale coordinator, your disks -- all digest lines, none of them watcher
-output) and it bounds a watcher that died silently.
+delay. Keep the `/loop` anyway -- it is what notices anything the watcher does not watch: a stale
+coordinator and your disks it cannot see at all, and a `BINDING NOW` it sees only bare -- the
+watcher names the comment id and author, never which packages the ruling assigns you, so the
+`for you:` addressing is the digest's. It also bounds a watcher that died silently.
 
 1. **Read the tick in one call.** Run
 
