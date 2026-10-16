@@ -4975,21 +4975,41 @@ def test_as_test_deployment_seeded_enables_debug_recorder_fault_seed_and_data_tm
     assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
 
 
-def test_seeded_needs_a_mode_but_no_longer_needs_fake() -> None:
+def test_seeded_needs_a_mode_but_no_longer_needs_fake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Ruling 235 rewrote the second half of this test.
 
     `--seeded` alone is still refused (it is a shape, not a mode) — that half is unchanged. What
     changed is `--real --seeded`: it used to exit 2 here, and ruling 235 rules it *accepted*, so
-    this parse-layer test now asserts it is NOT refused at the flag check. It is not stubbed, so
-    the real tier proceeds to its agent-gpu availability probe (EXIT_UNAVAILABLE, code 4) rather
-    than raising — reaching that probe at all is the point: the parse layer let it through. The
+    this parse-layer test now proves it reached the tier's own availability gate instead of the
+    flag check. `!= 2` would NOT prove that — it also passes on a tier that died for a reason
+    unrelated to the parse layer, so both directions are pinned and neither is left to whatever
+    this host happens to have installed (the form test_real_refuses_where_agent_gpu_is_absent
+    already uses). Without agent-gpu the refusal is EXIT_UNAVAILABLE and nothing is created; with
+    it on PATH the run gets further and is refused for the NEXT reason, the unset
+    $AGENT_GPU_LIBRARY — still never exit 2, so no host can satisfy this by accident. The
     accept-and-boot path, with run_check stubbed, is test_seeded_with_real_boots_the_real_tier.
     """
     with pytest.raises(SystemExit) as bare:
         fc.main(["--seeded"])
     assert bare.value.code == 2
 
-    assert fc.main(["--real", "--seeded"]) != 2  # not a parse refusal anymore
+    no_gpu = tmp_path / "no-agent-gpu"
+    monkeypatch.setenv("PATH", str(no_gpu))
+    monkeypatch.delenv("AGENT_GPU_LIBRARY", raising=False)
+    root = tmp_path / "runs-no-gpu"
+    assert fc.main(["--real", "--seeded", "--root", str(root)]) == fc.EXIT_UNAVAILABLE == 4
+    assert not root.exists()  # accepted by the parse layer, refused before it created anything
+
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    (shim / "agent-gpu").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (shim / "agent-gpu").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{shim}:/usr/bin:/bin")
+    root_with = tmp_path / "runs-with-gpu"
+    assert fc.main(["--real", "--seeded", "--root", str(root_with)]) == fc.EXIT_UNAVAILABLE
+    assert not root_with.exists()  # the next gate refuses, not the flag check
 
 
 def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
