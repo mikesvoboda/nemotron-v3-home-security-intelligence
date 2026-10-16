@@ -528,12 +528,13 @@ when a phase exits, are UR-10 (contract rule 5).
 - **UR-13** The owner rules per feature, from a verified feature inventory; modules follow their
   feature's ruling; modules serving no feature come to the owner as one list. (UR-13)
 - **UR-148** `R2` is held in two parts: `R2a` (the sheet as it stood) and `R2b` (after `F2.3`);
-  `R2b` runs in rounds, and `R2` is `done` only when `R2b`'s last round is recorded. `R2b` rules on
-  re-ID from the CPU evidence. (rulings 86, 117, 127)
+  `R2b` runs in rounds, and `R2` is `done` only when `R2b`'s last round is recorded. Re-ID stays
+  local on the CPU path (ruling 106), and `O2.4` and `B2.3` decide its TensorRT route after Phase 2
+  (rulings 107, 117). `R2b`'s last round is rulings 233-236 (ruling 237). (rulings 86, 117, 127, 237)
 - **UR-149** The frontend lane records each `R2` session or round in one PR: the rulings and
   priorities into the inventory's ruling column, the OD rulings into
   `docs/vss-integration/17-action-plan.md`, and the recorded part's status row; the owner's session
-  wrote round 2's record (ruling 216). (README "Phases and exit gates"; packages/frontend.md `R2b`;
+  wrote round 2's record (ruling 216) and the last round's (ruling 237). (README "Phases and exit gates"; packages/frontend.md `R2b`;
   ruling 135)
 - **UR-151** A `half-built` row goes to the `R2b` list, and the owner decides at `R2b` whether and
   when it is fixed; nobody else creates a fix package for it unless the owner orders the fix (as rulings 129 and 130 did). (ruling 120)

@@ -245,6 +245,11 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 230    | no rows for docs' unrowed paths; three client-less endpoints go to R2b's last round (record 6215912535)     |
 | 231    | package `[r231]`: ruling 207 covers every model family the real tier fakes (record 6215981513)              |
 | 232    | the dispatcher starts each tick's subagent without a name; stacking diagnosis runs (record 6216022003)      |
+| 233    | R2b last round: F-045 complete, P1, fix now, carried by `[r211f]` (record 6216193689)                       |
+| 234    | R2b last round: F-052 complete, P1, fix now, `[r234]` for heavy-a (record 6216216005)                       |
+| 235    | R2b last round: seeded-only rows reach works on `--real --seeded`, `[r235]` (record 6216273821)             |
+| 236    | R2b last round: `/api/reid/search` retires; two endpoints become External rows (record 6216306194)          |
+| 237    | Phase 2 exits: F2.3 excepts the O2.5 rows; R2b's last round closed (record 6216370633)                      |
 
 ## Owner records
 

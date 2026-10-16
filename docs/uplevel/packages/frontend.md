@@ -92,8 +92,9 @@ stopped and started on a running stack.
   docs tests the grant with `channel: 'chromium'` set in `permission.spec.ts` alone, leaving the
   golden project's config unchanged (ruling 194).
 
-**Done when:** no row says **unverified**; every **works** row cites a green golden path and a
-real-tier date; the `R2` sheet is final.
+**Done when:** no row says **unverified** except the rows `O2.5` witnesses (ruling 127's 12,
+F-295 and F-296; UR-10, ruling 237); every **works** row cites a green golden path and a real-tier
+date; the `R2` sheet is final.
 
 ### R2b Phase 2 RULING session, part 2 (after `F2.3`)
 
@@ -121,16 +122,11 @@ same way after the owner's `R2b` session.
   them (ruling 216, record 6200852082), into the ruling and priority columns only; later rounds
   return to this lane.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
-- **The last round also rules** how a row witnessed only in `Feature check (seeded)` (a
-  `*.seeded.spec.ts` leg; F-133 among them, and #7189's F-186, F-196 and F-197) reaches
-  **works**: `--seeded` is refused without `--fake` (`scripts/feature_check.py:3193-3194`), so the
-  real tier never runs those specs. Until then such rows stay at **awaiting real tier** (ruling
-  227; #7189's body states the options).
-- **The last round also rules** each endpoint no client calls: keep it as an External row (as
-  F-290–F-294 are) or retire it in Phase 3. They are `POST /api/reid/search`
-  (`backend/api/routes/reid.py:78-79`), `POST /api/household/members/{member_id}/embeddings`
-  (`backend/api/routes/household.py:460-461`) and `GET /api/detections/export`
-  (`backend/api/routes/detections.py:2025-2026`). None is an inventory row until then (ruling 230).
+- **The last round** (rulings 233-236, closed by ruling 237): F-045 and F-052 are complete, P1,
+  fix now (`[r211f]` and `[r234]`); seeded-only rows reach **works** on a `--real --seeded` run
+  (`[r235]`); `POST /api/reid/search` retires with `B3.1`, and the household embeddings and
+  detections export endpoints become External rows (`[r236]`). The owner's session writes its
+  record (ruling 237), as it did round 2's.
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).
 
