@@ -33,11 +33,19 @@
  *
  * READS THAT OBSERVE A MUTATION GO PER-ID, NOT OVER THE CAMERA LIST. The camera
  * LIST (GET /api/cameras) is cache-aside over Redis for SHORT_TTL=60s
- * (cameras.py:261), and NEITHER seed_cameras NOR clear_seeded_data invalidates
- * it — only /maintenance/clear-cache does (admin.py:1134). The create/update/
- * delete handlers in cameras.py each schedule their own invalidation
- * (create_camera :815, update_camera :913, delete_camera :992 — plus
- * restore_camera :657); the admin seed+clear paths do not. So the first CI run of
+ * (cameras.py:261). AT THIS HEAD neither seed_cameras NOR clear_seeded_data
+ * invalidates it — only /maintenance/clear-cache does (admin.py:1134). The
+ * create/update/delete handlers in cameras.py DO, but as a deferred
+ * BackgroundTask (_invalidate_cameras_cache_background, cameras.py:132, added at
+ * :657, :815, :913, :992), which runs AFTER the response is sent, so a read
+ * taken straight after such a POST can still get the cached answer.
+ * [r223] (ruling 223, record 6205796977, 2026-10-16T01:16Z) will give seed and
+ * clear the same background invalidation, which makes the sentence above false —
+ * and changes NOTHING below, because a per-id read is immune whether or not the
+ * writer invalidates: get_camera reads the table. Do NOT "simplify" any check
+ * back to a list total on the strength of [r223] landing; the deferred task
+ * still races the next request, and this is the leg where that race was
+ * measured. So the first CI run of
  * this leg (job 116664916467, run 38804341602, head 0642f8348) reddened at the
  * seed count DELTA with OPPOSITE signs on consecutive retries — attempt1
  * Expected 5 / Received 0, retry1 Expected 0 / Received 5, retry2 Expected 5 /
@@ -46,8 +54,7 @@
  * below that asks "did this seed/clear/restore change the row set?" therefore
  * probes GET /api/cameras/{id} per id: get_camera (cameras.py:684) injects only
  * db:DbSession, takes no CacheDep, reads the table directly, and 404s on
- * absence. Do NOT "simplify" this back to a list total — that reintroduces the
- * stale-read red. The events LIST is not cached (list_events makes no cache
+ * absence. The events LIST is not cached (list_events makes no cache
  * call; only /stats and /timeline-summary do) so the event polls keep using it.
  */
 import { readFileSync } from 'node:fs';
@@ -189,11 +196,13 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
     // The number the toast showed is the number of sample cameras the table
     // gained — the same "the toast must not lie" discipline as
     // admin-cache-clear.spec.ts:89, which compares the toast against the
-    // endpoint's own count. Read per-id, not as a list total: the list is
-    // cached for SHORT_TTL=60s and seed_cameras never invalidates it, so a list
-    // delta reads a stale snapshot (this leg's first CI run failed exactly
-    // there, with opposite signs on consecutive retries). Per-id GETs hit the
-    // DB, so the delta is arithmetically meaningful.
+    // endpoint's own count. Read per-id, not as a list total: at this head the
+    // list is cached for SHORT_TTL=60s and seed_cameras does not invalidate it,
+    // so a list delta reads a stale snapshot (this leg's first CI run failed
+    // exactly there, with opposite signs on consecutive retries). [r223] (ruling
+    // 223) will add a deferred invalidation here too; the per-id read stays
+    // correct either way, because get_camera reads the table. Per-id GETs hit
+    // the DB, so the delta is arithmetically meaningful.
     const camerasAfterSeed = await countPresentCameras(h, session, SAMPLE_IDS);
     expect(camerasAfterSeed).toBeGreaterThanOrEqual(camerasBefore);
     const promised = /Created (\d+) cameras/.exec(toastText)?.[1];
@@ -285,8 +294,11 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
     // The invariant the row promises: every harness camera the boot registered
     // is back, under the id the boot recorded. Counted per book id over
     // get_camera (a direct DB read) rather than as a list total, because the
-    // POSTs above just changed the table and the camera list is cached
-    // SHORT_TTL=60s on a key none of these handlers invalidate.
+    // POSTs above just changed the table and the camera LIST is cached
+    // SHORT_TTL=60s. create_camera DOES invalidate that key, but via a deferred
+    // BackgroundTask (cameras.py:815 -> :132) that runs after its response is
+    // already sent, so a list read issued straight after these POSTs can still
+    // answer from the entry written before the restore. A per-id GET cannot.
     const bookIds = Object.values(book);
     await expect
       .poll(() => countPresentCameras(h, session, bookIds), { timeout: 20_000 })
