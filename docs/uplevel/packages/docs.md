@@ -169,15 +169,19 @@ The real tier serves the real VLM with the fake detector (UR-136), and no agent 
 `yolo26`, `reid` or `threat` (`r2-sheet.md`, "The real-tier gap"). Yet **works** reads "confirmed
 on the real tier" (`docs/reference/feature-inventory.md:33`).
 
-- [ ] The inventory legend says the real tier is the real VLM with the detector, re-ID and threat
+- [x] The inventory legend says the real tier is the real VLM with the detector, re-ID and threat
       models fake (UR-136), as `README.md`'s vocabulary now does.
-- [ ] List the rows whose behaviour comes from detector, re-ID or threat output, each with the code
+- [x] List the rows whose behaviour comes from detector, re-ID or threat output, each with the code
       path that reads it. Each carries the note `needs real Triton models` and stays at
       **awaiting real tier** until a host run with the real Triton models covers it; a listed row
       now at **works** goes back, and the PR names it.
 
 **Done when:** the legend agrees with UR-136, and every listed row carries the note and is not
-**works**.
+**works**. **MET** — the legend row says the detector, re-ID and threat models stay fake at
+`--real` (box-1 commit `5ffdb080b`); the listing lives at `feature-inventory.md`, "Ruling 207: rows
+the real tier cannot confirm" (§1), 29 rows, each carrying `needs real Triton models` in its
+evidence cell; the one listed row at **works** was F-097 and this PR names it back to **awaiting
+real tier** (§2's 3.6 and `all` rows re-derived).
 
 ### [r165b] F-235: cure the quarantined notify channels spec
 
