@@ -512,6 +512,37 @@ describe('ZoneOwnershipPanel', () => {
       expect(screen.getByText('Zone Owner')).toBeInTheDocument();
     });
 
+    it('should render owner listbox options above the z-50 modal and save chosen owner', async () => {
+      mockUpsertConfig.mutateAsync.mockResolvedValueOnce(mockConfig);
+      const { user } = renderPanel({ editable: true });
+
+      await user.click(screen.getByTestId('edit-config-btn'));
+
+      const ownerSelect = await screen.findByTestId('owner-select');
+      const button = ownerSelect.querySelector('button');
+      expect(button).toBeTruthy();
+      await user.click(button!);
+
+      const listbox = await screen.findByRole('listbox');
+      expect(listbox.className).toContain('z-[60]');
+
+      const janeOption = screen.getByRole('option', { name: 'Jane Smith' });
+      await user.click(janeOption);
+
+      await user.click(screen.getByTestId('save-config-btn'));
+
+      await waitFor(() => {
+        expect(mockUpsertConfig.mutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            zoneId: mockZoneId,
+            data: expect.objectContaining({
+              owner_id: 2,
+            }),
+          })
+        );
+      });
+    });
+
     it('should display member checkboxes', async () => {
       const { user } = renderPanel({ editable: true });
 
