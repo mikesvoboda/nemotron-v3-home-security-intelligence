@@ -99,13 +99,18 @@ watcher names the comment id and author, never which packages the ruling assigns
    run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. **Re-arm the watcher** (ruling 193) unless one is already running for these PRs. Arm it as a
-   background task, naming the PRs the digest just showed you -- your own open PRs, which is all the
-   digest's PR section holds now that ruling 198 retired `review:<lane>` -- and exit the turn
-   immediately:
+   background task **by discovery**, not by naming the PRs you happen to have open: a lane discovers
+   by its own labels, so a coordinator-opened assignment draft and a PR this lane opens itself both
+   arrive in the watch without anyone re-arming. Add `--pr <n>` only for a PR outside your lane that
+   an owner or coordinator pointer names you to review (ruling 245). Exit the turn immediately:
 
    ```bash
-   uv run python scripts/uplevel/pr_watch.py --pr <n> --pr <m> --lifetime 1800
+   uv run python scripts/uplevel/pr_watch.py --lane <lane> --cell <c> --lifetime 1800
    ```
+
+   (`--cell` only for the ops lane, which splits; `--lane backend` alone for a lane that does not.
+   `--review-label` is still there in the tool, but since ruling 198 retired the `review:<lane>`
+   labels there is nothing for a lane to pass it, so it is not in the example.)
 
    It polls about every 60 s with **one GraphQL query and never the search API**, and exits with one
    line per change it saw, each naming the PR and what moved -- a new head, a check conclusion, a
