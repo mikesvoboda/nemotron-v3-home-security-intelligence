@@ -584,7 +584,7 @@ executed and passed, or was demoted for `R2b` with the failure as evidence (ruli
 ### [r235] Seeded rows on the real tier
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
-waits (UR-52 waived, as ruling 217 did). **Depends on:** none. **PR:** none yet. (ruling 235,
+waits (UR-52 waived, as ruling 217 did). **Depends on:** none. **PR:** #7214. (ruling 235,
 record 6216273821)
 
 About 11 rows are witnessed only by `*.seeded.spec.ts` legs (F-012, F-133, F-138, F-154–F-156,
@@ -810,7 +810,7 @@ across 11 PRs since 2026-10-14.
 ### [r164a] The coordinator's paperwork moves into scripts
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, next on its queue after `O2.5`; ops-b reviews.
-**Depends on:** none. **PR:** none yet. (ruling 164)
+**Depends on:** none. **PR:** #7154. (ruling 164)
 
 The coordinator re-derives by hand what a script can compute, and that is where today's misses came
 from: hand-typed UR-106 hashes, ruling 156's auto-merge audit, and #7037's owner questions absent

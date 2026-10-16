@@ -411,7 +411,7 @@ head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green
 ### [r228] One cache key shape
 
 **Flags:** none. **Assigned:** backend, first on its queue, ahead of `[r223]` (a lane bug fix
-outside Phase 4's priority order). **Depends on:** none. **PR:** none yet. (ruling 228, record 6215814018)
+outside Phase 4's priority order). **Depends on:** none. **PR:** #7215. (ruling 228, record 6215814018)
 
 `[r223]`'s MEASURE (`6208408388`) found the invalidators miss the keys their routes store.
 `CacheKeys` (`backend/services/cache_service.py:730`) builds keys that already carry the global
