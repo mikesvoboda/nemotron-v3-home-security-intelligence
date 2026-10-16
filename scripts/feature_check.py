@@ -3149,7 +3149,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--seeded",
         action="store_true",
-        help="with --fake, boot the ruling-127/187 seeded CI stack (DEBUG=true, "
+        help="with --fake or --real (ruling 235), boot the ruling-127/187 seeded stack "
+        "(DEBUG=true, "
         "request recorder enabled, breaker/threshold fault seed, orphan file fixture) "
         "and run the golden-seeded Playwright project.",
     )
@@ -3190,8 +3191,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         # would let a reader of a run record believe prod was exercised when the CI
         # stack ran. Refused at parse time, before any engine call.
         parser.error("--prod-shape needs --real (it is the real tier's production shape)")
-    if args.seeded and not args.fake:
-        parser.error("--seeded needs --fake (it is the fake tier's seeded CI project)")
+    if args.seeded and args.prod_shape:
+        # Ruling 235 keeps this refusal explicit rather than inheriting it from the old
+        # `--seeded needs --fake` line, which is what actually blocked this combination
+        # before. The prod shape renders docker-compose.prod.yml; the seeded shape sets
+        # DEBUG=true and mounts the request recorder, and production never runs either.
+        parser.error("--seeded cannot combine with --prod-shape (production never runs DEBUG=true)")
+    if args.seeded and not (args.fake or args.real):
+        # Ruling 235: the seeded stack is a BOOT SHAPE, not a third mode. Nothing in it
+        # depends on the fake VLM -- the boot overrides (see as_test_deployment), the planted
+        # fixtures and the golden-seeded Playwright project all key off `seeded` alone -- so
+        # `--real --seeded` is the route the ~11 seeded-only inventory rows take to **works**.
+        # What stays refused is `--seeded --prod-shape`, ruled above: production never runs
+        # DEBUG=true. `--fake --seeded` is byte-for-byte the command the CI leg runs.
+        parser.error("--seeded needs --fake or --real (it is a boot shape, not a mode)")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:

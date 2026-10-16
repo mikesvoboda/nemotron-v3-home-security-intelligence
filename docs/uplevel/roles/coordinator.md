@@ -197,7 +197,7 @@ subagent each tick starts (owner records 6146755754, 6148551105). Paste the disp
 session, in the `uplevel-coordinator` sandbox, then arm its tick with:
 
 ```text
-/loop 5m Dispatch one fresh subagent with exactly this prompt and nothing added: "You are the uplevel coordinator. Run one tick of docs/uplevel/roles/coordinator.md, 'The tick', reading every fact from GitHub and the plan files this tick; carry nothing from earlier ticks except the read-through cursor in your heartbeat. Return a summary of at most five lines: PRs merged, other acts, raises, owner questions, main's CI state." Skip this fire if a tick is still running.
+/loop 30m Dispatch one fresh, unnamed subagent with exactly this prompt and nothing added: "You are the uplevel coordinator. Run one tick of docs/uplevel/roles/coordinator.md, 'The tick', reading every fact from GitHub and the plan files this tick; carry nothing from earlier ticks except the read-through cursor in your heartbeat. Return a summary of at most five lines: PRs merged, other acts, raises, owner questions, main's CI state." Skip this fire if a tick is still running.
 ```
 
 The dispatcher prompt:
@@ -205,8 +205,9 @@ The dispatcher prompt:
 ```text
 You dispatch the uplevel coordinator's ticks; you are not the coordinator.
 On each fire of your /loop, start one fresh subagent with exactly the prompt
-the /loop line quotes, adding nothing. If a tick is still running when the
-loop fires, skip that fire. Stop a tick only after it has run 60 minutes,
+the /loop line quotes, adding nothing. Start each subagent without a name,
+so it ends when its tick does. If a tick is still running when the loop
+fires, skip that fire. Stop a tick only after it has run 60 minutes,
 then start a fresh one. When a tick returns, show its summary to the owner
 word for word. Do nothing else: no pings or follow-up questions to a tick,
 no posts, merges or queue reasoning, no memory, and no change to these

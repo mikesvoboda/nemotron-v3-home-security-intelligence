@@ -239,6 +239,21 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 224    | heavy-a takes `[r212]`, `[r213]`, `[r214]` from frontend now, ahead of B2.3 (record 6205825842)             |
 | 225    | the dispatcher stops a coordinator tick at 60 minutes, not 30 (record 6205915207)                           |
 | 226    | heavy-a takes F-012 and F-064 from `[r196a]`; docs claims `[r215d]` now (record 6206280092)                 |
+| 227    | ops-b arms #7189; the seeded-only rows' route to works goes to R2b's last round (record 6215786871)         |
+| 228    | package `[r228]`: one cache key shape, before `[r223]` (record 6215814018)                                  |
+| 229    | the second session in frontend's sandbox ends; `fe3-f064-draft` is deleted (record 6215872590)              |
+| 230    | no rows for docs' unrowed paths; three client-less endpoints go to R2b's last round (record 6215912535)     |
+| 231    | package `[r231]`: ruling 207 covers every model family the real tier fakes (record 6215981513)              |
+| 232    | the dispatcher starts each tick's subagent without a name; stacking diagnosis runs (record 6216022003)      |
+| 233    | R2b last round: F-045 complete, P1, fix now, carried by `[r211f]` (record 6216193689)                       |
+| 234    | R2b last round: F-052 complete, P1, fix now, `[r234]` for heavy-a (record 6216216005)                       |
+| 235    | R2b last round: seeded-only rows reach works on `--real --seeded`, `[r235]` (record 6216273821)             |
+| 236    | R2b last round: `/api/reid/search` retires; two endpoints become External rows (record 6216306194)          |
+| 237    | Phase 2 exits: F2.3 excepts the O2.5 rows; R2b's last round closed (record 6216370633)                      |
+| 238    | package `[r238]`: heavy-a flips F-057's read-back leg after `[r234]` (record 6216702824)                    |
+| 239    | coordinator loop `/loop 30m`; UR-162 raises past 90 minutes, `[r239]` for ops-b (record 6217014151)         |
+| 240    | package `[r240]`: the fake-AI golden leg runs as two shards, ops-b (record 6217450751)                      |
+| 241    | heavy-a takes `B3.1` with `F3.1` ahead of `B2.3`; Phase 3 blocks gain `**PR:**` (record 6217824144)         |
 
 ## Owner records
 

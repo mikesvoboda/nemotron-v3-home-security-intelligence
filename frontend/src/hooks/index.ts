@@ -236,13 +236,6 @@ export type {
   UseEventDetectionsQueryReturn,
 } from './useEventDetectionsQuery';
 
-// Event enrichments batch query hook (NEM-3596)
-export { useEventEnrichmentsQuery, eventEnrichmentsQueryKeys } from './useEventEnrichmentsQuery';
-export type {
-  UseEventEnrichmentsQueryOptions,
-  UseEventEnrichmentsQueryReturn,
-} from './useEventEnrichmentsQuery';
-
 export { useAlertsInfiniteQuery, alertsQueryKeys } from './useAlertsQuery';
 export type {
   AlertRiskFilter,

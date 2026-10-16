@@ -21,7 +21,7 @@ import pytest
 
 from backend.core.constants import CacheInvalidationReason
 from backend.core.redis import RedisClient
-from backend.services.cache_service import CACHE_PREFIX, CacheService
+from backend.services.cache_service import CacheKeys, CacheService
 
 pytestmark = pytest.mark.integration
 
@@ -53,7 +53,9 @@ async def cleanup_test_keys(real_redis: RedisClient, unique_test_key: str):
         client = real_redis._ensure_connected()
         keys = []
         # Add timeout to scan_iter operation to prevent hanging
-        async for key in client.scan_iter(match=f"{CACHE_PREFIX}{unique_test_key}*", count=100):
+        async for key in client.scan_iter(
+            match=f"{CacheKeys.PREFIX}:cache:{unique_test_key}*", count=100
+        ):
             keys.append(key)
             # Limit keys to prevent excessive cleanup time
             if len(keys) >= 1000:

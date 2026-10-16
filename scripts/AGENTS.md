@@ -800,6 +800,9 @@ under a compose project of its own, which touches nothing else on the machine.
 ./scripts/feature-check.sh --fake --image-tag <sha7>
 ./scripts/feature-check.sh --fake --seeded --image-tag <sha7>   # ruling 127/187 seeded CI stack
 ./scripts/feature-check.sh --real --image-tag <sha7>            # operator sandbox: agent-gpu
+./scripts/feature-check.sh --real --seeded --image-tag <sha7>   # ruling 235: the seeded rows' route
+                                                                  # to **works**; --seeded with
+                                                                  # --prod-shape stays refused
 ./scripts/feature-check.sh drop <image> <camera>                # inside a golden spec
 ```
 

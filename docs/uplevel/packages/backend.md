@@ -63,6 +63,8 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 **Flags:** `heavy`; label `cell:heavy-b`, none while heavy-b is out of service (ruling 190). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
+**Assigned:** heavy-a; the coordinator assigns it next once `O2.4`'s `RESULT: PASS` is posted and
+the `B3.1`/`F3.1` PR in hand has merged (ruling 241). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -80,16 +82,23 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
+**Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
+`B2.3` (ruling 241). **PR:** #7220.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
-- [ ] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
+- [x] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
       tombstone in one commit; ISS-073).
 - [ ] For each feature ruled **retire**: delete its routes, schemas, services, settings, alert
       conditions and tests (batteries included). The frontend part (`F3.1`) lands in the same PR,
       so the client never calls a route that is gone.
 - [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
-      record 6198942052), not as a hand-run DROP runbook.
+      record 6198942052), not as a hand-run DROP runbook. Until it lands, take the retirements
+      that drop no table; one that drops a table waits for it (ruling 241).
+- [ ] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
+      `search_similar_entities`): route, handler, tests and both its `docs/developer/api/coverage.md`
+      lines (`:692`, `:856`). It has no client and no guide; Phase 4's design sessions may bring
+      re-ID search back (ruling 236).
 - [ ] Regenerate `docs/openapi.json`.
 
 **Done when:** for every retired feature, a grep for the identifiers its inventory row lists finds
@@ -98,6 +107,7 @@ nothing in `backend/` outside its upgrade step.
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
       module under `backend/` the reachability check reports non-shipping at this PR's head,
@@ -120,6 +130,7 @@ outside `keep.toml`, and the suite is green.
 ### B3.3 Settings and residue truth
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
       and delete them with their `.env.example` and compose lines.
@@ -142,6 +153,23 @@ outside `keep.toml`, and the suite is green.
 **Done when:** the ratchet test passes; a database saved from today's `main` upgrades with its rows
 intact in CI; and the PR reports the before/after count of `nemotron`, `florence` and `enrichment`
 hits in `backend/`.
+
+### [r236] Two documented endpoints become External rows
+
+**Flags:** none. **Assigned:** backend, after `B3.3`. **Depends on:** `R2` (Phase 2's exit).
+**PR:** none yet. (ruling 236, record 6216306194)
+
+No client in `frontend/src` calls them, but the docs tell users to:
+`docs/guides/face-recognition.md:288` for `POST /api/household/members/{member_id}/embeddings`
+(`backend/api/routes/household.py:460-461`), and `docs/developer/api/core-resources.md:881` for
+`GET /api/detections/export` (`backend/api/routes/detections.py:2025-2026`).
+
+- [ ] Each gets an `External ›` inventory row (as F-290–F-294 are) with its documented action.
+- [ ] Each gets a backend golden test, as F-294's
+      `backend/tests/golden/external/test_metrics_scrape.py` is, and its row flips on the run where
+      it passes (rulings 103, 114).
+
+**Done when:** both rows exist and neither says **unverified**.
 
 ## Phase 4 — Complete the product
 
@@ -334,16 +362,16 @@ on the CI compose before their save leg can go green; until then they flip on th
 ### [r149d] F-057: the event list returns `notes`
 
 **Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** #7070 (merged).
-(ruling 149, record 6146380050)
+(rulings 149, 238; records 6146380050, 6216702824)
 
 - [x] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
       and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
       `GET /api/events`.
-- [ ] When it merges, frontend flips the read-back `test.fixme` in
-      `frontend/tests/golden/timeline/event-detail.spec.ts`; that golden path rules F-057. No `R2b`
-      entry.
+- [ ] The read-back `test.fixme` in `frontend/tests/golden/timeline/event-detail.spec.ts` is
+      flipped by `[r238]` (heavy-a; ruling 238); that golden path rules F-057. No `R2b` entry.
 
-**Done when:** `GET /api/events` returns a saved note, and F-057's read-back golden leg passes.
+**Done when:** `GET /api/events` returns a saved note, and `[r238]` merges with F-057's read-back
+golden leg passing.
 
 ### [r160b] Deferred Python major: huggingface-hub 2
 
@@ -359,7 +387,8 @@ head.
 ### [r211b] F-048: search skips deleted events and filters the severity it reports
 
 **Flags:** none. **Assigned:** backend, first on its queue (fix now). **Depends on:** none.
-**PR:** none yet. (rulings 211, 221; records 6200331506, 6205729827)
+**PR:** #7187 (merged 2026-10-16T04:40:26Z as `5365165f8`, head `4819ce171`). (rulings 211, 221;
+records 6200331506, 6205729827)
 
 - [ ] `search_events` (`backend/services/search.py`) takes the browse route's `deleted_at` predicate
       (`backend/api/routes/events.py:410`), so search never lists a soft-deleted event.
@@ -378,10 +407,34 @@ head.
 head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green and its 2
 `test.fixme` marks unchanged (ruling 221); `[r211f]` then removes those marks.
 
+### [r228] One cache key shape
+
+**Flags:** none. **Assigned:** backend, first on its queue, ahead of `[r223]` (a lane bug fix
+outside Phase 4's priority order). **Depends on:** none. **PR:** none yet. (ruling 228, record 6215814018)
+
+`[r223]`'s MEASURE (`6208408388`) found the invalidators miss the keys their routes store.
+`CacheKeys` (`backend/services/cache_service.py:730`) builds keys that already carry the global
+prefix, and `get` (`:123`) and `set` (`:196`) prepend `CACHE_PREFIX` (`:82`) again, so a camera
+list is stored as `cache:hsi:cache:cameras:list:all`. `invalidate_pattern` (`:463`) prepends it to
+the short-form pattern (`:486`), which does not match. `_get_cache_prefix()` (`:75`) has no caller.
+
+- [ ] `CacheService`'s `get`, `set`, `invalidate_pattern` and the other `f"{CACHE_PREFIX}{key}"`
+      sites, and `CacheKeys`, agree on one key shape, so each invalidator reaches the key its route
+      stores. The PR states the form chosen (for example, `CacheKeys` authoritative and
+      `_get_cache_prefix()` used or deleted).
+- [ ] **MEASURE** against a real Redis, before and after: each cached route's stored key and
+      whether its invalidator deletes it, as a table in the PR.
+- [ ] Tests: the short-form pins in `backend/tests/integration/test_cache_invalidation_comprehensive.py`
+      (`:440-448`) pin the stored shape, and a test proves an invalidator deletes a key its route
+      stored.
+
+**Done when:** the tests pass in CI at a ready head, and the PR's table shows every listed
+invalidator deleting its route's stored key.
+
 ### [r223] The developer tools' seed and clear refresh the caches they change
 
-**Flags:** none. **Assigned:** backend, after `[r211b]` (a lane bug fix outside Phase 4's priority
-order). **Depends on:** none. **PR:** none yet. (ruling 223, record 6205796977)
+**Flags:** none. **Assigned:** backend, after `[r228]` (a lane bug fix outside Phase 4's priority
+order). **Depends on:** `[r228]` merged. **PR:** none yet. (rulings 223, 228; records 6205796977, 6215814018)
 
 `seed_cameras` (`backend/api/routes/admin.py:299`) and `clear_seeded_data` (`:671`) commit without
 invalidating the camera list cache, which every camera route does
@@ -403,7 +456,8 @@ the three handlers change, each invalidated.
 ### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
 
 **Flags:** `heavy`. **Assigned:** heavy-a, ahead of `B2.3`; heavy-a opens its own draft PR.
-**Depends on:** none. **PR:** none yet. (ruling 199, record 6198662741)
+**Depends on:** none. **PR:** #7182 (merged 2026-10-15T20:25:39Z as `5d990377e`, head `3aca9abfc`).
+(ruling 199, record 6198662741)
 
 The analysis worker acknowledges each stream message once `_process_analysis_item` returns
 (`backend/services/pipeline_workers.py:943`, and `:931` on the reclaim path), and that method
@@ -437,7 +491,8 @@ each disposition is decided.
 ### [r200] One owner for the running pipeline workers
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
-**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`). **PR:** none yet. (ruling 200)
+**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`). **PR:** #7191 (merged
+2026-10-16T00:34:47Z as `78951c9b9`, head `2d8fce09f`). (ruling 200)
 
 `PipelineWorkerManager.start()` (`backend/main.py:964`) starts the configured detection and
 analysis workers (default 2 each, `backend/core/config.py:1077`, `:1085`), one batch-timeout worker

@@ -45,7 +45,7 @@ tick".`
    you take runs, not packages. Then: write your heartbeat with
    `lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"` ([`lane.md`](lane.md), "Heartbeat")
    and keep disks under 90% (UR-180);
-   if the coordinator's row is older than 20 minutes with no live `URGENT PATH`, follow `lane.md`,
+   if the coordinator's row is older than 90 minutes with no live `URGENT PATH`, follow `lane.md`,
    "Stale coordinator"; act on each printed `BINDING NOW` record that names the operator or all
    agents and whose state does not hold (UR-40, rulings 163, 170, 177); and read the full thread of
    any PR the digest shows with new comments. An `ERROR <section>` means that section went unread --

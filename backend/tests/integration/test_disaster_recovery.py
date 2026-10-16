@@ -291,11 +291,11 @@ class TestCacheDatabaseConsistency:
 
         The old body awaited ``mock_redis.delete(cache_key)`` and asserted
         the mock saw its own argument — circular (audit 3.x). The shipped
-        contract worth testing is that CacheService namespaces keys under
-        ``CACHE_PREFIX`` and maps the Redis delete count to a bool, so the
+        contract worth testing is that CacheService namespaces keys under the
+        global cache prefix and maps the Redis delete count to a bool, so the
         real service now runs with only the Redis I/O boundary mocked.
         """
-        from backend.services.cache_service import CACHE_PREFIX, CacheService
+        from backend.services.cache_service import CacheKeys, CacheService
 
         mock_redis = AsyncMock(spec=RedisClient)
         mock_redis.delete = AsyncMock(return_value=1)
@@ -303,7 +303,7 @@ class TestCacheDatabaseConsistency:
 
         assert await cache.invalidate("camera:test_cam") is True
 
-        mock_redis.delete.assert_awaited_once_with(f"{CACHE_PREFIX}camera:test_cam")
+        mock_redis.delete.assert_awaited_once_with(f"{CacheKeys.PREFIX}:cache:camera:test_cam")
 
     @pytest.mark.asyncio
     async def test_cache_invalidation_reports_miss(self) -> None:
@@ -327,7 +327,7 @@ class TestCacheDatabaseConsistency:
         Now the real CacheService.set runs (JSON payload, default TTL), so
         the DB write and the cache write are both genuinely verified.
         """
-        from backend.services.cache_service import CACHE_PREFIX, DEFAULT_TTL, CacheService
+        from backend.services.cache_service import DEFAULT_TTL, CacheKeys, CacheService
 
         # Create camera in database
         async with get_session() as session:
@@ -344,7 +344,7 @@ class TestCacheDatabaseConsistency:
 
         mock_redis.set.assert_awaited_once()
         stored_key, stored_value = mock_redis.set.await_args.args
-        assert stored_key == f"{CACHE_PREFIX}camera:{camera.id}"
+        assert stored_key == f"{CacheKeys.PREFIX}:cache:camera:{camera.id}"
         assert json.loads(stored_value) == {"id": camera.id, "name": camera.name}
         assert mock_redis.set.await_args.kwargs.get("expire") == DEFAULT_TTL
 

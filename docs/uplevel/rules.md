@@ -528,13 +528,14 @@ when a phase exits, are UR-10 (contract rule 5).
 - **UR-13** The owner rules per feature, from a verified feature inventory; modules follow their
   feature's ruling; modules serving no feature come to the owner as one list. (UR-13)
 - **UR-148** `R2` is held in two parts: `R2a` (the sheet as it stood) and `R2b` (after `F2.3`);
-  `R2b` runs in rounds, and `R2` is `done` only when `R2b`'s last round is recorded. `R2b` rules on
-  re-ID from the CPU evidence. (rulings 86, 117, 127)
+  `R2b` runs in rounds, and `R2` is `done` only when `R2b`'s last round is recorded. Re-ID stays
+  local on the CPU path (ruling 106), and `O2.4` and `B2.3` decide its TensorRT route after Phase 2
+  (rulings 107, 117). `R2b`'s last round is rulings 233-236 (ruling 237). (rulings 86, 117, 127, 237)
 - **UR-149** The frontend lane records each `R2` session or round in one PR: the rulings and
   priorities into the inventory's ruling column, the OD rulings into
   `docs/vss-integration/17-action-plan.md`, and the recorded part's status row; the owner's session
-  wrote round 2's record (ruling 216). (README "Phases and exit gates"; packages/frontend.md `R2b`;
-  ruling 135)
+  wrote round 2's record (ruling 216) and the last round's (ruling 237). (README "Phases and exit
+  gates"; packages/frontend.md `R2b`; ruling 135)
 - **UR-151** A `half-built` row goes to the `R2b` list, and the owner decides at `R2b` whether and
   when it is fixed; nobody else creates a fix package for it unless the owner orders the fix (as rulings 129 and 130 did). (ruling 120)
 - **UR-152** "Half-built" includes a break at the UI end. The `R2` sheet's §1 rules by cause, each
@@ -580,12 +581,12 @@ Read this section before you post any comment, review, heartbeat, status comment
   `roles/operator.md`, "The tick"): the Claude Code lanes (backend, frontend, ops-a, ops-b, docs)
   keep `[r193]`'s watcher armed, re-armed at the end of every turn, and run a **30-minute** `/loop`
   beside it as a fallback; heavy agents under pi run a **15-minute** `/loop` and arm nothing; the
-  operator and the coordinator run **30**. GitHub stays the only channel between agents; the owner
-  re-arms ticks weekly and after a restart. Before arming a tick, list the agent's
-  scheduled tasks and arm a new one only if none is listed, so ticks never run twice; a recurring
-  `/loop` expires after seven days and a restart, resume or `/clear` drops it. (ruling 245, which
-  replaces the "lanes and heavy 15" line and the coordinator's 5 minutes from before ruling 239;
-  UR-36; the deleted 50-coordination.md "Keeping ticks alive")
+  operator and the coordinator run **30** (ruling 239). GitHub stays the only channel between
+  agents; the owner re-arms ticks weekly and after a restart. Before arming a tick, list the
+  agent's scheduled tasks and arm a new one only if none is listed, so ticks never run twice; a
+  recurring `/loop` expires after seven days and a restart, resume or `/clear` drops it.
+  (ruling 245, which replaces this rule's "lanes and heavy 15" line and keeps the coordinator's 30
+  from ruling 239; UR-36; the deleted 50-coordination.md "Keeping ticks alive")
 - **UR-38** No agent waits inside a turn on CI, a check run, a watcher or a sleep: it reads once,
   reports and ends the turn. Each tick edits its own heartbeat on the pinned "Uplevel heartbeats"
   issue; a stalled agent goes to the owner on the urgent path (`roles/lane.md`, "The tick").
@@ -614,10 +615,13 @@ Read this section before you post any comment, review, heartbeat, status comment
   `paused · queue empty (ruling 88)` and ends its turn, and the owner stops its loop. When the owner
   stops an agent, the owner's session may write its `paused` heartbeat. An agent whose heartbeat
   reads `paused` is not stalled and gets no assignment. (ruling 88; record 6103795550)
-- **UR-162** A lane that reads the coordinator's heartbeat older than 20 minutes checks #6854 for an
+- **UR-162** A lane that reads the coordinator's heartbeat older than 90 minutes checks #6854 for an
   `URGENT PATH · coordinator stale` comment in the last hour; if there is none, it posts one
-  (heartbeat age, read time, nothing more) in UR-168's form. (rulings 64, 81; owner design session
-  2026-10-12, pass 2 Q8; corrects the deleted 50-coordination.md "Stalled agents")
+  (heartbeat age, read time, nothing more) in UR-168's form. The coordinator's loop fires every 30
+  minutes and a tick may run 60, so a healthy heartbeat can be about 90 minutes old; every other
+  heartbeat keeps 20 minutes. Until `[r239]` merges the digest flags the coordinator past 20
+  minutes, and a heartbeat 20 to 90 minutes old gets no raise. (rulings 64, 81, 239; owner design
+  session 2026-10-12, pass 2 Q8; corrects the deleted 50-coordination.md "Stalled agents")
 - **UR-163** Recovery of a stalled agent is the owner's, with no watchdog agent: Esc in the agent's
   pane, a catch-up prompt that names its open work, and a new tick only if the agent lists none
   scheduled. No agent reaches into another's sandbox. (ruling 64; roles/owner-partner.md "Stalls and
@@ -692,7 +696,7 @@ or an agent's memory.
   `.git/config` is the agent's to write, and settings such as `core.fsmonitor` run commands when the
   host's git opens it. (the deleted 50-coordination.md "Where agents run"; history/packages-done.md
   `O0.1`)
-- **UR-173** The coordinator stays on the fast model on a 5-minute loop; the owner may reopen this
+- **UR-173** The coordinator stays on the fast model on a 30-minute loop (ruling 239); the owner may reopen this
   if it stops assigning, leaves the status comment unedited for over an hour, or states a fact it
   did not read. Its sandbox is disposable: restarted, it rebuilds its state from PRs, labels and the
   pinned issues. (ruling 85; the deleted 50-coordination.md "Where agents run")

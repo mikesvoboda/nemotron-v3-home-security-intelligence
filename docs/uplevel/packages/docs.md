@@ -28,6 +28,7 @@ Each package here starts on a lane's directories as UR-68 allows.
 ### W3.1 Boundaries only
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Delete every `AGENTS.md` outside the boundary list (`UR-21`), moving any non-discoverable
       knowledge it holds into the nearest boundary file.
@@ -40,6 +41,7 @@ removed.
 ### W3.2 Rewrite the boundary files to the standard
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
+**PR:** none yet. (ruling 241)
 
 One PR per lane's boundary files.
 
@@ -60,6 +62,7 @@ agent has approved its own files.
 ### W3.3 Living docs truth
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Delete the 30 redirect stubs in `docs/development/` (**DECIDE** whether mkdocs needs
       redirects for external links), the `docs/goal-prompt-*.txt` files and the goal prompts in
@@ -84,6 +87,7 @@ list covers them, each directory added in the PR that fixes its citations (owner
 ### W3.4 Carry out the docs rulings
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Apply the `R2` rulings from `W2.2`: the single plan home, the register's shape, the
       image-validation plans. `R2a` ruled them (ruling 89):
@@ -107,22 +111,40 @@ them, is UR-81. This lane opens a package only on a trigger (UR-68).
 
 ### [r196b] F-234's channel test
 
-**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** none yet.
+**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** #7181 (merged 2026-10-16T05:28:12Z as `257572118`, head `6e28d9e2c`).
 (rulings 192, 194, 196)
 
-- [ ] `test.use({ channel: 'chromium' })` at the top of
+- [x] `test.use({ channel: 'chromium' })` at the top of
       `frontend/tests/golden/notify-access/permission.spec.ts` only; `frontend/playwright.config.ts`
       is unchanged (ruling 194). The PR's title carries `[r196b]`; frontend reviews.
-- [ ] One CI run decides. If the granted leg executes and passes, F-234 flips to **awaiting real
+      Re-measured at the merge this turn: `git diff --name-only 5365165f8 6e28d9e2c` is TWO files —
+      `permission.spec.ts` and `docs/reference/feature-inventory.md` — with exactly 1 added
+      `+test.use({ channel: 'chromium' });` line and a 0-line diff on `playwright.config.ts`. (Base
+      `5365165f8` is the PR's base, not the merge's first parent: diffing the MERGE commit
+      `257572118` instead lists a third file, `known-person-embedding.seeded.spec.ts`, which is
+      #7199's work coming in through the merge — attribute a merged PR against its own head.)
+- [x] One CI run decides. If the granted leg executes and passes, F-234 flips to **awaiting real
       tier** on that run. If it still reads `denied`, or the browser cannot launch in the golden
       container, revert the line, post the run on #6996, and the row returns to the owner.
+      The deciding run is the row's cited `38781211294` / job `116583068172`
+      (`Feature check (fake AI)`, `success`), whose artifact attests the execution half: the spec's
+      own runtime self-skip at `permission.spec.ts:181-187` did NOT fire, so the granted leg ran
+      rather than skipped. That non-fire is F-234's evidence cell's attestation, which I did NOT
+      re-download this turn; what I re-measured at the merge is the outcome half by column — parsing
+      all 294 `F-` rows at `257572118`, F-234's status cell is `unverified` at base `5365165f8` and
+      `awaiting real tier` at the merge, so the flip rode this PR.
+      `awaiting real tier`, not `works`: the real tier has not run (rulings 103, 148).
 
 **Done when:** F-234 is **awaiting real tier**, or the run that returns it to the owner is posted.
+**MET** — F-234 is `awaiting real tier` on `main` as of `257572118`; no revert leg was needed, so
+nothing was posted to #6996 for that purpose. (That draft PR is itself now closed under ruling 209 —
+see its release comment 6208840202 — which is also why this box's "post the run on #6996" branch is
+moot rather than pending.)
 
 ### [r215d] F-278's leg on the seeded face vector
 
 **Flags:** none. **Assigned:** docs, now, alongside `[r196b]`, with UR-52 waived (ruling 226).
-**Depends on:** `[r215a]` merged (#7188). **PR:** #7204 (open). (rulings 215, 226; records
+**Depends on:** `[r215a]` merged (#7188). **PR:** #7204 (merged 2026-10-16T06:47:23Z as `f1c300662`, head `0981aa40b`). (rulings 215, 226; records
 6200719567, 6206280092)
 
 - [x] F-278's leg runs in `Feature check (seeded)`: it opens the seeded person, sees the enrolled
@@ -160,6 +182,31 @@ on the real tier" (`docs/reference/feature-inventory.md:33`).
 
 **Done when:** the legend agrees with UR-136, and every listed row carries the note and is not
 **works**.
+
+### [r231] Every model family the real tier fakes
+
+**Flags:** none. **Assigned:** docs, after `[r207]`. **Depends on:** `[r207]` merged (#7209).
+**PR:** none yet. (ruling 231, record 6215981513)
+
+Ruling 207 named the detector, re-ID and threat families. The real tier serves only the real VLM
+(UR-136), and `models.yml` serves more families through the AI gateway: face detection and
+recognition (`face-detector-scrfd`, `face-recognizer`, `yolo11-face`), license plates
+(`yolo11-license-plate`, `fast-alpr`, `paddleocr`) and general detection (`yolo26-general`).
+Ruling 231 extends ruling 207 to every family except the VLM.
+
+- [ ] **MEASURE** which `models.yml` families the real tier fakes, from its compose and UR-136, and
+      list them in the PR.
+- [ ] List the rows whose behaviour comes from those families' output, each with the code path
+      that reads it. Each carries the note `needs real Triton models`, and a listed row at **works**
+      goes back to **awaiting real tier**, named in the PR. The inventory legend names the set.
+- [ ] F-270, F-271 and F-275's evidence cells cite the 2026-10-13 real-tier run that set them to
+      **works** (commit `5db3c56f7`, project `hsi-check-20261013234949-a14ce4`) in place of the
+      stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87),
+      unless the list above puts the row back to **awaiting real tier**.
+
+**Done when:** every listed row carries the note and is not **works**, the legend agrees with
+UR-136, and each of the three evidence cells cites its real-tier run unless the list put its row
+back.
 
 ### [r165b] F-235: cure the quarantined notify channels spec
 

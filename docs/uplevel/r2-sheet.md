@@ -1,5 +1,9 @@
 # R2 Ruling Sheet — session date TBD by the owner
 
+> **Final** (ruling 237, 2026-10-16): `R2b`'s last round, rulings 233-236, is recorded, so `R2` is
+> `done` (UR-148). Rows below keep the facts as they were measured; their rulings are in the
+> inventory's ruling column and `history/ruling-map.md`.
+
 > Created early by `W2.2` (docs lane), before `F2.2` runs. The template
 > (`templates/r2-sheet.md`) says `F2.2` copies it here and fills it; `W2.2`'s Done-when needs its
 > three rows committed before the owner's ruling session, so this file starts with only the docs
@@ -463,7 +467,7 @@ safety rails:
 
 **Evidence. They delete different files.**
 
-- The storage cleaner (`run_orphaned_file_cleanup`, `backend/api/routes/system.py:3403`) scans the
+- The storage cleaner (`run_orphaned_file_cleanup`, `backend/api/routes/system.py:3427`) scans the
   **thumbnails and clips** directories (`backend/services/cleanup_service.py:763`, `:768`): derived
   files whose `Detection` or `Event` row is gone. No age or size limit. Guarded by `verify_api_key`
   (`backend/api/routes/system.py:3401`), which passes everyone while `API_KEY_ENABLED` is off, its

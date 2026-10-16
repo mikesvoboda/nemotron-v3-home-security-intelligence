@@ -220,7 +220,7 @@ class TestBuildEventLinks:
         assert "collection" in rels
         assert "camera" in rels
         assert "detections" in rels
-        assert "enrichment" in rels
+        assert "enrichment" not in rels
         assert "clip" in rels
         assert "update" in rels
 
