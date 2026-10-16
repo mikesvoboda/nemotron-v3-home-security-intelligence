@@ -677,6 +677,7 @@ this list is measured at this head by the two methods above, which agree, and is
 | `frontend/src/types/async.ts` | frontend | 408 | `022bc2ed0` 2026-01-06 | unreachable from `src/main.tsx` |
 | `frontend/src/types/branded.ts` | frontend | 322 | `022bc2ed0` 2026-01-06 | unreachable from `src/main.tsx` |
 | `frontend/src/types/constants.ts` | frontend | 570 | `022bc2ed0` 2026-01-06 | unreachable from `src/main.tsx` |
+| `frontend/src/types/enrichment.ts` | frontend | 912 | `7605501ee` 2026-01-08 | unreachable from `src/main.tsx` |
 | `frontend/src/types/guards.ts` | frontend | 539 | `022bc2ed0` 2026-01-06 | unreachable from `src/main.tsx` |
 | `frontend/src/types/index.ts` | frontend | 481 | `08369d595` 2026-02-01 | unreachable from `src/main.tsx` |
 | `frontend/src/types/rate-limit.ts` | frontend | 39 | `2b638cbdb` 2026-01-11 | unreachable from `src/main.tsx` |
@@ -910,40 +911,40 @@ grew `useFaceRecognitionApi.ts` by 13 lines under a row this document had alread
 | `GET /api/tracks/{}` | `useTrack` | `frontend/src/hooks/useTracks.ts` | line 423; knip --production: unused export |
 | `GET /api/action-events/{}` | `fetchActionEvent` | `frontend/src/services/actionEventsApi.ts` | line 243; knip --production: unused export |
 | `GET /api/action-events/camera/{}` | `fetchActionEventsForCamera` | `frontend/src/services/actionEventsApi.ts` | line 277; knip --production: unused export |
-| `GET /api/cameras/validation/paths` | `fetchCameraPathValidation` | `frontend/src/services/api.ts` | line 1505; knip --production: unused export |
-| `GET /api/system/stats` | `fetchStats` | `frontend/src/services/api.ts` | line 2113; knip --production: unused export |
-| `GET /api/queues/status` | `fetchQueuesStatus` | `frontend/src/services/api.ts` | line 2238; knip --production: unused export |
-| `GET /api/system/websocket/events` | `fetchWebSocketEventTypes` | `frontend/src/services/api.ts` | line 2263; knip --production: unused export |
-| `GET /api/events/clusters` | `fetchEventClusters` | `frontend/src/services/api.ts` | line 2379; knip --production: unused export |
-| `GET /api/detections` | `fetchDetections` | `frontend/src/services/api.ts` | line 2764; knip --production: unused export |
-| `GET /api/detections/search` | `searchDetections` | `frontend/src/services/api.ts` | line 2816; knip --production: unused export |
-| `GET /api/detections/{}` | `fetchDetection` | `frontend/src/services/api.ts` | line 2837; knip --production: unused export |
-| `POST /api/detections/bulk` | `bulkCreateDetections` | `frontend/src/services/api.ts` | line 2884; knip --production: unused export |
-| `PATCH /api/detections/bulk` | `bulkUpdateDetections` | `frontend/src/services/api.ts` | line 2912; knip --production: unused export |
-| `DELETE /api/detections/bulk` | `bulkDeleteDetections` | `frontend/src/services/api.ts` | line 2940; knip --production: unused export |
-| `GET /api/events/analyze/{}/stream` | `createAnalysisStream` | `frontend/src/services/api.ts` | line 3019; knip --production: unused export |
-| `POST /api/dlq/requeue/{}` | `requeueDlqJob` | `frontend/src/services/api.ts` | line 3422; knip --production: unused export |
-| `GET /api/events/export` | `exportEventsCSV` | `frontend/src/services/api.ts` | line 3496; knip --production: unused export |
-| `GET /api/exports/{}/download/info` | `getExportDownloadInfo` | `frontend/src/services/api.ts` | line 3690; knip --production: unused export |
-| `GET /api/jobs/{}/detail` | `fetchJobDetail` | `frontend/src/services/api.ts` | line 4042; knip --production: unused export |
-| `PATCH /api/notification/config` | `updateNotificationConfig` | `frontend/src/services/api.ts` | line 4269; knip --production: unused export |
-| `GET /api/notification-preferences/cameras/{}` | `fetchCameraNotificationSetting` | `frontend/src/services/api.ts` | line 4408; knip --production: unused export |
-| `GET /api/audit/{}` | `fetchAuditLog` | `frontend/src/services/api.ts` | line 4567; knip --production: unused export |
-| `GET /api/alerts/rules/{}` | `fetchAlertRule` | `frontend/src/services/api.ts` | line 4623; knip --production: unused export |
-| `GET /api/prompts/history/{}` | `fetchModelHistory` | `frontend/src/services/api.ts` | line 5629; knip --production: unused export |
-| `POST /api/prompts/history/{}` | `restorePromptVersion` | `frontend/src/services/api.ts` | line 5646; knip --production: unused export |
-| `GET /api/entities` | `fetchTrackedEntities` | `frontend/src/services/api.ts` | line 6403; knip --production: unused export |
-| `GET /api/entities/trusted` | `fetchTrustedEntities` | `frontend/src/services/api.ts` | line 6909; knip --production: unused export |
-| `GET /api/entities/untrusted` | `fetchUntrustedEntities` | `frontend/src/services/api.ts` | line 6949; knip --production: unused export |
-| `GET /api/analytics/camera-activity` | `fetchCameraActivity` | `frontend/src/services/api.ts` | line 7285; knip --production: unused export |
-| `GET /api/summaries/entities` | `fetchEntityRecognitionStats` | `frontend/src/services/api.ts` | line 8124; knip --production: unused export |
-| `GET /api/v1/households/{}` | `fetchHousehold` | `frontend/src/services/api.ts` | line 8343; knip --production: unused export |
-| `GET /api/v1/properties/{}` | `fetchProperty` | `frontend/src/services/api.ts` | line 8406; knip --production: unused export |
-| `GET /api/v1/areas/{}` | `fetchArea` | `frontend/src/services/api.ts` | line 8468; knip --production: unused export |
-| `GET /api/logs/stats` | `fetchLogStats` | `frontend/src/services/api.ts` | line 8966; knip --production: unused export |
-| `GET /api/logs` | `fetchLogs` | `frontend/src/services/api.ts` | line 9020; knip --production: unused export |
-| `GET /api/reid/similar/{}` | `fetchReidSimilar` | `frontend/src/services/api.ts` | line 9133; knip --production: unused export |
-| `GET /api/summaries/trends` | `fetchTrends` | `frontend/src/services/api.ts` | line 9306; knip --production: unused export |
+| `GET /api/cameras/validation/paths` | `fetchCameraPathValidation` | `frontend/src/services/api.ts` | line 1489; knip --production: unused export |
+| `GET /api/system/stats` | `fetchStats` | `frontend/src/services/api.ts` | line 2097; knip --production: unused export |
+| `GET /api/queues/status` | `fetchQueuesStatus` | `frontend/src/services/api.ts` | line 2222; knip --production: unused export |
+| `GET /api/system/websocket/events` | `fetchWebSocketEventTypes` | `frontend/src/services/api.ts` | line 2247; knip --production: unused export |
+| `GET /api/events/clusters` | `fetchEventClusters` | `frontend/src/services/api.ts` | line 2346; knip --production: unused export |
+| `GET /api/detections` | `fetchDetections` | `frontend/src/services/api.ts` | line 2682; knip --production: unused export |
+| `GET /api/detections/search` | `searchDetections` | `frontend/src/services/api.ts` | line 2735; knip --production: unused export |
+| `GET /api/detections/{}` | `fetchDetection` | `frontend/src/services/api.ts` | line 2776; knip --production: unused export |
+| `POST /api/detections/bulk` | `bulkCreateDetections` | `frontend/src/services/api.ts` | line 2821; knip --production: unused export |
+| `PATCH /api/detections/bulk` | `bulkUpdateDetections` | `frontend/src/services/api.ts` | line 2849; knip --production: unused export |
+| `DELETE /api/detections/bulk` | `bulkDeleteDetections` | `frontend/src/services/api.ts` | line 2879; knip --production: unused export |
+| `GET /api/events/analyze/{}/stream` | `createAnalysisStream` | `frontend/src/services/api.ts` | line 2943; knip --production: unused export |
+| `POST /api/dlq/requeue/{}` | `requeueDlqJob` | `frontend/src/services/api.ts` | line 3361; knip --production: unused export |
+| `GET /api/events/export` | `exportEventsCSV` | `frontend/src/services/api.ts` | line 3417; knip --production: unused export |
+| `GET /api/exports/{}/download/info` | `getExportDownloadInfo` | `frontend/src/services/api.ts` | line 3629; knip --production: unused export |
+| `GET /api/jobs/{}/detail` | `fetchJobDetail` | `frontend/src/services/api.ts` | line 3981; knip --production: unused export |
+| `PATCH /api/notification/config` | `updateNotificationConfig` | `frontend/src/services/api.ts` | line 4206; knip --production: unused export |
+| `GET /api/notification-preferences/cameras/{}` | `fetchCameraNotificationSetting` | `frontend/src/services/api.ts` | line 4345; knip --production: unused export |
+| `GET /api/audit/{}` | `fetchAuditLog` | `frontend/src/services/api.ts` | line 4506; knip --production: unused export |
+| `GET /api/alerts/rules/{}` | `fetchAlertRule` | `frontend/src/services/api.ts` | line 4562; knip --production: unused export |
+| `GET /api/prompts/history/{}` | `fetchModelHistory` | `frontend/src/services/api.ts` | line 5561; knip --production: unused export |
+| `POST /api/prompts/history/{}` | `restorePromptVersion` | `frontend/src/services/api.ts` | line 5580; knip --production: unused export |
+| `GET /api/entities` | `fetchTrackedEntities` | `frontend/src/services/api.ts` | line 6319; knip --production: unused export |
+| `GET /api/entities/trusted` | `fetchTrustedEntities` | `frontend/src/services/api.ts` | line 6829; knip --production: unused export |
+| `GET /api/entities/untrusted` | `fetchUntrustedEntities` | `frontend/src/services/api.ts` | line 6867; knip --production: unused export |
+| `GET /api/analytics/camera-activity` | `fetchCameraActivity` | `frontend/src/services/api.ts` | line 7218; knip --production: unused export |
+| `GET /api/summaries/entities` | `fetchEntityRecognitionStats` | `frontend/src/services/api.ts` | line 8063; knip --production: unused export |
+| `GET /api/v1/households/{}` | `fetchHousehold` | `frontend/src/services/api.ts` | line 8282; knip --production: unused export |
+| `GET /api/v1/properties/{}` | `fetchProperty` | `frontend/src/services/api.ts` | line 8345; knip --production: unused export |
+| `GET /api/v1/areas/{}` | `fetchArea` | `frontend/src/services/api.ts` | line 8407; knip --production: unused export |
+| `GET /api/logs/stats` | `fetchLogStats` | `frontend/src/services/api.ts` | line 8905; knip --production: unused export |
+| `GET /api/logs` | `fetchLogs` | `frontend/src/services/api.ts` | line 8941; knip --production: unused export |
+| `GET /api/reid/similar/{}` | `fetchReidSimilar` | `frontend/src/services/api.ts` | line 9051; knip --production: unused export |
+| `GET /api/summaries/trends` | `fetchTrends` | `frontend/src/services/api.ts` | line 9245; knip --production: unused export |
 | `GET /api/llm-reasoning/events/{}/prompt` | `fetchLLMPromptDebug` | `frontend/src/services/llmReasoningApi.ts` | line 275; knip --production: unused export |
 | `GET /api/system/monitoring/targets` | `fetchMonitoringTargets` | `frontend/src/services/monitoringApi.ts` | line 73; knip --production: unused export |
 | `GET /api/plate-reads/{}` | `fetchPlateReadById` | `frontend/src/services/plateReadsApi.ts` | line 203; knip --production: unused export |
@@ -955,26 +956,25 @@ grew `useFaceRecognitionApi.ts` by 13 lines under a row this document had alread
 | `DELETE /api/v1/households/{}` | `deleteHousehold` | `frontend/src/hooks/useHouseholdApi.ts` | line 388; built by `useHouseholdApi`, but neither consumer takes it: `HouseholdSettings` (`frontend/src/components/settings/HouseholdSettings.tsx:232`) and `ZoneAccessSettings` (`frontend/src/components/settings/ZoneAccessSettings.tsx:173`) |
 | `GET /api/analytics-zones/polygon-zones/{}/entity-distribution` | `fetchZoneEntityDistribution` | `frontend/src/hooks/useZoneEntityDistribution.ts` | line 74; referenced only by `useZoneEntityDistribution`, which no rendered component reaches |
 | `GET /api/zones/{}/household/trust/{}/{}` | `checkEntityTrust` | `frontend/src/hooks/useZoneTrustMatrix.ts` | line 221; referenced only by `useTrustCheckQuery`, which no rendered component reaches |
-| `GET /api/cameras/{}` | `fetchCamera` | `frontend/src/services/api.ts` | line 1413; referenced only by `useCameraQuery`, which no rendered component reaches |
-| `GET /api/cameras/{}/baseline/classes` | `fetchCameraClassBaseline` | `frontend/src/services/api.ts` | line 1931; referenced only by `useCameraClassBaselineQuery`, which no rendered component reaches |
-| `GET /api/events/{}/enrichments` | `fetchEventEnrichments` | `frontend/src/services/api.ts` | line 2667; referenced only by `useEventEnrichmentsQuery`, which no rendered component reaches |
-| `GET /api/detections/labels` | `fetchDetectionLabels` | `frontend/src/services/api.ts` | line 2827; referenced only by `useDetectionLabelsQuery`, which no rendered component reaches |
-| `GET /api/jobs/{}/logs` | `fetchJobLogs` | `frontend/src/services/api.ts` | line 4032; referenced only by `useJobLogsQuery`, which no rendered component reaches |
-| `POST /api/alerts/{}/acknowledge` | `acknowledgeAlert` | `frontend/src/services/api.ts` | line 4734; referenced only by `useAcknowledgeAlert` → `useAlertMutations`, which no component uses (the header's scene-change dismiss is a local function of `useSceneChangeAlerts`) |
-| `POST /api/alerts/{}/dismiss` | `dismissAlert` | `frontend/src/services/api.ts` | line 4751; referenced only by `useDismissAlert`, `useAlertMutations`, which no rendered component reaches |
-| `GET /api/cameras/{}/zones/{}` | `fetchZone` | `frontend/src/services/api.ts` | line 4792; referenced only by `useZoneQuery`, which no rendered component reaches |
-| `POST /api/system/services/{}/start` | `startService` | `frontend/src/services/api.ts` | line 5071; `useStartServiceMutation` is built inside `useServiceMutations`, but `ServicesPanel` takes only restart/stop/enable from it (`frontend/src/components/system/ServicesPanel.tsx:366`) |
-| `GET /api/system/services` | `fetchContainerServices` | `frontend/src/services/api.ts` | line 5150; referenced only by `ContainersPanel`, which no rendered component reaches |
-| `GET /api/detections/{}/enrichment` | `fetchDetectionEnrichment` | `frontend/src/services/api.ts` | line 5292; referenced only by `useDetectionEnrichment`, which no rendered component reaches |
-| `GET /api/entities/v2` | `fetchEntitiesV2` | `frontend/src/services/api.ts` | line 6707; referenced only by `useEntitiesV2Query`, which no rendered component reaches |
-| `GET /api/debug/pipeline-errors` | `fetchPipelineErrors` | `frontend/src/services/api.ts` | line 7741; referenced only by `usePipelineErrorsQuery`, which no rendered component reaches |
-| `GET /api/debug/websocket/connections` | `fetchWebSocketConnections` | `frontend/src/services/api.ts` | line 7849; referenced only by `useWebSocketConnectionsQuery`, which no rendered component reaches |
-| `GET /api/debug/memory` | `fetchMemoryStats` | `frontend/src/services/api.ts` | line 8727; referenced only by `useMemoryStatsQuery`, `MemorySnapshotPanel`, `DeveloperToolsPage`, which no rendered component reaches |
-| `POST /api/debug/memory/gc` | `triggerGc` | `frontend/src/services/api.ts` | line 8748; referenced only by `useMemoryStatsQuery`, `MemorySnapshotPanel`, `DeveloperToolsPage`, which no rendered component reaches |
-| `POST /api/debug/memory/tracemalloc/start` | `startTracemalloc` | `frontend/src/services/api.ts` | line 8772; referenced only by `useMemoryStatsQuery`, `MemorySnapshotPanel`, `DeveloperToolsPage`, which no rendered component reaches |
-| `POST /api/debug/memory/tracemalloc/stop` | `stopTracemalloc` | `frontend/src/services/api.ts` | line 8795; referenced only by `useMemoryStatsQuery`, `MemorySnapshotPanel`, `DeveloperToolsPage`, which no rendered component reaches |
-| `GET /api/debug/circuit-breakers` | `fetchDebugCircuitBreakers` | `frontend/src/services/api.ts` | line 8843; referenced only by `useCircuitBreakerDebugQuery`, `CircuitBreakerDebugPanel`, `DeveloperToolsPage`, which no rendered component reaches |
-| `GET /api/analytics/costs/trends` | `fetchCostTrends` | `frontend/src/services/api.ts` | line 9207; referenced only by `useCostTrendsQuery`, which no rendered component reaches |
+| `GET /api/cameras/{}` | `fetchCamera` | `frontend/src/services/api.ts` | line 1397; referenced only by `useCameraQuery`, which no rendered component reaches |
+| `GET /api/cameras/{}/baseline/classes` | `fetchCameraClassBaseline` | `frontend/src/services/api.ts` | line 1915; referenced only by `useCameraClassBaselineQuery`, which no rendered component reaches |
+| `GET /api/detections/labels` | `fetchDetectionLabels` | `frontend/src/services/api.ts` | line 2766; referenced only by `useDetectionLabelsQuery`, which no rendered component reaches |
+| `GET /api/jobs/{}/logs` | `fetchJobLogs` | `frontend/src/services/api.ts` | line 3961; referenced only by `useJobLogsQuery`, which no rendered component reaches |
+| `POST /api/alerts/{}/acknowledge` | `acknowledgeAlert` | `frontend/src/services/api.ts` | line 4673; referenced only by `useAcknowledgeAlert` → `useAlertMutations`, which no component uses (the header's scene-change dismiss is a local function of `useSceneChangeAlerts`) |
+| `POST /api/alerts/{}/dismiss` | `dismissAlert` | `frontend/src/services/api.ts` | line 4690; referenced only by `useDismissAlert`, `useAlertMutations`, which no rendered component reaches |
+| `GET /api/cameras/{}/zones/{}` | `fetchZone` | `frontend/src/services/api.ts` | line 4731; referenced only by `useZoneQuery`, which no rendered component reaches |
+| `POST /api/system/services/{}/start` | `startService` | `frontend/src/services/api.ts` | line 5010; `useStartServiceMutation` is built inside `useServiceMutations`, but `ServicesPanel` takes only restart/stop/enable from it (`frontend/src/components/system/ServicesPanel.tsx:366`) |
+| `GET /api/system/services` | `fetchContainerServices` | `frontend/src/services/api.ts` | line 5086; referenced only by `ContainersPanel`, which no rendered component reaches |
+| `GET /api/detections/{}/enrichment` | `fetchDetectionEnrichment` | `frontend/src/services/api.ts` | line 5231; referenced only by `useDetectionEnrichment`, which no rendered component reaches |
+| `GET /api/entities/v2` | `fetchEntitiesV2` | `frontend/src/services/api.ts` | line 6619; referenced only by `useEntitiesV2Query`, which no rendered component reaches |
+| `GET /api/debug/pipeline-errors` | `fetchPipelineErrors` | `frontend/src/services/api.ts` | line 7671; referenced only by `usePipelineErrorsQuery`, which no rendered component reaches |
+| `GET /api/debug/websocket/connections` | `fetchWebSocketConnections` | `frontend/src/services/api.ts` | line 7788; referenced only by `useWebSocketConnectionsQuery`, which no rendered component reaches |
+| `GET /api/debug/memory` | `fetchMemoryStats` | `frontend/src/services/api.ts` | line 8654; referenced only by `useMemoryStatsQuery`, `MemorySnapshotPanel`, `DeveloperToolsPage`, which no rendered component reaches |
+| `POST /api/debug/memory/gc` | `triggerGc` | `frontend/src/services/api.ts` | line 8687; referenced only by `useMemoryStatsQuery`, `MemorySnapshotPanel`, `DeveloperToolsPage`, which no rendered component reaches |
+| `POST /api/debug/memory/tracemalloc/start` | `startTracemalloc` | `frontend/src/services/api.ts` | line 8710; referenced only by `useMemoryStatsQuery`, `MemorySnapshotPanel`, `DeveloperToolsPage`, which no rendered component reaches |
+| `POST /api/debug/memory/tracemalloc/stop` | `stopTracemalloc` | `frontend/src/services/api.ts` | line 8734; referenced only by `useMemoryStatsQuery`, `MemorySnapshotPanel`, `DeveloperToolsPage`, which no rendered component reaches |
+| `GET /api/debug/circuit-breakers` | `fetchDebugCircuitBreakers` | `frontend/src/services/api.ts` | line 8782; referenced only by `useCircuitBreakerDebugQuery`, `CircuitBreakerDebugPanel`, `DeveloperToolsPage`, which no rendered component reaches |
+| `GET /api/analytics/costs/trends` | `fetchCostTrends` | `frontend/src/services/api.ts` | line 9142; referenced only by `useCostTrendsQuery`, which no rendered component reaches |
 | `GET /api/system/ai-services` | `getAiServices` | `frontend/src/services/gpuConfigApi.ts` | line 492; referenced only by `useAiServices`, which no rendered component reaches |
 | `GET /api/system/gpu-config/history/{}` | `getConfigVersion` | `frontend/src/services/gpuConfigApi.ts` | line 718; referenced only by `useConfigVersion`, which no rendered component reaches |
 | `POST /api/system/models/{}/reload` | `reloadModel` | `frontend/src/services/modelZooApi.ts` | line 357; referenced only by `useReloadModel`, `modelZooApi`, which no rendered component reaches |
@@ -982,7 +982,7 @@ grew `useFaceRecognitionApi.ts` by 13 lines under a row this document had alread
 | `GET /api/scheduled-reports/{}` | `getScheduledReport` | `frontend/src/services/scheduledReportsApi.ts` | line 167; referenced only by `useScheduledReportQuery`, which no rendered component reaches |
 | `GET /api/system/supervisor/restart-history` | `fetchRestartHistory` | `frontend/src/services/supervisorApi.ts` | line 165; referenced only by `useRestartHistory`, which no rendered component reaches |
 | `GET /api/outbound-webhooks/{}` | `getWebhook` | `frontend/src/services/webhookApi.ts` | line 198; referenced only by `useWebhook`, which no rendered component reaches |
-| `GET /api/system/health/full` | `fetchFullHealth` | `frontend/src/services/api.ts` | line 2082; referenced only by `useFullHealthQuery`, `useSuspenseHealthQuery` and the route-prefetch table (`routePrefetchConfigs` → `useRoutePrefetch`), which no rendered component reaches |
+| `GET /api/system/health/full` | `fetchFullHealth` | `frontend/src/services/api.ts` | line 2064; referenced only by `useFullHealthQuery`, `useSuspenseHealthQuery` and the route-prefetch table (`routePrefetchConfigs` → `useRoutePrefetch`), which no rendered component reaches |
 
 ## 6. The audit's seeds, re-verified
 

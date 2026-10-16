@@ -278,25 +278,13 @@ S4 retires the tables that stored two of the results. The owner ruling of 2026-0
 slice 1.6's "not analyzed in VLM mode" empty state a deletion too, so
 `EventDetailModal` no longer renders anything for `detection.enrichment_data`.
 
-**What stays:** the `EnrichmentData` model itself, in
-`frontend/src/types/enrichment.ts` — the backend still returns the object on
-detections produced by a pipeline that ran the models, and `EventDetailModal`'s
-exported `Detection` interface keeps its optional `enrichment_data` member for
-`EventTimeline`/`AlertsPage`. Also still shipping and NOT part of this
-retirement: `EnrichmentProgressBadge.tsx` and the four enrichment hooks
-(`useDetectionEnrichment`, `useEventEnrichmentsQuery`, `useEnrichmentProgress`,
-`useEventEnrichmentWebSocket`).
-
-```typescript
-interface EnrichmentData {
-  vehicle?: VehicleEnrichment;
-  pet?: PetEnrichment;
-  person?: PersonEnrichment;
-  license_plate?: LicensePlateEnrichment;
-  weather?: WeatherEnrichment;
-  image_quality?: ImageQualityEnrichment;
-}
-```
+**OD-20 retirement (`B3.1`/`F3.1`, ISS-073):** `EventDetailModal`'s exported
+`Detection` interface no longer carries `enrichment_data`, the R8 S5 tombstone
+comment is removed, and `useEventEnrichmentsQuery` / `fetchEventEnrichments` /
+`GET /api/events/{event_id}/enrichments` are retired. Still shipping outside
+OD-20's slice: `frontend/src/types/enrichment.ts`, `EnrichmentProgressBadge.tsx`,
+and the remaining enrichment hooks (`useDetectionEnrichment`,
+`useEnrichmentProgress`, `useEventEnrichmentWebSocket`).
 
 ### ThumbnailStrip.tsx
 
