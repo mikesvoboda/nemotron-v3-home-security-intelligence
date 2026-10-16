@@ -359,7 +359,7 @@ head.
 ### [r211b] F-048: search skips deleted events and filters the severity it reports
 
 **Flags:** none. **Assigned:** backend, first on its queue (fix now). **Depends on:** none.
-**PR:** none yet. (ruling 211, record 6200331506)
+**PR:** none yet. (rulings 211, 221; records 6200331506, 6205729827)
 
 - [ ] `search_events` (`backend/services/search.py`) takes the browse route's `deleted_at` predicate
       (`backend/api/routes/events.py:410`), so search never lists a soft-deleted event.
@@ -369,8 +369,13 @@ head.
 - [ ] Tests: a soft-deleted event never appears in search; a filter on the level a result displays
       finds it (a `high` row at score 91 is found by the level it shows).
 
-**Done when:** the tests pass in CI at a ready head; `[r211f]` then removes the two `test.fixme`
-marks in `timeline-search.spec.ts`.
+- [ ] Frontend's `[r211f]` commits on this PR invert F-048's golden fixture (ruling 221): search
+      excludes the soft-deleted row, `searchTotal` is the live count, and the `:585` leg's defect
+      half takes a live row on search page 2. Neither lane force-pushes the branch.
+
+**Done when:** the tests pass in CI at a ready head, and `Feature check (fake AI)` passes at the
+head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green and its 2
+`test.fixme` marks unchanged (ruling 221); `[r211f]` then removes those marks.
 
 ### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
 

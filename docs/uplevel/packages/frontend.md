@@ -518,10 +518,16 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 ### [r211f] F-048: a search result opens what was clicked
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
-for the spec's legs. **PR:** none yet. (ruling 211, record 6200331506)
+for the spec's legs. **PR:** none yet. (rulings 211, 221; records 6200331506, 6205729827)
 
+- [ ] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
+      #7187's branch (ruling 221). `harness.ts:1180` requires search to exclude the soft-deleted
+      row and `:1203`'s `searchTotal` is the live count; the spec's `fx.searchTotal` reads follow,
+      `:638` reads `false`, and the `:585` leg's defect half takes a live row on search page 2 that
+      the browse list's first page does not hold. No leg gains a mark; no force-push.
 - [ ] Clicking a search result opens that result; `getModalEvent()` no longer looks the id up in the
-      browse list (`frontend/src/components/events/EventTimeline.tsx:1059`).
+      browse list (`frontend/src/components/events/EventTimeline.tsx:1059`). The `:585` leg's
+      defect half becomes "the page-2 row opens".
 - [ ] Remove both `test.fixme` marks in `frontend/tests/golden/timeline/timeline-search.spec.ts`.
 
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
