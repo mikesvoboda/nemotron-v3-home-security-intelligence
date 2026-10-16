@@ -535,8 +535,8 @@ for the spec's legs. **PR:** none yet. (rulings 211, 221; records 6200331506, 62
 
 ### [r212] F-061 and F-062: the audit tab can run an evaluation, and both legs re-run
 
-**Flags:** none. **Assigned:** frontend, after `[r211f]` (fix now). **Depends on:** none.
-**PR:** none yet. (ruling 212, record 6200384247)
+**Flags:** none. **Assigned:** heavy-a, ahead of `B2.3` (fix now; ruling 224). **Depends on:** none.
+**PR:** none yet. (rulings 212, 224; records 6200384247, 6205825842)
 
 F-106 and F-108 share this surface and are fix-now; `[r129]` (#7031) made the batch audit load the
 deferred `Event.llm_prompt`, after these rows' evidence run at `7971475db`.
@@ -551,8 +551,8 @@ deferred `Event.llm_prompt`, after these rows' evidence run at `7971475db`.
 
 ### [r213] F-060: the saved feedback card shows what was stored
 
-**Flags:** none. **Assigned:** frontend, after `[r212]` (fix now). **Depends on:** none.
-**PR:** none yet. (ruling 213, record 6200455263)
+**Flags:** none. **Assigned:** heavy-a, after `[r212]` (fix now; ruling 224). **Depends on:** none.
+**PR:** none yet. (rulings 213, 224; records 6200455263, 6205825842)
 
 F-060 is split: the panel is a labelling tool (complete), and learning thresholds from feedback is
 retired with F-131 (R2a row 11). The labels are stored and round-trip `GET /api/feedback/event/{id}`.
@@ -566,8 +566,8 @@ retired with F-131 (R2a row 11). The labels are stored and round-trip `GET /api/
 
 ### [r214] F-213 and F-277: the owner pick saves, and a saved person appears
 
-**Flags:** none. **Assigned:** frontend, after `[r213]` (fix now). **Depends on:** none.
-**PR:** none yet. (ruling 214, record 6200676782)
+**Flags:** none. **Assigned:** heavy-a, after `[r213]` (fix now; ruling 224). **Depends on:** none.
+**PR:** none yet. (rulings 214, 224; records 6200676782, 6205825842)
 
 - [ ] F-213: the owner `<Select>`'s listbox renders above the `z-50` configure modal
       (`frontend/src/components/zones/ZoneOwnershipPanel.tsx:846`, `:883-899`), so choosing an
