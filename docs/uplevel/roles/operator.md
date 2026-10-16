@@ -37,11 +37,14 @@ tick".`
 
    (`scripts/uplevel/lane_tick.py`; `scripts/test_lane_tick.py` pins its lines.) It is read-only
    and reads its own `origin/main`; read this file and `rules.md` from
-   `git show origin/main:...` as it does. It prints your heartbeat, the coordinator's age (UR-162),
-   disk use with UR-180's pointer, the live `BINDING NOW` records the ruling map does not carry
-   (ruling 177's filter), and your open PRs with `CI Gate` at the head and comments since your beat.
-   A `NOTE no package file for lane operator` is expected -- you take runs, not packages. Then: edit
-   your heartbeat in place ([`lane.md`](lane.md), "Heartbeat") and keep disks under 90% (UR-180);
+   `git show origin/main:...` as it does. It prints first the `for you:` lines -- the records and
+   owner pointers whose footer names the operator; act on them first (ruling 197) -- then your
+   heartbeat, the coordinator's age (UR-162), disk use with UR-180's pointer, the live `BINDING NOW`
+   records the ruling map does not carry (ruling 177's filter), and your open PRs with `CI Gate` at
+   the head and comments since your beat. A `NOTE no package file for lane operator` is expected --
+   you take runs, not packages. Then: write your heartbeat with
+   `lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"` ([`lane.md`](lane.md), "Heartbeat")
+   and keep disks under 90% (UR-180);
    if the coordinator's row is older than 20 minutes with no live `URGENT PATH`, follow `lane.md`,
    "Stale coordinator"; act on each printed `BINDING NOW` record that names the operator or all
    agents and whose state does not hold (UR-40, rulings 163, 170, 177); and read the full thread of

@@ -15,17 +15,17 @@ The owner sets these queues; a change is a ruling. Ruling 175 rebalanced `F2.3` 
 works on it: packages a ruling routed after a lane's `F2.3` rows wait for them, and routed bug
 fixes (`[r130b]`, `[r130f]`) keep their place. Ruling 184 gave the heavy agents FE-4 and OP-1.
 
-| sandbox               | model     | queue                                                                                                                                                                                                                               | review label |
-| --------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                                    | none         |
-| `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                                                                                                 | none         |
-| `uplevel-frontend`    | fast      | `[r196a]`, `[r204]`, `[r205]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3` | none         |
-| `uplevel-ops-a`       | fast      | `[r189]`, `[r193]`, `[r195]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                          | none         |
-| `uplevel-ops-b`       | fast      | `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger           | none         |
-| `uplevel-docs`        | fast      | `[r196b]`, `[r207]`, `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                         | none         |
-| `uplevel-heavy-a`     | strongest | heavy-b's queue (ruling 190): #7155, OP-1's seeded rows, F-012's disk seed (ruling 192), `[r199]`, `[r200]`, `B2.3`; then `heavy` PRs without `cell:heavy-b`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions           | none         |
-| `uplevel-heavy-b`     | strongest | out of service (ruling 190); its queue is heavy-a's until the owner restarts it with a record                                                                                                                                       | none         |
-| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                                              | none         |
+| sandbox               | model     | queue                                                                                                                                                                                                                                                                           | review label |
+| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                                                                                | none         |
+| `uplevel-backend`     | fast      | `[r211b]`, `[r223]`, `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                                                                                                                        | none         |
+| `uplevel-frontend`    | fast      | `[r196a]`, `[r211f]`, `[r204]`, `[r205]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3`                                  | none         |
+| `uplevel-ops-a`       | fast      | `[r189]`, `[r193]`, `[r195]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                      | none         |
+| `uplevel-ops-b`       | fast      | `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                                       | none         |
+| `uplevel-docs`        | fast      | `[r196b]`, `[r215d]`, `[r207]`, `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                                          | none         |
+| `uplevel-heavy-a`     | strongest | heavy-b's queue (ruling 190): #7155, OP-1's seeded rows, F-012's disk seed (ruling 192), `[r199]`, `[r215a]`, `[r200]`, `[r212]`, `[r213]`, `[r214]` (ruling 224), `B2.3`; then `heavy` PRs without `cell:heavy-b`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions | none         |
+| `uplevel-heavy-b`     | strongest | out of service (ruling 190); its queue is heavy-a's until the owner restarts it with a record                                                                                                                                                                                   | none         |
+| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                                                                                          | none         |
 
 **Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. Each
 cell claims from its own roster queue (UR-52).
@@ -66,17 +66,28 @@ that died silently.
    the coordinator's age, with the UR-162 raise named when one is owed; disk use of `/` and
    `/var/lib/docker`, pointing at UR-180's cleanup ORDER above 90% (never a routine full prune,
    ruling 176); the live `BINDING NOW` records the ruling map does not yet carry (ruling 177's
-   filter, applied at the source -- the 48-hour window is never fetched unfiltered); the PRs
-   labelled `review:<lane>` and your own open PRs, each with head, merge state, `CI Gate` at that
-   head (re-read past 100 check runs; in-flight jobs named when it is still running), commits behind
-   `main`, and comments/reviews since your beat; and the next claimable roster package (UR-52). An
+   filter, applied at the source -- the 48-hour window is never fetched unfiltered); your own open
+   PRs, each with head, merge state, `CI Gate` at that head (re-read past 100 check runs; in-flight
+   jobs named when it is still running), commits behind `main`, comments/reviews since your beat,
+   and `needs your review` (ready, a non-draft CI run finished at the head, and no review of this
+   head: one whose first line names the head's sha, or a sha UR-106's carry takes to it) or
+   `arm auto-merge` (that review approves with `Plan text: none`, the gate is green, no `owner`
+   label, auto-merge off; ruling 198); `review names no head` when the newest review names no sha
+   (review the current head again as "Reviewing your PR" says, and post that review with that
+   head's sha -- never stamp a sha on a review of another head), and `review unread` when a read
+   for them failed; and the next claimable roster package (UR-52). An
    `ERROR <section>` line means that section was not read: read it yourself or say it is unread, and
    never fill it from an earlier tick (UR-29). A `NOTE no package file for lane <lane>` is the
    roster's answer for a lane with no package file (operator, heavy, coordinator), not a fault.
    Then act on the printed `BINDING NOW` records that name your lane or all agents and whose state
    does not already hold; one already carried out is a no-op (UR-40, rulings 163, 170, 177).
+   `for you:` lines, printed first, name the records of the last 48 hours and the owner pointers
+   since two hours before your beat whose footer addresses your lane; act on them
+   first (ruling 197). A `NOTE unparsed uplevel footer`
+   names a comment whose footer the digest could not read: read that comment yourself.
 
-2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, and
+2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, with
+   `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`, and
    keep your disks under 90% (UR-180). Read the coordinator's age from the digest; if it is older
    than 20 minutes with no live `URGENT PATH` on record, follow "Stale coordinator" below.
 3. **Review your ready PRs first** (UR-32): for each of your PRs that is ready, with CI finished at
@@ -126,9 +137,10 @@ PR it concerns. Only when you are blocked, add a third line, `BLOCKER: <one line
 <sandbox> · <HH:MMZ, read from date -u> · idle | working #<n> | waiting on <what> | paused · <why>
 ```
 
-Find the issue with `gh issue list --state open --search "Uplevel heartbeats in:title"`, find your
-comment by its first line, and edit it with
-`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`.
+Write it with `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`
+(a `BLOCKER:` line follows a newline in the same argument). The tool writes the marker line, finds
+your comment and edits it, or posts it if you have none, and refuses a beat over 600 characters.
+Never edit the marker line by hand (ruling 197).
 
 **Before a long step.** Before any step you expect to run over 15 minutes (a local test or golden
 run, a UR-89 self-review subagent), edit your heartbeat to

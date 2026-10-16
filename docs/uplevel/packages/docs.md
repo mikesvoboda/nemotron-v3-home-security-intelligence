@@ -119,6 +119,17 @@ them, is UR-81. This lane opens a package only on a trigger (UR-68).
 
 **Done when:** F-234 is **awaiting real tier**, or the run that returns it to the owner is posted.
 
+### [r215d] F-278's leg on the seeded face vector
+
+**Flags:** none. **Assigned:** docs, after `[r196b]`. **Depends on:** `[r215a]` merged.
+**PR:** none yet. (ruling 215, record 6200719567)
+
+- [ ] F-278's leg runs in `Feature check (seeded)`: it opens the seeded person, sees the enrolled
+      face, and deletes it (`DELETE /api/known-persons/{person_id}/embeddings/{embedding_id}`).
+
+**Done when:** the leg passes and F-278 flips to **awaiting real tier** on that run (rulings 103,
+114).
+
 ### [r207] Rows the real tier cannot confirm
 
 **Flags:** none. **Assigned:** docs, after `[r196b]`. **Depends on:** none.

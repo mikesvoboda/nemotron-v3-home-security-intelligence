@@ -99,8 +99,10 @@ nothing in `backend/` outside its upgrade step.
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then the rest
-      of the list the owner approved at `R2`. The scene-change vertical stays: R2a row 24 ruled it
+- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
+      module under `backend/` the reachability check reports non-shipping at this PR's head,
+      outside `keep.toml`: `R2`'s §3 is approved as that rule, not as the measured snapshot
+      (ruling 210, record 6200282082). The scene-change vertical stays: R2a row 24 ruled it
       complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
       183).
 - [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
@@ -353,6 +355,50 @@ on the CI compose before their save leg can go green; until then they flip on th
 
 **Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
 head.
+
+### [r211b] F-048: search skips deleted events and filters the severity it reports
+
+**Flags:** none. **Assigned:** backend, first on its queue (fix now). **Depends on:** none.
+**PR:** none yet. (rulings 211, 221; records 6200331506, 6205729827)
+
+- [ ] `search_events` (`backend/services/search.py`) takes the browse route's `deleted_at` predicate
+      (`backend/api/routes/events.py:410`), so search never lists a soft-deleted event.
+- [ ] The severity filter (`search.py:332`) tests the value the response reports
+      (`backend/api/schemas/search.py:44` derives `risk_level` from `risk_score`): one derivation,
+      read by both.
+- [ ] Tests: a soft-deleted event never appears in search; a filter on the level a result displays
+      finds it (a `high` row at score 91 is found by the level it shows).
+
+- [ ] Frontend's `[r211f]` commits on this PR invert F-048's golden fixture (ruling 221): search
+      excludes the soft-deleted row, `searchTotal` is the live count, and the defect half of the
+      leg at `frontend/tests/golden/timeline/timeline-search.spec.ts:585` takes a live row on search
+      page 2. Neither lane force-pushes the branch, and each fetches it before it pushes.
+
+**Done when:** the tests pass in CI at a ready head, and `Feature check (fake AI)` passes at the
+head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green and its 2
+`test.fixme` marks unchanged (ruling 221); `[r211f]` then removes those marks.
+
+### [r223] The developer tools' seed and clear refresh the caches they change
+
+**Flags:** none. **Assigned:** backend, after `[r211b]` (a lane bug fix outside Phase 4's priority
+order). **Depends on:** none. **PR:** none yet. (ruling 223, record 6205796977)
+
+`seed_cameras` (`backend/api/routes/admin.py:299`) and `clear_seeded_data` (`:671`) commit without
+invalidating the camera list cache, which every camera route does
+(`_invalidate_cameras_cache_background`, `backend/api/routes/cameras.py:132`). `GET /api/cameras`
+caches for 60 s (`cameras.py:261`), so F-197's toast names cameras the list does not show yet.
+
+- [ ] `seed_cameras` and `clear_seeded_data` schedule the same background invalidation of the
+      cameras cache as the camera routes.
+- [ ] **MEASURE** every other cached read the three developer-tool writes change, and list it in the
+      PR: `clear_seeded_data` deletes all events and detections (`admin.py:714-715`), `seed_events`
+      (`:450`) adds events, and `backend/api/routes/events.py` caches `get_event_stats` (`:731`) and
+      `get_timeline_summary` (`:907`). Each one a handler's write changes is invalidated the same way.
+- [ ] Unit tests pin each handler scheduling its invalidations. No golden spec changes; #7189's
+      F-197 leg reads around the cache and does not wait for this.
+
+**Done when:** the unit tests pass in CI at a ready head, and the PR's list names every cached read
+the three handlers change, each invalidated.
 
 ### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
 

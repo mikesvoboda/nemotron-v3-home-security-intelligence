@@ -898,7 +898,7 @@ async def test_a_plain_runtime_error_broadcasts_the_processing_error_payload(
         "camera_id": CAMERA_ID,
         "error": "inference failed on frame 7",
         "error_type": "processing_error",
-        "retryable": False,
+        "retryable": True,
     }, f"generic-failure payload mutated: {payload!r}"
     pin_levels(caplog, [ANALYZE_FAILED_TPL.format(err)], logging.ERROR, shipped_exc_info=True)
     pin_levels(caplog, [], logging.DEBUG)
@@ -963,7 +963,7 @@ async def test_a_generic_failure_without_a_camera_broadcasts_the_empty_string_pl
         "camera_id": "",
         "error": "model node unreachable",
         "error_type": "processing_error",
-        "retryable": False,
+        "retryable": True,
     }, f"no-camera generic payload mutated: {payload!r}"
     pin_levels(caplog, [ANALYZE_FAILED_TPL.format(err)], logging.ERROR, shipped_exc_info=True)
 
@@ -1059,7 +1059,7 @@ async def test_a_long_failure_message_is_truncated_to_500_characters(
     )
     assert payload["error"] == long_message[:ERROR_TRUNCATION]
     assert payload["error_type"] == "processing_error"
-    assert payload["retryable"] is False
+    assert payload["retryable"] is True
     assert payload["batch_id"] == BATCH_ID
     assert payload["camera_id"] == CAMERA_ID
     assert set(raw) == FAILED_KEYS

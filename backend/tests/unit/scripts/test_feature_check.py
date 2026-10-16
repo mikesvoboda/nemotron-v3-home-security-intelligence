@@ -21,6 +21,7 @@ The harness end to end (boot, smoke check, teardown) runs in the
 
 from __future__ import annotations
 
+import ast
 import copy
 import importlib.util
 import json
@@ -4906,6 +4907,11 @@ def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
             return 200, {"orphaned_count": 1, "total_size": 21}
         if url.endswith("/api/system/storage"):
             return 200, {"disk_usage_percent": 93.0}
+        if url.endswith("/api/known-persons"):
+            return 200, {
+                "items": [{"id": 1, "name": "Seeded Known Person", "embedding_count": 1}],
+                "total": 1,
+            }
         if url.endswith("/api/system/circuit-breakers"):
             return 200, {"circuit_breakers": {"redis": {"state": "open"}}, "open_count": 1}
         return 200, {"ok": True}
@@ -4922,8 +4928,61 @@ def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
         ".seeded-disk-fill" in " ".join(c) and "shutil.disk_usage" in " ".join(c)
         for c in exec_calls
     )
+    assert any(
+        "KnownPerson" in " ".join(c)
+        and "FaceEmbedding" in " ".join(c)
+        and "test-only-seeded-vector" in " ".join(c)
+        and "struct.pack('<512f'" in " ".join(c)
+        for c in exec_calls
+    )
+    for c in exec_calls:
+        if "-c" in c:
+            ast.parse(c[c.index("-c") + 1])
     assert any(url.endswith("/api/system/storage") for _, url, _ in http_calls)
+    assert any(url.endswith("/api/known-persons") for _, url, _ in http_calls)
     assert sum(1 for _, url, _ in http_calls if url.endswith("/api/debug/pipeline-state")) == 4
+
+
+def test_seed_debug_fixtures_refuses_missing_seeded_face_embedding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
+    )
+    run.prepare()
+    run.api = "http://127.0.0.1:32772"
+    run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
+
+    monkeypatch.setattr(
+        run,
+        "deployment",
+        lambda *args, **_kwargs: subprocess.CompletedProcess(
+            list(args), 0, stdout="1:1\n", stderr=""
+        ),
+    )
+
+    def fake_http(
+        _method: str, url: str, _payload: Any = None, _timeout: float = 15, **_kwargs: Any
+    ) -> tuple[int, Any]:
+        if url.endswith("/api/debug/recordings"):
+            return 200, {"recordings": [{"recording_id": "r1"}, {"recording_id": "r2"}], "total": 2}
+        if "/api/system/cleanup/orphaned-files" in url:
+            return 200, {"orphaned_count": 1, "total_size": 21}
+        if url.endswith("/api/system/storage"):
+            return 200, {"disk_usage_percent": 93.0}
+        if url.endswith("/api/known-persons"):
+            return 200, {
+                "items": [{"id": 1, "name": "Seeded Known Person", "embedding_count": 0}],
+                "total": 1,
+            }
+        if url.endswith("/api/system/circuit-breakers"):
+            return 200, {"circuit_breakers": {"redis": {"state": "open"}}, "open_count": 1}
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(fc, "_http", fake_http)
+
+    with pytest.raises(fc.HarnessError, match="embedding_count >= 1"):
+        run.seed_debug_fixtures()
 
 
 def test_seed_debug_fixtures_refuses_under_90_percent_disk_usage(

@@ -342,10 +342,40 @@ jobs:
           scripts/test_r2_python_dead_list.py
           scripts/test_coordinator_snapshot.py
           scripts/test_lane_tick.py
+          scripts/test_plan_lint.py
+          scripts/test_post_record.py
           scripts/test_prodshape_override.py
           scripts/test_orchestrator_engine_socket.py
           scripts/test_pr_watch.py
           -q
+      # Ruling 197: the plan fields the lane digest acts on (roster queues, package `**PR:**`
+      # fields, ruling-map record ids), linted with the digest's own parsers. On a PR it fails
+      # only on findings its BASE lacks: this job has no paths filter and feeds the CI Gate, so a
+      # plan defect already on main must red main's own push run, not every PR after it. The base
+      # is the checked-out merge commit's FIRST parent -- the main this run merged the PR into --
+      # not the event's pull_request.base.sha, which is main as of the PR's last update and so
+      # reads a defect that reached main since then as the PR's own. The checkout is depth-1: the
+      # commit object still names its parents (cat-file reads the raw object), and that one parent
+      # is fetched. No parent is a broken premise, so the step fails closed with exit 2 and says
+      # why. Named by module, not path, as the docs-citation step below is: naming a scripts path
+      # here makes it a declared reachability entry, which moves the R2 list's tool-inputs stamp
+      # for a walk-neutral reason (scripts/ is not a candidate tree).
+      - name: Plan lint (ruling 197)
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT}" = "pull_request" ]; then
+            BASE_SHA="$(git cat-file -p HEAD | awk '/^parent / { if (!n++) print $2 }')"
+            if [ -z "${BASE_SHA}" ]; then
+              echo "plan lint: HEAD $(git rev-parse HEAD) names no parent; no baseline, nothing judged" >&2
+              exit 2
+            fi
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+            uv run python -m scripts.uplevel.plan_lint --baseline "${BASE_SHA}"
+          else
+            uv run python -m scripts.uplevel.plan_lint
+          fi
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
       # --no-staleness) — that is what catches a dead source_ref, and it is
@@ -1383,7 +1413,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints or test_batch_aggregator_status_live" \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints or test_batch_aggregator_status_live or test_analysis_stream_delivery" \
             -n0 \
             --timeout=30 \
             --cov=backend \
