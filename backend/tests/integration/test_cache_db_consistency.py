@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy import text
 
 from backend.core.database import get_session
-from backend.services.cache_service import CACHE_PREFIX, CacheService
+from backend.services.cache_service import CacheKeys, CacheService
 from backend.tests.factories import CameraFactory
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ async def cleanup_keys(real_redis: RedisClient, test_prefix: str):
     # Cleanup after test - delete all keys with this test's prefix
     client = real_redis._ensure_connected()
     keys = []
-    async for key in client.scan_iter(match=f"{CACHE_PREFIX}{test_prefix}*", count=100):
+    async for key in client.scan_iter(match=f"{CacheKeys.PREFIX}:cache:{test_prefix}*", count=100):
         keys.append(key)
     if keys:
         await client.delete(*keys)
@@ -449,7 +449,9 @@ class TestCacheRebuildAfterRedisRestart:
 
         # Simulate Redis restart by flushing test keys
         client = real_redis._ensure_connected()
-        async for key in client.scan_iter(match=f"{CACHE_PREFIX}{test_prefix}*", count=100):
+        async for key in client.scan_iter(
+            match=f"{CacheKeys.PREFIX}:cache:{test_prefix}*", count=100
+        ):
             await client.delete(key)
 
         # Verify cache is empty
