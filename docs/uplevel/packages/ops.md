@@ -532,7 +532,7 @@ only as fresh as its last tick.
 - [ ] Tests pin the change detection and the error exit.
 - [ ] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
       Claude Code lane agents re-arm the watcher at the end of every turn, and their `/loop` tick
-      becomes a 30-minute fallback; the coordinator (5 minutes), the operator (30 minutes) and the
+      becomes a 30-minute fallback; the coordinator (30 minutes, ruling 239), the operator (30 minutes) and the
       heavy agents under pi (15 minutes) keep their ticks. The PR says whether pi wakes an agent on
       a finished background task, if ops-a can measure it.
 
@@ -603,7 +603,7 @@ posted on the PR.
 
 `Feature check (fake AI)` gates every PR and took 32 to 47 minutes in the last 30 completed CI runs.
 On `main`'s run `38906420530` the harness step took 39m09s, and its golden Playwright leg took 36.0
-of them: 236 tests on the `golden` project's `workers: 1` (`frontend/playwright.config.ts`). About
+of them: 236 passed and 9 skipped on the `golden` project's `workers: 1` (`frontend/playwright.config.ts`). About
 7.4 minutes are timeline fixtures waiting out the camera list's 60 s cache, which `[r228]` fixes;
 the batch idle timeout (30 s) is unchanged. `workers: 1` stays, because two drops must not share a
 camera; two stacks remove the sharing instead.
@@ -617,15 +617,16 @@ camera; two stacks remove the sharing instead.
       row. It still fails closed (exit 2) when it cannot read either shard's run, and still runs
       whenever a harness step ran.
 - [ ] `CI Gate (Required Checks)` needs both shards in the shape `scripts/test_ci_job_graph.py`
-      accepts. The change filter, the draft guard and `workflow_dispatch` are unchanged. Each
+      accepts. The change filter and the draft guard are unchanged, and `workflow_dispatch` still runs
+      the leg. Each
       shard's `timeout-minutes` is derived by ruling 189's method and pinned in
       `backend/tests/unit/scripts/test_feature_check.py`. Ruling 240 orders this edit to a shared
       `ci.yml` job, so UR-122 licenses it.
 - [ ] The PR reports the job's wall time from the Actions clock for `main` before and for its own
       head, naming `[r228]`'s merge state at each (UR-10 rule 1: measured, not targeted).
 
-**Done when:** both shards run in CI at a ready head with every leg executed once, the witness's
-verdicts match an unsharded run's, and the PR posts the before-and-after wall times.
+**Done when:** both shards run in CI at a ready head with every leg executed once, the witness
+judges the union of both shards' legs, and the PR posts the before-and-after wall times.
 
 ### [r239] The coordinator's heartbeat goes stale at 90 minutes
 
@@ -638,7 +639,8 @@ sets `STALE_HEARTBEAT_MIN = 20` for every heartbeat, and `scripts/uplevel/lane_t
 lane to raise UR-162 from that flag.
 
 - [ ] `coordinator_snapshot.py` flags the coordinator's heartbeat stale past 90 minutes and every
-      other heartbeat past 20, so `lane_tick.py`'s UR-162 line follows.
+      other heartbeat past 20, in its `stale` flag (`:1094`) and its `STALE` print (`:1358`), so
+      `lane_tick.py`'s UR-162 line follows.
 - [ ] `scripts/uplevel/status_draft.py:170`'s note names both numbers.
 - [ ] Tests pin both thresholds.
 

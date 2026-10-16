@@ -577,8 +577,8 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act
   on where it looks, a comment on that agent's own open PR. (coordinator kickoff prompt; UR-35;
   ruling 198)
-- **UR-36** Every agent runs on a `/loop` tick that checks GitHub — coordinator 5 minutes, lanes and
-  heavy 15, operator 30 (`roles/coordinator.md`, `roles/lane.md` and `roles/operator.md`, "The
+- **UR-36** Every agent runs on a `/loop` tick that checks GitHub — coordinator 30 minutes (ruling
+  239), lanes and heavy 15, operator 30 (`roles/coordinator.md`, `roles/lane.md` and `roles/operator.md`, "The
   tick"). GitHub stays the only channel between agents; the owner re-arms ticks weekly and after a
   restart. Before arming a tick, list the agent's scheduled tasks and arm a new one only if none is
   listed, so ticks never run twice; a recurring `/loop` expires after seven days and a restart,
@@ -691,7 +691,7 @@ or an agent's memory.
   `.git/config` is the agent's to write, and settings such as `core.fsmonitor` run commands when the
   host's git opens it. (the deleted 50-coordination.md "Where agents run"; history/packages-done.md
   `O0.1`)
-- **UR-173** The coordinator stays on the fast model on a 5-minute loop; the owner may reopen this
+- **UR-173** The coordinator stays on the fast model on a 30-minute loop (ruling 239); the owner may reopen this
   if it stops assigning, leaves the status comment unedited for over an hour, or states a fact it
   did not read. Its sandbox is disposable: restarted, it rebuilds its state from PRs, labels and the
   pinned issues. (ruling 85; the deleted 50-coordination.md "Where agents run")
