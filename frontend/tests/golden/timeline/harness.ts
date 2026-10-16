@@ -1017,21 +1017,26 @@ export const SEARCH_FIXTURE_SIZE = 25;
 export const SEARCH_QUERY_TOKEN = 'fe3f048searchtoken';
 
 /**
- * The victim's summary. It carries SEARCH_QUERY_TOKEN (so the query matches it)
- * but NOT the `alpha <i>` form (so no live-row locator can ever aim at it by
+ * The victim's summary. It carries SEARCH_QUERY_TOKEN (so the query would match
+ * it) but NOT the `alpha <i>` form (so no live-row locator can ever aim at it by
  * accident, and a leg can name it out loud). Declared AFTER the token it
  * interpolates: these are `const`s, so the order is a TDZ error, not a style
- * preference.
+ * preference. Since [r211b] the search route hides soft-deleted rows, so this
+ * summary no longer appears in search results — the fixture keeps the row to
+ * prove THAT (`toBe(false)` in the defect leg), not to be listed.
  */
 export const SEARCH_VICTIM_SUMMARY = `${SEARCH_QUERY_TOKEN} deleted-but-still-listed`;
 
 /**
  * Rows actually seeded: the 25 live ones plus the soft-deleted victim. The victim
- * is given the OLDEST `started_at` deliberately: search's tie-break is
- * `started_at DESC` (search.py:432), so the stale row lands at the BOTTOM of the
- * result set — on page 2 — which leaves page 1 identical to the browse list's page
- * 1. That is what keeps the modal's positive control honest: a page-1 click opens
- * the modal because the row really is in the cached list, not by luck.
+ * is given the OLDEST `started_at` so that, were it ever to reappear in the
+ * result set (a search-route regression that un-hides soft-deleted rows), it
+ * would land at the BOTTOM — on page 2 — under the live rows, leaving page 1
+ * identical to the browse list's page 1. That is what keeps the modal's positive
+ * control honest: a page-1 click opens the modal because the row really is in the
+ * cached list, not by luck. The defect the leg measures now sits on page 2 of the
+ * LIVE rows (`alpha 0`, the oldest live row): search shows it, the browse cache
+ * does not, and the modal renders nothing over it ([r211f], ruling 221).
  */
 export const SEARCH_SEED_ROWS = SEARCH_FIXTURE_SIZE + 1;
 
@@ -1039,9 +1044,9 @@ export interface SearchFixture {
   cameraId: string;
   /** The 25 live rows, in seed order. `alpha <i>` in the summary is this index. */
   eventIds: number[];
-  /** The soft-deleted row: returned by search, absent from browse, 404 by id. */
+  /** The soft-deleted row: hidden by search, absent from browse, 404 by id. */
   victimId: number;
-  /** What the SEARCH route calls the total for this token — the victim included. */
+  /** What the SEARCH route calls the total for this token — the victim excluded. */
   searchTotal: number;
   /** What the BROWSE route calls the total — the victim excluded. */
   browseTotal: number;
@@ -1059,11 +1064,16 @@ export interface SearchFixture {
  * identical timestamps would make page contents arbitrary.
  *
  * The purge is HARD (`soft_delete:false`) and it asks the SEARCH route as well as
- * the browse list for this camera's ids, because the two disagree by design: if a
- * previous run died between the soft-delete and `afterAll`, the orphan is invisible
- * to `GET /api/events` but PRESENT in search results, so a browse-only purge would
- * leave it behind and the run would seed 26 rows and read "of 26" where it asserts
- * "of 25" — a red that has nothing to do with the product.
+ * the browse list for this camera's ids. Before [r211b] the two disagreed by
+ * design: a run that died between the soft-delete and `afterAll` left an orphan
+ * invisible to `GET /api/events` but PRESENT in search, so a browse-only purge
+ * would leave it and the next run would seed 26 rows and read "of 26" where it
+ * asserts "of 25". [r211b] made search hide soft-deleted rows
+ * (`backend/services/search.py:451`), so that orphan is now invisible to BOTH
+ * readers: the search-route read can no longer recover it, but neither can it
+ * corrupt the counts — it is excluded from `total_count` and from `items`, so a
+ * lingering orphan is inert. An orphan a run left BEFORE its soft-delete is fully
+ * live and both readers still list and purge it.
  */
 export async function createSearchFixture(
   h: TimelineHarness,
@@ -1178,10 +1188,11 @@ export async function createSearchFixture(
     if (!premise) throw new Error(`search fixture: ${why}`);
   };
   requireFixture(
-    searchTruth.results.some((row) => row.id === victimId),
-    'search must still RETURN the soft-deleted row (the search route builds no ' +
-      'deleted_at predicate, search.py:281-304) — without that asymmetry the defect ' +
-      'leg has nothing to measure'
+    !searchTruth.results.some((row) => row.id === victimId),
+    'search must EXCLUDE the soft-deleted row ([r211b]: the search route filters ' +
+      '`Event.deleted_at IS NULL`, backend/services/search.py:451) — the defect leg ' +
+      'measures a LIVE page-2 row now, so a search route that listed the victim again ' +
+      'would mean this fixture is pinning a different product than the leg claims'
   );
   requireFixture(
     !liveIds.includes(victimId),
@@ -1200,7 +1211,7 @@ export async function createSearchFixture(
     cameraId,
     eventIds: allIds.slice(1), // index 0 is the victim, not a live row
     victimId,
-    searchTotal: searchTruth.total_count, // includes the victim → SEEDED rows
+    searchTotal: searchTruth.total_count, // excludes the victim → SEARCH_FIXTURE_SIZE
     browseTotal: liveIds.length, // excludes it → SEARCH_FIXTURE_SIZE
     highTotal: searchTruth.results.filter((row) => row.risk_level === 'high').length,
   };

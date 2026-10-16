@@ -100,7 +100,6 @@ import type { Page } from '@playwright/test';
 
 import {
   SEARCH_QUERY_TOKEN,
-  SEARCH_VICTIM_SUMMARY,
   adminSession,
   api,
   apiWrite,
@@ -139,8 +138,9 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   const session = await adminSession(harness);
-  // HARD delete, victim included: search ignores soft deletes, so a soft delete
-  // here would leave the row in every later run's result count.
+  // HARD delete, victim included. Since [r211b] a soft-deleted row is invisible to
+  // BOTH readers, so a lingering victim is inert — but it is still this run's row,
+  // so it is hard-deleted here rather than left behind for the next run's purge.
   await hardDeleteFixtureRows(harness, session, [...fx.eventIds, fx.victimId]);
 });
 
@@ -246,8 +246,8 @@ test.describe('F-048 full-text search', () => {
       expect(sent.get(name), `an untouched filter sends no ${name}`).toBeNull();
     }
 
-    // `searchTotal` counts the soft-deleted row, so the panel's number is the
-    // SEEDED count — the first visible trace of the DEFECT leg below.
+    // `searchTotal` is search's own total for the token, which [r211b] now reports
+    // WITHOUT the soft-deleted row, so the panel's number is the LIVE count.
     await expect(panelHeader(page).first()).toHaveText(
       new RegExp(`^Showing 1-${Math.min(PAGE_SIZE, fx.searchTotal)} of ${fx.searchTotal} results`)
     );
@@ -328,7 +328,7 @@ test.describe('F-048 full-text search', () => {
     const second = searches[searches.length - 1].searchParams;
     expect(second.get('offset'), 'the same query, one page further').toBe(String(PAGE_SIZE));
     expect(second.get('q')).toBe(SEARCH_QUERY_TOKEN);
-    // The tail is 6 rows: 26 hits minus the first page.
+    // The tail is 5 rows: the 25 live hits minus the first page.
     expect(await resultCards(page).count()).toBe(fx.searchTotal - PAGE_SIZE);
     await expect(page).toHaveURL(/search_page=2/);
     // `persistLimit:false`, so the page size never becomes a URL param.
@@ -358,7 +358,7 @@ test.describe('F-048 full-text search', () => {
     expect(sent.get('object_type')).toBe('person');
     // The empty branch swaps the panel wholesale (SearchResultsPanel.tsx:108):
     // there is no "Showing" header to read a count from, which is itself the
-    // assertion — a header claiming "0 of 26" would be a different UI.
+    // assertion — a header claiming "0 of 25" would be a different UI.
     await expect(panelHeader(page)).toHaveCount(0);
     await expect(page.getByText(/^No events match your search/)).toContainText(SEARCH_QUERY_TOKEN);
     expect(await resultCards(page).count()).toBe(0);
@@ -582,7 +582,7 @@ test.describe('F-048 full-text search', () => {
     }
   });
 
-  test('a page-1 result opens the modal; a row only search still has does not', async ({
+  test('a page-1 result opens the modal; a page-2 result the browse list does not have does not', async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -604,15 +604,23 @@ test.describe('F-048 full-text search', () => {
     await page.keyboard.press('Escape');
     await expect(modal).toHaveCount(0);
 
-    // THE DEFECT. The victim is the OLDEST seeded row, so `started_at DESC` parks
-    // it at the bottom of page 2 — see createSearchFixture's ordering note for why
-    // oldest (a newest victim would land on page 1 and break the control above).
+    // THE DEFECT. Since [r211b] search hides soft-deleted rows, the victim is no
+    // longer a subject this leg can click — so the defect moves to its real,
+    // still-shipped cause: the modal resolves its row from the BROWSE page-1 cache
+    // (`filteredEvents`, EventTimeline.tsx:1063, which is the infinite query's
+    // loaded pages — the newest 20, `alpha 5 … alpha 24`), while the search panel
+    // paginates server-side. Every live row on search page 2 (`alpha 0 … alpha 4`,
+    // the oldest five) is therefore offered by search and unresolvable by the
+    // modal. `alpha 0` is the oldest live row, so it is page 2's first card.
     await page.getByRole('button', { name: 'Next page' }).click();
     await expect(panelHeader(page).first()).toHaveText(new RegExp(` of ${fx.searchTotal} results`));
-    const victim = page.getByRole('button', { name: SEARCH_VICTIM_SUMMARY, exact: false });
-    await expect(victim, 'search still lists the soft-deleted row').toHaveCount(1);
+    const pageTwoRow = searchCard(page, 0);
+    await expect(
+      pageTwoRow,
+      'search offers a live row the browse page-1 cache does not hold'
+    ).toHaveCount(1);
 
-    await victim.click();
+    await pageTwoRow.click();
     // The click does reach the handler — the panel survives and nothing else
     // changes — but the modal's lookup cannot resolve the id, so `isOpen` is true
     // over a null event and NOTHING renders (EventTimeline.tsx:1059-1090).
@@ -620,13 +628,19 @@ test.describe('F-048 full-text search', () => {
     await expect(panelHeader(page).first()).toHaveText(new RegExp(` of ${fx.searchTotal} results`));
     await expect(queryBox(page)).toHaveValue(SEARCH_QUERY_TOKEN);
 
-    // And the row is not merely "not in this page's cache": the server itself no
-    // longer serves it, so no fetch-on-open could have shown it either. Search
-    // still counts it in the total the user is reading.
+    // And the row is not merely "not in this page's cache": it is live — the
+    // browse route SERVES it by id (200, not the victim's 404) — so a modal that
+    // fetched on open could have shown it. The failure is the client-side lookup,
+    // not missing data.
     expect(
-      await rawStatus(session, `/api/events/${fx.victimId}`),
-      'the browse route refuses the row the search panel just offered'
-    ).toBe(404);
+      await rawStatus(session, `/api/events/${fx.eventIds[0]}`),
+      'the oldest live row is served by id — the modal had the bytes available'
+    ).toBe(200);
+
+    // The soft-deleted victim, the leg's OLD subject, is now correctly hidden from
+    // search ([r211b]). Asserting its absence keeps this fixture honest: if search
+    // ever un-hides it, this line reddens instead of the defect leg quietly
+    // measuring the wrong row.
     const truth = await api<{ total_count: number; results: { id: number }[] }>(
       harness,
       session,
@@ -636,8 +650,12 @@ test.describe('F-048 full-text search', () => {
     );
     expect(
       truth.results.some((row) => row.id === fx.victimId),
-      'search is the only reader that still has it'
-    ).toBe(true);
+      'search no longer lists the soft-deleted row (backend/services/search.py:451)'
+    ).toBe(false);
+    expect(
+      await rawStatus(session, `/api/events/${fx.victimId}`),
+      'the browse route still refuses the soft-deleted row'
+    ).toBe(404);
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 });
