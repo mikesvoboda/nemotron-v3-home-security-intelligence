@@ -83,7 +83,7 @@ backend/tests/integration/
 | `test_media_api.py`           | `/api/media/*` file serving      |
 | `test_metrics_api.py`         | `/api/metrics/*` metrics data    |
 | `test_notification_api.py`    | `/api/notifications/*`           |
-| `test_search_api.py`          | `/api/search/*`                  |
+| `test_search_api.py`          | `/api/events/search`             |
 | `test_system_api.py`          | `/api/system/*`                  |
 | `test_zones_api.py`           | `/api/zones/*` zone CRUD         |
 | `test_websocket.py`           | `/ws/events`, `/ws/system`       |
