@@ -30,7 +30,7 @@
  *
  * SCENARIO = slow-reply, and the arithmetic that leaves no choice. Dedupe is a
  * content hash with a 300 s TTL (services/dedupe.py:164
- * DEFAULT_DEDUPE_TTL_SECONDS; :318-322 is_duplicate; file_watcher.py:871-873
+ * DEFAULT_DEDUPE_TTL_SECONDS; :316 builds the key from the :167 prefix, :439 sets it with its TTL; file_watcher.py:871-873
  * skips a duplicate at the door) and NO shipped request shortens it — nothing
  * under backend/api/routes calls dedupe.py:496 clear_hash. The book
  * (backend/ai_contract/fake/scenario_fixtures/scenarios.json, read through
@@ -171,7 +171,7 @@ const DEGRADED_SUMMARY = 'VLM verification failed; this event needs review.';
 const ARRIVAL_BUDGET_MS = 150_000;
 /** The second-leg supply: re-drop the SAME bytes after the dedupe window lapses.
  *  The key is `dedupe:<sha256>`, 300 s TTL, set once when the bytes are first
- *  marked (dedupe.py:318-322, :439) — a skipped re-drop never refreshes it, so
+ *  marked when its hash is first computed (dedupe.py:316, :439) — a skipped re-drop never refreshes it, so
  *  the window lapses 300 s after test 1's mark and the first drop that lands
  *  after that processes and broadcasts. A re-drop INSIDE the window is a
  *  guaranteed no-op (file_watcher.py:871-873), so each attempt is wait-then-drop

@@ -564,16 +564,19 @@ for the spec's legs. **PR:** #7210, #7225 (rulings 211, 221, 233; records 620033
 - [ ] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
       `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:598` in this PR or
       one right after it. F-045 flips to **awaiting real tier** on the run where that leg and the
-      row's other legs pass. **Half done here, and the other half cannot be done here.** The mark is
-      gone at this head — the leg is `test.skip` now, because `fixme` publishes "this would fail"
-      and this head refutes that (the modal opens on a socket-only click; `Expected: 0, Received: 1`
-      at job 117083054790). The leg still does not _pass_ in this file: its drop re-sends bytes
-      `dropAndAwaitCard` already sent, which the 300 s content-hash window swallows
-      (`backend/services/file_watcher.py:871-873`), so it reports skipped. That is the supply ruling
-      233 assigns to the follow-up PR titled `[r211f]`; the box ticks and the row flips there.
+      row's other legs pass. **Both halves land here.** The mark is gone and the leg is un-skipped —
+      a running `test(...)` at spec `:598`, not `test.skip` — because `fixme` publishes "this would
+      fail" and this head refutes that (the modal opens on a socket-only click;
+      `Expected: 0, Received: 1` at job 117083054790). What kept the leg from passing was supply,
+      not behaviour: its drop re-sent bytes `dropAndAwaitCard` had already sent, which the 300 s
+      content-hash window swallows (`backend/services/file_watcher.py:871-873`). The supply ruling
+      233 assigns to a PR titled `[r211f]` is this PR: the leg now re-drops the same bytes after
+      the window lapses (`live-socket-arrival.spec.ts:375`, after `SUPPLY_TTL_WAIT_MS`). Nothing
+      here ticks the box — that needs a `Feature check (fake AI)` run where this leg passes, and
+      until that run exists the row stays `half-built`.
 
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
-**awaiting real tier** on that run (rulings 103, 114); and F-045 flips the same way once its `:530`
+**awaiting real tier** on that run (rulings 103, 114); and F-045 flips the same way once its `:598`
 leg passes (ruling 233). If #7210 merges first, F-045's leg lands in a follow-up PR with `[r211f]`
 in its title, and the package is not done until it does.
 
