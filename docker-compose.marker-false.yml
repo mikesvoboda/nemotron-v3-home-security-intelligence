@@ -1,0 +1,14 @@
+# r243 orchestrator-OFF marker.
+#
+# The mirror of docker-compose.marker-true.yml: its existence is the only thing
+# prod.yml's interpolated include name checks for the OFF state. With
+# ORCHESTRATOR_ENABLED=false the render passes the marker, and the actual drop
+# of backend's engine-socket mount comes from the overlay the deploy tooling
+# adds as a second `-f` (docker-compose.engine-false.yml). A hand-boot that
+# forgot the overlay keeps the socket -- reversible, and the render check in
+# docs/operator/deployment/README.md is the designed catch.
+#
+# Declares no service on purpose; see docker-compose.marker-true.yml for the
+# measurement (compose v2.38.2 conflict rule) behind that shape.
+x-r243-marker: orchestrator-off
+x-r243-see: docker-compose.engine-false.yml (the overlay that drops the mount)
