@@ -2616,6 +2616,70 @@ def test_the_preflight_allows_the_one_port_agent_gpu_printed(
     assert (backend.get("AI_VLM_URL") == VLM_URL) is real
 
 
+def test_a_seeded_real_render_keeps_both_halves_of_the_boot(
+    base: dict[str, Any], live: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ruling 235's boot claim, at the seam the real tier actually renders through.
+
+    ``Run.render`` is the only caller that passes **both** ``vlm_url`` and
+    ``seeded`` (``feature_check.py:1839-1845``), so it is where the two features
+    of this PR genuinely meet. Nothing else covers that conjunction: the
+    deployment-level test below calls ``as_test_deployment`` directly (so it never
+    runs the render), and ``test_the_preflight_allows_the_one_port_agent_gpu_printed``
+    above renders *un-seeded*. A render that quietly dropped the seeded shape
+    whenever a VLM was present -- ``seeded=self.seeded and vlm is None`` -- keeps
+    every one of those green, and would boot an unseeded backend that the seeded
+    goldens then read as if it were seeded.
+
+    The preflight is deliberately the real one, wrapped only to capture its input:
+    a render that loses the seeded ``/app/data`` tmpfs or re-adds ``ai-vlm`` to
+    ``depends_on`` should be *refused* here, not merely asserted differently.
+    """
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="real", seeded=True
+    )
+    run.artifacts.mkdir(parents=True)
+    vlm = fc.AgentGpu(run)
+    vlm.url, vlm.host_port = VLM_URL, 18123
+    seen: dict[str, Any] = {}
+    # Bound BEFORE the swap below: `fc.preflight` is about to be this wrapper, so
+    # calling it by name from inside the wrapper would recurse forever.
+    real_preflight = fc.preflight
+
+    def compose(self: Any, files: Any, *args: str, **kwargs: Any) -> Any:
+        return subprocess.CompletedProcess(args, 0, json.dumps(base), "")
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> Any:
+        return subprocess.CompletedProcess(args, 0, self.compose_file.read_text(), "")
+
+    def check(rendered: Any, **kwargs: Any) -> list[str]:
+        seen.update(kwargs, rendered=rendered)
+        return real_preflight(rendered, **kwargs)
+
+    monkeypatch.setattr(fc.Run, "compose", compose)
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "host_addresses", lambda *_: frozenset())
+    monkeypatch.setattr(fc, "preflight", check)
+
+    run.render(live, vlm)
+
+    backend = seen["rendered"]["services"]["backend"]
+    env = backend["environment"]
+    # the real half: the VLM is wired in and the fake detector is gone
+    assert list(seen["rendered"]["services"]) == list(fc.REAL_SERVICES)
+    assert env["AI_VLM_URL"] == VLM_URL
+    assert "ai-vlm" not in backend["depends_on"]
+    assert seen["allowed_host_ports"] == frozenset({18123})
+    # the seeded half, on top of it -- the part a render-seam regression deletes
+    assert env["DEBUG"] == "true"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+    assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
+    # and the render survived the REAL preflight, not a stub that always says ok
+    assert run.summary["results"]["preflight"] == "ok"
+
+
 @pytest.mark.parametrize(("porcelain", "refused"), [("", False), (" M ai/vlm/Dockerfile\n", True)])
 def test_uncommitted_changes_under_ai_vlm_refuse(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, porcelain: str, refused: bool
