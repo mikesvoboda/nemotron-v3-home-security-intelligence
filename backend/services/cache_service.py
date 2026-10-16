@@ -722,7 +722,7 @@ class CacheService:
         aggregates events through ``EventRepository``, so a seeded or cleared
         event set changes the trend metrics. Before [r223] no invalidator
         scanned ``trends:*`` — the orphan namespace disclosed in [r228] — so
-        ``GET /api/trends`` served stale counts until the 120 s TTL expired.
+        ``GET /api/summaries/trends`` served stale counts until the 120 s TTL expired.
 
         Args:
             reason: Reason for invalidation. Use CacheInvalidationReason enum.

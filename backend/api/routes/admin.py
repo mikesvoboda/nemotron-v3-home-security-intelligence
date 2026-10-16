@@ -50,7 +50,7 @@ async def _invalidate_devtool_caches_background(
     """Invalidate every cached read the developer-tool seed/clear writes change ([r223]).
 
     Designed to run as a BackgroundTask, the same deferral shape the camera and
-    event routes use (NEM-3744, ``cameras.py:132`` / ``events.py:120``).
+    event routes use (NEM-3744, ``cameras.py:132`` / ``events.py:119``).
 
     The three handlers share this superset because the FK cascades couple the
     tables: deleting cameras cascades their events, detections and face-detection
@@ -70,7 +70,7 @@ async def _invalidate_devtool_caches_background(
     - ``system:*``             — stats totals count all three tables
 
     Fail-soft per namespace, not for the whole batch: the two-call legacy
-    helpers (``cameras.py:132``, ``events.py:120``) wrap all their awaits in one
+    helpers (``cameras.py:132``, ``events.py:119``) wrap all their awaits in one
     try, so a Redis error on the first leaves the second cached. With seven
     namespaces that gap is too wide to ship — a failure on ``events`` would
     strand ``timeline_summary``/``trends``/``summaries`` for their full TTL. Each
