@@ -562,7 +562,7 @@ for the spec's legs. **PR:** #7210 (open). (rulings 211, 221, 233; records 62003
       `:474` and `:535`), and both legs that carried them ran green in the same run, at reporter
       positions `:472:3` (5.4s) and `:520:3` (861ms).
 - [ ] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
-      `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:530` in this PR or
+      `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:598` in this PR or
       one right after it. F-045 flips to **awaiting real tier** on the run where that leg and the
       row's other legs pass. **Half done here, and the other half cannot be done here.** The mark is
       gone at this head — the leg is `test.skip` now, because `fixme` publishes "this would fail"

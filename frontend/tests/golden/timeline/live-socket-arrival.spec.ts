@@ -7,7 +7,9 @@
  *
  * Both clause halves are asserted for real in test 1: the socket arrival, and ONE
  * click on that socket-only card opening its detail. Test 3 holds the same strict
- * form standalone, skipped at runtime for a measured SUPPLY limit (see CLAUSE 2).
+ * form standalone and RUNS: its supply is the wait-the-TTL-then-re-drop described
+ * in CLAUSE 2, and it degrades to a named runtime skip only if that re-drop, too,
+ * lands nothing.
  * Nothing is mocked: ../guard.ts patches route/unroute/routeFromHAR/
  * routeWebSocket to THROW, so every byte below is the live stack's, and each
  * test closes by tripping that guard on purpose.
@@ -43,8 +45,10 @@
  * ../analytics-alerts/harness.ts:77 AND ./download-media.spec.ts:199.
  * Re-dropping a claimed image inside the window would land no event for this
  * spec AND silently starve that file's count assertion. So slow-reply (book
- * index 3, `reply_delay_seconds: 40`), dropped exactly ONCE across the whole
- * file: a second drop would dedupe against the first.
+ * index 3, `reply_delay_seconds: 40`). It is dropped once per leg at the door,
+ * and a second drop INSIDE the window would dedupe against the first — which is
+ * why test 3's re-drop (dropAndAwaitCard, below) is gated behind a full TTL wait
+ * rather than fired on a timer.
  *
  * WHAT THAT SCENARIO PUTS ON THE WIRE. Its 40 s reply exceeds
  * `ai_vlm_read_timeout`'s default 25.0 (backend/core/config.py:1180-1182),
@@ -96,13 +100,16 @@
  * The shipped Close button (EventDetailModal.tsx:644 →
  * EventTimeline.tsx:829-837) runs between them, so neither opening is the
  * other’s residue. TEST 3 keeps the strict form — one click, no filter, no
- * prior selection — and is skipped at runtime for a measured SUPPLY reason, not
- * a product one: dropAndAwaitCard (:283) stages these bytes once per run,
- * because is_duplicate_and_mark (backend/services/dedupe.py:452) marks the
- * content hash and the watcher skips a duplicate inside the 300 s TTL
+ * prior selection. It was skipped here for a measured SUPPLY reason, not a
+ * product one: dropAndAwaitCard (:332) stages these bytes once per run, because
+ * is_duplicate_and_mark (backend/services/dedupe.py:452) marks the content hash
+ * and the watcher skips a duplicate inside the 300 s TTL
  * (file_watcher.py:871-873) while clear_hash (dedupe.py:496) has no non-test
- * caller; ruling 233 lands a supply that clears the hash in a follow-up
- * [r211f] PR. The repair is visible in CI: the old half-one assert read
+ * caller. Ruling 233 asked for a supply that clears that window, and this file
+ * now supplies it by waiting it out — the key is written with expire= only when
+ * the bytes are first marked (dedupe.py:439) and the skip path returns before
+ * that write, so a re-drop after the TTL lands. See dropAndAwaitCard's
+ * reDropAfterTtl. The repair is visible in CI: the old half-one assert read
  * `Expected: 0, Received: 1` at job 117083054790 of run 38932915995 — the modal
  * DID open, so the gap this row carried is closed.
  *
@@ -162,6 +169,38 @@ const DEGRADED_SUMMARY = 'VLM verification failed; this event needs review.';
  *  scenario's 40 s reply + the 25 s read budget + commit + publish. Measured
  *  ~62 s from drop to card on the held stack, so 150 s is slack, not luck. */
 const ARRIVAL_BUDGET_MS = 150_000;
+/** The second-leg supply: re-drop the SAME bytes after the dedupe window lapses.
+ *  The key is `dedupe:<sha256>`, 300 s TTL, set once when the bytes are first
+ *  marked (dedupe.py:318-322, :439) — a skipped re-drop never refreshes it, so
+ *  the window lapses 300 s after test 1's mark and the first drop that lands
+ *  after that processes and broadcasts. A re-drop INSIDE the window is a
+ *  guaranteed no-op (file_watcher.py:871-873), so each attempt is wait-then-drop
+ *  then poll, never poll-while-closed. This is the idiom
+ *  ./video-clip.spec.ts:637-650 proves against this exact key ("waiting the TTL
+ *  out is the only fix that invents nothing"), and it keeps the book-known
+ *  verification_failed outcome that a fresh-byte variant would trade away.
+ *  Budget: each drop gets the helper's honest ARRIVAL_BUDGET_MS (150 s, ~2.4×
+ *  the measured ~62 s arrival — the same slack test 1 runs on, so the post-re-drop
+ *  window is not the thin part of this leg), and a failed window costs one
+ *  SUPPLY_TTL_WAIT_MS. ONE re-drop is enough in every case: if the first window
+ *  missed, 150 + 300 = 450 s have passed since this leg's first drop, so the key
+ *  has lapsed and the re-drop processes; if the window did not miss, there is
+ *  nothing to re-drop. Worst case 150 + 300 + 150 = 600 s, which holds even at
+ *  ruling 189's worst green leg (1739 + 600 = 2339 s, inside the 2640 s ceiling
+ *  with 301 s to spare) — a second re-drop would push that to 2789 s and breach
+ *  the leg, so it is not dead weight I can leave in. The leg's own setTimeout
+ *  below carries the 600 s. */
+const SUPPLY_REDROPS = 1;
+/** The dedupe TTL, from its source rather than from luck: core/config.py:2089
+ *  defaults dedupe_ttl_seconds to 300 (ge=60, le=3600) and DedupeService reads it
+ *  into self._ttl_seconds (services/dedupe.py:303), which is the expire= on the
+ *  set at :439. The service never refreshes it on a skipped drop, so waiting the
+ *  full default is what guarantees the key is gone before the next drop. It is
+ *  not read at runtime — no route exposes it to this harness (readRun() sees only
+ *  FEATURE_CHECK_SCENARIOS and FEATURE_CHECK_CAMERAS) — so if someone retunes it
+ *  in a compose override this constant goes stale, and the leg degrades to its
+ *  named skip rather than to a false green. */
+const SUPPLY_TTL_WAIT_MS = 300_000;
 
 /** Four up from frontend/tests/golden/timeline; the F2.1 spec is three up
  *  because it sits one level shallower (../dashboard-drop.spec.ts:126). */
@@ -280,11 +319,22 @@ async function filterToCamera(page: Page, cameraId: string): Promise<void> {
  *  also drives, a fresh live card could be theirs, so every candidate id is
  *  confirmed Node-side as a row of OUR camera before anything clicks it.
  *  Returns id 0 after recording a named skip (the 300 s dedupe window). */
+/**
+ * Drop the scenario's bytes and wait for the card.
+ *
+ * `reDropAfterTtl` is for a leg that calls this a SECOND time in the same run.
+ * The book has five images and every other one is claimed by another spec
+ * (header ledger above), so the only bytes this file can legally re-send are the
+ * ones test 1 already sent — and for ~300 s the watcher skips them at the door.
+ * Rather than invent a sixth image, wait the window out and re-send, exactly as
+ * ./video-clip.spec.ts:637-650 does. Default OFF: test 1 sends once, as before.
+ */
 async function dropAndAwaitCard(
   page: Page,
   h: TimelineHarness,
   session: Session,
-  run: ReturnType<typeof readRun>
+  run: ReturnType<typeof readRun>,
+  reDropAfterTtl = false
 ): Promise<{ id: number; row: EventRow | null }> {
   const idsBefore = new Set(
     (await listCameraEvents(h, session, run.cameraId)).items.map((i) => i.id)
@@ -300,33 +350,51 @@ async function dropAndAwaitCard(
       'verification_failed with a NULL score'
   ).toBeGreaterThan(25);
 
-  dropScenario(path.join(run.dir, String(scenario?.image)), SCENARIO_KEY);
+  const imagePath = path.join(run.dir, String(scenario?.image));
+  dropScenario(imagePath, SCENARIO_KEY);
 
-  const deadline = Date.now() + ARRIVAL_BUDGET_MS;
-  for (;;) {
-    for (const id of (await liveCardIds(page)).filter((i) => !idsBefore.has(i))) {
-      const row = await readRow(h, session, id);
-      if (row.camera_id === run.cameraId) return { id, row };
+  // Poll one window, then — on the second-leg path — wait the dedupe TTL out and
+  // re-drop. Test 1 passes reDropAfterTtl=false and gets exactly the single
+  // ARRIVAL_BUDGET_MS window it always had.
+  let windowEnds = Date.now() + ARRIVAL_BUDGET_MS;
+  const startedAt = Date.now();
+  let attempt = 0;
+  for (; ; attempt += 1) {
+    for (;;) {
+      for (const id of (await liveCardIds(page)).filter((i) => !idsBefore.has(i))) {
+        const row = await readRow(h, session, id);
+        if (row.camera_id === run.cameraId) return { id, row };
+      }
+      if (Date.now() > windowEnds) break;
+      await page.waitForTimeout(2_000);
     }
-    if (Date.now() > deadline) {
-      // Named, not silent. Inside the 300 s window the watcher skipped our copy
-      // (file_watcher.py:871-873) and NOTHING was broadcast, which is a property
-      // of the supply path rather than of this spec's subject.
-      const server = await listCameraEvents(h, session, run.cameraId);
-      test
-        .info()
-        .skip(
-          true,
-          `no live card for a new ${run.cameraId} row within ${ARRIVAL_BUDGET_MS} ms. Inside ` +
-            `the 300 s content-hash window (dedupe.py:164, :318-322) a re-drop of the same ` +
-            `bytes is skipped at the door and no frame is broadcast. Server rows for the ` +
-            `camera: ${JSON.stringify(server.items.map((i) => i.id))}; ids before the drop: ` +
-            `${JSON.stringify([...idsBefore])}`
-        );
-      return { id: 0, row: null };
-    }
-    await page.waitForTimeout(2_000);
+    if (!reDropAfterTtl || attempt >= SUPPLY_REDROPS) break;
+    // Nothing landed: the door is still shut, so wait past the key's expiry and
+    // send again. The wait IS the interval — a drop before it is a no-op.
+    await page.waitForTimeout(SUPPLY_TTL_WAIT_MS);
+    dropScenario(imagePath, SCENARIO_KEY);
+    windowEnds = Date.now() + ARRIVAL_BUDGET_MS;
   }
+  // Reached only when no window landed a card. The message states only what this
+  // path observed: the door was shut (file_watcher.py:871-873 skipped every drop)
+  // and NOTHING was broadcast. Whether the window is expected to have lapsed is a
+  // different claim on each caller — for test 1's FIRST drop nothing was ever
+  // marked, so the door was shut for another reason and this leg must not assert
+  // a lapse that was never attempted. The two numbers are the evidence; the
+  // reading belongs to whoever reads the row.
+  const server = await listCameraEvents(h, session, run.cameraId);
+  test
+    .info()
+    .skip(
+      true,
+      `no live card for a new ${run.cameraId} row after ${attempt} re-drop(s), ` +
+        `${Date.now() - startedAt} ms. Every drop was skipped at the door ` +
+        `(dedupe.py:164, :439; file_watcher.py:871-873) and no frame was ` +
+        `broadcast. Server rows for the camera: ` +
+        `${JSON.stringify(server.items.map((i) => i.id))}; ids before the drop: ` +
+        `${JSON.stringify([...idsBefore])}`
+    );
+  return { id: 0, row: null };
 }
 
 test.describe('F-045 Event Timeline live activity section', () => {
@@ -527,34 +595,29 @@ test.describe('F-045 Event Timeline live activity section', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test.skip('the strict clause: one click on a socket-only card opens its detail — SKIPPED ON SUPPLY, not on the app', async ({
-    page,
-  }) => {
+  test('the strict clause: one click on a socket-only card opens its detail', async ({ page }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
-    test.setTimeout(180_000);
-    // SKIPPED, not fixme: this leg's product gap is REPAIRED here, and only its
-    // SUPPLY keeps it out of the run. It was `test.fixme` while the lookup below
-    // was the gap; that repair is [r211f] (#7210) — useEventModalRow
+    // Covers the re-drop budget in dropAndAwaitCard (worst case 600 s:
+    // 150 + 300 + 150) plus boot and the clicks. 1739 + 600 stays inside
+    // ruling 189's 2640 s golden-leg ceiling (feature_check.py:115).
+    test.setTimeout(900_000);
+    // This was the leg that could not RUN, not a leg that would fail. Its
+    // product gap — a modal that resolved the clicked row only inside the
+    // HTTP-derived list — was repaired in [r211f] (#7210): useEventModalRow
     // (frontend/src/hooks/useEventModalRow.ts:69) completes a selection the
     // loaded browse pages do not hold with GET /api/events/{id}, and
-    // getModalEvent (EventTimeline.tsx:1093) renders that row. A fixme would
-    // publish "this would fail", and this head refutes it: the modal DID open on
-    // a socket-only click (`Expected: 0, Received: 1`, job 117083054790).
-    // The remaining bar is measured: the leg drops the same slow-reply bytes
-    // test 1 dropped, is_duplicate_and_mark (backend/services/dedupe.py:452)
-    // marks the content hash on the check, the watcher skips a duplicate inside
-    // the 300 s TTL (backend/services/file_watcher.py:871-873), and clear_hash
-    // (backend/services/dedupe.py:496) has no non-test caller — so
-    // dropAndAwaitCard (:283) would spend its whole 150 s ARRIVAL_BUDGET_MS
-    // (164) inside this leg's 180 s ceiling and report a named skip. Kept
-    // unexecuted for that reason, in the written-for-the-supply idiom
-    // (./download-media.spec.ts:748, :1055 — both barred by supply, not product).
-    // Ruling 233 lands a supply that clears the hash between drops in a
-    // follow-up PR titled [r211f] (measurement in #7210 comment 6216489373);
-    // un-skip it THERE, where it runs and the row flips to awaiting real tier.
-    // Both clause halves are asserted for real in test 1 above — on the
-    // detail-fetch path and on the browse path.
+    // getModalEvent (EventTimeline.tsx:1093) renders that row. What kept it out
+    // of the run was SUPPLY: it re-sends the same slow-reply bytes test 1 sent,
+    // and the 300 s content-hash gate (dedupe.py:452, file_watcher.py:871-873)
+    // swallows them, so a single 150 s window only ever reported a named skip.
+    // Ruling 233 asked for "a supply that clears the hash between drops"; the
+    // hash clears itself — the key expires 300 s after test 1's mark and a
+    // skipped drop never refreshes it (dedupe.py:439). So the leg now waits that
+    // window out and re-drops (dropAndAwaitCard reDropAfterTtl=true), the idiom
+    // ./video-clip.spec.ts:637-650 proves against this key. Test 1 still asserts
+    // both clause halves on the detail-fetch and browse paths; this leg is the
+    // standalone socket-only form.
     const h = harness;
     let run: ReturnType<typeof readRun>;
     try {
@@ -566,7 +629,10 @@ test.describe('F-045 Event Timeline live activity section', () => {
     const session = await adminSession(h);
     await bootTimeline(page, h);
     await expect(page.getByText('No Live Activity'), 'the section starts empty').toBeVisible();
-    const { id: eventId } = await dropAndAwaitCard(page, h, session, run);
+    // reDropAfterTtl: this is the file's second drop of the same bytes, so the
+    // helper re-sends them once the dedupe window lapses instead of spending one
+    // 150 s window against a closed door.
+    const { id: eventId } = await dropAndAwaitCard(page, h, session, run, true);
     if (!eventId) return;
     await expect(
       page.getByTestId(`event-card-${eventId}`),
