@@ -63,8 +63,8 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 **Flags:** `heavy`; label `cell:heavy-b`, none while heavy-b is out of service (ruling 190). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
-**Assigned:** heavy-a, next once `O2.4`'s `RESULT: PASS` is posted and the `B3.1`/`F3.1` PR in
-hand has merged (ruling 241). **PR:** none yet.
+**Assigned:** heavy-a; the coordinator assigns it next once `O2.4`'s `RESULT: PASS` is posted and
+the `B3.1`/`F3.1` PR in hand has merged (ruling 241). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -82,7 +82,8 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
-**Assigned:** heavy-a, after `[r238]`, ahead of `B2.3` (ruling 241). **PR:** none yet.
+**Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
+`B2.3` (ruling 241). **PR:** none yet.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
