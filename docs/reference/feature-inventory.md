@@ -124,7 +124,14 @@ Two boundaries are stated because a reader cannot re-derive them from the rows:
 - **About the value, not merely rendering it.** A row is listed when its `action` text is _about_ the
   fake-leg value. The event card's detector-drawn thumbnail is fake-written pixels, so a surface
   listed for its object-type chips (F-043, F-048) is listed; a surface whose promise is something else
-  is not, and every adjudicated non-member is named below with its reason. The test is the row's own promise, not the
+  is not. Which non-members are named is bounded, not total: a row is named when its own §3 evidence
+  cell cites one of the code coordinates this section publishes as an exclusion ground, and the reverse
+  sweep over those coordinates finds no such row left unnamed at this head. What the claim does NOT
+  cover: a row that merely reads a file some listed row also reads — seven §3 rows besides the listed
+  ones cite `backend/api/routes/cameras.py` and five cite `backend/api/routes/alerts.py` (the camera and
+  rule CRUD surfaces, whose promised values are user-entered config, not model output). Reading a
+  neighbour's file is not displaying its value, so those rows are neither listed nor named, and this
+  paragraph does not claim otherwise. The test is the row's own promise, not the
   presence of an `<img>` — F-029's card picture is a `GET /api/cameras/{camera_id}/snapshot` frame,
   written by capture hardware, which no leg touches.
 - **A figure the row PROMISES decides it, not the table it reads.** A detection count _is_ a model
@@ -200,7 +207,20 @@ caller (the pipeline feeds `BatchAggregator`, a different class: `backend/servic
 so the heatmap renders empty rather than fake-written; **F-210**'s handler data source is a stub that
 returns `[]` (`backend/services/baseline.py:966`); **F-262**'s `object_class` rides `dwell_time_records`,
 whose writer `record_entry` (`backend/services/dwell_time_service.py:95`) has no production caller,
-so the dwell surface is empty rather than fake-written. **A seeded vector, no model-produced one** —
+so the dwell surface is empty rather than fake-written — **the same unwired writer excludes four
+neighbours named here so the class reads complete**: **F-214**'s hour × weekday heatmap, **F-263**'s
+saved loitering threshold, **F-264**'s entity-distribution counts and **F-265**'s comparison tab, each
+of whose own §3 evidence cell already names `dwell_time_service.py:95` as caller-less (F-265's names
+`zone_anomaly_service.py:284` beside it, and F-214's fails on a UUID-vs-`int` path param before the
+empty table is ever read); and **F-084**'s trust buttons, whose subject rows are never created
+(`_create_entity` `backend/services/entity_clustering_service.py:265` unreached), so there is no entity
+to classify — named by contrast with F-081, which _is_ listed because its cards display the
+clustering-written grouping and similarity, while F-084's trust value is the user's own click; and
+**F-212**'s unacknowledged-anomaly count and **F-259**'s anomaly list, whose table `check_detection`
+(`backend/services/zone_anomaly_service.py:284`) never fills for want of a caller; and the four
+scene-change surfaces **F-008**, **F-208**, **F-287** and **F-288**, which read `scene_changes`, a table
+only the dev seeder writes (`get_scene_change_detector` `backend/services/scene_change_detector.py:307`
+is re-exported, never called). **A seeded vector, no model-produced one** —
 **F-278**'s enrolled-face panel shows the ORM-seeded test vector (`scripts/feature_check.py:2208`–`:2211`):
 no route can put a _model-produced_ face embedding on the CI stack, fake tier or real, because the
 client-vector POST is always-410 (`backend/api/routes/face_recognition.py:383`) and the ONNX the
