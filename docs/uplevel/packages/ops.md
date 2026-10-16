@@ -696,7 +696,8 @@ list is posted, and the existing duration pins pass.
 ### [r215a] F-278: a test-only face vector in the seeded project
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
-**Depends on:** none. **PR:** none yet. (ruling 215, record 6200719567)
+**Depends on:** none. **PR:** #7188 (merged 2026-10-15T21:41:12Z as `091ffa623`, head `2572c6ca6`).
+(ruling 215, record 6200719567)
 
 - [ ] `Feature check (seeded)`'s setup inserts one known person and one face-embedding row with a
       fixed vector and a `model_id` marked test-only, as F-012's disk seed did (#7178, ruling 192).

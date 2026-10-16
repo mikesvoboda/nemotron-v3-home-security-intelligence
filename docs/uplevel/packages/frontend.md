@@ -554,7 +554,9 @@ for the spec's legs. **PR:** none yet. (rulings 211, 221, 233; records 620033150
       row's other legs pass.
 
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
-**awaiting real tier** on that run (rulings 103, 114).
+**awaiting real tier** on that run (rulings 103, 114); and F-045 flips the same way once its `:530`
+leg passes (ruling 233). If #7210 merges first, F-045's leg lands in a follow-up PR with `[r211f]`
+in its title, and the package is not done until it does.
 
 ### [r234] F-052: the export modal's dates reach the export
 
@@ -566,8 +568,9 @@ ExportModal uses `useDateRangeState({ persistToUrl: false })`
 from the URL (`frontend/src/hooks/useDateRangeState.ts:328`, `:340`) and every write returns early
 (`:391`), so `setCustomRange` does nothing and the export sends null bounds.
 
-- [ ] `useDateRangeState` keeps a custom range and preset in local state when `persistToUrl` is
-      false, so ExportModal's chosen bounds reach the export request. A unit test pins it.
+- [ ] In one PR with `[r234]` in its title: `useDateRangeState` keeps a custom range and preset in
+      local state when `persistToUrl` is false, so ExportModal's chosen bounds reach the export
+      request. A unit test pins it.
 - [ ] Remove the `test.fixme` at `frontend/tests/golden/timeline/export-modal.spec.ts:751`; the leg
       passes.
 - [ ] F-052's action drops "cancels or": F-099 owns Cancel (R2a row 13). heavy-a edits only F-052's
