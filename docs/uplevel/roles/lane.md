@@ -45,8 +45,10 @@ the package cites. You have no review label.
 
 ## The tick
 
-The owner arms it with `/loop 30m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
-Run these steps in order. Read CI once per tick and end the turn (UR-38).
+The owner arms it with `Run the agent tick in docs/uplevel/roles/lane.md, "The tick".` at the
+interval UR-36 sets for the agent (ruling 245): `/loop 30m` for a Claude Code lane, `/loop 15m` for
+a heavy agent under pi, which is armed the same way and skips step 6. Run these steps in order.
+Read CI once per tick and end the turn (UR-38).
 
 The 30-minute `/loop` is a **fallback** since ruling 193, not the main channel: step 6 arms a
 watcher that wakes you when a watched PR moves, so a handoff no longer waits up to a tick for its
@@ -240,8 +242,16 @@ Every comment, PR body and review follows UR-10 (contract rule 2: your own text 
 ## Kickoff prompt
 
 The owner pastes the line from `scripts/uplevel/sandboxes.toml` for the sandbox; it points here and
-names the lane. Then the owner arms the tick with
-`/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".` The shared prompt:
+names the lane. Then the owner arms the tick with the same prompt text at the interval UR-36 sets
+for that agent (ruling 245):
+
+- a Claude Code lane (backend, frontend, ops-a, ops-b, docs), which also keeps the watcher armed
+  and treats the `/loop` as its fallback:
+  `/loop 30m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+- a heavy agent under pi, which arms no watcher:
+  `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+
+The shared prompt:
 
 ```text
 You are a lane agent of the uplevel programme; your kickoff line names your
