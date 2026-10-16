@@ -530,7 +530,7 @@ only as fresh as its last tick.
       bodies. Transient API errors do not end it; repeated failures do, with an error line. It
       exits after a bounded lifetime with a "no change" line, so the agent re-arms it.
 - [x] Tests pin the change detection and the error exit.
-- [x] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
+- [ ] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
       Claude Code lane agents re-arm the watcher at the end of every turn, and their `/loop` tick
       becomes a 30-minute fallback; the coordinator (5 minutes), the operator (30 minutes) and the
       heavy agents under pi (15 minutes) keep their ticks. The PR says whether pi wakes an agent on

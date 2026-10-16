@@ -44,6 +44,13 @@ BINDING_MARKER = "BINDING NOW"
 # The most nodes a discovery connection asks for. GitHub caps any connection page at 100, so a
 # match beyond this is TRUNCATION, not a quiet tick -- see _check_windows.
 DISCOVERY_WINDOW = 100
+# The most comments/reviews a watched PR's event connections ask for. Same cap, but here the number
+# is also what `_event_lines` compares a vanished id against: a window that came back SHORTER than
+# this held every item that exists, so a gone id was really deleted; a FULL window cannot say, and
+# the line degrades to "missing" (see _event_lines). The query interpolates this so the ask and the
+# comparison are one number and cannot drift apart -- the same reason test_window_size_is_bounded_by
+# _a_named_constant pins DISCOVERY_WINDOW.
+EVENT_WINDOW = 100
 
 
 def label_groups(lane: str, cell: str, review_labels: Sequence[str]) -> list[list[str]]:
@@ -120,8 +127,8 @@ def query_text(
             # `first: 100` returned the oldest hundred with hasNextPage true and zero BINDING NOW
             # entries in them, while `last: 100` held 30. A `first:` watcher would run green
             # forever and never report a ruling.
-            "    reviews(last: 100) { nodes { id author { login } } }",
-            "    comments(last: 100) { nodes { id author { login } body } }",
+            f"    reviews(last: {EVENT_WINDOW}) {{ nodes {{ id author {{ login }} }} }}",
+            f"    comments(last: {EVENT_WINDOW}) {{ nodes {{ id author {{ login }} body }} }}",
         ]
     )
     lines = [f"query({', '.join(declarations)}) {{", "  repository(owner: $owner, name: $name) {"]
@@ -230,6 +237,31 @@ def _check_explicit(data: dict, prs: Sequence[int]) -> None:
             " window are unrecoverable, and a watcher that skips them reads as calm while they pass"
         )
         raise RuntimeError(msg)
+
+
+def _check_read_gone_null(before: dict, after: dict) -> None:
+    """A PR the watcher has already READ, answered null this poll, is a broken watch -- raise.
+
+    ``diff_lines`` skips any pair whose either side is unreadable, so a head/check/state change that
+    straddles a null window never prints -- and never prints twice, because the next poll's ``before``
+    IS the null snapshot. The loss is silent and permanent, exactly the "calm tick over a gap" failure
+    this module exists to prevent. It is ``_check_explicit``'s failure reached by the OTHER channel: a
+    DISCOVERED PR the watcher read once -- so it is no longer ``UNREAD`` and the UNREAD carry-forward
+    no longer applies -- that GitHub then answers null. A still-``UNREAD`` PR answered null is a
+    different case the carry-forward owns (its fields were never lost, only never yet read), so this
+    guard fires only on an entry that was ``_read`` and turns to ``None``, and routes through
+    ``watch``'s error path: a transient null costs one error credit and leaves ``state`` on the last
+    GOOD snapshot (the straddling change prints on the next successful poll), a prolonged one exits
+    rc 2 with an error line rather than reading as a quiet watch.
+    """
+    lost = [n for n in after["prs"] if after["prs"][n] is None and _read(before["prs"].get(n))]
+    if lost:
+        numbers = ", ".join(f"#{n}" for n in sorted(lost))
+        raise RuntimeError(
+            f"watched {numbers} was read on an earlier poll and came back null -- a change during"
+            " the null window would be lost silently and for good, so the watcher exits rather than"
+            " report a calm tick it cannot see through"
+        )
 
 
 def _check_ruling(data: dict, ruling_issue: int) -> None:
@@ -430,6 +462,7 @@ def check(
     _check_ruling(data, ruling_issue)
     after: dict = snapshot(data, known)
     before: dict = {"prs": dict(state.get("prs") or {}), "ruling": state.get("ruling")}
+    _check_read_gone_null(before, after)
 
     lines: list[str] = []
     watched = list(known)
@@ -492,9 +525,20 @@ def _event_lines(
     old_ids = {item[0] for item in before}
     new_ids = {item[0] for item in after}
     lines = [f"{prefix}new {noun}{_from(item[1])}" for item in after if item[0] not in old_ids]
-    lines += [
-        f"{prefix}deleted {noun}{_from(item[1])}" for item in before if item[0] not in new_ids
-    ]
+    # A full window cannot name a deletion. These connections are asked `last: EVENT_WINDOW`, so on
+    # a PR with more comments than the window holds, ONE new comment pushes the oldest item out --
+    # the id vanishes from the response without anything being deleted. Reproduced against this
+    # `check()` seam: 100 ids, then the window slid by one, and the poll printed
+    # `#7175 deleted comment from u1` beside the genuine `new comment from u101`. When the window
+    # came back SHORTER than its cap, GitHub returned every item that exists, so a vanished id can
+    # only have been deleted and the precise word is earned. When it came back FULL, the cause is
+    # unobservable from here, so the line says what was observed -- present, then absent -- instead
+    # of asserting the half of it the API did not answer. Suppressing the line was the other option
+    # and is worse: a real deletion on a long PR would then be invisible, and the guard `_check_windows`
+    # uses for discovery (raise, refuse the poll) would make every long lane PR unwatchable.
+    vanished = [item for item in before if item[0] not in new_ids]
+    verdict = "deleted" if len(after) < EVENT_WINDOW else "missing"
+    lines += [f"{prefix}{verdict} {noun}{_from(item[1])}" for item in vanished]
     return lines
 
 

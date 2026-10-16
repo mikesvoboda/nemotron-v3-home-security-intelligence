@@ -90,6 +90,7 @@ def pr_node(
     state="OPEN",
     labels=("lane:backend", "review:ops-a"),
     checks=(("CI Gate (Required Checks)", "SUCCESS", "COMPLETED"),),
+    raw_checks=(),
     reviews=(),
     comments=(),
 ):
@@ -102,8 +103,15 @@ def pr_node(
         # the rollup's checks live under contexts.nodes, NOT nodes -- verified against the live
         # schema (introspection: StatusCheckRollup.fields = commit/contexts/id/state). A fixture
         # using `nodes` here would match a wrong parser and both would fail on the first poll.
+        # `raw_checks` appends VERBATIM context nodes for the shapes `checks` cannot express -- a
+        # StatusContext is `{context, state}`, not `{name, conclusion, status}`, and its in-flight
+        # value is the STRING "PENDING" (a CheckRun's is a null conclusion + a `status` field), so
+        # only a raw node can pin the clause that filters that string.
         "statusCheckRollup": {
-            "contexts": {"nodes": [{"name": n, "conclusion": c, "status": s} for n, c, s in checks]}
+            "contexts": {
+                "nodes": [{"name": n, "conclusion": c, "status": s} for n, c, s in checks]
+                + list(raw_checks)
+            }
         },
         "reviews": {"nodes": [{"id": i, "author": {"login": "mikesvoboda"}} for i in reviews]},
         "comments": {
@@ -245,6 +253,42 @@ def test_new_comment_is_reported_without_its_body():
     lines = second(Run(commented), state)
     assert len(lines) == 1 and "comment" in lines[0].lower()
     assert body not in lines[0]
+
+
+def test_a_vanished_comment_on_a_full_window_says_missing_not_deleted():
+    """A comment that aged out of a FULL `last: EVENT_WINDOW` window was not deleted.
+
+    Reproduced against the shipped `check()`: a window of exactly EVENT_WINDOW ids, then the window
+    sliding by one -- one comment arrives (id 101), the oldest leaves the response (id 1), nothing is
+    deleted -- and the poll printed `['#7175 new comment from u101', '#7175 deleted comment from u1']`.
+    The line asserted a cause the API never answered: on a PR with more comments than the window, an
+    eviction and a deletion look identical. A window SHORTER than the cap held every comment that
+    exists, so there the precise word is earned (see the test above); a FULL window may only report
+    what it saw -- present, then absent.
+    """
+    ids = [f"C_{i}" for i in range(1, watch.EVENT_WINDOW + 1)]
+    full = envelope(
+        [pr_node(PR, comments=tuple((i, f"u{i}", "routine") for i in ids))],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: 45 live"},
+    )
+    state: dict = {}
+    assert watch.check(Run(full), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE) == [], (
+        "the seed poll installs the full window and reports nothing"
+    )
+    slid = [*ids[1:], f"C_{watch.EVENT_WINDOW + 1}"]
+    moved = envelope(
+        [pr_node(PR, comments=tuple((i, f"u{i}", "routine") for i in slid))],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: 45 live"},
+    )
+    lines = watch.check(Run(moved), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+    assert any("new comment from uC_101" in ln for ln in lines), lines
+    gone = [ln for ln in lines if "missing comment" in ln]
+    assert len(gone) == 1 and "from uC_1" in gone[0], lines
+    assert not any("deleted" in ln for ln in lines), (
+        f"a full window cannot name a deletion: {lines}"
+    )
 
 
 def test_a_deleted_comment_is_reported_as_deleted_not_as_new():
@@ -876,8 +920,27 @@ def test_an_explicit_pr_answered_null_raises_instead_of_looking_calm():
     """
     state = seed()
     deaf = envelope([], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"})
-    with pytest.raises(RuntimeError, match=f"#{PR}"):
+    # "explicitly watched", not just the number: _check_read_gone_null ALSO names #7168, and a
+    # seeded state means its message is the one this poll raises -- so a `#<n>` match passed
+    # under the `explicit-null-skipped` mutant once the new guard existed. The phrase is the
+    # author's signature; the number only says somebody noticed.
+    with pytest.raises(RuntimeError, match="explicitly watched"):
         second(Run(deaf), state)
+
+
+def test_an_explicit_pr_answered_null_on_its_first_read_raises():
+    """The case `_check_read_gone_null` cannot cover: nothing was ever read, so nothing "came back".
+
+    The read-gone-null guard needs a PRIOR read, and on the first poll there is none -- without
+    `_check_explicit` this poll just seeds a None and returns []. That gap is how
+    `explicit-null-skipped` escaped the campaign after the new guard landed: the older tests seed
+    `#7168` first, so their null poll trips the NEW guard, which also names the PR, and both tests
+    passed under the mutant while `_check_explicit` itself went unobserved. From an empty state the
+    raise this test asserts has exactly one possible author.
+    """
+    deaf = envelope([], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"})
+    with pytest.raises(RuntimeError, match="explicitly watched"):
+        watch.check(Run(deaf), {}, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
 
 
 def test_a_transient_null_for_an_explicit_pr_costs_one_error_not_the_change():
@@ -979,6 +1042,150 @@ def test_a_discovered_pr_answered_null_keeps_its_watch_reason_and_still_reports_
     assert len(lines) == 1 and "merged" in lines[0].lower(), lines
 
 
+def test_a_pr_read_on_an_earlier_poll_then_answered_null_raises():
+    """The carry-forward's own boundary, on the DISCOVERED channel: read-once, then null.
+
+    The test above pins a PR answered null while still UNREAD -- its fields were never lost, only
+    never yet read, so silence is right and the label group survives. This is the other side: a
+    discovered PR that HAS been read, so the carry no longer applies (`_check_explicit` cannot help
+    either -- it guards only numbers typed as `--pr`). `diff_lines` skips a pair whose either side is
+    unreadable, and the next poll's `before` IS the null snapshot, so a head change straddling the
+    null window would be lost silently and for good. Measured before the guard: four scripted polls
+    (read, null, null, head moved) printed `[] [] [] []` and the state entry ended as the moved
+    fields -- the change had passed unheard. `_check_read_gone_null` raises on the null instead.
+    """
+    state: dict = {}
+    watch.check(
+        Run(
+            envelope(
+                [],
+                ruling_ids=[1],
+                ruling_bodies={1: "BINDING NOW: x"},
+                found={"a0": discovery_node([PR])},
+            )
+        ),
+        state,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[LANE_OPS],
+    )
+    assert state["prs"][PR] == {watch.UNREAD: ["lane:ops"]}
+    # The PR answers: its fields are now READ, and the entry is no longer an UNREAD placeholder.
+    watch.check(
+        Run(
+            envelope(
+                [pr_node(PR)],
+                ruling_ids=[1],
+                ruling_bodies={1: "BINDING NOW: x"},
+                found={"a0": discovery_node([])},
+            )
+        ),
+        state,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[LANE_OPS],
+    )
+    assert watch._read(state["prs"][PR]), "poll 2 read its fields"
+    with pytest.raises(RuntimeError, match=f"#{PR}"):
+        watch.check(
+            Run(
+                envelope(
+                    [],
+                    ruling_ids=[1],
+                    ruling_bodies={1: "BINDING NOW: x"},
+                    found={"a0": discovery_node([])},
+                )
+            ),
+            state,
+            repo=REPO,
+            prs=[],
+            ruling_issue=RULING_ISSUE,
+            label_groups=[LANE_OPS],
+        )
+
+
+def test_a_read_pr_answered_null_once_still_reports_its_straddling_change():
+    """End to end: the raise costs one credit and the change it protects still prints.
+
+    The guard's whole value is in this routing, so it is pinned through `watch`, not at `check`. A
+    raise leaves `state` on the LAST GOOD snapshot -- `check` clears `state` only on a clean return,
+    so the null poll never overwrites it. That is what makes the loss repairable: poll 4 diffs head
+    `a` against head `b` and reports the change that the silent-skip version swallowed for good.
+    """
+    state: dict = {}
+    same = envelope(
+        [pr_node(PR)],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+        found={"a0": discovery_node([])},
+    )
+    moved = envelope(
+        [pr_node(PR, head="b" * 40)],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+        found={"a0": discovery_node([])},
+    )
+    deaf = envelope(
+        [], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"}, found={"a0": discovery_node([])}
+    )
+    # Seed by label (so the PR is on the DISCOVERED channel this guard serves), then read it.
+    register = envelope(
+        [], ruling_ids=[1], ruling_bodies={1: "BINDING NOW: x"}, found={"a0": discovery_node([PR])}
+    )
+    runner = Run(register, same, deaf, moved)
+    sim = Sim()
+    rc, lines = watch.watch(
+        runner,
+        state,
+        sim.clock,
+        sim.sleep,
+        repo=REPO,
+        prs=[],
+        ruling_issue=RULING_ISSUE,
+        label_groups=[LANE_OPS],
+        interval=60,
+        lifetime=3600,
+        max_errors=3,
+    )
+    assert rc == 0 and len(lines) == 1 and "head" in lines[0], lines
+    assert runner.calls == 4, (
+        "one error credit on the null poll, then the change on the next good one"
+    )
+
+
+def test_a_status_context_still_running_is_no_verdict_but_a_reached_one_is():
+    """The rollup's OTHER node type, whose in-flight value is a STRING, now has a fixture.
+
+    `pr_watch.py` reads `... on StatusContext { context state }` and `_checks` filters
+    `conclusion != "PENDING"`, because a StatusContext is in flight as the string `state: "PENDING"`
+    -- a CheckRun is in flight as a null `conclusion` plus a `status` field, which is what every
+    other fixture in this file emits. So no `{name, conclusion, status}` node can reach that clause:
+    the campaign's `inflight-reported` mutant (which drops the whole condition) was caught through
+    the null-conclusion path, and replacing the string `"PENDING"` with `"NOPE"` passed 48/48 -- the
+    clause had no witness. `raw_checks` supplies a real `{context, state}` node. Both halves, so the
+    filter cannot be satisfied by dropping the branch: a PENDING context prints NOTHING, a SUCCESS
+    one prints.
+    """
+    state = seed()
+    pending = envelope(
+        [pr_node(PR, raw_checks=[{"context": "external/ci", "state": "PENDING"}])],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+    )
+    assert second(Run(pending), state) == [], (
+        "a context still running is not a verdict it has not reached"
+    )
+    landed = envelope(
+        [pr_node(PR, raw_checks=[{"context": "external/ci", "state": "SUCCESS"}])],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: x"},
+    )
+    lines = second(Run(landed), state)
+    assert len(lines) == 1 and "external/ci" in lines[0] and "SUCCESS" in lines[0], lines
+
+
 def test_a_null_ruling_issue_raises_instead_of_looking_calm():
     """A poll that cannot see #6854 must not seed a channel that never compares again.
 
@@ -1005,6 +1212,13 @@ def test_window_size_is_bounded_by_a_named_constant():
     query = watch.query_text([PR], REPO, RULING_ISSUE, [LANE_OPS])
     assert f"first: {watch.DISCOVERY_WINDOW}" in query
     assert watch.DISCOVERY_WINDOW <= 100, "GitHub caps a connection page at 100 nodes"
+    # Same discipline on the event side: `_event_lines` calls a vanished id "deleted" only when the
+    # window came back shorter than the ask, so the ask it compares against must be the literal the
+    # query sends -- a hand-typed `last: 100` in one place and a constant in the other is how a
+    # guard starts grading a different window than the one it was written against.
+    assert f"comments(last: {watch.EVENT_WINDOW})" in query, query
+    assert f"reviews(last: {watch.EVENT_WINDOW})" in query, query
+    assert watch.EVENT_WINDOW <= 100
 
 
 def test_explicit_pr_numbers_are_watched_whether_or_not_a_label_matches():

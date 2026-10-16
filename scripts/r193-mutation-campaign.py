@@ -304,13 +304,13 @@ MUTANTS = [
     ),
     (
         "first-not-last-window",
-        "watches the OLD end of a growing connection (the #6854 pagination bug)",
+        "watches the OLD end of a growing connection (the #6854 pagination bug). The target line is "
+        "now an f-string interpolating EVENT_WINDOW -- the rendered query is byte-identical, and the "
+        "anchor follows the SOURCE spelling, which is what the driver mutates",
         [
             (
-                '    "    comments(last: 100) { nodes { id author { login } body } }",\n'
-                "        ]\n    )",
-                '    "    comments(first: 100) { nodes { id author { login } body } }",\n'
-                "        ]\n    )",
+                'f"    comments(last: {EVENT_WINDOW}) {{ nodes {{ id author {{ login }} body }} }}",',
+                'f"    comments(first: {EVENT_WINDOW}) {{ nodes {{ id author {{ login }} body }} }}",',
             )
         ],
     ),
@@ -367,13 +367,63 @@ MUTANTS = [
     ),
     (
         "delete-reads-as-new",
-        "restores the one-directional diff: any set difference prints 'new review'/'new comment', so "
+        "restores the one-directional diff: a vanished item prints 'new review'/'new comment', so "
         "a deleted comment announces an ADDITION that never happened and names no author -- named "
-        "finding 2",
+        "finding 2. Re-anchored when `_event_lines` grew the full-window verdict: the revert now "
+        "removes the verdict branch and prints the vanished items as additions, which is the same "
+        "bug in the new spelling",
         [
             (
-                '        f"{prefix}deleted {noun}{_from(item[1])}" for item in before if item[0] not in new_ids\n',
-                '        f"{prefix}new {noun}{_from(item[1])}" for item in before if item[0] not in new_ids\n',
+                "    vanished = [item for item in before if item[0] not in new_ids]\n"
+                '    verdict = "deleted" if len(after) < EVENT_WINDOW else "missing"\n'
+                '    lines += [f"{prefix}{verdict} {noun}{_from(item[1])}" for item in vanished]\n',
+                "    vanished = [item for item in before if item[0] not in new_ids]\n"
+                '    lines += [f"{prefix}new {noun}{_from(item[1])}" for item in vanished]\n',
+            )
+        ],
+    ),
+    (
+        "read-gone-null-skipped",
+        "un-hooks _check_read_gone_null, so a DISCOVERED PR that was READ on an earlier poll and is"
+        " then answered null is stored as None and skipped by diff_lines: the change straddling the"
+        " null window is lost silently and for good (the next poll's `before` IS the null snapshot),"
+        " and the watch reports a calm tick through the gap -- the UR-89 round's finding 2, whose"
+        " stated mechanism (`_pr_fields(None)` crashing) does not reproduce, but whose SILENT-LOSS"
+        " class is real on this path",
+        [
+            (
+                "    _check_read_gone_null(before, after)\n",
+                "",
+            )
+        ],
+    ),
+    (
+        "pending-string-widened",
+        'replaces the StatusContext in-flight string "PENDING" with "NOPE", so a context that is'
+        " still running reports a verdict it has not reached. Survived 48/48 until"
+        " test_a_status_context_still_running_is_no_verdict_but_a_reached_one_is added a"
+        " `{context, state}` fixture -- every other fixture emits a CheckRun (null `conclusion` +"
+        " `status`), so no fixture could reach the string clause, and `inflight-reported` only"
+        " catches the null path -- named finding 4",
+        [
+            (
+                '        if name and conclusion and conclusion != "PENDING":',
+                '        if name and conclusion and conclusion != "NOPE":',
+            )
+        ],
+    ),
+    (
+        "full-window-called-deleted",
+        'hard-codes the vanish verdict to "deleted", so a comment that merely aged out of a FULL '
+        "`last: EVENT_WINDOW` window is announced as deleted. On a PR with more comments than the "
+        "window one new comment pushes the oldest out of the response -- reproduced against the "
+        "shipped check(): window 1..100, then 2..101, printed `#7175 deleted comment from u1` with "
+        "nothing deleted. Kills only the new both-sides test; the pre-existing deletion test seeds "
+        "three comments, below the cap, where the word is earned -- the UR-89 round's finding 5",
+        [
+            (
+                '    verdict = "deleted" if len(after) < EVENT_WINDOW else "missing"',
+                '    verdict = "deleted"',
             )
         ],
     ),
