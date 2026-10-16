@@ -139,7 +139,7 @@ interface PipelineResp {
   };
 }
 
-test.describe('golden path: batch statistics section @critical', () => {
+test.describe('golden path: batch statistics section (F-135) @critical', () => {
   // 120 s, the same budget worker-management.spec.ts:39 gives a panel that
   // round-trips and polls. 60 s was not enough to be honest: panelRecovers
   // alone allows 60 s, so a /operations boot that lands in the error branch

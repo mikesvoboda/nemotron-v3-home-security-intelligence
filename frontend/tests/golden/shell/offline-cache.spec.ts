@@ -167,7 +167,7 @@ async function waitControlled(page: Page, scope: string): Promise<void> {
     .toEqual({ controller: true, scope, active: 'activated', waiting: 'null', installing: 'null' });
 }
 
-test.describe('golden path: service worker + offline cache on the built stack @critical', () => {
+test.describe('golden path: service worker + offline cache on the built stack (F-027) @critical', () => {
   test.setTimeout(120_000);
 
   test("the shipped artifact: the served /sw.js carries the row's exact cache contract — api-cache network-first 10 s / 50 entries / 300 s, skipWaiting, index.html navigation fallback — and its index precache entry is content-addressed to the bytes actually served", async ({
