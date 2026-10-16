@@ -111,7 +111,7 @@ run; existing ones may stay.
 | --- | --- | --- | --- | --- | --- | --- |
 | [3.1 App shell and global chrome](#31-app-shell-and-global-chrome) | 26 | 0 | 5 | 2 | 13 | 6 |
 | [3.2 Dashboard](#32-dashboard) | 16 | 1 | 5 | 1 | 5 | 4 |
-| [3.3 Event timeline and event detail](#33-event-timeline-and-event-detail) | 28 | 1 | 11 | 3 | 12 | 1 |
+| [3.3 Event timeline and event detail](#33-event-timeline-and-event-detail) | 28 | 1 | 10 | 3 | 13 | 1 |
 | [3.4 Analytics](#34-analytics) | 7 | 0 | 1 | 0 | 6 | 0 |
 | [3.5 Alerts, entities and re-ID](#35-alerts-entities-and-re-id) | 10 | 0 | 8 | 0 | 2 | 0 |
 | [3.6 Trash, jobs and data](#36-trash-jobs-and-data) | 15 | 0 | 12 | 0 | 2 | 1 |
@@ -122,7 +122,7 @@ run; existing ones may stay.
 | [3.11 Webhooks and scheduled reports](#311-webhooks-and-scheduled-reports) | 11 | 0 | 4 | 0 | 1 | 6 |
 | [3.12 Zones, plates, household, faces, heatmaps, scene changes, tracks](#312-zones-plates-household-faces-heatmaps-scene-changes-tracks) | 34 | 0 | 26 | 1 | 4 | 3 |
 | [3.13 External interfaces](#313-external-interfaces) | 5 | 0 | 4 | 0 | 0 | 1 |
-| **all** | **295** | **14** | **122** | **17** | **120** | **22** |
+| **all** | **295** | **14** | **121** | **17** | **121** | **22** |
 
 Counts are rows, not features weighted by size. Where one capability shows on two routes through
 one component, it is one row carrying both routes.
