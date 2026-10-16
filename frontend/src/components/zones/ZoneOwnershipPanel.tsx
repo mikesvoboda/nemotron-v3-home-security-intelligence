@@ -11,14 +11,15 @@
  * Part of the Zone Intelligence System epic (NEM-3186).
  */
 
-import { Dialog, Transition } from '@headlessui/react';
-import { Card, Title, Text, Button, Badge, TextInput, Select, SelectItem } from '@tremor/react';
+import { Dialog, Listbox, Transition } from '@headlessui/react';
+import { Card, Title, Text, Button, Badge, TextInput } from '@tremor/react';
 import { clsx } from 'clsx';
 import {
   AlertTriangle,
   Calendar,
   Car,
   Check,
+  ChevronDown,
   Clock,
   Crown,
   Edit2,
@@ -880,23 +881,52 @@ export default function ZoneOwnershipPanel({
                     {/* Owner Selection */}
                     <div>
                       <span className="mb-1 block text-sm text-gray-400">Zone Owner</span>
-                      <Select
+                      <Listbox
+                        as="div"
                         value={configForm.owner_id?.toString() ?? ''}
-                        onValueChange={(v) =>
+                        onChange={(v: string) =>
                           setConfigForm((f) => ({
                             ...f,
                             owner_id: v ? parseInt(v, 10) : null,
                           }))
                         }
                         data-testid="owner-select"
+                        className="relative"
                       >
-                        <SelectItem value="">No owner</SelectItem>
-                        {members.map((member) => (
-                          <SelectItem key={member.id} value={member.id.toString()}>
-                            {member.name}
-                          </SelectItem>
-                        ))}
-                      </Select>
+                        <Listbox.Button className="flex w-full items-center justify-between rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-left text-sm text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]">
+                          <span className="truncate">
+                            {members.find((m) => m.id === configForm.owner_id)?.name ?? 'No owner'}
+                          </span>
+                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                        </Listbox.Button>
+                        <Listbox.Options className="absolute z-[60] mt-1 max-h-56 w-full divide-y divide-gray-800 overflow-y-auto rounded-lg border border-gray-700 bg-[#1A1A1A] shadow-xl outline-none">
+                          <Listbox.Option
+                            value=""
+                            className={({ active }) =>
+                              clsx(
+                                'cursor-pointer select-none px-3 py-2 text-sm',
+                                active ? 'bg-[#76B900]/20 text-white' : 'text-gray-300'
+                              )
+                            }
+                          >
+                            No owner
+                          </Listbox.Option>
+                          {members.map((member) => (
+                            <Listbox.Option
+                              key={member.id}
+                              value={member.id.toString()}
+                              className={({ active }) =>
+                                clsx(
+                                  'cursor-pointer select-none px-3 py-2 text-sm',
+                                  active ? 'bg-[#76B900]/20 text-white' : 'text-gray-300'
+                                )
+                              }
+                            >
+                              {member.name}
+                            </Listbox.Option>
+                          ))}
+                        </Listbox.Options>
+                      </Listbox>
                       <Text className="mt-1 text-xs text-gray-500">
                         The owner has full trust and never triggers alerts.
                       </Text>

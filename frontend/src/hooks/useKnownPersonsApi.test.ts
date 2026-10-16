@@ -98,10 +98,10 @@ afterEach(() => {
 });
 
 describe('knownPersonsQueryKeys', () => {
-  it('builds the key hierarchy the invalidations rely on', () => {
-    expect(knownPersonsQueryKeys.all).toEqual(['known-persons']);
-    expect(knownPersonsQueryKeys.list()).toEqual(['known-persons', 'list']);
-    expect(knownPersonsQueryKeys.detail(7)).toEqual(['known-persons', 'detail', 7]);
+  it('builds the key hierarchy matching faceRecognitionQueryKeys so modal mutations invalidate the page list (ruling 214)', () => {
+    expect(knownPersonsQueryKeys.all).toEqual(['face-recognition']);
+    expect(knownPersonsQueryKeys.list()).toEqual(['face-recognition', 'known-persons']);
+    expect(knownPersonsQueryKeys.detail(7)).toEqual(['face-recognition', 'known-persons', 7]);
   });
 });
 
