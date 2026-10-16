@@ -571,7 +571,11 @@ def test_real_tree_matches_spec_baselines():
         "collection_allowlist": 4,
         "flake_allowlist": 0,
         "frontend_quarantine": 16,
-        "pytest_skip": 32,
+        # 32→25 (2026-10-16, ruling 220): the seven redundant "Flaky … app
+        # initialization timing" skips in test_system_models.py expired on 10-15 and
+        # were removed with their `#2` registry rows; each test stays skipped by its
+        # "Moved to test_model_management.py" decorator (`retired`, BB.1 deletes them).
+        "pytest_skip": 25,
         "pytest_skipif": 59,
         "pytest_xfail": 4,
         # 89→93 (2026-10-11, BE-1 / ruling 87, PR #6979): the four harness-contract
