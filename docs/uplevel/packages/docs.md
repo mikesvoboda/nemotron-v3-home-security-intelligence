@@ -179,6 +179,28 @@ on the real tier" (`docs/reference/feature-inventory.md:33`).
 **Done when:** the legend agrees with UR-136, and every listed row carries the note and is not
 **works**.
 
+### [r231] Every model family the real tier fakes
+
+**Flags:** none. **Assigned:** docs, after `[r207]`. **Depends on:** `[r207]` merged (#7209).
+**PR:** none yet. (ruling 231, record 6215981513)
+
+Ruling 207 named the detector, re-ID and threat families. The real tier serves only the real VLM
+(UR-136), and `models.yml` serves more families through the AI gateway: face detection and
+recognition, license plates (`yolo11-license-plate`, `fast-alpr`, `paddleocr`) and general
+detection. Ruling 231 extends ruling 207 to every family except the VLM.
+
+- [ ] **MEASURE** which `models.yml` families the real tier fakes, from its compose and UR-136, and
+      list them in the PR.
+- [ ] List the rows whose behaviour comes from those families' output, each with the code path
+      that reads it. Each carries the note `needs real Triton models`, and a listed row at **works**
+      goes back to **awaiting real tier**, named in the PR. The inventory legend names the set.
+- [ ] F-270, F-271 and F-275's evidence cells cite the 2026-10-13 real-tier run that set them to
+      **works** (commit `5db3c56f7`, project `hsi-check-20261013234949-a14ce4`) in place of the
+      stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87).
+
+**Done when:** every listed row carries the note and is not **works**, the legend agrees with
+UR-136, and the three evidence cells cite their real-tier run.
+
 ### [r165b] F-235: cure the quarantined notify channels spec
 
 **Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** #7122 (merged 2026-10-14T18:36:41Z as `8977e9457`, head `f1d923174`).

@@ -243,6 +243,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 228    | package `[r228]`: one cache key shape, before `[r223]` (record 6215814018)                                  |
 | 229    | the second session in frontend's sandbox ends; `fe3-f064-draft` is deleted (record 6215872590)              |
 | 230    | no rows for docs' unrowed paths; three client-less endpoints go to R2b's last round (record 6215912535)     |
+| 231    | package `[r231]`: ruling 207 covers every model family the real tier fakes (record 6215981513)              |
 
 ## Owner records
 
