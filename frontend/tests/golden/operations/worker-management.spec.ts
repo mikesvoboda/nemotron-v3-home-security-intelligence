@@ -35,7 +35,7 @@ interface SupervisorBody {
   workers: { name: string; status: string; restart_count: number }[];
 }
 
-test.describe('golden path: worker management @critical', () => {
+test.describe('golden path: worker management (F-142, F-143) @critical', () => {
   test.setTimeout(120_000); // round trip + panel polls
 
   test('four supervised workers render, and stop/start round-trips the metrics worker', async ({

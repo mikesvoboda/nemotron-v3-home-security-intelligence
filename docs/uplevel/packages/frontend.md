@@ -500,17 +500,26 @@ its head.
 
 ### [r196a] F2.3's last frontend rows
 
-**Flags:** none. **Assigned:** frontend, first on its queue. **Depends on:** none.
-**PR:** none yet. (rulings 191, 192, 196)
+**Flags:** none. **Assigned:** frontend, first on its queue; F-012 and F-064 to heavy-a, now
+(ruling 226). **Depends on:** none. **PR:** none yet. (rulings 191, 192, 196, 226)
 
 Rulings 191 and 192 assigned these rows as prose inside `F2.3`, which `lane_tick.py` cannot offer
 as a claim; ruling 196 makes them a package. Each PR's title carries `[r196a]`.
 
-- [ ] FE-3's six unwritten rows, F-045, F-052, F-053, F-054, F-059 and F-064, on one FE-3 build PR
+- [ ] FE-3's five unwritten rows, F-045, F-052, F-053, F-054 and F-059, on one FE-3 build PR
       off `main` (ruling 87's file rule). F-045's "arriving over the socket" clause needs the fake
       VLM's drop path, not the bulk fixture.
 - [ ] F-028's leg 2, using F-007's offline-then-reload approach, in its own PR.
-- [ ] F-012's spec runs in `Feature check (seeded)` against #7178's volume.
+- [ ] **heavy-a (ruling 226):** F-012's spec, `frontend/tests/golden/shell/disk-warning.spec.ts`,
+      runs in `Feature check (seeded)` against #7178's volume, in its own PR.
+- [ ] **heavy-a (ruling 226):** F-064 ("Add Face to Known Persons" on a person detection) gets a
+      new spec under `frontend/tests/golden/timeline/`, in its own PR, running in
+      `Feature check (seeded)` if it needs `[r215a]`'s seeded person. If no sanctioned supply gives
+      the enroll a person detection, the PR states the measured cause and the row goes to `R2b`
+      with it; the supply is never faked (ruling 86).
+
+For F-012 and F-064, heavy-a edits only those two inventory rows (ruling 87's file rule), frontend
+does no work on either, and frontend reads heavy-a's `frontend/` diffs for both (ruling 184).
 
 **Done when:** none of these eight rows says **unverified**; each flipped on a CI run where its
 leg executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).

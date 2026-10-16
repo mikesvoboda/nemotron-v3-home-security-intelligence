@@ -63,7 +63,7 @@ function derived(m: ModelItem): 'disabled' | 'unknown' | 'loaded' | 'unloaded' {
   return m.runtime.loaded ? 'loaded' : 'unloaded';
 }
 
-test.describe('golden path: model management panel renders on /settings/ai-models @critical', () => {
+test.describe('golden path: model management panel renders on /settings/ai-models (F-125, F-127, F-129) @critical', () => {
   test.setTimeout(90_000);
 
   test('the AI Models tab mounts its panel and mirrors both live model feeds', async ({ page }) => {

@@ -149,8 +149,9 @@ Read this section while you write a package's code, tests, docs and PR.
      numbers merges with the operator's command in its body at `awaiting real tier`, and the
      operator posts the output and sets `done` (UR-146). A phase exits when all its rows say `done`, except
      packages a ruling leaves open: `O2.4` and `B2.3` (ruling 117) and `O2.5` (ruling 144, which
-     gates only ruling 127's twelve real-tier rows) do not gate Phase 2's exit and may finish
-     alongside Phase 3; the coordinator does not hold Phase 3 for them. (rulings 117, 144)
+     gates only ruling 127's twelve real-tier rows, F-295 and F-296, rulings 219 and 222) do not
+     gate Phase 2's exit and may finish alongside Phase 3; the coordinator does not hold Phase 3 for
+     them. (rulings 117, 144, 219, 222)
 - **UR-76** Mark package steps the house way: **MEASURE** produces the number and puts it in the PR;
   **DECIDE** chooses on evidence and records why in the PR; **RULING** stops and asks the owner.
   (README "Vocabulary")
@@ -542,9 +543,11 @@ when a phase exits, are UR-10 (contract rule 5).
   note saying why, and `F2.3` reaches it by the real tier or a seeded golden path; a row is ruled
   only if it fails once reachable, and that failure is a demotion in a later `R2b` round. (ruling 127)
 - **UR-181** An inventory evidence cell, whenever its row is edited, is at most three sentences
-  (about 500 characters): why the row has its status, the witness (`path:line` or the spec), and
-  the run id. Demotion history, supersessions and re-anchoring go in the PR body. A long cell is cut
-  to this shape when its row is next edited; there is no sweep. (ruling 179)
+  (about 500 characters): why the row has its status, and the witness: the spec and its legs, whose
+  titles carry the row's `F-nnn`. It needs no run or job id: `scripts/uplevel/inventory_witness.py`
+  re-proves every **awaiting real tier** and **works** row against each Feature check run. Demotion
+  history, supersessions and re-anchoring go in the PR body. A long cell is cut to this shape when
+  its row is next edited; there is no sweep. (rulings 179, 218)
 
 ## Posting, heartbeats and the urgent path
 

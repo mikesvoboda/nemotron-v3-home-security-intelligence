@@ -19,7 +19,7 @@ interface HistoryBody {
   count?: number;
 }
 
-test.describe('golden path: performance history @critical', () => {
+test.describe('golden path: performance history (F-148) @critical', () => {
   test.setTimeout(150_000); // worst case: wait for the first snapshot cadence
 
   test('charts real snapshots and re-fetches on a time-range change', async ({ page }) => {

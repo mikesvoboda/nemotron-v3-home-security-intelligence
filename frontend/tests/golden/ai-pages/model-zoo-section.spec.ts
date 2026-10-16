@@ -52,7 +52,7 @@ interface LatencyHistory {
   has_data: boolean;
 }
 
-test.describe('golden path: model zoo status cards on /ai @critical', () => {
+test.describe('golden path: model zoo status cards on /ai (F-104) @critical', () => {
   // 90 s, not 60: the last assertion waits out the section's own 30 s poll
   // interval to prove the "polled" clause in the row text.
   test.setTimeout(90_000);

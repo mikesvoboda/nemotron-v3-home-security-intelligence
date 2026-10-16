@@ -234,7 +234,7 @@ async function metricsText(api: string): Promise<string> {
   return res.text();
 }
 
-test.describe('golden path: RUM Core Web Vitals boot → backend histograms @critical', () => {
+test.describe('golden path: RUM Core Web Vitals boot → backend histograms (F-026) @critical', () => {
   test.setTimeout(120_000);
 
   test('the wire leg: a boot batches its Web Vitals into ONE POST /api/rum that the backend ingests with zero errors', async ({
