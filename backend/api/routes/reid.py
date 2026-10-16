@@ -5,7 +5,6 @@ embedding-based similarity matching across Redis (hot cache) and
 PostgreSQL (historical data).
 
 Endpoints:
-- POST /api/reid/search: Search for similar entities by embedding
 - GET /api/reid/similar/{detection_id}: Find similar entities for a detection
 """
 
@@ -18,7 +17,6 @@ from fastapi.responses import ORJSONResponse
 
 from backend.api.schemas.reid import (
     SimilarityMatch,
-    SimilaritySearchRequest,
     SimilaritySearchResponse,
 )
 from backend.core.dependencies import get_hybrid_entity_storage
@@ -73,89 +71,6 @@ async def _get_redis_client() -> Redis | None:
             return client._ensure_connected()
         return None
     return None
-
-
-@router.post(
-    "/search",
-    response_model=SimilaritySearchResponse,
-    responses={
-        400: {"description": "Invalid request parameters"},
-        503: {"description": "Service unavailable (Redis/PostgreSQL)"},
-        500: {"description": "Internal server error"},
-    },
-)
-async def search_similar_entities(
-    request: SimilaritySearchRequest,
-    hybrid_storage: HybridEntityStorage = Depends(get_hybrid_entity_storage),
-) -> SimilaritySearchResponse:
-    """Search for entities similar to the given embedding vector.
-
-    This endpoint allows searching for entities that are similar to a provided
-    embedding vector. It can search across both Redis (hot cache, 24h window)
-    and PostgreSQL (historical, 30-day retention) depending on the
-    `include_historical` parameter.
-
-    Args:
-        request: Search request containing embedding vector and parameters
-        hybrid_storage: Hybrid storage service for combined Redis/PostgreSQL search
-
-    Returns:
-        SimilaritySearchResponse with matching entities sorted by similarity
-
-    Raises:
-        HTTPException: 400 for invalid parameters, 503 for service unavailable
-    """
-    logger.info(
-        "Re-ID similarity search: entity_type=%s, threshold=%.2f, include_historical=%s",
-        request.entity_type,
-        request.threshold,
-        request.include_historical,
-    )
-
-    try:
-        # Use hybrid storage for combined search
-        matches = await hybrid_storage.find_matches(
-            embedding=request.embedding,
-            entity_type=request.entity_type,
-            threshold=request.threshold,
-            exclude_detection_id=request.exclude_detection_id,
-            include_historical=request.include_historical,
-        )
-
-        # Apply limit
-        limited_matches = matches[: request.limit]
-
-        # Convert to response format
-        match_items = [
-            SimilarityMatch(
-                entity_id=str(match.entity_id),
-                entity_type=match.entity_type,
-                camera_id=match.camera_id,
-                timestamp=match.timestamp,
-                detection_id=match.detection_id,
-                similarity=match.similarity,
-                time_gap_seconds=match.time_gap_seconds,
-                source=match.source,
-                thumbnail_url=_get_thumbnail_url(match.detection_id),
-                attributes=match.attributes,
-            )
-            for match in limited_matches
-        ]
-
-        return SimilaritySearchResponse(
-            matches=match_items,
-            total_matches=len(matches),
-            threshold=request.threshold,
-            entity_type=request.entity_type,
-            include_historical=request.include_historical,
-        )
-
-    except Exception as e:
-        logger.error("Re-ID similarity search failed: %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Similarity search failed: {e!s}",
-        ) from e
 
 
 @router.get(

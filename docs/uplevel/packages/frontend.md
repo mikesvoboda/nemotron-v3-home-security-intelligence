@@ -135,7 +135,7 @@ same way after the owner's `R2b` session.
 ### F3.1 Retire ruled-out features, frontend part
 
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220.
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7224.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
