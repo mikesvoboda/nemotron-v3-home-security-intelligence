@@ -299,8 +299,16 @@ def snapshot(data: dict, prs: Sequence[int]) -> dict:
     issue = root.get("issue")
     if issue is not None:
         comments = _comments(issue.get("comments"))
+        # binding keeps the window's chronological order (see _pr_fields), not a cid sort. The backfill
+        # decision is made on the RAW window, not on this filtered list: `window_ids` is every comment
+        # id in the window in order, so a real arrival is anchored against ~100 shared ids no matter how
+        # many of them happen to bind (a filtered list can have no anchor at all -- zero shared BINDING
+        # rows -- and then position proves nothing). window_full is the RAW length too: truncation is a
+        # property of the connection, not of how many of its rows bind.
         state["ruling"] = {
-            "binding": sorted((cid, login) for cid, login, body in comments if _binding(body))
+            "binding": [(cid, login) for cid, login, body in comments if _binding(body)],
+            "window_ids": [cid for cid, _login, _body in comments],
+            "window_full": len(comments) >= EVENT_WINDOW,
         }
     return state
 
@@ -325,11 +333,19 @@ def _pr_fields(node: dict) -> dict:
         "state": node.get("state"),
         "labels": sorted(n.get("name") for n in (node.get("labels") or {}).get("nodes") or []),
         "checks": _checks(node.get("statusCheckRollup")),
-        "reviews": sorted(
+        # reviews/comments keep the CONNECTION's order, NOT a sort. `last: EVENT_WINDOW` returns them
+        # oldest-first (measured on #6854: the 100 comments run strictly ascending by createdAt), and
+        # `_event_lines` reads that position to tell a genuine arrival (above the window) from a
+        # backfill (an old id re-entering below it when the newest is deleted). Lexical order is NOT
+        # chronological -- sorting turns "C_101" ahead of "C_2" -- so sorting here would suppress real
+        # appends and admit backfills. Order is stable because createdAt is unique and ascending.
+        # Labels below stay sorted: a label set has no chronology and its order is not an event.
+        "reviews": [
             (r.get("id"), (r.get("author") or {}).get("login"))
             for r in (node.get("reviews") or {}).get("nodes") or []
-        ),
-        "comments": sorted((c[0], c[1]) for c in _comments(node.get("comments"))),
+            if r.get("id") is not None
+        ],
+        "comments": [(c[0], c[1]) for c in _comments(node.get("comments"))],
     }
 
 
@@ -394,9 +410,48 @@ def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict)
             lines.append(f"{prefix}label {' '.join(parts)}")
     old_ruling, new_ruling = before.get("ruling"), after.get("ruling")
     if old_ruling and new_ruling:
-        known = {cid for cid, _login in old_ruling["binding"]}
+        # Same backfill class as the PR channels, and it costs more here: a false `new BINDING NOW`
+        # wakes EVERY lane onto a ruling already carried out -- the opposite of ruling 40's no-op rule.
+        # The arrival test runs on the RAW window (`window_ids`), where ~100 shared ids anchor the
+        # position; the binding list is then restricted to the records that both bind and sit at a
+        # genuinely new position. Two shapes that must still pass: an arrival at the new end, and a
+        # routine comment that was EDITED to bind -- same id, its position unchanged, but its body now
+        # carries the marker, so it is a new ruling event and prints.
+        # A BINDING record is "new" when it binds now and did not bind on the previous poll. Two
+        # shapes qualify and BOTH must keep printing: a record that ARRIVED at the new end, and a
+        # routine comment EDITED to carry the marker (same id, already in the window, position
+        # unchanged -- a real ruling event). One shape must NOT print: a record GitHub BACKFILLED -- an
+        # old BINDING that aged out and re-enters at the BOTTOM when the newest comment is deleted. It
+        # binds now and did not bind last poll (it was not in the window at all), so the naive set
+        # diff announces it, and that false line wakes every lane onto a ruling already carried out
+        # (ruling 40: a no-op, not a task). Anchor the position on the RAW window, where ~100 ids are
+        # shared. The pre-position helper is bypassed here because the binding diff is not a plain
+        # added-set: the edited-to-bind id is shared, not fresh, yet genuine -- so the gate is a
+        # per-cid predicate, not "above the last shared id".
+        new_ids = new_ruling.get("window_ids")
+        old_ids = old_ruling.get("window_ids")
+        old_bind = {cid for cid, _ in old_ruling["binding"]}
+        if (
+            new_ids is None or old_ids is None
+        ):  # a snapshot shape without the window: prior behavior
+            fresh = lambda cid: cid not in old_bind  # noqa: E731
+        else:
+            old_set = set(old_ids)
+            idx = {cid: i for i, cid in enumerate(new_ids)}
+            top_shared = max((idx[c] for c in old_set if c in idx), default=-1)
+            full = new_ruling.get("window_full", False)
+
+            def fresh(cid: object) -> bool:
+                if cid in old_bind:
+                    return False  # still binding -- not a new event either way
+                if not full:
+                    return True  # short window returned everything: nothing could have backfilled
+                if cid in old_set:
+                    return True  # edited-to-bind: was visible last poll, position rules don't apply
+                return cid in idx and idx[cid] > top_shared  # a window-new id, at the new end
+
         for cid, login in new_ruling["binding"]:
-            if cid not in known:
+            if fresh(cid):
                 lines.append(f"#{ruling_issue} new {BINDING_MARKER} (comment {cid}{_from(login)})")
     return lines
 
@@ -507,6 +562,35 @@ def _from(login: str | None) -> str:
     return "" if not login else f" from {login}"
 
 
+def _genuine_additions(
+    before: Sequence[tuple], after: Sequence[tuple], *, full: bool
+) -> list[tuple]:
+    """Items of ``after`` that are real arrivals, not window bookkeeping. Position, not membership.
+
+    The window is asked `last: EVENT_WINDOW` and comes back OLDEST-FIRST (measured on #6854: 721
+    comments, the 100 returned run 05:55:29Z .. 09:21:47Z strictly ascending), so a comment that
+    JUST ARRIVED sits ABOVE every id the two polls share, while a comment GitHub BACKFILLS -- an
+    old one re-entering at the BOTTOM when the newest comment is deleted and the window's top edge
+    shrinks to make room -- sits BELOW them. Announcing a backfill as `new` is the round-two bug
+    (a deletion announcing an addition) seen from the other end of the window, on the channel whose
+    whole value is that the agent trusts it, and it fires on BOTH channels: a false `new comment`
+    for a PR watcher, a false `new BINDING NOW` for every lane on #6854. So position against the
+    shared ids picks the word: strictly above every shared id is a real arrival. On a window SHORTER
+    than the cap every existing item was returned and nothing could backfill, so membership alone
+    decides -- which is what keeps an honest append printing (its shared ids sit below it). The
+    caller must pass `full` from the RAW window length, not a filtered view of it: truncation is a
+    property of the connection, not of how many of its rows matched a body filter.
+    """
+    old_ids = {item[0] for item in before}
+    new_ids = {item[0] for item in after}
+    fresh = [item for item in after if item[0] not in old_ids]
+    if not full:
+        return fresh
+    idx = {item[0]: i for i, item in enumerate(after)}
+    top_shared = max((idx[i] for i in (old_ids & new_ids)), default=-1)
+    return [item for item in fresh if idx[item[0]] > top_shared]
+
+
 def _event_lines(
     prefix: str, noun: str, after: Sequence[tuple], before: Sequence[tuple]
 ) -> list[str]:
@@ -522,9 +606,13 @@ def _event_lines(
     is not a class either, and the line names it anyway) -- naming what moved beats announcing its
     opposite or hiding the difference behind the word "new".
     """
+    # NEW side -- filtered through the backfill guard (see _genuine_additions), then phrased.
+    lines = [
+        f"{prefix}new {noun}{_from(item[1])}"
+        for item in _genuine_additions(before, after, full=len(after) >= EVENT_WINDOW)
+    ]
     old_ids = {item[0] for item in before}
     new_ids = {item[0] for item in after}
-    lines = [f"{prefix}new {noun}{_from(item[1])}" for item in after if item[0] not in old_ids]
     # A full window cannot name a deletion. These connections are asked `last: EVENT_WINDOW`, so on
     # a PR with more comments than the window holds, ONE new comment pushes the oldest item out --
     # the id vanishes from the response without anything being deleted. Reproduced against this

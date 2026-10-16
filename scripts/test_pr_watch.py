@@ -291,6 +291,124 @@ def test_a_vanished_comment_on_a_full_window_says_missing_not_deleted():
     )
 
 
+def test_a_backfilled_comment_on_a_full_window_is_not_announced_as_new():
+    """A comment GitHub BACKFILLS into a full window is not a new comment.
+
+    Reproduced against the shipped `check()` at head `78dbf9b60` (before the fix): seed the full
+    window `C_1..C_100`, slide it one (`C_2..C_101`, the genuine append prints), then DELETE `C_101`.
+    `last: 100` re-answers with `C_1..C_100` -- `C_1` was aged out last poll and is back -- and the
+    poll printed ``#7175 new comment from uC_1``. Nothing new happened; a comment was DELETED, and the
+    oldest survivor re-entered at the bottom of the window. That is the round-two finding (a deletion
+    announcing an addition) seen from the OTHER end of the window, and it is the line the watcher's
+    whole premise puts the agent's trust in. The guard reads POSITION: the window is oldest-first
+    (measured live on #6854, 721 comments returned strictly ascending), a real arrival sits ABOVE every
+    shared id, a backfill re-enters BELOW the last shared one. The genuine append still prints -- that
+    is what the assertion on poll 2 pins, and the reason the fix is positional and not a blanket
+    "full window prints no new" gate (which would silence the signal the watcher exists for).
+    """
+    ids = [f"C_{i}" for i in range(1, watch.EVENT_WINDOW + 1)]
+
+    def env(id_list):
+        return envelope(
+            [pr_node(PR, comments=tuple((i, f"u{i}", "routine") for i in id_list))],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: 45 live"},
+        )
+
+    state: dict = {}
+    assert (
+        watch.check(Run(env(ids)), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE) == []
+    ), "the seed poll installs the full window and reports nothing"
+    slid = [*ids[1:], f"C_{watch.EVENT_WINDOW + 1}"]
+    lines = watch.check(Run(env(slid)), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+    assert any("new comment from uC_101" in ln for ln in lines), f"a genuine append prints: {lines}"
+    backfill = ids[:]  # C_101 deleted -> last:100 back-fills C_1; nothing new exists
+    lines = watch.check(Run(env(backfill)), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+    assert not any("new comment" in ln for ln in lines), f"a backfill is not an arrival: {lines}"
+    assert any("missing comment from uC_101" in ln for ln in lines), lines
+
+
+def test_a_backfilled_binding_on_a_full_ruling_window_is_not_announced_as_new():
+    """The same hazard on the #6854 ruling channel, where a false line wakes EVERY lane.
+
+    A lane that already carried a `BINDING NOW` out treats a second report of it as a no-op (ruling
+    40), so the cost here is a false wake, not a wrong fact -- but the false wake is exactly the noise
+    the digest is built to avoid. Reproduced against shipped `check()`: a full ruling window whose
+    newest comment carries a BINDING (so it is reported), then that newest comment DELETED, which
+    back-fills an older comment that also binds -- a ruling every lane acted on days ago -- and the
+    naive set diff announces it as `new BINDING NOW`. The arrival test runs on the RAW comment window
+    (`window_ids`), where ~100 shared ids anchor the position, so a filtered binding list cannot lose
+    the anchor. A BINDING that genuinely arrives at the new end, and one that was EDITED into
+    existence on an id already in the window, both still print (pinned by the second assertion).
+    """
+    W = watch.EVENT_WINDOW
+    ids = [f"R_{i}" for i in range(1, W + 1)]
+    BIND = "BINDING NOW: 12 live"
+
+    def env(id_list, binding_ids):
+        return envelope(
+            [pr_node(PR)],
+            ruling_ids=id_list,
+            ruling_bodies=dict.fromkeys(binding_ids, BIND),
+        )
+
+    state: dict = {}
+    # poll 1: full window; an old binding near the bottom, the newest ruling at the very top.
+    first = env(ids, {ids[0], ids[-1]})
+    assert watch.check(Run(first), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE) == []
+    # poll 2: the TOP comment is DELETED, so `last: 100` back-fills the next-oldest id -- and it
+    # re-enters at the BOTTOM (the window is oldest-first), carrying a BINDING from days ago.
+    backfilled = ["R_0", *ids[:-1]]
+    lines = watch.check(
+        Run(env(backfilled, {ids[0], "R_0"})), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+    )
+    assert not any("new BINDING" in ln for ln in lines), (
+        f"a back-filled BINDING re-wakes every lane onto a ruling already carried out: {lines}"
+    )
+
+
+def test_a_binding_that_arrives_or_was_edited_into_existence_still_prints():
+    """Positive control the backfill guard must not break: two real ruling events still report.
+
+    (a) a BINDING appended at the new end of the window -- the ordinary case; (b) a routine comment
+    EDITED to carry the marker: same id, already in the window last poll, so it is "shared" by
+    position yet genuinely new as an EVENT (a body edit is not a window move). A positional rule that
+    only fires on ids absent from last poll would silence (b), and a blanket full-window gate would
+    silence (a). Both must survive.
+    """
+    W = watch.EVENT_WINDOW
+    ids = [f"R_{i}" for i in range(1, W + 1)]
+    BIND = "BINDING NOW: 12 live"
+
+    def env(window, binding_ids):
+        return envelope(
+            [pr_node(PR)], ruling_ids=window, ruling_bodies=dict.fromkeys(binding_ids, BIND)
+        )
+
+    state: dict = {}
+    assert (
+        watch.check(Run(env(ids, {ids[0]})), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+        == []
+    )
+    # (a) a fresh BINDING ARRIVES: the window slides, the new id is absent from last poll and sits
+    # at the new end. (A static window would make it an EDIT, not an arrival -- the branch matters.)
+    slid = [*ids[1:], "R_new"]
+    lines = watch.check(
+        Run(env(slid, {ids[1], "R_new"})), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+    )
+    assert any("new BINDING" in ln for ln in lines), f"a genuine new BINDING prints: {lines}"
+    # (b) an id already in the window flips from routine to BINDING (an edit; position unchanged,
+    # the window identical). A rule keyed only on "id absent last poll" would silence this.
+    lines = watch.check(
+        Run(env(slid, {ids[1], "R_new", ids[50]})),
+        state,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+    )
+    assert any("new BINDING" in ln for ln in lines), f"a BINDING edited into place prints: {lines}"
+
+
 def test_a_deleted_comment_is_reported_as_deleted_not_as_new():
     """A vanished comment must not announce an addition.
 

@@ -179,11 +179,20 @@ the delete direction finds nothing, so the line announced an addition that had n
 no author. Deletion is not one of ruling 193's six change classes either, and the file resolves that
 the way `_state_line` does a reopen — name what moved.
 
-`scripts/test_pr_watch.py` (54 tests, in ci.yml's anti-rot-gates list) drives one seam —
+The same class then appeared at the **other** end of a full window: a comment DELETED at the top edge
+makes `last: 100` back-fill the oldest id it had aged out, and that id is absent from the previous
+poll's set, so the diff announced `new comment from` a comment older than everything on screen — and
+on #6854 a back-filled `new BINDING NOW` re-wakes every lane onto a ruling ruling 40 already made a
+no-op. The arrival test is therefore POSITIONAL, not membership: these connections answer
+oldest-first (measured live on #6854), a real arrival sits above every shared id, a backfill re-enters
+below them, and on a window shorter than the cap nothing can backfill so membership alone decides —
+which is what keeps an honest append printing.
+
+`scripts/test_pr_watch.py` (57 tests, in ci.yml's anti-rot-gates list) drives one seam —
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
 fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
 starts reading something new fails loudly instead of passing on `{}`.
-`scripts/r193-mutation-campaign.py` reverts 40 properties in a throwaway worktree and fails if any
+`scripts/r193-mutation-campaign.py` reverts 43 properties in a throwaway worktree and fails if any
 survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
 registered in ci.yml — the campaign list holds suites, not drivers.
 

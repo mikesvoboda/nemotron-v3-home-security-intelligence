@@ -84,8 +84,8 @@ MUTANTS = [
         "carries comment BODIES into the printed line instead of the author",
         [
             (
-                '        "comments": sorted((c[0], c[1]) for c in _comments(node.get("comments"))),',
-                '        "comments": sorted((c[0], c[2]) for c in _comments(node.get("comments"))),',
+                '        "comments": [(c[0], c[1]) for c in _comments(node.get("comments"))],',
+                '        "comments": [(c[0], c[2]) for c in _comments(node.get("comments"))],',
             )
         ],
     ),
@@ -196,8 +196,9 @@ MUTANTS = [
     ),
     (
         "binding-silently-missing",
-        "a new BINDING NOW is not reported at all",
-        [("            if cid not in known:", "            if False:")],
+        "a new BINDING NOW is not reported at all. Re-anchored when the ruling diff grew the "
+        "backfill guard: `if cid not in known:` became `if fresh(cid):`, same single gate",
+        [("            if fresh(cid):", "            if False:")],
     ),
     # --- the label-discovery half ruling 193 asked for -------------------------------
     (
@@ -430,8 +431,9 @@ MUTANTS = [
         "`last: EVENT_WINDOW` window is announced as deleted. On a PR with more comments than the "
         "window one new comment pushes the oldest out of the response -- reproduced against the "
         "shipped check(): window 1..100, then 2..101, printed `#7175 deleted comment from u1` with "
-        "nothing deleted. Kills only the new both-sides test; the pre-existing deletion test seeds "
-        "three comments, below the cap, where the word is earned -- the UR-89 round's finding 5",
+        "nothing deleted. Kills the both-sides test and the backfill test (whose third assertion "
+        "demands the word `missing` for the vanished newest comment); the pre-existing deletion test "
+        "seeds three comments, below the cap, where the word is earned -- the UR-89 round's finding 5",
         [
             (
                 '    verdict = "deleted" if len(after) < EVENT_WINDOW else "missing"',
@@ -449,6 +451,56 @@ MUTANTS = [
                 '        if after["prs"].get(number) is None and UNREAD in (before["prs"].get(number) or {}):\n'
                 '            after["prs"][number] = before["prs"][number]\n',
                 '        if False:\n            after["prs"][number] = before["prs"][number]\n',
+            )
+        ],
+    ),
+    (
+        "backfill-reads-as-new",
+        "restores the membership diff on the PR channels: on a FULL window every id absent from last "
+        "poll prints as an arrival, so a DELETED newest comment -- whose removal lets `last: 100` "
+        "back-fill the oldest id it had aged out -- announces `new comment` for a comment that is "
+        "older than everything on screen. Reproduced against shipped check() at 78dbf9b: seed "
+        "C_1..C_100, slide to C_2..C_101, delete C_101 -> printed `#7168 new comment from uC_1`. "
+        "The reviewer who reported it called the fix shape 'suppress new-side on a full window', but "
+        "that would kill the genuine append too, so the guard is POSITIONAL and this mutant restores "
+        "only the positional clause",
+        [
+            (
+                "    top_shared = max((idx[i] for i in (old_ids & new_ids)), default=-1)\n"
+                "    return [item for item in fresh if idx[item[0]] > top_shared]",
+                "    return fresh",
+            )
+        ],
+    ),
+    (
+        "ruling-backfill-reads-as-new",
+        "restores the membership diff on the #6854 ruling channel: an old BINDING that BACK-FILLS "
+        "into a full window re-prints `new BINDING NOW`, and a false line there wakes EVERY lane onto "
+        "a ruling already carried out -- the direct opposite of ruling 40's no-op rule, on the channel "
+        "every lane in the repo polls. Kills only the ruling backfill test: the edited-to-bind and "
+        "genuine-arrival controls keep printing under the mutation (an arrival is above top_shared by "
+        "definition; an edit is `cid in old_set`, which the mutant never consults), so nothing but the "
+        "false-wake pin dies",
+        [
+            (
+                "                return cid in idx and idx[cid] > top_shared",
+                "                return True",
+            ),
+        ],
+    ),
+    (
+        "window-sorted-lexically",
+        "re-sorts the comment window LEXICALLY inside `_pr_fields`, which destroys the chronology the "
+        "backfill guard reads: C_10 sorts between C_1 and C_2, so `position` stops meaning time and "
+        "the newest real arrival (C_101, which sorts BEFORE C_2) falls below top_shared and goes "
+        "unreported -- the watcher silently misses appends on exactly the busy PRs where the window "
+        "truncates. Pinned because the guard's correctness rests on a live-API property measured once "
+        "(#6854: 721 comments, the 100 returned run strictly ascending) -- a future 'cleanup' that "
+        "adds a sort back would break it while looking tidier",
+        [
+            (
+                '        "comments": [(c[0], c[1]) for c in _comments(node.get("comments"))],',
+                '        "comments": sorted((c[0], c[1]) for c in _comments(node.get("comments"))),',
             )
         ],
     ),
