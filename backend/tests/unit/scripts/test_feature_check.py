@@ -1370,6 +1370,48 @@ def test_a_green_real_run_removes_its_vlm_after_the_test_deployment(
     assert '"exit": 0' in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("seeded", [True, False], ids=["seeded", "unseeded"])
+def test_a_real_run_plants_the_debug_fixtures_only_when_seeded(
+    agent_gpu: AgentGpuStub,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    seeded: bool,
+) -> None:
+    """Ruling 235 puts the CI fixtures on the REAL tier, so the real tier has to plant them.
+
+    ``run_check`` guards the call on ``seeded`` alone (``feature_check.py:3040``). A
+    guard that also demanded ``run.mode == "fake"`` — the shape every pre-ruling
+    seeded run had — keeps every fake-tier test green and leaves ``--real --seeded``
+    running the seeded goldens against an UNSEEDED backend: the seeded specs then
+    read fixtures that were never planted. That is the failure this pins, and it is
+    the failure the operator's ruling-235 leg could not have caught on its own,
+    because a leg only observes what its own seeding step left behind.
+
+    Both arms are asserted, because a one-sided "was called" pin passes for any
+    reason at all: the un-seeded arm is what says the guard is ``seeded`` and not
+    simply unconditional.
+    """
+    order: list[str] = []
+    _green_real_run(monkeypatch, order, log=agent_gpu.log)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
+    monkeypatch.setattr(
+        fc.Run,
+        "seed_debug_fixtures",
+        lambda _self: order.append("seed_debug_fixtures"),
+    )
+    argv = ["--real"]
+    if seeded:
+        argv.append("--seeded")
+    status = fc.main([*argv, "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_OK, capsys.readouterr().out
+    assert ("seed_debug_fixtures" in order) is seeded
+    if seeded:
+        # The fixtures are the CI's, and they are planted where the CI planted them:
+        # after the cameras, before anything reads them.
+        assert order.index("seed_debug_fixtures") > order.index("seed_cameras")
+
+
 @pytest.mark.parametrize("fail", ["vlm.wait_ready", "render", "up", "smoke"])
 def test_a_real_run_that_breaks_still_removes_its_vlm(
     agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fail: str
@@ -5093,12 +5135,23 @@ def test_seed_debug_fixtures_refuses_under_90_percent_disk_usage(
         run.seed_debug_fixtures()
 
 
+@pytest.mark.parametrize("mode", ["fake", "real"], ids=["fake-tier", "real-tier"])
 def test_golden_seeded_runs_golden_seeded_playwright_project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
-    run = fc.Run(
-        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
-    )
+    """The seeded leg selects the seeded Playwright project, on BOTH tiers.
+
+    ``golden()`` picks the project from ``seeded`` alone (``feature_check.py:2345``).
+    The ``real`` arm is the one this adds: a guard that also demanded
+    ``mode == "fake"`` — true of every seeded run before ruling 235 — leaves this
+    test green while ``--real --seeded`` runs the UNSEEDED ``golden`` project against
+    a seeded backend, silently reporting the ~11 ``*.seeded.spec.ts`` rows as never
+    run. The un-seeded half of the same condition is pinned by
+    ``test_the_leg_runs_in_the_image_with_the_same_argv_inside``, which asserts
+    ``--project=golden`` for an un-seeded run, so the two tests together cover every
+    arm rather than only the arm a fix could break.
+    """
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode=mode, seeded=True)
     run.prepare()
     run.api = "http://127.0.0.1:32772"
     run.ui = "http://127.0.0.1:32773"
