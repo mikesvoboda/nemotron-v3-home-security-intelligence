@@ -254,7 +254,6 @@ describe('endpoint contract (D2)', () => {
       src/services/api.ts:3281  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
-      src/services/detectorApi.ts:144  built at runtime: url.toString()
       src/services/errorReporting.ts:113  built at runtime: config.endpoint
       src/services/interceptors.ts:325  "url" is not a file-local constant
       src/services/llmReasoningApi.ts:233  built at runtime: url.toString()
