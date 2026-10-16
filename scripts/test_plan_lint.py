@@ -395,7 +395,11 @@ def test_on_the_real_roster_a_missing_token_is_caught_on_every_row(tmp_path):
         planted[row["line"] - 1] = plant_first(lines[row["line"] - 1], "r9999")
         (root / lint.ROSTER_PATH).write_text("\n".join(planted) + "\n", encoding="utf-8")
         got = [str(f) for f in lint.lint(lint.Disk(root))[0]]
-        where = f"{lint.PKGS_DIR}/*.md" if row["lane"] in lint.UNPACKAGED else lint.PKGS_PATH.format(row["lane"])  # fmt: skip
+        # The oracle is this checkout's files, not ``lint.UNPACKAGED``: a lane with its own package
+        # file is looked up in that file alone, so a packaged lane wrongly added to that set reds
+        # this test as well as the literal pin above (review R6 on #7221).
+        own = lint.PKGS_PATH.format(row["lane"])
+        where = own if (REPO_ROOT / own).is_file() else f"{lint.PKGS_DIR}/*.md"
         want = f"{lint.ROSTER_PATH}:{row['line']}: {row['name']} queue token r9999 has no package block in {where}"  # fmt: skip
         assert want in got, (row["name"], got)
 

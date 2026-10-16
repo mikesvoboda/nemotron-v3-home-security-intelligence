@@ -194,23 +194,28 @@ through one injectable runner. Tests: `scripts/test_post_record.py`.
 
 ### plan_lint.py
 
-The plan fields `lane_tick.py` acts on, checked where they are written (ruling 197).
-`uv run python scripts/uplevel/plan_lint.py [--root DIR]` reads the working tree's roster
+The plan fields `lane_tick.py` acts on, checked where they are written (ruling 197). `uv run python
+scripts/uplevel/plan_lint.py [--root DIR]` reads the working tree's roster
 (`docs/uplevel/roles/lane.md`), package files and ruling map with `lane_tick.py`'s own parsers
 (imported, never copied: `ROW`, `queue_entries`, `BLOCK`, `PKG_FIELD`, `NONE_YET`, `PR_NUMBER`,
 `next_claimable`, `held_claims`). It fails when a roster queue token has no `### ` block in its
-lane's package file, when a `**PR:**` field is neither `none yet` on one line nor a leading `#N`
-(a `none` / `yet.` wrapped across two lines is that case, even when a later `issue #N` follows),
-when one token is on two lanes' queues, or when a ruling-map row other than 1-145 and 147 names no
-10-digit record id. Rows labelled `none` are skipped, and `F2.3` (one package split across every
-lane, rulings 87 and 175) is held to its block in `frontend.md` instead. `--baseline REF` reads the
-same files at a git ref (`git show`) and fails only on findings REF lacks, matched by file and
-message, never line. Collection-sanity runs it as `python -m scripts.uplevel.plan_lint` with the
-PR merge commit's first parent (the `main` it merged into) as the baseline, so a defect already on
-`main` reds `main`'s run, not every PR. Exit 0 clean, 1 with one `file:line: message` per (new)
-finding, 2 when the baseline ref is unreadable (the CI step also exits 2 when HEAD names no parent);
-the last line counts what it read. Tests: `scripts/test_plan_lint.py` (fixtures and one throwaway
-git repository; it never lints this checkout, which is the CI step's job).
+lane's package file (the lanes with no file of their own, `UNPACKAGED` -- coordinator, heavy,
+operator -- have their tokens looked up across every package file), when a `**PR:**` field is
+neither `none yet` on one line nor a leading `#N` (a `none` / `yet.` wrapped across two lines is
+that case, even when a later `issue #N` follows), when one token is on two lanes' queues (the
+operator's row, `RUNS`, names real-tier runs of other lanes' packages, not claims, so this check
+does not count it), or when a ruling-map row other than 1-145 and 147 names no 10-digit record id.
+Every roster row is checked, whatever its review label (ruling 242; until then a `none` label
+skipped the row, and ruling 198 had made every label `none`). `F2.3` (one package split across every
+lane, rulings 87 and 175) is held to its block in `frontend.md`. `--baseline REF` reads the same
+files at a git ref (`git show`) and fails only on findings REF lacks, matched by file and message,
+never line. Collection-sanity runs it as `python -m scripts.uplevel.plan_lint` with the PR merge
+commit's first parent (the `main` it merged into) as the baseline, so a defect already on `main`
+reds `main`'s run, not every PR. Exit 0 clean, 1 with one `file:line: message` per (new) finding, 2
+when the baseline ref is unreadable (the CI step also exits 2 when HEAD names no parent); the last
+line counts what it read. Tests: `scripts/test_plan_lint.py` (fixtures, throwaway git repositories,
+and copies of this checkout's roster and package files with a defect planted, which must be caught;
+it never asserts this checkout is clean, which is the CI step's job).
 
 ### inventory_witness.py + inventory_witness_known.toml
 
