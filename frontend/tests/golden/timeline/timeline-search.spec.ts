@@ -577,13 +577,13 @@ test.describe('F-048 full-text search', () => {
     await submit(page, SEARCH_QUERY_TOKEN);
     await expect(panelHeader(page).first()).toBeVisible();
 
-    // POSITIVE CONTROL, and it has to be page 1: search's tie-break is
-    // `started_at DESC` (search.py:465; the line moved from :432 when [r211b]
-    // inserted the deleted_at predicate above it) and the browse list is ordered the same
-    // way, so page 1 of search and page 1 of browse are the same 20 rows — the
-    // newest (`alpha 24`) is certainly in `filteredEvents`, and its click opening
-    // the modal is the shipped behaviour, not luck. It also pins that the repair
-    // did not make a BROWSE-HIT click issue a request it used to skip.
+    // POSITIVE CONTROL, page 1: search's tie-break is `started_at DESC` (search.py:465; it moved
+    // from :432 when [r211b] inserted the deleted_at predicate) and browse orders the same way, so
+    // search page 1 and browse page 1 are the same 20 rows — the newest (`alpha 24`) is certainly
+    // in `filteredEvents` and its click opening the modal is shipped behaviour, not luck. This half
+    // is NO-REGRESSION only: it proves a browse hit still OPENS. It cannot count requests —
+    // `captureSearches` (:166) records only `/api/events/search` — so "a browse hit sends no
+    // request" is pinned in the unit test (`useEventModalRow.test.ts:86`), not here.
     const newest = searchCard(page, 24);
     await expect(newest, 'exactly one card for this fixture row').toHaveCount(1);
     await newest.click();
