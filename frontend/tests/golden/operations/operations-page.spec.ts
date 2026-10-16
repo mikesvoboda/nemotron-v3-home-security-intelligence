@@ -14,7 +14,7 @@ import { api, closedByGuard, loginAsAdmin, readOpsHarness } from './harness';
 
 const harness = readOpsHarness();
 
-test.describe('golden path: operations page opens @critical', () => {
+test.describe('golden path: operations page opens (F-132) @critical', () => {
   test.setTimeout(60_000);
 
   test('the header, the Grafana banner, and a live telemetry read render together', async ({

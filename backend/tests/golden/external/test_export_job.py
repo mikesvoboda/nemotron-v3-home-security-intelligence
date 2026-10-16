@@ -108,7 +108,7 @@ def completed_export(logged_in_api: httpx.Client) -> dict:
     return job
 
 
-def test_completed_job_reports_result_with_size(completed_export: dict) -> None:
+def test_f097_completed_job_reports_result_with_size(completed_export: dict) -> None:
     """The status endpoint's result block reflects the file that was written.
 
     ``_model_to_response`` only builds ``result`` when status is COMPLETED and
@@ -129,7 +129,7 @@ def test_completed_job_reports_result_with_size(completed_export: dict) -> None:
     assert result["format"] == "csv", result
 
 
-def test_completed_job_appears_in_history(
+def test_f097_completed_job_appears_in_history(
     logged_in_api: httpx.Client, completed_export: dict
 ) -> None:
     """``GET /api/exports`` — the history list the page shows — contains the job.
@@ -153,7 +153,7 @@ def test_completed_job_appears_in_history(
     assert mine["export_format"] == "csv", mine
 
 
-def test_download_returns_csv_with_service_header(
+def test_f097_download_returns_csv_with_service_header(
     logged_in_api: httpx.Client, completed_export: dict
 ) -> None:
     """The artefact itself: right media type, attachment name, header row.

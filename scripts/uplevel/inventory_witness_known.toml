@@ -1,0 +1,20 @@
+# Known disagreements for scripts/uplevel/inventory_witness.py ([r218], ruling 218).
+#
+# Entries are for legs that never pass: a test that fails or skips on every run while the owner
+# rules on its row. A listed leg that passes makes the entry stale and fails the check.
+#
+# Each entry excuses named LEGS of an inventory row whose status the golden run contradicts. In the
+# jobs it names, a listed leg may fail or skip and the row is reported as KNOWN; any other mapped
+# leg that does not pass, or no mapped leg at all, still fails the row. An entry that excuses
+# nothing fails the check -- a listed leg that now passes or that the run no longer maps to the
+# row, or a row that no longer claims `awaiting real tier`/`works` -- so remove the leg (or the
+# entry) in the PR that makes it agree. Never add an entry to make a red run green without the
+# owner's ruling on the row. A file with no entries is valid.
+#
+#   [[known]]
+#   row  = "F-nnn"              # the inventory id
+#   jobs = ["fake"]             # "fake" (Feature check (fake AI)) and/or "seeded" (Feature check (seeded))
+#   legs = ["<test title>"]     # each excused test's own title, exactly as written (a pytest leg: its name)
+#   why  = "..."                # the outcome that contradicts the status, and what the owner is asked
+#
+# Emptied by ruling 219 (record 6203806645): F-033's push leg, its only entry, became F-295's.

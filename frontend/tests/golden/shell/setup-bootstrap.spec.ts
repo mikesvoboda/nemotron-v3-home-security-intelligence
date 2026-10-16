@@ -118,7 +118,7 @@ async function submitSetup(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Create Account' }).click();
 }
 
-test.describe('golden path: setup page first-admin bootstrap @critical', () => {
+test.describe('golden path: setup page first-admin bootstrap (F-002) @critical', () => {
   test.setTimeout(90_000);
 
   test('the real current shape: no redirect — the full form plus "account already exists" with a link to /login', async ({

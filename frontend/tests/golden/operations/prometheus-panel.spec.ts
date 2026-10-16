@@ -19,7 +19,7 @@ import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '.
 
 const harness = readOpsHarness();
 
-test.describe('golden path: prometheus readiness panel @critical', () => {
+test.describe('golden path: prometheus readiness panel (F-141) @critical', () => {
   test.setTimeout(60_000);
 
   test('the panel reports the real reachability of the prometheus endpoint', async ({ page }) => {
