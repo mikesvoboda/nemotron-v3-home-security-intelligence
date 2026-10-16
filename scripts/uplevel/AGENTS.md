@@ -196,7 +196,7 @@ while the vanished side still prints, which is what keeps an honest append repor
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
 fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
 starts reading something new fails loudly instead of passing on `{}`.
-`scripts/r193-mutation-campaign.py` reverts 52 properties in a throwaway worktree and fails if any
+`scripts/r193-mutation-campaign.py` reverts 53 properties in a throwaway worktree and fails if any
 survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
 registered in ci.yml — the campaign list holds suites, not drivers.
 

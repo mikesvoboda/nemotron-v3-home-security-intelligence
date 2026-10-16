@@ -109,9 +109,17 @@ MUTANTS = [
         "no-lifetime-line",
         "a bounded lifetime exits silently (silence = success)",
         [
+            # Re-anchored when the all-clear grew its qualifier: the return is now a MULTI-LINE
+            # list, so the old one-line anchor matched 0x and the driver reported BAD-PATTERN
+            # rather than a verdict. Deleting only the headline would leave the caveat lines
+            # printing, which is a different (and still red) mutant; this one deletes the whole
+            # return value, which is what "exits silently" means.
             (
-                '            return 0, [f"no change in {int(lifetime)}s across {total} watched PR(s)"]',
-                "            return 0, []",
+                "            return 0, [\n"
+                '                f"no change in {int(lifetime)}s across {total} watched PR(s)",\n'
+                "                *_window_qualifiers(state),\n"
+                "            ]\n",
+                "            return 0, []\n",
             )
         ],
     ),
@@ -569,6 +577,16 @@ MUTANTS = [
                 "",
             )
         ],
+    ),
+    (
+        "check-window-asks-no-total-count",
+        "drops the contexts totalCount ask, so `_truncated` answers None for every head and the "
+        "line degrades to `100 of ?` rather than failing -- the shape a deleted-but-unused field "
+        "always leaves behind. The reason this mutant exists at all: adding a SECOND connection "
+        "with this field disarmed the pre-existing `no-total-count-field` mutant, because its "
+        "witness was a whole-query substring that either connection answered. Both fields now have "
+        "their own sliced witness",
+        [('            "        totalCount",\n', "")],
     ),
     (
         "full-check-window-reports-its-news-but-not-its-blindness",

@@ -1154,7 +1154,16 @@ def test_discovery_stays_inside_one_query_and_never_the_search_api():
     for line in query.splitlines():
         if "orderBy" in line:
             assert "direction: DESC" in line, f"discovery must order newest-first: {line.strip()}"
-    assert "totalCount" in query, "a full window must be distinguishable from an empty one"
+    # Sliced to the discovery connection, NOT `"totalCount" in query`: the field name now appears
+    # TWICE in this query (the discovery connection and, since round six's fix, the check
+    # `contexts`), so a whole-query substring is answered by either one and deleting the discovery
+    # ask alone stayed green -- my own campaign caught that escape, which is round six's
+    # identical-rendering hole met from the other side. `query_text` emits every discovery group
+    # before every PR alias, so the first `pullRequest(number:` is the boundary; the assert below
+    # keeps that ordering load-bearing rather than assumed.
+    head, sep, _rest = query.partition("pullRequest(number:")
+    assert sep, "no PR alias to slice on, so the discovery section has no boundary"
+    assert "totalCount" in head, "a full discovery window must be distinguishable from an empty one"
 
 
 def test_label_strings_ride_as_variables_and_never_in_the_query_text():
@@ -1601,6 +1610,14 @@ def test_window_size_is_bounded_by_a_named_constant():
     # The braces survive the f-string: `{{` must render one `{`, or the query is malformed and
     # GitHub rejects the whole poll -- a break the AST census cannot see (it reads source, not text).
     assert f"contexts(last: {watch.EVENT_WINDOW}) {{" in query
+    # And the count that makes the window a CLAIM, sliced to THIS connection for the reason above:
+    # `_truncated` reads wrapper["totalCount"], so an ask that drops it answers None -- which the
+    # guard treats as truncation, degrading the line to "100 of ?" instead of failing. A field that
+    # only degrades a message when deleted still needs a witness, or it will be dropped as unused.
+    block = query[query.index("contexts(last:") :]
+    assert "totalCount" in block[: block.index("nodes {")], (
+        "the check window must ask its own total: without it a full window cannot say what it hid"
+    )
     assert watch.EVENT_WINDOW <= 100, "GitHub caps a connection page at 100 nodes"
     assert watch.DISCOVERY_WINDOW <= 100
 
