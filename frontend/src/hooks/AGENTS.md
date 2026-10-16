@@ -74,6 +74,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useCameraQuery`               | Fetch single camera             | `cameraId: string`               | `{ data, isLoading, error, refetch }`                          | `/api/cameras/{id}`                |
 | `useEventsInfiniteQuery`       | Infinite scroll security events | `{ filters?, limit? }`           | `{ data, events, hasNextPage, fetchNextPage, isLoading }`      | `/api/events`                      |
 | `useRecentEventsQuery`         | Recent events for dashboard     | `{ limit?, enabled? }`           | `{ data, events, isLoading, error }`                           | `/api/events/recent`               |
+| `useEventModalRow`             | Resolve the modal's row by id   | `(eventId, browseEvents)`        | `{ row, discard }`                                             | `/api/events/{id}`                 |
 | `useDetectionsInfiniteQuery`   | Infinite scroll detections      | `{ filters?, limit? }`           | `{ data, detections, hasNextPage, fetchNextPage }`             | `/api/detections`                  |
 | `useAlertsInfiniteQuery`       | Infinite scroll alerts          | `{ riskFilter?, status? }`       | `{ data, alerts, hasNextPage, fetchNextPage }`                 | `/api/alerts`                      |
 | `useEntitiesInfiniteQuery`     | Infinite scroll entities        | `{ timeRange?, limit? }`         | `{ data, entities, hasNextPage, fetchNextPage }`               | `/api/entities`                    |
@@ -119,6 +120,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useRestorePromptVersion`   | Restore prompt to version        | None       | `{ mutation, isPending, error }`                                                            | `/api/prompts/{name}/restore` |
 | `useSetLogLevelMutation`    | Change log level                 | None       | `{ setLevel, isPending, error }`                                                            | `/api/debug/log-level`        |
 | `useSnoozeEvent`            | Snooze security event            | None       | `{ snooze, isPending, error }`                                                              | `/api/events/{id}/snooze`     |
+| `useEventWriteInvalidation` | Invalidate all event caches      | None       | `() => void`                                                                                | Refetches `/api/events`       |
 
 ### Saved Searches & Persistence Hooks
 

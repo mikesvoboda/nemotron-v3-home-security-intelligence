@@ -38,11 +38,13 @@ Main timeline view for browsing security events.
 **Data Dependencies:**
 
 - `useEventsInfiniteQuery` / `useEventsQuery` - Paginated events
+- `useEventModalRow` - The modal's row by id: the browse list first, `GET /api/events/{id}` only when it does not hold that row, so a search / live-feed / `?event=` click opens what was clicked
 - `useTimelineData` - Timeline grouping and buckets
 - `useEventStream` - Live events over WebSocket
 - `useEventStats` - Aggregate statistics
 - `useInfiniteScroll` - Scroll sentinel wiring
 - `useSnoozeEvent` - Snooze action (NEM-3592/NEM-3640)
+- `useEventWriteInvalidation` - Refresh every `['events']` cache after a modal write
 - `usePaginationState`, `useSearchParams` - Page and filter state
 
 ---
