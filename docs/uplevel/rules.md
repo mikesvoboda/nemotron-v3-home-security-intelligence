@@ -577,8 +577,8 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act
   on where it looks, a comment on that agent's own open PR. (coordinator kickoff prompt; UR-35;
   ruling 198)
-- **UR-36** Every agent runs on a `/loop` tick that checks GitHub — coordinator 5 minutes, lanes and
-  heavy 15, operator 30 (`roles/coordinator.md`, `roles/lane.md` and `roles/operator.md`, "The
+- **UR-36** Every agent runs on a `/loop` tick that checks GitHub — coordinator 30 minutes (ruling
+  239), lanes and heavy 15, operator 30 (`roles/coordinator.md`, `roles/lane.md` and `roles/operator.md`, "The
   tick"). GitHub stays the only channel between agents; the owner re-arms ticks weekly and after a
   restart. Before arming a tick, list the agent's scheduled tasks and arm a new one only if none is
   listed, so ticks never run twice; a recurring `/loop` expires after seven days and a restart,
@@ -610,10 +610,13 @@ Read this section before you post any comment, review, heartbeat, status comment
   `paused · queue empty (ruling 88)` and ends its turn, and the owner stops its loop. When the owner
   stops an agent, the owner's session may write its `paused` heartbeat. An agent whose heartbeat
   reads `paused` is not stalled and gets no assignment. (ruling 88; record 6103795550)
-- **UR-162** A lane that reads the coordinator's heartbeat older than 20 minutes checks #6854 for an
+- **UR-162** A lane that reads the coordinator's heartbeat older than 90 minutes checks #6854 for an
   `URGENT PATH · coordinator stale` comment in the last hour; if there is none, it posts one
-  (heartbeat age, read time, nothing more) in UR-168's form. (rulings 64, 81; owner design session
-  2026-10-12, pass 2 Q8; corrects the deleted 50-coordination.md "Stalled agents")
+  (heartbeat age, read time, nothing more) in UR-168's form. The coordinator's loop fires every 30
+  minutes and a tick may run 60, so a healthy heartbeat can be about 90 minutes old; every other
+  heartbeat keeps 20 minutes. Until `[r239]` merges the digest flags the coordinator past 20
+  minutes, and a heartbeat 20 to 90 minutes old gets no raise. (rulings 64, 81, 239; owner design
+  session 2026-10-12, pass 2 Q8; corrects the deleted 50-coordination.md "Stalled agents")
 - **UR-163** Recovery of a stalled agent is the owner's, with no watchdog agent: Esc in the agent's
   pane, a catch-up prompt that names its open work, and a new tick only if the agent lists none
   scheduled. No agent reaches into another's sandbox. (ruling 64; roles/owner-partner.md "Stalls and
@@ -688,7 +691,7 @@ or an agent's memory.
   `.git/config` is the agent's to write, and settings such as `core.fsmonitor` run commands when the
   host's git opens it. (the deleted 50-coordination.md "Where agents run"; history/packages-done.md
   `O0.1`)
-- **UR-173** The coordinator stays on the fast model on a 5-minute loop; the owner may reopen this
+- **UR-173** The coordinator stays on the fast model on a 30-minute loop (ruling 239); the owner may reopen this
   if it stops assigning, leaves the status comment unedited for over an hour, or states a fact it
   did not read. Its sandbox is disposable: restarted, it rebuilds its state from PRs, labels and the
   pinned issues. (ruling 85; the deleted 50-coordination.md "Where agents run")

@@ -1,21 +1,18 @@
 /**
  * FE-3 golden path (F2.3): F-052 — the event-timeline export modal.
  *
- * Row clause (verbatim from docs/reference/feature-inventory.md:188, F-052):
+ * Row clause (from docs/reference/feature-inventory.md:206, F-052, ruling 234):
  *   "opens More Options; chooses format, columns, camera, risk and dates;
- *    watches progress; cancels or downloads the file"
+ *    watches progress; downloads the file"
  *
- * What this file ships against that clause, and what it records as blocked:
+ * What this file ships against that clause:
  *   covered  — opens (test 1), chooses format/columns/camera/risk (tests 1-2),
- *              watches progress (test 4), downloads the file (test 5).
- *   blocked  — "and dates": the shipped modal cannot attach a date range to an
- *              export at all (test 3, test.fixme, with the code cites and the
- *              wire proof inside).
- *   excluded — "cancels": the Cancel route is broken and F-099 owns it
- *              (inventory :259 — cancel marks the row FAILED, but the running
+ *              chooses dates (test 3, ruling 234), watches progress (test 4),
+ *              downloads the file (test 5), failing job behaviour (test 6).
+ *   excluded — "cancels": the Cancel route is F-099's clause (ruling 234;
+ *              inventory :259 — cancel marks the row FAILED, but the running
  *              background task overwrites that with COMPLETED at
- *              backend/api/routes/exports.py:181-188); this row's batch
- *              directive says do NOT witness Cancel here. No leg touches
+ *              backend/api/routes/exports.py:181-188). No leg touches
  *              DELETE /api/exports/{id}/cancel (route at :428).
  *
  * Decided from shipped code before writing (each claim cites where):
@@ -747,30 +744,15 @@ test.describe('F-052 export modal: opens and chooses', () => {
   });
 });
 
-test.describe('F-052 export modal: the dates clause cannot execute (shipped breakage)', () => {
-  test.fixme('typing both modal date inputs attaches the range to the export', async ({ page }) => {
+test.describe('F-052 export modal: dates', () => {
+  test('typing both modal date inputs attaches the range to the export', async ({ page }) => {
     test.info().skip(!h.ready, h.ready ? '' : h.why);
     if (!h.ready) return;
     test.setTimeout(120_000);
-    // WHY fixme — test.fixme is this batch's instrument for a written-but-
-    // known-red leg (siblings event-feedback.spec.ts:349, event-reevaluate.
-    // spec.ts:259): the clause says "dates", but the shipped modal CANNOT
-    // attach them. The inputs are controlled by dateRangeApiParams (Export-
-    // Modal.tsx:305-320), whose memo returns {start_date:'', end_date:''}
-    // FOREVER while the preset is 'all' (useDateRangeState.ts:378-380) — and
-    // the modal mounts the hook with persistToUrl:false (:57-59) while
-    // setCustomRange writes ONLY through updateParams, whose first line is
-    // `if (!persistToUrl) return;` (:391, memo chain :389-409, :429-439). So
-    // a typed date never reaches the state the input renders from, and the
-    // POST's start_date/end_date fall back to null (ExportModal.tsx:146-147).
-    // Measured twice on the live stack: the DOM values read back ["",""] after
-    // fill, and the posted body carried start_date:null, end_date:null. The
-    // SERVER half works (export_service.py:774-780 applies both bounds; a
-    // Node-side job over a 2020 window on a populated camera produced the
-    // header-only empty file). A leg that typed the inputs and asserted the
-    // nulls would be GREEN forever and prove the opposite of the clause, so
-    // this leg asserts what the clause REQUIRES and stays the record; test 2's
-    // body equality pins today's shipped nulls as behaviour.
+    // Ruling 234 ([r234]): useDateRangeState keeps custom dates and preset in
+    // local state when persistToUrl is false (ExportModal.tsx:57-59), so typing
+    // both date inputs updates dateRangeApiParams and sends start_date/end_date
+    // in POST /api/exports.
     await seedTourDismissed(page);
     await loginAsAdmin(page, harness);
     await bootTimeline(page, fx.probeCameraId);
