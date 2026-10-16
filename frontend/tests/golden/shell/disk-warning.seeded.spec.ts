@@ -77,14 +77,14 @@ test.describe('golden path: header disk-usage warning @critical', () => {
     test.setTimeout(90_000);
 
     // The row is data-driven: read the backend's own verdict Node-side first.
+    // In Feature check (seeded), Run.seed_debug_fixtures mounts a >=90% ext4
+    // loopback volume at /app/data/logs (#7178, ruling 192).
     const session = await adminSession(h);
     const stats = await api<StorageStats>(h, session, '/api/system/storage');
-    test
-      .info()
-      .skip(
-        stats.disk_usage_percent < 90,
-        `stack disk is ${stats.disk_usage_percent}% — the >=90 warning branch cannot render here`
-      );
+    expect(
+      stats.disk_usage_percent,
+      'the seeded stack mounts the >=90% disk fixture (#7178, ruling 192)'
+    ).toBeGreaterThanOrEqual(90);
 
     await openShell(page, h);
 
