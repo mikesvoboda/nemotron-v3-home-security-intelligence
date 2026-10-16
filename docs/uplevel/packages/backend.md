@@ -370,8 +370,9 @@ head.
       finds it (a `high` row at score 91 is found by the level it shows).
 
 - [ ] Frontend's `[r211f]` commits on this PR invert F-048's golden fixture (ruling 221): search
-      excludes the soft-deleted row, `searchTotal` is the live count, and the `:585` leg's defect
-      half takes a live row on search page 2. Neither lane force-pushes the branch.
+      excludes the soft-deleted row, `searchTotal` is the live count, and the defect half of the
+      leg at `frontend/tests/golden/timeline/timeline-search.spec.ts:585` takes a live row on search
+      page 2. Neither lane force-pushes the branch, and each fetches it before it pushes.
 
 **Done when:** the tests pass in CI at a ready head, and `Feature check (fake AI)` passes at the
 head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green and its 2
