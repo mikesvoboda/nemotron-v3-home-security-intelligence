@@ -476,6 +476,10 @@ class VlmAnalyzer:
                     extra={"batch_id": batch_id, "event_id": existing_id},
                 )
                 return event
+        else:
+            recovered = await self._recover_committed_event(batch_id)
+            if recovered is not None:
+                return recovered
 
         # Resolve batch identity. The queue payload carries camera+detection
         # ids; the Redis fallback mirrors nemotron (:2683-2693) - close_batch
@@ -791,6 +795,97 @@ class VlmAnalyzer:
                 "failed to set vlm idempotency key",
                 extra={"batch_id": batch_id, "event_id": event_id, "error": str(exc)},
             )
+
+    async def _recover_committed_event(self, batch_id: str) -> Event | None:
+        """Ruling 199 item 2: when the Redis idempotency key misses, look up
+        events.batch_id. If an event exists, return it without calling the VLM
+        and write any missing post-commit step (Redis key, notify decision)."""
+        from backend.models.event_notify import EventNotifyDecision
+
+        needs_notify = False
+        verdict_str = "verification_failed"
+        det_dicts: list[dict[str, Any]] = []
+        async with get_session() as session:
+            existing = await session.execute(select(Event).where(Event.batch_id == batch_id))
+            event = existing.scalars().first()
+            if event is None:
+                return None
+            if not self._replay:
+                decision_row = (
+                    (
+                        await session.execute(
+                            select(EventNotifyDecision).where(
+                                EventNotifyDecision.event_id == event.id
+                            )
+                        )
+                    )
+                    .scalars()
+                    .first()
+                )
+                if decision_row is None:
+                    needs_notify = True
+                    vrow = (
+                        (
+                            await session.execute(
+                                select(EventVerification)
+                                .where(EventVerification.event_id == event.id)
+                                .order_by(EventVerification.id.desc())
+                            )
+                        )
+                        .scalars()
+                        .first()
+                    )
+                    if vrow is not None:
+                        verdict_str = vrow.verdict
+                    det_rows = (
+                        (
+                            await session.execute(
+                                select(Detection)
+                                .join(
+                                    event_detections,
+                                    Detection.id == event_detections.c.detection_id,
+                                )
+                                .where(event_detections.c.event_id == event.id)
+                            )
+                        )
+                        .scalars()
+                        .all()
+                    )
+                    det_dicts = [
+                        {
+                            "id": d.id,
+                            "camera_id": d.camera_id,
+                            "object_type": d.object_type,
+                            "confidence": d.confidence,
+                            "detected_at": d.detected_at,
+                            "file_path": d.file_path,
+                            "thumbnail_path": d.thumbnail_path,
+                            "track_id": d.track_id,
+                            "bbox_x": d.bbox_x,
+                            "bbox_y": d.bbox_y,
+                            "bbox_width": d.bbox_width,
+                            "bbox_height": d.bbox_height,
+                            "video_width": d.video_width,
+                            "video_height": d.video_height,
+                        }
+                        for d in det_rows
+                    ]
+
+        await self._set_idempotency(batch_id, event.id)
+        if needs_notify:
+            await self._notify_decision(
+                event_id=event.id,
+                camera_id=event.camera_id,
+                timestamp=event.started_at or datetime.now(UTC),
+                risk_score=event.risk_score,
+                verdict=verdict_str,
+                detections=det_dicts,
+            )
+        logger.info(
+            "vlm idempotency hit: batch already analyzed",
+            extra={"batch_id": batch_id, "event_id": event.id},
+        )
+        return event
 
     # ------------------------------------------------------------------
     # Seam surface (1.5): the two methods the non-queue consumers call.

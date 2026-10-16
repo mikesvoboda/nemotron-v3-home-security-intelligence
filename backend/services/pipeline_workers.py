@@ -762,6 +762,18 @@ class DetectionQueueWorker:
         )
 
 
+class AnalysisDisposition(str):
+    """Disposition returned by AnalysisQueueWorker._process_analysis_item (ruling 199)."""
+
+    __slots__ = ("reason",)
+    reason: str
+
+    def __new__(cls, value: str, reason: str = "") -> AnalysisDisposition:
+        obj = super().__new__(cls, value)
+        obj.reason = reason
+        return obj
+
+
 class AnalysisQueueWorker:
     """Worker that consumes batches from analysis_queue and runs LLM analysis.
 
@@ -927,8 +939,15 @@ class AnalysisQueueWorker:
                             if msg.delivery_count >= stream_service._max_delivery_count:
                                 await stream_service.move_to_dlq(msg, "max_delivery_exceeded")
                             else:
-                                await self._process_analysis_item(msg.to_queue_dict())
-                                await stream_service.acknowledge(msg.id)
+                                disposition = await self._process_analysis_item(msg.to_queue_dict())
+                                if disposition == "terminal":
+                                    await stream_service.move_to_dlq(
+                                        msg,
+                                        getattr(disposition, "reason", "")
+                                        or "terminal_analysis_failure",
+                                    )
+                                elif disposition != "retry":
+                                    await stream_service.acknowledge(msg.id)
                         last_claim_check = now
 
                     # NEM-3469: Read from stream with consumer group (durable)
@@ -939,8 +958,14 @@ class AnalysisQueueWorker:
                         continue
 
                     for msg in messages:
-                        await self._process_analysis_item(msg.to_queue_dict())
-                        await stream_service.acknowledge(msg.id)
+                        disposition = await self._process_analysis_item(msg.to_queue_dict())
+                        if disposition == "terminal":
+                            await stream_service.move_to_dlq(
+                                msg,
+                                getattr(disposition, "reason", "") or "terminal_analysis_failure",
+                            )
+                        elif disposition != "retry":
+                            await stream_service.acknowledge(msg.id)
                 else:
                     # Legacy list-based queue (BLPOP)
                     item = await self._redis.get_from_queue(
@@ -975,8 +1000,12 @@ class AnalysisQueueWorker:
             extra={"items_processed": self._stats.items_processed},
         )
 
-    async def _process_analysis_item(self, item: dict[str, Any]) -> None:
-        """Process a single analysis queue item.
+    async def _process_analysis_item(self, item: dict[str, Any]) -> AnalysisDisposition:
+        """Process a single analysis queue item and return its disposition (ruling 199):
+        - "stored": the batch has an event; the stream loop acknowledges the message.
+        - "terminal": payload validation or batch lookup failed (ValueError); the
+          stream loop moves the message to the dead-letter stream with its reason.
+        - "retry": any other failure; the message stays pending for reclaim/retry.
 
         Security: Validates the queue payload using Pydantic before processing
         to prevent malicious data from reaching the LLM analyzer.
@@ -1005,7 +1034,7 @@ class AnalysisQueueWorker:
                     "error": str(e),
                 },
             )
-            return
+            return AnalysisDisposition("terminal", f"invalid_analysis_payload: {e}")
 
         # Use log_context to enrich all logs within this scope with batch context
         # This ensures batch_id, camera_id are included in all logs including downstream calls
@@ -1127,6 +1156,7 @@ class AnalysisQueueWorker:
                             f"Failed to broadcast batch.analysis_completed: {broadcast_err}",
                             extra={"batch_id": batch_id, "event_id": event.id},
                         )
+                return AnalysisDisposition("stored")
 
             except ValueError as e:
                 # Batch not found or no detections - log warning but don't count as error
@@ -1150,6 +1180,7 @@ class AnalysisQueueWorker:
                             f"Failed to broadcast batch.analysis_failed: {broadcast_err}",
                             extra={"batch_id": batch_id},
                         )
+                return AnalysisDisposition("terminal", str(e))
             except Exception as e:
                 self._stats.errors += 1
                 record_pipeline_error("analysis_batch_error")
@@ -1163,19 +1194,14 @@ class AnalysisQueueWorker:
                     try:
                         # Categorize error type for UI display
                         error_type = categorize_exception(e, "analysis").replace("analysis_", "")
-                        # Most analysis errors are retryable (timeouts, connection issues)
-                        retryable = error_type in (
-                            "timeout_error",
-                            "connection_error",
-                            "redis_error",
-                        )
+                        # Ruling 199 item 1: retryable follows the "retry" disposition
                         await broadcaster.broadcast_batch_analysis_failed(
                             {
                                 "batch_id": batch_id,
                                 "camera_id": camera_id or "",
                                 "error": str(e)[:500],  # Truncate long error messages
                                 "error_type": error_type,
-                                "retryable": retryable,
+                                "retryable": True,
                                 "failed_at": datetime.now(UTC).isoformat(),
                             }
                         )
@@ -1184,6 +1210,7 @@ class AnalysisQueueWorker:
                             f"Failed to broadcast batch.analysis_failed: {broadcast_err}",
                             extra={"batch_id": batch_id},
                         )
+                return AnalysisDisposition("retry", str(e))
 
 
 class BatchTimeoutWorker:
@@ -1900,6 +1927,14 @@ class PipelineWorkerManager:
         logger.info("Stopping PipelineWorkerManager")
         self._running = False
 
+        supervisor = getattr(self, "_supervisor", None)
+        if supervisor is not None and getattr(supervisor, "is_running", False) is True:
+            stop_sup = getattr(supervisor, "stop", None)
+            if callable(stop_sup):
+                maybe_coro = stop_sup()
+                if asyncio.iscoroutine(maybe_coro):
+                    await maybe_coro
+
         # Stop workers in parallel using TaskGroup for structured concurrency (NEM-5375)
         # Catch ExceptionGroup for best-effort shutdown (equivalent to return_exceptions=True)
         try:
@@ -1961,6 +1996,87 @@ class PipelineWorkerManager:
                 "metrics_worker",
                 "metrics",
                 reason="graceful_shutdown",
+            )
+
+    @staticmethod
+    def _make_supervised_runner(
+        worker: DetectionQueueWorker
+        | AnalysisQueueWorker
+        | BatchTimeoutWorker
+        | QueueMetricsWorker,
+        supervisor: WorkerSupervisor,
+    ) -> Callable[[], Awaitable[None]]:
+        """Build a supervisor factory that watches and restarts an existing worker instance."""
+
+        async def _run_managed_worker() -> None:
+            if not worker.running or worker._task is None or worker._task.done():
+                worker._running = False
+                worker._task = None
+                await worker.start()
+            task = worker._task
+            if task is None:
+                return
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                if not supervisor.is_running or not worker.running:
+                    raise
+                if not task.done():
+                    await worker.stop()
+                    raise
+                raise RuntimeError(
+                    f"Worker '{worker._worker_name}' task was cancelled unexpectedly"
+                ) from None
+            if worker.running and supervisor.is_running:
+                raise RuntimeError(f"Worker '{worker._worker_name}' task exited unexpectedly")
+
+        return _run_managed_worker
+
+    async def register_workers_with_supervisor(
+        self,
+        supervisor: WorkerSupervisor,
+        max_restarts: int | None = None,
+        analysis_heartbeat_timeout: float = 180.0,
+    ) -> None:
+        """Attach and register the manager's own workers with a WorkerSupervisor.
+
+        The supervisor reads heartbeats from and restarts the exact worker
+        instances built by this manager rather than spawning a second set
+        (owner ruling 200).
+        """
+        self._supervisor = supervisor
+
+        for detection_worker in self._detection_workers:
+            detection_worker._supervisor = supervisor
+            await supervisor.register_worker(
+                detection_worker._worker_name,
+                self._make_supervised_runner(detection_worker, supervisor),
+                max_restarts=max_restarts,
+            )
+
+        for analysis_worker in self._analysis_workers:
+            analysis_worker._supervisor = supervisor
+            await supervisor.register_worker(
+                analysis_worker._worker_name,
+                self._make_supervised_runner(analysis_worker, supervisor),
+                max_restarts=max_restarts,
+                heartbeat_timeout=analysis_heartbeat_timeout,
+            )
+
+        if self._timeout_worker is not None:
+            self._timeout_worker._supervisor = supervisor
+            await supervisor.register_worker(
+                self._timeout_worker._worker_name,
+                self._make_supervised_runner(self._timeout_worker, supervisor),
+                max_restarts=max_restarts,
+            )
+
+        if self._metrics_worker is not None:
+            self._metrics_worker._supervisor = supervisor
+            await supervisor.register_worker(
+                self._metrics_worker._worker_name,
+                self._make_supervised_runner(self._metrics_worker, supervisor),
+                max_restarts=max_restarts,
             )
 
     def _install_signal_handlers(self) -> None:
@@ -2100,134 +2216,6 @@ def reset_pipeline_manager_state() -> None:
     global _pipeline_manager, _pipeline_manager_lock  # noqa: PLW0603
     _pipeline_manager = None
     _pipeline_manager_lock = None
-
-
-# Factory functions for WorkerSupervisor integration (NEM-2460)
-# These return async callables that the WorkerSupervisor can manage
-
-
-def create_detection_worker(
-    redis_client: RedisClient,
-    supervisor: WorkerSupervisor | None = None,
-) -> Callable[[], Awaitable[None]]:
-    """Create a detection worker factory for WorkerSupervisor.
-
-    Returns a callable that creates and runs a DetectionQueueWorker.
-    The supervisor will call this to start/restart the worker.
-
-    Args:
-        redis_client: Redis client for queue operations
-        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
-
-    Returns:
-        Async callable that runs the detection worker
-    """
-
-    async def _run_detection_worker() -> None:
-        worker = DetectionQueueWorker(
-            redis_client=redis_client,
-            supervisor=supervisor,
-            worker_name="detection",
-        )
-        await worker.start()
-        # Wait for worker to complete (it runs until stopped)
-        if worker._task:
-            await worker._task
-
-    return _run_detection_worker
-
-
-def create_analysis_worker(
-    redis_client: RedisClient,
-    supervisor: WorkerSupervisor | None = None,
-) -> Callable[[], Awaitable[None]]:
-    """Create an analysis worker factory for WorkerSupervisor.
-
-    Returns a callable that creates and runs an AnalysisQueueWorker.
-    The supervisor will call this to start/restart the worker.
-
-    Args:
-        redis_client: Redis client for queue operations
-        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
-
-    Returns:
-        Async callable that runs the analysis worker
-    """
-
-    async def _run_analysis_worker() -> None:
-        worker = AnalysisQueueWorker(
-            redis_client=redis_client,
-            supervisor=supervisor,
-            worker_name="analysis",
-        )
-        await worker.start()
-        # Wait for worker to complete (it runs until stopped)
-        if worker._task:
-            await worker._task
-
-    return _run_analysis_worker
-
-
-def create_timeout_worker(
-    redis_client: RedisClient,
-    supervisor: WorkerSupervisor | None = None,
-) -> Callable[[], Awaitable[None]]:
-    """Create a batch timeout worker factory for WorkerSupervisor.
-
-    Returns a callable that creates and runs a BatchTimeoutWorker.
-    The supervisor will call this to start/restart the worker.
-
-    Args:
-        redis_client: Redis client for queue operations
-        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
-
-    Returns:
-        Async callable that runs the timeout worker
-    """
-
-    async def _run_timeout_worker() -> None:
-        worker = BatchTimeoutWorker(
-            redis_client=redis_client,
-            supervisor=supervisor,
-            worker_name="batch_timeout",
-        )
-        await worker.start()
-        # Wait for worker to complete (it runs until stopped)
-        if worker._task:
-            await worker._task
-
-    return _run_timeout_worker
-
-
-def create_metrics_worker(
-    redis_client: RedisClient,
-    supervisor: WorkerSupervisor | None = None,
-) -> Callable[[], Awaitable[None]]:
-    """Create a queue metrics worker factory for WorkerSupervisor.
-
-    Returns a callable that creates and runs a QueueMetricsWorker.
-    The supervisor will call this to start/restart the worker.
-
-    Args:
-        redis_client: Redis client for queue operations
-        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
-
-    Returns:
-        Async callable that runs the metrics worker
-    """
-
-    async def _run_metrics_worker() -> None:
-        worker = QueueMetricsWorker(
-            redis_client=redis_client,
-            supervisor=supervisor,
-            worker_name="metrics",
-        )
-        await worker.start()
-        # Wait for worker to complete (it runs until stopped)
-        if worker._task:
-            await worker._task
-
-    return _run_metrics_worker
 
 
 if __name__ == "__main__":

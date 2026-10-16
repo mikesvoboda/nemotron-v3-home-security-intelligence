@@ -1412,7 +1412,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints or test_batch_aggregator_status_live" \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints or test_batch_aggregator_status_live or test_analysis_stream_delivery" \
             -n0 \
             --timeout=30 \
             --cov=backend \

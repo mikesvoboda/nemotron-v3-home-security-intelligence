@@ -137,10 +137,6 @@ from backend.services.job_tracker import init_job_tracker_websocket
 from backend.services.performance_collector import PerformanceCollector
 from backend.services.pipeline_quality_audit_service import get_audit_service
 from backend.services.pipeline_workers import (
-    create_analysis_worker,
-    create_detection_worker,
-    create_metrics_worker,
-    create_timeout_worker,
     drain_queues,
     get_pipeline_manager,
     stop_pipeline_manager,
@@ -1001,31 +997,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             on_failure=on_worker_failure,
         )
 
-        # Register workers with the supervisor
-        # Note: Workers are already managed by PipelineManager, but supervisor
-        # provides additional monitoring and restart callbacks
-        # NEM-4148: Pass supervisor to workers for heartbeat reporting
-        await worker_supervisor.register_worker(
-            "detection",
-            create_detection_worker(redis_client, supervisor=worker_supervisor),
-            max_restarts=settings.worker_supervisor_max_restarts,
-        )
-        await worker_supervisor.register_worker(
-            "analysis",
-            create_analysis_worker(redis_client, supervisor=worker_supervisor),
-            max_restarts=settings.worker_supervisor_max_restarts,
-            heartbeat_timeout=180.0,  # LLM calls take 60-120s; enrichment adds more
-        )
-        await worker_supervisor.register_worker(
-            "batch_timeout",
-            create_timeout_worker(redis_client, supervisor=worker_supervisor),
-            max_restarts=settings.worker_supervisor_max_restarts,
-        )
-        await worker_supervisor.register_worker(
-            "metrics",
-            create_metrics_worker(redis_client, supervisor=worker_supervisor),
-            max_restarts=settings.worker_supervisor_max_restarts,
-        )
+        # Register the manager's workers with the supervisor (owner ruling 200)
+        register_fn = getattr(pipeline_manager, "register_workers_with_supervisor", None)
+        if callable(register_fn):
+            maybe_coro = register_fn(
+                worker_supervisor,
+                max_restarts=settings.worker_supervisor_max_restarts,
+            )
+            if asyncio.iscoroutine(maybe_coro):
+                await maybe_coro
 
         await worker_supervisor.start()
         lifespan_logger.info(

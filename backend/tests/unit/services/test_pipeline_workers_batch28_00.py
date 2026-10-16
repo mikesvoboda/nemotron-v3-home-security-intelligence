@@ -806,7 +806,7 @@ async def test_a_rejected_payload_logs_the_security_error_with_both_extras(
     win(caplog)
     base = baseline_fields(caplog)
 
-    assert await worker._process_analysis_item(BAD_ITEM) is None
+    assert await worker._process_analysis_item(BAD_ITEM) == "terminal"
 
     err = only(caplog, logging.ERROR, SECURITY_MSG.format(reason), where=1001)
     pin_extra(err, RAW_ITEM_KEY, str(BAD_ITEM)[:RAW_ITEM_LIMIT], where=1003)
@@ -833,11 +833,11 @@ async def test_two_rejected_payloads_increment_the_error_stat_once_each() -> Non
     """
     worker = analysis_worker(broadcaster=None)
 
-    assert await worker._process_analysis_item(BAD_ITEM) is None
+    assert await worker._process_analysis_item(BAD_ITEM) == "terminal"
     assert worker.stats.errors == 1, (
         f"one reject must count exactly 1 error, got {worker.stats.errors}"
     )
-    assert await worker._process_analysis_item(BAD_ITEM) is None
+    assert await worker._process_analysis_item(BAD_ITEM) == "terminal"
 
     assert worker.stats.errors == 2, f"two rejects must count 2 errors, got {worker.stats.errors}"
     assert worker.stats.items_processed == 0, worker.stats
@@ -854,7 +854,7 @@ async def test_a_rejected_payload_reports_the_shipped_invalid_analysis_payload_l
     """
     worker = analysis_worker(broadcaster=None)
     with instrumentation() as d:
-        assert await worker._process_analysis_item(BAD_ITEM) is None
+        assert await worker._process_analysis_item(BAD_ITEM) == "terminal"
 
         assert calls_of(d.rec_error) == [call(INVALID_LABEL)], calls_of(d.rec_error)
         assert d.rec_exc.call_args_list == [], "the reject arm records no span exception"
@@ -887,7 +887,7 @@ async def test_a_valid_payload_opens_the_shipped_log_and_span_contexts(
     worker = analysis_worker(broadcaster=None)
     with instrumentation() as d:
         win(caplog)
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
         assert len(d.log_context.call_args_list) == 1, d.log_context.call_args_list
         lc = d.log_context.call_args_list[0]
@@ -929,7 +929,7 @@ async def test_a_camera_batch_adds_the_four_shipped_span_attributes() -> None:
     """
     worker = analysis_worker(broadcaster=None)
     with instrumentation() as d:
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
         assert len(d.add_attrs.call_args_list) == 1, d.add_attrs.call_args_list
         aa = d.add_attrs.call_args_list[0]
@@ -954,7 +954,7 @@ async def test_an_empty_detection_list_reports_zero_span_count() -> None:
     """
     worker = analysis_worker(broadcaster=None)
     with instrumentation() as d:
-        assert await worker._process_analysis_item(analysis_item(detection_ids=[])) is None
+        assert await worker._process_analysis_item(analysis_item(detection_ids=[])) == "stored"
 
         assert d.add_attrs.call_args_list[0].kwargs == {
             "batch_id": BATCH,
@@ -979,7 +979,7 @@ async def test_a_cameraless_batch_reports_camera_id_none_to_log_context(
     worker = analysis_worker(broadcaster=None)
     with instrumentation() as d:
         win(caplog)
-        assert await worker._process_analysis_item(no_camera_item()) is None
+        assert await worker._process_analysis_item(no_camera_item()) == "stored"
 
         assert d.log_context.call_args_list[0].kwargs == {
             "batch_id": BATCH,
@@ -1007,7 +1007,7 @@ async def test_the_analyzer_is_awaited_with_the_three_validated_fields() -> None
     """
     worker = analysis_worker(broadcaster=None)
     with instrumentation():
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
     assert worker._analyzer.analyze_batch.await_count == 1
     awaited = worker._analyzer.analyze_batch.await_args
@@ -1056,7 +1056,7 @@ async def test_the_started_broadcast_carries_exactly_the_five_shipped_keys(
     item = analysis_item() if camera is not None else no_camera_item()
     worker = analysis_worker(broadcaster=broadcaster)
     with instrumentation():
-        assert await worker._process_analysis_item(item) is None
+        assert await worker._process_analysis_item(item) == "stored"
 
     assert broadcaster.broadcast_batch_analysis_started.await_count == 1, (
         "the shipped NEM-3607 publish must fire once per analysed batch"
@@ -1086,8 +1086,8 @@ async def test_the_started_count_follows_the_detection_list() -> None:
     broadcaster = broadcaster_double()
     worker = analysis_worker(broadcaster=broadcaster)
     with instrumentation():
-        assert await worker._process_analysis_item(analysis_item()) is None
-        assert await worker._process_analysis_item(analysis_item(detection_ids=[])) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
+        assert await worker._process_analysis_item(analysis_item(detection_ids=[])) == "stored"
 
     counts = [
         c.args[0]["detection_count"]
@@ -1111,7 +1111,7 @@ async def test_the_started_timestamp_is_the_shipped_utc_isoformat() -> None:
     broadcaster = broadcaster_double()
     worker = analysis_worker(broadcaster=broadcaster)
     with instrumentation():
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
     payload = broadcaster.broadcast_batch_analysis_started.await_args.args[0]
     text = payload["started_at"]
@@ -1141,7 +1141,7 @@ async def test_a_started_broadcast_failure_is_swallowed_into_a_debug(
     with instrumentation() as d:
         win(caplog)
         base = baseline_fields(caplog)
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
         debug = only(caplog, logging.DEBUG, STARTED_FAILED_DEBUG.format("redis down"), where=1044)
         pin_extra(debug, "batch_id", BATCH, where=1044)
@@ -1177,7 +1177,7 @@ async def test_a_worker_without_a_broadcaster_skips_both_publishes(
     worker = analysis_worker(broadcaster=None)
     with instrumentation() as d:
         win(caplog)
-        assert await worker._process_analysis_item(analysis_item()) is None
+        assert await worker._process_analysis_item(analysis_item()) == "stored"
 
         assert d.factory.await_count == 1, "the shipped lazy getter must consult the factory once"
         assert worker._analyzer.analyze_batch.await_count == 1, "the analysis must still run"

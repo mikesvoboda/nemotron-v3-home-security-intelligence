@@ -174,8 +174,8 @@ Read this section while you write a package's code, tests, docs and PR.
   it in the same PR; docs reviews such edits against the standard only if asked. The docs lane owns
   every `AGENTS.md` except those lines. (README "Lanes and ownership"; ruling 121)
 - **UR-82** Touch `synthbench/` only under the cross-lane rule, when a deletion removes something
-  synthbench imports; the synthbench workstream continues alongside this programme. (README "Lanes
-  and ownership")
+  synthbench imports; the synthbench workstream continues alongside this programme. `O3.1` deletes
+  `synthbench/spikes/` (ruling 210). (README "Lanes and ownership")
 - **UR-83** Hot files; the coordinator sequences their merges: (the deleted 50-coordination.md "Hot
   files")
   - `docs/openapi.json`, `frontend/src/types/generated/api.ts`: regenerate after rebasing, never
@@ -531,8 +531,9 @@ when a phase exits, are UR-10 (contract rule 5).
   re-ID from the CPU evidence. (rulings 86, 117, 127)
 - **UR-149** The frontend lane records each `R2` session or round in one PR: the rulings and
   priorities into the inventory's ruling column, the OD rulings into
-  `docs/vss-integration/17-action-plan.md`, and the recorded part's status row. (README "Phases and
-  exit gates"; packages/frontend.md `R2b`; ruling 135)
+  `docs/vss-integration/17-action-plan.md`, and the recorded part's status row; the owner's session
+  wrote round 2's record (ruling 216). (README "Phases and exit gates"; packages/frontend.md `R2b`;
+  ruling 135)
 - **UR-151** A `half-built` row goes to the `R2b` list, and the owner decides at `R2b` whether and
   when it is fixed; nobody else creates a fix package for it unless the owner orders the fix (as rulings 129 and 130 did). (ruling 120)
 - **UR-152** "Half-built" includes a break at the UI end. The `R2` sheet's §1 rules by cause, each

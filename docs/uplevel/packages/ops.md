@@ -201,7 +201,11 @@ deployment, in a comment on each PR (ruling 154).
 
 - [ ] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
       every build script a Dockerfile or workflow runs. Delete what does not ship (~27K of 35K
-      lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it.
+      lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it. The declaration lands
+      first, so `ai/gateway/export/` (O2.4, B2.3) is never on the deleted list (ruling 210).
+- [ ] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
+      "synthbench workstream (UR-82), ruling 210"; delete `synthbench/spikes/` (ruling 210 amends
+      UR-82 for it).
 - [ ] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
       timm, onnxruntime). Confirm each by import trace; a build-time-only need moves to a build
       stage. **MEASURE** the image size before and after.
@@ -556,8 +560,9 @@ and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the
 
 ### [r196c] The seeded rows F-186, F-196 and F-197
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue. **Depends on:** none. **PR:**
-none yet. (rulings 127, 187, 196)
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
+waits on the operator (UR-52 waived, ruling 217). **Depends on:** none.
+**PR:** none yet. (rulings 127, 187, 196, 217; record 6200901387)
 
 - [ ] Specs for F-186, F-196 and F-197 in ops-b's batch directory
       `frontend/tests/golden/gpu-storage-admin/` (ruling 87) run in `Feature check (seeded)`, the
@@ -662,6 +667,44 @@ UR-180's order, never at a routine full prune (ruling 176).
 
 **Done when:** the module budget fails CI on a reproduced import breach, the warning-only nightly's
 list is posted, and the existing duration pins pass.
+
+### [r215a] F-278: a test-only face vector in the seeded project
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
+**Depends on:** none. **PR:** none yet. (ruling 215, record 6200719567)
+
+- [ ] `Feature check (seeded)`'s setup inserts one known person and one face-embedding row with a
+      fixed vector and a `model_id` marked test-only, as F-012's disk seed did (#7178, ruling 192).
+      No production route or model changes.
+
+**Done when:** the seeded job's stack holds that person and embedding at a ready head, and
+`[r215d]`'s leg can run against it.
+
+### [r218] The inventory's status is checked against the golden run
+
+**Flags:** `owner` (CI and the witness convention). **Assigned:** the owner's session, as an owner
+PR. **Depends on:** none. **PR:** none yet. (ruling 218, record 6201875149)
+
+Ruling 208's count (`6200252063`): 106 of 254 record-repair commits mainly edit the inventory, and
+status flips, evidence cells and witness ids lead. Each Feature check job already records per-test
+results (`summary["results"]["golden"]["playwright_specs"]`, `scripts/feature_check.py`), and the
+golden specs carry their rows' `F-NNN` ids in their titles.
+
+- [ ] A script maps each executed golden test to the rows its title names, and lists golden specs
+      that name none.
+- [ ] Rules (UR-128; rulings 103, 114, 148): a row at **awaiting real tier** or **works** needs at
+      least one mapped leg, each executed and passed; a failed or skipped mapped leg fails that row;
+      an **unverified** row whose legs all passed prints as ready to flip, with the cell text.
+      Real-tier confirmation stays the operator's.
+- [ ] CI: the check runs after the golden project in `Feature check (fake AI)` and
+      `Feature check (seeded)`, fails on a row claiming more than the run shows, prints rows ready
+      to flip, and fails closed on a read error with its reason.
+- [ ] Evidence cells name the spec and legs; run and job ids are no longer required there.
+- [ ] Disagreements the check finds on `main` are fixed in this PR or listed for the owner, so
+      `main` stays green.
+
+**Done when:** the check runs in both Feature check jobs and passes on `main`, with unit tests
+for each rule.
 
 ### [r184] The launcher prints the heavy sessions' pi start line
 
