@@ -1103,6 +1103,35 @@ async def test_invalidate_trends_scans_its_namespace(cache_service, mock_redis_c
     mock_client.scan_iter.assert_called_once_with(match=_stored("trends:*"), count=100)
 
 
+@pytest.mark.asyncio
+async def test_invalidate_summaries_scans_the_whole_summaries_namespace(
+    cache_service, mock_redis_client
+):
+    """invalidate_summaries scans summaries:*, not a narrower shape.
+
+    r223 round 2 (blocking/test): the round-1 design had a narrow
+    invalidate_entities whose single-key delete WAS pinned; replacing it with
+    the summaries:* sweep deleted that pin and nothing replaced it, so
+    corrupting this pattern to anything narrower (say summaries:entities) left
+    the whole suite green while silently stranding summaries:latest/hourly/
+    daily — the exact F2 defect the sweep exists to fix. This pin is what
+    makes the sweep's reach falsifiable. summaries:entities travels inside the
+    same pattern (entity_recognition.py:104 stores it), which is why no second
+    invalidator exists.
+    """
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_summaries()
+
+    mock_client.scan_iter.assert_called_once_with(match=_stored("summaries:*"), count=100)
+
+
 def test_infer_cache_type_timeline_summary(cache_service):
     """_infer_cache_type classifies timeline_summary: (the route stores without an
     explicit cache_type, so get/set infer it — before r223 this counted as 'other')."""

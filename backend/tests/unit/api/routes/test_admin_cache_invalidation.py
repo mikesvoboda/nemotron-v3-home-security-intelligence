@@ -284,11 +284,16 @@ class TestSummariesNamespaceIsInTheCensus:
     async def test_helper_calls_exactly_the_census_invalidators_once(self) -> None:
         """One call per namespace: no gap, no double-delete.
 
-        Set equality is the whole claim. `invalidate_summaries` scans
-        `summaries:*`, which contains `summaries:entities`, so a separate
-        entities call next to the sweep would delete the same key twice and
-        double-count it in `keys_cleared`; a missing name would leave a stale
-        namespace. Both show up here.
+        Set equality is the whole claim *about the call set*. It says nothing
+        about what each name scans, and round 2 measured that silence: narrowing
+        `invalidate_summaries` to `summaries:entities` left this file green. The
+        sweep's reach is pinned separately, at
+        `test_cache_service.py::test_invalidate_summaries_scans_the_whole_summaries_namespace`.
+        Within the call set: `invalidate_summaries` scans `summaries:*`, which
+        contains `summaries:entities`, so a separate entities call next to the
+        sweep would delete the same key twice and double-count it in
+        `keys_cleared`; a missing name would leave a stale namespace. Both show
+        up here.
         """
         from backend.api.routes.admin import _invalidate_devtool_caches_background
 
