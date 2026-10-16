@@ -90,6 +90,9 @@ one PR with `F3.1`.
       so the client never calls a route that is gone.
 - [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
       record 6198942052), not as a hand-run DROP runbook.
+- [ ] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
+      `search_similar_entities`): route, handler, tests and its `docs/developer/api/coverage.md`
+      line. It has no client and no guide (ruling 236).
 - [ ] Regenerate `docs/openapi.json`.
 
 **Done when:** for every retired feature, a grep for the identifiers its inventory row lists finds
@@ -144,6 +147,23 @@ intact in CI; and the PR reports the before/after count of `nemotron`, `florence
 hits in `backend/`.
 
 ## Phase 4 — Complete the product
+
+### [r236] Two documented endpoints become External rows
+
+**Flags:** none. **Assigned:** backend, after `B3.3`. **Depends on:** `R2` (Phase 2's exit).
+**PR:** none yet. (ruling 236, record 6216306194)
+
+No client in `frontend/src` calls them, but the docs tell users to:
+`docs/guides/face-recognition.md:288` for `POST /api/household/members/{member_id}/embeddings`
+(`backend/api/routes/household.py:460-461`), and `docs/developer/api/core-resources.md:881` for
+`GET /api/detections/export` (`backend/api/routes/detections.py:2025-2026`).
+
+- [ ] Each gets an `External ›` inventory row (as F-290–F-294 are) with its documented action.
+- [ ] Each gets a backend golden test, as F-294's
+      `backend/tests/golden/external/test_metrics_scrape.py` is, and its row flips on the run where
+      it passes (rulings 103, 114).
+
+**Done when:** both rows exist and neither says **unverified**.
 
 ### B4.\* Feature track
 
