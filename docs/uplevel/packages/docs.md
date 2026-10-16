@@ -107,17 +107,35 @@ them, is UR-81. This lane opens a package only on a trigger (UR-68).
 
 ### [r196b] F-234's channel test
 
-**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** none yet.
+**Flags:** none. **Assigned:** docs, first on its queue. **Depends on:** none. **PR:** #7181 (merged 2026-10-16T05:28:12Z as `257572118`, head `6e28d9e2c`).
 (rulings 192, 194, 196)
 
-- [ ] `test.use({ channel: 'chromium' })` at the top of
+- [x] `test.use({ channel: 'chromium' })` at the top of
       `frontend/tests/golden/notify-access/permission.spec.ts` only; `frontend/playwright.config.ts`
       is unchanged (ruling 194). The PR's title carries `[r196b]`; frontend reviews.
-- [ ] One CI run decides. If the granted leg executes and passes, F-234 flips to **awaiting real
+      Re-measured at the merge this turn: `git diff --name-only 5365165f8 6e28d9e2c` is TWO files —
+      `permission.spec.ts` and `docs/reference/feature-inventory.md` — with exactly 1 added
+      `+test.use({ channel: 'chromium' });` line and a 0-line diff on `playwright.config.ts`. (Base
+      `5365165f8` is the PR's base, not the merge's first parent: diffing the MERGE commit
+      `257572118` instead lists a third file, `known-person-embedding.seeded.spec.ts`, which is
+      #7199's work coming in through the merge — attribute a merged PR against its own head.)
+- [x] One CI run decides. If the granted leg executes and passes, F-234 flips to **awaiting real
       tier** on that run. If it still reads `denied`, or the browser cannot launch in the golden
       container, revert the line, post the run on #6996, and the row returns to the owner.
+      The deciding run is the row's cited `38781211294` / job `116583068172`
+      (`Feature check (fake AI)`, `success`), whose artifact attests the execution half: the spec's
+      own runtime self-skip at `permission.spec.ts:181-187` did NOT fire, so the granted leg ran
+      rather than skipped. That non-fire is F-234's evidence cell's attestation, which I did NOT
+      re-download this turn; what I re-measured at the merge is the outcome half by column — parsing
+      all 294 `F-` rows at `257572118`, F-234's status cell is `unverified` at base `5365165f8` and
+      `awaiting real tier` at the merge, so the flip rode this PR.
+      `awaiting real tier`, not `works`: the real tier has not run (rulings 103, 148).
 
 **Done when:** F-234 is **awaiting real tier**, or the run that returns it to the owner is posted.
+**MET** — F-234 is `awaiting real tier` on `main` as of `257572118`; no revert leg was needed, so
+nothing was posted to #6996 for that purpose. (That draft PR is itself now closed under ruling 209 —
+see its release comment 6208840202 — which is also why this box's "post the run on #6996" branch is
+moot rather than pending.)
 
 ### [r215d] F-278's leg on the seeded face vector
 
