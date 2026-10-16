@@ -63,9 +63,9 @@
  * four ways, not one. The socket feed is a SEPARATE cache from the list:
  * useEventStream.ts keeps frames in local state (its :118 `processEvent` pushes
  * into a useState array; the file has ZERO queryClient references) and
- * EventTimeline.tsx:139 hands wsEvents to activityEvents (:347-362, whose
- * camera_name resolves through cameraNameMap at :352) → LiveActivitySection
- * (:1101-1106), mounted ABOVE the "Historical Events" divider (:1111-1116).
+ * EventTimeline.tsx:140 hands wsEvents to activityEvents (:348-363, whose
+ * camera_name resolves through cameraNameMap at :353) → LiveActivitySection
+ * (:1134-1139), mounted ABOVE the "Historical Events" divider (:1144-1149).
  * So: (a) the shipped empty state "No Live Activity"
  * (LiveActivitySection.tsx:300-308) is on screen BEFORE the drop and gone
  * after, with NO reload between; (b) the card is INSIDE
@@ -263,8 +263,8 @@ async function bootTimeline(page: Page, h: TimelineHarness): Promise<void> {
   await expect(page.getByTestId('timeline-page'), 'the timeline painted').toBeVisible();
 }
 
-/** Apply the page's OWN camera filter (EventTimeline.tsx:1223 Show Filters,
- *  :1264 id="camera-filter"; handleFilterChange :381-388 re-keys the query). The
+/** Apply the page's OWN camera filter (EventTimeline.tsx:1256 Show Filters,
+ *  :1297 id="camera-filter"; handleFilterChange :382-389 re-keys the query). The
  *  shipped door that moves a socket row into the fetched list with no reload and
  *  no test-side refetch call. */
 async function filterToCamera(page: Page, cameraId: string): Promise<void> {

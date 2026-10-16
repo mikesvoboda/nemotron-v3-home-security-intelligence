@@ -16,7 +16,7 @@
  *     /api/events/search requests; only Enter submits (`handleSubmit`,
  *     SearchBar.tsx:142-147, which additionally refuses while `!query.trim()`).
  *     The submit shape is `?q=<trimmed>&limit=20&offset=0`: `limit` is the
- *     component's `defaultLimit` (EventTimeline.tsx:163-170), NOT the route's own
+ *     component's `defaultLimit` (EventTimeline.tsx:164-171), NOT the route's own
  *     default of 50.
  *   - filters ride along and STACK. `severity=high` on the wire (api.ts:3806 —
  *     the client's param name, while the route also accepts `risk_level`),
@@ -379,7 +379,7 @@ test.describe('F-048 full-text search', () => {
     // The browse counter is the instrument, NOT `event-card-*`: this stack's saved
     // view mode renders ROWS (F-043's own test is named "list view: rows replace
     // cards"), and the card testid only exists in card mode. The counter
-    // (`Showing N of M events`, EventTimeline.tsx:1459) is the shape browse takes
+    // (`Showing N of M events`, EventTimeline.tsx:1492) is the shape browse takes
     // in every view mode, and its N-of-M form cannot be confused with the search
     // panel's `Showing N-M of T results` — so this also proves search mode ENDED
     // rather than merely repainting.

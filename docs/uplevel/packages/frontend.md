@@ -545,7 +545,7 @@ for the spec's legs. **PR:** none yet. (rulings 211, 221, 233; records 620033150
       browse list's first page does not hold. No leg gains a mark. Neither lane force-pushes the
       branch, and each fetches it before it pushes.
 - [ ] Clicking a search result opens that result; `getModalEvent()` no longer looks the id up in the
-      browse list (`frontend/src/components/events/EventTimeline.tsx:1059`). The
+      browse list (`frontend/src/components/events/EventTimeline.tsx:1096`). The
       `timeline-search.spec.ts:585` leg's defect half becomes "the page-2 row opens".
 - [ ] Remove both `test.fixme` marks in `frontend/tests/golden/timeline/timeline-search.spec.ts`.
 - [ ] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
