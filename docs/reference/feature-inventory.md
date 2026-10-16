@@ -127,9 +127,10 @@ Two boundaries are stated because a reader cannot re-derive them from the rows:
   is not. Which non-members are named is bounded, not total: a row is named when its own §3 evidence
   cell cites one of the code coordinates this section publishes as an exclusion ground, and the reverse
   sweep over those coordinates finds no such row left unnamed at this head. What the claim does NOT
-  cover: a row that merely reads a file some listed row also reads — seven §3 rows besides the listed
-  ones cite `backend/api/routes/cameras.py` and five cite `backend/api/routes/alerts.py` (the camera and
-  rule CRUD surfaces, whose promised values are user-entered config, not model output). Reading a
+  cover: a row that merely reads a file some listed row also reads — five §3 rows besides the listed and
+  named ones cite `backend/api/routes/cameras.py` in their evidence cell and five cite
+  `backend/api/routes/alerts.py` (the camera and rule CRUD surfaces, whose promised values are
+  user-entered config, not model output). Reading a
   neighbour's file is not displaying its value, so those rows are neither listed nor named, and this
   paragraph does not claim otherwise. The test is the row's own promise, not the
   presence of an `<img>` — F-029's card picture is a `GET /api/cameras/{camera_id}/snapshot` frame,
