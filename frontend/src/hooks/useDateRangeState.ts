@@ -9,7 +9,7 @@
  * @see NEM-2701
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 // ============================================================================
@@ -322,6 +322,8 @@ export function useDateRangeState(options: UseDateRangeStateOptions = {}): UseDa
   const { defaultPreset = '7d', urlParam = 'range', persistToUrl = true } = options;
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const [localPreset, setLocalPreset] = useState<DateRangePreset | null>(null);
+  const [localCustomDates, setLocalCustomDates] = useState<DateRange | null>(null);
 
   // Parse preset from URL
   const presetFromUrl = useMemo((): DateRangePreset | null => {
@@ -357,22 +359,25 @@ export function useDateRangeState(options: UseDateRangeStateOptions = {}): UseDa
     };
   }, [searchParams, presetFromUrl, persistToUrl]);
 
-  // Determine current preset (from URL or default)
+  const activePreset = persistToUrl ? presetFromUrl : localPreset;
+  const activeCustomDates = persistToUrl ? customDatesFromUrl : localCustomDates;
+
+  // Determine current preset (from URL, local state, or default)
   const preset = useMemo((): DateRangePreset => {
-    if (presetFromUrl === 'custom' && !customDatesFromUrl) {
+    if (activePreset === 'custom' && !activeCustomDates) {
       // Invalid custom range (missing or invalid dates), fall back to default
       return defaultPreset;
     }
-    return presetFromUrl ?? defaultPreset;
-  }, [presetFromUrl, customDatesFromUrl, defaultPreset]);
+    return activePreset ?? defaultPreset;
+  }, [activePreset, activeCustomDates, defaultPreset]);
 
   // Calculate current range
   const range = useMemo((): DateRange => {
-    if (preset === 'custom' && customDatesFromUrl) {
-      return customDatesFromUrl;
+    if (preset === 'custom' && activeCustomDates) {
+      return activeCustomDates;
     }
     return calculatePresetRange(preset, new Date());
-  }, [preset, customDatesFromUrl]);
+  }, [preset, activeCustomDates]);
 
   // Calculate API params
   const apiParams = useMemo((): DateRangeApiParams => {
@@ -416,35 +421,60 @@ export function useDateRangeState(options: UseDateRangeStateOptions = {}): UseDa
         return;
       }
 
+      if (!persistToUrl) {
+        setLocalPreset(newPreset);
+        setLocalCustomDates(null);
+        return;
+      }
+
       updateParams({
         [urlParam]: newPreset,
         start: undefined,
         end: undefined,
       });
     },
-    [updateParams, urlParam]
+    [updateParams, urlParam, persistToUrl]
   );
 
   // Set custom range
   const setCustomRange = useCallback(
     (start: Date, end: Date) => {
+      if (!persistToUrl) {
+        const startDate = parseDateFromYYYYMMDD(formatDateToYYYYMMDD(start));
+        const endDate = parseDateFromYYYYMMDD(formatDateToYYYYMMDD(end));
+        if (startDate && endDate) {
+          setLocalPreset('custom');
+          setLocalCustomDates({
+            startDate,
+            endDate: getEndOfDayUTC(endDate),
+          });
+        }
+        return;
+      }
+
       updateParams({
         [urlParam]: 'custom',
         start: formatDateToYYYYMMDD(start),
         end: formatDateToYYYYMMDD(end),
       });
     },
-    [updateParams, urlParam]
+    [updateParams, urlParam, persistToUrl]
   );
 
   // Reset to default preset
   const reset = useCallback(() => {
+    if (!persistToUrl) {
+      setLocalPreset(null);
+      setLocalCustomDates(null);
+      return;
+    }
+
     updateParams({
       [urlParam]: undefined,
       start: undefined,
       end: undefined,
     });
-  }, [updateParams, urlParam]);
+  }, [updateParams, urlParam, persistToUrl]);
 
   // Derived values
   const isCustom = preset === 'custom';

@@ -63,6 +63,8 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 **Flags:** `heavy`; label `cell:heavy-b`, none while heavy-b is out of service (ruling 190). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
+**Assigned:** heavy-a; the coordinator assigns it next once `O2.4`'s `RESULT: PASS` is posted and
+the `B3.1`/`F3.1` PR in hand has merged (ruling 241). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -80,6 +82,8 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
+**Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
+`B2.3` (ruling 241). **PR:** none yet.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -89,7 +93,8 @@ one PR with `F3.1`.
       conditions and tests (batteries included). The frontend part (`F3.1`) lands in the same PR,
       so the client never calls a route that is gone.
 - [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
-      record 6198942052), not as a hand-run DROP runbook.
+      record 6198942052), not as a hand-run DROP runbook. Until it lands, take the retirements
+      that drop no table; one that drops a table waits for it (ruling 241).
 - [ ] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
       `search_similar_entities`): route, handler, tests and both its `docs/developer/api/coverage.md`
       lines (`:692`, `:856`). It has no client and no guide; Phase 4's design sessions may bring
@@ -102,6 +107,7 @@ nothing in `backend/` outside its upgrade step.
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
       module under `backend/` the reachability check reports non-shipping at this PR's head,
@@ -124,6 +130,7 @@ outside `keep.toml`, and the suite is green.
 ### B3.3 Settings and residue truth
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
       and delete them with their `.env.example` and compose lines.
@@ -355,16 +362,16 @@ on the CI compose before their save leg can go green; until then they flip on th
 ### [r149d] F-057: the event list returns `notes`
 
 **Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** #7070 (merged).
-(ruling 149, record 6146380050)
+(rulings 149, 238; records 6146380050, 6216702824)
 
 - [x] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
       and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
       `GET /api/events`.
-- [ ] When it merges, frontend flips the read-back `test.fixme` in
-      `frontend/tests/golden/timeline/event-detail.spec.ts`; that golden path rules F-057. No `R2b`
-      entry.
+- [ ] The read-back `test.fixme` in `frontend/tests/golden/timeline/event-detail.spec.ts` is
+      flipped by `[r238]` (heavy-a; ruling 238); that golden path rules F-057. No `R2b` entry.
 
-**Done when:** `GET /api/events` returns a saved note, and F-057's read-back golden leg passes.
+**Done when:** `GET /api/events` returns a saved note, and `[r238]` merges with F-057's read-back
+golden leg passing.
 
 ### [r160b] Deferred Python major: huggingface-hub 2
 

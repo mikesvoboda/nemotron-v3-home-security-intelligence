@@ -135,6 +135,7 @@ same way after the owner's `R2b` session.
 ### F3.1 Retire ruled-out features, frontend part
 
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work).
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** none yet.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
@@ -162,6 +163,7 @@ nothing in `frontend/`.
 ### F3.2 Unreachable files and the knip gate
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] **MEASURE** the unreachable production files (236 files, ~71,800 lines at `d6ba78d5`,
       `00 §4.3`). Delete them and the tests that test only them — except files a **complete**
@@ -176,6 +178,7 @@ wires it into CI.)
 ### F3.3 Quarantined tests
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 `vite.config.ts` excludes 16 test files; three are empty.
 
@@ -577,6 +580,23 @@ from the URL (`frontend/src/hooks/useDateRangeState.ts:328`, `:340`) and every w
       inventory row (ruling 87), and frontend reads heavy-a's `frontend/` diff (ruling 184).
 
 **Done when:** F-052 flips to **awaiting real tier** on a CI run where its legs, the dates leg
+among them, pass (rulings 103, 114).
+
+### [r238] F-057: the saved note reads back
+
+**Flags:** none. **Assigned:** heavy-a, after `[r234]`, ahead of `B2.3` (ruling 238). **Depends
+on:** none. **PR:** none yet. (rulings 149, 238; record 6216702824)
+
+`[r149d]` (#7070) made `list_events` return `notes` (`backend/api/routes/events.py:543`), but its
+second box, the golden read-back leg, never had a roster slot, so F-057 stays **half-built** with
+that leg unrun.
+
+- [ ] In one PR with `[r238]` in its title: remove the `test.fixme` at
+      `frontend/tests/golden/timeline/event-detail.spec.ts:358` ("the saved note is read back"); the
+      leg passes. heavy-a edits only F-057's inventory row (ruling 87), and frontend reads heavy-a's
+      `frontend/` diff (ruling 184).
+
+**Done when:** F-057 flips to **awaiting real tier** on a CI run where its legs, the read-back leg
 among them, pass (rulings 103, 114).
 
 ### [r212] F-061 and F-062: the audit tab can run an evaluation, and both legs re-run
