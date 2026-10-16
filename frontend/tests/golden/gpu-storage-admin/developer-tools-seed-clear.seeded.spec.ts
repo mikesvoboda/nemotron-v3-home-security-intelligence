@@ -206,18 +206,35 @@ test.describe('seeded golden path: developer tools seed and clear (F-197) @criti
     const eventDialog = page.getByTestId('confirm-dialog');
     await expect(eventDialog).toContainText('Seed Test Events');
     await eventDialog.getByRole('button', { name: 'Seed Events', exact: true }).click();
-    await expect(
-      page.locator('[data-sonner-toast]').filter({ hasText: /Created \d+ events/ })
-    ).toBeVisible({ timeout: 20_000 });
+    const seedEventsToast = page
+      .locator('[data-sonner-toast]')
+      .filter({ hasText: /Created \d+ events/ });
+    await expect(seedEventsToast).toBeVisible({ timeout: 20_000 });
+    const eventsToastText = (await seedEventsToast.textContent()) ?? '';
 
-    // Events really landed (50, per the handler's fixed count).
-    await pollApi<EventList>(
-      h,
-      session,
-      '/api/events?limit=1',
-      (b) => (b.pagination?.total ?? 0) > (eventsBefore ?? 0),
-      20_000
-    );
+    // The count the user was shown, pinned TWICE, because the loose version of
+    // this check (`total > before`) passed while saying nothing about the 50 the
+    // comment claimed. First pin: the number itself. 50 is the CLIENT's
+    // constant, not the handler's — AdminSettings.tsx:396 sends `{ count: 50 }`
+    // and the handler only loops `for _ in range(request.count)`
+    // (backend/api/routes/admin.py:500), so a backend that stopped honouring
+    // the request would contradict this pin. The F-162 precedent pins the same
+    // toast at exactly 50 (test-data.spec.ts:146).
+    const promisedEvents = /Created (\d+) events/.exec(eventsToastText)?.[1];
+    expect(promisedEvents).toBeDefined();
+    expect(Number(promisedEvents)).toBe(50);
+
+    // Second pin: the toast's number is the number of rows the table gained —
+    // the same "the toast must not lie" discipline as the cameras leg above.
+    // Exact equality (not a `>` floor) is honest here only because nothing else
+    // can insert Event rows in this boot: the events LIST is uncached (header),
+    // the FileWatcher that auto-creates rows is off in CI
+    // (docker-compose.ci.yml:139 `FILE_WATCHER_ENABLED=false`), and the seeded
+    // `--fake` boot runs no VLM analysis, so the pipeline's own Event writer
+    // (backend/services/vlm_analyzer.py:677) never fires.
+    const eventsAfterSeed = (await api<EventList>(h, session, '/api/events?limit=1')).pagination
+      ?.total;
+    expect((eventsAfterSeed ?? 0) - (eventsBefore ?? 0)).toBe(Number(promisedEvents));
 
     // --- Clear All Test Data: the ConfirmWithTextDialog gate. Its confirm
     // Button carries NO data-testid (components/developer-tools/
