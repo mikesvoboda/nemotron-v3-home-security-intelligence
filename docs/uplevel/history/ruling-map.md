@@ -239,6 +239,12 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 224    | heavy-a takes `[r212]`, `[r213]`, `[r214]` from frontend now, ahead of B2.3 (record 6205825842)             |
 | 225    | the dispatcher stops a coordinator tick at 60 minutes, not 30 (record 6205915207)                           |
 | 226    | heavy-a takes F-012 and F-064 from `[r196a]`; docs claims `[r215d]` now (record 6206280092)                 |
+| 227    | ops-b arms #7189; the seeded-only rows' route to works goes to R2b's last round (record 6215786871)         |
+| 228    | package `[r228]`: one cache key shape, before `[r223]` (record 6215814018)                                  |
+| 229    | the second session in frontend's sandbox ends; `fe3-f064-draft` is deleted (record 6215872590)              |
+| 230    | no rows for docs' unrowed paths; three client-less endpoints go to R2b's last round (record 6215912535)     |
+| 231    | package `[r231]`: ruling 207 covers every model family the real tier fakes (record 6215981513)              |
+| 232    | the dispatcher starts each tick's subagent without a name; stacking diagnosis runs (record 6216022003)      |
 
 ## Owner records
 

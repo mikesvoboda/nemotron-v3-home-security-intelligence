@@ -121,6 +121,16 @@ same way after the owner's `R2b` session.
   them (ruling 216, record 6200852082), into the ruling and priority columns only; later rounds
   return to this lane.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
+- **The last round also rules** how a row witnessed only in `Feature check (seeded)` (a
+  `*.seeded.spec.ts` leg; F-133 among them, and #7189's F-186, F-196 and F-197) reaches
+  **works**: `--seeded` is refused without `--fake` (`scripts/feature_check.py:3193-3194`), so the
+  real tier never runs those specs. Until then such rows stay at **awaiting real tier** (ruling
+  227; #7189's body states the options).
+- **The last round also rules** each endpoint no client calls: keep it as an External row (as
+  F-290–F-294 are) or retire it in Phase 3. They are `POST /api/reid/search`
+  (`backend/api/routes/reid.py:78-79`), `POST /api/household/members/{member_id}/embeddings`
+  (`backend/api/routes/household.py:460-461`) and `GET /api/detections/export`
+  (`backend/api/routes/detections.py:2025-2026`). None is an inventory row until then (ruling 230).
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).
 
