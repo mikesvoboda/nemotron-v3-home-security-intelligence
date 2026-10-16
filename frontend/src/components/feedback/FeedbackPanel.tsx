@@ -127,6 +127,16 @@ function getFeedbackTypeLabel(type: string): string {
   return option?.label ?? type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
 }
 
+function getThreatLevelLabel(level: string): string {
+  const option = THREAT_LEVEL_OPTIONS.find((opt) => opt.value === level);
+  return option?.label ?? level.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+}
+
+function getModelFailureLabel(modelId: string): string {
+  const model = AI_MODELS.find((m) => m.id === modelId);
+  return model?.label ?? modelId;
+}
+
 export default function FeedbackPanel({
   eventId,
   currentRiskScore,
@@ -286,6 +296,33 @@ export default function FeedbackPanel({
                 {getFeedbackTypeLabel(existingFeedback.feedback_type)}
               </span>
             </div>
+            {existingFeedback.actual_threat_level && (
+              <p className="mt-1 text-sm text-gray-400">
+                Actual threat level: {getThreatLevelLabel(existingFeedback.actual_threat_level)}
+              </p>
+            )}
+            {existingFeedback.suggested_score !== null &&
+              existingFeedback.suggested_score !== undefined && (
+                <p className="mt-1 text-sm text-gray-400">
+                  Suggested score: {existingFeedback.suggested_score}
+                </p>
+              )}
+            {existingFeedback.actual_identity && (
+              <p className="mt-1 text-sm text-gray-400">
+                Actual identity: {existingFeedback.actual_identity}
+              </p>
+            )}
+            {existingFeedback.what_was_wrong && (
+              <p className="mt-1 text-sm text-gray-400">
+                What was wrong: {existingFeedback.what_was_wrong}
+              </p>
+            )}
+            {existingFeedback.model_failures && existingFeedback.model_failures.length > 0 && (
+              <p className="mt-1 text-sm text-gray-400">
+                Failed models:{' '}
+                {existingFeedback.model_failures.map(getModelFailureLabel).join(', ')}
+              </p>
+            )}
             {existingFeedback.notes && (
               <p className="mt-1 text-sm text-gray-400">{existingFeedback.notes}</p>
             )}

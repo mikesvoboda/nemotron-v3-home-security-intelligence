@@ -115,6 +115,33 @@ describe('FeedbackPanel', () => {
       expect(screen.getByText(/Submitted/)).toBeInTheDocument();
     });
 
+    it('renders all stored calibration fields on the saved feedback card', async () => {
+      vi.mocked(api.getEventFeedback).mockResolvedValue({
+        ...mockFeedbackResponse,
+        actual_threat_level: 'no_threat',
+        suggested_score: 15,
+        actual_identity: 'delivery driver',
+        what_was_wrong: 'the delivery van idled too long',
+        model_failures: ['rtdetr', 'clip'],
+      });
+
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('False Positive')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Actual threat level: No Threat')).toBeInTheDocument();
+      expect(screen.getByText('Suggested score: 15')).toBeInTheDocument();
+      expect(screen.getByText('Actual identity: delivery driver')).toBeInTheDocument();
+      expect(
+        screen.getByText('What was wrong: the delivery van idled too long')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Failed models: RT-DETR (Object Detection), CLIP (Image Classification)')
+      ).toBeInTheDocument();
+    });
+
     it('applies custom className', async () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 

@@ -26,7 +26,7 @@ Contains React components for event feedback functionality, enabling users to pr
   - **Severity Wrong** (yellow): Risk level was incorrect
 - Quick feedback for "Accurate" (no notes required)
 - Notes form for other feedback types
-- Existing feedback display (read-only)
+- Existing feedback display (read-only: shows feedback type, actual threat level, suggested score, actual identity, what was wrong, failed models, notes, and submitted date)
 - Loading, error, and success states
 - Query invalidation for real-time updates
 
