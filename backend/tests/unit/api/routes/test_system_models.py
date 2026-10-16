@@ -55,7 +55,6 @@ class TestGetModelsEndpoint:
 
     @pytest.mark.skip(reason="Moved to test_model_management.py - NEW Model Management API tests")
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Flaky test - fails in CI due to app initialization timing issues")
     async def test_get_models_returns_registry(self) -> None:
         """Test that GET /api/system/models returns model list with service status."""
         # Mock enrichment service responses
@@ -98,7 +97,6 @@ class TestGetModelsEndpoint:
 
     @pytest.mark.skip(reason="Moved to test_model_management.py - NEW Model Management API tests")
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Flaky test - fails in CI due to app initialization timing issues")
     async def test_get_models_returns_model_list(self) -> None:
         """Test that models list contains expected model information."""
         # Mock enrichment service responses
@@ -154,7 +152,6 @@ class TestGetModelsEndpoint:
 
     @pytest.mark.skip(reason="Moved to test_model_management.py - NEW Model Management API tests")
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Flaky test - fails in CI due to app initialization timing issues")
     async def test_get_models_shows_loaded_status(self) -> None:
         """Test that loaded models show runtime.loaded=True."""
         # Mock enrichment service responses with a loaded model
@@ -207,7 +204,6 @@ class TestGetModelsEndpoint:
 
     @pytest.mark.skip(reason="Moved to test_model_management.py - NEW Model Management API tests")
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Flaky test - fails in CI due to app initialization timing issues")
     async def test_get_models_shows_unloaded_status(self) -> None:
         """Test that unloaded models show runtime.loaded=False."""
         # Mock enrichment service responses with no loaded models
@@ -434,7 +430,6 @@ class TestModelStatusSchema:
 
     @pytest.mark.skip(reason="Moved to test_model_management.py - NEW Model Management API tests")
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Flaky test - fails in CI due to app initialization timing issues")
     async def test_models_registry_response_has_all_fields(self) -> None:
         """Test that models list response contains all required fields."""
         # Mock enrichment service responses
@@ -485,7 +480,6 @@ class TestVRAMStats:
 
     @pytest.mark.skip(reason="Moved to test_model_management.py - NEW Model Management API tests")
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Flaky test - fails in CI due to app initialization timing issues")
     async def test_vram_used_reflects_loaded_models(self) -> None:
         """Test that vram_used_mb reflects currently loaded models across GPUs."""
         # Mock enrichment service responses with loaded models
@@ -526,7 +520,6 @@ class TestVRAMStats:
 
     @pytest.mark.skip(reason="Moved to test_model_management.py - NEW Model Management API tests")
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Flaky test - fails in CI due to app initialization timing issues")
     async def test_vram_zero_when_no_models_loaded(self) -> None:
         """Test that vram_used_mb is 0 when no models are loaded."""
         # Mock enrichment service responses with no loaded models
