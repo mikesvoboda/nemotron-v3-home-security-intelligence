@@ -248,12 +248,9 @@ def lint(src: Disk | Ref) -> tuple[list[Finding], str]:
     except (OSError, snap.CommandError) as exc:
         findings.append(Finding(PKGS_DIR, 1, f"unlisted: {exc}"))
         pkg_files = []
-    files: dict[str, str | None] = {}
 
     def package(lane: str) -> str | None:
-        if lane not in files:
-            files[lane] = read(PKGS_PATH.format(lane))
-        return files[lane]
+        return read(PKGS_PATH.format(lane))  # read() reads each file once
 
     # Every block in every package file: what a row with no file of its own is looked up in.
     anywhere = {b[0] for rel in pkg_files for b in blocks(read(rel) or "")}

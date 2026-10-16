@@ -6,12 +6,14 @@ Run explicitly; outside testpaths (like every scripts/test_*.py gate suite):
     uv run python -m pytest scripts/test_plan_lint.py -q
 
 Each failure kind is planted in a small tree in ``tmp_path`` that is clean before the plant, so a
-test fails for its own finding and not for some other line of the fixture. Nothing here lints this
-checkout's own plan files: this suite runs in collection-sanity on every PR, and a plan defect
-already on ``main`` would red every one of them. The real tree is the job of the CI step that runs
-the lint with the PR merge commit's first parent as ``--baseline``; the baseline logic it relies
-on, and the step's own first-parent line, are pinned here on fixtures and throwaway git
-repositories.
+test fails for its own finding and not for some other line of the fixture. Nothing here asserts
+that this checkout's own plan files are CLEAN: this suite runs in collection-sanity on every PR, and
+a plan defect already on ``main`` would red every one of them. The real tree's cleanliness is the
+job of the CI step that runs the lint with the PR merge commit's first parent as ``--baseline``; the
+baseline logic it relies on, and the step's own first-parent line, are pinned here on fixtures and
+throwaway git repositories. The real roster's SHAPE is used here (ruling 242): copies of this
+checkout's roster and package files, with a defect planted, must have that defect caught -- whatever
+else the copies hold.
 """
 
 from __future__ import annotations
@@ -342,10 +344,10 @@ def test_the_operators_runs_are_not_claims(clean, tmp_path):
 
 def test_the_runs_list_and_the_unpackaged_lanes_are_exactly_the_named_ones():
     # RUNS is the operator alone: a lane added to it would stop check 3 counting a claim queue.
-    assert lint.RUNS == frozenset({"operator"})
+    assert frozenset({"operator"}) == lint.RUNS
     # UNPACKAGED is lane_tick's own list ("coordinator, heavy-a, heavy-b and operator"); a lane added
     # to it would have its tokens looked up anywhere instead of in the one file its digest reads.
-    assert lint.UNPACKAGED == frozenset({"coordinator", "heavy", "operator"})
+    assert frozenset({"coordinator", "heavy", "operator"}) == lint.UNPACKAGED
     source = " ".join((UPLEVEL / "lane_tick.py").read_text(encoding="utf-8").split())
     assert "the roster's coordinator, heavy-a, heavy-b and operator rows have work that is never packaged" in source  # fmt: skip
 
@@ -356,14 +358,14 @@ def test_a_new_lane_with_no_file_is_an_unreadable_finding_not_an_unpackaged_lane
     assert any(f.startswith("docs/uplevel/packages/new.md:1: unreadable") for f in got), got
 
 
-
 # --- the real roster's shape -------------------------------------------------------------------
 
 
 def real_tree(tmp_path: Path) -> tuple[Path, str]:
     """This checkout's roster, package files and ruling map, copied into ``tmp_path``."""
     rels = [lint.ROSTER_PATH, lint.MAP_PATH] + [
-        p.relative_to(REPO_ROOT).as_posix() for p in sorted((REPO_ROOT / lint.PKGS_DIR).glob("*.md"))
+        p.relative_to(REPO_ROOT).as_posix()
+        for p in sorted((REPO_ROOT / lint.PKGS_DIR).glob("*.md"))
     ]
     for rel in rels:
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -386,7 +388,7 @@ def test_on_the_real_roster_a_missing_token_is_caught_on_every_row(tmp_path):
     # that the real tree is clean: that stays CI's step, with its baseline (this file's docstring).
     root, roster = real_tree(tmp_path)
     rows = lint.roster_rows(roster)
-    assert len(rows) >= 9 and {r["label"] for r in rows} == {"none"}, rows
+    assert rows  # every row the real roster has, whatever its count or labels
     lines = roster.splitlines()
     for row in rows:
         planted = lines.copy()
@@ -410,6 +412,7 @@ def test_on_the_real_roster_a_token_on_heavy_as_queue_and_a_lanes_is_caught(tmp_
     backend.write_text(backend.read_text(encoding="utf-8") + "\n### [r9998] planted\n\n**Flags:** none. **PR:** none yet.\n", encoding="utf-8")  # fmt: skip
     got = [str(f) for f in lint.lint(lint.Disk(root))[0]]
     assert f"{lint.ROSTER_PATH}:{rows['heavy-a']['line']}: token r9998 is on two lanes' queues: backend and heavy-a" in got, got  # fmt: skip
+
 
 # --- 4. a ruling-map row without its record id ---------------------------------------------
 
@@ -458,8 +461,23 @@ def test_a_missing_package_file_is_a_finding(tmp_path):
     (root / "docs/uplevel/packages/docs.md").unlink()
     got = [str(f) for f in lint.lint(lint.Disk(root))[0]]
     assert any(f.startswith("docs/uplevel/packages/docs.md:1: unreadable") for f in got), got
-    # read once: the lane's row, the cross-file lookup and check 2 do not triple the finding
-    assert sum(f.startswith("docs/uplevel/packages/docs.md:1: unreadable") for f in got) == 1, got
+
+
+class Unreadable(lint.Disk):
+    """A checkout whose ``docs.md`` is listed but cannot be read (a permission error, say)."""
+
+    def read(self, rel: str) -> str:
+        if rel.endswith("/docs.md"):
+            raise PermissionError(13, "Permission denied")
+        return super().read(rel)
+
+
+def test_a_listed_but_unreadable_package_file_is_one_finding_not_three(tmp_path):
+    # docs.md is read for docs' row, for the cross-file lookup (heavy-a, operator) and for check 2;
+    # lint() reads each file once, so the failure is reported once.
+    got = [str(f) for f in lint.lint(Unreadable(tree(tmp_path)))[0]]
+    hits = [f for f in got if f.startswith("docs/uplevel/packages/docs.md:1: unreadable")]
+    assert len(hits) == 1, got
 
 
 # --- the CLI --------------------------------------------------------------------------------
