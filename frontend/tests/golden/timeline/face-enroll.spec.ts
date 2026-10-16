@@ -250,6 +250,23 @@ const RUN_SALT = Date.now();
 const NEW_PERSON_NAME = `${PERSON_PREFIX} New ${RUN_SALT}`;
 const CONTRACT_PERSON_NAME = `${PERSON_PREFIX} Contract ${RUN_SALT}`;
 
+/** Ceiling on the post-drop wait for an EVENT row that carries a live person
+ *  detection. The detection and the event commit in separate transactions with
+ *  the VLM round-trip between them (see the beforeAll note), so this is that
+ *  window's budget, not a general "be generous" number: the fake tier answers in
+ *  seconds and a CI boot that needs more than this is broken, not slow. */
+const CARRYING_EVENT_TIMEOUT_MS = 120_000;
+
+/** The detections route's own page ceiling (`le=100`, detections.py:187) —
+ *  paging at the maximum keeps the read to one request in the normal case. */
+const DETECTION_PAGE = 100;
+/** Safety bound on the paging loop below, NOT a coverage claim: if the route
+ *  ever stopped honouring `offset` every page would answer a full 100 and an
+ *  unbounded loop would spin to the hook timeout instead of failing. 2 000 rows
+ *  on one camera is far past anything a held stack accumulates, so hitting this
+ *  means the paging assumption broke, and the error says so. */
+const DETECTION_PAGES_MAX = 20;
+
 /** Four up from frontend/tests/golden/timeline — the F2.1 spec's recipe is
  *  three up because it sits one level shallower (../dashboard-drop.spec.ts:126). */
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -302,6 +319,10 @@ interface DetectionRow {
 
 interface DetectionPage {
   items: DetectionRow[];
+  /** Present on the real envelope; only ever read to decide whether a SECOND
+   *  page exists (see detectionsOnCamera), so an absent total reads as "one
+   *  page, done" rather than as zero. */
+  pagination?: { total?: number };
 }
 
 /** The drop's camera, read from the stack's own camera map. */
@@ -357,13 +378,38 @@ async function eventsOnCamera(session: Session): Promise<EventRow[]> {
   return body.items ?? [];
 }
 
+/** EVERY detection this camera stores, not just the server's first page.
+ *
+ *  The route caps `limit` at 100 (backend/api/routes/detections.py:187
+ *  `Query(50, ge=1, le=100)`), so `limit=500` is not an option — it answers
+ *  422 — and a single `limit=100` read silently misses rows once a camera holds
+ *  more than a page. That is not hypothetical on a held stack: the reset in
+ *  ../operations/test-data.spec.ts empties the TABLES but not the disk, so
+ *  re-drops of the same book image keep writing Detection rows onto this camera
+ *  forever, and the one this run needs is the NEWEST, i.e. exactly the one a
+ *  first-page read drops. Page by offset (the envelope is
+ *  `{items, pagination}`; schemas/detections.py:260) and stop when a page comes
+ *  back short — total is never trusted, because a short page is the same answer
+ *  the route gives at the end of the table either way. */
 async function detectionsOnCamera(session: Session): Promise<DetectionRow[]> {
-  const body = await api<DetectionPage>(
-    harness,
-    session,
-    `/api/detections?camera_id=${encodeURIComponent(cameraId)}&limit=100`
+  const all: DetectionRow[] = [];
+  for (let page = 0; page < DETECTION_PAGES_MAX; page += 1) {
+    const body = await api<DetectionPage>(
+      harness,
+      session,
+      `/api/detections?camera_id=${encodeURIComponent(cameraId)}&limit=${DETECTION_PAGE}&offset=${
+        page * DETECTION_PAGE
+      }`
+    );
+    const rows = body.items ?? [];
+    all.push(...rows);
+    if (rows.length < DETECTION_PAGE) return all;
+  }
+  throw new Error(
+    `golden fixture: camera ${cameraId} answered ${DETECTION_PAGES_MAX} FULL pages of ` +
+      `${DETECTION_PAGE} detections, so the offset paging assumed here is not what the route ` +
+      `does (detections.py:188) — ${all.length}+ rows on one camera. Refusing to guess the rest.`
   );
-  return body.items ?? [];
 }
 
 async function knownPersons(session: Session): Promise<KnownPerson[]> {
@@ -431,7 +477,20 @@ function failureToast(page: Page) {
 function detectionBytesLive(d: DetectionRow): boolean {
   const root = process.env.FEATURE_CHECK_CAMERA_ROOT;
   const fp = d.file_path ?? '';
-  if (!root || !fp.startsWith('/cameras/')) return false;
+  if (!root) {
+    // Loud rather than silent: this answer means THIS INSTRUMENT cannot see the
+    // disk, which is not the same fact as "the bytes are gone" — and a false here
+    // sends waitForPersonDetection to poll until its deadline blaming the drop.
+    throw new Error(
+      'detectionBytesLive cannot read the disk: FEATURE_CHECK_CAMERA_ROOT is unset, so no ' +
+        'stored path can be mapped to a host file (compose renders <run>/cameras → /cameras)'
+    );
+  }
+  // A path outside the camera root is an honest FALSE, not an error: the route
+  // stores export- and video-shaped rows under other prefixes too (schemas/
+  // detections.py:274's own example is `/export/foscam/...`), and this picker
+  // wants the book image specifically. Only an UNMAPPABLE instrument is a bug.
+  if (!fp.startsWith('/cameras/')) return false;
   return existsSync(root + fp.slice('/cameras'.length));
 }
 
@@ -513,8 +572,15 @@ test.describe('F-064 event detail › add face to known persons', () => {
   test.beforeAll(async () => {
     // Drop + fake-VLM verdict + the detail fixture is real work; inside
     // beforeAll this sets the HOOK's timeout (the shape
-    // ./download-media.spec.ts:449-451 uses).
-    test.setTimeout(420_000);
+    // ./download-media.spec.ts:449-451 uses). The figure has to exceed the two
+    // SUPPLY waits summed, not the larger of them: the detection ceiling
+    // (waitForPersonDetection, 200 s) and the event ceiling
+    // (CARRYING_EVENT_TIMEOUT_MS, 120 s) are sequential reads of two routes that
+    // the shipped pipeline fills in two separate transactions, so a stack that
+    // uses both budgets legitimately spends ~320 s before the fixture builder
+    // (createDetailFixture) has even run. 540 s covers that sum with the drop's
+    // own 30 s exec and the fixture's camera wait on top.
+    test.setTimeout(540_000);
     const book = readBook();
     const scenario = book.scenarios.find((s) => s.name === SCENARIO);
     const imagePath = path.join(book.dir, String(scenario?.image ?? ''));
@@ -586,26 +652,57 @@ test.describe('F-064 event detail › add face to known persons', () => {
     dropScenario(imagePath, SCENARIO);
     await waitForPersonDetection(session, 200_000);
 
-    const after = await eventsOnCamera(session);
-    const created = after.filter((e) => !beforeIds.has(e.id));
-    purgeEventIds = created.map((e) => e.id);
-
-    // SELECT an event whose detection's bytes are live, not merely "an event
-    // with a detection". The route's two failure arms are different shipped
-    // behaviour and only one of them is this row's face leg — see
-    // detectionBytesLive. `detection_ids` on the event row is the shipped join.
-    const livePersons = new Set(
-      (await detectionsOnCamera(session))
-        .filter((d) => (d.object_type ?? '').includes('person') && detectionBytesLive(d))
-        .map((d) => d.id)
-    );
-    const carrying = after.filter((e) => (e.detection_ids ?? []).some((id) => livePersons.has(id)));
+    // POLL for the carrying event — a single read CANNOT be correct here, and the
+    // reason is shipped structure rather than timing luck. The Detection row and the
+    // Event row commit in TWO SEPARATE TRANSACTIONS: the detection pass ends with its
+    // own `await session.commit()` (services/detector_client.py:1372), then the
+    // analyzer makes the VLM call with NO SESSION OPEN at all (services/vlm_analyzer.py
+    // `# ---------------- NO SESSION (external call)`, :653) and constructs the Event
+    // only in `# SESSION 2 (WRITE)` (:675). So there is a real window — the whole
+    // verdict round-trip — in which the detection route answers this drop's row and
+    // the EVENT route answers nothing, and `waitForPersonDetection` above can only
+    // ever see the first half of that pipeline. On a dirty stack an older carrying row
+    // satisfied the picker instantly and masked the window; the boot's Full Database
+    // Reset (../operations/test-data.spec.ts, marker 58 of 104, which runs
+    // unqualified `delete(Event)`/`delete(Detection)` at backend/api/routes/admin.py
+    // :702-710) removes every such row, so on a clean stack a one-shot read lost the
+    // race — witnessed: `camera person_at_door must hold an event whose person
+    // detection still has its file on disk … Received: 0` while the detection route
+    // already answered the row and 2 s later the event existed carrying it. Polling
+    // until the EVENT side agrees is the only shape that is correct on both a clean
+    // and a dirty stack.
+    //
+    // SELECT an event whose detection's bytes are live, not merely "an event with a
+    // detection": the route's two failure arms are different shipped behaviour and
+    // only one of them is this row's face leg — see detectionBytesLive.
+    // `detection_ids` on the event row is the shipped join.
+    const carryingDeadline = Date.now() + CARRYING_EVENT_TIMEOUT_MS;
+    let carrying: EventRow[] = [];
+    let lastSeen = 'no event row on this camera at all';
+    while (Date.now() < carryingDeadline) {
+      const after = await eventsOnCamera(session);
+      const created = after.filter((e) => !beforeIds.has(e.id));
+      purgeEventIds = created.map((e) => e.id);
+      const livePersons = new Set(
+        (await detectionsOnCamera(session))
+          .filter((d) => (d.object_type ?? '').includes('person') && detectionBytesLive(d))
+          .map((d) => d.id)
+      );
+      carrying = after.filter((e) => (e.detection_ids ?? []).some((id) => livePersons.has(id)));
+      if (carrying.length) break;
+      lastSeen =
+        `${after.length} event row(s) on the camera [${after.map((e) => e.id).join(', ')}] ` +
+        `and ${livePersons.size} live person detection(s) [${[...livePersons].join(', ')}], ` +
+        `but no event's detection_ids names one of them`;
+      await new Promise((r) => setTimeout(r, 5_000));
+    }
     expect(
       carrying.length,
-      `camera ${cameraId} must hold an event whose person detection still has its file on disk — ` +
-        `the drop is the only supply that writes Detection rows at all (bulk builds none: ` +
-        `bulk_create_events constructs Event rows only, events.py:1553,:1599-1609), and this run's ` +
-        `drop rewrites the file even when the dedupe gate swallows the event`
+      `camera ${cameraId} must hold an event whose person detection still has its file on disk ` +
+        `within ${CARRYING_EVENT_TIMEOUT_MS}ms — ${lastSeen}. The drop is the only supply that ` +
+        `writes Detection rows at all (bulk builds none: bulk_create_events constructs Event ` +
+        `rows only, events.py:1553,:1599-1609), and this run's drop rewrites the file even when ` +
+        `the dedupe gate swallows the event`
     ).toBeGreaterThan(0);
     eventId = Math.max(...carrying.map((e) => e.id));
 

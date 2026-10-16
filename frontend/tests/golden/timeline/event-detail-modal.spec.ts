@@ -100,25 +100,33 @@
  * unsnooze PATCH (api.ts:2514 does the same), because the UI's unsnooze door is
  * unreachable for the reason above.
  *
- * STEPPING NEEDS THE UNFILTERED LIST, AND THE ARROW KEYS ARE ONLY HALF THE
- * CLAUSE. `handleNavigate` (EventTimeline.tsx:966-979) walks `filteredEvents`,
- * which is `pipe(getSortTransform<Event>(sortOption))(events)` :523 with the
- * default `sortOption` `'newest'` :104 → `sortByDate('desc')`
- * (utils/pipeline.ts:284-156) — the same order the server already answers, so the
- * modal's walk order is the list order. Booting `?camera=<this camera>` made
- * `filteredEvents` hold only that camera's rows, so the old draft's
- * "step left, the camera changes" was an out-of-range no-op with a false
- * assertion on top. This leg boots `?event=` with NO camera filter, and its
- * expected order is RECOMPUTED from the server's own rows and name map
- * (mirror-the-response, per this batch's rule) rather than assumed. Measured on
- * the held stack the page holds four rows in one page — this camera's cat row plus
- * a second cat row a late drop left, then the stack's two seed rows
- * (`person_at_door`, `harness_smoke`) — so the walk has real ends to hit, and two
- * SAME-CAMERA rows sit adjacent, which is exactly why every step is witnessed by
- * the metadata block's Event ID (unique per row) and not by the camera word. The
- * row count is deliberately not bet on: each leg recomputes the order and walks to
- * whichever end it owns. There are NO disabled flags to read: EventDetailModal
- * never disables `Previous event`/`Next event` (:1263/:1272), the bounds live
+ * THE ARROW STAGE IS SEED-IT-YOURSELF, NOT BORROWED. `handleNavigate`
+ * (EventTimeline.tsx:966-979) walks `filteredEvents`, which is
+ * `pipe(getSortTransform<Event>(sortOption))(events)` :523 with the default
+ * `sortOption` `'newest'` :104 → `sortByDate('desc')` (utils/pipeline.ts:284-156)
+ * — the same order the server already answers, so the modal's walk order is the
+ * list order. Booting `?camera=<this camera>` would make `filteredEvents` hold
+ * only that camera's rows, so the old draft's "step left, the camera changes" was
+ * an out-of-range no-op with a false assertion on top; these legs boot `?event=`
+ * with NO camera filter and RECOMPUTE the expected order from the server's own
+ * rows and name map (mirror-the-response) rather than assuming it. WHAT THEY WALK
+ * IS NOW SEEDS THIS FILE OWNS: beforeAll's `seedWalkRows` posts a small
+ * detection-less set onto this run's own camera through the sanctioned bulk route,
+ * dated older than the drop so the drop is the list's newest row. That replaced a
+ * version that counted on the stack's SEED rows (`person_at_door`,
+ * `harness_smoke`) being present — FALSE on any boot that has already run the Full
+ * Database Reset in ../operations/test-data.spec.ts (marker 58 of 104), whose
+ * handler runs unqualified `delete(Event)`/`delete(Detection)`/`delete(Camera)`
+ * (backend/api/routes/admin.py:702-710) and restores only cameras. Since the
+ * golden project is serial in sorted file order (playwright.config.ts:289-290) and
+ * this file is 86 of 99, EVERY one of its rows is one it seeded itself. The set is
+ * two seeded rows plus the drop: enough that each direction gets a REAL key step
+ * and a REAL button step before its bound, and small enough to sit inside the
+ * client's `limit=20` page the legs hold it to as a precondition. The drop and the
+ * seeds share ONE camera, so the header camera word is the same string for every
+ * row — which is exactly why each step is witnessed by the metadata block's unique
+ * Event ID and not by the camera word. There are NO disabled flags to read:
+ * EventDetailModal never disables `Previous event`/`Next event` (:1263/:1272), the
  * only in handleNavigate's guard (:971-975), so at its end each leg CLICKS both
  * doors and asserts the row did not move — an activation the shipped code must
  * ignore, by the same instruments that moved one row per press one step earlier.
@@ -437,9 +445,18 @@ const detectionItems = (session: Session, id: number) =>
 const cameraRows = (session: Session) =>
   api<CameraRow[] | { items: CameraRow[] }>(timeline, session, '/api/cameras');
 /** The list route the page itself reads. The CLIENT sends limit=20
- *  (EventTimeline.tsx:182-184) and the server DEFAULT is 50 (events.py:299);
- *  both answer `ORDER BY started_at DESC, id DESC` (events.py:479), and the
- *  measured stack holds 4 rows, so page 1 is the whole list either way. */
+ *  (EventTimeline.tsx:182-184) and the server DEFAULT is 50 (events.py:299); both
+ *  answer `ORDER BY started_at DESC, id DESC` (events.py:479). Read the whole
+ *  first page at limit=100, which the walk legs then bound to the client's 20 as
+ *  an explicit precondition. An earlier note here claimed "the measured stack
+ *  holds 4 rows, so page 1 is the whole list" — FALSE after the boot's Full
+ *  Database Reset (../operations/test-data.spec.ts, marker 58 of 104): that reset
+ *  runs unqualified `delete(Event)`/`delete(Detection)`/`delete(Camera)`
+ *  (backend/api/routes/admin.py:702-710) and restores only CAMERAS, so every file
+ *  sorting after it — this one included (file 86) — boots to an EMPTY event table
+ *  and the rows in this list are exactly the ones the timeline specs have seeded.
+ *  That is the reason this file seeds its own walk rows (see seedWalkRows) rather
+ *  than borrowing the stack's. */
 const eventList = (session: Session, limit = 50) =>
   api<{ items: EventRow[] }>(timeline, session, `/api/events?limit=${limit}`);
 
@@ -478,12 +495,19 @@ const eventList = (session: Session, limit = 50) =>
  * camera word, which the same projection fills from a live `camera_id`.
  */
 const revisionMatchesList = async (page: Page, session: Session, id: number) => {
-  // The client's own request shape (camera_id + limit=20) is a DIFFERENT cache key
-  // from any read this file makes, and the list route caches for 60 s
-  // (services/cache_service.py:60 SHORT_TTL), so a single immediate read could be
-  // answered from a snapshot taken before this row existed. Poll until the row is
-  // IN the list answer, then compare the printed Revision to what THAT answer
-  // says — assertion against the source the widget is built from.
+  // Poll until the row is IN the list answer, then compare the printed Revision to
+  // what THAT answer says — assertion against the source the widget is built from.
+  // Why poll rather than read once: the row can still be UNCOMMITTED, not
+  // unfresh. `list_events` performs ZERO cache reads or writes (the whole handler,
+  // events.py:283-598, touches no cache; caching on this router lives only on
+  // /stats :599, /timeline-summary :753 and /clusters :914, and there is no
+  // CacheKeys.event_list), so an empty or short answer here is the TRUE current
+  // state, and the only thing that changes it is the write landing. An earlier note
+  // blamed a 60 s SHORT_TTL snapshot on this route — that cache is real but sits on
+  // the OTHER routes, and this poll is a commit-readiness wait, not a
+  // cache-freshness wait. The distinction matters because a reader who believes the
+  // cache story would "fix" a slow poll by adding a key, which cannot help a route
+  // that never consults one.
   await expect
     .poll(
       async () => {
@@ -556,6 +580,127 @@ let ownedEventIds: number[] = [];
  *  legs notice rather than silently indexing a shifted list. */
 let walk: { id: number; camera: string }[] = [];
 
+/** The seeded walk set is two rows. WHY TWO: an arrow leg needs three positions
+ *  to witness both of its instruments — the shipped `handleNavigate` guard fires
+ *  only at the bounds (:971-975), so with two total rows there is exactly ONE
+ *  step available per direction and each leg's escape hatch gives that single
+ *  step to the KEY, leaving the footer BUTTON witnessed only as
+ *  "enabled-and-ignored". Three rows (two seeds + the drop) buy a real key step
+ *  AND a real button step before the bound, which is what the row's clause names.
+ *  WHY NOT MORE: the client's page is `limit=20` (EventTimeline.tsx:182-184) and
+ *  both legs assert the walk fits in one page, so the whole unfiltered list has
+ *  to stay under 20 — every extra seed spends that budget. */
+const WALK_SEED_ROWS = 2;
+
+/** Ids this run seeded, reported by the bulk route itself. */
+let seededWalkIds: number[] = [];
+
+/** Raw fetch rather than apiWrite, and it must carry the session cookie itself —
+ *  apiWrite adds that header for you, which is exactly why the hand-rolled call
+ *  that replaced it would otherwise post UNAUTHENTICATED and report a 401 as if
+ *  the fixture were broken. (Caught by tsc's unused-parameter rule: `session` was
+ *  declared and never used, which is the same fact stated twice.) */
+const postBulk = (session: Session, body: string) =>
+  fetch(`${timeline.api}/api/events/bulk`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Cookie: `${session.name}=${session.value}`,
+    },
+    body,
+  });
+
+/** Seed the arrow legs' walk onto THIS run's own camera, older than the drop.
+ *
+ *  WHY THIS EXISTS: the boot's Full Database Reset (../operations/test-data.spec.ts,
+ *  marker 58 of 104) runs unqualified `delete(Event)`/`delete(Detection)`/
+ *  `delete(Camera)` (backend/api/routes/admin.py:702-710) and its restore leg
+ *  recreates only CAMERAS, so by file 86 the event table holds nothing but what
+ *  timeline specs have seeded. Witnessed as this file's CI red: `golden fixture:
+ *  the unfiltered list holds 1 row(s) (62)` — the drop alone, where both
+ *  directions are out-of-range no-ops and both arrow legs would have passed on a
+ *  dead handler.
+ *
+ *  WHY BULK AND WHY DETECTION-LESS: POST /api/events/bulk is the sanctioned supply
+ *  for Event-shaped state and constructs Event rows ONLY (events.py:1553,
+ *  :1599-1609) — it writes no Detection, which matters twice: this file's camera is
+ *  the one face-enroll's prose assigns to F-054 (./face-enroll.spec.ts:154), and
+ *  detection-shaped state is that spec's own supply to make. The legs need only
+ *  `id` + `started_at` (the walk order) and `camera_name`, and the metadata block
+ *  renders `Revision` from the LIST projection's schema-default version (see
+ *  revisionMatchesList), so a detection-less row satisfies the legs' closing
+ *  witness exactly as well as a real one.
+ *
+ *  WHY ON THIS CAMERA RATHER THAN A SIXTH: cat-on-porch has exactly ONE writer in
+ *  the corpus — every other file that mentions it does so in the ownership prose,
+ *  not as a writer (./video-clip.spec.ts:131, ./download-media.spec.ts:135,
+ *  ./live-socket-arrival.spec.ts:40, ./face-enroll.spec.ts:154). Rows here are
+ *  therefore self-attributing: step 1 of beforeAll already purges this camera of
+ *  anything that is not the verified keeper, so a run that died between seeding and
+ *  afterAll is cleaned by the NEXT run instead of poisoning one, and no foreign
+ *  spec's exactly-one predicate can be reached by them. The camera is already
+ *  seeded and already in the 60 s camera-list cache, so no `waitForCameraInList`
+ *  wait is needed and the header's camera word is the same string for every walk
+ *  row. */
+async function seedWalkRows(session: Session): Promise<number[]> {
+  // ONE clock sample seeds both the id salt and the date anchor, so they cannot
+  // drift apart the way two `Date.now()` calls can across a slow boot. The dates
+  // sit a fixed distance BEHIND that sample and further back per index, so the
+  // walk's newest row is always the drop (ArrowRight's target end) whatever clock
+  // the stack runs on and no seed can tie with it. batch_id is salted because
+  // events.batch_id is UNIQUE (measured), and the route echoes ids in request
+  // order (harness.ts's own createDetailFixture relies on that).
+  const salt = Date.now();
+  const anchor = salt - 3_600_000;
+  const events = Array.from({ length: WALK_SEED_ROWS }, (_, i) => ({
+    batch_id: `fe3w-${salt}-${i}`,
+    camera_id: harness.cameraId,
+    started_at: new Date(anchor - i * 600_000).toISOString(),
+    risk_score: 20 + i * 10,
+    risk_level: 'low',
+    summary: `FE-3 walk fixture row ${i} — owns nothing but a slot in the arrow list`,
+  }));
+
+  // Raw fetch, deliberately NOT apiWrite: /api/events/bulk is the BULK tier (10 per
+  // minute + burst 2 = 12 per sliding minute, per CLIENT IP — events.py:1538,
+  // rate_limit.py:322), and ../shell/rate-limit.spec.ts (file 77, before this one)
+  // spends that whole window deliberately before waiting it out. apiWrite's
+  // contract is "a non-2xx THROWS", so on a 429 it would report a fixture bug where
+  // the truth is "the window is full" — and a retry is the only correct response.
+  // The status must be READ to branch on it, which is the shape
+  // ../export-modal.spec.ts:364-382 already uses for this tier.
+  const body = JSON.stringify({ events });
+  let res = await postBulk(session, body);
+  if (res.status === 429) {
+    await new Promise((r) => setTimeout(r, 65_000)); // one 60 s window + margin
+    res = await postBulk(session, body);
+  }
+  const parsed = (await res.json().catch(() => null)) as {
+    succeeded?: number;
+    results?: { status: string; id: number | null; error?: string }[];
+  } | null;
+  if (res.status !== 200 && res.status !== 207) {
+    throw new Error(
+      `walk fixture: POST /api/events/bulk answered ${res.status} ${JSON.stringify(parsed ?? {}).slice(0, 200)} ` +
+        `(after ${res.status === 429 ? 'one 65 s window retry' : 'no retry'})`
+    );
+  }
+  if (parsed?.succeeded !== WALK_SEED_ROWS) {
+    throw new Error(
+      `walk fixture: bulk created ${String(parsed?.succeeded)}/${WALK_SEED_ROWS} walk rows; ` +
+        `first error: ${String(parsed?.results?.find((r) => r.status !== 'success')?.error).slice(0, 200)}`
+    );
+  }
+  const ids = (parsed?.results ?? []).map((r) => r.id).filter((id): id is number => id !== null);
+  if (ids.length !== WALK_SEED_ROWS) {
+    throw new Error(
+      `walk fixture: got ${ids.length} ids for ${WALK_SEED_ROWS} rows — the legs index the ` +
+        'walk positionally, so a missing id must fail here, not mid-sweep.'
+    );
+  }
+  return ids;
+}
+
 /** The unfiltered order the page's own list holds, computed the way the client
  *  computes it: the server's rows, sorted by `sortByDate('desc')` semantics
  *  (utils/pipeline.ts:144-156 — a numeric compare on started_at). */
@@ -584,9 +729,14 @@ test.beforeAll(async () => {
   //    a suppressed drop would leave this file with NO event at all and every later
   //    run would hang in the poll. Deleting only unverified rows also clears the
   //    detection-less leftovers a suppressed drop can leave, which would otherwise
-  //    break waitForEventCards' landed-marker race. Rows on this camera can only
-  //    have been created by a drop of this book image (feature_check.py seeds
-  //    cameras, never events), so a verified cat row is this spec's own residue.
+  //    break waitForEventCards' landed-marker race. Two things can put a row on
+  //    this camera and BOTH are this spec's own: a drop of this book image
+  //    (feature_check.py seeds cameras, never events) and this file's walk seeds
+  //    (seedWalkRows, step 3b below — same camera on purpose, see its note). So
+  //    this purge deletes everything that is not the verified keeper, INCLUDING a
+  //    previous run's seeds if that run died before afterAll, which is what makes
+  //    a crashed run self-healing rather than poisoning: the next run starts from
+  //    one keeper plus whatever it seeds itself.
   const existing = await api<{ items: EventRow[] }>(
     timeline,
     session,
@@ -662,6 +812,14 @@ test.beforeAll(async () => {
   );
   ownedEventIds = survivors.items.filter((r) => r.id !== dropEventId).map((r) => r.id);
 
+  // 3b. Seed the arrow legs' stage (why this must be seeded rather than read off
+  //     the stack is in seedWalkRows). Deliberately AFTER the survivors read above:
+  //     ownership then stays in ONE place per kind of row — `ownedEventIds` holds
+  //     this camera's residue, `seededWalkIds` holds what this call created —
+  //     instead of the same id arriving in both lists and the cleanup route
+  //     reporting the second deletion as a failure.
+  seededWalkIds = await seedWalkRows(session);
+
   // 4. The server's own truth about that row, asserted HERE so every leg below
   //    mirrors pixels against a row this fixture knows is what the book says.
   const row = await eventRow(session, dropEventId);
@@ -726,11 +884,14 @@ test.beforeAll(async () => {
     throw new Error(`golden fixture: no camera name for id ${row.camera_id}`);
   }
 
-  // 5. The arrow legs' stage, read AFTER the purge and the drop: my row exists in
-  //    the unfiltered list the legs walk, and the list has at least two rows —
-  //    with one row both directions are out-of-range no-ops and both legs would
-  //    pass on a dead handler. The legs themselves boot the FIRST/LAST row (not
-  //    mine) so each direction gets a full sweep; see the STEPPING section.
+  // 5. The arrow legs' stage, read AFTER the purge, the drop AND the seeds: my row
+  //    is in the unfiltered list the legs walk, and the list holds the rows this
+  //    fixture just created — with fewer than two rows both directions are
+  //    out-of-range no-ops and both legs would pass on a dead handler, which is
+  //    exactly the CI red this seed replaced (`the unfiltered list holds 1 row(s)
+  //    (62)` after the boot's Full Database Reset). The legs themselves boot the
+  //    FIRST/LAST row (not mine) so each direction gets a full sweep; see the
+  //    STEPPING section.
   walk = await walkOrder(session);
   const index = walk.findIndex((r) => r.id === dropEventId);
   if (index < 0) {
@@ -739,11 +900,18 @@ test.beforeAll(async () => {
         `list (${walk.map((r) => r.id).join(',')}), so the arrow-key walk could not step to it`
     );
   }
-  if (walk.length < 2) {
+  // The floor is 1 + WALK_SEED_ROWS, and it is asserted as a FLOOR rather than an
+  // equality because a foreign row on this camera (a crashed run's residue) is a
+  // thing the purge above would have deleted but a concurrent writer could add.
+  // The ceiling is the legs' own one-page precondition, asserted where it is a
+  // premise about the client's limit rather than about this fixture.
+  if (walk.length < 1 + WALK_SEED_ROWS) {
     throw new Error(
       `golden fixture: the unfiltered list holds ${walk.length} row(s) ` +
-        `(${walk.map((r) => r.id).join(',')}), so prev/next are both bounds no-ops ` +
-        'and the stepping clause cannot be pinned'
+        `(${walk.map((r) => r.id).join(',')}), fewer than the ${1 + WALK_SEED_ROWS} this ` +
+        `fixture seeds (drop ${dropEventId} + walk seeds [${seededWalkIds.join(', ')}]), so ` +
+        'prev/next are bounds no-ops and the stepping clause cannot be pinned. The seeds were ' +
+        'reported created, so something deleted them between seeding and this read.'
     );
   }
 });
@@ -755,9 +923,10 @@ test.afterAll(async () => {
   // route at all, and its swallowed catch is how a run left event 4 behind.
   // Settle-don't-throw is the helper's own policy: cleanup must not turn a green
   // run red, and the next run's purge removes anything left here.
-  if (ownedEventIds.length === 0) return;
+  const ids = [...ownedEventIds, ...seededWalkIds];
+  if (ids.length === 0) return;
   const session = await adminSession(timeline);
-  await hardDeleteFixtureRows(timeline, session, ownedEventIds);
+  await hardDeleteFixtureRows(timeline, session, ids);
 });
 
 /* --------------------------------- helpers --------------------------------- */
