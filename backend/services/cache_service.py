@@ -186,6 +186,8 @@ class CacheService:
         """
         if key.startswith("stats:events:"):
             return "event_stats"
+        elif key.startswith("timeline_summary:"):
+            return "timeline_summary"
         elif key.startswith("cameras:"):
             return "cameras"
         elif key.startswith("system:"):
@@ -586,6 +588,32 @@ class CacheService:
         """
         return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
 
+    async def invalidate_timeline_summary(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.EVENT_CREATED,
+    ) -> int:
+        """Invalidate all timeline summary cache entries.
+
+        Should be called when events are created, updated, or deleted,
+        alongside ``invalidate_events`` and ``invalidate_event_stats``.
+
+        The route stores key ``timeline_summary:{bucket}:{start}:{end}:{camera}``
+        (``backend/api/routes/events.py``). Before [r223] no invalidator scanned
+        ``timeline_summary:*`` at all — the orphan census row [r228]'s MEASURE
+        left as 7/8 — so a seeded or cleared timeline served stale buckets for
+        the full TTL even after [r228] fixed the key shape.
+
+        Args:
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.EVENT_CREATED)
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern(
+            "timeline_summary:*", reason=reason, cache_type="timeline_summary"
+        )
+
     async def invalidate_cameras(
         self,
         reason: str | CacheInvalidationReason = CacheInvalidationReason.CAMERA_UPDATED,
@@ -673,6 +701,55 @@ class CacheService:
             Number of keys deleted
         """
         return await self.invalidate_pattern("summaries:*", reason=reason, cache_type="summaries")
+
+    async def invalidate_trends(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.EVENT_CREATED,
+    ) -> int:
+        """Invalidate all trends cache entries (hourly and daily).
+
+        Should be called when events are created or deleted: ``TrendService``
+        aggregates events through ``EventRepository``, so a seeded or cleared
+        event set changes the trend metrics. Before [r223] no invalidator
+        scanned ``trends:*`` — the orphan namespace disclosed in [r228] — so
+        ``GET /api/trends`` served stale counts until the 120 s TTL expired.
+
+        Args:
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.EVENT_CREATED)
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("trends:*", reason=reason, cache_type="trends")
+
+    async def invalidate_entities(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.MANUAL,
+    ) -> int:
+        """Invalidate the entity-recognition stats cache entry.
+
+        The route stores the single key ``summaries:entities``
+        (``backend/api/routes/entity_recognition.py``). It lies inside the
+        namespace ``invalidate_summaries`` scans, so a broad summaries purge
+        reaches it too; this narrower invalidator exists because the
+        developer-tool handlers change the ``FaceDetectionEvent`` rows this
+        value derives from — via the camera FK cascade
+        (``face_detection_events.camera_id`` → CASCADE,
+        ``backend/models/face_identity.py:213-215``) — without changing the
+        ``Summary`` rows the other ``summaries:*`` keys hold. Deleting only
+        this key leaves those still-valid narratives cached.
+
+        Args:
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.MANUAL)
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern(
+            "summaries:entities", reason=reason, cache_type="summaries"
+        )
 
     async def exists(self, key: str) -> bool:
         """Check if a cache key exists.

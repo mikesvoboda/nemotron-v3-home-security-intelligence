@@ -1061,6 +1061,78 @@ async def test_invalidate_system_status_uses_correct_pattern(cache_service, mock
 
 
 # =============================================================================
+# r223 invalidators for the orphan namespaces r228's MEASURE left reachable
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_invalidate_timeline_summary_scans_its_namespace(cache_service, mock_redis_client):
+    """invalidate_timeline_summary scans the shape the timeline route stores.
+
+    events.py stores key f"timeline_summary:{bucket}:{start}:{end}:{camera}"
+    via cache.get/set, so its storage key is _storage_key of that literal.
+    Before r223 no invalidator scanned timeline_summary:* — the 7/8 survivor in
+    r228's census. This pins that the scan namespace equals the store namespace.
+    """
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_timeline_summary()
+
+    mock_client.scan_iter.assert_called_once_with(match=_stored("timeline_summary:*"), count=100)
+
+
+@pytest.mark.asyncio
+async def test_invalidate_trends_scans_its_namespace(cache_service, mock_redis_client):
+    """invalidate_trends scans trends:* so /api/trends' hourly+daily keys die."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_trends()
+
+    mock_client.scan_iter.assert_called_once_with(match=_stored("trends:*"), count=100)
+
+
+@pytest.mark.asyncio
+async def test_invalidate_entities_deletes_the_single_entities_key(
+    cache_service, mock_redis_client
+):
+    """invalidate_entities targets summaries:entities, not the whole summaries:*.
+
+    The entity route stores one key; the developer tools change its source rows
+    (FaceDetectionEvent) without touching Summary, so this invalidator deletes
+    only that key — broader narratives stay cached.
+    """
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_entities()
+
+    mock_client.scan_iter.assert_called_once_with(match=_stored("summaries:entities"), count=100)
+
+
+def test_infer_cache_type_timeline_summary(cache_service):
+    """_infer_cache_type classifies timeline_summary: (the route stores without an
+    explicit cache_type, so get/set infer it — before r223 this counted as 'other')."""
+    assert cache_service._infer_cache_type("timeline_summary:hour:2026") == "timeline_summary"
+
+
+# =============================================================================
 # Cache Type Inference Tests (NEM-1682)
 # =============================================================================
 
