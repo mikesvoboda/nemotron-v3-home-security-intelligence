@@ -21,7 +21,7 @@ import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '.
 
 const harness = readOpsHarness();
 
-test.describe('golden path: databases + redis debug block @critical', () => {
+test.describe('golden path: databases + redis debug block (F-145) @critical', () => {
   test.setTimeout(60_000);
 
   test('postgres/redis cards render, and seeded debug mode reveals Redis INFO', async ({

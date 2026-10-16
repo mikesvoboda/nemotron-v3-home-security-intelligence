@@ -51,7 +51,7 @@ function isRedacted(value: unknown): boolean {
   return value === '[REDACTED]';
 }
 
-test.describe('golden path: configuration inspector lists settings @critical', () => {
+test.describe('golden path: configuration inspector lists settings (F-158) @critical', () => {
   test.setTimeout(90_000);
 
   test('the table lists the settings map, not the envelope, and flags masked values', async ({

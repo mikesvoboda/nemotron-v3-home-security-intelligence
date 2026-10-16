@@ -31,7 +31,7 @@ interface OrphansBody {
   dry_run: boolean;
 }
 
-test.describe('golden path: admin orphan cleanup preview @critical', () => {
+test.describe('golden path: admin orphan cleanup preview (F-194) @critical', () => {
   test.setTimeout(60_000);
 
   test('Preview mirrors the dry-run body into the results grid, and Clean Up stops at its confirm dialog', async ({

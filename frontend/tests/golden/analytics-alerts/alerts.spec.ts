@@ -68,7 +68,7 @@ function installEventsCounter(page: Page): () => number {
   return () => count;
 }
 
-test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal @critical', () => {
+test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal (F-077, F-080) @critical', () => {
   // Budget, itemised: 165 s for awaitVerdictedEvents (the drop's verdict) + the
   // page drive. The sibling green run needed 38.5 s of drive, but the poll runs
   // BEFORE it, so the worst case is a near-deadline drop plus a full drive —
