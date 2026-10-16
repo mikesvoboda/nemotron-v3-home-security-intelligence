@@ -15,6 +15,7 @@ This is NOT a test tier. A file here earns the `test_` prefix only when it is a 
 | `r109c_leakprobe.py`                | plugin | #7010's attribution: which test LEAKS a `backend.core.database` global, which INHERITS a dirty state                                                                      |
 | `probe_tie.py`                      | script | #7107's mechanism: `get_latest_by_type`'s `ORDER BY created_at DESC LIMIT 1` has no tiebreak, so a tied pair's winner tracks insertion order and table size, not data     |
 | `probe_fix.py`                      | script | #7107's 12-cell matrix: OLD fixture state vs NEW, each through the real repository under three planner settings. Proves the fixture fix makes the winner plan-independent |
+| `r228_keyshape_census.py`           | script | #7215's MEASURE: each cached route's stored key (built by the repo's own generators, read back raw) against all seven invalidators. 0/8 reachable before `[r228]`, 7/8 after; the survivor `timeline_summary:*` has no invalidator at all |
 
 ## Running
 

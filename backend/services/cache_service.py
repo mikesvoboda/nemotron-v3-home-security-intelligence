@@ -114,8 +114,10 @@ class CacheService:
     - Pattern-based invalidation
     - Serialization/deserialization of complex objects
 
-    All cache keys are prefixed with 'cache:' to distinguish them from
-    other Redis keys used for queues and pub/sub.
+    Every key is stored under one shape, ``{redis_key_prefix}:cache:{logical}``
+    (see :func:`_storage_key`), which keeps cache keys out of the namespaces used
+    for queues and pub/sub and puts short and ``CacheKeys`` spellings in the same
+    namespace their invalidators scan.
     """
 
     def __init__(self, redis_client: RedisClient):
@@ -133,7 +135,7 @@ class CacheService:
         and records Prometheus metrics for cache hit/miss tracking.
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             cache_type: Optional cache type for metrics (e.g., "event_stats", "cameras").
                 If not provided, will be inferred from the key prefix.
 
@@ -206,7 +208,7 @@ class CacheService:
         """Set a value in the cache with TTL.
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             value: Value to cache (will be JSON serialized)
             ttl: Time to live in seconds (default: 5 minutes)
 
@@ -252,7 +254,7 @@ class CacheService:
         4. Return value
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             factory: Callable that returns the value if not cached.
                      Can be sync or async.
             ttl: Time to live in seconds (default: 5 minutes)
@@ -303,7 +305,7 @@ class CacheService:
         This eliminates cache stampede and ensures users never wait for cache refresh.
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             factory: Callable that returns the value if not cached.
             ttl: Time to live in seconds (default: 5 minutes).
             stale_ttl: Additional time in seconds after TTL that stale data
@@ -450,7 +452,7 @@ class CacheService:
         """Invalidate a single cache key.
 
         Args:
-            key: Cache key to invalidate (will be prefixed with 'cache:')
+            key: Cache key to invalidate, short or CacheKeys form (stored via _storage_key)
 
         Returns:
             True if key was deleted, False otherwise
@@ -492,8 +494,9 @@ class CacheService:
         Records invalidation metrics for monitoring.
 
         Args:
-            pattern: Glob-style pattern (e.g., "cameras:*")
-                     Will be prefixed with 'cache:'
+            pattern: Glob-style pattern (e.g., "cameras:*"). Its literal prefix
+                     is normalized by _storage_key, so a short pattern and the
+                     CacheKeys form scan the same namespace that stores the keys.
             reason: Reason for invalidation for metrics tracking.
                     Use CacheInvalidationReason enum constants
                     (e.g., CacheInvalidationReason.EVENT_CREATED).
@@ -678,7 +681,7 @@ class CacheService:
         Use get() if you want to contribute to hit ratio.
 
         Args:
-            key: Cache key to check (will be prefixed with 'cache:')
+            key: Cache key to check, short or CacheKeys form (stored via _storage_key)
 
         Returns:
             True if key exists, False otherwise
@@ -709,7 +712,7 @@ class CacheService:
         """Refresh the TTL of a cache key without fetching its value.
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             ttl: New TTL in seconds
 
         Returns:
