@@ -44,12 +44,16 @@ BINDING_MARKER = "BINDING NOW"
 # The most nodes a discovery connection asks for. GitHub caps any connection page at 100, so a
 # match beyond this is TRUNCATION, not a quiet tick -- see _check_windows.
 DISCOVERY_WINDOW = 100
-# The most comments/reviews a watched PR's event connections ask for. Same cap, but here the number
-# is also what `_event_lines` compares a vanished id against: a window that came back SHORTER than
-# this held every item that exists, so a gone id was really deleted; a FULL window cannot say, and
-# the line degrades to "missing" (see _event_lines). The query interpolates this so the ask and the
-# comparison are one number and cannot drift apart -- the same reason test_window_size_is_bounded_by
-# _a_named_constant pins DISCOVERY_WINDOW.
+# The most comments/reviews an event connection asks for. Same cap, but here the number is also
+# what `_event_lines` compares a vanished id against: a window that came back SHORTER than this
+# held every item that exists, so a gone id was really deleted; a FULL window cannot say, and the
+# line degrades to "missing" (see _event_lines). EVERY connection this number grades -- the watched
+# PR's comments and reviews AND #6854's ruling window -- interpolates it, because a hand-typed
+# `last: 100` at one of the asks is a window the guard silently grades against a different size.
+# (Round six measured that shape: typing the ruling ask 99 or 101 left all 61 tests green, because
+# the old guard was a substring over the whole query and a DIFFERENT connection's rendering
+# satisfied it. test_window_size_is_bounded_by_a_named_constant now asserts inside each connection
+# block, and the campaign mutant `ruling-ask-detached-from-the-constant` proves the pin has teeth.)
 EVENT_WINDOW = 100
 
 
@@ -153,11 +157,17 @@ def query_text(
         lines.append("    }")
     lines.append("    issue(number: $ri) {")
     lines.append("      number")
-    # `last:`, and this is the one that mattered: #6854 carries 646 comments (measured), so
+    # `last:`, and this is the one that mattered: #6854 carries 739 comments (measured 13:33Z), so
     # `first: 100` returned the oldest hundred -- zero BINDING NOW entries, hasNextPage true --
     # while `last: 100` held 30. A first:-100 watcher would run green forever and never report a
     # ruling. A comment newer than the window cannot exist: anything new is in the newest 100.
-    lines.append("      comments(last: 100) { nodes { id author { login } body } }")
+    # The size interpolates EVENT_WINDOW, like the two asks in `_pr_fields`, because `snapshot`
+    # grades THIS connection's length against that same constant (`window_full`, and `_event_lines`
+    # then decides `deleted` vs `missing` from it): a literal typed here would make the guard read
+    # one window and the comparison describe another. See the constant's comment for the measurement.
+    lines.append(
+        f"      comments(last: {EVENT_WINDOW}) {{ nodes {{ id author {{ login }} body }} }}"
+    )
     lines.append("    }")
     lines.append("  }")
     lines.append("}")

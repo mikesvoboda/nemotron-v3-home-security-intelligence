@@ -1508,18 +1508,83 @@ def test_a_null_ruling_issue_raises_instead_of_looking_calm():
         raise AssertionError("a null ruling node must raise, not seed a permanently deaf channel")
 
 
+def _query_asks() -> list[tuple[str, str]]:
+    """Every `(first|last): N` the query builder sends, as (argument, size) pairs.
+
+    Read off the BUILD FUNCTION'S SYNTAX, not off the rendered query, and not with grep: the
+    connection sizes that matter are the ones a guard later compares a length against, and a
+    hand-typed `last: 100` renders byte-identically to `last: {EVENT_WINDOW}` at the constant's
+    value -- so no observation of the RENDERED text can tell the two apart. Parsing the AST sees
+    the difference (one is a bare number in the string, one is an interpolated name), and it
+    ignores comments and docstrings, which is why grep and regex-over-the-file were the wrong
+    instruments here: query_text's own comments say `last: 100` while the code asks something else.
+    """
+    tree = ast.parse(SCRIPT.read_text(encoding="utf-8"))
+    fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "query_text")
+    asks: list[tuple[str, str]] = []
+    for node in ast.walk(fn):
+        pieces: list[str] = []
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            pieces = [node.value]
+        elif isinstance(node, ast.JoinedStr):  # an f-string: interpolate names as {NAME}
+            for part in node.values:
+                if isinstance(part, ast.Constant):
+                    pieces.append(part.value)
+                elif isinstance(part, ast.FormattedValue):
+                    inner = part.value
+                    name = inner.id if isinstance(inner, ast.Name) else "?"
+                    pieces.append("{" + name + "}")
+        else:
+            continue
+        # JOINED, not per-piece: an f-string splits `last: {EVENT_WINDOW}` into a literal ending at
+        # "last: " and a separate FormattedValue, so matching piece-by-piece finds nothing at all for
+        # every interpolated ask -- the first version of this helper returned 2 of the 6 asks and both
+        # were the hand-typed ones, which is exactly backwards for a guard meant to catch typing.
+        text = "".join(pieces)
+        for kind, size in re.findall(r"\b(first|last):\s*([A-Za-z0-9_]+|\{[A-Za-z_]+\})", text):
+            asks.append((kind, size))
+    return asks
+
+
 def test_window_size_is_bounded_by_a_named_constant():
-    """The `first:` a discovery connection asks for is the number the truncation guard compares to."""
+    """Every connection whose LENGTH a guard compares is asked by constant, never by typed digits.
+
+    The discovery window and the event window are both load-bearing twice over: the query asks for
+    that many nodes, and a guard later asks whether the connection came back FULL -- `_check_windows`
+    against DISCOVERY_WINDOW, `snapshot`'s `window_full` and `_event_lines`' deleted-vs-missing
+    verdict against EVENT_WINDOW. Two numbers, one property. The version of this pin that asserted
+    `f"comments(last: {EVENT_WINDOW})" in query` could not tell which connection satisfied it, and
+    round six measured the hole: retyping #6854's ask to `last: 99` or `last: 101` left all 61 tests
+    green, because the PR channel's rendering -- identical bytes -- answered for it.
+    """
+    asks = _query_asks()
+    # Positive control on the census itself: a parse that found nothing would satisfy every
+    # `not in` below and pass vacuously, so the total is pinned too (6 asks in query_text today).
+    assert len(asks) == 6, f"census found {len(asks)} asks: {asks}"
+    # sorted(), not a fixed sequence: ast.walk is breadth-first and interleaves the two groups, so
+    # the order is an artifact of the parse, not a property worth pinning. Sorting keeps the COUNT
+    # (which is the point) while ignoring which line the parser reached first.
+    # 1. Graded asks must name a constant. Three EVENT_WINDOW (reviews, comments, #6854 rulings) +
+    #    one DISCOVERY_WINDOW (the label connection). A digit in this group is the drift itself.
+    graded = sorted(s for _k, s in asks if s.startswith("{"))
+    assert graded == sorted(
+        ["{EVENT_WINDOW}", "{EVENT_WINDOW}", "{EVENT_WINDOW}", "{DISCOVERY_WINDOW}"]
+    ), asks
+    # 2. The bare digits are an enumerated, reasoned residue -- not an unchecked remainder.
+    #    `labels` and `contexts` are page sizes nothing measures: `_pr_fields` sorts a label SET
+    #    (no chronology, no fullness test) and `_checks` maps names to conclusions without ever
+    #    comparing a count, so no guard can grade a different window than the one they ask for.
+    literal = sorted(s for _k, s in asks if not s.startswith("{"))
+    assert literal == sorted(["20", "100"]), (
+        f"a new typed page size appeared, or one lost its reason: {literal}"
+    )
+    # 3. The rendered query, so the constant's VALUE is checked against GitHub's cap, not just its
+    #    spelling: 101 would interpolate happily and still be rejected by the API.
     query = watch.query_text([PR], REPO, RULING_ISSUE, [LANE_OPS])
-    assert f"first: {watch.DISCOVERY_WINDOW}" in query
-    assert watch.DISCOVERY_WINDOW <= 100, "GitHub caps a connection page at 100 nodes"
-    # Same discipline on the event side: `_event_lines` calls a vanished id "deleted" only when the
-    # window came back shorter than the ask, so the ask it compares against must be the literal the
-    # query sends -- a hand-typed `last: 100` in one place and a constant in the other is how a
-    # guard starts grading a different window than the one it was written against.
-    assert f"comments(last: {watch.EVENT_WINDOW})" in query, query
-    assert f"reviews(last: {watch.EVENT_WINDOW})" in query, query
-    assert watch.EVENT_WINDOW <= 100
+    assert f"comments(last: {watch.EVENT_WINDOW})" in query
+    assert f"reviews(last: {watch.EVENT_WINDOW})" in query
+    assert watch.EVENT_WINDOW <= 100, "GitHub caps a connection page at 100 nodes"
+    assert watch.DISCOVERY_WINDOW <= 100
 
 
 def test_explicit_pr_numbers_are_watched_whether_or_not_a_label_matches():

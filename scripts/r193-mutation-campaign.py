@@ -570,6 +570,26 @@ MUTANTS = [
             )
         ],
     ),
+    (
+        "ruling-ask-detached-from-the-constant",
+        "types #6854's ruling-window size back in as a literal instead of interpolating EVENT_WINDOW -- "
+        "round six's finding, verbatim. The rendered query is byte-for-byte identical at the constant's "
+        "value, so NOTHING that reads the query text can see it: the OLD guard asserted "
+        '`f"comments(last: {EVENT_WINDOW})" in query` and the PR channel\'s identical rendering answered '
+        "for the ruling channel. That is why this mutant is killed by the AST census and not by any "
+        "behavior test -- snapshot()'s `window_full` grades THIS connection's length against EVENT_WINDOW, "
+        "so a drift means the false-wake guard reads one window while the comparison describes another. "
+        "Kills test_window_size_is_bounded_by_a_named_constant and nothing else, which is the point: it is "
+        "the guard's own teeth-test",
+        [
+            (
+                "    lines.append(\n"
+                '        f"      comments(last: {EVENT_WINDOW}) {{ nodes {{ id author {{ login }} body }} }}"\n'
+                "    )\n",
+                '    lines.append("      comments(last: 100) { nodes { id author { login } body } }")\n',
+            )
+        ],
+    ),
 ]
 
 
