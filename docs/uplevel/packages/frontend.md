@@ -92,8 +92,9 @@ stopped and started on a running stack.
   docs tests the grant with `channel: 'chromium'` set in `permission.spec.ts` alone, leaving the
   golden project's config unchanged (ruling 194).
 
-**Done when:** no row says **unverified**; every **works** row cites a green golden path and a
-real-tier date; the `R2` sheet is final.
+**Done when:** no row says **unverified** except the rows `O2.5` witnesses (ruling 127's 12,
+F-295 and F-296; UR-10, ruling 237); every **works** row cites a green golden path and a real-tier
+date; the `R2` sheet is final.
 
 ### R2b Phase 2 RULING session, part 2 (after `F2.3`)
 
@@ -121,16 +122,11 @@ same way after the owner's `R2b` session.
   them (ruling 216, record 6200852082), into the ruling and priority columns only; later rounds
   return to this lane.
 - Which Phase 3 packages may start after a round's record merges: UR-66.
-- **The last round also rules** how a row witnessed only in `Feature check (seeded)` (a
-  `*.seeded.spec.ts` leg; F-133 among them, and #7189's F-186, F-196 and F-197) reaches
-  **works**: `--seeded` is refused without `--fake` (`scripts/feature_check.py:3193-3194`), so the
-  real tier never runs those specs. Until then such rows stay at **awaiting real tier** (ruling
-  227; #7189's body states the options).
-- **The last round also rules** each endpoint no client calls: keep it as an External row (as
-  F-290–F-294 are) or retire it in Phase 3. They are `POST /api/reid/search`
-  (`backend/api/routes/reid.py:78-79`), `POST /api/household/members/{member_id}/embeddings`
-  (`backend/api/routes/household.py:460-461`) and `GET /api/detections/export`
-  (`backend/api/routes/detections.py:2025-2026`). None is an inventory row until then (ruling 230).
+- **The last round** (rulings 233-236, closed by ruling 237): F-045 and F-052 are complete, P1,
+  fix now (`[r211f]` and `[r234]`); seeded-only rows reach **works** on a `--real --seeded` run
+  (`[r235]`); `POST /api/reid/search` retires with `B3.1`, and the household embeddings and
+  detections export endpoints become External rows (`[r236]`). The owner's session writes its
+  record (ruling 237), as it did round 2's.
 
 **Done when:** the last `R2b` round is recorded and the README row reads `done` (rulings 86, 127).
 
@@ -511,7 +507,8 @@ its head.
 ### [r196a] F2.3's last frontend rows
 
 **Flags:** none. **Assigned:** frontend, first on its queue; F-012 and F-064 to heavy-a, now
-(ruling 226). **Depends on:** none. **PR:** none yet. (rulings 191, 192, 196, 226)
+(ruling 226). **Depends on:** none. **PR:** #7184, #7192, #7194, #7200 and #7203 (all merged; the
+last, #7194, on 2026-10-16T11:02:30Z as `0ee241c4d`). (rulings 191, 192, 196, 226)
 
 Rulings 191 and 192 assigned these rows as prose inside `F2.3`, which `lane_tick.py` cannot offer
 as a claim; ruling 196 makes them a package. Each PR's title carries `[r196a]`.
@@ -537,7 +534,7 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 ### [r211f] F-048: a search result opens what was clicked
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
-for the spec's legs. **PR:** none yet. (rulings 211, 221; records 6200331506, 6205729827)
+for the spec's legs. **PR:** none yet. (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
 - [ ] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
       #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1180` requires search
@@ -551,14 +548,42 @@ for the spec's legs. **PR:** none yet. (rulings 211, 221; records 6200331506, 62
       browse list (`frontend/src/components/events/EventTimeline.tsx:1059`). The
       `timeline-search.spec.ts:585` leg's defect half becomes "the page-2 row opens".
 - [ ] Remove both `test.fixme` marks in `frontend/tests/golden/timeline/timeline-search.spec.ts`.
+- [ ] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
+      `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:530` in this PR or
+      one right after it. F-045 flips to **awaiting real tier** on the run where that leg and the
+      row's other legs pass.
 
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
-**awaiting real tier** on that run (rulings 103, 114).
+**awaiting real tier** on that run (rulings 103, 114); and F-045 flips the same way once its `:530`
+leg passes (ruling 233). If #7210 merges first, F-045's leg lands in a follow-up PR with `[r211f]`
+in its title, and the package is not done until it does.
+
+### [r234] F-052: the export modal's dates reach the export
+
+**Flags:** none. **Assigned:** heavy-a, now, ahead of `B2.3` (fix now; ruling 234). **Depends on:**
+none. **PR:** none yet. (ruling 234, record 6216216005)
+
+ExportModal uses `useDateRangeState({ persistToUrl: false })`
+(`frontend/src/components/exports/ExportModal.tsx:59`). In that mode the hook reads its range only
+from the URL (`frontend/src/hooks/useDateRangeState.ts:328`, `:340`) and every write returns early
+(`:391`), so `setCustomRange` does nothing and the export sends null bounds.
+
+- [ ] In one PR with `[r234]` in its title: `useDateRangeState` keeps a custom range and preset in
+      local state when `persistToUrl` is false, so ExportModal's chosen bounds reach the export
+      request. A unit test pins it.
+- [ ] Remove the `test.fixme` at `frontend/tests/golden/timeline/export-modal.spec.ts:751`; the leg
+      passes.
+- [ ] F-052's action drops "cancels or": F-099 owns Cancel (R2a row 13). heavy-a edits only F-052's
+      inventory row (ruling 87), and frontend reads heavy-a's `frontend/` diff (ruling 184).
+
+**Done when:** F-052 flips to **awaiting real tier** on a CI run where its legs, the dates leg
+among them, pass (rulings 103, 114).
 
 ### [r212] F-061 and F-062: the audit tab can run an evaluation, and both legs re-run
 
 **Flags:** none. **Assigned:** heavy-a, ahead of `B2.3` (fix now; ruling 224). **Depends on:** none.
-**PR:** none yet. (rulings 212, 224; records 6200384247, 6205825842)
+**PR:** #7197 (merged 2026-10-16T04:29:41Z as `c92be2ae0`, head `e91478058`). (rulings 212, 224;
+records 6200384247, 6205825842)
 
 F-106 and F-108 share this surface and are fix-now; `[r129]` (#7031) made the batch audit load the
 deferred `Event.llm_prompt`, after these rows' evidence run at `7971475db`.
@@ -574,7 +599,8 @@ deferred `Event.llm_prompt`, after these rows' evidence run at `7971475db`.
 ### [r213] F-060: the saved feedback card shows what was stored
 
 **Flags:** none. **Assigned:** heavy-a, after `[r212]` (fix now; ruling 224). **Depends on:** none.
-**PR:** none yet. (rulings 213, 224; records 6200455263, 6205825842)
+**PR:** #7205 (merged 2026-10-16T08:45:03Z as `d6344e031`, head `1ee8d9ac5`). (rulings 213, 224;
+records 6200455263, 6205825842)
 
 F-060 is split: the panel is a labelling tool (complete), and learning thresholds from feedback is
 retired with F-131 (R2a row 11). The labels are stored and round-trip `GET /api/feedback/event/{id}`.
@@ -589,7 +615,8 @@ retired with F-131 (R2a row 11). The labels are stored and round-trip `GET /api/
 ### [r214] F-213 and F-277: the owner pick saves, and a saved person appears
 
 **Flags:** none. **Assigned:** heavy-a, after `[r213]` (fix now; ruling 224). **Depends on:** none.
-**PR:** none yet. (rulings 214, 224; records 6200676782, 6205825842)
+**PR:** #7208 (merged 2026-10-16T10:15:38Z as `0dc74845d`, head `662fbd575`). (rulings 214, 224;
+records 6200676782, 6205825842)
 
 - [ ] F-213: the owner `<Select>`'s listbox renders above the `z-50` configure modal
       (`frontend/src/components/zones/ZoneOwnershipPanel.tsx:846`, `:883-899`), so choosing an
