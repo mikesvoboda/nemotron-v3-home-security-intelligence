@@ -541,7 +541,7 @@ test.describe('F-045 Event Timeline live activity section', () => {
     // That repair is pinned by useEventModalRow.test.ts, NOT here — this leg cannot run
     // (below), so `event-detail-modal count: 0` stands only as pre-repair history here.
     // The leg stays fixme, in this repo's written-but-known-red idiom
-    // (./event-feedback.spec.ts:349, ./event-reevaluate.spec.ts:259), for a
+    // (./download-media.spec.ts:748, ./event-detail.spec.ts:358), for a
     // different, measured reason: its SUPPLY. dropAndAwaitCard (:283) drops the same
     // slow-reply bytes test 1 dropped, is_duplicate_and_mark
     // (backend/services/dedupe.py:452) marks the content hash on the check, and the
