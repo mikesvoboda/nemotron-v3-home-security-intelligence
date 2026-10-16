@@ -13,10 +13,10 @@
  *  - a fetched row is dropped on close, because the modal's flag/notes/reviewed
  *    writes report success against it while the cache under it holds the
  *    pre-write row;
- *  - a write invalidation reaches BOTH caches. This one is the easy claim to
- *    fake: `eventsQueryKeys.lists()` is a plausible key and it does NOT match
- *    the infinite browse query, so the breadth assert is paired with that
- *    negative control rather than asserted alone.
+ *  - a write invalidation reaches every event cache, because `all` is `['events']`
+ *    and all of them register under it. The easy claim to fake is the KEY shape:
+ *    `lists()` looks plausible but is not a prefix of the infinite browse key, so
+ *    the negative control pins that and a companion test proves an actual refetch.
  */
 import { QueryClient, useQuery } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';

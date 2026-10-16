@@ -74,11 +74,11 @@ export function useEventModalRow(
 /**
  * Refresh everything a write to one event can have changed.
  *
- * `eventsQueryKeys.all` is the prefix that covers BOTH caches the timeline
- * reads: the infinite browse query (`infinite: ['events','infinite',{…}]`) and
- * this hook's `detail` entry. The narrower `lists()` key does not match the
- * infinite query, so using it here would silently stop refreshing the browse
- * list the callers used to `refetch()`.
+ * `eventsQueryKeys.all` is `['events']`, the prefix every event cache registers
+ * under: the browse read (`['events','infinite',{…}]`) and this hook's `detail`
+ * entry that the callers used to `refetch()`, plus the `top`/`recent`/`deleted`
+ * caches. The narrower `lists()` key (`['events','list']`) is NOT a prefix of the
+ * infinite key, so using it here would silently stop refreshing the browse list.
  */
 export function useEventWriteInvalidation() {
   const queryClient = useQueryClient();

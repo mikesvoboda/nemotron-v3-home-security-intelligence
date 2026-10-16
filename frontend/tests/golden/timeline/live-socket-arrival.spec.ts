@@ -533,28 +533,28 @@ test.describe('F-045 Event Timeline live activity section', () => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     test.setTimeout(180_000);
-    // RED BY DESIGN, in this repo's written-but-known-red idiom
-    // (./event-feedback.spec.ts:349, ./event-reevaluate.spec.ts:259). This is
-    // the clause read strictly: "clicks one to open its detail", where "one"
-    // is a card that arrived over the socket and that the list has never
-    // fetched. The click fires and the selection is set (ActivityFeed.tsx:211-
-    // 219 → :130-134 → EventTimeline.tsx:1104), but getModalEvent looks the id
-    // up only in the HTTP-derived list and returns null (EventTimeline.tsx:
-    // 1060-1064), so EventDetailModal returns null without an event (:447-449)
-    // while isOpen is already true (:1904-1906): measured
-    // `event-detail-modal count: 0` with that very card on screen. Nothing in
-    // the shipped app bridges the caches — no queryClient reference in
-    // useEventStream.ts; no consumer for
-    // useEventLifecycleWebSocket.ts:259-262's invalidate outside
-    // hooks/index.ts:276 and its own unit test; no refetchInterval on the
-    // events query (useEventsQuery.ts:65-83); and refetchOnWindowFocus is
-    // pinned true by the hook's own default (useCursorPaginatedQuery.ts:81,
-    // forwarded :106) against the factory's un-forwarded option list
-    // (:211-231) and queryClient.ts:749's global false. If a fix ever lands,
-    // this leg turns green and the row's inventory status can move from
-    // `unverified` to `works` in the same commit. The green half of the clause
-    // — same live card, one click, detail open, once the page's own filter has
-    // brought the row into the list — is asserted for real in test 1 above.
+    // The LOOKUP DEFECT this leg measured is REPAIRED, elsewhere: [r211f] (#7210)
+    // added useEventModalRow (useEventModalRow.ts:54), which completes a selection the
+    // loaded browse pages do not hold with GET /api/events/{id}, and getModalEvent
+    // (EventTimeline.tsx:1093) renders that row; ActivityFeed.tsx:212-214 → :130-134 →
+    // LiveActivitySection.tsx:325 → EventTimeline.tsx:1137 is the click chain it serves.
+    // That repair is pinned by useEventModalRow.test.ts, NOT here — this leg cannot run
+    // (below), so `event-detail-modal count: 0` stands only as pre-repair history here.
+    // The leg stays fixme, in this repo's written-but-known-red idiom
+    // (./event-feedback.spec.ts:349, ./event-reevaluate.spec.ts:259), for a
+    // different, measured reason: its SUPPLY. dropAndAwaitCard (:283) drops the same
+    // slow-reply bytes test 1 dropped, is_duplicate_and_mark
+    // (backend/services/dedupe.py:452) marks the content hash on the check, and the
+    // watcher skips a duplicate inside the 300 s TTL (file_watcher.py:871-873);
+    // clear_hash (dedupe.py:496) has no non-test caller, so a second drop of those
+    // bytes in the same run reaches skip(true) — Playwright reports skipped, never a
+    // green open. Un-marking needs a supply that clears the hash between drops:
+    // ruling 233 lands that in a follow-up PR titled [r211f] (measurement in #7210
+    // comment 6216489373), and the row flips to awaiting real tier on that PR's run
+    // (it is `half-built` now; this block's pre-repair text said `unverified`, stale
+    // against main). The green half of the clause — same live card, one click,
+    // detail open once the page's own filter has brought the row into the list —
+    // is asserted for real in test 1 above.
     const h = harness;
     let run: ReturnType<typeof readRun>;
     try {
