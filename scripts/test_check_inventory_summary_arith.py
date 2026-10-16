@@ -186,11 +186,82 @@ def test_a_legend_without_a_status_column_is_refused(tmp_path):
 
 
 def test_a_legend_naming_no_status_is_refused(tmp_path):
+    """A legend with its header and separator but no status row is read, then refused."""
     text = doc(TWO)
     for s in STATUSES:
         text = text.replace(f"| **{s}** | what {s} means |\n", "", 1)
     rc, out, _ = run(write(tmp_path, text))
     assert rc == 2, f"an empty legend was read as a vocabulary: {out}"
+    assert "names no status" in out, out
+
+
+def test_a_section_number_used_twice_is_refused(tmp_path):
+    """Two `### 3.2` headings: the later copy would replace the earlier, and its rows
+    would vanish from the table and the `all` row with rc 0. The stored §2 used to
+    catch this by disagreeing; now the script refuses it."""
+    text = doc({"1": [("F-001", "unverified")], "2": [("F-010", "leftover")],
+                "3": [("F-020", "half-built")]}).replace("### 3.3 Section 3", "### 3.2 Section 3", 1)
+    assert text.count("### 3.2 ") == 2, "arm is a no-op"
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"a duplicated section number was tallied: {out}"
+    assert "appears twice" in out, out
+
+
+def test_a_heading_with_punctuation_links_to_githubs_anchor(tmp_path):
+    """The real headings carry `:`, `,` and `-` (3.5, 3.10, 3.12); the expected slug is
+    written out by hand, not computed by the code under test."""
+    text = doc(TWO).replace("### 3.1 Section 1", "### 3.1 Settings: cameras, rules (and re-ID)", 1)
+    rc, out, _ = run(write(tmp_path, text), as_json=False)
+    assert rc == 0, out
+    assert "| [3.1 Settings: cameras, rules (and re-ID)](#31-settings-cameras-rules-and-re-id) |" in out, out
+
+
+def test_the_real_inventorys_links_are_the_ones_its_stored_table_used():
+    """Three anchors the hand-kept §2 carried before ruling 251, as GitHub rendered them."""
+    rc, out, _ = run(REAL_DOC, as_json=False)
+    assert rc == 0, out
+    for slug in ("#35-alerts-entities-and-re-id",
+                 "#310-settings-cameras-rules-processing-notifications-access",
+                 "#312-zones-plates-household-faces-heatmaps-scene-changes-tracks"):
+        assert f"]({slug}) |" in out, (slug, out)
+
+
+def test_a_failure_exits_1_in_text_mode_too(tmp_path):
+    rc, out, _ = run(write(tmp_path, doc({"1": [("F-001", "shipped")]})), as_json=False)
+    assert rc == 1, f"text mode passed a status outside the legend: {out}"
+    assert "legend" in out, out
+
+
+def test_a_renamed_section_2_heading_still_guards_its_body(tmp_path):
+    stored = "\n".join(expected_table(TWO)) + "\n\n"
+    text = doc(TWO).replace(SUMMARY, "## 2. Summary (computed)\n\n" + stored, 1)
+    rc, out, payload = run(write(tmp_path, text))
+    assert rc == 1, f"a stored table under a renamed §2 heading was accepted: {out}"
+    assert any("ruling 251" in p for p in payload["problems"]), payload
+
+
+def test_a_doc_without_a_section_2_heading_is_refused(tmp_path):
+    rc, out, _ = run(write(tmp_path, doc(TWO).replace(SUMMARY, "", 1)))
+    assert rc == 2, f"a doc with no `## 2.` heading was scored: {out}"
+    assert "no '## 2.' heading" in out, out
+
+
+def test_two_legend_tables_are_refused(tmp_path):
+    second = "| status | meaning here |\n| --- | --- |\n| **shipped** | a second vocabulary |\n"
+    text = doc(TWO).replace("\nProse.\n", "\n" + second + "\nProse.\n", 1)
+    assert second in text, "arm is a no-op"
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 2, f"a second legend table was ignored: {out}"
+    assert "found 2" in out, out
+
+
+def test_a_wrapped_prose_line_starting_with_a_hash_does_not_end_the_legend(tmp_path):
+    """The inventory wraps prose onto lines like `#6854) ...`; only a real heading
+    (`#` to `######` then a space) ends the legend's body."""
+    text = doc(TWO).replace("### Statuses\n\n", "### Statuses\n\nAs ruled on\n#6854) the vocabulary is:\n\n", 1)
+    rc, out, _ = run(write(tmp_path, text))
+    assert rc == 0, f"a wrapped `#NNNN)` line cut the legend off: {out}"
+
 
 
 def test_duplicate_id_is_a_failure_not_a_count(tmp_path):
@@ -210,10 +281,9 @@ def test_section_losing_its_id_column_is_refused(tmp_path):
 def test_non_row_line_in_a_table_is_refused_not_dropped(tmp_path):
     """A `|`-led line whose first cell is not an `F-nnn` used to be skipped in
     silence, and silence here is the gate's worst failure: the skip removes the
-    line from §3's tally while §2 keeps whatever it published, so a stale §2 and a
-    shrunken §3 agree and the checker exits 0 on the arithmetic it exists to
-    police. Refusing is the only honest option — the checker cannot know whether
-    the line was meant to be a row."""
+    line from §3's tally, and the printed table is wrong with nothing to compare
+    it against. Refusing is the only honest option — the checker cannot know
+    whether the line was meant to be a row."""
     text = doc(TWO)
     intruder = "| see the note below | prose | absorbed | — | — | half-built | — | — | — | — | — |\n"
     anchor = row(TWO["1"][0]) + "\n"
@@ -222,7 +292,7 @@ def test_non_row_line_in_a_table_is_refused_not_dropped(tmp_path):
     assert intruder in text, "intruder line not inserted — arm is a no-op"
     rc, out, _ = run(write(tmp_path, text))
     assert rc == 2, f"a non-row table line was dropped from both denominators: {out}"
-    assert "would be dropped from BOTH denominators" in out, out
+    assert "would be dropped from the census" in out, out
 
 
 def test_reordered_columns_still_score_the_right_column(tmp_path):
@@ -249,7 +319,7 @@ def test_reordered_columns_still_score_the_right_column(tmp_path):
 
 def test_unrowed_short_row_is_a_refusal_not_a_wrong_answer(tmp_path):
     """A row shorter than the `status` column index must refuse, not report the
-    wrong count. A stale §2 has to stay visible in that case."""
+    wrong count."""
     text = doc(TWO)
     anchor = row(TWO["1"][0]) + "\n"
     assert anchor in text, "fixture row anchor missing — arm is a no-op"
@@ -273,12 +343,12 @@ def test_blank_table_line_is_refused_not_dropped(tmp_path):
     assert blank in text, "blank line not inserted — arm is a no-op"
     rc, out, _ = run(write(tmp_path, text))
     assert rc == 2, f"an all-blank table line was dropped from both denominators: {out}"
-    assert "would be dropped from BOTH denominators" in out, out
+    assert "would be dropped from the census" in out, out
 
 
 def test_section_table_without_status_column_is_refused(tmp_path):
     """A §3 table whose header lost `status` has nothing to tally; silently
-    tallying zero statuses would agree with a zeroed §2."""
+    tallying zero statuses would print a table of zeros."""
     rc, out, _ = run(write(tmp_path, doc(TWO).replace(ROW_HEADER, "| id | surface | action | API calls | backend | state | evidence | modules | real tier | ruling | priority |", 1)))
     assert rc == 2, f"a §3 table with no `status` column was tallied anyway: {out}"
     assert "no `status` column" in out, out

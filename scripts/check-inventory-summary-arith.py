@@ -33,8 +33,8 @@ Three parsing rules, each because the naive version manufactures a wrong answer:
 
 Exit 0 with the table printed; 1 when a row carries a status outside the legend, or §2
 stores a table again (ruling 251); 2 when the document cannot be scored -- a missing
-legend, no `### 3.x` section, a section table with no `id` or `status` column, a
-duplicate `F-nnn`, a table line that is not a row. Every "found nothing" path exits
+legend, no `## 2.` heading, no `### 3.x` section, a section number used twice, a section
+table with no `id` or `status` column, a duplicate `F-nnn`, a table line that is not a row. Every "found nothing" path exits
 non-zero with its denominator printed, because an empty pass is the defect this
 file exists to prevent. `inventory_witness.py` reuses the table helpers and
 ``check()``'s census.
@@ -58,7 +58,7 @@ ROW_ID = re.compile(r"^F-\d+$")
 SECTION_HEAD = re.compile(r"^### (3\.\d+) ")
 SEP_CELL = re.compile(r":?-{3,}:?")
 H2_HEAD = re.compile(r"^## ")
-SUMMARY_HEAD = re.compile(r"^## 2\. Summary\s*$", re.M)
+SUMMARY_HEAD = re.compile(r"^## 2\. .*$", re.M)
 STATUSES_HEAD = re.compile(r"^### Statuses\s*$", re.M)
 
 
@@ -132,6 +132,10 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
     vocab: dict[str, int] = {}
     for n, start in enumerate(heads):
         num = SECTION_HEAD.match(lines[start]).group(1)
+        if num in per_section:
+            # Last copy would win: the first section's rows would vanish from the table
+            # and the `all` row, with nothing left to compare the printed numbers to.
+            raise InventoryError(f"section {num} appears twice -- the later copy would replace the earlier")
         # The section's corpus ends at the next `### 3.x` AND at the next `## ` — the
         # last section's next `### 3.x` does not exist, and an unbounded slice handed
         # §4..§8 (7 tables, 414 pipe lines) to this section's tally.
@@ -179,7 +183,7 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
             more = f" (+{len(unrowed) - 3} more)" if len(unrowed) > 3 else ""
             raise InventoryError(
                 f"section {num}: {len(unrowed)} table line(s) are not `F-nnn` rows and would "
-                f"be dropped from BOTH denominators: {shown}{more}"
+                f"be dropped from the census: {shown}{more}"
             )
         per_section[num] = {"rows": rows, **tally}
     return per_section, vocab
@@ -191,9 +195,9 @@ def legend_statuses(text: str) -> list[str]:
     if not match:
         raise InventoryError("no '### Statuses' heading -- no legend to read the vocabulary from")
     body = text[match.end():]
-    nxt = re.search(r"^#", body, re.M)
+    nxt = re.search(r"^#{1,6} ", body, re.M)
     body = body[: nxt.start()] if nxt else body
-    found = [t for t in tables(body.splitlines()) if len(t) > 2 and is_separator(split_row(t[1]))]
+    found = [t for t in tables(body.splitlines()) if len(t) > 1 and is_separator(split_row(t[1]))]
     if len(found) != 1:
         raise InventoryError(f"'### Statuses': expected exactly 1 legend table, found {len(found)}")
     table = found[0]
@@ -221,10 +225,14 @@ def anchor(title: str) -> str:
 
 
 def stored_summary(text: str) -> bool:
-    """Whether §2 holds a table again -- the hand-kept copy ruling 251 removed."""
+    """Whether §2 holds a table again -- the hand-kept copy ruling 251 removed.
+
+    The `## 2.` heading is required, whatever its title: ruling 251 keeps it so §3's numbers
+    stay, and a guard that switched itself off when the heading moved would let the copy back.
+    """
     match = SUMMARY_HEAD.search(text)
     if not match:
-        return False
+        raise InventoryError("no '## 2.' heading -- ruling 251 keeps it; the stored-table guard reads its body")
     body = text[match.end():].split("\n## ", maxsplit=1)[0]
     return any(len(t) > 1 and is_separator(split_row(t[1])) for t in tables(body.splitlines()))
 
