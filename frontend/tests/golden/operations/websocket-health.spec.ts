@@ -39,7 +39,7 @@ function stateLabel(state: string | undefined): string {
   }
 }
 
-test.describe('golden path: websocket health @critical', () => {
+test.describe('golden path: websocket health (F-146) @critical', () => {
   test.setTimeout(60_000);
 
   test('both broadcaster cards render with health badges', async ({ page }) => {
