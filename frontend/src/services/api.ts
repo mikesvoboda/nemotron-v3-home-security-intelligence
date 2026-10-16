@@ -188,7 +188,6 @@ import type {
   DLQRequeueResponse as GeneratedDLQRequeueResponse,
   DLQStatsResponse as GeneratedDLQStatsResponse,
   Event,
-  EventEnrichmentsResponse as GeneratedEventEnrichmentsResponse,
   EventListResponse as GeneratedEventListResponse,
   EventStatsResponse as GeneratedEventStatsResponse,
   EventClustersResponse,
@@ -316,10 +315,6 @@ export type {
 // Re-export alert types for consumers of this module
 export type { AlertResponse, AlertStatus };
 
-// Re-export enrichment types for consumers of this module
-// Note: EnrichmentResponse is already defined in this file (see fetchDetectionEnrichment)
-export type { EventEnrichmentsResponse } from '../types/generated';
-
 // Re-export detection search and labels types for consumers of this module
 export type {
   DetectionSearchResult,
@@ -400,16 +395,6 @@ export interface DetectionQueryParams {
    * NEM-3629: When using 'created_at', responses include association_created_at field.
    */
   order_detections_by?: DetectionOrderBy;
-}
-
-/**
- * Query parameters for event enrichments endpoint.
- */
-export interface EventEnrichmentsQueryParams {
-  /** Maximum number of enrichments to return (1-200, default 50) */
-  limit?: number;
-  /** Number of enrichments to skip (default 0) */
-  offset?: number;
 }
 
 /**
@@ -2620,51 +2605,6 @@ export async function fetchEventDetections(
     : `/api/events/${eventId}/detections`;
 
   return fetchApi<GeneratedDetectionListResponse>(endpoint);
-}
-
-/**
- * Fetch enrichment data for all detections in an event with pagination.
- *
- * Returns structured vision model results from the enrichment pipeline for
- * each detection in the event, including:
- * - License plate detection and OCR
- * - Face detection
- * - Vehicle classification
- * - Clothing analysis
- * - Violence detection
- * - Image quality assessment
- * - Pet classification
- *
- * @param eventId - Event ID
- * @param params - Optional pagination parameters (limit, offset)
- * @returns EventEnrichmentsResponse with enrichment data per detection
- *
- * @example
- * ```typescript
- * // Fetch first page of enrichments
- * const enrichments = await fetchEventEnrichments(123);
- *
- * // Fetch with pagination
- * const page2 = await fetchEventEnrichments(123, { limit: 10, offset: 10 });
- * ```
- */
-export async function fetchEventEnrichments(
-  eventId: number,
-  params?: EventEnrichmentsQueryParams
-): Promise<GeneratedEventEnrichmentsResponse> {
-  const queryParams = new URLSearchParams();
-
-  if (params) {
-    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
-  }
-
-  const queryString = queryParams.toString();
-  const endpoint = queryString
-    ? `/api/events/${eventId}/enrichments?${queryString}`
-    : `/api/events/${eventId}/enrichments`;
-
-  return fetchApi<GeneratedEventEnrichmentsResponse>(endpoint);
 }
 
 /**

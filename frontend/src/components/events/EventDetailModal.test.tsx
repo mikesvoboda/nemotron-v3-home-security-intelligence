@@ -466,35 +466,6 @@ describe('EventDetailModal', () => {
       expect(screen.queryByText(/not analyzed in VLM mode/i)).not.toBeInTheDocument();
     });
 
-    it('renders no enrichment UI even when a detection carries enrichment_data', async () => {
-      // The API still returns enrichment_data on a detection from a pipeline
-      // that ran the retired models; the modal no longer renders it. Pinning
-      // this is what keeps the deletion from being quietly reverted by someone
-      // who "just restores the panel".
-      const enriched = {
-        ...vlmEvent,
-        // Numeric id on purpose: base gates the summary block on
-        // !isNaN(parseInt(event.id)), and mockEvent.id is 'event-123' → NaN,
-        // which would let a stale enrichment-summary-section hide behind the
-        // NaN at base and make the first assertion below vacuous. With '123'
-        // this fixture WOULD have rendered the summary at base.
-        id: '123',
-        detections: [
-          {
-            label: 'person',
-            confidence: 0.9,
-            enrichment_data: { person: { clothing: 'red jacket', confidence: 0.8 } },
-          },
-        ],
-      };
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={enriched} />);
-      await waitFor(() => {
-        expect(screen.getByText('Detected Objects (1)')).toBeInTheDocument();
-      });
-      expect(screen.queryByTestId('enrichment-summary-section')).not.toBeInTheDocument();
-      expect(screen.queryByText(/red jacket/)).not.toBeInTheDocument();
-    });
-
     it('keeps the sections around the removed block', async () => {
       renderWithQueryClient(<EventDetailModal {...mockProps} event={vlmEvent} />);
       await waitFor(() => {

@@ -1370,6 +1370,48 @@ def test_a_green_real_run_removes_its_vlm_after_the_test_deployment(
     assert '"exit": 0' in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("seeded", [True, False], ids=["seeded", "unseeded"])
+def test_a_real_run_plants_the_debug_fixtures_only_when_seeded(
+    agent_gpu: AgentGpuStub,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    seeded: bool,
+) -> None:
+    """Ruling 235 puts the CI fixtures on the REAL tier, so the real tier has to plant them.
+
+    ``run_check`` guards the call on ``seeded`` alone (``feature_check.py:3040``). A
+    guard that also demanded ``run.mode == "fake"`` — the shape every pre-ruling
+    seeded run had — keeps every fake-tier test green and leaves ``--real --seeded``
+    running the seeded goldens against an UNSEEDED backend: the seeded specs then
+    read fixtures that were never planted. That is the failure this pins, and it is
+    the failure the operator's ruling-235 leg could not have caught on its own,
+    because a leg only observes what its own seeding step left behind.
+
+    Both arms are asserted, because a one-sided "was called" pin passes for any
+    reason at all: the un-seeded arm is what says the guard is ``seeded`` and not
+    simply unconditional.
+    """
+    order: list[str] = []
+    _green_real_run(monkeypatch, order, log=agent_gpu.log)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
+    monkeypatch.setattr(
+        fc.Run,
+        "seed_debug_fixtures",
+        lambda _self: order.append("seed_debug_fixtures"),
+    )
+    argv = ["--real"]
+    if seeded:
+        argv.append("--seeded")
+    status = fc.main([*argv, "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_OK, capsys.readouterr().out
+    assert ("seed_debug_fixtures" in order) is seeded
+    if seeded:
+        # The fixtures are the CI's, and they are planted where the CI planted them:
+        # after the cameras, before anything reads them.
+        assert order.index("seed_debug_fixtures") > order.index("seed_cameras")
+
+
 @pytest.mark.parametrize("fail", ["vlm.wait_ready", "render", "up", "smoke"])
 def test_a_real_run_that_breaks_still_removes_its_vlm(
     agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fail: str
@@ -2614,6 +2656,70 @@ def test_the_preflight_allows_the_one_port_agent_gpu_printed(
     assert seen["allowed_host_ports"] == (frozenset({18123}) if real else frozenset())
     backend = seen["rendered"]["services"]["backend"]["environment"]
     assert (backend.get("AI_VLM_URL") == VLM_URL) is real
+
+
+def test_a_seeded_real_render_keeps_both_halves_of_the_boot(
+    base: dict[str, Any], live: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ruling 235's boot claim, at the seam the real tier actually renders through.
+
+    ``Run.render`` is the only caller that passes **both** ``vlm_url`` and
+    ``seeded`` (``feature_check.py:1839-1845``), so it is where the two features
+    of this PR genuinely meet. Nothing else covers that conjunction: the
+    deployment-level test below calls ``as_test_deployment`` directly (so it never
+    runs the render), and ``test_the_preflight_allows_the_one_port_agent_gpu_printed``
+    above renders *un-seeded*. A render that quietly dropped the seeded shape
+    whenever a VLM was present -- ``seeded=self.seeded and vlm is None`` -- keeps
+    every one of those green, and would boot an unseeded backend that the seeded
+    goldens then read as if it were seeded.
+
+    The preflight is deliberately the real one, wrapped only to capture its input:
+    a render that loses the seeded ``/app/data`` tmpfs or re-adds ``ai-vlm`` to
+    ``depends_on`` should be *refused* here, not merely asserted differently.
+    """
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="real", seeded=True
+    )
+    run.artifacts.mkdir(parents=True)
+    vlm = fc.AgentGpu(run)
+    vlm.url, vlm.host_port = VLM_URL, 18123
+    seen: dict[str, Any] = {}
+    # Bound BEFORE the swap below: `fc.preflight` is about to be this wrapper, so
+    # calling it by name from inside the wrapper would recurse forever.
+    real_preflight = fc.preflight
+
+    def compose(self: Any, files: Any, *args: str, **kwargs: Any) -> Any:
+        return subprocess.CompletedProcess(args, 0, json.dumps(base), "")
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> Any:
+        return subprocess.CompletedProcess(args, 0, self.compose_file.read_text(), "")
+
+    def check(rendered: Any, **kwargs: Any) -> list[str]:
+        seen.update(kwargs, rendered=rendered)
+        return real_preflight(rendered, **kwargs)
+
+    monkeypatch.setattr(fc.Run, "compose", compose)
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "host_addresses", lambda *_: frozenset())
+    monkeypatch.setattr(fc, "preflight", check)
+
+    run.render(live, vlm)
+
+    backend = seen["rendered"]["services"]["backend"]
+    env = backend["environment"]
+    # the real half: the VLM is wired in and the fake detector is gone
+    assert list(seen["rendered"]["services"]) == list(fc.REAL_SERVICES)
+    assert env["AI_VLM_URL"] == VLM_URL
+    assert "ai-vlm" not in backend["depends_on"]
+    assert seen["allowed_host_ports"] == frozenset({18123})
+    # the seeded half, on top of it -- the part a render-seam regression deletes
+    assert env["DEBUG"] == "true"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+    assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
+    # and the render survived the REAL preflight, not a stub that always says ok
+    assert run.summary["results"]["preflight"] == "ok"
 
 
 @pytest.mark.parametrize(("porcelain", "refused"), [("", False), (" M ai/vlm/Dockerfile\n", True)])
@@ -4869,14 +4975,41 @@ def test_as_test_deployment_seeded_enables_debug_recorder_fault_seed_and_data_tm
     assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
 
 
-def test_seeded_flag_is_refused_without_fake() -> None:
+def test_seeded_needs_a_mode_but_no_longer_needs_fake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ruling 235 rewrote the second half of this test.
+
+    `--seeded` alone is still refused (it is a shape, not a mode) — that half is unchanged. What
+    changed is `--real --seeded`: it used to exit 2 here, and ruling 235 rules it *accepted*, so
+    this parse-layer test now proves it reached the tier's own availability gate instead of the
+    flag check. `!= 2` would NOT prove that — it also passes on a tier that died for a reason
+    unrelated to the parse layer, so both directions are pinned and neither is left to whatever
+    this host happens to have installed (the form test_real_refuses_where_agent_gpu_is_absent
+    already uses). Without agent-gpu the refusal is EXIT_UNAVAILABLE and nothing is created; with
+    it on PATH the run gets further and is refused for the NEXT reason, the unset
+    $AGENT_GPU_LIBRARY — still never exit 2, so no host can satisfy this by accident. The
+    accept-and-boot path, with run_check stubbed, is test_seeded_with_real_boots_the_real_tier.
+    """
     with pytest.raises(SystemExit) as bare:
         fc.main(["--seeded"])
     assert bare.value.code == 2
 
-    with pytest.raises(SystemExit) as with_real:
-        fc.main(["--real", "--seeded"])
-    assert with_real.value.code == 2
+    no_gpu = tmp_path / "no-agent-gpu"
+    monkeypatch.setenv("PATH", str(no_gpu))
+    monkeypatch.delenv("AGENT_GPU_LIBRARY", raising=False)
+    root = tmp_path / "runs-no-gpu"
+    assert fc.main(["--real", "--seeded", "--root", str(root)]) == fc.EXIT_UNAVAILABLE == 4
+    assert not root.exists()  # accepted by the parse layer, refused before it created anything
+
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    (shim / "agent-gpu").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (shim / "agent-gpu").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{shim}:/usr/bin:/bin")
+    root_with = tmp_path / "runs-with-gpu"
+    assert fc.main(["--real", "--seeded", "--root", str(root_with)]) == fc.EXIT_UNAVAILABLE
+    assert not root_with.exists()  # the next gate refuses, not the flag check
 
 
 def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
@@ -5022,12 +5155,23 @@ def test_seed_debug_fixtures_refuses_under_90_percent_disk_usage(
         run.seed_debug_fixtures()
 
 
+@pytest.mark.parametrize("mode", ["fake", "real"], ids=["fake-tier", "real-tier"])
 def test_golden_seeded_runs_golden_seeded_playwright_project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
-    run = fc.Run(
-        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
-    )
+    """The seeded leg selects the seeded Playwright project, on BOTH tiers.
+
+    ``golden()`` picks the project from ``seeded`` alone (``feature_check.py:2345``).
+    The ``real`` arm is the one this adds: a guard that also demanded
+    ``mode == "fake"`` — true of every seeded run before ruling 235 — leaves this
+    test green while ``--real --seeded`` runs the UNSEEDED ``golden`` project against
+    a seeded backend, silently reporting the ~11 ``*.seeded.spec.ts`` rows as never
+    run. The un-seeded half of the same condition is pinned by
+    ``test_the_leg_runs_in_the_image_with_the_same_argv_inside``, which asserts
+    ``--project=golden`` for an un-seeded run, so the two tests together cover every
+    arm rather than only the arm a fix could break.
+    """
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode=mode, seeded=True)
     run.prepare()
     run.api = "http://127.0.0.1:32772"
     run.ui = "http://127.0.0.1:32773"
@@ -5062,3 +5206,194 @@ def test_golden_seeded_runs_golden_seeded_playwright_project(
     assert len(playwright_cmds) == 1
     assert "--project=golden-seeded" in playwright_cmds[0]
     assert "--project=golden " not in playwright_cmds[0]
+
+
+# --- ruling 235: the flag matrix for --seeded ---------------------------------------------
+#
+# Before ruling 235 the parse layer refused `--seeded` without `--fake`, and that one line was
+# doing double duty: it also blocked `--real --seeded --prod-shape`. Widening `--seeded` to the
+# real tier therefore has to carry its own prod-shape refusal, and the matrix below pins all four
+# edges together so the loosening cannot silently widen a third combination.
+#
+# Every case goes through main(), the same entry the CLI uses, because the thing under test is the
+# decision made before any engine call — so the engine is replaced by a recorder and the real
+# tier's agent-gpu probe is stubbed to "available". If a case ever boots anything, the assert fires.
+
+
+def _fake_boot(monkeypatch: Any) -> list[tuple[str, bool, bool]]:
+    """Record run_check calls instead of booting; pretend agent-gpu is on PATH."""
+    booted: list[tuple[str, bool, bool]] = []
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        booted.append((mode, bool(args.seeded), bool(args.prod_shape)))
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    return booted
+
+
+def test_seeded_with_real_boots_the_real_tier_seeded(monkeypatch: Any) -> None:
+    """Ruling 235's whole point: `--real --seeded` reaches run_check, seeded, on the real tier."""
+    booted = _fake_boot(monkeypatch)
+    assert fc.main(["--real", "--seeded"]) == 0
+    assert booted == [("real", True, False)]
+
+
+def test_seeded_with_fake_is_unchanged(monkeypatch: Any) -> None:
+    """The command the CI leg runs (`--fake --seeded`) behaves exactly as before."""
+    booted = _fake_boot(monkeypatch)
+    assert fc.main(["--fake", "--seeded"]) == 0
+    assert booted == [("fake", True, False)]
+
+
+def test_seeded_without_a_mode_is_still_refused(monkeypatch: Any) -> None:
+    """`--seeded` is still a shape, not a mode: with neither --fake nor --real it refuses."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded"])
+    assert booted == []
+
+
+def test_seeded_with_prod_shape_is_refused_under_real(monkeypatch: Any) -> None:
+    """The refusal the OLD `--seeded needs --fake` line covered by accident, now stated on its own.
+
+    This is the case that would silently have started booting prod.yml with DEBUG=true if the
+    change had only relaxed the fake requirement.
+    """
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--real", "--seeded", "--prod-shape"])
+    assert booted == []
+
+
+def test_the_seeded_refusals_are_distinguishable(monkeypatch: Any, capsys: Any) -> None:
+    """A refusal that cannot be told apart from another one teaches an operator nothing.
+
+    Pinning the two messages separately also catches a guard reordered into the wrong slot: a
+    reader who types `--seeded --prod-shape --real` should be told about DEBUG=true in production,
+    not about choosing a mode.
+
+    The bare-`--seeded` pin is deliberately TWO-SIDED. Its substring `--fake or --real` is also a
+    substring of the unrelated generic fallback `choose --fake or --real`, which is what the
+    `if not args.fake` guard prints several lines later. So deleting the seeded guard entirely
+    still satisfies the positive half — the run falls through to the generic refusal and the
+    substring is present. The negative half is what makes this a pin: the operator has to be told
+    that the SHAPE needs a mode, not that they forgot to pick a tier.
+    """
+    _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded", "--prod-shape", "--real"])
+    err = capsys.readouterr().err
+    assert "prod-shape" in err, err
+    assert "DEBUG=true" in err, err
+
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded"])
+    err = capsys.readouterr().err
+    assert "--seeded needs --fake or --real" in err, err
+    assert "boot shape" in err, err
+    assert "choose --fake or --real" not in err, f"fell through to the generic mode refusal: {err}"
+
+
+def test_a_real_seeded_run_gets_the_seeded_shape_and_overrides(
+    tmp_path: Path, base: dict[str, Any]
+) -> None:
+    """Ruling 235's boot-level half: on `--real` the seeded shape still applies.
+
+    `as_test_deployment` takes `seeded` but not `mode`, so the overrides are mode-independent by
+    signature — that is the structural reason a real-tier seeded boot needs no new code path. This
+    pins the two user-visible consequences anyway, because a signature is easy to change later:
+    the run's shape string (which lands in the run record a reviewer reads) and the DEBUG/recorder
+    environment the seeded golden specs depend on.
+    """
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="real", seeded=True
+    )
+    assert run.shape == "real-seeded"
+
+    seeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR, seeded=True)
+    env = seeded["services"]["backend"]["environment"]
+    assert env["DEBUG"] == "true"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+
+
+def test_a_real_seeded_boot_forwards_the_flag_into_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The handoff at the top of ``run_check``, where the CLI flag becomes ``Run.seeded``.
+
+    Every flag-matrix test above replaces ``run_check`` wholesale, so none of them ever runs this
+    line. A ``seeded = False`` here would boot the real tier unseeded while every parse test stayed
+    green: the run would still print ``mode``, the seeded golden project would simply collect
+    nothing, and the operator's ``--real --seeded`` would report a clean run that seeded nothing.
+    So pin the exact handoff, not its two ends — the same shape as
+    test_run_check_builds_the_run_with_the_shape for prod_shape.
+    """
+    import argparse
+
+    captured: dict[str, Any] = {}
+    real_init = fc.Run.__init__
+
+    def spy(self: Any, **kwargs: Any) -> None:
+        captured.update(kwargs)
+        real_init(self, **kwargs)
+
+    monkeypatch.setattr(fc.Run, "__init__", spy)
+
+    class StopHere(Exception):
+        pass
+
+    monkeypatch.setattr(fc.Run, "prepare", lambda *_a, **_k: (_ for _ in ()).throw(StopHere))
+
+    args = argparse.Namespace(
+        engine="podman",
+        root=tmp_path / "runs",
+        image_tag="test",
+        prod_shape=False,
+        seeded=True,
+    )
+    with pytest.raises(StopHere):
+        fc.run_check(args, mode="real")
+    assert captured.get("seeded") is True, "run_check must forward --seeded to Run"
+    assert captured.get("mode") == "real"
+
+
+def test_a_real_and_seeded_deployment_takes_the_vlm_url_and_the_seeded_shape_together(
+    base: dict[str, Any], live: Any
+) -> None:
+    """The one call the real tier actually makes: ``vlm_url`` AND ``seeded`` set at once.
+
+    ``as_test_deployment`` takes both, and the two guards sit in different parts of the function —
+    ``vlm_url`` chooses the kept services and pops the in-stack ``ai-vlm`` dependency, ``seeded``
+    sets the DEBUG/recorder/fault-seed environment and the ``/app/data`` tmpfs. The seeded-only
+    test above never passes ``vlm_url``, and test_the_real_take... never passes ``seeded``, so
+    either half alone leaves this combination untested. If the overrides were ever gated on
+    ``vlm_url is None`` — a plausible-looking "seeded is a fake-tier shape" edit — the real tier
+    would boot WITHOUT the recorder or the fault seeds, and the seeded goldens it then runs would
+    read an unseeded backend and pass anyway.
+
+    It also has to survive the preflight, because the seeded tmpfs is a new mount on the real
+    tier's deployment.
+    """
+    both = fc.as_test_deployment(
+        base, project=PROJECT, run_dir=RUN_DIR, vlm_url=VLM_URL, seeded=True
+    )
+    backend = both["services"]["backend"]
+    env = backend["environment"]
+
+    # the real half: VLM from agent-gpu, in-stack ai-vlm gone from both services and depends_on
+    assert list(both["services"]) == list(fc.REAL_SERVICES)
+    assert env["AI_VLM_URL"] == VLM_URL
+    assert "ai-vlm" not in backend["depends_on"]
+
+    # the seeded half, on top of it, unchanged from the fake tier
+    assert env["DEBUG"] == "true"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+    assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
+
+    # and the combination is still a deployment the in-run check accepts
+    assert _preflight(both, live, allowed_host_ports=frozenset({18123})) == []

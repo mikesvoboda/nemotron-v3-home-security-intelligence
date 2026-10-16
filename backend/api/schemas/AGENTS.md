@@ -17,7 +17,7 @@ Package initialization with public exports. Exports schemas from:
 - `camera.py` - CameraCreate, CameraResponse, CameraUpdate, CameraListResponse, CameraStatus
 - `clips.py` - ClipGenerateRequest, ClipGenerateResponse, ClipInfoResponse, ClipStatus
 - `detections.py` - EnrichmentDataSchema, PersonEnrichmentData, PetEnrichmentData, VehicleEnrichmentData
-- `enrichment.py` - EnrichmentResponse, EventEnrichmentsResponse, LicensePlateEnrichment, VehicleEnrichment, etc.
+- `enrichment.py` - EnrichmentResponse, LicensePlateEnrichment, VehicleEnrichment, etc.
 - `llm_response.py` - LLMRawResponse, LLMRiskResponse, RiskLevel (as LLMRiskLevel)
 - `notification.py` - NotificationChannel, SendNotificationRequest, TestNotificationRequest, etc.
 - `scene_change.py` - SceneChangeResponse, SceneChangeListResponse, SceneChangeType
@@ -1012,20 +1012,19 @@ Pydantic schemas for enrichment API endpoints - structured access to 18+ vision 
 
 **Schemas:**
 
-| Schema                     | Purpose                                           |
-| -------------------------- | ------------------------------------------------- |
-| `LicensePlateEnrichment`   | License plate detection and OCR results           |
-| `FaceEnrichment`           | Face detection results                            |
-| `VehicleEnrichment`        | Vehicle classification results                    |
-| `ClothingEnrichment`       | Clothing classification and segmentation          |
-| `ViolenceEnrichment`       | Violence detection results                        |
-| `WeatherEnrichment`        | Weather classification results                    |
-| `PoseEnrichment`           | Pose estimation results (placeholder)             |
-| `DepthEnrichment`          | Depth estimation results (placeholder)            |
-| `ImageQualityEnrichment`   | Image quality assessment                          |
-| `PetEnrichment`            | Pet classification for false positive reduction   |
-| `EnrichmentResponse`       | Structured enrichment data for a single detection |
-| `EventEnrichmentsResponse` | Enrichment data for all detections in an event    |
+| Schema                   | Purpose                                           |
+| ------------------------ | ------------------------------------------------- |
+| `LicensePlateEnrichment` | License plate detection and OCR results           |
+| `FaceEnrichment`         | Face detection results                            |
+| `VehicleEnrichment`      | Vehicle classification results                    |
+| `ClothingEnrichment`     | Clothing classification and segmentation          |
+| `ViolenceEnrichment`     | Violence detection results                        |
+| `WeatherEnrichment`      | Weather classification results                    |
+| `PoseEnrichment`         | Pose estimation results (placeholder)             |
+| `DepthEnrichment`        | Depth estimation results (placeholder)            |
+| `ImageQualityEnrichment` | Image quality assessment                          |
+| `PetEnrichment`          | Pet classification for false positive reduction   |
+| `EnrichmentResponse`     | Structured enrichment data for a single detection |
 
 ---
 
