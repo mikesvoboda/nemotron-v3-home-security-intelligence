@@ -135,6 +135,7 @@ same way after the owner's `R2b` session.
 ### F3.1 Retire ruled-out features, frontend part
 
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work).
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** none yet.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
@@ -162,6 +163,7 @@ nothing in `frontend/`.
 ### F3.2 Unreachable files and the knip gate
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] **MEASURE** the unreachable production files (236 files, ~71,800 lines at `d6ba78d5`,
       `00 §4.3`). Delete them and the tests that test only them — except files a **complete**
@@ -176,6 +178,7 @@ wires it into CI.)
 ### F3.3 Quarantined tests
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 `vite.config.ts` excludes 16 test files; three are empty.
 
