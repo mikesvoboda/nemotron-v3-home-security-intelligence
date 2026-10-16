@@ -411,7 +411,7 @@ def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict)
     old_ruling, new_ruling = before.get("ruling"), after.get("ruling")
     if old_ruling and new_ruling:
         # Same backfill class as the PR channels, and it costs more here: a false `new BINDING NOW`
-        # wakes EVERY lane onto a ruling already carried out -- the opposite of ruling 40's no-op rule.
+        # wakes EVERY lane onto a ruling already carried out -- the opposite of UR-40's no-op rule.
         # The arrival test runs on the RAW window (`window_ids`), where ~100 shared ids anchor the
         # position; the binding list is then restricted to the records that both bind and sit at a
         # genuinely new position. Two shapes that must still pass: an arrival at the new end, and a
@@ -424,7 +424,7 @@ def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict)
         # old BINDING that aged out and re-enters at the BOTTOM when the newest comment is deleted. It
         # binds now and did not bind last poll (it was not in the window at all), so the naive set
         # diff announces it, and that false line wakes every lane onto a ruling already carried out
-        # (ruling 40: a no-op, not a task). Anchor the position on the RAW window, where ~100 ids are
+        # (UR-40: a no-op, not a task). Anchor the position on the RAW window, where ~100 ids are
         # shared. The pre-position helper is bypassed here because the binding diff is not a plain
         # added-set: the edited-to-bind id is shared, not fresh, yet genuine -- so the gate is a
         # per-cid predicate, not "above the last shared id".
@@ -439,13 +439,18 @@ def diff_lines(prs: Sequence[int], ruling_issue: int, before: dict, after: dict)
             old_set = set(old_ids)
             idx = {cid: i for i, cid in enumerate(new_ids)}
             top_shared = max((idx[c] for c in old_set if c in idx), default=-1)
-            full = new_ruling.get("window_full", False)
+            # Re-entry is possible when EITHER window was truncated: an id that aged out of a FULL
+            # previous window comes back once deletions shrink the window, and a window in hand that
+            # reads SHORT does not prove the previous snapshot held every comment that exists.
+            truncated = new_ruling.get("window_full", False) or old_ruling.get("window_full", False)
 
             def fresh(cid: object) -> bool:
                 if cid in old_bind:
                     return False  # still binding -- not a new event either way
-                if not full:
-                    return True  # short window returned everything: nothing could have backfilled
+                if not truncated:
+                    return True  # neither window truncated: every id that exists was in one poll
+                if top_shared < 0:
+                    return False  # no shared id: position is unprovable, so announce no arrival
                 if cid in old_set:
                     return True  # edited-to-bind: was visible last poll, position rules don't apply
                 return cid in idx and idx[cid] > top_shared  # a window-new id, at the new end
@@ -563,7 +568,7 @@ def _from(login: str | None) -> str:
 
 
 def _genuine_additions(
-    before: Sequence[tuple], after: Sequence[tuple], *, full: bool
+    before: Sequence[tuple], after: Sequence[tuple], *, truncated: bool
 ) -> list[tuple]:
     """Items of ``after`` that are real arrivals, not window bookkeeping. Position, not membership.
 
@@ -575,19 +580,36 @@ def _genuine_additions(
     (a deletion announcing an addition) seen from the other end of the window, on the channel whose
     whole value is that the agent trusts it, and it fires on BOTH channels: a false `new comment`
     for a PR watcher, a false `new BINDING NOW` for every lane on #6854. So position against the
-    shared ids picks the word: strictly above every shared id is a real arrival. On a window SHORTER
-    than the cap every existing item was returned and nothing could backfill, so membership alone
-    decides -- which is what keeps an honest append printing (its shared ids sit below it). The
-    caller must pass `full` from the RAW window length, not a filtered view of it: truncation is a
-    property of the connection, not of how many of its rows matched a body filter.
+    shared ids picks the word: strictly above every shared id is a real arrival.
+
+    Membership alone is sound only when NEITHER window was truncated. The first version of this
+    guard asked only about the window in hand -- "a window shorter than the cap returned every
+    existing item, so nothing could backfill" -- and that is true of the CURRENT poll and false of
+    the comparison being made, because a backfill is judged against the PREVIOUS snapshot: if the
+    previous window was FULL, truncation existed then, and an id that had aged out of it re-enters
+    the moment deletions shrink the window below the cap. Measured at `81057a51b`: seed the full
+    window of a 150-comment PR, then delete the 60 newest -- the shrink answered short and printed
+    50 `new comment` lines for comments older than everything on screen. Hence `truncated` is ORed
+    across BOTH windows, and the caller must derive each side from the RAW window length, not a
+    filtered view: truncation is a property of the connection, not of how many rows matched a
+    filter.
+
+    A truncated window that shares NO id with the previous one has no anchor, and position without
+    an anchor cannot be proved: measured at the same head, two consecutive full windows with zero
+    shared ids (a `last: 100` bulk-deleted on a >200-comment thread) passed every fresh id and
+    printed 100 `new comment` lines with nothing added. There the NEW side says nothing and the
+    vanished side still speaks, so the watcher is never silent about what happened.
     """
     old_ids = {item[0] for item in before}
     new_ids = {item[0] for item in after}
     fresh = [item for item in after if item[0] not in old_ids]
-    if not full:
-        return fresh
+    if not truncated:
+        return fresh  # neither window truncated: every id that exists was in one of the two polls
+    anchor = old_ids & new_ids
+    if not anchor:
+        return []  # nothing shared: position is unprovable, so announce no arrival
     idx = {item[0]: i for i, item in enumerate(after)}
-    top_shared = max((idx[i] for i in (old_ids & new_ids)), default=-1)
+    top_shared = max(idx[i] for i in anchor)
     return [item for item in fresh if idx[item[0]] > top_shared]
 
 
@@ -606,10 +628,17 @@ def _event_lines(
     is not a class either, and the line names it anyway) -- naming what moved beats announcing its
     opposite or hiding the difference behind the word "new".
     """
-    # NEW side -- filtered through the backfill guard (see _genuine_additions), then phrased.
+    # NEW side -- filtered through the backfill guard (see _genuine_additions), then phrased. The
+    # guard's `truncated` flag is the OR of BOTH windows' raw lengths: a backfill is an id that was
+    # absent LAST poll because the window truncated then, so a short window in hand does not prove
+    # the previous snapshot held everything (round five's finding 1).
     lines = [
         f"{prefix}new {noun}{_from(item[1])}"
-        for item in _genuine_additions(before, after, full=len(after) >= EVENT_WINDOW)
+        for item in _genuine_additions(
+            before,
+            after,
+            truncated=len(before) >= EVENT_WINDOW or len(after) >= EVENT_WINDOW,
+        )
     ]
     old_ids = {item[0] for item in before}
     new_ids = {item[0] for item in after}

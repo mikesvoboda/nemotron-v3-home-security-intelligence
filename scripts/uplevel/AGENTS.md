@@ -182,17 +182,21 @@ the way `_state_line` does a reopen — name what moved.
 The same class then appeared at the **other** end of a full window: a comment DELETED at the top edge
 makes `last: 100` back-fill the oldest id it had aged out, and that id is absent from the previous
 poll's set, so the diff announced `new comment from` a comment older than everything on screen — and
-on #6854 a back-filled `new BINDING NOW` re-wakes every lane onto a ruling ruling 40 already made a
+on #6854 a back-filled `new BINDING NOW` re-wakes every lane onto a ruling UR-40 already made a
 no-op. The arrival test is therefore POSITIONAL, not membership: these connections answer
 oldest-first (measured live on #6854), a real arrival sits above every shared id, a backfill re-enters
-below them, and on a window shorter than the cap nothing can backfill so membership alone decides —
-which is what keeps an honest append printing.
+below them. Membership alone decides only when NEITHER window was truncated — the first guard asked
+about the window in hand and missed that a backfill is judged against the PREVIOUS snapshot, so a
+window that shrinks from full to short re-opened the bug (50 false `new comment` lines measured at
+`81057a51b`); truncation is therefore ORed across both windows. A truncated window sharing no id with
+the last one has no anchor and announces no arrival — position it cannot prove, it does not claim —
+while the vanished side still prints, which is what keeps an honest append reporting.
 
-`scripts/test_pr_watch.py` (57 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`scripts/test_pr_watch.py` (61 tests, in ci.yml's anti-rot-gates list) drives one seam —
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
 fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
 starts reading something new fails loudly instead of passing on `{}`.
-`scripts/r193-mutation-campaign.py` reverts 43 properties in a throwaway worktree and fails if any
+`scripts/r193-mutation-campaign.py` reverts 47 properties in a throwaway worktree and fails if any
 survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
 registered in ci.yml — the campaign list holds suites, not drivers.
 

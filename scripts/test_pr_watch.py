@@ -328,6 +328,92 @@ def test_a_backfilled_comment_on_a_full_window_is_not_announced_as_new():
     assert any("missing comment from uC_101" in ln for ln in lines), lines
 
 
+def test_a_full_window_that_shrinks_to_short_reports_no_arrivals():
+    """A window that goes FULL -> SHORT re-opens the backfill bug unless BOTH windows are consulted.
+
+    The guard this replaces asked only about the window in hand: "a window shorter than the cap
+    returned every existing item, so nothing could backfill." That is true of the CURRENT poll and
+    false of the COMPARISON, because a backfill is an id that was absent LAST poll -- and if last
+    poll's window was FULL, truncation existed then, so ids had aged out and are free to re-enter the
+    moment deletions shrink the window below the cap. Measured at `81057a51b` against the shipped
+    `check()`: a 150-comment PR seeded with the full window `C_51..C_150`, then the 60 newest
+    DELETED, so `last: 100` answers all 90 survivors `C_1..C_90` -- and the poll printed 50
+    `new comment from uC_1..` lines for comments older than everything that had been on screen.
+    Nothing was added; 60 comments were deleted. So `truncated` is the OR of both windows' raw
+    lengths. The same measurement on the #6854 channel is the sibling test; each channel keeps its
+    own copy of the predicate and both needed the same repair.
+    """
+    W = watch.EVENT_WINDOW
+    all_ids = [f"C_{i}" for i in range(1, 151)]
+
+    def env(id_list):
+        return envelope(
+            [pr_node(PR, comments=tuple((i, f"u{i}", "routine") for i in id_list))],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: 45 live"},
+        )
+
+    state: dict = {}
+    assert (
+        watch.check(Run(env(all_ids[-W:])), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+        == []
+    ), "the seed poll installs the full window and reports nothing"
+    # The 60 newest are deleted: 90 comments remain, all of them returned, and 50 ids that had aged
+    # out of the full window are back at the BOTTOM of it.
+    lines = watch.check(
+        Run(env(all_ids[:90])), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+    )
+    assert not any("new comment" in ln for ln in lines), (
+        f"a shrink re-enters aged-out ids; none of them is an arrival: {lines}"
+    )
+    assert sum("deleted comment from" in ln for ln in lines) == 60, (
+        f"the deletions are what really happened and still get named: {lines}"
+    )
+    # A genuine arrival AFTER the shrink still prints, which is what stops the fix being a blanket
+    # "short window says nothing" gate.
+    lines = watch.check(
+        Run(env([*all_ids[:90], "C_200"])), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+    )
+    assert [ln for ln in lines if "new comment" in ln] == ["#7168 new comment from uC_200"], lines
+
+
+def test_a_window_turnover_with_no_shared_id_announces_no_arrival():
+    """Two full windows sharing NO id have no anchor, and position without an anchor proves nothing.
+
+    The positional rule compares each fresh id to the highest position shared by the two polls. With
+    zero shared ids the max had no argument and fell back to -1, so EVERY fresh id satisfied
+    `idx > top_shared`: measured at `81057a51b`, a >200-comment PR whose whole `last: 100` window was
+    bulk-deleted answered a full window of ids that had never been seen and printed 100 `new comment`
+    lines -- `new=100 missing=100`, nothing added. An unanchored comparison cannot distinguish an
+    arrival from a re-entry, so the NEW side stays silent and the vanished side still speaks (100
+    `missing comment` lines): the watcher never claims a change it cannot support and is never silent
+    about the half it did observe.
+    """
+    W = watch.EVENT_WINDOW
+
+    def env(id_list):
+        return envelope(
+            [pr_node(PR, comments=tuple((i, f"u{i}", "routine") for i in id_list))],
+            ruling_ids=[1],
+            ruling_bodies={1: "BINDING NOW: 45 live"},
+        )
+
+    before = [f"C_{i}" for i in range(151, 151 + W)]  # a full window of a 250-comment PR
+    after = [f"C_{i}" for i in range(51, 51 + W)]  # disjoint: the 100 newest were bulk-deleted
+    assert len(set(before) & set(after)) == 0, "the scenario needs zero shared ids to mean anything"
+    state: dict = {}
+    assert (
+        watch.check(Run(env(before)), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE) == []
+    )
+    lines = watch.check(Run(env(after)), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+    assert not any("new comment" in ln for ln in lines), (
+        f"an unanchored window cannot prove an arrival: {lines}"
+    )
+    assert sum("missing comment from" in ln for ln in lines) == W, (
+        f"the vanished side is still reported: {lines}"
+    )
+
+
 def test_a_backfilled_binding_on_a_full_ruling_window_is_not_announced_as_new():
     """The same hazard on the #6854 ruling channel, where a false line wakes EVERY lane.
 
@@ -365,6 +451,103 @@ def test_a_backfilled_binding_on_a_full_ruling_window_is_not_announced_as_new():
     assert not any("new BINDING" in ln for ln in lines), (
         f"a back-filled BINDING re-wakes every lane onto a ruling already carried out: {lines}"
     )
+
+
+def test_a_shrinking_ruling_window_re_wakes_no_lane():
+    """The #6854 channel has its own copy of the predicate and needed the same repair.
+
+    The full-window ruling pin above asks whether the window in hand is full; the shrink case shows
+    why that is the wrong question. Measured at `81057a51b` against the shipped `check()`: 100
+    binding comments fill the window, then 40 of the newest are deleted, so the window answers SHORT
+    with every survivor -- and the 40 ids that had aged out of the FULL previous window re-enter at
+    the bottom. The old fast path consulted only the new window, saw it short, concluded "everything
+    that exists was returned", and printed 50 `new BINDING NOW` lines (the fixture re-seeds the whole
+    aged-out block as bindings) -- every one of them a wake for every lane in the repo onto a ruling
+    UR-40 had already made a no-op. The cost here is not a wrong fact but exactly the false wake
+    the digest exists to prevent, which is why this channel gets its own pin rather than a note.
+    """
+    W = watch.EVENT_WINDOW
+    BIND = "BINDING NOW: 12 live"
+    seed = [f"R_{i}" for i in range(51, 151)]  # a FULL window: 100 of a 150-comment issue
+
+    def env(window, binding_ids):
+        return envelope(
+            [pr_node(PR)], ruling_ids=window, ruling_bodies=dict.fromkeys(binding_ids, BIND)
+        )
+
+    state: dict = {}
+    assert (
+        watch.check(
+            Run(env(seed, set(seed))), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+        )
+        == []
+    ), "the seed poll installs the full binding window and stays silent"
+    # 60 newest deleted -> 90 comments exist, all returned (window SHORT), and the 50 ids that aged
+    # out of the full window are back at its bottom, each still carrying its old BINDING.
+    shrunk = [f"R_{i}" for i in range(1, 91)]
+    lines = watch.check(
+        Run(env(shrunk, set(shrunk))), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+    )
+    assert not any("new BINDING" in ln for ln in lines), (
+        f"aged-out rulings re-entering on a shrink are not new rulings: {lines}"
+    )
+    # A ruling that genuinely arrives after the shrink still wakes, so this is not a blanket gate.
+    lines = watch.check(
+        Run(env([*shrunk, "R_999"], {*(set(shrunk) | {"R_999"})})),
+        state,
+        repo=REPO,
+        prs=[PR],
+        ruling_issue=RULING_ISSUE,
+    )
+    assert any("new BINDING NOW (comment R_999" in ln for ln in lines), lines
+
+
+def test_an_anchorless_ruling_window_turnover_wakes_no_lane():
+    """The no-anchor rule needs its own pin on #6854, where the false line is a repo-wide wake.
+
+    The shrink test above shares 40 ids between its two windows, so it never reaches the no-anchor
+    clause -- and the campaign proved that by removing the clause and staying green (`ruling-anchorless-turnover-reads-as-new`
+    ESCAPED with all 60 tests passing). So this scenario is the disjoint one: a FULL binding window,
+    then a FULL window sharing NO id with it (the newest 100 rulings bulk-deleted on a long issue).
+    With no shared id the positional comparison has nothing to compare against, and the old `-1`
+    fallback called every binding an arrival -- 100 `new BINDING NOW` lines, each one waking every
+    lane in the repo onto a ruling no lane has seen and most of them carried out days ago (UR-40).
+    An unanchored window proves nothing, so the channel says nothing; the slide that follows, whose
+    ids ARE shared, proves the silence is about the missing anchor and not about the channel.
+    """
+    W = watch.EVENT_WINDOW
+    BIND = "BINDING NOW: 12 live"
+    seed = [f"R_{i}" for i in range(151, 251)]  # full window of a 250-comment ruling issue
+    after = [f"R_{i}" for i in range(1, 101)]  # disjoint: the newest 100 were bulk-deleted
+
+    def env(window, binding_ids):
+        return envelope(
+            [pr_node(PR)], ruling_ids=window, ruling_bodies=dict.fromkeys(binding_ids, BIND)
+        )
+
+    assert len(set(seed) & set(after)) == 0, "the scenario needs zero shared ids to mean anything"
+    state: dict = {}
+    assert (
+        watch.check(
+            Run(env(seed, set(seed))), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+        )
+        == []
+    )
+    lines = watch.check(
+        Run(env(after, set(after))), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+    )
+    assert not any("new BINDING" in ln for ln in lines), (
+        f"an unanchored ruling window cannot prove a new ruling: {lines}"
+    )
+    # The next poll shares 99 ids, so the same code reports the one genuine arrival.
+    slid = [*after[1:], "R_999"]
+    lines = watch.check(
+        Run(env(slid, set(slid))), state, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE
+    )
+    assert [ln for ln in lines if "new BINDING NOW" in ln], (
+        f"with an anchor, a real arrival wakes lanes again: {lines}"
+    )
+    assert sum("new BINDING NOW" in ln for ln in lines) == 1, lines
 
 
 def test_a_binding_that_arrives_or_was_edited_into_existence_still_prints():

@@ -431,9 +431,13 @@ MUTANTS = [
         "`last: EVENT_WINDOW` window is announced as deleted. On a PR with more comments than the "
         "window one new comment pushes the oldest out of the response -- reproduced against the "
         "shipped check(): window 1..100, then 2..101, printed `#7175 deleted comment from u1` with "
-        "nothing deleted. Kills the both-sides test and the backfill test (whose third assertion "
-        "demands the word `missing` for the vanished newest comment); the pre-existing deletion test "
-        "seeds three comments, below the cap, where the word is earned -- the UR-89 round's finding 5",
+        "nothing deleted. Kills THREE tests at this head (kill-set rendered by the 47-mutant run): the "
+        "both-sides test, the backfill test (whose third assertion demands the word `missing` for the "
+        "vanished newest comment), and the anchorless-turnover test, which leans on this same verdict "
+        "because its whole scenario is a vanished side; the pre-existing deletion test seeds three "
+        "comments, below the cap, where the word is earned -- the UR-89 round's finding 5. At "
+        "`81057a51b` it killed TWO (both-sides + backfill, measured by hand) while #7175's body claimed "
+        "ONE -- true only before the backfill test existed -- which is round five's finding 2",
         [
             (
                 '    verdict = "deleted" if len(after) < EVENT_WINDOW else "missing"',
@@ -466,7 +470,8 @@ MUTANTS = [
         "only the positional clause",
         [
             (
-                "    top_shared = max((idx[i] for i in (old_ids & new_ids)), default=-1)\n"
+                "    idx = {item[0]: i for i, item in enumerate(after)}\n"
+                "    top_shared = max(idx[i] for i in anchor)\n"
                 "    return [item for item in fresh if idx[item[0]] > top_shared]",
                 "    return fresh",
             )
@@ -476,11 +481,13 @@ MUTANTS = [
         "ruling-backfill-reads-as-new",
         "restores the membership diff on the #6854 ruling channel: an old BINDING that BACK-FILLS "
         "into a full window re-prints `new BINDING NOW`, and a false line there wakes EVERY lane onto "
-        "a ruling already carried out -- the direct opposite of ruling 40's no-op rule, on the channel "
-        "every lane in the repo polls. Kills only the ruling backfill test: the edited-to-bind and "
-        "genuine-arrival controls keep printing under the mutation (an arrival is above top_shared by "
-        "definition; an edit is `cid in old_set`, which the mutant never consults), so nothing but the "
-        "false-wake pin dies",
+        "a ruling already carried out -- the direct opposite of UR-40's no-op rule, on the channel "
+        "every lane in the repo polls. Kills TWO tests at this head (kill-set rendered by the "
+        "47-mutant run): the ruling backfill test and the ruling SHRINK test -- the latter because a "
+        "shrink's re-entry is exactly what a membership diff cannot see; at `81057a51b` it killed only "
+        "the backfill test. The edited-to-bind and genuine-arrival controls keep printing under the "
+        "mutation (an arrival is above top_shared by definition; an edit is `cid in old_set`, which "
+        "the mutant never consults)",
         [
             (
                 "                return cid in idx and idx[cid] > top_shared",
@@ -501,6 +508,65 @@ MUTANTS = [
             (
                 '        "comments": [(c[0], c[1]) for c in _comments(node.get("comments"))],',
                 '        "comments": sorted((c[0], c[1]) for c in _comments(node.get("comments"))),',
+            )
+        ],
+    ),
+    (
+        "shrink-consults-current-window-only",
+        "asks only the CURRENT window whether it truncated, which is the round-five finding 1 verbatim: "
+        "`full=len(after) >= EVENT_WINDOW`. A backfill is an id absent from the PREVIOUS snapshot, so a "
+        "window that read SHORT in hand does not prove the last one held every comment that exists -- on "
+        "a FULL -> SHORT shrink the aged-out ids re-enter at the bottom and every one of them passes the "
+        "membership fast path. Reproduced against the shipped check() at 81057a51b: seed the full window "
+        "of a 150-comment PR, delete the 60 newest, the poll printed 50 `new comment` lines for comments "
+        "older than everything on screen. Kills the shrink test on this channel",
+        [
+            (
+                "            truncated=len(before) >= EVENT_WINDOW or len(after) >= EVENT_WINDOW,\n",
+                "            truncated=len(after) >= EVENT_WINDOW,\n",
+            )
+        ],
+    ),
+    (
+        "ruling-shrink-consults-new-window-only",
+        "the same too-narrow question on the #6854 channel, where the false line wakes EVERY lane onto a "
+        "ruling UR-40 already made a no-op: `full = new_ruling[window_full]` alone. Kills the ruling "
+        "shrink test; the edited-to-bind and genuine-arrival controls keep printing under the mutation, "
+        "so nothing but the false-wake pin dies",
+        [
+            (
+                '            truncated = new_ruling.get("window_full", False) or '
+                'old_ruling.get("window_full", False)\n',
+                '            truncated = new_ruling.get("window_full", False)\n',
+            )
+        ],
+    ),
+    (
+        "anchorless-turnover-reads-as-new",
+        "removes the no-anchor guard on the PR channel, restoring the -1 fallback that made an unanchored "
+        "comparison announce everything: two consecutive FULL windows sharing no id (a last:100 bulk-deleted "
+        "on a >200-comment thread) passed every fresh id and printed 100 `new comment` lines with nothing "
+        "added -- measured at 81057a51b as `new=100 missing=100`. Position without a shared id cannot be "
+        "proved, so the new side stays silent and the vanished side still speaks. Kills the turnover test",
+        [
+            (
+                "    anchor = old_ids & new_ids\n"
+                "    if not anchor:\n"
+                "        return []  # nothing shared: position is unprovable, so announce no arrival\n",
+                "    anchor = old_ids & new_ids\n",
+            )
+        ],
+    ),
+    (
+        "ruling-anchorless-turnover-reads-as-new",
+        "removes the same no-anchor guard from the ruling predicate, so an unanchored ruling window "
+        "re-wakes every lane for every binding it can no longer place. Kills only the ruling half that the "
+        "turnover scenario exercises on this channel",
+        [
+            (
+                "                if top_shared < 0:\n"
+                "                    return False  # no shared id: position is unprovable, so announce no arrival\n",
+                "",
             )
         ],
     ),
