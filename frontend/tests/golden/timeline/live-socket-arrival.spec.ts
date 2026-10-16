@@ -1,13 +1,13 @@
 /**
  * FE-3 golden path (F2.3): F-045 — Event Timeline › Live activity section.
  *
- * Row clause (docs/reference/feature-inventory.md:181, status `unverified`):
+ * Row clause (docs/reference/feature-inventory.md:199, status `half-built`):
  *   "sees events arriving over the socket above the historical list; clicks one
  *   to open its detail"
  *
- * Clause 1 is covered. Clause 2 is covered EXCEPT in one form the shipped app
- * cannot do; that form is asserted as a `test.fixme` leg (test 3) and its
- * evidence is in this header — nothing here fakes it or skips it quietly.
+ * Both clause halves are asserted for real in test 1: the socket arrival, and ONE
+ * click on that socket-only card opening its detail. Test 3 holds the same strict
+ * form standalone, skipped at runtime for a measured SUPPLY limit (see CLAUSE 2).
  * Nothing is mocked: ../guard.ts patches route/unroute/routeFromHAR/
  * routeWebSocket to THROW, so every byte below is the live stack's, and each
  * test closes by tripping that guard on purpose.
@@ -77,34 +77,34 @@
  * fetched list does not contain it, so what put it there is the socket.
  *
  * CLAUSE 2 ("clicks one to open its detail") splits, and the split is the
- * finding. The click itself works: the live card is role=button with
- * onClick=handleEventClick (ActivityFeed.tsx:211-219 → :130-134), threaded to
- * EventTimeline.tsx:1104 `setSelectedEventForModal(parseInt(eventId, 10))`.
- * Whether a detail then renders depends on ONE lookup: getModalEvent
- * (EventTimeline.tsx:1060-1064) does
- * `const event = filteredEvents.find((e) => e.id === selectedEventForModal)`
- * then `if (!event) return null`, where filteredEvents is derived from the HTTP
- * infinite query (:174-186, :523), and EventDetailModal returns null with no
- * event (:447-449) although isOpen is already true (:1904-1906) — so
- * `event-detail-modal` (:584) never mounts. TEST 1 therefore asserts BOTH
- * halves on the same row, in the order the app allows: the click of a card the
- * list has never fetched opens NO detail (measured `modal count: 0`), then the
- * page's own camera filter (Show Filters → #camera-filter, :1223/:1264, whose
- * handleFilterChange at :381-388 re-keys the query) brings the row into the
- * list, the selection left pending by that first click renders as the detail,
- * the shipped Close button (EventDetailModal.tsx:640-645 →
- * EventTimeline.tsx:814-815) clears it, and a SECOND click on the SAME live
- * card opens the detail from a click alone. TEST 3 keeps the strict form — one
- * click, no prior selection, no door — as the row's own known-red. The bridge
- * that would close the gap is not in the shipped app: no queryClient reference
- * in useEventStream.ts; the hook that DOES invalidate the events cache,
- * useEventLifecycleWebSocket.ts:259-262, has no consumer outside
- * hooks/index.ts:276 and its own unit test; the events query sets no
- * refetchInterval (useEventsQuery.ts:65-83 builds the factory with none); and
- * the global refetchOnWindowFocus:false (services/queryClient.ts:749) cannot
- * reach this query, because the factory forwards a fixed option list
- * (hooks/useCursorPaginatedQuery.ts:211-231) while the hook itself defaults
- * `refetchOnWindowFocus = true` (:81, forwarded :106).
+ * finding this row was filed for. The click always worked: the live card is
+ * role=button with onClick=handleEventClick (ActivityFeed.tsx:211-219 →
+ * :130-134 → LiveActivitySection.tsx:325 → EventTimeline.tsx:1137). Whether a
+ * detail then rendered depended on ONE lookup: at the base commit 4cefe81e4
+ * getModalEvent (EventTimeline.tsx:1060-1064) did
+ * `filteredEvents.find((e) => e.id === selectedEventForModal)` and returned null
+ * for an id the loaded browse pages do not hold, and EventDetailModal returns
+ * null with no event (:447-449) although isOpen is true, so event-detail-modal
+ * (:584) never mounts. That lookup is repaired here: useEventModalRow (:69)
+ * completes the missing id with GET /api/events/{id} and getModalEvent reads
+ * its row (EventTimeline.tsx:1096-1097). TEST 1 therefore asserts BOTH halves
+ * positively, in the order the app allows: ONE click on a card the list never
+ * fetched opens that row’s detail — the detail-fetch path — then the page's own
+ * camera filter (Show Filters → #camera-filter, :1256/:1297, whose
+ * handleFilterChange at :382-389 re-keys the query) brings the row into the
+ * list, and the SAME live card opens the SAME row again through the browse path.
+ * The shipped Close button (EventDetailModal.tsx:644 →
+ * EventTimeline.tsx:829-837) runs between them, so neither opening is the
+ * other’s residue. TEST 3 keeps the strict form — one click, no filter, no
+ * prior selection — and is skipped at runtime for a measured SUPPLY reason, not
+ * a product one: dropAndAwaitCard (:283) stages these bytes once per run,
+ * because is_duplicate_and_mark (backend/services/dedupe.py:452) marks the
+ * content hash and the watcher skips a duplicate inside the 300 s TTL
+ * (file_watcher.py:871-873) while clear_hash (dedupe.py:496) has no non-test
+ * caller; ruling 233 lands a supply that clears the hash in a follow-up
+ * [r211f] PR. The repair is visible in CI: the old half-one assert read
+ * `Expected: 0, Received: 1` at job 117083054790 of run 38932915995 — the modal
+ * DID open, so the gap this row carried is closed.
  *
  * NOT asserted here, with reasons (UR-128): the pause control and its
  * announcement (LiveActivitySection.tsx:165-211) and the LRU cap /
@@ -426,29 +426,28 @@ test.describe('F-045 Event Timeline live activity section', () => {
     ).toBe(`unverified, verdict Verification failed${notifySuffix}`);
     await expect(card, 'the card shows the server’s summary').toContainText(DEGRADED_SUMMARY);
 
-    /* ---- clause 2, half one: a click with no row in the list opens nothing -- */
+    /* ---- clause 2, half one: ONE click on a socket-only card opens it --------- */
     await expect(modal(page), 'no detail is open before any click').toHaveCount(0);
     await card.click();
-    await page.waitForTimeout(3_000);
     await expect(
-      modal(page),
-      'getModalEvent finds nothing in the fetched list and returns null ' +
-        '(EventTimeline.tsx:1060-1064 + EventDetailModal.tsx:447-449), so the modal never ' +
-        'mounts — the row’s own gap, kept red on purpose by the test.fixme leg below'
-    ).toHaveCount(0);
+      modal(page).filter({ hasText: DEGRADED_SUMMARY }),
+      'a click on a card the fetched list never held opens THAT row’s detail: getModalEvent ' +
+        'now reads useEventModalRow’s row (EventTimeline.tsx:1096-1097 → useEventModalRow.ts:69), ' +
+        'which completes a socket-only id with GET /api/events/{id}. The old assert read ' +
+        '`Expected: 0, Received: 1` at job 117083054790 of run 38932915995.'
+    ).toBeVisible({ timeout: 20_000 });
+    await modal(page).getByTestId('close-modal-button').click();
+    await expect(modal(page), 'the shipped Close button closes it').toHaveCount(0);
 
-    /* ---- clause 2, half two: the shipped filter door, then a real click ---- */
+    /* ---- clause 2, half two: the same one click, row now IN the list ---------- */
     await filterToCamera(page, run.cameraId);
     await expect(
       page.getByTestId(`event-card-${eventId}`),
       'the page’s own camera filter re-keyed the query and the socket row is now in the list'
     ).toBeVisible();
-    // That first click's selection is what renders now, so clear it through the
-    // shipped close path: with no selection the list alone opens nothing, and
-    // the opening judged below is therefore caused by a click.
-    if (await modal(page).count()) {
-      await modal(page).getByTestId('close-modal-button').click();
-    }
+    // Half one's own Close click cleared the selection, so this control proves
+    // the list holding the row opens nothing by itself: the opening judged below
+    // is caused by a click, not by the one above it.
     await expect(
       modal(page),
       'with the selection cleared, the row sitting in the list opens no detail by itself'
@@ -457,12 +456,13 @@ test.describe('F-045 Event Timeline live activity section', () => {
     const liveAgain = liveCard(page, eventId);
     await expect(liveAgain, 'the live card is still on screen under the filter').toHaveCount(1);
     await liveAgain.click();
-    await expect(modal(page), 'clicking the live card opens the event detail').toHaveCount(1);
+    await expect(modal(page), 'the click opens the detail').toHaveCount(1);
     await expect(modal(page), 'the detail is shown').toBeVisible();
-    // The detail is the SAME row the socket announced: its title is the camera's
-    // display name (getModalEvent :1066 → EventDetailModal.tsx:590-595), the
-    // score slot holds the VERDICT chip because riskLevel is null (:540,
-    // :626-637), and the AI Summary paragraph is the server's summary (:883).
+    // Half one took the DETAIL-FETCH path (the row was not in the loaded pages);
+    // this click takes the BROWSE path (it is), and both must land on the SAME
+    // row the socket announced: title from the camera map (getModalEvent :1099 →
+    // EventDetailModal.tsx:593-595), verdict chip because riskLevel is null
+    // (:540, :626-637), and the AI Summary paragraph is the server's (:883).
     await expect(
       page.getByTestId('detection-camera'),
       'the modal is for our camera’s row'
@@ -527,34 +527,34 @@ test.describe('F-045 Event Timeline live activity section', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test.fixme('the strict clause: one click on a socket-only card opens its detail (it does not today)', async ({
+  test.skip('the strict clause: one click on a socket-only card opens its detail — SKIPPED ON SUPPLY, not on the app', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     test.setTimeout(180_000);
-    // The LOOKUP DEFECT this leg measured is REPAIRED, elsewhere: [r211f] (#7210)
-    // added useEventModalRow (useEventModalRow.ts:54), which completes a selection the
-    // loaded browse pages do not hold with GET /api/events/{id}, and getModalEvent
-    // (EventTimeline.tsx:1093) renders that row; ActivityFeed.tsx:212-214 → :130-134 →
-    // LiveActivitySection.tsx:325 → EventTimeline.tsx:1137 is the click chain it serves.
-    // That repair is pinned by useEventModalRow.test.ts, NOT here — this leg cannot run
-    // (below), so `event-detail-modal count: 0` stands only as pre-repair history here.
-    // The leg stays fixme, in this repo's written-but-known-red idiom
-    // (./download-media.spec.ts:748, :1055), for a
-    // different, measured reason: its SUPPLY. dropAndAwaitCard (:283) drops the same
-    // slow-reply bytes test 1 dropped, is_duplicate_and_mark
-    // (backend/services/dedupe.py:452) marks the content hash on the check, and the
-    // watcher skips a duplicate inside the 300 s TTL (file_watcher.py:871-873);
-    // clear_hash (dedupe.py:496) has no non-test caller, so a second drop of those
-    // bytes in the same run reaches skip(true) — Playwright reports skipped, never a
-    // green open. Un-marking needs a supply that clears the hash between drops:
-    // ruling 233 lands that in a follow-up PR titled [r211f] (measurement in #7210
-    // comment 6216489373), and the row flips to awaiting real tier on that PR's run
-    // (it is `half-built` now; this block's pre-repair text said `unverified`, stale
-    // against main). The green half of the clause — same live card, one click,
-    // detail open once the page's own filter has brought the row into the list —
-    // is asserted for real in test 1 above.
+    // SKIPPED, not fixme: this leg's product gap is REPAIRED here, and only its
+    // SUPPLY keeps it out of the run. It was `test.fixme` while the lookup below
+    // was the gap; that repair is [r211f] (#7210) — useEventModalRow
+    // (frontend/src/hooks/useEventModalRow.ts:69) completes a selection the
+    // loaded browse pages do not hold with GET /api/events/{id}, and
+    // getModalEvent (EventTimeline.tsx:1093) renders that row. A fixme would
+    // publish "this would fail", and this head refutes it: the modal DID open on
+    // a socket-only click (`Expected: 0, Received: 1`, job 117083054790).
+    // The remaining bar is measured: the leg drops the same slow-reply bytes
+    // test 1 dropped, is_duplicate_and_mark (backend/services/dedupe.py:452)
+    // marks the content hash on the check, the watcher skips a duplicate inside
+    // the 300 s TTL (backend/services/file_watcher.py:871-873), and clear_hash
+    // (backend/services/dedupe.py:496) has no non-test caller — so
+    // dropAndAwaitCard (:283) would spend its whole 150 s ARRIVAL_BUDGET_MS
+    // (164) inside this leg's 180 s ceiling and report a named skip. Kept
+    // unexecuted for that reason, in the written-for-the-supply idiom
+    // (./download-media.spec.ts:748, :1055 — both barred by supply, not product).
+    // Ruling 233 lands a supply that clears the hash between drops in a
+    // follow-up PR titled [r211f] (measurement in #7210 comment 6216489373);
+    // un-skip it THERE, where it runs and the row flips to awaiting real tier.
+    // Both clause halves are asserted for real in test 1 above — on the
+    // detail-fetch path and on the browse path.
     const h = harness;
     let run: ReturnType<typeof readRun>;
     try {
