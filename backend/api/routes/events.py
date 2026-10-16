@@ -125,13 +125,26 @@ async def _invalidate_events_cache_background(
     This function is designed to be run as a BackgroundTask to reduce
     response latency by deferring non-critical cache invalidation.
 
-    [r223] MEASURE: every cached read whose value derives from the events table
-    must be invalidated together, or the handler that wrote events leaves a
-    stale cached read behind. That is ``events:*`` (list), ``stats:events:*``
-    (stats), ``timeline_summary:*`` (timeline) and ``trends:*`` (hourly/daily
-    trends aggregate events via EventRepository). ``system:stats:latest`` also
+    [r223] MEASURE: four cached reads derive their value from the events table
+    — ``stats:events:*`` (GET /api/events/stats), ``timeline_summary:*``
+    (GET /api/events/timeline-summary), ``trends:*`` (GET /api/summaries/trends,
+    which aggregates events via ``EventRepository``) and ``events:*``. A handler
+    that writes events and invalidates only some of them leaves the rest served
+    stale for their TTL. ``events:*`` is kept as a defensive evict: no route
+    stores that shape today (``list_events`` is not cached), so it deletes zero
+    keys — [r228] established that a live invalidator for an unswept namespace
+    is the bug, but an unswept namespace here costs nothing and the key shape is
+    what a cached list would use if one were added. ``system:stats:latest`` also
     counts events but is written with SHORT_TTL (60 s) — see the [r223] PR's
     census table for the per-read decision.
+
+    SCOPE: this helper is called by the two single-event write paths
+    (``update_event``, ``restore_event``). The four bulk/delete paths
+    (``bulk_create_events``, ``bulk_update_events``, ``bulk_delete_events``,
+    ``delete_event``) still run the legacy two-call pair and so still leave
+    ``timeline_summary:*`` and ``trends:*`` stale for their TTL; widening them is
+    a behaviour change to handlers outside [r223]'s three developer-tool writes,
+    so it is disclosed in the PR rather than done here.
 
     Fail-soft per namespace rather than for the batch: the one-try shape this
     helper had was fine at two calls, but a Redis error on ``events`` would now

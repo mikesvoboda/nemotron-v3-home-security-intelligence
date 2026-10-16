@@ -693,6 +693,16 @@ class CacheService:
         Should be called when new summaries are generated to ensure
         dashboard endpoints return fresh data.
 
+        [r223] MEASURE: the developer-tool handlers call this too, because the
+        three ``summaries:latest/hourly/daily`` keys are not only ``Summary``
+        rows — each handler folds the matching ``Event`` rows into the cached
+        payload (``backend/api/routes/summaries.py`` builds them via
+        ``EventRepository.get_by_ids`` and ``_summary_to_response`` embeds the
+        events). ``clear_seeded_data`` issues ``delete(Event)``, so it rewrites
+        those values and they must be evicted, not left to the 300 s TTL. The
+        sweep also reaches ``summaries:entities`` (entity_recognition route),
+        which the camera FK cascade changes the same way.
+
         Args:
             reason: Reason for invalidation. Use CacheInvalidationReason enum.
                    (default: CacheInvalidationReason.MANUAL)
@@ -722,34 +732,6 @@ class CacheService:
             Number of keys deleted
         """
         return await self.invalidate_pattern("trends:*", reason=reason, cache_type="trends")
-
-    async def invalidate_entities(
-        self,
-        reason: str | CacheInvalidationReason = CacheInvalidationReason.MANUAL,
-    ) -> int:
-        """Invalidate the entity-recognition stats cache entry.
-
-        The route stores the single key ``summaries:entities``
-        (``backend/api/routes/entity_recognition.py``). It lies inside the
-        namespace ``invalidate_summaries`` scans, so a broad summaries purge
-        reaches it too; this narrower invalidator exists because the
-        developer-tool handlers change the ``FaceDetectionEvent`` rows this
-        value derives from — via the camera FK cascade
-        (``face_detection_events.camera_id`` → CASCADE,
-        ``backend/models/face_identity.py:213-215``) — without changing the
-        ``Summary`` rows the other ``summaries:*`` keys hold. Deleting only
-        this key leaves those still-valid narratives cached.
-
-        Args:
-            reason: Reason for invalidation. Use CacheInvalidationReason enum.
-                   (default: CacheInvalidationReason.MANUAL)
-
-        Returns:
-            Number of keys deleted
-        """
-        return await self.invalidate_pattern(
-            "summaries:entities", reason=reason, cache_type="summaries"
-        )
 
     async def exists(self, key: str) -> bool:
         """Check if a cache key exists.

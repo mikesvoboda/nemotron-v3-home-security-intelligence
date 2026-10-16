@@ -1103,29 +1103,6 @@ async def test_invalidate_trends_scans_its_namespace(cache_service, mock_redis_c
     mock_client.scan_iter.assert_called_once_with(match=_stored("trends:*"), count=100)
 
 
-@pytest.mark.asyncio
-async def test_invalidate_entities_deletes_the_single_entities_key(
-    cache_service, mock_redis_client
-):
-    """invalidate_entities targets summaries:entities, not the whole summaries:*.
-
-    The entity route stores one key; the developer tools change its source rows
-    (FaceDetectionEvent) without touching Summary, so this invalidator deletes
-    only that key — broader narratives stay cached.
-    """
-    mock_scan_iter = AsyncMock()
-    mock_scan_iter.__aiter__ = lambda self: self
-    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
-
-    mock_client = MagicMock()
-    mock_client.scan_iter.return_value = mock_scan_iter
-    mock_redis_client._ensure_connected.return_value = mock_client
-
-    await cache_service.invalidate_entities()
-
-    mock_client.scan_iter.assert_called_once_with(match=_stored("summaries:entities"), count=100)
-
-
 def test_infer_cache_type_timeline_summary(cache_service):
     """_infer_cache_type classifies timeline_summary: (the route stores without an
     explicit cache_type, so get/set infer it — before r223 this counted as 'other')."""

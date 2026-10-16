@@ -61,18 +61,19 @@ async def _invalidate_devtool_caches_background(
     in the #7201 census table; every read named there is invalidated here:
 
     - ``cameras:*``            — GET /api/cameras list (the F-197 toast bug)
-    - ``events:*``             — event list reads
+    - ``events:*``             — defensive evict; no route stores this shape today (see census)
     - ``stats:events:*``       — GET /api/events/stats
-    - ``timeline_summary:*``   — GET /api/events/timeline (invalidator added in [r223])
-    - ``trends:*``             — GET /api/trends (invalidator added in [r223])
-    - ``summaries:entities``   — entity stats (FaceDetectionEvent-cascade derived)
+    - ``timeline_summary:*``   — GET /api/events/timeline-summary (invalidator added in [r223])
+    - ``trends:*``             — GET /api/summaries/trends (invalidator added in [r223])
+    - ``summaries:*``          — GET /api/summaries/{latest,hourly,daily} embed Event rows; the
+                                 sweep also carries ``summaries:entities`` (FaceDetectionEvent cascade)
     - ``system:*``             — stats totals count all three tables
 
     Fail-soft per namespace, not for the whole batch: the two-call legacy
     helpers (``cameras.py:132``, ``events.py:120``) wrap all their awaits in one
     try, so a Redis error on the first leaves the second cached. With seven
     namespaces that gap is too wide to ship — a failure on ``events`` would
-    strand ``timeline_summary``/``trends``/entities for their full TTL. Each
+    strand ``timeline_summary``/``trends``/``summaries`` for their full TTL. Each
     namespace is isolated, so a partial Redis outage degrades only the
     namespaces it actually touches.
 
@@ -86,7 +87,7 @@ async def _invalidate_devtool_caches_background(
         ("event_stats", cache.invalidate_event_stats),
         ("timeline_summary", cache.invalidate_timeline_summary),
         ("trends", cache.invalidate_trends),
-        ("entities", cache.invalidate_entities),
+        ("summaries", cache.invalidate_summaries),
         ("system", cache.invalidate_system_status),
     ):
         try:

@@ -34,7 +34,7 @@ CENSUS_INVALIDATORS = (
     "invalidate_event_stats",
     "invalidate_timeline_summary",
     "invalidate_trends",
-    "invalidate_entities",
+    "invalidate_summaries",
     "invalidate_system_status",
 )
 
@@ -259,26 +259,54 @@ class TestEventsHelperCoversEveryEventDerivedRead:
         assert mock_logger.warning.call_count == 1
 
 
-class TestEntitiesAndTrendsAreSeparateNamespaces:
-    """The narrow invalidators do not over-delete the namespaces they neighbour."""
+class TestSummariesNamespaceIsInTheCensus:
+    """`summaries:*` is a cached read the three handlers change, so it is swept.
+
+    [r223] review round 1 found the falsum: `summaries:latest/hourly/daily` are
+    not just `Summary` rows — the routes fold the matching `Event` rows into the
+    cached payload (`summaries.py` `get_by_ids` + `_summary_to_response`). A
+    reviewer mutated `clear_seeded_data` to delete every Event row and the
+    narratives endpoint still served those events for the full 300 s TTL. So the
+    helper must sweep `summaries:*`, and the narrow `summaries:entities` key
+    travels inside that same pattern.
+    """
 
     @pytest.mark.asyncio
-    async def test_invalidate_entities_does_not_sweep_all_summaries(self) -> None:
-        """entities lives inside summaries:* but must be deletable on its own.
+    async def test_helper_sweeps_summaries_so_entities_travels_with_it(self) -> None:
+        from backend.api.routes.admin import _invalidate_devtool_caches_background
 
-        The developer tools change FaceDetectionEvent rows (via the camera FK
-        cascade) without touching Summary, so sweeping summaries:* would evict
-        still-valid narratives on every seed click.
+        cache = _census_cache()
+        await _invalidate_devtool_caches_background(cache)
+
+        cache.invalidate_summaries.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_helper_calls_exactly_the_census_invalidators_once(self) -> None:
+        """One call per namespace: no gap, no double-delete.
+
+        Set equality is the whole claim. `invalidate_summaries` scans
+        `summaries:*`, which contains `summaries:entities`, so a separate
+        entities call next to the sweep would delete the same key twice and
+        double-count it in `keys_cleared`; a missing name would leave a stale
+        namespace. Both show up here.
         """
         from backend.api.routes.admin import _invalidate_devtool_caches_background
 
         cache = _census_cache()
         await _invalidate_devtool_caches_background(cache)
 
-        cache.invalidate_entities.assert_awaited_once()
-        # The broad summaries purge is NOT part of the census — no handler here
-        # changes Summary rows.
-        assert not cache.invalidate_summaries.await_count
+        called = {name for name in CENSUS_INVALIDATORS if getattr(cache, name).await_count == 1}
+        assert called == set(CENSUS_INVALIDATORS), set(CENSUS_INVALIDATORS) - called
+
+    def test_no_orphan_entities_invalidator_on_the_service(self) -> None:
+        """`invalidate_entities` is gone, not merely uncalled.
+
+        Its only caller was the dev-tool helper; once the helper sweeps
+        `summaries:*` the narrow method is an invalidator nothing calls — the
+        same shape [r228] disclosed for `trends:*`. Deleting it keeps the
+        service's public surface equal to its live callers.
+        """
+        assert not hasattr(CacheService, "invalidate_entities")
 
     @pytest.mark.asyncio
     async def test_helper_is_fail_soft_across_the_seven_namespaces(self) -> None:
@@ -311,19 +339,19 @@ class TestManualCacheClearCoversEveryNamespace:
         """Every real namespace invalidator on CacheService.
 
         `invalidate_pattern` is the generic helper every one of them calls, not
-        a namespace. `invalidate_entities` is exempt because its key lives
-        inside `summaries:*`, which `invalidate_summaries` already scans —
-        listing both would double-count the same keys in `keys_cleared`.
+        a namespace, so it is the only exclusion. `invalidate_summaries` scans
+        `summaries:*` (which contains `summaries:entities`), so the manual
+        clear names it once and the entities key travels inside it — no
+        separate invalidator to exempt now that `invalidate_entities` is gone.
         """
         return {
             name
             for name in dir(CacheService)
-            if name.startswith("invalidate_")
-            and name not in ("invalidate_pattern", "invalidate_entities")
+            if name.startswith("invalidate_") and name != "invalidate_pattern"
         }
 
     @pytest.mark.asyncio
-    async def test_clear_cache_names_every_invalidator_but_entities(self) -> None:
+    async def test_clear_cache_names_every_invalidator(self) -> None:
         from backend.api.routes.admin import clear_cache
 
         cache = AsyncMock(spec=CacheService)
@@ -342,9 +370,8 @@ class TestManualCacheClearCoversEveryNamespace:
             response = await clear_cache(http_request=MagicMock(), db=AsyncMock(), _admin=None)
 
         # Set equality is the whole claim: every real invalidator ran, and
-        # nothing else ran (so a `invalidate_foo` added to CacheService without
-        # being wired into the manual clear turns this red, and so does
-        # redundantly listing `invalidate_entities` next to `invalidate_summaries`).
+        # nothing else ran (so an `invalidate_foo` added to CacheService without
+        # being wired into the manual clear turns this red).
         # The isinstance filter is load-bearing: on a spec'd mock the SYNC
         # members are plain MagicMocks whose `.await_count` is an auto-created
         # truthy child, so an unfiltered `getattr(...).await_count` would put
