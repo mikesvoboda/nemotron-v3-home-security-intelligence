@@ -482,7 +482,6 @@ export default function SystemMonitoringPage() {
               </CollapsibleSection>
             </div>
 
-            {/* Queue Metrics - Full width (NEM-3637) */}
             {/* Two-column grid for actionable panels */}
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Circuit Breakers Panel */}

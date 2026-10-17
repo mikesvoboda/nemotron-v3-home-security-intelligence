@@ -1162,7 +1162,7 @@ describe('SystemMonitoringPage (Operations)', () => {
       });
     });
 
-    it('does not render the retired QueueMetricsPanel section (F-136, R2a row 33)', async () => {
+    it('does not render the retired queue-metrics section (F-136, R2a row 33)', async () => {
       render(<SystemMonitoringPage />);
 
       await waitFor(() => {
