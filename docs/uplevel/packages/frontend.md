@@ -541,8 +541,8 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 for the spec's legs. **PR:** #7210, #7225. (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
 - [x] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
-      #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1191` requires search
-      to exclude the soft-deleted row, and `harness.ts:1215`'s `searchTotal` is the live count. In
+      #7187's branch (ruling 221). `frontend/tests/golden/harness.ts:2351` requires search
+      to exclude the soft-deleted row, and `harness.ts:2375`'s `searchTotal` is the live count. In
       `frontend/tests/golden/timeline/timeline-search.spec.ts` the `fx.searchTotal` reads follow,
       `timeline-search.spec.ts:650` reads `false`, `timeline-search.spec.ts:654`'s 404 stays, and
       the `timeline-search.spec.ts:570` leg's defect half takes a live row on search page 2 that the
