@@ -22,6 +22,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -371,6 +372,122 @@ class TestReviewFollowups:
             "the pre snapshot was touched by the out_json alias refusal"
         )
 
+    @pytest.mark.parametrize("which", ["tmp", "pre_side", "model_side", "batch"])
+    @pytest.mark.timeout(60)
+    def test_out_json_that_is_any_computed_write_target_refuses(
+        self, script, model, tmp_path, batch, which
+    ) -> None:
+        """Round-4 finding B1: the alias rationale is general but was instantiated against only the
+
+        TWO artifacts the prose NAMED (target, pre snapshot), while the run depends on FIVE. The rest
+        are what the CODE computes — the temp, both sidecars, and the batch input — and each measured
+        rc 0 on the pre-fix tree, i.e. the code that promises success. Enumerated from
+        ``with_name``/the batch parameter, never from the comments. All four refuse before any write.
+        """
+        work, b = _venue(tmp_path, model, batch, external=True)
+        target = work / "model.onnx"
+        snap = work / "pre" / "model.onnx"
+        pre_side = snap.with_name(snap.name + ".data")
+        model_side = target.with_name(target.name + ".data")
+        dest = {
+            "tmp": script._decomp_tmp(target),
+            "pre_side": pre_side,
+            "model_side": model_side,
+            "batch": b,
+        }[which]
+        shas = {p: script._sha(p) for p in (target, snap, pre_side, model_side, b) if p.exists()}
+        with pytest.raises(SystemExit, match="Point out_json at a separate file"):
+            script.surgery(target, work / "pre", b, dest, want_in=3)
+        for p, sha in shas.items():
+            assert script._sha(p) == sha, f"the {which} refusal touched its own artifact {p.name}"
+        assert not script._decomp_tmp(target).exists(), f"the {which} refusal stranded the temp"
+
+    @pytest.mark.timeout(60)
+    def test_out_json_symlinked_to_the_temp_refuses_even_while_the_link_is_dangling(
+        self, script, model, tmp_path, batch
+    ) -> None:
+        """Round-4 arm C, the reachable instance of the ``resolve()`` lemma's exception.
+
+        A symlink ``S.json -> <model>.decomp.tmp`` that is DANGLING at guard time defeats the stat
+        (``exists()`` False) and resolves to the temp rather than the model, so BOTH old disjuncts
+        were blind to it and the pre-fix tree measured rc 0 with the model replaced by the row. It is
+        caught now only because the temp itself joined the guarded set — the link resolves to the
+        temp, and ``resolve()`` does follow a dangling link. Pinned end-to-end (not by direct call)
+        because the whole point is that this spelling is invisible to the guard's OTHER half.
+        """
+        work, b = _venue(tmp_path, model, batch)
+        target = work / "model.onnx"
+        sha_before = script._sha(target)
+        link = work / "S.json"
+        link.symlink_to(script._decomp_tmp(target).name)  # target does not exist yet: dangling
+        assert not link.exists(), "plant is vacuous: the temp already existed, link not dangling"
+        with pytest.raises(SystemExit, match="decomposed temp"):
+            script.surgery(target, work / "pre", b, link, want_in=3)
+        assert script._sha(target) == sha_before, "the dangling-symlink arm destroyed the target"
+
+    @pytest.mark.timeout(60)
+    def test_an_honest_out_json_inside_the_pre_dir_is_not_refused(
+        self, script, model, tmp_path, batch
+    ) -> None:
+        """Round-4, priced negative: the guard's hazard is IDENTITY with a write target, not
+
+        CONTAINMENT. ``out_json == pre/model.onnx`` is the refusal; a NEW file inside the pre
+        directory is an ordinary staging choice, and refusing it would make the guard overbroad and
+        kill every real venue run. Measured on the pre-fix tree this arm was rc 0 with the baseline
+        intact — the reviewer's refutation, kept as a pin so a later "harden it" pass cannot regress
+        it into a refusal.
+        """
+        work, b = _venue(tmp_path, model, batch)
+        dest = work / "pre" / "row.json"  # inside the pre DIR, not any artifact
+        assert not dest.exists()
+        rc = script.surgery(work / "model.onnx", work / "pre", b, dest, want_in=3)
+        assert rc == 0 and dest.is_file(), "the honest in-pre-dir row was refused or lost"
+
+    @pytest.mark.timeout(120)
+    def test_the_alias_refusal_exits_one_through_the_real_cli_not_zero(
+        self, script, model, tmp_path, batch
+    ) -> None:
+        """Note N3, closed with a measurement instead of a promise: what the VENUE actually sees.
+
+        The alias guards ``raise SystemExit(str)``, and ``main()`` catches only ``Refusal``, so the
+        process exit code is 1 — OUTSIDE the curated ``0/30/31/32`` set. That is not a bug to hide
+        here (31 means "wrong GRAPH"; this is a wrong ARGUMENT, and relabelling invites a retry on a
+        model that was never meant to be touched), but a venue that branches only on the four curated
+        codes cannot NAME this outcome, so the safety property has to be pinned where it counts: the
+        exit status of a real interpreter run, not the in-process exception.
+        Three assertions, the first two load-bearing. (a) ``returncode == 1`` is the value the CLI's
+        own docstring now documents; pinning the STRING (``SystemExit("…").code`` is the message, not
+        1) would be the wrong literal. (b) it is NOT 0 — round-4's finding was an aliasing arm that
+        returned 0 and read as success, and a future edit that routes the guard through a success path
+        would turn THIS red while the direct-call tests above stay green, because they never cross the
+        process boundary. (c) the refusal text reaches stderr, so the exit 1 is THIS refusal's and not
+        some earlier crash.
+        """
+        work, b = _venue(tmp_path, model, batch)
+        # Point --out-json AT the temp the module itself saves to — the round-4 B1(a) shape, spelled
+        # through the shared helper so this plant and the guard can never drift to different names.
+        outj = script._decomp_tmp(work / "model.onnx")
+        assert not outj.exists(), "plant is vacuous: the temp already existed at guard time"
+        r = subprocess.run(  # noqa: S603 - argv is a literal list built from tmp_path, no untrusted input
+            [
+                sys.executable,
+                str(_SCRIPT),
+                str(work / "model.onnx"),
+                str(work / "pre"),
+                str(b),
+                str(outj),
+                "3",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,  # this test asserts the exit code; check=True would raise before the assert
+        )
+        assert r.returncode == 1, (
+            f"the alias refusal exited {r.returncode}, not the documented 1: " + r.stderr[-300:]
+        )
+        assert r.returncode != 0, "an alias guard returned the success code — the round-4 defect"
+        assert "separate file" in r.stderr, f"the refusal did not reach stderr: {r.stderr[-300:]}"
+
     def test_the_alias_predicate_needs_both_of_its_two_halves(self, script, tmp_path) -> None:
         """Round-3 finding 3: ``_aliases`` is ``exists() and _samefile`` OR ``resolve()``, and each
 
@@ -390,6 +507,14 @@ class TestReviewFollowups:
             because the case is unreachable-with-harm, not because the test is weak. It is pinned by
             DIRECT CALL for exactly that reason — the guard is cheap, the alternative is trusting a
             kernel's path semantics to stay unfavourable.
+            SCOPE OF THAT ARGUMENT (round-4): the ENOENT reasoning is specifically about a MISSING
+            PATH COMPONENT. It does NOT extend to a DANGLING SYMLINK, which is the other way
+            ``exists()`` comes back False: ``resolve()`` does not need a symlink's target to exist, so
+            both disjuncts are blind to ``S.json -> <model>.decomp.tmp`` while the write LANDS once
+            the module creates that temp. That is measured, not worried about — see
+            ``test_out_json_symlinked_to_the_temp_refuses_even_while_the_link_is_dangling``. It is
+            caught by the TEMP guard (the link resolves to the temp), not by this half, which is
+            another reason the temp had to join the guarded set.
         (c) NEGATIVE: an honest independent copy must NOT be refused, or the guard is overbroad and
             every real venue run dies at the door.
         """

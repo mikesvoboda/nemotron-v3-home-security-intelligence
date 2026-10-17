@@ -218,9 +218,10 @@ def _samefile(a: Path, b: Path) -> bool:
 
 
 def _aliases(a: Path, b: Path) -> bool:
-    """True when writing to ``a`` would land on ``b`` — by inode OR by path, both required.
+    """True when writing to ``a`` would land on ``b`` — by inode OR by path.
 
-    The two disjuncts cover DISJOINT cases, which is why neither can be dropped:
+    The predicate is a DISJUNCTION (either half alone returns True), but BOTH halves are required in
+    the sense that neither can be deleted: they cover DISJOINT cases, which is why:
 
     * ``_samefile`` is the only one that sees a HARDLINK (two names, one inode). A ``cp -l`` staging
       mistake gives out_json a fresh path resolving elsewhere while sharing the target's inode, so a
@@ -233,6 +234,30 @@ def _aliases(a: Path, b: Path) -> bool:
     fixture, the same reason the cosine guard is pinned at source level).
     """
     return (a.exists() and _samefile(a, b)) or a.resolve() == b.resolve()
+
+
+def _decomp_tmp(model: Path) -> Path:
+    """The sibling path the decomposed graph is saved to before the faithful move (:func:`surgery`).
+
+    ONE function, TWO callers — the alias guard and the save. If the guard and the writer ever
+    spelled this name differently, the guard would protect a file the module never writes and the
+    destruction it exists to stop would come back silently, so the spelling is not allowed to be
+    duplicated. Round-4 finding B1(a) is that hazard made real: with ``out_json`` pointing HERE, the
+    row was written into the temp and ``os.replace`` then promoted the 482 B ROW onto the target
+    under rc 0.
+    """
+    return model.with_name(model.name + ".decomp.tmp")
+
+
+def _sidecar(model: Path) -> Path:
+    """The sidecar path an external-data save leaves beside ``model`` (``model.onnx.data``).
+
+    Same single-spelling rule as :func:`_decomp_tmp`: the guard and the drop-last logic must name one
+    file. A snapshot graph is UNLOADABLE without its sidecar (``External data offset … exceeds file
+    size``), so aliasing the row here destroys the baseline the recheck is made of while leaving the
+    snapshot file itself untouched — the least visible of the B1 shapes.
+    """
+    return model.with_name(model.name + ".data")
 
 
 def _external_initializers(path) -> list:
@@ -298,6 +323,49 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
             f"row destination {outj} IS the pre-surgery snapshot {pre} - the faithfulness row would "
             "overwrite the baseline the recheck compares against, and a gate regression does exactly "
             "that under rc 30. Point out_json at a separate file.")
+    # ---- the rest of the write-target set, enumerated from the CODE, not from the prose (ruling 252,
+    # round-4 finding B1). The clause above instantiates the general rationale - "the row is written
+    # BEFORE the gate check" - against exactly TWO artifacts while this run depends on FIVE. Each arm
+    # below was measured on the pre-fix tree, and each is refused before anything is written:
+    #  * the module's OWN temp. Worst shape: the row is written into tmp, then ``os.replace(tmp,
+    #    model)`` promotes the 482 B ROW onto the target and returns rc 0 - the code that promises
+    #    "faithful, moved into place" - and the row sitting AT model.onnx certifies a sha_after/
+    #    size_after the file it sits in does not have. A FALSE witness, not merely a lost one.
+    #  * the pre snapshot's SIDECAR. The snapshot file survives and is UNLOADABLE without it, so the
+    #    recheck silently loses its baseline; a re-run then misdiagnoses, blaming the DECOMPOSED
+    #    graph for a missing pre sidecar.
+    #  * the target's own sidecar, which the module writes and later unlinks: rc 0 with NO row at all.
+    #  * the batch, the module's INPUT: rc 0 having replaced a 786 KB input with the row, so the
+    #    venue cannot relaunch the same command.
+    # tmp and sidecars are known up front (both are ``with_name`` spellings off the paths already in
+    # hand), so no guard has to move after the first write. The batch is only guardable when it was
+    # handed in as a PATH - an in-memory array aliases nothing.
+    tmp_dest = _decomp_tmp(model)
+    if _aliases(outj, tmp_dest):
+        raise SystemExit(
+            f"row destination {outj} IS the decomposed temp {tmp_dest} the module saves to before the "
+            "move - the row would be written into the temp and then renamed ONTO the target by "
+            "os.replace, returning rc 0 (the code that promises the rewrite was moved into place) "
+            "with a JSON row that certifies a sha_after/size_after it does not have. Point out_json "
+            "at a separate file.")
+    pre_side = _sidecar(pre)
+    if _aliases(outj, pre_side):
+        raise SystemExit(
+            f"row destination {outj} IS the pre-snapshot sidecar {pre_side} - the snapshot graph is "
+            "UNLOADABLE without it (external data), so the row would destroy the baseline the recheck "
+            "loads through while leaving the snapshot file itself looking untouched. Point out_json at "
+            "a separate file.")
+    model_side = _sidecar(model)
+    if _aliases(outj, model_side):
+        raise SystemExit(
+            f"row destination {outj} IS the target's sidecar {model_side} - the module writes and "
+            "then drops that file, so the row would be deleted by the surgery that 'succeeded': rc 0 "
+            "with no witness anywhere. Point out_json at a separate file.")
+    if isinstance(batch, (str, Path)) and _aliases(outj, Path(batch)):
+        raise SystemExit(
+            f"row destination {outj} IS the batch input {batch} - the row would replace the "
+            "transformed bytes this rewrite was measured on, and the venue could not relaunch the "
+            "same command. Point out_json at a separate file.")
     batch = np.load(str(batch)) if isinstance(batch, (str, Path)) else np.asarray(batch)
     # shape[0] < 1 is its own clause because the tuple test below cannot see it: (0,3,256,128) has the
     # right ndim and the right trailing dims, so a ZERO-ROW batch passes the guard whose stated job is
@@ -322,7 +390,7 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     # crashed with a raw rc 1 that main() does not map, AFTER it had already destroyed the input.
     # Save to a sibling temp path, let the recheck embed THAT, and only once it is faithful move it
     # over the target. A failure now leaves the original model.onnx intact and maps to a real code.
-    tmp = model.with_name(model.name + ".decomp.tmp")
+    tmp = _decomp_tmp(model)                         # THE spelling, shared with the guard above
     onnx.save(after, str(tmp))
     decomp = onnx.load(str(tmp))                    # in-memory graph: witness counts, before ORT runs
     ext = _external_initializers(tmp)
@@ -393,7 +461,7 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     # ---- the sidecar, dropped LAST and only if the moved file proves it needs nothing ------------
     # tmp and model share a directory, so the decomposed model's own sidecar (if it has one) is named
     # after model.name and is beside it. ext==0 means the moved file references no sidecar at all.
-    side = model.with_name(model.name + ".data")
+    side = _sidecar(model)                           # THE spelling, shared with the guard above
     if ext:
         print(f"  sidecar KEPT: {len(ext)} external initializer(s) still referenced "
               f"({ext[0]}…). The plans still build; this is a tidiness loss, not a measurement loss.")
@@ -414,7 +482,18 @@ def main(argv=None) -> int:
 
     Exit: 0 ok · 30 the rewrite moved the graph's own function (min cosine under the gate) ·
           31 the graph is not the graph this rewrite was written for (structural refusal) ·
-          32 the decomposed model still needs its sidecar (refused the drop; plans unaffected).
+          32 the decomposed model still needs its sidecar (refused the drop; plans unaffected) ·
+          1  the INVOCATION is wrong, not the graph: bad argv count, or ``out_json`` aliasing one of
+             the artifacts the run writes (target, pre snapshot, the temp, either sidecar, the batch).
+    Two honesty notes on the 1. (a) It is UNMAPPED — only :class:`Refusal` is caught above, and
+    ``raise SystemExit(str)`` becomes exit 1, so this code is not in the curated ``0/30/31/32`` set; a
+    venue that branches ONLY on those four cannot distinguish it, which is exactly why the alias arms
+    must never return 0 (a round-4 finding: an aliasing arm that returned rc 0 read as SUCCESS and
+    certified a witness it did not have). Nonzero is the safety property; the specific number is not.
+    (b) It is deliberately NOT folded into 31, whose contract is "this is the wrong GRAPH" — a
+    mis-pointed ``out_json`` is a wrong ARGUMENT on a right graph, and relabelling it would make a
+    venue retry the surgery on a model it was never meant to touch. A direct call to :func:`surgery`
+    (not via this CLI) sees the same refusals RAISE SystemExit rather than return it.
     """
     argv = list(sys.argv[1:] if argv is None else argv)
     if len(argv) not in (4, 5):
