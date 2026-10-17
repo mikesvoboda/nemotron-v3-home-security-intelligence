@@ -63,7 +63,13 @@ repos:
         # schema validation lives in the compose validation steps, not here, and for
         # prodshape.yml it is test_prodshape_override.py rendering the file through the
         # compose CLI -- a stronger oracle than safe_load, which cannot read the file at all.
-        exclude: (mkdocs\.yml$|^config/docker-compose\.gb300\.yml$|^scripts/uplevel-real-tier/docker-compose\.b14-real\.yml$|^scripts/uplevel/docker-compose\.prodshape\.yml$|^scripts/uplevel/prod-shape-override\.yml$)
+        # [r243] docker-compose.engine-false.yml joins the list for the same reason: dropping
+        # exactly one backend mount is only expressible as a `!override` re-list (a `volumes:`
+        # re-list without the tag CONCATENATES, so the socket survives -- measured), and the
+        # tag is asserted by test_orchestrator_engine_socket.py and rendered by
+        # scripts/r243-render-check.sh on v5.5.1 / v2.38.2 / podman-compose 1.6.0. prod.yml
+        # stays guarded: its two `!override` mentions are comment text, not tags.
+        exclude: (mkdocs\.yml$|^config/docker-compose\.gb300\.yml$|^scripts/uplevel-real-tier/docker-compose\.b14-real\.yml$|^scripts/uplevel/docker-compose\.prodshape\.yml$|^scripts/uplevel/prod-shape-override\.yml$|^docker-compose\.engine-false\.yml$)
       - id: check-json
         exclude: tsconfig.*\.json$
       - id: check-added-large-files

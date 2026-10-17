@@ -223,6 +223,118 @@ class TestPipelineMode:
             _ = config.pipeline_mode
 
 
+class TestEngineOverlayArgs:
+    """[r243] The orchestrator-OFF overlay selector (ruling 243, #7222)."""
+
+    OVERLAY = "docker-compose.engine-false.yml"
+
+    def _args(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **env: str) -> list[str]:
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.delenv("ORCHESTRATOR_ENABLED", raising=False)
+        config = DeployConfig(project_root=tmp_path, env=dict(env))
+        return config.engine_overlay_args
+
+    def test_off_adds_the_overlay_as_a_second_dash_f(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The one value that selects it, exactly as compose's own marker filename
+        spells it: `-f <project_root>/docker-compose.engine-false.yml`."""
+        args = self._args(tmp_path, monkeypatch, ORCHESTRATOR_ENABLED="false")
+        assert args == ["-f", str(tmp_path / self.OVERLAY)]
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("true", id="on-canonical"),
+            pytest.param("TRUE", id="on-upper"),
+            pytest.param("False", id="false-capitalized"),
+            pytest.param(" false", id="false-padded"),
+            pytest.param("FALSE", id="false-upper"),
+            pytest.param("0", id="digit-zero"),
+            pytest.param("no", id="no-word"),
+            pytest.param("off", id="off-word"),
+            pytest.param("", id="empty"),
+        ],
+    )
+    def test_every_other_spelling_adds_nothing(
+        self, value: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """TWO-SIDED, like the marker it mirrors. Canonical `true` and unset are
+        compose's ON (socket mounted, no overlay). Every spelling OUTSIDE the
+        canonical pair must add nothing here -- including ones pydantic reads as
+        False (`False`, ` false`, `0`, `no`, `off`) -- because prod.yml's marker
+        include has no file for them: the render must die with "no such file"
+        (ruling 186's loud failure, scripts/test_orchestrator_engine_socket.py
+        pins rc!=0). If this property lowercased or stripped, deploy would pick
+        OFF for a value compose would have rejected: the split-vocabulary hazard
+        setup_lib/core.py:85-117 names, in the one place it must not exist.
+        """
+        assert self._args(tmp_path, monkeypatch, ORCHESTRATOR_ENABLED=value) == []
+
+    def test_env_file_value_wins_over_shell(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Same precedence compose_run hands compose ({**.environ, **config.env})."""
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.setenv("ORCHESTRATOR_ENABLED", "false")
+        on = DeployConfig(project_root=tmp_path, env={"ORCHESTRATOR_ENABLED": "true"})
+        assert on.engine_overlay_args == []
+        monkeypatch.setenv("ORCHESTRATOR_ENABLED", "true")
+        off = DeployConfig(project_root=tmp_path, env={"ORCHESTRATOR_ENABLED": "false"})
+        assert off.engine_overlay_args == ["-f", str(tmp_path / self.OVERLAY)]
+
+    def test_non_prod_compose_files_never_carry_the_overlay(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The overlay re-lists PROD's backend volumes; docker-compose.test.yml's
+        backend has no prod mounts (parser-verified: the service is absent in the
+        test file, volume-less in the CI file), so `!override` there would replace
+        the wrong document's volume list."""
+        from setup_lib.deploy import DeployConfig
+
+        for compose_file in ("docker-compose.test.yml", "docker-compose.ci.yml"):
+            config = DeployConfig(
+                project_root=tmp_path,
+                compose_file=compose_file,
+                env={"ORCHESTRATOR_ENABLED": "false"},
+            )
+            assert config.engine_overlay_args == [], compose_file
+
+    def test_compose_run_puts_the_overlay_before_the_subcommand(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """argv shape: the overlay sits with the other `-f`, before the subcommand
+        (`compose -f prod -f overlay up -d`). Both shipped boot CLIs take global
+        file flags ahead of the verb -- that is where the existing single `-f`
+        already sits; this pins the new one beside it so a future refactor cannot
+        slide it after `up` and change which layer reads it."""
+        from setup_lib.deploy import DeployConfig, compose_run
+
+        monkeypatch.delenv("ORCHESTRATOR_ENABLED", raising=False)
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"ORCHESTRATOR_ENABLED": "false"},
+        )
+        with patch("subprocess.run", autospec=True) as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
+            compose_run(config, "up", "-d")
+        argv = mock_run.call_args[0][0]
+        assert argv[:6] == [
+            "podman",
+            "compose",
+            "-f",
+            str(tmp_path / "docker-compose.prod.yml"),
+            "-f",
+            str(tmp_path / self.OVERLAY),
+        ], argv
+        assert argv[6:] == ["up", "-d"], argv
+
+
 class TestDeployResult:
     """Tests for DeployResult dataclass."""
 

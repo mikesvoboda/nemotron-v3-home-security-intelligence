@@ -1051,19 +1051,19 @@ pytest_skip_imperative:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:557
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: git not available
-  - id: backend/tests/security/test_docker_compose_security.py:567
+  - id: backend/tests/security/test_docker_compose_security.py:61
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:61
+  - id: backend/tests/security/test_docker_compose_security.py:625
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: git not available
+  - id: backend/tests/security/test_docker_compose_security.py:635
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL

@@ -40,20 +40,27 @@
 #   - GPU_LLM: GPU for the ai-vlm serve (default: 0)
 #   - GPU_AI_SERVICES: GPU for AI Gateway / Triton (default: 1)
 
-# [r162] The engine socket follows the orchestrator setting (owner ruling 186,
-# 6181436641). Compose has no conditional volume item, so the condition lives
-# in the included FILENAME: the fragment named here mounts
-# ${PODMAN_SOCKET:?…}:/var/run/podman/podman.sock into `backend` when
-# ORCHESTRATOR_ENABLED resolves to `true` (or is unset — the app's default is
-# ON, `backend/core/config.py`), and mounts nothing when it is `false`. Two
-# fragments ship: `docker-compose.engine-true.yml` and
-# `docker-compose.engine-false.yml`. A spelling pydantic accepts but the
-# filename cannot (`1`, `yes`, `on`, …) fails the render loudly with
-# "no such file" rather than booting the wrong shape. The `:-true` default is
-# deliberate: prod.yml is the deployment contract, and the live host must keep
-# its socket if an env file omits the variable.
+# [r162 → r243] The engine socket follows the orchestrator setting (owner
+# rulings 186, 6181436641, and 243, 6222454848). Compose has no conditional
+# volume item, and the nightly's compose v2.38.2 rejects ANY `include:` that
+# redeclares a service (`services.backend conflicts with imported resource`),
+# so the MOUNT now lives inline in `backend` below and the condition splits in
+# two, both measured on v5.5.1, v2.38.2 and podman-compose 1.6.0 (#7222):
+#   * the LOUD FAILURE stays in a filename — the two files included here are
+#     SERVICE-FREE markers (they declare no service, so 2.38.2's conflict rule
+#     never fires), and their names still interpolate the flag: a spelling
+#     pydantic accepts but no marker carries (`1`, `yes`, `False`, …) fails the
+#     render with "no such file" instead of booting a shape nobody wrote down.
+#   * the MOUNT itself drops out through an overlay the deploy tooling selects
+#     as a second `-f`: `docker-compose.engine-false.yml` re-lists backend's
+#     volumes `!override`, without the socket. The tooling adds it when the
+#     flag is exactly `false` (setup_lib/deploy.py); a hand-booted OFF
+#     deployment passes the same `-f` itself (docs/operator/deployment/README.md).
+# The `:-true` default is deliberate and unchanged (ruling 243 item 1): prod.yml
+# is the deployment contract, and the live host must keep its socket if an env
+# file omits the variable — unset includes marker-true and mounts the socket.
 include:
-  - docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml
+  - docker-compose.marker-${ORCHESTRATOR_ENABLED:-true}.yml
 
 services:
   postgres:
@@ -483,10 +490,16 @@ services:
       # HF_HOME in environment points here so HF_HUB_OFFLINE=1 can serve models
       # without network access.
       - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/models/huggingface-cache:ro
-      # Podman socket for container orchestrator auto-recovery (NEM-4xxx) is
-      # NOT mounted here: it moved to docker-compose.engine-true.yml, which the
-      # top-level `include:` selects by ORCHESTRATOR_ENABLED ([r162], ruling 186).
-      # The base keeps every other mount; the fragment merges into this service.
+      # Podman socket for container orchestrator auto-recovery (NEM-4xxx).
+      # [r243] back inline: the [r162] shape put it in docker-compose.engine-true.yml
+      # behind an interpolated `include:`, and compose v2.38.2 (the nightly runner)
+      # refuses ANY included redeclaration of services.backend. The OFF state now
+      # drops this one mount with a `!override` re-list overlay
+      # (docker-compose.engine-false.yml) that the deploy tooling selects as a
+      # second `-f` — see the top of this file. Keep this list and that overlay's
+      # in lockstep; scripts/test_orchestrator_engine_socket.py fails a drift in
+      # either direction by comparing the two renders' backend target SETS.
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:/var/run/podman/podman.sock
       # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
