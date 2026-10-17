@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -201,6 +202,41 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _samefile(a: Path, b: Path) -> bool:
+    """True when two paths are the SAME file, not merely paths that look alike.
+
+    Identity is (st_dev, st_ino), not ``a.resolve() == b.resolve()``: a resolve-comparison misses a
+    hardlink (two names, one inode — what a ``cp -l`` or a mistaken pre-dir leaves behind), while an
+    inode check catches it and a symlink as well, yet still lets an honest copy (different inode)
+    through. FileNotFoundError-safe: a missing path is simply ``not the same file``.
+    """
+    try:
+        sa, sb = a.stat(), b.stat()
+    except OSError:
+        return False
+    return sa.st_dev == sb.st_dev and sa.st_ino == sb.st_ino
+
+
+def _external_initializers(path) -> list:
+    """Names of initializers the saved file still needs from a sidecar.
+
+    Loaded with ``load_external_data=False`` ON PURPOSE. ``onnx.load()`` INLINES external data and
+    clears ``data_location`` — the module's own opening insight — so a plain load reports ZERO
+    EXTERNAL initializers for every file and this instrument would read 0 by construction. Only the
+    non-inlining load can see what the saved model actually references, which is the difference
+    between a measurement and a tautology.
+
+    Scope, stated exactly: this makes the INSTRUMENT able to see external data; it does not make exit
+    32 a routine outcome. ``onnx.save`` writes the graph self-contained, so on the plain-save path the
+    honest answer is 0 and the sidecar is genuinely droppable (measured: a fixture saved with
+    ``save_as_external_data`` reports EXTERNAL under this probe, the same graph saved plainly reports
+    nothing). 32 stays the documented code for a save path that externalizes — reserved, not dead.
+    """
+    m = onnx.load(str(path), load_external_data=False)
+    return [i.name for i in m.graph.initializer
+            if i.HasField("data_location") and i.data_location == onnx.TensorProto.EXTERNAL]
+
+
 def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     """Rewrite ``model_path`` in place and write the faithfulness row to ``out_json``.
 
@@ -214,6 +250,13 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     if not pre.is_file():
         raise SystemExit(f"no pre-surgery snapshot at {pre} (the layout is a DIRECTORY: model.onnx + "
                          "model.onnx.data) - cannot print a faithful row")
+    if _samefile(pre, model):
+        raise SystemExit(
+            f"pre-surgery snapshot {pre} IS the surgery target {model} (same inode). The module's own "
+            "opening rule: a file compared against itself scores 1.0 by construction and certifies "
+            "nothing — a pre-dir that is the export's own directory turns the recheck into that "
+            "tautology AND the in-place save overwrites the snapshot before it is read. Stage the "
+            "snapshot in a separate directory before re-running.")
     batch = np.load(str(batch)) if isinstance(batch, (str, Path)) else np.asarray(batch)
     if batch.ndim != 4 or batch.shape[1:] != (3, 256, 128):
         raise SystemExit(f"batch {batch.shape} is not (N,3,256,128) - refusing to feed the graphs a "
@@ -227,24 +270,50 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     if _count_in(after) != 0:
         raise SystemExit(f"{_count_in(after)} IN nodes survived the rewrite")
     onnx.checker.check_model(after)
-    onnx.save(after, str(model))                    # in place: the plans are built from THIS file
+    # VERIFY-BEFORE-MOVE. The ORT load is this module's chosen authority (docstring: the checker
+    # passed a graph ORT refused), yet the old sequence saved IN PLACE first and only then embedded —
+    # so an ORT-refusable graph (a rank-3 IN input: legal ONNX, but the rewrite hardcodes axes=[2,3])
+    # crashed with a raw rc 1 that main() does not map, AFTER it had already destroyed the input.
+    # Save to a sibling temp path, let the recheck embed THAT, and only once it is faithful move it
+    # over the target. A failure now leaves the original model.onnx intact and maps to a real code.
+    tmp = model.with_name(model.name + ".decomp.tmp")
+    onnx.save(after, str(tmp))
+    decomp = onnx.load(str(tmp))                    # in-memory graph: witness counts, before ORT runs
+    ext = _external_initializers(tmp)
 
-    decomp = onnx.load(str(model))
-    ext = [i.name for i in decomp.graph.initializer
-           if i.HasField("data_location") and i.data_location == onnx.TensorProto.EXTERNAL]
-
-    # ---- the recheck row, BEFORE the sidecar is touched and BEFORE any build ------------------
-    a = embed(pre, batch)                            # ORIGINAL graph, its sidecar still beside it
-    b = embed(model, batch)                          # DECOMPOSED graph, the bytes the builder sees
+    # ---- the recheck row, BEFORE the target is overwritten and BEFORE the sidecar is touched ----
+    # embed() of the decomposed temp is this module's CHOSEN AUTHORITY (the docstring: the checker
+    # passed a graph ORT refused). It runs here, before any move, so a graph ORT will not load — a
+    # rank-3 IN input, say — is caught as a refusal that leaves the original model.onnx untouched, and
+    # NOT as a raw crash after the target is already gone. The exception class is picked by its module,
+    # not its name: ORT raises Fail / InvalidGraph / InvalidArgument, all under this module, with no
+    # shared base, so a single-name catch would let the float-axes (InvalidGraph) case slip past.
+    try:
+        a = embed(pre, batch)                        # ORIGINAL graph, its sidecar still beside it
+        b = embed(tmp, batch)                        # DECOMPOSED graph, the bytes the builder sees
+    except Exception as exc:                         # noqa: BLE001 - module-filtered, not blanket
+        tmp.unlink(missing_ok=True)
+        if type(exc).__module__ != "onnxruntime.capi.onnxruntime_pybind11_state":
+            raise                                    # not an ORT load error: do not mislabel it 31
+        raise Refusal(f"the decomposed graph loaded by onnx.checker is REFUSED by onnxruntime at load "
+                      f"({type(exc).__name__}: {exc}). The checker is not the authority; the ORT load "
+                      "is. The original model.onnx was left untouched (nothing was moved into place).")
     cos = cosine_rows(a, b)
+    if not all(bool(np.isfinite(x)) and x >= 0.0 for x in cos):
+        tmp.unlink(missing_ok=True)
+        raise SystemExit(f"cosine row is not interpretable: {[float(x) for x in cos]} contains a "
+                         "non-finite or negative value. A degenerate embedding row (0/0) reads as a "
+                         "PASS to a row[0]-only guard; nothing may be built from an unmeasured graph.")
+    # the row describes the DECOMPOSED file, which is tmp until the faithful move renames it onto the
+    # target; sha_after/size_after must therefore be measured on tmp, not on model (still pristine).
     row = {
         "n": int(cos.size), "min": float(cos.min()), "mean": float(cos.mean()),
         "max_abs_delta": float(np.abs(a - b).max()),
         "witness": {"replaced": n, "nodes_before": nodes_before,
                     "nodes_after": len(decomp.graph.node), "ir_version": decomp.ir_version,
                     "opset": _opset(decomp), "superseded_inits": superseded(before, decomp)},
-        "sha_before": sha_before, "sha_after": _sha(model),
-        "size_before": size_before, "size_after": model.stat().st_size,
+        "sha_before": sha_before, "sha_after": _sha(tmp),
+        "size_before": size_before, "size_after": tmp.stat().st_size,
         "external_left": len(ext), "gate": GATE, "cos": [float(x) for x in cos],
     }
     Path(out_json).write_text(json.dumps(row))
@@ -255,14 +324,17 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
           f"{row['sha_after'][:12]}… · external initializers left: {len(ext)}")
     print(f"  recheck (ORIGINAL vs DECOMPOSED, ORT CPU, {row['n']} rows): min {row['min']:.8f} "
           f"mean {row['mean']:.8f} max|Δ| {row['max_abs_delta']:.3e}  gate {GATE}")
-    if not row["cos"][0] >= 0.0:
-        raise SystemExit("cosine row is not interpretable (NaN)")
     if row["min"] < GATE:
+        tmp.unlink(missing_ok=True)                  # unfaithful: the target stays pristine
         print(f"  THE SURGERY BROKE FAITHFULNESS at min {row['min']:.8f} < {GATE}. The plans must NOT "
               "be built from this graph; nothing downstream may be read.")
         return 30
 
-    # ---- the sidecar, dropped LAST and only if the saved file proves it needs nothing ---------
+    # ---- the graph is faithful and ORT-loadable: only NOW does the target change ----------------
+    os.replace(str(tmp), str(model))                 # atomic: the plans are built from THIS file
+    # ---- the sidecar, dropped LAST and only if the moved file proves it needs nothing ------------
+    # tmp and model share a directory, so the decomposed model's own sidecar (if it has one) is named
+    # after model.name and is beside it. ext==0 means the moved file references no sidecar at all.
     side = model.with_name(model.name + ".data")
     if ext:
         print(f"  sidecar KEPT: {len(ext)} external initializer(s) still referenced "
