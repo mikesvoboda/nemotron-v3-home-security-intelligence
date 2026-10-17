@@ -325,3 +325,30 @@ stale known entry, or a title naming no such row), 2 an input could not be read,
 The inventory's rows are parsed with `scripts/check-inventory-summary-arith.py`'s table helpers,
 loaded by path. Tests: `scripts/test_inventory_witness.py` (fixture inventories, summaries, known
 lists and spec trees).
+
+### grounds_sweep.py
+
+The inventory's grounds census, hand-run (`[r231b]`, ruling 231; committed at `[r231b]`'s round-2
+review). `uv run python scripts/uplevel/grounds_sweep.py [--root REPO]
+[--inventory PATH]` counts the full-path coordinates inside §1's EXCLUSION region (from the line
+carrying "Not listed, with the reason." to `## 2.`) — its grounds — then reports every §3 row that
+cites a ground the exclusion prose never names (an UNNAMED citer: a placed line doing placement
+work nothing above it admits). It prints the region window, the ground and shorthand counts, the
+unnamed list, and five standing controls.
+
+Two shape decisions, each the reason a plausible version is wrong. Grounds are read ONLY over the
+exclusion region: §1's intro and membership evidence above it also carry full-path cites, and
+counting those inflates the figure and re-indicts rows the intro legitimately places. And a bare
+`:NNN` binds to the last full path in the same joined-cell stream at BOTH ends — grounds and rows
+— so a row citing `:452` after `household_matcher.py:452` counts at the resolved pair instead of
+silently dropping out of the census. Range cites key on their START line at both ends, so identity
+is `file.py:START`.
+
+The controls are the point, not decoration: one TRUE ground with its one citer plus four non-grounds
+with their §3 citers. A parser that stops parsing prints the controls WRONG before it prints a
+comfortable 31/0, so compare them against the values the package block records rather than admiring
+the headline. Refusals exit 2 naming the missing anchor or unreadable file (never `sys.exit(str)`,
+which exits 1 and reads as "ran, found problems"); a clean run exits 0 even with unnamed citers,
+because reporting is the reader's call, not the script's verdict. Hand-run by design and not wired
+into ci.yml — `docs/reference` sits outside the citation gate's five scanned dirs — the same footing
+as `r193-mutation-campaign.py` above.

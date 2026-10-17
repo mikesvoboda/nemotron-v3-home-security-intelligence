@@ -298,7 +298,9 @@ claim, review comment `6236622758` on #7235, dispositioned there as this package
       This block names every cite in the split form (closing backtick BEFORE the colon, as above):
       `INLINE_CITATION_PATTERN` matches only a `file.ext:NNN` wholly inside one code span, so the
       block cannot re-grow the class it fixes — and if a later re-wrap merges those spans, the
-      ERR set this Done when reads is what makes that loud.
+      ERR set this Done when reads is what makes that loud. The instrument is HAND-RUN: this file
+      sits outside the citation gate's five scanned dirs (`ci.yml`:392), so the ERR set speaks when
+      the next review re-runs it — which UR-91 obliges on every new head.
       Done at `a49f24bc7`; #7237's Evidence carries the three instrument outputs.
 - [x] §1's fourth boundary names the two residuals its own bullet left open (reviewer note 3):
       **F-022** (its evidence names tiered `GET /api/system/health/websocket` through the
@@ -307,12 +309,15 @@ claim, review comment `6236622758` on #7235, dispositioned there as this package
       prose-only — the ground stays route+symbol, so the reverse sweep's obligation is unchanged:
       grounds re-run reads **31 grounds, 0 unnamed** with controls green, and the bullet's class
       count moves from eleven named to thirteen.
-      Done at `a49f24bc7`; the sweep re-printed 31/0 there and the F-022 row's route-tier claim
+      Done at `a49f24bc7`; the sweep re-printed 31/0 there. Round 2 blocked this clause while its
+      only carrier sat in `/tmp` — contract rule 3 — and the instrument now lives at
+      `scripts/uplevel/grounds_sweep.py`, re-printing 31/10/0 + the five controls identical to the
+      copy it replaced (modulo its path header line). The F-022 row's route-tier claim
       re-verified at the `@router.get` decorator of `GET /health/websocket` in
       `backend/api/routes/system.py` (`RateLimitTier.DEFAULT`) — symbol-anchored, deliberately no
       line number: this cluster is the repo's known ~11-line cite-drift family (the F-022 row's own
       `:1626` is already stale), so a fresh coordinate here would age the same way.
 
-**Done when:** the validator reads 3 ERRs on `packages/docs.md` (not 6), the grounds sweep still
-foots at 31/0 with F-022 and F-140 named in the fourth boundary, and prettier is clean on both
-files.
+**Done when:** the validator reads 3 ERRs on `packages/docs.md` (not 6), the grounds sweep
+(`scripts/uplevel/grounds_sweep.py`, committed) still foots at 31/0 with F-022 and F-140 named in
+the fourth boundary, and prettier is clean on both files.
