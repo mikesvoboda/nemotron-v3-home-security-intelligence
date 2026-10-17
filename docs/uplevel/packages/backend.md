@@ -83,7 +83,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 **Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7232.
+`B2.3` (ruling 241). **PR:** #7233.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 

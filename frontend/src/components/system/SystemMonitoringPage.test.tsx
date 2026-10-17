@@ -1161,6 +1161,17 @@ describe('SystemMonitoringPage (Operations)', () => {
         expect(screen.getByTestId('prometheus-monitoring-panel')).toBeInTheDocument();
       });
     });
+
+    it('does not render the retired QueueMetricsPanel section (F-136, R2a row 33)', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('operations-page')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('queue-metrics-section')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('queue-metrics-panel-section')).not.toBeInTheDocument();
+    });
   });
 
   // Note: Cleanup Preview integration tests have been moved to FileOperationsPanel.test.tsx
