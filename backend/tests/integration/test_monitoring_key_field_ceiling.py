@@ -435,7 +435,7 @@ class TestRecommendationsSuggestionCeiling:
     """[r244] ruling 244: `/api/ai-audit/recommendations` clamps `suggestion` for the grant.
 
     Same ceiling, one route over, because the leak is the same class of text.
-    This path is in MONITORING_SCOPE_PATHS (core/constants.py:325) so Grafana's
+    This path is in MONITORING_SCOPE_PATHS (core/constants.py:323) so Grafana's
     `Backend-API` datasource calls it with the monitoring key, and each item
     carries `suggestion` — the audit's free-text advice about the PROMPT, which
     is what ruling 95's "admit only the fields it reads" withholds from a
@@ -538,10 +538,12 @@ class TestRecommendationsSuggestionCeiling:
         """A cookie does not launder a scoped key.
 
         The ceiling keys on the PRESENTED KEY (auth.py:250), and a request can
-        carry both credentials — test_api_key_scopes.py:535 pins that the key
-        wins for admission, so the narrower reading has to hold for the clamp
-        too or a monitoring deployment that also holds a session would read the
-        prose back. This is the leg that stops the clamp being written as
+        carry both credentials. Admission is the wrong witness for the clamp:
+        test_api_key_scopes.py:546 pins that beside a valid cookie a scoped key
+        'cast[s] no vote' and the cookie serves, so admission keys on the cookie
+        here. The ceiling deliberately keys on the key instead — the narrower
+        reading — so a monitoring deployment that also holds a session cannot
+        read the prose back through the cookie leg. This is the leg that stops the clamp being written as
         "cookie present -> serve prose".
         """
         await _seed_audit("r244_cookie_key")
