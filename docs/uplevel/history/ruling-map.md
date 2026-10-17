@@ -264,6 +264,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 249    | UR-98: a plain `B3.1`/`F3.1` retirement is lane-tier (record 6224222541)                                    |
 | 250    | UR-89, UR-91: from round 2 only blocking findings change the head (record 6224354057)                       |
 | 251    | package `[r251]`: the inventory's §2 is computed, not stored; owner PR (record 6224408012)                  |
+| 252    | package `[r252]`: re-ID's ONNX→TensorRT plan-build root cause, ahead of B2.3 (record 6235589555)            |
 
 ## Owner records
 
