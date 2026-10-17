@@ -466,13 +466,13 @@ becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 
 key only the fields its consumer reads, and Grafana's panel shows `$.recommendations[*].suggestion`
 through that key (`monitoring/grafana/dashboards/consolidated.json:5934`).
 
-- [ ] A monitoring-scoped key gets `suggestion: null`, through the `scoped_key_ceiling` posture
+- [x] A monitoring-scoped key gets `suggestion: null`, through the `scoped_key_ceiling` posture
       #7135 takes. A session cookie and an unscoped key still get the prose.
-- [ ] `RecommendationItem.suggestion` becomes `str | None` in the same commit, and
+- [x] `RecommendationItem.suggestion` becomes `str | None` in the same commit, and
       `docs/openapi.json` and `frontend/src/types/generated/api.ts` are regenerated in it.
-- [ ] The panel labels its rows by `category` and `priority`, not by `suggestion`
+- [x] The panel labels its rows by `category` and `priority`, not by `suggestion`
       (`consolidated.json:5934`), as a cross-lane part (UR-9) that ops reviews.
-- [ ] Tests: the clamp is red on the unclamped handler, a leg is red if the schema flip is omitted,
+- [x] Tests: the clamp is red on the unclamped handler, a leg is red if the schema flip is omitted,
       and both postures are checked (the monitoring key nulled; a cookie and an unscoped key get
       the prose).
 
