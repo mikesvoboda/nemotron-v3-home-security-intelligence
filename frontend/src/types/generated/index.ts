@@ -114,7 +114,6 @@ export type DetectionLabelsResponse = components['schemas']['DetectionLabelsResp
 
 // Enrichment types
 export type EnrichmentResponse = components['schemas']['EnrichmentResponse'];
-export type EventEnrichmentsResponse = components['schemas']['EventEnrichmentsResponse'];
 export type LicensePlateEnrichment = components['schemas']['LicensePlateEnrichment'];
 export type FaceEnrichment = components['schemas']['FaceEnrichment'];
 export type VehicleEnrichment = components['schemas']['VehicleEnrichment'];

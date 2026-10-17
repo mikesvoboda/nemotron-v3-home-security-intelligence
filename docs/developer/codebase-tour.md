@@ -194,7 +194,7 @@ frontend/src/components/
 ```
 frontend/src/hooks/
 ├── useWebSocket.ts       # Base WebSocket connection
-├── useWebSocketStatus.ts # Channel status tracking
+├── ConnectionStatusProvider.tsx # Owns each channel's connection
 ├── useEventStream.ts     # Security event stream (/ws/events)
 ├── useSystemStatus.ts    # System health (/ws/system)
 ├── useConnectionStatus.ts # Multi-channel manager

@@ -195,7 +195,11 @@ describe('CamerasSettings', () => {
     // Reset useSettingsApi mock state (NEM-4946)
     mockSettingsQueryState = {
       settings: {
-        detection: { confidence_threshold: 0.5, fast_path_threshold: 0.9 },
+        detection: {
+          confidence_threshold: 0.5,
+          fast_path_enabled: false,
+          fast_path_threshold: 0.9,
+        },
         batch: { window_seconds: 90, idle_timeout_seconds: 30 },
         severity: { low_max: 29, medium_max: 59, high_max: 84 },
         features: {

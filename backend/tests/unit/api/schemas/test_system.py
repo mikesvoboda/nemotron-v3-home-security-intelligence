@@ -21,6 +21,7 @@ def test_config_response_includes_grafana_url():
         batch_idle_timeout_seconds=30,
         detection_confidence_threshold=0.5,
         fast_path_confidence_threshold=0.9,
+        fast_path_enabled=False,
         grafana_url="http://localhost:3002",
         debug=False,
     )
@@ -43,6 +44,7 @@ def test_config_response_includes_debug():
         batch_idle_timeout_seconds=30,
         detection_confidence_threshold=0.5,
         fast_path_confidence_threshold=0.9,
+        fast_path_enabled=False,
         grafana_url="http://localhost:3002",
         debug=True,
     )
@@ -65,6 +67,7 @@ def test_config_response_includes_log_retention_days():
         batch_idle_timeout_seconds=30,
         detection_confidence_threshold=0.5,
         fast_path_confidence_threshold=0.9,
+        fast_path_enabled=False,
         grafana_url="http://localhost:3002",
         debug=False,
     )
@@ -87,6 +90,7 @@ def test_config_response_includes_fast_path_confidence_threshold():
         batch_idle_timeout_seconds=30,
         detection_confidence_threshold=0.5,
         fast_path_confidence_threshold=0.85,
+        fast_path_enabled=False,
         grafana_url="http://localhost:3002",
         debug=False,
     )

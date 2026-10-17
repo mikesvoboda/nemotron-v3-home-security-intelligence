@@ -30,6 +30,22 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 
 
+def _mock_cache() -> AsyncMock:
+    """AsyncMock CacheService for direct handler calls ([r223]).
+
+    The three developer-tool handlers now take a CacheDep and schedule
+    background invalidation through it, so a direct call must supply one. The
+    invalidation runs inside the BackgroundTasks object, not the handler, so a
+    plain AsyncMock here is enough to keep the behavioural tests about seeding.
+    """
+    return AsyncMock()
+
+
+def _mock_bg() -> MagicMock:
+    """Recording BackgroundTasks for direct handler calls ([r223])."""
+    return MagicMock()
+
+
 def create_mock_db_with_id_assignment() -> AsyncMock:
     """Create a mock database session that properly assigns IDs on flush.
 
@@ -154,7 +170,12 @@ class TestSeedCamerasEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_cameras(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.created == 3
@@ -218,7 +239,12 @@ class TestSeedCamerasEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_cameras(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.created == 2
@@ -272,7 +298,12 @@ class TestSeedCamerasEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_cameras(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         # Only cam1 and cam3 should be created (cam2 already exists)
@@ -317,7 +348,12 @@ class TestSeedCamerasEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_cameras(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.created == 1
@@ -364,7 +400,12 @@ class TestSeedCamerasEndpoint:
 
             # Should not raise, just continue
             result = await seed_cameras(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.created == 1
@@ -406,7 +447,12 @@ class TestSeedCamerasEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_cameras(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.created == 6
@@ -447,7 +493,12 @@ class TestSeedEventsEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_events(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.events_created == 5
@@ -474,7 +525,12 @@ class TestSeedEventsEndpoint:
 
         with pytest.raises(HTTPException) as exc_info:
             await seed_events(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert exc_info.value.status_code == 400
@@ -546,7 +602,12 @@ class TestSeedEventsEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_events(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.events_cleared == 2
@@ -616,7 +677,12 @@ class TestSeedEventsEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_events(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.events_created == 10
@@ -685,7 +751,12 @@ class TestSeedEventsEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await seed_events(
-                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_http_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.events_created == 3
@@ -708,7 +779,14 @@ class TestClearDataEndpoint:
         body = ClearDataRequest(confirm="WRONG_STRING")
 
         with pytest.raises(HTTPException) as exc_info:
-            await clear_seeded_data(body=body, request=mock_request, db=mock_db, _admin=None)
+            await clear_seeded_data(
+                body=body,
+                request=mock_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
+            )
 
         assert exc_info.value.status_code == 400
         assert "DELETE_ALL_DATA" in exc_info.value.detail
@@ -752,7 +830,12 @@ class TestClearDataEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await clear_seeded_data(
-                body=body, request=mock_request, db=mock_db, _admin=None
+                body=body,
+                request=mock_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.events_cleared == 1
@@ -802,7 +885,12 @@ class TestClearDataEndpoint:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await clear_seeded_data(
-                body=body, request=mock_request, db=mock_db, _admin=None
+                body=body,
+                request=mock_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         assert result.events_cleared == 10
@@ -839,7 +927,12 @@ class TestClearDataEndpoint:
             mock_audit.return_value = mock_audit_service
 
             result = await clear_seeded_data(
-                body=body, request=mock_request, db=mock_db, _admin=None
+                body=body,
+                request=mock_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         # Verify audit log was called
@@ -1175,7 +1268,12 @@ class TestAdminAuditLogging:
             mock_audit.return_value = mock_audit_service
 
             result = await seed_cameras(
-                request=request, http_request=mock_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         # Verify audit log was called
@@ -1222,7 +1320,12 @@ class TestAdminAuditLogging:
             mock_audit.return_value = mock_audit_service
 
             result = await seed_events(
-                request=request, http_request=mock_request, db=mock_db, _admin=None
+                request=request,
+                http_request=mock_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         # Verify audit log was called
@@ -1360,7 +1463,12 @@ class TestAdminAuditLogging:
             mock_audit.return_value = mock_audit_service
 
             result = await clear_seeded_data(
-                body=body, request=mock_request, db=mock_db, _admin=None
+                body=body,
+                request=mock_request,
+                db=mock_db,
+                cache=_mock_cache(),
+                background_tasks=_mock_bg(),
+                _admin=None,
             )
 
         # Verify audit log includes operation name

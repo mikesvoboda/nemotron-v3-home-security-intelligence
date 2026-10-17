@@ -17,7 +17,7 @@ import { api, closedByGuard, loginAsAdmin, readOpsHarness } from './harness';
 
 const harness = readOpsHarness();
 
-test.describe('golden path: pipeline flow visualization @critical', () => {
+test.describe('golden path: pipeline flow visualization (F-134) @critical', () => {
   test.setTimeout(60_000);
 
   test('four stages and live totals render over a real telemetry read', async ({ page }) => {

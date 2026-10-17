@@ -126,6 +126,90 @@ keeps the CI comparison machine-independent. The socket mounts are only findable
 a sentinel `PODMAN_SOCKET`, because `prod.yml` interpolates that variable into **both** fields on
 `alloy` and into only the source on `backend`.
 
+### pr_watch.py + test_pr_watch.py + r193-mutation-campaign.py
+
+`pr_watch.py` is ruling 193's lane watcher: an agent arms it as a background task at the end of a
+turn and the line it prints starts the next one (UR-38 — a backgrounded watcher is not waiting
+inside a turn). One `gh api graphql` call per poll, never the search API (its 30/min is shared by
+every agent on the owner's token), watching the PRs named by `--pr` plus those a label group
+discovers, and the last 100 comments of #6854. It exits with one line per change class and no
+comment bodies, survives transient failures, and always ends — one of four terminal lines, each
+naming itself so an agent acts on the right one (three at the lifetime bound, one when a streak
+trips mid-loop): an `error: … 0 successful polls` line (it read nothing — a mistyped `--lifetime`
+that expired before the streak could trip), an `error: … none that compared a window` line (it read
+a window but every clean poll was a seed, so "nothing moved" is not something it saw), the calm
+`no change in Ns` all-clear, which carries a `warning: watch ended on …` line whenever its last
+polls failed, or the `error: N consecutive poll failures` streak line (`--max-errors` polls failed
+with no clean poll between them — a clean poll resets the count — so the API or the arm is broken
+now). A check window that came back full adds a
+`#<n> checks truncated: X of Y watched` line — beside its news and on the all-clear — because a
+"no change" over a truncated window means "nothing moved in what I could see", not "nothing moved";
+the line is the reader's cue to treat that all-clear as unevaluated rather than clean.
+
+Four GraphQL facts decided the shape, all measured against the live API before the query was
+written, and each the reason a plausible alternative is wrong: `pullRequests(labels: [...])` is
+**OR**, not AND — `lane:ops` (82 PRs) and `lane:docs` (56), which no PR carries together, came back
+as one query of 138 with an empty intersection, and AND would have returned 0 — so putting
+`lane:ops` and `cell:a` in one connection narrows nothing (the union already holds every ops PR of
+either cell) while `discovered` names the labels whose connection matched, which would let the watch
+line print a label the PR does not carry. Hence one single-label group per connection alias, and
+`discovered` collecting **every** matching label, not the first; the connection's `orderBy.field` is
+`UPDATED_AT` (`UPDATED_DESC` is rejected outright); `states: [OPEN]` is load-bearing because an
+unfiltered `lane:ops` query matched 82 PRs against 6 open ones (measured 2026-10-15 — the count
+drifts, the ratio does not);
+and the watched set must stay **monotonic** even though discovery asks for OPEN, or
+a merge removes a PR from the set before its state is ever read. Label strings ride as `-f` String
+variables — a `-F` JSON array matches nothing **and returns no error**, which is a silently empty
+watch. A discovery page at `DISCOVERY_WINDOW` (100, GitHub's page cap) whose `totalCount` is higher
+raises instead of reporting a quiet tick.
+
+Two facts the UR-89 review turned up, each a bug a green suite shipped. `seeding` is keyed on
+whether the state was ever seeded (`"seeded" not in state`), **not** on emptiness (`not state["prs"]`):
+a watcher armed by label alone over a lane with nothing routed to it has an empty `prs` on every poll,
+so emptiness kept it "seeding" forever and the seed poll's early `return []` meant its #6854 diff never
+ran — a new `BINDING NOW`, the one event ruling 193 names, woke nobody, which is precisely the idle
+lane that arms a watcher. And the marker match reads only a comment's **first line**, because UR-40
+binds an owner record on its first line; matching the phrase anywhere in the body wakes the lane for a
+comment that merely _mentions_ it — the live false-positive is #6854 comment `6180424930`, first line
+`URGENT PATH · coordinator stale again`, whose status prose counts "42 BINDING NOW rows in window"
+(verified at that id, 2026-10-15: 1 occurrence, 0 on the first line).
+
+A second review round turned up three more ways to be silent, and all three were shapes where
+**difference had been mistaken for addition**. An explicitly typed `--pr` that GitHub answers as null
+was stored as `None` and then skipped forever, so a head change straddling that window never printed —
+and never could, because the next poll's `before` _is_ the null snapshot. `_check_explicit` now
+refuses that poll the way `_check_ruling` refuses a null ruling issue: a transient null costs one
+error credit (the state keeps the last good snapshot, so the straddling change prints on the next good
+poll) and a prolonged one exits rc 2. It guards only the numbers an agent typed, because those are
+the ones label discovery can never hand back. A discovered PR answered null has a different cure — the
+UNREAD carry-forward, which is what keeps its label group alive until it answers and its merge can
+still print. And a comment or review **deleted** between polls used to print `new comment`: the diff
+fired on any set difference and then searched the new side for an id missing from the old, which in
+the delete direction finds nothing, so the line announced an addition that had not happened and named
+no author. Deletion is not one of ruling 193's six change classes either, and the file resolves that
+the way `_state_line` does a reopen — name what moved.
+
+The same class then appeared at the **other** end of a full window: a comment DELETED at the top edge
+makes `last: 100` back-fill the oldest id it had aged out, and that id is absent from the previous
+poll's set, so the diff announced `new comment from` a comment older than everything on screen — and
+on #6854 a back-filled `new BINDING NOW` re-wakes every lane onto a ruling UR-40 already made a
+no-op. The arrival test is therefore POSITIONAL, not membership: these connections answer
+oldest-first (measured live on #6854), a real arrival sits above every shared id, a backfill re-enters
+below them. Membership alone decides only when NEITHER window was truncated — the first guard asked
+about the window in hand and missed that a backfill is judged against the PREVIOUS snapshot, so a
+window that shrinks from full to short re-opened the bug (50 false `new comment` lines measured at
+`81057a51b`); truncation is therefore ORed across both windows. A truncated window sharing no id with
+the last one has no anchor and announces no arrival — position it cannot prove, it does not claim —
+while the vanished side still prints, which is what keeps an honest append reporting.
+
+`scripts/test_pr_watch.py` (73 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
+fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
+starts reading something new fails loudly instead of passing on `{}`.
+`scripts/r193-mutation-campaign.py` reverts 62 properties in a throwaway worktree and fails if any
+survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
+registered in ci.yml — the campaign list holds suites, not drivers.
+
 ### sandboxes.toml
 
 The roster: per phase, each session's name, model (a `[models]` key) and kickoff line,
@@ -198,3 +282,67 @@ re-snapshots both podman and docker and fails the run on any diff. Verified here
 shellcheck clean, the three embedded python scripts byte-compile, and the cosine table's
 four verdict branches tested against synthetic stage files. **Not run here:** the GPU legs
 (1-4) and the gateway leg need the serving host; the owner runs it on maui.
+
+### post_record.py
+
+The owner's side of ruling 197's machine footers. `post_record.py record --ruling N --lanes a,b|all
+--packages r1,r2|none --body-file F` posts a record on #6854; `post_record.py pointer --ruling N
+--lane x --pr P --body-file F` posts a pointer on PR `P`. Each appends ONE footer line
+(`<!-- uplevel: ruling=<n> lanes=<names|all> packages=<tokens|none> -->` or
+`<!-- uplevel: pointer ruling=<n> lane=<name> -->`), which `lane_tick.py` turns into a `for you:`
+line for the lane it names. The footer is parsed back with `lane_tick.py`'s own reader before
+anything is posted, so the writer and the digest cannot drift. Refused (exit 2): a name that is not
+a roster sandbox without its `agent-`/`uplevel-` prefixes, a body that already carries a footer, and
+a record whose first line does not start `BINDING NOW · ruling N`. `--dry-run` prints the final body
+and posts nothing; a failed post exits 1. It posts with `gh api ... -F body=@-` (the body on stdin)
+through one injectable runner. Tests: `scripts/test_post_record.py`.
+
+### plan_lint.py
+
+The plan fields `lane_tick.py` acts on, checked where they are written (ruling 197). `uv run python
+scripts/uplevel/plan_lint.py [--root DIR]` reads the working tree's roster
+(`docs/uplevel/roles/lane.md`), package files and ruling map with `lane_tick.py`'s own parsers
+(imported, never copied: `ROW`, `queue_entries`, `BLOCK`, `PKG_FIELD`, `NONE_YET`, `PR_NUMBER`,
+`next_claimable`, `held_claims`). It fails when a roster queue token has no `### ` block in its
+lane's package file (the lanes with no file of their own, `UNPACKAGED` -- coordinator, heavy,
+operator -- have their tokens looked up across every package file), when a `**PR:**` field is
+neither `none yet` on one line nor a leading `#N` (a `none` / `yet.` wrapped across two lines is
+that case, even when a later `issue #N` follows), when one token is on two lanes' queues (the
+operator's row, `RUNS`, names real-tier runs of other lanes' packages, not claims, so this check
+does not count it), or when a ruling-map row other than 1-145 and 147 names no 10-digit record id.
+Every roster row is checked, whatever its review label (ruling 242; until then a `none` label
+skipped the row, and ruling 198 had made every label `none`). `F2.3` (one package split across every
+lane, rulings 87 and 175) is held to its block in `frontend.md`. `--baseline REF` reads the same
+files at a git ref (`git show`) and fails only on findings REF lacks, matched by file and message,
+never line. Collection-sanity runs it as `python -m scripts.uplevel.plan_lint` with the PR merge
+commit's first parent (the `main` it merged into) as the baseline, so a defect already on `main`
+reds `main`'s run, not every PR. Exit 0 clean, 1 with one `file:line: message` per (new) finding, 2
+when the baseline ref is unreadable (the CI step also exits 2 when HEAD names no parent); the last
+line counts what it read. Tests: `scripts/test_plan_lint.py` (fixtures, throwaway git repositories,
+and copies of this checkout's roster and package files with a defect planted, which must be caught;
+it never asserts this checkout is clean, which is the CI step's job).
+
+### inventory_witness.py + inventory_witness_known.toml
+
+The inventory's `status` column held to the golden run (`[r218]`, ruling 218). Both Feature check
+jobs run `python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"` right after
+the harness step, whenever that step ran. It reads the run's `summary.json`
+(`results.golden.playwright_specs` and `backend_specs`, the per-test outcomes
+`scripts/feature_check.py` takes from JUnit) and maps each executed test to the
+`docs/reference/feature-inventory.md` rows its title names: the innermost describe or test title
+that carries any `F-nnn`, with `F-240 to F-243` and `F-164..F-167` naming every id between (a
+pytest test spells it `test_f100_...`). For a row at `awaiting real tier` or `works`, a mapped test
+that failed or skipped fails the job that ran it, and a job with no mapped test fails the row when
+it is the row's home: the jobs whose spec files name the row in a title, read statically from the
+checkout (`*.seeded.spec.ts` the seeded job, every other golden spec the fake AI job), or, for a
+row no title names, the specs its evidence cites. `unverified` rows whose tests all passed print as
+ready to flip, with evidence text to paste; `half-built`/`leftover` are info only; specs naming no
+row are listed. A `real` run, and a run whose Playwright project executed nothing, are refused:
+real-tier confirmation is the operator's (ruling 148), and an empty run witnesses nothing.
+`inventory_witness_known.toml` excuses named legs (exact test titles) of rows the owner is ruling
+on; any other non-passing leg still fails the row, and an entry whose listed leg passes or is gone
+fails the check until it is trimmed. Exit 0 agrees, 1 a row claims more than the run shows (or a
+stale known entry, or a title naming no such row), 2 an input could not be read, with its reason.
+The inventory's rows are parsed with `scripts/check-inventory-summary-arith.py`'s table helpers,
+loaded by path. Tests: `scripts/test_inventory_witness.py` (fixture inventories, summaries, known
+lists and spec trees).

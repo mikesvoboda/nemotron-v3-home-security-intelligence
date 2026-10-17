@@ -224,6 +224,54 @@ def _key_admits(key_entry: object, call: tuple[str, str]) -> bool:
     return True if scope is None else call in scope
 
 
+def presents_scoped_api_key(conn: HTTPConnection) -> bool:
+    """Whether the key THIS request presents carries a scope (R60's grant, read back).
+
+    [r95] S4. The events route needs to know whose response to narrow, and the
+    only honest source is the presented key re-derived at request time through
+    the SAME three helpers the gate already uses — ``_presented_api_key``,
+    ``_key_entry_for_digest``, ``_key_scope`` — so the answer holds in both
+    postures and there is exactly one scope rule in the tree.
+
+    Why not read middleware-set state: ``AuthMiddleware.__call__`` returns
+    early when ``expose_lan`` is off (``:661``, measured: it is
+    ``get_settings().expose_lan`` re-read per request, not built once), so in
+    the LAN-trusted posture — exactly where S1's configuration lives — the
+    gate never runs and state set there would leave the ceiling unarmed.
+
+    Keyed on CARRYING a scope, not on admitting this call: a scoped credential
+    is clamped wherever it is served. In the exposed posture a scoped key on a
+    path it does not admit is refused by the gate anyway; in the unexposed
+    posture nothing refuses it, and the narrower reading is the safer one. A
+    session cookie, no credential, or an unscoped operator entry all answer
+    False and are served exactly as before — this narrows one grant, not the
+    endpoint.
+    """
+    key = _presented_api_key(conn)
+    if not key:
+        return False
+    entry = _key_entry_for_digest(_hash_key(key))
+    return entry is not None and _key_scope(entry) is not None
+
+
+async def scoped_key_ceiling(request: Request) -> bool:
+    """Route-facing form of :func:`presents_scoped_api_key` (``Depends``-able).
+
+    A ``bool`` dependency rather than a ``Request`` parameter on purpose: the
+    route has several direct unit callers that pass explicit kwargs and omit
+    any request argument, and FastAPI 0.142 rejects a defaulted ``Request``
+    parameter outright (measured: ``FastAPIError: Invalid args for response
+    field`` for ``request: Request | None = None``, at decoration). A defaulted
+    bool dep keeps those callers unchanged, but NOT by answering ``False``: an
+    omitted parameter keeps its default, which IS the ``Depends(...)`` marker
+    object and is truthy (measured — a direct call that omitted the argument
+    clamped the row under a plain ``if key_ceiling:``). The route therefore
+    identity-checks ``key_ceiling is True``, which only FastAPI's resolved
+    answer can be.
+    """
+    return presents_scoped_api_key(HTTPConnection(request.scope))
+
+
 async def _api_key_principal(conn: HTTPConnection) -> str | None:
     """``api-key`` when the presented key is valid AND entitled to this call.
 

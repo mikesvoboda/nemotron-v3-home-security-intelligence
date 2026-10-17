@@ -209,22 +209,22 @@ describe('endpoint contract (D2)', () => {
       audit.scan.opaqueMethod.map((o) => `${o.path}  ${o.file}:${o.line}  ${o.reason}`).join('\n'),
       `${audit.scan.opaqueMethod.length} claim(s) send a verb the scan cannot read`
     ).toMatchInlineSnapshot(`
-      "/api/cameras  src/services/api.ts:1408  options passed by name: options
-      /api/system/health  src/services/api.ts:2007  options passed by name: options
-      /api/system/health/full  src/services/api.ts:2082  options passed by name: options
-      /api/system/gpu  src/services/api.ts:2092  options passed by name: options
-      /api/system/health/websocket  src/services/api.ts:2168  options passed by name: options
-      /api/system/health/live  src/services/api.ts:2191  options passed by name: options
-      /api/events  src/services/api.ts:2297  options passed by name: options
-      /api/events/stats  src/services/api.ts:2332  options passed by name: options
-      /api/events/clusters  src/services/api.ts:2379  options passed by name: options
-      /api/events/deleted  src/services/api.ts:2562  options passed by name: options
-      /api/events/search  src/services/api.ts:3815  options passed by name: options
-      /api/audit  src/services/api.ts:4548  options passed by name: options
-      /api/entities  src/services/api.ts:5769  options passed by name: options
-      /api/entities/matches/{}  src/services/api.ts:5865  options passed by name: options
-      /api/logs  src/services/api.ts:9020  options passed by name: options
-      /api/reid/similar/{}  src/services/api.ts:9133  options passed by name: options"
+      "/api/cameras  src/services/api.ts:1393  options passed by name: options
+      /api/system/health  src/services/api.ts:1992  options passed by name: options
+      /api/system/health/full  src/services/api.ts:2067  options passed by name: options
+      /api/system/gpu  src/services/api.ts:2077  options passed by name: options
+      /api/system/health/websocket  src/services/api.ts:2153  options passed by name: options
+      /api/system/health/live  src/services/api.ts:2176  options passed by name: options
+      /api/events  src/services/api.ts:2282  options passed by name: options
+      /api/events/stats  src/services/api.ts:2317  options passed by name: options
+      /api/events/clusters  src/services/api.ts:2364  options passed by name: options
+      /api/events/deleted  src/services/api.ts:2547  options passed by name: options
+      /api/events/search  src/services/api.ts:3755  options passed by name: options
+      /api/audit  src/services/api.ts:4488  options passed by name: options
+      /api/entities  src/services/api.ts:5709  options passed by name: options
+      /api/entities/matches/{}  src/services/api.ts:5805  options passed by name: options
+      /api/logs  src/services/api.ts:8960  options passed by name: options
+      /api/reid/similar/{}  src/services/api.ts:9073  options passed by name: options"
     `);
   });
 
@@ -234,27 +234,30 @@ describe('endpoint contract (D2)', () => {
     // `fetch(url.toString())` site, or a same-origin call to a non-`/api` path,
     // is a claim this scan never made, and "0 unlisted" cannot be read without
     // these lists staying small and recognizable. `dynamic` counts constructs,
-    // not lines: useWebSocketStatus.ts:141 is one line holding two `new
-    // WebSocket(url, …)` constructs (the protocols ternary), so 25 entries over
-    // 24 positions is the honest shape, recorded here rather than tidied away.
+    // not lines, so one line holding two of them would be listed twice. That
+    // doubling used to be here — the second socket implementation's protocols
+    // ternary contributed two entries from one position, making 25 over 24 —
+    // and [r204] deleted that file, so the transport's two constructs are what
+    // remain (webSocketManager.ts:503-504, distinct lines). Measured now: 24
+    // entries over 24 distinct positions, i.e. no position is doubled. Recorded
+    // rather than tidied away, because the next ternary brings the shape back
+    // and a reader comparing this list's length to its line count needs to know
+    // which of the two the scanner counts.
     // `nonApi` is the empty list with teeth: it fails the moment anything calls
     // a same-origin path this contract does not check.
     expect(
       audit.scan.dynamic.map((d) => `${d.file}:${d.line}  ${d.reason}`).join('\n'),
       `${audit.scan.dynamic.length} URL position(s) with no statically knowable path`
     ).toMatchInlineSnapshot(`
-      "src/hooks/useWebSocketStatus.ts:145  "url" is not a file-local constant
-      src/hooks/useWebSocketStatus.ts:145  "url" is not a file-local constant
-      src/hooks/useZoneHouseholdConfig.ts:231  built at runtime: url.toString()
+      "src/hooks/useZoneHouseholdConfig.ts:231  built at runtime: url.toString()
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
       src/services/aiAuditApi.ts:386  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:150: not a literal path
-      src/services/api.ts:1560  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:1632  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3341  built at runtime: isVideo
+      src/services/api.ts:1545  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:1617  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:3281  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
-      src/services/detectorApi.ts:144  built at runtime: url.toString()
       src/services/errorReporting.ts:113  built at runtime: config.endpoint
       src/services/interceptors.ts:325  "url" is not a file-local constant
       src/services/llmReasoningApi.ts:233  built at runtime: url.toString()

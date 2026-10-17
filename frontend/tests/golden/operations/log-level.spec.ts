@@ -23,7 +23,7 @@ function levelOf(body: LogLevelBody): string {
   return String(body.level ?? body.current_level ?? '');
 }
 
-test.describe('golden path: log level control @critical', () => {
+test.describe('golden path: log level control (F-159) @critical', () => {
   test.setTimeout(60_000);
 
   test('clicking a level changes the root logger, and the original is restored', async ({

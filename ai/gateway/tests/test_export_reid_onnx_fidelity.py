@@ -41,7 +41,8 @@ import numpy as np
 # raises ``No module named 'onnxscript'``; ``dynamo=False`` raises ``Module onnx is
 # not installed!``), and ``onnxruntime`` because ``validate_onnx`` needs it to
 # measure anything. The gateway image ships the same three
-# (ai/gateway/Dockerfile:30-32).
+# (ai/gateway/Dockerfile:39-41 — `onnx`/`onnxscript`/`onnxruntime-gpu`; the names
+# are given so the reference survives a future edit to that block's line numbers).
 import onnx
 import onnxruntime as ort
 import onnxscript

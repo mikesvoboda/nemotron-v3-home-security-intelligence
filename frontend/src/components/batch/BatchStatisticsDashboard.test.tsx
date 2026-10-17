@@ -5,10 +5,12 @@
  * - Dashboard rendering on SystemMonitoringPage
  * - Active batch count display
  * - WebSocket real-time updates
- * - Closure reason chart display
- * - Per-camera breakdown table
  * - Empty state handling
  * - Dark theme styling
+ *
+ * (The closure-reason chart and per-camera-table describes retired with
+ * ruling 134; their absence is guarded by
+ * `src/__tests__/batch-history-views-retired.test.tsx`.)
  */
 
 import { render, screen, within } from '@testing-library/react';
@@ -71,28 +73,6 @@ const mockBatchStatistics = {
   batchWindowSeconds: 90,
   idleTimeoutSeconds: 30,
   averageDurationSeconds: 60,
-  closureReasonStats: {
-    timeout: 1,
-    idle: 1,
-    max_size: 0,
-  },
-  closureReasonPercentages: {
-    timeout: 50,
-    idle: 50,
-    max_size: 0,
-  },
-  perCameraStats: {
-    front_door: {
-      completedBatchCount: 1,
-      activeBatchCount: 1,
-      totalDetections: 10,
-    },
-    backyard: {
-      completedBatchCount: 1,
-      activeBatchCount: 1,
-      totalDetections: 5,
-    },
-  },
   isWebSocketConnected: true,
   refetch: vi.fn(),
 };
@@ -174,52 +154,6 @@ describe('BatchStatisticsDashboard', () => {
     });
   });
 
-  describe('closure reason chart', () => {
-    it('should render closure reason chart', () => {
-      render(<BatchStatisticsDashboard />);
-
-      expect(screen.getByTestId('closure-reason-chart')).toBeInTheDocument();
-    });
-
-    it('should display closure reason percentages', () => {
-      render(<BatchStatisticsDashboard />);
-
-      const chart = screen.getByTestId('closure-reason-chart');
-
-      // Check that timeout and idle are displayed
-      expect(within(chart).getByText(/Timeout/i)).toBeInTheDocument();
-      expect(within(chart).getByText(/Idle/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('per-camera breakdown table', () => {
-    it('should render per-camera table', () => {
-      render(<BatchStatisticsDashboard />);
-
-      expect(screen.getByTestId('per-camera-table')).toBeInTheDocument();
-    });
-
-    it('should display camera statistics', () => {
-      render(<BatchStatisticsDashboard />);
-
-      const table = screen.getByTestId('per-camera-table');
-
-      expect(within(table).getByText('front_door')).toBeInTheDocument();
-      expect(within(table).getByText('backyard')).toBeInTheDocument();
-    });
-
-    it('should display detection counts per camera', () => {
-      render(<BatchStatisticsDashboard />);
-
-      const table = screen.getByTestId('per-camera-table');
-
-      // front_door has 10 total detections
-      expect(within(table).getByText('10')).toBeInTheDocument();
-      // backyard has 5 total detections
-      expect(within(table).getByText('5')).toBeInTheDocument();
-    });
-  });
-
   describe('loading state', () => {
     it('should show loading skeleton when loading', () => {
       mockUseBatchStatistics.mockReturnValue({
@@ -273,7 +207,6 @@ describe('BatchStatisticsDashboard', () => {
         activeBatches: [],
         completedBatches: [],
         totalClosedCount: 0,
-        perCameraStats: {},
       });
 
       render(<BatchStatisticsDashboard />);
@@ -289,7 +222,6 @@ describe('BatchStatisticsDashboard', () => {
         activeBatches: [],
         completedBatches: [],
         totalClosedCount: 0,
-        perCameraStats: {},
       });
 
       render(<BatchStatisticsDashboard />);
@@ -323,13 +255,6 @@ describe('BatchStatisticsDashboard', () => {
 
       expect(screen.getByLabelText(/active batches/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/total closed/i)).toBeInTheDocument();
-    });
-
-    it('should have role for data table', () => {
-      render(<BatchStatisticsDashboard />);
-
-      const table = screen.getByTestId('per-camera-table');
-      expect(within(table).getByRole('table')).toBeInTheDocument();
     });
   });
 });

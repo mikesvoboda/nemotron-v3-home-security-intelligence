@@ -192,14 +192,15 @@ class TestPlantedDefects:
         assert "Section Nobody Wrote" in result.stdout
 
     def test_capitalised_prose_paraphrase_fires(self, tmp_path: Path) -> None:
-        """The case-sensitivity leniency: the real prose is 'independently'; a cite quoting
-        'Independently' must NOT be blessed by case-folded matching."""
+        """The case-sensitivity leniency: the real prose is 'subagent'; a cite quoting
+        'Subagent' must NOT be blessed by case-folded matching (ruling 198 removed the old
+        'independently' from lane.md)."""
         root = make_tree(tmp_path)
         rules = root / "docs/uplevel/rules.md"
-        rules.write_text(rules.read_text() + '\nPer roles/lane.md "Independently".\n')
+        rules.write_text(rules.read_text() + '\nPer roles/lane.md "Subagent".\n')
         result = run_gate(root)
         assert result.returncode == 1
-        assert "Independently" in result.stdout
+        assert "Subagent" in result.stdout
 
     def test_deleted_file_alive_again_fires(self, tmp_path: Path) -> None:
         """rules.md cites `the deleted 50-coordination.md`; if the file returns, the
@@ -211,18 +212,20 @@ class TestPlantedDefects:
         assert "NOT dead" in result.stdout
 
     def test_text_written_into_an_emptiness_pinned_section_fires(self, tmp_path: Path) -> None:
-        """UR-91-c4 pins lane.md 'Reviewing another lane's PR' EMPTY of 'reviewed again'.
-        Write that text there and the pin must fire, forcing cite and claim to move together."""
+        """UR-32-old-home pins lane.md 'Reviewing your PR' EMPTY of 'rotation'. Write that
+        text there and the pin must fire, forcing cite and claim to move together. (Until ruling
+        250 this arm used UR-91-c4, whose text now lives in that section.)"""
         root = make_tree(tmp_path)
         lane = root / "docs/uplevel/roles/lane.md"
         text = lane.read_text()
-        anchor = "## Reviewing another lane's PR\n"
+        anchor = "## Reviewing your PR\n"
         assert anchor in text, "fixture drifted: the pinned section moved"
-        # both UR-91-c4 needles, verbatim, in the pinned-empty section
-        inject = "\nThe head is reviewed again post merge resolution.\n"
+        # a UR-32-old-home needle, verbatim, in the pinned-empty section
+        inject = "\nA rotation picks the reviewer.\n"
         lane.write_text(text.replace(anchor, anchor + inject))
         result = run_gate(root)
         assert result.returncode == 1
+        assert "UR-32-old-home" in result.stdout, result.stdout
         assert "must NOT say" in result.stdout
 
     def test_snapshot_prose_quote_still_resolves_case_sensitively(self, tmp_path: Path) -> None:
@@ -241,9 +244,7 @@ class TestPlantedDefects:
         is NOT a heading/label, and require the live-phrase tally to move 0 → 1 at rc=0."""
         root = make_tree(tmp_path)
         rules = root / "docs/uplevel/rules.md"
-        rules.write_text(
-            rules.read_text() + '\nPer roles/lane.md "Review each PR independently".\n'
-        )
+        rules.write_text(rules.read_text() + '\nPer roles/lane.md "Each PR has one review".\n')
         result = run_gate(root)
         assert result.returncode == 0, result.stdout  # a dead fallback would FAIL the cite
         # A FLOOR, not "1 verbatim phrases": the exact pin contradicted this file's own rule
@@ -471,7 +472,9 @@ class TestEntailmentArmEdges:
         root = make_tree(tmp_path)
         rows = _fixture(root)
         row = next(r for r in rows if r["rule"] == "UR-32c")
-        row["needles"] = ["Reviews First"]  # real text in item 3, capitals folded away
+        row["needles"] = [
+            "Review Your Ready PRs First"
+        ]  # real text in item 3, capitals folded away
         _write_fixture(root, rows)
         result = run_gate(root)
         assert result.returncode == 0, result.stdout
@@ -483,17 +486,17 @@ class TestEntailmentArmEdges:
         came back. Plant the text and require the pin to say so."""
         root = make_tree(tmp_path)
         rows = _fixture(root)
-        row = next(r for r in rows if r["rule"] == "UR-91-c4")
-        row["needles"] = ["Reviewed Again"]  # capitals; 'reviewed again' is what we inject
+        row = next(r for r in rows if r["rule"] == "UR-32-old-home")
+        row["needles"] = ["Rotation Order"]  # capitals; 'Rotation Order' is what we inject
         _write_fixture(root, rows)
         lane = root / "docs/uplevel/roles/lane.md"
-        anchor = "## Reviewing another lane's PR\n"
+        anchor = "## Reviewing your PR\n"
         text = lane.read_text()
         assert anchor in text, "fixture drifted: the pinned section moved"
-        lane.write_text(text.replace(anchor, anchor + "\nThe head is Reviewed Again today.\n"))
+        lane.write_text(text.replace(anchor, anchor + "\nThe Rotation Order picks today.\n"))
         result = run_gate(root)
         assert result.returncode == 1, result.stdout
-        assert "UR-91-c4" in result.stdout, result.stdout
+        assert "UR-32-old-home" in result.stdout, result.stdout
         assert "must NOT say" in result.stdout
 
     def test_presence_row_with_no_needle_fires(self, tmp_path: Path) -> None:
@@ -585,9 +588,7 @@ class TestScopeClaimArms:
     def test_live_prose_phrase_cannot_carry_a_scope(self, tmp_path: Path) -> None:
         root = make_tree(tmp_path)
         rules = root / "docs/uplevel/rules.md"
-        rules.write_text(
-            rules.read_text() + '\nPer roles/lane.md "Review each PR independently" §2.\n'
-        )
+        rules.write_text(rules.read_text() + '\nPer roles/lane.md "Each PR has one review" §2.\n')
         result = run_gate(root)
         assert result.returncode == 1, result.stdout
         assert "scopes a § to a prose phrase" in result.stdout, result.stdout

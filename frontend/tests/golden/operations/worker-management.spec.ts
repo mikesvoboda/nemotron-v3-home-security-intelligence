@@ -35,7 +35,7 @@ interface SupervisorBody {
   workers: { name: string; status: string; restart_count: number }[];
 }
 
-test.describe('golden path: worker management @critical', () => {
+test.describe('golden path: worker management (F-142, F-143) @critical', () => {
   test.setTimeout(120_000); // round trip + panel polls
 
   test('four supervised workers render, and stop/start round-trips the metrics worker', async ({
@@ -46,11 +46,19 @@ test.describe('golden path: worker management @critical', () => {
     const h = harness;
     const session = await loginAsAdmin(page, h);
 
-    // Backend leg: the supervisor is real and lists the four documented
-    // workers before the page draws a single card.
+    // Backend leg: the supervisor supervises PipelineWorkerManager's workers
+    // (ruling 200: detection-0..1, analysis-0..1, batch_timeout, metrics)
+    // before the page draws a single card.
     const sup = await api<SupervisorBody>(h, session, '/api/system/supervisor');
     const names = sup.workers.map((w) => w.name).sort();
-    expect(names).toEqual(['analysis', 'batch_timeout', 'detection', 'metrics']);
+    expect(names).toEqual([
+      'analysis-0',
+      'analysis-1',
+      'batch_timeout',
+      'detection-0',
+      'detection-1',
+      'metrics',
+    ]);
     expect(sup.workers.every((w) => w.status === 'running')).toBe(true);
 
     await page.goto(`${h.ui}/operations`, { waitUntil: 'domcontentloaded' });

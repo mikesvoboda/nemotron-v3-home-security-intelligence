@@ -264,6 +264,20 @@ class TestComposeConfigValidation:
 TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     "config/docker-compose.gb300.yml",
     "docker-compose.ci.yml",
+    # [r162 -> r243] (owner rulings 186, 243): the orchestrator-OFF overlay and
+    # the two flag-named MARKERS prod.yml's `include:` interpolates. Listed for
+    # the same reason the [r162] fragments were: the socket mount moves between
+    # prod.yml and these files depending on the mechanism, so a grep for the
+    # mount must find every file in the mechanism or the census loses it.
+    # `docker-compose.engine-true.yml` is GONE ([r243]): compose v2.38.2 rejects
+    # an included redeclaration of services.backend, so the mount went back
+    # inline and OFF became a `!override` re-list overlay. The marker files carry
+    # NO service by design (that is what keeps them out of the conflict rule) --
+    # test_the_marker_files_declare_no_service_and_exist pins that shape, which
+    # the zero-services sentinel below deliberately refuses for them.
+    "docker-compose.engine-false.yml",
+    "docker-compose.marker-false.yml",
+    "docker-compose.marker-true.yml",
     "docker-compose.fake-ai.yml",
     "docker-compose.prod.yml",
     "docker-compose.test.yml",
@@ -277,6 +291,21 @@ TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     # join silently -- `test_the_tracked_compose_list_is_what_git_tracks` reddens when
     # `git ls-files` and this tuple disagree, in either direction.
     "scripts/uplevel/docker-compose.prodshape.yml",
+)
+
+# Tracked compose files that DECLARE NO SERVICE on purpose ([r243]): prod.yml's
+# `include:` interpolates ORCHESTRATOR_ENABLED into one of these two filenames,
+# and the only thing the name decides is whether the file exists -- a non-canonical
+# spelling has no marker and fails the render loudly ("no such file"), which is
+# [r162]'s loud-failure design kept. They carry no `services:` key because
+# compose v2.38.2 rejects any included file that redeclares a service, so a
+# marker that declared `backend` would break the very render it guards. The
+# zero-services sentinel below refuses them by default and this tuple is what it
+# accepts them under -- an explicit list, not an exemption pattern, so a new
+# service-free tracked file needs a deliberate entry here plus its own reason.
+MARKER_FILES: tuple[str, ...] = (
+    "docker-compose.marker-false.yml",
+    "docker-compose.marker-true.yml",
 )
 
 # Short syntax ``<source>:<target>[:<opts>]``. The shortest source wins, so the
@@ -379,12 +408,59 @@ class TestRetiredLlmServiceIsGone:
         pins the surviving hits so the prose allowance cannot widen silently.
         """
         services = _services(fname)
-        assert services, f"{fname} parsed to zero services -- the loader moved"
+        if fname in MARKER_FILES:
+            # The sentinel INVERTS for a marker ([r243]): declaring zero services
+            # is the file's whole design (an included redeclaration of
+            # `services.backend` is what compose v2.38.2 refuses), and
+            # test_the_marker_files_declare_no_service_and_exist below pins that
+            # zero exactly -- so the absence is asserted, never merely tolerated,
+            # and the ai-llm key check underneath still reads the parsed dict.
+            assert not services, f"{fname} is a marker and must declare no service"
+        else:
+            assert services, f"{fname} parsed to zero services -- the loader moved"
         assert "ai-llm" not in services, (
             f"{fname} defines the retired `ai-llm` service. R8 S2 deleted the "
             "legacy LLM tier (602379e2) and container_orchestrator.py:66 keeps "
             "REFUSE re-adding it; a compose file that ships it anyway is the "
             "disagreement to resolve, not a test to relax"
+        )
+
+    def test_the_marker_files_declare_no_service_and_exist(self) -> None:
+        """The [r243] marker shape, pinned from both sides.
+
+        prod.yml interpolates `include:
+        docker-compose.marker-${ORCHESTRATOR_ENABLED:-true}.yml`, so exactly two
+        properties keep the mechanism honest, and both are invisible to every
+        other pin here:
+
+        1. each canonical spelling's file EXISTS -- a missing marker is the loud
+           failure, so a typo'd filename silently un-loudens the flag;
+        2. each declares NO service -- measured on v5.5.1, v2.38.2 and
+           podman-compose 1.6.0 (#7222), an included fragment that redeclares
+           `services.backend` is rejected by v2.38.2 whatever it contains, so a
+           marker that "just named backend to satisfy the sentinel" above would
+           break the nightly render it was added to protect.
+
+        Non-vacuity: the loop's own count is asserted, so a MARKER_FILES that
+        drifts empty cannot pass this by iterating nothing.
+        """
+        assert len(MARKER_FILES) == 2, MARKER_FILES
+        for fname in MARKER_FILES:
+            text = (REPO_ROOT / fname).read_text()
+            assert text.strip(), (
+                f"{fname} is empty -- an empty include renders and silences the guard"
+            )
+            assert not _services(fname), (
+                f"{fname} declares services. A service-free marker is the shape "
+                "compose v2.38.2 accepts from an `include:`; declaring one here "
+                "reproduces the `services.backend conflicts with imported "
+                "resource` failure ruling 243 exists to fix"
+            )
+        prod = (REPO_ROOT / "docker-compose.prod.yml").read_text()
+        assert "docker-compose.marker-${ORCHESTRATOR_ENABLED:-true}.yml" in prod, (
+            "prod.yml no longer interpolates the marker include the census names "
+            "-- either the mechanism moved again (update MARKER_FILES with it) or "
+            "the loud spelling-failure is gone"
         )
 
     def test_the_absence_pin_is_not_a_prefix_match(self) -> None:

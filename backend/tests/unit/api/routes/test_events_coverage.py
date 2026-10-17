@@ -14,7 +14,6 @@ from fastapi.testclient import TestClient
 from backend.api.routes.events import _bulk_rate_limiter, router
 from backend.core.database import get_db, get_read_db
 from backend.core.redis import get_redis
-from backend.models.detection import Detection
 from backend.models.event import Event
 
 # =============================================================================
@@ -656,84 +655,6 @@ class TestUpdateEvent:
 # =============================================================================
 # Get Event Enrichments Tests (Missing Lines: 1626-1641)
 # =============================================================================
-
-
-class TestGetEventEnrichments:
-    """Tests for get_event_enrichments endpoint."""
-
-    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
-    @patch("backend.api.routes.events.batch_fetch_detections", autospec=True)
-    def test_get_enrichments_with_pagination(
-        self, mock_batch_fetch, mock_get_event, client: TestClient, mock_db_session: AsyncMock
-    ):
-        """Test get_event_enrichments with pagination."""
-        mock_event = Mock(spec=Event)
-        mock_event.id = 1
-        # Use detections relationship instead of legacy column
-        mock_event.detections = [Mock(id=i) for i in range(1, 101)]
-        mock_event.detection_id_list = list(range(1, 101))
-
-        mock_get_event.return_value = mock_event
-
-        # Mock batch fetch
-        mock_detections = [
-            Mock(
-                spec=Detection,
-                id=i,
-                enrichment_data={"test": "data"},
-                detected_at=datetime(2025, 1, 1, 12, i, 0, tzinfo=UTC),
-            )
-            for i in range(1, 51)
-        ]
-        mock_batch_fetch.return_value = mock_detections
-
-        response = client.get("/api/events/1/enrichments?limit=50&offset=0")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["count"] == 50
-        assert data["total"] == 100
-        assert data["has_more"] is True
-
-    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
-    def test_get_enrichments_empty(
-        self, mock_get_event, client: TestClient, mock_db_session: AsyncMock
-    ):
-        """Test get_event_enrichments with no detections."""
-        mock_event = Mock(spec=Event)
-        mock_event.id = 1
-        mock_event.detections = []
-        mock_event.detection_id_list = []
-        mock_event.detection_id_list = []
-
-        mock_get_event.return_value = mock_event
-
-        response = client.get("/api/events/1/enrichments")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["count"] == 0
-        assert data["total"] == 0
-        assert data["has_more"] is False
-
-    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
-    def test_get_enrichments_offset_beyond_range(
-        self, mock_get_event, client: TestClient, mock_db_session: AsyncMock
-    ):
-        """Test get_event_enrichments with offset beyond available detections."""
-        mock_event = Mock(spec=Event)
-        mock_event.id = 1
-        mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
-        mock_event.detection_id_list = [1, 2, 3]
-
-        mock_get_event.return_value = mock_event
-
-        response = client.get("/api/events/1/enrichments?offset=100")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["count"] == 0
-        assert data["total"] == 3
 
 
 # =============================================================================

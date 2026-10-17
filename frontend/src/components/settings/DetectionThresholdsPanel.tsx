@@ -13,6 +13,13 @@ export interface DetectionThresholdsPanelProps {
 }
 
 /**
+ * The two numbers this card edits. `fast_path_enabled` is deliberately NOT part of
+ * this shape: this panel has no switch for it (that lives in ProcessingSettings), so
+ * the card neither edits nor writes the master switch — it only honours it.
+ */
+type DetectionThresholds = Pick<DetectionSettings, 'confidence_threshold' | 'fast_path_threshold'>;
+
+/**
  * DetectionThresholdsPanel component displays and allows editing of detection confidence thresholds.
  * - Fetches settings from /api/v1/settings endpoint via useSettingsApi
  * - Shows editable threshold sliders with percentage value display
@@ -30,8 +37,11 @@ export default function DetectionThresholdsPanel({ className }: DetectionThresho
     reset: resetMutation,
   } = useUpdateSettings();
 
-  const [editedThresholds, setEditedThresholds] = useState<DetectionSettings | null>(null);
+  const [editedThresholds, setEditedThresholds] = useState<DetectionThresholds | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Master switch, read from the server and never edited here (ruling 168).
+  const fastPathEnabled = settings?.detection?.fast_path_enabled ?? false;
 
   // Initialize edited thresholds when settings are loaded
   useEffect(() => {
@@ -51,7 +61,7 @@ export default function DetectionThresholdsPanel({ className }: DetectionThresho
       editedThresholds.fast_path_threshold !== settings.detection.fast_path_threshold)
   );
 
-  const handleThresholdChange = useCallback((field: keyof DetectionSettings, value: number) => {
+  const handleThresholdChange = useCallback((field: keyof DetectionThresholds, value: number) => {
     setEditedThresholds((prev) => (prev ? { ...prev, [field]: value } : prev));
     setSuccess(false);
   }, []);
@@ -63,8 +73,15 @@ export default function DetectionThresholdsPanel({ className }: DetectionThresho
       setSuccess(false);
       resetMutation();
 
+      // While the fast path is off no detection takes it, so the card never writes
+      // a threshold (ruling 168). Omitting the key leaves the stored value
+      // untouched: `_extract_env_updates` in backend/api/routes/settings_api.py
+      // applies non-null fields only.
       await updateSettings({
-        detection: editedThresholds,
+        detection: {
+          confidence_threshold: editedThresholds.confidence_threshold,
+          ...(fastPathEnabled ? { fast_path_threshold: editedThresholds.fast_path_threshold } : {}),
+        },
       });
 
       setSuccess(true);
@@ -161,41 +178,58 @@ export default function DetectionThresholdsPanel({ className }: DetectionThresho
             </Text>
           </div>
 
-          {/* Fast Path Threshold */}
-          <div>
-            <div className="mb-2 flex items-end justify-between">
-              <div>
-                <Text className="font-medium text-gray-300">Fast Path Threshold</Text>
+          {/* Fast Path Threshold. Rendered only while the master switch is on
+              (ruling 168): while it is off no detection takes the fast path, so a
+              slider here would both mislead ("fast-tracked for immediate
+              processing") and write FAST_PATH_CONFIDENCE_THRESHOLD behind the
+              switch's back. The switch itself lives in ProcessingSettings. */}
+          {!fastPathEnabled && (
+            // data-testid lives on the div, not the Tremor <Text>: Tremor's Text and
+            // Switch drop unknown props instead of forwarding them to the node.
+            <div data-testid="fast-path-off-note">
+              <Text className="font-medium text-gray-300">Fast Path Threshold</Text>
+              <Text className="mt-2 text-sm text-gray-300">
+                The fast path is off, so no detection takes it whatever this value says. Turn the
+                Fast path switch on in Processing Settings to edit its threshold.
+              </Text>
+            </div>
+          )}
+          {fastPathEnabled && (
+            <div>
+              <div className="mb-2 flex items-end justify-between">
+                <div>
+                  <Text className="font-medium text-gray-300">Fast Path Threshold</Text>
+                </div>
+                <span
+                  className="font-mono text-lg font-semibold text-white"
+                  data-testid="fast-path-value"
+                >
+                  {(editedThresholds.fast_path_threshold * 100).toFixed(0)}%
+                </span>
               </div>
-              <span
-                className="font-mono text-lg font-semibold text-white"
-                data-testid="fast-path-value"
-              >
-                {(editedThresholds.fast_path_threshold * 100).toFixed(0)}%
-              </span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={editedThresholds.fast_path_threshold}
+                onChange={(e) =>
+                  handleThresholdChange('fast_path_threshold', parseFloat(e.target.value))
+                }
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
+                aria-label="Fast path confidence threshold"
+                data-testid="fast-path-slider"
+              />
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+              <Text className="mt-2 text-sm text-gray-300">
+                High-confidence detections above this threshold are fast-tracked for immediate
+                processing. Higher values prioritize only the most certain detections.
+              </Text>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={editedThresholds.fast_path_threshold}
-              onChange={(e) =>
-                handleThresholdChange('fast_path_threshold', parseFloat(e.target.value))
-              }
-              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-              aria-label="Fast path confidence threshold"
-              data-testid="fast-path-slider"
-            />
-            <div className="mt-1 flex justify-between text-xs text-gray-300">
-              <span>0%</span>
-              <span>100%</span>
-            </div>
-            <Text className="mt-2 text-sm text-gray-300">
-              High-confidence detections above this threshold are fast-tracked for immediate
-              processing. Higher values prioritize only the most certain detections.
-            </Text>
-          </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-3 border-t border-gray-800 pt-4">

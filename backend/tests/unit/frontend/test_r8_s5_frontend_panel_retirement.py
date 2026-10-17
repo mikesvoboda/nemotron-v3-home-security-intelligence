@@ -68,7 +68,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
 # The five sources the goal prompt names, plus the barrel and AGENTS.md that
-# cannot survive their directory.
+# cannot survive their directory, plus useEventEnrichmentsQuery.ts (retired by
+# OD-20 / ISS-073 in B3.1/F3.1).
 SOURCES = [
     "frontend/src/components/enrichment/EnrichmentViewer.tsx",
     "frontend/src/components/enrichment/index.ts",
@@ -77,6 +78,8 @@ SOURCES = [
     "frontend/src/components/events/EnrichmentPanel.tsx",
     "frontend/src/components/events/EventEnrichmentSummary.tsx",
     "frontend/src/utils/poseVisualization.ts",
+    "frontend/src/hooks/useEventEnrichmentsQuery.ts",
+    "frontend/src/components/detection/PoseSkeletonOverlay.tsx",
 ]
 
 TESTS = [
@@ -85,6 +88,9 @@ TESTS = [
     "frontend/src/components/events/EnrichmentPanel.test.tsx",
     "frontend/src/components/events/EventEnrichmentSummary.test.tsx",
     "frontend/src/utils/poseVisualization.test.ts",
+    "frontend/src/hooks/useEventEnrichmentsQuery.test.ts",
+    "frontend/src/components/detection/PoseSkeletonOverlay.test.tsx",
+    "frontend/src/components/detection/__snapshots__/PoseSkeletonOverlay.test.tsx.snap",
 ]
 
 # What must still be here. Each of these is a NON-VACUITY for the deletion
@@ -93,12 +99,8 @@ SURVIVORS = [
     "frontend/src/types/enrichment.ts",
     "frontend/src/components/events/EventDetailModal.tsx",
     "frontend/src/components/events/EventDetailModal.test.tsx",
-    "frontend/src/components/detection/PoseSkeletonOverlay.tsx",
     "frontend/src/components/detection/DetectionImage.tsx",
-    "frontend/src/components/detection/PoseSkeletonOverlay.test.tsx",
-    "frontend/src/components/detection/__snapshots__/PoseSkeletonOverlay.test.tsx.snap",
     "frontend/src/components/events/EnrichmentProgressBadge.tsx",
-    "frontend/src/hooks/useEventEnrichmentsQuery.ts",
 ]
 
 
@@ -186,8 +188,8 @@ class TestS5SurfaceIsRealBeforeItIsGone:
         # Non-vacuity of the list itself: the scope prompt names five panels and
         # a helper; a list that had silently shrunk to nothing would make every
         # deletion pin pass on an empty loop.
-        assert len(SOURCES) == 7
-        assert len(TESTS) == 5
+        assert len(SOURCES) == 9
+        assert len(TESTS) == 8
 
     def test_the_survivors_this_slice_must_not_touch_exist(self) -> None:
         for rel in SURVIVORS:
@@ -275,18 +277,28 @@ class TestModalIsSevered:
             assert kept in modal, f"{kept} gone with the enrichment block"
         assert 'data-testid="action-events-section"' in _src(self.MODAL)
 
-    def test_the_modal_still_reads_enrichment_data_on_its_detection_type(self) -> None:
-        """The goal prompt keeps `types/enrichment.ts`, and the modal's exported
-        `Detection` interface keeps its optional `enrichment_data` member --
-        deleting the PANEL is not deleting the API field. Two consumers import
-        `Event as ModalEvent` from this file (`EventTimeline.tsx:75`,
-        `AlertsPage.tsx:24`), so the exported shape is pinned."""
-        modal = _live_ts(self.MODAL)
-        assert "enrichment_data" in modal, (
-            "Detection.enrichment_data dropped: the backend still returns it and "
-            "EventTimeline/AlertsPage import this type"
-        )
-        assert "import type { EnrichmentData } from '../../types/enrichment'" in modal
+    def test_the_modal_drops_enrichment_data_and_tombstone_comment_per_od20(self) -> None:
+        """OD-20 / ISS-073 (B3.1/F3.1): EventDetailModal drops the R8 S5 tombstone
+        comment and `enrichment_data` from its exported `Detection` interface."""
+        modal_raw = _src(self.MODAL)
+        modal_live = _live_ts(self.MODAL)
+        assert "enrichment_data" not in modal_live
+        assert "types/enrichment" not in modal_live
+        assert "the AI Enrichment Analysis block retired here" not in modal_raw
+
+    def test_the_event_enrichments_route_and_schema_are_gone_per_od20(self) -> None:
+        """OD-20 / ISS-073 (B3.1/F3.1): GET /api/events/{event_id}/enrichments,
+        EventEnrichmentsResponse, fetchEventEnrichments and useEventEnrichmentsQuery
+        are retired together."""
+        events_routes = _src("backend/api/routes/events.py")
+        enrichment_schemas = _src("backend/api/schemas/enrichment.py")
+        api_ts = _live_ts("frontend/src/services/api.ts")
+        hooks_index = _live_ts("frontend/src/hooks/index.ts")
+        assert "/enrichments" not in events_routes
+        assert "get_event_enrichments" not in events_routes
+        assert "EventEnrichmentsResponse" not in enrichment_schemas
+        assert "fetchEventEnrichments" not in api_ts
+        assert "useEventEnrichmentsQuery" not in hooks_index
 
 
 class TestTreeIsNotLeftDangling:
@@ -344,22 +356,12 @@ class TestTreeIsNotLeftDangling:
         assert not hits, "retired panel still referenced: " + "; ".join(hits)
 
     def test_pose_visualization_has_no_surviving_importer(self) -> None:
-        """`utils/poseVisualization.ts` had exactly one importer pre-slice -- its
-        own test (measured) -- so this is the cleanest deletion in the slice, and
-        the one most likely to be wrongly entangled with `PoseSkeletonOverlay`
-        by a reader who assumes the overlay draws the skeleton from it. It does
-        not: the overlay imports `BODY_PART_COLORS` from `constants/chartColors`
-        and re-exports it, and never mentions poseVisualization. Both halves
-        pinned, because an overlay that stopped rendering would be a silent
-        behaviour regression dressed up as a clean deletion."""
-        overlay = _live_ts("frontend/src/components/detection/PoseSkeletonOverlay.tsx")
-        assert "poseVisualization" not in overlay
-        assert "BODY_PART_COLORS" in overlay, "the overlay's own colour surface is gone"
+        """F-069 (R2a row 32) retired `PoseSkeletonOverlay.tsx` and its
+        `poseKeypoints` prop on `DetectionImage.tsx`."""
         detection_image = _live_ts("frontend/src/components/detection/DetectionImage.tsx")
-        assert "PoseSkeletonOverlay" in detection_image, (
-            "PoseSkeletonOverlay is NOT in S5's scope; if it lost its consumer, "
-            "say so in the report -- do not delete it here"
-        )
+        assert "PoseSkeletonOverlay" not in detection_image
+        assert "poseKeypoints" not in detection_image
+        assert "poseVisualization" not in detection_image
 
 
 class TestTheKeptIslandIsUntouched:
@@ -376,7 +378,6 @@ class TestTheKeptIslandIsUntouched:
 
     ISLAND: ClassVar[list[str]] = [
         "frontend/src/hooks/useDetectionEnrichment.ts",
-        "frontend/src/hooks/useEventEnrichmentsQuery.ts",
         "frontend/src/hooks/useEnrichmentProgress.ts",
         "frontend/src/hooks/useEventEnrichmentWebSocket.ts",
         "frontend/src/components/events/EnrichmentProgressBadge.tsx",
@@ -399,7 +400,10 @@ class TestTheKeptIslandIsUntouched:
         importers = [
             p
             for p in _ts_files()
-            if "types/enrichment" in _live_ts(str(p.relative_to(REPO_ROOT)))
+            if (
+                "'./enrichment'" in _live_ts(str(p.relative_to(REPO_ROOT)))
+                or "'../enrichment'" in _live_ts(str(p.relative_to(REPO_ROOT)))
+            )
             and "types/enrichment.ts" not in str(p)
         ]
         assert importers, "types/enrichment.ts has no live importer; kept-but-dead"
@@ -433,7 +437,9 @@ class TestTheKeptIslandIsUntouched:
         file it lives in. ``ast.Call`` nodes only -- string literals and
         comments cannot trip it, exactly like ``count_pytest_skip_imperative``.
         """
-        tree = ast.parse(Path(__file__).read_text())
+        tree = ast.parse(
+            _src("backend/tests/unit/frontend/test_r8_s5_frontend_panel_retirement.py")
+        )
         trips = [
             f"{node.lineno}: {_dotted(node.func)}"
             for node in ast.walk(tree)

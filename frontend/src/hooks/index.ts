@@ -1,16 +1,18 @@
 export { useWebSocket } from './useWebSocket';
 export type { WebSocketOptions, UseWebSocketReturn } from './useWebSocket';
 
-export { useWebSocketStatus } from './useWebSocketStatus';
+// [r204]: `useConnectionStatus` owns the channel-status types now — the
+// second socket implementation that used to export them is deleted, and the
+// one subscription lives in ConnectionStatusProvider.
+export { useConnectionStatus } from './useConnectionStatus';
 export type {
+  BackendSystemStatus,
   ConnectionState,
   ChannelStatus,
-  WebSocketStatusOptions,
-  UseWebSocketStatusReturn,
-} from './useWebSocketStatus';
-
-export { useConnectionStatus } from './useConnectionStatus';
-export type { ConnectionStatusSummary, UseConnectionStatusReturn } from './useConnectionStatus';
+  ConnectionStatusSummary,
+  UseConnectionStatusReturn,
+} from './useConnectionStatus';
+export { ConnectionStatusProvider } from './ConnectionStatusProvider';
 
 export { useEventStream } from './useEventStream';
 export type { SecurityEvent, UseEventStreamReturn } from './useEventStream';
@@ -235,13 +237,6 @@ export type {
   UseEventDetectionsQueryOptions,
   UseEventDetectionsQueryReturn,
 } from './useEventDetectionsQuery';
-
-// Event enrichments batch query hook (NEM-3596)
-export { useEventEnrichmentsQuery, eventEnrichmentsQueryKeys } from './useEventEnrichmentsQuery';
-export type {
-  UseEventEnrichmentsQueryOptions,
-  UseEventEnrichmentsQueryReturn,
-} from './useEventEnrichmentsQuery';
 
 export { useAlertsInfiniteQuery, alertsQueryKeys } from './useAlertsQuery';
 export type {

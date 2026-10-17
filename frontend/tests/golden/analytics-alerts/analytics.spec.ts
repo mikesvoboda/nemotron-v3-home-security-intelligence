@@ -86,7 +86,7 @@ function bookConfidencePercent(h: Harness): number {
   return Math.round(h.scenario.detections[0].confidence * 100);
 }
 
-test.describe('DO-1 golden path: /analytics surfaces over the batch data @critical', () => {
+test.describe('DO-1 golden path: /analytics surfaces over the batch data (F-070, F-071, F-072, F-073, F-074, F-075) @critical', () => {
   test.setTimeout(90_000); // no pipeline wait here — the events already landed
 
   test('the native analytics view aggregates what the API leg just proved is stored', async ({

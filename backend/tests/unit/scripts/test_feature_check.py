@@ -21,6 +21,7 @@ The harness end to end (boot, smoke check, teardown) runs in the
 
 from __future__ import annotations
 
+import ast
 import copy
 import importlib.util
 import json
@@ -1369,6 +1370,48 @@ def test_a_green_real_run_removes_its_vlm_after_the_test_deployment(
     assert '"exit": 0' in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("seeded", [True, False], ids=["seeded", "unseeded"])
+def test_a_real_run_plants_the_debug_fixtures_only_when_seeded(
+    agent_gpu: AgentGpuStub,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    seeded: bool,
+) -> None:
+    """Ruling 235 puts the CI fixtures on the REAL tier, so the real tier has to plant them.
+
+    ``run_check`` guards the call on ``seeded`` alone (``feature_check.py:3040``). A
+    guard that also demanded ``run.mode == "fake"`` — the shape every pre-ruling
+    seeded run had — keeps every fake-tier test green and leaves ``--real --seeded``
+    running the seeded goldens against an UNSEEDED backend: the seeded specs then
+    read fixtures that were never planted. That is the failure this pins, and it is
+    the failure the operator's ruling-235 leg could not have caught on its own,
+    because a leg only observes what its own seeding step left behind.
+
+    Both arms are asserted, because a one-sided "was called" pin passes for any
+    reason at all: the un-seeded arm is what says the guard is ``seeded`` and not
+    simply unconditional.
+    """
+    order: list[str] = []
+    _green_real_run(monkeypatch, order, log=agent_gpu.log)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
+    monkeypatch.setattr(
+        fc.Run,
+        "seed_debug_fixtures",
+        lambda _self: order.append("seed_debug_fixtures"),
+    )
+    argv = ["--real"]
+    if seeded:
+        argv.append("--seeded")
+    status = fc.main([*argv, "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_OK, capsys.readouterr().out
+    assert ("seed_debug_fixtures" in order) is seeded
+    if seeded:
+        # The fixtures are the CI's, and they are planted where the CI planted them:
+        # after the cameras, before anything reads them.
+        assert order.index("seed_debug_fixtures") > order.index("seed_cameras")
+
+
 @pytest.mark.parametrize("fail", ["vlm.wait_ready", "render", "up", "smoke"])
 def test_a_real_run_that_breaks_still_removes_its_vlm(
     agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fail: str
@@ -1715,7 +1758,40 @@ def test_the_leg_runs_in_the_image_with_the_same_argv_inside(
     assert inner.startswith("npx --no-install playwright test --project=golden "), inner
     assert "--reporter=list,junit" in inner, "the same reporters, so the same counts"
     assert f"{run.artifacts / 'golden-playwright'}" in inner, "the same --output path, both sides"
-    assert kwargs["timeout"] == 1800, "a golden suite is minutes, not the 300 s default"
+    # A literal, not fc.GOLDEN_LEG_TIMEOUT_S — a re-read would agree with whatever the constant
+    # says (this file's own rule above: "not fc.playwright_image(...) re-evaluated"). The value
+    # is ruling 189's measurement: the slowest of the last 10 green golden legs on main was
+    # 1739 s (job 116184218975 at c1b804a82), x 1.5 rounded up to a minute = 2640. A later edit
+    # of the constant reds this line — that is the point — and its author brings new numbers here.
+    assert kwargs["timeout"] == 2640, "a golden suite is minutes; 2640 = measured 1739 s x 1.5"
+
+
+def test_the_feature_check_job_budget_covers_the_new_cap_with_10_minutes_of_margin() -> None:
+    """Ruling 189's second clause: the job's timeout-minutes rises when boot + the backend leg +
+    the new cap would leave it under 10 minutes.
+
+    Measured on the same 10 green runs as the leg pin, on the job's own clock (the Actions
+    `started_at`/`completed_at` bounds are what `timeout-minutes` counts): worst boot+backend
+    BEFORE the golden leg was 562 s (job 116184218975), worst teardown after it 31 s. Conservative
+    sum with the new cap: 562 + 2640 + 31 = 3233 s = 53.9 min, which under the old 60 min leaves
+    6.1 min — below the ruling's floor. 64 min restores it: 3840 - 3233 = 607 s >= 600. Pinned
+    against the workflow file itself, so an edit to either side (the cap, or the budget) reds a
+    test that says why.
+    """
+    yaml = pytest.importorskip("yaml")
+    ci = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    job = ci["jobs"]["feature-check"]
+    assert job["name"] == "Feature check (fake AI)", "the job this package budgets is this job"
+    minutes = job["timeout-minutes"]
+    # ruling 189's measurement, same 10 runs, on the job's started_at/completed_at clock
+    boot_backend_worst_s, teardown_worst_s = 562, 31
+    margin_s = minutes * 60 - (boot_backend_worst_s + fc.GOLDEN_LEG_TIMEOUT_S + teardown_worst_s)
+    assert margin_s >= 600, (
+        f"ruling 189: boot + backend + cap must leave the job >= 10 min; "
+        f"timeout-minutes: {minutes} leaves {margin_s} s"
+    )
 
 
 def test_the_container_gets_environment_names_never_values(
@@ -2580,6 +2656,70 @@ def test_the_preflight_allows_the_one_port_agent_gpu_printed(
     assert seen["allowed_host_ports"] == (frozenset({18123}) if real else frozenset())
     backend = seen["rendered"]["services"]["backend"]["environment"]
     assert (backend.get("AI_VLM_URL") == VLM_URL) is real
+
+
+def test_a_seeded_real_render_keeps_both_halves_of_the_boot(
+    base: dict[str, Any], live: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ruling 235's boot claim, at the seam the real tier actually renders through.
+
+    ``Run.render`` is the only caller that passes **both** ``vlm_url`` and
+    ``seeded`` (``feature_check.py:1839-1845``), so it is where the two features
+    of this PR genuinely meet. Nothing else covers that conjunction: the
+    deployment-level test below calls ``as_test_deployment`` directly (so it never
+    runs the render), and ``test_the_preflight_allows_the_one_port_agent_gpu_printed``
+    above renders *un-seeded*. A render that quietly dropped the seeded shape
+    whenever a VLM was present -- ``seeded=self.seeded and vlm is None`` -- keeps
+    every one of those green, and would boot an unseeded backend that the seeded
+    goldens then read as if it were seeded.
+
+    The preflight is deliberately the real one, wrapped only to capture its input:
+    a render that loses the seeded ``/app/data`` tmpfs or re-adds ``ai-vlm`` to
+    ``depends_on`` should be *refused* here, not merely asserted differently.
+    """
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="real", seeded=True
+    )
+    run.artifacts.mkdir(parents=True)
+    vlm = fc.AgentGpu(run)
+    vlm.url, vlm.host_port = VLM_URL, 18123
+    seen: dict[str, Any] = {}
+    # Bound BEFORE the swap below: `fc.preflight` is about to be this wrapper, so
+    # calling it by name from inside the wrapper would recurse forever.
+    real_preflight = fc.preflight
+
+    def compose(self: Any, files: Any, *args: str, **kwargs: Any) -> Any:
+        return subprocess.CompletedProcess(args, 0, json.dumps(base), "")
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> Any:
+        return subprocess.CompletedProcess(args, 0, self.compose_file.read_text(), "")
+
+    def check(rendered: Any, **kwargs: Any) -> list[str]:
+        seen.update(kwargs, rendered=rendered)
+        return real_preflight(rendered, **kwargs)
+
+    monkeypatch.setattr(fc.Run, "compose", compose)
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "host_addresses", lambda *_: frozenset())
+    monkeypatch.setattr(fc, "preflight", check)
+
+    run.render(live, vlm)
+
+    backend = seen["rendered"]["services"]["backend"]
+    env = backend["environment"]
+    # the real half: the VLM is wired in and the fake detector is gone
+    assert list(seen["rendered"]["services"]) == list(fc.REAL_SERVICES)
+    assert env["AI_VLM_URL"] == VLM_URL
+    assert "ai-vlm" not in backend["depends_on"]
+    assert seen["allowed_host_ports"] == frozenset({18123})
+    # the seeded half, on top of it -- the part a render-seam regression deletes
+    assert env["DEBUG"] == "true"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+    assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
+    # and the render survived the REAL preflight, not a stub that always says ok
+    assert run.summary["results"]["preflight"] == "ok"
 
 
 @pytest.mark.parametrize(("porcelain", "refused"), [("", False), (" M ai/vlm/Dockerfile\n", True)])
@@ -3805,6 +3945,37 @@ def test_the_derivation_ignores_a_service_that_boots_from_a_registry_image(
 # ---------------------------------------------------------------------------
 
 
+# What each SUPPORTED engine actually prints, and what it returns, when a name is not in the engine
+# vs when its daemon is DOWN. Measured in this sandbox against docker 27.x and podman 5.7.0:
+#     docker  absent  rc=1    "Error response from daemon: No such image: <name>"
+#     docker  down    rc=1    "failed to connect to the docker API at unix:///…; check if the path…"
+#     podman  absent  rc=125  "Error: <name>: image not known"
+#     podman  down    rc=125  "Cannot connect to Podman. Please verify your connection…"
+# Both DOWN answers share their engine's absent exit code, so the rc cannot carry the distinction
+# and only the words can -- which is why the cleanup's absence test is a marker, not a code. One
+# source feeds both the shared fake below (fidelity: an honest absence must carry the daemon's
+# words or a tightening of the rule silently reclassifies every real absence as unknown) and the
+# engine-down pins further down. `choices=("docker", "podman")` in `main()` closes the engine set.
+_ABSENT_STDERR = {
+    "docker": "Error response from daemon: No such image: {name}",
+    "podman": "Error: {name}: image not known",
+}
+_DOWN_STDERR = {
+    "docker": (
+        "failed to connect to the docker API at unix:///run/user/1000/podman/podman.sock; "
+        "check if the path is correct and if the daemon is running"
+    ),
+    "podman": "Cannot connect to Podman. Please verify your connection to the Linux system",
+}
+# The exit code each engine returns for BOTH answers above -- the reason rc is no discriminator.
+_LOOKUP_RC = {"docker": 1, "podman": 125}
+
+
+def _absent_stderr(engine: str, name: str) -> str:
+    """What `engine` says, verbatim, when `name` is genuinely not in it."""
+    return _ABSENT_STDERR[engine].format(name=name)
+
+
 _PREBUILD_DOC = {
     "services": {
         # build, no image -> compose derives <project>-backend:latest
@@ -3836,6 +4007,7 @@ def _engine_answers(
     present: frozenset[str] = frozenset(),
     build_rc: int = 0,
     build_tail: str = "",
+    rm_rc: int = 0,
 ) -> list[tuple[list[str], dict[str, Any]]]:
     """Answer this run's engine at the `_run` seam and record every argv + env.
 
@@ -3844,7 +4016,21 @@ def _engine_answers(
     the file's `_fake_compose` cannot show, because it drops kwargs and env is
     exactly where the builder switch lives.
     """
-    calls: list[tuple[list[str], dict[str, Any]]] = []
+
+    class _Calls(list):
+        """The argv record, plus the engine's image state as it evolved.
+
+        `have` starts as `present` and a SUCCESSFUL build adds the namespaced tags
+        it built, because that is what a build does: it leaves `<project>-
+        <service>:latest` in the engine. A static `present` set could not show both
+        facts the cleanup is judged on — that the build put images there, and that a
+        name the engine never got must not be `image rm`'d.
+        """
+
+        have: set[str]
+
+    calls = _Calls()
+    calls.have = set(present)
 
     def compose_verb(command: list[str]) -> str | None:
         # The subcommand follows the LAST -f's value: the argv is
@@ -3860,10 +4046,30 @@ def _engine_answers(
         calls.append((argv, kwargs))
         verb = compose_verb(argv)
         if argv[1:3] == ["image", "inspect"]:
-            return subprocess.CompletedProcess(argv, 0 if argv[3] in present else 1, "", "")
+            if argv[3] in calls.have:
+                return subprocess.CompletedProcess(argv, 0, "", "")
+            # An honest "not in the engine" carries the daemon's WORDS, not just a nonzero rc:
+            # the cleanup reads absence as a positive claim (see `_ABSENT_STDERR` above), so a
+            # fake that answers absence with empty stderr would make every real absence read
+            # as unknown and turn the guard green by never exercising it.
+            return subprocess.CompletedProcess(
+                argv, _LOOKUP_RC[self.engine], "", _absent_stderr(self.engine, argv[3])
+            )
+        if argv[1:3] == ["image", "rm"]:
+            if rm_rc == 0:
+                calls.have.discard(argv[3])
+            return subprocess.CompletedProcess(
+                argv, rm_rc, "", "image is used by container" if rm_rc else ""
+            )
         if verb == "config":
             return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(rendered), stderr="")
         if verb == "build":
+            if build_rc == 0:
+                built = argv[_last(argv, "-f") + 3 :]
+                for name in built:
+                    service = (rendered.get("services") or {}).get(name) or {}
+                    if not service.get("image"):
+                        calls.have.add(f"{run.project}-{name}:latest")
             return subprocess.CompletedProcess(argv, build_rc, "", build_tail)
         if verb == "up":
             raise AssertionError(f"`up` ran during a pre-build test: {argv}")
@@ -3871,6 +4077,15 @@ def _engine_answers(
 
     monkeypatch.setattr(fc.Run, "_run", fake)
     return calls
+
+
+def _image_rms(calls: Any) -> list[str]:
+    """The image names this run asked the engine to remove, in call order.
+
+    Matched on the argv position, like every other matcher here: a bare engine
+    call has no `-f`, so `_verb_calls` (compose-only by design) cannot see it.
+    """
+    return [argv[3] for argv, _ in calls if argv[1:3] == ["image", "rm"]]
 
 
 def _is_verb(argv: list[str], verb: str) -> bool:
@@ -4049,3 +4264,1136 @@ def test_a_render_with_no_build_services_builds_nothing(
     # No `exit` key at all: the record distinguishes "nothing was buildable" from
     # "a build ran and returned 0", which the CI tier's stack can never be.
     assert run.summary["prebuild"] == {"built": [], "present": [], "to_build": []}
+
+
+# ---------------------------------------------------------------------------
+# O2.5 follow-up: the images a prod-shape run LEAVES BEHIND.
+#
+# The pre-build names every image-less build service `<project>-<service>:latest`
+# and `self.project` carries a per-run random token, so those tags differ on every
+# run — a re-run cannot reuse a prior build, and nothing removes the old ones.
+# `down -v` (UR-135, pinned above to exactly that one compose call) takes
+# containers and volumes; the postflight `Snapshot` tracks containers and volumes.
+# Neither has an image axis, so the leak is neither cleaned nor reported. Measured
+# on the rendered boot document: 5 image-less build tags on a first real-tier run,
+# 4 once --vlm-url is set (as_prod_shape_deployment:795 pops ai-vlm). The fake tier
+# leaks nothing: --prod-shape is refused without --real (:2893) and both of its
+# build services declare image: hsi-fake-ai, so compose never names one <project>-.
+# grafana declares its own host-
+# local `image:` and is NOT project-prefixed, so it is shared with production and
+# must survive — the same reason skip-if-present exists.
+#
+# Removal therefore lives on the bare-engine surface (`image rm`), OUTSIDE the
+# `run.started` gate: a run that dies in the pre-build never sets `started` (that
+# flips inside `up`), yet a partial build already left images behind.
+# ---------------------------------------------------------------------------
+
+
+def _cleanup_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Any, list[tuple[list[str], dict[str, Any]]]]:
+    """A rendered prod run plus its engine recorder, ready to clean up.
+
+    The shape needs no argument: _prod_run builds with prod_shape=True, and the
+    non-prod-shape case writes its own run because it also swaps the boot document.
+    """
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+    run.render(fc.Snapshot.from_engine([], []))
+    return run, calls
+
+
+def test_a_prod_shape_run_removes_the_images_it_built_under_its_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The names come from build_images over the run's OWN boot document, so the
+    # cleanup cannot drift from what `up` looked for. Only this run's prefixed tags
+    # go; grafana's declared name is production's image, not this run's to delete.
+    run, calls = _cleanup_run(tmp_path, monkeypatch)
+    backend_image = f"{run.project}-backend:latest"
+    # Seed grafana as ACTUALLY PRESENT before cleaning up. The fake's build branch
+    # never adds a declared-image service's tag (faithful: compose builds grafana
+    # under its own host-local name, not `<project>-grafana`), so with an empty
+    # engine the grafana assert below is unsatisfiable-by-construction and a mutant
+    # dropping the `startswith(prefix)` filter survives it (ops-b's UR-89 finding).
+    # `prebuild_images` leaves grafana in the engine under this exact name whenever
+    # it was absent, so this is the state that matters — the filter is the only
+    # thing between this cleanup and production's grafana image.
+    calls.have.add(_GRAFANA)
+
+    status = run.cleanup_images()
+
+    assert _image_rms(calls) == [backend_image], (
+        "the project-namespaced build image must be removed by the exact name `up` "
+        f"used, and nothing else — grafana's declared tag was present: {_image_rms(calls)}"
+    )
+    assert _GRAFANA not in _image_rms(calls), (
+        "a declared host-local image is not this run's to remove"
+    )
+    assert _GRAFANA in calls.have, "grafana's image must still be in the engine after the run"
+    assert status == fc.EXIT_OK, status
+    assert run.summary["images_removed"] == [backend_image], run.summary
+    assert run.summary["images_leaked"] == [], run.summary
+
+
+def test_the_image_cleanup_asks_before_removing_and_skips_what_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `image rm` on a name the engine does not have is an error, not a no-op, so
+    # the cleanup checks each name first, the way the pre-build does: an absent
+    # name costs an inspect, never an rm that would report a false failure. A boot
+    # document is written by hand so the names are KNOWN, and the engine holds
+    # none of them — the two-sided half of the ask-before-remove pair.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch, present=frozenset())
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+
+    assert run.cleanup_images() == fc.EXIT_OK
+    assert _image_rms(calls) == [], (
+        f"an image the engine does not have must not be `image rm`'d: {_image_rms(calls)}"
+    )
+    inspected = {argv[3] for argv, _ in calls if argv[1:3] == ["image", "inspect"]}
+    assert inspected == {f"{run.project}-backend:latest"}, inspected
+
+
+def test_a_run_that_never_started_still_removes_its_images(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # THE reason cleanup sits outside `if run.started:`. A pre-build that dies
+    # after building SOME images leaves those with `started` still False, and the
+    # gate that correctly guards `teardown` would skip them. Engine state is seeded
+    # to say exactly that: backend's tag exists, the render still dies (build_rc=1,
+    # a build that half-finished is the operator's first-run situation).
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    partial = f"{run.project}-backend:latest"
+    calls = _engine_answers(
+        run,
+        _PREBUILD_DOC,
+        monkeypatch,
+        present=frozenset({partial}),
+        build_rc=1,
+        build_tail="mkdir /sys/fs/cgroup: permission denied",
+    )
+    with pytest.raises(fc.HarnessError):
+        run.render(fc.Snapshot.from_engine([], []))
+    assert run.started is False, "a failed pre-build must never have set started"
+
+    assert run.cleanup_images() == fc.EXIT_OK
+    assert _image_rms(calls) == [partial], _image_rms(calls)
+
+
+def test_the_image_cleanup_is_gated_on_shape_not_on_started(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The wiring is the finding: an unguarded call site is decoration if the gate
+    # next to it swallows it. `run_check`'s finally must call cleanup whether or not
+    # `started` flipped, and must NOT reach the engine for a tier that built nothing.
+    import argparse
+
+    calls: list[str] = []
+
+    class StubRun:
+        started = False
+        prod_shape = True
+
+        def __init__(self) -> None:
+            self.artifacts = tmp_path
+            self.summary: dict[str, Any] = {}
+
+        def prepare(self) -> Any:
+            # prepare() runs BEFORE run_check's try block, so it has to succeed for
+            # the finally to run at all; the failure goes in render(), inside it.
+            return fc.Snapshot.from_engine([], [])
+
+        def render(self, before: Any, vlm: Any = None) -> None:
+            raise fc.HarnessError("stopped on purpose")
+
+        def cleanup_images(self) -> int:
+            calls.append("cleanup")
+            return fc.EXIT_OK
+
+        def _write(self, name: str, data: Any) -> None:
+            return None
+
+    stub = StubRun()
+    # run_check resolves `Run` from the module at call time (`run = Run(...)`,
+    # :2727), so handing it the stub is a module-attribute patch — which monkeypatch
+    # undoes exactly. Do NOT patch `Run.__new__` here: a subclass never owns that
+    # slot, and monkeypatch's snapshot-then-restore leaves CPython's `__new__`
+    # unwinding broken, so every LATER `fc.Run(...)` in the process raises
+    # "object.__new__() takes exactly one argument". render() is where the stub
+    # fails: prepare() runs before run_check's try block, so the failure has to
+    # happen inside the try for the finally under test to run at all.
+    monkeypatch.setattr(fc, "Run", lambda **_kw: stub)
+    monkeypatch.setattr(fc, "AgentGpu", lambda *_a, **_k: None)
+
+    args = argparse.Namespace(
+        engine="podman", root=tmp_path / "runs", image_tag="test", prod_shape=True
+    )
+    status = fc.run_check(args, mode="real")
+    assert calls == ["cleanup"], (
+        "the finally must attempt image cleanup even when the run never started"
+    )
+    assert status != fc.EXIT_OK, "a run that died still reports its failure exit"
+
+
+def test_a_non_prod_shape_run_touches_no_images(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Only the prod shape is in scope. The CI tier boots registry images and builds
+    # nothing (docker-compose.ci.yml: 4 services, zero build blocks); the fake tier
+    # DOES build two, but tags them image: hsi-fake-ai, and --prod-shape is refused
+    # without --real. Either way an `image inspect` per service is pure cost and an
+    # `image rm` there could delete outside the run's own namespace. The doc is hand-written, WITH
+    # the build blocks a prod render would have, so a guard that looked only at the
+    # document would still act here — this pins the shape guard, not the document.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+    run.prod_shape = False
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+
+    assert run.cleanup_images() == fc.EXIT_OK
+    assert _image_rms(calls) == [], _image_rms(calls)
+    assert [a for a, _ in calls if a[1:3] == ["image", "inspect"]] == []
+
+
+def test_a_pre_render_run_removes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # No boot document means no measured names. Deriving them from a second source
+    # (the stack YAML, a fixed list) is exactly the drift the names come from the
+    # render to avoid; an empty hand is the honest answer.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+    assert not run.compose_file.exists()
+    assert run.cleanup_images() == fc.EXIT_OK
+    assert _image_rms(calls) == []
+    assert [a for a, _ in calls if a[1:3] == ["image", "inspect"]] == []
+
+
+def test_a_stalled_inspect_is_reported_as_unknown_and_not_as_a_clean_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A stalled `image inspect` returns rc=124, which is nonzero, and a nonzero
+    # inspect is the code's signal for "this name never existed". Without the stall
+    # fence a dead engine therefore reads as a perfectly clean run: the whole point
+    # of this step is that a leak must not be reported as a cleanup, and "the engine
+    # never answered" is not evidence that nothing leaked. `_stalled` is the file's
+    # own detector (`_exit_word` already refuses to let a stall and a refusal read
+    # alike), and the name must NOT be `image rm`'d: unknown state is not absence.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    # The boot document is what makes this test measure the loop at all: without it
+    # cleanup_images() returns EXIT_OK at its own "no render, no names" gate and every
+    # assertion below passes without the stall branch ever running.
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    backend_image = f"{run.project}-backend:latest"
+
+    def stalled_engine(self: Any, command: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        argv = [str(part) for part in command]
+        calls.append(argv)
+        if argv[1:3] == ["image", "inspect"]:
+            return subprocess.CompletedProcess(
+                argv, fc._TIMEOUT_RC, "", f"{fc._TIMEOUT_NOTE} after 300 seconds"
+            )
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(fc.Run, "_run", stalled_engine)
+
+    assert run.cleanup_images() == fc.EXIT_FAILED
+    assert run.summary["images_stalled"] == [backend_image], run.summary
+    assert run.summary["images_removed"] == [], run.summary
+    assert run.summary["images_leaked"] == [], run.summary
+    assert [a for a in calls if a[1:3] == ["image", "rm"]] == [], calls
+    logged = capsys.readouterr().out
+    assert f"the engine timed out: {backend_image}" in logged, logged
+
+
+def _refusing_engine(
+    run: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    answer: str,
+    rc: int | None = None,
+) -> list[list[str]]:
+    """Answer every `image inspect` with a refusal, and record the argvs.
+
+    `answer` is `"down"` (the daemon's not-there words for this run's engine), `"absent"`
+    (its honest no-such-image words), or a literal stderr to hand back verbatim. The
+    message is resolved INSIDE the fake because fidelity needs the run's own engine, and
+    a per-call lambda would either ignore arguments (ruff ARG005) or re-derive the engine
+    at every call site. A refusal is not a stall: rc is never 124, so the stall fence
+    doesn't see it and this exercises the other door.
+    """
+    exit_code = rc if rc is not None else _LOOKUP_RC[run.engine]
+    calls: list[list[str]] = []
+
+    def refusing(self: Any, command: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        argv = [str(part) for part in command]
+        calls.append(argv)
+        if argv[1:3] == ["image", "inspect"]:
+            if answer == "down":
+                stderr = _DOWN_STDERR[self.engine]
+            elif answer == "absent":
+                stderr = _absent_stderr(self.engine, argv[3])
+            else:
+                stderr = answer
+            return subprocess.CompletedProcess(argv, exit_code, "", stderr)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(fc.Run, "_run", refusing)
+    return calls
+
+
+def test_a_down_engine_is_reported_as_unknown_and_not_as_a_clean_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The companion test fences a STALLED inspect (rc=124). This is the other door: a daemon that is
+    # DOWN answers `image inspect` with the same exit code it uses for "that name is not in the
+    # engine", so the bare nonzero test reads every name as never-having-existed and reports the
+    # exact false-spotless run this step exists to prevent. The discriminator is the daemon's own
+    # words, measured above; absence has to be POSITIVELY identified, not inferred from an rc.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    backend_image = f"{run.project}-backend:latest"
+    calls = _refusing_engine(run, monkeypatch, answer="down")
+
+    assert run.cleanup_images() == fc.EXIT_FAILED, (
+        "a run whose engine never answered must not exit OK: the cleanup is unverified, not clean"
+    )
+    assert run.summary["images_stalled"] == [backend_image], (
+        "the unknown name belongs in the list the operator acts on -- the repair is an engine "
+        f"to fix, exactly as for a timeout: {run.summary}"
+    )
+    assert run.summary["images_removed"] == [], run.summary
+    assert run.summary["images_leaked"] == [], run.summary
+    # Not one `image rm`: guessing that a name is absent and removing it anyway is a second guess
+    # stacked on the first, and on a daemon that is merely slow to come up it deletes a built image.
+    assert [a for a in calls if a[1:3] == ["image", "rm"]] == [], calls
+    logged = capsys.readouterr().out
+    assert f"state unknown: {backend_image}" in logged, logged
+    # The log carries the daemon's own words, because "state unknown" alone does not tell the
+    # operator whether to wait for a hung engine or start a dead one.
+    assert "Cannot connect" in logged or "failed to connect" in logged, logged
+
+
+@pytest.mark.parametrize("engine", sorted(_ABSENT_STDERR))
+def test_a_name_the_engine_positively_does_not_have_is_absent_not_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, engine: str
+) -> None:
+    # The must-ignore side, per engine: an honest "No such image" / "image not known" is evidence of
+    # absence and must still exit OK with nothing named. Without this half the rule would be "any
+    # refusal is unknown", every real cleanup of a never-built name would go red, and the next
+    # person would delete the guard instead of the bug.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.engine = engine
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    calls = _refusing_engine(run, monkeypatch, answer="absent")
+
+    assert run.cleanup_images() == fc.EXIT_OK, run.summary
+    assert run.summary["images_stalled"] == [], run.summary
+    assert run.summary["images_leaked"] == [], run.summary
+    assert run.summary["images_removed"] == [], run.summary
+    assert [a for a in calls if a[1:3] == ["image", "rm"]] == [], calls
+
+
+def test_the_absence_markers_discriminate_both_ways() -> None:
+    # Two-sided control on the marker set itself, deterministic and engine-independent: each
+    # supported engine's absent words must be accepted and its DOWN words refused. A marker list is
+    # exactly the kind of constant that silently rots -- widen it to "any stderr" and the false
+    # spotless returns; narrow it to one engine and that engine's real absences start reporting
+    # unknown on every green run.
+    for engine in sorted(_ABSENT_STDERR):
+        absent = subprocess.CompletedProcess(
+            ["x", "image", "inspect", "n"], _LOOKUP_RC[engine], "", "irrelevant"
+        )
+        absent.stderr = _ABSENT_STDERR[engine].format(name="proj-backend:latest")
+        assert fc._image_absent(absent), f"{engine}'s measured absence marker must read absent"
+        down = subprocess.CompletedProcess(
+            ["x", "image", "inspect", "n"], _LOOKUP_RC[engine], "", _DOWN_STDERR[engine]
+        )
+        assert not fc._image_absent(down), f"{engine}'s measured DOWN text must read UNKNOWN"
+    # And an rc=0 answer is not "absent" whatever its stderr, so the marker cannot turn a present
+    # image into an unknown one.
+    assert not fc._image_absent(
+        subprocess.CompletedProcess(["x"], 0, "", _ABSENT_STDERR["docker"].format(name="n"))
+    ), "rc=0 is present, full stop"
+
+
+def test_the_engine_helper_holds_a_silence_is_not_an_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Empty stderr with a nonzero rc is the shape a fake writes by default and a real engine can
+    # also produce (a wrapper that logged nothing). It is unknown, not absent: absence is a positive
+    # claim the daemon made in words, and this pins that the guard's DEFAULT is the loud direction.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    _refusing_engine(run, monkeypatch, answer="")
+
+    assert run.cleanup_images() == fc.EXIT_FAILED, run.summary
+    assert run.summary["images_stalled"] == [f"{run.project}-backend:latest"], run.summary
+
+
+def test_the_ceiling_of_unknown_covers_every_nonzero_inspect_that_is_not_marked_absent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The whole rule in one line: `image inspect` may be believed as "not present" ONLY when the
+    # daemon said so. Every other nonzero answer -- a refusal, a bad name form, an unexpected rc --
+    # is unknown. Pinning the rule as a sweep rather than as one case per message is what keeps a
+    # new engine error shape from silently defaulting to "absent".
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    run.compose_file.write_text(json.dumps(_PREBUILD_DOC), encoding="utf-8")
+    unmarked = [
+        "docker: 'docker image inspect' requires at least 1 argument",
+        "permission denied while trying to connect to the Docker daemon socket",
+        "error during connect: Get http://%2Fvar%2Frun%2Fdocker.sock/v1.24/execute: dial unix",
+        "",
+    ]
+    for stderr in unmarked:
+        assert not fc._image_absent(
+            subprocess.CompletedProcess(["x", "image", "inspect", "n"], 1, "", stderr)
+        ), f"unmarked nonzero stderr {stderr!r} must read UNKNOWN, not absent"
+    # One end-to-end instance of the sweep's conclusion, so the helper is not the only thing pinned.
+    _refusing_engine(
+        run, monkeypatch, answer="permission denied while trying to connect to the daemon"
+    )
+    assert run.cleanup_images() == fc.EXIT_FAILED, run.summary
+    assert run.summary["images_stalled"], run.summary
+
+
+def test_the_cleanup_removes_the_prefixed_tags_in_a_stable_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The summary is pasted to the operator and diffed between runs, and the rm
+    # order is what a log reader traces, so both get `sorted` rather than document
+    # order. Hand-write a boot document whose two image-less build services are in
+    # NON-alphabetical order: without the sort, both lists come out reversed.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    two_builds = {
+        "services": {
+            "zeta": {"build": {"context": "/repo/zeta"}},
+            "alpha": {"build": {"context": "/repo/alpha"}},
+        }
+    }
+    run.compose_file.write_text(json.dumps(two_builds), encoding="utf-8")
+    calls = _engine_answers(run, two_builds, monkeypatch)
+    for name in ("zeta", "alpha"):
+        calls.have.add(f"{run.project}-{name}:latest")
+
+    assert run.cleanup_images() == fc.EXIT_OK
+    want = [f"{run.project}-alpha:latest", f"{run.project}-zeta:latest"]
+    assert run.summary["images_removed"] == want, run.summary
+    assert _image_rms(calls) == want, _image_rms(calls)
+
+
+def test_the_fake_engine_never_seeds_a_declared_image_services_namespaced_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The fake's build branch adds `<project>-<service>:latest` only for a service
+    # with no `image:`, because that is what compose actually does. That predicate
+    # is what makes the grafana pin above mean anything: seed grafana's namespaced
+    # tag too and `present` would be satisfied by an image no engine ever held, and
+    # the "must not be rm'd" assertion would pass while the code lost the guard.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch)
+
+    run.render(fc.Snapshot.from_engine([], []))
+
+    assert f"{run.project}-backend:latest" in calls.have, sorted(calls.have)
+    assert f"{run.project}-grafana:latest" not in calls.have, sorted(calls.have)
+
+
+def test_an_unremovable_image_is_reported_not_swallowed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # An `image rm` that fails (in use, engine gone) must raise the exit, not vanish
+    # into a summary that says the run cleaned up after itself.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    calls = _engine_answers(run, _PREBUILD_DOC, monkeypatch, rm_rc=1)
+    run.render(fc.Snapshot.from_engine([], []))
+
+    assert run.cleanup_images() == fc.EXIT_FAILED
+    assert run.summary["images_removed"] == [], run.summary
+    assert run.summary["images_leaked"] == [f"{run.project}-backend:latest"], (
+        "the operator pastes summary.json verbatim, so an image left in the engine "
+        f"must be named there and not only in the log: {run.summary}"
+    )
+    assert _image_rms(calls) == [f"{run.project}-backend:latest"], _image_rms(calls)
+    # The live log too, not only the summary: the leak is reported where the
+    # operator is watching while the run is still going. Deleting the `_log` line
+    # for a leaked image reddens this half.
+    logged = capsys.readouterr().out
+    assert (
+        f"FAIL prod-shape image still in the engine, not removed: {run.project}-backend" in logged
+    ), logged
+
+
+class _WiredRun:
+    """A run that walks `run_check`'s whole lifecycle without an engine.
+
+    `run_check` resolves `Run` from the module at call time, so a test hands it this
+    via `monkeypatch.setattr(fc, "Run", ...)` — a module-attribute patch monkeypatch
+    undoes exactly (never `Run.__new__`: a subclass never owns that slot and its
+    snapshot-then-restore leaves CPython's slot unwinding broken for every LATER
+    `fc.Run(...)` in the process). Every lifecycle method is a no-op except the ones
+    a test is watching, and `record` collects the calls in the order they happened,
+    which is what pins the ORDER of teardown and image cleanup.
+    """
+
+    def __init__(
+        self,
+        artifacts: Path,
+        *,
+        record: list[str] | None = None,
+        fail_in: str | None = None,
+        cleanup: int | None = fc.EXIT_OK,
+        cleanup_raises: Exception | None = None,
+    ) -> None:
+        self.artifacts = artifacts
+        self.summary: dict[str, Any] = {}
+        self.started = True
+        self.prod_shape = True
+        self.record = record if record is not None else []
+        self.fail_in = fail_in
+        self.cleanup = cleanup
+        self.cleanup_raises = cleanup_raises
+
+    def prepare(self) -> Any:
+        return fc.Snapshot.from_engine([], [])
+
+    def take_snapshot(self) -> Any:
+        return fc.Snapshot.from_engine([], [])
+
+    def render(self, before: Any, vlm: Any = None) -> None:
+        if self.fail_in == "render":
+            raise fc.HarnessError("stopped on purpose")
+
+    def up(self, vlm: Any = None) -> None:
+        self.record.append("up")
+
+    def register_admin(self) -> None:
+        return None
+
+    def seed_cameras(self) -> None:
+        return None
+
+    def check_isolation(self) -> list[str]:
+        return []
+
+    def smoke(self, vlm: Any = None) -> list[str]:
+        return []
+
+    def golden(self) -> list[str]:
+        return []
+
+    def collect(self) -> None:
+        return None
+
+    def teardown(self, before: Any) -> tuple[list[str], list[str]]:
+        self.record.append("teardown")
+        return [], []
+
+    def cleanup_images(self) -> int:
+        self.record.append("cleanup")
+        if self.cleanup_raises is not None:
+            raise self.cleanup_raises
+        assert self.cleanup is not None
+        return self.cleanup
+
+    def _write(self, name: str, data: Any) -> None:
+        return None
+
+
+def _run_check_with(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, run: _WiredRun) -> int:
+    """Drive the real `run_check` over a stub run, prod-shape and real-tier."""
+    import argparse
+
+    monkeypatch.setattr(fc, "Run", lambda **_kw: run)
+    monkeypatch.setattr(fc, "AgentGpu", lambda *_a, **_k: None)
+    args = argparse.Namespace(
+        engine="podman", root=tmp_path / "runs", image_tag="test", prod_shape=True
+    )
+    return fc.run_check(args, mode="real")
+
+
+def test_a_green_prod_shape_run_removes_its_images_after_the_teardown(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # Two pins the failure-path wiring test cannot make, both measured as survivors
+    # (ops-b's UR-89 review, reproduced in my own shell): a cleanup gated on
+    # `status != EXIT_OK` — "only clean up when something went wrong" — passes every
+    # failure-path test and leaks on every SUCCESSFUL run, which is the common case
+    # this PR exists for; and moving the cleanup call above `_finish` removes the
+    # images while containers still hold them, which is exactly the `image rm`
+    # failure the code already handles. A green run reaching EXIT_OK with the calls
+    # recorded in that order reddens both.
+    record: list[str] = []
+    run = _WiredRun(tmp_path, record=record)
+
+    status = _run_check_with(monkeypatch, tmp_path, run)
+
+    assert status == fc.EXIT_OK, run.summary
+    assert "up" in record, "the run must actually have reached the boot"
+    assert record == [*record[: record.index("teardown")], "teardown", "cleanup"], (
+        f"image cleanup must run last, after the deployment is torn down: {record}"
+    )
+    assert record[-1] == "cleanup", record
+    assert "cleanup" in record, (
+        "a SUCCESSFUL prod-shape run must remove the images it built — they are "
+        f"per-run names nothing else ever deletes: {record}"
+    )
+
+
+def test_a_cleanup_that_crashes_is_reported_and_not_reported_as_clean(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # `_cleanup_images`'s docstring promises a cleanup that cannot run is "reported,
+    # not swallowed". Both halves of that promise were unpinned: making its `except`
+    # return EXIT_OK survived all 240, and so did deleting the `except` so the crash
+    # escapes the finally. The run here is GREEN, so the exit word below comes from
+    # the cleanup alone — a swallowed crash (EXIT_OK) cannot pass it — and the URGENT
+    # line is what the operator pastes, so it is asserted as text.
+    record: list[str] = []
+    run = _WiredRun(
+        tmp_path, record=record, cleanup_raises=fc.HarnessError("engine socket vanished")
+    )
+
+    status = _run_check_with(monkeypatch, tmp_path, run)
+    logged = capsys.readouterr().out
+
+    assert record[-1] == "cleanup", record
+    assert "URGENT prod-shape image cleanup did not complete" in logged, logged
+    assert "engine socket vanished" in logged, logged
+    assert status == fc.EXIT_FAILED, (
+        f"a run whose image cleanup could not run must not report a clean exit: {status}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# The failure-message WINDOWS: `up()`'s compose tail ([-400:]) and the pre-build's
+# ([-1200:]). A UR-89 review at 0d8b04387 showed `[:400:]` SURVIVED all 231 tests:
+# every existing boot-failure fixture is shorter than the window, so head-slice and
+# tail-slice carry the same bytes and no pin can tell them apart. compose actually
+# prints pages (the operator's up-replay runs to ~30KB) and the REASON sits at the
+# END of a build log, so the slice direction is the whole message contract: keep
+# the tail. Each pin is two-sided — the reason must survive, and a head marker that
+# a head-slice (or an unbouned message) would carry must not.
+# ---------------------------------------------------------------------------
+
+
+def _long_compose_error(reason: str) -> str:
+    # HEADMARKER sits at byte 0 of the flattened message; the reason sits at the
+    # end, ~3k characters apart. A window that keeps the last N chars carries the
+    # reason and not the marker; one that keeps the first N, or none at all, fails
+    # one half of the pair.
+    padding = "HEADMARKER " + "build step line output " * 150
+    return f"docker compose … up … exited 1: {padding} {reason}"
+
+
+def test_a_failed_up_message_keeps_the_tail_of_a_long_compose_output(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    reason = "ERROR: cgroup configuration: mkdir /sys/fs/cgroup/docker/buildx: denied"
+
+    def deployment(*args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise fc.HarnessError(_long_compose_error(reason))
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "check_vlm_reach", lambda *_: None)
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="real")
+    with pytest.raises(fc.HarnessError) as raised:
+        run.up(vlm=_StubVlm())
+    message = str(raised.value)
+    assert reason in message, (
+        f"a head-slice (or no window) lost the reason at the END of compose's output: "
+        f"{message[:160]}"
+    )
+    assert "HEADMARKER" not in message, (
+        "the message is unbounded or head-sliced: the window must keep the tail only"
+    )
+
+
+def test_a_failed_prebuild_message_keeps_the_tail_of_long_build_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The same contract one layer earlier: `prebuild_images` quotes the build with
+    # its own window, and the builder's reason is at the end of its stream.
+    reason = "STEP 2/6: Error: mounting /dev/fuse: Operation not permitted"
+
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _engine_answers(
+        run,
+        _PREBUILD_DOC,
+        monkeypatch,
+        build_rc=1,
+        build_tail="HEADMARKER " + "sending build context " * 200 + reason,
+    )
+    with pytest.raises(fc.HarnessError) as raised:
+        run.render(fc.Snapshot.from_engine([], []))
+    message = str(raised.value)
+    assert reason in message, f"the build's reason at the end was sliced away: {message[:160]}"
+    assert "HEADMARKER" not in message, "the pre-build window must keep the tail, not the head"
+
+
+# ---------------------------------------------------------------------------
+# Ruling 127 / 187: --seeded mode (DEBUG=true, request recorder, breaker and
+# threshold fault seeds, orphan file fixture, and golden-seeded project).
+# ---------------------------------------------------------------------------
+
+
+def test_as_test_deployment_seeded_enables_debug_recorder_fault_seed_and_data_tmpfs(
+    base: dict[str, Any],
+) -> None:
+    unseeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR)
+    unseeded_backend = unseeded["services"]["backend"]
+    unseeded_env = unseeded_backend["environment"]
+    assert unseeded_env.get("DEBUG") != "true"
+    assert "REQUEST_RECORDING_ENABLED" not in unseeded_env
+    assert "HSI_FAULT_SEED" not in unseeded_env
+    assert not any(
+        entry.split(":", 1)[0].rstrip("/") == "/app/data" for entry in unseeded_backend["tmpfs"]
+    )
+
+    seeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR, seeded=True)
+    backend = seeded["services"]["backend"]
+    env = backend["environment"]
+    assert env["DEBUG"] == "true"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+    assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
+
+
+def test_seeded_needs_a_mode_but_no_longer_needs_fake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ruling 235 rewrote the second half of this test.
+
+    `--seeded` alone is still refused (it is a shape, not a mode) — that half is unchanged. What
+    changed is `--real --seeded`: it used to exit 2 here, and ruling 235 rules it *accepted*, so
+    this parse-layer test now proves it reached the tier's own availability gate instead of the
+    flag check. `!= 2` would NOT prove that — it also passes on a tier that died for a reason
+    unrelated to the parse layer, so both directions are pinned and neither is left to whatever
+    this host happens to have installed (the form test_real_refuses_where_agent_gpu_is_absent
+    already uses). Without agent-gpu the refusal is EXIT_UNAVAILABLE and nothing is created; with
+    it on PATH the run gets further and is refused for the NEXT reason, the unset
+    $AGENT_GPU_LIBRARY — still never exit 2, so no host can satisfy this by accident. The
+    accept-and-boot path, with run_check stubbed, is test_seeded_with_real_boots_the_real_tier.
+    """
+    with pytest.raises(SystemExit) as bare:
+        fc.main(["--seeded"])
+    assert bare.value.code == 2
+
+    no_gpu = tmp_path / "no-agent-gpu"
+    monkeypatch.setenv("PATH", str(no_gpu))
+    monkeypatch.delenv("AGENT_GPU_LIBRARY", raising=False)
+    root = tmp_path / "runs-no-gpu"
+    assert fc.main(["--real", "--seeded", "--root", str(root)]) == fc.EXIT_UNAVAILABLE == 4
+    assert not root.exists()  # accepted by the parse layer, refused before it created anything
+
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    (shim / "agent-gpu").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (shim / "agent-gpu").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{shim}:/usr/bin:/bin")
+    root_with = tmp_path / "runs-with-gpu"
+    assert fc.main(["--real", "--seeded", "--root", str(root_with)]) == fc.EXIT_UNAVAILABLE
+    assert not root_with.exists()  # the next gate refuses, not the flag check
+
+
+def test_seed_debug_fixtures_plants_recordings_orphan_and_verifies_breaker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
+    )
+    run.prepare()
+    run.api = "http://127.0.0.1:32772"
+    run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
+
+    exec_calls: list[tuple[str, ...]] = []
+
+    def fake_deployment(*args: str, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        exec_calls.append(args)
+        return subprocess.CompletedProcess(list(args), 0, stdout="21\n", stderr="")
+
+    http_calls: list[tuple[str, str, Any]] = []
+
+    def fake_http(
+        method: str, url: str, payload: Any = None, timeout: float = 15, **kwargs: Any
+    ) -> tuple[int, Any]:
+        http_calls.append((method, url, kwargs.get("headers")))
+        if url.endswith("/api/debug/recordings"):
+            return 200, {"recordings": [{"recording_id": "r1"}, {"recording_id": "r2"}], "total": 2}
+        if "/api/system/cleanup/orphaned-files" in url:
+            return 200, {"orphaned_count": 1, "total_size": 21}
+        if url.endswith("/api/system/storage"):
+            return 200, {"disk_usage_percent": 93.0}
+        if url.endswith("/api/known-persons"):
+            return 200, {
+                "items": [{"id": 1, "name": "Seeded Known Person", "embedding_count": 1}],
+                "total": 1,
+            }
+        if url.endswith("/api/system/circuit-breakers"):
+            return 200, {"circuit_breakers": {"redis": {"state": "open"}}, "open_count": 1}
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(run, "deployment", fake_deployment)
+    monkeypatch.setattr(fc, "_http", fake_http)
+
+    run.seed_debug_fixtures()
+
+    assert run.summary["results"]["seeded"] == "ok"
+    assert any(headers and headers.get("X-Debug-Record") == "true" for _, _, headers in http_calls)
+    assert any("seeded-orphan.jpg" in " ".join(c) and "os.utime" in " ".join(c) for c in exec_calls)
+    assert any(
+        ".seeded-disk-fill" in " ".join(c) and "shutil.disk_usage" in " ".join(c)
+        for c in exec_calls
+    )
+    assert any(
+        "KnownPerson" in " ".join(c)
+        and "FaceEmbedding" in " ".join(c)
+        and "test-only-seeded-vector" in " ".join(c)
+        and "struct.pack('<512f'" in " ".join(c)
+        for c in exec_calls
+    )
+    for c in exec_calls:
+        if "-c" in c:
+            ast.parse(c[c.index("-c") + 1])
+    assert any(url.endswith("/api/system/storage") for _, url, _ in http_calls)
+    assert any(url.endswith("/api/known-persons") for _, url, _ in http_calls)
+    assert sum(1 for _, url, _ in http_calls if url.endswith("/api/debug/pipeline-state")) == 4
+
+
+def test_seed_debug_fixtures_refuses_missing_seeded_face_embedding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
+    )
+    run.prepare()
+    run.api = "http://127.0.0.1:32772"
+    run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
+
+    monkeypatch.setattr(
+        run,
+        "deployment",
+        lambda *args, **_kwargs: subprocess.CompletedProcess(
+            list(args), 0, stdout="1:1\n", stderr=""
+        ),
+    )
+
+    def fake_http(
+        _method: str, url: str, _payload: Any = None, _timeout: float = 15, **_kwargs: Any
+    ) -> tuple[int, Any]:
+        if url.endswith("/api/debug/recordings"):
+            return 200, {"recordings": [{"recording_id": "r1"}, {"recording_id": "r2"}], "total": 2}
+        if "/api/system/cleanup/orphaned-files" in url:
+            return 200, {"orphaned_count": 1, "total_size": 21}
+        if url.endswith("/api/system/storage"):
+            return 200, {"disk_usage_percent": 93.0}
+        if url.endswith("/api/known-persons"):
+            return 200, {
+                "items": [{"id": 1, "name": "Seeded Known Person", "embedding_count": 0}],
+                "total": 1,
+            }
+        if url.endswith("/api/system/circuit-breakers"):
+            return 200, {"circuit_breakers": {"redis": {"state": "open"}}, "open_count": 1}
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(fc, "_http", fake_http)
+
+    with pytest.raises(fc.HarnessError, match="embedding_count >= 1"):
+        run.seed_debug_fixtures()
+
+
+def test_seed_debug_fixtures_refuses_under_90_percent_disk_usage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake", seeded=True
+    )
+    run.prepare()
+    run.api = "http://127.0.0.1:32772"
+    run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
+
+    monkeypatch.setattr(
+        run,
+        "deployment",
+        lambda *args, **_kwargs: subprocess.CompletedProcess(
+            list(args), 0, stdout="89.9\n", stderr=""
+        ),
+    )
+
+    def fake_http(
+        _method: str, url: str, _payload: Any = None, _timeout: float = 15, **_kwargs: Any
+    ) -> tuple[int, Any]:
+        if url.endswith("/api/debug/recordings"):
+            return 200, {"recordings": [{"recording_id": "r1"}, {"recording_id": "r2"}], "total": 2}
+        if "/api/system/cleanup/orphaned-files" in url:
+            return 200, {"orphaned_count": 1, "total_size": 21}
+        if url.endswith("/api/system/storage"):
+            return 200, {"disk_usage_percent": 89.9}
+        if url.endswith("/api/system/circuit-breakers"):
+            return 200, {"circuit_breakers": {"redis": {"state": "open"}}, "open_count": 1}
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(fc, "_http", fake_http)
+
+    with pytest.raises(fc.HarnessError, match="disk_usage_percent >= 90"):
+        run.seed_debug_fixtures()
+
+
+@pytest.mark.parametrize("mode", ["fake", "real"], ids=["fake-tier", "real-tier"])
+def test_golden_seeded_runs_golden_seeded_playwright_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    """The seeded leg selects the seeded Playwright project, on BOTH tiers.
+
+    ``golden()`` picks the project from ``seeded`` alone (``feature_check.py:2345``).
+    The ``real`` arm is the one this adds: a guard that also demanded
+    ``mode == "fake"`` — true of every seeded run before ruling 235 — leaves this
+    test green while ``--real --seeded`` runs the UNSEEDED ``golden`` project against
+    a seeded backend, silently reporting the ~11 ``*.seeded.spec.ts`` rows as never
+    run. The un-seeded half of the same condition is pinned by
+    ``test_the_leg_runs_in_the_image_with_the_same_argv_inside``, which asserts
+    ``--project=golden`` for an un-seeded run, so the two tests together cover every
+    arm rather than only the arm a fix could break.
+    """
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode=mode, seeded=True)
+    run.prepare()
+    run.api = "http://127.0.0.1:32772"
+    run.ui = "http://127.0.0.1:32773"
+    run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
+
+    config = tmp_path / "playwright.config.ts"
+    config.write_text(
+        "projects: [{ name: 'golden' }, { name: 'golden-seeded' }]\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(fc, "PLAYWRIGHT_CONFIG", config)
+    monkeypatch.setattr(fc, "FRONTEND_MODULES", tmp_path)
+
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        cmd = [str(c) for c in command]
+        commands.append(cmd)
+        if "playwright" in " ".join(cmd):
+            junit = run.artifacts / "golden-playwright.xml"
+            junit.write_text(
+                '<testsuites><testsuite name="operations/debug-mode-toggle.seeded.spec.ts">'
+                '<testcase classname="debug-mode-toggle.seeded.spec.ts" name="F-133"/>'
+                "</testsuite></testsuites>",
+                encoding="utf-8",
+            )
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(run, "_run", fake_run)
+    problems = run.golden()
+    assert problems == []
+    playwright_cmds = [" ".join(c) for c in commands if "--project=" in " ".join(c)]
+    assert len(playwright_cmds) == 1
+    assert "--project=golden-seeded" in playwright_cmds[0]
+    assert "--project=golden " not in playwright_cmds[0]
+
+
+# --- ruling 235: the flag matrix for --seeded ---------------------------------------------
+#
+# Before ruling 235 the parse layer refused `--seeded` without `--fake`, and that one line was
+# doing double duty: it also blocked `--real --seeded --prod-shape`. Widening `--seeded` to the
+# real tier therefore has to carry its own prod-shape refusal, and the matrix below pins all four
+# edges together so the loosening cannot silently widen a third combination.
+#
+# Every case goes through main(), the same entry the CLI uses, because the thing under test is the
+# decision made before any engine call — so the engine is replaced by a recorder and the real
+# tier's agent-gpu probe is stubbed to "available". If a case ever boots anything, the assert fires.
+
+
+def _fake_boot(monkeypatch: Any) -> list[tuple[str, bool, bool]]:
+    """Record run_check calls instead of booting; pretend agent-gpu is on PATH."""
+    booted: list[tuple[str, bool, bool]] = []
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        booted.append((mode, bool(args.seeded), bool(args.prod_shape)))
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    return booted
+
+
+def test_seeded_with_real_boots_the_real_tier_seeded(monkeypatch: Any) -> None:
+    """Ruling 235's whole point: `--real --seeded` reaches run_check, seeded, on the real tier."""
+    booted = _fake_boot(monkeypatch)
+    assert fc.main(["--real", "--seeded"]) == 0
+    assert booted == [("real", True, False)]
+
+
+def test_seeded_with_fake_is_unchanged(monkeypatch: Any) -> None:
+    """The command the CI leg runs (`--fake --seeded`) behaves exactly as before."""
+    booted = _fake_boot(monkeypatch)
+    assert fc.main(["--fake", "--seeded"]) == 0
+    assert booted == [("fake", True, False)]
+
+
+def test_seeded_without_a_mode_is_still_refused(monkeypatch: Any) -> None:
+    """`--seeded` is still a shape, not a mode: with neither --fake nor --real it refuses."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded"])
+    assert booted == []
+
+
+def test_seeded_with_prod_shape_is_refused_under_real(monkeypatch: Any) -> None:
+    """The refusal the OLD `--seeded needs --fake` line covered by accident, now stated on its own.
+
+    This is the case that would silently have started booting prod.yml with DEBUG=true if the
+    change had only relaxed the fake requirement.
+    """
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--real", "--seeded", "--prod-shape"])
+    assert booted == []
+
+
+def test_the_seeded_refusals_are_distinguishable(monkeypatch: Any, capsys: Any) -> None:
+    """A refusal that cannot be told apart from another one teaches an operator nothing.
+
+    Pinning the two messages separately also catches a guard reordered into the wrong slot: a
+    reader who types `--seeded --prod-shape --real` should be told about DEBUG=true in production,
+    not about choosing a mode.
+
+    The bare-`--seeded` pin is deliberately TWO-SIDED. Its substring `--fake or --real` is also a
+    substring of the unrelated generic fallback `choose --fake or --real`, which is what the
+    `if not args.fake` guard prints several lines later. So deleting the seeded guard entirely
+    still satisfies the positive half — the run falls through to the generic refusal and the
+    substring is present. The negative half is what makes this a pin: the operator has to be told
+    that the SHAPE needs a mode, not that they forgot to pick a tier.
+    """
+    _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded", "--prod-shape", "--real"])
+    err = capsys.readouterr().err
+    assert "prod-shape" in err, err
+    assert "DEBUG=true" in err, err
+
+    with pytest.raises(SystemExit):
+        fc.main(["--seeded"])
+    err = capsys.readouterr().err
+    assert "--seeded needs --fake or --real" in err, err
+    assert "boot shape" in err, err
+    assert "choose --fake or --real" not in err, f"fell through to the generic mode refusal: {err}"
+
+
+def test_a_real_seeded_run_gets_the_seeded_shape_and_overrides(
+    tmp_path: Path, base: dict[str, Any]
+) -> None:
+    """Ruling 235's boot-level half: on `--real` the seeded shape still applies.
+
+    `as_test_deployment` takes `seeded` but not `mode`, so the overrides are mode-independent by
+    signature — that is the structural reason a real-tier seeded boot needs no new code path. This
+    pins the two user-visible consequences anyway, because a signature is easy to change later:
+    the run's shape string (which lands in the run record a reviewer reads) and the DEBUG/recorder
+    environment the seeded golden specs depend on.
+    """
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="real", seeded=True
+    )
+    assert run.shape == "real-seeded"
+
+    seeded = fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR, seeded=True)
+    env = seeded["services"]["backend"]["environment"]
+    assert env["DEBUG"] == "true"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+
+
+def test_a_real_seeded_boot_forwards_the_flag_into_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The handoff at the top of ``run_check``, where the CLI flag becomes ``Run.seeded``.
+
+    Every flag-matrix test above replaces ``run_check`` wholesale, so none of them ever runs this
+    line. A ``seeded = False`` here would boot the real tier unseeded while every parse test stayed
+    green: the run would still print ``mode``, the seeded golden project would simply collect
+    nothing, and the operator's ``--real --seeded`` would report a clean run that seeded nothing.
+    So pin the exact handoff, not its two ends — the same shape as
+    test_run_check_builds_the_run_with_the_shape for prod_shape.
+    """
+    import argparse
+
+    captured: dict[str, Any] = {}
+    real_init = fc.Run.__init__
+
+    def spy(self: Any, **kwargs: Any) -> None:
+        captured.update(kwargs)
+        real_init(self, **kwargs)
+
+    monkeypatch.setattr(fc.Run, "__init__", spy)
+
+    class StopHere(Exception):
+        pass
+
+    monkeypatch.setattr(fc.Run, "prepare", lambda *_a, **_k: (_ for _ in ()).throw(StopHere))
+
+    args = argparse.Namespace(
+        engine="podman",
+        root=tmp_path / "runs",
+        image_tag="test",
+        prod_shape=False,
+        seeded=True,
+    )
+    with pytest.raises(StopHere):
+        fc.run_check(args, mode="real")
+    assert captured.get("seeded") is True, "run_check must forward --seeded to Run"
+    assert captured.get("mode") == "real"
+
+
+def test_a_real_and_seeded_deployment_takes_the_vlm_url_and_the_seeded_shape_together(
+    base: dict[str, Any], live: Any
+) -> None:
+    """The one call the real tier actually makes: ``vlm_url`` AND ``seeded`` set at once.
+
+    ``as_test_deployment`` takes both, and the two guards sit in different parts of the function —
+    ``vlm_url`` chooses the kept services and pops the in-stack ``ai-vlm`` dependency, ``seeded``
+    sets the DEBUG/recorder/fault-seed environment and the ``/app/data`` tmpfs. The seeded-only
+    test above never passes ``vlm_url``, and test_the_real_take... never passes ``seeded``, so
+    either half alone leaves this combination untested. If the overrides were ever gated on
+    ``vlm_url is None`` — a plausible-looking "seeded is a fake-tier shape" edit — the real tier
+    would boot WITHOUT the recorder or the fault seeds, and the seeded goldens it then runs would
+    read an unseeded backend and pass anyway.
+
+    It also has to survive the preflight, because the seeded tmpfs is a new mount on the real
+    tier's deployment.
+    """
+    both = fc.as_test_deployment(
+        base, project=PROJECT, run_dir=RUN_DIR, vlm_url=VLM_URL, seeded=True
+    )
+    backend = both["services"]["backend"]
+    env = backend["environment"]
+
+    # the real half: VLM from agent-gpu, in-stack ai-vlm gone from both services and depends_on
+    assert list(both["services"]) == list(fc.REAL_SERVICES)
+    assert env["AI_VLM_URL"] == VLM_URL
+    assert "ai-vlm" not in backend["depends_on"]
+
+    # the seeded half, on top of it, unchanged from the fake tier
+    assert env["DEBUG"] == "true"
+    assert env["REQUEST_RECORDING_ENABLED"] == "true"
+    assert env["REQUEST_RECORDING_SAMPLE_RATE"] == "0.0"
+    assert env["HSI_FAULT_SEED"] == "1"
+    assert "/app/data:size=20m,mode=1777,uid=1000,gid=1000" in backend["tmpfs"]
+
+    # and the combination is still a deployment the in-run check accepts
+    assert _preflight(both, live, allowed_host_ports=frozenset({18123})) == []

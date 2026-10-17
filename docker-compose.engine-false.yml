@@ -1,0 +1,57 @@
+# r243 orchestrator-OFF overlay — drops backend's engine-socket mount.
+#
+# Selected by the deploy tooling as a SECOND `-f` when ORCHESTRATOR_ENABLED is
+# exactly `false` (setup_lib/deploy.py, mirroring the gb300 pattern at
+# scripts/bootstrap-gb300.sh:43):
+#
+#   podman compose -f docker-compose.prod.yml -f docker-compose.engine-false.yml up -d
+#
+# WHY AN OVERLAY AND NOT AN INCLUDE (ruling 243, 6222454848; measurement in
+# #7222): the [r162] shape was an interpolated `include:` naming one of two
+# fragments, and compose v2.38.2 -- the nightly runner's version -- rejects ANY
+# included file that redeclares `services.backend`, whatever it redeclares
+# (`services.backend conflicts with imported resource`), in BOTH flag states.
+# Compose also has no per-item volume removal: sequences only append or replace.
+# So "drop exactly one mount" can only be a `!override` re-list, and a
+# `!override` list can only ride in on a second `-f` -- it cannot live in an
+# included file and survive 2.38.2's conflict rule.
+#
+# WHY THE PATHS ARE LITERALS (measured, podman-compose 1.6.0): podc splits a
+# TAGGED volume entry's `src:dst:mode` string BEFORE interpolating it, so
+# `${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:z` dies on the `:-` colon
+# ("could not parse mount") and `${FOSCAM_BASE_PATH}:/cameras:z` dies as
+# "volume [${FOSCAM_BASE_PATH}] not defined". Long-form (`type: bind`) entries
+# die too (`TypeError: unhashable type: 'list'`). So this re-list spells the
+# three relocated-by-default paths out. THE COST, exactly: an OFF deployment
+# whose host relocates FOSCAM_BASE_PATH / AI_MODELS_PATH / HF_CACHE_PATH does
+# NOT follow those variables through this file -- such a host passes a THIRD
+# `-f` of its own (two-`-f` allows it) or stays ON, which is unaffected. The ON
+# render -- the live deployment -- reads prod.yml's interpolations untouched.
+#
+# KEEP THIS LIST IN LOCKSTEP with docker-compose.prod.yml's backend volumes
+# minus the socket. scripts/test_orchestrator_engine_socket.py fails a drift in
+# either direction mechanically: it compares the ON render's backend volume
+# TARGET SET with the OFF render's and requires the difference to be exactly
+# the socket target, so a mount forgotten here, misspelled, or added reddens
+# without the test naming any mount.
+#
+# alloy's engine socket is deliberately NOT touched (owner ruling 186,
+# 6181436641): alloy uses it for container discovery, log scraping and profiling
+# targets (monitoring/alloy/config.alloy:19, :52, :161), none of which is
+# orchestration, so its mount and its `${PODMAN_SOCKET:?…}` stay unconditional.
+# That is why an OFF render still requires PODMAN_SOCKET to be set -- the
+# claim in the old fragment header that the OFF state "requires no socket
+# value" was false then (measured) and stays false now.
+services:
+  backend:
+    volumes:
+      !override # :U tells Podman to recursively chown the volume to match container user (appuser)
+      - ./backend/data:/app/data:z,U
+      # :z - the file watcher must inotify-WATCH this tree (prod.yml's full note)
+      - /export/foscam:/cameras:z
+      - /export/ai_models/model-zoo:/models/model-zoo:ro,z
+      - /home/ubuntu/.cache/huggingface:/models/huggingface-cache:ro
+      # REMOVED ([r162] contract, [r243] mechanism): ${PODMAN_SOCKET}:/var/run/podman/podman.sock
+      # -- with the orchestrator off, backend must not hold a mount it will not
+      # use, and opening the engine socket IS driving the host (UR-134).
+      - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro

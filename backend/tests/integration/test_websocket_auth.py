@@ -272,34 +272,6 @@ def _apply_common_lifespan_patches(stack, mocks, mock_init_db, mock_close_db):
     )
     stack.enter_context(patch("backend.main.register_workers", MagicMock()))
     stack.enter_context(patch("backend.main.enable_deferred_db_logging", MagicMock()))
-    stack.enter_context(
-        patch(
-            "backend.main.create_detection_worker",
-            autospec=True,
-            return_value=mocks["detection_worker"],
-        )
-    )
-    stack.enter_context(
-        patch(
-            "backend.main.create_analysis_worker",
-            autospec=True,
-            return_value=mocks["analysis_worker"],
-        )
-    )
-    stack.enter_context(
-        patch(
-            "backend.main.create_timeout_worker",
-            autospec=True,
-            return_value=mocks["timeout_worker"],
-        )
-    )
-    stack.enter_context(
-        patch(
-            "backend.main.create_metrics_worker",
-            autospec=True,
-            return_value=mocks["metrics_worker"],
-        )
-    )
 
 
 @pytest.fixture

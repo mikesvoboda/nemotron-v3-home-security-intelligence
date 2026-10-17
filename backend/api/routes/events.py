@@ -15,7 +15,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import ORJSONResponse, StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm.exc import StaleDataError
@@ -26,6 +26,7 @@ from backend.api.dependencies import (
     get_event_or_404,
     get_nemotron_analyzer_dep,
 )
+from backend.api.middleware.auth import scoped_key_ceiling
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.pagination import (
     CursorData,
@@ -49,7 +50,6 @@ from backend.api.schemas.clips import (
     ClipInfoResponse,
 )
 from backend.api.schemas.detections import DetectionListResponse
-from backend.api.schemas.enrichment import EventEnrichmentsResponse
 from backend.api.schemas.event_cluster import (
     ClusterEventSummary,
     ClusterRiskLevels,
@@ -94,7 +94,7 @@ from backend.models.event_verification import (
     verdict_filter_condition,
 )
 from backend.services.audit import AuditService
-from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
+from backend.services.batch_fetch import batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
 from backend.services.clip_generator import ClipGenerator
 from backend.services.event_service import get_event_service
@@ -125,15 +125,50 @@ async def _invalidate_events_cache_background(
     This function is designed to be run as a BackgroundTask to reduce
     response latency by deferring non-critical cache invalidation.
 
+    [r223] MEASURE: four cached reads derive their value from the events table
+    — ``stats:events:*`` (GET /api/events/stats), ``timeline_summary:*``
+    (GET /api/events/timeline-summary), ``trends:*`` (GET /api/summaries/trends,
+    which aggregates events via ``EventRepository``) and ``events:*``. A handler
+    that writes events and invalidates only some of them leaves the rest served
+    stale for their TTL. ``events:*`` is kept as a defensive evict: no route
+    stores that shape today (``list_events`` is not cached), so it deletes zero
+    keys — [r228] established that a live invalidator for an unswept namespace
+    is the bug, but an unswept namespace here costs nothing and the key shape is
+    what a cached list would use if one were added. ``system:stats:latest`` also
+    counts events but is written with SHORT_TTL (60 s) — see the [r223] PR's
+    census table for the per-read decision.
+
+    SCOPE: this helper is called by the two single-event write paths
+    (``update_event``, ``restore_event``). The four bulk/delete paths
+    (``bulk_create_events``, ``bulk_update_events``, ``bulk_delete_events``,
+    ``delete_event``) still run the legacy two-call pair and so still leave
+    ``timeline_summary:*`` and ``trends:*`` stale for their TTL; widening them is
+    a behaviour change to handlers outside [r223]'s three developer-tool writes,
+    so it is disclosed in the PR rather than done here.
+
+    Fail-soft per namespace rather than for the batch: the one-try shape this
+    helper had was fine at two calls, but a Redis error on ``events`` would now
+    strand three more namespaces for their full TTL. The handles-error test in
+    test_background_tasks.py pins the single-warning behaviour for the namespace
+    that actually failed.
+
     Args:
         cache: Cache service instance
         reason: Reason for cache invalidation (for logging/metrics)
     """
-    try:
-        await cache.invalidate_events(reason=reason)
-        await cache.invalidate_event_stats(reason=reason)
-    except Exception as e:
-        logger.warning(f"Background cache invalidation failed: {e}")
+    for name, invalidate in (
+        ("events", cache.invalidate_events),
+        ("event_stats", cache.invalidate_event_stats),
+        ("timeline_summary", cache.invalidate_timeline_summary),
+        ("trends", cache.invalidate_trends),
+    ):
+        try:
+            await invalidate(reason=reason)
+        except Exception as e:
+            logger.warning(
+                f"Background cache invalidation failed for {name}: {e}",
+                extra={"cache_type": name, "error_type": type(e).__name__},
+            )
 
 
 # Valid fields for sparse fieldsets on list_events endpoint (NEM-1434)
@@ -309,6 +344,7 @@ async def list_events(
         description="Include soft-deleted events in results. Default is False to hide deleted events.",
     ),
     db: AsyncSession = Depends(get_read_db),
+    key_ceiling: bool = Depends(scoped_key_ceiling),
 ) -> EventListResponse:
     """List events with optional filtering and cursor-based pagination.
 
@@ -405,7 +441,16 @@ async def list_events(
     query = select(Event).options(joinedload(Event.camera), undefer(Event.reasoning))
 
     # Filter out soft-deleted events by default (consistent with get_event_or_404)
-    # Use include_deleted=true to include soft-deleted events in results
+    # Use include_deleted=true to include soft-deleted events in results.
+    # [r95] S4: a scoped key's request does not get the widening. The scope
+    # predicate cannot express it -- `_key_admits` is `call in scope` over
+    # (method, path) and query strings never participate (test_query_strings_
+    # do_not_escape_the_scope), so ("GET", "/api/events") admits
+    # ?include_deleted=true as readily as the panel's own query. Deliberately a
+    # forced-off rather than a 400: "admit only the fields it reads" narrows a
+    # grant, it does not add a failure mode to a path Grafana refreshes.
+    if key_ceiling is True:
+        include_deleted = False
     if not include_deleted:
         query = query.where(Event.deleted_at.is_(None))
 
@@ -506,7 +551,17 @@ async def list_events(
             "risk_score": event.risk_score,
             "risk_level": event.risk_level,
             "summary": event.summary,
-            "reasoning": event.reasoning,
+            # [r95] S4: the monitoring grant is a FIELD ceiling, so this is the
+            # one place a scoped caller's value can be stopped -- and it has to
+            # be stopped as a VALUE. Omitting the key is not a remedy: the dict
+            # is re-validated against EventResponse, whose `reasoning` defaults
+            # to None, so an omitted key still reaches the wire as
+            # "reasoning": null (measured at this head; the identical
+            # absence-is-not-a-witness trap the `notes` block below records for
+            # F-057, read in the other direction). `?fields=reasoning` cannot
+            # be a door back around it either, because filter_fields only ever
+            # SUBSETS what is written here.
+            "reasoning": None if key_ceiling is True else event.reasoning,
             "reviewed": event.reviewed,
             # F-057: this key must be WRITTEN, not merely declared. The dict is
             # re-validated against EventResponse, whose `notes` defaults to None
@@ -525,7 +580,17 @@ async def list_events(
             "thumbnail_url": thumbnail_url,
             # P0.4: None for legacy events; dropped from the payload by the
             # schema's exclude_if (spec §4: legacy carries NO verification key)
-            "verification": verification_payload(event),
+            # [r95] S4: a scoped key gets that same None. `verification` is not
+            # a bookkeeping field -- it renders the verifier VLM's own prose
+            # (`scene_description`, and each criterion's `evidence`;
+            # schemas/event_verification.py:51,:34, written from
+            # services/vlm_analyzer.py:695), which is the class of text S4's
+            # "no reasoning" names, and 0 hits for `verification` anywhere
+            # under monitoring/ means no scoped consumer reads it. The clamp
+            # drops rather than nulls, which is safe here precisely because the
+            # schema already strips a None (the line above), so the response is
+            # the legacy shape rather than a half-built object.
+            "verification": None if key_ceiling is True else verification_payload(event),
             # ISS-001: the persisted notify decision. None (no row) is dropped
             # below by the EventListResponse revalidation: the dict is
             # re-validated against EventResponse, whose exclude_if strips the
@@ -619,8 +684,12 @@ async def get_event_stats(
     # This ensures date-only filters like "2026-01-15" include all events from that day
     normalized_end_date = normalize_end_date_to_end_of_day(end_date)
 
-    # Build filter conditions (reused across queries)
-    filters = []
+    # Build filter conditions (reused across queries). The annotation is not
+    # decoration: seeding this list with `.is_(None)` infers the narrow
+    # BinaryExpression[bool], and the date/camera appends below return the wider
+    # ColumnElement[bool] -- without it mypy (which CI runs over backend/,
+    # ci.yml:692) rejects all three appends.
+    filters: list[ColumnElement[bool]] = [Event.deleted_at.is_(None)]  # Exclude soft-deleted events
     if start_date:
         filters.append(Event.started_at >= start_date)
     if normalized_end_date:
@@ -2288,106 +2357,6 @@ async def get_event_detections(
             offset=offset,
             has_more=has_more,
         ),
-    )
-
-
-@router.get(
-    "/{event_id}/enrichments",
-    response_model=EventEnrichmentsResponse,
-    response_model_exclude_unset=True,
-)
-async def get_event_enrichments(
-    event_id: int,
-    limit: int = Query(50, ge=1, le=200, description="Maximum number of enrichments to return"),
-    offset: int = Query(0, ge=0, description="Number of enrichments to skip"),
-    db: AsyncSession = Depends(get_db),
-) -> EventEnrichmentsResponse:
-    """Get enrichment data for detections in an event with pagination.
-
-    Returns structured vision model results from the enrichment pipeline for
-    each detection in the event. Results include:
-    - License plate detection and OCR
-    - Face detection
-    - Vehicle classification and damage detection
-    - Clothing analysis (FashionCLIP and SegFormer)
-    - Violence detection
-    - Image quality assessment
-    - Pet classification
-
-    Args:
-        event_id: Event ID
-        limit: Maximum number of enrichments to return (1-200, default 50)
-        offset: Number of enrichments to skip (default 0)
-        db: Database session
-
-    Returns:
-        EventEnrichmentsResponse with enrichment data for each detection and pagination metadata
-
-    Raises:
-        HTTPException: 404 if event not found
-    """
-    # Import transform function from detections route
-    from backend.api.routes.detections import _transform_enrichment_data
-
-    event = await get_event_or_404(event_id, db)
-
-    # Parse detection_ids using helper function
-    detection_ids = get_detection_ids_from_event(event)
-    total = len(detection_ids)
-
-    # If no detections, return empty response with pagination metadata
-    if not detection_ids:
-        return EventEnrichmentsResponse(
-            event_id=event.id,
-            enrichments=[],
-            count=0,
-            total=0,
-            limit=limit,
-            offset=offset,
-            has_more=False,
-        )
-
-    # Apply pagination to detection_ids before querying
-    # This ensures we only fetch the detections we need
-    paginated_detection_ids = detection_ids[offset : offset + limit]
-
-    # If offset is beyond available detections, return empty with metadata
-    if not paginated_detection_ids:
-        return EventEnrichmentsResponse(
-            event_id=event.id,
-            enrichments=[],
-            count=0,
-            total=total,
-            limit=limit,
-            offset=offset,
-            has_more=False,
-        )
-
-    # Get detections for this page using batch fetching
-    # This handles potential PostgreSQL IN clause limits for large detection lists
-    detections = await batch_fetch_detections(db, paginated_detection_ids)
-
-    # Transform each detection's enrichment data
-    enrichments = [
-        _transform_enrichment_data(
-            detection_id=det.id,
-            enrichment_data=det.enrichment_data,
-            detected_at=det.detected_at,
-        )
-        for det in detections
-    ]
-
-    # Calculate has_more based on total and current position
-    has_more = offset + len(enrichments) < total
-
-    return EventEnrichmentsResponse(
-        event_id=event.id,
-        enrichments=enrichments,
-        count=len(enrichments),
-        total=total,
-        limit=limit,
-        offset=offset,
-        has_more=has_more,
     )
 
 

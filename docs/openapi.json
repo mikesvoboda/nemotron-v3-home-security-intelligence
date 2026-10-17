@@ -9230,6 +9230,7 @@
           "debug": false,
           "detection_confidence_threshold": 0.5,
           "fast_path_confidence_threshold": 0.9,
+          "fast_path_enabled": false,
           "grafana_url": "/grafana",
           "log_retention_days": 7,
           "retention_days": 30,
@@ -9273,6 +9274,11 @@
             "title": "Fast Path Confidence Threshold",
             "type": "number"
           },
+          "fast_path_enabled": {
+            "description": "Master switch for fast-path processing (ruling 168)",
+            "title": "Fast Path Enabled",
+            "type": "boolean"
+          },
           "grafana_url": {
             "description": "Grafana dashboard URL for frontend link",
             "title": "Grafana Url",
@@ -9307,6 +9313,7 @@
           "batch_idle_timeout_seconds",
           "detection_confidence_threshold",
           "fast_path_confidence_threshold",
+          "fast_path_enabled",
           "grafana_url",
           "debug"
         ],
@@ -9370,6 +9377,18 @@
             ],
             "description": "Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
             "title": "Fast Path Confidence Threshold"
+          },
+          "fast_path_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Master switch for fast-path processing (ruling 168)",
+            "title": "Fast Path Enabled"
           },
           "log_retention_days": {
             "anyOf": [
@@ -11689,6 +11708,7 @@
         "description": "Detection-related settings for object detection thresholds.\n\nControls the confidence thresholds used by YOLO26v2 for object detection\nand fast-path processing for high-priority alerts.",
         "example": {
           "confidence_threshold": 0.5,
+          "fast_path_enabled": false,
           "fast_path_threshold": 0.9
         },
         "properties": {
@@ -11698,6 +11718,11 @@
             "minimum": 0.0,
             "title": "Confidence Threshold",
             "type": "number"
+          },
+          "fast_path_enabled": {
+            "description": "Master switch for fast-path processing (ruling 168)",
+            "title": "Fast Path Enabled",
+            "type": "boolean"
           },
           "fast_path_threshold": {
             "description": "Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
@@ -11709,6 +11734,7 @@
         },
         "required": [
           "confidence_threshold",
+          "fast_path_enabled",
           "fast_path_threshold"
         ],
         "title": "DetectionSettings",
@@ -11733,6 +11759,18 @@
             ],
             "description": "Minimum confidence threshold for object detections (0.0-1.0)",
             "title": "Confidence Threshold"
+          },
+          "fast_path_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Master switch for fast-path processing (ruling 168)",
+            "title": "Fast Path Enabled"
           },
           "fast_path_threshold": {
             "anyOf": [
@@ -12057,163 +12095,6 @@
           "end_date"
         ],
         "title": "DetectionTrendsResponse",
-        "type": "object"
-      },
-      "DetectorHealthResponse": {
-        "description": "Health status of a detector.",
-        "properties": {
-          "detector_type": {
-            "description": "Identifier of the detector",
-            "title": "Detector Type",
-            "type": "string"
-          },
-          "error_message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Error message if unhealthy",
-            "title": "Error Message"
-          },
-          "healthy": {
-            "description": "Whether the detector is responding and healthy",
-            "title": "Healthy",
-            "type": "boolean"
-          },
-          "latency_ms": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Health check response time in milliseconds",
-            "title": "Latency Ms"
-          },
-          "model_loaded": {
-            "default": false,
-            "description": "Whether the model is loaded in memory",
-            "title": "Model Loaded",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "detector_type",
-          "healthy"
-        ],
-        "title": "DetectorHealthResponse",
-        "type": "object"
-      },
-      "DetectorInfoResponse": {
-        "description": "Information about a registered detector.",
-        "properties": {
-          "description": {
-            "default": "",
-            "description": "Description of the detector capabilities",
-            "title": "Description",
-            "type": "string"
-          },
-          "detector_type": {
-            "description": "Unique identifier for the detector (e.g., 'yolo26', 'yolov8')",
-            "examples": [
-              "yolo26"
-            ],
-            "title": "Detector Type",
-            "type": "string"
-          },
-          "display_name": {
-            "description": "Human-readable name for UI display",
-            "examples": [
-              "YOLO26"
-            ],
-            "title": "Display Name",
-            "type": "string"
-          },
-          "enabled": {
-            "description": "Whether this detector is available for use",
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "is_active": {
-            "description": "Whether this is the currently active detector",
-            "title": "Is Active",
-            "type": "boolean"
-          },
-          "model_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Model version identifier",
-            "examples": [
-              "yolo26m",
-              "yolov8n"
-            ],
-            "title": "Model Version"
-          },
-          "url": {
-            "description": "Base URL of the detector service",
-            "examples": [
-              "http://ai-yolo26:8095"
-            ],
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "detector_type",
-          "display_name",
-          "url",
-          "enabled",
-          "is_active"
-        ],
-        "title": "DetectorInfoResponse",
-        "type": "object"
-      },
-      "DetectorListResponse": {
-        "description": "Response containing list of all registered detectors.",
-        "properties": {
-          "active_detector": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Type of the currently active detector",
-            "title": "Active Detector"
-          },
-          "detectors": {
-            "description": "List of all registered detectors",
-            "items": {
-              "$ref": "#/components/schemas/DetectorInfoResponse"
-            },
-            "title": "Detectors",
-            "type": "array"
-          },
-          "health_checked": {
-            "default": false,
-            "description": "Whether health status was included in the response",
-            "title": "Health Checked",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "detectors"
-        ],
-        "title": "DetectorListResponse",
         "type": "object"
       },
       "DeviationInterpretation": {
@@ -14545,101 +14426,6 @@
           "unclustered_events"
         ],
         "title": "EventClustersResponse",
-        "type": "object"
-      },
-      "EventEnrichmentsResponse": {
-        "description": "Enrichment data for all detections in an event with pagination support.",
-        "example": {
-          "count": 2,
-          "enrichments": [
-            {
-              "detection_id": 1,
-              "enriched_at": "2026-01-03T10:30:00Z",
-              "face": {
-                "count": 0,
-                "detected": false
-              },
-              "license_plate": {
-                "detected": true,
-                "text": "ABC-1234"
-              },
-              "violence": {
-                "detected": false,
-                "score": 0.0
-              }
-            },
-            {
-              "detection_id": 2,
-              "enriched_at": "2026-01-03T10:30:05Z",
-              "face": {
-                "count": 1,
-                "detected": true
-              },
-              "license_plate": {
-                "detected": false
-              },
-              "violence": {
-                "detected": false,
-                "score": 0.0
-              }
-            }
-          ],
-          "event_id": 100,
-          "has_more": false,
-          "limit": 50,
-          "offset": 0,
-          "total": 10
-        },
-        "properties": {
-          "count": {
-            "description": "Number of enrichments in this response (page size)",
-            "title": "Count",
-            "type": "integer"
-          },
-          "enrichments": {
-            "description": "Enrichment data per detection",
-            "items": {
-              "$ref": "#/components/schemas/EnrichmentResponse"
-            },
-            "title": "Enrichments",
-            "type": "array"
-          },
-          "event_id": {
-            "description": "Event ID",
-            "title": "Event Id",
-            "type": "integer"
-          },
-          "has_more": {
-            "description": "Whether there are more results available",
-            "title": "Has More",
-            "type": "boolean"
-          },
-          "limit": {
-            "description": "Maximum number of results requested",
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "description": "Number of results skipped",
-            "title": "Offset",
-            "type": "integer"
-          },
-          "total": {
-            "description": "Total number of detections with enrichment data for this event",
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "event_id",
-          "enrichments",
-          "count",
-          "total",
-          "limit",
-          "offset",
-          "has_more"
-        ],
-        "title": "EventEnrichmentsResponse",
         "type": "object"
       },
       "EventFeedbackCreate": {
@@ -36847,6 +36633,7 @@
           },
           "detection": {
             "confidence_threshold": 0.5,
+            "fast_path_enabled": false,
             "fast_path_threshold": 0.9
           },
           "features": {
@@ -37455,77 +37242,6 @@
           "source"
         ],
         "title": "SimilarityMatch",
-        "type": "object"
-      },
-      "SimilaritySearchRequest": {
-        "description": "Request schema for similarity search.\n\nAllows searching for entities similar to a given embedding vector\nor detection ID.",
-        "example": {
-          "embedding": [
-            0.1,
-            0.2,
-            0.3
-          ],
-          "entity_type": "person",
-          "include_historical": true,
-          "limit": 10,
-          "threshold": 0.7
-        },
-        "properties": {
-          "embedding": {
-            "description": "Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)",
-            "items": {
-              "type": "number"
-            },
-            "minItems": 1,
-            "title": "Embedding",
-            "type": "array"
-          },
-          "entity_type": {
-            "default": "person",
-            "description": "Type of entity to search for: 'person' or 'vehicle'",
-            "pattern": "^(person|vehicle)$",
-            "title": "Entity Type",
-            "type": "string"
-          },
-          "exclude_detection_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional detection ID to exclude from results (e.g., to exclude self-matches)",
-            "title": "Exclude Detection Id"
-          },
-          "include_historical": {
-            "default": true,
-            "description": "If True, search both Redis (hot cache) and PostgreSQL (historical). If False, only search Redis hot cache (24h window).",
-            "title": "Include Historical",
-            "type": "boolean"
-          },
-          "limit": {
-            "default": 10,
-            "description": "Maximum number of results to return (default: 10, max: 100)",
-            "maximum": 100.0,
-            "minimum": 1.0,
-            "title": "Limit",
-            "type": "integer"
-          },
-          "threshold": {
-            "default": 0.7,
-            "description": "Minimum cosine similarity threshold for matches (default: the OSNet-space service constant)",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Threshold",
-            "type": "number"
-          }
-        },
-        "required": [
-          "embedding"
-        ],
-        "title": "SimilaritySearchRequest",
         "type": "object"
       },
       "SimilaritySearchResponse": {
@@ -38343,64 +38059,6 @@
           "total_count"
         ],
         "title": "SuspiciousActionsResponse",
-        "type": "object"
-      },
-      "SwitchDetectorRequest": {
-        "description": "Request to switch the active detector.",
-        "properties": {
-          "detector_type": {
-            "description": "Type identifier of the detector to switch to",
-            "examples": [
-              "yolo26",
-              "yolov8"
-            ],
-            "title": "Detector Type",
-            "type": "string"
-          },
-          "force": {
-            "default": false,
-            "description": "Skip health check validation when switching",
-            "title": "Force",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "detector_type"
-        ],
-        "title": "SwitchDetectorRequest",
-        "type": "object"
-      },
-      "SwitchDetectorResponse": {
-        "description": "Response after switching detectors.",
-        "properties": {
-          "detector_type": {
-            "description": "Type of the now-active detector",
-            "title": "Detector Type",
-            "type": "string"
-          },
-          "display_name": {
-            "description": "Human-readable name of the detector",
-            "title": "Display Name",
-            "type": "string"
-          },
-          "healthy": {
-            "default": true,
-            "description": "Health status of the new active detector",
-            "title": "Healthy",
-            "type": "boolean"
-          },
-          "message": {
-            "description": "Status message about the switch operation",
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "detector_type",
-          "display_name",
-          "message"
-        ],
-        "title": "SwitchDetectorResponse",
         "type": "object"
       },
       "SystemSettingListResponse": {
@@ -44110,7 +43768,7 @@
     },
     "/api/admin/maintenance/clear-cache": {
       "post": {
-        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Detections cache\n- Alerts cache\n- Summaries cache\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
+        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Timeline summary cache\n- Trends cache\n- Detections cache\n- Alerts cache\n- Summaries cache (also clears the `summaries:entities` key it contains)\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
         "operationId": "admin_clear_cache",
         "responses": {
           "200": {
@@ -55525,76 +55183,6 @@
         ]
       }
     },
-    "/api/events/{event_id}/enrichments": {
-      "get": {
-        "description": "Get enrichment data for detections in an event with pagination.\n\nReturns structured vision model results from the enrichment pipeline for\neach detection in the event. Results include:\n- License plate detection and OCR\n- Face detection\n- Vehicle classification and damage detection\n- Clothing analysis (FashionCLIP and SegFormer)\n- Violence detection\n- Image quality assessment\n- Pet classification\n\nArgs:\n    event_id: Event ID\n    limit: Maximum number of enrichments to return (1-200, default 50)\n    offset: Number of enrichments to skip (default 0)\n    db: Database session\n\nReturns:\n    EventEnrichmentsResponse with enrichment data for each detection and pagination metadata\n\nRaises:\n    HTTPException: 404 if event not found",
-        "operationId": "events_get_event_enrichments",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "event_id",
-            "required": true,
-            "schema": {
-              "title": "Event Id",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Maximum number of enrichments to return",
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "description": "Maximum number of enrichments to return",
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Number of enrichments to skip",
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "description": "Number of enrichments to skip",
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EventEnrichmentsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Event Enrichments",
-        "tags": [
-          "events"
-        ]
-      }
-    },
     "/api/events/{event_id}/restore": {
       "post": {
         "description": "Restore a soft-deleted event with optional cascade to related detections.\n\nWhen cascade=True, this restores detections that were deleted at the same\ntimestamp as the event, indicating they were cascade-deleted together.\n\nArgs:\n    event_id: ID of the event to restore\n    cascade: If True, cascade restore to related detections\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    The restored event as EventResponse\n\nRaises:\n    HTTPException: 404 if event not found, 409 if not deleted",
@@ -57772,7 +57360,7 @@
           {
             "description": "Comma-separated job types to filter (e.g., 'export,cleanup')",
             "in": "query",
-            "name": "job_type",
+            "name": "type",
             "required": false,
             "schema": {
               "anyOf": [
@@ -57784,7 +57372,7 @@
                 }
               ],
               "description": "Comma-separated job types to filter (e.g., 'export,cleanup')",
-              "title": "Job Type"
+              "title": "Type"
             }
           },
           {
@@ -61988,57 +61576,6 @@
         "summary": "Get queue status",
         "tags": [
           "queues"
-        ]
-      }
-    },
-    "/api/reid/search": {
-      "post": {
-        "description": "Search for entities similar to the given embedding vector.\n\nThis endpoint allows searching for entities that are similar to a provided\nembedding vector. It can search across both Redis (hot cache, 24h window)\nand PostgreSQL (historical, 30-day retention) depending on the\n`include_historical` parameter.\n\nArgs:\n    request: Search request containing embedding vector and parameters\n    hybrid_storage: Hybrid storage service for combined Redis/PostgreSQL search\n\nReturns:\n    SimilaritySearchResponse with matching entities sorted by similarity\n\nRaises:\n    HTTPException: 400 for invalid parameters, 503 for service unavailable",
-        "operationId": "reid_search_similar_entities",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SimilaritySearchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SimilaritySearchResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Invalid request parameters"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          },
-          "500": {
-            "description": "Internal server error"
-          },
-          "503": {
-            "description": "Service unavailable (Redis/PostgreSQL)"
-          }
-        },
-        "summary": "Search Similar Entities",
-        "tags": [
-          "reid"
         ]
       }
     },
@@ -67625,200 +67162,6 @@
           }
         },
         "summary": "Ready"
-      }
-    },
-    "/system/detectors": {
-      "get": {
-        "description": "Returns a list of all registered object detectors with their configuration and status. Optionally includes health status for each detector.",
-        "operationId": "detectors_list_detectors",
-        "parameters": [
-          {
-            "description": "Include health status for each detector (slower)",
-            "in": "query",
-            "name": "include_health",
-            "required": false,
-            "schema": {
-              "default": false,
-              "description": "Include health status for each detector (slower)",
-              "title": "Include Health",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetectorListResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List all registered detectors",
-        "tags": [
-          "detectors"
-        ]
-      }
-    },
-    "/system/detectors/active": {
-      "get": {
-        "description": "Returns the configuration of the currently active object detector.",
-        "operationId": "detectors_get_active_detector",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetectorInfoResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get active detector",
-        "tags": [
-          "detectors"
-        ]
-      },
-      "put": {
-        "description": "Switch to a different object detector. By default, validates that the target detector is healthy before switching. Use force=True to skip health check.",
-        "operationId": "detectors_switch_detector",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SwitchDetectorRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SwitchDetectorResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Switch active detector",
-        "tags": [
-          "detectors"
-        ]
-      }
-    },
-    "/system/detectors/{detector_type}": {
-      "get": {
-        "description": "Returns the configuration for a specific detector type.",
-        "operationId": "detectors_get_detector_config",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "detector_type",
-            "required": true,
-            "schema": {
-              "title": "Detector Type",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetectorInfoResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get detector configuration",
-        "tags": [
-          "detectors"
-        ]
-      }
-    },
-    "/system/detectors/{detector_type}/health": {
-      "get": {
-        "description": "Performs a health check on a specific detector and returns the status.",
-        "operationId": "detectors_check_detector_health",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "detector_type",
-            "required": true,
-            "schema": {
-              "title": "Detector Type",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetectorHealthResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Check detector health",
-        "tags": [
-          "detectors"
-        ]
       }
     }
   },

@@ -52,7 +52,8 @@ feature has triggered. Seams are designed when reached.
   rulings, split by ruling 86; `R2a` recorded 2026-10-10 in #6980).
 - `O2.3` → `O2.3b` → `F2.2`'s module list and `R2`'s §3.
 - `O2.4` → `B2.3` (TensorRT re-ID, then the bake-off; ruling 107).
-- `O2.5` → ruling 127's 12 real-tier rows in `F2.3` (ruling 144).
+- `O2.5` → ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222) in `F2.3`
+  (ruling 144).
 - `B3.1` and `F3.1` land each retired feature in one PR.
 - Each lane's Phase 3 → the docs lane's Phase 3 on that lane's directories (UR-68).
 
@@ -78,7 +79,8 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
 - **fake stack** — the CI compose stack plus a deterministic fake VLM and fake detector; runs
   anywhere, no GPU.
 - **real tier** — the same golden paths run by `scripts/feature-check.sh --real` on the GB300 with
-  real models (who runs it and where: UR-15, UR-133).
+  the real VLM (the production pin); the detector, re-ID and threat models stay fake (UR-136, ruling
+  207). Who runs it and where: UR-15, UR-133.
 - **test deployment** — a disposable stack created for one run: its own compose project, env file,
   host ports, volumes and camera directory, sharing only read-only model weights with anything
   else on the machine (`O2.2`). When one is required: UR-133.
@@ -177,7 +179,7 @@ UR-147.
 | B2.3    | backend                 | 2          | Re-ID model bake-off                           | heavy         | not started |       |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | done        | #6976 |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | done        | #6941 |
-| F2.3    | frontend                | 2          | Golden paths for every working feature         |               | in progress | #6997 |
+| F2.3    | frontend                | 2          | Golden paths for every working feature         |               | done        | #6997 |
 | O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | done        | #6961 |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
@@ -185,11 +187,11 @@ UR-147.
 | O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | in progress | #7002 |
 | O2.5    | ops                     | 2          | Production-shape real tier                     |               | awaiting real tier | #7037 |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
-| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | in progress | #7030 |
-| B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
+| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
+| B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy         | in progress | #7224, #7228, #7232 |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | not started |     |
-| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy · owner | not started |     |
+| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | in progress | #7224, #7228, #7232 |
 | F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | not started |     |
 | F3.3    | frontend                | 3          | Quarantined tests                              |               | not started |     |
 | O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | not started |     |

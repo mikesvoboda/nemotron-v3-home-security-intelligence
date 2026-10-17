@@ -156,6 +156,30 @@ describe('EventAuditDetail', () => {
         expect(screen.getByText('Retry')).toBeInTheDocument();
       });
     });
+
+    it('renders Run Evaluation control when no audit record exists and triggers evaluation on click', async () => {
+      vi.mocked(auditApi.fetchEventAudit).mockRejectedValue(
+        new AuditApiError(404, 'Audit not found')
+      );
+      vi.mocked(auditApi.triggerEvaluation).mockResolvedValue(mockEventAudit);
+
+      const user = userEvent.setup();
+      render(<EventAuditDetail eventId={42} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No audit record found for this event.')).toBeInTheDocument();
+      });
+
+      const runButton = screen.getByRole('button', { name: 'Run Evaluation' });
+      expect(runButton).toBeInTheDocument();
+
+      await user.click(runButton);
+
+      await waitFor(() => {
+        expect(auditApi.triggerEvaluation).toHaveBeenCalledWith(42, false);
+        expect(screen.getByText('Quality Scores')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Header Section', () => {

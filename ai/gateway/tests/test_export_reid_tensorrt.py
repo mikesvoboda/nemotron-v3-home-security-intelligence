@@ -395,7 +395,7 @@ class TestValidationRunsOnCpu:
     """The export's validation step must not be the thing ruling 106 killed.
 
     `validate_onnx` is the ONNX pass's graph-fidelity proof, and the serving
-    image ships onnxruntime-GPU (ai/gateway/Dockerfile:32), so an IMPLICIT
+    image ships onnxruntime-GPU (the `onnxruntime-gpu` line of ai/gateway/Dockerfile), so an IMPLICIT
     provider list would pick CUDAExecutionProvider whenever a GPU is merely
     visible — which on the GB300 is the provider that fails this graph with
     `cudaErrorSymbolNotFound`. That would make the export itself die the death

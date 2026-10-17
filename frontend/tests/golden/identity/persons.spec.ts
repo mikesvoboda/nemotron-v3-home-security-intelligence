@@ -343,6 +343,46 @@ test.describe('DO-3 known persons golden path', () => {
     const list = await api.getJson('/api/known-persons');
     expect(list.body?.items, 'the gallery is back to the seeded state').toHaveLength(0);
 
+    // Ruling 214 ([r214]): AddPersonModal invalidates ['face-recognition', 'known-persons'],
+    // so saving a person in the modal displays the new person in the list with no reload.
+    let modalId: number | null = null;
+    try {
+      await page.goto(`${h.ui}/face-recognition`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByText('No known persons')).toBeVisible();
+
+      await page.getByRole('button', { name: 'Add Person', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Add Person' })).toBeVisible();
+
+      await page.locator('#person-name').fill(PERSON);
+      await page.locator('#person-household-member').check();
+      await page.locator('#person-notes').fill('saved from modal');
+
+      const postPromise = page.waitForResponse(
+        (res) => res.url().endsWith('/api/known-persons') && res.request().method() === 'POST'
+      );
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      const postRes = await postPromise;
+      expect(postRes.status(), 'modal Save POSTs /api/known-persons -> 201').toBe(201);
+      const postBody = (await postRes.json().catch(() => null)) as { id?: number } | null;
+      modalId = typeof postBody?.id === 'number' ? postBody.id : null;
+
+      // With NO page reload, the invalidated list query refetches and renders the new card
+      const card = page.getByRole('button', { name: `View details for ${PERSON}` });
+      await expect(
+        card,
+        'the saved person appears in the list without a reload (ruling 214)'
+      ).toBeVisible();
+      await expect(page.getByTestId('known-persons-grid')).toBeVisible();
+      await expect(page.getByText('No known persons')).toHaveCount(0);
+    } finally {
+      if (modalId !== null) {
+        await api.send(`/api/known-persons/${modalId}`, 'DELETE').catch(() => null);
+      }
+    }
+
+    const finalList = await api.getJson('/api/known-persons');
+    expect(finalList.body?.items, 'the gallery is clean after modal test').toHaveLength(0);
+
     await assertGuardSurvives(page, h);
   });
 });

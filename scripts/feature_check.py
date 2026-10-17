@@ -103,6 +103,17 @@ EXIT_REFUSED = 2  # the preflight refused; the test deployment never started
 EXIT_CHANGED = 3  # the postflight found a pre-existing container or volume changed
 EXIT_UNAVAILABLE = 4  # the mode cannot run here (--real without agent-gpu)
 
+# The golden Playwright leg's deadline, ruling 189. Measured, not guessed: the slowest of the
+# last 10 GREEN `Feature check (fake AI)` runs on main took 1739 s from the leg's `$ docker run
+# … --project=golden` line to its `golden paths:` summary (job 116184218975 at c1b804a82; the
+# other nine 1492-1713 s). 1739 x 1.5 = 2608.5, rounded up to a minute = 2640. Across these 10
+# legs the old 1800 kept only 61-308 s of margin (the ruling's earlier window said 66-306), and
+# #7114 died at test #199 twice with exit 124. The OTHER three 1800 s timeouts are untouched and
+# are not this leg: the backend golden pytest leg, the frontend `npm ci`, and the Playwright image
+# pull (at ruling 189: 2169/2207/2261). This raises only the Playwright golden leg's ceiling.
+# test_feature_check.py pins this value as a literal; moving it reds that pin on purpose.
+GOLDEN_LEG_TIMEOUT_S = 2640
+
 # The harness smoke check: one scenario image in, one event out. Its scenario
 # has image bytes of its own: the backend deduplicates images by content for
 # 300 s across cameras, so a golden path dropping any other scenario image
@@ -418,7 +429,12 @@ def snapshot_brief(snapshot: Snapshot) -> dict[str, list[str]]:
 
 
 def as_test_deployment(
-    base: Mapping[str, Any], *, project: str, run_dir: Path, vlm_url: str | None = None
+    base: Mapping[str, Any],
+    *,
+    project: str,
+    run_dir: Path,
+    vlm_url: str | None = None,
+    seeded: bool = False,
 ) -> dict[str, Any]:
     """Turn the rendered CI + fake stack into this run's test deployment.
 
@@ -481,6 +497,13 @@ def as_test_deployment(
     backend["tmpfs"] = [
         entry for entry in backend.get("tmpfs") or [] if entry.split(":", 1)[0] != CAMERA_TARGET
     ]
+    if seeded:
+        environment["DEBUG"] = "true"
+        environment["REQUEST_RECORDING_ENABLED"] = "true"
+        environment["REQUEST_RECORDING_SAMPLE_RATE"] = "0.0"
+        environment["HSI_FAULT_SEED"] = "1"
+        if not any(entry.split(":", 1)[0].rstrip("/") == "/app/data" for entry in backend["tmpfs"]):
+            backend["tmpfs"].append("/app/data:size=20m,mode=1777,uid=1000,gid=1000")
     backend.setdefault("volumes", []).append(
         {
             "type": "bind",
@@ -661,8 +684,9 @@ def boot_render(rendered: Mapping[str, Any]) -> dict[str, Any]:
 def build_images(rendered: Mapping[str, Any], *, project: str) -> dict[str, str]:
     """The image each ``build:`` service will be looked for under when ``up`` runs.
 
-    The prod stack carries six ``build:`` services and the boot document holds no
-    images, so ``up --wait`` starts BUILDING during the boot. Measured on compose
+    The prod stack carries six ``build:`` services, five of which declare no
+    ``image:`` at all (grafana declares its own), so ``up --wait`` starts BUILDING
+    during the boot. Measured on compose
     v5.5.1 (``config --images``, and a ``up --dry-run`` with the images absent): a
     service that declares ``image:`` is looked up under THAT name -- grafana's is
     hard-coded in ``docker-compose.prod.yml`` to
@@ -1312,7 +1336,7 @@ def vlm_run_environment(prod: Sequence[str] | Mapping[str, Any]) -> list[str]:
     """``--env`` for ``agent-gpu run`` (operator.md step 3): the library's pin,
     then each other ai-vlm variable of docker-compose.prod.yml verbatim, at its
     default, since the run's env file sets none of them. ``prod`` is that
-    environment as written (``config --no-interpolate``)."""
+    environment as written (``prod_environment``'s raw YAML read)."""
     if isinstance(prod, Mapping):
         entries = [key if value is None else f"{key}={value}" for key, value in prod.items()]
     else:
@@ -1598,6 +1622,36 @@ def _exit_word(result: subprocess.CompletedProcess[str]) -> str:
     return _TIMEOUT_NOTE if _stalled(result) else str(result.returncode)
 
 
+# What the two engines `main()` offers actually print for "that name is not in the engine",
+# measured in this sandbox against docker 27.x and podman 5.7.0. Lowercased, because the
+# comparison below lowercases the stream.
+_ABSENCE_MARKERS = ("no such image:", "image not known")
+
+
+def _image_absent(result: subprocess.CompletedProcess[str]) -> bool:
+    """Did the engine POSITIVELY say this image name is not in it?
+
+    The companion to :func:`_stalled`, one level down. A stall was already fenced
+    because rc=124 is nonzero and nonzero inspect used to mean "never existed"; the
+    same false reading survives through a second door, measured here: a DOWN daemon
+    answers `image inspect` with the exit code it uses for absence -- rc=1 for
+    docker, rc=125 for podman, and the SAME code for both answers on each engine.
+    So the exit code cannot carry this distinction at all, and only the daemon's own
+    words can: docker says "No such image:", podman says "image not known".
+
+    Absence therefore has to be identified, not inferred. Everything this returns
+    False for -- a refusal, an argument error, empty stderr, an unrecognised engine
+    message -- is unknown state, which is the loud direction: the caller records the
+    name and does not remove it. A marker list is deliberately short and anchored to
+    the two engines the harness can be pointed at; widening it to "any stderr" would
+    put the false-spotless report back.
+    """
+    if result.returncode == 0:
+        return False  # rc=0 is present, whatever the stream says
+    stderr = (result.stderr or "").lower()
+    return any(marker in stderr for marker in _ABSENCE_MARKERS)
+
+
 def _log(message: str) -> None:
     stamp = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
     print(f"feature-check {stamp} {message}", flush=True)
@@ -1614,17 +1668,25 @@ class Run:
         image_tag: str,
         mode: str,
         prod_shape: bool = False,
+        seeded: bool = False,
     ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
         self.engine = engine
         self.mode = mode
         self.prod_shape = prod_shape
+        self.seeded = seeded
         # A run record that does not say WHICH compose shape was rendered cannot
         # witness ruling 127's 12 real-tier rows, which is the whole point of the
         # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
-        # prod shape gets a distinct one -- so nothing that greps today shifts.
-        self.shape = f"{mode}-prod-shape" if prod_shape else mode
+        # prod shape and the ruling-127/187 seeded CI project get distinct ones --
+        # so nothing that greps today shifts.
+        if prod_shape:
+            self.shape = f"{mode}-prod-shape"
+        elif seeded:
+            self.shape = f"{mode}-seeded"
+        else:
+            self.shape = mode
         self.image_tag = image_tag
         self.dir = (root / self.project).resolve()
         self.cameras = self.dir / "cameras"
@@ -1775,7 +1837,11 @@ class Run:
             self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
         )
         deployment = as_test_deployment(
-            base, project=self.project, run_dir=self.dir, vlm_url=vlm.url if vlm else None
+            base,
+            project=self.project,
+            run_dir=self.dir,
+            vlm_url=vlm.url if vlm else None,
+            seeded=self.seeded,
         )
         self.compose_file.write_text(json.dumps(deployment, indent=2) + "\n", encoding="utf-8")
         rendered = json.loads(self.deployment("config", "--format", "json").stdout)
@@ -1868,8 +1934,9 @@ class Run:
     def prebuild_images(self) -> None:
         """Build the stack's `build:` images BEFORE `up`, so `up` builds nothing.
 
-        The prod stack ships six services with `build:` and no images in the boot
-        document, so `up --wait` starts building during the boot — and on the
+        The prod stack ships six services with `build:` in the boot document and
+        five of them declare no `image:` at all (grafana declares both), so
+        `up --wait` starts building during the boot — and on the
         first prod-shape run that is exactly where it died (operator record
         6166020894): grafana's host-local name answered `denied` to a PULL (an
         absent `image:` on a build service is pulled before it is built,
@@ -2039,6 +2106,158 @@ class Run:
         self._write("cameras.json", self.camera_ids)
         _log(f"seeded {len(self.camera_ids)} cameras: {', '.join(self.camera_ids.values())}")
 
+    def seed_debug_fixtures(self) -> None:
+        """Plant the ruling-127/187/192/215 CI fixtures for --seeded runs:
+        1. Two deterministic GET recordings via X-Debug-Record: true (F-154..F-156);
+        2. An unreferenced file under /app/data/thumbnails (F-186);
+        3. Fill the 20 MiB /app/data volume (parent of VIDEO_THUMBNAILS_DIR) past 90%
+           for GET /api/system/storage (F-012, ruling 192 item 2);
+        4. One KnownPerson and one FaceEmbedding row with a fixed 512-dim float32
+           vector and test-only model_id (F-278, ruling 215 item 1);
+        5. Verification that HSI_FAULT_SEED=1 opened a circuit breaker (F-138) and
+           a burst of Redis misses trips the hit-ratio threshold (F-171).
+        """
+        for path in ("/api/system/config", "/api/system/health/ready"):
+            status, body = _http(
+                "GET",
+                self.api + path,
+                headers={"X-Debug-Record": "true"},
+            )
+            if status != 200:
+                raise HarnessError(f"seeding recorded request {path} answered {status}: {body}")
+        rec_status, rec_body = _http("GET", self.api + "/api/debug/recordings")
+        if (
+            rec_status != 200
+            or not isinstance(rec_body, Mapping)
+            or int(rec_body.get("total") or 0) < 2
+        ):
+            raise HarnessError(
+                f"expected >= 2 seeded recordings from GET /api/debug/recordings, "
+                f"got {rec_status}: {rec_body}"
+            )
+
+        planted = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import os, time; from pathlib import Path; "
+            "p = Path('/app/data/thumbnails/seeded-orphan.jpg'); "
+            "p.parent.mkdir(parents=True, exist_ok=True); "
+            "p.write_bytes(b'seeded-orphan-fixture'); "
+            "old = time.time() - 48 * 3600; "
+            "os.utime(p, (old, old)); "
+            "print(p.stat().st_size)",
+        )
+        if not planted.stdout.strip().splitlines()[-1:]:
+            raise HarnessError("planting seeded-orphan.jpg produced no size output")
+        orphan_status, orphan_body = _http(
+            "POST", self.api + "/api/system/cleanup/orphaned-files?dry_run=true"
+        )
+        if (
+            orphan_status != 200
+            or not isinstance(orphan_body, Mapping)
+            or int(orphan_body.get("orphaned_count") or 0) < 1
+        ):
+            raise HarnessError(
+                f"expected >= 1 orphaned file after planting fixture, "
+                f"got {orphan_status}: {orphan_body}"
+            )
+
+        filled = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import shutil; from pathlib import Path; "
+            "data = Path('/app/data'); "
+            "usage = shutil.disk_usage(data); "
+            "fill = max(0, int(usage.total * 0.93) - usage.used); "
+            "(data / '.seeded-disk-fill').write_bytes(b'\\x00' * fill); "
+            "after = shutil.disk_usage(data); "
+            "print(round(after.used / after.total * 100, 2))",
+        )
+        if not filled.stdout.strip().splitlines()[-1:]:
+            raise HarnessError("filling /app/data past 90% produced no output")
+        storage_status, storage_body = _http("GET", self.api + "/api/system/storage")
+        if (
+            storage_status != 200
+            or not isinstance(storage_body, Mapping)
+            or float(storage_body.get("disk_usage_percent") or 0) < 90.0
+        ):
+            raise HarnessError(
+                f"expected disk_usage_percent >= 90.0 from GET /api/system/storage, "
+                f"got {storage_status}: {storage_body}"
+            )
+
+        seeded_face = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import asyncio, struct\n"
+            "from backend.core.database import close_db, get_session, init_db\n"
+            "from backend.models.face_identity import FaceEmbedding, KnownPerson\n"
+            "async def _seed():\n"
+            "  await init_db()\n"
+            "  try:\n"
+            "    async with get_session() as s:\n"
+            "      p = KnownPerson(name='Seeded Known Person', is_household_member=True, notes='Seeded by feature_check.py for F-278')\n"
+            "      s.add(p)\n"
+            "      await s.flush()\n"
+            "      e = FaceEmbedding(person_id=p.id, embedding=struct.pack('<512f', 1.0, *([0.0] * 511)), model_id='test-only-seeded-vector', quality_score=0.95)\n"
+            "      s.add(e)\n"
+            "      await s.commit()\n"
+            "      print(f'{p.id}:{e.id}')\n"
+            "  finally:\n"
+            "    await close_db()\n"
+            "asyncio.run(_seed())",
+        )
+        if not seeded_face.stdout.strip().splitlines()[-1:]:
+            raise HarnessError("seeding known person and face embedding produced no output")
+        kp_status, kp_body = _http("GET", self.api + "/api/known-persons")
+        kp_items = kp_body.get("items") if isinstance(kp_body, Mapping) else None
+        if (
+            kp_status != 200
+            or not isinstance(kp_items, list)
+            or not any(
+                isinstance(item, Mapping) and int(item.get("embedding_count") or 0) >= 1
+                for item in kp_items
+            )
+        ):
+            raise HarnessError(
+                f"expected >= 1 seeded known person with embedding_count >= 1 from "
+                f"GET /api/known-persons, got {kp_status}: {kp_body}"
+            )
+
+        cb_status, cb_body = _http("GET", self.api + "/api/system/circuit-breakers")
+        if (
+            cb_status != 200
+            or not isinstance(cb_body, Mapping)
+            or int(cb_body.get("open_count") or 0) < 1
+        ):
+            raise HarnessError(
+                f"expected >= 1 open circuit breaker from HSI_FAULT_SEED=1, "
+                f"got {cb_status}: {cb_body}"
+            )
+
+        for _ in range(4):
+            ps_status, ps_body = _http("GET", self.api + "/api/debug/pipeline-state")
+            if ps_status != 200:
+                raise HarnessError(
+                    f"seeding Redis misses via GET /api/debug/pipeline-state "
+                    f"answered {ps_status}: {ps_body}"
+                )
+
+        self.summary["results"]["seeded"] = "ok"
+        _log(
+            "seeded debug fixtures: 2 recordings, 1 orphan file, >90% disk fill, "
+            "1 known person + face embedding, open redis breaker"
+        )
+
     def check_isolation(self) -> list[str]:
         ids = self._run(
             [
@@ -2123,7 +2342,8 @@ class Run:
         }
         problems = []
         results: dict[str, Any] = {}
-        if sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
+        project_name = "golden-seeded" if self.seeded else "golden"
+        if not self.seeded and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
             junit = self.artifacts / "golden-backend.xml"
             result = self._run(
                 [
@@ -2147,10 +2367,13 @@ class Run:
             # Ruling 114: the exit code above says the runner finished, not that a
             # spec ran. Judged on the report this run wrote, never on a previous one.
             problems += golden_execution_problems("backend", results["backend_specs"])
+        elif self.seeded:
+            results["backend"] = "skipped on seeded"
         else:
             results["backend"] = "no specs yet"
         if PLAYWRIGHT_CONFIG.exists() and re.search(
-            r"name:\s*['\"]golden['\"]", PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+            rf"name:\s*['\"]{re.escape(project_name)}['\"]",
+            PLAYWRIGHT_CONFIG.read_text(encoding="utf-8"),
         ):
             report = self.artifacts / "golden-playwright"
             junit = self.artifacts / "golden-playwright.xml"
@@ -2278,7 +2501,7 @@ class Run:
                     "--no-install",
                     "playwright",
                     "test",
-                    "--project=golden",
+                    f"--project={project_name}",
                     shlex.quote(f"--output={report}"),
                     "--reporter=list,junit",
                 ]
@@ -2306,7 +2529,7 @@ class Run:
                     mounts=[self.dir],
                 ),
                 check=False,
-                timeout=1800,
+                timeout=GOLDEN_LEG_TIMEOUT_S,
                 env={**env, "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit)},
             )
             (self.artifacts / "golden-playwright.log").write_text(
@@ -2347,6 +2570,99 @@ class Run:
             )
         )
         return changed, left
+
+    def cleanup_images(self) -> int:
+        """Remove the images THIS prod-shape run built, and only these.
+
+        A prod-shape run names every image-less ``build:`` service
+        ``<project>-<service>:latest`` (:func:`build_images`), and ``self.project``
+        carries a per-run random token (:meth:`Run.__init__`), so those tags differ
+        on every run and a re-run can never reuse a prior build. Nothing in the
+        existing lifecycle removes them: ``down -v`` tears down containers and
+        volumes only (UR-135 pins ``teardown`` to exactly that one compose call),
+        and the postflight ``Snapshot`` tracks containers and volumes — it has no
+        image axis, so the leak is not even reported. Removal therefore lives here,
+        on the bare-engine surface (``image rm``), not inside ``teardown``.
+
+        The names come from the same :func:`build_images` derivation ``up`` and the
+        pre-build use, so a name is neither removed that compose did not build
+        under nor missed by a second list drifting. Only names carrying THIS run's
+        project prefix are touched: a service that declares its own ``image:``
+        (grafana, host-local and shared with production) is not prefixed, so it is
+        left exactly as skip-if-present leaves it.
+
+        This runs whether or not the boot started. A pre-build that dies after
+        building some layers leaves those layers behind with ``started`` still
+        False, and the ``if run.started`` gate that guards ``teardown`` would skip
+        an image cleanup placed behind it — which is why the caller calls this
+        outside that gate.
+        """
+        if not self.prod_shape or not self.compose_file.exists():
+            return EXIT_OK
+        boot = json.loads(self.compose_file.read_text(encoding="utf-8"))
+        prefix = f"{self.project}-"
+        candidates = sorted(
+            image
+            for image in build_images(boot, project=self.project).values()
+            if image.startswith(prefix)
+        )
+        removed: list[str] = []
+        leaked: list[str] = []
+        stalled: list[str] = []
+        for image in candidates:
+            present = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+            if _stalled(present):
+                # BEFORE the nonzero check, because a stall IS nonzero: `_run` turns
+                # its own deadline into rc=124, so without this fence a dead or
+                # wedged engine answers every name with "not present" and the run
+                # reports a spotless cleanup it never performed. Unknown is not
+                # absent, and `image rm` on an unknown name is a second guess on
+                # top of the first one — so the name is only recorded, never removed.
+                stalled.append(image)
+                _log(f"FAIL prod-shape image state unknown, the engine timed out: {image}")
+                continue
+            if present.returncode != 0:
+                # Not every nonzero answer means "not in the engine": a DOWN daemon answers
+                # with the exit code absence uses on that same engine (rc=1 docker, rc=125
+                # podman -- measured), so trusting the rc alone lets a run whose engine never
+                # answered report itself spotless. Absence is claimed only when the daemon
+                # said so in words; everything else is unknown, recorded, and NOT removed.
+                #
+                # The `continue` is OUTSIDE the inner test on purpose, so no nonzero answer
+                # can reach `image rm` on either reading -- the battery found that nesting it
+                # inside the unknown branch makes the two `continue`s redundant next to each
+                # other, which is a mutation an editor could introduce by accident.
+                if not _image_absent(present):
+                    stalled.append(image)
+                    said = "\n".join(
+                        f"  | {line}" for line in (present.stderr or "").splitlines()[:3]
+                    )
+                    _log(
+                        f"FAIL prod-shape image state unknown: {image} "
+                        f"(exit {_exit_word(present)})" + (f"\n{said}" if said else "")
+                    )
+                continue  # absent (the engine said so) or unknown -- neither is removed here
+            gone = self._run([self.engine, "image", "rm", image], check=False, echo=False)
+            if gone.returncode == 0:
+                removed.append(image)
+            else:
+                # Includes a stalled `image rm`: rc=124 is nonzero, and "might still
+                # be there" is the correct reading of a removal we could not confirm.
+                leaked.append(image)
+        self.summary["images_removed"] = removed
+        # The leak gets its own key, not just a log line: `run_check` prints the
+        # summary whole for the operator to paste, and every other failure surface
+        # (`results.postflight`, `results.teardown`, `results.engine_socket`) reaches
+        # it. Names left in the engine would otherwise be visible only in the log.
+        self.summary["images_leaked"] = leaked
+        # Its own key rather than folded into `images_leaked`, because the two need
+        # different repairs: a leak is an image to delete, a stall is an engine to
+        # fix. Pasted into the same list, an operator would chase images that may
+        # not exist while the wedged engine that answered 124 goes unmentioned.
+        self.summary["images_stalled"] = stalled
+        for image in leaked:
+            _log(f"FAIL prod-shape image still in the engine, not removed: {image}")
+        return EXIT_FAILED if (leaked or stalled) else EXIT_OK
 
     def _write(self, name: str, data: Any) -> None:
         (self.artifacts / name).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -2427,14 +2743,33 @@ class AgentGpu:
         ).stdout.strip()
 
     def prod_environment(self) -> Sequence[str] | Mapping[str, Any]:
-        """ai-vlm's environment as docker-compose.prod.yml writes it (rendered
-        without interpolation, never started)."""
-        rendered = json.loads(
-            self.run.compose(
-                [PROD_STACK], "config", "--no-interpolate", "--format", "json", echo=False
-            ).stdout
-        )
-        return rendered["services"]["ai-vlm"].get("environment") or []
+        """ai-vlm's environment as docker-compose.prod.yml writes it, raw
+        (never interpolated, never started): the `${VAR:-default}` tokens
+        `vlm_run_environment` needs, verbatim.
+
+        Read from the file with ``yaml.safe_load``, NOT from
+        ``compose config --no-interpolate``. [r162] (owner ruling 186) made the
+        top-level ``include:`` path itself interpolated
+        (``docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml``), and
+        ``--no-interpolate`` does not expand an include path — it tries to open
+        the literal ``engine-${…}.yml`` and exits 1, which would crash the
+        real-tier VLM start (``start`` → this method → ``json.loads``). Measured:
+        this YAML read yields the byte-identical 17-entry list on the current
+        prod.yml, and it is the same read the unit test at
+        ``backend/tests/unit/scripts/test_feature_check.py`` uses, so runtime and
+        test now consult one source. Nothing about ai-vlm's ``environment`` is
+        produced by compose that this read misses.
+
+        The ``import yaml`` is deliberately function-local: feature-check.sh
+        execs this file under bare ``python3``, and the golden Playwright
+        container's python3 has no pyyaml — a module-level import made every
+        subcommand (``drop`` included) die at import time there. Here is the
+        only reader; only ``start`` pays for it.
+        """
+        import yaml
+
+        raw = yaml.safe_load(PROD_STACK.read_text(encoding="utf-8"))
+        return (raw.get("services") or {}).get("ai-vlm", {}).get("environment") or []
 
     def prepare(self) -> None:
         """Steps 1-2: the weights against the pin, the budget, the image."""
@@ -2589,6 +2924,7 @@ def _http(
     timeout: float = 15,
     *,
     origin: str | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> tuple[int, Any]:
     """(status, JSON body or text); status 0 when nothing answered.
 
@@ -2606,8 +2942,9 @@ def _http(
         also = f" and {origin}" if origin else ""
         raise HarnessError(f"the harness talks only to its own 127.0.0.1 ports{also}, not {url}")
     data = json.dumps(payload).encode() if payload is not None else None
+    req_headers = {"Content-Type": "application/json", **(dict(headers) if headers else {})}
     request = urllib.request.Request(  # noqa: S310 (127.0.0.1 or the VLM, checked above)
-        url, data=data, method=method, headers={"Content-Type": "application/json"}
+        url, data=data, method=method, headers=req_headers
     )
     try:
         with opener.open(request, timeout=timeout) as response:
@@ -2669,12 +3006,14 @@ def _interrupt(signum: int, _frame: Any) -> None:
 
 
 def run_check(args: argparse.Namespace, *, mode: str) -> int:
+    seeded = bool(getattr(args, "seeded", False))
     run = Run(
         engine=args.engine,
         root=args.root,
         image_tag=args.image_tag,
         mode=mode,
         prod_shape=args.prod_shape,
+        seeded=seeded,
     )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
@@ -2698,6 +3037,8 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         run.up(vlm)
         run.register_admin()
         run.seed_cameras()
+        if getattr(run, "seeded", False):
+            run.seed_debug_fixtures()
         problems = run.check_isolation()
         problems += run.smoke(vlm)
         if not problems:
@@ -2726,6 +3067,12 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         try:
             if run.started:
                 status = max(status, _finish(run, before))
+            # Image cleanup deliberately OUTSIDE the `run.started` gate, like the
+            # VLM's own `started` gate above: a prod-shape run that dies in the
+            # pre-build never sets `started` (that flips inside `up`), yet a partial
+            # build has already left images in the engine. Gating this on
+            # `run.started` would skip exactly the failure path that leaks.
+            status = max(status, _cleanup_images(run))
             if vlm is not None and vlm.started:
                 status = max(status, _finish_vlm(vlm))
             run.summary["exit"] = status
@@ -2760,6 +3107,17 @@ def _finish(run: Run, before: Snapshot) -> int:
     return EXIT_FAILED if left else EXIT_OK
 
 
+def _cleanup_images(run: Run) -> int:
+    """Remove a prod-shape run's images after the deployment is gone, also after a
+    failure. A cleanup that cannot run is reported, not swallowed: the images are
+    the whole point (they are per-run and no later run reuses them)."""
+    try:
+        return run.cleanup_images()
+    except Exception as error:  # noqa: BLE001 - say so; the operator removes the rest
+        _log(f"URGENT prod-shape image cleanup did not complete ({type(error).__name__}: {error})")
+        return EXIT_FAILED
+
+
 def _finish_vlm(vlm: AgentGpu) -> int:
     """Remove the run's VLM after the test deployment is down, also after a
     failure (operator.md step 6)."""
@@ -2787,6 +3145,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="with --real, bring up the PRODUCTION compose shape (O2.5, ruling 144/162): "
         "docker-compose.prod.yml + the prod-shape override on Podman, instead of the CI "
         "stack. Refused without --real — the prod shape is the real tier's prod shape.",
+    )
+    parser.add_argument(
+        "--seeded",
+        action="store_true",
+        help="with --fake or --real (ruling 235), boot the ruling-127/187 seeded stack "
+        "(DEBUG=true, "
+        "request recorder enabled, breaker/threshold fault seed, orphan file fixture) "
+        "and run the golden-seeded Playwright project.",
     )
     parser.add_argument(
         "--image-tag",
@@ -2825,6 +3191,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         # would let a reader of a run record believe prod was exercised when the CI
         # stack ran. Refused at parse time, before any engine call.
         parser.error("--prod-shape needs --real (it is the real tier's production shape)")
+    if args.seeded and args.prod_shape:
+        # Ruling 235 keeps this refusal explicit rather than inheriting it from the old
+        # `--seeded needs --fake` line, which is what actually blocked this combination
+        # before. The prod shape renders docker-compose.prod.yml; the seeded shape sets
+        # DEBUG=true and mounts the request recorder, and production never runs either.
+        parser.error("--seeded cannot combine with --prod-shape (production never runs DEBUG=true)")
+    if args.seeded and not (args.fake or args.real):
+        # Ruling 235: the seeded stack is a BOOT SHAPE, not a third mode. Nothing in it
+        # depends on the fake VLM -- the boot overrides (see as_test_deployment), the planted
+        # fixtures and the golden-seeded Playwright project all key off `seeded` alone -- so
+        # `--real --seeded` is the route the ~11 seeded-only inventory rows take to **works**.
+        # What stays refused is `--seeded --prod-shape`, ruled above: production never runs
+        # DEBUG=true. `--fake --seeded` is byte-for-byte the command the CI leg runs.
+        parser.error("--seeded needs --fake or --real (it is a boot shape, not a mode)")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:

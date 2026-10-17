@@ -193,6 +193,77 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 178    | lane.md beat before long steps; coordinator.md step 5 (record 6172424097)                                   |
 | 179    | UR-155 600-char heartbeats; UR-181 evidence cells (record 6172543400)                                       |
 | 180    | package `[r157]`: independent builds, `--plan-timeout` (record 6173140800)                                  |
+| 181    | package `[r181]`: lane-tick digest, activity snapshot; `BLOCKER:` line (record 6173920972)                  |
+| 182    | UR-182: RTX VSS positioning, Easy/Advanced modes; seven rows kept (record 6174228588)                       |
+| 183    | package B3.2: scene-change vertical kept, R2a row 24 over OD-28 (record 6175205677)                         |
+| 184    | heavy agents renamed heavy-a/-b; FE-4 and OP-1 batches; UR-59 label (record 6177514438)                     |
+| 185    | `O2.5`'s prod-shape run on maui, run by the owner (record 6181352718)                                       |
+| 186    | package `[r162]`: backend's socket only; alloy keeps its mount (record 6181436641)                          |
+| 187    | F2.3's seeded CI project to heavy-b, ops-b reviews (record 6182863643)                                      |
+| 188    | `O2.4` and `O2.5` move to the operator: agent-gpu venue, in-sandbox store (record 6182950505)               |
+| 189    | package `[r189]`: the golden leg's cap follows measured time (record 6191177913)                            |
+| 190    | heavy-b out of service; heavy-a takes #7155, OP-1's seeded rows, B2.3 (record 6191930218)                   |
+| 191    | docs flips F-256, specs F-254, F-278; frontend FE-3's six after #7145 (record 6192225830)                   |
+| 192    | routes F-028 (frontend), F-012's disk seed (heavy-a), F-234 (docs) (record 6192470752)                      |
+| 193    | package `[r193]`: lanes wake on GitHub events; ticks become a fallback (record 6195149856)                  |
+| 194    | F-234: docs sets `channel: 'chromium'` in permission.spec.ts only (record 6197728882)                       |
+| 195    | O2.5 runs on maui after package `[r195]` (host-login harness) (record 6197833896)                           |
+| 196    | packages `[r196a]` frontend, `[r196b]` docs, `[r196c]` ops-b: last F2.3 rows (record 6198072340)            |
+| 197    | `[r197]`, owner's session: plan lint, footers, `--beat` (records 6198161166, 6198199744)                    |
+| 198    | one review per PR, the author's UR-89 subagent; author arms auto-merge (record 6198314579)                  |
+| 199    | package `[r199]`: analysis acks follow a stored event or a terminal failure (record 6198662741)             |
+| 200    | package `[r200]`: one owner for the running pipeline workers (record 6198757258)                            |
+| 201    | `[r184]` gets its block: the launcher prints the heavy pi start line (record 6198825479)                    |
+| 202    | one-GPU installs wait for Phase 4 as `O4.1`; no lane now (record 6198876496)                                |
+| 203    | B3.3 owns schema upgrades; B3.1 drops tables as its upgrades (record 6198942052)                            |
+| 204    | package `[r204]`: one realtime connection owner in the frontend (record 6199283332)                         |
+| 205    | package `[r205]`: no status is not healthy; health is not an alert count (record 6199725340)                |
+| 206    | OD-31 stands; F-236's design also settles what an event sends on (record 6199786907)                        |
+| 207    | real tier is real VLM, fake detector; `[r207]` holds detector rows back (record 6199844401)                 |
+| 208    | owner's session measures record repair; result 6200252063 (record 6199979513)                               |
+| 209    | claim drafts that hold nothing close: #7072 now, #6996 after `[r196b]` (record 6200064485)                  |
+| 210    | R2b round 2: R2 §3 approved as a rule; export tooling stays; spikes go (record 6200282082)                  |
+| 211    | R2b: F-048 complete, P1, fix now; `[r211b]` backend, `[r211f]` frontend (record 6200331506)                 |
+| 212    | R2b: F-061, F-062 complete, P1, fix now; `[r212]` frontend (record 6200384247)                              |
+| 213    | R2b: F-060 split, labelling fix-now `[r213]`; learning retired with F-131 (record 6200455263)               |
+| 214    | R2b: F-213, F-277 complete, P1, fix now; `[r214]` frontend (record 6200676782)                              |
+| 215    | R2b: F-278 by a seeded test-only face vector; `[r215a]`, `[r215d]` (record 6200719567)                      |
+| 216    | the owner's session writes R2b round 2's record; UR-149 amended once (record 6200852082)                    |
+| 217    | ops-b claims `[r196c]` now; UR-52 waived while `[r157]` waits (record 6200901387)                           |
+| 218    | package `[r218]`: CI checks inventory status against the golden run (record 6201875149)                     |
+| 219    | F-033 split; its summary-push clause is F-295, real tier, not gating (record 6203806645)                    |
+| 220    | the 7 expired flaky skips go; CI's suppression ratchet turns green (record 6205451631)                      |
+| 221    | frontend inverts F-048's search fixture on #7187, ahead of `[r196a]` (record 6205729827)                    |
+| 222    | F-059 split; its video and two-detection clauses become F-296, routed to O2.5 (record 6205769421)           |
+| 223    | package `[r223]`: the developer tools' seed and clear refresh the caches (record 6205796977)                |
+| 224    | heavy-a takes `[r212]`, `[r213]`, `[r214]` from frontend now, ahead of B2.3 (record 6205825842)             |
+| 225    | the dispatcher stops a coordinator tick at 60 minutes, not 30 (record 6205915207)                           |
+| 226    | heavy-a takes F-012 and F-064 from `[r196a]`; docs claims `[r215d]` now (record 6206280092)                 |
+| 227    | ops-b arms #7189; the seeded-only rows' route to works goes to R2b's last round (record 6215786871)         |
+| 228    | package `[r228]`: one cache key shape, before `[r223]` (record 6215814018)                                  |
+| 229    | the second session in frontend's sandbox ends; `fe3-f064-draft` is deleted (record 6215872590)              |
+| 230    | no rows for docs' unrowed paths; three client-less endpoints go to R2b's last round (record 6215912535)     |
+| 231    | package `[r231]`: ruling 207 covers every model family the real tier fakes (record 6215981513)              |
+| 232    | the dispatcher starts each tick's subagent without a name; stacking diagnosis runs (record 6216022003)      |
+| 233    | R2b last round: F-045 complete, P1, fix now, carried by `[r211f]` (record 6216193689)                       |
+| 234    | R2b last round: F-052 complete, P1, fix now, `[r234]` for heavy-a (record 6216216005)                       |
+| 235    | R2b last round: seeded-only rows reach works on `--real --seeded`, `[r235]` (record 6216273821)             |
+| 236    | R2b last round: `/api/reid/search` retires; two endpoints become External rows (record 6216306194)          |
+| 237    | Phase 2 exits: F2.3 excepts the O2.5 rows; R2b's last round closed (record 6216370633)                      |
+| 238    | package `[r238]`: heavy-a flips F-057's read-back leg after `[r234]` (record 6216702824)                    |
+| 239    | coordinator loop `/loop 30m`; UR-162 raises past 90 minutes, `[r239]` for ops-b (record 6217014151)         |
+| 240    | package `[r240]`: the fake-AI golden leg runs as two shards, ops-b (record 6217450751)                      |
+| 241    | heavy-a takes `B3.1` with `F3.1` ahead of `B2.3`; Phase 3 blocks gain `**PR:**` (record 6217824144)         |
+| 242    | package `[r242]`: plan_lint checks every roster row again; owner PR, ops-b reviews (record 6221764225)      |
+| 243    | package `[r243]`: prod.yml's engine-socket condition renders on every Compose, ops-a (record 6222454848)    |
+| 244    | package `[r244]`: the monitoring key gets no recommendation prose, backend (record 6222984876)              |
+| 245    | UR-36/UR-38 cadence once `[r193]` lands; `[r239]`'s interval table (record 6223117374)                      |
+| 246    | one-off: §8's no-failing-path demotion only for ruling 207/`[r231]` families (record 6223337228)            |
+| 247    | package `[r247]`: a host-side supervisor runs the coordinator's ticks, ops-b (record 6223821495)            |
+| 248    | UR-183: a package PR writes its own `**PR:**` number; package `[r248]` (record 6223962176)                  |
+| 249    | UR-98: a plain `B3.1`/`F3.1` retirement is lane-tier (record 6224222541)                                    |
+| 250    | UR-89, UR-91: from round 2 only blocking findings change the head (record 6224354057)                       |
+| 251    | package `[r251]`: the inventory's §2 is computed, not stored; owner PR (record 6224408012)                  |
 
 ## Owner records
 

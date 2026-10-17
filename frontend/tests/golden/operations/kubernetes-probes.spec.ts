@@ -19,7 +19,7 @@ import { closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harn
 
 const harness = readOpsHarness();
 
-test.describe('golden path: kubernetes probes @critical', () => {
+test.describe('golden path: kubernetes probes (F-147) @critical', () => {
   test.setTimeout(60_000);
 
   test('liveness and readiness cards pass, matching the real probe endpoints', async ({ page }) => {

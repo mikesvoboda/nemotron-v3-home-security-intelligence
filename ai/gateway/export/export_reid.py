@@ -614,7 +614,7 @@ def validate_onnx(
 
     # CPU EP, explicitly. This session is the graph-fidelity proof — cosine
     # similarity of the ONNX's embeddings against PyTorch's — and the image
-    # ships onnxruntime-gpu (ai/gateway/Dockerfile:32), so an implicit provider
+    # ships onnxruntime-gpu (the `onnxruntime-gpu` line of ai/gateway/Dockerfile), so an implicit provider
     # list would ride CUDAExecutionProvider whenever a GPU is merely visible.
     # On the GB300 that is the provider ruling 106 proved cannot run this graph
     # (cudaErrorSymbolNotFound), which would turn the export's own validation

@@ -9,6 +9,7 @@ This module provides:
 
 import asyncio
 import contextlib
+import os
 import pathlib
 import signal
 import ssl
@@ -56,7 +57,6 @@ from backend.api.routes import (
     cost_analytics,
     debug,
     detections,
-    detector,
     dlq,
     entities,
     entity_recognition,
@@ -136,10 +136,6 @@ from backend.services.job_tracker import init_job_tracker_websocket
 from backend.services.performance_collector import PerformanceCollector
 from backend.services.pipeline_quality_audit_service import get_audit_service
 from backend.services.pipeline_workers import (
-    create_analysis_worker,
-    create_detection_worker,
-    create_metrics_worker,
-    create_timeout_worker,
     drain_queues,
     get_pipeline_manager,
     stop_pipeline_manager,
@@ -334,6 +330,13 @@ def init_circuit_breakers() -> list[str]:
 
     get_circuit_breaker("redis", infrastructure_config)
     breaker_names.append("redis")
+
+    # Ruling 127 / 187 fault seed behind the debug guard: trip the non-critical
+    # redis breaker in _get_registry() at startup so GET /api/system/circuit-breakers
+    # exposes an OPEN breaker for F-138's Reset golden path without affecting
+    # /api/system/health/ready or AI inference.
+    if get_settings().debug and os.getenv("HSI_FAULT_SEED") == "1":
+        get_circuit_breaker("redis", infrastructure_config).force_open()
 
     return breaker_names
 
@@ -993,31 +996,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             on_failure=on_worker_failure,
         )
 
-        # Register workers with the supervisor
-        # Note: Workers are already managed by PipelineManager, but supervisor
-        # provides additional monitoring and restart callbacks
-        # NEM-4148: Pass supervisor to workers for heartbeat reporting
-        await worker_supervisor.register_worker(
-            "detection",
-            create_detection_worker(redis_client, supervisor=worker_supervisor),
-            max_restarts=settings.worker_supervisor_max_restarts,
-        )
-        await worker_supervisor.register_worker(
-            "analysis",
-            create_analysis_worker(redis_client, supervisor=worker_supervisor),
-            max_restarts=settings.worker_supervisor_max_restarts,
-            heartbeat_timeout=180.0,  # LLM calls take 60-120s; enrichment adds more
-        )
-        await worker_supervisor.register_worker(
-            "batch_timeout",
-            create_timeout_worker(redis_client, supervisor=worker_supervisor),
-            max_restarts=settings.worker_supervisor_max_restarts,
-        )
-        await worker_supervisor.register_worker(
-            "metrics",
-            create_metrics_worker(redis_client, supervisor=worker_supervisor),
-            max_restarts=settings.worker_supervisor_max_restarts,
-        )
+        # Register the manager's workers with the supervisor (owner ruling 200)
+        register_fn = getattr(pipeline_manager, "register_workers_with_supervisor", None)
+        if callable(register_fn):
+            maybe_coro = register_fn(
+                worker_supervisor,
+                max_restarts=settings.worker_supervisor_max_restarts,
+            )
+            if asyncio.iscoroutine(maybe_coro):
+                await maybe_coro
 
         await worker_supervisor.start()
         lifespan_logger.info(
@@ -1622,7 +1609,6 @@ app.include_router(cost_analytics.router)
 app.include_router(calibration.router)
 app.include_router(cameras.router)
 app.include_router(debug.router)
-app.include_router(detector.router)
 app.include_router(detections.router)
 app.include_router(dlq.router)
 app.include_router(entities.router)

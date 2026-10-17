@@ -156,18 +156,22 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 
 ### Fast Path Configuration
 
-| Variable                         | Default in `Settings` | Default in compose / `.env.example`                      |
-| -------------------------------- | --------------------- | -------------------------------------------------------- |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:630`, `.env.example:511`) |
-| `FAST_PATH_OBJECT_TYPES`         | `[]` (empty)          | commented out, so empty                                  |
+| Variable                         | Default in `Settings`       | Default in compose / `.env.example`              |
+| -------------------------------- | --------------------------- | ------------------------------------------------ |
+| `FAST_PATH_ENABLED`              | `False` (master switch off) | `false` (`docker-compose.prod.yml`)              |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.9                         | 0.90 (`docker-compose.prod.yml`, `.env.example`) |
+| `FAST_PATH_OBJECT_TYPES`         | `[]` (empty)                | commented out, so empty                          |
 
-`BatchAggregator._should_use_fast_path` requires the detected type to appear in
-`FAST_PATH_OBJECT_TYPES` (`backend/services/batch_aggregator.py:1185-1216`), and the shipped list is
-empty, so no detection takes the fast path — every detection reaches the analyzer through the normal
-batch gate regardless of the threshold. The threshold's own field default (2.0) is above any
-possible confidence, which is the second guard.
+`BatchAggregator._should_use_fast_path` checks `fast_path_enabled` first: while it is
+false no detection takes the fast path whatever the threshold says (ruling 168), so
+every detection reaches the analyzer through the normal batch gate. The method then
+requires the detected type to appear in `FAST_PATH_OBJECT_TYPES`
+(`backend/services/batch_aggregator.py:1186-1225`), and the shipped list is empty — a
+second net. Before ruling 168 the disabled state lived only in the threshold's field
+default (2.0, above any possible confidence), which collided with the settings schema's
+`le=1.0` and 500s `GET /api/v1/settings` (F-187).
 
-**Source:** `backend/core/config.py:1912-1928`
+**Source:** `backend/core/config.py:1942-1982`
 
 ### Application Settings
 

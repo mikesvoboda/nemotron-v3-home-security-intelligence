@@ -73,7 +73,7 @@ function formatBytes(bytes: number, decimals = 1): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
-test.describe('golden path: storage settings file operations panel @critical', () => {
+test.describe('golden path: storage settings file operations panel (F-184) @critical', () => {
   // 90 s, not 60: the poll clause waits out the component's own 30 s interval.
   test.setTimeout(90_000);
 

@@ -250,7 +250,7 @@ function rejectUnhandled(page: Page, mark: string): Promise<unknown> {
   }, mark);
 }
 
-test.describe('golden path: frontend error/log reporting → backend ingest @critical', () => {
+test.describe('golden path: frontend error/log reporting → backend ingest (F-024) @critical', () => {
   test.setTimeout(120_000);
 
   test('one real uncaught error and one real rejection reach BOTH global handlers — the errorReporting single POST and the logger batch — and the backend ingests both endpoints', async ({

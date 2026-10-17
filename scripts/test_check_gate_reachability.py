@@ -146,7 +146,11 @@ class TestWalkOnRealData(_CiYml):
         # the two rules together, not discretionary: decline either one and the
         # package's Done-when ("the type-check step runs in CI and is green")
         # is unreachable.
-        assert len(direct) <= 32, f"ci-gate has {len(direct)} direct needs — review"
+        # 32 -> 33 adjudicated here, in the [F2.3] seeded CI project commit
+        # (rulings 127, 187): ruling 187 item 3 orders a separate CI job for the
+        # seeded golden project so `Feature check (fake AI)` is not lengthened,
+        # and WP0.6 requires the direct `needs:` + `check_job` edge on `ci-gate`.
+        assert len(direct) <= 33, f"ci-gate has {len(direct)} direct needs — review"
 
 
 class TestRunStepCommentSwallow(_CiYml):
@@ -302,6 +306,31 @@ class TestNegativeClaimsJobWired(_CiYml):
             f"ci-gate's check_job line for {self.JOB} does not print its "
             f"`name:` ({self.LEG!r}) — the aggregated report and the checks "
             f"list would disagree about what to look for:\n  {line.strip()}"
+        )
+
+
+class TestSeededFeatureCheckJobWired(_CiYml):
+    """Ruling 187 item 3: the seeded golden project runs in its own CI job,
+    wired into ci-gate via direct need + check_job line (WP0.6)."""
+
+    JOB = "feature-check-seeded"
+    LEG = "Feature check (seeded)"
+    CMD = "scripts/feature-check.sh --fake --seeded"
+
+    def test_the_job_exists_and_runs_seeded_feature_check(self) -> None:
+        job = self.jobs.get(self.JOB)
+        assert job is not None, f"{self.JOB} is missing from ci.yml"
+        argv = " ".join(str(step.get("run", "")) for step in job.get("steps", []) or [])
+        assert self.CMD in argv, f"{self.CMD!r} not invoked by {self.JOB}"
+        assert job.get("name") == self.LEG
+
+    def test_ci_gate_needs_it_and_reads_its_result(self) -> None:
+        assert self.JOB in _needs_of(self.jobs["ci-gate"]), f"ci-gate does not need {self.JOB}"
+        gate_run = "\n".join(
+            step.get("run", "") for step in self.jobs["ci-gate"]["steps"] if step.get("run")
+        )
+        assert f"needs.{self.JOB}.result" in gate_run, (
+            f"ci-gate needs {self.JOB} but never reads its result"
         )
 
 

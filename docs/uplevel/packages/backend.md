@@ -60,9 +60,11 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-2`. **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b`, none while heavy-b is out of service (ruling 190). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
+**Assigned:** heavy-a; the coordinator assigns it next once `O2.4`'s `RESULT: PASS` is posted and
+the `B3.1`/`F3.1` PR in hand has merged (ruling 241). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -78,29 +80,42 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 
 ### B3.1 Retire ruled-out features, backend part
 
-**Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
+**Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
+(ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
+**Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
-- [ ] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
+- [x] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
       tombstone in one commit; ISS-073).
 - [ ] For each feature ruled **retire**: delete its routes, schemas, services, settings, alert
       conditions and tests (batteries included). The frontend part (`F3.1`) lands in the same PR,
       so the client never calls a route that is gone.
-- [ ] Tables leave through a dated DROP runbook in `docs/api/migrations/`, following the R8-S4
-      precedent (`cafad910`).
+- [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
+      record 6198942052), not as a hand-run DROP runbook. Until it lands, take the retirements
+      that drop no table; one that drops a table waits for it (ruling 241).
+- [x] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
+      `search_similar_entities`): route, handler, tests and both its `docs/developer/api/coverage.md`
+      lines (`:692`, `:856`). It has no client and no guide; Phase 4's design sessions may bring
+      re-ID search back (ruling 236).
 - [ ] Regenerate `docs/openapi.json`.
 
 **Done when:** for every retired feature, a grep for the identifiers its inventory row lists finds
-nothing in `backend/` outside the DROP runbook.
+nothing in `backend/` outside its upgrade step.
 
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first, then the
-      scene-change vertical — then the rest of the list the owner approved at `R2`.
+- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
+      module under `backend/` the reachability check reports non-shipping at this PR's head,
+      outside `keep.toml`: `R2`'s §3 is approved as that rule, not as the measured snapshot
+      (ruling 210, record 6200282082). The scene-change vertical stays: R2a row 24 ruled it
+      complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
+      183).
 - [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"
@@ -116,6 +131,7 @@ outside `keep.toml`, and the suite is green.
 ### B3.3 Settings and residue truth
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
       and delete them with their `.env.example` and compose lines.
@@ -125,10 +141,36 @@ outside `keep.toml`, and the suite is green.
       `summary_generator._call_nemotron`, Nemotron-named metrics); delete the uncalled metrics and
       unused exception classes `00 §4.1` lists.
 - [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
-- [ ] **DECIDE** whether the `alembic` dependency stays (`00 §7`: no Alembic directory exists).
+- [ ] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
+      `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
+      `docs/api/migrations/` is applied by hand. One ordered, checked upgrade command records which
+      upgrades a database has had; Alembic or a small runner over `docs/api/migrations/` is this
+      package's design choice, and the `alembic` dependency stays or goes with it (`00 §7`). The
+      four existing SQL files become its first recorded upgrades or are marked applied.
+- [ ] A test starts from a saved pre-upgrade schema with rows in it, upgrades it, and checks the
+      rows survive. The integration tests boot through the command; no fixture adds a column
+      (`backend/tests/integration/conftest.py:855` does today).
 
-**Done when:** the ratchet test passes, and the PR reports the before/after count of `nemotron`,
-`florence` and `enrichment` hits in `backend/`.
+**Done when:** the ratchet test passes; a database saved from today's `main` upgrades with its rows
+intact in CI; and the PR reports the before/after count of `nemotron`, `florence` and `enrichment`
+hits in `backend/`.
+
+### [r236] Two documented endpoints become External rows
+
+**Flags:** none. **Assigned:** backend, after `B3.3`. **Depends on:** `R2` (Phase 2's exit).
+**PR:** none yet. (ruling 236, record 6216306194)
+
+No client in `frontend/src` calls them, but the docs tell users to:
+`docs/guides/face-recognition.md:288` for `POST /api/household/members/{member_id}/embeddings`
+(`backend/api/routes/household.py:460-461`), and `docs/developer/api/core-resources.md:881` for
+`GET /api/detections/export` (`backend/api/routes/detections.py:2025-2026`).
+
+- [ ] Each gets an `External ›` inventory row (as F-290–F-294 are) with its documented action.
+- [ ] Each gets a backend golden test, as F-294's
+      `backend/tests/golden/external/test_metrics_scrape.py` is, and its row flips on the run where
+      it passes (rulings 103, 114).
+
+**Done when:** both rows exist and neither says **unverified**.
 
 ## Phase 4 — Complete the product
 
@@ -171,6 +213,14 @@ verdict). Its schedule includes its end minute in full: a window matches when
 with the same one-minute inclusion. Its tests pin the boundary with a fixed clock: 23:59:30
 matches, 00:00:00 the next day matches for an all-day rule, and the instant after the end minute
 does not (ruling 139).
+
+**Notification history** (F-236, P1) is another. Its delivery log is written where notifications are
+sent, and today nothing sends on an event: `NotificationService` (email, webhook) is called only by
+the settings page's test buttons (`backend/api/routes/notification.py`), while the per-event notify
+decision is the record under OD-31's narrow reading (ISS-001). Its design session also settles
+which channels an event with `notify: true` sends on (email, webhook, or none), with each attempt
+and its outcome in the log; settle it with Arming's "notification delivery" question and OD-22
+(ruling 206, record 6199786907).
 
 **Prompt management** (row 27 of ruling 89) starts with a design note on how activating a prompt
 version relates to replay measurement; the package is flagged `owner` and the owner reviews that
@@ -230,14 +280,14 @@ already scoped is left alone; and the docs line is updated (ruling 94).
 ### [r95] Close both monitoring-key gaps (S1, S4)
 
 **Flags:** owner tier (security and auth), pre-approved by ruling 95 (UR-101); ops-b reviews.
-**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** none yet.
+**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** #7135.
 
-- [ ] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
+- [x] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
       `verify_api_key` copies (`backend/api/routes/dlq.py`, `backend/api/routes/system.py`;
       including `POST /api/dlq/requeue/{q}`, `POST /api/dlq/requeue-all/{q}`, `DELETE /api/dlq/{q}`
       and `PATCH /api/system/config…`) accept a key that holds only the `monitoring` scope. The
       legacy copies refuse scoped entries, so scope has one rule.
-- [ ] **S4:** the `monitoring` scope admits `GET /api/events`, which serves sparse fieldsets
+- [x] **S4:** the `monitoring` scope admits `GET /api/events`, which serves sparse fieldsets
       including `reasoning`, and `include_deleted`. Enumerate what each monitoring consumer
       (Prometheus, json-exporter, Grafana, the frontend machine listener) actually calls, record
       that list in the PR, and narrow the scope to exactly it. If a consumer needs `/api/events`,
@@ -289,14 +339,17 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
 ### [r130b] Small bugs from `F2.3`'s demotions, backend half
 
 **Flags:** none. **Assigned:** backend, as lane bug fixes outside Phase 4's priority order.
-**Depends on:** queues after `[r129]`; frontend's `[r130f]` runs in parallel. **PR:** none yet.
+**Depends on:** queues after `[r129]`; frontend's `[r130f]` runs in parallel. **PR:** #7088 (merged).
 
-- [ ] **F-187, F-190, F-191.** `GET /api/v1/settings` returns 500: `settings_api.py:115` feeds
+- [x] **F-187, F-190, F-191.** `GET /api/v1/settings` returns 500: `settings_api.py:117` feeds
       `fast_path_confidence_threshold` (default `2.0`, the deliberate "disabled" value,
-      `config.py:1966`) into `DetectionSettings.fast_path_threshold`, whose schema caps it at
-      `le=1.0` (`schemas/settings_api.py:49`). Make the schema and the config agree, and keep the
-      disabled sentinel expressible.
-- [ ] **F-089.** Give the `job_type` query parameter `alias="type"` (`routes/jobs.py:296-299`),
+      `config.py:1952`) into `DetectionSettings.fast_path_threshold`, whose schema caps it at
+      `le=1.0` (`schemas/settings_api.py:53`). Make the schema and the config agree, and keep the
+      disabled sentinel expressible. Ruling 168 (option b) settles the mechanism: the disabled
+      state becomes an explicit `fast_path_enabled: bool` (default false) rather than an
+      out-of-band threshold, so this row is met by `[r130b]` and the `2.0`/`le=10.0` above
+      describe the base, not the fix.
+- [x] **F-089.** Give the `job_type` query parameter `alias="type"` (`routes/jobs.py:296-299`),
       matching `job_status`.
 - [ ] **F-034, link half.** `summary_detail_service.py:147` builds `/events/{id}`, a route the app
       does not have; it builds the app's working target, `/timeline?event=…`. If frontend adds an
@@ -310,16 +363,16 @@ on the CI compose before their save leg can go green; until then they flip on th
 ### [r149d] F-057: the event list returns `notes`
 
 **Flags:** none. **Assigned:** backend, fix now. **Depends on:** none. **PR:** #7070 (merged).
-(ruling 149, record 6146380050)
+(rulings 149, 238; records 6146380050, 6216702824)
 
 - [x] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
       and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
       `GET /api/events`.
-- [ ] When it merges, frontend flips the read-back `test.fixme` in
-      `frontend/tests/golden/timeline/event-detail.spec.ts`; that golden path rules F-057. No `R2b`
-      entry.
+- [ ] The read-back `test.fixme` in `frontend/tests/golden/timeline/event-detail.spec.ts` is
+      flipped by `[r238]` (heavy-a; ruling 238); that golden path rules F-057. No `R2b` entry.
 
-**Done when:** `GET /api/events` returns a saved note, and F-057's read-back golden leg passes.
+**Done when:** `GET /api/events` returns a saved note, and `[r238]` merges with F-057's read-back
+golden leg passing.
 
 ### [r160b] Deferred Python major: huggingface-hub 2
 
@@ -331,3 +384,156 @@ on the CI compose before their save leg can go green; until then they flip on th
 
 **Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
 head.
+
+### [r211b] F-048: search skips deleted events and filters the severity it reports
+
+**Flags:** none. **Assigned:** backend, first on its queue (fix now). **Depends on:** none.
+**PR:** #7187 (merged 2026-10-16T04:40:26Z as `5365165f8`, head `4819ce171`). (rulings 211, 221;
+records 6200331506, 6205729827)
+
+- [ ] `search_events` (`backend/services/search.py`) takes the browse route's `deleted_at` predicate
+      (`backend/api/routes/events.py:410`), so search never lists a soft-deleted event.
+- [ ] The severity filter (`search.py:332`) tests the value the response reports
+      (`backend/api/schemas/search.py:44` derives `risk_level` from `risk_score`): one derivation,
+      read by both.
+- [ ] Tests: a soft-deleted event never appears in search; a filter on the level a result displays
+      finds it (a `high` row at score 91 is found by the level it shows).
+
+- [ ] Frontend's `[r211f]` commits on this PR invert F-048's golden fixture (ruling 221): search
+      excludes the soft-deleted row, `searchTotal` is the live count, and the defect half of the
+      leg at `frontend/tests/golden/timeline/timeline-search.spec.ts:585` takes a live row on search
+      page 2. Neither lane force-pushes the branch, and each fetches it before it pushes.
+
+**Done when:** the tests pass in CI at a ready head, and `Feature check (fake AI)` passes at the
+head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green and its 2
+`test.fixme` marks unchanged (ruling 221); `[r211f]` then removes those marks.
+
+### [r228] One cache key shape
+
+**Flags:** none. **Assigned:** backend, first on its queue, ahead of `[r223]` (a lane bug fix
+outside Phase 4's priority order). **Depends on:** none. **PR:** #7215. (ruling 228, record 6215814018)
+
+`[r223]`'s MEASURE (`6208408388`) found the invalidators miss the keys their routes store.
+`CacheKeys` (`backend/services/cache_service.py:730`) builds keys that already carry the global
+prefix, and `get` (`:123`) and `set` (`:196`) prepend `CACHE_PREFIX` (`:82`) again, so a camera
+list is stored as `cache:hsi:cache:cameras:list:all`. `invalidate_pattern` (`:463`) prepends it to
+the short-form pattern (`:486`), which does not match. `_get_cache_prefix()` (`:75`) has no caller.
+
+- [ ] `CacheService`'s `get`, `set`, `invalidate_pattern` and the other `f"{CACHE_PREFIX}{key}"`
+      sites, and `CacheKeys`, agree on one key shape, so each invalidator reaches the key its route
+      stores. The PR states the form chosen (for example, `CacheKeys` authoritative and
+      `_get_cache_prefix()` used or deleted).
+- [ ] **MEASURE** against a real Redis, before and after: each cached route's stored key and
+      whether its invalidator deletes it, as a table in the PR.
+- [ ] Tests: the short-form pins in `backend/tests/integration/test_cache_invalidation_comprehensive.py`
+      (`:440-448`) pin the stored shape, and a test proves an invalidator deletes a key its route
+      stored.
+
+**Done when:** the tests pass in CI at a ready head, and the PR's table shows every listed
+invalidator deleting its route's stored key.
+
+### [r223] The developer tools' seed and clear refresh the caches they change
+
+**Flags:** none. **Assigned:** backend, after `[r228]` (a lane bug fix outside Phase 4's priority
+order). **Depends on:** `[r228]` merged. **PR:** #7201. (rulings 223, 228; records 6205796977, 6215814018)
+
+`seed_cameras` (`backend/api/routes/admin.py:299`) and `clear_seeded_data` (`:671`) commit without
+invalidating the camera list cache, which every camera route does
+(`_invalidate_cameras_cache_background`, `backend/api/routes/cameras.py:132`). `GET /api/cameras`
+caches for 60 s (`cameras.py:261`), so F-197's toast names cameras the list does not show yet.
+
+- [ ] `seed_cameras` and `clear_seeded_data` schedule the same background invalidation of the
+      cameras cache as the camera routes.
+- [ ] **MEASURE** every other cached read the three developer-tool writes change, and list it in the
+      PR: `clear_seeded_data` deletes all events and detections (`admin.py:714-715`), `seed_events`
+      (`:450`) adds events, and `backend/api/routes/events.py` caches `get_event_stats` (`:731`) and
+      `get_timeline_summary` (`:907`). Each one a handler's write changes is invalidated the same way.
+- [ ] Unit tests pin each handler scheduling its invalidations. No golden spec changes; #7189's
+      F-197 leg reads around the cache and does not wait for this.
+
+**Done when:** the unit tests pass in CI at a ready head, and the PR's list names every cached read
+the three handlers change, each invalidated.
+
+### [r244] The monitoring key gets no recommendation prose
+
+**Flags:** `owner` (security and auth). **Assigned:** `uplevel-backend`, after `[r223]`. #7157
+becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 3 put on it ends.
+**Depends on:** none. **PR:** none yet. (ruling 244, record 6222984876)
+
+`GET /api/ai-audit/recommendations` is in the monitoring scope (`backend/core/constants.py`,
+`MONITORING_SCOPE_PATHS`), and each item's `suggestion` is the LLM's free-text advice
+(`backend/api/schemas/ai_audit.py`, `RecommendationItem`). Ruling 95 admits to a monitoring-scoped
+key only the fields its consumer reads, and Grafana's panel shows `$.recommendations[*].suggestion`
+through that key (`monitoring/grafana/dashboards/consolidated.json:5934`).
+
+- [ ] A monitoring-scoped key gets `suggestion: null`, through the `scoped_key_ceiling` posture
+      #7135 takes. A session cookie and an unscoped key still get the prose.
+- [ ] `RecommendationItem.suggestion` becomes `str | None` in the same commit, and
+      `docs/openapi.json` and `frontend/src/types/generated/api.ts` are regenerated in it.
+- [ ] The panel labels its rows by `category` and `priority`, not by `suggestion`
+      (`consolidated.json:5934`), as a cross-lane part (UR-9) that ops reviews.
+- [ ] Tests: the clamp is red on the unclamped handler, a leg is red if the schema flip is omitted,
+      and both postures are checked (the monitoring key nulled; a cookie and an unscoped key get
+      the prose).
+
+**Done when:** the tests pass in CI, and the panel's query no longer reads `suggestion`.
+
+### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
+
+**Flags:** `heavy`. **Assigned:** heavy-a, ahead of `B2.3`; heavy-a opens its own draft PR.
+**Depends on:** none. **PR:** #7182 (merged 2026-10-15T20:25:39Z as `5d990377e`, head `3aca9abfc`).
+(ruling 199, record 6198662741)
+
+The analysis worker acknowledges each stream message once `_process_analysis_item` returns
+(`backend/services/pipeline_workers.py:943`, and `:931` on the reclaim path), and that method
+catches every exception and returns (`:1153`). So a failure other than a VLM error (a Postgres
+write error, a Redis error, a bug) is acknowledged with no event stored. VLM errors are already
+stored as a `verification_failed` event (`backend/services/vlm_analyzer.py:656`).
+
+- [ ] `_process_analysis_item` returns a disposition, and the loop acts on it. **Stored** (the
+      batch has an event): acknowledge. **Terminal** (the payload fails validation, or the batch is
+      missing or has no detections): move it to the dead-letter stream with its reason. **Retry**
+      (anything else): leave it pending for the existing reclaim (`:925-931`), whose third
+      delivery goes to the dead-letter stream. The `batch.analysis_failed` broadcast's `retryable`
+      field follows the disposition.
+- [ ] When the Redis key misses (`vlm_analyzer.py:468`), `analyze_batch` looks up `events.batch_id`
+      (unique, `backend/models/event.py:54`). If an event exists, it returns that event without
+      calling the VLM, and writes whatever post-commit step is missing: the Redis key, and the
+      notify decision when the event has none.
+- [ ] Test (a), integration tier: a write that fails before the commit leaves the message pending,
+      and a redelivery stores exactly one event.
+- [ ] Test (b): a process that stops after the commit, before the Redis key and the notify
+      decision. The redelivery stores no second event, makes no VLM call, and writes the notify
+      decision.
+- [ ] Test (c): an invalid payload leaves one dead-letter entry and nothing pending. Test (d): a
+      failure on all three deliveries leaves one dead-letter entry.
+- [ ] The PR body says whether the detection worker's stream loop (`pipeline_workers.py:400-418`)
+      has the same shape. It changes nothing there.
+
+**Done when:** tests (a) to (d) pass in CI at a ready head, and the PR body names the line where
+each disposition is decided.
+
+### [r200] One owner for the running pipeline workers
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
+**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`). **PR:** #7191 (merged
+2026-10-16T00:34:47Z as `78951c9b9`, head `2d8fce09f`). (ruling 200)
+
+`PipelineWorkerManager.start()` (`backend/main.py:964`) starts the configured detection and
+analysis workers (default 2 each, `backend/core/config.py:1077`, `:1085`), one batch-timeout worker
+and one metrics worker. `main.py:1008-1030` then registers the four `create_*_worker` factories
+(`backend/services/pipeline_workers.py:2109`, `:2140`, `:2171`, `:2202`) with `WorkerSupervisor`,
+and each builds and starts one more worker: three analysis consumers where two are configured, and
+two batch-timeout and two metrics workers. The manager passes no supervisor to its own workers, so
+the supervisor's heartbeats and restarts cover only the extra set. Record 6198757258.
+
+- [ ] The supervisor restarts the workers the manager built and reads their heartbeats; the
+      factories that build a second set are deleted.
+- [ ] Shutdown has one path: whichever owner stays stops each worker once.
+- [ ] Tests: after startup the process runs exactly the configured number of detection and
+      analysis consumers, one batch-timeout worker and one metrics worker; a worker whose task dies
+      is restarted without the count growing; shutdown stops each worker once.
+- [ ] The PR body reports whether today's two batch-timeout workers can close the same batch twice.
+
+**Done when:** the tests pass in CI at a ready head, and `backend/main.py` builds no pipeline worker
+outside `PipelineWorkerManager`.

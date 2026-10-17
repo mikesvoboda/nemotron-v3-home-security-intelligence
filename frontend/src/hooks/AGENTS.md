@@ -51,20 +51,19 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 ### WebSocket Hooks
 
-| Hook                         | Purpose                                     | Parameters                                                                                           | Return Value                                                                                                                                       | Endpoint/Source            |
-| ---------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `useWebSocket`               | Low-level WebSocket connection manager      | `WebSocketOptions`                                                                                   | `{ isConnected, lastMessage, send, connect, disconnect, hasExhaustedRetries, reconnectCount, lastHeartbeat }`                                      | Any WebSocket              |
-| `useWebSocketStatus`         | Enhanced WebSocket with channel status      | `{ url, name, ...options }`                                                                          | `{ channelStatus, lastMessage, send, connect, disconnect }`                                                                                        | Any WebSocket              |
-| `useConnectionStatus`        | Unified status for events+system channels   | None                                                                                                 | `{ summary, events, systemStatus, clearEvents }`                                                                                                   | `/ws/events`, `/ws/system` |
-| `useEventStream`             | Security events via WebSocket               | None                                                                                                 | `{ events, isConnected, latestEvent, clearEvents }`                                                                                                | `/ws/events`               |
-| `useAlertWebSocket`          | Alert state changes via WebSocket           | `{ onAlertCreated?, onAlertUpdated?, onAlertAcknowledged?, onAlertResolved?, autoInvalidateCache? }` | `{ isConnected, lastAlert, lastEventType, connect, disconnect, hasExhaustedRetries, reconnectCount }`                                              | `/ws/events`               |
-| `useEventLifecycleWebSocket` | Event lifecycle (create/update/delete)      | `{ onEventCreated?, onEventUpdated?, onEventDeleted?, autoInvalidateCache? }`                        | `{ isConnected, lastEventPayload, lastEventType, connect, disconnect }`                                                                            | `/ws/events`               |
-| `useCameraStatusWebSocket`   | Camera status changes via WebSocket         | `{ onCameraOnline?, onCameraOffline?, onCameraError?, onCameraUpdated? }`                            | `{ cameraStatuses, isConnected, reconnectCount, lastEvent, reconnect }`                                                                            | `/ws/events`               |
-| `useSceneChangeAlerts`       | Scene change detection alerts               | `{ maxAlerts?, autoDismissMs? }`                                                                     | `{ alerts, unacknowledgedCount, hasAlerts, dismissAlert, dismissAll, hasBlockedCameras, hasTamperedCameras, blockedCameraIds, tamperedCameraIds }` | `/ws/events`               |
-| `useJobWebSocket`            | Background job status updates               | `{ jobType?, onJobUpdate? }`                                                                         | `{ jobs, isConnected, reconnectCount }`                                                                                                            | `/ws/jobs`                 |
-| `useJobLogsWebSocket`        | Streaming job logs via WebSocket            | `{ jobId, enabled? }`                                                                                | `{ logs, isConnected, clearLogs }`                                                                                                                 | `/ws/jobs/{id}/logs`       |
-| `useWebSocketEvent`          | Subscribe to specific WebSocket event types | `{ eventType, handler }`                                                                             | `{ isConnected }`                                                                                                                                  | Any WebSocket              |
-| `useWebSocketEvents`         | Subscribe to multiple WebSocket event types | `{ handlers: Record }`                                                                               | `{ isConnected }`                                                                                                                                  | Any WebSocket              |
+| Hook                         | Purpose                                     | Parameters                                                                                           | Return Value                                                                                                                                       | Endpoint/Source                            |
+| ---------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `useWebSocket`               | Low-level WebSocket connection manager      | `WebSocketOptions`                                                                                   | `{ isConnected, lastMessage, send, connect, disconnect, hasExhaustedRetries, reconnectCount, lastHeartbeat }`                                      | Any WebSocket                              |
+| `useConnectionStatus`        | Read the shell's events+system status       | None (reads `ConnectionStatusContext`)                                                               | `{ summary, events, systemStatus, clearEvents, isPollingFallback, retryConnection }`                                                               | `/ws/events`, `/ws/system` via the manager |
+| `useEventStream`             | Security events via WebSocket               | None                                                                                                 | `{ events, isConnected, latestEvent, clearEvents }`                                                                                                | `/ws/events`                               |
+| `useAlertWebSocket`          | Alert state changes via WebSocket           | `{ onAlertCreated?, onAlertUpdated?, onAlertAcknowledged?, onAlertResolved?, autoInvalidateCache? }` | `{ isConnected, lastAlert, lastEventType, connect, disconnect, hasExhaustedRetries, reconnectCount }`                                              | `/ws/events`                               |
+| `useEventLifecycleWebSocket` | Event lifecycle (create/update/delete)      | `{ onEventCreated?, onEventUpdated?, onEventDeleted?, autoInvalidateCache? }`                        | `{ isConnected, lastEventPayload, lastEventType, connect, disconnect }`                                                                            | `/ws/events`                               |
+| `useCameraStatusWebSocket`   | Camera status changes via WebSocket         | `{ onCameraOnline?, onCameraOffline?, onCameraError?, onCameraUpdated? }`                            | `{ cameraStatuses, isConnected, reconnectCount, lastEvent, reconnect }`                                                                            | `/ws/events`                               |
+| `useSceneChangeAlerts`       | Scene change detection alerts               | `{ maxAlerts?, autoDismissMs? }`                                                                     | `{ alerts, unacknowledgedCount, hasAlerts, dismissAlert, dismissAll, hasBlockedCameras, hasTamperedCameras, blockedCameraIds, tamperedCameraIds }` | `/ws/events`                               |
+| `useJobWebSocket`            | Background job status updates               | `{ jobType?, onJobUpdate? }`                                                                         | `{ jobs, isConnected, reconnectCount }`                                                                                                            | `/ws/jobs`                                 |
+| `useJobLogsWebSocket`        | Streaming job logs via WebSocket            | `{ jobId, enabled? }`                                                                                | `{ logs, isConnected, clearLogs }`                                                                                                                 | `/ws/jobs/{id}/logs`                       |
+| `useWebSocketEvent`          | Subscribe to specific WebSocket event types | `{ eventType, handler }`                                                                             | `{ isConnected }`                                                                                                                                  | Any WebSocket                              |
+| `useWebSocketEvents`         | Subscribe to multiple WebSocket event types | `{ handlers: Record }`                                                                               | `{ isConnected }`                                                                                                                                  | Any WebSocket                              |
 
 ### Data Query Hooks (TanStack Query)
 
@@ -74,6 +73,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useCameraQuery`               | Fetch single camera             | `cameraId: string`               | `{ data, isLoading, error, refetch }`                          | `/api/cameras/{id}`                |
 | `useEventsInfiniteQuery`       | Infinite scroll security events | `{ filters?, limit? }`           | `{ data, events, hasNextPage, fetchNextPage, isLoading }`      | `/api/events`                      |
 | `useRecentEventsQuery`         | Recent events for dashboard     | `{ limit?, enabled? }`           | `{ data, events, isLoading, error }`                           | `/api/events/recent`               |
+| `useEventModalRow`             | Resolve the modal's row by id   | `(eventId, browseEvents)`        | `{ row, discard }`                                             | `/api/events/{id}`                 |
 | `useDetectionsInfiniteQuery`   | Infinite scroll detections      | `{ filters?, limit? }`           | `{ data, detections, hasNextPage, fetchNextPage }`             | `/api/detections`                  |
 | `useAlertsInfiniteQuery`       | Infinite scroll alerts          | `{ riskFilter?, status? }`       | `{ data, alerts, hasNextPage, fetchNextPage }`                 | `/api/alerts`                      |
 | `useEntitiesInfiniteQuery`     | Infinite scroll entities        | `{ timeRange?, limit? }`         | `{ data, entities, hasNextPage, fetchNextPage }`               | `/api/entities`                    |
@@ -119,6 +119,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useRestorePromptVersion`   | Restore prompt to version        | None       | `{ mutation, isPending, error }`                                                            | `/api/prompts/{name}/restore` |
 | `useSetLogLevelMutation`    | Change log level                 | None       | `{ setLevel, isPending, error }`                                                            | `/api/debug/log-level`        |
 | `useSnoozeEvent`            | Snooze security event            | None       | `{ snooze, isPending, error }`                                                              | `/api/events/{id}/snooze`     |
+| `useEventWriteInvalidation` | Invalidate all event caches      | None       | `() => void`                                                                                | Refetches `/api/events`       |
 
 ### Saved Searches & Persistence Hooks
 
@@ -132,18 +133,18 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 ### UI/UX Hooks
 
-| Hook                      | Purpose                                    | Parameters                               | Return Value                                                   |
-| ------------------------- | ------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------- |
-| `useKeyboardShortcuts`    | Global keyboard navigation (g+d, ?, Cmd+K) | `{ onOpenHelp?, onOpenCommandPalette? }` | `{ isPendingChord }`                                           |
-| `useListNavigation`       | j/k style list navigation                  | `{ itemCount, onSelect?, wrap? }`        | `{ selectedIndex, setSelectedIndex, resetSelection }`          |
-| `useToast`                | Toast notifications via sonner             | None                                     | `{ success, error, warning, info, loading, dismiss, promise }` |
-| `useIsMobile`             | Mobile viewport detection                  | `breakpoint?: number`                    | `boolean`                                                      |
-| `useSwipeGesture`         | Touch swipe detection                      | `{ onSwipe, threshold?, timeout? }`      | `ref callback`                                                 |
-| `useInfiniteScroll`       | Intersection observer for infinite scroll  | `{ onLoadMore, hasMore, threshold? }`    | `{ ref, isLoading }`                                           |
-| `useDateRangeState`       | Date range with URL persistence            | `{ defaultPreset? }`                     | `{ range, preset, setPreset, setCustomRange }`                 |
-| `usePaginationState`      | Pagination state with URL sync             | `{ type, defaultPageSize? }`             | Cursor or offset pagination state                              |
-| `useAudioNotifications`   | Audio alert sounds                         | `{ enabled? }`                           | `{ playSound, stopSound }`                                     |
-| `useDesktopNotifications` | Desktop notification API                   | `{ enabled? }`                           | `{ show, permission, requestPermission }`                      |
+| Hook                      | Purpose                                    | Parameters                                     | Return Value                                                                            |
+| ------------------------- | ------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `useKeyboardShortcuts`    | Global keyboard navigation (g+d, ?, Cmd+K) | `{ onOpenHelp?, onOpenCommandPalette? }`       | `{ isPendingChord }`                                                                    |
+| `useListNavigation`       | j/k style list navigation                  | `{ itemCount, onSelect?, wrap? }`              | `{ selectedIndex, setSelectedIndex, resetSelection }`                                   |
+| `useToast`                | Toast notifications via sonner             | None                                           | `{ success, error, warning, info, loading, dismiss, promise }`                          |
+| `useIsMobile`             | Mobile viewport detection                  | `breakpoint?: number`                          | `boolean`                                                                               |
+| `useSwipeGesture`         | Touch swipe detection                      | `{ onSwipe, threshold?, timeout? }`            | `ref callback`                                                                          |
+| `useInfiniteScroll`       | Intersection observer for infinite scroll  | `{ onLoadMore, hasMore, threshold? }`          | `{ ref, isLoading }`                                                                    |
+| `useDateRangeState`       | Date range with URL or local persistence   | `{ defaultPreset?, urlParam?, persistToUrl? }` | `{ range, preset, setPreset, setCustomRange, apiParams, isCustom, presetLabel, reset }` |
+| `usePaginationState`      | Pagination state with URL sync             | `{ type, defaultPageSize? }`                   | Cursor or offset pagination state                                                       |
+| `useAudioNotifications`   | Audio alert sounds                         | `{ enabled? }`                                 | `{ playSound, stopSound }`                                                              |
+| `useDesktopNotifications` | Desktop notification API                   | `{ enabled? }`                                 | `{ show, permission, requestPermission }`                                               |
 
 ### PWA/Offline Hooks
 
@@ -168,46 +169,46 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 ## Key Files
 
-| File                        | Purpose                                                           | Exported |
-| --------------------------- | ----------------------------------------------------------------- | -------- |
-| `index.ts`                  | Central export point for hooks and types                          | N/A      |
-| `typedEventEmitter.ts`      | Type-safe WebSocket event emitter with compile-time checking      | Yes      |
-| `usePolling.ts`             | Generic polling hook for REST endpoints with interval fetching    | Yes      |
-| `useWebSocket.ts`           | Low-level WebSocket connection manager                            | Yes      |
-| `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking                   | Yes      |
-| `useConnectionStatus.ts`    | Unified connection status for all WS channels                     | Yes      |
-| `useVerdictEngineStatus.ts` | Verdict-engine (ai-vlm) availability for the F1.2 banner          | Yes      |
-| `useEventStream.ts`         | Security events via `/ws/events` WebSocket                        | Yes      |
-| `useSystemStatus.ts`        | System health via `/ws/system` WebSocket                          | Yes      |
-| `useGpuHistory.ts`          | GPU metrics polling with history buffer                           | Yes      |
-| `useHealthStatus.ts`        | REST-based health status polling (legacy)                         | Yes      |
-| `useHealthStatusQuery.ts`   | TanStack Query-based health status fetching                       | Yes      |
-| `useFullHealthQuery.ts`     | TanStack Query for comprehensive health with circuit breakers     | Yes      |
-| `useCamerasQuery.ts`        | TanStack Query hooks for camera CRUD operations                   | Yes      |
-| `useGpuStatsQuery.ts`       | TanStack Query for GPU stats and history                          | Yes      |
-| `useModelZooStatusQuery.ts` | TanStack Query for Model Zoo status with VRAM stats               | Yes      |
-| `useStorageStatsQuery.ts`   | TanStack Query for storage stats with cleanup mutation            | Yes      |
-| `usePerformanceMetrics.ts`  | System performance metrics via WebSocket                          | Yes      |
-| `useAIMetrics.ts`           | Fetches AI performance metrics from multiple endpoints            | Yes      |
-| `useAIServiceStatus.ts`     | AI service degradation and circuit breaker status via WebSocket   | Yes      |
-| `useDetectionEnrichment.ts` | Fetches enrichment data for a specific detection                  | Yes      |
-| `useModelZooStatus.ts`      | Fetches and polls Model Zoo status with VRAM stats (legacy)       | Yes      |
-| `useSavedSearches.ts`       | Manages saved searches in localStorage                            | Yes      |
-| `useLocalStorage.ts`        | Generic localStorage persistence hook                             | Yes      |
-| `useThrottledValue.ts`      | Throttles value updates to reduce re-renders                      | Yes      |
-| `useToast.ts`               | Toast notifications using sonner                                  | Yes      |
-| `useKeyboardShortcuts.ts`   | Global keyboard navigation shortcuts (g+d, ?, Cmd+K)              | Yes      |
-| `useListNavigation.ts`      | j/k style list navigation with Enter selection                    | Yes      |
-| `useIsMobile.ts`            | Mobile viewport detection via MediaQueryList                      | Yes      |
-| `useSwipeGesture.ts`        | Touch swipe gesture detection                                     | Yes      |
-| `useNetworkStatus.ts`       | Browser network connectivity tracking for PWA                     | Yes      |
-| `useCachedEvents.ts`        | Offline event caching using IndexedDB                             | Yes      |
-| `usePushNotifications.ts`   | Browser push notification permissions and display                 | Yes      |
-| `useStorageStats.ts`        | Storage disk usage polling with cleanup preview (uses usePolling) | No       |
-| `useServiceStatus.ts`       | Per-service status tracking                                       | No       |
-| `useSidebarContext.ts`      | Context hook for mobile sidebar state                             | No       |
-| `useSystemPageSections.ts`  | System page collapsible section state management                  | No       |
-| `webSocketManager.ts`       | Singleton WebSocket connection manager with deduplication         | No       |
+| File                           | Purpose                                                           | Exported |
+| ------------------------------ | ----------------------------------------------------------------- | -------- |
+| `index.ts`                     | Central export point for hooks and types                          | N/A      |
+| `typedEventEmitter.ts`         | Type-safe WebSocket event emitter with compile-time checking      | Yes      |
+| `usePolling.ts`                | Generic polling hook for REST endpoints with interval fetching    | Yes      |
+| `useWebSocket.ts`              | Low-level WebSocket connection manager                            | Yes      |
+| `ConnectionStatusProvider.tsx` | The one Events/System subscription the shell mounts               | Yes      |
+| `useConnectionStatus.ts`       | Read the shared connection status for all WS channels             | Yes      |
+| `useVerdictEngineStatus.ts`    | Verdict-engine (ai-vlm) availability for the F1.2 banner          | Yes      |
+| `useEventStream.ts`            | Security events via `/ws/events` WebSocket                        | Yes      |
+| `useSystemStatus.ts`           | System health via `/ws/system` WebSocket                          | Yes      |
+| `useGpuHistory.ts`             | GPU metrics polling with history buffer                           | Yes      |
+| `useHealthStatus.ts`           | REST-based health status polling (legacy)                         | Yes      |
+| `useHealthStatusQuery.ts`      | TanStack Query-based health status fetching                       | Yes      |
+| `useFullHealthQuery.ts`        | TanStack Query for comprehensive health with circuit breakers     | Yes      |
+| `useCamerasQuery.ts`           | TanStack Query hooks for camera CRUD operations                   | Yes      |
+| `useGpuStatsQuery.ts`          | TanStack Query for GPU stats and history                          | Yes      |
+| `useModelZooStatusQuery.ts`    | TanStack Query for Model Zoo status with VRAM stats               | Yes      |
+| `useStorageStatsQuery.ts`      | TanStack Query for storage stats with cleanup mutation            | Yes      |
+| `usePerformanceMetrics.ts`     | System performance metrics via WebSocket                          | Yes      |
+| `useAIMetrics.ts`              | Fetches AI performance metrics from multiple endpoints            | Yes      |
+| `useAIServiceStatus.ts`        | AI service degradation and circuit breaker status via WebSocket   | Yes      |
+| `useDetectionEnrichment.ts`    | Fetches enrichment data for a specific detection                  | Yes      |
+| `useModelZooStatus.ts`         | Fetches and polls Model Zoo status with VRAM stats (legacy)       | Yes      |
+| `useSavedSearches.ts`          | Manages saved searches in localStorage                            | Yes      |
+| `useLocalStorage.ts`           | Generic localStorage persistence hook                             | Yes      |
+| `useThrottledValue.ts`         | Throttles value updates to reduce re-renders                      | Yes      |
+| `useToast.ts`                  | Toast notifications using sonner                                  | Yes      |
+| `useKeyboardShortcuts.ts`      | Global keyboard navigation shortcuts (g+d, ?, Cmd+K)              | Yes      |
+| `useListNavigation.ts`         | j/k style list navigation with Enter selection                    | Yes      |
+| `useIsMobile.ts`               | Mobile viewport detection via MediaQueryList                      | Yes      |
+| `useSwipeGesture.ts`           | Touch swipe gesture detection                                     | Yes      |
+| `useNetworkStatus.ts`          | Browser network connectivity tracking for PWA                     | Yes      |
+| `useCachedEvents.ts`           | Offline event caching using IndexedDB                             | Yes      |
+| `usePushNotifications.ts`      | Browser push notification permissions and display                 | Yes      |
+| `useStorageStats.ts`           | Storage disk usage polling with cleanup preview (uses usePolling) | No       |
+| `useServiceStatus.ts`          | Per-service status tracking                                       | No       |
+| `useSidebarContext.ts`         | Context hook for mobile sidebar state                             | No       |
+| `useSystemPageSections.ts`     | System page collapsible section state management                  | No       |
+| `webSocketManager.ts`          | Singleton WebSocket connection manager with deduplication         | No       |
 
 ### Test Files
 
@@ -218,7 +219,6 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `usePolling.test.ts`               | Generic polling, callbacks, error handling, interval      |
 | `useWebSocket.test.ts`             | Connection lifecycle, message handling, reconnects        |
 | `useWebSocket.timeout.test.ts`     | Connection timeout scenarios                              |
-| `useWebSocketStatus.test.ts`       | Channel status tracking, reconnect state                  |
 | `useVerdictEngineStatus.test.ts`   | Readiness seeding, WS transitions, envelope guards, poll  |
 | `useConnectionStatus.test.ts`      | Multi-channel status aggregation                          |
 | `useEventStream.test.ts`           | Event buffering, envelope parsing, non-event filtering    |
@@ -1087,46 +1087,29 @@ interface UseHealthStatusReturn {
 }
 ```
 
-### `useWebSocketStatus.ts`
+### `ConnectionStatusProvider.tsx`
 
-Enhanced WebSocket hook that tracks detailed channel status including reconnection state.
+The shell's only realtime connection owner: it subscribes to `/ws/events` and
+`/ws/system` through `webSocketManager` once, and publishes the result on
+`ConnectionStatusContext`. Mount it inside `ProtectedRoute` — the manager treats a
+`4001`/`4002` close as terminal, so recovery is a remount with a fresh credential.
 
 **Features:**
 
-- Full WebSocket lifecycle management with reconnection
-- Channel-level status tracking (name, state, reconnect attempts)
-- Last message timestamp tracking
-- SSR-safe (checks for `window.WebSocket` availability)
-
-**Types:**
-
-```typescript
-type ConnectionState = 'connected' | 'disconnected' | 'reconnecting';
-
-interface ChannelStatus {
-  name: string;
-  state: ConnectionState;
-  reconnectAttempts: number;
-  maxReconnectAttempts: number;
-  lastMessageTime: Date | null;
-}
-
-interface UseWebSocketStatusReturn {
-  channelStatus: ChannelStatus;
-  lastMessage: unknown;
-  send: (data: unknown) => void;
-  connect: () => void;
-  disconnect: () => void;
-}
-```
+- One manager subscription per channel URL, shared by every consumer (the
+  transport's constructor call lives only in `webSocketManager.ts`)
+- Channel state derived from the manager's own counts, so a retry that was not
+  scheduled reads as `failed` rather than `reconnecting`
+- A refused credential (`AUTH_TERMINAL_CLOSE_CODES`) is labelled, not retried,
+  and does not start REST polling
 
 ### `useConnectionStatus.ts`
 
-Unified hook that manages both `/ws/events` and `/ws/system` WebSocket channels.
+Reads the session `ConnectionStatusProvider` holds. It builds nothing: since
+[r204] it is a context reader, and a call outside the provider throws.
 
 **Features:**
 
-- Single hook for all WebSocket connections
 - Aggregated connection summary (overall state, any reconnecting, all connected)
 - Stores events in memory buffer (max 100 events)
 - Parses backend system status messages
@@ -1141,6 +1124,10 @@ interface ConnectionStatusSummary {
   anyReconnecting: boolean;
   allConnected: boolean;
   totalReconnectAttempts: number;
+  hasExhaustedRetries: boolean;
+  allFailed: boolean;
+  authRequired?: boolean; // a channel is down on a refused credential (4001/4002)
+  disconnectedSince: Date | null;
 }
 
 interface UseConnectionStatusReturn {
@@ -1148,6 +1135,8 @@ interface UseConnectionStatusReturn {
   events: SecurityEvent[];
   systemStatus: BackendSystemStatus | null;
   clearEvents: () => void;
+  isPollingFallback: boolean;
+  retryConnection: () => void;
 }
 ```
 

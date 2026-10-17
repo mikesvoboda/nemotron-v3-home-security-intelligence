@@ -14,7 +14,7 @@ import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '.
 
 const harness = readOpsHarness();
 
-test.describe('golden path: circuit breakers @critical', () => {
+test.describe('golden path: circuit breakers (F-137) @critical', () => {
   test.setTimeout(60_000);
 
   test('each backend breaker renders state and counts on the page', async ({ page }) => {

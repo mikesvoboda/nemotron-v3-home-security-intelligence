@@ -32,6 +32,7 @@ def create_test_app() -> FastAPI:
 
 def create_mock_settings(
     detection_confidence_threshold: float = 0.5,
+    fast_path_enabled: bool = False,
     fast_path_confidence_threshold: float = 0.9,
     batch_window_seconds: int = 90,
     batch_idle_timeout_seconds: int = 30,
@@ -63,6 +64,7 @@ def create_mock_settings(
     """
     mock = MagicMock()
     mock.detection_confidence_threshold = detection_confidence_threshold
+    mock.fast_path_enabled = fast_path_enabled
     mock.fast_path_confidence_threshold = fast_path_confidence_threshold
     mock.batch_window_seconds = batch_window_seconds
     mock.batch_idle_timeout_seconds = batch_idle_timeout_seconds
@@ -361,6 +363,7 @@ class TestSettingsResponseSchema:
         data = {
             "detection": {
                 "confidence_threshold": 0.5,
+                "fast_path_enabled": False,
                 "fast_path_threshold": 0.9,
             },
             "batch": {
@@ -411,6 +414,7 @@ class TestSettingsResponseSchema:
         data = {
             "detection": {
                 "confidence_threshold": 0.5,
+                "fast_path_enabled": False,
                 "fast_path_threshold": 0.9,
             },
             "batch": {
@@ -693,6 +697,123 @@ class TestPatchSettingsEndpoint:
         # Booleans should be lowercase
         assert "VISION_EXTRACTION_ENABLED=false" in content
         assert "SCENE_CHANGE_ENABLED=true" in content
+
+    @pytest.mark.asyncio
+    async def test_patch_with_fast_path_disabled_leaves_it_disabled(
+        self, temp_runtime_env: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Ruling 168 item 4: saving the page with the fast path off leaves it off.
+
+        Before that ruling there was no way to SAY disabled — the state lived in
+        an out-of-band threshold sentinel (2.0) that the response schema itself
+        rejected, which is F-187's 500. So the pin is a round trip through the
+        file, not an echo of the mock: the route answers from a mocked Settings,
+        which would happily report whatever it was handed, so the verdict comes
+        from re-reading what was WRITTEN with the real `Settings` class.
+        """
+        mock_settings = create_mock_settings()
+        app = create_test_app()
+
+        with (
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.settings_api._get_runtime_env_path",
+                return_value=temp_runtime_env,
+                autospec=True,
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=get_auth_headers(),
+            ) as client:
+                response = await client.patch(
+                    "/api/v1/settings",
+                    json={"detection": {"fast_path_enabled": False, "fast_path_threshold": 0.9}},
+                )
+
+        assert response.status_code == 200
+        # The route must hand the flag back, not just accept it (the field is
+        # required on DetectionSettings, so a dropped wire here is a 500).
+        assert response.json()["detection"]["fast_path_enabled"] is False
+
+        content = temp_runtime_env.read_text()
+        assert "FAST_PATH_ENABLED=false" in content
+        # Lowercase: pydantic-settings parses bools, and so does the reload below.
+        assert "FAST_PATH_ENABLED=False" not in content
+
+        # The reload leg: what a later boot (or get_settings.cache_clear()) sees.
+        from backend.core.config import get_settings as real_get_settings
+
+        monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(temp_runtime_env))
+        monkeypatch.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
+        )
+        monkeypatch.setenv("ENVIRONMENT", "development")
+        monkeypatch.delenv("FAST_PATH_ENABLED", raising=False)
+        real_get_settings.cache_clear()
+        try:
+            assert real_get_settings().fast_path_enabled is False
+        finally:
+            real_get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_patch_with_fast_path_enabled_round_trips_true(
+        self, temp_runtime_env: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Control for the pin above: the switch is writable, not pinned false.
+
+        Without this half, a route that always wrote `false` — or a validator
+        that clamped the flag away — would pass the disabled test.
+        """
+        mock_settings = create_mock_settings(fast_path_enabled=True)
+        app = create_test_app()
+
+        with (
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.settings_api._get_runtime_env_path",
+                return_value=temp_runtime_env,
+                autospec=True,
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=get_auth_headers(),
+            ) as client:
+                response = await client.patch(
+                    "/api/v1/settings",
+                    json={"detection": {"fast_path_enabled": True}},
+                )
+
+        assert response.status_code == 200
+        assert response.json()["detection"]["fast_path_enabled"] is True
+        assert "FAST_PATH_ENABLED=true" in temp_runtime_env.read_text()
+
+        from backend.core.config import get_settings as real_get_settings
+
+        monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(temp_runtime_env))
+        monkeypatch.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
+        )
+        monkeypatch.setenv("ENVIRONMENT", "development")
+        monkeypatch.delenv("FAST_PATH_ENABLED", raising=False)
+        real_get_settings.cache_clear()
+        try:
+            assert real_get_settings().fast_path_enabled is True
+        finally:
+            real_get_settings.cache_clear()
 
     @pytest.mark.asyncio
     async def test_patch_invalid_confidence_threshold_validation(

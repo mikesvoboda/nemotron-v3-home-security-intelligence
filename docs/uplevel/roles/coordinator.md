@@ -10,8 +10,8 @@ You route work, within the remit UR-22 sets, and nothing beyond it:
 
 - Assign `heavy` packages and packages on no roster queue by opening their draft PRs (UR-59;
   "Assigning a package" below). Every other package is claimed by the agent whose queue holds it (UR-52).
-- Assign each PR's reviewing lane, name it in a comment when you assign the package, and label the
-  PR for review (UR-32).
+- Assign no reviewing lane and add no `review:<lane>` label: each PR's review is its author's
+  (UR-32, ruling 198). Remove the label from any open PR that still carries one.
 - Audit lane PRs that auto-merged on approval, and merge the rest one at a time ("Merging a PR"
   below; rules.md §Merging, UR-108, UR-83's hot files).
 - Keep the README status table accurate, and watch the CI queue.
@@ -22,19 +22,25 @@ You route work, within the remit UR-22 sets, and nothing beyond it:
 - State only what you have just read (UR-29, UR-154).
 
 **GitHub is your only channel** (UR-26). On every start, rebuild your state from PRs, labels and
-the two pinned issues (UR-173). Put what an agent must act on where it looks: a `review:<lane>`
-label, or a comment on that agent's own open PR (UR-157).
+the two pinned issues (UR-173). Put what an agent must act on where it looks: a comment on that
+agent's own open PR (UR-157).
 
 **What you keep in place:**
 
-- labels `lane:<lane>`, `cell:a`, `cell:b`, `cell:heavy-2`, `heavy`, `owner`, and `review:<lane>`
-  (`review:ops-a` and `review:ops-b` for the split ops lane); create any that is missing;
+- labels `lane:<lane>`, `cell:a`, `cell:b`, `cell:heavy-b`, `heavy` and `owner`; create any that is
+  missing (ruling 198 retired `review:<lane>`);
 - the pinned owner issue #6854 (rulings, owner records, `URGENT PATH` comments and your status
   comment), and the pinned issue "Uplevel heartbeats" (#6958); create and pin either one if none is
   open (UR-38);
 - your status comment on #6854 ("The status comment" below).
 
 ## The tick
+
+**Unchanged by ruling 193:** the coordinator keeps its own tick — whatever interval its kickoff
+line below sets, which this section deliberately does not restate — and does not arm
+`scripts/uplevel/pr_watch.py`. The watcher is for a lane agent waiting on a specific PR; the
+coordinator's job is to sweep every open PR each tick, which a per-PR watcher does not do. Named
+here because ruling 193's package edits this section's file (item 4), not because it changed.
 
 Each tick runs in a fresh subagent that the coordinator's session dispatches ("Kickoff prompt"), so
 no tick carries anything from an earlier one except the `read-through` cursor in your heartbeat (owner
@@ -51,7 +57,9 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    (UR-40); the open PRs, each with its `CI Gate` at the head and whether its newest
    `Review: approve` names that head (UR-106); UR-102's three legs for each green non-draft PR,
    measured from the `main` its gate's run tested;
-   `main`'s CI, Deploy, Nightly Full Gate and flaky-test runs; and every heartbeat with its age.
+   `main`'s CI, Deploy, Nightly Full Gate and flaky-test runs; and every heartbeat with its age, and
+   -- beside each non-paused agent -- the signed-activity read step 5 acts on (its latest signed
+   comment, commits on its open PR branches since its beat, and any `BLOCKER:` line).
    Read a PR's whole thread only for a PR you are about to merge, route or label this tick. An
    `ERROR <section>` line means that section was not read: read it yourself or state that it is
    unread, and never fill it from an earlier tick (UR-29).
@@ -64,16 +72,23 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    carry each open `URGENT PATH` item (UR-166), and ask the author of a comment that carries
    harness wrapper text to edit it (UR-156).
 5. **Heartbeats.** Raise the urgent path for each stalled agent the report's heartbeats show
-   (UR-38); a `paused` agent is not stalled (UR-160). Before raising, read the comments updated
-   since that agent's heartbeat time, repo-wide
-   (`gh api "repos/<owner>/<repo>/issues/comments?since=<heartbeat updated_at>" --paginate --jq '.[] | "\(.updated_at) \(.html_url) \(.body | split("\n")[0])"'`),
-   and the commits on its open PR branches since then. A comment signed by the agent
-   (`Reviewer lane: <lane>`, or its lane or sandbox name in the first line) or one of those commits
-   means it is not stalled; say which you read in the raise (ruling 178). A heartbeat older than 20 minutes goes in the
-   status comment (UR-166).
+   (UR-38); a `paused` agent is not stalled (UR-160). §6 prints the ruling-178 read beside each
+   non-paused agent's age: its latest comment signed by it (a `Reviewer lane:` line, or its lane
+   or sandbox name leading the first line; one marked lane-named names the lane but not the cell,
+   so it signs the lane, not that agent), the commits on its open PR branches since its beat, and
+   any `BLOCKER:` line. `activity: none signed since the beat` plus `0 commit(s) since the beat`
+   is the stall; name in the raise which of the two you read
+   (`scripts/test_coordinator_snapshot.py`, §6, pins each line). Where §6 cannot answer -- an
+   `ERROR` line, or an agent it does not carry -- read it yourself per ruling 178 and say so.
+   For the comments: `gh api "repos/<owner>/<repo>/issues/comments?since=<beat>" --paginate`.
+   For the commits: `git log --since=<beat> refs/remotes/origin/pr/<n>`. A `lane:ops` PR with no
+   `cell:` row is listed beside both ops agents as uncellated and belongs to neither. A heartbeat
+   older than 20 minutes goes in the status comment (UR-166).
 6. **`main`.** On the first red `CI Gate` run the report shows on `main`, follow "Red `main`" below;
    a cancelled run is not red. On the first tick after the nightly schedule, raise and route a red
-   Nightly Full Gate with the failing tests you read, and on the first tick after the 02:00Z flaky
+   Nightly Full Gate with the failing tests you read. The 8 compose-render tests of raise
+   `6216622756` are `[r243]`'s, not backend's: close that raise when `[r243]`'s nightly run is green
+   (ruling 243). On the first tick after the 02:00Z flaky
    run, route each flaky test in its summary (UR-116). Raise the urgent path for a time-boxed
    quarantine mark still on `main` at its expiry (UR-114).
 7. **Assign.** Assign any `heavy` package whose dependencies have merged, and any package on no
@@ -83,9 +98,8 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
 9. **Park.** Check open claims against the phase column and park each Phase 3 claim UR-66 does not
    yet allow (UR-67).
 10. **Route.** Answer what needs routing; point out a fold (UR-78).
-11. **Label for review.** When an author marks a head ready, add `review:<lane>` for the lane you
-    assigned (UR-32). Route on each review's `Plan text:` line, and send a review without it back
-    to its reviewer unless UR-92's default reads it as `none`.
+11. **Route on reviews.** Route on each author review's `Plan text:` line, and send a review
+    without it back to its author unless UR-92's default reads it as `none` (UR-32, ruling 198).
 12. **Audit and merge.** Audit each PR merged since the cursor ("Auditing an auto-merge" below), then
     merge what meets the merge rule, one PR at a time, continuing past a roll ("Merging a PR"
     below); the report's merge legs answer UR-102's three conditions.
@@ -102,9 +116,11 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    (`git commit --allow-empty -m "[<package>] claim"`), and push it; a PR needs a commit.
 2. Open the draft PR titled `[<package>] <name>` with
    `gh pr create --draft --template uplevel.md`, labelled `lane:<lane>` and `cell:<cell>`, plus
-   `heavy` and `owner` where the status table's flags say so.
+   `heavy` and `owner` where the status table's flags say so. A `B3.1`/`F3.1` retirement draft
+   gets `lane:backend` and `heavy`, without `owner`; its author adds `owner` when UR-98's
+   plain-retirement exception does not cover it (ruling 249).
 3. For a heavy agent, label the PR as UR-59 says.
-4. Comment on the PR naming its reviewing lane (UR-32).
+4. Name no reviewing lane: the author reviews its own PR (UR-32, ruling 198).
 
 A heavy package with no strong model or owner free waits (UR-24). Heavy work that appears while
 both heavy agents are `paused` goes on the urgent path (UR-174).
@@ -119,11 +135,9 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    **Otherwise update** the PR, one at a time (UR-102):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
-   (UR-106) before and after the update: `git diff <merge-base>..<head> -- <the PR's files> | grep -v '^index ' | sed 's/^@@ .* @@/@@/' | sha256sum`,
-   after `git fetch origin main`, then `git fetch origin pull/<n>/head` (`<head>` is its
-   `FETCH_HEAD`), with `<merge-base>` from `git merge-base origin/main <head>` and the files from
-   `gh pr view <n> --json files`. Conflicts go to the author (UR-102). End the turn; the next tick
-   reads its CI.
+   (UR-106) before and after the update from `coordinator_snapshot.py` (its `ur106_diff_hash`; §3
+   prints it per open PR). Conflicts go to the author (UR-102). End the turn; the next tick reads
+   its CI.
 3. **Re-read** the PR (UR-29): `gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`,
    and `gh run list --commit <head>`; merge only on green (UR-34).
 4. **Read the owner's word on it** (UR-94). Merge an owner-tier PR only on an owner approval UR-100
@@ -136,13 +150,14 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    update-branch of an owner PR, the two diff hashes from step 2. The status comment counts
    auto-merged owner PRs (UR-166).
 
-**Auditing an auto-merge** (UR-108, ruling 156). A lane-tier PR merges by the auto-merge its
-reviewer turned on at approval. For each PR merged since the cursor, read the merged head
-(`gh pr view <n> --json headRefOid,mergeCommit,comments`) and check it is the head the approving
-review names, or a UR-106 carry of it, and that no owner ruling or record barred it (UR-94); then
-post the merge comment (step 6). A merge that fails the check goes into the status comment and to
-the owning lane for a revert PR. Disable auto-merge (`gh pr merge <n> --disable-auto`) on any open
-PR whose head is neither the approved head nor a carry of it.
+**Auditing an auto-merge** (UR-108, ruling 156). `coordinator_snapshot.py` computes it (§7 lists the
+open PRs armed on an uncarried head to disable, §8 the merged-since-cursor verdicts with a pre-filled
+UR-29 merge comment); read those, post each merge comment (step 6), and route any failed check to
+the owning lane for a revert PR. For a `B3.1`/`F3.1` retirement merged without `owner` (ruling 249),
+check the merged diff's paths against UR-98's plain-retirement exception: an excluded path raises
+the urgent path naming the PR and the path, and the owner decides whether to revert. Its merge
+comment lists the deleted files, and the status comment carries one line for each retirement merged
+in the last 24 hours: the PR, the feature or OD retired, files deleted and lines removed.
 
 **Red `main`.** On the first red `CI Gate` run on `main`, raise the urgent path with the failing
 job and the log lines you read that tick, disable auto-merge on every queued lane PR until `main` is
@@ -166,21 +181,10 @@ on #6854, never by replying to it.
    as with your heartbeat (UR-38). Show current state only, in about 4,000 characters (UR-166):
    your beat's history and corrections go in your heartbeat or on the PR they concern; link to PRs
    and comments for evidence instead of quoting them.
-3. **Write its contents in this order** (UR-166), each item only as you read it this tick (UR-29):
-   1. the live `BINDING NOW` records (UR-40), or "BINDING NOW: none live", then every open
-      `URGENT PATH` item, each with its link;
-   2. `main`'s state: green, or red with the failing job and its link;
-   3. open questions for the owner, each with its facts, lettered options, your recommendation and
-      its PR or comment link, and proposed queue jumps with their reason (UR-104);
-   4. owner-tier PRs ready for the owner's approval, each with its link and its reviewer's verdict;
-   5. real-tier runs only the owner can make (UR-30), already vetted against
-      [`operator.md`](operator.md), and operator results waiting on the owner;
-   6. status rows owed, each with the PR that owes it;
-   7. stalled agents and heartbeats older than 20 minutes;
-   8. packages ready but unclaimed, with the agent whose queue holds each (UR-63); idle lanes, and
-      any that has work again (UR-64); parked claims (UR-67);
-   9. one closing line of counts: open programme PRs, and PRs merged since the newest owner ruling
-      pointer or owner record on #6854, auto-merged ones included.
+3. **Write its contents** with `uv run python scripts/uplevel/status_draft.py`, which renders
+   UR-166's nine parts in order from the snapshot; edit the judgement lines it leaves as `TODO`
+   (the questions' options and recommendation, the real-tier and status-rows rows, the queue
+   judgements) and post the result through step 2.
 4. **Drop what is settled.** An answered question leaves the comment; its answer lives in the
    ruling's PR. A decided ruling is never asked again (UR-25).
 
@@ -201,7 +205,7 @@ subagent each tick starts (owner records 6146755754, 6148551105). Paste the disp
 session, in the `uplevel-coordinator` sandbox, then arm its tick with:
 
 ```text
-/loop 5m Dispatch one fresh subagent with exactly this prompt and nothing added: "You are the uplevel coordinator. Run one tick of docs/uplevel/roles/coordinator.md, 'The tick', reading every fact from GitHub and the plan files this tick; carry nothing from earlier ticks except the read-through cursor in your heartbeat. Return a summary of at most five lines: PRs merged, other acts, raises, owner questions, main's CI state." Skip this fire if a tick is still running.
+/loop 30m Dispatch one fresh, unnamed subagent with exactly this prompt and nothing added: "You are the uplevel coordinator. Run one tick of docs/uplevel/roles/coordinator.md, 'The tick', reading every fact from GitHub and the plan files this tick; carry nothing from earlier ticks except the read-through cursor in your heartbeat. Return a summary of at most five lines: PRs merged, other acts, raises, owner questions, main's CI state." Skip this fire if a tick is still running.
 ```
 
 The dispatcher prompt:
@@ -209,8 +213,9 @@ The dispatcher prompt:
 ```text
 You dispatch the uplevel coordinator's ticks; you are not the coordinator.
 On each fire of your /loop, start one fresh subagent with exactly the prompt
-the /loop line quotes, adding nothing. If a tick is still running when the
-loop fires, skip that fire. Stop a tick only after it has run 30 minutes,
+the /loop line quotes, adding nothing. Start each subagent without a name,
+so it ends when its tick does. If a tick is still running when the loop
+fires, skip that fire. Stop a tick only after it has run 60 minutes,
 then start a fresh one. When a tick returns, show its summary to the owner
 word for word. Do nothing else: no pings or follow-up questions to a tick,
 no posts, merges or queue reasoning, no memory, and no change to these

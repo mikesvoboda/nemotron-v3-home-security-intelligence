@@ -530,56 +530,6 @@ class TestGetEventDetectionsRoute:
         assert result.pagination.total == 0
 
 
-class TestGetEventEnrichmentsRoute:
-    """Tests for get_event_enrichments route handler."""
-
-    @pytest.mark.asyncio
-    async def test_get_event_enrichments_no_detections(self):
-        """Test that endpoint returns empty enrichments when event has no detections."""
-        from backend.api.routes.events import get_event_enrichments
-
-        mock_db = AsyncMock(spec=AsyncSession)
-
-        # Mock event with no detections
-        mock_event = Mock(spec=Event)
-        mock_event.id = 1
-        mock_event.detections = []
-        mock_event.detection_id_list = []
-
-        with patch(
-            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
-        ):
-            result = await get_event_enrichments(event_id=1, limit=50, offset=0, db=mock_db)
-
-        assert result.event_id == 1
-        assert result.enrichments == []
-        assert result.total == 0
-        assert result.has_more is False
-
-    @pytest.mark.asyncio
-    async def test_get_event_enrichments_offset_beyond_detections(self):
-        """Test that offset beyond available detections returns empty with metadata."""
-        from backend.api.routes.events import get_event_enrichments
-
-        mock_db = AsyncMock(spec=AsyncSession)
-
-        # Mock event with detections but offset beyond
-        mock_event = Mock(spec=Event)
-        mock_event.id = 1
-        mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
-        mock_event.detection_id_list = [1, 2, 3]
-
-        with patch(
-            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
-        ):
-            result = await get_event_enrichments(event_id=1, limit=50, offset=100, db=mock_db)
-
-        assert result.event_id == 1
-        assert result.enrichments == []
-        assert result.total == 3
-        assert result.has_more is False
-
-
 class TestGetEventClipRoute:
     """Tests for get_event_clip route handler."""
 

@@ -77,12 +77,32 @@ def _get_cache_prefix() -> str:
     return f"{_get_global_prefix()}:cache:"
 
 
-# Note: CACHE_PREFIX is now a function call result for backward compatibility
-# with existing tests. In production, use CacheKeys methods for proper prefixing.
-CACHE_PREFIX = "cache:"  # Keep for backward compatibility in CacheService internals
-CAMERAS_PREFIX = f"{CACHE_PREFIX}cameras:"
-EVENTS_PREFIX = f"{CACHE_PREFIX}events:"
-STATS_PREFIX = f"{CACHE_PREFIX}stats:"
+# CACHE_PREFIX is retained only so existing imports keep resolving; the cache
+# service no longer prepends it -- see _storage_key. The three per-type constants
+# (CAMERAS_PREFIX/EVENTS_PREFIX/STATS_PREFIX) were removed in [r228]: they baked
+# in the "cache:cameras:" shape that never matched what CacheKeys routes stored,
+# and no app code imported them (only one test did).
+CACHE_PREFIX = "cache:"  # deprecated; kept for backward-compatible imports only
+
+
+def _storage_key(key: str) -> str:
+    """Normalize any caller-spelled key to its single stored Redis key shape.
+
+    The one shape is ``{redis_key_prefix}:cache:{logical}`` -- what
+    :func:`_get_cache_prefix` produces and what ``CacheKeys`` already embeds
+    (NEM-1621). Idempotent in both directions: a short literal like
+    ``"cameras:list"`` gains the prefix, an already-prefixed ``CacheKeys`` value
+    like ``"hsi:cache:cameras:list"`` passes through unchanged. Before [r228] the
+    write path did ``f"{CACHE_PREFIX}{key}"`` unconditionally, so a ``CacheKeys``
+    value was double-prefixed to ``cache:hsi:cache:...`` while
+    :meth:`invalidate_pattern` scanned ``cache:cameras:*`` and never matched it --
+    the invalidation silently no-op'd and stale entries ran to full TTL.
+
+    Used on both the read/write path and the pattern path so the two can no
+    longer disagree about the namespace.
+    """
+    prefix = _get_cache_prefix()
+    return f"{prefix}{key.removeprefix(prefix)}"
 
 
 class CacheService:
@@ -94,8 +114,10 @@ class CacheService:
     - Pattern-based invalidation
     - Serialization/deserialization of complex objects
 
-    All cache keys are prefixed with 'cache:' to distinguish them from
-    other Redis keys used for queues and pub/sub.
+    Every key is stored under one shape, ``{redis_key_prefix}:cache:{logical}``
+    (see :func:`_storage_key`), which keeps cache keys out of the namespaces used
+    for queues and pub/sub and puts short and ``CacheKeys`` spellings in the same
+    namespace their invalidators scan.
     """
 
     def __init__(self, redis_client: RedisClient):
@@ -113,14 +135,14 @@ class CacheService:
         and records Prometheus metrics for cache hit/miss tracking.
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             cache_type: Optional cache type for metrics (e.g., "event_stats", "cameras").
                 If not provided, will be inferred from the key prefix.
 
         Returns:
             Cached value if found, None otherwise
         """
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = _storage_key(key)
         # Infer cache type from key prefix if not provided
         metric_type = cache_type or self._infer_cache_type(key)
         try:
@@ -164,6 +186,8 @@ class CacheService:
         """
         if key.startswith("stats:events:"):
             return "event_stats"
+        elif key.startswith("timeline_summary:"):
+            return "timeline_summary"
         elif key.startswith("cameras:"):
             return "cameras"
         elif key.startswith("system:"):
@@ -186,14 +210,14 @@ class CacheService:
         """Set a value in the cache with TTL.
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             value: Value to cache (will be JSON serialized)
             ttl: Time to live in seconds (default: 5 minutes)
 
         Returns:
             True if successful, False otherwise
         """
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = _storage_key(key)
         try:
             await self._redis.set(full_key, value, expire=ttl)
             logger.debug(f"Cache set for key: {key} with TTL: {ttl}s")
@@ -232,7 +256,7 @@ class CacheService:
         4. Return value
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             factory: Callable that returns the value if not cached.
                      Can be sync or async.
             ttl: Time to live in seconds (default: 5 minutes)
@@ -283,7 +307,7 @@ class CacheService:
         This eliminates cache stampede and ensures users never wait for cache refresh.
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             factory: Callable that returns the value if not cached.
             ttl: Time to live in seconds (default: 5 minutes).
             stale_ttl: Additional time in seconds after TTL that stale data
@@ -300,7 +324,7 @@ class CacheService:
             stale_ttl = settings.cache_swr_stale_ttl
 
         metric_type = cache_type or self._infer_cache_type(key)
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = _storage_key(key)
         freshness_key = f"{full_key}:fresh_until"
 
         try:
@@ -369,7 +393,7 @@ class CacheService:
         if asyncio.iscoroutine(result):
             result = await result
 
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = _storage_key(key)
         freshness_key = f"{full_key}:fresh_until"
 
         # Set the value with total TTL (fresh + stale)
@@ -396,7 +420,7 @@ class CacheService:
         """Refresh cache in background (SWR pattern)."""
         from backend.core.metrics import record_cache_background_refresh
 
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = _storage_key(key)
         lock_key = f"{full_key}:refreshing"
 
         try:
@@ -430,12 +454,12 @@ class CacheService:
         """Invalidate a single cache key.
 
         Args:
-            key: Cache key to invalidate (will be prefixed with 'cache:')
+            key: Cache key to invalidate, short or CacheKeys form (stored via _storage_key)
 
         Returns:
             True if key was deleted, False otherwise
         """
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = _storage_key(key)
         try:
             deleted = await self._redis.delete(full_key)
             if deleted > 0:
@@ -472,8 +496,9 @@ class CacheService:
         Records invalidation metrics for monitoring.
 
         Args:
-            pattern: Glob-style pattern (e.g., "cameras:*")
-                     Will be prefixed with 'cache:'
+            pattern: Glob-style pattern (e.g., "cameras:*"). Its literal prefix
+                     is normalized by _storage_key, so a short pattern and the
+                     CacheKeys form scan the same namespace that stores the keys.
             reason: Reason for invalidation for metrics tracking.
                     Use CacheInvalidationReason enum constants
                     (e.g., CacheInvalidationReason.EVENT_CREATED).
@@ -483,7 +508,11 @@ class CacheService:
         Returns:
             Number of keys deleted
         """
-        full_pattern = f"{CACHE_PREFIX}{pattern}"
+        # Normalize the pattern's literal prefix the same way the value path
+        # normalizes its key, so the scan runs in the same namespace that stores
+        # the keys. A trailing "*" is left untouched by _storage_key's
+        # removeprefix, and the prefix it adds is a plain string.
+        full_pattern = _storage_key(pattern)
         # Infer cache type from pattern if not provided
         metric_type = cache_type or self._infer_cache_type(pattern.rstrip("*"))
         # Convert enum to string for metrics (str(enum) returns value)
@@ -558,6 +587,32 @@ class CacheService:
             Number of keys deleted
         """
         return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
+
+    async def invalidate_timeline_summary(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.EVENT_CREATED,
+    ) -> int:
+        """Invalidate all timeline summary cache entries.
+
+        Should be called when events are created, updated, or deleted,
+        alongside ``invalidate_events`` and ``invalidate_event_stats``.
+
+        The route stores key ``timeline_summary:{bucket}:{start}:{end}:{camera}``
+        (``backend/api/routes/events.py``). Before [r223] no invalidator scanned
+        ``timeline_summary:*`` at all — the orphan census row [r228]'s MEASURE
+        left as 7/8 — so a seeded or cleared timeline served stale buckets for
+        the full TTL even after [r228] fixed the key shape.
+
+        Args:
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.EVENT_CREATED)
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern(
+            "timeline_summary:*", reason=reason, cache_type="timeline_summary"
+        )
 
     async def invalidate_cameras(
         self,
@@ -638,6 +693,16 @@ class CacheService:
         Should be called when new summaries are generated to ensure
         dashboard endpoints return fresh data.
 
+        [r223] MEASURE: the developer-tool handlers call this too, because the
+        three ``summaries:latest/hourly/daily`` keys are not only ``Summary``
+        rows — each handler folds the matching ``Event`` rows into the cached
+        payload (``backend/api/routes/summaries.py`` builds them via
+        ``EventRepository.get_by_ids`` and ``_summary_to_response`` embeds the
+        events). ``clear_seeded_data`` issues ``delete(Event)``, so it rewrites
+        those values and they must be evicted, not left to the 300 s TTL. The
+        sweep also reaches ``summaries:entities`` (entity_recognition route),
+        which the camera FK cascade changes the same way.
+
         Args:
             reason: Reason for invalidation. Use CacheInvalidationReason enum.
                    (default: CacheInvalidationReason.MANUAL)
@@ -647,6 +712,27 @@ class CacheService:
         """
         return await self.invalidate_pattern("summaries:*", reason=reason, cache_type="summaries")
 
+    async def invalidate_trends(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.EVENT_CREATED,
+    ) -> int:
+        """Invalidate all trends cache entries (hourly and daily).
+
+        Should be called when events are created or deleted: ``TrendService``
+        aggregates events through ``EventRepository``, so a seeded or cleared
+        event set changes the trend metrics. Before [r223] no invalidator
+        scanned ``trends:*`` — the orphan namespace disclosed in [r228] — so
+        ``GET /api/summaries/trends`` served stale counts until the 120 s TTL expired.
+
+        Args:
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.EVENT_CREATED)
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("trends:*", reason=reason, cache_type="trends")
+
     async def exists(self, key: str) -> bool:
         """Check if a cache key exists.
 
@@ -654,12 +740,12 @@ class CacheService:
         Use get() if you want to contribute to hit ratio.
 
         Args:
-            key: Cache key to check (will be prefixed with 'cache:')
+            key: Cache key to check, short or CacheKeys form (stored via _storage_key)
 
         Returns:
             True if key exists, False otherwise
         """
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = _storage_key(key)
         try:
             return await self._redis.exists(full_key) > 0
         except RedisConnectionError as e:
@@ -685,13 +771,13 @@ class CacheService:
         """Refresh the TTL of a cache key without fetching its value.
 
         Args:
-            key: Cache key (will be prefixed with 'cache:')
+            key: Cache key, short or CacheKeys form (stored via _storage_key)
             ttl: New TTL in seconds
 
         Returns:
             True if TTL was set, False if key doesn't exist
         """
-        full_key = f"{CACHE_PREFIX}{key}"
+        full_key = _storage_key(key)
         try:
             return await self._redis.expire(full_key, ttl)
         except RedisConnectionError as e:
@@ -788,10 +874,17 @@ class CacheKeys(metaclass=_CacheKeysMeta):
             camera_id: Optional camera ID filter
 
         Returns:
-            Prefixed cache key: {PREFIX}:cache:event_stats:{start}:{end}:{camera_id}
+            Prefixed cache key: {PREFIX}:cache:stats:events:{start}:{end}:{camera_id}
+
+        The token is ``stats:events`` -- not ``event_stats`` -- so the generated
+        key lands in the same namespace ``invalidate_event_stats`` scans
+        (``stats:events:*``) and ``_infer_cache_type`` classifies. Before [r228]
+        the generator emitted ``event_stats`` while every other site used
+        ``stats:events``, so the route's cached stats were unreachable by their
+        own invalidator even once the double-prefix was fixed.
         """
         prefix = _get_global_prefix()
-        return f"{prefix}:cache:event_stats:{start_date or 'none'}:{end_date or 'none'}:{camera_id or 'all'}"
+        return f"{prefix}:cache:stats:events:{start_date or 'none'}:{end_date or 'none'}:{camera_id or 'all'}"
 
     @staticmethod
     def system_status() -> str:

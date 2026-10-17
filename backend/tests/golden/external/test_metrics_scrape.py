@@ -112,7 +112,7 @@ def scrape_body(scrape_response: httpx.Response) -> str:
     return scrape_response.text
 
 
-def test_scrape_answers_as_plaintext_prometheus(scrape_response: httpx.Response) -> None:
+def test_f294_scrape_answers_as_plaintext_prometheus(scrape_response: httpx.Response) -> None:
     """The endpoint answers, and answers as the format Prometheus scrapes.
 
     ``metrics.py`` declares ``media_type="text/plain; charset=utf-8"``; a scraper
@@ -124,7 +124,7 @@ def test_scrape_answers_as_plaintext_prometheus(scrape_response: httpx.Response)
     assert content_type.startswith("text/plain"), content_type
 
 
-def test_scrape_contains_hsi_samples_and_every_one_parses(scrape_body: str) -> None:
+def test_f294_scrape_contains_hsi_samples_and_every_one_parses(scrape_body: str) -> None:
     """The document has this project's samples, and no malformed lines.
 
     The parse check is the guard a rename or a label-quoting bug trips: the
@@ -139,7 +139,7 @@ def test_scrape_contains_hsi_samples_and_every_one_parses(scrape_body: str) -> N
     assert hsi, "no hsi_* sample lines in the scrape"
 
 
-def test_dashboard_scalars_are_exposed_unlabelled(scrape_body: str) -> None:
+def test_f294_dashboard_scalars_are_exposed_unlabelled(scrape_body: str) -> None:
     """Each name ``getGaugeValue`` reads is present as a bare scalar.
 
     The dashboard looks these up by exact name; if any of them gains a label,
@@ -167,7 +167,7 @@ def test_dashboard_scalars_are_exposed_unlabelled(scrape_body: str) -> None:
         )
 
 
-def test_dashboard_labelled_counters_declare_their_labels(scrape_body: str) -> None:
+def test_f294_dashboard_labelled_counters_declare_their_labels(scrape_body: str) -> None:
     """Each counter ``getCountersByLabel`` reads is declared, and its samples —
 
     if it has any — carry the label the parser extracts. Label presence is
@@ -189,7 +189,7 @@ def test_dashboard_labelled_counters_declare_their_labels(scrape_body: str) -> N
             )
 
 
-def test_dashboard_histograms_keep_their_label_names(scrape_body: str) -> None:
+def test_f294_dashboard_histograms_keep_their_label_names(scrape_body: str) -> None:
     """The two histograms the dashboard extracts are declared; sampled ones
     carry the label the parser selects on.
 

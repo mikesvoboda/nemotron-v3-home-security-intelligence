@@ -10,13 +10,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 
 # Triton 26.01 ships stale numpy-1.26.4.dist-info with broken metadata that prevents
 # transformers from detecting numpy version.  Remove it before installing numpy.
 #
-# Uses BuildKit cache mount to cache pip downloads between builds (~5-10x faster rebuilds)
-# Cache persists even when using --no-cache flag (only image layers are rebuilt)
-# hadolint ignore=DL3013,DL3042,SC2102
-RUN --mount=type=cache,target=/root/.cache/pip,sharing=shared \
-    rm -rf /usr/local/lib/python3.12/dist-packages/numpy-1.26.4.dist-info && \
-    pip install --force-reinstall packaging numpy && \
-    pip install \
+#
+# NO cache mount here, on purpose: this image is built by `agent-gpu build` for
+# the O2.4 real tier (ruling 188), whose Containerfile contract refuses any flag
+# on RUN ("--mount= included") and any ONBUILD -- the contract is transcribed at
+# ai/vlm/Dockerfile:3-10, the file that dropped its own ccache mount the same way.
+# Cost, stated: every build re-downloads the wheel set below (the mount bought
+# "~5-10x faster rebuilds"). What keeps pip's cache out of the layer instead is
+# --no-cache-dir on both installs below, which is hadolint DL3042's own remedy
+# ("Avoid use of cache directory with pip"), so DL3042 left the ignore line when
+# the flag went in. --no-cache-dir is a PIP argument, not an instruction flag, so
+# the contract holds. Pinned by the test named in this file's header comment:
+# ai/gateway/tests/test_dockerfile_agent_gpu_buildable.py
+# hadolint ignore=DL3013,SC2102
+RUN rm -rf /usr/local/lib/python3.12/dist-packages/numpy-1.26.4.dist-info && \
+    pip install --no-cache-dir --force-reinstall packaging numpy && \
+    pip install --no-cache-dir \
     fastapi \
     uvicorn[standard] \
     "tritonclient[grpc]" \

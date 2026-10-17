@@ -14,18 +14,27 @@ from redis.exceptions import RedisError
 from backend.core.constants import CacheInvalidationReason
 from backend.services.cache_service import (
     CACHE_PREFIX,
-    CAMERAS_PREFIX,
     DEFAULT_TTL,
-    EVENTS_PREFIX,
     LONG_TTL,
     SHORT_TTL,
-    STATS_PREFIX,
     CacheKeys,
     CacheService,
     cached,
     get_cache_service,
     reset_cache_service,
 )
+
+
+def _stored(logical: str) -> str:
+    """Physical Redis key CacheService stores a logical key under (post-[r228]).
+
+    Anchored on CacheKeys.PREFIX rather than a literal "cache:" so these mock
+    assertions track the real normalizer's output and cannot silently drift from
+    it the way the old hardcoded "cache:" literals did. The whole point of [r228]
+    is that the stored shape is {global}:cache:{logical}, not cache:{logical}.
+    """
+    return f"{CacheKeys.PREFIX}:cache:{logical}"
+
 
 # =============================================================================
 # Fixtures
@@ -85,7 +94,7 @@ async def test_cache_get_returns_value_on_hit(cache_service, mock_redis_client):
     result = await cache_service.get("my_key")
 
     assert result == {"data": "test_value"}
-    mock_redis_client.get.assert_awaited_once_with(f"{CACHE_PREFIX}my_key")
+    mock_redis_client.get.assert_awaited_once_with(_stored("my_key"))
 
 
 @pytest.mark.asyncio
@@ -106,8 +115,8 @@ async def test_cache_get_prefixes_key(cache_service, mock_redis_client):
 
     await cache_service.get("user:123")
 
-    # Key should be prefixed with 'cache:'
-    mock_redis_client.get.assert_awaited_once_with("cache:user:123")
+    # Key stored under the one shape: {global}:cache:{logical}
+    mock_redis_client.get.assert_awaited_once_with(_stored("user:123"))
 
 
 @pytest.mark.asyncio
@@ -158,9 +167,7 @@ async def test_cache_set_uses_default_ttl(cache_service, mock_redis_client):
     await cache_service.set("key", "value")
 
     # Verify called with default TTL
-    mock_redis_client.set.assert_awaited_once_with(
-        f"{CACHE_PREFIX}key", "value", expire=DEFAULT_TTL
-    )
+    mock_redis_client.set.assert_awaited_once_with(_stored("key"), "value", expire=DEFAULT_TTL)
 
 
 @pytest.mark.asyncio
@@ -170,7 +177,7 @@ async def test_cache_set_uses_custom_ttl(cache_service, mock_redis_client):
 
     await cache_service.set("key", "value", ttl=3600)
 
-    mock_redis_client.set.assert_awaited_once_with(f"{CACHE_PREFIX}key", "value", expire=3600)
+    mock_redis_client.set.assert_awaited_once_with(_stored("key"), "value", expire=3600)
 
 
 @pytest.mark.asyncio
@@ -181,7 +188,7 @@ async def test_cache_set_prefixes_key(cache_service, mock_redis_client):
     await cache_service.set("user:456", {"name": "test"})
 
     call_args = mock_redis_client.set.call_args
-    assert call_args[0][0] == "cache:user:456"
+    assert call_args[0][0] == _stored("user:456")
 
 
 @pytest.mark.asyncio
@@ -201,7 +208,7 @@ async def test_cache_set_with_short_ttl(cache_service, mock_redis_client):
 
     await cache_service.set("key", "value", ttl=SHORT_TTL)
 
-    mock_redis_client.set.assert_awaited_once_with(f"{CACHE_PREFIX}key", "value", expire=60)
+    mock_redis_client.set.assert_awaited_once_with(_stored("key"), "value", expire=60)
 
 
 @pytest.mark.asyncio
@@ -211,7 +218,7 @@ async def test_cache_set_with_long_ttl(cache_service, mock_redis_client):
 
     await cache_service.set("key", "value", ttl=LONG_TTL)
 
-    mock_redis_client.set.assert_awaited_once_with(f"{CACHE_PREFIX}key", "value", expire=3600)
+    mock_redis_client.set.assert_awaited_once_with(_stored("key"), "value", expire=3600)
 
 
 # =============================================================================
@@ -254,9 +261,7 @@ async def test_get_or_set_caches_factory_result(cache_service, mock_redis_client
     await cache_service.get_or_set("key", factory, ttl=120)
 
     # Verify value was cached
-    mock_redis_client.set.assert_awaited_once_with(
-        f"{CACHE_PREFIX}key", {"fresh": True}, expire=120
-    )
+    mock_redis_client.set.assert_awaited_once_with(_stored("key"), {"fresh": True}, expire=120)
 
 
 @pytest.mark.asyncio
@@ -313,7 +318,7 @@ async def test_invalidate_deletes_key(cache_service, mock_redis_client):
     result = await cache_service.invalidate("key_to_delete")
 
     assert result is True
-    mock_redis_client.delete.assert_awaited_once_with(f"{CACHE_PREFIX}key_to_delete")
+    mock_redis_client.delete.assert_awaited_once_with(_stored("key_to_delete"))
 
 
 @pytest.mark.asyncio
@@ -343,7 +348,7 @@ async def test_invalidate_prefixes_key(cache_service, mock_redis_client):
 
     await cache_service.invalidate("cameras:list")
 
-    mock_redis_client.delete.assert_awaited_once_with("cache:cameras:list")
+    mock_redis_client.delete.assert_awaited_once_with(_stored("cameras:list"))
 
 
 # =============================================================================
@@ -359,8 +364,8 @@ async def test_invalidate_pattern_deletes_matching_keys(cache_service, mock_redi
     mock_scan_iter.__aiter__ = lambda self: self
     mock_scan_iter.__anext__ = AsyncMock(
         side_effect=[
-            "cache:cameras:cam1",
-            "cache:cameras:cam2",
+            "hsi:cache:cameras:cam1",
+            "hsi:cache:cameras:cam2",
             StopAsyncIteration,
         ]
     )
@@ -373,7 +378,7 @@ async def test_invalidate_pattern_deletes_matching_keys(cache_service, mock_redi
     result = await cache_service.invalidate_pattern("cameras:*")
 
     assert result == 2
-    mock_client.scan_iter.assert_called_once_with(match=f"{CACHE_PREFIX}cameras:*", count=100)
+    mock_client.scan_iter.assert_called_once_with(match=_stored("cameras:*"), count=100)
 
 
 @pytest.mark.asyncio
@@ -416,7 +421,7 @@ async def test_exists_returns_true_when_key_exists(cache_service, mock_redis_cli
     result = await cache_service.exists("my_key")
 
     assert result is True
-    mock_redis_client.exists.assert_awaited_once_with(f"{CACHE_PREFIX}my_key")
+    mock_redis_client.exists.assert_awaited_once_with(_stored("my_key"))
 
 
 @pytest.mark.asyncio
@@ -446,7 +451,7 @@ async def test_exists_prefixes_key(cache_service, mock_redis_client):
 
     await cache_service.exists("stats:daily")
 
-    mock_redis_client.exists.assert_awaited_once_with("cache:stats:daily")
+    mock_redis_client.exists.assert_awaited_once_with(_stored("stats:daily"))
 
 
 # =============================================================================
@@ -462,7 +467,7 @@ async def test_refresh_sets_new_ttl(cache_service, mock_redis_client):
     result = await cache_service.refresh("my_key", ttl=600)
 
     assert result is True
-    mock_redis_client.expire.assert_awaited_once_with(f"{CACHE_PREFIX}my_key", 600)
+    mock_redis_client.expire.assert_awaited_once_with(_stored("my_key"), 600)
 
 
 @pytest.mark.asyncio
@@ -472,7 +477,7 @@ async def test_refresh_uses_default_ttl(cache_service, mock_redis_client):
 
     await cache_service.refresh("key")
 
-    mock_redis_client.expire.assert_awaited_once_with(f"{CACHE_PREFIX}key", DEFAULT_TTL)
+    mock_redis_client.expire.assert_awaited_once_with(_stored("key"), DEFAULT_TTL)
 
 
 @pytest.mark.asyncio
@@ -537,7 +542,7 @@ def test_cache_keys_event_stats_with_dates():
     key = CacheKeys.event_stats("2024-01-01", "2024-01-31")
 
     # Keys now include global prefix (NEM-1621) and camera_id (NEM-2434)
-    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31:all"
+    assert key == f"{CacheKeys.PREFIX}:cache:stats:events:2024-01-01:2024-01-31:all"
 
 
 def test_cache_keys_event_stats_no_dates():
@@ -545,7 +550,7 @@ def test_cache_keys_event_stats_no_dates():
     key = CacheKeys.event_stats()
 
     # Keys now include global prefix (NEM-1621) and camera_id (NEM-2434)
-    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:none:none:all"
+    assert key == f"{CacheKeys.PREFIX}:cache:stats:events:none:none:all"
 
 
 def test_cache_keys_event_stats_partial_dates():
@@ -553,7 +558,7 @@ def test_cache_keys_event_stats_partial_dates():
     key = CacheKeys.event_stats(start_date="2024-01-01")
 
     # Keys now include global prefix (NEM-1621) and camera_id (NEM-2434)
-    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:none:all"
+    assert key == f"{CacheKeys.PREFIX}:cache:stats:events:2024-01-01:none:all"
 
 
 def test_cache_keys_event_stats_with_camera_id():
@@ -561,7 +566,7 @@ def test_cache_keys_event_stats_with_camera_id():
     key = CacheKeys.event_stats("2024-01-01", "2024-01-31", "cam1")
 
     # Keys include date range and camera_id
-    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31:cam1"
+    assert key == f"{CacheKeys.PREFIX}:cache:stats:events:2024-01-01:2024-01-31:cam1"
 
 
 def test_cache_keys_system_status():
@@ -598,23 +603,14 @@ def test_long_ttl_value():
 
 
 def test_cache_prefix_value():
-    """Test CACHE_PREFIX constant."""
+    """Test CACHE_PREFIX constant is retained for backward-compatible imports.
+
+    [r228] removed the CAMERAS_PREFIX/EVENTS_PREFIX/STATS_PREFIX constants and
+    stopped prepending CACHE_PREFIX -- the cache service now derives the stored
+    shape via _storage_key (see _stored above). CACHE_PREFIX itself stays only so
+    existing ``from ... import CACHE_PREFIX`` keeps resolving; nothing prepends it.
+    """
     assert CACHE_PREFIX == "cache:"
-
-
-def test_cameras_prefix_includes_cache_prefix():
-    """Test CAMERAS_PREFIX includes 'cache:'."""
-    assert CAMERAS_PREFIX == "cache:cameras:"
-
-
-def test_events_prefix_includes_cache_prefix():
-    """Test EVENTS_PREFIX includes 'cache:'."""
-    assert EVENTS_PREFIX == "cache:events:"
-
-
-def test_stats_prefix_includes_cache_prefix():
-    """Test STATS_PREFIX includes 'cache:'."""
-    assert STATS_PREFIX == "cache:stats:"
 
 
 # =============================================================================
@@ -914,7 +910,7 @@ async def test_invalidate_pattern_records_invalidation_metric(cache_service, moc
     mock_scan_iter.__aiter__ = lambda self: self
     mock_scan_iter.__anext__ = AsyncMock(
         side_effect=[
-            "cache:cameras:cam1",
+            "hsi:cache:cameras:cam1",
             StopAsyncIteration,
         ]
     )
@@ -971,7 +967,7 @@ async def test_invalidate_event_stats_uses_correct_pattern(cache_service, mock_r
 
     await cache_service.invalidate_event_stats()
 
-    mock_client.scan_iter.assert_called_once_with(match="cache:stats:events:*", count=100)
+    mock_client.scan_iter.assert_called_once_with(match=_stored("stats:events:*"), count=100)
 
 
 @pytest.mark.asyncio
@@ -980,7 +976,7 @@ async def test_invalidate_event_stats_with_custom_reason(cache_service, mock_red
     mock_scan_iter = AsyncMock()
     mock_scan_iter.__aiter__ = lambda self: self
     mock_scan_iter.__anext__ = AsyncMock(
-        side_effect=["cache:stats:events:data", StopAsyncIteration]
+        side_effect=["hsi:cache:stats:events:data", StopAsyncIteration]
     )
 
     mock_client = MagicMock()
@@ -1009,7 +1005,7 @@ async def test_invalidate_events_uses_correct_pattern(cache_service, mock_redis_
 
     await cache_service.invalidate_events()
 
-    mock_client.scan_iter.assert_called_once_with(match="cache:events:*", count=100)
+    mock_client.scan_iter.assert_called_once_with(match=_stored("events:*"), count=100)
 
 
 @pytest.mark.asyncio
@@ -1025,7 +1021,7 @@ async def test_invalidate_cameras_uses_correct_pattern(cache_service, mock_redis
 
     await cache_service.invalidate_cameras()
 
-    mock_client.scan_iter.assert_called_once_with(match="cache:cameras:*", count=100)
+    mock_client.scan_iter.assert_called_once_with(match=_stored("cameras:*"), count=100)
 
 
 @pytest.mark.asyncio
@@ -1033,7 +1029,7 @@ async def test_invalidate_cameras_with_custom_reason(cache_service, mock_redis_c
     """Test invalidate_cameras accepts custom reason."""
     mock_scan_iter = AsyncMock()
     mock_scan_iter.__aiter__ = lambda self: self
-    mock_scan_iter.__anext__ = AsyncMock(side_effect=["cache:cameras:cam1", StopAsyncIteration])
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=["hsi:cache:cameras:cam1", StopAsyncIteration])
 
     mock_client = MagicMock()
     mock_client.scan_iter.return_value = mock_scan_iter
@@ -1061,7 +1057,85 @@ async def test_invalidate_system_status_uses_correct_pattern(cache_service, mock
 
     await cache_service.invalidate_system_status()
 
-    mock_client.scan_iter.assert_called_once_with(match="cache:system:*", count=100)
+    mock_client.scan_iter.assert_called_once_with(match=_stored("system:*"), count=100)
+
+
+# =============================================================================
+# r223 invalidators for the orphan namespaces r228's MEASURE left reachable
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_invalidate_timeline_summary_scans_its_namespace(cache_service, mock_redis_client):
+    """invalidate_timeline_summary scans the shape the timeline route stores.
+
+    events.py stores key f"timeline_summary:{bucket}:{start}:{end}:{camera}"
+    via cache.get/set, so its storage key is _storage_key of that literal.
+    Before r223 no invalidator scanned timeline_summary:* — the 7/8 survivor in
+    r228's census. This pins that the scan namespace equals the store namespace.
+    """
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_timeline_summary()
+
+    mock_client.scan_iter.assert_called_once_with(match=_stored("timeline_summary:*"), count=100)
+
+
+@pytest.mark.asyncio
+async def test_invalidate_trends_scans_its_namespace(cache_service, mock_redis_client):
+    """invalidate_trends scans trends:* so /api/trends' hourly+daily keys die."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_trends()
+
+    mock_client.scan_iter.assert_called_once_with(match=_stored("trends:*"), count=100)
+
+
+@pytest.mark.asyncio
+async def test_invalidate_summaries_scans_the_whole_summaries_namespace(
+    cache_service, mock_redis_client
+):
+    """invalidate_summaries scans summaries:*, not a narrower shape.
+
+    r223 round 2 (blocking/test): the round-1 design had a narrow
+    invalidate_entities whose single-key delete WAS pinned; replacing it with
+    the summaries:* sweep deleted that pin and nothing replaced it, so
+    corrupting this pattern to anything narrower (say summaries:entities) left
+    the whole suite green while silently stranding summaries:latest/hourly/
+    daily — the exact F2 defect the sweep exists to fix. This pin is what
+    makes the sweep's reach falsifiable. summaries:entities travels inside the
+    same pattern (entity_recognition.py:104 stores it), which is why no second
+    invalidator exists.
+    """
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_summaries()
+
+    mock_client.scan_iter.assert_called_once_with(match=_stored("summaries:*"), count=100)
+
+
+def test_infer_cache_type_timeline_summary(cache_service):
+    """_infer_cache_type classifies timeline_summary: (the route stores without an
+    explicit cache_type, so get/set infer it — before r223 this counted as 'other')."""
+    assert cache_service._infer_cache_type("timeline_summary:hour:2026") == "timeline_summary"
 
 
 # =============================================================================

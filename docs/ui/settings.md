@@ -149,12 +149,15 @@ Configure how the system processes detection events and manages data retention.
 
 Adjust these sliders to control event processing behavior:
 
-| Setting               | Range     | Default | Description                                     |
-| --------------------- | --------- | ------- | ----------------------------------------------- |
-| Batch Window Duration | 30-300s   | 90s     | Time window for grouping detections into events |
-| Idle Timeout          | 10-120s   | 30s     | Wait time before processing incomplete batches  |
-| Retention Period      | 1-90 days | 30 days | How long to keep events and detections          |
-| Confidence Threshold  | 0.00-1.00 | 0.50    | Minimum confidence for object detection         |
+| Setting                        | Range     | Default | Description                                                                            |
+| ------------------------------ | --------- | ------- | -------------------------------------------------------------------------------------- |
+| Batch Window Duration          | 30-300s   | 90s     | Time window for grouping detections into events                                        |
+| Idle Timeout                   | 10-120s   | 30s     | Wait time before processing incomplete batches                                         |
+| Event Retention Period         | 1-90 days | 30 days | How long to keep events and detections                                                 |
+| Log Retention Period           | 1-90 days | 7 days  | How long to keep application logs                                                      |
+| Detection Confidence Threshold | 0.00-1.00 | 0.40    | Minimum confidence for object detection                                                |
+| Fast Path                      | on/off    | off     | Master switch; while off no detection takes the fast path, whatever the threshold says |
+| Fast-Path Confidence Threshold | 0.00-1.00 | 0.90    | Shown only while Fast Path is on; the page never writes a threshold while it is off    |
 
 #### Storage Dashboard
 
@@ -280,7 +283,7 @@ Configure visual and audio cues that communicate system status at a glance.
 | **Ambient Background**    | Subtle color shifts based on current threat level           |
 | **Audio Alerts**          | Sound notifications for security events with volume control |
 | **Desktop Notifications** | Browser notifications for alerts (requires permission)      |
-| **Favicon Badge**         | Show alert count on browser tab icon and title              |
+| **Favicon Badge**         | Show the counted alert total on tab icon and title          |
 
 #### Quick Actions
 

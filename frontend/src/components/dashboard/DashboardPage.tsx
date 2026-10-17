@@ -282,11 +282,11 @@ export default function DashboardPage() {
     return statsCount + newWsEventsToday;
   }, [eventStats, deferredWsEvents, initialEvents]);
 
-  // Determine system health status
-  // Default to 'healthy' during initial load (before WebSocket connects)
-  // This prevents "Unknown" flashing on mobile where WS connection may be slower
-  // Using deferredSystemStatus via useTransition for optimized rendering
-  const systemHealth = deferredSystemStatus?.health ?? 'healthy';
+  // Determine system health status. [r205] this defaulted to 'healthy' during
+  // initial load, so a dashboard that never received a status claimed the one
+  // state that means "all fine". 'unknown' is the neutral StatsRow already
+  // renders (grey dot, HelpCircle, "Unknown" — StatsRow.tsx:74,109-160).
+  const systemHealth = deferredSystemStatus?.health ?? 'unknown';
 
   // Convert Camera[] to CameraStatus[] for CameraGrid
   const cameraStatuses: CameraStatus[] = cameras.map((camera) => ({

@@ -152,7 +152,8 @@ then. It does not flip `REID_BACKEND`; production stays `local`.
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
 `feature_check.py --real` and ruling 143's Playwright container. It is on ops-a's roster queue
 (UR-52); the operator runs its real-tier check.
-It gates only ruling 127's 12 real-tier rows, not Phase 2's exit (UR-10, contract rule 5).
+It gates only ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222), not
+Phase 2's exit (UR-10, contract rule 5).
 
 Both test tiers run `docker-compose.ci.yml` on Docker (`feature_check.py` `--engine` defaults to
 `docker`, `:2189`). Production runs `docker-compose.prod.yml` on Podman (root `README.md:279-307`),
@@ -169,8 +170,10 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes.** `feature_check.py --real --prod-shape` (the flag's name is the package's
       call) brings up that stack and runs the golden suite against it, using the Playwright
-      container from ruling 143. The operator runs it nightly or on demand, not for every batch,
-      on a test deployment (UR-133), in the operator's sandbox (ruling 162).
+      container from ruling 143, on a test deployment (UR-133). The owner runs it on maui from the
+      command ops-a posts on #7037 once `[r195]` makes the harness work from a host login. The
+      operator's sandbox cannot run it: `ai-gateway`'s CDI GPU device cannot resolve where
+      `agent-gpu` keeps the GPU out by design (attempt 2, `6195692210`) (rulings 185, 188, 195).
 - [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
       and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
       record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
@@ -180,12 +183,14 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
 - [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
-      F-182) get their witness from the `O2.5` run. If the spike says no, they fall back to ruling
-      127's original route: ops adds what they need to the test deployment's compose.
+      F-182), F-295 (ruling 219) and F-296 (ruling 222) get their witness from the `O2.5` run. If
+      the spike says no, they fall back to ruling 127's original route: ops adds what they need to
+      the test deployment's compose.
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, `feature_check.py --real --prod-shape` runs the golden suite on a production-shape test
-deployment and the operator's run witnesses ruling 127's 12 rows; on no, the owner has ruled on the
+deployment and its run (the owner's on maui, ruling 195) witnesses ruling 127's 12 rows, F-295
+and F-296 (rulings 185, 188, 219, 222); on no, the owner has ruled on the
 blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
 (#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
 deployment, in a comment on each PR (ruling 154).
@@ -195,10 +200,15 @@ deployment, in a comment on each PR (ruling 154).
 ### O3.1 Prune `ai/` to what ships
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
       every build script a Dockerfile or workflow runs. Delete what does not ship (~27K of 35K
-      lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it.
+      lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it. The declaration lands
+      first, so `ai/gateway/export/` (O2.4, B2.3) is never on the deleted list (ruling 210).
+- [ ] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
+      "synthbench workstream (UR-82), ruling 210"; delete `synthbench/spikes/` (ruling 210 amends
+      UR-82 for it).
 - [ ] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
       timm, onnxruntime). Confirm each by import trace; a build-time-only need moves to a build
       stage. **MEASURE** the image size before and after.
@@ -213,6 +223,7 @@ image builds, and the golden paths stay green.
 ### O3.2 Compose base and overlays
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] The prod file is the base; the CI stack and the fake AI are overlays. No service is defined in
       two files.
@@ -228,6 +239,7 @@ tool's tests pass, and the golden paths stay green.
 ### O3.3 `models.yml` and env truth
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] `models.yml`: delete the dead rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`,
       `yolo26-general`), correct the `yolo26` row, and add the shipped Qwen3-VL GGUF and mmproj.
@@ -244,6 +256,7 @@ tool's tests pass, and the golden paths stay green.
 ### O3.4 Reachability gates in CI
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`, `F3.2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] A CI job fails when a new non-shipping Python module appears without a `keep.toml` entry
       (`O2.3`), and when `knip --production` finds a new unused frontend file or export (`F3.2`'s
@@ -255,12 +268,14 @@ run.
 ### O3.5 Weekly mutation scorer and history (`01` M2)
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`, `B2.1`.
+**PR:** none yet. (ruling 241)
 
 Specified in [`01-mutation-policy.md`](../01-mutation-policy.md) §M2. Needs `O2.3` and `B2.1`.
 
 ### O3.6 PR mutation evidence tool (`01` M4)
 
 **Flags:** `heavy`. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 Specified in [`01-mutation-policy.md`](../01-mutation-policy.md) §M4. Phase 4's just-in-time
 consolidation depends on it.
@@ -268,6 +283,7 @@ consolidation depends on it.
 ### O3.7 `scripts/` truth
 
 **Flags:** none. **Depends on:** `R2`.
+**PR:** none yet. (ruling 241)
 
 - [ ] Delete the scripts nothing references (~14 at `d6ba78d5`, `00 §7`) and the one-off
       investigation scripts. Scripts referenced only by `scripts/AGENTS.md`: **DECIDE** keep (a
@@ -278,6 +294,27 @@ consolidation depends on it.
 
 **Done when:** every file in `scripts/` is referenced by CI, a hook, `setup.py`, another script, or
 the operator docs, and `scripts/` passes ruff in pre-commit.
+
+## Phase 4 — Complete the product
+
+### O4.1 One-GPU installs
+
+**Flags:** none. **Depends on:** Phase 4's start (ruling 202, record 6198876496).
+**PR:** none yet.
+
+`README.md:242` promises a one-card install, but `setup.py` writes `gpu_llm: 0` and
+`gpu_ai_services: 1` in all three modes (`:820`, `:1070`, `:1252`) whatever `get_gpu_info()` finds
+(`:795`), and `docker-compose.prod.yml` gives the AI services
+`CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}`. On a one-card machine they see no GPU.
+
+- [ ] A design session chooses: setup derives the split from the detected GPUs (one card puts both
+      on GPU 0, keeping a saved answer on re-run as `[r94]` does), or two GPUs become a stated
+      requirement that setup enforces and the README's hardware table states.
+- [ ] Whether detection, re-ID and the VLM fit one 24GB card is a real-tier run, settled in that
+      session.
+
+**Done when:** a one-GPU setup either runs with every service on a visible GPU or is refused with
+the requirement named, and unit tests cover one and two detected GPUs.
 
 ## Background (any phase after Phase 1)
 
@@ -316,14 +353,15 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 ### [r96i11] The Python 2–shaped `except` in the fake VLM
 
 **Flags:** none. **Assigned:** `uplevel-ops-a` (ruling 96, item 11). **Depends on:** none. **PR:**
-#7052 (open, ready); item 8 of the same ruling merged as #6993.
+#7052 (merged 2026-10-14T12:58:10Z as `00a979c03`, head `67c5e0ac8`); item 8 of the same ruling merged as #6993.
 
-- [ ] `backend/ai_contract/fake/app.py:115` becomes `except (binascii.Error, ValueError):`,
+- [x] `backend/ai_contract/fake/app.py:115` becomes `except (binascii.Error, ValueError):`,
       behaviour-identical on 3.14 and parseable on older Pythons, so the reachability toolchain is
       no longer coupled to 3.14 by one line.
 
 **Done when:** the line reads `except (binascii.Error, ValueError):` on `main` and the fake VLM's
-tests pass (ruling 96).
+tests pass (ruling 96). Both re-verified at `c1b804a82`: `app.py:115` reads the tuple form, and
+`backend/tests/unit/test_r96i11_fake_vlm_except_tuple.py` passes 3/3.
 
 ### [r143] The golden stage runs inside the Playwright container
 
@@ -438,28 +476,355 @@ Triton, so CI never checks the model half.
       its wall time and `nvidia-smi` compute apps into the run directory. The owner's 10-14 run
       lost stage 3 when the FP16 build hit 600 s; the same build took 137.7 s on 10-13. The owner
       reruns with `--plan-timeout 1800` (ruling 180).
+- [ ] An agent-gpu venue for the runner, so the operator runs it (UR-15): `agent-gpu build` for the
+      gateway image; `agent-gpu job` for the export, the `trtexec` compiles and the stage-3/4 probe,
+      in an image whose Python imports a `tensorrt` matching the plans' builder; `agent-gpu run`
+      for the Triton leg; inputs from the operator's `$AGENT_GPU_DIR/models/`, results in `out/`.
+      The owner copies the checkpoint and crops there once; the crops never leave it. Until this
+      works, the owner's maui runs stay valid (ruling 188).
 
-**Done when:** the owner's one diagnostic run on maui is posted on this PR, and O2.4's command
+**Done when:** a diagnostic run (the operator's, or the owner's on maui) is posted on this PR, and O2.4's command
 (#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
 is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
 
 ### [r162] The engine socket follows the orchestrator setting
 
 **Flags:** owner (production safety). **Assigned:** `uplevel-ops-a`. **Depends on:** `O2.5`
-merged. **PR:** none yet. (ruling 162)
+merged. **PR:** #7114. (rulings 162, 186)
 
-- [ ] `backend` and `alloy` mount `${PODMAN_SOCKET}` only when the orchestrator is enabled
-      (`docker-compose.prod.yml:473`, `:1584` at ruling 162), not unconditionally; the `:?`
-      interpolation no longer demands a value when nothing uses it.
+- [ ] `backend` mounts `${PODMAN_SOCKET}` only when the orchestrator is enabled
+      (`docker-compose.prod.yml:473` at ruling 162), not unconditionally. `alloy` keeps its
+      unconditional mount and its `:?` (`:1584`): it uses the socket for container discovery, log
+      scraping and profiler targets, not orchestration (ruling 186).
 - [ ] A migration note for the live deployment's next redeploy.
 
-**Done when:** a production config rendered with the orchestrator off mounts no engine socket, one
-with it on mounts it as before, and `O2.5`'s override drift test still passes.
+**Done when:** a production config rendered with the orchestrator off gives `backend` no engine
+socket, one with it on mounts it as before, `alloy`'s mount is unchanged in both, and `O2.5`'s
+override drift test still passes.
+
+### [r189] The golden Playwright leg's cap follows its measured time
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, first on its queue; ops-b reviews. **Depends on:**
+none. **PR:** #7169. (ruling 189)
+
+- [x] The golden Playwright leg's `timeout=1800` (`scripts/feature_check.py:2341` at ruling 189)
+      becomes the slowest golden-leg wall time on the last 10 green `Feature check (fake AI)` runs on
+      `main`, plus at least 50%, rounded up to a minute; the PR body lists the 10 times. #7114 died
+      at test #199 twice with exit 124, and green legs kept only 66-306 s of margin.
+- [x] The job's `timeout-minutes: 60` (`.github/workflows/ci.yml:3596` at ruling 189) rises if boot,
+      the backend leg and the new cap would leave it under 10 minutes of margin.
+- [x] A test pins the value, so a later change comes with its own measured note. The image pull and
+      build timeouts, the seeded job's budget (ruling 187) and per-test timeouts are unchanged.
+
+**Done when:** the new cap is on `main` with its measurement, and #7114's golden leg completes under
+it.
+
+### [r193] Lanes wake on GitHub events
+
+**Flags:** `owner` (the role files' tick text). **Assigned:** `uplevel-ops-a`, after `[r189]`;
+ops-b reviews. **Depends on:** none. **PR:** #7175. (ruling 193)
+
+Fixed-interval ticks add up to one tick of delay to every handoff, and an agent's view of a PR is
+only as fresh as its last tick.
+
+- [x] A watcher script in `scripts/uplevel/` that an agent keeps armed as a background task. It
+      polls GitHub about every 60 s with one GraphQL query per poll and never the search API (its
+      30-per-minute limit is shared by every agent on the owner's token). It watches the PRs the
+      agent owns or must review (its lane, cell and `review:<lane>` labels, plus PR numbers it is
+      given) and new `BINDING NOW` records on #6854.
+- [x] It exits with one line naming the PR and the change on a new head commit, a check reaching a
+      conclusion, a review, a comment, a label change, or a merge or close, and prints no comment
+      bodies. Transient API errors do not end it; repeated failures do, with an error line. It
+      exits after a bounded lifetime with a "no change" line, so the agent re-arms it.
+- [x] Tests pin the change detection and the error exit.
+- [x] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
+      Claude Code lane agents re-arm the watcher at the end of every turn, and their `/loop` tick
+      becomes a 30-minute fallback; the coordinator (30 minutes, ruling 239), the operator (30 minutes) and the
+      heavy agents under pi (15 minutes) keep their ticks. The PR says whether pi wakes an agent on
+      a finished background task, if ops-a can measure it. (The PR says it is unmeasured: `pi` is not
+      installed in the lane sandboxes, so #7175 reports "said, not measured"; the box is ticked on
+      the same basis as the three above it — the role-file text is in this diff — while the package's
+      separate "Done when: the watcher is on `main`" line stays open until the merge.)
+
+**Done when:** the watcher is on `main` with its tests, and the role files' tick sections say how
+each agent wakes.
+
+### [r195] O2.5 runs from a host login
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, after `[r193]`; ops-b reviews. **Depends on:**
+none. **PR:** none yet. (ruling 195)
+
+The owner's maui run (`6193951294`) died at VLM readiness: the harness reaches the VLM only at
+`host.docker.internal` (`scripts/feature_check.py:1374`, `:1385`), which does not resolve from a
+host login.
+
+- [ ] Outside a sandbox, the harness reaches the VLM on loopback at the runner's port, and still
+      refuses any port outside `AGENT_GPU_PORTS`.
+- [ ] The backend container reaches that port on maui's loopback under rootless Podman, by a
+      route the PR measures and names.
+- [ ] The run's `loki` (3100 + 15000 = 18100) no longer collides with the VLM's pool, which shares
+      maui's loopback.
+- [ ] The command names `AGENT_GPU_TOKEN_FILE`, and its stop-test states the GPU memory the run's
+      `ai-gateway` takes on the GB300 beside production, outside `agent-gpu`'s VRAM limit.
+
+**Done when:** the fixes are on `main` with tests, and ops-a has posted the new command on its PR
+and on #7037 for the owner's maui run (ruling 185 item 3: the operator reads the output).
+
+### [r196c] The seeded rows F-186, F-196 and F-197
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
+waits on the operator (UR-52 waived, ruling 217). **Depends on:** none.
+**PR:** #7189 (merged 2026-10-16T13:02:29Z as `c941d1481`, head `ba4ff9495`). (rulings 127, 187,
+196, 217; record 6200901387)
+
+- [ ] Specs for F-186, F-196 and F-197 in ops-b's batch directory
+      `frontend/tests/golden/gpu-storage-admin/` (ruling 87) run in `Feature check (seeded)`, the
+      job #7155 built under ruling 187. The PR's title carries `[r196c]`; frontend reviews.
+
+**Done when:** none of the three rows says **unverified**; each flipped on a run where its leg
+executed and passed, or was demoted for `R2b` with the failure as evidence (rulings 103, 114).
+
+### [r235] Seeded rows on the real tier
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
+waits (UR-52 waived, as ruling 217 did). **Depends on:** none. **PR:** #7214. (ruling 235,
+record 6216273821)
+
+About 11 rows are witnessed only by `*.seeded.spec.ts` legs (F-012, F-133, F-138, F-154–F-156,
+F-186, F-196, F-197, F-278), and `scripts/feature_check.py` refuses `--seeded` without `--fake`
+(`:3193-3194`), so no real-tier run executes them.
+
+- [ ] `--seeded` is accepted with `--real`: the real-tier boot (UR-136) applies the seeded
+      overrides (`:500-505`) and fixtures (`:2110-2257`) and runs `golden-seeded` (`:2345`).
+      `--seeded --prod-shape` stays refused.
+- [ ] Tests pin the flag matrix: `--fake --seeded` unchanged, `--real --seeded` accepted,
+      `--prod-shape --seeded` refused.
+- [ ] After merge, the operator runs `--real --seeded` (UR-15) and posts the output here. Each
+      seeded row whose leg passes moves to **works** with the run's date (ruling 153), except a row
+      ruling 207 or 231 lists, which keeps `needs real Triton models`.
+
+**Done when:** the tests pass in CI at a ready head, and the operator's `--real --seeded` run is
+posted on the PR.
+
+### [r240] The fake-AI golden leg runs as two shards
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]`, ahead of `[r239]` (ruling 240).
+**Depends on:** none. **PR:** none yet. (ruling 240, record 6217450751)
+
+`Feature check (fake AI)` gates every PR and took 32 to 47 minutes in the last 30 completed CI runs.
+On `main`'s run `38906420530` the harness step took 39m09s, and its golden Playwright leg took 36.0
+of them: 236 passed and 9 skipped on the `golden` project's `workers: 1` (`frontend/playwright.config.ts`). About
+7.4 minutes are timeline fixtures waiting out the camera list's 60 s cache, which `[r228]` fixes;
+the batch idle timeout (30 s) is unchanged. `workers: 1` stays, because two drops must not share a
+camera; two stacks remove the sharing instead.
+
+- [ ] The fake-AI golden Playwright leg runs as two parallel jobs, `--shard=1/2` and `--shard=2/2`,
+      each booting its own stack through the harness, so a spec file's fixtures stay in one shard.
+- [ ] Each leg runs exactly once across the two jobs: the backend golden leg runs in one shard
+      only, and the PR shows that the two shards' Playwright lists together equal the unsharded
+      `--list`.
+- [ ] The inventory witness (ruling 218) judges the union of both shards' legs, one judgement per
+      row. It still fails closed (exit 2) when it cannot read either shard's run, and still runs
+      whenever a harness step ran.
+- [ ] `CI Gate (Required Checks)` needs both shards in the shape `scripts/test_ci_job_graph.py`
+      accepts. The change filter and the draft guard are unchanged, and `workflow_dispatch` still runs
+      the leg. Each
+      shard's `timeout-minutes` is derived by ruling 189's method and pinned in
+      `backend/tests/unit/scripts/test_feature_check.py`. Ruling 240 orders this edit to a shared
+      `ci.yml` job, so UR-122 licenses it.
+- [ ] The PR reports the job's wall time from the Actions clock for `main` before and for its own
+      head, naming `[r228]`'s merge state at each (UR-10 rule 1: measured, not targeted).
+
+**Done when:** both shards run in CI at a ready head with every leg executed once, the witness
+judges the union of both shards' legs, and the PR posts the before-and-after wall times.
+
+### [r239] The coordinator's heartbeat goes stale at 90 minutes
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` and `[r240]` (rulings 239, 240).
+**Depends on:** none. **PR:** none yet. (ruling 239, record 6217014151; ruling 245, record 6223117374)
+
+The coordinator's loop fires every 30 minutes (`roles/coordinator.md`), and a tick may run 60, so a
+healthy coordinator's heartbeat can be about 90 minutes old. `scripts/uplevel/coordinator_snapshot.py:66`
+sets `STALE_HEARTBEAT_MIN = 20` for every heartbeat, and `scripts/uplevel/lane_tick.py:623` tells a
+lane to raise UR-162 from that flag.
+
+- [ ] `coordinator_snapshot.py` flags the coordinator's heartbeat stale past 90 minutes and every
+      other heartbeat past 20, in its `stale` flag (`:1094`) and its `STALE` print (`:1358`), so
+      `lane_tick.py`'s UR-162 line follows.
+- [ ] `scripts/uplevel/status_draft.py:170`'s note names both numbers.
+- [ ] Tests pin both thresholds.
+- [ ] One per-agent interval table (ruling 245): `coordinator_snapshot.py` flags each agent stalled
+      past three of its own intervals (UR-38), beside UR-162's 90-minute coordinator threshold.
+      Whichever of `[r193]` and `[r239]` merges second sets the lanes' row to the cadence then in
+      force: 15 minutes (stalled at 45) before `[r193]`, 30 (stalled at 90) after. UR-166's
+      20-minute listing in the status comment is unchanged.
+
+**Done when:** the tests pass in CI at a ready head, and a coordinator heartbeat between 20 and 90
+minutes old prints no UR-162 line in `lane_tick.py`'s digest.
+
+### [r197] The digest's formats are checked where they are written
+
+**Flags:** `owner` (the role files' tick text). **Assigned:** the owner's session, as an owner PR;
+ops-b reviews. **Depends on:** none.
+**PR:** #7186. (ruling 197, as amended by `6198199744`)
+
+Lanes act on what `scripts/uplevel/lane_tick.py` parses, and nothing checks those fields where they
+are written: a wrapped `**PR:** none yet` goes unoffered, owner pointers reach the digest only as a
+comment count, and heartbeat markers drift.
+
+- [ ] A CI plan lint that imports `lane_tick.py`'s own parsers and runs them over the plan files in
+      the PR's tree. It fails when a roster token has no package block, a block's `**PR:**` field
+      reads neither `none yet` nor `#N`, a token sits in two lanes' queues, or a ruling-map row
+      lacks its record id. Tests pin each failure, and one runs the lint on the real tree.
+- [ ] Owner records and pointers end with one HTML-comment footer:
+      `<!-- uplevel: ruling=<n> lanes=<names|all> packages=<tokens|none> -->` for a record and
+      `<!-- uplevel: pointer ruling=<n> lane=<name> -->` for a pointer. `lane_tick.py` prints a
+      `for you:` line for each live record and each owner pointer since the beat that names the
+      lane or `all`; one without a footer prints as today. `scripts/uplevel/post_record.py` posts
+      both with the exact footer.
+- [ ] A `--beat "<text>"` mode writes the agent's heartbeat itself, marker line first, with
+      UR-155's 600-character cap.
+- [ ] For ruling 198, the digest drops its `review:<lane>` section and marks the agent's own PRs:
+      `needs your review` (ready, CI finished at the head, no review for that head) and
+      `arm auto-merge` (approved at the head, `Plan text: none`, `CI Gate` green, not a draft, not
+      owner-tier, auto-merge off).
+- [ ] The tick sections of the role files name the footer lines and `--beat`. `[r193]` edits the
+      same sections, so whichever merges second rebases onto the first.
+
+**Done when:** the lint runs in CI and passes on `main`, `lane_tick.py` prints `for you:` lines
+from footers, and `--beat` writes a heartbeat the coordinator's snapshot reads.
+
+### [r242] plan_lint checks every roster row again
+
+**Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 242).
+**Depends on:** none. **PR:** #7221. (ruling 242, record 6221764225)
+
+`[r197]`'s lint skipped every roster row whose review label is `none`, and ruling 198 set every
+label to `none`. So check 1 (a queue token with no block) and check 3 (a token on two lanes'
+queues) checked nothing, and ruling 241's missing `B3.1` slot surfaced only by hand.
+
+- [ ] Checks 1 and 3 run on every roster row, whatever its label. A lane with a package file keeps
+      check 1 against that file alone, since its digest reads no other. The lanes with none
+      (coordinator, heavy-a, heavy-b, operator; `lane_tick.py`'s `packages` docstring) are named,
+      and their tokens are looked up across every package file. The operator's row lists real-tier
+      runs (UR-15, ruling 188), so check 3 does not count it. The shared `F2.3` rule is kept.
+- [ ] Tests pin a `none`-labelled row with a missing block, a token on two lanes' queues (heavy-a's
+      among them), a heavy-a row whose tokens live in other lanes' files, and the real roster: a
+      token no block carries, planted on each real row, is caught on every one.
+- [ ] Each finding the fixed lint reports on `main` is fixed in the same PR: heavy-a's
+      `[r196a]` entry (ruling 226's split) no longer leads with the token frontend's row holds.
+
+**Done when:** the suites pass, the lint reports 0 findings on the PR's tree with no baseline (what
+`main`'s own run checks), and putting back the `none`-label skip fails the new tests.
+
+### [r243] prod.yml's engine-socket condition renders on every supported Compose
+
+**Flags:** `owner` (production safety). **Assigned:** `uplevel-ops-a`, first on its queue, and
+claimable while #7175 waits on review (UR-52 waived, as rulings 217 and 235 did). **Depends on:**
+none. **PR:** #7222. (ruling 243, record 6222454848)
+
+`[r162]` (#7114) gave `docker-compose.prod.yml` a top-level `include:` of
+`docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml`, which redeclares `services.backend`. The
+Nightly Full Gate's Compose (`/usr/libexec/docker/cli-plugins/docker-compose`, reached through
+`podman compose`) refuses that with `services.backend conflicts with imported resource`, and the 8
+compose-render tests in `backend/tests/unit/core/` fail (run 38877698644).
+
+- [ ] Ruling 186's socket condition moves to a mechanism every supported Compose renders: a `-f`
+      overlay the deploy tooling selects, or another one ops-a measures. The `:-true` default and
+      alloy's unconditional mount are unchanged.
+- [ ] The PR body names the command the live host runs to check its own render before the next
+      redeploy.
+- [ ] The routing of the 8 tests to backend is withdrawn: backend owes nothing for raise
+      `6216622756`, and the coordinator closes it when this package's nightly run is green.
+
+**Done when:** the Nightly Full Gate, re-run by `workflow_dispatch` at the PR's head or after
+merge, is green with the 8 tests passing; and the PR shows `docker-compose.prod.yml` rendering, with
+and without `ORCHESTRATOR_ENABLED=false`, on the runner's Compose, on compose v5.5.1 and on
+podman-compose 1.6.0.
+
+### [r247] A host-side supervisor runs the coordinator's ticks
+
+**Flags:** `owner` (privileged host tooling; plan text). **Assigned:** `uplevel-ops-b`, after
+`[r235]`, ahead of `[r240]` (ruling 247). **Depends on:** none. **PR:** none yet. (ruling 247,
+record 6223821495)
+
+On 2026-10-16 the coordinator posted nothing from 03:47Z to 13:30Z: its in-pane `/loop` dispatcher
+stopped, and nothing in the swarm can restart a pane. Each tick is already a fresh, unnamed subagent
+whose only memory is its heartbeat's `read-through:` cursor (UR-173), so the dispatcher adds only a
+process that can die or hang.
+
+- [ ] `scripts/uplevel/launch.py supervise <session>`, which the owner's timer runs (UR-26). One
+      fire is one tick: the coordinator's tick prompt, word for word as the `/loop` line quotes it,
+      run once as a headless `claude -p` inside `agent-<session>` through `sbx exec`, on the pane
+      session's model and permission mode. The PR shows how it established both.
+- [ ] A host lock skips a fire while the previous tick runs, and a tick that has run 60 minutes is
+      killed.
+- [ ] Each fire appends one line to a host log: start, end, exit status, whether it was killed, and
+      the tick's five-line summary.
+- [ ] `--dry-run`, and exit 2 naming the next step when the sandbox is not running, as `up` and
+      `retire` do.
+- [ ] The PR documents a 30-minute timer on maui (ruling 239) for the owner to install, and rewrites
+      `roles/coordinator.md` "Kickoff prompt" for the supervisor (and `sandboxes.toml` if the
+      coordinator's row changes). The owner switches over: first ends the pane's `/loop` session,
+      then enables the timer.
+- [ ] Two dispatchers never run at once.
+- [ ] The coordinator only. Lanes, heavy agents and the operator keep their panes. After 48 hours
+      of supervised ticks, the owner decides by a new ruling whether the supervisor extends to
+      them.
+
+**Done when:** the PR shows `--dry-run`'s output and one real manual fire: its log line, and the
+heartbeat patch that tick made.
+
+### [r248] A ready package PR names itself in its own block
+
+**Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 248).
+**Depends on:** none. **PR:** none yet. (ruling 248, record 6223962176)
+
+UR-183 has each package PR write its own number into its block's `**PR:**` field. Of the 130 PRs
+merged since 2026-10-14, 17 were register or stamp fixups that rewrote such a field after a merge.
+
+- [ ] `scripts/uplevel/plan_lint.py` reads the pull request from `GITHUB_EVENT_PATH` when CI runs on
+      one, so `ci.yml`'s step does not change. On a ready (not draft) PR, for each leading
+      `[token]` in the title that has a `### ` block, it reports one finding when the block's
+      `**PR:**` field does not name this PR's number.
+- [ ] Titles that name no block (`[UR-48]`, `docs(...)`) and `F2.3`'s batches (`SHARED`) are
+      skipped, and a push to `main` is unaffected.
+- [ ] Tests pin a ready PR whose block says `none yet` (a finding), one that names itself (clean), a
+      draft (skipped), a title with no block (skipped), and two tokens in one title.
+- [ ] `scripts/uplevel/lane_tick.py`'s `next_claimable` docstring stops calling the field
+      "coordinator-owned" (UR-183).
+
+**Done when:** the suites pass, and the check reports this PR's own block until the block names this
+PR.
+
+### [r251] The feature inventory's §2 summary is computed, not stored
+
+**Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 251).
+**Depends on:** none. **PR:** none yet. (ruling 251, record 6224408012; correction 6224625255)
+
+Two PRs that flipped different rows of `docs/reference/feature-inventory.md` both edited §2's `all`
+row, so they conflicted though their real edits did not: about 20 recount and conflict commits
+across 11 PRs since 2026-10-14.
+
+- [ ] §2's table becomes one paragraph saying how to print it, and the `## 2. Summary` heading
+      stays.
+- [ ] `scripts/check-inventory-summary-arith.py` prints the table (and `--json`) from §3's rows,
+      with the status vocabulary from §1's `### Statuses` legend, and refuses a table stored under
+      §2 again.
+- [ ] The row checks keep their exit codes (a status outside the legend 1; a section listed twice
+      or an unreadable table 2), and `inventory_witness.py`'s helpers and `check()`'s census stay.
+- [ ] `scripts/test_check_inventory_summary_arith.py` pins the computed table on fixtures and the
+      real file's rows parsing cleanly. The PR runs the full Feature check once.
+- [ ] No PR edits §2's counts: a PR that changes a row's status edits only that row. Until this
+      package lands, an open PR drops its §2 hunk at its next push, and may merge with
+      `check-inventory-summary-arith.py` failing on §2 alone, if its review names that failure.
+
+**Done when:** the suites pass, and the printed table equals the stored one it replaces.
 
 ### [r164a] The coordinator's paperwork moves into scripts
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, next on its queue after `O2.5`; ops-b reviews.
-**Depends on:** none. **PR:** none yet. (ruling 164)
+**Depends on:** none. **PR:** #7154. (ruling 164)
 
 The coordinator re-derives by hand what a script can compute, and that is where today's misses came
 from: hand-typed UR-106 hashes, ruling 156's auto-merge audit, and #7037's owner questions absent
@@ -481,6 +846,30 @@ from the status comment for 25 hours.
 an armed unapproved head, a draft with owner questions), and one coordinator tick runs on the new
 output with its status comment drafted by `status_draft.py`.
 
+### [r181] The lane-tick digest and the signed-activity snapshot
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after its `F2.3` OP-3 rows and before `[r172]`;
+ops-a reviews. **Depends on:** none. **PR:** #7164 (merged). (ruling 181)
+
+- [x] `scripts/uplevel/lane_tick.py --sandbox <name>`, read-only, one call, at most 80 lines: the
+      agent's heartbeat id and age, the coordinator's heartbeat age (UR-162), and disk use of `/`
+      and `/var/lib/docker` with a pointer to UR-180 above 90%; the live `BINDING NOW` records the
+      ruling map does not yet carry (ruling 177's filter); PRs labelled `review:<lane>` with head,
+      merge state, `CI Gate` at that head (paginated past 100 check runs) and the `Plan text:` line;
+      its own open PRs with head, commits behind `origin/main`, merge state (`DIRTY` flagged),
+      `CI Gate` at head (in-flight jobs read from the run's jobs), and comments and reviews since
+      its heartbeat; and the next claimable roster package (UR-52) when it holds no open claim. A
+      failed `gh` or `git` call prints `ERROR <section>`, never an empty section.
+- [x] `coordinator_snapshot.py`'s heartbeats section prints, beside each non-paused agent's age, its
+      latest signed comment and its latest commit on its open PR branches since its heartbeat
+      (ruling 178's signature rule), and any `BLOCKER:` line.
+- [x] Red-first unit tests for both, with `gh` stubbed; `roles/lane.md` and `roles/operator.md`
+      "The tick" and `roles/coordinator.md` step 5 point at them in the same PR.
+
+**Done when:** a lane tick reads through `lane_tick.py` alone, the snapshot shows each agent's
+activity beside its heartbeat age, and the tests pin every section. A disk warning points at
+UR-180's order, never at a routine full prune (ruling 176).
+
 ### [r172] A per-module import budget for the duration gate
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r157]`; ops-a reviews. **Depends on:** none.
@@ -496,3 +885,63 @@ output with its status comment drafted by `status_draft.py`.
 
 **Done when:** the module budget fails CI on a reproduced import breach, the warning-only nightly's
 list is posted, and the existing duration pins pass.
+
+### [r215a] F-278: a test-only face vector in the seeded project
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r199]`; heavy-a opens its own draft PR.
+**Depends on:** none. **PR:** #7188 (merged 2026-10-15T21:41:12Z as `091ffa623`, head `2572c6ca6`).
+(ruling 215, record 6200719567)
+
+- [ ] `Feature check (seeded)`'s setup inserts one known person and one face-embedding row with a
+      fixed vector and a `model_id` marked test-only, as F-012's disk seed did (#7178, ruling 192).
+      No production route or model changes.
+
+**Done when:** the seeded job's stack holds that person and embedding at a ready head, and
+`[r215d]`'s leg can run against it.
+
+### [r218] The inventory's status is checked against the golden run
+
+**Flags:** `owner` (CI and the witness convention). **Assigned:** the owner's session, as an owner
+PR. **Depends on:** none. **PR:** #7193. (ruling 218, record 6201875149)
+
+Ruling 208's count (`6200252063`): 106 of 254 record-repair commits mainly edit the inventory, and
+status flips, evidence cells and witness ids lead. Each Feature check job already records per-test
+results (`summary["results"]["golden"]["playwright_specs"]`, `scripts/feature_check.py`), and the
+golden specs carry their rows' `F-NNN` ids in their titles.
+
+- [ ] A script maps each executed golden test to the rows its title names, and lists golden specs
+      that name none.
+- [ ] Rules (UR-128; rulings 103, 114, 148): a row at **awaiting real tier** or **works** needs at
+      least one mapped leg, each executed and passed; a failed or skipped mapped leg fails that row;
+      an **unverified** row whose legs all passed prints as ready to flip, with the cell text.
+      Real-tier confirmation stays the operator's.
+- [ ] CI: the check runs after the golden project in `Feature check (fake AI)` and
+      `Feature check (seeded)`, fails on a row claiming more than the run shows, prints rows ready
+      to flip, and fails closed on a read error with its reason.
+- [ ] Evidence cells name the spec and legs; run and job ids are no longer required there.
+- [ ] Disagreements the check finds on `main` are fixed in this PR or listed for the owner, so
+      `main` stays green.
+
+**Done when:** the check runs in both Feature check jobs and passes on `main`, with unit tests
+for each rule.
+
+### [r184] The launcher prints the heavy sessions' pi start line
+
+**Flags:** none. **Assigned:** ops-a. **Depends on:** none.
+**PR:** none yet. (rulings 184 and 201, records 6177514438 and 6198825479)
+
+Ruling 184's commit renamed the heavy rows in `scripts/uplevel/sandboxes.toml`. The owner starts
+both with `agent-dgx <name> pi --split`, but `launch.py` still builds
+`agent-dgx run <name> --agent claude --split` for them (`[models] strongest`).
+
+- [ ] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
+      Take its exact form from `agent-dgx help` output the owner posts from maui, or from a line
+      the owner pastes on the PR; the launcher never invents a flag (`history/packages-done.md`
+      §O0.1).
+- [ ] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
+      rows, naming the hand-start line, and prints no wrong line.
+- [ ] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
+      refusal, and no other row's line changes.
+
+**Done when:** the launcher test passes in CI at a ready head, and `sandboxes.toml`'s comment no
+longer says the launcher does not print the form.

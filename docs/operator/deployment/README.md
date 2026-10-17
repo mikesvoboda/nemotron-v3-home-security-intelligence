@@ -845,6 +845,88 @@ new tables and columns but never alters existing ones. Apply destructive schema
 changes by hand against the running database, see
 [Migrations](../../architecture/data-model/migrations.md).
 
+### [r162 → r243] — Conditional engine socket (next redeploy after this lands)
+
+`backend`'s Podman-socket mount follows `ORCHESTRATOR_ENABLED`, and the condition
+is split across two mechanisms, because no single Compose feature can express it:
+
+- **ON (unset or `true`)** — `docker-compose.prod.yml` alone, unchanged command. The
+  socket is mounted inline in `backend` as
+  `${PODMAN_SOCKET:?…}:/var/run/podman/podman.sock`, so a non-empty `PODMAN_SOCKET`
+  is still demanded.
+- **OFF (`false`)** — the same prod file **plus a second `-f`**:
+  `-f docker-compose.engine-false.yml`, which re-lists `backend.volumes` with
+  `!override` minus the socket. Compose has no per-item volume removal (sequences
+  only append or replace), so dropping one mount means re-listing the survivors.
+  `setup_lib/deploy.py` adds that `-f` for you; see the hand-boot caveat below.
+- **Every state** — prod.yml's top-level `include:` names
+  `docker-compose.marker-${ORCHESTRATOR_ENABLED:-true}.yml`. Those two files declare
+  **no service at all**; their existence is the loud failure described below. (They
+  must declare none: compose v2.38.2 rejects any included file that redeclares
+  `services.backend`, which is why the mount could not stay in an included fragment.)
+
+`ORCHESTRATOR_ENABLED` unset means ON (`backend/core/config.py`), so an `.env` that
+never names it keeps the socket exactly as before, and the Upgrade Steps above are
+unchanged for that default.
+
+**Write the variable as exactly `true` or `false`.** The backend's config parser
+is lenient (`1`, `yes`, `on`, any case — all read as ON), but part of the condition
+lives in a FILENAME, so only those two spellings resolve to a marker file. Any other
+value fails the render with `docker-compose.marker-<value>.yml: no such file or
+directory` — loud by design, on every boot path including a hand-boot, because the
+alternative is booting a socket shape nobody chose. The deploy tooling's overlay
+selector matches that same exact-string rule (no strip, no case-fold) so the two
+halves cannot disagree. `scripts/test_orchestrator_engine_socket.py` pins the
+failure across the distinct spellings beyond `true`/`false`.
+
+**Only check this if your deployment runs the orchestrator OFF.** A redeploy with
+`ORCHESTRATOR_ENABLED=false` in `.env` drops the socket mount from `backend` and
+container auto-recovery stops working (the NEM-4xxx feature). Two OFF-specific
+consequences:
+
+1. **`python setup.py` applies the overlay automatically** (every `compose_run` call
+   in `setup_lib/deploy_phases.py` goes through the selector); a hand-run
+   `podman compose -f docker-compose.prod.yml up -d` does NOT — it reads the marker
+   `false` file and boots `backend` **with** the socket. Hand-boots must add the
+   overlay:
+   `podman compose -f docker-compose.prod.yml -f docker-compose.engine-false.yml up -d`
+2. **The overlay spells the other three host paths as literals**, because
+   podman-compose 1.6.0 splits a tagged volume entry on `:` before interpolating it,
+   which kills `${FOSCAM_BASE_PATH:-…}` inside a re-list. Measured on this tree: with
+   `FOSCAM_BASE_PATH=/mnt/elsewhere AI_MODELS_PATH=/srv/models HF_CACHE_PATH=/srv/hfcache`
+   set, the ON render mounts those three; the OFF render mounts the defaults
+   (`/export/foscam`, `/export/ai_models/model-zoo`, `/home/ubuntu/.cache/huggingface`)
+   instead. A host that relocates them and runs OFF passes a third `-f` of its own,
+   or stays ON — the ON render reads prod.yml's interpolations untouched.
+
+`alloy`'s socket mount is NOT affected by this change — alloy uses the socket for
+container discovery, log scraping and profiling targets, not orchestration, and stays
+unconditional per owner ruling 186. Because alloy precedes `backend` in the prod file,
+an unset `PODMAN_SOCKET` fails the render naming `services.alloy.volumes` in BOTH
+states; the message does not tell you the orchestrator flag is what you were testing.
+
+**CLI versions this was verified on**: `docker compose v5.5.1` and
+`podman-compose 1.6.0`, plus `docker compose v2.38.2` (the `ubuntu-24.04` runner's
+version). Compose resolves the `include:` path from the base file's own directory (not
+the working directory), which is why the marker files live beside `docker-compose.prod.yml`.
+If your host runs a different compose than those, run the render-check BEFORE the
+`up -d` in step 5 — it boots both states' configs and reports each:
+
+```bash
+PODMAN_SOCKET=/run/user/1000/podman/podman.sock scripts/r243-render-check.sh
+# on   backend socket mount: MOUNTED OK
+# off  backend socket mount: absent  OK
+```
+
+Do **not** improvise this check as `config | grep podman.sock`: the render carries
+that string in both states — alloy's mount plus the `ORCHESTRATOR_*` env lines — and
+the prod file measured 6 hits ON and 4 hits OFF, so the count says nothing about
+`backend`. The script scopes to backend's own `volumes:` block, and stays a text
+filter because podman-compose 1.6.0 rejects `config --format json` outright, which
+rules out a `jq` check on the CLI this README's boot command uses. A compose that
+cannot resolve the `include:` fails at that command rather than coming up with a
+wrong mount.
+
 ---
 
 ## Rollback Procedures

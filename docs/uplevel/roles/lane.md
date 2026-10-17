@@ -1,7 +1,7 @@
 # Lane and heavy agents
 
 > For the lane agents (`uplevel-backend`, `uplevel-frontend`, `uplevel-ops-a`, `uplevel-ops-b`,
-> `uplevel-docs`) and the heavy agents (`uplevel-heavy`, `uplevel-heavy-2`). This file is your
+> `uplevel-docs`) and the heavy agents (`uplevel-heavy-a`, `uplevel-heavy-b`). This file is your
 > procedure: your tick, claiming, building, self-review, reviewing other lanes' PRs, posting, and
 > your kickoff prompt. The rules each step obeys live in [`rules.md`](../rules.md); each step names
 > the section to read before you act. Your packages are in `packages/<lane>.md`.
@@ -13,19 +13,19 @@ queue (UR-52); the coordinator assigns only `heavy` packages and packages on no 
 `scripts/uplevel/sandboxes.toml` declares the same sessions. Phase 3 entries wait as UR-66 says.
 The owner sets these queues; a change is a ruling. Ruling 175 rebalanced `F2.3` so every lane
 works on it: packages a ruling routed after a lane's `F2.3` rows wait for them, and routed bug
-fixes (`[r130b]`, `[r130f]`) keep their place.
+fixes (`[r130b]`, `[r130f]`) keep their place. Ruling 184 gave the heavy agents FE-4 and OP-1.
 
-| sandbox               | model     | queue                                                                                                                                                                                                          | review label      |
-| --------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                               | none              |
-| `uplevel-backend`     | fast      | `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`; cells A and B for Phase 3's deletions                                                                                            | `review:backend`  |
-| `uplevel-frontend`    | fast      | `[r165a]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews docs' FE-4), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3` | `review:frontend` |
-| `uplevel-ops-a`       | fast      | `OB.3`, `F2.3` UI (OP-1, OP-2), `[r164a]`, `O2.5`, `[r96i11]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                          | `review:ops-a`    |
-| `uplevel-ops-b`       | fast      | `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger           | `review:ops-b`    |
-| `uplevel-docs`        | fast      | `[r165b]`, `F2.3` UI batches (DO-2, DO-3, then FE-4), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                           | `review:docs`     |
-| `uplevel-heavy`       | strongest | assigned `heavy` PRs without `cell:heavy-2`: `B3.1` with `F3.1`, `B3.2`, `O3.6`, Phase 4 design sessions; paused until Phase 3 opens (ruling 88)                                                               | none              |
-| `uplevel-heavy-2`     | strongest | assigned `heavy` PRs labelled `cell:heavy-2`: `B2.3` after `O2.4`; paused until then (ruling 88)                                                                                                               | none              |
-| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                         | none              |
+| sandbox               | model     | queue                                                                                                                                                                                                                                                                                                                                       | review label |
+| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                                                                                                                                            | none         |
+| `uplevel-backend`     | fast      | `[r211b]`, `[r228]`, `[r223]`, `[r244]`, `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`, `[r236]`; cells A and B for Phase 3's deletions                                                                                                                                                                      | none         |
+| `uplevel-frontend`    | fast      | `[r196a]`, `[r211f]`, `[r204]`, `[r205]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3`                                                                                              | none         |
+| `uplevel-ops-a`       | fast      | `[r243]`, `[r189]`, `[r193]`, `[r195]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                                                                        | none         |
+| `uplevel-ops-b`       | fast      | `[r235]`, `[r247]`, `[r240]`, `[r239]`, `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                                                           | none         |
+| `uplevel-docs`        | fast      | `[r196b]`, `[r215d]`, `[r207]`, `[r231]`, `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                                                                                            | none         |
+| `uplevel-heavy-a`     | strongest | heavy-b's queue (ruling 190): #7155, OP-1's seeded rows, F-012's disk seed (ruling 192), `[r199]`, `[r215a]`, `[r200]`, F-012 then F-064 of `[r196a]` (ruling 226), `[r212]`, `[r213]`, `[r214]` (ruling 224), `[r234]`, `[r238]`, `B3.1` with `F3.1` (ruling 241), `B2.3` once `O2.4` passes, `B3.2`, `O3.6`; then Phase 4 design sessions | none         |
+| `uplevel-heavy-b`     | strongest | out of service (ruling 190); its queue is heavy-a's until the owner restarts it with a record                                                                                                                                                                                                                                               | none         |
+| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                                                                                                                                                      | none         |
 
 **Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. Each
 cell claims from its own roster queue (UR-52).
@@ -45,64 +45,131 @@ the package cites. You have no review label.
 
 ## The tick
 
-The owner arms it with `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
-Run these steps in order. Read CI once per tick and end the turn (UR-38).
+The owner arms it with `Run the agent tick in docs/uplevel/roles/lane.md, "The tick".` at the
+interval UR-36 sets for the agent (ruling 245): `/loop 30m` for a Claude Code lane, `/loop 15m` for
+a heavy agent under pi, which is armed the same way and skips step 6. Run these steps in order.
+Read CI once per tick and end the turn (UR-38).
 
-1. **Fetch.** `git fetch origin`, then read this file and `rules.md` from `origin/main`
-   (`git show origin/main:docs/uplevel/roles/lane.md`), so a change to either needs no rebase.
-   Then read the live `BINDING NOW` records on #6854 that the plan files do not yet carry: run the
-   command below and read what it prints. A record whose ruling number or comment id has a row in
-   `history/ruling-map.md` on `main` is already in the plan files you just read. Act on each printed
-   record that names your lane or all agents and whose required state does not already hold; one
-   already carried out is a no-op. A record binds before the plan files catch up (UR-40, rulings
-   163, 170, 177). Never fetch the 48-hour window unfiltered.
+The 30-minute `/loop` is a **fallback** since ruling 193, not the main channel: step 6 arms a
+watcher that wakes you when a watched PR moves, so a handoff no longer waits up to a tick for its
+delay. Keep the `/loop` anyway -- it is what notices anything the watcher does not watch: a stale
+coordinator and your disks it cannot see at all, and a `BINDING NOW` it sees only bare -- the
+watcher names the comment id and author, never which packages the ruling assigns you, so the
+`for you:` addressing is the digest's. It also bounds a watcher that died silently.
+
+1. **Read the tick in one call.** Run
 
    ```bash
-   MAP=$(git show origin/main:docs/uplevel/history/ruling-map.md)
-   gh api "repos/<owner>/<repo>/issues/6854/comments?since=$(date -u -d '48 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --paginate \
-     --jq '.[] | select(.body | startswith("BINDING NOW")) | "\(.id)\t\(.body | split("\n")[0])"' |
-   while IFS=$'\t' read -r id first; do
-     n=$(grep -oE 'ruling [0-9]+' <<<"$first" | head -1 | grep -oE '[0-9]+')
-     if [ -n "$n" ] && grep -qE "^\| $n " <<<"$MAP"; then continue; fi
-     grep -qF "$id" <<<"$MAP" && continue
-     gh api "repos/<owner>/<repo>/issues/comments/$id" --jq .body; echo
-   done
+   uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox>
    ```
 
-2. **Heartbeat.** Edit your heartbeat ("Heartbeat" below), and keep your disks under 90% (UR-180). Read the coordinator's; if it is older
-   than 20 minutes, follow "Stale coordinator" below.
-3. **Reviews first** (UR-32): clear the PRs labelled with your review label ("Reviewing another
-   lane's PR" below). Heavy agents skip this step.
-4. **Your own open PRs** (UR-35): read the new comments and reviews on each
-   (`gh pr view <n> --comments`). Read CI at the head once, fix what is red, answer what is
-   requested, and rebase what conflicts with `main` (what a new head resets: UR-106). Before you
-   push to a PR on auto-merge, run `gh pr merge <n> --disable-auto` (UR-108).
+   (`scripts/uplevel/lane_tick.py`; `scripts/test_lane_tick.py` pins every line it prints.) It is
+   read-only: it does the `git fetch`, reads this file and `rules.md` from `origin/main` itself (so
+   a change to either needs no rebase), and prints, in tick order: your heartbeat id, age and prose;
+   the coordinator's age, with the UR-162 raise named when one is owed; disk use of `/` and
+   `/var/lib/docker`, pointing at UR-180's cleanup ORDER above 90% (never a routine full prune,
+   ruling 176); the live `BINDING NOW` records the ruling map does not yet carry (ruling 177's
+   filter, applied at the source -- the 48-hour window is never fetched unfiltered); your own open
+   PRs, each with head, merge state, `CI Gate` at that head (re-read past 100 check runs; in-flight
+   jobs named when it is still running), commits behind `main`, comments/reviews since your beat,
+   and `needs your review` (ready, a non-draft CI run finished at the head, and no review of this
+   head: one whose first line names the head's sha, or a sha UR-106's carry takes to it) or
+   `arm auto-merge` (that review approves with `Plan text: none`, the gate is green, no `owner`
+   label, auto-merge off; ruling 198); `review names no head` when the newest review names no sha
+   (review the current head again as "Reviewing your PR" says, and post that review with that
+   head's sha -- never stamp a sha on a review of another head), and `review unread` when a read
+   for them failed; and the next claimable roster package (UR-52). An
+   `ERROR <section>` line means that section was not read: read it yourself or say it is unread, and
+   never fill it from an earlier tick (UR-29). A `NOTE no package file for lane <lane>` is the
+   roster's answer for a lane with no package file (operator, heavy, coordinator), not a fault.
+   Then act on the printed `BINDING NOW` records that name your lane or all agents and whose state
+   does not already hold; one already carried out is a no-op (UR-40, rulings 163, 170, 177).
+   `for you:` lines, printed first, name the records of the last 48 hours and the owner pointers
+   since two hours before your beat whose footer addresses your lane; act on them
+   first (ruling 197). A `NOTE unparsed uplevel footer`
+   names a comment whose footer the digest could not read: read that comment yourself.
+
+2. **Heartbeat.** Edit your heartbeat in place ("Heartbeat" below) from what the digest read, with
+   `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`, and
+   keep your disks under 90% (UR-180). Read the coordinator's age from the digest; if it is older
+   than 90 minutes with no live `URGENT PATH` on record, follow "Stale coordinator" below.
+3. **Review your ready PRs first** (UR-32): for each of your PRs that is ready, with CI finished at
+   its head and no review at that head, run "Reviewing your PR" below (ruling 198).
+4. **Your own open PRs** (UR-35): read the full thread of a row the digest shows with new comments,
+   reviews or a `DIRTY`/red gate; fix what is red, answer what is requested, and rebase what
+   conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
+   run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
-6. If none of these has work, say so in one line and end the turn.
+6. **Re-arm the watcher** (ruling 193) unless one is already running for these PRs. Arm it as a
+   background task **by discovery**, not by naming the PRs you happen to have open: a lane discovers
+   by its own labels, so a coordinator-opened assignment draft and a PR this lane opens itself both
+   arrive in the watch without anyone re-arming. Add `--pr <n>` only for a PR outside your lane that
+   an owner or coordinator pointer names you to review (ruling 245). Exit the turn immediately:
+
+   ```bash
+   uv run python scripts/uplevel/pr_watch.py --lane <lane> --cell <c> --lifetime 1800
+   ```
+
+   (`--cell` only for the ops lane, which splits; `--lane backend` alone for a lane that does not.
+   `--review-label` is still there in the tool, but since ruling 198 retired the `review:<lane>`
+   labels there is nothing for a lane to pass it, so it is not in the example.)
+
+   It polls about every 60 s with **one GraphQL query and never the search API**, and exits with one
+   line per change it saw, each naming the PR and what moved -- a new head, a check conclusion, a
+   review, a comment, a label change, a merge or close, or a new `BINDING NOW` on #6854. One poll can
+   therefore print several lines (a head moved _and_ a check concluded); read them all before
+   re-arming. A PR whose bounded check window came back full also prints a
+   `#<n> checks truncated: X of Y watched` line, beside any news and on the "no change" line -- it
+   means "the last `Y` checks filled my window, so a change may have aged out unseen", not "nothing
+   changed"; treat a truncated all-clear as unevaluated, not clean. It prints no comment bodies,
+   survives transient API errors, and ends with one of four self-named lines — three at its lifetime
+   bound, one when a failure streak trips mid-loop — so silence never stands in for success:
+   `error: … 0 successful polls` (read nothing — treat as a broken arm), `error: … none that
+compared a window` (read but never compared — same treatment), the `no change in Ns` all-clear,
+   which adds `warning: watch ended on … failures` when its last polls failed and then asks the same
+   question a truncated window does, or `error: N consecutive poll failures` — the streak exit,
+   reached when `--max-errors` (default 3) polls fail in a row with no clean poll between them (a
+   clean poll resets the count), so it says the API or this arm is broken now, not that the watch
+   ended. Its own suite
+   `scripts/test_pr_watch.py` pins each of these. A watcher armed in the background is not waiting
+   inside a turn (UR-38): the turn ends, and the line it prints starts a new one. When it exits,
+   act on the line and re-arm.
+
+   **Heavy agents under pi skip this step.** They keep the 15-minute `/loop` (UR-174) as their wake,
+   because whether pi wakes an agent when a background task finishes is unmeasured: `pi` is not
+   installed in the lane sandboxes (`command -v pi` exits 1 in `uplevel-ops-a`, read
+   2026-10-15T23:46Z), so #7175 cannot say it does. Ruling 193 asked the PR to say so "if ops-a can
+   measure it" -- this is the honest answer: said, not measured. A heavy agent that later finds pi
+   delivers a finished background task's output may arm the watcher too; nothing here forbids it.
+
+7. If none of these has work, say so in one line and end the turn.
 
 ## Heartbeat
 
 Keep your heartbeat comment on the pinned issue "Uplevel heartbeats" as UR-38 says; post it once
-if you have none. It is two lines, plus at most one short line, and at most 600 characters in all
-(UR-155); detail goes on the PR it concerns:
+if you have none. It is two lines, and at most 600 characters in all (UR-155); detail goes on the
+PR it concerns. Only when you are blocked, add a third line, `BLOCKER: <one line>` (for example
+`BLOCKER: /var/lib/docker 100%, UR-180 cleanup failed`; ruling 181):
 
 ```text
 <!-- heartbeat:<sandbox> -->
 <sandbox> · <HH:MMZ, read from date -u> · idle | working #<n> | waiting on <what> | paused · <why>
 ```
 
-Find the issue with `gh issue list --state open --search "Uplevel heartbeats in:title"`, find your
-comment by its first line, and edit it with
-`gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`.
+Write it with `uv run python scripts/uplevel/lane_tick.py --sandbox <your-sandbox> --beat "<line 2>"`
+(a `BLOCKER:` line follows a newline in the same argument). The tool writes the marker line, finds
+your comment and edits it, or posts it if you have none, and refuses a beat over 600 characters.
+Never edit the marker line by hand (ruling 197).
 
 **Before a long step.** Before any step you expect to run over 15 minutes (a local test or golden
 run, a UR-89 self-review subagent), edit your heartbeat to
 `<sandbox> · <HH:MMZ> · working #<n> · <step> since <HH:MMZ>`. It is a beat, not a wait (UR-38).
 (ruling 178)
 
-**Stale coordinator.** When the coordinator's heartbeat is older than 20 minutes, act as UR-162
+**Stale coordinator.** When the coordinator's heartbeat is older than 90 minutes, act as UR-162
 says: one plain `URGENT PATH` comment on #6854 per hour, no label and no @-mention (UR-168). The
-owner restarts the coordinator (UR-163).
+owner restarts the coordinator (UR-163). Until `[r239]` merges, the digest names the raise past 20
+minutes; at 20 to 90 minutes, post none (ruling 239).
 
 **Paused.** A heavy agent whose queue is empty posts the final `paused` heartbeat and ends its turn
 (UR-160). When the owner restarts it, it runs its kickoff line and `/loop 15m` (UR-174).
@@ -112,7 +179,8 @@ owner restarts the coordinator (UR-163).
 Read rules.md §Claiming and assigning work first.
 
 1. **Look for an assignment**: an open draft PR the coordinator created, labelled with your lane and
-   cell (`heavy` for a heavy agent); continue on its branch. Heavy agents stop here (UR-59).
+   cell (`heavy` for a heavy agent); continue on its branch. Heavy agents stop here (UR-59), and
+   still write the PR's number into the block's `**PR:**` field as step 4 says (UR-183).
 2. **Choose** the next package in your roster queue as UR-52 and UR-65 say, or, when your queue has
    nothing you can claim, from another queue in your lane's area as UR-52 says; a Phase 3 package
    only as UR-66 allows. Claim your
@@ -121,7 +189,9 @@ Read rules.md §Claiming and assigning work first.
 4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from
    `main`, commit nothing but an empty commit (`git commit --allow-empty -m "[<package>] claim"`),
    push it, and open a draft PR titled `[<package>] <name>` with
-   `gh pr create --draft --template uplevel.md --label lane:<lane>`.
+   `gh pr create --draft --template uplevel.md --label lane:<lane>`. Then write the PR's number
+   into the package block's `**PR:**` field in the PR's own diff, as `#N` with no state word
+   (UR-183).
 5. **Release** a claim you abandon by closing its draft PR with a comment saying why (UR-55).
 
 ## Building a package
@@ -139,33 +209,45 @@ Read rules.md §Building a package first: one package per PR, the hot-file rules
 6. Authors of `F2.2`, `O2.3` and R2's list of modules serving no feature dispatch
    `codebase-archaeologist` on their scope (UR-95).
 
-**Self-review.** Run the fresh-context self-review UR-89 describes, record its findings in the PR,
-then mark the PR ready once its code is complete. A Done-when clause that only a CI run shows (a
-draft skips every job but the gate) is ticked from the first ready run, naming it; a red run is
-fixed on the ready PR, and the reviewer approves only with those clauses green (ruling 161).
+**Ready, then review.** Mark the PR ready once its code is complete. A Done-when clause that only a
+CI run shows (a draft skips every job but the gate) is ticked from the first ready run, naming it;
+a red run is fixed on the ready PR. When CI has finished at the head, review it as "Reviewing your
+PR" below says, and approve only with those clauses green (rulings 161, 198).
 
-## Reviewing another lane's PR
+## Reviewing your PR
 
-Read rules.md §Reviewing first.
+Read rules.md §Reviewing first. Each PR has one review, its author's (UR-32, ruling 198).
 
-1. List your queue: `gh pr list --state open --label review:<your label>`.
-2. Review each PR independently (UR-91). Write its `Plan text:` line as UR-92 says. For a
-   security-and-auth package, dispatch `security-auditor` on the diff (UR-95, UR-96).
-3. Post the review as a PR comment in this form:
+1. Dispatch the fresh-context subagent UR-89 describes on the ready head, after its CI has
+   finished. It marks each finding `blocking (<kind>)` or `note`, with the kinds and the notes UR-89
+   lists. At the first review fix anything you choose. From the second review on, only blocking
+   findings change the head: list the notes under `Notes:` in the approving review, and open no PR
+   only for notes. A re-review reads the diff from the last reviewed head to this one, plus the
+   merge resolution with `main`, and gives the subagent that head's sha; a blocking finding anywhere
+   still blocks, and a note on hunks an earlier round reviewed is not raised again. A head whose
+   diff carries (UR-106) keeps its review. Fix a wrong claim in the PR body by editing the body, not
+   with a commit (ruling 250).
+2. Write the `Plan text:` line as UR-92 says. For a security-and-auth package, also dispatch
+   `security-auditor` on the diff (UR-95, UR-96). For a `B3.1`/`F3.1` retirement, the review
+   checks and names each condition of UR-98's plain retirement (ruling 249).
+3. Post the review as a PR comment in this form. The first line names the head you reviewed, in
+   backticks: the coordinator's merge audit and the digest's markers read it there, and a review
+   naming no head arms nothing (ruling 198).
 
    ```text
-   Review: approve | changes requested
-   Reviewer lane: <lane>
+   Review: approve | changes requested at `<head sha>`
+   Reviewer lane: <your lane> (UR-89 subagent)
    Done when: <each clause> — observed | not observed (where)
    Contract: rules 1-5 — ok | <which rule, why>
    Plan text: none | <which kind of plan text it changes (rules.md §Authority: rulings, plan text and IDs), and where>
-   Notes:
+   Notes: <each finding, marked blocking (<kind>) or note, and what was done>
    ```
 
 4. On `approve` of a lane-tier PR (its `Plan text:` is `none` or a UR-47 lane-review kind, and no
-   other UR-98 trigger applies), run `gh pr merge <n> --auto --merge` and add `Auto-merge: on` to the
-   review's `Notes:` (UR-108, ruling 156). Owner-tier PRs get no auto-merge from you.
-5. Remove the review label.
+   other UR-98 trigger applies) whose `CI Gate` is green at the head, run
+   `gh pr merge <n> --auto --merge` and add `Auto-merge: on` to the review's `Notes:` (UR-108,
+   rulings 156, 198). Never on a draft. Owner-tier PRs get no auto-merge from you; they wait for
+   the owner's approval record.
 
 ## Posting
 
@@ -175,8 +257,16 @@ Every comment, PR body and review follows UR-10 (contract rule 2: your own text 
 ## Kickoff prompt
 
 The owner pastes the line from `scripts/uplevel/sandboxes.toml` for the sandbox; it points here and
-names the lane. Then the owner arms the tick with
-`/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".` The shared prompt:
+names the lane. Then the owner arms the tick with the same prompt text at the interval UR-36 sets
+for that agent (ruling 245):
+
+- a Claude Code lane (backend, frontend, ops-a, ops-b, docs), which also keeps the watcher armed
+  and treats the `/loop` as its fallback:
+  `/loop 30m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+- a heavy agent under pi, which arms no watcher:
+  `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+
+The shared prompt:
 
 ```text
 You are a lane agent of the uplevel programme; your kickoff line names your
@@ -187,8 +277,8 @@ docs/uplevel/00-audit.md sections each package cites.
 
 Claim the next package on your roster queue as lane.md, "Claiming a package",
 says; a heavy agent takes the package the coordinator assigns it. Build it as lane.md,
-"Building a package", says. Reviews come first, then the new comments on your
-own open PRs, then your package. Before each act, read the rules.md section the
+"Building a package", says. Reviewing your ready PRs comes first, then the new
+comments on your own open PRs, then your package. Before each act, read the rules.md section the
 step names.
 
 Then run the tick in lane.md, "The tick".
@@ -212,8 +302,8 @@ Then run the tick in lane.md, "The tick".
   after the packages file, and apply it (UR-88). Start Phase 3 work as UR-68 allows. You own
   `docs/`, every `AGENTS.md` (UR-81), `llms.txt`, `mkdocs.yml`, the root markdown files and the
   AGENTS.md validator.
-- **"You are uplevel-heavy."** You run on the strongest available model and take only `heavy` PRs
-  without `cell:heavy-2` ("Heavy agents" above). For each package, read the packages file and the
+- **"You are uplevel-heavy-a."** You run on the strongest available model and take only `heavy` PRs
+  without `cell:heavy-b` ("Heavy agents" above). For each package, read the packages file and the
   line above of the lane that owns it, and follow them. You have no review label.
-- **"You are uplevel-heavy-2; take only heavy PRs labelled cell:heavy-2."** As `uplevel-heavy`,
-  for the PRs labelled `heavy` and `cell:heavy-2`.
+- **"You are uplevel-heavy-b; take only heavy PRs labelled cell:heavy-b."** As `uplevel-heavy-a`,
+  for the PRs labelled `heavy` and `cell:heavy-b`.

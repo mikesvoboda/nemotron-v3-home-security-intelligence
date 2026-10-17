@@ -14,13 +14,17 @@
  *   (JobSearchService._matches_query scans job_type/error/message/result).
  * - "filters by status" — works: status is a real filter (status=failed -> 0,
  *   status=completed -> all).
- * - "and type (URL-synced)" — BREAKS at the wire, measured: the dropdown
- *   writes ?type= (JobsPage.tsx:121-138) and the client forwards
- *   type=<value> (api.ts:4078-4091), but the route declares the parameter as
- *   job_type WITHOUT an alias (jobs.py:296-299; contrast job_status, which
- *   carries alias="status"). FastAPI treats the unknown ?type= as absent:
- *   ?type=batch_audit returned all 17 jobs; ?job_type=batch_audit returned
- *   exactly the 2 batch_audit jobs. The clause is named in the row's demotion.
+ * - "and type (URL-synced)" — FIXED by F-089. The defect, measured before the
+ *   fix: the dropdown wrote ?type= (JobsPage.tsx:121-138) and the client
+ *   forwarded type=<value> (api.ts:4078-4091), but the route declared the
+ *   parameter as job_type with no alias (jobs.py:296-299; contrast job_status,
+ *   which carries alias="status"), so FastAPI treated the unknown ?type= as
+ *   absent — ?type=batch_audit returned all 17 jobs while
+ *   ?job_type=batch_audit returned exactly the 2 batch_audit jobs. The route
+ *   now carries alias="type", so the name the page sent is the name accepted.
+ *   Note the alias REPLACES the accepted name (measured, fastapi 0.142.2):
+ *   ?job_type= is now ignored, which is why this spec's own node-side reads
+ *   send ?type= too.
  * - "refreshes" — the Refresh button has aria-label="Refresh jobs" and calls
  *   refetchJobs; the observer proves the CLICK produced a new fetch.
  * - the row's standing evidence "The Stats button has no click handler" is
@@ -129,11 +133,7 @@ async function ensureTwoJobClasses(
     // job is still active (terminal, so the failed->0 leg below is stable).
     const settle = Date.now() + 30_000;
     for (;;) {
-      const audit = await api<SearchBody>(
-        h,
-        session,
-        '/api/jobs/search?job_type=batch_audit&limit=50'
-      );
+      const audit = await api<SearchBody>(h, session, '/api/jobs/search?type=batch_audit&limit=50');
       if (audit.data.every((j) => j.status !== 'running' && j.status !== 'pending')) break;
       if (Date.now() > settle) throw new Error('seeded batch_audit job never reached terminal');
       await new Promise((r) => setTimeout(r, 1_000));
@@ -310,19 +310,29 @@ test.describe('golden path: jobs page list, search and URL filters @critical', (
       })
       .toBeGreaterThan(0);
 
-    // "and type (URL-synced)": the URL half works; the server half is the
-    // measured no-op (header). Pin OBSERVED behavior: selecting a type leaves
-    // the fetched set EXACTLY as wide as without it, while the parameter name
-    // the route actually declares does filter (node proves the wire cause).
+    // "and type (URL-synced)": BOTH halves work. F-089 fixed the server half —
+    // the route now declares `type` (routes/jobs.py:296 alias="type"), which is
+    // the name the page and api.ts already sent. Before the fix the unknown
+    // ?type= was treated as absent and the fetched set stayed exactly as wide;
+    // this leg pinned that no-op. It now asserts the set strictly narrows.
+    //
+    // q and status are still applied at this point (the "searches by text" and
+    // "filters by status" legs leave q=orphan&status=completed in the URL), and
+    // batch_audit's searchable fields never contain "orphan" (see the seed
+    // note above), so the fully-filtered set is empty — which is also why the
+    // wire proof below compares against a fresh unfiltered read, not beforeType.
     const beforeType = (await searchBodies[searchBodies.length - 1]) as SearchBody;
+    expect(beforeType.data.length).toBeGreaterThan(0);
+    const atType = searchRequests;
     await page.selectOption('#jobs-type-filter', 'batch_audit');
     await expect(page).toHaveURL(/type=batch_audit/);
+    await expect.poll(() => searchRequests).toBeGreaterThan(atType);
     await expect
       .poll(async () => {
         const body = (await searchBodies[searchBodies.length - 1]) as SearchBody | null;
         return body?.data.length;
       })
-      .toBe(beforeType.data.length);
+      .toBe(0);
     // The wire proof compares like with like: the DECLARED parameter against
     // an unfiltered read at the same moment (beforeType is q- AND status-
     // filtered, so comparing against it compared two different filters — on a
@@ -331,11 +341,7 @@ test.describe('golden path: jobs page list, search and URL filters @critical', (
     // in cleanup_completed_jobs, which no runtime path calls), so the
     // unfiltered set is a superset here, and the guaranteed orphan_cleanup job
     // makes the subset strict.
-    const byName = await api<SearchBody>(
-      h,
-      session,
-      '/api/jobs/search?job_type=batch_audit&limit=50'
-    );
+    const byName = await api<SearchBody>(h, session, '/api/jobs/search?type=batch_audit&limit=50');
     const allNow = await api<SearchBody>(h, session, '/api/jobs/search?limit=50');
     expect(byName.data.every((j) => j.job_type === 'batch_audit')).toBeTruthy();
     expect(allNow.data.some((j) => j.job_type !== 'batch_audit')).toBeTruthy();

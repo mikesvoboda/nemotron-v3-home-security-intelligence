@@ -26,7 +26,6 @@ import {
   updateEvent,
   bulkUpdateEvents,
   fetchEventDetections,
-  fetchEventEnrichments,
   createAnalysisStream,
   getMediaUrl,
   getThumbnailUrl,
@@ -67,8 +66,6 @@ import {
   EventVersionConflictError,
   type Detection,
   type DetectionListResponse,
-  type EventEnrichmentsResponse,
-  type EventEnrichmentsQueryParams,
   type AnalysisStreamParams,
   type ExportQueryParams,
   type EventSearchParams,
@@ -141,6 +138,7 @@ const mockConfig: SystemConfig = {
   batch_idle_timeout_seconds: 30,
   detection_confidence_threshold: 0.5,
   fast_path_confidence_threshold: 0.9,
+  fast_path_enabled: false,
   grafana_url: 'http://localhost:3002',
   debug: false,
 };
@@ -3647,111 +3645,6 @@ describe('Rate Limit Header Extraction', () => {
         expect((caughtError!.data as Record<string, unknown>).retry_after).toBeUndefined();
       }
     });
-  });
-});
-
-// ============================================================================
-// Event Enrichments Tests (NEM-2488)
-// ============================================================================
-
-describe('fetchEventEnrichments', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  const mockEnrichmentsResponse: EventEnrichmentsResponse = {
-    event_id: 123,
-    enrichments: [
-      {
-        detection_id: 1,
-        enriched_at: '2025-01-01T10:00:00Z',
-        license_plate: {
-          detected: true,
-          text: 'ABC-1234',
-          confidence: 0.95,
-        },
-        face: {
-          detected: false,
-          count: 0,
-        },
-        violence: {
-          detected: false,
-          score: 0,
-        },
-      },
-      {
-        detection_id: 2,
-        enriched_at: '2025-01-01T10:01:00Z',
-        license_plate: {
-          detected: false,
-        },
-        face: {
-          detected: true,
-          count: 2,
-        },
-        violence: {
-          detected: false,
-          score: 0,
-        },
-      },
-    ],
-    count: 2,
-    total: 10,
-    limit: 50,
-    offset: 0,
-    has_more: true,
-  };
-
-  it('fetches event enrichments without params', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEnrichmentsResponse));
-
-    const result = await fetchEventEnrichments(123);
-
-    expect(fetch).toHaveBeenCalledWith('/api/events/123/enrichments', expect.any(Object));
-    expect(result).toEqual(mockEnrichmentsResponse);
-  });
-
-  it('fetches event enrichments with pagination params', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEnrichmentsResponse));
-
-    const params: EventEnrichmentsQueryParams = { limit: 10, offset: 20 };
-    const result = await fetchEventEnrichments(123, params);
-
-    expect(fetch).toHaveBeenCalledWith(
-      '/api/events/123/enrichments?limit=10&offset=20',
-      expect.any(Object)
-    );
-    expect(result).toEqual(mockEnrichmentsResponse);
-  });
-
-  it('fetches event enrichments with only limit param', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEnrichmentsResponse));
-
-    const params: EventEnrichmentsQueryParams = { limit: 25 };
-    await fetchEventEnrichments(456, params);
-
-    expect(fetch).toHaveBeenCalledWith('/api/events/456/enrichments?limit=25', expect.any(Object));
-  });
-
-  it('fetches event enrichments with only offset param', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEnrichmentsResponse));
-
-    const params: EventEnrichmentsQueryParams = { offset: 50 };
-    await fetchEventEnrichments(789, params);
-
-    expect(fetch).toHaveBeenCalledWith('/api/events/789/enrichments?offset=50', expect.any(Object));
-  });
-
-  it('throws ApiError on 404 for non-existent event', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      createMockErrorResponse(404, 'Not Found', 'Event not found')
-    );
-
-    await expect(fetchEventEnrichments(999)).rejects.toThrow(ApiError);
   });
 });
 
