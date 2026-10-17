@@ -406,7 +406,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | `analytics_zones.py`    | `/api/analytics-zones`                   | Analytics zone configuration              |
 | `calibration.py`        | `/api/calibration`                       | Detection calibration settings            |
 | `cost_analytics.py`     | `/api/analytics/costs`                   | AI inference cost analytics               |
-| `detector.py`           | `/system/detectors`                      | Detector configuration                    |
 | `entity_recognition.py` | `/api/summaries/entities`                | Entity recognition operations             |
 | `face_recognition.py`   | `/api/known-persons`, `/api/face-events` | Face recognition management               |
 | `heatmaps.py`           | `/api/heatmaps`                          | Heatmap generation and queries            |

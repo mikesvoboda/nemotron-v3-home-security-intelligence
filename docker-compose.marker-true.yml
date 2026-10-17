@@ -1,0 +1,23 @@
+# r243 orchestrator-ON marker.
+#
+# This file DECLARES NO SERVICE ON PURPOSE. prod.yml includes it through an
+# interpolated name -- docker-compose.marker-${ORCHESTRATOR_ENABLED:-true}.yml --
+# and the ONLY thing that name decides is whether this file exists:
+#   * ORCHESTRATOR_ENABLED unset or `true`  -> this file, render proceeds;
+#   * ORCHESTRATOR_ENABLED `false`          -> docker-compose.marker-false.yml;
+#   * any other spelling (`1`, `yes`, `False`, ...) -> no file, and the render
+#     fails loudly with "no such file" instead of booting a shape nobody chose.
+# That loud failure is [r162]'s, kept: only the MOUNT moved (into backend
+# inline, dropped by an overlay), because compose v2.38.2 -- the nightly
+# runner's version -- rejects ANY included file that redeclares a service
+# (`services.backend conflicts with imported resource`, reproduced at #7222).
+# A file that redeclares no service is invisible to that rule: measured rc=0 on
+# v5.5.1, v2.38.2 and podman-compose 1.6.0.
+#
+# So this fragment carries no `services:` key at all, just these markers. The
+# compose census (backend/tests/security/test_docker_compose_security.py)
+# treats the two marker files as markers -- parsed-cleanly, declares-no-service,
+# exists-for-both-canonical-spellings -- not through the zero-services sentinel
+# that exists to catch a real service file whose loader degenerated.
+x-r243-marker: orchestrator-on
+x-r243-see: docker-compose.prod.yml (backend volumes), docker-compose.engine-false.yml

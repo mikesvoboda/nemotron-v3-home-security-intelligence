@@ -21,6 +21,11 @@ names the PR whose "Real tier" section holds the command.
 
 ## The tick
 
+**Unchanged by ruling 193:** the operator keeps its 30-minute tick and does not arm
+`scripts/uplevel/pr_watch.py` — that watcher is for a lane agent waiting on PR events, and the
+operator's tick exists to run the real tier. Named here because ruling 193's package edits this
+section's file (item 4), not because it changed.
+
 The owner arms it with `/loop 30m Run the operator tick in docs/uplevel/roles/operator.md, "The
 tick".`
 

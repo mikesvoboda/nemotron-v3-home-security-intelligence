@@ -522,26 +522,29 @@ it.
 ### [r193] Lanes wake on GitHub events
 
 **Flags:** `owner` (the role files' tick text). **Assigned:** `uplevel-ops-a`, after `[r189]`;
-ops-b reviews. **Depends on:** none. **PR:** none yet. (ruling 193)
+ops-b reviews. **Depends on:** none. **PR:** #7175. (ruling 193)
 
 Fixed-interval ticks add up to one tick of delay to every handoff, and an agent's view of a PR is
 only as fresh as its last tick.
 
-- [ ] A watcher script in `scripts/uplevel/` that an agent keeps armed as a background task. It
+- [x] A watcher script in `scripts/uplevel/` that an agent keeps armed as a background task. It
       polls GitHub about every 60 s with one GraphQL query per poll and never the search API (its
       30-per-minute limit is shared by every agent on the owner's token). It watches the PRs the
       agent owns or must review (its lane, cell and `review:<lane>` labels, plus PR numbers it is
       given) and new `BINDING NOW` records on #6854.
-- [ ] It exits with one line naming the PR and the change on a new head commit, a check reaching a
+- [x] It exits with one line naming the PR and the change on a new head commit, a check reaching a
       conclusion, a review, a comment, a label change, or a merge or close, and prints no comment
       bodies. Transient API errors do not end it; repeated failures do, with an error line. It
       exits after a bounded lifetime with a "no change" line, so the agent re-arms it.
-- [ ] Tests pin the change detection and the error exit.
-- [ ] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
+- [x] Tests pin the change detection and the error exit.
+- [x] The tick sections of `roles/lane.md`, `roles/coordinator.md` and `roles/operator.md`: the
       Claude Code lane agents re-arm the watcher at the end of every turn, and their `/loop` tick
       becomes a 30-minute fallback; the coordinator (30 minutes, ruling 239), the operator (30 minutes) and the
       heavy agents under pi (15 minutes) keep their ticks. The PR says whether pi wakes an agent on
-      a finished background task, if ops-a can measure it.
+      a finished background task, if ops-a can measure it. (The PR says it is unmeasured: `pi` is not
+      installed in the lane sandboxes, so #7175 reports "said, not measured"; the box is ticked on
+      the same basis as the three above it — the role-file text is in this diff — while the package's
+      separate "Done when: the watcher is on `main`" line stays open until the merge.)
 
 **Done when:** the watcher is on `main` with its tests, and the role files' tick sections say how
 each agent wakes.
@@ -685,6 +688,29 @@ comment count, and heartbeat markers drift.
 
 **Done when:** the lint runs in CI and passes on `main`, `lane_tick.py` prints `for you:` lines
 from footers, and `--beat` writes a heartbeat the coordinator's snapshot reads.
+
+### [r242] plan_lint checks every roster row again
+
+**Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 242).
+**Depends on:** none. **PR:** none yet. (ruling 242, record 6221764225)
+
+`[r197]`'s lint skipped every roster row whose review label is `none`, and ruling 198 set every
+label to `none`. So check 1 (a queue token with no block) and check 3 (a token on two lanes'
+queues) checked nothing, and ruling 241's missing `B3.1` slot surfaced only by hand.
+
+- [ ] Checks 1 and 3 run on every roster row, whatever its label. A lane with a package file keeps
+      check 1 against that file alone, since its digest reads no other. The lanes with none
+      (coordinator, heavy-a, heavy-b, operator; `lane_tick.py`'s `packages` docstring) are named,
+      and their tokens are looked up across every package file. The operator's row lists real-tier
+      runs (UR-15, ruling 188), so check 3 does not count it. The shared `F2.3` rule is kept.
+- [ ] Tests pin a `none`-labelled row with a missing block, a token on two lanes' queues (heavy-a's
+      among them), a heavy-a row whose tokens live in other lanes' files, and the real roster: a
+      token no block carries, planted on each real row, is caught on every one.
+- [ ] Each finding the fixed lint reports on `main` is fixed in the same PR: heavy-a's
+      `[r196a]` entry (ruling 226's split) no longer leads with the token frontend's row holds.
+
+**Done when:** the suites pass, the lint reports 0 findings on the PR's tree with no baseline (what
+`main`'s own run checks), and putting back the `none`-label skip fails the new tests.
 
 ### [r164a] The coordinator's paperwork moves into scripts
 
