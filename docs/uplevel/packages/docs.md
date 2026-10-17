@@ -211,19 +211,44 @@ is the ruling's WHY and #7235's box-1 measurement corrects it: the gateway's Tri
 `{yolo26, reid, threat}`, and these seven are backend model-zoo loaders no agent tier feeds
 weights. The ruling's verdict — the extended set is never exercised for real — holds unchanged.)
 
-- [ ] **MEASURE** which `models.yml` families the real tier fakes, from its compose and UR-136, and
-      list them in the PR.
-- [ ] List the rows whose behaviour comes from those families' output, each with the code path
+- [x] **MEASURE** which `models.yml` families the real tier fakes, from its compose and UR-136, and
+      list them in the PR. Done at `d0809bd71` and the PR's box-1 Evidence: the set is all ten
+      `models.yml` rows (the real VLM is not a `models.yml` row — `--real` serves it from the library
+      GGUF pin, `scripts/feature_check.py:136-140`), in two measured modes: **A**, the three the fake
+      `ai-gateway` answers (the Triton repository baked into its image holds exactly `yolo26`, `reid`,
+      `threat`), and **B**, the seven no agent tier loads at all (the CI+fake-ai compose pair carries
+      0 `AI_MODELS_PATH` lines against `docker-compose.prod.yml`'s 7, and each of the seven raises).
+- [x] List the rows whose behaviour comes from those families' output, each with the code path
       that reads it. Each carries the note `needs real Triton models`, and a listed row at **works**
       goes back to **awaiting real tier**, named in the PR. The inventory legend names the set.
-- [ ] F-270, F-271 and F-275's evidence cells cite the 2026-10-13 real-tier run that set them to
+      Done at `8f6a955ab`. The writers-outward census over the extended set found **no new member
+      row**: a mode-B family's value is never _produced_, so it cannot reach a surface, and every row
+      adjacent to the seven lands in an exclusion class — catalogue state (F-104/F-125/F-127/F-129),
+      an uncalled latency feed (F-105/F-130), a dead control (F-128/F-269), a seeded table
+      (F-268), user-entered stores the family reads _instead of_ feeding (F-241/F-242); each is named
+      with the reason. What shipped instead of new rows: the seven `[r207]` legs mislabeled
+      `re-ID (face)` are re-leged `face (zoo)` (measured producer: SCRFD + w600k_r50 at
+      `model_zoo.py:345`/`:346` and the `yolo11-face` loader `:335`, not the Triton `reid` op), the
+      marker's family list is glossed (§8's rule keys on the note string, which names ten families,
+      not Triton literally), a third boundary — faked _and_ never-produced output both list it — and
+      the legend `works` cell plus `README.md`'s vocabulary name the set. §1 lists 35 rows, all 35
+      carry the note, and `[r231]`'s sweep found **no listed row at works** to name back.
+- [x] F-270, F-271 and F-275's evidence cells cite the 2026-10-13 real-tier run that set them to
       **works** (commit `5db3c56f7`, project `hsi-check-20261013234949-a14ce4`) in place of the
       stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87),
-      unless the list above puts the row back to **awaiting real tier**.
+      unless the list above puts the row back to **awaiting real tier**. Done at `8f6a955ab`, on the
+      proceed branch: box 2 put none of the three back — §1 names them **User-entered** (the family
+      reads _their_ store, `household_matcher.py:452` / `vlm_specialists.py:741`, not the row
+      displaying the family's output), and `5db3c56f7` was a default-shape real run, which box 1's
+      bound makes a valid promotion for a row whose value no leg fakes. `5db3c56f7`'s own commit
+      message names `hsi-check-20261013234949-a14ce4`.
 
 **Done when:** every listed row carries the note and is not **works**, the legend agrees with
 UR-136, and each of the three evidence cells cites its real-tier run unless the list put its row
-back.
+back. **MET** — at `8f6a955ab`: 35 §1 rows, 35 note-carrying §3 cells, 0 at **works** (measured from
+the tree, `split(' | ')` status cell); the legend `works` cell and the README vocabulary both name
+the extended set and cite the box-1 measurement; the three cells carry the `5db3c56f7` /
+`hsi-check-20261013234949-a14ce4` citation in place of the stale ruling-103 sentence. `docs/reference/feature-inventory.md:33`, §1, §3.12.
 
 ### [r165b] F-235: cure the quarantined notify channels spec
 

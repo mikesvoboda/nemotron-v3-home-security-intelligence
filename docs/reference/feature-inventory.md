@@ -116,9 +116,9 @@ three, and the registry has an op for nothing else model-shaped); and **mode B**
 even loads: the other seven rows are backend model-zoo loads (`model_zoo.py` `_LOADER_MAP`) whose
 weights resolve under `/models/model-zoo`, which the agent pair (ci + fake-ai,
 `scripts/feature_check.py:1837`) never mounts — 0 `AI_MODELS_PATH` lines against
-`docker-compose.prod.yml`'s 7 — and none of the seven can load: each raises at boot or on demand (`model_zoo.py:664`
-"unavailable", `:163` "Model file not found", `:613` "is disabled"; `fast_alpr_loader.py:87` and
-`model_zoo.py:271` for the two packages the image never installs, against its only model-extra
+`docker-compose.prod.yml`'s 7 — and none of the seven can load: each raises at boot or on demand (`backend/services/model_zoo.py:664`
+"unavailable", `:163` "Model file not found", `:613` "is disabled"; `backend/services/fast_alpr_loader.py:87` and
+`backend/services/model_zoo.py:271` for the two packages the image never installs, against its only model-extra
 install `backend/Dockerfile:144`). Mode B's consequence is stronger than mode A's: mode A rows show
 a fake value, a mode B row's value is never produced on any agent tier, real included. A row is
 listed here when **its behaviour comes from one of the extended set's families** — ruling 207's own
@@ -133,7 +133,7 @@ models covers it. The one listed row caught at **works** was F-097; ruling 207 s
 writer-first sweep that produced this list found no second one. The note is this section's fixed
 marker (§8's demotion rule keys on it, and its family list — ruling 207's three plus #7235's seven —
 is what the marker means, not Triton literally): the legs marked `face (zoo)` below are mode B — the
-SCRFD + w600k_r50 pair (`model_zoo.py:345`, `:346`) and the `yolo11-face` loader (`:335`) — so what
+SCRFD + w600k_r50 pair (`backend/services/model_zoo.py:345`, `:346`) and the `yolo11-face` loader (`:335`) — so what
 those rows need to reach **works** is the ONNX weights mounted and, for the plates, the packages the
 image never installs; the Triton sentence in the marker does not describe them. [r231]'s own sweep
 found no listed row at **works**.
@@ -270,8 +270,8 @@ F-049, F-050, F-056, F-057, F-058, F-078, F-079. The extended set adds two of th
 and **F-242** (`/settings/access` members and vehicles) are the same CRUD under another route — their
 promised value is what the user typed, and the read that ties them to a leg runs the other way, the
 family reading _their_ store (`match_vehicle` `backend/services/household_matcher.py:378`,
-`household_matcher.py:229`) rather than the row displaying the family's output; the three rows above
-are named for the same reason by `household_matcher.py:452` and `vlm_specialists.py:741`.
+`backend/services/household_matcher.py:229`) rather than the row displaying the family's output; the three rows above
+are named for the same reason by `backend/services/household_matcher.py:452` and `backend/services/vlm_specialists.py:741`.
 **Catalogue state, not family output** — the mode-B families' _existence_ is a surface promise, their
 _weights_ are not, so a row that reports what the catalogue says or what a load did is not confirmed
 by a model and does not need one: **F-104** and **F-129** (Model Zoo status cards — the same cards on
