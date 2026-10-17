@@ -48,6 +48,7 @@ EXCLUDED_DIR_NAMES = {
     ".git",
     ".venv",
     "tests",  # regression pins quote the retired thing on purpose
+    ".tickscratch",  # UR-89 scratch trees: untracked review material, GBs deep
 }
 
 # The retired flag, and the retired profile named as a profile.
@@ -362,3 +363,19 @@ def test_history_is_out_of_scope(surfaces: list[Path]) -> None:
     assert not any(r.startswith("docs/plans/") for r in rels)
     assert not any(r.startswith("docs/uplevel/") for r in rels)
     assert not any(r.startswith("docs/superpowers/") for r in rels)
+
+
+def test_review_scratch_trees_are_out_of_scope() -> None:
+    """UR-89 materialisations live in `.tickscratch/` at the repo root and are
+    GBs deep; the census must prune them, or a review left running turns this
+    ratchet into a pytest-timeout bomb (measured: 188.17-era scratch trees
+    blew this file's 5 s budget in a live workspace, 2026-10-17).
+
+    Pinned on the SET, not on a live walk: whether a walk is fast depends on
+    whose environment happens to have a scratch tree under REPO_ROOT, and a
+    green that depends on the environment is not a pin.
+    """
+    assert ".tickscratch" in EXCLUDED_DIR_NAMES, (
+        "the census descends into UR-89 review scratch trees; prune it at the "
+        "directory-name level like .git and .venv"
+    )
