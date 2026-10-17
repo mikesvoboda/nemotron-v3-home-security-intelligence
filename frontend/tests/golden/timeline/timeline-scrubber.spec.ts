@@ -448,9 +448,30 @@ test.describe('F-046 timeline scrubber', () => {
     );
 
     /* ── "drags or picks a custom range to set the date filter", over a BAR
-         CLICK, then "resets it". Index 1 covers [now-23 h, now-22 h): hours away
-         from the fixture, so it is empty whatever the clock reads. ── */
-    expect(counts[1], 'the bar clicked for the filter leg holds no fixture row').toBe(0);
+         CLICK, then "resets it". The clicked bar is CHOSEN, not assumed. It must
+         hold no fixture row, AND its bucket must fit inside ONE calendar day,
+         which is what the end_date claim below needs. A hard-coded index cannot
+         say that: with no dates the window is [now − 24 h, now] at 1 h steps
+         (events.py:793-794, loop at :848), so bucket k spans midnight exactly
+         when (hour(now) + k) % 24 == 23 — index 1 fails at UTC hour 22, indices
+         0 and 24 at hour 23. That is what reddened this leg on main at d3e19d007
+         (CI run 38967875214, ended 22:07:54Z) and on #7225 (run 38973909316,
+         ended 22:56:53Z): three identical failed attempts each — Expected
+         "2026-10-15" / Received "2026-10-16" — so reproduced, not flaked. ── */
+    const dayOf = (iso: string): string => iso.split('T')[0];
+    const plusOneHour = (iso: string): string =>
+      new Date(new Date(iso).getTime() + 60 * 60 * 1000).toISOString();
+    const clickedIdx = truth.buckets.findIndex(
+      (b) => b.event_count === 0 && dayOf(plusOneHour(b.timestamp)) === dayOf(b.timestamp)
+    );
+    expect(
+      clickedIdx,
+      'the 24 h window holds a bar that is both empty and inside one calendar day'
+    ).toBeGreaterThan(-1);
+    expect(
+      truth.buckets[clickedIdx].event_count,
+      'the bar clicked for the filter leg holds no fixture row'
+    ).toBe(0);
     const filtered = page.waitForRequest(
       (r) =>
         r.method() === 'GET' &&
@@ -458,17 +479,20 @@ test.describe('F-046 timeline scrubber', () => {
         new URL(r.url()).searchParams.has('start_date'),
       { timeout: 20_000 }
     );
-    await bars.nth(1).click();
+    await bars.nth(clickedIdx).click();
     const req = await filtered;
     const params = new URL(req.url()).searchParams;
     expect(params.get('bucket_size'), 'the zoom level rides along').toBe('day');
 
     /* MEASURED DAY-TRUNCATION, asserted as shipped. The scrubber emitted
-     * {start: bucket 1's ISO instant, end: +1 h} (:326-341); the page kept only
-     * the calendar day of each (:1125-1126). The expected value is built with the
-     * SHIPPED transform (slice at 'T') on the same string the client had, so this
-     * compares the page to the contract rather than to my reading of it. */
-    const clickedDate = truth.buckets[1].timestamp.split('T')[0];
+     * {start: the clicked bucket's ISO instant, end: +1 h} (TimelineScrubber.tsx:
+     * :326-345, duration + toISOString at :333-339); the page kept only the
+     * calendar day of each (EventTimeline.tsx:1158-1159). The expected value is
+     * built with the SHIPPED transform (slice at 'T') on the same string the
+     * client had, so this compares the page to the contract rather than to my
+     * reading of it — and the bar was picked precisely because its +1 h shares
+     * its day, so the claim is about the truncation, not about the clock. */
+    const clickedDate = dayOf(truth.buckets[clickedIdx].timestamp);
     expect(params.get('start_date'), "the click reached the scrubber's own endpoint").toBe(
       clickedDate
     );

@@ -435,7 +435,7 @@ invalidator deleting its route's stored key.
 ### [r223] The developer tools' seed and clear refresh the caches they change
 
 **Flags:** none. **Assigned:** backend, after `[r228]` (a lane bug fix outside Phase 4's priority
-order). **Depends on:** `[r228]` merged. **PR:** none yet. (rulings 223, 228; records 6205796977, 6215814018)
+order). **Depends on:** `[r228]` merged. **PR:** #7201. (rulings 223, 228; records 6205796977, 6215814018)
 
 `seed_cameras` (`backend/api/routes/admin.py:299`) and `clear_seeded_data` (`:671`) commit without
 invalidating the camera list cache, which every camera route does

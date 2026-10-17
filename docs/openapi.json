@@ -43983,7 +43983,7 @@
     },
     "/api/admin/maintenance/clear-cache": {
       "post": {
-        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Detections cache\n- Alerts cache\n- Summaries cache\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
+        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Timeline summary cache\n- Trends cache\n- Detections cache\n- Alerts cache\n- Summaries cache (also clears the `summaries:entities` key it contains)\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
         "operationId": "admin_clear_cache",
         "responses": {
           "200": {
