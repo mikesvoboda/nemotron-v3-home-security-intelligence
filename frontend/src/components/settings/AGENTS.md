@@ -37,7 +37,6 @@ suites (`CamerasSettings.motionSensitivity.test.tsx`,
 | `CleanupPreviewPanel.tsx`                | Dry-run preview of retention cleanup                               |
 | `OrphanCleanupPanel.tsx`                 | Orphan-file cleanup with configurable parameters                   |
 | `DetectionThresholdsPanel.tsx`           | Two confidence sliders; fast path gated on master switch           |
-| `DetectorSettings.tsx`                   | Detector configuration                                             |
 | `DlqMonitor.tsx`                         | Dead-letter queue monitor (+ `.msw.test.tsx`)                      |
 | `QueueSettings.tsx`                      | Queue config panel (no co-located test)                            |
 | `RateLimitingSettings.tsx`               | Rate-limit config panel (no co-located test)                       |

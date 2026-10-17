@@ -134,7 +134,8 @@ def test_the_route_table_is_enumerated() -> None:
     """The walk sees HTTP and WebSocket routes, with and without the /api prefix."""
     assert ("GET", "/api/events") in MOUNTED
     assert ("WS", "/ws/events") in MOUNTED
-    assert ("GET", "/system/detectors") in MOUNTED
+    assert ("GET", "/health") in MOUNTED
+    assert ("GET", "/system/detectors") not in MOUNTED
     assert len(MOUNTED) > 400
 
 

@@ -70,11 +70,11 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 
 ### Root, Health & Readiness
 
-| Endpoint  | Method | Consumer(s)                       | Purpose |
-| --------- | ------ | --------------------------------- | ------- |
-| `/`       | GET    | —                                 | Root    |
-| `/health` | GET    | `detectorApi.ts`, `webhookApi.ts` | Health  |
-| `/ready`  | GET    | —                                 | Ready   |
+| Endpoint  | Method | Consumer(s)     | Purpose |
+| --------- | ------ | --------------- | ------- |
+| `/`       | GET    | —               | Root    |
+| `/health` | GET    | `webhookApi.ts` | Health  |
+| `/ready`  | GET    | —               | Ready   |
 
 ### System
 
@@ -146,16 +146,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/system/supervisor/workers/{worker_name}/stop`    | POST   | `supervisorApi.ts`                                                                                                       | Stop Supervisor Worker             |
 | `/api/system/telemetry`                                | GET    | `PipelineTelemetry.tsx`, `api.ts`, `useAIMetrics.ts`                                                                     | Get Telemetry                      |
 | `/api/system/websocket/events`                         | GET    | `api.ts`, `websocket-events.ts`                                                                                          | List Websocket Event Types         |
-
-### Detector Registry
-
-| Endpoint                                   | Method | Consumer(s) | Purpose                       |
-| ------------------------------------------ | ------ | ----------- | ----------------------------- |
-| `/system/detectors`                        | GET    | —           | List all registered detectors |
-| `/system/detectors/active`                 | GET    | —           | Get active detector           |
-| `/system/detectors/active`                 | PUT    | —           | Switch active detector        |
-| `/system/detectors/{detector_type}`        | GET    | —           | Get detector configuration    |
-| `/system/detectors/{detector_type}/health` | GET    | —           | Check detector health         |
 
 ### Action Events
 
@@ -868,10 +858,6 @@ backend-only surface:
 | `/api/zones/member/{member_id}/zones`                          | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/zones/vehicle/{vehicle_id}/zones`                        | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/ready`                                                       | GET                 | Container readiness probe (compose healthcheck), not UI                                                                                                                      |
-| `/system/detectors`                                            | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
-| `/system/detectors/active`                                     | GET, PUT            | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
-| `/system/detectors/{detector_type}`                            | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
-| `/system/detectors/{detector_type}/health`                     | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 
 ## Queue Names (DLQ)
 
