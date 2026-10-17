@@ -22,6 +22,13 @@ exclude_directories:
   # local `mkdocs build` otherwise adds a scanned AGENTS.md and reddens the
   # gate for reasons no PR caused. Measured effect on both baselines: zero.
   - site
+  # UR-89 review scratch, same hazard and same cure as site/ one line up: a
+  # materialised full checkout at the repo root whose copied AGENTS.md files
+  # cite paths from the head they were taken at. Measured (2026-10-17): 6 red
+  # in test_agents_md_validator.py from one scratch tree, incl. 3 dead links
+  # in copied text and the scanned-count census inflated 36 -> 48. Pinned by
+  # test_review_scratch_is_excluded_from_the_scan.
+  - .tickscratch
 
 # Directories that intentionally have no AGENTS.md
 # Even if they contain code files (used for generated code, test fixtures, etc.)
