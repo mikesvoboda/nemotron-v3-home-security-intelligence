@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle, RefreshCw, Wifi, WifiOff, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import type { ConnectionState } from '../../hooks/useWebSocketStatus';
+import type { ConnectionState } from '../../hooks/useConnectionStatus';
 
 export interface WebSocketEndpointStatus {
   /** Display name for the endpoint */

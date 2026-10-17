@@ -652,25 +652,25 @@ Each store has a co-located test file (named `*.test.ts`).
 
 ### `/hooks/` - Custom React Hooks
 
-| Hook                        | Purpose                                             | Exported |
-| --------------------------- | --------------------------------------------------- | -------- |
-| `useWebSocket.ts`           | WebSocket connection management with auto-reconnect | Yes      |
-| `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking     | Yes      |
-| `useConnectionStatus.ts`    | Unified status for all WS channels (events/system)  | Yes      |
-| `useEventStream.ts`         | Event stream subscription for `/ws/events`          | Yes      |
-| `useSystemStatus.ts`        | System status monitoring via `/ws/system`           | Yes      |
-| `useGpuHistory.ts`          | GPU metrics history with polling                    | Yes      |
-| `useHealthStatus.ts`        | Health status polling                               | Yes      |
-| `usePerformanceMetrics.ts`  | Performance metrics collection and tracking         | Yes      |
-| `useAIMetrics.ts`           | AI performance metrics from multiple endpoints      | Yes      |
-| `useDetectionEnrichment.ts` | Detection enrichment data fetching                  | Yes      |
-| `useModelZooStatus.ts`      | Model Zoo status with VRAM stats                    | Yes      |
-| `useSavedSearches.ts`       | Saved searches in localStorage                      | Yes      |
-| `useStorageStats.ts`        | Storage/disk usage polling with cleanup preview     | No       |
-| `useServiceStatus.ts`       | Service health status tracking                      | No       |
-| `useSidebarContext.ts`      | Context hook for mobile sidebar state               | No       |
-| `webSocketManager.ts`       | Singleton WebSocket connection manager              | No       |
-| `index.ts`                  | Barrel export for exported hooks                    | N/A      |
+| Hook                           | Purpose                                             | Exported |
+| ------------------------------ | --------------------------------------------------- | -------- |
+| `useWebSocket.ts`              | WebSocket connection management with auto-reconnect | Yes      |
+| `ConnectionStatusProvider.tsx` | The one realtime session the shell shares           | Yes      |
+| `useConnectionStatus.ts`       | Read the shared status for all WS channels          | Yes      |
+| `useEventStream.ts`            | Event stream subscription for `/ws/events`          | Yes      |
+| `useSystemStatus.ts`           | System status monitoring via `/ws/system`           | Yes      |
+| `useGpuHistory.ts`             | GPU metrics history with polling                    | Yes      |
+| `useHealthStatus.ts`           | Health status polling                               | Yes      |
+| `usePerformanceMetrics.ts`     | Performance metrics collection and tracking         | Yes      |
+| `useAIMetrics.ts`              | AI performance metrics from multiple endpoints      | Yes      |
+| `useDetectionEnrichment.ts`    | Detection enrichment data fetching                  | Yes      |
+| `useModelZooStatus.ts`         | Model Zoo status with VRAM stats                    | Yes      |
+| `useSavedSearches.ts`          | Saved searches in localStorage                      | Yes      |
+| `useStorageStats.ts`           | Storage/disk usage polling with cleanup preview     | No       |
+| `useServiceStatus.ts`          | Service health status tracking                      | No       |
+| `useSidebarContext.ts`         | Context hook for mobile sidebar state               | No       |
+| `webSocketManager.ts`          | Singleton WebSocket connection manager              | No       |
+| `index.ts`                     | Barrel export for exported hooks                    | N/A      |
 
 Each hook has a co-located test file (named `*.test.ts`).
 

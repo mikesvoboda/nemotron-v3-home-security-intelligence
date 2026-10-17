@@ -677,7 +677,7 @@ records 6200676782, 6205825842)
 ### [r204] One realtime connection owner
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.
-**PR:** none yet. (ruling 204, record 6199283332)
+**PR:** #7230 (ruling 204, record 6199283332)
 
 `webSocketManager.ts` shares one connection per URL (`subscribe`, `:254`), but `useConnectionStatus`
 opens its own events and system sockets through `useWebSocketStatus` (`:290`, `:298`;
@@ -685,14 +685,14 @@ opens its own events and system sockets through `useWebSocketStatus` (`:290`, `:
 it. The manager stops on the auth close codes (`AUTH_TERMINAL_CLOSE_CODES`, `:155`);
 `useWebSocketStatus`'s `onclose` (`:176`) reads no code and keeps reconnecting.
 
-- [ ] `useConnectionStatus` reads channel state from `webSocketManager` (`subscribe`,
+- [x] `useConnectionStatus` reads channel state from `webSocketManager` (`subscribe`,
       `getConnectionState`, `reconnect`) and opens no socket; one provider feeds Layout and Header;
       `useWebSocketStatus`'s socket code and its tests are deleted.
-- [ ] `isPollingFallback` and `retryConnection` keep their meaning; a terminal auth close shows as
+- [x] `isPollingFallback` and `retryConnection` keep their meaning; a terminal auth close shows as
       such and is not retried.
-- [ ] Tests: the mounted shell holds one manager connection per channel; neither Layout nor Header
+- [x] Tests: the mounted shell holds one manager connection per channel; neither Layout nor Header
       opens a socket; a `4001` close stops reconnection on the status path.
-- [ ] F-007's `frontend/tests/golden/shell/ws-status.spec.ts` passes unchanged in
+- [x] F-007's `frontend/tests/golden/shell/ws-status.spec.ts` passes unchanged in
       `Feature check (fake AI)`.
 
 **Done when:** these pass in CI at a ready head, and under `frontend/src/` (tests and mocks aside)

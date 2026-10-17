@@ -234,18 +234,22 @@ describe('endpoint contract (D2)', () => {
     // `fetch(url.toString())` site, or a same-origin call to a non-`/api` path,
     // is a claim this scan never made, and "0 unlisted" cannot be read without
     // these lists staying small and recognizable. `dynamic` counts constructs,
-    // not lines: useWebSocketStatus.ts:141 is one line holding two `new
-    // WebSocket(url, …)` constructs (the protocols ternary), so 25 entries over
-    // 24 positions is the honest shape, recorded here rather than tidied away.
+    // not lines, so one line holding two of them would be listed twice. That
+    // doubling used to be here — the second socket implementation's protocols
+    // ternary contributed two entries from one position, making 25 over 24 —
+    // and [r204] deleted that file, so the transport's two constructs are what
+    // remain (webSocketManager.ts:503-504, distinct lines). Measured now: 24
+    // entries over 24 distinct positions, i.e. no position is doubled. Recorded
+    // rather than tidied away, because the next ternary brings the shape back
+    // and a reader comparing this list's length to its line count needs to know
+    // which of the two the scanner counts.
     // `nonApi` is the empty list with teeth: it fails the moment anything calls
     // a same-origin path this contract does not check.
     expect(
       audit.scan.dynamic.map((d) => `${d.file}:${d.line}  ${d.reason}`).join('\n'),
       `${audit.scan.dynamic.length} URL position(s) with no statically knowable path`
     ).toMatchInlineSnapshot(`
-      "src/hooks/useWebSocketStatus.ts:145  "url" is not a file-local constant
-      src/hooks/useWebSocketStatus.ts:145  "url" is not a file-local constant
-      src/hooks/useZoneHouseholdConfig.ts:231  built at runtime: url.toString()
+      "src/hooks/useZoneHouseholdConfig.ts:231  built at runtime: url.toString()
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
       src/services/aiAuditApi.ts:386  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:150: not a literal path

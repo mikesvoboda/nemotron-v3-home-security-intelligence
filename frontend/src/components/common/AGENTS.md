@@ -557,13 +557,15 @@ interface WebSocketStatusProps {
   showDetails?: boolean; // Show label text (default: false)
 }
 
-// From ../../hooks/useWebSocketStatus
+// From ../../hooks/useConnectionStatus
 interface ChannelStatus {
   name: string;
-  state: ConnectionState; // 'connected' | 'reconnecting' | 'disconnected'
+  state: ConnectionState; // 'connected' | 'reconnecting' | 'failed' | 'disconnected'
   lastMessageTime: Date | null;
   reconnectAttempts: number;
   maxReconnectAttempts: number;
+  hasExhaustedRetries: boolean;
+  authRequired?: boolean; // state is 'failed' because the credential was refused
 }
 ```
 
@@ -571,8 +573,12 @@ interface ChannelStatus {
 
 - Overall connection status from multiple WebSocket channels
 - Hover tooltip showing per-channel status details
-- Color-coded indicators: green (connected), yellow (reconnecting), red (disconnected)
+- Color-coded indicators: green (connected), yellow (reconnecting), orange
+  (failed), red (disconnected)
 - Shows reconnection attempts counter during reconnection
+- Labels a failed channel `Sign-in required` when the server refused the
+  credential (4001/4002) and `Retries exhausted` otherwise — the two reach the
+  same state but only one of them is fixed by waiting
 - Time since last message per channel ("Just now", "5s ago", "2m ago")
 - Pulse animation on green dot when connected
 
@@ -582,6 +588,7 @@ interface ChannelStatus {
 | ------------ | --------------- | ------------- | -------------------- |
 | connected    | text-green-400  | bg-green-500  | Wifi                 |
 | reconnecting | text-yellow-400 | bg-yellow-500 | RefreshCw (spinning) |
+| failed       | text-orange-400 | bg-orange-500 | AlertTriangle        |
 | disconnected | text-red-400    | bg-red-500    | WifiOff              |
 
 **Subcomponents:**
@@ -605,7 +612,7 @@ import WebSocketStatus from '../common/WebSocketStatus';
 
 - `lucide-react` - RefreshCw, Wifi, WifiOff
 - `react` - useState, useEffect, useRef
-- `../../hooks/useWebSocketStatus` - ChannelStatus, ConnectionState types
+- `../../hooks/useConnectionStatus` - ChannelStatus, ConnectionState types
 
 ---
 
@@ -1091,4 +1098,4 @@ Two shipped callers reach the route through their own anchors rather than throug
 - `@headlessui/react` - Dialog, Transition (Lightbox only)
 - `../../utils/risk` - Risk utility functions (RiskBadge only)
 - `../../utils/confidence` - Confidence utility functions (ConfidenceBadge only)
-- `../../hooks/useWebSocketStatus` - WebSocket types (WebSocketStatus only)
+- `../../hooks/useConnectionStatus` - WebSocket types (WebSocketStatus only)

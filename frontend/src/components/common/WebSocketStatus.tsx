@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle, RefreshCw, Wifi, WifiOff, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
+import type { ChannelStatus, ConnectionState } from '../../hooks/useConnectionStatus';
 
 export interface WebSocketStatusProps {
   eventsChannel: ChannelStatus;
@@ -197,7 +197,14 @@ function ChannelIndicator({ channel }: ChannelIndicatorProps) {
             className="text-xs text-orange-400"
             data-testid={`failed-indicator-${channel.name.toLowerCase()}`}
           >
-            Retries exhausted
+            {/* [r204] box 2: a refused credential and an exhausted retry budget
+                both land in `failed`, but they are not the same event and the
+                old single label lied about the first one — nothing ran out of
+                retries after a 4001, the manager stopped on purpose
+                (webSocketManager.ts's `authRefused` branch). The refusal label
+                is also the only place a user learns the fix is a re-login
+                rather than a wait. */}
+            {channel.authRequired ? 'Sign-in required' : 'Retries exhausted'}
           </span>
         )}
         <span
