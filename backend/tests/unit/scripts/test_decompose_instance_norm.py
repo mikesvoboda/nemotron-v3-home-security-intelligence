@@ -372,7 +372,10 @@ class TestReviewFollowups:
         already pins load-bearing text: a direct textual claim about the guard, not a reachable
         input. `>= 0.0` also has a real behavioural test above; this is the belt for `isfinite`.
         """
-        src = Path(script.__file__).read_text()
+        # The scanned path is a module constant: _SCRIPT is __file__ plus two literal segments, so no
+        # untrusted input reaches the open. Same rationale as the Path(M.__file__).read_text() pins in
+        # backend/tests/unit/services/. Suppressed per rule, not per scan — see setup.py:1526's shape.
+        src = Path(script.__file__).read_text()  # nosemgrep: path-traversal-open
         assert "np.isfinite(x)" in src and "x >= 0.0" in src, (
             "the interpretability guard must reject BOTH non-finite and negative cosines; one arm "
             "deleted makes a PASS-shaped S.json describe an unmeasurable graph"
