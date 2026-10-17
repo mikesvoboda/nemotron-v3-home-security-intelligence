@@ -34,7 +34,9 @@ import pytest
 # `Backend Unit Tests` shards, which DO install the extra, execute it for real (witnessed in CI at
 # the head). A module-scope `import onnx` therefore errored the sweep — a scope mismatch, not a
 # defect — so the guard skips it only where the dep was never installed. That is a scope statement,
-# not an escape hatch: the legs that claim to run this file have the dep and run all 21 cases.
+# not an escape hatch: the legs that claim to run this file have the dep and run every case in it
+# (round-2 review caught a stale count here — "all 21" when the file collected 27 — so this sentence
+# deliberately carries NO number; the count lives in the CI shard rows, the only live referent).
 onnx = pytest.importorskip("onnx", reason="onnx is a dev-extra dep; see the sweep-vs-shard note")
 from onnx import TensorProto, helper, numpy_helper  # noqa: E402  (after the guard, by design)
 
@@ -346,6 +348,71 @@ class TestReviewFollowups:
             script.surgery(target, work / "pre", b, target, want_in=3)
         assert script._sha(target) == sha_before, (
             "the target was touched by the out_json alias refusal"
+        )
+
+    @pytest.mark.timeout(60)
+    def test_out_json_that_is_the_pre_snapshot_refuses(
+        self, script, model, tmp_path, batch
+    ) -> None:
+        """Round-3 finding 2: the alias refusal compared out_json to the TARGET only, never to the
+
+        pre snapshot, while the row is written before the gate check. Priced on the pre-fix script:
+        a faithful run returned rc 0 having replaced the snapshot with a 482 B row, and an unfaithful
+        one returned rc 30 — the code whose contract is "nothing was touched" — having destroyed the
+        baseline the recheck is made of, so the invocation can never be re-run. The snapshot is the
+        artifact the module's own comments say must survive the recheck.
+        """
+        work, b = _venue(tmp_path, model, batch)
+        snap = work / "pre" / "model.onnx"
+        sha_before = script._sha(snap)
+        with pytest.raises(SystemExit, match="pre-surgery snapshot"):
+            script.surgery(work / "model.onnx", work / "pre", b, snap, want_in=3)
+        assert script._sha(snap) == sha_before, (
+            "the pre snapshot was touched by the out_json alias refusal"
+        )
+
+    def test_the_alias_predicate_needs_both_of_its_two_halves(self, script, tmp_path) -> None:
+        """Round-3 finding 3: ``_aliases`` is ``exists() and _samefile`` OR ``resolve()``, and each
+
+        half covers a case the other CANNOT see, so no single plant reaches both — the same shape as
+        the cosine guard, hence the same cure: pin each half by DIRECT call. M8b (drop the inode
+        disjunct) and M8c (drop ``resolve()``) both left the suite green at the reviewed head because
+        the only alias test exercises one path, the plain same-path slip.
+        (a) HARDLINK, both files existing: two names, one inode. ``resolve()`` returns two different
+            paths, so only the inode disjunct catches it — and missing it is priced as the exact
+            destruction the guard's comment names (rc 30 with the model replaced by the row).
+        (b) NON-CANONICAL SPELLING of the target whose stat FAILS (``build/../model.onnx`` with no
+            ``build/``): ``exists()`` is False, so the inode disjunct is structurally blind and only
+            ``resolve()`` — lexical, per its own docstring — sees it. HONEST SCOPE: this half is
+            DEFENCE IN DEPTH. I could not build an end-to-end destruction from it, and the reason is
+            worth keeping: on Linux the same missing component that defeats the stat also defeats the
+            write (ENOENT), and that write is separately mapped to rc 31, so a mutant here is green
+            because the case is unreachable-with-harm, not because the test is weak. It is pinned by
+            DIRECT CALL for exactly that reason — the guard is cheap, the alternative is trusting a
+            kernel's path semantics to stay unfavourable.
+        (c) NEGATIVE: an honest independent copy must NOT be refused, or the guard is overbroad and
+            every real venue run dies at the door.
+        """
+        target = tmp_path / "model.onnx"
+        target.write_bytes(b"model-bytes")
+
+        # (a) hardlink: different path, same inode.
+        link = tmp_path / "S.json"
+        os.link(target, link)
+        assert link.resolve() != target.resolve(), "hardlink resolved equal — plant is vacuous"
+        assert script._aliases(link, target), "the inode half is dead: a hardlink alias slips"
+
+        # (b) stat-invisible spelling of the target: only the resolved-path half can see it.
+        sneaky = tmp_path / "nope" / ".." / "model.onnx"  # 'nope' is never created
+        assert not sneaky.exists(), "plant is vacuous: the stat-invisible case became visible"
+        assert script._aliases(sneaky, target), "the resolve half is dead: a sneaky alias slips"
+
+        # (c) an honest copy is the same BYTES but a different file: must pass through.
+        copy = tmp_path / "copy.onnx"
+        copy.write_bytes(b"model-bytes")
+        assert copy.resolve() != target.resolve() and not script._samefile(copy, target)
+        assert not script._aliases(copy, target), (
+            "the predicate is overbroad: an honest copy would be refused"
         )
 
     @pytest.mark.timeout(60)

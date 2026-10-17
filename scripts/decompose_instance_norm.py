@@ -217,6 +217,24 @@ def _samefile(a: Path, b: Path) -> bool:
     return sa.st_dev == sb.st_dev and sa.st_ino == sb.st_ino
 
 
+def _aliases(a: Path, b: Path) -> bool:
+    """True when writing to ``a`` would land on ``b`` — by inode OR by path, both required.
+
+    The two disjuncts cover DISJOINT cases, which is why neither can be dropped:
+
+    * ``_samefile`` is the only one that sees a HARDLINK (two names, one inode). A ``cp -l`` staging
+      mistake gives out_json a fresh path resolving elsewhere while sharing the target's inode, so a
+      resolve-only comparison lets the row overwrite the model under rc 30.
+    * ``resolve()`` is the only one that sees a destination that DOES NOT EXIST YET, which is the
+      normal case — ``_samefile`` returns False for any missing path by design, so an inode-only
+      comparison waves through ``--out-json model.onnx`` on a clean run and then truncates it.
+
+    Both directions are pinned by direct calls in the test (a plant cannot reach both halves from one
+    fixture, the same reason the cosine guard is pinned at source level).
+    """
+    return (a.exists() and _samefile(a, b)) or a.resolve() == b.resolve()
+
+
 def _external_initializers(path) -> list:
     """Names of initializers the saved file still needs from a sidecar.
 
@@ -265,11 +283,21 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     # _samefile needs both files to exist; the destination usually does not yet, so resolve() is the
     # identity for the not-yet-created case and _samefile the stronger one when it does.
     outj = Path(out_json)
-    if (outj.exists() and _samefile(outj, model)) or outj.resolve() == model.resolve():
+    if _aliases(outj, model):
         raise SystemExit(
             f"row destination {outj} IS the surgery target {model} - the faithfulness row would "
             "overwrite the export it describes, and on a gate regression it does exactly that under "
             "rc 30, the code that promises the target survived. Point out_json at a separate file.")
+    # The same refusal has to cover the PRE snapshot, not just the target, for the same reason and
+    # with the same blast radius: the row is written before the gate check, so on a gate regression an
+    # out_json aliased to the snapshot returns rc 30 having destroyed the one artifact the recheck is
+    # made of — and then no rerun of the same invocation is possible, because the thing to compare
+    # against is gone. Measured before this clause: rc 0 with the snapshot replaced by a 482 B row.
+    if _aliases(outj, pre):
+        raise SystemExit(
+            f"row destination {outj} IS the pre-surgery snapshot {pre} - the faithfulness row would "
+            "overwrite the baseline the recheck compares against, and a gate regression does exactly "
+            "that under rc 30. Point out_json at a separate file.")
     batch = np.load(str(batch)) if isinstance(batch, (str, Path)) else np.asarray(batch)
     # shape[0] < 1 is its own clause because the tuple test below cannot see it: (0,3,256,128) has the
     # right ndim and the right trailing dims, so a ZERO-ROW batch passes the guard whose stated job is
