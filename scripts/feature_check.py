@@ -65,7 +65,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -1373,12 +1373,66 @@ def dockerfile_bases(text: str) -> list[str]:
     return bases
 
 
+def host_alias_resolves(name: str = "host.docker.internal") -> bool:
+    """Whether THIS process can resolve a host alias at all — a DNS question.
+
+    The two container runtimes this repo runs on add that name precisely because
+    a container is not on the machine it runs on, so it resolves exactly when
+    dialing it can work: the operator sandbox answers it with the proxy's address
+    (measured here: 169.254.1.1) and forwards it to the host, and a plain host
+    login has no entry (the owner's maui run, record 6193951294, got
+    ``curl: (6) Could not resolve host``). A container marker would be the wrong
+    probe — ``/.dockerenv`` is absent under rootless Podman, which is maui's
+    route — and ``$SANDBOX_NAME`` is a runtime convention, not a fact about
+    reachability.
+    """
+    try:
+        socket.getaddrinfo(name, None)
+    except OSError:
+        return False
+    return True
+
+
+def _require_pool_url(url: str, port: int, *, dialed: str) -> str:
+    """Re-check an already-validated VLM URL before dialing it, and return it.
+
+    Shared by both forms so the loopback one cannot be a wider door: same
+    scheme, same port inside :data:`AGENT_GPU_PORTS`, no path, query or
+    fragment. Only the HOST may differ, and only between the alias and the
+    loopback of the machine that published the port.
+    """
+    parts = urllib.parse.urlsplit(url)
+    try:
+        url_port = parts.port
+    except ValueError:
+        url_port = None
+    if (
+        parts.scheme != "http"
+        or parts.hostname not in ("host.docker.internal", "127.0.0.1")
+        or url_port != port
+        or port not in AGENT_GPU_PORTS
+        or parts.path not in ("", "/")
+        or parts.query
+        or parts.fragment
+    ):
+        raise HarnessError(
+            f"{dialed} {url}; a run reaches only port {port} of "
+            f"http://host.docker.internal:<{AGENT_GPU_PORTS.start}-{AGENT_GPU_PORTS.stop - 1}>"
+        )
+    return f"http://{parts.hostname}:{url_port}"
+
+
 def agent_gpu_url(output: str, container_port: int = VLM_PORT) -> tuple[str, int]:
     """The URL ``agent-gpu run`` printed for ``container_port``, and its port.
 
     The runner publishes from :data:`AGENT_GPU_PORTS` on the host's loopback,
     reached as host.docker.internal. Anything else could be the live stack's
     API, database or engine, so the run refuses it.
+
+    This is the address the run's CONTAINERS use: it goes to the backend as
+    ``AI_VLM_URL`` and to ``check_vlm_reach``, which dials it from inside that
+    container, where loopback would be the container's own. The harness's own
+    dial is :func:`vlm_dial_url`.
     """
     match = re.search(rf"(?m)^\s*port {container_port} -> (\S+)\s*$", output)
     if match is None:
@@ -1406,6 +1460,36 @@ def agent_gpu_url(output: str, container_port: int = VLM_PORT) -> tuple[str, int
             f"http://host.docker.internal:<{AGENT_GPU_PORTS.start}-{AGENT_GPU_PORTS.stop - 1}>"
         )
     return f"http://host.docker.internal:{port}", port
+
+
+def vlm_dial_url(
+    url: str,
+    port: int,
+    *,
+    alias_resolves: Callable[[str], bool] | None = None,
+) -> str:
+    """The form of ``url`` the HARNESS can dial from this machine.
+
+    ``agent-gpu run`` prints the alias form even from a host login, where it has
+    no DNS entry (the owner's maui run read ``/health`` at
+    ``http://127.0.0.1:18100/health`` — the same pool port — while the alias gave
+    ``curl: (6)``, and the run then sat out its 900 s readiness deadline). So the
+    alias is used when it resolves, and loopback at the same pool port when it
+    does not; this process ran ``agent-gpu run`` itself, so when the alias is
+    dead it is because it is on the machine that published the port. The port and
+    the rest of the shape are re-checked by :func:`_require_pool_url`, which
+    refuses anything ``agent_gpu_url`` would refuse.
+
+    ``alias_resolves`` is the probe, injectable so a test pins both arms without
+    depending on the machine it runs on. It is looked up at CALL time, not bound
+    as a default, so a caller that swaps ``host_alias_resolves`` on this module
+    changes what a real run does.
+    """
+    _require_pool_url(url, port, dialed="a run dials only")
+    probe = alias_resolves if alias_resolves is not None else host_alias_resolves
+    if probe("host.docker.internal"):
+        return f"http://host.docker.internal:{port}"
+    return f"http://127.0.0.1:{port}"
 
 
 # ---------------------------------------------------------------------------
@@ -2690,6 +2774,7 @@ class AgentGpu:
         run.summary["vlm_name"] = self.name
         self.started = False
         self.url: str | None = None
+        self.dial_url: str | None = None
         self.host_port: int | None = None
         self.served_model: str | None = None
 
@@ -2842,20 +2927,33 @@ class AgentGpu:
                 f"agent-gpu-status-before.txt has the budget): {output.strip()[-1000:]}"
             )
         self.url, self.host_port = agent_gpu_url(output)
-        _log(f"vlm: {self.name} serves at {self.url}")
+        self.dial_url = vlm_dial_url(self.url, self.host_port)
+        self.run.summary["vlm_dial_url"] = self.dial_url
+        _log(f"vlm: {self.name} serves at {self.url} (this run dials {self.dial_url})")
 
     def wait_ready(self, timeout: float = 900) -> None:
-        """Step 3: /health answers 200, and /props' model_path is the pin."""
-        url = str(self.url)
+        """Step 3: /health answers 200, and /props' model_path is the pin.
+
+        Dialed at ``dial_url``, and with no ``origin`` when that is the loopback
+        form: ``_http``'s ``origin`` branch builds an opener that HONOURS
+        ``HTTP_PROXY`` — correct for the alias, which a sandbox reaches through
+        its proxy — while a loopback URL must go direct, which is what its
+        ``127.0.0.1`` branch (a proxy-free opener) already does. A host login
+        with a proxy set for internet access must not have its VLM probe sent
+        through it.
+        """
+        url = str(self.dial_url if self.dial_url is not None else self.url)
+        loopback = urllib.parse.urlsplit(url).hostname == "127.0.0.1"
+        origin = None if loopback else url
         deadline = time.monotonic() + timeout
         while True:
-            status, _ = _http("GET", f"{url}/health", timeout=10, origin=url)
+            status, _ = _http("GET", f"{url}/health", timeout=10, origin=origin)
             if status == 200 or time.monotonic() >= deadline:
                 break
             time.sleep(5)
         if status != 200:
             raise HarnessError(f"the VLM at {url} did not answer /health with 200 ({status})")
-        status, props = _http("GET", f"{url}/props", timeout=10, origin=url)
+        status, props = _http("GET", f"{url}/props", timeout=10, origin=origin)
         props = props if status == 200 and isinstance(props, Mapping) else {}
         model_path = str(props.get("model_path") or "")
         self.run.summary["build_info"] = props.get("build_info")

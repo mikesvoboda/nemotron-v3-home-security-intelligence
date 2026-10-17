@@ -941,6 +941,164 @@ def test_a_vlm_url_outside_the_runners_pool_refuses(output: str) -> None:
         fc.agent_gpu_url(output)
 
 
+# ---------------------------------------------------------------------------
+# [r195] box 1: the address the HARNESS dials vs the address its CONTAINERS dial
+#
+# The owner's maui run (record 6193951294) printed `port 8098 ->
+# http://host.docker.internal:18100` from a plain host login, where that name
+# does not resolve (`curl: (6) Could not resolve host`), while
+# `http://127.0.0.1:18100/health` answered `{"status":"ok"}` at the same pool
+# port. The run sat out its whole 900 s readiness and died at `/health ... (0)`.
+# Inside the operator sandbox the same name DOES resolve - this sandbox's own
+# `getaddrinfo("host.docker.internal")` answers 169.254.1.1, the proxy that
+# forwards to the host - which is why today's behavior works there.
+#
+# So the printed URL is one address for two vantage points, and they differ:
+# `AI_VLM_URL` and `check_vlm_reach` are read from INSIDE the backend
+# container (loopback there is that container's own), while `wait_ready` dials
+# from the harness process, which ran `agent-gpu run` itself and so sits on the
+# machine that published the port. The split keeps both: the alias stays
+# byte-identical for the containers, and only the harness may use loopback.
+# ---------------------------------------------------------------------------
+
+DIAL_URL = "http://host.docker.internal:18123"
+
+
+@pytest.mark.parametrize(
+    ("alias_resolves", "want"),
+    [
+        # Inside a sandbox: the name resolves to the proxy that forwards to the
+        # host, so today's behavior must not change by one byte.
+        (True, "http://host.docker.internal:18123"),
+        # A host login: no entry for the name, and the publisher's loopback is
+        # where the runner published (measured by the owner on maui).
+        (False, "http://127.0.0.1:18123"),
+    ],
+    ids=["sandbox", "host-login"],
+)
+def test_the_harness_dials_the_form_this_machine_can_reach(alias_resolves: bool, want: str) -> None:
+    got = fc.vlm_dial_url(DIAL_URL, 18123, alias_resolves=lambda _name: alias_resolves)
+    assert got == want
+
+
+@pytest.mark.parametrize(
+    ("url", "port", "needle"),
+    [
+        ("http://host.docker.internal:8000", 8000, "8000"),
+        ("http://192.168.1.20:18123", 18123, "192.168.1.20"),
+        ("https://host.docker.internal:18123", 18123, "https"),
+    ],
+    ids=["off-pool-port", "foreign-host", "wrong-scheme"],
+)
+def test_the_loopback_form_refuses_what_the_printed_url_refuses(
+    url: str, port: int, needle: str
+) -> None:
+    """Box 1's second clause: reaching the VLM on loopback must not widen what a
+    run may reach. Both machines refuse - the loopback path is a different
+    ADDRESS for the same pool port, never a different port or host."""
+    for probe in (lambda _name: True, lambda _name: False):
+        with pytest.raises(fc.HarnessError, match=re.escape(needle)):
+            fc.vlm_dial_url(url, port, alias_resolves=probe)
+
+
+def _nodename(*_args: Any, **_kwargs: Any) -> Any:
+    raise socket.gaierror(socket.EAI_NONAME, "Name or service not known")
+
+
+def test_the_alias_probe_is_dns_and_nothing_else(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The signal is resolution, not a container marker: `/.dockerenv` is absent
+    under rootless Podman (maui's route, box 2) and `$SANDBOX_NAME` is a runtime
+    convention, while the alias exists precisely to name the machine you are NOT
+    on - so it resolves exactly when dialing it can work."""
+    monkeypatch.setattr(fc.socket, "getaddrinfo", _nodename)
+    assert fc.host_alias_resolves("host.docker.internal") is False
+    monkeypatch.setattr(
+        fc.socket,
+        "getaddrinfo",
+        lambda *_a, **_k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.1.1", 0))],
+    )
+    assert fc.host_alias_resolves("host.docker.internal") is True
+
+
+def test_the_run_keeps_the_alias_for_its_containers_and_takes_loopback_itself(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The two forms on one started VLM, at the source that feeds both."""
+    monkeypatch.setattr(fc, "host_alias_resolves", lambda _name: False)
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.vlm_image = "ai-vlm:abc1234"
+    vlm.start()
+    # AI_VLM_URL (feature_check.py:496) and check_vlm_reach run inside the
+    # backend container, where 127.0.0.1 is that container's own loopback.
+    assert vlm.url == VLM_URL
+    # wait_ready dials from this process, on the machine that published the port.
+    assert vlm.dial_url == "http://127.0.0.1:18123"
+    assert vlm.run.summary["vlm_dial_url"] == "http://127.0.0.1:18123"
+
+
+def test_the_sandbox_run_dials_the_alias_it_always_dialed(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The no-change pin for the machine every run has used so far: when the
+    alias resolves, the harness form IS the printed URL."""
+    monkeypatch.setattr(fc, "host_alias_resolves", lambda _name: True)
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.vlm_image = "ai-vlm:abc1234"
+    vlm.start()
+    assert (vlm.url, vlm.dial_url) == (VLM_URL, VLM_URL)
+
+
+def _dial_probe_sees(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Any]]:
+    """Record what `wait_ready` dials. Each probe answers 0 (nothing answered),
+    which is how the owner's maui run ended, so the readiness loop stops on its
+    own and the test reads the run's own refusal."""
+
+    seen: list[tuple[str, Any]] = []
+
+    def fake_http(_method: str, url: str, *_args: Any, **_kwargs: Any) -> tuple[int, Any]:
+        seen.append((url, _kwargs.get("origin")))
+        return 0, None
+
+    monkeypatch.setattr(fc, "_http", fake_http)
+    return seen
+
+
+def test_readiness_dials_the_harness_form_not_the_container_form(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`wait_ready` is the harness's own dial; a run that took the alias from
+    the printed line is the run the owner watched time out on maui."""
+    seen = _dial_probe_sees(monkeypatch)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.url = VLM_URL
+    vlm.host_port = 18123
+    vlm.dial_url = "http://127.0.0.1:18123"
+    with pytest.raises(fc.HarnessError, match=r"127\.0\.0\.1:18123 did not answer"):
+        vlm.wait_ready(timeout=0)
+    # origin=None sends it through _http's proxy-free 127.0.0.1 opener. The
+    # alias needs the proxy (a sandbox reaches the host through it); a host
+    # login with HTTP_PROXY set for internet access must NOT have its own
+    # VLM probe forwarded through that proxy.
+    assert seen == [("http://127.0.0.1:18123/health", None)]
+
+
+def test_the_alias_readiness_dial_keeps_its_proxy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other arm of that origin choice, so the loopback rule above is not
+    simply "never pass an origin"."""
+    seen = _dial_probe_sees(monkeypatch)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.url = VLM_URL
+    vlm.host_port = 18123
+    vlm.dial_url = VLM_URL
+    with pytest.raises(fc.HarnessError, match=r"host\.docker\.internal:18123 did not answer"):
+        vlm.wait_ready(timeout=0)
+    assert seen == [(f"{VLM_URL}/health", VLM_URL)]
+
+
 def test_the_weight_pins_are_operator_mds() -> None:
     runbook = (REPO_ROOT / "docs" / "uplevel" / "roles" / "operator.md").read_text(encoding="utf-8")
     assert set(fc.VLM_WEIGHTS) == {fc.VLM_MODEL, fc.VLM_MMPROJ}
@@ -1114,7 +1272,17 @@ def _serve(handler: Any) -> Any:
 
 
 def _started_vlm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
-    """A VLM the stand-in agent-gpu has started (and so lists on ps)."""
+    """A VLM the stand-in agent-gpu has started (and so lists on ps).
+
+    The alias is pinned RESOLVING, because every caller of this helper is the
+    sandbox arm: they route the probe through a stand-in proxy that answers for
+    the VLM, which is how a sandbox reaches host.docker.internal. Left unpinned,
+    the helper would ask this machine's DNS - true in the operator sandbox
+    (169.254.1.1) and false on a CI runner, where the probe would go to a loopback
+    nothing serves and those tests would red for the machine's reason, not the
+    code's.
+    """
+    monkeypatch.setattr(fc, "host_alias_resolves", lambda _name: True)
     monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
     vlm = fc.AgentGpu(_run(tmp_path))
     vlm.vlm_image = "ai-vlm:abc1234"
