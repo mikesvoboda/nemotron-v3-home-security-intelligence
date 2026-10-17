@@ -56,7 +56,24 @@ TREE = {
         '        pytest.skip("no nginx.conf in tree")\n'
         "    assert True\n"
     ),
+    # [r173] ruling 173: the golden tree is governed per-site, so the gate has
+    # to bite here too. One registered leg, plus a conditional guard that must
+    # NEVER mint an id (a guard suppresses nothing, and a row for it would
+    # license a leg that runs).
+    "frontend/tests/golden/timeline/media.spec.ts": (
+        "test.fixme('F-001 the video leg — UNPROVEN on this tier', async () => {});\n"
+        "test.skip(!harness.ready, 'no live stack');\n"
+    ),
 }
+
+# The Done-when shape for the golden arm: a second registration-form leg added
+# to a golden spec, unregistered. The guard line stays — it must not move the
+# count, which is the whole registration-vs-guard distinction.
+GOLDEN_ADDED_FIXME = (
+    "test.fixme('F-001 the video leg — UNPROVEN on this tier', async () => {});\n"
+    "test.skip(!harness.ready, 'no live stack');\n"
+    "test.fixme('F-001 the ordering leg sneaked in', async () => {});\n"
+)
 
 ADDED_SKIP = (
     "import pytest\n"
@@ -246,6 +263,81 @@ def test_increase_without_registry_entry_fails(tmp_path):
     assert r.returncode == 1
     assert "pytest_skip" in r.stderr
     assert "test_a.py::test_sneaked" in r.stderr
+
+
+# ---- [r173] ruling 173: the golden tree joins the ratchet ----------------
+# The leak this package closes is not a count that rose — it is a whole test
+# tree the census never looked at. frontend/tests/golden is the feature gate's
+# own witness suite; _frontend_test_files() is Vitest-only and golden is not an
+# excluded tree, so a test.fixme added there was invisible to every gate. These
+# three tests are that arm's contract: the unregistered case must fail (the
+# Done-when), a conditional guard must not count as a suppression, and the
+# sanctioned upward path must be reachable the same way as every other category.
+
+
+def test_golden_unregistered_fixme_fails(tmp_path):
+    """THE done-when for [r173]: a golden test.fixme with no registry row fails
+    CI naming the category and the leg's title-keyed id."""
+    root = build(tmp_path)
+    (root / "frontend/tests/golden/timeline/media.spec.ts").write_text(GOLDEN_ADDED_FIXME)
+    r = run_ratchet(root)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "golden_fixme" in r.stderr, r.stderr
+    assert "::F-001 the ordering leg sneaked in" in r.stderr, r.stderr
+
+
+def test_golden_conditional_guard_never_mints_an_id(tmp_path):
+    """The guard half of the distinction, gated at the ratchet rather than only
+    in the scanner: `test.skip(cond, why)` runs whenever cond is false, so it
+    suppresses nothing and must not hold a registry row. If it ever did mint
+    one, 64 guard sites would read as 64 suppressed tests and the category
+    would be unratable."""
+    root = build(tmp_path)
+    loc = locations(root)
+    ids = [it["id"] for it in loc["golden_fixme"]] + [it["id"] for it in loc["golden_skip"]]
+    assert ids == [
+        "frontend/tests/golden/timeline/media.spec.ts::"
+        "F-001 the video leg — UNPROVEN on this tier"
+    ], ids
+    assert baseline_of(root)["golden_skip"] == 0
+
+
+def test_golden_increase_with_entry_and_bumped_baseline_passes(tmp_path):
+    """The sanctioned path for the new category is the existing one: an entry
+    for the new id plus a hand-raised baseline in the same commit."""
+    root = build(tmp_path)
+    (root / "frontend/tests/golden/timeline/media.spec.ts").write_text(GOLDEN_ADDED_FIXME)
+    reg = registry_of(root)
+    reg["golden_fixme"].append(
+        {
+            "id": "frontend/tests/golden/timeline/media.spec.ts::"
+            "F-001 the ordering leg sneaked in",
+            "kind": "todo",
+            "owner": "tester",
+            "tracking": "R-222-F296",
+            "expires": "2026-12-31",
+            "reason": "F-001 the ordering leg sneaked in",
+        }
+    )
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    bl = baseline_of(root)
+    bl["golden_fixme"] = 2
+    (root / ".github/suppression-baseline.json").write_text(json.dumps(bl, indent=2))
+    r = run_ratchet(root)
+    assert r.returncode == 0, r.stderr
+
+
+def test_golden_category_absent_from_registry_fails(tmp_path):
+    """A category the registry omits is a category nobody reviews. golden_skip
+    measures zero today, so its `[]` key is the recorded fact that it is
+    WATCHED and empty — drop the key and the gate must say so."""
+    root = build(tmp_path)
+    reg = registry_of(root)
+    del reg["golden_skip"]
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    r = run_ratchet(root)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "golden_skip" in r.stderr, r.stderr
 
 
 def test_decrease_passes_and_update_lowers(tmp_path):

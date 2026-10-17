@@ -35,10 +35,36 @@ FIXTURE = {
         "    'tests/e2e/**',\n    'tests/contract/**',\n"
         "    'src/a.test.tsx',\n    'src/b.test.tsx',\n    'src/c.test.ts',\n  ],\n}})\n"
     ),
-    # Playwright tree: a different runner — its .skip/.only must NOT count
-    # (the vitest count is the spec's 54/0/0; e2e suppression is the
-    # excluded-trees category's job).
+    # Playwright tree: a different runner — its .skip/.only must NOT count in
+    # the VITEST categories (those are 54/0/0 in the real tree). Two arms now:
+    # e2e/benchmarks/chaos/load are `excluded_test_trees` by deferral, while
+    # frontend/tests/golden is inventoried per-site ([r173] ruling 173), which
+    # is why it has its own fixture file below and this decoy must stay out of
+    # it — same runner, different governance.
     "frontend/tests/e2e/specs/decoy.spec.ts": "test.skip('e2e hidden', async () => {});\ntest.only('e2e solo', async () => {});\n",
+    # [r173]: the golden tree. One file carrying every shape the scanner has to
+    # sort: two registration forms that COUNT, three non-suppressions that must
+    # not, and prose that reads like a suppression.
+    "frontend/tests/golden/alpha/golden.spec.ts": (
+        "import { test, expect } from '../../fixtures';\n"
+        "test.describe('F-001 the panel', () => {\n"
+        "  test('runs and proves the row', async ({ page }) => {});\n"
+        # commented-out leg: `// test.skip(` is prose, not a call
+        "  // test.skip('a leg disabled in a comment', async () => {});\n"
+        # JSDoc history: mid-line mention behind ` * `
+        "  /**\n   * History: test.fixme('mentioned in jsdoc', fn) was restored.\n   */\n"
+        "  test.fixme('F-001 the video leg — UNPROVEN on this tier', async ({ page }) => {});\n"
+        "  test.skip('F-001 the ordering leg', async ({ page }) => {});\n"
+        # conditional guard: runs whenever the condition is false
+        "  test.skip(!harness.ready, 'no live stack on this tier');\n"
+        "  test('runtime guard inside the body', async ({ page }) => {\n"
+        "    await test.info().skip(true, 'host feature absent');\n"
+        "  });\n"
+        # chained fluent registration: same call, two lines
+        "  test\n"
+        "    .fixme('F-001 the chained leg', async ({ page }) => {});\n"
+        "});\n"
+    ),
     "scripts/validate.sh": (
         "#!/usr/bin/env bash\n"
         "pytest backend/tests/unit --ignore=backend/tests/load/ "
@@ -151,6 +177,12 @@ EXPECTED = {
     "frontend_skip": 2,
     "frontend_only": 1,
     "frontend_todo": 1,
+    # [r173] ruling 173: the golden tree, registration-form only. 2 fixme
+    # (plain + chained-fluent spelling) and 1 skip; the conditional guard, the
+    # test.info().skip runtime guard, the commented-out leg and the JSDoc
+    # mention are all deliberately NOT counted here.
+    "golden_fixme": 2,
+    "golden_skip": 1,
     "excluded_test_trees": 3,  # load/benchmarks/e2e, deduped
     "coverage_omit": 2,  # main.py + wildcards are plumbing, not suppressions
     "unspecced_patch": 0,  # WP4.2: the fixture carries no convertible patch()s
@@ -311,6 +343,25 @@ EXPECTED_LOCATIONS = {
     ],
     "frontend_only": [{"id": "frontend/src/b.test.ts::solo", "reason": ""}],
     "frontend_todo": [{"id": "frontend/src/b.test.ts::later", "reason": ""}],
+    # [r173]: ids key on the leg TITLE (drift-proof, like the frontend arm) and
+    # reason carries that title — registry-gen's classify() reads reason, and a
+    # golden title is the whole adjudication ("UNPROVEN on this tier").
+    "golden_fixme": [
+        {
+            "id": "frontend/tests/golden/alpha/golden.spec.ts::F-001 the video leg — UNPROVEN on this tier",
+            "reason": "F-001 the video leg — UNPROVEN on this tier",
+        },
+        {
+            "id": "frontend/tests/golden/alpha/golden.spec.ts::F-001 the chained leg",
+            "reason": "F-001 the chained leg",
+        },
+    ],
+    "golden_skip": [
+        {
+            "id": "frontend/tests/golden/alpha/golden.spec.ts::F-001 the ordering leg",
+            "reason": "F-001 the ordering leg",
+        },
+    ],
     "excluded_test_trees": [
         {"id": "benchmarks", "reason": ""},
         {"id": "e2e", "reason": ""},
@@ -337,6 +388,108 @@ def test_locations_inventory(tmp_path):
     for cat, want in EXPECTED_LOCATIONS.items():
         assert got.get(cat) == want, f"{cat}: got {got.get(cat)!r} want {want!r}"
     assert sum(len(v) for v in got.values()) == sum(EXPECTED.values())
+
+
+# ---------------------------------------------------------------------------
+# [r173] ruling 173: the golden Playwright arm. The discriminator is
+# Playwright's own grammar — a STRING first argument means the leg is DECLARED
+# and never runs (a suppression); anything else means a condition, and the leg
+# runs whenever that condition is false (a guard, suppressing nothing). The
+# shapes below are why the rule is mechanical rather than a judgment call.
+# ---------------------------------------------------------------------------
+
+GOLDEN_SHAPES = [
+    # (source, counted-as-suppressions, why)
+    ("test.fixme('a title', async () => {});\n", 1, "string first arg = registration"),
+    ("test.skip('a title', async () => {});\n", 1, "same, skip form"),
+    ("test.skip();\n", 1, "bare call is unconditional"),
+    ("await test.fixme('t', async () => {});\n", 1, "awaited is still a registration"),
+    ("test.fixme(\n  'multiline args',\n  async () => {},\n);\n", 1, "args split over lines"),
+    ("test.fixme(`backtick title`, async () => {});\n", 1, "template-literal title"),
+    ("test.fixme('escaped \\' quote', async () => {});\n", 1, "escaped quote in title"),
+    ("test\n  .skip('chained fluent', async () => {});\n", 1, "chain rooted at test"),
+    ("test.skip(!harness.ready, 'no stack');\n", 0, "condition first = guard, runs when false"),
+    ("test.skip(a ? b : c, 'why');\n", 0, "ternary first = guard"),
+    ("test('t', async () => { test.info().skip(c, 'why'); });\n", 0, "runtime guard, not a registration"),
+    ("test\n  .info()\n  .skip(true, 'runtime');\n", 0, "chained runtime guard: root is .info()"),
+    ("fixtures\n  .skip('not a test', fn);\n", 0, "chain rooted at a receiver"),
+    ("const t = pick();\nt\n  .skip('unknown root', fn);\n", 0, "unresolvable root reads as not-ours"),
+    ("// test.skip('disabled in a comment', fn);\n", 0, "commented-out leg is prose"),
+    (" * history: test.fixme('x', fn) was restored\n", 0, "jsdoc mention is prose"),
+    ("// test.describe.skip('was disabled', () => {});\n", 0, "commented suite form stays prose"),
+    ("test.describe.only('x', () => {});\n", 0, ".only is not a suppression"),
+]
+
+# Forms the census REFUSES to count. A describe-block skip hides N legs behind
+# one call site and a second call on an attributed line hides one leg; either
+# one read as "nothing to see" would be the exact failure this arm exists to
+# close, so both exit non-zero naming the file.
+GOLDEN_REFUSALS = [
+    ("test.describe.skip('block', () => {});\n", "suite-level"),
+    ("test.describe\n  .fixme('block', () => {});\n", "chained suite-level"),
+    ("test.describe.only\n  .skip('block', () => {});\n", "chained suite-level .only"),
+    ("if (x) test.skip('mid-line', fn);\n", "mid-line"),
+    ("test.skip('one', fn); test.fixme('two', fn);\n", "two per line"),
+]
+
+
+@pytest.mark.parametrize(
+    "src,want,why",
+    GOLDEN_SHAPES,
+    ids=[f"{i:02d}-{w[:38]}" for i, (_, _, w) in enumerate(GOLDEN_SHAPES)],
+)
+def test_golden_scans_registration_not_guards(tmp_path, src, want, why):
+    """Registration vs guard: the count follows Playwright's grammar, not intent."""
+    root = build_fixture(tmp_path)
+    # Isolate the shape under test: drop the fixture tree's own golden file so a
+    # change to one row of the table cannot silently move another's count.
+    (root / "frontend/tests/golden/alpha/golden.spec.ts").unlink()
+    spec = root / "frontend/tests/golden/shapes/shape.spec.ts"
+    spec.parent.mkdir(parents=True, exist_ok=True)
+    spec.write_text(src)
+    got = run_census(root)
+    found = got["golden_skip"] + got["golden_fixme"]
+    assert found == want, f"{why}: {src!r} counted {found}, want {want}"
+
+
+@pytest.mark.parametrize(
+    "src,label", GOLDEN_REFUSALS, ids=[w for _, w in GOLDEN_REFUSALS]
+)
+def test_golden_refuses_to_silently_undercount(tmp_path, src, label):
+    """The dangerous direction is covered by failing loud, not by parsing deeper.
+
+    A golden suppression the scanner cannot attribute must END THE BUILD. If it
+    were merely skipped the census would report a smaller number and the ratchet
+    would green-light the very suppression it exists to catch — so this is the
+    test that makes "extend _golden_sites" the only way forward.
+    """
+    root = build_fixture(tmp_path)
+    (root / "frontend/tests/golden/alpha/golden.spec.ts").unlink()
+    spec = root / "frontend/tests/golden/shapes/shape.spec.ts"
+    spec.parent.mkdir(parents=True, exist_ok=True)
+    spec.write_text(src)
+    r = subprocess.run(
+        [sys.executable, str(CENSUS), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode != 0, f"{label}: census exited 0 and reported {r.stdout.strip()[-200:]}"
+    assert "shape.spec.ts" in r.stderr, f"{label}: failure does not name the file: {r.stderr[-300:]}"
+
+
+def test_golden_arm_is_inventory_not_just_a_tally(tmp_path):
+    """A golden site must carry an id AND a reason — ruling-gen reads both."""
+    root = build_fixture(tmp_path)
+    got = run_locations(root)
+    for cat in ("golden_skip", "golden_fixme"):
+        for row in got[cat]:
+            assert row["id"].startswith("frontend/tests/golden/"), row
+            assert "::" in row["id"], f"title-keyed id expected: {row}"
+            assert row["reason"], f"reason drives classification: {row}"
+    # The e2e decoy must not leak into the golden arm (or vice versa): same
+    # runner, opposite governance.
+    assert not any("e2e" in row["id"] for cat in ("golden_skip", "golden_fixme") for row in got[cat])
 
 
 def test_counts_only_move_with_the_suppression(tmp_path):
@@ -377,6 +530,11 @@ EXPECTED_CASES = {
     "frontend_skip": {"ids": 2, "cases": 2},  # it.skip 1 + empty describe.skip min-1
     "frontend_only": {"ids": 1, "cases": 1},
     "frontend_todo": {"ids": 1, "cases": 1},
+    # [r173]: a golden registration-form leg IS one declared test that never
+    # runs, so ids and cases agree 1:1 — there is no suite-level form to expand
+    # (the scanner refuses those outright). A 1:1 here is measured, not assumed.
+    "golden_fixme": {"ids": 2, "cases": 2},
+    "golden_skip": {"ids": 1, "cases": 1},
     "frontend_quarantine": {"ids": 3, "cases": 5},  # live sites: a=1 b=3 c=1
     # non-test-level channels: an id IS the whole suppression; null beats a
     # fake 1:1 (a report that silently equals ids re-mints the old bias).
@@ -563,6 +721,23 @@ def test_real_tree_matches_spec_baselines():
     registry row + baseline raised (4ae36510f, re-minted c185366f7) — the increase path,
     fourth precedent. The PR's own verification missed it the same way d8482861 did: it
     ran the census/ratchet/mint trio, not the repo-root scripts/ mirror test.
+    golden_fixme 0→2 and golden_skip 0→0 (2026-10-17, [r173] ruling 173, PR #7236):
+    the increase path of a DIFFERENT shape — the tree did not move, the measuring
+    stick grew an arm. frontend/tests/golden sat in neither census branch:
+    _frontend_test_files() is Vitest-only (frontend/src) and golden is not an
+    excluded tree, so its suppression was invisible to the ratchet outright. Two
+    registration-form legs are what the new scan finds, both in
+    timeline/download-media.spec.ts (:748 VIDEO, :1055 two-detection ordering),
+    both named F-296 by 8d419a0de under ruling 222 — the cite minted into their
+    registry rows as tracking: R-222-F296. The 64 conditional `test.skip(cond,
+    why)` sites in the same tree are NOT counted, and that exclusion has a
+    witness rather than an argument: run 39035167334's golden junit prints 245
+    tests / 0 failures / 4 skips, so a tree with 64 guard call sites skipped 4
+    legs (those 4 are the 2 fixme rows plus two runtime test.info().skip sites) —
+    the guards skipped ZERO tests, which is what a registration-vs-guard split is
+    for. `todo` and not `environment`: ratchet-check:133 forces tracking null on
+    environment, which is exactly how a golden skip stays unreviewed, and these
+    are falsifiable claims about a feature rather than host state.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -645,6 +820,11 @@ def test_real_tree_matches_spec_baselines():
         # 602379e29 with enrichment_pipeline.py, licensing zero tests), which is
         # why the miscount stayed invisible. That is the reason to name ids.
         "tpa_slow_list": 8,
+        # [r173] ruling 173 — the new arm, measured (see the docstring's
+        # 0→2 entry). Asserted here as well as in the baseline file so a golden
+        # test.fixme added later trips this mirror AND the ratchet.
+        "golden_fixme": 2,
+        "golden_skip": 0,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
     assert not stale, "census vs spec baseline drift: " + ", ".join(
