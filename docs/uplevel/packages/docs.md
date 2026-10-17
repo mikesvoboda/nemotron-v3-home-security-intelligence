@@ -225,7 +225,11 @@ weights. The ruling's verdict — the extended set is never exercised for real �
       row**: a mode-B family's value is never _produced_, so it cannot reach a surface, and every row
       adjacent to the seven lands in an exclusion class — catalogue state (F-104/F-125/F-127/F-129),
       an uncalled latency feed (F-105/F-130), a dead control (F-128/F-269), a seeded table
-      (F-268), user-entered stores the family reads _instead of_ feeding (F-241/F-242); each is named
+      (F-268), user-entered stores the family reads _instead of_ feeding (F-241/F-242), a read-time
+      liveness probe (the `get_health` consumers F-005/F-007/F-020/F-028/F-037/F-126/F-139 and the
+      readiness/liveness probes F-016/F-134/F-146/F-147 — §1's fourth boundary, added after the UR-89
+      review: writers-outward is blind to a probe with no write site, so the class is named by the
+      row's own promise, ground a route and a symbol, no new line-coordinate ground); each is named
       with the reason. What shipped instead of new rows: the seven `[r207]` legs mislabeled
       `re-ID (face)` are re-leged `face (zoo)` (measured producer: SCRFD + w600k_r50 at
       `model_zoo.py:345`/`:346` and the `yolo11-face` loader `:335`, not the Triton `reid` op), the
@@ -238,7 +242,7 @@ weights. The ruling's verdict — the extended set is never exercised for real �
       stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87),
       unless the list above puts the row back to **awaiting real tier**. Done at `8f6a955ab`, on the
       proceed branch: box 2 put none of the three back — §1 names them **User-entered** (the family
-      reads _their_ store, `household_matcher.py:452` / `vlm_specialists.py:741`, not the row
+      reads _their_ store, `household_matcher.py:452` / `vlm_specialists.py:742`, not the row
       displaying the family's output), and `5db3c56f7` was a default-shape real run, which box 1's
       bound makes a valid promotion for a row whose value no leg fakes. `5db3c56f7`'s own commit
       message names `hsi-check-20261013234949-a14ce4`.
