@@ -200,7 +200,7 @@ not, so it stays out with the reason rather than in by silence.
 ### [r231] Every model family the real tier fakes
 
 **Flags:** none. **Assigned:** docs, after `[r207]`. **Depends on:** `[r207]` merged (#7209).
-**PR:** none yet. (ruling 231, record 6215981513)
+**PR:** #7235. (ruling 231, record 6215981513)
 
 Ruling 207 named the detector, re-ID and threat families. The real tier serves only the real VLM
 (UR-136), and `models.yml` serves more families through the AI gateway: face detection and
