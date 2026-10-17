@@ -90,23 +90,23 @@ export default function AmbientStatusProvider({
     return calculateThreatLevel(status);
   }, [status, threatLevelOverride]);
 
-  // Get alert count or use override
-  // Note: SystemStatus doesn't have event counts, so we derive from health
+  // A count only comes from a counted source; the provider's sole one is
+  // `alertCountOverride` (the seam `useAlertsInfiniteQuery().totalCount` would fill).
   const alertCount = useMemo(() => {
     if (alertCountOverride !== undefined) {
       return alertCountOverride;
     }
-    // Map health status to a representative alert count for favicon badge
-    if (!status) return 0;
-    switch (status.health) {
-      case 'unhealthy':
-        return 3; // Show urgent badge
-      case 'degraded':
-        return 1; // Show warning badge
-      default:
-        return 0;
-    }
-  }, [status, alertCountOverride]);
+    // [r205] This used to fabricate a number from health (`unhealthy` → 3,
+    // `degraded` → 1), so a degraded service with nothing counted still printed
+    // "(1)" in the tab title and a red dot on the favicon — an invented figure
+    // wearing a real feature's badge. Health is still shown as health, by the
+    // tint below: `threatLevel` reads the same status through
+    // `calculateThreatLevel`, which [r205] leaves byte-identical
+    // (AmbientBackground.tsx:174 publishes it as data-threat-category). 0 is
+    // what FaviconBadge renders as "no number": bare baseTitle, unbadged icon
+    // (FaviconBadge.tsx:216-220, pinned by FaviconBadge.test.tsx).
+    return 0;
+  }, [alertCountOverride]);
 
   return (
     <>
