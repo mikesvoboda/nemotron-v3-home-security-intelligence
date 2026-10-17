@@ -167,21 +167,35 @@ moot rather than pending.)
 ### [r207] Rows the real tier cannot confirm
 
 **Flags:** none. **Assigned:** docs, after `[r196b]`. **Depends on:** none.
-**PR:** none yet. (ruling 207, record 6199844401)
+**PR:** #7209. (ruling 207, record 6199844401)
 
 The real tier serves the real VLM with the fake detector (UR-136), and no agent run exercises
 `yolo26`, `reid` or `threat` (`r2-sheet.md`, "The real-tier gap"). Yet **works** reads "confirmed
 on the real tier" (`docs/reference/feature-inventory.md:33`).
 
-- [ ] The inventory legend says the real tier is the real VLM with the detector, re-ID and threat
+- [x] The inventory legend says the real tier is the real VLM with the detector, re-ID and threat
       models fake (UR-136), as `README.md`'s vocabulary now does.
-- [ ] List the rows whose behaviour comes from detector, re-ID or threat output, each with the code
+- [x] List the rows whose behaviour comes from detector, re-ID or threat output, each with the code
       path that reads it. Each carries the note `needs real Triton models` and stays at
       **awaiting real tier** until a host run with the real Triton models covers it; a listed row
       now at **works** goes back, and the PR names it.
 
 **Done when:** the legend agrees with UR-136, and every listed row carries the note and is not
-**works**.
+**works**. **MET** — the legend row says the detector, re-ID and threat models stay fake at
+`--real` (box-1 commit `5ffdb080b`); the listing lives at `feature-inventory.md`, "Ruling 207: rows
+the real tier cannot confirm" (§1), 35 rows, each carrying `needs real Triton models` in its
+evidence cell and each named by the code path that reads the fake-leg value. Membership was measured
+from the writers outward (`detector_client.py`, the re-ID embedding and clustering writers, the threat
+consumers) rather than from the earlier row list, and the two boundaries that reading forced — a row
+about the fake value vs a surface that merely renders one, and a figure the row promises vs the pipeline
+counting its own running — are published in the §1 intro so a reader can re-check them; the same
+paragraph names the adjudicated non-members whose own §3 evidence cites a coordinate §1 publishes as
+an exclusion ground, and states that bound plus what the claim does NOT cover rather than asserting
+it is total. The one listed row at **works** was F-097 and this PR
+names it back to **awaiting real tier**; the sweep found no
+second one, and the closest call is named: F-031 renders the detector-drawn crop in its feed cards but
+promises the VLM-written verdict/notify/risk badges, which its own golden spec asserts and F-054's does
+not, so it stays out with the reason rather than in by silence.
 
 ### [r231] Every model family the real tier fakes
 
