@@ -83,19 +83,16 @@ describe('AmbientStatusProvider [r205] health is shown as health, a count only w
     // in FaviconBadge.test.tsx. Nothing here reads pixels — the badge's number
     // is observed through document.title, which the title path still writes.
     // AmbientBackground's reduced-motion check (AmbientBackground.tsx:71).
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-      (query: string) =>
-        ({
-          matches: false,
-          media: query,
-          onchange: null,
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        })
-    );
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
     useSettingsMock.mockReturnValue({
       ambientEnabled: true,
       faviconBadgeEnabled: true,
