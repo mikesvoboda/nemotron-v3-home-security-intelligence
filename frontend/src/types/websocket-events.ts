@@ -247,12 +247,6 @@ export interface WebSocketEventMap {
   /** Enrichment failed event */
   'enrichment.failed': EnrichmentFailedPayload;
 
-  // Queue metrics events (NEM-3637)
-  /** Queue status event */
-  'queue.status': QueueStatusPayload;
-  /** Pipeline throughput event */
-  'pipeline.throughput': PipelineThroughputPayload;
-
   // Plate read events (NEM-4865)
   /** Plate read created event - new license plate detected */
   'plate_read.created': PlateReadDetectedPayload;
@@ -389,9 +383,6 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'enrichment.progress',
   'enrichment.completed',
   'enrichment.failed',
-  // Queue metrics events (NEM-3637)
-  'queue.status',
-  'pipeline.throughput',
   // Plate read events (NEM-4865)
   'plate_read.created',
   // Dwell time events (NEM-4714)
@@ -619,10 +610,6 @@ export enum WSEventType {
   ENRICHMENT_PROGRESS = 'enrichment.progress',
   ENRICHMENT_COMPLETED = 'enrichment.completed',
   ENRICHMENT_FAILED = 'enrichment.failed',
-
-  // Queue metrics events - Pipeline queue status (NEM-3637)
-  QUEUE_STATUS = 'queue.status',
-  PIPELINE_THROUGHPUT = 'pipeline.throughput',
 
   // Dwell time events - Zone dwell tracking (NEM-4714)
   DWELL_ENTRY = 'dwell.entry',
@@ -1208,58 +1195,6 @@ export interface DwellExitPayload {
 }
 
 // =============================================================================
-// Queue Metrics Event Payloads (NEM-3637)
-// =============================================================================
-
-/**
- * Information about a single queue
- */
-export interface QueueInfo {
-  /** Queue name (detection, analysis, etc.) */
-  name: string;
-  /** Number of items in queue */
-  depth: number;
-  /** Number of active workers */
-  workers: number;
-  /** Queue health status */
-  status?: string;
-}
-
-/**
- * Payload for queue.status events
- */
-export interface QueueStatusPayload {
-  /** List of queue statuses */
-  queues: QueueInfo[];
-  /** Total items across all queues */
-  total_queued: number;
-  /** Total items being processed */
-  total_processing: number;
-  /** Total active workers */
-  total_workers?: number;
-  /** Overall system status (healthy/warning/critical) */
-  overall_status: string;
-  /** ISO 8601 timestamp */
-  timestamp?: string;
-}
-
-/**
- * Payload for pipeline.throughput events
- */
-export interface PipelineThroughputPayload {
-  /** Detections processed per minute */
-  detections_per_minute: number;
-  /** Events created per minute */
-  events_per_minute: number;
-  /** Enrichments per minute */
-  enrichments_per_minute?: number;
-  /** ISO 8601 timestamp */
-  timestamp?: string;
-  /** Measurement window in seconds */
-  window_seconds?: number;
-}
-
-// =============================================================================
 // Plate Read Event Payloads (NEM-4865)
 // =============================================================================
 
@@ -1587,9 +1522,6 @@ export interface WSEventPayloadMap {
   [WSEventType.ENRICHMENT_PROGRESS]: EnrichmentProgressPayload;
   [WSEventType.ENRICHMENT_COMPLETED]: EnrichmentCompletedPayload;
   [WSEventType.ENRICHMENT_FAILED]: EnrichmentFailedPayload;
-  // Queue metrics events (NEM-3637)
-  [WSEventType.QUEUE_STATUS]: QueueStatusPayload;
-  [WSEventType.PIPELINE_THROUGHPUT]: PipelineThroughputPayload;
   // Dwell time events (NEM-4714)
   [WSEventType.DWELL_ENTRY]: DwellEntryPayload;
   [WSEventType.DWELL_EXIT]: DwellExitPayload;

@@ -47,7 +47,8 @@ describe('WebSocket Event Types', () => {
       // The length assert was never bumped when the source array grew (52->53->55);
       // verified against the array literal on main, drift is pre-existing.
       // F1.2 (UR-18) added system.verdict_engine_status_changed -> 56 total.
-      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(56);
+      // F3.1 (F-136, R2a row 33) retired the 2 queue-metrics event keys -> 54 total.
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(54);
     });
 
     it('should include new hierarchical event keys', () => {

@@ -81,7 +81,7 @@ const FALLBACK_POLLING_INTERVAL = 5000;
  * values `useWebSocketStatus` carried as defaults before its socket code was
  * deleted, and they match every other production subscriber on these two URLs
  * (`usePrometheusAlertWebSocket`, `useVerdictEngineStatus`,
- * `useQueueMetricsWebSocket`, `useWorkerStatusWebSocket`, … all pass
+ * `useWorkerStatusWebSocket`, … all pass
  * 1000/15) — which matters because the manager keeps ONE config per URL, the
  * first subscriber's, and React mounts child effects before parent effects.
  *

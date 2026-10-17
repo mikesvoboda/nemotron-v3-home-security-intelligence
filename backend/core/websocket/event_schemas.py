@@ -860,41 +860,6 @@ class EnrichmentFailedPayload(BasePayload):
 
 
 # =============================================================================
-# Queue Metrics Event Payloads (NEM-3637)
-# =============================================================================
-
-
-class QueueInfo(BasePayload):
-    """Information about a single queue."""
-
-    name: str = Field(..., description="Queue name (detection, analysis, etc.)")
-    depth: int = Field(..., ge=0, description="Number of items in queue")
-    workers: int = Field(..., ge=0, description="Number of active workers")
-    status: str | None = Field(None, description="Queue health status")
-
-
-class QueueStatusPayload(BasePayload):
-    """Payload for queue.status events."""
-
-    queues: list[QueueInfo] = Field(..., description="List of queue statuses")
-    total_queued: int = Field(..., ge=0, description="Total items across all queues")
-    total_processing: int = Field(..., ge=0, description="Total items being processed")
-    total_workers: int | None = Field(None, ge=0, description="Total active workers")
-    overall_status: str = Field(..., description="Overall system status (healthy/warning/critical)")
-    timestamp: str | None = Field(None, description="ISO 8601 timestamp")
-
-
-class PipelineThroughputPayload(BasePayload):
-    """Payload for pipeline.throughput events."""
-
-    detections_per_minute: float = Field(..., ge=0, description="Detections processed per minute")
-    events_per_minute: float = Field(..., ge=0, description="Events created per minute")
-    enrichments_per_minute: float | None = Field(None, ge=0, description="Enrichments per minute")
-    timestamp: str | None = Field(None, description="ISO 8601 timestamp")
-    window_seconds: int | None = Field(None, description="Measurement window in seconds")
-
-
-# =============================================================================
 # Zone Event Payloads (NEM-5073)
 # =============================================================================
 
@@ -1094,9 +1059,6 @@ EVENT_PAYLOAD_SCHEMAS: dict[WebSocketEventType, type[BasePayload]] = {
     WebSocketEventType.ENRICHMENT_PROGRESS: EnrichmentProgressPayload,
     WebSocketEventType.ENRICHMENT_COMPLETED: EnrichmentCompletedPayload,
     WebSocketEventType.ENRICHMENT_FAILED: EnrichmentFailedPayload,
-    # Queue metrics events (NEM-3637)
-    WebSocketEventType.QUEUE_STATUS: QueueStatusPayload,
-    WebSocketEventType.PIPELINE_THROUGHPUT: PipelineThroughputPayload,
     # Zone events (NEM-5073)
     WebSocketEventType.ZONE_CROSSING: ZoneCrossingPayload,
     WebSocketEventType.ZONE_DWELL_STARTED: ZoneDwellStartedPayload,

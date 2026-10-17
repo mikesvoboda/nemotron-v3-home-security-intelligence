@@ -911,18 +911,6 @@ export type {
   UseEventEnrichmentWebSocketReturn,
 } from './useEventEnrichmentWebSocket';
 
-// Queue metrics WebSocket hook (NEM-3637)
-export {
-  useQueueMetricsWebSocket,
-  default as useQueueMetricsWebSocketDefault,
-} from './useQueueMetricsWebSocket';
-export type {
-  QueueStatusEntry,
-  ThroughputEntry,
-  UseQueueMetricsWebSocketOptions,
-  UseQueueMetricsWebSocketReturn,
-} from './useQueueMetricsWebSocket';
-
 // Notification preferences hooks (NEM-3582)
 export {
   useNotificationPreferences,
