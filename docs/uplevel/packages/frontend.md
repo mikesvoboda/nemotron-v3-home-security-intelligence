@@ -343,7 +343,7 @@ owner-tier ruling as its route.
 ### [r148a] One shared golden harness
 
 **Flags:** none; test-only. **Assigned:** frontend. **Depends on:** `F2.3`'s last batch merged.
-**PR:** none yet. (ruling 148, record 6136930446)
+**PR:** #7241. (ruling 148, record 6136930446)
 
 - [ ] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
       `frontend/tests/golden/harness.ts`, keeping every comment that explains a fix, and repoint each
