@@ -721,7 +721,7 @@ queues) checked nothing, and ruling 241's missing `B3.1` slot surfaced only by h
 
 **Flags:** `owner` (production safety). **Assigned:** `uplevel-ops-a`, first on its queue, and
 claimable while #7175 waits on review (UR-52 waived, as rulings 217 and 235 did). **Depends on:**
-none. **PR:** none yet. (ruling 243, record 6222454848)
+none. **PR:** #7222. (ruling 243, record 6222454848)
 
 `[r162]` (#7114) gave `docker-compose.prod.yml` a top-level `include:` of
 `docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml`, which redeclares `services.backend`. The

@@ -317,7 +317,7 @@ and the re-read and merge comment are UR-29.
       of UR-47's lane-review kinds;
     - drops no table and adds no upgrade step;
     - touches nothing under `backend/api/middleware/`, and no file under `backend/` or
-      `frontend/src/` whose path names `auth`, `security`, `api_key`, `secret` or `permission`;
+      `frontend/src/` with `auth`, `security`, `api_key`, `secret` or `permission` in its path;
     - touches no compose, deploy or setup file (`docker-compose*.yml`, `setup.py`, `setup_lib/`,
       `ai/`) and nothing under `.github/`;
     - lets no baseline or limit gain an entry or rise; an entry may be removed or its line number
