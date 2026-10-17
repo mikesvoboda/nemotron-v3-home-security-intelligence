@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 
 import PipelineQueues from './PipelineQueues';
 
-import type { QueuesStatusResponse } from '../../types/queue';
+import type { QueueStatus, QueuesStatusResponse } from '../../types/queue';
 
 // Helper to create mock queue status
 const createMockQueuesStatus = (
@@ -455,11 +455,23 @@ describe('PipelineQueues', () => {
     });
 
     // [r205] Two `?? 'healthy'` defaults were removed here (PipelineQueues.tsx:94
-    // and :247). They were latent, not visible: the badge that PRINTS the status
-    // is gated on `hasDetailedStatus`, so the invented value only ever reached
-    // the two derived booleans below. That is what makes this a witness rather
-    // than a red — with the default in place nothing rendered "healthy" either,
-    // but `hasWarning` was computed from a status the backend never sent.
+    // and :247). What they reach is two different things, and a probe run at both
+    // ends (base 9e71bfde8 vs head) separates them:
+    // - the DEPTH badge path (no `queuesStatus` at all, below) is behaviour-
+    //   preserving: `getQueueBadgeColor(depth, threshold)` produced the same colour
+    //   at base as the removed default's absence does at head, so those its are
+    //   witnesses, not reds.
+    // - the two BADGES that print the status are gated on a row/summary existing,
+    //   which a malformed payload can satisfy while omitting the status field. At
+    //   base those badges PRINTED the invented word: a row without `status` printed
+    //   `healthy` in `detection-health-badge`, and a summary without `overall_status`
+    //   printed `healthy` in `overall-health-badge`. At head each renders nothing.
+    //   Those two shapes are the visible half and are pinned as red-at-base below.
+    // Reachability, recorded rather than hidden: `status` and `overall_status` are
+    // required in the backend (`backend/api/schemas/queue_status.py:82,150`, both
+    // `Field(...)`) behind a `response_model`, so no real response omits them. The
+    // guards are therefore defence-in-depth — which is why the fix is a truth fix
+    // (the value was never the backend's) and not a bug report.
     it('warns from the legacy depth path with no queuesStatus at all', () => {
       // The warning must come from a depth the component actually has, never
       // from a status default standing in for a response it never got.
@@ -485,6 +497,51 @@ describe('PipelineQueues', () => {
       // A real 'critical' is shown as given, and colours the row red.
       expect(screen.getByTestId('detection-health-badge')).toHaveTextContent('critical');
       expect(screen.getByTestId('detection-queue-row')).toHaveClass('bg-red-500/10');
+    });
+
+    // The two red-at-base witnesses. Both shapes omit a field the component used
+    // to default to 'healthy', so at base each badge PRINTED that invented word;
+    // at head each renders nothing. Verified by running this file at 9e71bfde8
+    // (see the PR's Evidence section for the captured failure text).
+    //
+    // Neither shape is constructible through the types — `status` and
+    // `overall_status` are required by the backend schema — so each is built by
+    // deleting the field and casting. That cast is the finding, not a shortcut:
+    // the default could only ever fire on a payload the schema forbids, which is
+    // why these are defence-in-depth and why the claim being pinned is "a status
+    // we were never given is not printed as healthy", not "users saw a false
+    // healthy badge".
+    it('prints no row health badge when the row omits status (red at base: printed "healthy")', () => {
+      const queuesStatus = createMockQueuesStatus();
+      const rowWithoutStatus = structuredClone(queuesStatus.queues[0]) as Partial<QueueStatus>;
+      delete rowWithoutStatus.status;
+      const stripped = structuredClone(queuesStatus);
+      stripped.queues[0] = rowWithoutStatus as QueueStatus;
+
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={stripped} />);
+
+      // The badge still renders (getByTestId would throw otherwise) but its cell
+      // is empty: [r205] removed the `?? 'healthy'` that filled exactly this cell.
+      // Asserted as an equality, not `not.toBe('healthy')`, so the test is also a
+      // positive pin on "no word at all" — and not `toHaveTextContent('')`, which
+      // is a substring match that no state of the DOM could fail.
+      expect(screen.getByTestId('detection-health-badge').textContent).toBe('');
+    });
+
+    it('shows no header health badge when the summary omits overall_status (red at base)', () => {
+      const queuesStatus = createMockQueuesStatus();
+      const summary = structuredClone(queuesStatus.summary) as Record<string, unknown>;
+      delete summary.overall_status;
+
+      render(
+        <PipelineQueues
+          detectionQueue={0}
+          analysisQueue={0}
+          queuesStatus={{ queues: queuesStatus.queues, summary } as unknown as QueuesStatusResponse}
+        />
+      );
+
+      expect(screen.queryByTestId('overall-health-badge')).not.toBeInTheDocument();
     });
   });
 });

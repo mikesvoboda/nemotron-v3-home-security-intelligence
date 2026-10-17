@@ -91,7 +91,7 @@ export default function AmbientStatusProvider({
   }, [status, threatLevelOverride]);
 
   // A count only comes from a counted source; the provider's sole one is
-  // `alertCountOverride` (the seam a real `useAlerts` total would replace).
+  // `alertCountOverride` (the seam `useAlertsInfiniteQuery().totalCount` would fill).
   const alertCount = useMemo(() => {
     if (alertCountOverride !== undefined) {
       return alertCountOverride;

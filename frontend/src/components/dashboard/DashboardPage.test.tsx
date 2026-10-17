@@ -874,9 +874,11 @@ describe('DashboardPage', () => {
   // [r205] No status is not "healthy". DashboardPage.tsx:289 read
   // `deferredSystemStatus?.health ?? 'healthy'`, so a dashboard that never
   // received a status claimed the one state that means "everything is fine".
-  // StatsRow already renders a neutral for 'unknown' (StatsRow.tsx:74 admits it;
-  // StatsRow.test.tsx:175 pins "Unknown", grey dot, HelpCircle), so the neutral
-  // was never missing — the page was overwriting it before passing it down.
+  // StatsRow already renders a neutral for 'unknown' (StatsRow.tsx:74 admits the
+  // value; StatsRow.test.tsx:175-181 pins the "Unknown" label and the grey
+  // bg-gray-500 dot — the HelpCircle icon is production-only, StatsRow.tsx:144,
+  // and no test asserts it), so the neutral was never missing — the page was
+  // overwriting it before passing it down.
   // The mocked StatsRow above echoes the prop as data-system-status, which makes
   // the page's default directly observable: this describe is the witness for the
   // prop DashboardPage PASSES, independent of how StatsRow styles it.
