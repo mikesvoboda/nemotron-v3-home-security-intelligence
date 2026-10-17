@@ -236,6 +236,60 @@ def test_check_still_running_is_not_reported():
     assert second(Run(inflight), state) == [], "a check without a conclusion is not a conclusion"
 
 
+def test_a_reinstanciated_check_collapse_is_positional_last_wins():
+    """A name with two instances collapses to the LAST node in the window, not the first.
+
+    Characterization, found while reading #7238's CI: one CheckRun name has many instances (a
+    re-run mints a new row and the old one stays in the connection), so `contexts.nodes` really can
+    carry `CI Gate (Required Checks)` twice, and `_checks` builds `{name: conclusion}` with
+    `out[name] = conclusion` -- LAST node wins. That is a MEASURED ORDER ASSUMPTION, not a lookup:
+    the window is `contexts(last: …)`, which is oldest-first, so last-position happens to be the
+    newest instance. Nothing in the query fetches a check-run `id` to rank on (pinned by
+    `test_the_check_window_selects_no_id_to_rank_on`), so if GitHub ever returns those two rows in
+    the other order the watcher reports the SUPERSEDED verdict and prints it as news. The failure
+    this pins is silent: both rows are green-ish strings and the line still looks sane.
+
+    Not aspirational -- do not "fix" this test into demanding an id sort. It is here so that the
+    day someone ranks by id, they change the query AND this test together.
+    """
+    state = seed()
+    twice = envelope(
+        [
+            pr_node(
+                PR,
+                checks=(
+                    ("CI Gate (Required Checks)", "FAILURE", "COMPLETED"),
+                    ("CI Gate (Required Checks)", "SUCCESS", "COMPLETED"),
+                ),
+            )
+        ],
+        ruling_ids=[1],
+        ruling_bodies={1: "BINDING NOW: 45 live"},
+    )
+    new: dict = {}
+    watch.check(Run(twice), new, repo=REPO, prs=[PR], ruling_issue=RULING_ISSUE)
+    stored = new["prs"][PR]["checks"]
+    assert stored["CI Gate (Required Checks)"] == "SUCCESS", (
+        "last node wins today; a change here means the order assumption moved -- re-read the "
+        "connection's order and rank by an explicit id, do not just re-type the expected value"
+    )
+    # …and the collapse is invisible as a duplicate: two rows, one key.
+    assert len(stored) == 1, stored
+
+
+def test_the_check_window_selects_no_id_to_rank_on():
+    """The CheckRun selection fetches no `id`, which is WHY the collapse above is positional.
+
+    Line-scoped on purpose: `id` IS selected for reviews and comments (`nodes { id author … }`), so
+    a substring test over the whole query would pass while telling nothing about the check window.
+    """
+    query = watch.query_text([PR], REPO, RULING_ISSUE)
+    lines = [ln for ln in query.splitlines() if "on CheckRun" in ln]
+    assert lines, "the query must select CheckRun nodes at all"
+    for line in lines:
+        assert not re.search(r"\bid\b", line), f"check rows carry no id to rank on: {line.strip()}"
+
+
 def test_new_review_is_reported():
     state = seed()
     reviewed = envelope(
