@@ -294,7 +294,6 @@ Object detection visualization:
 - `BoundingBoxOverlay.tsx` - Renders detection boxes over images
 - `DetectionImage.tsx` - Displays image with detection overlays
 - `DetectionThumbnail.tsx` - Thumbnail with detection box
-- `PoseSkeletonOverlay.tsx` - Pose skeleton visualization overlay
 - `README.md` - Documentation
 
 Note: Tests are co-located with components (e.g., `*.test.tsx`).
