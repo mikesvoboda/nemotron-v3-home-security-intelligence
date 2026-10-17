@@ -113,7 +113,6 @@ def test_settings() -> OrchestratorSettings:
         health_check_interval=5,  # Minimum allowed for testing
         health_check_timeout=1,
         startup_grace_period=10,  # Minimum allowed for testing
-        max_consecutive_failures=3,
         restart_backoff_base=1.0,
         restart_backoff_max=30.0,  # Minimum allowed for testing
     )

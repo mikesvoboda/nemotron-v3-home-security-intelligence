@@ -105,10 +105,8 @@ def _cache_settings(cache_dir: Path, max_cache_size_gb: float) -> Any:
     return TranscodeCacheSettings(
         cache_dir=str(cache_dir),
         max_cache_size_gb=max_cache_size_gb,
-        max_file_age_days=7,
         cleanup_threshold_percent=0.9,
         cleanup_target_percent=0.8,
-        lock_timeout_seconds=30,
         enabled=True,
     )
 
