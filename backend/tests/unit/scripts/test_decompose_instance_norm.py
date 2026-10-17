@@ -25,9 +25,17 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import onnx
 import pytest
-from onnx import TensorProto, helper, numpy_helper
+
+# onnx/onnxruntime live only in the `dev` extra, so the ONE CI leg that sweeps EVERY tracked test
+# file for import errors — collection-sanity's WP0.8 real-tree sweep — runs on base deps (numpy
+# present, onnx absent) and this file is not the file that leg claims to run: the four
+# `Backend Unit Tests` shards, which DO install the extra, execute it for real (witnessed in CI at
+# the head). A module-scope `import onnx` therefore errored the sweep — a scope mismatch, not a
+# defect — so the guard skips it only where the dep was never installed. That is a scope statement,
+# not an escape hatch: the legs that claim to run this file have the dep and run all 21 cases.
+onnx = pytest.importorskip("onnx", reason="onnx is a dev-extra dep; see the sweep-vs-shard note")
+from onnx import TensorProto, helper, numpy_helper  # noqa: E402  (after the guard, by design)
 
 _SCRIPT = Path(__file__).resolve().parents[4] / "scripts" / "decompose_instance_norm.py"
 _C = 8  # channels of the fixture's normalized activations: scale/bias are length-_C vectors
