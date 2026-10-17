@@ -232,7 +232,8 @@ weights. The ruling's verdict — the extended set is never exercised for real �
       row's own promise, ground a route and a symbol, no new line-coordinate ground); each is named
       with the reason. What shipped instead of new rows: the seven `[r207]` legs mislabeled
       `re-ID (face)` are re-leged `face (zoo)` (measured producer: SCRFD + w600k_r50 at
-      `model_zoo.py:345`/`:346` and the `yolo11-face` loader `:335`, not the Triton `reid` op), the
+      `backend/services/model_zoo.py:345`/`:346` and the `yolo11-face` loader `:335`, not the Triton
+      `reid` op), the
       marker's family list is glossed (§8's rule keys on the note string, which names ten families,
       not Triton literally), a third boundary — faked _and_ never-produced output both list it — and
       the legend `works` cell plus `README.md`'s vocabulary name the set. §1 lists 35 rows, all 35
@@ -242,7 +243,8 @@ weights. The ruling's verdict — the extended set is never exercised for real �
       stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87),
       unless the list above puts the row back to **awaiting real tier**. Done at `8f6a955ab`, on the
       proceed branch: box 2 put none of the three back — §1 names them **User-entered** (the family
-      reads _their_ store, `household_matcher.py:452` / `vlm_specialists.py:742`, not the row
+      reads _their_ store, `backend/services/household_matcher.py:452` /
+      `backend/services/vlm_specialists.py:742`, not the row
       displaying the family's output), and `5db3c56f7` was a default-shape real run, which box 1's
       bound makes a valid promotion for a row whose value no leg fakes. `5db3c56f7`'s own commit
       message names `hsi-check-20261013234949-a14ce4`.
@@ -276,3 +278,46 @@ the extended set and cite the box-1 measurement; the three cells carry the `5db3
 2026-10-16T00:00Z. **MET** — run `38584761421` above, 2026-10-14T15:29:34Z, ~38 h inside the mark's
 expiry and the ruling-165 clock (12:08:57Z + 48 h on the 16th). The F-235 inventory row moves
 `unverified` → `awaiting real tier` in the same commit, and §2's §3.10/all totals roll with it.
+
+### [r231b] Keep it true: the bare cites and probe-class residuals `r231`'s close left
+
+**Flags:** none. **Assigned:** docs, opened on trigger (this lane opens Phase 4 packages only on a
+trigger — the trigger fired: r231-reviewer's note 1, a validator failure reported against a merged
+claim, review comment `6236622758` on #7235, dispositioned there as this package's lead item).
+**Depends on:** `[r231]` merged (#7235, `5d5c4bcc5`). **PR:** #7237. (ruling 231, record 6215981513)
+
+- [x] The three bare-filename cites `[r231]`'s repair commit `683d49566` published in its own
+      packages prose — `model_zoo.py`:345 at :235, `household_matcher.py`:452 and
+      `vlm_specialists.py`:742 at :245 (the third published at `:741`; `537cc20d8`'s ground swap
+      moved it) — carry their full repo-relative paths
+      (`backend/services/…`), the form the validator resolves and the inventory prose already
+      uses. Done when `validate_docs` level 1 over `packages/docs.md` reads **3 ERRs, not 6**: the
+      base `f85f27a5f` set (`ci.yml`:298-304, `permission.spec.ts`:181-187,
+      `timeline/event-feedback.spec.ts`:213) and nothing else. The three base ERRs are NOT this
+      package's to fix — they were published under earlier rulings and sit in other batches' prose.
+      This block names every cite in the split form (closing backtick BEFORE the colon, as above):
+      `INLINE_CITATION_PATTERN` matches only a `file.ext:NNN` wholly inside one code span, so the
+      block cannot re-grow the class it fixes — and if a later re-wrap merges those spans, the
+      ERR set this Done when reads is what makes that loud. The instrument is HAND-RUN: this file
+      sits outside the citation gate's five scanned dirs (`ci.yml`:392), so the ERR set speaks when
+      the next review re-runs it — which UR-91 obliges on every new head.
+      Done at `a49f24bc7`; #7237's Evidence carries the three instrument outputs.
+- [x] §1's fourth boundary names the two residuals its own bullet left open (reviewer note 3):
+      **F-022** (its evidence names tiered `GET /api/system/health/websocket` through the
+      always-open `WebSocketHealthPanel`) and **F-140** (its API cell cites
+      `GET /api/system/health` outright). Both are `half-built`, zero works exposure; naming is
+      prose-only — the ground stays route+symbol, so the reverse sweep's obligation is unchanged:
+      grounds re-run reads **31 grounds, 0 unnamed** with controls green, and the bullet's class
+      count moves from eleven named to thirteen.
+      Done at `a49f24bc7`; the sweep re-printed 31/0 there. Round 2 blocked this clause while its
+      only carrier sat in `/tmp` — contract rule 3 — and the instrument now lives at
+      `scripts/uplevel/grounds_sweep.py`, re-printing 31/10/0 + the five controls identical to the
+      copy it replaced (modulo its path header line). The F-022 row's route-tier claim
+      re-verified at the `@router.get` decorator of `GET /health/websocket` in
+      `backend/api/routes/system.py` (`RateLimitTier.DEFAULT`) — symbol-anchored, deliberately no
+      line number: this cluster is the repo's known ~11-line cite-drift family (the F-022 row's own
+      `:1626` is already stale), so a fresh coordinate here would age the same way.
+
+**Done when:** the validator reads 3 ERRs on `packages/docs.md` (not 6), the grounds sweep
+(`scripts/uplevel/grounds_sweep.py`, committed) still foots at 31/0 with F-022 and F-140 named in
+the fourth boundary, and prettier is clean on both files.
