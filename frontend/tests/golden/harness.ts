@@ -3396,8 +3396,16 @@ function usableScenario(entry: Scenario | undefined, name: string): Scenario | s
   return entry;
 }
 
-/** scripts/feature-check.sh lives at the repo root: four up from frontend/tests/golden/analytics-alerts. */
-export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+/** scripts/feature-check.sh lives at the repo root: THREE up from this file's
+ *  directory, `frontend/tests/golden/` — the same depth `dashboard-drop.spec.ts`
+ *  computes from the directory it shares with this file. The constant is derived
+ *  from `import.meta.url`, so the depth is a property of WHERE the file sits, not
+ *  of its text: it read `'../../../..'` while it lived one level deeper, in the
+ *  area dir `frontend/tests/golden/analytics-alerts/`, and [r148a]'s fold moved it
+ *  up, so the old depth resolved ABOVE the repo root and every `feature-check.sh
+ *  drop` spawn died `ENOENT`. Carrying that literal verbatim was the wrong reading
+ *  of "keep the comments" — a location-relative constant is not carried prose. */
+export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 /** Drop this batch's fixture through O2.2's own helper (documented contract,
  *  not a bare copy — same call dashboard-drop.spec.ts uses). */
