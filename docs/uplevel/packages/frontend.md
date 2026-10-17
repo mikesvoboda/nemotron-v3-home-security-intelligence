@@ -345,7 +345,7 @@ owner-tier ruling as its route.
 **Flags:** none; test-only. **Assigned:** frontend. **Depends on:** `F2.3`'s last batch merged.
 **PR:** #7241. (ruling 148, record 6136930446)
 
-- [ ] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
+- [x] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
       `frontend/tests/golden/harness.ts`, keeping every comment that explains a fix, and repoint each
       spec's import. Until `F2.3`'s last batch merges, each batch keeps its own copy.
 
