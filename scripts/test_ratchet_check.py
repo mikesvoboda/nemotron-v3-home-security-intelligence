@@ -63,6 +63,18 @@ TREE = {
     "frontend/tests/golden/timeline/media.spec.ts": (
         "test.fixme('F-001 the video leg — UNPROVEN on this tier', async () => {});\n"
         "test.skip(!harness.ready, 'no live stack');\n"
+        # The two shapes the gate was blind to: a guard written as a chained
+        # `.info()` call (a RUNTIME skip — Playwright's other mechanism, never a
+        # declared leg), and a `.info()` skip whose first arg is a string, which
+        # is exactly the shape a naive chain walk mistakes for a registration.
+        "test('F-002 the grid leg', async ({ page }) => {\n"
+        "  test\n"
+        "    .info()\n"
+        "    .skip(!harness.ready, 'no live stack');\n"
+        "  test\n"
+        "    .info()\n"
+        "    .skip('a title that is NOT a registration', 'runtime skip');\n"
+        "});\n"
     ),
 }
 

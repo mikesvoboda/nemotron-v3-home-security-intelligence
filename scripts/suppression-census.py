@@ -557,10 +557,27 @@ def _frontend_modifier_locations(root: Path) -> dict[str, list[dict]]:
 #       REGISTRATION form: the leg is declared and never runs. A suppression.
 #   test.skip(<cond>, why)                            -> non-string first arg =
 #       the CONDITIONAL guard form. The leg runs whenever the condition is
-#       false, so on a live stack it suppresses nothing. It is a guard, and the
-#       package excludes guards — with a witness rather than an assumption: run
-#       39035167334's golden junit prints 245 tests / 4 skips while the tree
-#       carries 64 conditional call sites, i.e. they skipped ZERO tests.
+#       false. It is a guard, and the package excludes guards.
+#
+# The measured population (2026-10-17, this scanner + a .skip( first-argument
+# census of the same tree): 66 line-initial test.(fixme|skip)( sites -> 2
+# registration legs (both fixme) and 64 guards; 223 .skip( call sites in total,
+# 201 of them the harness guard (`!harness.ready` / `!h.ready` / `!drop.ready`)
+# and 7 passing a literal `true`.
+#
+# Corroboration, stated as corroboration: run 39035167334's golden junit prints
+# 245 tests / 0 failures / 0 errors / 4 skips, and its 4 skipped cases are F-295,
+# F-034 and exactly the two F-296 registration legs this category counts. Four
+# skips across 201 harness guards means the harness was READY on that run, so the
+# harness guards took no legs. F-295 and F-034 skipped from runtime
+# test.info().skip sites inside their bodies (the F-034 leg holds two such
+# literal-`true` sites, :423 and :432; the junit records no skip message, so this
+# instrument cannot say which of the two fired, and does not claim to) — runtime skips are
+# outside this category by box 1's wording and are listed on the PR for the
+# coordinator instead of being quietly widened in. A guard that fires only when
+# its data is absent is still not a registration: it RUNS whenever the data is
+# present, which is the whole difference from a declared test.skip('title', fn)
+# that can never run at all.
 #   test.skip()                                       -> bare file-level call:
 #       unconditional, counted.
 #   test.info().skip(cond, why)                       -> a RUNTIME skip inside a
@@ -590,6 +607,9 @@ _GOLDEN_CHAIN_ROOT_RE = re.compile(r"^\s*(?:await\s+)?test\s*$")
 # same-line test above cannot see it — so the chain walk has to name `describe`
 # as a root rather than file it as "not a test".
 _GOLDEN_CHAIN_DESCRIBE_RE = re.compile(r"^\s*test\.describe\b")
+# A chain that passes through `.info()` is Playwright's runtime-skip API, which
+# is a different mechanism from a declared leg and is out of this category.
+_GOLDEN_CHAIN_INFO_RE = re.compile(r"^\s*\.info\s*\(")
 # Suite-level suppression: one call hides a whole describe block, which the
 # per-site id shape cannot express. Measured zero in this tree (2026-10-17), so
 # it is a net rather than a gap — it raises the moment someone writes one.
@@ -715,6 +735,12 @@ def _golden_chain_root(lines: list[str], idx: int) -> str | None:
     at anything else is not ours. Anything the walk cannot resolve (a variable,
     another receiver, a chain past the window) answers None, which is the
     direction that surfaces as an UNREGISTERED row rather than a free pass.
+
+    `.info()` terminates the walk as "info" rather than counting as a plain step:
+    `test` ↵ `.info()` ↵ `.skip(x, why)` is Playwright's RUNTIME skip, which reads
+    back to a bare `test` root and would otherwise be miscounted as a
+    registration. Box 1 counts declared legs, so this answers "not a leg" — and
+    it is answered by name so the reason survives into the tests that pin it.
     """
     for back in range(1, _GOLDEN_CHAIN_MAX + 1):
         prev = idx - back
@@ -726,18 +752,32 @@ def _golden_chain_root(lines: list[str], idx: int) -> str | None:
             return "test"
         if _GOLDEN_CHAIN_DESCRIBE_RE.match(lines[prev]):
             return "describe"
+        if _GOLDEN_CHAIN_INFO_RE.match(lines[prev]):
+            return "info"  # a runtime skip, not a declared leg
         if _GOLDEN_CHAIN_STEP_RE.match(lines[prev]):
             continue  # another .step() of the same chain — keep walking
         return None
     return None
 
 
+_GOLDEN_TEST_FILE_RE = re.compile(r"\.(test|spec)\.[cm]?[jt]sx?$")
+
+
 def _golden_playwright_sites(root: Path) -> list[dict]:
+    """Every Playwright file in the golden tree, by the repo's own test-file
+    convention rather than by the one suffix in today's inventory.
+
+    Measured 2026-10-17: `*.spec.ts` and this pattern select the SAME 106 files
+    (`newly covered: 0`, and `frontend/tests/golden/**/*.test.ts` does not
+    exist). The wider net is free today and closes the exact bug this package
+    fixes — a golden `.test.ts` added next year would otherwise be invisible to
+    the ratchet again, which is the failure ruling 173 exists to end.
+    """
     out: list[dict] = []
     base = root / "frontend/tests/golden"
     if not base.exists():
         return out
-    for path in sorted(base.rglob("*.spec.ts")):
+    for path in sorted(p for p in base.rglob("*") if _GOLDEN_TEST_FILE_RE.search(p.name)):
         out.extend(_golden_sites(path.read_text(), _rel(root, path)))
     return out
 

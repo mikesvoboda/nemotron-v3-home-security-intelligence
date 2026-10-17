@@ -412,6 +412,12 @@ GOLDEN_SHAPES = [
     ("test.skip(a ? b : c, 'why');\n", 0, "ternary first = guard"),
     ("test('t', async () => { test.info().skip(c, 'why'); });\n", 0, "runtime guard, not a registration"),
     ("test\n  .info()\n  .skip(true, 'runtime');\n", 0, "chained runtime guard: root is .info()"),
+    # The dangerous neighbour of the line above: same chain, but a STRING first
+    # arg, which is the shape a walk-back that treats .info() as an ordinary
+    # step miscounts as a registration (it reads the chain root back to `test`).
+    # Kept at 0 by the .info() terminator, NOT by the guard rule, so this row
+    # reddens if that terminator is ever dropped.
+    ("test\n  .info()\n  .skip('looks like a leg', 'runtime');\n", 0, "runtime .info() chain never a registration"),
     ("fixtures\n  .skip('not a test', fn);\n", 0, "chain rooted at a receiver"),
     ("const t = pick();\nt\n  .skip('unknown root', fn);\n", 0, "unresolvable root reads as not-ours"),
     ("// test.skip('disabled in a comment', fn);\n", 0, "commented-out leg is prose"),
@@ -476,6 +482,25 @@ def test_golden_refuses_to_silently_undercount(tmp_path, src, label):
     )
     assert r.returncode != 0, f"{label}: census exited 0 and reported {r.stdout.strip()[-200:]}"
     assert "shape.spec.ts" in r.stderr, f"{label}: failure does not name the file: {r.stderr[-300:]}"
+
+
+def test_golden_scans_by_test_file_convention_not_one_suffix(tmp_path):
+    """The tree-wide net, which no real-tree assertion can prove: today's
+    inventory has ZERO golden `*.test.ts` files (measured 2026-10-17: `*.spec.ts`
+    and the widened pattern select the same 106 files), so only a fixture can
+    show that a differently-named Playwright file is still governed. A `_golden_
+    playwright_sites` glob that narrows back to `*.spec.ts` reddens here — which
+    is the exact regression ruling 173 exists to close."""
+    root = build_fixture(tmp_path)
+    spec = root / "frontend/tests/golden/alpha/renamed.test.ts"
+    spec.write_text("test.fixme('F-009 named .test.ts, still governed', async () => {});\n")
+    got = run_census(root)
+    assert got["golden_fixme"] == EXPECTED["golden_fixme"] + 1, got
+    ids = [r["id"] for r in run_locations(root)["golden_fixme"]]
+    assert any(r.endswith("renamed.test.ts::F-009 named .test.ts, still governed") for r in ids), ids
+    # and the count is INDEPENDENT of the suffix: drop the file, back to baseline
+    spec.unlink()
+    assert run_census(root)["golden_fixme"] == EXPECTED["golden_fixme"]
 
 
 def test_golden_arm_is_inventory_not_just_a_tally(tmp_path):
