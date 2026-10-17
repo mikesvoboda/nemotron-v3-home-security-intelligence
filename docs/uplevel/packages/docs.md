@@ -192,7 +192,7 @@ counting its own running — are published in the §1 intro so a reader can re-c
 paragraph names the adjudicated non-members whose own §3 evidence cites a coordinate §1 publishes as
 an exclusion ground, and states that bound plus what the claim does NOT cover rather than asserting
 it is total. The one listed row at **works** was F-097 and this PR
-names it back to **awaiting real tier** (§2's 3.6 and `all` rows re-derived); the sweep found no
+names it back to **awaiting real tier**; the sweep found no
 second one, and the closest call is named: F-031 renders the detector-drawn crop in its feed cards but
 promises the VLM-written verdict/notify/risk badges, which its own golden spec asserts and F-054's does
 not, so it stays out with the reason rather than in by silence.
