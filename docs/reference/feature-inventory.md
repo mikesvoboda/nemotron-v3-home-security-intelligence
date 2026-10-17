@@ -150,8 +150,8 @@ Two boundaries are stated because a reader cannot re-derive them from the rows:
 | --- | --- | --- | --- |
 | **F-071** | detection totals, per-class counts, average confidence | reads `Detection.confidence` / `object_type`: `backend/api/routes/detections.py:374` handler, `:420`/`:430` aggregate | detector |
 | **F-072** | object-class donut | `select(Detection.object_type, func.count)` `backend/api/routes/analytics.py:338`, `:344` | detector |
-| **F-043** | object-type chips on cluster cards | `event.object_types` split at `backend/api/routes/events.py:1078`, `:1081`; render `frontend/src/components/events/EventClusterCard.tsx:161` | detector |
-| **F-054** | per-event detection thumbnails (bbox-drawn) | `GET /api/events/{event_id}/detections` `backend/api/routes/events.py:2173` (decorator `:2172`); bbox payload `backend/api/routes/detections.py:691` | detector |
+| **F-043** | object-type chips on cluster cards | `event.object_types` split at `backend/api/routes/events.py:1113`, `:1116`; render `frontend/src/components/events/EventClusterCard.tsx:161` | detector |
+| **F-054** | per-event detection thumbnails (bbox-drawn) | `GET /api/events/{event_id}/detections` `backend/api/routes/events.py:2208` (decorator `:2207`); bbox payload `backend/api/routes/detections.py:691` | detector |
 | **F-055** | Detected Objects list + weapon boxes (never renders) | `Detection(object_type=…)` built at `backend/services/detector_client.py:1281` | detector + threat |
 | **F-289** | tracks, track stats, class filter | `object_class=track.object_class` `backend/api/routes/tracks.py:129`, `:266` | detector |
 | **F-267** | approach-vector arrows | `object_class = last_detection.object_type` `backend/services/approach_vector_service.py:179`; route `backend/api/routes/analytics_zones.py:1657` | detector |
@@ -179,7 +179,7 @@ Two boundaries are stated because a reader cannot re-derive them from the rows:
 | **F-085** | cross-camera entity cards, seen-on-2+ filter | `GET /api/entities` `backend/api/routes/entities.py:145` — same clustering writer | re-ID (grouping) |
 | **F-081** | entity cards grouped by trust and their similarity metadata | `GET /api/entities` `backend/api/routes/entities.py:145` — `entities` written only by `EntityClusteringService._create_entity` (`backend/services/entity_clustering_service.py:265`), reached only from a re-ID embedding store with no production caller | re-ID (grouping) |
 | **F-066** | "Matched Entities" list (always empty) | client calls `/api/events/{id}/entity-matches` (`frontend/src/services/api.ts:5831` in `fetchEntityMatches` `:5787`), served by no route; the values it would show are clustering-written `entities` (same producer as F-081) | re-ID (grouping) |
-| **F-080** | the shared event detail modal opened from `/alerts`, detections and panels | `get_event_detections` `backend/api/routes/events.py:2173` → `detections` written at `backend/services/detector_client.py:1281` | detector |
+| **F-080** | the shared event detail modal opened from `/alerts`, detections and panels | `get_event_detections` `backend/api/routes/events.py:2208` → `detections` written at `backend/services/detector_client.py:1281` | detector |
 | **F-074** | this-week vs last-week DETECTIONS half of the card | `get_detection_trends` `backend/api/routes/analytics.py:113` `func.count(Detection.id)`; the row's own backend cell names `backend/api/routes/analytics.py:84` and `backend/services/detector_client.py:1281` | detector |
 | **F-098** | Alerts / Full-Backup export — the file always written is the events file, so its `Object Types` column is what the user gets | `run_export_job_with_db` takes no type (`backend/api/routes/exports.py:119`, `:167`) → `export_events_with_progress` (`backend/services/export_service.py:722`), same column as F-097 | detector |
 | **F-209** | learned activity heatmap, object baselines, current deviation | `get_camera_baseline` `backend/api/routes/cameras.py:1526`, `get_camera_activity_baseline` `:1616`; baselines fed per detection with `detection_class=object_type` at `backend/services/detector_client.py:1360` → `backend/services/baseline.py:141` | detector |
@@ -189,7 +189,7 @@ F-062, F-073, F-077, F-106, F-110, F-122, F-295 read `events.risk_level`/`risk_s
 their kin, written at `backend/services/vlm_analyzer.py:677`: the fake legs _condition_ those values
 through the prompt, they do not write them. **F-031** is the closest call and is named for it: its feed
 cards do render the detector-drawn crop (`thumbnail_url` → `GET /api/detections/{id}/image` with no
-`full`, `backend/api/routes/events.py:507`), but the row's promise is the _verdict, notify and risk_
+`full`, `backend/api/routes/events.py:542`), but the row's promise is the _verdict, notify and risk_
 badges — all VLM-written — and its own golden spec mirrors `cards, badges, footer`
 (`frontend/tests/golden/dashboard/activity-feed.spec.ts:148`) without ever asserting `card-thumbnail`,
 where F-054's spec asserts the `detection strip` outright. Same reason for **F-087** (its promise is
