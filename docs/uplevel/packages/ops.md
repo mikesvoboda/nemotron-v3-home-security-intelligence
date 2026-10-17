@@ -552,7 +552,7 @@ each agent wakes.
 ### [r195] O2.5 runs from a host login
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, after `[r193]`; ops-b reviews. **Depends on:**
-none. **PR:** none yet. (ruling 195)
+none. **PR:** #7231. (ruling 195)
 
 The owner's maui run (`6193951294`) died at VLM readiness: the harness reaches the VLM only at
 `host.docker.internal` (`scripts/feature_check.py:1374`, `:1385`), which does not resolve from a
