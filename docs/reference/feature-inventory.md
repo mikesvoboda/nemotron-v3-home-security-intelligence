@@ -186,7 +186,13 @@ Four boundaries are stated because a reader cannot re-derive them from the rows:
   `GET /yolo26/health`, `get_health` — deliberately not a line number, so naming them adds no exclusion
   ground for the reverse sweep above to bind. F-005 is the class's one **works** row and stays
   **works**: the probe earns that status honestly, because what it promises — service up/down — is real
-  on every tier, so a real Triton model neither confirms nor demotes it.
+  on every tier, so a real Triton model neither confirms nor demotes it. Two rows sit at the class's
+  edge unnamed and are named here: **F-022**'s only tiered traffic arrives through the always-open
+  WebSocket-health panel's tiered `GET /api/system/health/websocket` — the panel's probe fetch, not
+  the rate-limit feedback the row promises — and **F-140**'s API cell cites `GET /api/system/health`
+  outright, a health route, not a restart signal. A real Triton model changes nothing either reports
+  (both `half-built`, neither has a **works** dot), and the naming is prose-only — the ground stays a
+  route and a symbol, so it adds no exclusion ground for the reverse sweep above to bind.
 
 <!-- prettier-ignore -->
 | row | what it displays from a fake leg | the code path that reads it | legs |

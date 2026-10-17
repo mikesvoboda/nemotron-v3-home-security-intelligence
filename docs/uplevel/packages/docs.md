@@ -232,7 +232,8 @@ weights. The ruling's verdict — the extended set is never exercised for real �
       row's own promise, ground a route and a symbol, no new line-coordinate ground); each is named
       with the reason. What shipped instead of new rows: the seven `[r207]` legs mislabeled
       `re-ID (face)` are re-leged `face (zoo)` (measured producer: SCRFD + w600k_r50 at
-      `model_zoo.py:345`/`:346` and the `yolo11-face` loader `:335`, not the Triton `reid` op), the
+      `backend/services/model_zoo.py:345`/`:346` and the `yolo11-face` loader `:335`, not the Triton
+      `reid` op), the
       marker's family list is glossed (§8's rule keys on the note string, which names ten families,
       not Triton literally), a third boundary — faked _and_ never-produced output both list it — and
       the legend `works` cell plus `README.md`'s vocabulary name the set. §1 lists 35 rows, all 35
@@ -242,7 +243,8 @@ weights. The ruling's verdict — the extended set is never exercised for real �
       stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87),
       unless the list above puts the row back to **awaiting real tier**. Done at `8f6a955ab`, on the
       proceed branch: box 2 put none of the three back — §1 names them **User-entered** (the family
-      reads _their_ store, `household_matcher.py:452` / `vlm_specialists.py:742`, not the row
+      reads _their_ store, `backend/services/household_matcher.py:452` /
+      `backend/services/vlm_specialists.py:742`, not the row
       displaying the family's output), and `5db3c56f7` was a default-shape real run, which box 1's
       bound makes a valid promotion for a row whose value no leg fakes. `5db3c56f7`'s own commit
       message names `hsi-check-20261013234949-a14ce4`.
@@ -285,13 +287,17 @@ claim, review comment `6236622758` on #7235, dispositioned there as this package
 **Depends on:** `[r231]` merged (#7235, `5d5c4bcc5`). **PR:** #7237. (ruling 231, record 6215981513)
 
 - [ ] The three bare-filename cites `[r231]`'s repair commit `683d49566` published in its own
-      packages prose — `model_zoo.py:345` (:235), `household_matcher.py:452` and
-      `vlm_specialists.py:742` (:245) — carry their full repo-relative paths
+      packages prose — `model_zoo.py`:345 at :235, `household_matcher.py`:452 and
+      `vlm_specialists.py`:742 at :245 — carry their full repo-relative paths
       (`backend/services/…`), the form the validator resolves and the inventory prose already
       uses. Done when `validate_docs` level 1 over `packages/docs.md` reads **3 ERRs, not 6**: the
-      base `f85f27a5f` set (`ci.yml:298-304`, `permission.spec.ts:181-187`,
-      `timeline/event-feedback.spec.ts:213`) and nothing else. The three base ERRs are NOT this
+      base `f85f27a5f` set (`ci.yml`:298-304, `permission.spec.ts`:181-187,
+      `timeline/event-feedback.spec.ts`:213) and nothing else. The three base ERRs are NOT this
       package's to fix — they were published under earlier rulings and sit in other batches' prose.
+      This block names every cite in the split form (closing backtick BEFORE the colon, as above):
+      `INLINE_CITATION_PATTERN` matches only a `file.ext:NNN` wholly inside one code span, so the
+      block cannot re-grow the class it fixes — and if a later re-wrap merges those spans, the
+      ERR set this Done when reads is what makes that loud.
 - [ ] §1's fourth boundary names the two residuals its own bullet left open (reviewer note 3):
       **F-022** (its evidence names tiered `GET /api/system/health/websocket` through the
       always-open `WebSocketHealthPanel`) and **F-140** (its API cell cites
