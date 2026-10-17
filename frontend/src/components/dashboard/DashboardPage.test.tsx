@@ -871,6 +871,48 @@ describe('DashboardPage', () => {
     });
   });
 
+  // [r205] No status is not "healthy". DashboardPage.tsx:289 read
+  // `deferredSystemStatus?.health ?? 'healthy'`, so a dashboard that never
+  // received a status claimed the one state that means "everything is fine".
+  // StatsRow already renders a neutral for 'unknown' (StatsRow.tsx:74 admits the
+  // value; StatsRow.test.tsx:175-181 pins the "Unknown" label and the grey
+  // bg-gray-500 dot — the HelpCircle icon is production-only, StatsRow.tsx:144,
+  // and no test asserts it), so the neutral was never missing — the page was
+  // overwriting it before passing it down.
+  // The mocked StatsRow above echoes the prop as data-system-status, which makes
+  // the page's default directly observable: this describe is the witness for the
+  // prop DashboardPage PASSES, independent of how StatsRow styles it.
+  describe('No status is not "healthy" [r205]', () => {
+    it('passes a neutral status to StatsRow when no system status ever arrives', async () => {
+      (useSystemStatusHook.useSystemStatus as Mock).mockReturnValue({
+        status: null,
+        isConnected: false,
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('stats-row')).toHaveAttribute('data-system-status', 'unknown');
+      });
+      // Asserted separately so a failure names the lie, not the attribute.
+      const statsRow = screen.getByTestId('stats-row');
+      expect(statsRow.getAttribute('data-system-status')).not.toBe('healthy');
+    });
+
+    it('passes a real health through unchanged (control: neutral must not swallow data)', async () => {
+      (useSystemStatusHook.useSystemStatus as Mock).mockReturnValue({
+        status: { ...mockSystemStatus, health: 'degraded' as const },
+        isConnected: true,
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('stats-row')).toHaveAttribute('data-system-status', 'degraded');
+      });
+    });
+  });
+
   describe('Empty Data States', () => {
     it('renders with zero risk score when no events (both WS and initial)', async () => {
       (useEventStreamHook.useEventStream as Mock).mockReturnValue({
