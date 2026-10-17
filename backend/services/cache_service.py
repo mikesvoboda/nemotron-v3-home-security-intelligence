@@ -186,6 +186,8 @@ class CacheService:
         """
         if key.startswith("stats:events:"):
             return "event_stats"
+        elif key.startswith("timeline_summary:"):
+            return "timeline_summary"
         elif key.startswith("cameras:"):
             return "cameras"
         elif key.startswith("system:"):
@@ -586,6 +588,32 @@ class CacheService:
         """
         return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
 
+    async def invalidate_timeline_summary(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.EVENT_CREATED,
+    ) -> int:
+        """Invalidate all timeline summary cache entries.
+
+        Should be called when events are created, updated, or deleted,
+        alongside ``invalidate_events`` and ``invalidate_event_stats``.
+
+        The route stores key ``timeline_summary:{bucket}:{start}:{end}:{camera}``
+        (``backend/api/routes/events.py``). Before [r223] no invalidator scanned
+        ``timeline_summary:*`` at all — the orphan census row [r228]'s MEASURE
+        left as 7/8 — so a seeded or cleared timeline served stale buckets for
+        the full TTL even after [r228] fixed the key shape.
+
+        Args:
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.EVENT_CREATED)
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern(
+            "timeline_summary:*", reason=reason, cache_type="timeline_summary"
+        )
+
     async def invalidate_cameras(
         self,
         reason: str | CacheInvalidationReason = CacheInvalidationReason.CAMERA_UPDATED,
@@ -665,6 +693,16 @@ class CacheService:
         Should be called when new summaries are generated to ensure
         dashboard endpoints return fresh data.
 
+        [r223] MEASURE: the developer-tool handlers call this too, because the
+        three ``summaries:latest/hourly/daily`` keys are not only ``Summary``
+        rows — each handler folds the matching ``Event`` rows into the cached
+        payload (``backend/api/routes/summaries.py`` builds them via
+        ``EventRepository.get_by_ids`` and ``_summary_to_response`` embeds the
+        events). ``clear_seeded_data`` issues ``delete(Event)``, so it rewrites
+        those values and they must be evicted, not left to the 300 s TTL. The
+        sweep also reaches ``summaries:entities`` (entity_recognition route),
+        which the camera FK cascade changes the same way.
+
         Args:
             reason: Reason for invalidation. Use CacheInvalidationReason enum.
                    (default: CacheInvalidationReason.MANUAL)
@@ -673,6 +711,27 @@ class CacheService:
             Number of keys deleted
         """
         return await self.invalidate_pattern("summaries:*", reason=reason, cache_type="summaries")
+
+    async def invalidate_trends(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.EVENT_CREATED,
+    ) -> int:
+        """Invalidate all trends cache entries (hourly and daily).
+
+        Should be called when events are created or deleted: ``TrendService``
+        aggregates events through ``EventRepository``, so a seeded or cleared
+        event set changes the trend metrics. Before [r223] no invalidator
+        scanned ``trends:*`` — the orphan namespace disclosed in [r228] — so
+        ``GET /api/summaries/trends`` served stale counts until the 120 s TTL expired.
+
+        Args:
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.EVENT_CREATED)
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("trends:*", reason=reason, cache_type="trends")
 
     async def exists(self, key: str) -> bool:
         """Check if a cache key exists.

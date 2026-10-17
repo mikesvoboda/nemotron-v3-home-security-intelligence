@@ -17,61 +17,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.services.reid_service import DEFAULT_SIMILARITY_THRESHOLD
 
 
-class SimilaritySearchRequest(BaseModel):
-    """Request schema for similarity search.
-
-    Allows searching for entities similar to a given embedding vector
-    or detection ID.
-    """
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "embedding": [0.1, 0.2, 0.3],
-                "entity_type": "person",
-                "threshold": 0.7,
-                "limit": 10,
-                "include_historical": True,
-            }
-        }
-    )
-
-    embedding: list[float] = Field(
-        ...,
-        min_length=1,
-        description="Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)",
-    )
-    entity_type: str = Field(
-        default="person",
-        pattern="^(person|vehicle)$",
-        description="Type of entity to search for: 'person' or 'vehicle'",
-    )
-    threshold: float = Field(
-        default=DEFAULT_SIMILARITY_THRESHOLD,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Minimum cosine similarity threshold for matches (default: the OSNet-space "
-            "service constant)"
-        ),
-    )
-    limit: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Maximum number of results to return (default: 10, max: 100)",
-    )
-    include_historical: bool = Field(
-        default=True,
-        description="If True, search both Redis (hot cache) and PostgreSQL (historical). "
-        "If False, only search Redis hot cache (24h window).",
-    )
-    exclude_detection_id: str | None = Field(
-        default=None,
-        description="Optional detection ID to exclude from results (e.g., to exclude self-matches)",
-    )
-
-
 class SimilarityMatch(BaseModel):
     """Schema for a single similarity match result."""
 

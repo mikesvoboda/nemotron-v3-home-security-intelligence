@@ -239,9 +239,11 @@ export interface paths {
          *     - Cameras cache
          *     - System status cache
          *     - Stats cache
+         *     - Timeline summary cache
+         *     - Trends cache
          *     - Detections cache
          *     - Alerts cache
-         *     - Summaries cache
+         *     - Summaries cache (also clears the `summaries:entities` key it contains)
          *
          *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
          *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
@@ -9364,41 +9366,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/reid/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Search Similar Entities
-         * @description Search for entities similar to the given embedding vector.
-         *
-         *     This endpoint allows searching for entities that are similar to a provided
-         *     embedding vector. It can search across both Redis (hot cache, 24h window)
-         *     and PostgreSQL (historical, 30-day retention) depending on the
-         *     `include_historical` parameter.
-         *
-         *     Args:
-         *         request: Search request containing embedding vector and parameters
-         *         hybrid_storage: Hybrid storage service for combined Redis/PostgreSQL search
-         *
-         *     Returns:
-         *         SimilaritySearchResponse with matching entities sorted by similarity
-         *
-         *     Raises:
-         *         HTTPException: 400 for invalid parameters, 503 for service unavailable
-         */
-        post: operations["reid_search_similar_entities"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/reid/similar/{detection_id}": {
         parameters: {
             query?: never;
@@ -12898,90 +12865,6 @@ export interface paths {
          *         SimpleReadinessResponse with ready bool and status. HTTP 200 if ready, 503 if not.
          */
         get: operations["ready"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/system/detectors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all registered detectors
-         * @description Returns a list of all registered object detectors with their configuration and status. Optionally includes health status for each detector.
-         */
-        get: operations["detectors_list_detectors"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/system/detectors/active": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get active detector
-         * @description Returns the configuration of the currently active object detector.
-         */
-        get: operations["detectors_get_active_detector"];
-        /**
-         * Switch active detector
-         * @description Switch to a different object detector. By default, validates that the target detector is healthy before switching. Use force=True to skip health check.
-         */
-        put: operations["detectors_switch_detector"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/system/detectors/{detector_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get detector configuration
-         * @description Returns the configuration for a specific detector type.
-         */
-        get: operations["detectors_get_detector_config"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/system/detectors/{detector_type}/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Check detector health
-         * @description Performs a health check on a specific detector and returns the status.
-         */
-        get: operations["detectors_check_detector_health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -21424,107 +21307,6 @@ export interface components {
              * @description Total detections in date range
              */
             total_detections: number;
-        };
-        /**
-         * DetectorHealthResponse
-         * @description Health status of a detector.
-         */
-        DetectorHealthResponse: {
-            /**
-             * Detector Type
-             * @description Identifier of the detector
-             */
-            detector_type: string;
-            /**
-             * Error Message
-             * @description Error message if unhealthy
-             */
-            error_message?: string | null;
-            /**
-             * Healthy
-             * @description Whether the detector is responding and healthy
-             */
-            healthy: boolean;
-            /**
-             * Latency Ms
-             * @description Health check response time in milliseconds
-             */
-            latency_ms?: number | null;
-            /**
-             * Model Loaded
-             * @description Whether the model is loaded in memory
-             * @default false
-             */
-            model_loaded: boolean;
-        };
-        /**
-         * DetectorInfoResponse
-         * @description Information about a registered detector.
-         */
-        DetectorInfoResponse: {
-            /**
-             * Description
-             * @description Description of the detector capabilities
-             * @default
-             */
-            description: string;
-            /**
-             * Detector Type
-             * @description Unique identifier for the detector (e.g., 'yolo26', 'yolov8')
-             * @example yolo26
-             */
-            detector_type: string;
-            /**
-             * Display Name
-             * @description Human-readable name for UI display
-             * @example YOLO26
-             */
-            display_name: string;
-            /**
-             * Enabled
-             * @description Whether this detector is available for use
-             */
-            enabled: boolean;
-            /**
-             * Is Active
-             * @description Whether this is the currently active detector
-             */
-            is_active: boolean;
-            /**
-             * Model Version
-             * @description Model version identifier
-             * @example yolo26m
-             * @example yolov8n
-             */
-            model_version?: string | null;
-            /**
-             * Url
-             * @description Base URL of the detector service
-             * @example http://ai-yolo26:8095
-             */
-            url: string;
-        };
-        /**
-         * DetectorListResponse
-         * @description Response containing list of all registered detectors.
-         */
-        DetectorListResponse: {
-            /**
-             * Active Detector
-             * @description Type of the currently active detector
-             */
-            active_detector?: string | null;
-            /**
-             * Detectors
-             * @description List of all registered detectors
-             */
-            detectors: components["schemas"]["DetectorInfoResponse"][];
-            /**
-             * Health Checked
-             * @description Whether health status was included in the response
-             * @default false
-             */
-            health_checked: boolean;
         };
         /**
          * DeviationInterpretation
@@ -39323,60 +39105,6 @@ export interface components {
             timestamp: string;
         };
         /**
-         * SimilaritySearchRequest
-         * @description Request schema for similarity search.
-         *
-         *     Allows searching for entities similar to a given embedding vector
-         *     or detection ID.
-         * @example {
-         *       "embedding": [
-         *         0.1,
-         *         0.2,
-         *         0.3
-         *       ],
-         *       "entity_type": "person",
-         *       "include_historical": true,
-         *       "limit": 10,
-         *       "threshold": 0.7
-         *     }
-         */
-        SimilaritySearchRequest: {
-            /**
-             * Embedding
-             * @description Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)
-             */
-            embedding: number[];
-            /**
-             * Entity Type
-             * @description Type of entity to search for: 'person' or 'vehicle'
-             * @default person
-             */
-            entity_type: string;
-            /**
-             * Exclude Detection Id
-             * @description Optional detection ID to exclude from results (e.g., to exclude self-matches)
-             */
-            exclude_detection_id?: string | null;
-            /**
-             * Include Historical
-             * @description If True, search both Redis (hot cache) and PostgreSQL (historical). If False, only search Redis hot cache (24h window).
-             * @default true
-             */
-            include_historical: boolean;
-            /**
-             * Limit
-             * @description Maximum number of results to return (default: 10, max: 100)
-             * @default 10
-             */
-            limit: number;
-            /**
-             * Threshold
-             * @description Minimum cosine similarity threshold for matches (default: the OSNet-space service constant)
-             * @default 0.7
-             */
-            threshold: number;
-        };
-        /**
          * SimilaritySearchResponse
          * @description Response schema for similarity search.
          * @example {
@@ -39984,52 +39712,6 @@ export interface components {
              * @description Total count of all action events
              */
             total_count: number;
-        };
-        /**
-         * SwitchDetectorRequest
-         * @description Request to switch the active detector.
-         */
-        SwitchDetectorRequest: {
-            /**
-             * Detector Type
-             * @description Type identifier of the detector to switch to
-             * @example yolo26
-             * @example yolov8
-             */
-            detector_type: string;
-            /**
-             * Force
-             * @description Skip health check validation when switching
-             * @default false
-             */
-            force: boolean;
-        };
-        /**
-         * SwitchDetectorResponse
-         * @description Response after switching detectors.
-         */
-        SwitchDetectorResponse: {
-            /**
-             * Detector Type
-             * @description Type of the now-active detector
-             */
-            detector_type: string;
-            /**
-             * Display Name
-             * @description Human-readable name of the detector
-             */
-            display_name: string;
-            /**
-             * Healthy
-             * @description Health status of the new active detector
-             * @default true
-             */
-            healthy: boolean;
-            /**
-             * Message
-             * @description Status message about the switch operation
-             */
-            message: string;
         };
         /**
          * SystemSettingListResponse
@@ -57053,60 +56735,6 @@ export interface operations {
             };
         };
     };
-    reid_search_similar_entities: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SimilaritySearchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SimilaritySearchResponse"];
-                };
-            };
-            /** @description Invalid request parameters */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Service unavailable (Redis/PostgreSQL) */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     reid_find_similar_by_detection: {
         parameters: {
             query?: {
@@ -61380,153 +61008,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    detectors_list_detectors: {
-        parameters: {
-            query?: {
-                /** @description Include health status for each detector (slower) */
-                include_health?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DetectorListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    detectors_get_active_detector: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DetectorInfoResponse"];
-                };
-            };
-        };
-    };
-    detectors_switch_detector: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SwitchDetectorRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SwitchDetectorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    detectors_get_detector_config: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                detector_type: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DetectorInfoResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    detectors_check_detector_health: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                detector_type: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DetectorHealthResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

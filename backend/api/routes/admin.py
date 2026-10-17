@@ -10,11 +10,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any  # Still used for cameras list in SeedCamerasResponse
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import CacheDep
 from backend.api.routes.auth import get_current_admin_user
 from backend.api.schemas.auth import (
     AdminUserCreateRequest,
@@ -23,6 +24,7 @@ from backend.api.schemas.auth import (
     UserResponse,
 )
 from backend.core.config import get_settings
+from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.core.dependencies import get_redis_dependency
 from backend.core.logging import get_logger
@@ -34,10 +36,67 @@ from backend.models.event import Event
 from backend.models.user import User
 from backend.services.audit import get_db_audit_service
 from backend.services.auth_service import AuthService
+from backend.services.cache_service import CacheService
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+async def _invalidate_devtool_caches_background(
+    cache: CacheService,
+    reason: CacheInvalidationReason = CacheInvalidationReason.MANUAL,
+) -> None:
+    """Invalidate every cached read the developer-tool seed/clear writes change ([r223]).
+
+    Designed to run as a BackgroundTask, the same deferral shape the camera and
+    event routes use (NEM-3744, ``cameras.py:132`` / ``events.py:119``).
+
+    The three handlers share this superset because the FK cascades couple the
+    tables: deleting cameras cascades their events, detections and face-detection
+    events (``Event.camera_id``/``Detection.camera_id``/``FaceDetectionEvent.camera_id``
+    all ``ondelete="CASCADE"``), so even ``seed_cameras(clear_existing=True)``
+    rewrites the event-derived reads. Invalidating only ``cameras:*`` there
+    would reproduce the [r223] bug at one layer down. Per-handler scope lives
+    in the #7201 census table; every read named there is invalidated here:
+
+    - ``cameras:*``            — GET /api/cameras list (the F-197 toast bug)
+    - ``events:*``             — defensive evict; no route stores this shape today (see census)
+    - ``stats:events:*``       — GET /api/events/stats
+    - ``timeline_summary:*``   — GET /api/events/timeline-summary (invalidator added in [r223])
+    - ``trends:*``             — GET /api/summaries/trends (invalidator added in [r223])
+    - ``summaries:*``          — GET /api/summaries/{latest,hourly,daily} embed Event rows; the
+                                 sweep also carries ``summaries:entities`` (FaceDetectionEvent cascade)
+    - ``system:*``             — stats totals count all three tables
+
+    Fail-soft per namespace, not for the whole batch: the two-call legacy
+    helpers (``cameras.py:132``, ``events.py:119``) wrap all their awaits in one
+    try, so a Redis error on the first leaves the second cached. With seven
+    namespaces that gap is too wide to ship — a failure on ``events`` would
+    strand ``timeline_summary``/``trends``/``summaries`` for their full TTL. Each
+    namespace is isolated, so a partial Redis outage degrades only the
+    namespaces it actually touches.
+
+    Args:
+        cache: Cache service instance
+        reason: Reason for cache invalidation (for logging/metrics)
+    """
+    for name, invalidate in (
+        ("cameras", cache.invalidate_cameras),
+        ("events", cache.invalidate_events),
+        ("event_stats", cache.invalidate_event_stats),
+        ("timeline_summary", cache.invalidate_timeline_summary),
+        ("trends", cache.invalidate_trends),
+        ("summaries", cache.invalidate_summaries),
+        ("system", cache.invalidate_system_status),
+    ):
+        try:
+            await invalidate(reason=reason)
+        except Exception as e:
+            logger.warning(
+                f"Background cache invalidation failed for {name}: {e}",
+                extra={"cache_type": name, "error_type": type(e).__name__},
+            )
 
 
 # --- Request/Response Schemas ---
@@ -299,6 +358,8 @@ def require_admin_access() -> None:
 async def seed_cameras(
     request: SeedCamerasRequest,
     http_request: Request,
+    background_tasks: BackgroundTasks,
+    cache: CacheDep,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
 ) -> SeedCamerasResponse:
@@ -423,6 +484,15 @@ async def seed_cameras(
 
     await db.commit()
 
+    # [r223]: clear_existing=True deletes cameras, which cascades their events
+    # and detections, so the event-derived cached reads go stale too — the same
+    # superset the other two developer-tool handlers schedule.
+    background_tasks.add_task(
+        _invalidate_devtool_caches_background,
+        cache,
+        CacheInvalidationReason.MANUAL,
+    )
+
     return SeedCamerasResponse(
         created=created,
         cleared=cleared,
@@ -450,6 +520,8 @@ async def seed_cameras(
 async def seed_events(
     request: SeedEventsRequest,
     http_request: Request,
+    background_tasks: BackgroundTasks,
+    cache: CacheDep,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
 ) -> SeedEventsResponse:
@@ -646,6 +718,14 @@ async def seed_events(
 
     await db.commit()
 
+    # [r223]: seeded/cleared events and detections rewrite stats:events:*,
+    # events:*, timeline_summary:*, trends:* and the system stats totals.
+    background_tasks.add_task(
+        _invalidate_devtool_caches_background,
+        cache,
+        CacheInvalidationReason.MANUAL,
+    )
+
     return SeedEventsResponse(
         events_created=events_created,
         detections_created=detections_created,
@@ -671,6 +751,8 @@ async def seed_events(
 async def clear_seeded_data(
     body: ClearDataRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
+    cache: CacheDep,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
 ) -> ClearDataResponse:
@@ -759,6 +841,14 @@ async def clear_seeded_data(
     )
 
     await db.commit()
+
+    # [r223]: all three tables were just emptied — every cached read in the
+    # census is now stale for the next reader.
+    background_tasks.add_task(
+        _invalidate_devtool_caches_background,
+        cache,
+        CacheInvalidationReason.MANUAL,
+    )
 
     return ClearDataResponse(
         cameras_cleared=cameras_cleared,
@@ -1093,9 +1183,11 @@ async def clear_cache(
     - Cameras cache
     - System status cache
     - Stats cache
+    - Timeline summary cache
+    - Trends cache
     - Detections cache
     - Alerts cache
-    - Summaries cache
+    - Summaries cache (also clears the `summaries:entities` key it contains)
 
     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
@@ -1127,10 +1219,14 @@ async def clear_cache(
     cache_types = []
     total_keys = 0
 
-    # Invalidate each cache type
+    # Invalidate each cache type. `summaries:entities` is deliberately absent:
+    # invalidate_summaries already scans `summaries:*`, which contains it, and
+    # listing both would report the same keys twice in `keys_cleared`.
     cache_invalidations = [
         ("events", cache.invalidate_events),
         ("event_stats", cache.invalidate_event_stats),
+        ("timeline_summary", cache.invalidate_timeline_summary),
+        ("trends", cache.invalidate_trends),
         ("cameras", cache.invalidate_cameras),
         ("system", cache.invalidate_system_status),
         ("alerts", cache.invalidate_alerts),

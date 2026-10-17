@@ -33,6 +33,7 @@ scripts/
   test-runner.sh                     # Test suite runner with coverage
   test-fast.sh                       # Fast parallel test runner
   test-docker.sh                     # Docker Compose deployment testing
+  r243-render-check.sh               # Prod render: does `backend` get the engine socket (r243)
   test-prod-connectivity.sh          # Production connectivity tests
   test-in-container.sh               # Container-first integration testing
   smoke-test.sh                      # End-to-end pipeline smoke test
