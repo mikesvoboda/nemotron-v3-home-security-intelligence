@@ -453,5 +453,38 @@ describe('PipelineQueues', () => {
       expect(screen.queryByTestId('detection-health-badge')).not.toBeInTheDocument();
       expect(screen.queryByTestId('analysis-health-badge')).not.toBeInTheDocument();
     });
+
+    // [r205] Two `?? 'healthy'` defaults were removed here (PipelineQueues.tsx:94
+    // and :247). They were latent, not visible: the badge that PRINTS the status
+    // is gated on `hasDetailedStatus`, so the invented value only ever reached
+    // the two derived booleans below. That is what makes this a witness rather
+    // than a red — with the default in place nothing rendered "healthy" either,
+    // but `hasWarning` was computed from a status the backend never sent.
+    it('warns from the legacy depth path with no queuesStatus at all', () => {
+      // The warning must come from a depth the component actually has, never
+      // from a status default standing in for a response it never got.
+      render(<PipelineQueues detectionQueue={15} analysisQueue={0} queuesStatus={undefined} />);
+
+      expect(screen.getByTestId('queue-warning-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('overall-health-badge')).not.toBeInTheDocument();
+    });
+
+    it('claims no warning at all when nothing arrived and nothing is backing up', () => {
+      render(<PipelineQueues detectionQueue={1} analysisQueue={1} queuesStatus={undefined} />);
+
+      expect(screen.queryByTestId('queue-warning-icon')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('overall-health-badge')).not.toBeInTheDocument();
+    });
+
+    it('still warns a row from its real status alone (control: the gate is not the only path)', () => {
+      const queuesStatus = createMockQueuesStatus();
+      const critical = structuredClone(queuesStatus);
+      critical.queues[0].status = 'critical';
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={critical} />);
+
+      // A real 'critical' is shown as given, and colours the row red.
+      expect(screen.getByTestId('detection-health-badge')).toHaveTextContent('critical');
+      expect(screen.getByTestId('detection-queue-row')).toHaveClass('bg-red-500/10');
+    });
   });
 });
