@@ -340,7 +340,8 @@ Two shape decisions, each the reason a plausible version is wrong. Grounds are r
 exclusion region: §1's intro and membership evidence above it also carry full-path cites, and
 counting those inflates the figure and re-indicts rows the intro legitimately places. And a bare
 `:NNN` binds to the last full path in the same joined-cell stream at BOTH ends — grounds and rows
-— so a row citing `:452` after `household_matcher.py:452` counts at the resolved pair instead of
+— so a row citing `:452` after `backend/services/household_matcher.py:452` counts at the resolved
+pair instead of
 silently dropping out of the census. Range cites key on their START line at both ends, so identity
 is `file.py:START`.
 
