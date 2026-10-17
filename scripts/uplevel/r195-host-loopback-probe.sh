@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# [r195] box-2 probe v2: on THIS host, can a container reach a port the host publishes on its OWN
-# LOOPBACK, and at what address?
+# [r195] box-2 probe v4: on THIS host, can a container reach a port the host publishes on its OWN
+# LOOPBACK, and at what address? (v1->v4 lessons are the three blocks below the why; read them before
+# changing a verdict name -- each one exists because a run on the owner's host, not a local test,
+# showed the previous name was a lie.)
 #
 # Why measure rather than reason. agent-gpu publishes the VLM port on the host loopback: the owner's
 # maui run read http://127.0.0.1:18100/health -> {"status":"ok"} while host.docker.internal had no
@@ -50,6 +52,30 @@
 # NOTHING, so an engine error on its stderr can carry only podman's own wrapper text and the target
 # name being probed -- nothing private (this is the leak channel ruling 188 is about; the error tail
 # is kept to the last 200 bytes for that reason).
+#
+# WHAT v3 CHANGED (commit 862bf684b, from the owner's v2 relay): `nodns` became its own verdict, so
+# "the name has no address" no longer wears a `closed` costume; an unresolvable name is asked of the
+# resolver BEFORE the connect for the nc/bash arms; the summary prints instrument-first (a leg that
+# never started outranks any verdict); and the --network host positive control is TABULATED, not just
+# swept -- v1's legend leaned on a row it never printed.
+#
+# WHAT v4 CHANGES, learned from the owner's v3 run at 862bf684b (his relay on this PR,
+# 2026-10-17T15:09Z): it hung at the third row of the FIRST 127.0.0.1-only sweep -- `10.0.2.2` through
+# the bash client -- and never printed a single row under the listener that matters. Two unbounded
+# calls, his diagnosis, both mine:
+#   4. THE CLIENT. v3's bash arm, `exec 3<>/dev/tcp/$c/$pt`, has NO connect bound: a target that
+#      swallows SYNs holds it to the kernel's SYN-retry limit and past it. The python3 arm had
+#      settimeout(4) and nc had -w4; the arm maui's redis image actually picked was the unbounded one.
+#      v4 wraps it in `timeout 6` and adds `timeout` as a verdict -- distinct from `closed`, because
+#      "nothing answered" and "answered no" are different claims about the route.
+#   5. THE ENGINE CALL. run_probe's `docker/podman run --rm` had no bound either, so a stall inside
+#      the CLI (podman's compat socket, image setup) holds the run with no row and no reason. v4 puts
+#      `timeout -s KILL 25` on it and prefixes the row with why it died. The listener is raised
+#      OUTSIDE run_probe, so this bound can never kill the thing under test (UR-135).
+# Both bounds DEFER to the tool: an image with no timeout(1) reports `no-timeout-tool` / runs
+# unbounded rather than hanging, because a printed NOT-MEASURED beats a silent stall. The nc arm
+# still cannot report a timeout (nc -w4 exits 1 for both timeout and refusal) -- the legend says so
+# rather than letting a reader infer nc measured a refusal.
 #
 # Exit: 0 measured (whatever the answer was), 2 could not measure (prerequisite missing).
 set -uo pipefail
@@ -190,10 +216,24 @@ except socket.gaierror:
 s=socket.socket(); s.settimeout(4)
 try:
     s.connect((h,p)); print(\"open\")
+except socket.timeout:
+    print(\"timeout\")
 except Exception:
     print(\"closed\")" "$c" "$pt") ;;
+# nc -w4 cannot tell a timed-out connect from a refused one -- both exit 1 -- so an nc row prints
+# closed for either. python3 and bash below report timeout separately; the legend names this.
 nc)   if nc -z -w4 "$c" "$pt" 2>/dev/null; then r=open; else r=closed; fi ;;
-bash) if bash -c "exec 3<>/dev/tcp/$c/$pt" 2>/dev/null; then r=open; else r=closed; fi ;;
+# v3 hung here on maui: /dev/tcp has NO connect bound, so a target that swallows SYNs held the sweep
+# open past the kernel SYN limit and no 127.0.0.1-only row ever printed. timeout(1) is in coreutils
+# (ubuntu) and busybox (alpine); without it this arm would hang again, so the leg reports
+# no-timeout-tool rather than hanging -- a printed NOT-MEASURED beats a silent stall.
+bash) if ! command -v timeout >/dev/null 2>&1; then echo "bash no-timeout-tool"; exit 0; fi
+      timeout 6 bash -c "exec 3<>/dev/tcp/$c/$pt" 2>/dev/null
+      case $? in
+        0) r=open ;;
+        124|143|137) r=timeout ;;
+        *) r=closed ;;
+      esac ;;
 esac
 echo "$used $r"'
 
@@ -214,12 +254,28 @@ printf "GW %d.%d.%d.%d\n" \
 
 run_probe() { # $1 client, $2 DOCKER_HOST, $3 extra args, $4 image, $5 script, rest = argv
   local cli="$1" dh="$2" pre="$3" img="$4" sc="$5"; shift 5
-  local out
+  local out to=()
+  # Read A stopped mid-sweep: the container never came back, and neither the client (fixed above)
+  # nor the engine call was bounded, so ONE blackhole target held the whole run. Bound the engine
+  # call too -- 25 s, comfortably above the client's own 6 s, so a row that times out here is the
+  # engine not the connect, and the sanitizer below prints why either way. The listener is raised
+  # OUTSIDE this function, so this bound can never kill the thing under test (UR-135: tear down only
+  # what this script started). With no timeout(1) on the host, run unbounded rather than refuse:
+  # every image-side client is still bounded, so the sweep can still finish.
+  # -s KILL, not --signal=KILL: the long form is GNU-only and busybox's timeout rejects it, which
+  # would make every engine row die on a usage error on a busybox host -- a new instrument failure
+  # mode introduced by the fix. The short form parses on both.
+  command -v timeout >/dev/null 2>&1 && to=(timeout -s KILL 25)
   if [[ "$cli" == docker ]]; then
-    out=$(DOCKER_HOST="$dh" docker run --rm $pre "$img" sh -c "$sc" sh "$@" 2>&1)
+    out=$("${to[@]}" env DOCKER_HOST="$dh" docker run --rm $pre "$img" sh -c "$sc" sh "$@" 2>&1)
   else
-    out=$("$cli" run --rm $pre "$img" sh -c "$sc" sh "$@" 2>&1)
+    out=$("${to[@]}" "$cli" run --rm $pre "$img" sh -c "$sc" sh "$@" 2>&1)
   fi
+  local rc=$?
+  # GNU timeout exits 124 on expiry EVEN with --signal=KILL (137 is only the child's raw signal
+  # status, and busybox timeout exits 143 = 128+SIGTERM). Checking one number would miss the timeout
+  # on two of the three tools, which is the same silence-as-a-verdict failure this whole file is about.
+  case $rc in 124|137|143) out="engine call killed at 25s (timeout, rc=$rc) | $out" ;; esac
   # A row whose container never started carries an engine error. Drop podman's timestamp/level/msg
   # wrapper and its random container id -- neither is a measurement -- and keep the TAIL, because the
   # reason follows "failed:". A head cut would keep the id and discard the reason.
@@ -227,7 +283,12 @@ run_probe() { # $1 client, $2 DOCKER_HOST, $3 extra args, $4 image, $5 script, r
     sed -E 's/time=[^ ]+ level=[a-z]+ msg=//g; s/Preparing container [0-9a-f]+: //g' | tail -c 200
 }
 
-VERDICT_RE='^(python3|nc|bash) (open|closed|nodns)$'
+# `timeout` is a verdict the v4 client can print and it must NOT collapse into the bare
+# unmeasured bucket: "the connect never answered within the bound" and "the container never started"
+# are different failures with different owners (a routing blackhole vs a broken leg), and Read A's
+# stall is the reason they cannot share a row. `no-timeout-tool` stays OUTSIDE this regex on purpose
+# -- a host with no timeout(1) measured nothing, and that must read NOT-MEASURED.
+VERDICT_RE='^(python3|nc|bash) (open|closed|nodns|timeout)$'
 declare -A ROW           # ROW[label|target|phase] = verdict text
 declare -A GW            # GW[label] = gateway address for that leg
 declare -A VALID         # VALID[label]=yes once the leg proved it can run the image at all
@@ -370,6 +431,11 @@ emit_row() { # $1 label -- one leg (or the control) as summary rows, one per tar
       reading="REACHES a loopback-only listener"
     elif [[ "$um" == closed && "$cm" == open ]]; then
       reading="resolved+refused while the control was open: alias routes, host loopback not forwarded"
+    elif [[ "$um" == timeout || "$cm" == timeout ]]; then
+      # A timeout is NOT a refusal: nothing answered inside the bound. Naming it "closed" -- which is
+      # what v3's bash arm could never distinguish -- would report a blackholed or stalled path as a
+      # measured negative. Read A hung exactly this way, so the distinction is the point of v4.
+      reading="no answer inside the bound (timeout), not a refusal -- asked with no reply; see the row's client (nc prints closed for this)"
     elif [[ "$um" == nodns || "$cm" == nodns ]]; then
       reading="name does not resolve in this leg -- routing was never asked (see the resolution block)"
     else
@@ -399,6 +465,14 @@ obs "reaches the host on a NON-loopback path, so agent-gpu would have to publish
 obs "nodns (shown in a column) = the name has no address inside that leg, so the probe never asked"
 obs "the network anything. Read A showed all three alias names unresolvable in a plain bridge"
 obs "container, so on maui this is the likely majority reading, and it is NOT a negative about routing."
+obs "timeout (shown in a column) = the address resolved and NOTHING ANSWERED inside the bound. This is"
+obs "not a refusal -- a refused port answers 'no' immediately, a filtered or stalled path answers never."
+obs "v3 could not tell these apart in its bash arm and hung past the end of the run on maui, so v4 binds"
+obs "each connect (bash/python3: 6 s) and each engine call (25 s). Read a timeout row as 'asked, no"
+obs "reply', never as 'no route'. The nc client cannot report it: nc -w4 exits 1 for both, so an nc row"
+obs "prints closed for a timeout -- when a leg's rows are nc's and a target matters, re-ask with python3."
+obs "no-timeout-tool = this image has bash but no timeout(1), so the bash arm would hang; treated as"
+obs "NOT-MEASURED. Install coreutils in the image, or set R195_PROBE_IMAGE to one carrying python3."
 obs "NOT-MEASURED = that leg could not ask (engine refused the image, or no client in it). It says"
 obs "nothing about the route. This is the correction to v1's legend, which called every closed/closed"
 obs "row not-a-route: a leg that ran and answered closed IS a measured negative, and v2 separates the"
