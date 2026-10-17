@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useAnnounce } from '../../hooks/useAnnounce';
 
-import type { ConnectionState } from '../../hooks/useWebSocketStatus';
+import type { ConnectionState } from '../../hooks/useConnectionStatus';
 
 export interface ConnectionStatusBannerProps {
   /** Current connection state */

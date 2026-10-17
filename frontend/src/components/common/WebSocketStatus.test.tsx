@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import WebSocketStatus from './WebSocketStatus';
 
-import type { ChannelStatus } from '../../hooks/useWebSocketStatus';
+import type { ChannelStatus } from '../../hooks/useConnectionStatus';
 
 describe('WebSocketStatus', () => {
   const createMockChannel = (overrides: Partial<ChannelStatus> = {}): ChannelStatus => ({
@@ -482,6 +482,41 @@ describe('WebSocketStatus', () => {
 
       const failedIndicator = screen.getByTestId('failed-indicator-events');
       expect(failedIndicator).toHaveTextContent('Retries exhausted');
+    });
+
+    /**
+     * [r204] box 2: "a terminal auth close shows as such and is not retried".
+     * The case above is the exhausted-retries channel; this is the refused
+     * credential, which lands in the same `failed` state but is a different
+     * event, and the single label used to claim retries had run out when
+     * nothing of the sort happened. The distinction is also the user's only
+     * clue that a re-login is the fix rather than a wait.
+     */
+    it('names a refused credential as such instead of claiming retries ran out', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            authRequired: true,
+            // Explicitly NOT exhausted: the manager stops a 4001 on purpose
+            // (webSocketManager.ts's `authRefused` branch), so the retry budget
+            // was never spent. This field is what the label must not contradict.
+            hasExhaustedRetries: false,
+            reconnectAttempts: 0,
+          })}
+          systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
+        />
+      );
+
+      fireEvent.mouseEnter(screen.getByTestId('websocket-status'));
+
+      expect(screen.getByTestId('failed-indicator-events')).toHaveTextContent('Sign-in required');
+      expect(screen.getByTestId('failed-indicator-events')).not.toHaveTextContent(
+        'Retries exhausted'
+      );
+      // The healthy channel is unaffected by the other one's refusal.
+      expect(screen.queryByTestId('failed-indicator-system')).not.toBeInTheDocument();
     });
 
     it('includes click to retry hint in aria-label when failed', () => {
