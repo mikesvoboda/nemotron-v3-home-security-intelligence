@@ -24,7 +24,6 @@ Most `.tsx` files here have a co-located `.test.tsx`. Exceptions: `GPUHistoryPan
 | `PipelineLatencyHistoryPanel.tsx` | Per-stage latency history (averages and percentiles) |
 | `PipelineMetricsPanel.tsx`        | Queue depths and latency percentiles                 |
 | `PrometheusMonitoringPanel.tsx`   | Prometheus target health summary                     |
-| `QueueMetricsPanel.tsx`           | Live queue depth/throughput from WebSocket events    |
 | `ServicesPanel.tsx`               | Services status panel                                |
 | `SeverityConfigPanel.tsx`         | Severity threshold configuration                     |
 | `SystemHealthIndicator.tsx`       | Compact health badge used in headers                 |
@@ -61,7 +60,7 @@ telemetry + readiness + circuit-breaker polling loop.
 
 Sections rendered (from the page's own imports): `PipelineFlowVisualization`,
 `GPUHistoryPanel`, `PerformanceHistoryPanel`, `PipelineLatencyHistoryPanel`,
-`QueueMetricsPanel`, `DatabasesPanel`, `ServicesPanel`, `ContainersPanel`,
+`DatabasesPanel`, `ServicesPanel`, `ContainersPanel`,
 `HostSystemPanel`, `CircuitBreakerPanel`, `WebSocketHealthPanel`,
 `PrometheusMonitoringPanel`, `KubernetesProbesPanel`, `FileOperationsPanel`,
 `WorkerManagementPanel`, `WorkerStatusPanel`, and `BatchStatisticsDashboard`
@@ -290,8 +289,7 @@ directly rather than through the barrel):
   FileOperationsPanel,
   HostSystemPanel,
   ContainersPanel,
-  WorkerStatusPanel(+WorkerStatusPanelNamed),
-  QueueMetricsPanel);
+  WorkerStatusPanel(+WorkerStatusPanelNamed));
 ```
 
 Components not in the barrel — `PipelineFlowVisualization`,
@@ -330,7 +328,6 @@ path. The ones that matter here:
 | `useGPUMetricsHistory`                                                                                         | `GPUHistoryPanel`             |
 | `usePerformanceHistory`                                                                                        | `PerformanceHistoryPanel`     |
 | `usePipelineLatencyHistory`                                                                                    | `PipelineLatencyHistoryPanel` |
-| `useQueueMetricsWebSocket`                                                                                     | `QueueMetricsPanel`           |
 | `useWorkerStatusWebSocket`                                                                                     | `WorkerStatusPanel`           |
 | `useSupervisorStatus`, `useWorkerActions`, `useRestartHistory`                                                 | worker management panels      |
 | `useServiceStatus`, `useServiceMutations`                                                                      | `ServicesPanel`               |

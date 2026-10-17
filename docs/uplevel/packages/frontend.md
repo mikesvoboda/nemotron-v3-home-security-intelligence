@@ -136,7 +136,7 @@ same way after the owner's `R2b` session.
 
 **Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232.
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
@@ -742,14 +742,14 @@ then removes the two read clamps in `system.py` as UR-48 lane work.
 ### [r173] Golden Playwright skips join the suppression registry
 
 **Flags:** none. **Assigned:** frontend, after `[r168]`; ops-b reviews the `scripts/` and `.github/`
-hunks. **Depends on:** none. **PR:** none yet. (ruling 173)
+hunks. **Depends on:** none. **PR:** #7236. (ruling 173)
 
-- [ ] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
+- [x] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
       `frontend/tests/golden/**/*.spec.ts` for `test.fixme(` and unconditional `test.skip(` call
       sites, excluding conditional guards as the pytest arm does.
-- [ ] One registry row per site in a golden reason class citing its authorizing ruling or package;
+- [x] One registry row per site in a golden reason class citing its authorizing ruling or package;
       the baseline rises in the same commit.
-- [ ] Sites with no authorizing ruling are listed on the PR for the coordinator to route.
+- [x] Sites with no authorizing ruling are listed on the PR for the coordinator to route.
 
 **Done when:** the census fails CI on an unregistered golden `test.fixme`, and every current site has
 a row.

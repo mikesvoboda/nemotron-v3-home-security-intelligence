@@ -449,7 +449,7 @@ breach twice is red), and the audit passes on `main`'s current tests in CI.
 ### [r157] O2.4: find the re-ID parity failure, and gate the model half in CI
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, ahead of its F2.3 batch; ops-a
-reviews. **Depends on:** none. **PR:** #7087. (rulings 157, 159)
+reviews. **Depends on:** none. **PR:** #7087, #7125. (rulings 157, 159)
 
 The owner's O2.4 run at `3e0183e9f` (#7002, result `6154659954`) gave cosine min 0.230, mean 0.331,
 against the 0.999 gate on 36 real crops, with build, flags, checkpoint SHA and model IDs all
@@ -469,7 +469,8 @@ Triton, so CI never checks the model half.
       maui adaptations (both posted on #7087): port, checkpoint directory, GPU and crops directory as
       arguments; the parity check as its default mode and the diagnostic as a second mode; UR-133 and
       UR-134 kept (ruling 159).
-- [ ] The fix for the first stage under 0.999, here or in a follow-up PR this one names.
+- [ ] The fix for the first stage under 0.999, here or in a follow-up PR this one names: `[r252]`
+      (ruling 252).
 - [ ] The runner builds each stage's plan independently: stage 3 probes the FP32 plan straight
       after its build, and a failed build leaves its stage `unknown` instead of ending the run. A
       `--plan-timeout <s>` flag reaches `export_reid.py`'s build, default 600 s, and each build logs
@@ -485,7 +486,9 @@ Triton, so CI never checks the model half.
 
 **Done when:** a diagnostic run (the operator's, or the owner's on maui) is posted on this PR, and O2.4's command
 (#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
-is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
+is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`. Under ruling 252
+the fix head is `[r252]`'s, so this PR merges as the instrument and its `RESULT: PASS` clause is
+read there.
 
 ### [r162] The engine socket follows the orchestrator setting
 
@@ -800,7 +803,7 @@ PR.
 ### [r251] The feature inventory's §2 summary is computed, not stored
 
 **Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 251).
-**Depends on:** none. **PR:** none yet. (ruling 251, record 6224408012; correction 6224625255)
+**Depends on:** none. **PR:** #7226. (ruling 251, record 6224408012; correction 6224625255)
 
 Two PRs that flipped different rows of `docs/reference/feature-inventory.md` both edited §2's `all`
 row, so they conflicted though their real edits did not: about 20 recount and conflict commits
@@ -820,6 +823,33 @@ across 11 PRs since 2026-10-14.
       `check-inventory-summary-arith.py` failing on §2 alone, if its review names that failure.
 
 **Done when:** the suites pass, and the printed table equals the stored one it replaces.
+
+### [r252] Re-ID: find and fix the ONNX→TensorRT plan-build divergence
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, ahead of `B2.3`. Where it edits
+`ai/gateway/` (cell A's files), UR-9 applies. **Depends on:** none. **PR:** none yet. (ruling 252,
+record 6235589555)
+
+Operator run 188.17 (`6235043370`: `[r157]`'s runner at `f99058805`, 36 crops) read `onnx-cpu`
+at 1.00000 (min and mean), `plan-fp32` at min 0.35205 / mean 0.45675 and `plan-fp16` at min 0.23046
+/ mean 0.33142, against the 0.999 gate. FP32 carries no half-precision rounding, so the divergence
+enters at the ONNX→TensorRT plan build, deterministically (ops-b `6235236028`). The exported
+OSNet-AIN graph has five `InstanceNormalization` nodes, the one op in it with a TensorRT fidelity
+history; rewritten into primitives, it matches the original under ONNX Runtime on CPU to 9.686e-08
+(`6235312093`). This is `[r157]`'s box-5 follow-up.
+
+- [ ] 188.18 as `6235312093` proposes: plans rebuilt from the `InstanceNormalization`-decomposed
+      ONNX through `[r157]`'s runner, run once by the operator (UR-15), and the stage table posted
+      verbatim on the PR.
+- [ ] If a plan stage still reads under 0.999, post the measured table and its reading on the PR;
+      the next step goes to the owner through the coordinator's status comment before any further
+      spend.
+- [ ] The change ships with a CPU-only CI test that pins it.
+
+**Done when:** `[r157]`'s Done when, read at this package's head: O2.4's command (#6970's) prints
+`RESULT: PASS`, posted on the PR, and the CPU-only test above is green in CI. The 0.999 gate stays
+(ruling 68), `REID_BACKEND` stays `local`, and serving re-ID through ONNX Runtime instead of
+TensorRT plans is not authorised.
 
 ### [r164a] The coordinator's paperwork moves into scripts
 

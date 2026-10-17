@@ -1,9 +1,8 @@
-"""Unit tests for enrichment and queue metrics WebSocket event types.
+"""Unit tests for enrichment WebSocket event types.
 
 NEM-3627: Enrichment WebSocket events
-NEM-3637: Queue metrics WebSocket events
 
-Tests for the new enrichment and queue-related WebSocket event types
+Tests for the enrichment WebSocket event types
 including validation, metadata, and channel routing.
 """
 
@@ -132,83 +131,6 @@ class TestEnrichmentEventTypes:
         )
         assert event["type"] == WebSocketEventType.ENRICHMENT_PROGRESS
         assert event["payload"]["progress"] == 50
-
-
-class TestQueueMetricsEventTypes:
-    """Tests for queue metrics WebSocket event types (NEM-3637)."""
-
-    def test_queue_status_event_type_exists(self):
-        """Verify QUEUE_STATUS event type is defined."""
-        assert hasattr(WebSocketEventType, "QUEUE_STATUS")
-        assert WebSocketEventType.QUEUE_STATUS.value == "queue.status"
-
-    def test_pipeline_throughput_event_type_exists(self):
-        """Verify PIPELINE_THROUGHPUT event type is defined."""
-        assert hasattr(WebSocketEventType, "PIPELINE_THROUGHPUT")
-        assert WebSocketEventType.PIPELINE_THROUGHPUT.value == "pipeline.throughput"
-
-    def test_queue_events_follow_naming_convention(self):
-        """Verify queue events follow domain.action pattern."""
-        assert WebSocketEventType.QUEUE_STATUS.value.startswith("queue.")
-        assert WebSocketEventType.PIPELINE_THROUGHPUT.value.startswith("pipeline.")
-
-    def test_queue_events_have_metadata(self):
-        """Verify queue event types have metadata entries."""
-        assert WebSocketEventType.QUEUE_STATUS in EVENT_TYPE_METADATA
-        assert WebSocketEventType.PIPELINE_THROUGHPUT in EVENT_TYPE_METADATA
-
-    def test_queue_events_have_system_channel(self):
-        """Verify queue events return system channel (broadcast with system status)."""
-        assert get_event_channel(WebSocketEventType.QUEUE_STATUS) == "system"
-        assert get_event_channel(WebSocketEventType.PIPELINE_THROUGHPUT) == "system"
-
-    def test_queue_status_has_required_fields(self):
-        """Verify QUEUE_STATUS has expected required fields."""
-        fields = get_required_payload_fields(WebSocketEventType.QUEUE_STATUS)
-        assert "queues" in fields
-        assert "total_queued" in fields
-        assert "total_processing" in fields
-
-    def test_pipeline_throughput_has_required_fields(self):
-        """Verify PIPELINE_THROUGHPUT has expected required fields."""
-        fields = get_required_payload_fields(WebSocketEventType.PIPELINE_THROUGHPUT)
-        assert "detections_per_minute" in fields
-        assert "events_per_minute" in fields
-
-    def test_validate_queue_event_types(self):
-        """Verify queue event type strings can be validated."""
-        assert validate_event_type("queue.status") == WebSocketEventType.QUEUE_STATUS
-        assert validate_event_type("pipeline.throughput") == WebSocketEventType.PIPELINE_THROUGHPUT
-
-    def test_create_queue_status_event(self):
-        """Test creating a queue status event."""
-        event = create_event(
-            WebSocketEventType.QUEUE_STATUS,
-            {
-                "queues": [
-                    {"name": "detection", "depth": 5, "workers": 2},
-                    {"name": "analysis", "depth": 3, "workers": 1},
-                ],
-                "total_queued": 8,
-                "total_processing": 3,
-                "overall_status": "healthy",
-            },
-        )
-        assert event["type"] == WebSocketEventType.QUEUE_STATUS
-        assert event["payload"]["total_queued"] == 8
-
-    def test_create_pipeline_throughput_event(self):
-        """Test creating a pipeline throughput event."""
-        event = create_event(
-            WebSocketEventType.PIPELINE_THROUGHPUT,
-            {
-                "detections_per_minute": 120.5,
-                "events_per_minute": 15.2,
-                "enrichments_per_minute": 12.0,
-            },
-        )
-        assert event["type"] == WebSocketEventType.PIPELINE_THROUGHPUT
-        assert event["payload"]["detections_per_minute"] == 120.5
 
 
 class TestEnrichmentChannelInRegistry:
