@@ -164,11 +164,32 @@ if command -v python3 >/dev/null 2>&1; then used=python3
 elif command -v nc >/dev/null 2>&1; then used=nc
 elif command -v bash >/dev/null 2>&1; then used=bash
 else echo "no-client"; exit 0; fi
+# The nc/bash branches cannot separate an unresolvable name from a refused port either (nc -z
+# exits 1 for both). Ask the resolver directly when the client cannot, so the verdict does not
+# depend on which client the image happens to ship. Numeric targets need no resolver.
+if [ "$used" != python3 ]; then
+  case $c in
+    *[!0-9.]*)
+      if command -v getent >/dev/null 2>&1; then
+        getent hosts "$c" >/dev/null 2>&1 || { echo "$used nodns"; exit 0; }
+      fi ;;
+  esac
+fi
 case $used in
+# A bare connect() cannot tell "the name has no address here" from "it resolved and the port
+# refused": both raise, and v1 printed `closed` for both. Read A proved the conflation bites -- on
+# maui none of the three alias names resolve inside a plain bridge container, so the five closed
+# docker rows in v1 were never measured negatives about routing. Resolve explicitly first: gaierror is
+# reported as `nodns`, and `closed` now means a real connection attempt to a real address.
 python3) r=$(python3 -c "import socket,sys
+h,p=sys.argv[1],int(sys.argv[2])
+try:
+    socket.getaddrinfo(h,p)
+except socket.gaierror:
+    print(\"nodns\"); sys.exit(0)
 s=socket.socket(); s.settimeout(4)
 try:
-    s.connect((sys.argv[1],int(sys.argv[2]))); print(\"open\")
+    s.connect((h,p)); print(\"open\")
 except Exception:
     print(\"closed\")" "$c" "$pt") ;;
 nc)   if nc -z -w4 "$c" "$pt" 2>/dev/null; then r=open; else r=closed; fi ;;
@@ -206,7 +227,7 @@ run_probe() { # $1 client, $2 DOCKER_HOST, $3 extra args, $4 image, $5 script, r
     sed -E 's/time=[^ ]+ level=[a-z]+ msg=//g; s/Preparing container [0-9a-f]+: //g' | tail -c 200
 }
 
-VERDICT_RE='^(python3|nc|bash) (open|closed)$'
+VERDICT_RE='^(python3|nc|bash) (open|closed|nodns)$'
 declare -A ROW           # ROW[label|target|phase] = verdict text
 declare -A GW            # GW[label] = gateway address for that leg
 declare -A VALID         # VALID[label]=yes once the leg proved it can run the image at all
@@ -284,6 +305,7 @@ fi
 # summary pairs them. The first leg also runs a --network host control, which proves the listener and
 # the client work at all: without it a whole sweep of `closed` could be a dead listener.
 PHASE=""
+CTL_LABEL=""   # the --network host positive control, recorded so the summary prints it too
 run_phase() { # $1 bind, $2 phase
   PHASE="$2"
   # http.server's POSITIONAL argument is the PORT and --bind takes the ADDRESS. Getting these the
@@ -302,7 +324,9 @@ run_phase() { # $1 bind, $2 phase
     [[ "${VALID[$label]:-}" == "yes" ]] || continue
     if [[ $first -eq 1 ]]; then
       first=0
-      sweep "$2" "$label +nethost-CONTROL" "$cli" "$dh" "$pre --network host" "${IMG_FOR[$cli]}"
+      CTL_LABEL="$label +nethost-CONTROL"
+      CTL_CLI="$cli"; CTL_IMG="${IMG_FOR[$cli]}"
+      sweep "$2" "$CTL_LABEL" "$cli" "$dh" "$pre --network host" "$CTL_IMG"
     fi
     sweep "$2" "$label" "$cli" "$dh" "$pre" "${IMG_FOR[$cli]}"
   done
@@ -330,30 +354,51 @@ note "UNDER TEST listener on 127.0.0.1 ONLY (what agent-gpu publishes)"
 run_phase 127.0.0.1 test || exit 2
 
 # --- summary -----------------------------------------------------------------------
-note "summary -- one row per leg and target; OPEN/CLOSED need a client verdict to count"
-printf '  %-32s %-26s %-8s %-8s %s\n' LEG TARGET CONTROL "127ONLY" READING
-for leg in "${LEGS[@]}"; do
-  IFS='|' read -r label cli dh pre <<< "$leg"
-  [[ -z "${IMG_FOR[$cli]:-}" ]] && continue
+emit_row() { # $1 label -- one leg (or the control) as summary rows, one per target
+  local label="$1" t c u cm um reading
   for t in $BASE_TARGETS$(extra_target "$label"); do
     [[ -z "$t" ]] && continue
     c="${ROW["$label|$t|control"]:-}"; u="${ROW["$label|$t|test"]:-}"
     cm=closed; um=closed
     [[ "$c" =~ $VERDICT_RE ]] && cm="${c##* }" || cm=unmeasured
     [[ "$u" =~ $VERDICT_RE ]] && um="${u##* }" || um=unmeasured
-    reading="no route for this pair"
-    [[ "$um" == open ]] && reading="REACHES a loopback-only listener"
-    [[ "$um" == closed && "$cm" == open ]] && reading="alias routes, but host loopback is not forwarded"
-    [[ "$cm" == unmeasured || "$um" == unmeasured ]] && reading="NOT-MEASURED on at least one side"
+    # Priority is instrument-first: an unmeasured side outranks any verdict, because a verdict from
+    # a leg that never started is not a measurement. Then the answer, then the three kinds of no.
+    if [[ "$cm" == unmeasured || "$um" == unmeasured ]]; then
+      reading="NOT-MEASURED on at least one side"
+    elif [[ "$um" == open ]]; then
+      reading="REACHES a loopback-only listener"
+    elif [[ "$um" == closed && "$cm" == open ]]; then
+      reading="resolved+refused while the control was open: alias routes, host loopback not forwarded"
+    elif [[ "$um" == nodns || "$cm" == nodns ]]; then
+      reading="name does not resolve in this leg -- routing was never asked (see the resolution block)"
+    else
+      reading="resolved+refused on both listeners -- no route for this pair"
+    fi
     printf '  %-32s %-26s %-8s %-8s %s\n' "$label" "$t" "$cm" "$um" "$reading"
   done
+}
+
+note "summary -- one row per leg and target; OPEN/CLOSED need a client verdict to count"
+printf '  %-32s %-26s %-8s %-8s %s\n' LEG TARGET CONTROL "127ONLY" READING
+# The positive control first: it is the row that licenses reading a closed/closed leg as "no route"
+# rather than "dead listener". v1 swept it but never tabulated it, so a reader had to scroll back
+# through two phases of unattributed rows to find the one result that makes the rest meaningful.
+[[ -n "$CTL_LABEL" ]] && emit_row "$CTL_LABEL"
+for leg in "${LEGS[@]}"; do
+  IFS='|' read -r label cli dh pre <<< "$leg"
+  [[ -z "${IMG_FOR[$cli]:-}" ]] && continue
+  emit_row "$label"
 done
 
 note "how to read it"
 obs "REACHES a loopback-only listener = the route box 2 asks to have measured and named, if the"
 obs "leg is one the run could actually use (the harness route, or a network the run's compose renders)."
-obs "alias routes, but host loopback is not forwarded = the finding v1 expected: the name resolves"
-obs "and reaches the host on a NON-loopback path, so agent-gpu would have to publish beyond loopback."
+obs "resolved+refused while the control was open = the finding v1 expected: the name resolves and"
+obs "reaches the host on a NON-loopback path, so agent-gpu would have to publish beyond loopback."
+obs "nodns (shown in a column) = the name has no address inside that leg, so the probe never asked"
+obs "the network anything. Read A showed all three alias names unresolvable in a plain bridge"
+obs "container, so on maui this is the likely majority reading, and it is NOT a negative about routing."
 obs "NOT-MEASURED = that leg could not ask (engine refused the image, or no client in it). It says"
 obs "nothing about the route. This is the correction to v1's legend, which called every closed/closed"
 obs "row not-a-route: a leg that ran and answered closed IS a measured negative, and v2 separates the"
