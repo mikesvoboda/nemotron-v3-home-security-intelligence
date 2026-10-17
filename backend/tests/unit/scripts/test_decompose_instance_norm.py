@@ -468,7 +468,9 @@ class TestReviewFollowups:
         # through the shared helper so this plant and the guard can never drift to different names.
         outj = script._decomp_tmp(work / "model.onnx")
         assert not outj.exists(), "plant is vacuous: the temp already existed at guard time"
-        r = subprocess.run(  # noqa: S603 - argv is a literal list built from tmp_path, no untrusted input
+        r = subprocess.run(  # noqa: S603  # real - argv is a literal list from tmp_path; this IS the
+            # process-boundary claim (the CLI's exit code), so mocking it would test nothing. Bounded
+            # by the timeout mark below; measured ~0.4 s.
             [
                 sys.executable,
                 str(_SCRIPT),
