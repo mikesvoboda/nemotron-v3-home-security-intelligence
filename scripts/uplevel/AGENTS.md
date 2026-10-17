@@ -126,6 +126,90 @@ keeps the CI comparison machine-independent. The socket mounts are only findable
 a sentinel `PODMAN_SOCKET`, because `prod.yml` interpolates that variable into **both** fields on
 `alloy` and into only the source on `backend`.
 
+### pr_watch.py + test_pr_watch.py + r193-mutation-campaign.py
+
+`pr_watch.py` is ruling 193's lane watcher: an agent arms it as a background task at the end of a
+turn and the line it prints starts the next one (UR-38 — a backgrounded watcher is not waiting
+inside a turn). One `gh api graphql` call per poll, never the search API (its 30/min is shared by
+every agent on the owner's token), watching the PRs named by `--pr` plus those a label group
+discovers, and the last 100 comments of #6854. It exits with one line per change class and no
+comment bodies, survives transient failures, and always ends — one of four terminal lines, each
+naming itself so an agent acts on the right one (three at the lifetime bound, one when a streak
+trips mid-loop): an `error: … 0 successful polls` line (it read nothing — a mistyped `--lifetime`
+that expired before the streak could trip), an `error: … none that compared a window` line (it read
+a window but every clean poll was a seed, so "nothing moved" is not something it saw), the calm
+`no change in Ns` all-clear, which carries a `warning: watch ended on …` line whenever its last
+polls failed, or the `error: N consecutive poll failures` streak line (`--max-errors` polls failed
+with no clean poll between them — a clean poll resets the count — so the API or the arm is broken
+now). A check window that came back full adds a
+`#<n> checks truncated: X of Y watched` line — beside its news and on the all-clear — because a
+"no change" over a truncated window means "nothing moved in what I could see", not "nothing moved";
+the line is the reader's cue to treat that all-clear as unevaluated rather than clean.
+
+Four GraphQL facts decided the shape, all measured against the live API before the query was
+written, and each the reason a plausible alternative is wrong: `pullRequests(labels: [...])` is
+**OR**, not AND — `lane:ops` (82 PRs) and `lane:docs` (56), which no PR carries together, came back
+as one query of 138 with an empty intersection, and AND would have returned 0 — so putting
+`lane:ops` and `cell:a` in one connection narrows nothing (the union already holds every ops PR of
+either cell) while `discovered` names the labels whose connection matched, which would let the watch
+line print a label the PR does not carry. Hence one single-label group per connection alias, and
+`discovered` collecting **every** matching label, not the first; the connection's `orderBy.field` is
+`UPDATED_AT` (`UPDATED_DESC` is rejected outright); `states: [OPEN]` is load-bearing because an
+unfiltered `lane:ops` query matched 82 PRs against 6 open ones (measured 2026-10-15 — the count
+drifts, the ratio does not);
+and the watched set must stay **monotonic** even though discovery asks for OPEN, or
+a merge removes a PR from the set before its state is ever read. Label strings ride as `-f` String
+variables — a `-F` JSON array matches nothing **and returns no error**, which is a silently empty
+watch. A discovery page at `DISCOVERY_WINDOW` (100, GitHub's page cap) whose `totalCount` is higher
+raises instead of reporting a quiet tick.
+
+Two facts the UR-89 review turned up, each a bug a green suite shipped. `seeding` is keyed on
+whether the state was ever seeded (`"seeded" not in state`), **not** on emptiness (`not state["prs"]`):
+a watcher armed by label alone over a lane with nothing routed to it has an empty `prs` on every poll,
+so emptiness kept it "seeding" forever and the seed poll's early `return []` meant its #6854 diff never
+ran — a new `BINDING NOW`, the one event ruling 193 names, woke nobody, which is precisely the idle
+lane that arms a watcher. And the marker match reads only a comment's **first line**, because UR-40
+binds an owner record on its first line; matching the phrase anywhere in the body wakes the lane for a
+comment that merely _mentions_ it — the live false-positive is #6854 comment `6180424930`, first line
+`URGENT PATH · coordinator stale again`, whose status prose counts "42 BINDING NOW rows in window"
+(verified at that id, 2026-10-15: 1 occurrence, 0 on the first line).
+
+A second review round turned up three more ways to be silent, and all three were shapes where
+**difference had been mistaken for addition**. An explicitly typed `--pr` that GitHub answers as null
+was stored as `None` and then skipped forever, so a head change straddling that window never printed —
+and never could, because the next poll's `before` _is_ the null snapshot. `_check_explicit` now
+refuses that poll the way `_check_ruling` refuses a null ruling issue: a transient null costs one
+error credit (the state keeps the last good snapshot, so the straddling change prints on the next good
+poll) and a prolonged one exits rc 2. It guards only the numbers an agent typed, because those are
+the ones label discovery can never hand back. A discovered PR answered null has a different cure — the
+UNREAD carry-forward, which is what keeps its label group alive until it answers and its merge can
+still print. And a comment or review **deleted** between polls used to print `new comment`: the diff
+fired on any set difference and then searched the new side for an id missing from the old, which in
+the delete direction finds nothing, so the line announced an addition that had not happened and named
+no author. Deletion is not one of ruling 193's six change classes either, and the file resolves that
+the way `_state_line` does a reopen — name what moved.
+
+The same class then appeared at the **other** end of a full window: a comment DELETED at the top edge
+makes `last: 100` back-fill the oldest id it had aged out, and that id is absent from the previous
+poll's set, so the diff announced `new comment from` a comment older than everything on screen — and
+on #6854 a back-filled `new BINDING NOW` re-wakes every lane onto a ruling UR-40 already made a
+no-op. The arrival test is therefore POSITIONAL, not membership: these connections answer
+oldest-first (measured live on #6854), a real arrival sits above every shared id, a backfill re-enters
+below them. Membership alone decides only when NEITHER window was truncated — the first guard asked
+about the window in hand and missed that a backfill is judged against the PREVIOUS snapshot, so a
+window that shrinks from full to short re-opened the bug (50 false `new comment` lines measured at
+`81057a51b`); truncation is therefore ORed across both windows. A truncated window sharing no id with
+the last one has no anchor and announces no arrival — position it cannot prove, it does not claim —
+while the vanished side still prints, which is what keeps an honest append reporting.
+
+`scripts/test_pr_watch.py` (73 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
+fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
+starts reading something new fails loudly instead of passing on `{}`.
+`scripts/r193-mutation-campaign.py` reverts 62 properties in a throwaway worktree and fails if any
+survives; it follows `scripts/r151-mutation-campaign.py` and, like it, is run by hand rather than
+registered in ci.yml — the campaign list holds suites, not drivers.
+
 ### sandboxes.toml
 
 The roster: per phase, each session's name, model (a `[models]` key) and kickoff line,

@@ -45,8 +45,17 @@ the package cites. You have no review label.
 
 ## The tick
 
-The owner arms it with `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
-Run these steps in order. Read CI once per tick and end the turn (UR-38).
+The owner arms it with `Run the agent tick in docs/uplevel/roles/lane.md, "The tick".` at the
+interval UR-36 sets for the agent (ruling 245): `/loop 30m` for a Claude Code lane, `/loop 15m` for
+a heavy agent under pi, which is armed the same way and skips step 6. Run these steps in order.
+Read CI once per tick and end the turn (UR-38).
+
+The 30-minute `/loop` is a **fallback** since ruling 193, not the main channel: step 6 arms a
+watcher that wakes you when a watched PR moves, so a handoff no longer waits up to a tick for its
+delay. Keep the `/loop` anyway -- it is what notices anything the watcher does not watch: a stale
+coordinator and your disks it cannot see at all, and a `BINDING NOW` it sees only bare -- the
+watcher names the comment id and author, never which packages the ruling assigns you, so the
+`for you:` addressing is the digest's. It also bounds a watcher that died silently.
 
 1. **Read the tick in one call.** Run
 
@@ -91,7 +100,49 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
    conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
    run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
-6. If none of these has work, say so in one line and end the turn.
+6. **Re-arm the watcher** (ruling 193) unless one is already running for these PRs. Arm it as a
+   background task **by discovery**, not by naming the PRs you happen to have open: a lane discovers
+   by its own labels, so a coordinator-opened assignment draft and a PR this lane opens itself both
+   arrive in the watch without anyone re-arming. Add `--pr <n>` only for a PR outside your lane that
+   an owner or coordinator pointer names you to review (ruling 245). Exit the turn immediately:
+
+   ```bash
+   uv run python scripts/uplevel/pr_watch.py --lane <lane> --cell <c> --lifetime 1800
+   ```
+
+   (`--cell` only for the ops lane, which splits; `--lane backend` alone for a lane that does not.
+   `--review-label` is still there in the tool, but since ruling 198 retired the `review:<lane>`
+   labels there is nothing for a lane to pass it, so it is not in the example.)
+
+   It polls about every 60 s with **one GraphQL query and never the search API**, and exits with one
+   line per change it saw, each naming the PR and what moved -- a new head, a check conclusion, a
+   review, a comment, a label change, a merge or close, or a new `BINDING NOW` on #6854. One poll can
+   therefore print several lines (a head moved _and_ a check concluded); read them all before
+   re-arming. A PR whose bounded check window came back full also prints a
+   `#<n> checks truncated: X of Y watched` line, beside any news and on the "no change" line -- it
+   means "the last `Y` checks filled my window, so a change may have aged out unseen", not "nothing
+   changed"; treat a truncated all-clear as unevaluated, not clean. It prints no comment bodies,
+   survives transient API errors, and ends with one of four self-named lines — three at its lifetime
+   bound, one when a failure streak trips mid-loop — so silence never stands in for success:
+   `error: … 0 successful polls` (read nothing — treat as a broken arm), `error: … none that
+compared a window` (read but never compared — same treatment), the `no change in Ns` all-clear,
+   which adds `warning: watch ended on … failures` when its last polls failed and then asks the same
+   question a truncated window does, or `error: N consecutive poll failures` — the streak exit,
+   reached when `--max-errors` (default 3) polls fail in a row with no clean poll between them (a
+   clean poll resets the count), so it says the API or this arm is broken now, not that the watch
+   ended. Its own suite
+   `scripts/test_pr_watch.py` pins each of these. A watcher armed in the background is not waiting
+   inside a turn (UR-38): the turn ends, and the line it prints starts a new one. When it exits,
+   act on the line and re-arm.
+
+   **Heavy agents under pi skip this step.** They keep the 15-minute `/loop` (UR-174) as their wake,
+   because whether pi wakes an agent when a background task finishes is unmeasured: `pi` is not
+   installed in the lane sandboxes (`command -v pi` exits 1 in `uplevel-ops-a`, read
+   2026-10-15T23:46Z), so #7175 cannot say it does. Ruling 193 asked the PR to say so "if ops-a can
+   measure it" -- this is the honest answer: said, not measured. A heavy agent that later finds pi
+   delivers a finished background task's output may arm the watcher too; nothing here forbids it.
+
+7. If none of these has work, say so in one line and end the turn.
 
 ## Heartbeat
 
@@ -195,8 +246,16 @@ Every comment, PR body and review follows UR-10 (contract rule 2: your own text 
 ## Kickoff prompt
 
 The owner pastes the line from `scripts/uplevel/sandboxes.toml` for the sandbox; it points here and
-names the lane. Then the owner arms the tick with
-`/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".` The shared prompt:
+names the lane. Then the owner arms the tick with the same prompt text at the interval UR-36 sets
+for that agent (ruling 245):
+
+- a Claude Code lane (backend, frontend, ops-a, ops-b, docs), which also keeps the watcher armed
+  and treats the `/loop` as its fallback:
+  `/loop 30m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+- a heavy agent under pi, which arms no watcher:
+  `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+
+The shared prompt:
 
 ```text
 You are a lane agent of the uplevel programme; your kickoff line names your
