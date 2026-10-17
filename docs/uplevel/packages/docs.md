@@ -206,7 +206,10 @@ Ruling 207 named the detector, re-ID and threat families. The real tier serves o
 (UR-136), and `models.yml` serves more families through the AI gateway: face detection and
 recognition (`face-detector-scrfd`, `face-recognizer`, `yolo11-face`), license plates
 (`yolo11-license-plate`, `fast-alpr`, `paddleocr`) and general detection (`yolo26-general`).
-Ruling 231 extends ruling 207 to every family except the VLM.
+Ruling 231 extends ruling 207 to every family except the VLM. (The clause "through the AI gateway"
+is the ruling's WHY and #7235's box-1 measurement corrects it: the gateway's Triton set is
+`{yolo26, reid, threat}`, and these seven are backend model-zoo loaders no agent tier feeds
+weights. The ruling's verdict — the extended set is never exercised for real — holds unchanged.)
 
 - [ ] **MEASURE** which `models.yml` families the real tier fakes, from its compose and UR-136, and
       list them in the PR.
