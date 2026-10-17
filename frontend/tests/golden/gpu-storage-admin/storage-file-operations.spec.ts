@@ -28,7 +28,7 @@
  * that ages when the stack's event count moves.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../operations/harness';
+import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

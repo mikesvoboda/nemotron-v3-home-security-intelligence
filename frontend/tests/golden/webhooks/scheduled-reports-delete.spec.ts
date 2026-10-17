@@ -77,7 +77,7 @@ import {
   SCHEDULED_REPORTS_URL,
   type AuthedFetch,
   type Harness,
-} from './scheduled-reports-harness';
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

@@ -61,7 +61,7 @@ import {
   openSection,
   pollApi,
   readOpsHarness,
-} from './harness';
+} from '../harness';
 
 const harness = readOpsHarness();
 const CAMERAS_FILE = process.env.FEATURE_CHECK_CAMERAS ?? '';

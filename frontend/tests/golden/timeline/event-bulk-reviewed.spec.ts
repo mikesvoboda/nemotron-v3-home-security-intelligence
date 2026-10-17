@@ -95,11 +95,11 @@ import type { Page } from '@playwright/test';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   apiWrite,
   closedByGuard,
   createTimelineFixture,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -109,7 +109,7 @@ import {
   type Session,
   type TimelineFixture,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 interface EventRow {
   id: number;

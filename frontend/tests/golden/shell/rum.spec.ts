@@ -84,11 +84,11 @@ import type { Page, Request, Response } from '@playwright/test';
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   closedByGuard,
-  quietBoot,
+  quietBootShell as quietBoot,
   readShellHarness,
   seedTourDismissed,
   type ShellHarness,
-} from './harness';
+} from '../harness';
 
 const harness = readShellHarness();
 

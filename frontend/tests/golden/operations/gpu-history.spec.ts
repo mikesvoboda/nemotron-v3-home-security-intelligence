@@ -9,7 +9,7 @@
  * with the sample count proven from the endpoint first.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harness';
+import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

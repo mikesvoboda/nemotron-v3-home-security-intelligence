@@ -87,11 +87,11 @@ import type { Page } from '@playwright/test';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
   createTimelineFixture,
   FIXTURE_ROWS,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -100,7 +100,7 @@ import {
   waitForEventCards,
   type TimelineHarness,
   type TimelineFixture,
-} from './harness';
+} from '../harness';
 
 interface EventPage {
   items: { id: number; risk_score: number; started_at: string }[];

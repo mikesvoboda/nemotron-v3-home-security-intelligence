@@ -189,10 +189,10 @@ import type { Page } from '@playwright/test';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   apiWrite,
   closedByGuard,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedTourDismissed,
@@ -200,7 +200,7 @@ import {
   waitForCameraInList,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 /* --------------------------------------------------------------------------- */
 /* Collection-time readiness (the batch's rule): COLLECTION runs before any      */

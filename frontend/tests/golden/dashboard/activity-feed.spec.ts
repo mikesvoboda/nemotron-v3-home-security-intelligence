@@ -87,13 +87,13 @@ import { GUARD_MESSAGE, expect, test } from '../guard';
 // report "20" — that was the pipe's cap, not a count).
 import {
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
-  loginAsAdmin,
-  quietBoot,
+  loginAsAdminShell as loginAsAdmin,
+  quietBootDash as quietBoot,
   readDashboardHarness,
   seedTourDismissed,
-} from './harness';
+} from '../harness';
 
 const harness = readDashboardHarness();
 test.skip(

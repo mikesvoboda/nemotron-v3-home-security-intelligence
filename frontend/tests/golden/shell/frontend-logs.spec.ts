@@ -118,14 +118,14 @@ import type { Page, Request, Response } from '@playwright/test';
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
-  quietBoot,
+  quietBootShell as quietBoot,
   readShellHarness,
   seedTourDismissed,
   type Session,
   type ShellHarness,
-} from './harness';
+} from '../harness';
 
 const harness = readShellHarness();
 

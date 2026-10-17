@@ -33,12 +33,12 @@
 import { expect, test } from '../guard';
 import {
   apiPath,
-  assertGuardSurvives,
+  assertGuardSurvivesCameras as assertGuardSurvives,
   readHarness,
   settledGoto,
   signIn,
   type Harness,
-} from './harness';
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

@@ -10,7 +10,7 @@
  * in Databases (`redis-debug-section`).
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harness';
+import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

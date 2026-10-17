@@ -155,12 +155,12 @@ import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   BOOT_QUIET_MS,
   closedByGuard,
-  loginAsAdmin,
-  quietBoot,
+  loginAsAdminShell as loginAsAdmin,
+  quietBootShell as quietBoot,
   readShellHarness,
   seedTourDismissed,
   type ShellHarness,
-} from './harness';
+} from '../harness';
 
 const harness = readShellHarness();
 test.skip(

@@ -90,13 +90,13 @@
  */
 import { expect, test } from '../guard';
 import {
-  adminSession,
+  adminSessionId as adminSession,
   assertGuardSurvives,
   authedFetch,
   login,
   readHarness,
   type Harness,
-} from './harness';
+} from '../harness';
 
 const harness = readHarness();
 test.skip(
