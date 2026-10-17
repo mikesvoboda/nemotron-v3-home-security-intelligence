@@ -744,12 +744,12 @@ then removes the two read clamps in `system.py` as UR-48 lane work.
 **Flags:** none. **Assigned:** frontend, after `[r168]`; ops-b reviews the `scripts/` and `.github/`
 hunks. **Depends on:** none. **PR:** #7236. (ruling 173)
 
-- [ ] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
+- [x] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
       `frontend/tests/golden/**/*.spec.ts` for `test.fixme(` and unconditional `test.skip(` call
       sites, excluding conditional guards as the pytest arm does.
-- [ ] One registry row per site in a golden reason class citing its authorizing ruling or package;
+- [x] One registry row per site in a golden reason class citing its authorizing ruling or package;
       the baseline rises in the same commit.
-- [ ] Sites with no authorizing ruling are listed on the PR for the coordinator to route.
+- [x] Sites with no authorizing ruling are listed on the PR for the coordinator to route.
 
 **Done when:** the census fails CI on an unregistered golden `test.fixme`, and every current site has
 a row.
