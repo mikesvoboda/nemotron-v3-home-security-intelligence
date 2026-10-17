@@ -340,7 +340,11 @@ class RecommendationItem(BaseModel):
     )
 
     category: str  # missing_context, unused_data, model_gaps, etc.
-    suggestion: str
+    # [r244] None for a monitoring-scoped API key: `suggestion` is the LLM's
+    # free-text advice, and ruling 95's field ceiling admits only what a grant
+    # reads. The null is the served value, not an absent key — the row is
+    # re-validated here, so omitting the field would also report null.
+    suggestion: str | None
     frequency: int  # How many events mentioned this
     priority: str  # high, medium, low
 

@@ -317,7 +317,7 @@ on:** queues behind `[r122]`. **PR:** #7031 (merged).
 F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_prompt` are
 `deferred()` (`backend/models/event.py:72-74`). `_export_table`
 (`backend/services/backup_service.py:336`) and the batch audit
-(`backend/api/routes/ai_audit.py:445`) read them inside an `AsyncSession`, which raises
+(`backend/api/routes/ai_audit.py:462`) read them inside an `AsyncSession`, which raises
 `MissingGreenlet`: every backup fails once any event exists, and the audit fails on every event.
 
 - [ ] Items (4) and (5) of the Done when touch `frontend/`: backend either takes frontend's review on

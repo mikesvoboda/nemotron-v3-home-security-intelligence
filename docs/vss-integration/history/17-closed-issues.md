@@ -12,7 +12,7 @@
   - Non-test grep of `backend/` for `should_notify`, `NotificationFilterService`, `evaluate_event`,
     `create_alerts_for_event` and `deliver_alert` finds definitions and docstrings only:
     `backend/services/alert_engine.py:166`, `backend/services/alert_engine.py:1039`,
-    `backend/services/notification.py:633`. The one other hit, `backend/api/routes/ai_audit.py:193`,
+    `backend/services/notification.py:633`. The one other hit, `backend/api/routes/ai_audit.py:194`,
     is an unrelated route [V]
   - `backend/services/vlm_analyzer.py:638` `_set_idempotency` then
     `backend/services/vlm_analyzer.py:643` `_broadcast`; nothing follows it. Its only
