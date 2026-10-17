@@ -239,9 +239,11 @@ export interface paths {
          *     - Cameras cache
          *     - System status cache
          *     - Stats cache
+         *     - Timeline summary cache
+         *     - Trends cache
          *     - Detections cache
          *     - Alerts cache
-         *     - Summaries cache
+         *     - Summaries cache (also clears the `summaries:entities` key it contains)
          *
          *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
          *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
