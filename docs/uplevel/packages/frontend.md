@@ -707,13 +707,13 @@ it. The manager stops on the auth close codes (`AUTH_TERMINAL_CLOSE_CODES`, `:15
 never receives a status reads as healthy. `AmbientStatusProvider.tsx:94-109` turns service health
 into the favicon's alert count (`unhealthy` 3, `degraded` 1).
 
-- [ ] Until a system status arrives, the dashboard shows a neutral connecting or unknown state,
+- [x] Until a system status arrives, the dashboard shows a neutral connecting or unknown state,
       never `healthy`; a no-flash treatment must not render healthy's word or colour.
-- [ ] The badge shows health as health (colour or icon) and a number only from a real alert count;
+- [x] The badge shows health as health (colour or icon) and a number only from a real alert count;
       with no such source it shows no number. `alertCountOverride` keeps working.
-- [ ] Tests: no status, or a dashboard that never connects, never renders "healthy"; an unhealthy
+- [x] Tests: no status, or a dashboard that never connects, never renders "healthy"; an unhealthy
       or degraded service gives no numeric badge without a real count; a real count shows as given.
-- [ ] The golden specs over the dashboard and ambient status pass unchanged, or the PR names the leg
+- [x] The golden specs over the dashboard and ambient status pass unchanged, or the PR names the leg
       it changes and why.
 
 **Done when:** these pass in CI at a ready head, and under `frontend/src/` (tests aside) no
