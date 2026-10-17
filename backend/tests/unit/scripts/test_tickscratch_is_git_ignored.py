@@ -47,7 +47,7 @@ _GLOBAL = ["-c", "core.excludesFile=/dev/null"]
 
 def _verdict(pathname: str) -> tuple[int, str]:
     """(rc, matched-line) for one repo-relative pathname under the ignore rules."""
-    proc = subprocess.run(  # noqa: S603  # fixed argv, our own git; rc is the verdict
+    proc = subprocess.run(  # noqa: S603  # fixed argv, our own git; rc is the verdict  # real
         [_BASE[0], *_GLOBAL, *_BASE[1:], "--", pathname],
         cwd=REPO_ROOT,
         capture_output=True,
