@@ -402,6 +402,11 @@ _PRUNE = {
     "__pycache__",
     ".mypy_cache",
     ".ruff_cache",
+    # UR-89 review materialisations at the repo root: a scratch copy of a named
+    # script makes its basename ambiguous, and _unique_bare resolves ambiguity
+    # against binding — so every doc claim naming it silently loses its subject
+    # (see test_the_name_index_prunes_review_scratch; sibling of #7240's pins).
+    ".tickscratch",
 }
 
 
@@ -1027,6 +1032,59 @@ class NegativeToolingClaims(unittest.TestCase):
             "too many negative-CI claims now name no resolvable path: "
             + "\n  ".join(f"{c['doc']}:{c['line']}" for c in unresolved[:20]),
         )
+
+    def test_the_name_index_prunes_review_scratch(self) -> None:
+        """A scratch copy of a script must not make its basename ambiguous.
+
+        Docs name subjects by BARE basename, and `resolve()` deliberately
+        resolves ambiguity AGAINST binding (two hits → None → no subject), so a
+        second copy of any named file anywhere under the root silences every
+        claim naming it. UR-89 review material puts thousands of exact repo
+        copies — including the very files the docs name — under
+        `.tickscratch/<name>/tree/`. Measured 2026-10-17 in a workspace holding
+        one: `validate_detections.py` and `test_risk_score_validation.py`, the
+        corpus's only two uniquely-resolvable subjects, both went ambiguous,
+        `resolved` dropped 1 → 0 (the count this file's frame admits), and the
+        test above failed closed with "no negative-CI claim resolves to a
+        repository path any more".
+
+        Pinned on a synthetic root rather than the live tree, for the reason
+        #7240's sibling pins give: a walk over whatever happens to sit under the
+        root is an environment property. Here the mechanism is reproduced
+        exactly — a unique basename, a scratch copy of it, the real
+        `name_index()` and `_unique_bare()` — so the pin is red pre-fix on every
+        machine, green after on every machine, and takes milliseconds.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            fake = Path(td)
+            real = fake / "scripts"
+            real.mkdir()
+            (real / "solitude.py").write_text("print('one of one')\n", encoding="utf-8")
+            scratch_copy = fake / ".tickscratch" / "wt-a" / "tree" / "scripts"
+            scratch_copy.mkdir(parents=True)
+            (scratch_copy / "solitude.py").write_text("copy\n", encoding="utf-8")
+
+            saved = globals()["REPO"]
+            globals()["REPO"] = fake  # the walk below reads this global
+            name_index.cache_clear()
+            try:
+                hits = name_index().get("solitude.py", [])
+                self.assertEqual(
+                    [real / "solitude.py"],
+                    hits,
+                    "the name index is counting UR-89 review scratch as a live "
+                    "copy — one scratch file per name makes every basename that "
+                    "names one ambiguous, and _unique_bare will refuse to bind it",
+                )
+                self.assertEqual(
+                    real / "solitude.py",
+                    _unique_bare("solitude.py"),
+                    "_unique_bare stopped resolving a file the repo has exactly "
+                    "one of — every doc claim naming it now resolves to nothing",
+                )
+            finally:
+                globals()["REPO"] = saved
+                name_index.cache_clear()
 
 
 if __name__ == "__main__":
