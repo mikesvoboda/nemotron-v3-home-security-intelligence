@@ -90,7 +90,7 @@ interface WebSocketStatusProps {
 
 ### Usage Example
 
-`useConnectionStatus()` aggregates both channels; `useWebSocketStatus()` tracks a single channel and is what `useConnectionStatus` builds on.
+`useConnectionStatus()` aggregates both channels; `ConnectionStatusProvider` is what it reads from — it owns each channel's one connection over `webSocketManager` and is the only surface that opens a socket.
 
 ```tsx
 import { WebSocketStatus } from '@/components/common';

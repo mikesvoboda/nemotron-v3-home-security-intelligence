@@ -7,7 +7,7 @@ import { ThemeProvider } from '../../contexts';
 import * as useConnectionStatusModule from '../../hooks/useConnectionStatus';
 import * as useHealthStatusQueryModule from '../../hooks/useHealthStatusQuery';
 
-import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
+import type { ChannelStatus, ConnectionState } from '../../hooks/useConnectionStatus';
 
 // Helper to render Header with Router and Theme context
 const renderHeader = (initialRoute: string = '/') => {
