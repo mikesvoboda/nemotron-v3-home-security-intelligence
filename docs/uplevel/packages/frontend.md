@@ -134,8 +134,9 @@ same way after the owner's `R2b` session.
 
 ### F3.1 Retire ruled-out features, frontend part
 
-**Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7232.
+**Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
+(ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
@@ -460,7 +461,7 @@ PR (UR-48).
 
 ### [r134] F-135: retire the batch-history views
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7145 (open).
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7145.
 (rulings 134, 150)
 
 - [x] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
@@ -537,7 +538,7 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 ### [r211f] F-048: a search result opens what was clicked
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
-for the spec's legs. **PR:** #7210, #7225 (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
+for the spec's legs. **PR:** #7210, #7225. (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
 - [x] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
       #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1191` requires search
@@ -587,7 +588,7 @@ in its title, and the package is not done until it does.
 ### [r234] F-052: the export modal's dates reach the export
 
 **Flags:** none. **Assigned:** heavy-a, now, ahead of `B2.3` (fix now; ruling 234). **Depends on:**
-none. **PR:** none yet. (ruling 234, record 6216216005)
+none. **PR:** #7213. (ruling 234, record 6216216005)
 
 ExportModal uses `useDateRangeState({ persistToUrl: false })`
 (`frontend/src/components/exports/ExportModal.tsx:59`). In that mode the hook reads its range only
@@ -608,7 +609,7 @@ among them, pass (rulings 103, 114).
 ### [r238] F-057: the saved note reads back
 
 **Flags:** none. **Assigned:** heavy-a, after `[r234]`, ahead of `B2.3` (ruling 238). **Depends
-on:** none. **PR:** none yet. (rulings 149, 238; record 6216702824)
+on:** none. **PR:** #7219. (rulings 149, 238; record 6216702824)
 
 `[r149d]` (#7070) made `list_events` return `notes` (`backend/api/routes/events.py:543`), but its
 second box, the golden read-back leg, never had a roster slot, so F-057 stays **half-built** with
@@ -721,7 +722,7 @@ into the favicon's alert count (`unhealthy` 3, `degraded` 1).
 ### [r168] The fast-path switch
 
 **Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s
-`fast_path_enabled` field merged. **PR:** #7174 (open). (ruling 168)
+`fast_path_enabled` field merged. **PR:** #7174. (ruling 168)
 
 - [ ] The processing settings show a "Fast path" switch bound to `fast_path_enabled`, off by default,
       with `config.py`'s warning as its help text; the threshold slider shows only when it is on.
