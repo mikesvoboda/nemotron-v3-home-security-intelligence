@@ -458,7 +458,7 @@ the three handlers change, each invalidated.
 
 **Flags:** `owner` (security and auth). **Assigned:** `uplevel-backend`, after `[r223]`. #7157
 becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 3 put on it ends.
-**Depends on:** none. **PR:** none yet. (ruling 244, record 6222984876)
+**Depends on:** none. **PR:** #7157. (ruling 244, record 6222984876)
 
 `GET /api/ai-audit/recommendations` is in the monitoring scope (`backend/core/constants.py`,
 `MONITORING_SCOPE_PATHS`), and each item's `suggestion` is the LLM's free-text advice
