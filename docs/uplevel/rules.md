@@ -38,6 +38,12 @@ give work a number.
   table, so leave the other rows' padding alone. The table on `main` changes only when a PR merges.
   (README "Lanes and ownership", "Status"; the deleted 50-coordination.md "Hot files", "Claiming a
   package")
+- **UR-183** A package PR writes its own number into its block's `**PR:**` field, in its own diff:
+  `#N`, or `#N, #M` for a package with several PRs, and no state word. The field reaches `main` only
+  when that PR merges, so a number there names a merged PR; GitHub says whether a PR is open, merged
+  or closed. No one writes `(open)`, `(merged)`, or a merge time or sha into a `**PR:**` field, and
+  no PR is opened only to update one. `[r248]` adds the CI check. (ruling 248; roles/lane.md
+  "Claiming a package")
 - **UR-47** A PR needs the owner for `docs/uplevel/` edits only if they change a ruling, the
   contract, the phases or exit gates, or a package's scope, Done when, dependencies or flags.
   Everything else there (status rows, `file:line` references, moves or artifacts a package's own
@@ -238,11 +244,28 @@ Read this section before you self-review your own PR or review another lane's.
 - **UR-89** Once a PR is ready and its CI at that head has finished, the author dispatches a
   fresh-context subagent given only the package text, the diff and the PR body, to check each
   Done-when clause against the evidence (CI-only clauses from that run, ruling 161), the contract,
-  the cross-lane parts and the hot-file rules. The author fixes or answers each finding and posts
-  the review on the PR; it is the PR's one review (UR-32, ruling 198). (roles/lane.md "Building a
-  package", "Reviewing your PR")
+  the cross-lane parts and the hot-file rules. It marks each finding `blocking (<kind>)` or `note`
+  (ruling 250). The blocking kinds are **done-when** (a Done-when clause not observed, or its
+  evidence contradicts it), **test** (a missing test for behaviour the PR adds, or a failing test),
+  **defect** (the change does something wrong that a user, an operator or CI would see),
+  **contract** (a breach of rules 1-5 of the review form, or of a hot-file rule), **security**
+  (anything UR-95 or UR-96 would raise) and **plan-text** (a false statement in plan text the PR
+  changes). Everything else is a `note`: wording, prose precision, docstrings and comments,
+  line-number cites, naming, style the linters accept, and extra tests beyond Done-when.
+  - At the first review the author may fix anything. From the second on, only blocking findings
+    change the head. Notes go under `Notes:` in the approving review, which may carry any number of
+    them; the author may fold one into a later PR of its own that touches the same file, and opens
+    no PR only for notes.
+  - A re-review reads the diff from the last reviewed head (its sha goes to the subagent) plus the
+    merge resolution with `main`, with the Done-when evidence. A blocking finding anywhere in the PR
+    still blocks; a note on hunks an earlier round reviewed is not raised again. A head whose diff
+    carries (UR-106) keeps its review.
+  - A wrong claim in the PR body is fixed by editing the body, with no commit.
+  - The author posts the review on the PR; it is the PR's one review (UR-32, rulings 198, 250).
+    (roles/lane.md "Building a package", "Reviewing your PR")
 - **UR-91** The author posts the review as a PR comment in the form `roles/lane.md` gives (the
-  owner's account cannot approve its own PRs). Each new head's merge resolution is reviewed again. A PR may merge with a Done-when box
+  owner's account cannot approve its own PRs). Each new head is reviewed again as UR-89 says, unless
+  its diff carries (UR-106). A PR may merge with a Done-when box
   unticked only when the approving review names the box, says why this PR cannot tick it (it
   depends on another PR or a later run, or it is stale) and, if the clause still matters, where it
   will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing your PR";
@@ -285,7 +308,24 @@ and the re-read and merge comment are UR-29.
   - risk acceptance (dismissing an alert or a finding);
   - production safety;
   - privileged host tooling (the launcher and anything run with host privileges);
-  - destructive work;
+  - destructive work, except a plain `B3.1`/`F3.1` retirement (ruling 249). A plain retirement:
+    - removes only what a "retire" ruling lists (its inventory row's modules, or the OD's ruling):
+      routes, schemas, services, settings, alert conditions, tests and doc lines. Settings may go,
+      since `backend/core/config.py` ignores unknown keys;
+    - makes only mechanical follow-on edits: imports, router registrations, the regenerated
+      `docs/openapi.json` and `frontend/src/types/generated/api.ts`, and its own plan bookkeeping
+      of UR-47's lane-review kinds;
+    - drops no table and adds no upgrade step;
+    - touches nothing under `backend/api/middleware/`, and no file under `backend/` or
+      `frontend/src/` with `auth`, `security`, `api_key`, `secret` or `permission` in its path;
+    - touches no compose, deploy or setup file (`docker-compose*.yml`, `setup.py`, `setup_lib/`,
+      `ai/`) and nothing under `.github/`;
+    - lets no baseline or limit gain an entry or rise; an entry may be removed or its line number
+      move, as in `.secrets.baseline`;
+    - has no "Questions for the owner" entry;
+    - is checked against each condition by the author's UR-89 review, which names them; carries no
+      `owner` label; and has an "Owner tier" line reading `no: plain retirement (ruling 249)`. A
+      retirement that misses a condition keeps `owner` and names that condition in the same line;
   - plan text, as UR-47 defines it;
   - any PR with an entry under "Questions for the owner".
 - **UR-99** Once the owner answers a PR's "Questions for the owner" and they leave its body, they no
@@ -299,8 +339,8 @@ and the re-read and merge comment are UR-29.
   pre-approves the follow-up it specifies: the coordinator merges it without the owner when the lane
   review states the diff does that and nothing more and `CI Gate` is green at its head; if the
   reviewer cannot state that, the PR comes to the owner. Never pre-approved: destructive work
-  (`B3.1`, `F3.1`, `B3.2`), security or auth or plan text beyond the ruling, or a PR with owner
-  questions. (ruling 84)
+  (`B3.1` and `F3.1` other than UR-98's plain retirements, `B3.2`), security or auth or plan text
+  beyond the ruling, or a PR with owner questions. (rulings 84, 249)
 - **UR-102** `main` requires `CI Gate (Required Checks)` but not "branches up to date". The
   coordinator merges one PR at a time, and its merge pass continues past a roll to the next ready
   PR. A lane PR on auto-merge (UR-108) merges when its gate passes, without these legs; while
