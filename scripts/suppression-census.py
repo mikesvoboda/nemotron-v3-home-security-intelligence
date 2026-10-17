@@ -515,35 +515,6 @@ def _frontend_modifier_locations(root: Path) -> dict[str, list[dict]]:
 
 
 # [r173]: the golden Playwright tree. frontend/tests/golden is the feature
-# gate's own witness suite, and it sat in NEITHER census arm —
-# _frontend_test_files() is Vitest-only ("e2e suppression is governed by the
-# excluded-trees category instead") and golden is not an excluded tree, so the
-# tree's suppressions were invisible to the ratchet entirely. The package's
-# own ruling (173) binds it into the registry instead of excluding it, on the
-# doctrine that the suite which PROVES features ships is the last tree that
-# gets to hide a skip.
-#
-# Playwright's grammar makes the package's "unconditional test.skip("
-# mechanical rather than a judgment call:
-#   test.skip('title', fn) / test.fixme('title', fn)  -> string first arg = the
-#       REGISTRATION form. The leg is declared and never runs: a suppression.
-#   test.skip(<cond>, why)                            -> non-string first arg =
-#       the CONDITIONAL guard form. The leg runs whenever the condition is
-#       false, so on a live stack it suppresses nothing; it is a guard, and the
-#       package excludes guards. (Witness, not inference: run 39035167334's
-#       golden junit prints 245 tests / 4 skips. The tree carries 64
-#       conditional call sites — they skipped ZERO tests. The 4 skips are
-#       registration-form legs.)
-#   test.skip()                                       -> bare call at file level:
-#       unconditional, counted.
-#   test.info().skip(cond, why)                       -> a RUNTIME skip inside a
-#       test body. Not `test.skip(` — box 1's literal scan excludes it, and it
-#       is the imperative pytest.skip analogue rather than a registration.
-#       Named on the PR rather than silently widened into this category.
-# Masking is load-bearing: the corpus carries ~10 prose/comment mentions of
-# test.fixme/test.skip (a commented-out leg, JSDoc history). Counting those
-# would mint a registry row for a suppression that does not exist.
-# [r173]: the golden Playwright tree. frontend/tests/golden is the feature
 # gate's own witness suite and it sat in NEITHER census arm —
 # _frontend_test_files() is Vitest-only ("e2e suppression is governed by the
 # excluded-trees category instead") and golden is not an excluded tree, so its
@@ -565,19 +536,27 @@ def _frontend_modifier_locations(root: Path) -> dict[str, list[dict]]:
 # 201 of them the harness guard (`!harness.ready` / `!h.ready` / `!drop.ready`)
 # and 7 passing a literal `true`.
 #
-# Corroboration, stated as corroboration: run 39035167334's golden junit prints
-# 245 tests / 0 failures / 0 errors / 4 skips, and its 4 skipped cases are F-295,
-# F-034 and exactly the two F-296 registration legs this category counts. Four
-# skips across 201 harness guards means the harness was READY on that run, so the
-# harness guards took no legs. F-295 and F-034 skipped from runtime
-# test.info().skip sites inside their bodies (the F-034 leg holds two such
-# literal-`true` sites, :423 and :432; the junit records no skip message, so this
-# instrument cannot say which of the two fired, and does not claim to) — runtime skips are
-# outside this category by box 1's wording and are listed on the PR for the
-# coordinator instead of being quietly widened in. A guard that fires only when
-# its data is absent is still not a registration: it RUNS whenever the data is
-# present, which is the whole difference from a declared test.skip('title', fn)
-# that can never run at all.
+# Corroboration, stated as corroboration (and it CORROBORATES, it does not
+# prove): run 3903516734's golden junit prints 245 tests / 0 failures / 0 errors
+# / 4 skips, and its 4 skipped cases are F-295, F-034 and exactly the two F-296
+# registration legs this category counts. Two of the four are runtime skips, NOT
+# registrations, and one of those is a GUARD THAT FIRED -- so do not read this
+# as "guards never skip a leg": the split this category draws is by GRAMMAR (a
+# registration can never run on any stack; a guard runs whenever its condition
+# is false), not by whether a given run happened to skip.
+#   - The harness was READY on that run: three F-033 legs in summary-cards.spec.ts
+#     (behind the identical `test.info().skip(!harness.ready, ...)` guard) PASSED,
+#     so all 201 harness guards were false and took no legs.
+#   - F-295 was taken by its DATA guard, not a harness guard: the leg's only
+#     non-harness skip is `.skip(frameIdx === -1, ...)` at
+#     summary-cards.spec.ts:708, and the harness guard at :654 is provably not
+#     the cause (the harness was READY). Elimination, not a junit message -- the
+#     run records no skip `message` (type=None for all four). A guard CAN take a
+#     leg when its data is absent; that is the residual risk stated plainly.
+#   - F-034 holds two literal-`true` sites (:423 and :432); the junit names
+#     neither, so this instrument says "one of the two fired" and does not pick.
+# These runtime skips are outside this category by box 1's wording and are listed
+# on the PR for the coordinator instead of being quietly widened in.
 #   test.skip()                                       -> bare file-level call:
 #       unconditional, counted.
 #   test.info().skip(cond, why)                       -> a RUNTIME skip inside a

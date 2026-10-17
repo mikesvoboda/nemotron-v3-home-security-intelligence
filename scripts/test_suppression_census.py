@@ -755,12 +755,18 @@ def test_real_tree_matches_spec_baselines():
     timeline/download-media.spec.ts (:748 VIDEO, :1055 two-detection ordering),
     both named F-296 by 8d419a0de under ruling 222 — the cite minted into their
     registry rows as tracking: R-222-F296. The 64 conditional `test.skip(cond,
-    why)` sites in the same tree are NOT counted, and that exclusion has a
-    witness rather than an argument: run 39035167334's golden junit prints 245
-    tests / 0 failures / 4 skips, so a tree with 64 guard call sites skipped 4
-    legs (those 4 are the 2 fixme rows plus two runtime test.info().skip sites) —
-    the guards skipped ZERO tests, which is what a registration-vs-guard split is
-    for. `todo` and not `environment`: ratchet-check:133 forces tracking null on
+    why)` sites in the same tree are NOT counted, and the exclusion is by
+    GRAMMAR, corroborated (not proved) by run 3903516734's golden junit: 245
+    tests / 0 failures / 4 skips, where the 4 are the 2 F-296 fixme rows plus
+    F-295 and F-034, both runtime test.info().skip sites. Read the witness
+    precisely -- it does NOT say guards never skip a leg. F-295 was taken by a
+    DATA guard (.skip(frameIdx === -1, ...) at summary-cards.spec.ts:708; the
+    harness guard at :654 is ruled out by elimination, three F-033 legs behind
+    it PASSED). The split is that a registration can never run on any stack
+    while a guard runs whenever its condition is false; a guard CAN take a leg
+    when its data is absent, and that residual risk is stated on the PR rather
+    than denied here.
+    `todo` and not `environment`: ratchet-check:133 forces tracking null on
     environment, which is exactly how a golden skip stays unreviewed, and these
     are falsifiable claims about a feature rather than host state.
     A drift here means either the tree gained a hatch (ratchet territory) or
