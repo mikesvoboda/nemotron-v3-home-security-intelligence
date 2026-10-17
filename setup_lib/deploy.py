@@ -62,6 +62,41 @@ class DeployConfig:
             )
         return mode
 
+    @property
+    def engine_overlay_args(self) -> list[str]:
+        """Compose args that bring up the orchestrator-OFF shape ([r243], ruling 243).
+
+        ``[]`` unless ``ORCHESTRATOR_ENABLED`` is exactly the string ``false``, in
+        which case the OFF overlay rides in as a second ``-f`` (the gb300 pattern,
+        ``scripts/bootstrap-gb300.sh:43``). The mount it drops and the reason an
+        overlay is the only survivable spelling are in
+        ``docker-compose.engine-false.yml``'s header; ``#7222`` has the matrix.
+
+        NO ``.strip()``/``.lower()`` here, deliberately, unlike ``pipeline_mode``
+        above: for this flag COMPOSE is the decider, not this property. prod.yml
+        interpolates the flag into an included MARKER filename, so a value like
+        ``False`` or `` true`` has no marker file and must die at the render with
+        "no such file" -- ruling 186's loud failure. Lowercasing here would pick a
+        side for a value compose would have rejected, which is the split-vocabulary
+        hazard ``setup_lib/core.py:85-117`` names (``deploy`` deciding ON while the
+        render fails, or the reverse). Empty/unset is compose's ``:-true`` default:
+        ON, socket mounted.
+
+        Gated on the prod file as well: the overlay re-lists ``prod.yml``'s
+        backend volumes with prod paths, and this same ``compose_run`` serves
+        ``docker-compose.test.yml`` / ``docker-compose.ci.yml``, whose ``backend``
+        is absent or volume-less -- an overlay there would REPLACE a different
+        document's volume list. The loud spelling-failure does not need the gate:
+        it lives in prod.yml's marker include, so it fires whenever prod.yml is
+        what compose reads, which is exactly when it matters.
+        """
+        if self.compose_file != "docker-compose.prod.yml":
+            return []
+        raw = {**os.environ, **self.env}.get("ORCHESTRATOR_ENABLED", "")
+        if raw == "false":
+            return ["-f", str(self.project_root / "docker-compose.engine-false.yml")]
+        return []
+
 
 @dataclass
 class DeployResult:
@@ -153,7 +188,9 @@ def compose_run(
         CompletedProcess if capture=True, else bool indicating success.
     """
     compose_file_path = str(config.project_root / config.compose_file)
-    cmd = [*config.compose_cmd, "-f", compose_file_path, *args]
+    # [r243] the orchestrator-OFF overlay rides in as a second -f (empty unless the
+    # flag is exactly `false`; see DeployConfig.engine_overlay_args for the parity rule).
+    cmd = [*config.compose_cmd, "-f", compose_file_path, *config.engine_overlay_args, *args]
 
     env = {**os.environ, **config.env} if config.env else None
 
