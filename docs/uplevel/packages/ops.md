@@ -827,7 +827,7 @@ across 11 PRs since 2026-10-14.
 ### [r252] Re-ID: find and fix the ONNX→TensorRT plan-build divergence
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, ahead of `B2.3`. Where it edits
-`ai/gateway/` (cell A's files), UR-9 applies. **Depends on:** none. **PR:** none yet. (ruling 252,
+`ai/gateway/` (cell A's files), UR-9 applies. **Depends on:** none. **PR:** #7238. (ruling 252,
 record 6235589555)
 
 Operator run 188.17 (`6235043370`: `[r157]`'s runner at `f99058805`, 36 crops) read `onnx-cpu`
