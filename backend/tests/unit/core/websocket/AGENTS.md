@@ -9,7 +9,7 @@ The `backend/tests/unit/core/websocket/` directory contains unit tests for the W
 ```
 backend/tests/unit/core/websocket/
 ├── AGENTS.md                          # This file
-├── test_enrichment_queue_events.py    # Enrichment and queue event types
+├── test_enrichment_queue_events.py    # Enrichment event types
 └── test_message_batcher.py            # Message batching for high-frequency events
 ```
 
@@ -17,14 +17,13 @@ backend/tests/unit/core/websocket/
 
 ### Event Types and Channels
 
-| File                              | Tests For                                     | Linear Issues      |
-| --------------------------------- | --------------------------------------------- | ------------------ |
-| `test_enrichment_queue_events.py` | Enrichment and queue metrics WebSocket events | NEM-3627, NEM-3637 |
+| File                              | Tests For                           | Linear Issues |
+| --------------------------------- | ----------------------------------- | ------------- |
+| `test_enrichment_queue_events.py` | Enrichment WebSocket event registry | NEM-3627      |
 
 **Coverage:**
 
 - `WebSocketEventType` enum values for enrichment events (ENRICHMENT_STARTED, ENRICHMENT_PROGRESS, ENRICHMENT_COMPLETED, ENRICHMENT_FAILED)
-- `WebSocketEventType` enum values for queue events (QUEUE_STATUS, PIPELINE_THROUGHPUT)
 - Event metadata registration in `EVENT_TYPE_METADATA`
 - Channel routing via `get_event_channel()`
 - Required payload fields via `get_required_payload_fields()`

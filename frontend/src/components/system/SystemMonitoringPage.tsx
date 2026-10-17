@@ -16,7 +16,6 @@ import {
   Cpu,
   Clock,
   Radio,
-  Layers,
   Wifi,
   HeartPulse,
 } from 'lucide-react';
@@ -56,7 +55,6 @@ import PerformanceHistoryPanel from './PerformanceHistoryPanel';
 import PipelineFlowVisualization from './PipelineFlowVisualization';
 import PipelineLatencyHistoryPanel from './PipelineLatencyHistoryPanel';
 import PrometheusMonitoringPanel from './PrometheusMonitoringPanel';
-import QueueMetricsPanel from './QueueMetricsPanel';
 import ServicesPanel from './ServicesPanel';
 import WebSocketHealthPanel from './WebSocketHealthPanel';
 import { WorkerManagementPanel } from './WorkerManagementPanel';
@@ -481,19 +479,6 @@ export default function SystemMonitoringPage() {
                 data-testid="batch-statistics-section"
               >
                 <BatchStatisticsDashboard data-testid="batch-statistics-dashboard" />
-              </CollapsibleSection>
-            </div>
-
-            {/* Queue Metrics - Full width (NEM-3637) */}
-            <div id="section-queue-metrics" className="mb-6">
-              <CollapsibleSection
-                title="Queue Metrics"
-                icon={<Layers className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['queue-metrics']}
-                onToggle={() => toggleSection('queue-metrics')}
-                data-testid="queue-metrics-section"
-              >
-                <QueueMetricsPanel data-testid="queue-metrics-panel-section" />
               </CollapsibleSection>
             </div>
 

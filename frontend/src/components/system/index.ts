@@ -63,7 +63,3 @@ export {
   WorkerStatusPanel as WorkerStatusPanelNamed,
 } from './WorkerStatusPanel';
 export type { WorkerStatusPanelProps } from './WorkerStatusPanel';
-
-// Queue Metrics panel (NEM-3637)
-export { default as QueueMetricsPanel } from './QueueMetricsPanel';
-export type { QueueMetricsPanelProps } from './QueueMetricsPanel';
