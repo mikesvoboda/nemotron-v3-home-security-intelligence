@@ -283,7 +283,7 @@ Configure visual and audio cues that communicate system status at a glance.
 | **Ambient Background**    | Subtle color shifts based on current threat level           |
 | **Audio Alerts**          | Sound notifications for security events with volume control |
 | **Desktop Notifications** | Browser notifications for alerts (requires permission)      |
-| **Favicon Badge**         | Show alert count on browser tab icon and title              |
+| **Favicon Badge**         | Show the counted alert total on tab icon and title          |
 
 #### Quick Actions
 
