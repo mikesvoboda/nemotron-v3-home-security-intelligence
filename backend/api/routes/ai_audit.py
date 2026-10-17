@@ -19,6 +19,7 @@ from backend.api.dependencies import (
     get_event_or_404,
     get_job_tracker_dep,
 )
+from backend.api.middleware.auth import scoped_key_ceiling
 from backend.api.schemas.ai_audit import (
     AuditStatsResponse,
     BatchAuditJobResponse,
@@ -348,6 +349,7 @@ async def get_model_leaderboard(
 async def get_recommendations(
     days: int = Query(7, ge=1, le=90, description="Number of days to include"),
     db: AsyncSession = Depends(get_db),
+    key_ceiling: bool = Depends(scoped_key_ceiling),
 ) -> RecommendationsResponse:
     """Get aggregated prompt improvement recommendations.
 
@@ -357,9 +359,12 @@ async def get_recommendations(
     Args:
         days: Number of days to analyze (1-90, default 7)
         db: Database session
+        key_ceiling: whether the PRESENTED key carries a scope, so its
+            `suggestion` prose is clamped (see below)
 
     Returns:
-        RecommendationsResponse with prioritized recommendations
+        RecommendationsResponse with prioritized recommendations, with
+        `suggestion` nulled for a scoped key.
     """
     service = get_audit_service()
     recommendations = await service.get_recommendations(db, days=days)
@@ -371,7 +376,19 @@ async def get_recommendations(
         recommendations=[
             RecommendationItem(
                 category=rec["category"],
-                suggestion=rec["suggestion"],
+                # [r244] ruling 95's field ceiling, one route over. This path is
+                # in MONITORING_SCOPE_PATHS (constants.py:323) and Grafana's
+                # Backend-API datasource presents that key, but the item also
+                # carries `suggestion` — the LLM's free-text advice about the
+                # prompt, the same class of text as the `reasoning` prose [r95]
+                # withholds from the same grant on /api/events (events.py:564).
+                # Clamping the VALUE, not dropping the key: the response is
+                # re-validated against RecommendationItem, so an omitted field
+                # would be re-added as null anyway (absence-is-not-a-witness,
+                # module docstring). `is True` because a defaulted param keeps
+                # its Depends marker object when a unit call omits the argument,
+                # and that marker is truthy.
+                suggestion=None if key_ceiling is True else rec["suggestion"],
                 frequency=rec["frequency"],
                 priority=rec["priority"],
             )

@@ -160,7 +160,7 @@ never masquerade as an empty result. The counter is the query that answers "has 
 
 `[V]` Nothing on the live path calls `AlertRuleEngine.evaluate_event` or
 `create_alerts_for_event`. Grepping non-test, non-`alert_engine.py` call sites returns exactly
-one name, and it is an unrelated route function (`backend/api/routes/ai_audit.py:193`). The engine
+one name, and it is an unrelated route function (`backend/api/routes/ai_audit.py:194`). The engine
 is reachable only through `Depends(get_alert_rule_engine_dep)` at `backend/api/routes/alerts.py:434`
 — the rule-test endpoint.
 

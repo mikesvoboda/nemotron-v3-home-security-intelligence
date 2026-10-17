@@ -122,7 +122,7 @@ numbers are the ledger's.
    (`backend/services/alert_engine.py:166`) and `NotificationService.deliver_alert`
    (`backend/services/notification.py:633`) have no non-test caller; the only other hits are
    docstring examples, the examples in `backend/services/AGENTS.md` and an unrelated route
-   function (`backend/api/routes/ai_audit.py:193`) **[V]** (`grep -rn` over `backend/` minus tests,
+   function (`backend/api/routes/ai_audit.py:194`) **[V]** (`grep -rn` over `backend/` minus tests,
    `.py` and `.md`). The browser hook's `showSecurityAlert`
    (`frontend/src/hooks/useDesktopNotifications.ts:371`) has one non-test caller, the wrapper at
    `frontend/src/hooks/useIntegratedNotifications.ts:247`, and that wrapper's own

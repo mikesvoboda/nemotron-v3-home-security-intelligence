@@ -5916,7 +5916,7 @@
         "showValue": "auto",
         "stacking": "none",
         "tooltip": {
-          "mode": "single",
+          "mode": "all",
           "sort": "none"
         },
         "xTickLabelRotation": 0,
@@ -5931,8 +5931,13 @@
           },
           "fields": [
             {
-              "jsonPath": "$.recommendations[*].suggestion",
-              "name": "Recommendation",
+              "jsonPath": "$.recommendations[*].category",
+              "name": "Category",
+              "type": "string"
+            },
+            {
+              "jsonPath": "$.recommendations[*].priority",
+              "name": "Priority",
               "type": "string"
             },
             {
