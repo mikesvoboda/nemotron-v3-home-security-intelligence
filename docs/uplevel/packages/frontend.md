@@ -701,7 +701,7 @@ it. The manager stops on the auth close codes (`AUTH_TERMINAL_CLOSE_CODES`, `:15
 ### [r205] No status is not "healthy"; health is not an alert count
 
 **Flags:** none. **Assigned:** frontend, after `[r204]`. **Depends on:** `[r204]` merged.
-**PR:** none yet. (ruling 205, record 6199725340)
+**PR:** #7234. (ruling 205, record 6199725340)
 
 `DashboardPage.tsx:289` reads `deferredSystemStatus?.health ?? 'healthy'`, so a dashboard that
 never receives a status reads as healthy. `AmbientStatusProvider.tsx:94-109` turns service health
