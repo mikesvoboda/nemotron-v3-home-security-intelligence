@@ -676,7 +676,7 @@ records 6200676782, 6205825842)
 ### [r204] One realtime connection owner
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.
-**PR:** none yet. (ruling 204, record 6199283332)
+**PR:** #7230 (ruling 204, record 6199283332)
 
 `webSocketManager.ts` shares one connection per URL (`subscribe`, `:254`), but `useConnectionStatus`
 opens its own events and system sockets through `useWebSocketStatus` (`:290`, `:298`;
