@@ -58,6 +58,16 @@ EXPIRES = {
 EXEMPT = ("environment", "scoped")
 OWNER = "mikesvoboda"
 
+# Categories that are KEPT IN THE FILE even at zero rows. A category the file
+# omits entirely is one ratchet-check.py reports as `REGISTRY: category X
+# absent` — it cannot tell a newly-tracked category from an unreviewed one, so
+# the first suppression in it fails with a vague complaint instead of naming
+# the id. Emitting `X: []` is what makes "none right now" a recorded fact:
+# golden_skip is a category [r173] mints that happens to measure zero today
+# (all golden suppression is fixme-form), and it must read as "zero registered,
+# zero allowed", not as "not watched".
+ALWAYS_PRESENT = ("flake_allowlist", "frontend_only", "frontend_todo", "golden_skip")
+
 # WP2.4b per-entry environment adjudications for imperative skips whose
 # guard text names no host machinery (census host_probe=False) but where
 # reading the site proves the condition is environmental, not repo-shaped —
@@ -183,6 +193,17 @@ def classify(cat: str, item: dict) -> str:
         return "quarantine"
     if cat == "frontend_skip":
         return "todo"
+    if cat in ("golden_skip", "golden_fixme"):
+        # [r173] ruling 173: golden registration-form legs are suppression in
+        # the gate's own witness suite. `todo` — not `environment` — because
+        # these are falsifiable claims about a feature ("UNPROVEN on this
+        # tier"), and an environment kind is exempt from tracking AND expiry
+        # (ratchet-check:133 forces tracking null), which is precisely what
+        # would let a golden skip go permanently unreviewed. Contrast
+        # HOST_JUSTIFIED's backend/tests/golden/external/conftest.py rows,
+        # where the guard IS host state and `todo`'s expiry would fire on a
+        # skip that can legitimately never be removed.
+        return "todo"
     if DEFECT_RE.search(reason):
         return "defect"
     if FLAKY_RE.search(reason):
@@ -204,6 +225,15 @@ def tracking_for(kind: str, item: dict, cat: str) -> str | None:
         return "R-WP4.1-SWEEP-RESIDUAL"
     if cat == "frontend_quarantine":
         return "R-T7-VITEST"
+    if cat in ("golden_skip", "golden_fixme"):
+        # Box 2 of [r173] requires each golden row to cite the ruling that
+        # authorises it. Both current sites were written by 8d419a0de
+        # ("[r196a] … (ruling 222)"), which kept the marks and renamed their
+        # titles to F-296, so ruling 222 is the cite — one token for the pair,
+        # because one ruling authorised both clauses. It is hardcoded rather
+        # than scraped from the title because an F-NNN feature id is not a
+        # ruling and TRACK_RE would not match it anyway.
+        return "R-222-F296"
     m = TRACK_RE.search(reason)
     if m:
         return m.group(1)
@@ -211,7 +241,7 @@ def tracking_for(kind: str, item: dict, cat: str) -> str | None:
 
 
 def build(loc: dict) -> dict:
-    out: dict = {"flake_allowlist": [], "frontend_only": [], "frontend_todo": []}
+    out: dict = {cat: [] for cat in ALWAYS_PRESENT}
     for cat, items in sorted(loc.items()):
         rows = []
         for it in items:
@@ -235,11 +265,9 @@ def build(loc: dict) -> dict:
 
 def render(reg: dict) -> str:
     buf = io.StringIO()
-    for cat in ("flake_allowlist", "frontend_only", "frontend_todo"):
+    for cat in ALWAYS_PRESENT:
         yaml.dump({cat: reg[cat]}, buf, sort_keys=False)
-    for cat in sorted(
-        k for k in reg if k not in ("flake_allowlist", "frontend_only", "frontend_todo")
-    ):
+    for cat in sorted(k for k in reg if k not in ALWAYS_PRESENT):
         if reg[cat]:
             yaml.dump({cat: reg[cat]}, buf, sort_keys=False, allow_unicode=True, width=110)
     return HEADER.read_text() + buf.getvalue()
