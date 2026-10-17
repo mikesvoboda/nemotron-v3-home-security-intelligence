@@ -742,7 +742,7 @@ then removes the two read clamps in `system.py` as UR-48 lane work.
 ### [r173] Golden Playwright skips join the suppression registry
 
 **Flags:** none. **Assigned:** frontend, after `[r168]`; ops-b reviews the `scripts/` and `.github/`
-hunks. **Depends on:** none. **PR:** none yet. (ruling 173)
+hunks. **Depends on:** none. **PR:** #7236. (ruling 173)
 
 - [ ] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
       `frontend/tests/golden/**/*.spec.ts` for `test.fixme(` and unconditional `test.skip(` call
