@@ -286,9 +286,10 @@ trigger — the trigger fired: r231-reviewer's note 1, a validator failure repor
 claim, review comment `6236622758` on #7235, dispositioned there as this package's lead item).
 **Depends on:** `[r231]` merged (#7235, `5d5c4bcc5`). **PR:** #7237. (ruling 231, record 6215981513)
 
-- [ ] The three bare-filename cites `[r231]`'s repair commit `683d49566` published in its own
+- [x] The three bare-filename cites `[r231]`'s repair commit `683d49566` published in its own
       packages prose — `model_zoo.py`:345 at :235, `household_matcher.py`:452 and
-      `vlm_specialists.py`:742 at :245 — carry their full repo-relative paths
+      `vlm_specialists.py`:742 at :245 (the third published at `:741`; `537cc20d8`'s ground swap
+      moved it) — carry their full repo-relative paths
       (`backend/services/…`), the form the validator resolves and the inventory prose already
       uses. Done when `validate_docs` level 1 over `packages/docs.md` reads **3 ERRs, not 6**: the
       base `f85f27a5f` set (`ci.yml`:298-304, `permission.spec.ts`:181-187,
@@ -298,13 +299,19 @@ claim, review comment `6236622758` on #7235, dispositioned there as this package
       `INLINE_CITATION_PATTERN` matches only a `file.ext:NNN` wholly inside one code span, so the
       block cannot re-grow the class it fixes — and if a later re-wrap merges those spans, the
       ERR set this Done when reads is what makes that loud.
-- [ ] §1's fourth boundary names the two residuals its own bullet left open (reviewer note 3):
+      Done at `a49f24bc7`; #7237's Evidence carries the three instrument outputs.
+- [x] §1's fourth boundary names the two residuals its own bullet left open (reviewer note 3):
       **F-022** (its evidence names tiered `GET /api/system/health/websocket` through the
       always-open `WebSocketHealthPanel`) and **F-140** (its API cell cites
       `GET /api/system/health` outright). Both are `half-built`, zero works exposure; naming is
       prose-only — the ground stays route+symbol, so the reverse sweep's obligation is unchanged:
       grounds re-run reads **31 grounds, 0 unnamed** with controls green, and the bullet's class
       count moves from eleven named to thirteen.
+      Done at `a49f24bc7`; the sweep re-printed 31/0 there and the F-022 row's route-tier claim
+      re-verified at the `@router.get` decorator of `GET /health/websocket` in
+      `backend/api/routes/system.py` (`RateLimitTier.DEFAULT`) — symbol-anchored, deliberately no
+      line number: this cluster is the repo's known ~11-line cite-drift family (the F-022 row's own
+      `:1626` is already stale), so a fresh coordinate here would age the same way.
 
 **Done when:** the validator reads 3 ERRs on `packages/docs.md` (not 6), the grounds sweep still
 foots at 31/0 with F-022 and F-140 named in the fourth boundary, and prettier is clean on both
