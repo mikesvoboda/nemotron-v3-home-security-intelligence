@@ -3,7 +3,7 @@ title: Frontend Hooks Architecture
 last_updated: 2026-10-09
 source_refs:
   - frontend/src/hooks/useWebSocket.ts:useWebSocket:56
-  - frontend/src/hooks/useWebSocketStatus.ts:useWebSocketStatus:69
+  - frontend/src/hooks/ConnectionStatusProvider.tsx:ConnectionStatusProvider:324
   - frontend/src/hooks/useEventStream.ts:useEventStream:63
   - frontend/src/hooks/useSystemStatus.ts:useSystemStatus:50
   - frontend/src/hooks/useConnectionStatus.ts:useConnectionStatus:117
@@ -30,7 +30,7 @@ The hook architecture follows a layered design:
 
 1. **Infrastructure Layer**: Singleton WebSocket connection manager with deduplication (`webSocketManager`)
 2. **Foundation Layer**: Low-level WebSocket connection management (`useWebSocket`)
-3. **Enhanced Layer**: Connection status tracking (`useWebSocketStatus`)
+3. **Enhanced Layer**: The shell's one realtime connection owner (`ConnectionStatusProvider`)
 4. **Domain Layer**: Feature-specific hooks for events, system status, AI metrics, and multi-channel management
 5. **REST Layer**: Polling-based hooks for health, GPU history, storage stats, and AI model status
 6. **UI Layer**: Context hooks and localStorage persistence (`useSidebarContext`, `useSavedSearches`)
@@ -54,7 +54,7 @@ flowchart TB
     end
 
     subgraph Enhanced["Enhanced Layer"]
-        useWebSocketStatus["useWebSocketStatus<br/>Channel status tracking<br/>Reconnect state, timestamps"]
+        ConnectionStatusProvider["ConnectionStatusProvider<br/>One connection per channel<br/>Reconnect state, REST fallback"]
     end
 
     subgraph Domain["Domain Layer - WebSocket"]
@@ -80,8 +80,8 @@ flowchart TB
     end
 
     webSocketManager --> useWebSocket
-    useWebSocket --> useWebSocketStatus
-    useWebSocketStatus --> useConnectionStatus
+    webSocketManager --> ConnectionStatusProvider
+    ConnectionStatusProvider --> useConnectionStatus
     useWebSocket --> useEventStream
     useWebSocket --> useSystemStatus
     useWebSocket --> useServiceStatus
@@ -154,69 +154,57 @@ if (isConnected) {
 
 ---
 
-### useWebSocketStatus
+### ConnectionStatusProvider
 
-**Purpose**: Enhanced WebSocket hook that tracks detailed channel status including reconnection state and message timestamps.
+**Purpose**: The shell's one realtime connection owner. It subscribes to the Events
+and System channels through the shared `webSocketManager` and publishes the result
+in context, so the shell holds one connection per channel instead of one per
+consumer.
 
-**Source**: `frontend/src/hooks/useWebSocketStatus.ts:69`
+**Source**: `frontend/src/hooks/ConnectionStatusProvider.tsx:324`
 
 **Features**:
 
-- Full WebSocket lifecycle management with reconnection
-- Channel-level status tracking (name, state, reconnect attempts)
-- Last message timestamp tracking
-- SSR-safe (checks for `window.WebSocket` availability)
-- Reconnect state transitions: connected → reconnecting → disconnected
+- One connection per URL, owned by `webSocketManager` — the provider opens nothing,
+  it only projects the manager's callbacks onto a `ChannelStatus`
+- Channel-level status tracking (name, state, reconnect attempts, exhaustion)
+- Last message timestamp tracking, kept fresh by heartbeat frames too
+- Terminal-auth rule: a 4001/4002 close shows as `authRequired` and is not retried
+- REST polling fallback after retries exhaust, and a manual `retryConnection()`
 
-**Type Definitions**:
+**Type Definitions** (declared in `useConnectionStatus.ts`, which is the context
+read; the provider is the session it reads):
 
 ```typescript
-type ConnectionState = 'connected' | 'disconnected' | 'reconnecting';
+type ConnectionState = 'connected' | 'disconnected' | 'reconnecting' | 'failed';
 
 interface ChannelStatus {
   name: string;
   state: ConnectionState;
   reconnectAttempts: number;
-  maxReconnectAttempts: number;
+  maxReconnectAttempts: number; // 15 per channel — the banner renders "Attempt n/30"
   lastMessageTime: Date | null;
-}
-
-interface WebSocketStatusOptions {
-  url: string;
-  channelName: string;
-  onMessage?: (data: unknown) => void;
-  onOpen?: () => void;
-  onClose?: () => void;
-  onError?: (error: Event) => void;
-  reconnect?: boolean; // default: true
-  reconnectInterval?: number; // default: 3000ms
-  reconnectAttempts?: number; // default: 5
-}
-
-interface UseWebSocketStatusReturn {
-  channelStatus: ChannelStatus;
-  lastMessage: unknown;
-  send: (data: unknown) => void;
-  connect: () => void;
-  disconnect: () => void;
+  hasExhaustedRetries: boolean;
+  authRequired?: boolean; // close code 4001/4002 refused the credential
 }
 ```
 
 **Example**:
 
-```typescript
-const { channelStatus, lastMessage } = useWebSocketStatus({
-  url: buildWebSocketOptions('/ws/events').url,
-  channelName: 'Events',
-  onMessage: handleMessage,
-});
+```tsx
+// App.tsx mounts it once, above everything that reads connection state.
+<ConnectionStatusProvider>{routes}</ConnectionStatusProvider>;
 
-// Display channel status
-console.log(`${channelStatus.name}: ${channelStatus.state}`);
-console.log(
-  `Reconnect attempts: ${channelStatus.reconnectAttempts}/${channelStatus.maxReconnectAttempts}`
-);
+// Any surface below reads the same session — no second socket.
+const { summary, systemStatus, isPollingFallback, retryConnection } = useConnectionStatus();
+
+console.log(`${summary.eventsChannel.name}: ${summary.eventsChannel.state}`);
+console.log(`Reconnect attempts: ${summary.totalReconnectAttempts}`);
 ```
+
+Calling `useConnectionStatus()` outside the provider throws
+(`useConnectionStatus.ts:108`) rather than silently opening a socket — that
+throw is what makes a second owner impossible to reintroduce by accident.
 
 ---
 
@@ -1001,18 +989,25 @@ The base `useWebSocket` hook handles reconnection automatically:
 7. **Manual Disconnect**: Stops reconnection when `disconnect()` is called
 8. **Cleanup**: Clears pending reconnection timeouts on unmount
 
-**Reconnect State Tracking** (via `useWebSocketStatus`):
+**Reconnect State Tracking** (via the shell's one realtime owner):
+
+Each channel's state is read from the provider that owns its connection, not from
+a second hook that would open its own socket:
 
 ```typescript
-const { channelStatus } = useWebSocketStatus({
-  url: wsUrl,
-  channelName: 'Events',
-});
+const { summary } = useConnectionStatus(); // throws outside <ConnectionStatusProvider>
+const channelStatus = summary.eventsChannel; // or summary.systemChannel
 
-// channelStatus.state: 'connected' | 'reconnecting' | 'disconnected'
+// channelStatus.state: 'connected' | 'disconnected' | 'reconnecting' | 'failed'
 // channelStatus.reconnectAttempts: current attempt count
-// channelStatus.maxReconnectAttempts: maximum attempts (default: 5)
+// channelStatus.maxReconnectAttempts: 15 for each shell channel; the banner
+//   renders the two channels summed — "Attempt n/30" (Layout.tsx)
 ```
+
+`'failed'` is the state the deleted hook could not express: the manager stops
+retrying a socket the server refused for a credential reason (close code
+4001/4002), so the surfaces say "rejected" instead of implying the backend is
+unreachable.
 
 ---
 
@@ -1046,26 +1041,26 @@ All hooks have comprehensive test coverage using Vitest and React Testing Librar
 
 ### Test Files
 
-| Hook/Module              | Test File                          | Coverage                                               |
-| ------------------------ | ---------------------------------- | ------------------------------------------------------ |
-| `useWebSocket`           | `useWebSocket.test.ts`             | Connection lifecycle, message handling, reconnects     |
-| `useWebSocket`           | `useWebSocket.timeout.test.ts`     | Timeout handling edge cases                            |
-| `webSocketManager`       | `webSocketManager.test.ts`         | Connection pooling, reference counting, subscriptions  |
-| `webSocketManager`       | `webSocketManager.timeout.test.ts` | Timeout and reconnection edge cases                    |
-| `useWebSocketStatus`     | `useWebSocketStatus.test.ts`       | Channel status tracking, reconnect state               |
-| `useConnectionStatus`    | `useConnectionStatus.test.ts`      | Multi-channel status aggregation                       |
-| `useEventStream`         | `useEventStream.test.ts`           | Event buffering, envelope parsing, non-event filtering |
-| `useSystemStatus`        | `useSystemStatus.test.ts`          | Backend message transformation, type guards            |
-| `useGpuHistory`          | `useGpuHistory.test.ts`            | Polling, history buffer, start/stop controls           |
-| `useHealthStatus`        | `useHealthStatus.test.ts`          | REST polling, error handling, refresh                  |
-| `useStorageStats`        | `useStorageStats.test.ts`          | Storage polling, cleanup preview                       |
-| `usePerformanceMetrics`  | `usePerformanceMetrics.test.ts`    | WebSocket filtering, multi-resolution history buffers  |
-| `useAIMetrics`           | `useAIMetrics.test.ts`             | Multi-endpoint polling, metrics aggregation            |
-| `useServiceStatus`       | `useServiceStatus.test.ts`         | Service health tracking, derived flags                 |
-| `useDetectionEnrichment` | `useDetectionEnrichment.test.ts`   | Conditional fetching, refetch capability               |
-| `useModelZooStatus`      | `useModelZooStatus.test.ts`        | Model registry polling, VRAM stats calculation         |
-| `useSavedSearches`       | `useSavedSearches.test.ts`         | localStorage persistence, cross-tab sync               |
-| `useSidebarContext`      | `useSidebarContext.test.tsx`       | Context provider/consumer, error handling              |
+| Hook/Module                | Test File                           | Coverage                                               |
+| -------------------------- | ----------------------------------- | ------------------------------------------------------ |
+| `useWebSocket`             | `useWebSocket.test.ts`              | Connection lifecycle, message handling, reconnects     |
+| `useWebSocket`             | `useWebSocket.timeout.test.ts`      | Timeout handling edge cases                            |
+| `webSocketManager`         | `webSocketManager.test.ts`          | Connection pooling, reference counting, subscriptions  |
+| `webSocketManager`         | `webSocketManager.timeout.test.ts`  | Timeout and reconnection edge cases                    |
+| `ConnectionStatusProvider` | `shellConnectionOwnership.test.tsx` | One connection per channel, provider-less reads throw  |
+| `useConnectionStatus`      | `useConnectionStatus.test.ts`       | Multi-channel status aggregation                       |
+| `useEventStream`           | `useEventStream.test.ts`            | Event buffering, envelope parsing, non-event filtering |
+| `useSystemStatus`          | `useSystemStatus.test.ts`           | Backend message transformation, type guards            |
+| `useGpuHistory`            | `useGpuHistory.test.ts`             | Polling, history buffer, start/stop controls           |
+| `useHealthStatus`          | `useHealthStatus.test.ts`           | REST polling, error handling, refresh                  |
+| `useStorageStats`          | `useStorageStats.test.ts`           | Storage polling, cleanup preview                       |
+| `usePerformanceMetrics`    | `usePerformanceMetrics.test.ts`     | WebSocket filtering, multi-resolution history buffers  |
+| `useAIMetrics`             | `useAIMetrics.test.ts`              | Multi-endpoint polling, metrics aggregation            |
+| `useServiceStatus`         | `useServiceStatus.test.ts`          | Service health tracking, derived flags                 |
+| `useDetectionEnrichment`   | `useDetectionEnrichment.test.ts`    | Conditional fetching, refetch capability               |
+| `useModelZooStatus`        | `useModelZooStatus.test.ts`         | Model registry polling, VRAM stats calculation         |
+| `useSavedSearches`         | `useSavedSearches.test.ts`          | localStorage persistence, cross-tab sync               |
+| `useSidebarContext`        | `useSidebarContext.test.tsx`        | Context provider/consumer, error handling              |
 
 ### Testing Best Practices
 

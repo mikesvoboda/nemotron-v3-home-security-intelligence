@@ -7,8 +7,9 @@ before ``open`` ever fires. The frontend bakes ``VITE_API_KEY`` into exactly
 such an offer, so on an ``EXPOSE_LAN=true`` + ``VITE_API_KEY`` deployment the
 key-offering sockets used to die in every browser: no ``accept()`` in the
 backend ever passed ``subprotocol=``. (The offering paths are everything
-``buildWebSocketOptions`` feeds: the direct ``useWebSocketStatus`` hook, and
-since #6922 landed, the shared WebSocket manager too.)
+``buildWebSocketOptions`` feeds: the shared WebSocket manager since #6922,
+and since #7230 that manager is the only route — the hook that offered its
+own sockets directly is deleted.)
 
 Two tiers pin it:
 
@@ -426,9 +427,10 @@ def test_gate_refusal_of_key_offer_echoes_and_closes_4001(
     accept must echo too or the operator loses 4001 and gets retry-noise
     instead: a 1006 is an abstraction-level failure the client never sees as
     a close code at all, so no terminal-code set can catch it (the manager's
-    AUTH_TERMINAL_CLOSE_CODES only fires on 4001/4002; the offering
-    useWebSocketStatus hook backoff-retries the unknown failure up to its 15
-    attempts). Offer an api-key token the gate cannot
+    AUTH_TERMINAL_CLOSE_CODES only fires on 4001/4002; the offering path is
+    the manager itself, which backoff-retries an unknown failure up to its
+    channel's maxReconnectAttempts — 15 for each shell channel since #7230
+    made it the only route). Offer an api-key token the gate cannot
     authenticate (wrong key, gate on) — the 101 echoes it, then 4001 rides."""
     srv = b1_servers.get("gate-on")
     status, headers, sock, rest = _offer(srv.port, ["api-key.the-wrong-key"])
