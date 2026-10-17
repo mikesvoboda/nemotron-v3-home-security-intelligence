@@ -514,6 +514,271 @@ def _frontend_modifier_locations(root: Path) -> dict[str, list[dict]]:
     return buckets
 
 
+# [r173]: the golden Playwright tree. frontend/tests/golden is the feature
+# gate's own witness suite and it sat in NEITHER census arm —
+# _frontend_test_files() is Vitest-only ("e2e suppression is governed by the
+# excluded-trees category instead") and golden is not an excluded tree, so its
+# suppressions were invisible to the ratchet entirely. Ruling 173 binds it into
+# the registry instead of excluding it: the suite that PROVES shipped features
+# is the last tree that gets to hide a skip.
+#
+# Playwright's grammar makes the package's "unconditional test.skip("
+# mechanical rather than a judgment call:
+#   test.skip('title', fn) / test.fixme('title', fn)  -> string first arg = the
+#       REGISTRATION form: the leg is declared and never runs. A suppression.
+#   test.skip(<cond>, why)                            -> non-string first arg =
+#       the CONDITIONAL guard form. The leg runs whenever the condition is
+#       false. It is a guard, and the package excludes guards.
+#
+# The measured population (2026-10-17, this scanner + a .skip( first-argument
+# census of the same tree): 66 line-initial test.(fixme|skip)( sites -> 2
+# registration legs (both fixme) and 64 guards; 223 .skip( call sites in total,
+# 201 of them the harness guard (`!harness.ready` / `!h.ready` / `!drop.ready`)
+# and 7 passing a literal `true`.
+#
+# Corroboration, stated as corroboration (and it CORROBORATES, it does not
+# prove): run 3903516734's golden junit prints 245 tests / 0 failures / 0 errors
+# / 4 skips, and its 4 skipped cases are F-295, F-034 and exactly the two F-296
+# registration legs this category counts. Two of the four are runtime skips, NOT
+# registrations, and one of those is a GUARD THAT FIRED -- so do not read this
+# as "guards never skip a leg": the split this category draws is by GRAMMAR (a
+# registration can never run on any stack; a guard runs whenever its condition
+# is false), not by whether a given run happened to skip.
+#   - The harness was READY on that run: three F-033 legs in summary-cards.spec.ts
+#     (behind the identical `test.info().skip(!harness.ready, ...)` guard) PASSED,
+#     so all 201 harness guards were false and took no legs.
+#   - F-295 was taken by its DATA guard, not a harness guard: the leg's only
+#     non-harness skip is `.skip(frameIdx === -1, ...)` at
+#     summary-cards.spec.ts:708, and the harness guard at :654 is provably not
+#     the cause (the harness was READY). Elimination, not a junit message -- the
+#     run records no skip `message` (type=None for all four). A guard CAN take a
+#     leg when its data is absent; that is the residual risk stated plainly.
+#   - F-034 holds two literal-`true` sites (:423 and :432); the junit names
+#     neither, so this instrument says "one of the two fired" and does not pick.
+# These runtime skips are outside this category by box 1's wording and are listed
+# on the PR for the coordinator instead of being quietly widened in.
+#   test.skip()                                       -> bare file-level call:
+#       unconditional, counted.
+#   test.info().skip(cond, why)                       -> a RUNTIME skip inside a
+#       test body. Not `test.skip(`, so box 1's literal scan excludes it; it is
+#       the imperative-pytest.skip analogue rather than a registration. Named
+#       on the PR for the coordinator rather than silently widened in here.
+#
+# A registration or guard call always OPENS its line; the corpus's ~10 prose
+# mentions of test.fixme/test.skip sit mid-line behind `//` or ` * ` (a
+# commented-out leg, JSDoc history). Line-initial matching keeps those out
+# without hand-rolling a TS lexer — a real one has to model nested template
+# literals, and a shallow version desyncs and silently DROPS real legs. So the
+# dangerous direction is covered by test instead of by parsing: every raw hit
+# that is neither line-initial nor plainly commented is an UNEXPLAINED site and
+# raises, naming the file. An unexplained site fails CI loudly; it can never
+# read as zero suppressions.
+# A modifier token that OPENS its line is a site: either the plain
+# `test.skip(` / `test.fixme(` spelling or the chained fluent spelling, where
+# the modifier sits on its own line and the chain roots at a bare `test`.
+_GOLDEN_SITE_RE = re.compile(r"(?<![\w.$])test\.(fixme|skip)\s*\(")
+_GOLDEN_LINE_HEAD_RE = re.compile(r"^\s*(?:await\s+)?(test\.(?:fixme|skip)\s*\()")
+_GOLDEN_FLUENT_MOD_RE = re.compile(r"^\s*(\.(?:fixme|skip)\s*\()")
+_GOLDEN_CHAIN_STEP_RE = re.compile(r"^\s*\.")
+_GOLDEN_CHAIN_ROOT_RE = re.compile(r"^\s*(?:await\s+)?test\s*$")
+# A chained suite-level site (`test.describe` on its own line, `.fixme(` below)
+# is the same block-wide suppression as the one-line spelling, but the
+# same-line test above cannot see it — so the chain walk has to name `describe`
+# as a root rather than file it as "not a test".
+_GOLDEN_CHAIN_DESCRIBE_RE = re.compile(r"^\s*test\.describe\b")
+# A chain that passes through `.info()` is Playwright's runtime-skip API, which
+# is a different mechanism from a declared leg and is out of this category.
+_GOLDEN_CHAIN_INFO_RE = re.compile(r"^\s*\.info\s*\(")
+# Suite-level suppression: one call hides a whole describe block, which the
+# per-site id shape cannot express. Measured zero in this tree (2026-10-17), so
+# it is a net rather than a gap — it raises the moment someone writes one.
+_GOLDEN_SUITE_RE = re.compile(r"test\.describe\s*\.\s*(?:fixme|skip)\s*\(")
+_GOLDEN_COMMENTED_RE = re.compile(r"^\s*(?://|/?\*)")
+_GOLDEN_CHAIN_MAX = 12  # lines walked back to find a fluent chain's root
+
+
+def _golden_first_arg(text: str, open_idx: int) -> str:
+    """First top-level argument text of the call whose '(' is at open_idx.
+
+    Tracks nesting through quotes/templates/parens from the '(' out, and
+    returns on the first depth-1 comma or the matching ')'. Unlike a whole-file
+    lexer this only ever has to stay correct INSIDE one call head, so a
+    malformed argument degrades to "weird first arg" -> treated as a guard,
+    which is the conservative direction: it surfaces as an UNREGISTERED
+    mismatch rather than minting a row for a suppression that is not there.
+    """
+    depth, i, n = 0, open_idx, len(text)
+    quote = None
+    while i < n:
+        c = text[i]
+        if quote:
+            if c == "\\":
+                i += 2
+                continue
+            if c == quote:
+                quote = None
+            i += 1
+            continue
+        if c in "'\"`":
+            quote = c
+            i += 1
+            continue
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+            if depth == 0:
+                return text[open_idx + 1 : i].split(",")[0]
+        elif c == "," and depth == 1:
+            return text[open_idx + 1 : i]
+        i += 1
+    return text[open_idx + 1 :]
+
+
+def _golden_sites(text: str, rel: str) -> list[dict]:
+    """Golden call sites that open their line, each registration or guard.
+
+    Line-based on purpose: it makes `^` unambiguous, keeps every offset a simple
+    lookup, and removes the need for a TS lexer (see the note above). Raises
+    ValueError on a `test.(fixme|skip)(` that appears anywhere else on a live
+    line, and on any suite-level form — silence is the failure mode being
+    defended against, so an unclassifiable site is fatal rather than a zero.
+    """
+    lines = text.split("\n")
+    starts = [sum(len(ln) + 1 for ln in lines[:i]) for i in range(len(lines))]
+    out: list[dict] = []
+    for idx, line in enumerate(lines):
+        if _GOLDEN_SUITE_RE.search(line):
+            if not _GOLDEN_COMMENTED_RE.match(line):
+                raise ValueError(
+                    f"{rel}:{idx + 1}: suite-level golden suppression "
+                    f"{line.strip()[:80]!r} hides a whole describe block, which the "
+                    "one-row-per-site id shape cannot express — the census refuses "
+                    "to count it as one leg; expand it or register the block by hand"
+                )
+            continue
+        head = _GOLDEN_LINE_HEAD_RE.match(line)
+        fluent = None if head else _GOLDEN_FLUENT_MOD_RE.match(line)
+        if not (head or fluent):
+            stray = None if _GOLDEN_COMMENTED_RE.match(line) else _GOLDEN_SITE_RE.search(line)
+            if stray:
+                raise ValueError(
+                    f"{rel}:{idx + 1}: golden suppression call site mid-line: "
+                    f"{line.strip()[:120]!r} — the census cannot classify it; "
+                    "extend _golden_sites rather than let an uncounted "
+                    "suppression read as none"
+                )
+            continue
+        matched = head or fluent
+        if _GOLDEN_SITE_RE.search(line, matched.end()):
+            raise ValueError(
+                f"{rel}:{idx + 1}: a second golden suppression call site shares the "
+                f"line: {line.strip()[:120]!r} — line-anchored attribution can only "
+                "name one call per line, so it would undercount; put each on its own"
+            )
+        if fluent:
+            root = _golden_chain_root(lines, idx)
+            if root == "describe":
+                raise ValueError(
+                    f"{rel}:{idx + 1}: chained suite-level golden suppression "
+                    f"{line.strip()[:80]!r} hides a whole describe block, which the "
+                    "one-row-per-site id shape cannot express — the census refuses "
+                    "to count it as one leg; expand it or register the block by hand"
+                )
+            if root != "test":
+                continue  # rooted at a fixture/receiver, or unresolved: not a leg
+        mod = (head or fluent).group(1)
+        mod = re.search(r"(fixme|skip)", mod).group(1)
+        open_idx = starts[idx] + (head or fluent).end() - 1
+        arg = _golden_first_arg(text, open_idx).strip()
+        if arg and arg[0] not in "'\"`":
+            continue  # conditional guard form: runs when false, suppresses nothing
+        title = re.fullmatch(r"(['\"`])((?:(?!\1).)*)\1", arg, re.S)
+        ident = title.group(2) if title else f"{idx + 1}:{(head or fluent).start() + 1}"
+        out.append(
+            {
+                "id": f"{rel}::{ident}",
+                "reason": title.group(2) if title else "",
+                "mod": mod,
+            }
+        )
+    return out
+
+
+def _golden_chain_root(lines: list[str], idx: int) -> str | None:
+    """What the fluent chain at `lines[idx]` hangs off: "test", "describe", or None.
+
+    `test` then `.skip('t', fn)` on the next line is the same registration as
+    the one-line spelling, so it must count; `test.describe` then `.fixme(` is a
+    block-wide suppression the caller refuses to treat as one leg; a chain rooted
+    at anything else is not ours. Anything the walk cannot resolve (a variable,
+    another receiver, a chain past the window) answers None, which is the
+    direction that surfaces as an UNREGISTERED row rather than a free pass.
+
+    `.info()` terminates the walk as "info" rather than counting as a plain step:
+    `test` ↵ `.info()` ↵ `.skip(x, why)` is Playwright's RUNTIME skip, which reads
+    back to a bare `test` root and would otherwise be miscounted as a
+    registration. Box 1 counts declared legs, so this answers "not a leg" — and
+    it is answered by name so the reason survives into the tests that pin it.
+    """
+    for back in range(1, _GOLDEN_CHAIN_MAX + 1):
+        prev = idx - back
+        if prev < 0:
+            return None
+        if not lines[prev].strip() or _GOLDEN_COMMENTED_RE.match(lines[prev]):
+            continue
+        if _GOLDEN_CHAIN_ROOT_RE.match(lines[prev]):
+            return "test"
+        if _GOLDEN_CHAIN_DESCRIBE_RE.match(lines[prev]):
+            return "describe"
+        if _GOLDEN_CHAIN_INFO_RE.match(lines[prev]):
+            return "info"  # a runtime skip, not a declared leg
+        if _GOLDEN_CHAIN_STEP_RE.match(lines[prev]):
+            continue  # another .step() of the same chain — keep walking
+        return None
+    return None
+
+
+_GOLDEN_TEST_FILE_RE = re.compile(r"\.(test|spec)\.[cm]?[jt]sx?$")
+
+
+def _golden_playwright_sites(root: Path) -> list[dict]:
+    """Every Playwright file in the golden tree, by the repo's own test-file
+    convention rather than by the one suffix in today's inventory.
+
+    Measured 2026-10-17: `*.spec.ts` and this pattern select the SAME 106 files
+    (`newly covered: 0`, and `frontend/tests/golden/**/*.test.ts` does not
+    exist). The wider net is free today and closes the exact bug this package
+    fixes — a golden `.test.ts` added next year would otherwise be invisible to
+    the ratchet again, which is the failure ruling 173 exists to end.
+    """
+    out: list[dict] = []
+    base = root / "frontend/tests/golden"
+    if not base.exists():
+        return out
+    for path in sorted(p for p in base.rglob("*") if _GOLDEN_TEST_FILE_RE.search(p.name)):
+        out.extend(_golden_sites(path.read_text(), _rel(root, path)))
+    return out
+
+
+def _golden_locations(root: Path, mod: str) -> list[dict]:
+    return [
+        {k: v for k, v in site.items() if k != "mod"}
+        for site in _golden_playwright_sites(root)
+        if site["mod"] == mod
+    ]
+
+
+def count_golden_playwright(root: Path) -> tuple[int, int]:
+    skip = fixme = 0
+    for site in _golden_playwright_sites(root):
+        if site["mod"] == "skip":
+            skip += 1
+        else:
+            fixme += 1
+    return skip, fixme
+
+
 def _excluded_tree_locations(root: Path) -> list[dict]:
     text = (root / "scripts/validate.sh").read_text()
     names = set()
@@ -577,6 +842,8 @@ def locations(root: Path) -> dict[str, list[dict]]:
         "frontend_skip": fe["skip"],
         "frontend_only": fe["only"],
         "frontend_todo": fe["todo"],
+        "golden_skip": _golden_locations(root, "skip"),
+        "golden_fixme": _golden_locations(root, "fixme"),
         "excluded_test_trees": _excluded_tree_locations(root),
         "coverage_omit": _coverage_omit_locations(root),
         "unspecced_patch": _unspecced_patch_locations(root),
@@ -858,6 +1125,8 @@ TEST_LEVEL_CATEGORIES = (
     "frontend_only",
     "frontend_todo",
     "frontend_quarantine",
+    "golden_skip",
+    "golden_fixme",
 )
 
 
@@ -875,6 +1144,13 @@ def cases_report(root: Path) -> dict[str, dict]:
             out[cat] = {"ids": ids, "cases": _imperative_cases(entries, root)}
         elif cat == "frontend_quarantine":
             out[cat] = {"ids": ids, "cases": _quarantine_cases(entries, root)}
+        elif cat in ("golden_skip", "golden_fixme"):
+            # A golden registration-form leg IS one declared test that never
+            # runs: one id, exactly one suppressed case. No suite-level form
+            # exists in this tree (measured 2026-10-17: zero
+            # test.describe.skip/fixme sites), so there is nothing to expand —
+            # and one honest 1:1 beats a count that implies hidden legs.
+            out[cat] = {"ids": ids, "cases": ids}
         else:  # frontend_skip / only / todo
             kind = cat.removeprefix("frontend_")
             out[cat] = {
@@ -887,6 +1163,7 @@ def cases_report(root: Path) -> dict[str, dict]:
 def census(root: Path) -> dict[str, int]:
     backend_tests = sorted((root / "backend/tests").rglob("*.py"))
     skip, only, todo = count_frontend_modifiers(root)
+    gskip, gfixme = count_golden_playwright(root)
     return {
         "collection_allowlist": count_collection_allowlist(root),
         "flake_allowlist": count_flake_allowlist(root),
@@ -898,6 +1175,8 @@ def census(root: Path) -> dict[str, int]:
         "frontend_skip": skip,
         "frontend_only": only,
         "frontend_todo": todo,
+        "golden_skip": gskip,
+        "golden_fixme": gfixme,
         "excluded_test_trees": count_excluded_test_trees(root),
         "coverage_omit": count_coverage_omit(root),
         "unspecced_patch": len(_unspecced_patch_locations(root)),
