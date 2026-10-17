@@ -37401,77 +37401,6 @@
         "title": "SimilarityMatch",
         "type": "object"
       },
-      "SimilaritySearchRequest": {
-        "description": "Request schema for similarity search.\n\nAllows searching for entities similar to a given embedding vector\nor detection ID.",
-        "example": {
-          "embedding": [
-            0.1,
-            0.2,
-            0.3
-          ],
-          "entity_type": "person",
-          "include_historical": true,
-          "limit": 10,
-          "threshold": 0.7
-        },
-        "properties": {
-          "embedding": {
-            "description": "Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)",
-            "items": {
-              "type": "number"
-            },
-            "minItems": 1,
-            "title": "Embedding",
-            "type": "array"
-          },
-          "entity_type": {
-            "default": "person",
-            "description": "Type of entity to search for: 'person' or 'vehicle'",
-            "pattern": "^(person|vehicle)$",
-            "title": "Entity Type",
-            "type": "string"
-          },
-          "exclude_detection_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional detection ID to exclude from results (e.g., to exclude self-matches)",
-            "title": "Exclude Detection Id"
-          },
-          "include_historical": {
-            "default": true,
-            "description": "If True, search both Redis (hot cache) and PostgreSQL (historical). If False, only search Redis hot cache (24h window).",
-            "title": "Include Historical",
-            "type": "boolean"
-          },
-          "limit": {
-            "default": 10,
-            "description": "Maximum number of results to return (default: 10, max: 100)",
-            "maximum": 100.0,
-            "minimum": 1.0,
-            "title": "Limit",
-            "type": "integer"
-          },
-          "threshold": {
-            "default": 0.7,
-            "description": "Minimum cosine similarity threshold for matches (default: the OSNet-space service constant)",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Threshold",
-            "type": "number"
-          }
-        },
-        "required": [
-          "embedding"
-        ],
-        "title": "SimilaritySearchRequest",
-        "type": "object"
-      },
       "SimilaritySearchResponse": {
         "description": "Response schema for similarity search.",
         "example": {
@@ -44054,7 +43983,7 @@
     },
     "/api/admin/maintenance/clear-cache": {
       "post": {
-        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Detections cache\n- Alerts cache\n- Summaries cache\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
+        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Timeline summary cache\n- Trends cache\n- Detections cache\n- Alerts cache\n- Summaries cache (also clears the `summaries:entities` key it contains)\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
         "operationId": "admin_clear_cache",
         "responses": {
           "200": {
@@ -61862,57 +61791,6 @@
         "summary": "Get queue status",
         "tags": [
           "queues"
-        ]
-      }
-    },
-    "/api/reid/search": {
-      "post": {
-        "description": "Search for entities similar to the given embedding vector.\n\nThis endpoint allows searching for entities that are similar to a provided\nembedding vector. It can search across both Redis (hot cache, 24h window)\nand PostgreSQL (historical, 30-day retention) depending on the\n`include_historical` parameter.\n\nArgs:\n    request: Search request containing embedding vector and parameters\n    hybrid_storage: Hybrid storage service for combined Redis/PostgreSQL search\n\nReturns:\n    SimilaritySearchResponse with matching entities sorted by similarity\n\nRaises:\n    HTTPException: 400 for invalid parameters, 503 for service unavailable",
-        "operationId": "reid_search_similar_entities",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SimilaritySearchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SimilaritySearchResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Invalid request parameters"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          },
-          "500": {
-            "description": "Internal server error"
-          },
-          "503": {
-            "description": "Service unavailable (Redis/PostgreSQL)"
-          }
-        },
-        "summary": "Search Similar Entities",
-        "tags": [
-          "reid"
         ]
       }
     },

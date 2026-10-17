@@ -6,12 +6,14 @@ Run explicitly; outside testpaths (like every scripts/test_*.py gate suite):
     uv run python -m pytest scripts/test_plan_lint.py -q
 
 Each failure kind is planted in a small tree in ``tmp_path`` that is clean before the plant, so a
-test fails for its own finding and not for some other line of the fixture. Nothing here lints this
-checkout's own plan files: this suite runs in collection-sanity on every PR, and a plan defect
-already on ``main`` would red every one of them. The real tree is the job of the CI step that runs
-the lint with the PR merge commit's first parent as ``--baseline``; the baseline logic it relies
-on, and the step's own first-parent line, are pinned here on fixtures and throwaway git
-repositories.
+test fails for its own finding and not for some other line of the fixture. Nothing here asserts
+that this checkout's own plan files are CLEAN: this suite runs in collection-sanity on every PR, and
+a plan defect already on ``main`` would red every one of them. The real tree's cleanliness is the
+job of the CI step that runs the lint with the PR merge commit's first parent as ``--baseline``; the
+baseline logic it relies on, and the step's own first-parent line, are pinned here on fixtures and
+throwaway git repositories. The real roster's SHAPE is used here (ruling 242): copies of this
+checkout's roster and package files, with a defect planted, must have that defect caught -- whatever
+else the copies hold.
 """
 
 from __future__ import annotations
@@ -39,21 +41,22 @@ snap = _load("coordinator_snapshot", UPLEVEL / "coordinator_snapshot.py")
 tick = _load("lane_tick", UPLEVEL / "lane_tick.py")
 lint = _load("plan_lint", UPLEVEL / "plan_lint.py")
 
-# roles/lane.md's roster shape, shortened: `F2.3` on several queues (the shared package), a `none`
-# label row whose queue names packages no file here carries (skipped, as the digest skips it).
+# roles/lane.md's roster shape, shortened: `F2.3` on several queues (the shared package), every
+# review label `none` as ruling 198 left the real roster, a heavy-a row whose tokens live in two
+# other lanes' files (it has none of its own), and the operator running ops-a's `O2.5`.
 ROSTER = """\
 ## Who takes what
 
 | sandbox               | model     | queue                                              | review label      |
 | --------------------- | --------- | -------------------------------------------------- | ----------------- |
 | `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                   | none              |
-| `uplevel-backend`     | fast      | `[r129]`, `F2.3` API batches                       | `review:backend`  |
-| `uplevel-frontend`    | fast      | `[r132]`, `F2.3` UI (FE-1)                         | `review:frontend` |
-| `uplevel-ops-a`       | fast      | `[r189]`, `F2.3` UI (OP-2), `O2.5`                 | `review:ops-a`    |
-| `uplevel-ops-b`       | fast      | `[r157]`, `[r172]`                                 | `review:ops-b`    |
-| `uplevel-docs`        | fast      | `[r165b]`                                          | `review:docs`     |
-| `uplevel-heavy-a`     | strongest | then `heavy` PRs: `B3.2`, `[r999]`                 | none              |
-| `uplevel-operator`    | fast      | `O2.5`, `[r999]`                                   | none              |
+| `uplevel-backend`     | fast      | `[r129]`, `F2.3` API batches                       | none              |
+| `uplevel-frontend`    | fast      | `[r132]`, `F2.3` UI (FE-1)                         | none              |
+| `uplevel-ops-a`       | fast      | `[r189]`, `F2.3` UI (OP-2), `O2.5`                 | none              |
+| `uplevel-ops-b`       | fast      | `[r157]`, `[r172]`                                 | none              |
+| `uplevel-docs`        | fast      | `[r165b]`                                          | none              |
+| `uplevel-heavy-a`     | strongest | `B3.2`, `O3.6`                                     | none              |
+| `uplevel-operator`    | fast      | real-tier runs: `F2.3`'s batches, `O2.5`           | none              |
 """
 BACKEND = """\
 # Backend
@@ -63,6 +66,10 @@ BACKEND = """\
 **Flags:** none. **Assigned:** `uplevel-backend`. **PR:** #7001 (open).
 
 - [ ] box
+
+### B3.2 Delete the approved module list
+
+**Flags:** `heavy · owner`. **PR:** none yet.
 """
 FRONTEND = """\
 # Frontend
@@ -95,6 +102,10 @@ OPS = """\
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r157]`. **PR:**
 none yet. (ruling 172; issue #7102)
+
+### O3.6 PR mutation evidence tool
+
+**Flags:** `heavy`. **PR:** none yet.
 """
 DOCS = """\
 # Docs
@@ -204,9 +215,36 @@ def test_a_block_in_another_lanes_file_does_not_satisfy_the_check(tmp_path):
     assert any("ops-b queue token r132 has no package block in docs/uplevel/packages/ops.md" in f for f in got), got  # fmt: skip
 
 
-def test_a_none_label_row_is_skipped(clean):
-    # heavy-a's and the operator's `[r999]` have no block anywhere and the tree is still clean.
-    assert "[r999]" in ROSTER
+def test_every_row_is_checked_whatever_its_label(tmp_path):
+    # Ruling 242: a `none` label used to skip the row, and ruling 198 set every label to `none`, so
+    # checks 1 and 3 checked nothing. The fixture's labels are all `none`, as the real roster's are.
+    assert "review:" not in ROSTER
+    got = findings(tmp_path, roster=ROSTER.replace("`[r165b]`", "`[r165b]`, `[r999]`"))
+    assert got == ["docs/uplevel/roles/lane.md:10: docs queue token r999 has no package block in docs/uplevel/packages/docs.md"], got  # fmt: skip
+
+
+def test_a_row_with_no_package_file_finds_its_tokens_in_any_lanes_file(clean, tmp_path):
+    # heavy-a has no heavy.md: its B3.2 (backend.md) and O3.6 (ops.md) are assigned by the
+    # coordinator (UR-59) from blocks in other lanes' files, and the clean tree finds both.
+    assert not (clean / "docs/uplevel/packages/heavy.md").exists() and "heavy" in lint.UNPACKAGED
+    roster = ROSTER.replace("`B3.2`, `O3.6`", "`B3.2`, `O3.6`, `[r999]`")
+    got = findings(tmp_path / "planted", roster=roster)
+    assert got == ["docs/uplevel/roles/lane.md:11: heavy-a queue token r999 has no package block in docs/uplevel/packages/*.md"], got  # fmt: skip
+
+
+def test_a_token_on_heavy_as_queue_and_a_lanes_is_a_finding(tmp_path):
+    # Ruling 226 split [r196a] between frontend and heavy-a, and both rows led with its token: the
+    # digest would offer it to frontend while the coordinator assigns it to heavy-a.
+    roster = ROSTER.replace("`B3.2`, `O3.6`", "`B3.2`, `[r132]`, `O3.6`")
+    got = findings(tmp_path, roster=roster)
+    assert "docs/uplevel/roles/lane.md:11: token r132 is on two lanes' queues: frontend and heavy-a" in got, got  # fmt: skip
+
+
+def test_a_token_named_inside_an_entrys_prose_is_not_a_slot(clean, tmp_path):
+    # The fix for that split on the real roster: "F-012 then F-064 of `[r196a]`" leads with no
+    # token, so queue_entries reads no slot, and nothing is offered or doubled.
+    roster = ROSTER.replace("`B3.2`, `O3.6`", "`B3.2`, F-012 then F-064 of `[r132]` (ruling 226), `O3.6`")  # fmt: skip
+    assert findings(tmp_path / "planted", roster=roster) == []
 
 
 def test_the_shared_package_is_held_to_its_home_file(tmp_path):
@@ -295,9 +333,89 @@ def test_two_cells_of_one_lane_are_two_queues(tmp_path):
     assert "docs/uplevel/roles/lane.md:9: token r157 is on two lanes' queues: ops-a and ops-b" in got  # fmt: skip
 
 
-def test_a_none_label_rows_queue_is_not_counted_against_a_lanes(clean):
-    # O2.5 is on ops-a's queue and the operator's (the operator RUNS it, ruling 188): not a finding.
-    assert ROSTER.count("`O2.5`") == 2
+def test_the_operators_runs_are_not_claims(clean, tmp_path):
+    # O2.5 is on ops-a's queue and the operator's (the operator RUNS it, ruling 188): not a finding,
+    # because the operator's row lists runs (UR-15), not claims.
+    assert ROSTER.count("`O2.5`") == 2 and "operator" in lint.RUNS
+    # ...but a run of a package with no block anywhere is still check 1's finding.
+    got = findings(tmp_path / "planted", roster=ROSTER.replace("`F2.3`'s batches, `O2.5`", "`F2.3`'s batches, `O2.5`, `[r999]`"))  # fmt: skip
+    assert got == ["docs/uplevel/roles/lane.md:12: operator queue token r999 has no package block in docs/uplevel/packages/*.md"], got  # fmt: skip
+
+
+def test_the_runs_list_and_the_unpackaged_lanes_are_exactly_the_named_ones():
+    # RUNS is the operator alone: a lane added to it would stop check 3 counting a claim queue.
+    assert frozenset({"operator"}) == lint.RUNS
+    # UNPACKAGED is lane_tick's own list ("coordinator, heavy-a, heavy-b and operator"); a lane added
+    # to it would have its tokens looked up anywhere instead of in the one file its digest reads.
+    assert frozenset({"coordinator", "heavy", "operator"}) == lint.UNPACKAGED
+    source = " ".join((UPLEVEL / "lane_tick.py").read_text(encoding="utf-8").split())
+    assert "the roster's coordinator, heavy-a, heavy-b and operator rows have work that is never packaged" in source  # fmt: skip
+
+
+def test_a_new_lane_with_no_file_is_an_unreadable_finding_not_an_unpackaged_lane(tmp_path):
+    roster = ROSTER.replace("| `uplevel-docs`", "| `uplevel-new`         | fast      | `[r999]`                                           | none              |\n| `uplevel-docs`")  # fmt: skip
+    got = findings(tmp_path, roster=roster)
+    assert any(f.startswith("docs/uplevel/packages/new.md:1: unreadable") for f in got), got
+
+
+# --- the real roster's shape -------------------------------------------------------------------
+
+
+def real_tree(tmp_path: Path) -> tuple[Path, str]:
+    """This checkout's roster, package files and ruling map, copied into ``tmp_path``."""
+    rels = [lint.ROSTER_PATH, lint.MAP_PATH] + [
+        p.relative_to(REPO_ROOT).as_posix()
+        for p in sorted((REPO_ROOT / lint.PKGS_DIR).glob("*.md"))
+    ]
+    for rel in rels:
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text((REPO_ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
+    return tmp_path, (tmp_path / lint.ROSTER_PATH).read_text(encoding="utf-8")
+
+
+def plant_first(line: str, token: str) -> str:
+    """The roster line with ``token`` as its queue cell's first entry (cell 3 of the row)."""
+    cells = line.split("|")
+    cells[3] = f" `[{token}]`," + cells[3]
+    return "|".join(cells)
+
+
+def test_on_the_real_roster_a_missing_token_is_caught_on_every_row(tmp_path):
+    # Ruling 242: the real roster's own shape -- ruling 198's `none` on every row -- is what made
+    # checks 1 and 3 check nothing, with a fixture whose labels were not `none` still green. So
+    # this runs the lint on this checkout's real roster and package files, plants a token no block
+    # carries as the first entry of EACH row, and asserts each plant is caught. It does not assert
+    # that the real tree is clean: that stays CI's step, with its baseline (this file's docstring).
+    root, roster = real_tree(tmp_path)
+    rows = lint.roster_rows(roster)
+    assert rows  # every row the real roster has, whatever its count or labels
+    lines = roster.splitlines()
+    for row in rows:
+        planted = lines.copy()
+        planted[row["line"] - 1] = plant_first(lines[row["line"] - 1], "r9999")
+        (root / lint.ROSTER_PATH).write_text("\n".join(planted) + "\n", encoding="utf-8")
+        got = [str(f) for f in lint.lint(lint.Disk(root))[0]]
+        # The oracle is this checkout's files, not ``lint.UNPACKAGED``: a lane with its own package
+        # file is looked up in that file alone, so a packaged lane wrongly added to that set reds
+        # this test as well as the literal pin above (review R6 on #7221).
+        own = lint.PKGS_PATH.format(row["lane"])
+        where = own if (REPO_ROOT / own).is_file() else f"{lint.PKGS_DIR}/*.md"
+        want = f"{lint.ROSTER_PATH}:{row['line']}: {row['name']} queue token r9999 has no package block in {where}"  # fmt: skip
+        assert want in got, (row["name"], got)
+
+
+def test_on_the_real_roster_a_token_on_heavy_as_queue_and_a_lanes_is_caught(tmp_path):
+    root, roster = real_tree(tmp_path)
+    rows = {r["name"]: r for r in lint.roster_rows(roster)}
+    lines = roster.splitlines()
+    for name in ("backend", "heavy-a"):
+        n = rows[name]["line"] - 1
+        lines[n] = plant_first(lines[n], "r9998")
+    (root / lint.ROSTER_PATH).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    backend = root / lint.PKGS_PATH.format("backend")
+    backend.write_text(backend.read_text(encoding="utf-8") + "\n### [r9998] planted\n\n**Flags:** none. **PR:** none yet.\n", encoding="utf-8")  # fmt: skip
+    got = [str(f) for f in lint.lint(lint.Disk(root))[0]]
+    assert f"{lint.ROSTER_PATH}:{rows['heavy-a']['line']}: token r9998 is on two lanes' queues: backend and heavy-a" in got, got  # fmt: skip
 
 
 # --- 4. a ruling-map row without its record id ---------------------------------------------
@@ -349,13 +467,30 @@ def test_a_missing_package_file_is_a_finding(tmp_path):
     assert any(f.startswith("docs/uplevel/packages/docs.md:1: unreadable") for f in got), got
 
 
+class Unreadable(lint.Disk):
+    """A checkout whose ``docs.md`` is listed but cannot be read (a permission error, say)."""
+
+    def read(self, rel: str) -> str:
+        if rel.endswith("/docs.md"):
+            raise PermissionError(13, "Permission denied")
+        return super().read(rel)
+
+
+def test_a_listed_but_unreadable_package_file_is_one_finding_not_three(tmp_path):
+    # docs.md is read for docs' row, for the cross-file lookup (heavy-a, operator) and for check 2;
+    # lint() reads each file once, so the failure is reported once.
+    got = [str(f) for f in lint.lint(Unreadable(tree(tmp_path)))[0]]
+    hits = [f for f in got if f.startswith("docs/uplevel/packages/docs.md:1: unreadable")]
+    assert len(hits) == 1, got
+
+
 # --- the CLI --------------------------------------------------------------------------------
 
 
 def test_main_exits_0_on_a_clean_tree_and_says_what_it_read(tmp_path, capsys):
     assert lint.main(["--root", str(tree(tmp_path))]) == 0
     out = capsys.readouterr().out.splitlines()
-    assert out == ["plan_lint: 0 finding(s); read 8 roster rows, 4 package files (8 blocks), 7 ruling-map rows"]  # fmt: skip
+    assert out == ["plan_lint: 0 finding(s); read 8 roster rows, 4 package files (10 blocks), 7 ruling-map rows"]  # fmt: skip
 
 
 def test_main_exits_1_with_one_file_line_per_finding(tmp_path, capsys):
@@ -413,8 +548,9 @@ def test_a_defect_already_on_the_base_does_not_fail_the_pr(tmp_path, capsys):
 
 
 def test_an_old_defect_that_moved_lines_is_still_the_base_s(tmp_path, capsys):
-    # Matched by file and message, not line: a row added above the defect moves it to line 10.
-    moved = R184.replace("| `uplevel-backend`", "| `uplevel-new`         | fast      | `[r129]`                                           | none              |\n| `uplevel-backend`")  # fmt: skip
+    # Matched by file and message, not line: a row added above the defect moves it to line 10 (a
+    # heavy-b row, as the real roster has: no tokens, so it adds no finding of its own).
+    moved = R184.replace("| `uplevel-backend`", "| `uplevel-heavy-b`     | strongest | out of service (ruling 190)                        | none              |\n| `uplevel-backend`")  # fmt: skip
     code, out, _ = run_baseline(tmp_path, files(roster=R184), capsys, roster=moved)
     assert code == 0 and "lane.md:10: ops-b queue token r184" in out.out
 

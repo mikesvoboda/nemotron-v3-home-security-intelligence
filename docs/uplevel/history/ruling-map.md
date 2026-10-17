@@ -254,6 +254,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 239    | coordinator loop `/loop 30m`; UR-162 raises past 90 minutes, `[r239]` for ops-b (record 6217014151)         |
 | 240    | package `[r240]`: the fake-AI golden leg runs as two shards, ops-b (record 6217450751)                      |
 | 241    | heavy-a takes `B3.1` with `F3.1` ahead of `B2.3`; Phase 3 blocks gain `**PR:**` (record 6217824144)         |
+| 242    | package `[r242]`: plan_lint checks every roster row again; owner PR, ops-b reviews (record 6221764225)      |
 
 ## Owner records
 

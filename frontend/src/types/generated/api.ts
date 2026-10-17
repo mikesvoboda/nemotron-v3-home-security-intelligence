@@ -239,9 +239,11 @@ export interface paths {
          *     - Cameras cache
          *     - System status cache
          *     - Stats cache
+         *     - Timeline summary cache
+         *     - Trends cache
          *     - Detections cache
          *     - Alerts cache
-         *     - Summaries cache
+         *     - Summaries cache (also clears the `summaries:entities` key it contains)
          *
          *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
          *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
@@ -9358,41 +9360,6 @@ export interface paths {
         get: operations["queues_get_queues_status"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/reid/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Search Similar Entities
-         * @description Search for entities similar to the given embedding vector.
-         *
-         *     This endpoint allows searching for entities that are similar to a provided
-         *     embedding vector. It can search across both Redis (hot cache, 24h window)
-         *     and PostgreSQL (historical, 30-day retention) depending on the
-         *     `include_historical` parameter.
-         *
-         *     Args:
-         *         request: Search request containing embedding vector and parameters
-         *         hybrid_storage: Hybrid storage service for combined Redis/PostgreSQL search
-         *
-         *     Returns:
-         *         SimilaritySearchResponse with matching entities sorted by similarity
-         *
-         *     Raises:
-         *         HTTPException: 400 for invalid parameters, 503 for service unavailable
-         */
-        post: operations["reid_search_similar_entities"];
         delete?: never;
         options?: never;
         head?: never;
@@ -39323,60 +39290,6 @@ export interface components {
             timestamp: string;
         };
         /**
-         * SimilaritySearchRequest
-         * @description Request schema for similarity search.
-         *
-         *     Allows searching for entities similar to a given embedding vector
-         *     or detection ID.
-         * @example {
-         *       "embedding": [
-         *         0.1,
-         *         0.2,
-         *         0.3
-         *       ],
-         *       "entity_type": "person",
-         *       "include_historical": true,
-         *       "limit": 10,
-         *       "threshold": 0.7
-         *     }
-         */
-        SimilaritySearchRequest: {
-            /**
-             * Embedding
-             * @description Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)
-             */
-            embedding: number[];
-            /**
-             * Entity Type
-             * @description Type of entity to search for: 'person' or 'vehicle'
-             * @default person
-             */
-            entity_type: string;
-            /**
-             * Exclude Detection Id
-             * @description Optional detection ID to exclude from results (e.g., to exclude self-matches)
-             */
-            exclude_detection_id?: string | null;
-            /**
-             * Include Historical
-             * @description If True, search both Redis (hot cache) and PostgreSQL (historical). If False, only search Redis hot cache (24h window).
-             * @default true
-             */
-            include_historical: boolean;
-            /**
-             * Limit
-             * @description Maximum number of results to return (default: 10, max: 100)
-             * @default 10
-             */
-            limit: number;
-            /**
-             * Threshold
-             * @description Minimum cosine similarity threshold for matches (default: the OSNet-space service constant)
-             * @default 0.7
-             */
-            threshold: number;
-        };
-        /**
          * SimilaritySearchResponse
          * @description Response schema for similarity search.
          * @example {
@@ -57046,60 +56959,6 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    reid_search_similar_entities: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SimilaritySearchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SimilaritySearchResponse"];
-                };
-            };
-            /** @description Invalid request parameters */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Service unavailable (Redis/PostgreSQL) */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };

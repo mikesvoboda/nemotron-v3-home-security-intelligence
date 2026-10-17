@@ -76,15 +76,43 @@ def mock_db_session() -> AsyncMock:
 
 
 @pytest.fixture
-def client(mock_db_session: AsyncMock, mock_settings) -> TestClient:
-    """Create a test client with mocked dependencies."""
+def mock_cache_service() -> AsyncMock:
+    """A CacheService double for the routes' CacheDep.
+
+    Spec'd, not a bare MagicMock: [r223] gave the three developer-tool handlers
+    a `cache: CacheDep`, and their background task AWAITS each invalidator. On a
+    plain MagicMock those members are sync, so `await invalidate(...)` raises
+    TypeError inside the helper's per-namespace `except` — the test still goes
+    green while exercising the Redis-down path.
+    """
+    from backend.services.cache_service import CacheService
+
+    return AsyncMock(spec=CacheService)
+
+
+@pytest.fixture
+def client(mock_db_session: AsyncMock, mock_settings, mock_cache_service: AsyncMock) -> TestClient:
+    """Create a test client with mocked dependencies.
+
+    The cache override is load-bearing, not decoration: `CacheDep` resolves in
+    FastAPI's `solve_dependencies`, BEFORE the handler body runs, so a live
+    Redis is required to even enter `seed_cameras`. The unit tier runs without
+    one, and no amount of try/except in the handler can help — the failure
+    happens on the way in. Same DI pattern as test_cameras_routes.py (NEM-1659).
+    """
+    from backend.api.dependencies import get_cache_service_dep
+
     app = FastAPI()
     app.include_router(router)
 
     async def override_get_db():
         yield mock_db_session
 
+    async def override_get_cache():
+        yield mock_cache_service
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_cache_service_dep] = override_get_cache
 
     with (
         patch("backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True),

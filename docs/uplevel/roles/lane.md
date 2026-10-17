@@ -15,17 +15,17 @@ The owner sets these queues; a change is a ruling. Ruling 175 rebalanced `F2.3` 
 works on it: packages a ruling routed after a lane's `F2.3` rows wait for them, and routed bug
 fixes (`[r130b]`, `[r130f]`) keep their place. Ruling 184 gave the heavy agents FE-4 and OP-1.
 
-| sandbox               | model     | queue                                                                                                                                                                                                                                                                                                                                      | review label |
-| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
-| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                                                                                                                                           | none         |
-| `uplevel-backend`     | fast      | `[r211b]`, `[r228]`, `[r223]`, `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`, `[r236]`; cells A and B for Phase 3's deletions                                                                                                                                                                               | none         |
-| `uplevel-frontend`    | fast      | `[r196a]`, `[r211f]`, `[r204]`, `[r205]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3`                                                                                             | none         |
-| `uplevel-ops-a`       | fast      | `[r189]`, `[r193]`, `[r195]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                                                                                 | none         |
-| `uplevel-ops-b`       | fast      | `[r235]`, `[r240]`, `[r239]`, `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                                                                    | none         |
-| `uplevel-docs`        | fast      | `[r196b]`, `[r215d]`, `[r207]`, `[r231]`, `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                                                                                           | none         |
-| `uplevel-heavy-a`     | strongest | heavy-b's queue (ruling 190): #7155, OP-1's seeded rows, F-012's disk seed (ruling 192), `[r199]`, `[r215a]`, `[r200]`, `[r196a]`'s F-012 then F-064 (ruling 226), `[r212]`, `[r213]`, `[r214]` (ruling 224), `[r234]`, `[r238]`, `B3.1` with `F3.1` (ruling 241), `B2.3` once `O2.4` passes, `B3.2`, `O3.6`; then Phase 4 design sessions | none         |
-| `uplevel-heavy-b`     | strongest | out of service (ruling 190); its queue is heavy-a's until the owner restarts it with a record                                                                                                                                                                                                                                              | none         |
-| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                                                                                                                                                     | none         |
+| sandbox               | model     | queue                                                                                                                                                                                                                                                                                                                                       | review label |
+| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                                                                                                                                            | none         |
+| `uplevel-backend`     | fast      | `[r211b]`, `[r228]`, `[r223]`, `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`, `[r236]`; cells A and B for Phase 3's deletions                                                                                                                                                                                | none         |
+| `uplevel-frontend`    | fast      | `[r196a]`, `[r211f]`, `[r204]`, `[r205]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3`                                                                                              | none         |
+| `uplevel-ops-a`       | fast      | `[r189]`, `[r193]`, `[r195]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`, `O3.1`, `O3.2`, `O3.3`                                                                                                                                                                                  | none         |
+| `uplevel-ops-b`       | fast      | `[r235]`, `[r240]`, `[r239]`, `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                                                                     | none         |
+| `uplevel-docs`        | fast      | `[r196b]`, `[r215d]`, `[r207]`, `[r231]`, `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                                                                                            | none         |
+| `uplevel-heavy-a`     | strongest | heavy-b's queue (ruling 190): #7155, OP-1's seeded rows, F-012's disk seed (ruling 192), `[r199]`, `[r215a]`, `[r200]`, F-012 then F-064 of `[r196a]` (ruling 226), `[r212]`, `[r213]`, `[r214]` (ruling 224), `[r234]`, `[r238]`, `B3.1` with `F3.1` (ruling 241), `B2.3` once `O2.4` passes, `B3.2`, `O3.6`; then Phase 4 design sessions | none         |
+| `uplevel-heavy-b`     | strongest | out of service (ruling 190); its queue is heavy-a's until the owner restarts it with a record                                                                                                                                                                                                                                               | none         |
+| `uplevel-operator`    | fast      | real-tier runs: rows `awaiting real tier` (`B1.1`, `F1.2`, `O1.11`, `O2.2`), `F2.3`'s per-batch runs (ruling 103), ruling 142's verdict spread, `O2.5`                                                                                                                                                                                      | none         |
 
 **Split lanes.** A cell splits a lane between two agents along file sets that do not overlap. Each
 cell claims from its own roster queue (UR-52).
@@ -45,8 +45,17 @@ the package cites. You have no review label.
 
 ## The tick
 
-The owner arms it with `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
-Run these steps in order. Read CI once per tick and end the turn (UR-38).
+The owner arms it with `Run the agent tick in docs/uplevel/roles/lane.md, "The tick".` at the
+interval UR-36 sets for the agent (ruling 245): `/loop 30m` for a Claude Code lane, `/loop 15m` for
+a heavy agent under pi, which is armed the same way and skips step 6. Run these steps in order.
+Read CI once per tick and end the turn (UR-38).
+
+The 30-minute `/loop` is a **fallback** since ruling 193, not the main channel: step 6 arms a
+watcher that wakes you when a watched PR moves, so a handoff no longer waits up to a tick for its
+delay. Keep the `/loop` anyway -- it is what notices anything the watcher does not watch: a stale
+coordinator and your disks it cannot see at all, and a `BINDING NOW` it sees only bare -- the
+watcher names the comment id and author, never which packages the ruling assigns you, so the
+`for you:` addressing is the digest's. It also bounds a watcher that died silently.
 
 1. **Read the tick in one call.** Run
 
@@ -91,7 +100,49 @@ Run these steps in order. Read CI once per tick and end the turn (UR-38).
    conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
    run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
-6. If none of these has work, say so in one line and end the turn.
+6. **Re-arm the watcher** (ruling 193) unless one is already running for these PRs. Arm it as a
+   background task **by discovery**, not by naming the PRs you happen to have open: a lane discovers
+   by its own labels, so a coordinator-opened assignment draft and a PR this lane opens itself both
+   arrive in the watch without anyone re-arming. Add `--pr <n>` only for a PR outside your lane that
+   an owner or coordinator pointer names you to review (ruling 245). Exit the turn immediately:
+
+   ```bash
+   uv run python scripts/uplevel/pr_watch.py --lane <lane> --cell <c> --lifetime 1800
+   ```
+
+   (`--cell` only for the ops lane, which splits; `--lane backend` alone for a lane that does not.
+   `--review-label` is still there in the tool, but since ruling 198 retired the `review:<lane>`
+   labels there is nothing for a lane to pass it, so it is not in the example.)
+
+   It polls about every 60 s with **one GraphQL query and never the search API**, and exits with one
+   line per change it saw, each naming the PR and what moved -- a new head, a check conclusion, a
+   review, a comment, a label change, a merge or close, or a new `BINDING NOW` on #6854. One poll can
+   therefore print several lines (a head moved _and_ a check concluded); read them all before
+   re-arming. A PR whose bounded check window came back full also prints a
+   `#<n> checks truncated: X of Y watched` line, beside any news and on the "no change" line -- it
+   means "the last `Y` checks filled my window, so a change may have aged out unseen", not "nothing
+   changed"; treat a truncated all-clear as unevaluated, not clean. It prints no comment bodies,
+   survives transient API errors, and ends with one of four self-named lines — three at its lifetime
+   bound, one when a failure streak trips mid-loop — so silence never stands in for success:
+   `error: … 0 successful polls` (read nothing — treat as a broken arm), `error: … none that
+compared a window` (read but never compared — same treatment), the `no change in Ns` all-clear,
+   which adds `warning: watch ended on … failures` when its last polls failed and then asks the same
+   question a truncated window does, or `error: N consecutive poll failures` — the streak exit,
+   reached when `--max-errors` (default 3) polls fail in a row with no clean poll between them (a
+   clean poll resets the count), so it says the API or this arm is broken now, not that the watch
+   ended. Its own suite
+   `scripts/test_pr_watch.py` pins each of these. A watcher armed in the background is not waiting
+   inside a turn (UR-38): the turn ends, and the line it prints starts a new one. When it exits,
+   act on the line and re-arm.
+
+   **Heavy agents under pi skip this step.** They keep the 15-minute `/loop` (UR-174) as their wake,
+   because whether pi wakes an agent when a background task finishes is unmeasured: `pi` is not
+   installed in the lane sandboxes (`command -v pi` exits 1 in `uplevel-ops-a`, read
+   2026-10-15T23:46Z), so #7175 cannot say it does. Ruling 193 asked the PR to say so "if ops-a can
+   measure it" -- this is the honest answer: said, not measured. A heavy agent that later finds pi
+   delivers a finished background task's output may arm the watcher too; nothing here forbids it.
+
+7. If none of these has work, say so in one line and end the turn.
 
 ## Heartbeat
 
@@ -195,8 +246,16 @@ Every comment, PR body and review follows UR-10 (contract rule 2: your own text 
 ## Kickoff prompt
 
 The owner pastes the line from `scripts/uplevel/sandboxes.toml` for the sandbox; it points here and
-names the lane. Then the owner arms the tick with
-`/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".` The shared prompt:
+names the lane. Then the owner arms the tick with the same prompt text at the interval UR-36 sets
+for that agent (ruling 245):
+
+- a Claude Code lane (backend, frontend, ops-a, ops-b, docs), which also keeps the watcher armed
+  and treats the `/loop` as its fallback:
+  `/loop 30m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+- a heavy agent under pi, which arms no watcher:
+  `/loop 15m Run the agent tick in docs/uplevel/roles/lane.md, "The tick".`
+
+The shared prompt:
 
 ```text
 You are a lane agent of the uplevel programme; your kickoff line names your
