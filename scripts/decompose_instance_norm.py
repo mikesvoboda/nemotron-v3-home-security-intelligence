@@ -257,10 +257,28 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
             "nothing — a pre-dir that is the export's own directory turns the recheck into that "
             "tautology AND the in-place save overwrites the snapshot before it is read. Stage the "
             "snapshot in a separate directory before re-running.")
+    # out_json gets the SAME aliasing refusal the pre-snapshot got, for the same reason and one worse:
+    # the row is written BEFORE the gate check, so if the destination resolves to the target, a gate
+    # regression returns rc 30 — the code whose whole contract is "the target was not touched" — with
+    # the target REPLACED BY THE ROW (measured at 9caefef26: 4192 B model -> 480 B JSON, rc 30). The
+    # one-argument slip (row path = model path) must be refused here, before anything is written.
+    # _samefile needs both files to exist; the destination usually does not yet, so resolve() is the
+    # identity for the not-yet-created case and _samefile the stronger one when it does.
+    outj = Path(out_json)
+    if (outj.exists() and _samefile(outj, model)) or outj.resolve() == model.resolve():
+        raise SystemExit(
+            f"row destination {outj} IS the surgery target {model} - the faithfulness row would "
+            "overwrite the export it describes, and on a gate regression it does exactly that under "
+            "rc 30, the code that promises the target survived. Point out_json at a separate file.")
     batch = np.load(str(batch)) if isinstance(batch, (str, Path)) else np.asarray(batch)
-    if batch.ndim != 4 or batch.shape[1:] != (3, 256, 128):
-        raise SystemExit(f"batch {batch.shape} is not (N,3,256,128) - refusing to feed the graphs a "
-                         "layout this rewrite has not witnessed")
+    # shape[0] < 1 is its own clause because the tuple test below cannot see it: (0,3,256,128) has the
+    # right ndim and the right trailing dims, so a ZERO-ROW batch passes the guard whose stated job is
+    # "refuse a layout this rewrite has not witnessed" — and then dies inside numpy at cos.min() with a
+    # ValueError main() does not map (raw rc 1), stranding the .decomp.tmp beside the export. An empty
+    # batch is precisely a layout that has not been witnessed: there is nothing in it to witness.
+    if batch.ndim != 4 or batch.shape[1:] != (3, 256, 128) or batch.shape[0] < 1:
+        raise SystemExit(f"batch {batch.shape} is not (N,3,256,128) with N>=1 - refusing to feed the "
+                         "graphs a layout this rewrite has not witnessed")
 
     sha_before, size_before = _sha(model), model.stat().st_size
     before = onnx.load(str(model))
@@ -316,7 +334,19 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
         "size_before": size_before, "size_after": tmp.stat().st_size,
         "external_left": len(ext), "gate": GATE, "cos": [float(x) for x in cos],
     }
-    Path(out_json).write_text(json.dumps(row))
+    # The row write is inside the SAME refusal discipline as every other exit: an unwritable
+    # destination (a parent directory that does not exist is the ordinary slip) used to escape as a raw
+    # FileNotFoundError -> rc 1, which main() does not map, and it left the .decomp.tmp beside the
+    # export. A venue that branches on the documented 0/30/31/32 set cannot tell "the graph is wrong"
+    # from "the module crashed writing a file", and the tmp is valid decomposed ONNX named like a
+    # leftover — ~9.4 MB on the real export — that a `*.onnx*` plan glob would pick up.
+    try:
+        outj.write_text(json.dumps(row))
+    except OSError as exc:
+        tmp.unlink(missing_ok=True)
+        raise Refusal(f"cannot write the faithfulness row to {outj} ({exc}). The original model.onnx "
+                      "was left untouched and the decomposed temp was removed.") from exc
+
     w = row["witness"]
     print(f"  surgery: replaced {w['replaced']} IN · nodes {w['nodes_before']}→{w['nodes_after']}"
           f" · ir {w['ir_version']} · opset {w['opset']} · superseded initializers {w['superseded_inits']}")

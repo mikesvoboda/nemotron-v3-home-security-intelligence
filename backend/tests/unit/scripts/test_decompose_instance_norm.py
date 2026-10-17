@@ -258,6 +258,127 @@ class TestReviewFollowups:
         )
 
     @pytest.mark.timeout(60)
+    def test_a_negative_cosine_row_refuses(self, script, model, tmp_path, batch) -> None:
+        """Finding 1: the `x >= 0.0` half of the guard had ZERO coverage — the NaN pin above trips
+
+        BOTH halves (nan >= 0.0 is False), so deleting either half left the suite green. This plants
+        the ONE shape that hits `>= 0.0` WITHOUT being non-finite: a finite cosine near -1, reached by
+        a sign flip in a weight load — the PRE snapshot's FINAL Conv weight (w3, the one whose output
+        is the embedding) negated, while the TARGET stays honest. surgery() embeds pre and the
+        decomposed target, so an inverted pre embedding is anti-aligned with an honest decomposed one:
+        cos=[-1,-1]. As shipped this refuses (rc 1, "not interpretable", nothing written); with only
+        `>= 0.0` removed it writes S.json with min=-1.0 — a PASS-shaped artefact for a graph the
+        module declared unmeasurable.
+        """
+        # Stage pre and target SEPARATELY. _venue copies one model to both, so a whole-model flip
+        # there is a tautology (negate both sides -> cos stays +1); the reviewer hit the same trap.
+        # Here the target is the honest graph and only pre has the inverted weight.
+        work = tmp_path / "venue"
+        (work / "pre").mkdir(parents=True)
+        onnx.save(model, str(work / "model.onnx"))  # TARGET: honest
+        neg = onnx.ModelProto()
+        neg.CopyFrom(model)
+        planted = 0
+        for ini in neg.graph.initializer:
+            if ini.name == "w3":  # last Conv -> the embedding direction
+                ini.CopyFrom(
+                    numpy_helper.from_array(
+                        (-numpy_helper.to_array(ini)).astype(np.float32), ini.name
+                    )
+                )
+                planted += 1
+        assert planted == 1, "expected exactly one w3 initializer to negate; stimulus is vacuous"
+        onnx.save(neg, str(work / "pre" / "model.onnx"))  # PRE: sign-flipped weight load
+        np.save(str(tmp_path / "batch.npy"), batch)
+        b = tmp_path / "batch.npy"
+        # SELF-VALIDATE on the instrument's own sensitive axis before trusting the call: cosine_rows
+        # must actually read negative here, else the plant is off-axis and the test would pass for the
+        # wrong reason (the null-stimulus trap that fakes a mutant green).
+        decomp, _ = script.decompose(model, want_in=3)
+        onnx.save(decomp, str(tmp_path / "d.onnx"))
+        cos = script.cosine_rows(
+            script.embed(work / "pre" / "model.onnx", batch),
+            script.embed(tmp_path / "d.onnx", batch),
+        )
+        assert cos.size and float(np.min(cos)) < -0.5, (
+            f"plant produced {cos}, not an anti-aligned row"
+        )
+        with pytest.raises(SystemExit, match="not interpretable"):
+            script.surgery(work / "model.onnx", work / "pre", b, work / "S.json", want_in=3)
+        assert not (work / "model.onnx.decomp.tmp").exists()
+
+    @pytest.mark.timeout(60)
+    def test_an_empty_batch_refuses_before_numpy(self, script, model, tmp_path) -> None:
+        """Finding 2(a): (0,3,256,128) has the right ndim and trailing dims, so the OLD layout guard
+
+        accepted it, then all() over an empty cos passed vacuously and cos.min() died inside numpy
+        with an unmapped rc 1, stranding the .decomp.tmp beside the export. The guard now carries an
+        explicit N>=1 clause; deleting it makes THIS red (M7) — the source fix alone pins nothing.
+        """
+        work = tmp_path / "venue"
+        (work / "pre").mkdir(parents=True)
+        onnx.save(model, str(work / "model.onnx"))
+        onnx.save(model, str(work / "pre" / "model.onnx"))
+        np.save(str(tmp_path / "batch.npy"), np.zeros((0, 3, _H, _W), np.float32))
+        with pytest.raises(SystemExit, match=r"N>=1"):
+            script.surgery(
+                work / "model.onnx",
+                work / "pre",
+                tmp_path / "batch.npy",
+                work / "S.json",
+                want_in=3,
+            )
+        assert not (work / "model.onnx.decomp.tmp").exists(), "empty batch stranded the temp"
+
+    @pytest.mark.timeout(60)
+    def test_out_json_that_is_the_target_refuses(self, script, model, tmp_path, batch) -> None:
+        """Finding 2(c): out_json naming the target itself is the one-argument slip that, on a gate
+
+        regression, wrote the JSON ROW over the model and returned rc 30 — the code whose whole
+        contract is "the target was not touched" (measured 4192 B model -> 480 B row). The aliasing
+        of out_json to the target is now refused up front, like the pre-snapshot alias.
+        """
+        work, b = _venue(tmp_path, model, batch)
+        target = work / "model.onnx"
+        sha_before = script._sha(target)
+        with pytest.raises(SystemExit, match="row destination"):
+            # out_json == the surgery target, the slip.
+            script.surgery(target, work / "pre", b, target, want_in=3)
+        assert script._sha(target) == sha_before, (
+            "the target was touched by the out_json alias refusal"
+        )
+
+    @pytest.mark.timeout(60)
+    def test_unwritable_out_json_refuses_31_not_crashes(
+        self, script, model, tmp_path, batch
+    ) -> None:
+        """Finding 2(b): out_json into a non-existent parent escaped as a raw FileNotFoundError ->
+
+        rc 1 (unmapped by main()) and left the .decomp.tmp behind. The write is now inside the same
+        refusal discipline as every other exit, so it raises Refusal (-> 31) and removes the temp.
+        """
+        work, b = _venue(tmp_path, model, batch)
+        missing = work / "nope" / "S.json"  # parent directory does not exist
+        with pytest.raises(script.Refusal, match="cannot write the faithfulness row"):
+            script.surgery(work / "model.onnx", work / "pre", b, missing, want_in=3)
+        assert not (work / "model.onnx.decomp.tmp").exists(), "the temp survived the write refusal"
+
+    def test_the_interpretability_guard_pins_both_halves(self, script) -> None:
+        """The guard `np.isfinite(x) and x >= 0.0` has two arms, neither individually reachable by a
+
+        single plant (NaN trips both; a negative trips only `>= 0.0`; +inf — if it were reachable —
+        trips only `isfinite`, and on every non-degenerate path measured it co-occurs with NaN). So
+        the arm a future edit could silently delete is pinned at SOURCE level, the way this file
+        already pins load-bearing text: a direct textual claim about the guard, not a reachable
+        input. `>= 0.0` also has a real behavioural test above; this is the belt for `isfinite`.
+        """
+        src = Path(script.__file__).read_text()
+        assert "np.isfinite(x)" in src and "x >= 0.0" in src, (
+            "the interpretability guard must reject BOTH non-finite and negative cosines; one arm "
+            "deleted makes a PASS-shaped S.json describe an unmeasurable graph"
+        )
+
+    @pytest.mark.timeout(60)
     def test_a_pre_dir_that_is_the_target_refuses(self, script, model, tmp_path, batch) -> None:
         """Finding 2: nothing refused a pre-snapshot that IS the target — the module's own #1 trap.
 
