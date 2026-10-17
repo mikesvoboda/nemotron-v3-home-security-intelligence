@@ -188,10 +188,10 @@ UR-147.
 | O2.5    | ops                     | 2          | Production-shape real tier                     |               | awaiting real tier | #7037 |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
-| B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy         | in progress | #7224, #7228 |
+| B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy         | in progress | #7224, #7228, #7232 |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | not started |     |
-| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | in progress | #7224, #7228 |
+| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | in progress | #7224, #7228, #7232 |
 | F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | not started |     |
 | F3.3    | frontend                | 3          | Quarantined tests                              |               | not started |     |
 | O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | not started |     |
