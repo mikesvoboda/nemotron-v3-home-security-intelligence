@@ -16,10 +16,6 @@ claimed: the ``PipelineWorkerManager.drain_queues`` default mutant
 L2041 ``logger.info("Global pipeline worker manager initialized")`` message
 mutants are not survivors at all.)
 
-- ``x_broadcast_worker_event__mutmut_2``
-  L104 ``logger.debug(f"WebSocket emitter not available, skipping {event_type}
-  broadcast")`` -> ``logger.debug(None)``
-  -> ``test_none_emitter_logs_the_skipped_broadcast_debug`` (all 3 params)
 - ``x_categorize_exception__mutmut_19``  L169 ``Or`` -> ``And``
 - ``x_categorize_exception__mutmut_20``  L169 ``type(e).__name__`` -> ``type(None).__name__``
   -> m19: ``test_timeout_expired_name_that_is_not_a_timeout_error_subclass``,
@@ -144,9 +140,6 @@ pytestmark = [pytest.mark.unit]
 # =============================================================================
 # Shipped literals, transcribed from backend/services/pipeline_workers.py
 # =============================================================================
-
-# L104: logger.debug(f"WebSocket emitter not available, skipping {event_type} broadcast")
-SKIP_EMITTER_DEBUG = "WebSocket emitter not available, skipping {} broadcast"
 
 # L166/L174/L178/L182/L186/L189 return f"{worker_name}_<family>_error"
 LABELS = ("connection", "timeout", "memory", "validation", "redis", "processing")
@@ -394,49 +387,6 @@ def analysis_worker() -> Any:
     return M.AnalysisQueueWorker(
         redis_client=MagicMock(name="redis-client"),
         analyzer=MagicMock(name="analyzer"),
-    )
-
-
-# =============================================================================
-# 1) broadcast_worker_event - the emitter-is-None arm
-#    x_broadcast_worker_event__mutmut_2 (L104 debug arg -> None)
-# =============================================================================
-
-
-@pytest.mark.parametrize(
-    ("event_type", "worker_name"),
-    [
-        ("worker.started", "analysis-0"),
-        ("worker.stopped", "detection-0"),
-        # Not in the shipped event_type_map: with emitter None the map is never
-        # reached, so the DEBUG text still carries the caller's string verbatim.
-        ("worker.quantum_leap", "metrics"),
-    ],
-)
-async def test_none_emitter_logs_the_skipped_broadcast_debug(
-    event_type: str,
-    worker_name: str,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """``emitter is None`` -> exactly one DEBUG naming the event type, then return.
-
-    Shipped backend/services/pipeline_workers.py:103-105::
-
-        if emitter is None:
-            logger.debug(f"WebSocket emitter not available, skipping {event_type} broadcast")
-            return
-
-    That record is the only observable of the whole call, so ``logger.debug(None)``
-    at L104 (m2) is caught by ``record.msg``.
-    """
-    win(caplog)
-
-    assert await M.broadcast_worker_event(None, event_type, worker_name, "analysis") is None
-
-    only(caplog, logging.DEBUG, SKIP_EMITTER_DEBUG.format(event_type))
-    assert at(caplog, logging.INFO) == [], "the None-emitter arm must not log INFO"
-    assert at(caplog, logging.WARNING) == [], (
-        "the None-emitter arm returns before the unknown-event-type WARNING arm"
     )
 
 

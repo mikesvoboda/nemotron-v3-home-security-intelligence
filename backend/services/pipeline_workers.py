@@ -74,69 +74,12 @@ from backend.services.redis_streams import (
 from backend.services.retry_handler import RetryConfig, RetryHandler
 from backend.services.video_processor import VideoProcessor
 from backend.services.vlm_analyzer import VlmAnalyzer
-from backend.services.websocket_emitter import WebSocketEmitterService
 
 logger = get_logger(__name__)
 
 # OpenTelemetry tracer for pipeline stage instrumentation (NEM-1467)
 # Returns a no-op tracer if OTEL is not enabled
 tracer = get_tracer(__name__)
-
-
-async def broadcast_worker_event(
-    emitter: WebSocketEmitterService | None,
-    event_type: str,
-    worker_name: str,
-    worker_type: str,
-    **extra_fields: Any,
-) -> None:
-    """Broadcast a worker state change event via WebSocket (NEM-2461).
-
-    This is a helper function to emit worker events consistently.
-
-    Args:
-        emitter: WebSocketEmitterService instance (or None if not available)
-        event_type: Event type string (e.g., "worker.started", "worker.stopped")
-        worker_name: Name of the worker instance
-        worker_type: Type of worker (detection, analysis, timeout, metrics)
-        **extra_fields: Additional fields to include in the payload
-    """
-    if emitter is None:
-        logger.debug(f"WebSocket emitter not available, skipping {event_type} broadcast")
-        return
-
-    from backend.core.websocket.event_types import WebSocketEventType
-
-    # Map event type string to WebSocketEventType enum
-    event_type_map = {
-        "worker.started": WebSocketEventType.WORKER_STARTED,
-        "worker.stopped": WebSocketEventType.WORKER_STOPPED,
-        "worker.health_check_failed": WebSocketEventType.WORKER_HEALTH_CHECK_FAILED,
-        "worker.restarting": WebSocketEventType.WORKER_RESTARTING,
-        "worker.recovered": WebSocketEventType.WORKER_RECOVERED,
-        "worker.error": WebSocketEventType.WORKER_ERROR,
-    }
-
-    ws_event_type = event_type_map.get(event_type)
-    if ws_event_type is None:
-        logger.warning(f"Unknown worker event type: {event_type}")
-        return
-
-    try:
-        payload = {
-            "worker_name": worker_name,
-            "worker_type": worker_type,
-            "timestamp": datetime.now(UTC).isoformat(),
-            **extra_fields,
-        }
-        await emitter.emit(ws_event_type, payload)
-        logger.debug(
-            f"Broadcast worker event: {event_type}",
-            extra={"worker_name": worker_name, "worker_type": worker_type},
-        )
-    except Exception as e:
-        # Log but don't fail - worker broadcasts are best-effort
-        logger.warning(f"Failed to broadcast worker event {event_type}: {e}")
 
 
 def categorize_exception(e: Exception, worker_name: str) -> str:
@@ -1545,7 +1488,6 @@ class PipelineWorkerManager:
         enable_timeout_worker: bool = True,
         enable_metrics_worker: bool = True,
         worker_stop_timeout: float | None = None,
-        websocket_emitter: WebSocketEmitterService | None = None,
         detection_worker_count: int | None = None,
         analysis_worker_count: int | None = None,
     ) -> None:
@@ -1563,13 +1505,10 @@ class PipelineWorkerManager:
             enable_metrics_worker: Whether to start queue metrics worker
             worker_stop_timeout: Override stop timeout for all workers (useful for tests).
                 If None, workers use their default timeouts (10-30s).
-            websocket_emitter: Optional WebSocketEmitterService for broadcasting worker events
-                (NEM-2461). If None, worker events will not be broadcast.
             detection_worker_count: Number of detection workers to create. If None, uses settings.
             analysis_worker_count: Number of analysis workers to create. If None, uses settings.
         """
         self._redis = redis_client
-        self._websocket_emitter = websocket_emitter
         self._frame_buffer = frame_buffer
         settings = get_settings()
 
@@ -1882,36 +1821,6 @@ class PipelineWorkerManager:
 
         logger.info("PipelineWorkerManager started all workers")
 
-        # Broadcast worker started events (NEM-2461, NEM-5375)
-        for i, _detection_worker in enumerate(self._detection_workers):
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.started",
-                f"detection_worker_{i}",
-                "detection",
-            )
-        for i, _analysis_worker in enumerate(self._analysis_workers):
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.started",
-                f"analysis_worker_{i}",
-                "analysis",
-            )
-        if self._timeout_worker:
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.started",
-                "timeout_worker",
-                "timeout",
-            )
-        if self._metrics_worker:
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.started",
-                "metrics_worker",
-                "metrics",
-            )
-
     async def stop(self) -> None:
         """Stop all workers gracefully.
 
@@ -1960,43 +1869,6 @@ class PipelineWorkerManager:
                 )
 
         logger.info("PipelineWorkerManager stopped all workers")
-
-        # Broadcast worker stopped events (NEM-2461, NEM-5375)
-        for i, detection_worker in enumerate(self._detection_workers):
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.stopped",
-                f"detection_worker_{i}",
-                "detection",
-                reason="graceful_shutdown",
-                items_processed=detection_worker.stats.items_processed,
-            )
-        for i, analysis_worker in enumerate(self._analysis_workers):
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.stopped",
-                f"analysis_worker_{i}",
-                "analysis",
-                reason="graceful_shutdown",
-                items_processed=analysis_worker.stats.items_processed,
-            )
-        if self._timeout_worker:
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.stopped",
-                "timeout_worker",
-                "timeout",
-                reason="graceful_shutdown",
-                items_processed=self._timeout_worker.stats.items_processed,
-            )
-        if self._metrics_worker:
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.stopped",
-                "metrics_worker",
-                "metrics",
-                reason="graceful_shutdown",
-            )
 
     @staticmethod
     def _make_supervised_runner(
