@@ -58,7 +58,7 @@ is one row; an action that writes, or a panel whose data comes from a different 
 | ruling    | the owner's ruling from `R2`, which records it: **complete**, **retire**, **split** (part of the row is kept and part retires), **defer to roadmap R1**, **complete, consolidated** (several rows become one feature) or **not ruled** (`R2b` round 1 records the return of a row `F2.3` could not reach). Rows already ruled carry the ruling: inbound webhooks `complete (UR-12)` |
 | priority  | the owner's order among the completes, from `R2`: `P1`–`P4`, or `—` for a row recorded outside that order (a retirement, a split, or a return no tier was set for). A tier may carry a scheduling note: `P1, fix now` is a bug fix that queues ahead of the Phase 4 order (owner ruling 135)                                                                                        |
 
-The feature tables (§2 onward) are each preceded by `<!-- prettier-ignore -->`, so editing one row
+The feature tables (§3 onward) are each preceded by `<!-- prettier-ignore -->`, so editing one row
 never re-pads the others. The two vocabulary tables in this section are not, so a cell edit there
 re-pads its own table — run Prettier rather than hand-padding.
 
@@ -106,23 +106,10 @@ run; existing ones may stay.
 
 ## 2. Summary
 
-<!-- prettier-ignore -->
-| section | rows | unverified | half-built | leftover | awaiting real tier | works |
-| --- | --- | --- | --- | --- | --- | --- |
-| [3.1 App shell and global chrome](#31-app-shell-and-global-chrome) | 26 | 0 | 5 | 2 | 13 | 6 |
-| [3.2 Dashboard](#32-dashboard) | 16 | 1 | 5 | 1 | 5 | 4 |
-| [3.3 Event timeline and event detail](#33-event-timeline-and-event-detail) | 27 | 1 | 8 | 2 | 15 | 1 |
-| [3.4 Analytics](#34-analytics) | 7 | 0 | 1 | 0 | 6 | 0 |
-| [3.5 Alerts, entities and re-ID](#35-alerts-entities-and-re-id) | 10 | 0 | 8 | 0 | 2 | 0 |
-| [3.6 Trash, jobs and data](#36-trash-jobs-and-data) | 15 | 0 | 12 | 0 | 2 | 1 |
-| [3.7 AI pages and AI settings](#37-ai-pages-and-ai-settings) | 30 | 3 | 16 | 7 | 4 | 0 |
-| [3.8 Operations and observability](#38-operations-and-observability) | 44 | 6 | 9 | 1 | 28 | 0 |
-| [3.9 GPU, storage and admin settings](#39-gpu-storage-and-admin-settings) | 22 | 3 | 10 | 1 | 8 | 0 |
-| [3.10 Settings: cameras, rules, processing, notifications, access](#310-settings-cameras-rules-processing-notifications-access) | 46 | 0 | 10 | 1 | 35 | 0 |
-| [3.11 Webhooks and scheduled reports](#311-webhooks-and-scheduled-reports) | 11 | 0 | 4 | 0 | 1 | 6 |
-| [3.12 Zones, plates, household, faces, heatmaps, scene changes, tracks](#312-zones-plates-household-faces-heatmaps-scene-changes-tracks) | 34 | 0 | 26 | 1 | 4 | 3 |
-| [3.13 External interfaces](#313-external-interfaces) | 5 | 0 | 4 | 0 | 0 | 1 |
-| **all** | **293** | **14** | **118** | **16** | **123** | **22** |
+This section is computed, not stored (ruling 251). To print its table — each `### 3.x` section's
+row count and per-status counts, then the `all` row — run
+`uv run python scripts/check-inventory-summary-arith.py` from the repo root. A PR that changes a
+row's status edits only that row.
 
 Counts are rows, not features weighted by size. Where one capability shows on two routes through
 one component, it is one row carrying both routes.
