@@ -134,8 +134,9 @@ same way after the owner's `R2b` session.
 
 ### F3.1 Retire ruled-out features, frontend part
 
-**Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220.
+**Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
+(ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
@@ -460,7 +461,7 @@ PR (UR-48).
 
 ### [r134] F-135: retire the batch-history views
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7145 (open).
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7145.
 (rulings 134, 150)
 
 - [x] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
@@ -537,7 +538,7 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 ### [r211f] F-048: a search result opens what was clicked
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
-for the spec's legs. **PR:** #7210 (open). (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
+for the spec's legs. **PR:** #7210, #7225. (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
 - [x] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
       #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1191` requires search
@@ -561,26 +562,33 @@ for the spec's legs. **PR:** #7210 (open). (rulings 211, 221, 233; records 62003
       Witness: the file has zero `test.fixme(` calls at this head (it had 2 at `4cefe81e4`, at
       `:474` and `:535`), and both legs that carried them ran green in the same run, at reporter
       positions `:472:3` (5.4s) and `:520:3` (861ms).
-- [ ] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
-      `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:530` in this PR or
+- [x] **F-045 (ruling 233):** the same lookup serves a live-activity click, so remove the
+      `test.fixme` at `frontend/tests/golden/timeline/live-socket-arrival.spec.ts:598` in this PR or
       one right after it. F-045 flips to **awaiting real tier** on the run where that leg and the
-      row's other legs pass. **Half done here, and the other half cannot be done here.** The mark is
-      gone at this head — the leg is `test.skip` now, because `fixme` publishes "this would fail"
-      and this head refutes that (the modal opens on a socket-only click; `Expected: 0, Received: 1`
-      at job 117083054790). The leg still does not _pass_ in this file: its drop re-sends bytes
-      `dropAndAwaitCard` already sent, which the 300 s content-hash window swallows
-      (`backend/services/file_watcher.py:871-873`), so it reports skipped. That is the supply ruling
-      233 assigns to the follow-up PR titled `[r211f]`; the box ticks and the row flips there.
+      row's other legs pass. **Both halves land here.** The mark is gone and the leg is un-skipped —
+      a running `test(...)` at spec `:598`, not `test.skip` — because `fixme` publishes "this would
+      fail" and this head refutes that (the modal opens on a socket-only click;
+      `Expected: 0, Received: 1` at job 117083054790). What kept the leg from passing was supply,
+      not behaviour: its drop re-sent bytes `dropAndAwaitCard` had already sent, which the 300 s
+      content-hash window swallows (`backend/services/file_watcher.py:871-873`). The supply ruling
+      233 assigns to a PR titled `[r211f]` is this PR: the leg now re-drops the same bytes after
+      the window lapses (`live-socket-arrival.spec.ts:375`, after `SUPPLY_TTL_WAIT_MS`). The run the
+      box was waiting on is `38966718386` (attempt 1, `head_sha` proven `dabd3dd34`): its
+      `Feature check (fake AI)` job 117196287379 read all three `F-045` legs `passed` in
+      `summary.json`, and the inventory witness re-run over that summary prints
+      `F-045 (half-built): 3 leg(s) mapped (3 passed); not judged` — the row was unjudged only
+      because of its own cell. This commit flips the cell, so the next head's run judges it
+      (ruling 218); the text pasted into the row is `paste_text()` output, not hand-written prose.
 
 **Done when:** all 8 legs pass in `Feature check (fake AI)` at a ready head, and F-048 flips to
-**awaiting real tier** on that run (rulings 103, 114); and F-045 flips the same way once its `:530`
+**awaiting real tier** on that run (rulings 103, 114); and F-045 flips the same way once its `:598`
 leg passes (ruling 233). If #7210 merges first, F-045's leg lands in a follow-up PR with `[r211f]`
 in its title, and the package is not done until it does.
 
 ### [r234] F-052: the export modal's dates reach the export
 
 **Flags:** none. **Assigned:** heavy-a, now, ahead of `B2.3` (fix now; ruling 234). **Depends on:**
-none. **PR:** none yet. (ruling 234, record 6216216005)
+none. **PR:** #7213. (ruling 234, record 6216216005)
 
 ExportModal uses `useDateRangeState({ persistToUrl: false })`
 (`frontend/src/components/exports/ExportModal.tsx:59`). In that mode the hook reads its range only
@@ -601,7 +609,7 @@ among them, pass (rulings 103, 114).
 ### [r238] F-057: the saved note reads back
 
 **Flags:** none. **Assigned:** heavy-a, after `[r234]`, ahead of `B2.3` (ruling 238). **Depends
-on:** none. **PR:** none yet. (rulings 149, 238; record 6216702824)
+on:** none. **PR:** #7219. (rulings 149, 238; record 6216702824)
 
 `[r149d]` (#7070) made `list_events` return `notes` (`backend/api/routes/events.py:543`), but its
 second box, the golden read-back leg, never had a roster slot, so F-057 stays **half-built** with
@@ -714,7 +722,7 @@ into the favicon's alert count (`unhealthy` 3, `degraded` 1).
 ### [r168] The fast-path switch
 
 **Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s
-`fast_path_enabled` field merged. **PR:** #7174 (open). (ruling 168)
+`fast_path_enabled` field merged. **PR:** #7174. (ruling 168)
 
 - [ ] The processing settings show a "Fast path" switch bound to `fast_path_enabled`, off by default,
       with `config.py`'s warning as its help text; the threshold slider shows only when it is on.

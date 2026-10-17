@@ -80,10 +80,11 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 
 ### B3.1 Retire ruled-out features, backend part
 
-**Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
+**Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
+(ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -95,7 +96,7 @@ one PR with `F3.1`.
 - [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
       record 6198942052), not as a hand-run DROP runbook. Until it lands, take the retirements
       that drop no table; one that drops a table waits for it (ruling 241).
-- [ ] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
+- [x] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
       `search_similar_entities`): route, handler, tests and both its `docs/developer/api/coverage.md`
       lines (`:692`, `:856`). It has no client and no guide; Phase 4's design sessions may bring
       re-ID search back (ruling 236).
@@ -279,7 +280,7 @@ already scoped is left alone; and the docs line is updated (ruling 94).
 ### [r95] Close both monitoring-key gaps (S1, S4)
 
 **Flags:** owner tier (security and auth), pre-approved by ruling 95 (UR-101); ops-b reviews.
-**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** #7135 (open).
+**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** #7135.
 
 - [x] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
       `verify_api_key` copies (`backend/api/routes/dlq.py`, `backend/api/routes/system.py`;
@@ -410,7 +411,7 @@ head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green
 ### [r228] One cache key shape
 
 **Flags:** none. **Assigned:** backend, first on its queue, ahead of `[r223]` (a lane bug fix
-outside Phase 4's priority order). **Depends on:** none. **PR:** none yet. (ruling 228, record 6215814018)
+outside Phase 4's priority order). **Depends on:** none. **PR:** #7215. (ruling 228, record 6215814018)
 
 `[r223]`'s MEASURE (`6208408388`) found the invalidators miss the keys their routes store.
 `CacheKeys` (`backend/services/cache_service.py:730`) builds keys that already carry the global
@@ -434,7 +435,7 @@ invalidator deleting its route's stored key.
 ### [r223] The developer tools' seed and clear refresh the caches they change
 
 **Flags:** none. **Assigned:** backend, after `[r228]` (a lane bug fix outside Phase 4's priority
-order). **Depends on:** `[r228]` merged. **PR:** none yet. (rulings 223, 228; records 6205796977, 6215814018)
+order). **Depends on:** `[r228]` merged. **PR:** #7201. (rulings 223, 228; records 6205796977, 6215814018)
 
 `seed_cameras` (`backend/api/routes/admin.py:299`) and `clear_seeded_data` (`:671`) commit without
 invalidating the camera list cache, which every camera route does
@@ -452,6 +453,30 @@ caches for 60 s (`cameras.py:261`), so F-197's toast names cameras the list does
 
 **Done when:** the unit tests pass in CI at a ready head, and the PR's list names every cached read
 the three handlers change, each invalidated.
+
+### [r244] The monitoring key gets no recommendation prose
+
+**Flags:** `owner` (security and auth). **Assigned:** `uplevel-backend`, after `[r223]`. #7157
+becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 3 put on it ends.
+**Depends on:** none. **PR:** none yet. (ruling 244, record 6222984876)
+
+`GET /api/ai-audit/recommendations` is in the monitoring scope (`backend/core/constants.py`,
+`MONITORING_SCOPE_PATHS`), and each item's `suggestion` is the LLM's free-text advice
+(`backend/api/schemas/ai_audit.py`, `RecommendationItem`). Ruling 95 admits to a monitoring-scoped
+key only the fields its consumer reads, and Grafana's panel shows `$.recommendations[*].suggestion`
+through that key (`monitoring/grafana/dashboards/consolidated.json:5934`).
+
+- [ ] A monitoring-scoped key gets `suggestion: null`, through the `scoped_key_ceiling` posture
+      #7135 takes. A session cookie and an unscoped key still get the prose.
+- [ ] `RecommendationItem.suggestion` becomes `str | None` in the same commit, and
+      `docs/openapi.json` and `frontend/src/types/generated/api.ts` are regenerated in it.
+- [ ] The panel labels its rows by `category` and `priority`, not by `suggestion`
+      (`consolidated.json:5934`), as a cross-lane part (UR-9) that ops reviews.
+- [ ] Tests: the clamp is red on the unclamped handler, a leg is red if the schema flip is omitted,
+      and both postures are checked (the monitoring key nulled; a cookie and an unscoped key get
+      the prose).
+
+**Done when:** the tests pass in CI, and the panel's query no longer reads `suggestion`.
 
 ### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
 

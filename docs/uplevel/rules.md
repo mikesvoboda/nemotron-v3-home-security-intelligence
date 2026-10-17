@@ -38,6 +38,12 @@ give work a number.
   table, so leave the other rows' padding alone. The table on `main` changes only when a PR merges.
   (README "Lanes and ownership", "Status"; the deleted 50-coordination.md "Hot files", "Claiming a
   package")
+- **UR-183** A package PR writes its own number into its block's `**PR:**` field, in its own diff:
+  `#N`, or `#N, #M` for a package with several PRs, and no state word. The field reaches `main` only
+  when that PR merges, so a number there names a merged PR; GitHub says whether a PR is open, merged
+  or closed. No one writes `(open)`, `(merged)`, or a merge time or sha into a `**PR:**` field, and
+  no PR is opened only to update one. `[r248]` adds the CI check. (ruling 248; roles/lane.md
+  "Claiming a package")
 - **UR-47** A PR needs the owner for `docs/uplevel/` edits only if they change a ruling, the
   contract, the phases or exit gates, or a package's scope, Done when, dependencies or flags.
   Everything else there (status rows, `file:line` references, moves or artifacts a package's own
@@ -238,11 +244,28 @@ Read this section before you self-review your own PR or review another lane's.
 - **UR-89** Once a PR is ready and its CI at that head has finished, the author dispatches a
   fresh-context subagent given only the package text, the diff and the PR body, to check each
   Done-when clause against the evidence (CI-only clauses from that run, ruling 161), the contract,
-  the cross-lane parts and the hot-file rules. The author fixes or answers each finding and posts
-  the review on the PR; it is the PR's one review (UR-32, ruling 198). (roles/lane.md "Building a
-  package", "Reviewing your PR")
+  the cross-lane parts and the hot-file rules. It marks each finding `blocking (<kind>)` or `note`
+  (ruling 250). The blocking kinds are **done-when** (a Done-when clause not observed, or its
+  evidence contradicts it), **test** (a missing test for behaviour the PR adds, or a failing test),
+  **defect** (the change does something wrong that a user, an operator or CI would see),
+  **contract** (a breach of rules 1-5 of the review form, or of a hot-file rule), **security**
+  (anything UR-95 or UR-96 would raise) and **plan-text** (a false statement in plan text the PR
+  changes). Everything else is a `note`: wording, prose precision, docstrings and comments,
+  line-number cites, naming, style the linters accept, and extra tests beyond Done-when.
+  - At the first review the author may fix anything. From the second on, only blocking findings
+    change the head. Notes go under `Notes:` in the approving review, which may carry any number of
+    them; the author may fold one into a later PR of its own that touches the same file, and opens
+    no PR only for notes.
+  - A re-review reads the diff from the last reviewed head (its sha goes to the subagent) plus the
+    merge resolution with `main`, with the Done-when evidence. A blocking finding anywhere in the PR
+    still blocks; a note on hunks an earlier round reviewed is not raised again. A head whose diff
+    carries (UR-106) keeps its review.
+  - A wrong claim in the PR body is fixed by editing the body, with no commit.
+  - The author posts the review on the PR; it is the PR's one review (UR-32, rulings 198, 250).
+    (roles/lane.md "Building a package", "Reviewing your PR")
 - **UR-91** The author posts the review as a PR comment in the form `roles/lane.md` gives (the
-  owner's account cannot approve its own PRs). Each new head's merge resolution is reviewed again. A PR may merge with a Done-when box
+  owner's account cannot approve its own PRs). Each new head is reviewed again as UR-89 says, unless
+  its diff carries (UR-106). A PR may merge with a Done-when box
   unticked only when the approving review names the box, says why this PR cannot tick it (it
   depends on another PR or a later run, or it is stale) and, if the clause still matters, where it
   will be checked; otherwise every box is ticked. (roles/lane.md "Reviewing your PR";
@@ -285,7 +308,24 @@ and the re-read and merge comment are UR-29.
   - risk acceptance (dismissing an alert or a finding);
   - production safety;
   - privileged host tooling (the launcher and anything run with host privileges);
-  - destructive work;
+  - destructive work, except a plain `B3.1`/`F3.1` retirement (ruling 249). A plain retirement:
+    - removes only what a "retire" ruling lists (its inventory row's modules, or the OD's ruling):
+      routes, schemas, services, settings, alert conditions, tests and doc lines. Settings may go,
+      since `backend/core/config.py` ignores unknown keys;
+    - makes only mechanical follow-on edits: imports, router registrations, the regenerated
+      `docs/openapi.json` and `frontend/src/types/generated/api.ts`, and its own plan bookkeeping
+      of UR-47's lane-review kinds;
+    - drops no table and adds no upgrade step;
+    - touches nothing under `backend/api/middleware/`, and no file under `backend/` or
+      `frontend/src/` with `auth`, `security`, `api_key`, `secret` or `permission` in its path;
+    - touches no compose, deploy or setup file (`docker-compose*.yml`, `setup.py`, `setup_lib/`,
+      `ai/`) and nothing under `.github/`;
+    - lets no baseline or limit gain an entry or rise; an entry may be removed or its line number
+      move, as in `.secrets.baseline`;
+    - has no "Questions for the owner" entry;
+    - is checked against each condition by the author's UR-89 review, which names them; carries no
+      `owner` label; and has an "Owner tier" line reading `no: plain retirement (ruling 249)`. A
+      retirement that misses a condition keeps `owner` and names that condition in the same line;
   - plan text, as UR-47 defines it;
   - any PR with an entry under "Questions for the owner".
 - **UR-99** Once the owner answers a PR's "Questions for the owner" and they leave its body, they no
@@ -299,8 +339,8 @@ and the re-read and merge comment are UR-29.
   pre-approves the follow-up it specifies: the coordinator merges it without the owner when the lane
   review states the diff does that and nothing more and `CI Gate` is green at its head; if the
   reviewer cannot state that, the PR comes to the owner. Never pre-approved: destructive work
-  (`B3.1`, `F3.1`, `B3.2`), security or auth or plan text beyond the ruling, or a PR with owner
-  questions. (ruling 84)
+  (`B3.1` and `F3.1` other than UR-98's plain retirements, `B3.2`), security or auth or plan text
+  beyond the ruling, or a PR with owner questions. (rulings 84, 249)
 - **UR-102** `main` requires `CI Gate (Required Checks)` but not "branches up to date". The
   coordinator merges one PR at a time, and its merge pass continues past a roll to the next ready
   PR. A lane PR on auto-merge (UR-108) merges when its gate passes, without these legs; while
@@ -577,14 +617,16 @@ Read this section before you post any comment, review, heartbeat, status comment
 - **UR-157** Agents read GitHub only when their prompt sends them there: put what an agent must act
   on where it looks, a comment on that agent's own open PR. (coordinator kickoff prompt; UR-35;
   ruling 198)
-- **UR-36** Every agent runs on a `/loop` tick that checks GitHub — coordinator 30 minutes (ruling
-  239), lanes and heavy 15, operator 30 (`roles/coordinator.md`, `roles/lane.md` and `roles/operator.md`, "The
-  tick"). GitHub stays the only channel between agents; the owner re-arms ticks weekly and after a
-  restart. Before arming a tick, list the agent's scheduled tasks and arm a new one only if none is
-  listed, so ticks never run twice; a recurring `/loop` expires after seven days and a restart,
-  resume or `/clear` drops it. Once `[r193]` lands, the Claude Code lane agents also keep its
-  watcher armed, and their tick becomes a 30-minute fallback (ruling 193). (UR-36; the deleted
-  50-coordination.md "Keeping ticks alive")
+- **UR-36** One wake schedule for every agent (`roles/coordinator.md`, `roles/lane.md` and
+  `roles/operator.md`, "The tick"): the Claude Code lanes (backend, frontend, ops-a, ops-b, docs)
+  keep `[r193]`'s watcher armed, re-armed at the end of every turn, and run a **30-minute** `/loop`
+  beside it as a fallback; heavy agents under pi run a **15-minute** `/loop` and arm nothing; the
+  operator and the coordinator run **30** (ruling 239). GitHub stays the only channel between
+  agents; the owner re-arms ticks weekly and after a restart. Before arming a tick, list the
+  agent's scheduled tasks and arm a new one only if none is listed, so ticks never run twice; a
+  recurring `/loop` expires after seven days and a restart, resume or `/clear` drops it.
+  (ruling 245, which replaces this rule's "lanes and heavy 15" line and keeps the coordinator's 30
+  from ruling 239; UR-36; the deleted 50-coordination.md "Keeping ticks alive")
 - **UR-38** No agent waits inside a turn on CI, a check run, a watcher or a sleep: it reads once,
   reports and ends the turn. Each tick edits its own heartbeat on the pinned "Uplevel heartbeats"
   issue; a stalled agent goes to the owner on the urgent path (`roles/lane.md`, "The tick").
@@ -599,13 +641,16 @@ Read this section before you post any comment, review, heartbeat, status comment
     if missing. The coordinator's heartbeat is at most 600 characters (state, `read-through:`
     cursor, acts as PR numbers, `NEXT:`), with detail on the PR it concerns, and it beats at the
     start of each tick (`tick started · cursor <t>`) as well as at the end. (rulings 77, 85, 156)
-  - **Stalled.** An agent is stalled when its heartbeat is older than three of its intervals (45
-    minutes for lane and heavy agents, 90 for the operator) and it has pushed no commit and posted
-    no comment since. The coordinator raises the urgent path for it, naming the agent and its open
-    PRs. A comment counts when it is signed by the agent (`Reviewer lane: <lane>`, or its lane
-    or sandbox name in the first line), on any PR or issue. Before a step it expects to run over 15
-    minutes, an agent beats `working #<n> · <step> since <HH:MMZ>` (`roles/lane.md`, "Before a long
-    step"). (ruling 64, 178; roles/coordinator.md "The urgent path")
+  - **Stalled.** An agent is stalled when its heartbeat is older than three of its intervals, so
+    the figure follows UR-36's schedule rather than being set here: 90 minutes for a lane on the
+    30-minute fallback, 45 for a heavy agent on 15, and 90 for the operator and the coordinator.
+    Until `[r193]` merges its watcher, a lane is still on 15 and stays at 45. An agent is not
+    stalled unless it has also pushed no commit and posted no comment since. The coordinator
+    raises the urgent path for it, naming the agent and its open PRs. A comment counts when it is
+    signed by the agent (`Reviewer lane: <lane>`, or its lane or sandbox name in the first line),
+    on any PR or issue. Before a step it expects to run over 15 minutes, an agent beats
+    `working #<n> · <step> since <HH:MMZ>` (`roles/lane.md`, "Before a long step").
+    (ruling 64, 178; roles/coordinator.md "The urgent path")
 - **UR-160** A heavy agent whose queue is empty posts a final heartbeat
   `paused · queue empty (ruling 88)` and ends its turn, and the owner stops its loop. When the owner
   stops an agent, the owner's session may write its `paused` heartbeat. An agent whose heartbeat

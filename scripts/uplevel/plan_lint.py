@@ -13,17 +13,24 @@ default this checkout) with lane_tick's own parsers -- imported, never re-implem
 cannot disagree about a field -- and fails when:
 
 1. a roster queue token (as ``queue_entries`` reads the row) has no ``### `` block in that lane's
-   package file -- ``next_claimable`` skips such a token silently, so the slot is never offered;
+   package file -- ``next_claimable`` skips such a token silently, so the slot is never offered.
+   A row whose lane has no package file (heavy-a, the operator) is offered nothing by the digest;
+   its tokens are assigned by the coordinator (UR-59) or run (UR-15) from blocks in any lane's
+   file, so they are looked up across every package file (ruling 242);
 2. a block's ``**PR:**`` field (as ``PKG_FIELD`` captures it) is neither ``none yet`` on one line
    (what ``next_claimable`` offers) nor a LEADING ``#N`` (what ``held_claims`` holds), or carries a
    ``none`` that ``NONE_YET`` does not read -- the wrapped ``none`` / ``yet.`` case, even when a
    later ``(issue #7102)`` would otherwise read as a held PR number;
-3. one token is on two lanes' queues -- both agents would be offered the same claim;
+3. one token is on two lanes' queues -- both agents would be offered (or assigned) the same claim.
+   The operator's row is not a claim queue: it names real-tier RUNS of other lanes' packages
+   (UR-15, ruling 188), so it is the one row this check does not count;
 4. a numbered-rulings row of the ruling map names no 10-digit record id, other than the rows that
    predate record ids (1-145 and 147).
 
-Rows whose review label is ``none`` (coordinator, heavy-a, heavy-b, operator) are skipped, as the
-digest gives them no package file to claim from.
+Every roster row is checked, whatever its review label. Until ruling 242 a ``none`` label skipped
+the row, standing in for "no package file to claim from"; ruling 198 then set every row's label to
+``none``, and checks 1 and 3 silently checked nothing. The lanes with no package file are now named
+(``UNPACKAGED``).
 
 ``--baseline REF`` reads the same files at a git ref (``git show REF:<path>``) and fails only on
 findings that ref lacks -- CI passes the PR merge commit's first parent (the ``main`` it merged
@@ -78,6 +85,18 @@ PKGS_DIR = PKGS_PATH.rpartition("/")[0]
 # its HOME file (a vanished F2.3 block still fails), and it is the one token allowed on several
 # queues. A new shared package is a ruling, and a line here.
 SHARED = {"F2.3": "frontend"}
+
+# The lanes whose roster row lists real-tier RUNS of other lanes' packages, not claims (UR-15; the
+# operator runs `O2.5` that ops-a builds, ruling 188). Check 3 does not count these rows; check 1
+# still does, so a run of a package that has no block anywhere is a finding.
+RUNS = frozenset({"operator"})
+
+# The lanes with no package file of their own -- lane_tick's ``packages`` docstring: "the roster's
+# coordinator, heavy-a, heavy-b and operator rows have work that is never packaged". Named, not
+# inferred from which files exist, so a deleted ``docs.md`` stays an unreadable-file finding and a
+# new lane cannot join this set by having no file. Until ruling 242 a ``none`` review label stood
+# in for this set; ruling 198 made every label ``none``.
+UNPACKAGED = frozenset({"coordinator", "heavy", "operator"})
 
 # A held field LEADS with its PR number. `held_claims` reads the first `#N` anywhere, so a wrapped
 # `**PR:** none` / `yet. (ruling 172; issue #7102)` reads to it as held by #7102 -- an issue.
@@ -208,30 +227,43 @@ def lint(src: Disk | Ref) -> tuple[list[Finding], str]:
     """``(findings, what was read)`` for the plan files of ``src``. Read-only."""
     findings: list[Finding] = []
 
+    texts: dict[str, str | None] = {}
+
     def read(rel: str) -> str | None:
-        try:
-            return src.read(rel)
-        except (OSError, snap.CommandError) as exc:
-            findings.append(Finding(rel, 1, f"unreadable: {getattr(exc, 'strerror', None) or exc}"))  # fmt: skip
-            return None
+        # Once per file: a package file is read for its lane's row, for the cross-file lookup and
+        # for check 2, and an unreadable one is one finding, not three.
+        if rel not in texts:
+            try:
+                texts[rel] = src.read(rel)
+            except (OSError, snap.CommandError) as exc:
+                findings.append(Finding(rel, 1, f"unreadable: {getattr(exc, 'strerror', None) or exc}"))  # fmt: skip
+                texts[rel] = None
+        return texts[rel]
 
     rows = roster_rows(read(ROSTER_PATH) or "")
     if not rows:
         findings.append(Finding(ROSTER_PATH, 1, "no roster row read (lane_tick's ROW matches none)"))  # fmt: skip
-    files: dict[str, str | None] = {}
+    try:
+        pkg_files = src.packages()
+    except (OSError, snap.CommandError) as exc:
+        findings.append(Finding(PKGS_DIR, 1, f"unlisted: {exc}"))
+        pkg_files = []
 
     def package(lane: str) -> str | None:
-        if lane not in files:
-            files[lane] = read(PKGS_PATH.format(lane))
-        return files[lane]
+        return read(PKGS_PATH.format(lane))  # read() reads each file once
 
+    # Every block in every package file: what a row with no file of its own is looked up in.
+    anywhere = {b[0] for rel in pkg_files for b in blocks(read(rel) or "")}
     first: dict[str, dict] = {}
     for row in rows:
-        if row["label"] == "none":
-            continue  # no review queue and no package file to claim from (lane_tick's NOTE arm)
         own = PKGS_PATH.format(row["lane"])
-        text = package(row["lane"])
-        tokens = {b[0] for b in blocks(text or "")}
+        if row["lane"] not in UNPACKAGED:
+            # The digest reads ONLY this file (lane_tick's packages(lane)), so only it counts.
+            text, where = package(row["lane"]), own
+            tokens = {b[0] for b in blocks(text or "")}
+        else:
+            # No file of its own: never offered by a digest, assigned (UR-59) or run (UR-15).
+            text, where, tokens = "", f"{PKGS_DIR}/*.md", anywhere
         at = (ROSTER_PATH, row["line"])
         for token in dict.fromkeys(row["queue"]):  # a token twice in ONE queue is one slot
             home = SHARED.get(token)
@@ -240,7 +272,9 @@ def lint(src: Disk | Ref) -> tuple[list[Finding], str]:
                     findings.append(Finding(*at, f"{row['name']} queue token {token} is shared (rulings 87, 175) but {PKGS_PATH.format(home)} has no block for it"))  # fmt: skip
                 continue
             if text is not None and token not in tokens:
-                findings.append(Finding(*at, f"{row['name']} queue token {token} has no package block in {own}"))  # fmt: skip
+                findings.append(Finding(*at, f"{row['name']} queue token {token} has no package block in {where}"))  # fmt: skip
+            if row["lane"] in RUNS:
+                continue  # a run of another lane's package, not a claim on it
             if token in first:
                 # No line number in the MESSAGE: the baseline matches findings by message, and the
                 # location already carries this row's line.
@@ -248,11 +282,6 @@ def lint(src: Disk | Ref) -> tuple[list[Finding], str]:
             else:
                 first[token] = row
 
-    try:
-        pkg_files = src.packages()
-    except (OSError, snap.CommandError) as exc:
-        findings.append(Finding(PKGS_DIR, 1, f"unlisted: {exc}"))
-        pkg_files = []
     n_blocks = 0
     for rel in pkg_files:
         text = read(rel)
