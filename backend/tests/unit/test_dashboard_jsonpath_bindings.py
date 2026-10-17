@@ -11,6 +11,12 @@ too. The cure is to re-anchor BOTH legs under the wrapper field
 (`$.recommendations[*].suggestion` / `$.recommendations[*].frequency`), which is the
 shape the working panels in the same files already use.
 
+[r244] then took one of those two repaired legs OFF the panel. `suggestion` is
+the LLM's free-text advice, and ruling 95's field ceiling now nulls it for the
+monitoring key -- the key this panel's datasource presents -- so the leg would
+have bound a null on every refresh. Rows label by `category` + `priority` now;
+`FIXED_LEGS` below carries the why and the ratchet.
+
 This is the offline counterpart to `backend/tests/integration/test_dashboard_queries.py`,
 which validates that PromQL legs name metrics that exist (its docstring: "Typos in
 metric names ... Dashboard queries that would fail in production"). That check needs a
@@ -157,10 +163,20 @@ KNOWN_BROKEN: set[tuple[str, str, str]] = {
 }
 
 RECOMMENDATIONS_URL = "/api/ai-audit/recommendations"
-# The exact legs this PR repairs, asserted by name (ids repeat across panels in the
+# The exact legs the panel must carry, asserted by name (ids repeat across panels in the
 # same dashboard, so the key is (file, url, jsonPath), never the panel id).
+#
+# [r244] replaced the first leg. Ruling 95's field ceiling now nulls
+# `suggestion` for the monitoring key (routes/ai_audit.py, `key_ceiling`), and
+# this datasource presents that key, so a leg reading it would render a blank
+# row — the same silent-empty-panel failure this file exists to catch, arriving
+# from the opposite direction: not a leg that never bound, a leg that bound
+# until the grant was narrowed. The panel labels by `category` and `priority`
+# instead, the two item fields the grant still serves. Set equality is what
+# keeps it that way: a re-added `$.recommendations[*].suggestion` fails here.
 FIXED_LEGS: set[str] = {
-    "$.recommendations[*].suggestion",
+    "$.recommendations[*].category",
+    "$.recommendations[*].priority",
     "$.recommendations[*].frequency",
 }
 
@@ -174,15 +190,60 @@ def _recommendation_legs() -> list[str]:
     return legs
 
 
-class TestRecommendationPanelRepaired:
-    """The routed one-liner's actual cure: BOTH panel-277 legs re-anchored."""
+def _recommendation_panels() -> list[dict]:
+    """Every panel whose JSON datasource reads the recommendations endpoint.
 
-    def test_recommendations_panel_legs_are_the_two_repaired_paths(self) -> None:
+    Located by urlPath, never by panel id: ids 272-277 and 313 and 354 each appear
+    twice in `consolidated.json` (measured), so an id-keyed lookup would silently
+    read the wrong panel -- the same trap that makes (file, url, jsonPath) the key
+    for `FIXED_LEGS` instead of an id.
+    """
+    doc = json.loads((DASHBOARDS_DIR / "consolidated.json").read_text())
+    found: list[dict] = []
+
+    def walk(panels: list[dict]) -> None:
+        for panel in panels:
+            if panel.get("type") == "row":
+                walk(panel.get("panels", []) or [])
+                continue
+            urls = [
+                (t.get("urlPath") or t.get("url") or "").split("?")[0]
+                for t in panel.get("targets", []) or []
+            ]
+            if RECOMMENDATIONS_URL in urls:
+                found.append(panel)
+
+    walk(doc.get("panels", []) or [])
+    return found
+
+
+class TestRecommendationPanelRepaired:
+    """The routed one-liner's cure (BOTH legs re-anchored), then [r244]'s relabel."""
+
+    def test_recommendations_panel_legs_are_the_exact_relabelled_set(self) -> None:
         # exact, not "contains": an un-repaired `$[*].recommendation` or a leg added
         # by guesswork both fail here. This is the regression pin for the fix.
         assert set(_recommendation_legs()) == FIXED_LEGS
         assert "$[*].recommendation" not in _recommendation_legs()
         assert "$[*].frequency" not in _recommendation_legs()
+
+    def test_two_string_legs_are_visible_in_the_tooltip(self) -> None:
+        # Ruling 244 says rows label by category AND priority. A barchart renders one
+        # string field as the axis and shows the rest only in the tooltip, so with
+        # `mode: "single"` the second label is reachable one field at a time on hover --
+        # technically present, practically invisible. `mode: "all"` is what makes the
+        # sentence true on screen. Pinned because the panel would stay green under
+        # `_broken_legs` either way: this is a rendering property no JSONPath check
+        # can see, so it needs its own leg.
+        panels = _recommendation_panels()
+        assert len(panels) == 1, f"expected one panel on {RECOMMENDATIONS_URL}, got {len(panels)}"
+        fields = panels[0]["targets"][0]["fields"]
+        string_legs = [f["jsonPath"] for f in fields if f.get("type") == "string"]
+        # The precondition that makes the tooltip matter: TWO string labels. With one
+        # string field the axis shows everything and `mode` is decorative -- an
+        # assertion that cannot be false is the one this file exists to reject.
+        assert len(string_legs) == 2, string_legs
+        assert panels[0]["options"]["tooltip"]["mode"] == "all"
 
     def test_repaired_legs_bind_the_endpoint_wrapper_and_item(self) -> None:
         from backend.api.schemas.ai_audit import RecommendationItem, RecommendationsResponse

@@ -33339,8 +33339,15 @@
             "type": "string"
           },
           "suggestion": {
-            "title": "Suggestion",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestion"
           }
         },
         "required": [
@@ -44449,7 +44456,7 @@
     },
     "/api/ai-audit/recommendations": {
       "get": {
-        "description": "Get aggregated prompt improvement recommendations.\n\nAnalyzes all audits to produce actionable recommendations for\nimproving the AI pipeline prompt templates.\n\nArgs:\n    days: Number of days to analyze (1-90, default 7)\n    db: Database session\n\nReturns:\n    RecommendationsResponse with prioritized recommendations",
+        "description": "Get aggregated prompt improvement recommendations.\n\nAnalyzes all audits to produce actionable recommendations for\nimproving the AI pipeline prompt templates.\n\nArgs:\n    days: Number of days to analyze (1-90, default 7)\n    db: Database session\n    key_ceiling: whether the PRESENTED key carries a scope, so its\n        `suggestion` prose is clamped (see below)\n\nReturns:\n    RecommendationsResponse with prioritized recommendations, with\n    `suggestion` nulled for a scoped key.",
         "operationId": "ai-audit_get_recommendations",
         "parameters": [
           {

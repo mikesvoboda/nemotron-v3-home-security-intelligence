@@ -318,7 +318,7 @@ on:** queues behind `[r122]`. **PR:** #7031 (merged).
 F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_prompt` are
 `deferred()` (`backend/models/event.py:72-74`). `_export_table`
 (`backend/services/backup_service.py:336`) and the batch audit
-(`backend/api/routes/ai_audit.py:445`) read them inside an `AsyncSession`, which raises
+(`backend/api/routes/ai_audit.py:475`) read them inside an `AsyncSession`, which raises
 `MissingGreenlet`: every backup fails once any event exists, and the audit fails on every event.
 
 - [ ] Items (4) and (5) of the Done when touch `frontend/`: backend either takes frontend's review on
@@ -458,7 +458,7 @@ the three handlers change, each invalidated.
 
 **Flags:** `owner` (security and auth). **Assigned:** `uplevel-backend`, after `[r223]`. #7157
 becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 3 put on it ends.
-**Depends on:** none. **PR:** none yet. (ruling 244, record 6222984876)
+**Depends on:** none. **PR:** #7157. (ruling 244, record 6222984876)
 
 `GET /api/ai-audit/recommendations` is in the monitoring scope (`backend/core/constants.py`,
 `MONITORING_SCOPE_PATHS`), and each item's `suggestion` is the LLM's free-text advice
