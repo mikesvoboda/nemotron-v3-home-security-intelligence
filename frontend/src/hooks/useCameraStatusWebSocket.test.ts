@@ -31,9 +31,6 @@
  * The full hook is tested indirectly through:
  * - E2E tests (Playwright) that verify camera status updates in the UI
  * - Integration tests that test the WebSocket infrastructure
- *
- * See: useJobLogsWebSocket.test.ts for a similar hook that doesn't import from
- * websocket-events.ts and thus doesn't have this issue.
  */
 
 import { describe, it, expect } from 'vitest';

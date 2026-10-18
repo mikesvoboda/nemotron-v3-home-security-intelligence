@@ -294,26 +294,23 @@ For developers wanting to understand the underlying systems.
 
 **Frontend Components** (`frontend/src/components/jobs/`):
 
-| File                      | Purpose                                                  |
-| ------------------------- | -------------------------------------------------------- |
-| `JobsPage.tsx`            | Main page component with split-view layout               |
-| `JobsList.tsx`            | Scrollable list container for jobs                       |
-| `JobsListItem.tsx`        | Individual job card with status, type, progress          |
-| `JobDetailPanel.tsx`      | Right-side detail view with header, metadata, logs       |
-| `JobHeader.tsx`           | Job title, status badge, and progress bar                |
-| `JobMetadata.tsx`         | Timestamps (created, started, completed), duration, type |
-| `JobLogsViewer.tsx`       | Real-time log viewer with WebSocket streaming            |
-| `JobsSearchBar.tsx`       | Search input plus the status/type filter dropdowns       |
-| `JobsEmptyState.tsx`      | Empty state when no jobs exist                           |
-| `JobActions.tsx`          | Cancel/Abort/Retry/Delete action buttons                 |
-| `JobErrorModal.tsx`       | Error detail modal for failed jobs                       |
-| `ConfirmDialog.tsx`       | Confirmation modal for destructive actions               |
-| `ConnectionIndicator.tsx` | WebSocket connection status indicator                    |
-| `StatusDot.tsx`           | Colored status indicator dot                             |
-| `JobHistoryTimeline.tsx`  | Collapsible timeline of job state transitions            |
-| `TimelineEntry.tsx`       | Individual entry in the history timeline                 |
-| `LogLine.tsx`             | Individual log entry row                                 |
-| `index.ts`                | Component exports                                        |
+| File                     | Purpose                                                  |
+| ------------------------ | -------------------------------------------------------- |
+| `JobsPage.tsx`           | Main page component with split-view layout               |
+| `JobsList.tsx`           | Scrollable list container for jobs                       |
+| `JobsListItem.tsx`       | Individual job card with status, type, progress          |
+| `JobDetailPanel.tsx`     | Right-side detail view with header, metadata, logs       |
+| `JobHeader.tsx`          | Job title, status badge, and progress bar                |
+| `JobMetadata.tsx`        | Timestamps (created, started, completed), duration, type |
+| `JobsSearchBar.tsx`      | Search input plus the status/type filter dropdowns       |
+| `JobsEmptyState.tsx`     | Empty state when no jobs exist                           |
+| `JobActions.tsx`         | Cancel/Abort/Retry/Delete action buttons                 |
+| `JobErrorModal.tsx`      | Error detail modal for failed jobs                       |
+| `ConfirmDialog.tsx`      | Confirmation modal for destructive actions               |
+| `StatusDot.tsx`          | Colored status indicator dot                             |
+| `JobHistoryTimeline.tsx` | Collapsible timeline of job state transitions            |
+| `TimelineEntry.tsx`      | Individual entry in the history timeline                 |
+| `index.ts`               | Component exports                                        |
 
 **Backend Services** (`backend/services/`):
 
@@ -323,7 +320,6 @@ For developers wanting to understand the underlying systems.
 | `job_tracker.py`           | In-memory job tracking with Redis fallback  |
 | `job_history_service.py`   | Job execution history and audit trail       |
 | `job_search_service.py`    | Advanced job search with aggregations       |
-| `job_log_emitter.py`       | WebSocket log streaming                     |
 | `job_progress_reporter.py` | Progress update handling                    |
 | `job_status.py`            | Job status enum definitions                 |
 | `job_timeout_service.py`   | Job timeout handling                        |
