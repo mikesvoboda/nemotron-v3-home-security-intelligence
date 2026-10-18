@@ -887,10 +887,9 @@ the walker, its configs, or a row's `modules` column:
 candidates; the table below is the measured list.
 
 <!-- r2-python-dead-list:start -->
-
 Measured at tool-inputs `33b93b9e1b` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
 
-**157 non-shipping Python modules (61145 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
+**158 non-shipping Python modules (61284 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
 
 <!-- prettier-ignore -->
 | module | lane | lines | last meaningful commit | notes |
@@ -911,7 +910,7 @@ Measured at tool-inputs `33b93b9e1b` by `scripts/r2-python-dead-list.py` — the
 | `ai/gateway/export/export_depth.py` | ai | 302 | `8395fb640` 2026-02-11 | non-shipping |
 | `ai/gateway/export/export_fashion_clip.py` | ai | 746 | - | non-shipping |
 | `ai/gateway/export/export_pet.py` | ai | 257 | - | non-shipping |
-| `ai/gateway/export/export_reid.py` | ai | 1047 | `7b814c4ae` 2026-10-14 | non-shipping |
+| `ai/gateway/export/export_reid.py` | ai | 1047 | `be8627161` 2026-10-17 | non-shipping |
 | `ai/gateway/export/export_stgcn.py` | ai | 281 | `610882b47` 2026-09-22 | non-shipping |
 | `ai/gateway/export/export_vehicle.py` | ai | 276 | - | non-shipping |
 | `ai/gateway/export/export_yolo26.py` | ai | 551 | `54e927366` 2026-09-28 | non-shipping |
@@ -980,12 +979,13 @@ Measured at tool-inputs `33b93b9e1b` by `scripts/r2-python-dead-list.py` — the
 | `backend/core/write_only_collections.py` | backend | 263 | `4bd98d9da` 2026-01-23 | non-shipping |
 | `backend/examples/redis_example.py` | backend | 209 | `cf2a8fea6` 2026-01-03 | non-shipping |
 | `backend/jobs/timeout_checker_job.py` | backend | 223 | `fb452403d` 2026-01-13 | non-shipping |
+| `backend/migrations/__main__.py` | backend | 126 | `f94ca189a` 2026-10-17 | non-shipping |
 | `backend/repositories/alert_repository.py` | backend | 394 | `111c58177` 2026-01-18 | non-shipping |
 | `backend/repositories/camera_repository.py` | backend | 243 | `75d6aa356` 2026-01-26 | non-shipping |
 | `backend/repositories/detection_repository.py` | backend | 277 | `2c8f7d85a` 2026-09-28 | non-shipping |
 | `backend/repositories/zone_repository.py` | backend | 225 | `d5eb7b54c` 2026-01-18 | non-shipping |
 | `backend/scripts/benchmark_vram.py` | backend | 320 | `fb452403d` 2026-01-13 | non-shipping |
-| `backend/scripts/init_schema.py` | backend | 136 | `841887955` 2026-02-05 | non-shipping |
+| `backend/scripts/init_schema.py` | backend | 149 | `f94ca189a` 2026-10-17 | non-shipping |
 | `backend/services/ai_fallback.py` | backend | 653 | `c9389a190` 2026-02-02 | non-shipping |
 | `backend/services/ai_quality_metrics.py` | backend | 535 | `86e54eb6a` 2026-01-30 | non-shipping |
 | `backend/services/alert_dedup.py` | backend | 363 | `6d896e11a` 2026-01-06 | non-shipping |
@@ -1064,7 +1064,6 @@ Measured at tool-inputs `33b93b9e1b` by `scripts/r2-python-dead-list.py` — the
 | `backend/services/mqtt_command_handler.py` | 531 | F-291 |
 | `backend/services/scene_change_detector.py` | 325 | F-208/F-287 |
 | `backend/services/unified_embedding_service.py` | 575 | F-272 |
-
 <!-- r2-python-dead-list:end -->
 
 ## 5. Client requests no feature reaches
