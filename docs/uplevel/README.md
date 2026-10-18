@@ -219,7 +219,7 @@ UR-147.
 | W3.1    | docs                    | 3          | Boundaries only                                |               | not started |     |
 | W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
 | W3.3    | docs                    | 3          | Living docs truth                              |               | not started |     |
-| W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | not started |     |
+| W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | done        | #7250 |
 
 ## Files
 
