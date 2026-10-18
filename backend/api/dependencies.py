@@ -944,16 +944,17 @@ def get_video_processor_dep() -> VideoProcessor:
     return VideoProcessor()
 
 
-async def get_nemotron_analyzer_dep(
+async def get_vlm_analyzer_dep(
     redis: RedisClient = Depends(get_redis),
 ) -> AsyncGenerator[VlmAnalyzer]:
     """FastAPI dependency for the per-event analyzer (NEM-2032, 1.5).
 
-    Built through the pipeline factory. R8 S2 retired the legacy class the
-    dep name spells: what arrives is the shipped VlmAnalyzer, whose
-    streaming surface answers the same update vocabulary this route
-    serializes. The NAME stays - the route surface is unchanged, and the
-    string is wiring, not a claim about a class.
+    Built through the pipeline factory. R8 S2 retired the legacy
+    brand-named analyzer class this dep used to spell; B3.3 renamed the dep
+    to match what it has returned ever since - the shipped VlmAnalyzer,
+    whose streaming surface answers the same update vocabulary this route
+    serializes. The route surface is unchanged: the name is wiring, not a
+    claim about a class.
     """
     from backend.services.pipeline_factory import build_pipeline_analyzer
 
@@ -1411,7 +1412,7 @@ ThumbnailGeneratorDep = Annotated["ThumbnailGenerator", Depends(get_thumbnail_ge
 VideoProcessorDep = Annotated["VideoProcessor", Depends(get_video_processor_dep)]
 
 #: Per-event analyzer dependency (the shipped mode's VlmAnalyzer).
-NemotronAnalyzerDep = Annotated["VlmAnalyzer", Depends(get_nemotron_analyzer_dep)]
+VlmAnalyzerDep = Annotated["VlmAnalyzer", Depends(get_vlm_analyzer_dep)]
 
 #: Job tracker dependency for async job management.
 JobTrackerDep = Annotated["JobTracker", Depends(get_job_tracker_dep)]

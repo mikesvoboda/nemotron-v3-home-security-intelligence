@@ -35,12 +35,19 @@ As endpoints are deprecated, add their migration guides here.
 
 ### Schema migrations
 
-| File                                               | What it changes                                           |
-| -------------------------------------------------- | --------------------------------------------------------- |
-| `2026-09-26-face-vector-provenance-model-id.sql`   | Adds `model_id` provenance to face embedding vectors      |
-| `2026-09-26-person-vector-provenance-model-id.sql` | Adds `model_id` provenance to person embedding vectors    |
-| `2026-09-30-retire-demographics-reid-tables.sql`   | Drops the demographics and re-ID tables                   |
-| `NEM-5051-convert-alert-json-to-jsonb.sql`         | Converts `alerts` / `alert_rules` JSON columns to `jsonb` |
+| File                                               | What it changes                                                        |
+| -------------------------------------------------- | ---------------------------------------------------------------------- |
+| `2026-09-26-face-vector-provenance-model-id.sql`   | Adds `model_id` provenance to face embedding vectors                   |
+| `2026-09-26-person-vector-provenance-model-id.sql` | Adds `model_id` provenance to person embedding vectors                 |
+| `2026-09-30-retire-demographics-reid-tables.sql`   | Drops the demographics and re-ID tables                                |
+| `2026-10-18-add-unrecorded-model-columns.sql`      | Adds the 12 January-2026 model columns no upgrade ever recorded (B3.3) |
+| `NEM-5051-convert-alert-json-to-jsonb.sql`         | Converts `alerts` / `alert_rules` JSON columns to `jsonb`              |
+
+The first four rows are historical runbooks that are no longer applied by hand: `backend/migrations/`
+records which ones a database has had, and `init_db()` applies pending ones at startup (`python -m
+backend.migrations --status` shows a database's position). The fifth was authored under that runner
+and has never been hand-applied. The index above is in **filename** order; the apply order lives in
+`backend/migrations/registry.py` and is not the same — which is exactly why the registry exists.
 
 The `model_id` columns are what make the provenance rule enforceable: a row that never named
 its weights defaults to the `legacy-unknown-provenance` sentinel, and the specialists answer

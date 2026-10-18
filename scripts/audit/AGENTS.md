@@ -27,6 +27,14 @@ scripts/audit/
                           nowhere outside it (case-folded env spelling;
                           over-approximates READS, never orphans).
                                                             → B3.3
+  dead_symbols.py         exception classes and prometheus metrics with no
+                          reference outside their own definition (AST refs
+                          per file with import-origin resolution; test-class
+                          and app-model name collisions resolved, not
+                          guessed; monitoring/ is a second corpus — a
+                          dashboard query is a use. `unused` is a FLOOR:
+                          references union by name, so duplicates read
+                          live).        → B3.3
   env_dead_vars.py        .env.example variables read by neither config.py,
                           compose nor setup.py.         → O3.3
   battery_census.py       test_<module>_batchNN*.py files: lines, collected

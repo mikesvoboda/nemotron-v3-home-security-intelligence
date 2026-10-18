@@ -85,27 +85,42 @@ class TestPersonEmbeddingSchemaContract:
         assert "ADD COLUMN IF NOT EXISTS model_id VARCHAR(128) NOT NULL" in sql
         assert f"DEFAULT '{vp.LEGACY_MODEL_ID}'" in sql
 
-    def test_conftest_drift_repairs_carry_the_identical_default(self) -> None:
-        """create_all never adds a column to an EXISTING table, so each test
-        DB that predates the column gets an ALTER — and its DEFAULT must be
-        the model's sentinel spelled byte-identically (three conftest
-        sites, mirroring the face pair's)."""
-        expected = (
-            "ALTER TABLE person_embeddings ADD COLUMN IF NOT EXISTS "
-            "model_id VARCHAR(128) NOT NULL "
-            f"DEFAULT '{vp.LEGACY_MODEL_ID}'"
-        )
+    def test_no_conftest_adds_the_column_and_the_recorded_upgrade_does(self) -> None:
+        """The drift repair moved OUT of the test fixtures and INTO the
+        recorded upgrade, and this pins both halves of that move.
+
+        `create_all` never adds a column to an EXISTING table, so a test DB
+        that predates `model_id` needs SOMETHING to add it. Until B3.3 that
+        something was a hand-written ALTER in two conftests; B3.3 box 6
+        deleted those and the upgrade command at `init_db()` does the work
+        instead (upgrade 0003, recorded in `schema_migrations`). So:
+
+          * no conftest may add the column again -- a fixture that adds one
+            is exactly the state box 6 removes, and it would make the suite
+            green on a schema only the tests have;
+          * the SQL that DOES add it must still spell the DEFAULT with the
+            model's sentinel, byte-identically, because the upgrade is what
+            an old box now runs.
+        """
         for rel in (
             "backend/tests/conftest.py",
             "backend/tests/integration/conftest.py",
         ):
             source = (REPO / rel).read_text()
-            # The ALTERs are written across a string-concat line break;
-            # join continuation lines before searching.
-            joined = source.replace('"\n                    "', "").replace(
-                '"\n                        "', ""
+            assert "ADD COLUMN" not in source, (
+                f"{rel} adds a column again; B3.3 box 6 moved column addition into "
+                "the recorded upgrade at init_db()"
             )
-            assert expected in joined, f"drift ALTER missing/divergent in {rel}"
+
+        # The upgrade that now owns the repair, found through the registry --
+        # not by guessing its filename -- so renaming the file fails here
+        # rather than silently unpinning the DEFAULT.
+        from backend.migrations import registry
+
+        upgrade = next(u for u in registry.UPGRADES if "person" in u.filename)
+        sql = upgrade.read_sql()
+        assert "ADD COLUMN IF NOT EXISTS model_id VARCHAR(128) NOT NULL" in sql
+        assert f"DEFAULT '{vp.LEGACY_MODEL_ID}'" in sql
 
 
 class TestComparePersonVectors:

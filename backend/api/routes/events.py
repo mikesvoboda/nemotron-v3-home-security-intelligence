@@ -24,7 +24,7 @@ from backend.api.dependencies import (
     get_cache_service_dep,
     get_clip_generator_dep,
     get_event_or_404,
-    get_nemotron_analyzer_dep,
+    get_vlm_analyzer_dep,
 )
 from backend.api.middleware.auth import scoped_key_ceiling
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
@@ -103,7 +103,7 @@ from backend.services.vlm_analyzer import VlmAnalyzer
 
 # Type aliases for dependency injection
 ClipGeneratorDep = ClipGenerator
-NemotronAnalyzerDep = VlmAnalyzer
+VlmAnalyzerDep = VlmAnalyzer
 
 logger = get_logger(__name__)
 router = APIRouter(
@@ -2577,7 +2577,7 @@ async def analyze_batch_streaming(
     batch_id: str,
     camera_id: str | None = Query(None, description="Camera ID for the batch"),
     detection_ids: str | None = Query(None, description="Comma-separated detection IDs (optional)"),
-    analyzer: NemotronAnalyzerDep = Depends(get_nemotron_analyzer_dep),
+    analyzer: VlmAnalyzerDep = Depends(get_vlm_analyzer_dep),
 ) -> StreamingResponse:
     """Stream LLM analysis progress for a batch via Server-Sent Events (NEM-1665).
 

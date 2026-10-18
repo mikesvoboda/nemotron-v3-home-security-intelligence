@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/tests/fixtures/` directory contains test fixture files used by automated tests. These include sample images for pipeline testing and the env file that renders the prod compose file for the services-render test.
+The `backend/tests/fixtures/` directory contains test fixture files used by automated tests. These include sample images for pipeline testing, the env file that renders the prod compose file for the services-render test, and the saved pre-upgrade database schema that the upgrade-path test restores.
 
 ## Directory Structure
 
@@ -10,6 +10,7 @@ The `backend/tests/fixtures/` directory contains test fixture files used by auto
 backend/tests/fixtures/
 ├── AGENTS.md                 # This file
 ├── compose-render.env        # Minimal env that renders the prod compose file
+├── schema_pre_upgrade.sql    # Saved pre-upgrade database shape, with rows
 └── images/                   # Test images
     └── pipeline_test/        # Pipeline integration test images (14 files)
 ```
@@ -55,6 +56,34 @@ Contains test images for pipeline integration tests:
 - `HMDAlarm_20260101-171020.jpg` - Human motion alarm (151KB)
 - `MDAlarm_20250805-220848.jpg` - Motion detection alarm (124KB)
 - `MDAlarm_20260101-143519.jpg` - Motion detection alarm (333KB)
+
+### `schema_pre_upgrade.sql` (saved pre-upgrade database, with rows)
+
+The database shape `main` leaves behind **before** B3.3's recorded upgrades run, as a loadable
+SQL script: the alert tables with plain `JSON` columns (the shape NEM-5051 converts), the three
+vector tables with no `model_id` column (F11's provenance addition), the two tables R8 S4 retired,
+and `cameras` / `events` / `detections` / `user_calibration` / `event_feedback` **without** the 12
+January-2026 model columns upgrade 0005 adds — plus rows in each, because an upgrade that quietly
+lost data passes a schema-only check.
+
+- Restored by `backend/tests/integration/test_schema_upgrade_path.py` into a fresh database per
+  test (that test loads it with psycopg2, not through the runner's own lexer, so the lexer cannot
+  grade its own homework).
+- It is a **file** rather than inline DDL for the same reason as the other fixtures here: it is
+  diffable, and reproducible outside pytest with `psql -d <empty-db> -f schema_pre_upgrade.sql`.
+- The 0005 tables are **minimal on purpose** — id, a couple of columns, rows. Spelling today's
+  full column list would recreate the bug 0005 fixes: a database that already has the columns
+  proves nothing. Their id TYPES do match the models (`cameras.id` TEXT per `String`, the rest
+  INTEGER per `Integer`) because the boot test's `create_all` builds the other tables against
+  these, and a type mismatch surfaces as a confusing FK error instead of a finding. No FKs are
+  declared here at all: `create_all` does not add constraints to an existing table, so an FK in
+  this file would be testing the fixture rather than the upgrade path.
+- `vector(...)` columns are deliberately omitted: the sandbox Postgres has pg_trgm but not
+  pgvector, and no upgrade under test touches a vector column's type. If an upgrade ever does,
+  this fixture cannot express that case and needs a pgvector-capable database.
+- Do not "fix" it by adding today's columns — its whole value is being wrong in the old way. That
+  includes the five 0005 tables: adding `events.llm_prompt` here makes upgrade 0005 a no-op and
+  the test that asserts it ran go red, which is the correct reading of that red.
 
 ## Usage in Tests
 
