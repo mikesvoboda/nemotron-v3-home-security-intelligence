@@ -10,7 +10,7 @@
  * pins both legs: chart-over-data, and a time-range click that refetches.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harness';
+import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

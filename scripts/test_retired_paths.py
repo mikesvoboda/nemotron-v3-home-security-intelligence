@@ -143,6 +143,9 @@ SKIP_DIR_NAMES = {
     "htmlcov",
     "coverage",
     ".next",
+    # UR-89 review materialisations at the repo root (see
+    # test_review_scratch_is_not_living_text; sibling of #7240's set pins).
+    ".tickscratch",
 }
 
 # Files exempt by exact repo-relative path (reasons in the module docstring).
@@ -853,6 +856,52 @@ def test_walk_pruning_is_behaviour_preserving(tmp_path: Path) -> None:
     (root / "gone.txt").symlink_to(root / "no-such-target")
     findings = find_violations(root)
     assert any(f.startswith("gone.txt:0: retired path exists again") for f in findings), findings
+
+
+def test_review_scratch_is_not_living_text(tmp_path: Path) -> None:
+    """UR-89 review material under `.tickscratch/` must not read as rot.
+
+    The shipped `SKIP_DIR_NAMES` prunes VCS, deps, caches and build output, but
+    not the review-scratch directory this programme materialises at the repo
+    root by the GB. Measured 2026-10-17 in a workspace holding one:
+    `test_no_living_reference_names_a_retired_path` failed in 49.22 s over a
+    30 s guard budget, and EVERY reported living reference sat under
+    `.tickscratch/` — a reviewer's own notes indicted as rot in shipped text.
+    Unlike the sibling census defect (#7240, walk volume → `pytest-timeout`),
+    this one FAILS OPEN: a green run in a clean tree and a red one on a dev box
+    that merely ran a review, which trains people to ignore the gate.
+
+    Pinned on a synthetic tree rather than the live root for the reason the
+    sibling pins state: whether the live walk is clean is an environment
+    property, and a green that depends on whose machine has a scratch tree is
+    not a pin. Every arm here is the real traversal — `iter_scanned_files` and
+    `find_violations` over a planted root — so the prune is exercised, not
+    described.
+    """
+    root = tmp_path / "repo"
+    (root / "scripts").mkdir(parents=True)
+    (root / "scripts" / "retired_paths.txt").write_text("gone.txt\n", encoding="utf-8")
+    # positive control: a living reference at a plain path IS found, so the
+    # "nothing under scratch is found" arms below cannot pass on a dead scan.
+    (root / "live.md").write_text("open gone.txt\n", encoding="utf-8")
+    # the scratch shape UR-89 actually produces: a materialised tree holding a
+    # full checkout, its prose quoting retired names the way any ruling does.
+    leak = root / ".tickscratch" / "wt-a" / "tree"
+    leak.mkdir(parents=True)
+    (leak / "notes.md").write_text("the gone.txt retirement shipped in r252\n", encoding="utf-8")
+
+    rels = {rel for rel, _ in iter_scanned_files(root)}
+    assert "live.md" in rels, "positive control failed — nothing is being scanned"
+    assert not any(r.startswith(".tickscratch/") for r in rels), sorted(rels)[:10]
+
+    findings = find_violations(root)
+    assert any(f.startswith("live.md:") for f in findings), findings
+    assert not any(f.startswith(".tickscratch/") for f in findings), findings
+    assert ".tickscratch" in SKIP_DIR_NAMES, (
+        "the prose scan descends into UR-89 review scratch trees; prune it at "
+        "the directory-name level like .git and .venv (see the sibling pins in "
+        "backend/tests/unit/scripts/ for why the SET is the pin)"
+    )
 
 
 def test_prefilter_skips_only_files_that_cannot_match(tmp_path: Path) -> None:

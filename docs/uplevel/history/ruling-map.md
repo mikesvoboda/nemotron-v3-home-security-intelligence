@@ -255,6 +255,16 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 240    | package `[r240]`: the fake-AI golden leg runs as two shards, ops-b (record 6217450751)                      |
 | 241    | heavy-a takes `B3.1` with `F3.1` ahead of `B2.3`; Phase 3 blocks gain `**PR:**` (record 6217824144)         |
 | 242    | package `[r242]`: plan_lint checks every roster row again; owner PR, ops-b reviews (record 6221764225)      |
+| 243    | package `[r243]`: prod.yml's engine-socket condition renders on every Compose, ops-a (record 6222454848)    |
+| 244    | package `[r244]`: the monitoring key gets no recommendation prose, backend (record 6222984876)              |
+| 245    | UR-36/UR-38 cadence once `[r193]` lands; `[r239]`'s interval table (record 6223117374)                      |
+| 246    | one-off: §8's no-failing-path demotion only for ruling 207/`[r231]` families (record 6223337228)            |
+| 247    | package `[r247]`: a host-side supervisor runs the coordinator's ticks, ops-b (record 6223821495)            |
+| 248    | UR-183: a package PR writes its own `**PR:**` number; package `[r248]` (record 6223962176)                  |
+| 249    | UR-98: a plain `B3.1`/`F3.1` retirement is lane-tier (record 6224222541)                                    |
+| 250    | UR-89, UR-91: from round 2 only blocking findings change the head (record 6224354057)                       |
+| 251    | package `[r251]`: the inventory's §2 is computed, not stored; owner PR (record 6224408012)                  |
+| 252    | package `[r252]`: re-ID's ONNX→TensorRT plan-build root cause, ahead of B2.3 (record 6235589555)            |
 
 ## Owner records
 

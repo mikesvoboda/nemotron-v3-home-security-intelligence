@@ -45,13 +45,13 @@
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   closedByGuard,
-  loginAsAdmin,
-  quietBoot,
-  settledReload,
+  loginAsAdminShell as loginAsAdmin,
+  quietBootDash as quietBoot,
+  settledReloadDash as settledReload,
   readDashboardHarness,
   seedTourDismissed,
   type DashboardHarness,
-} from './harness';
+} from '../harness';
 
 const harness = readDashboardHarness();
 test.skip(

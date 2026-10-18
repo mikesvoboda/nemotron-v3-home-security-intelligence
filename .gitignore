@@ -178,3 +178,12 @@ frontend/reports/mutation/
 # path is not gitignored today, so a local run leaves a tracked-looking stray
 # next to the tree it describes. Root-anchored: reports elsewhere stay visible.
 /report.json
+
+# UR-89 review scratch: a review materialises its head as a git worktree under
+# .tickscratch/<name>/tree/, GBs deep, at the repo root. The walk-prune fixes
+# (#7240, plus the anti-rot gates' own skip sets) keep those trees out of the
+# TEST walks; this keeps them out of GIT's view, which no walk can do. Untracked
+# multi-GB scratch sitting in front of a `git add -A` is how one review control
+# shipped 7650 cache files into a commit (measured 2026-10-17). Pinned by
+# backend/tests/unit/scripts/test_tickscratch_is_git_ignored.py.
+.tickscratch/

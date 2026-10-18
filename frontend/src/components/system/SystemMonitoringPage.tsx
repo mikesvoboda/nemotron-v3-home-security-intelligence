@@ -16,7 +16,6 @@ import {
   Cpu,
   Clock,
   Radio,
-  Layers,
   Wifi,
   HeartPulse,
 } from 'lucide-react';
@@ -56,11 +55,9 @@ import PerformanceHistoryPanel from './PerformanceHistoryPanel';
 import PipelineFlowVisualization from './PipelineFlowVisualization';
 import PipelineLatencyHistoryPanel from './PipelineLatencyHistoryPanel';
 import PrometheusMonitoringPanel from './PrometheusMonitoringPanel';
-import QueueMetricsPanel from './QueueMetricsPanel';
 import ServicesPanel from './ServicesPanel';
 import WebSocketHealthPanel from './WebSocketHealthPanel';
 import { WorkerManagementPanel } from './WorkerManagementPanel';
-import WorkerStatusPanel from './WorkerStatusPanel';
 
 import type { DatabaseMetrics, RedisMetrics, DatabaseHistoryData } from './DatabasesPanel';
 import type {
@@ -484,19 +481,6 @@ export default function SystemMonitoringPage() {
               </CollapsibleSection>
             </div>
 
-            {/* Queue Metrics - Full width (NEM-3637) */}
-            <div id="section-queue-metrics" className="mb-6">
-              <CollapsibleSection
-                title="Queue Metrics"
-                icon={<Layers className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['queue-metrics']}
-                onToggle={() => toggleSection('queue-metrics')}
-                data-testid="queue-metrics-section"
-              >
-                <QueueMetricsPanel data-testid="queue-metrics-panel-section" />
-              </CollapsibleSection>
-            </div>
-
             {/* Two-column grid for actionable panels */}
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Circuit Breakers Panel */}
@@ -570,19 +554,6 @@ export default function SystemMonitoringPage() {
                   data-testid="worker-management-section"
                 >
                   <WorkerManagementPanel data-testid="worker-management-panel" />
-                </CollapsibleSection>
-              </div>
-
-              {/* Worker Status Panel (WebSocket-based real-time status) */}
-              <div id="section-worker-status">
-                <CollapsibleSection
-                  title="Pipeline Workers (Live)"
-                  icon={<Activity className="h-5 w-5 text-[#76B900]" />}
-                  isOpen={sectionStates['worker-status']}
-                  onToggle={() => toggleSection('worker-status')}
-                  data-testid="worker-status-section"
-                >
-                  <WorkerStatusPanel data-testid="worker-status-panel" />
                 </CollapsibleSection>
               </div>
 

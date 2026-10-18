@@ -201,7 +201,20 @@ _WALK_PRUNE = {
     "dist",
     "mutants",
     "node_modules",
+    ".tickscratch",  # UR-89 review materialisations (see the sibling pin)
 }
+
+
+def test_review_scratch_trees_are_pruned_from_the_walk() -> None:
+    """Same defect as test_vlm_profile_flag_is_retired's census, same walk
+    shape: REPO_ROOT is parents[4] of THIS file, so a workspace holding
+    `.tickscratch/` review trees sends the Dockerfile walk through them —
+    and a scratch tree legitimately contains a materialised backend/Dockerfile,
+    which would make a consumer list read the same file twice from a path no
+    one tracks. Prune at the name level, pinned on the SET for the same reason
+    as the sibling pin: a walk's speed is an environment property, not a pin.
+    """
+    assert ".tickscratch" in _WALK_PRUNE
 
 
 def _prod_stage() -> str:

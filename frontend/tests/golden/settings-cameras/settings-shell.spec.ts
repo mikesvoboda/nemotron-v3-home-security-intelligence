@@ -22,7 +22,13 @@
  * - Read-only surface: no server state is mutated.
  */
 import { expect, test } from '../guard';
-import { assertGuardSurvives, readHarness, settledGoto, signIn, type Harness } from './harness';
+import {
+  assertGuardSurvivesCameras as assertGuardSurvives,
+  readHarness,
+  settledGoto,
+  signIn,
+  type Harness,
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

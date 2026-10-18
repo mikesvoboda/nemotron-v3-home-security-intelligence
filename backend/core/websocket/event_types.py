@@ -243,15 +243,6 @@ class WebSocketEventType(StrEnum):
     """Enrichment pipeline failed with error."""
 
     # ==========================================================================
-    # Queue Metrics Events - Pipeline queue status (NEM-3637)
-    # ==========================================================================
-    QUEUE_STATUS = "queue.status"
-    """Pipeline queue status update (depths, workers, health)."""
-
-    PIPELINE_THROUGHPUT = "pipeline.throughput"
-    """Pipeline throughput metrics (detections/events per minute)."""
-
-    # ==========================================================================
     # Connection Events - WebSocket connection lifecycle
     # ==========================================================================
     CONNECTION_ESTABLISHED = "connection.established"
@@ -617,19 +608,6 @@ EVENT_TYPE_METADATA: dict[WebSocketEventType, dict[str, Any]] = {
         "channel": "enrichment",
         "requires_payload": True,
         "payload_fields": ["batch_id", "error", "error_type", "timestamp"],
-    },
-    # Queue metrics events (NEM-3637)
-    WebSocketEventType.QUEUE_STATUS: {
-        "description": "Pipeline queue status update",
-        "channel": "system",
-        "requires_payload": True,
-        "payload_fields": ["queues", "total_queued", "total_processing", "overall_status"],
-    },
-    WebSocketEventType.PIPELINE_THROUGHPUT: {
-        "description": "Pipeline throughput metrics",
-        "channel": "system",
-        "requires_payload": True,
-        "payload_fields": ["detections_per_minute", "events_per_minute", "timestamp"],
     },
     # Connection events
     WebSocketEventType.CONNECTION_ESTABLISHED: {

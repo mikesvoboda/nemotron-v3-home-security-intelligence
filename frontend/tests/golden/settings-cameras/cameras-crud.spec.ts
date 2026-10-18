@@ -34,7 +34,7 @@
 import { expect, test } from '../guard';
 import {
   apiPath,
-  assertGuardSurvives,
+  assertGuardSurvivesCameras as assertGuardSurvives,
   deleteCameraIfPresent,
   formatSecondsAsHumanReadable,
   listCameras,
@@ -42,7 +42,7 @@ import {
   settledGoto,
   signIn,
   type Harness,
-} from './harness';
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

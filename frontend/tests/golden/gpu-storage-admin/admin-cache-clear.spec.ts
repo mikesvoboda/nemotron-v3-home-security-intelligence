@@ -19,8 +19,8 @@
  * keys_cleared 0, message "Cleared 0 cache keys across 0 cache types").
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { closedByGuard, loginAsAdmin, readOpsHarness } from '../operations/harness';
-import { openAdminSection } from './harness';
+import { closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
+import { openAdminSection } from '../harness';
 
 const harness = readOpsHarness();
 

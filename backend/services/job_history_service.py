@@ -446,13 +446,10 @@ class JobHistoryService:
         message: str,
         context: dict[str, Any] | None = None,
         attempt_number: int = 1,
-        *,
-        emit_to_websocket: bool = True,
     ) -> JobLog | None:
         """Add a log entry for a job.
 
         Creates a new JobLog record for tracking job execution progress.
-        Optionally emits the log to Redis pub/sub for real-time WebSocket streaming.
 
         Args:
             job_id: The job ID (string or UUID).
@@ -460,8 +457,6 @@ class JobHistoryService:
             message: The log message.
             context: Optional context data to include.
             attempt_number: Which attempt this log belongs to (default 1).
-            emit_to_websocket: Whether to emit log to WebSocket via Redis pub/sub.
-                Defaults to True for real-time streaming.
 
         Returns:
             The created JobLog record, or None if creation failed.
@@ -484,25 +479,6 @@ class JobHistoryService:
         )
         self._session.add(log_entry)
         await self._session.flush()
-
-        # Emit log to Redis pub/sub for real-time WebSocket streaming (NEM-2711)
-        if emit_to_websocket:
-            try:
-                from backend.services.job_log_emitter import get_job_log_emitter
-
-                emitter = await get_job_log_emitter()
-                await emitter.emit_log(
-                    job_id=job_id,
-                    level=level,
-                    message=message,
-                    context=context,
-                )
-            except Exception as e:
-                # Log emission failure but don't fail the database operation
-                logger.warning(
-                    f"Failed to emit job log to WebSocket: {e}",
-                    extra={"job_id": str(job_id)},
-                )
 
         return log_entry
 

@@ -9,8 +9,8 @@
  *    pass no credential (the cookie authenticates), but the plumbing below
  *    still pins that any protocols a caller sets are not dropped
  *    through `useWebSocket` is dropped on the floor (useWebSocket.ts:19
- *    admits it: "protocols are not yet supported by the manager"). Only
- *    useWebSocketStatus.ts:138 ever honors them. So every manager-routed
+ *    admits it: "protocols are not yet supported by the manager"). Only the
+ *    deleted `useWebSocketStatus` honored them then. So every manager-routed
  *    socket connects unauthenticated in an API-key deployment.
  *
  * 2. B1.5's gate answers an uncredentialed handshake by accepting and then

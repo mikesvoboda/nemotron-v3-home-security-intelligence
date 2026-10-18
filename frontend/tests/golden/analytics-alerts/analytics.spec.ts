@@ -41,13 +41,13 @@
  */
 import { expect, test } from '../guard';
 import {
-  adminSession,
-  assertGuardSurvives,
-  authedFetch,
-  login,
-  readHarness,
-  type Harness,
-} from './harness';
+  adminSessionAlerts as adminSession,
+  assertGuardSurvivesAlerts as assertGuardSurvives,
+  authedFetchAlerts as authedFetch,
+  loginAlerts as login,
+  readHarnessAlerts as readHarness,
+  type HarnessAlerts as Harness,
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

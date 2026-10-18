@@ -85,16 +85,16 @@
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
-  loginAsAdmin,
-  quietBoot,
-  settledReload,
+  loginAsAdminShell as loginAsAdmin,
+  quietBootDash as quietBoot,
+  settledReloadDash as settledReload,
   readDashboardHarness,
   seedTourDismissed,
   type DashboardHarness,
   type Session,
-} from './harness';
+} from '../harness';
 import type { Page } from '@playwright/test';
 
 const harness = readDashboardHarness();

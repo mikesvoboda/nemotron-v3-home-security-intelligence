@@ -73,12 +73,12 @@ import type { Page } from '@playwright/test';
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
-  quietBoot,
+  quietBootShell as quietBoot,
   readShellHarness,
   seedTourDismissed,
-} from './harness';
+} from '../harness';
 
 const harness = readShellHarness();
 

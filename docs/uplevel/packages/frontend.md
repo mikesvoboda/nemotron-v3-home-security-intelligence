@@ -134,8 +134,9 @@ same way after the owner's `R2b` session.
 
 ### F3.1 Retire ruled-out features, frontend part
 
-**Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7224.
+**Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
+(ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
@@ -342,9 +343,9 @@ owner-tier ruling as its route.
 ### [r148a] One shared golden harness
 
 **Flags:** none; test-only. **Assigned:** frontend. **Depends on:** `F2.3`'s last batch merged.
-**PR:** none yet. (ruling 148, record 6136930446)
+**PR:** #7241. (ruling 148, record 6136930446)
 
-- [ ] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
+- [x] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
       `frontend/tests/golden/harness.ts`, keeping every comment that explains a fix, and repoint each
       spec's import. Until `F2.3`'s last batch merges, each batch keeps its own copy.
 
@@ -460,7 +461,7 @@ PR (UR-48).
 
 ### [r134] F-135: retire the batch-history views
 
-**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7145 (open).
+**Flags:** none. **Assigned:** frontend. **Depends on:** #7030 merged. **PR:** #7145.
 (rulings 134, 150)
 
 - [x] Delete the closure-reason chart, the per-camera table and the completed-batch timeline from
@@ -537,11 +538,11 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 ### [r211f] F-048: a search result opens what was clicked
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]` (fix now). **Depends on:** `[r211b]` merged,
-for the spec's legs. **PR:** #7210, #7225 (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
+for the spec's legs. **PR:** #7210, #7225. (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
 - [x] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
-      #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1191` requires search
-      to exclude the soft-deleted row, and `harness.ts:1215`'s `searchTotal` is the live count. In
+      #7187's branch (ruling 221). `frontend/tests/golden/harness.ts:2351` requires search
+      to exclude the soft-deleted row, and `harness.ts:2375`'s `searchTotal` is the live count. In
       `frontend/tests/golden/timeline/timeline-search.spec.ts` the `fx.searchTotal` reads follow,
       `timeline-search.spec.ts:650` reads `false`, `timeline-search.spec.ts:654`'s 404 stays, and
       the `timeline-search.spec.ts:570` leg's defect half takes a live row on search page 2 that the
@@ -587,7 +588,7 @@ in its title, and the package is not done until it does.
 ### [r234] F-052: the export modal's dates reach the export
 
 **Flags:** none. **Assigned:** heavy-a, now, ahead of `B2.3` (fix now; ruling 234). **Depends on:**
-none. **PR:** none yet. (ruling 234, record 6216216005)
+none. **PR:** #7213. (ruling 234, record 6216216005)
 
 ExportModal uses `useDateRangeState({ persistToUrl: false })`
 (`frontend/src/components/exports/ExportModal.tsx:59`). In that mode the hook reads its range only
@@ -608,7 +609,7 @@ among them, pass (rulings 103, 114).
 ### [r238] F-057: the saved note reads back
 
 **Flags:** none. **Assigned:** heavy-a, after `[r234]`, ahead of `B2.3` (ruling 238). **Depends
-on:** none. **PR:** none yet. (rulings 149, 238; record 6216702824)
+on:** none. **PR:** #7219. (rulings 149, 238; record 6216702824)
 
 `[r149d]` (#7070) made `list_events` return `notes` (`backend/api/routes/events.py:543`), but its
 second box, the golden read-back leg, never had a roster slot, so F-057 stays **half-built** with
@@ -676,7 +677,7 @@ records 6200676782, 6205825842)
 ### [r204] One realtime connection owner
 
 **Flags:** none. **Assigned:** frontend, after `[r196a]`. **Depends on:** none.
-**PR:** none yet. (ruling 204, record 6199283332)
+**PR:** #7230 (ruling 204, record 6199283332)
 
 `webSocketManager.ts` shares one connection per URL (`subscribe`, `:254`), but `useConnectionStatus`
 opens its own events and system sockets through `useWebSocketStatus` (`:290`, `:298`;
@@ -684,14 +685,14 @@ opens its own events and system sockets through `useWebSocketStatus` (`:290`, `:
 it. The manager stops on the auth close codes (`AUTH_TERMINAL_CLOSE_CODES`, `:155`);
 `useWebSocketStatus`'s `onclose` (`:176`) reads no code and keeps reconnecting.
 
-- [ ] `useConnectionStatus` reads channel state from `webSocketManager` (`subscribe`,
+- [x] `useConnectionStatus` reads channel state from `webSocketManager` (`subscribe`,
       `getConnectionState`, `reconnect`) and opens no socket; one provider feeds Layout and Header;
       `useWebSocketStatus`'s socket code and its tests are deleted.
-- [ ] `isPollingFallback` and `retryConnection` keep their meaning; a terminal auth close shows as
+- [x] `isPollingFallback` and `retryConnection` keep their meaning; a terminal auth close shows as
       such and is not retried.
-- [ ] Tests: the mounted shell holds one manager connection per channel; neither Layout nor Header
+- [x] Tests: the mounted shell holds one manager connection per channel; neither Layout nor Header
       opens a socket; a `4001` close stops reconnection on the status path.
-- [ ] F-007's `frontend/tests/golden/shell/ws-status.spec.ts` passes unchanged in
+- [x] F-007's `frontend/tests/golden/shell/ws-status.spec.ts` passes unchanged in
       `Feature check (fake AI)`.
 
 **Done when:** these pass in CI at a ready head, and under `frontend/src/` (tests and mocks aside)
@@ -700,19 +701,19 @@ it. The manager stops on the auth close codes (`AUTH_TERMINAL_CLOSE_CODES`, `:15
 ### [r205] No status is not "healthy"; health is not an alert count
 
 **Flags:** none. **Assigned:** frontend, after `[r204]`. **Depends on:** `[r204]` merged.
-**PR:** none yet. (ruling 205, record 6199725340)
+**PR:** #7234. (ruling 205, record 6199725340)
 
 `DashboardPage.tsx:289` reads `deferredSystemStatus?.health ?? 'healthy'`, so a dashboard that
 never receives a status reads as healthy. `AmbientStatusProvider.tsx:94-109` turns service health
 into the favicon's alert count (`unhealthy` 3, `degraded` 1).
 
-- [ ] Until a system status arrives, the dashboard shows a neutral connecting or unknown state,
+- [x] Until a system status arrives, the dashboard shows a neutral connecting or unknown state,
       never `healthy`; a no-flash treatment must not render healthy's word or colour.
-- [ ] The badge shows health as health (colour or icon) and a number only from a real alert count;
+- [x] The badge shows health as health (colour or icon) and a number only from a real alert count;
       with no such source it shows no number. `alertCountOverride` keeps working.
-- [ ] Tests: no status, or a dashboard that never connects, never renders "healthy"; an unhealthy
+- [x] Tests: no status, or a dashboard that never connects, never renders "healthy"; an unhealthy
       or degraded service gives no numeric badge without a real count; a real count shows as given.
-- [ ] The golden specs over the dashboard and ambient status pass unchanged, or the PR names the leg
+- [x] The golden specs over the dashboard and ambient status pass unchanged, or the PR names the leg
       it changes and why.
 
 **Done when:** these pass in CI at a ready head, and under `frontend/src/` (tests aside) no
@@ -721,7 +722,7 @@ into the favicon's alert count (`unhealthy` 3, `degraded` 1).
 ### [r168] The fast-path switch
 
 **Flags:** none. **Assigned:** frontend, after `[r165a]`. **Depends on:** `[r130b]`'s
-`fast_path_enabled` field merged. **PR:** #7174 (open). (ruling 168)
+`fast_path_enabled` field merged. **PR:** #7174. (ruling 168)
 
 - [ ] The processing settings show a "Fast path" switch bound to `fast_path_enabled`, off by default,
       with `config.py`'s warning as its help text; the threshold slider shows only when it is on.
@@ -741,14 +742,14 @@ then removes the two read clamps in `system.py` as UR-48 lane work.
 ### [r173] Golden Playwright skips join the suppression registry
 
 **Flags:** none. **Assigned:** frontend, after `[r168]`; ops-b reviews the `scripts/` and `.github/`
-hunks. **Depends on:** none. **PR:** none yet. (ruling 173)
+hunks. **Depends on:** none. **PR:** #7236. (ruling 173)
 
-- [ ] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
+- [x] `scripts/suppression-registry-gen.py` and `test_suppression_census.py` scan
       `frontend/tests/golden/**/*.spec.ts` for `test.fixme(` and unconditional `test.skip(` call
       sites, excluding conditional guards as the pytest arm does.
-- [ ] One registry row per site in a golden reason class citing its authorizing ruling or package;
+- [x] One registry row per site in a golden reason class citing its authorizing ruling or package;
       the baseline rises in the same commit.
-- [ ] Sites with no authorizing ruling are listed on the PR for the coordinator to route.
+- [x] Sites with no authorizing ruling are listed on the PR for the coordinator to route.
 
 **Done when:** the census fails CI on an unregistered golden `test.fixme`, and every current site has
 a row.

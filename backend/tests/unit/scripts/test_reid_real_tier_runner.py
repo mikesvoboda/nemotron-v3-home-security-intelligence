@@ -29,6 +29,25 @@ PROJECT_ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = PROJECT_ROOT / "scripts" / "uplevel" / "reid_real_tier.sh"
 
 
+def _code(text: str) -> str:
+    """Blank out shell comment lines, keeping every line position intact.
+
+    Several pins here hunt for a token on a *statement* (``start_gateway``,
+    ``cosine_table.py``, ``|| true``). The runner explains itself heavily in
+    comments that name those same tokens, so a grep over raw text can be
+    satisfied -- or poisoned -- by prose: a comment mentioning a bare
+    ``start_gateway`` makes a guarded call look bare, and a comment containing
+    ``|| true`` lands inside a ``tail`` window and reads as a swallowed exit
+    code. Both are false verdicts, and they fail in OPPOSITE directions, so
+    neither shows up as a consistent signal. Same reasoning ``_heredoc`` states
+    for the embedded programs: anchor on the code, never on a mention.
+
+    Lines are blanked rather than dropped so character offsets stay comparable
+    across a strip -- ordering assertions (this before that) keep meaning.
+    """
+    return "\n".join("" if ln.lstrip().startswith("#") else ln for ln in text.splitlines())
+
+
 def _heredoc(text: str, written_name: str, tag: str) -> str:
     """Return one embedded python program the runner writes with ``cat > ...
     <<'TAG'``. These programs are the runner's actual measuring code (the probe
@@ -69,6 +88,19 @@ def _bind_mounts(text: str) -> list[tuple[str, str]]:
             continue  # `command -v docker` matches the -v shape but is not a mount
         out.append((spec.split(":", 1)[0], spec))
     return out
+
+
+def _fn_body(text: str, name: str) -> str:
+    """Return the body of one shell function, ``name() { ... }``, by name.
+
+    The runner's load-bearing sequencing lives INSIDE functions (``run_stages``
+    dispatches from the mode arm, ``compile_plan`` wraps the one container that
+    touches the GPU), so a pin that reads the arm sees only a call. Same
+    anchored-read as ``_gw_body``: start at the definition, stop at the first
+    line that is just ``}``.
+    """
+    start = text.index(f"{name}() {{")
+    return text[start : text.index("\n}\n", start)]
 
 
 def _gw_body(text: str) -> str:
@@ -404,7 +436,13 @@ def test_the_stages_arm_carries_the_table_verdict_to_the_exit(script_text: str) 
     ``|| true``, the other obvious shorthand, would throw the verdict away,
     which is the bug being fixed. So the step captures it into ``rc`` the way
     the parity arm already does, and this pins that the capture is inside
-    ``run_stages``."""
+    ``run_stages``.
+
+    Read through ``_code``: the window is anchored on the FIRST mention of
+    ``cosine_table.py``, so an explanatory comment about a nearby guard that
+    happens to contain ``|| true`` would otherwise land in ``tail`` and read as
+    a swallowed verdict -- a false red for code that is correct."""
+    script_text = _code(script_text)
     stages = script_text[script_text.index("run_stages() {") :]
     stages = stages[: stages.index("\n}\n")]
     at = stages.index("cosine_table.py")
@@ -426,3 +464,220 @@ def test_header_states_the_sequence_difference(script_text: str) -> None:
     header = "\n".join(script_text.splitlines()[:12])
     assert "Nothing else about the sequence changed" not in header
     assert "STEP 2b" in header, "header must name the one restored sequence step"
+
+
+# ---------------------------------------------------------------------------
+# Ruling 180: stage independence, a plan timeout the exporter honours, and a
+# witness that distinguishes "the build is slow" from "the GPU is contended".
+# ---------------------------------------------------------------------------
+
+
+def test_the_stage_probe_runs_after_fp32_and_before_fp16(script_text: str) -> None:
+    """The ruling-180 cure, and the exact failure the owner's maui run showed.
+
+    ``run_stages`` compiles FP32, copies its plan, compiles FP16, copies that,
+    THEN probes stages 3 and 4 -- under ``set -euo pipefail``. When the FP16
+    compile timed out at 600 s the whole function aborted on that line, so the
+    FP32 plan -- already built, 130.9 s, a good plan -- was NEVER probed. That
+    is precisely the question ruling 157 exists to answer ("separates 'the plan
+    is wrong' from 'FP16 is not enough'"), lost to shell ordering rather than to
+    a model defect. The probe is already fault-tolerant (a stage that raises
+    leaves its JSON absent and the table reports ``unknown``, never a false
+    green); the bug lives one frame up, in the shell.
+
+    So: an FP32 probe must sit between the two compiles, not after both. The
+    stages arm still compiles BOTH precisions (the existing
+    test_stages_mode_still_compiles_both_precisions is the control that this
+    reordering does not drop the FP16 leg) -- what moves is stage 3's probe.
+
+    Read the FUNCTION body: the stages arm only calls ``run_stages``, so an
+    assertion against the arm would pass on the call and never see the order.
+    """
+    body = _fn_body(script_text, "run_stages")
+    fp32 = body.index("compile_plan fp32")
+    fp16 = body.index("compile_plan fp16")
+    assert fp32 < fp16, "stages mode must still build FP32 first (ruling 159)"
+
+    probe_calls = [m.start() for m in re.finditer(r"stage_probe\.py\s+\S*work\s+\S", body)]
+    assert probe_calls, "run_stages lost its stage probe entirely"
+    # A probe whose stage list covers "3" must run in the window between the two
+    # compiles. Match the actual argv (``... /work 3`` or ``... /work 3,4``), not
+    # the substring "3", which the copy targets (model-fp32.plan) also contain.
+    window_probes = [
+        p
+        for p in probe_calls
+        if fp32 < p < fp16 and re.search(r"/work\s+3(?:,4)?\b", body[p : p + 80])
+    ]
+    assert window_probes, (
+        "stage 3 is probed only AFTER the FP16 compile, so an FP16 timeout still "
+        "loses the FP32 measurement (the ruling-180 defect, unfixed)"
+    )
+
+
+def test_a_failed_stage_build_leaves_the_other_stage_measured(script_text: str) -> None:
+    """Ruling 180 item 1, second clause: "a failed build leaves that stage
+    ``unknown`` instead of ending the run."
+
+    The runner runs under ``set -euo pipefail`` (pinned for the whole script by
+    test_runner_syntax_is_valid's ``bash -n``, and the mode dispatch relies on
+    it elsewhere), which is exactly why the FP16 timeout killed the run -- an
+    unguarded ``compile_plan`` aborts the function on a non-zero exit. Each
+    stage's build therefore needs its own ``|| true``-style containment so a
+    failed compile leaves its plan absent and the cosine table prints
+    ``unknown`` for that stage while the other precision still gets probed.
+
+    Positive form (not just "``|| true`` appears somewhere", which the existing
+    probe calls already satisfy): both ``compile_plan`` invocations inside
+    run_stages are contained, AND each plan copy is chained to its OWN build's
+    success (``compile_plan fpX && cp ... || true``). The AND-chain is not
+    decoration -- it is what keeps this cure from creating a worse bug. Both
+    compiles write the same cache path (``/out/reid/1/model.plan``), so a copy
+    taken after an UNSUCCESSFUL build can only capture the other precision. The
+    shape it actually guards: a build refused before it starts leaves the path
+    holding FP32's bytes (``export_reid.py`` deliberately does not unlink there,
+    because the path may be a plan a live gateway is serving), and an
+    unconditional ``cp`` would copy those FP32 bytes into ``model-fp16.plan``
+    and have stage 4 measure FP32 while reporting
+    it as FP16 -- the wrong-plan swap
+    test_stage_plan_never_falls_back_to_the_cache_plan exists to prevent,
+    re-entering through the copy instead of the fallback. Containment with a
+    conditional copy instead leaves the missing precision's file absent, its
+    stage refuses (by that pin), and the cosine table prints ``unknown``:
+    ruling 180's exact required state.
+    """
+    body = _fn_body(_code(script_text), "run_stages")
+    lines = body.splitlines()
+
+    compile_lines = [ln for ln in lines if "compile_plan " in ln]
+    assert len(compile_lines) == 2, (
+        f"expected the two stage compiles (fp32, fp16), found {len(compile_lines)}"
+    )
+    for ln in compile_lines:
+        assert "&& cp " in ln and "|| true" in ln, (
+            f"stage build is not contained-and-conditional: {ln!r} — an unguarded "
+            "compile_plan aborts run_stages under set -euo pipefail (how stage 3 "
+            "was lost on maui), and an un-chained cp after a contained failure "
+            "copies the PREVIOUS precision's bytes"
+        )
+    for prec in ("model-fp32.plan", "model-fp16.plan"):
+        assert any(prec in ln for ln in compile_lines), (
+            f"{prec} is not copied on the same line as its own compile, so the "
+            "copy is not conditional on that build succeeding"
+        )
+
+
+def test_each_plan_build_logs_wall_time_and_compute_apps(script_text: str) -> None:
+    """Ruling 180 item 3: log wall time and ``nvidia-smi
+    --query-compute-apps=pid,process_name,used_memory --format=csv`` into $RUN
+    before each plan build.
+
+    The owner's run recorded "GPU 0 at 100% throughout" -- which distinguishes a
+    slow build from a *contended* GPU only if the other tenants' processes are
+    captured at that moment. `gpu-before.txt` is a one-shot snapshot of memory
+    taken before the build even starts and names no PID, so it cannot answer
+    "was someone else on this GPU during the 600 s?". The per-build witness
+    closes that.
+
+    Pinned where it must live (inside ``compile_plan``, the single wrapper both
+    modes use, so the parity arm gets it too) and on the exact query string,
+    because a ``--query-gpu`` memory line is already there and would make a lazy
+    fix look satisfied: the required flag is ``--query-compute-apps`` with
+    ``process_name``, which no other line in the runner emits.
+    """
+    body = _fn_body(script_text, "compile_plan")
+    assert "--query-compute-apps=pid,process_name,used_memory" in body, (
+        "compile_plan must snapshot compute apps (PID + name + memory) around "
+        "each build; --query-gpu memory alone cannot name a co-tenant (ruling 180)"
+    )
+    assert "--format=csv" in body, "keep the query machine-readable like the other snapshots"
+    # It is logged INTO the run directory, not just printed to the build log.
+    assert re.search(r'\$RUN/[^"]*compute-apps', body) or re.search(
+        r'> *"\$RUN/[^"]*compute-apps', body
+    ), "the compute-apps snapshot belongs in $RUN, where the operator can read it after the run"
+    # Wall time: the timing must be captured (date/SECONDS/timestamp), not inferred
+    # from trtexec's own output, which a timed-out build never gets to print.
+    assert re.search(r"\bdate\b|SECONDS|time (?:-\+)?%|ts=", body), (
+        "compile_plan must stamp wall time around the build; a build killed by the "
+        "timeout prints no duration of its own (ruling 180 item 3)"
+    )
+
+
+def test_a_dead_gateway_cannot_stop_the_table_from_printing(script_text: str) -> None:
+    """Ruling 180's required state -- "a failed build leaves that stage
+    ``unknown`` instead of ending the run" -- has a third leg the first two pins
+    miss, and it is the one the owner's rerun will actually hit.
+
+    Stage 5 serves ``$RUN/cache/reid/1/model.plan``, the path BOTH compiles
+    write. When the FP16 build dies it unlinks its own half-written engine
+    (``export_reid.py:828``), and the FP32 build overwrote that same path first
+    -- so the cache holds NO plan. ``start_gateway`` then polls
+    ``models.reid`` for 300 s, never sees it healthy, and ``return 1``s. In
+    stages mode that call is BARE, inside ``run_stages``, under ``set -euo
+    pipefail`` -- so it aborts the function two lines before
+    ``cosine_table.py``. The result is the maui failure reproduced by a
+    different line: stage 3's JSON sits on disk and the owner gets no printed
+    table and no ``RESULT`` line again.
+
+    So the containment ruling 180 asks for has to cover the gateway leg too.
+    ``start_gateway || true`` is the honest shape, not a suppression: stage 5's
+    own HTTP call is already ``|| true`` and a stage with no vectors prints
+    ``unknown``, which makes the table exit 2 -- an incomplete diagnostic still
+    cannot post as a clean run, which is what finding 3 was for. Serving the
+    FP32 plan instead would be the wrong-plan swap
+    test_stage_plan_never_falls_back_to_the_cache_plan refuses, in the reporting
+    layer rather than the probe.
+
+    Two-sided on purpose: the parity arm's calls stay BARE (ruling 159's
+    fail-fast -- parity has nothing to report if the gateway is down, and a
+    blanket guard there would turn a hard failure into a silent one), and the
+    table must sit AFTER the gateway leg in the body, since a guard placed
+    below the print would fix nothing.
+    """
+    code = _code(script_text)
+    body = _fn_body(code, "run_stages")
+    gw = [ln for ln in body.splitlines() if "start_gateway" in ln]
+    assert gw, "run_stages lost its gateway leg entirely"
+    assert all("|| true" in ln for ln in gw), (
+        f"stages-mode gateway leg is bare: {gw} — when the FP16 build fails the "
+        "cache has no plan, start_gateway returns 1, and set -e aborts run_stages "
+        "before cosine_table.py, so stage 3 is measured and never printed (the "
+        "ruling-180 defect, relocated rather than fixed)"
+    )
+    table = body.index("cosine_table.py")
+    assert table > body.index("start_gateway"), (
+        "the cosine table must be printed after the gateway leg so a contained "
+        "gateway failure still reaches it"
+    )
+    parity = _arm(code, "parity")
+    bare = [ln for ln in parity.splitlines() if "start_gateway" in ln]
+    assert bare and all("|| true" not in ln for ln in bare), (
+        "the parity arm's gateway calls must stay fatal (ruling 159) — guarding "
+        "them here would hide a bring-up failure behind a green-looking run"
+    )
+
+
+def test_the_runner_exposes_a_plan_timeout_with_the_600_default(script_text: str) -> None:
+    """Ruling 180 item 2, shell side: ``--plan-timeout`` is an accepted argument
+    whose DEFAULT stays 600 (the owner ruled "the time limit stays tight on
+    purpose -- the same FP16 command built in 137.7 s on 10-13"), and whose
+    value is actually forwarded to the exporter, not just parsed.
+
+    Three separate failure modes, three assertions: a flag that parses into a
+    variable but is never passed into ``compile_plan``'s container; a variable
+    whose default drifted off 600 (silently widening the bound the owner wants
+    tight); and a flag that reaches the podman argv but not the ``--plan-timeout``
+    argument export_reid reads (see the exporter-side pins for the Python hops).
+    """
+    assert re.search(r"--plan-timeout\)", script_text), (
+        "--plan-timeout is not an accepted argument (the arg parser rejects it)"
+    )
+    default = re.search(r'^PLAN_TIMEOUT="?([0-9]+)"?$', script_text, re.M)
+    assert default is not None, "PLAN_TIMEOUT is not initialized at top level"
+    assert default.group(1) == "600", (
+        f"--plan-timeout default drifted to {default.group(1)}s; ruling 180 keeps 600"
+    )
+    body = _fn_body(script_text, "compile_plan")
+    assert "--plan-timeout" in body and "$PLAN_TIMEOUT" in body, (
+        "compile_plan builds the container argv without forwarding --plan-timeout "
+        "$PLAN_TIMEOUT, so the flag exists and does nothing on the run that needs it"
+    )

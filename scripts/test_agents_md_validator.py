@@ -82,6 +82,8 @@ EXPECTED_EXCLUDE_DIRECTORIES = {
     # `mkdocs build` otherwise reddens the gate for reasons no PR caused.
     # Measured effect on the committed baselines: exactly zero.
     "site",
+    # UR-89 review scratch — same cure, same evidence, one config line down.
+    ".tickscratch",
 }
 EXPECTED_EXCLUDE_REFERENCE_PATTERNS = {
     "example\\.py",
@@ -767,6 +769,83 @@ def test_committed_exclusion_sets_are_pinned():
     )
     assert set(COMMITTED_CONFIG["retired_name_baseline"]) == set(RETIRED_NAMES)
     assert "dead_reference_allowlist" not in COMMITTED_CONFIG
+
+
+def test_review_scratch_is_excluded_from_the_scan(tmp_path):
+    """UR-89 review materialisation must not reach the ratchet, the census or
+    the boundary rule — the W1.1 `site/` hazard wearing different clothes.
+
+    W1.1's comment above states the mechanism once, for everyone: "Gitignored,
+    but rglob does not read .gitignore." A `.tickscratch/<name>/tree/` is a
+    FULL materialised checkout living at the repo root, and its AGENTS.md files
+    are copied from older heads — so its internal citations point at paths that
+    exist in ITS tree, not this one, and the dead-reference arm (zero tolerance
+    since W1.3) fires on copied text no PR caused. Measured 2026-10-17 in a
+    workspace holding one: 6 red here — 32 violations incl. three dead links
+    inside the scratch copy, `test_real_tree_scanned_count_floor` (36 -> 48, the
+    census inflated by a copied tree), and the boundary diff growing
+    `.tickscratch/battery/tree/scripts`. A gitignore entry cures nothing here:
+    the validator walks with rglob and never asks git.
+
+    Pinned on a synthetic root like every fixture in this file — the live root
+    having a scratch tree is an environment property — but through the REAL
+    validator subprocess, so the prune is executed, not described. The
+    positive-control arm is what keeps it honest: identical scratch content at
+    a non-excluded path MUST still go red, so the green arm cannot be the green
+    of a broken instrument (or of a prune so wide it ate the tree).
+    """
+    tree = build(
+        tmp_path,
+        files={
+            # the live, scannable pair: root AGENTS.md links notes.md (BASE_MD)
+            "notes.md": "present target for the base link\n",
+            # the scratch shape: a copied AGENTS.md citing a path that exists
+            # only inside the copied tree — exactly the W1.3 zero-tolerance trip.
+            ".tickscratch/wt-a/tree/AGENTS.md": (
+                "# Scratch copy\n\nLive: [notes](copied-notes.md)\n"
+            ),
+            ".tickscratch/wt-a/tree/code.py": "X = 1\n",
+            ".tickscratch/wt-a/tree/other.py": "Y = 2\n",
+            # the control: byte-same content under a NON-excluded name.
+            "notscratch/wt-a/tree/AGENTS.md": (
+                "# Scratch copy\n\nLive: [notes](copied-notes.md)\n"
+            ),
+            "notscratch/wt-a/tree/code.py": "X = 1\n",
+            "notscratch/wt-a/tree/other.py": "Y = 2\n",
+        },
+    )
+    # control first: the instrument detects this exact content when it is in
+    # scope. If this assert ever passes without an exclusion the validator has
+    # stopped scanning nested AGENTS.md files, and the green arm is meaningless.
+    control = run_validator(tree)
+    assert control.returncode != 0, (
+        "positive control went green — copied scratch at a NON-excluded path "
+        "must trip the ratchet, or the green below certifies nothing"
+    )
+    control_blob = json.dumps(report_of(tree))
+    assert "notscratch/wt-a/tree/AGENTS.md" in control_blob, control_blob[:400]
+
+    # the arm under test: the same copied text, now under the excluded name.
+    tree2 = build(
+        tmp_path / "b",
+        files={
+            "notes.md": "present target for the base link\n",
+            ".tickscratch/wt-a/tree/AGENTS.md": (
+                "# Scratch copy\n\nLive: [notes](copied-notes.md)\n"
+            ),
+            ".tickscratch/wt-a/tree/code.py": "X = 1\n",
+            ".tickscratch/wt-a/tree/other.py": "Y = 2\n",
+        },
+    )
+    res = run_validator(tree2)
+    assert res.returncode == 0, res.stderr or res.stdout
+    report_blob = json.dumps(report_of(tree2))
+    assert ".tickscratch" not in report_blob, report_blob[:400]
+    assert ".tickscratch" in set(COMMITTED_CONFIG["exclude_directories"]), (
+        "the validator's rglob descends into UR-89 review scratch trees at the "
+        "repo root; exclude it like site/ (see the W1.1 note in "
+        ".agents-md-validator.yml) — .gitignore does not reach rglob"
+    )
 
 
 @pytest.mark.timeout(180)  # the walk over every code file in the tree

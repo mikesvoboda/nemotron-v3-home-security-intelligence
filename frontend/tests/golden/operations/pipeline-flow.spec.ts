@@ -6,14 +6,14 @@
  * The numbers come from GET /api/system/telemetry (queue depths, per-stage
  * latency) and GET /api/system/pipeline (worker dots), both asserted from
  * Node first: a stage diagram pinned over a dead endpoint renders zeros just
- * as pretty. The stage and readout testids are the components' own
- * (PipelineFlowVisualization / QueueMetricsPanel), DOM-probed on the harness
+ * as pretty. The stage and readout testids are the component's own
+ * (PipelineFlowVisualization), DOM-probed on the harness
  * stack. Zero values are the honest virgin-stack reading — the assertion is
  * "a number renders", and the drop-driven nonzero path is F2.1's job, not a
  * second spec racing the dedupe window.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, readOpsHarness } from './harness';
+import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 
@@ -43,9 +43,9 @@ test.describe('golden path: pipeline flow visualization (F-134) @critical', () =
     for (const stage of ['stage-files', 'stage-detect', 'stage-batch', 'stage-analyze']) {
       await expect(page.getByTestId(stage)).toBeVisible();
     }
-    // Live totals fed by the endpoints asserted above.
-    await expect(page.getByTestId('total-queue-depth')).toContainText(/\d/);
-    await expect(page.getByTestId('total-workers')).toContainText(/\d/);
+    // Live queue depth and worker count readouts fed by the endpoints asserted above.
+    await expect(page.getByTestId('stage-detect')).toContainText(/Queue: \d+/);
+    await expect(page.getByTestId('workers-count-badge')).toContainText(/\d+\/\d+ Running/);
     await expect(page.getByTestId('total-pipeline-latency')).toContainText(/\d/);
     await expect(page.getByTestId('worker-dot-detector')).toBeVisible();
     await expect(page.getByTestId('worker-dot-analyzer')).toBeVisible();

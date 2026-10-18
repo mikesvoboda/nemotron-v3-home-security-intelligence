@@ -112,7 +112,7 @@ import {
   closedByGuard,
   createAuditFixture,
   hardDeleteFixtureRows,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readAuditLookup,
   readTimelineHarness,
@@ -121,7 +121,7 @@ import {
   type AuditFixture,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 const h = readTimelineHarness();
 test.skip(!h.ready, h.ready ? '' : h.why);

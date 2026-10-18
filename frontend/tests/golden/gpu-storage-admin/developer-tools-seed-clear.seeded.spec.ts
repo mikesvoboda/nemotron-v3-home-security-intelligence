@@ -71,7 +71,7 @@ import {
   readOpsHarness,
   type OpsHarness,
   type Session,
-} from './harness';
+} from '../harness';
 
 const harness = readOpsHarness();
 const CAMERAS_FILE = process.env.FEATURE_CHECK_CAMERAS ?? '';

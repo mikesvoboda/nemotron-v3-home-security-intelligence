@@ -227,23 +227,23 @@ The system is organized into four layers:
 
 ### Frontend Hooks
 
-| Hook                      | Location                                      | Responsibility                                       |
-| ------------------------- | --------------------------------------------- | ---------------------------------------------------- |
-| **useWebSocket**          | `frontend/src/hooks/useWebSocket.ts`          | Core WebSocket connection management                 |
-| **WebSocketManager**      | `frontend/src/hooks/webSocketManager.ts`      | Singleton WebSocket instance with reconnection logic |
-| **useEventStream**        | `frontend/src/hooks/useEventStream.ts`        | Subscribe to real-time security events               |
-| **useSystemStatus**       | `frontend/src/hooks/useSystemStatus.ts`       | Subscribe to system health broadcasts                |
-| **useWebSocketStatus**    | `frontend/src/hooks/useWebSocketStatus.ts`    | Track WebSocket connection state                     |
-| **useConnectionStatus**   | `frontend/src/hooks/useConnectionStatus.ts`   | Combined API and WebSocket connection status         |
-| **useHealthStatus**       | `frontend/src/hooks/useHealthStatus.ts`       | Monitor backend service health                       |
-| **useServiceStatus**      | `frontend/src/hooks/useServiceStatus.ts`      | Track individual AI service availability             |
-| **useAIMetrics**          | `frontend/src/hooks/useAIMetrics.ts`          | AI pipeline performance metrics (latency, accuracy)  |
-| **usePerformanceMetrics** | `frontend/src/hooks/usePerformanceMetrics.ts` | System performance metrics (CPU, memory, GPU)        |
-| **useGpuHistory**         | `frontend/src/hooks/useGpuHistory.ts`         | Historical GPU utilization data                      |
-| **useStorageStats**       | `frontend/src/hooks/useStorageStats.ts`       | Storage usage and retention statistics               |
-| **useModelZooStatus**     | `frontend/src/hooks/useModelZooStatus.ts`     | Optional model zoo loading status                    |
-| **useSavedSearches**      | `frontend/src/hooks/useSavedSearches.ts`      | Manage user-saved search filters                     |
-| **useSidebarContext**     | `frontend/src/hooks/useSidebarContext.ts`     | Sidebar state management context                     |
+| Hook                         | Location                                          | Responsibility                                       |
+| ---------------------------- | ------------------------------------------------- | ---------------------------------------------------- |
+| **useWebSocket**             | `frontend/src/hooks/useWebSocket.ts`              | Core WebSocket connection management                 |
+| **WebSocketManager**         | `frontend/src/hooks/webSocketManager.ts`          | Singleton WebSocket instance with reconnection logic |
+| **useEventStream**           | `frontend/src/hooks/useEventStream.ts`            | Subscribe to real-time security events               |
+| **useSystemStatus**          | `frontend/src/hooks/useSystemStatus.ts`           | Subscribe to system health broadcasts                |
+| **ConnectionStatusProvider** | `frontend/src/hooks/ConnectionStatusProvider.tsx` | Own each channel's connection, track its state       |
+| **useConnectionStatus**      | `frontend/src/hooks/useConnectionStatus.ts`       | Combined API and WebSocket connection status         |
+| **useHealthStatus**          | `frontend/src/hooks/useHealthStatus.ts`           | Monitor backend service health                       |
+| **useServiceStatus**         | `frontend/src/hooks/useServiceStatus.ts`          | Track individual AI service availability             |
+| **useAIMetrics**             | `frontend/src/hooks/useAIMetrics.ts`              | AI pipeline performance metrics (latency, accuracy)  |
+| **usePerformanceMetrics**    | `frontend/src/hooks/usePerformanceMetrics.ts`     | System performance metrics (CPU, memory, GPU)        |
+| **useGpuHistory**            | `frontend/src/hooks/useGpuHistory.ts`             | Historical GPU utilization data                      |
+| **useStorageStats**          | `frontend/src/hooks/useStorageStats.ts`           | Storage usage and retention statistics               |
+| **useModelZooStatus**        | `frontend/src/hooks/useModelZooStatus.ts`         | Optional model zoo loading status                    |
+| **useSavedSearches**         | `frontend/src/hooks/useSavedSearches.ts`          | Manage user-saved search filters                     |
+| **useSidebarContext**        | `frontend/src/hooks/useSidebarContext.ts`         | Sidebar state management context                     |
 
 ### AI Services
 

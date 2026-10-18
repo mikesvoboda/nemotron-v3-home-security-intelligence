@@ -25,7 +25,7 @@ import {
   panelRecovers,
   pollApi,
   readOpsHarness,
-} from './harness';
+} from '../harness';
 
 const harness = readOpsHarness();
 

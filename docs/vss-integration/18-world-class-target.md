@@ -499,7 +499,7 @@ said, how it was clamped and which specialists were available.
    (`backend/services/notification.py:10`, `backend/services/alert_engine.py:22`), a docstring
    mention that is not a caller (`backend/services/notification_filter.py:100`, "moved verbatim out
    of `should_notify`") and an unrelated route handler that happens to be named `evaluate_event`
-   (`backend/api/routes/ai_audit.py:193`) [V].
+   (`backend/api/routes/ai_audit.py:194`) [V].
 3. Every new `event_verifications` row has a linked `llm_interactions` row holding the raw model
    JSON (or the error class), the pre-clamp score, a prompt template version, temperature and
    attempt, image sha256 and size, the `_fitted_prompt` truncation record and the structured

@@ -449,7 +449,7 @@ breach twice is red), and the audit passes on `main`'s current tests in CI.
 ### [r157] O2.4: find the re-ID parity failure, and gate the model half in CI
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, ahead of its F2.3 batch; ops-a
-reviews. **Depends on:** none. **PR:** #7087. (rulings 157, 159)
+reviews. **Depends on:** none. **PR:** #7087, #7125. (rulings 157, 159)
 
 The owner's O2.4 run at `3e0183e9f` (#7002, result `6154659954`) gave cosine min 0.230, mean 0.331,
 against the 0.999 gate on 36 real crops, with build, flags, checkpoint SHA and model IDs all
@@ -469,7 +469,8 @@ Triton, so CI never checks the model half.
       maui adaptations (both posted on #7087): port, checkpoint directory, GPU and crops directory as
       arguments; the parity check as its default mode and the diagnostic as a second mode; UR-133 and
       UR-134 kept (ruling 159).
-- [ ] The fix for the first stage under 0.999, here or in a follow-up PR this one names.
+- [ ] The fix for the first stage under 0.999, here or in a follow-up PR this one names: `[r252]`
+      (ruling 252).
 - [ ] The runner builds each stage's plan independently: stage 3 probes the FP32 plan straight
       after its build, and a failed build leaves its stage `unknown` instead of ending the run. A
       `--plan-timeout <s>` flag reaches `export_reid.py`'s build, default 600 s, and each build logs
@@ -485,12 +486,14 @@ Triton, so CI never checks the model half.
 
 **Done when:** a diagnostic run (the operator's, or the owner's on maui) is posted on this PR, and O2.4's command
 (#6970's) then prints `RESULT: PASS` at the fix head, posted there; O2.4 goes to `done` and `B2.3`
-is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`.
+is unblocked. The 0.999 gate stays (ruling 68) and `REID_BACKEND` stays `local`. Under ruling 252
+the fix head is `[r252]`'s, so this PR merges as the instrument and its `RESULT: PASS` clause is
+read there.
 
 ### [r162] The engine socket follows the orchestrator setting
 
 **Flags:** owner (production safety). **Assigned:** `uplevel-ops-a`. **Depends on:** `O2.5`
-merged. **PR:** #7114 (open). (rulings 162, 186)
+merged. **PR:** #7114. (rulings 162, 186)
 
 - [ ] `backend` mounts `${PODMAN_SOCKET}` only when the orchestrator is enabled
       (`docker-compose.prod.yml:473` at ruling 162), not unconditionally. `alloy` keeps its
@@ -587,7 +590,7 @@ executed and passed, or was demoted for `R2b` with the failure as evidence (ruli
 ### [r235] Seeded rows on the real tier
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, claimed now while `[r157]`
-waits (UR-52 waived, as ruling 217 did). **Depends on:** none. **PR:** none yet. (ruling 235,
+waits (UR-52 waived, as ruling 217 did). **Depends on:** none. **PR:** #7214. (ruling 235,
 record 6216273821)
 
 About 11 rows are witnessed only by `*.seeded.spec.ts` legs (F-012, F-133, F-138, F-154–F-156,
@@ -641,7 +644,7 @@ judges the union of both shards' legs, and the PR posts the before-and-after wal
 ### [r239] The coordinator's heartbeat goes stale at 90 minutes
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` and `[r240]` (rulings 239, 240).
-**Depends on:** none. **PR:** none yet. (ruling 239, record 6217014151)
+**Depends on:** none. **PR:** none yet. (ruling 239, record 6217014151; ruling 245, record 6223117374)
 
 The coordinator's loop fires every 30 minutes (`roles/coordinator.md`), and a tick may run 60, so a
 healthy coordinator's heartbeat can be about 90 minutes old. `scripts/uplevel/coordinator_snapshot.py:66`
@@ -653,6 +656,11 @@ lane to raise UR-162 from that flag.
       `lane_tick.py`'s UR-162 line follows.
 - [ ] `scripts/uplevel/status_draft.py:170`'s note names both numbers.
 - [ ] Tests pin both thresholds.
+- [ ] One per-agent interval table (ruling 245): `coordinator_snapshot.py` flags each agent stalled
+      past three of its own intervals (UR-38), beside UR-162's 90-minute coordinator threshold.
+      Whichever of `[r193]` and `[r239]` merges second sets the lanes' row to the cadence then in
+      force: 15 minutes (stalled at 45) before `[r193]`, 30 (stalled at 90) after. UR-166's
+      20-minute listing in the status comment is unchanged.
 
 **Done when:** the tests pass in CI at a ready head, and a coordinator heartbeat between 20 and 90
 minutes old prints no UR-162 line in `lane_tick.py`'s digest.
@@ -661,7 +669,7 @@ minutes old prints no UR-162 line in `lane_tick.py`'s digest.
 
 **Flags:** `owner` (the role files' tick text). **Assigned:** the owner's session, as an owner PR;
 ops-b reviews. **Depends on:** none.
-**PR:** none yet. (ruling 197, as amended by `6198199744`)
+**PR:** #7186. (ruling 197, as amended by `6198199744`)
 
 Lanes act on what `scripts/uplevel/lane_tick.py` parses, and nothing checks those fields where they
 are written: a wrapped `**PR:** none yet` goes unoffered, owner pointers reach the digest only as a
@@ -692,7 +700,7 @@ from footers, and `--beat` writes a heartbeat the coordinator's snapshot reads.
 ### [r242] plan_lint checks every roster row again
 
 **Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 242).
-**Depends on:** none. **PR:** none yet. (ruling 242, record 6221764225)
+**Depends on:** none. **PR:** #7221. (ruling 242, record 6221764225)
 
 `[r197]`'s lint skipped every roster row whose review label is `none`, and ruling 198 set every
 label to `none`. So check 1 (a queue token with no block) and check 3 (a token on two lanes'
@@ -712,10 +720,141 @@ queues) checked nothing, and ruling 241's missing `B3.1` slot surfaced only by h
 **Done when:** the suites pass, the lint reports 0 findings on the PR's tree with no baseline (what
 `main`'s own run checks), and putting back the `none`-label skip fails the new tests.
 
+### [r243] prod.yml's engine-socket condition renders on every supported Compose
+
+**Flags:** `owner` (production safety). **Assigned:** `uplevel-ops-a`, first on its queue, and
+claimable while #7175 waits on review (UR-52 waived, as rulings 217 and 235 did). **Depends on:**
+none. **PR:** #7222. (ruling 243, record 6222454848)
+
+`[r162]` (#7114) gave `docker-compose.prod.yml` a top-level `include:` of
+`docker-compose.engine-${ORCHESTRATOR_ENABLED:-true}.yml`, which redeclares `services.backend`. The
+Nightly Full Gate's Compose (`/usr/libexec/docker/cli-plugins/docker-compose`, reached through
+`podman compose`) refuses that with `services.backend conflicts with imported resource`, and the 8
+compose-render tests in `backend/tests/unit/core/` fail (run 38877698644).
+
+- [ ] Ruling 186's socket condition moves to a mechanism every supported Compose renders: a `-f`
+      overlay the deploy tooling selects, or another one ops-a measures. The `:-true` default and
+      alloy's unconditional mount are unchanged.
+- [ ] The PR body names the command the live host runs to check its own render before the next
+      redeploy.
+- [ ] The routing of the 8 tests to backend is withdrawn: backend owes nothing for raise
+      `6216622756`, and the coordinator closes it when this package's nightly run is green.
+
+**Done when:** the Nightly Full Gate, re-run by `workflow_dispatch` at the PR's head or after
+merge, is green with the 8 tests passing; and the PR shows `docker-compose.prod.yml` rendering, with
+and without `ORCHESTRATOR_ENABLED=false`, on the runner's Compose, on compose v5.5.1 and on
+podman-compose 1.6.0.
+
+### [r247] A host-side supervisor runs the coordinator's ticks
+
+**Flags:** `owner` (privileged host tooling; plan text). **Assigned:** `uplevel-ops-b`, after
+`[r235]`, ahead of `[r240]` (ruling 247). **Depends on:** none. **PR:** none yet. (ruling 247,
+record 6223821495)
+
+On 2026-10-16 the coordinator posted nothing from 03:47Z to 13:30Z: its in-pane `/loop` dispatcher
+stopped, and nothing in the swarm can restart a pane. Each tick is already a fresh, unnamed subagent
+whose only memory is its heartbeat's `read-through:` cursor (UR-173), so the dispatcher adds only a
+process that can die or hang.
+
+- [ ] `scripts/uplevel/launch.py supervise <session>`, which the owner's timer runs (UR-26). One
+      fire is one tick: the coordinator's tick prompt, word for word as the `/loop` line quotes it,
+      run once as a headless `claude -p` inside `agent-<session>` through `sbx exec`, on the pane
+      session's model and permission mode. The PR shows how it established both.
+- [ ] A host lock skips a fire while the previous tick runs, and a tick that has run 60 minutes is
+      killed.
+- [ ] Each fire appends one line to a host log: start, end, exit status, whether it was killed, and
+      the tick's five-line summary.
+- [ ] `--dry-run`, and exit 2 naming the next step when the sandbox is not running, as `up` and
+      `retire` do.
+- [ ] The PR documents a 30-minute timer on maui (ruling 239) for the owner to install, and rewrites
+      `roles/coordinator.md` "Kickoff prompt" for the supervisor (and `sandboxes.toml` if the
+      coordinator's row changes). The owner switches over: first ends the pane's `/loop` session,
+      then enables the timer.
+- [ ] Two dispatchers never run at once.
+- [ ] The coordinator only. Lanes, heavy agents and the operator keep their panes. After 48 hours
+      of supervised ticks, the owner decides by a new ruling whether the supervisor extends to
+      them.
+
+**Done when:** the PR shows `--dry-run`'s output and one real manual fire: its log line, and the
+heartbeat patch that tick made.
+
+### [r248] A ready package PR names itself in its own block
+
+**Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 248).
+**Depends on:** none. **PR:** none yet. (ruling 248, record 6223962176)
+
+UR-183 has each package PR write its own number into its block's `**PR:**` field. Of the 130 PRs
+merged since 2026-10-14, 17 were register or stamp fixups that rewrote such a field after a merge.
+
+- [ ] `scripts/uplevel/plan_lint.py` reads the pull request from `GITHUB_EVENT_PATH` when CI runs on
+      one, so `ci.yml`'s step does not change. On a ready (not draft) PR, for each leading
+      `[token]` in the title that has a `### ` block, it reports one finding when the block's
+      `**PR:**` field does not name this PR's number.
+- [ ] Titles that name no block (`[UR-48]`, `docs(...)`) and `F2.3`'s batches (`SHARED`) are
+      skipped, and a push to `main` is unaffected.
+- [ ] Tests pin a ready PR whose block says `none yet` (a finding), one that names itself (clean), a
+      draft (skipped), a title with no block (skipped), and two tokens in one title.
+- [ ] `scripts/uplevel/lane_tick.py`'s `next_claimable` docstring stops calling the field
+      "coordinator-owned" (UR-183).
+
+**Done when:** the suites pass, and the check reports this PR's own block until the block names this
+PR.
+
+### [r251] The feature inventory's §2 summary is computed, not stored
+
+**Flags:** none. **Assigned:** the owner's session, as an owner PR; ops-b reviews (ruling 251).
+**Depends on:** none. **PR:** #7226. (ruling 251, record 6224408012; correction 6224625255)
+
+Two PRs that flipped different rows of `docs/reference/feature-inventory.md` both edited §2's `all`
+row, so they conflicted though their real edits did not: about 20 recount and conflict commits
+across 11 PRs since 2026-10-14.
+
+- [ ] §2's table becomes one paragraph saying how to print it, and the `## 2. Summary` heading
+      stays.
+- [ ] `scripts/check-inventory-summary-arith.py` prints the table (and `--json`) from §3's rows,
+      with the status vocabulary from §1's `### Statuses` legend, and refuses a table stored under
+      §2 again.
+- [ ] The row checks keep their exit codes (a status outside the legend 1; a section listed twice
+      or an unreadable table 2), and `inventory_witness.py`'s helpers and `check()`'s census stay.
+- [ ] `scripts/test_check_inventory_summary_arith.py` pins the computed table on fixtures and the
+      real file's rows parsing cleanly. The PR runs the full Feature check once.
+- [ ] No PR edits §2's counts: a PR that changes a row's status edits only that row. Until this
+      package lands, an open PR drops its §2 hunk at its next push, and may merge with
+      `check-inventory-summary-arith.py` failing on §2 alone, if its review names that failure.
+
+**Done when:** the suites pass, and the printed table equals the stored one it replaces.
+
+### [r252] Re-ID: find and fix the ONNX→TensorRT plan-build divergence
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue, ahead of `B2.3`. Where it edits
+`ai/gateway/` (cell A's files), UR-9 applies. **Depends on:** none. **PR:** #7238. (ruling 252,
+record 6235589555)
+
+Operator run 188.17 (`6235043370`: `[r157]`'s runner at `f99058805`, 36 crops) read `onnx-cpu`
+at 1.00000 (min and mean), `plan-fp32` at min 0.35205 / mean 0.45675 and `plan-fp16` at min 0.23046
+/ mean 0.33142, against the 0.999 gate. FP32 carries no half-precision rounding, so the divergence
+enters at the ONNX→TensorRT plan build, deterministically (ops-b `6235236028`). The exported
+OSNet-AIN graph has five `InstanceNormalization` nodes, the one op in it with a TensorRT fidelity
+history; rewritten into primitives, it matches the original under ONNX Runtime on CPU to 9.686e-08
+(`6235312093`). This is `[r157]`'s box-5 follow-up.
+
+- [ ] 188.18 as `6235312093` proposes: plans rebuilt from the `InstanceNormalization`-decomposed
+      ONNX through `[r157]`'s runner, run once by the operator (UR-15), and the stage table posted
+      verbatim on the PR.
+- [ ] If a plan stage still reads under 0.999, post the measured table and its reading on the PR;
+      the next step goes to the owner through the coordinator's status comment before any further
+      spend.
+- [ ] The change ships with a CPU-only CI test that pins it.
+
+**Done when:** `[r157]`'s Done when, read at this package's head: O2.4's command (#6970's) prints
+`RESULT: PASS`, posted on the PR, and the CPU-only test above is green in CI. The 0.999 gate stays
+(ruling 68), `REID_BACKEND` stays `local`, and serving re-ID through ONNX Runtime instead of
+TensorRT plans is not authorised.
+
 ### [r164a] The coordinator's paperwork moves into scripts
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, next on its queue after `O2.5`; ops-b reviews.
-**Depends on:** none. **PR:** none yet. (ruling 164)
+**Depends on:** none. **PR:** #7154. (ruling 164)
 
 The coordinator re-derives by hand what a script can compute, and that is where today's misses came
 from: hand-typed UR-106 hashes, ruling 156's auto-merge audit, and #7037's owner questions absent
@@ -793,7 +932,7 @@ list is posted, and the existing duration pins pass.
 ### [r218] The inventory's status is checked against the golden run
 
 **Flags:** `owner` (CI and the witness convention). **Assigned:** the owner's session, as an owner
-PR. **Depends on:** none. **PR:** none yet. (ruling 218, record 6201875149)
+PR. **Depends on:** none. **PR:** #7193. (ruling 218, record 6201875149)
 
 Ruling 208's count (`6200252063`): 106 of 254 record-repair commits mainly edit the inventory, and
 status flips, evidence cells and witness ids lead. Each Feature check job already records per-test

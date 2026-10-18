@@ -202,7 +202,7 @@ window that shrinks from full to short re-opened the bug (50 false `new comment`
 the last one has no anchor and announces no arrival — position it cannot prove, it does not claim —
 while the vanished side still prints, which is what keeps an honest append reporting.
 
-`scripts/test_pr_watch.py` (73 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`scripts/test_pr_watch.py` (75 tests, in ci.yml's anti-rot-gates list) drives one seam —
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
 fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
 starts reading something new fails loudly instead of passing on `{}`.
@@ -248,10 +248,31 @@ command and not a scratchpad (`[r157]`, rulings 157 + 159). Two modes:
   cache plan (which is the LAST compiled precision, so a fallback could score FP16 as
   FP32). `unknown` makes the table exit 2 - an incomplete diagnostic must not post as a
   clean run - while a located first failure stays exit 0, because naming the broken stage
-  is this mode succeeding.
+  is this mode succeeding. Stage 3 is built and probed BEFORE the FP16 build starts
+  (ruling 180): the owner's maui run compiled FP32 in 130.9 s, then FP16 hit the build
+  timeout, and under `set -euo pipefail` that ended the run with a good FP32 plan sitting
+  on disk unprobed - losing the one measurement that separates "the plan is wrong" from
+  "FP16 is not enough". Each build is contained so a failed one leaves its stage
+  `unknown`, its plan copy is chained to that build's own success, and the gateway leg
+  is contained the same way - a failed FP16 build leaves the shared cache path with no
+  plan at all (the exporter unlinks its half-written engine), so a bare `start_gateway`
+  would abort under `set -e` before the cosine table printed, losing the FP32 row a
+  second time. Parity's gateway calls stay fatal. Both precisions
+  write the same cache path, so a copy taken after an unsuccessful build captures the
+  OTHER precision: a build refused before it starts leaves the path holding FP32's
+  bytes (`export_reid.py` deliberately does not unlink on that path), and an
+  unconditional copy would mint `model-fp16.plan` out of them - the wrong-plan swap
+  `stage_plan` refuses to fall back over. A build that dies mid-compilation is already
+  clean, because the exporter unlinks its own half-written engine and there is nothing
+  to copy.
 
-`--checkout`, `--gpu`, `--port`, `--checkpoint`, `--crops`, `--head`, `--mode` - the host
-paths ruling 159 makes arguments. Without `--crops` it stops after build/export/compile and
+`--checkout`, `--gpu`, `--port`, `--checkpoint`, `--crops`, `--head`, `--mode`,
+`--plan-timeout` - the host
+paths ruling 159 makes arguments. `--plan-timeout` bounds one `trtexec` build inside the
+exporter and defaults to 600 s, kept tight on purpose so a stalled build surfaces as a
+failure (ruling 180); before each build the runner writes a `--query-compute-apps`
+snapshot and its own wall-clock timing into the run directory, since `gpu-before.txt`
+names no PID and a build killed by the bound prints no duration of its own. Without `--crops` it stops after build/export/compile and
 prints the run directory: real camera crops cannot be synthesised (a synthetic crop passes
 the parity check it is meant to test), so it waits for >=30 crops plus a `crops-ready`
 touch. UR-133/UR-134 hold unchanged: a fresh detached worktree at a named head (never the
@@ -325,3 +346,31 @@ stale known entry, or a title naming no such row), 2 an input could not be read,
 The inventory's rows are parsed with `scripts/check-inventory-summary-arith.py`'s table helpers,
 loaded by path. Tests: `scripts/test_inventory_witness.py` (fixture inventories, summaries, known
 lists and spec trees).
+
+### grounds_sweep.py
+
+The inventory's grounds census, hand-run (`[r231b]`, ruling 231; committed at `[r231b]`'s round-2
+review). `uv run python scripts/uplevel/grounds_sweep.py [--root REPO]
+[--inventory PATH]` counts the full-path coordinates inside §1's EXCLUSION region (from the line
+carrying "Not listed, with the reason." to `## 2.`) — its grounds — then reports every §3 row that
+cites a ground the exclusion prose never names (an UNNAMED citer: a placed line doing placement
+work nothing above it admits). It prints the region window, the ground and shorthand counts, the
+unnamed list, and five standing controls.
+
+Two shape decisions, each the reason a plausible version is wrong. Grounds are read ONLY over the
+exclusion region: §1's intro and membership evidence above it also carry full-path cites, and
+counting those inflates the figure and re-indicts rows the intro legitimately places. And a bare
+`:NNN` binds to the last full path in the same joined-cell stream at BOTH ends — grounds and rows
+— so a row citing `:452` after `backend/services/household_matcher.py:452` counts at the resolved
+pair instead of
+silently dropping out of the census. Range cites key on their START line at both ends, so identity
+is `file.py:START`.
+
+The controls are the point, not decoration: one TRUE ground with its one citer plus four non-grounds
+with their §3 citers. A parser that stops parsing prints the controls WRONG before it prints a
+comfortable 31/0, so compare them against the values the package block records rather than admiring
+the headline. Refusals exit 2 naming the missing anchor or unreadable file (never `sys.exit(str)`,
+which exits 1 and reads as "ran, found problems"); a clean run exits 0 even with unnamed citers,
+because reporting is the reader's call, not the script's verdict. Hand-run by design and not wired
+into ci.yml — `docs/reference` sits outside the citation gate's five scanned dirs — the same footing
+as `r193-mutation-campaign.py` above.

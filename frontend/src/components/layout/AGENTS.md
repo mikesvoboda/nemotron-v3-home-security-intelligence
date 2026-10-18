@@ -6,17 +6,18 @@ Contains the core application layout components that provide consistent structur
 
 ## Files
 
-| File                       | Purpose                                           |
-| -------------------------- | ------------------------------------------------- |
-| `Header.tsx`               | Top navigation with branding and status           |
-| `Header.test.tsx`          | Test suite for Header                             |
-| `Layout.tsx`               | Main layout wrapper composing Header + Sidebar    |
-| `Layout.test.tsx`          | Test suite for Layout                             |
-| `MobileBottomNav.tsx`      | Bottom navigation bar with "More" menu for mobile |
-| `MobileBottomNav.test.tsx` | Test suite for MobileBottomNav                    |
-| `Sidebar.tsx`              | Left navigation menu with route links             |
-| `Sidebar.test.tsx`         | Test suite for Sidebar                            |
-| `sidebarNav.ts`            | Navigation configuration (groups, items, paths)   |
+| File                                | Purpose                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `Header.tsx`                        | Top navigation with branding and status                    |
+| `Header.test.tsx`                   | Test suite for Header                                      |
+| `Layout.tsx`                        | Main layout wrapper composing Header + Sidebar             |
+| `Layout.test.tsx`                   | Test suite for Layout                                      |
+| `MobileBottomNav.tsx`               | Bottom navigation bar with "More" menu for mobile          |
+| `MobileBottomNav.test.tsx`          | Test suite for MobileBottomNav                             |
+| `Sidebar.tsx`                       | Left navigation menu with route links                      |
+| `Sidebar.test.tsx`                  | Test suite for Sidebar                                     |
+| `shellConnectionOwnership.test.tsx` | Census: the mounted shell holds one connection per channel |
+| `sidebarNav.ts`                     | Navigation configuration (groups, items, paths)            |
 
 ## Key Components
 
@@ -269,6 +270,12 @@ The health indicator uses a hover tooltip with delay:
 - Renders Header and Sidebar
 - Renders children in main content area
 - Proper structure and classes
+
+### shellConnectionOwnership.test.tsx
+
+- The mounted shell (real Layout + real Header) holds one connection per channel
+- The shell cannot render without `ConnectionStatusProvider`, and opens nothing on the way down
+- Header's indicator reads the shared session rather than its own socket
 
 ### Header.test.tsx
 

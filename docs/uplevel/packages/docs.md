@@ -167,46 +167,94 @@ moot rather than pending.)
 ### [r207] Rows the real tier cannot confirm
 
 **Flags:** none. **Assigned:** docs, after `[r196b]`. **Depends on:** none.
-**PR:** none yet. (ruling 207, record 6199844401)
+**PR:** #7209. (ruling 207, record 6199844401)
 
 The real tier serves the real VLM with the fake detector (UR-136), and no agent run exercises
 `yolo26`, `reid` or `threat` (`r2-sheet.md`, "The real-tier gap"). Yet **works** reads "confirmed
 on the real tier" (`docs/reference/feature-inventory.md:33`).
 
-- [ ] The inventory legend says the real tier is the real VLM with the detector, re-ID and threat
+- [x] The inventory legend says the real tier is the real VLM with the detector, re-ID and threat
       models fake (UR-136), as `README.md`'s vocabulary now does.
-- [ ] List the rows whose behaviour comes from detector, re-ID or threat output, each with the code
+- [x] List the rows whose behaviour comes from detector, re-ID or threat output, each with the code
       path that reads it. Each carries the note `needs real Triton models` and stays at
       **awaiting real tier** until a host run with the real Triton models covers it; a listed row
       now at **works** goes back, and the PR names it.
 
 **Done when:** the legend agrees with UR-136, and every listed row carries the note and is not
-**works**.
+**works**. **MET** — the legend row says the detector, re-ID and threat models stay fake at
+`--real` (box-1 commit `5ffdb080b`); the listing lives at `feature-inventory.md`, "Ruling 207: rows
+the real tier cannot confirm" (§1), 35 rows, each carrying `needs real Triton models` in its
+evidence cell and each named by the code path that reads the fake-leg value. Membership was measured
+from the writers outward (`detector_client.py`, the re-ID embedding and clustering writers, the threat
+consumers) rather than from the earlier row list, and the two boundaries that reading forced — a row
+about the fake value vs a surface that merely renders one, and a figure the row promises vs the pipeline
+counting its own running — are published in the §1 intro so a reader can re-check them; the same
+paragraph names the adjudicated non-members whose own §3 evidence cites a coordinate §1 publishes as
+an exclusion ground, and states that bound plus what the claim does NOT cover rather than asserting
+it is total. The one listed row at **works** was F-097 and this PR
+names it back to **awaiting real tier**; the sweep found no
+second one, and the closest call is named: F-031 renders the detector-drawn crop in its feed cards but
+promises the VLM-written verdict/notify/risk badges, which its own golden spec asserts and F-054's does
+not, so it stays out with the reason rather than in by silence.
 
 ### [r231] Every model family the real tier fakes
 
 **Flags:** none. **Assigned:** docs, after `[r207]`. **Depends on:** `[r207]` merged (#7209).
-**PR:** none yet. (ruling 231, record 6215981513)
+**PR:** #7235. (ruling 231, record 6215981513)
 
 Ruling 207 named the detector, re-ID and threat families. The real tier serves only the real VLM
 (UR-136), and `models.yml` serves more families through the AI gateway: face detection and
 recognition (`face-detector-scrfd`, `face-recognizer`, `yolo11-face`), license plates
 (`yolo11-license-plate`, `fast-alpr`, `paddleocr`) and general detection (`yolo26-general`).
-Ruling 231 extends ruling 207 to every family except the VLM.
+Ruling 231 extends ruling 207 to every family except the VLM. (The clause "through the AI gateway"
+is the ruling's WHY and #7235's box-1 measurement corrects it: the gateway's Triton set is
+`{yolo26, reid, threat}`, and these seven are backend model-zoo loaders no agent tier feeds
+weights. The ruling's verdict — the extended set is never exercised for real — holds unchanged.)
 
-- [ ] **MEASURE** which `models.yml` families the real tier fakes, from its compose and UR-136, and
-      list them in the PR.
-- [ ] List the rows whose behaviour comes from those families' output, each with the code path
+- [x] **MEASURE** which `models.yml` families the real tier fakes, from its compose and UR-136, and
+      list them in the PR. Done at `d0809bd71` and the PR's box-1 Evidence: the set is all ten
+      `models.yml` rows (the real VLM is not a `models.yml` row — `--real` serves it from the library
+      GGUF pin, `scripts/feature_check.py:136-140`), in two measured modes: **A**, the three the fake
+      `ai-gateway` answers (the Triton repository baked into its image holds exactly `yolo26`, `reid`,
+      `threat`), and **B**, the seven no agent tier loads at all (the CI+fake-ai compose pair carries
+      0 `AI_MODELS_PATH` lines against `docker-compose.prod.yml`'s 7, and each of the seven raises).
+- [x] List the rows whose behaviour comes from those families' output, each with the code path
       that reads it. Each carries the note `needs real Triton models`, and a listed row at **works**
       goes back to **awaiting real tier**, named in the PR. The inventory legend names the set.
-- [ ] F-270, F-271 and F-275's evidence cells cite the 2026-10-13 real-tier run that set them to
+      Done at `8f6a955ab`. The writers-outward census over the extended set found **no new member
+      row**: a mode-B family's value is never _produced_, so it cannot reach a surface, and every row
+      adjacent to the seven lands in an exclusion class — catalogue state (F-104/F-125/F-127/F-129),
+      an uncalled latency feed (F-105/F-130), a dead control (F-128/F-269), a seeded table
+      (F-268), user-entered stores the family reads _instead of_ feeding (F-241/F-242), a read-time
+      liveness probe (the `get_health` consumers F-005/F-007/F-020/F-028/F-037/F-126/F-139 and the
+      readiness/liveness probes F-016/F-134/F-146/F-147 — §1's fourth boundary, added after the UR-89
+      review: writers-outward is blind to a probe with no write site, so the class is named by the
+      row's own promise, ground a route and a symbol, no new line-coordinate ground); each is named
+      with the reason. What shipped instead of new rows: the seven `[r207]` legs mislabeled
+      `re-ID (face)` are re-leged `face (zoo)` (measured producer: SCRFD + w600k_r50 at
+      `backend/services/model_zoo.py:345`/`:346` and the `yolo11-face` loader `:335`, not the Triton
+      `reid` op), the
+      marker's family list is glossed (§8's rule keys on the note string, which names ten families,
+      not Triton literally), a third boundary — faked _and_ never-produced output both list it — and
+      the legend `works` cell plus `README.md`'s vocabulary name the set. §1 lists 35 rows, all 35
+      carry the note, and `[r231]`'s sweep found **no listed row at works** to name back.
+- [x] F-270, F-271 and F-275's evidence cells cite the 2026-10-13 real-tier run that set them to
       **works** (commit `5db3c56f7`, project `hsi-check-20261013234949-a14ce4`) in place of the
       stale "promoted to `awaiting real tier` by ruling 103" sentence (DO-3 rows, ruling 87),
-      unless the list above puts the row back to **awaiting real tier**.
+      unless the list above puts the row back to **awaiting real tier**. Done at `8f6a955ab`, on the
+      proceed branch: box 2 put none of the three back — §1 names them **User-entered** (the family
+      reads _their_ store, `backend/services/household_matcher.py:452` /
+      `backend/services/vlm_specialists.py:742`, not the row
+      displaying the family's output), and `5db3c56f7` was a default-shape real run, which box 1's
+      bound makes a valid promotion for a row whose value no leg fakes. `5db3c56f7`'s own commit
+      message names `hsi-check-20261013234949-a14ce4`.
 
 **Done when:** every listed row carries the note and is not **works**, the legend agrees with
 UR-136, and each of the three evidence cells cites its real-tier run unless the list put its row
-back.
+back. **MET** — at `8f6a955ab`: 35 §1 rows, 35 note-carrying §3 cells, 0 at **works** (measured from
+the tree, `split(' | ')` status cell); the legend `works` cell and the README vocabulary both name
+the extended set and cite the box-1 measurement; the three cells carry the `5db3c56f7` /
+`hsi-check-20261013234949-a14ce4` citation in place of the stale ruling-103 sentence. `docs/reference/feature-inventory.md:33`, §1, §3.12.
 
 ### [r165b] F-235: cure the quarantined notify channels spec
 
@@ -230,3 +278,46 @@ back.
 2026-10-16T00:00Z. **MET** — run `38584761421` above, 2026-10-14T15:29:34Z, ~38 h inside the mark's
 expiry and the ruling-165 clock (12:08:57Z + 48 h on the 16th). The F-235 inventory row moves
 `unverified` → `awaiting real tier` in the same commit, and §2's §3.10/all totals roll with it.
+
+### [r231b] Keep it true: the bare cites and probe-class residuals `r231`'s close left
+
+**Flags:** none. **Assigned:** docs, opened on trigger (this lane opens Phase 4 packages only on a
+trigger — the trigger fired: r231-reviewer's note 1, a validator failure reported against a merged
+claim, review comment `6236622758` on #7235, dispositioned there as this package's lead item).
+**Depends on:** `[r231]` merged (#7235, `5d5c4bcc5`). **PR:** #7237. (ruling 231, record 6215981513)
+
+- [x] The three bare-filename cites `[r231]`'s repair commit `683d49566` published in its own
+      packages prose — `model_zoo.py`:345 at :235, `household_matcher.py`:452 and
+      `vlm_specialists.py`:742 at :245 (the third published at `:741`; `537cc20d8`'s ground swap
+      moved it) — carry their full repo-relative paths
+      (`backend/services/…`), the form the validator resolves and the inventory prose already
+      uses. Done when `validate_docs` level 1 over `packages/docs.md` reads **3 ERRs, not 6**: the
+      base `f85f27a5f` set (`ci.yml`:298-304, `permission.spec.ts`:181-187,
+      `timeline/event-feedback.spec.ts`:213) and nothing else. The three base ERRs are NOT this
+      package's to fix — they were published under earlier rulings and sit in other batches' prose.
+      This block names every cite in the split form (closing backtick BEFORE the colon, as above):
+      `INLINE_CITATION_PATTERN` matches only a `file.ext:NNN` wholly inside one code span, so the
+      block cannot re-grow the class it fixes — and if a later re-wrap merges those spans, the
+      ERR set this Done when reads is what makes that loud. The instrument is HAND-RUN: this file
+      sits outside the citation gate's five scanned dirs (`ci.yml`:392), so the ERR set speaks when
+      the next review re-runs it — which UR-91 obliges on every new head.
+      Done at `a49f24bc7`; #7237's Evidence carries the three instrument outputs.
+- [x] §1's fourth boundary names the two residuals its own bullet left open (reviewer note 3):
+      **F-022** (its evidence names tiered `GET /api/system/health/websocket` through the
+      always-open `WebSocketHealthPanel`) and **F-140** (its API cell cites
+      `GET /api/system/health` outright). Both are `half-built`, zero works exposure; naming is
+      prose-only — the ground stays route+symbol, so the reverse sweep's obligation is unchanged:
+      grounds re-run reads **31 grounds, 0 unnamed** with controls green, and the bullet's class
+      count moves from eleven named to thirteen.
+      Done at `a49f24bc7`; the sweep re-printed 31/0 there. Round 2 blocked this clause while its
+      only carrier sat in `/tmp` — contract rule 3 — and the instrument now lives at
+      `scripts/uplevel/grounds_sweep.py`, re-printing 31/10/0 + the five controls identical to the
+      copy it replaced (modulo its path header line). The F-022 row's route-tier claim
+      re-verified at the `@router.get` decorator of `GET /health/websocket` in
+      `backend/api/routes/system.py` (`RateLimitTier.DEFAULT`) — symbol-anchored, deliberately no
+      line number: this cluster is the repo's known ~11-line cite-drift family (the F-022 row's own
+      `:1626` is already stale), so a fresh coordinate here would age the same way.
+
+**Done when:** the validator reads 3 ERRs on `packages/docs.md` (not 6), the grounds sweep
+(`scripts/uplevel/grounds_sweep.py`, committed) still foots at 31/0 with F-022 and F-140 named in
+the fourth boundary, and prettier is clean on both files.

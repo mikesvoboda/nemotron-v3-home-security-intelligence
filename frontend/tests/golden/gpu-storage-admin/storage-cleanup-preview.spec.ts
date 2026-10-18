@@ -21,7 +21,7 @@
  * product-notes section as the deliberate golden boundary, not skipped.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, authPost, loginAsAdmin, readOpsHarness } from '../operations/harness';
+import { api, closedByGuard, authPost, loginAsAdmin, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

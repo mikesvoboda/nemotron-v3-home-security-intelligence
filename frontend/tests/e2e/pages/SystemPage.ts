@@ -49,10 +49,6 @@ export class SystemPage extends BasePage {
   readonly rtdetrService: Locator;
   readonly nemotronService: Locator;
 
-  // Worker Status Panel
-  readonly workerStatusPanel: Locator;
-  readonly workerItems: Locator;
-
   // Pipeline Metrics Panel (combined Queues + Latency + Throughput)
   readonly pipelineMetricsPanel: Locator;
   readonly pipelineQueuesCard: Locator; // Alias for backwards compatibility
@@ -151,10 +147,6 @@ export class SystemPage extends BasePage {
     this.redisService = page.locator('[data-testid="service-row-redis"]');
     this.rtdetrService = page.locator('[data-testid="service-row-rtdetr_server"]');
     this.nemotronService = page.locator('[data-testid="service-row-nemotron"]');
-
-    // Worker Status Panel
-    this.workerStatusPanel = page.locator('[class*="WorkerStatusPanel"]');
-    this.workerItems = page.locator('[class*="WorkerStatusPanel"] [class*="worker"]');
 
     // Pipeline Metrics Panel (combined Queues + Latency + Throughput)
     this.pipelineMetricsPanel = page.locator('[data-testid="pipeline-metrics-panel"]');

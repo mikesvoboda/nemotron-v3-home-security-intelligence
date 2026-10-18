@@ -249,11 +249,11 @@ import { GUARD_MESSAGE, expect, test } from '../guard';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   apiWrite,
   closedByGuard,
   hardDeleteFixtureRows,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -262,7 +262,7 @@ import {
   waitForEventCards,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 /* ----------------------------- the scenario claim -------------------------- */
 

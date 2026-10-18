@@ -80,10 +80,11 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 
 ### B3.1 Retire ruled-out features, backend part
 
-**Flags:** `heavy · owner`. **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
+**Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
+(ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7224.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -279,7 +280,7 @@ already scoped is left alone; and the docs line is updated (ruling 94).
 ### [r95] Close both monitoring-key gaps (S1, S4)
 
 **Flags:** owner tier (security and auth), pre-approved by ruling 95 (UR-101); ops-b reviews.
-**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** #7135 (open).
+**Assigned:** `uplevel-backend`, test-first, one PR. **Depends on:** none named. **PR:** #7135.
 
 - [x] **S1:** with `API_KEY_ENABLED=true` and `EXPOSE_LAN=false`, the 9 routes guarded by the legacy
       `verify_api_key` copies (`backend/api/routes/dlq.py`, `backend/api/routes/system.py`;
@@ -317,7 +318,7 @@ on:** queues behind `[r122]`. **PR:** #7031 (merged).
 F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_prompt` are
 `deferred()` (`backend/models/event.py:72-74`). `_export_table`
 (`backend/services/backup_service.py:336`) and the batch audit
-(`backend/api/routes/ai_audit.py:445`) read them inside an `AsyncSession`, which raises
+(`backend/api/routes/ai_audit.py:475`) read them inside an `AsyncSession`, which raises
 `MissingGreenlet`: every backup fails once any event exists, and the audit fails on every event.
 
 - [ ] Items (4) and (5) of the Done when touch `frontend/`: backend either takes frontend's review on
@@ -410,7 +411,7 @@ head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green
 ### [r228] One cache key shape
 
 **Flags:** none. **Assigned:** backend, first on its queue, ahead of `[r223]` (a lane bug fix
-outside Phase 4's priority order). **Depends on:** none. **PR:** none yet. (ruling 228, record 6215814018)
+outside Phase 4's priority order). **Depends on:** none. **PR:** #7215. (ruling 228, record 6215814018)
 
 `[r223]`'s MEASURE (`6208408388`) found the invalidators miss the keys their routes store.
 `CacheKeys` (`backend/services/cache_service.py:730`) builds keys that already carry the global
@@ -452,6 +453,30 @@ caches for 60 s (`cameras.py:261`), so F-197's toast names cameras the list does
 
 **Done when:** the unit tests pass in CI at a ready head, and the PR's list names every cached read
 the three handlers change, each invalidated.
+
+### [r244] The monitoring key gets no recommendation prose
+
+**Flags:** `owner` (security and auth). **Assigned:** `uplevel-backend`, after `[r223]`. #7157
+becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 3 put on it ends.
+**Depends on:** none. **PR:** #7157. (ruling 244, record 6222984876)
+
+`GET /api/ai-audit/recommendations` is in the monitoring scope (`backend/core/constants.py`,
+`MONITORING_SCOPE_PATHS`), and each item's `suggestion` is the LLM's free-text advice
+(`backend/api/schemas/ai_audit.py`, `RecommendationItem`). Ruling 95 admits to a monitoring-scoped
+key only the fields its consumer reads, and Grafana's panel shows `$.recommendations[*].suggestion`
+through that key (`monitoring/grafana/dashboards/consolidated.json:5934`).
+
+- [x] A monitoring-scoped key gets `suggestion: null`, through the `scoped_key_ceiling` posture
+      #7135 takes. A session cookie and an unscoped key still get the prose.
+- [x] `RecommendationItem.suggestion` becomes `str | None` in the same commit, and
+      `docs/openapi.json` and `frontend/src/types/generated/api.ts` are regenerated in it.
+- [x] The panel labels its rows by `category` and `priority`, not by `suggestion`
+      (`consolidated.json:5934`), as a cross-lane part (UR-9) that ops reviews.
+- [x] Tests: the clamp is red on the unclamped handler, a leg is red if the schema flip is omitted,
+      and both postures are checked (the monitoring key nulled; a cookie and an unscoped key get
+      the prose).
+
+**Done when:** the tests pass in CI, and the panel's query no longer reads `suggestion`.
 
 ### [r199] An analysis message is acknowledged only for a stored event or a terminal failure
 

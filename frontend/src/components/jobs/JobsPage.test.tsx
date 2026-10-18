@@ -268,6 +268,29 @@ describe('JobsPage', () => {
         );
       });
     });
+
+    it('does not render the retired job-logs-viewer live logs section (F-091, R2a row 17)', async () => {
+      vi.mocked(api.searchJobs).mockResolvedValue(mockJobsResponse);
+      vi.mocked(api.fetchJob).mockResolvedValue(mockJobs[0]);
+
+      const user = userEvent.setup();
+      renderWithProviders(<JobsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('job-item-job-001')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('job-item-job-001'));
+
+      await waitFor(() => {
+        const detailPanel = screen.getByTestId('job-detail-panel');
+        expect(within(detailPanel).getByRole('heading', { level: 2 })).toHaveTextContent(
+          'Export #001'
+        );
+      });
+
+      expect(screen.queryByTestId('job-logs-viewer')).not.toBeInTheDocument();
+    });
   });
 
   describe('Empty State', () => {

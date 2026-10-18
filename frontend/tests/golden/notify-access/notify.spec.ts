@@ -70,7 +70,7 @@
  */
 import { expect, test } from '../guard';
 import {
-  adminSession,
+  adminSessionId as adminSession,
   apiPath,
   assertGuardSurvives,
   authedFetch,
@@ -79,7 +79,7 @@ import {
   sectionTitle,
   settledSettings,
   type Harness,
-} from './harness';
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

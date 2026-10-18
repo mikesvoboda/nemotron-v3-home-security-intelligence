@@ -1,16 +1,18 @@
 export { useWebSocket } from './useWebSocket';
 export type { WebSocketOptions, UseWebSocketReturn } from './useWebSocket';
 
-export { useWebSocketStatus } from './useWebSocketStatus';
+// [r204]: `useConnectionStatus` owns the channel-status types now — the
+// second socket implementation that used to export them is deleted, and the
+// one subscription lives in ConnectionStatusProvider.
+export { useConnectionStatus } from './useConnectionStatus';
 export type {
+  BackendSystemStatus,
   ConnectionState,
   ChannelStatus,
-  WebSocketStatusOptions,
-  UseWebSocketStatusReturn,
-} from './useWebSocketStatus';
-
-export { useConnectionStatus } from './useConnectionStatus';
-export type { ConnectionStatusSummary, UseConnectionStatusReturn } from './useConnectionStatus';
+  ConnectionStatusSummary,
+  UseConnectionStatusReturn,
+} from './useConnectionStatus';
+export { ConnectionStatusProvider } from './ConnectionStatusProvider';
 
 export { useEventStream } from './useEventStream';
 export type { SecurityEvent, UseEventStreamReturn } from './useEventStream';
@@ -444,10 +446,6 @@ export type { UseJobMutationsOptions, UseJobMutationsReturn } from './useJobMuta
 // Job logs query hooks (NEM-2710)
 export { useJobLogsQuery, jobLogsQueryKeys } from './useJobLogsQuery';
 export type { UseJobLogsQueryOptions, UseJobLogsQueryReturn } from './useJobLogsQuery';
-
-// Job logs WebSocket hooks (NEM-2711)
-export { useJobLogsWebSocket, default as useJobLogsWebSocketDefault } from './useJobLogsWebSocket';
-export type { UseJobLogsWebSocketOptions, UseJobLogsWebSocketReturn } from './useJobLogsWebSocket';
 
 // Job history query hooks (NEM-2713)
 export { useJobHistoryQuery, jobHistoryQueryKeys } from './useJobHistoryQuery';
@@ -909,18 +907,6 @@ export type {
   UseEventEnrichmentWebSocketReturn,
 } from './useEventEnrichmentWebSocket';
 
-// Queue metrics WebSocket hook (NEM-3637)
-export {
-  useQueueMetricsWebSocket,
-  default as useQueueMetricsWebSocketDefault,
-} from './useQueueMetricsWebSocket';
-export type {
-  QueueStatusEntry,
-  ThroughputEntry,
-  UseQueueMetricsWebSocketOptions,
-  UseQueueMetricsWebSocketReturn,
-} from './useQueueMetricsWebSocket';
-
 // Notification preferences hooks (NEM-3582)
 export {
   useNotificationPreferences,
@@ -985,22 +971,6 @@ export type {
 // RTSP connection testing hook (NEM-4748)
 export { useRtspTest } from './useRtspTest';
 export type { UseRtspTestReturn } from './useRtspTest';
-
-// Worker status WebSocket hook (NEM-3127)
-export {
-  useWorkerStatusWebSocket,
-  default as useWorkerStatusWebSocketDefault,
-} from './useWorkerStatusWebSocket';
-export type {
-  WorkerEventType,
-  WorkerEventPayload,
-  WorkerStatusEntry,
-  WorkerStatusMap,
-  PipelineHealthStatus,
-  WorkerStatusChangeHandler,
-  UseWorkerStatusWebSocketOptions,
-  UseWorkerStatusWebSocketReturn,
-} from './useWorkerStatusWebSocket';
 
 // Worker events hook (NEM-3127) - higher-level hook with toast notifications
 export { useWorkerEvents, default as useWorkerEventsDefault } from './useWorkerEvents';

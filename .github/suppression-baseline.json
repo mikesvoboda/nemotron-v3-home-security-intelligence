@@ -7,6 +7,8 @@
   "frontend_quarantine": 16,
   "frontend_skip": 54,
   "frontend_todo": 0,
+  "golden_fixme": 2,
+  "golden_skip": 0,
   "pytest_skip": 25,
   "pytest_skip_imperative": 93,
   "pytest_skipif": 59,

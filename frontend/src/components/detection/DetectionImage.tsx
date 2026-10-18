@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 import BoundingBoxOverlay, { BoundingBox } from './BoundingBoxOverlay';
-import PoseSkeletonOverlay, { Keypoint } from './PoseSkeletonOverlay';
 import Lightbox from '../common/Lightbox';
 
 export interface DetectionImageProps {
@@ -18,12 +17,6 @@ export interface DetectionImageProps {
   enableLightbox?: boolean;
   /** Caption to show in the lightbox */
   lightboxCaption?: string;
-  /** Pose keypoints for skeleton overlay [[x, y, conf], ...] */
-  poseKeypoints?: Keypoint[] | null;
-  /** Whether to show pose skeleton overlay (default: true when keypoints provided) */
-  showPoseSkeleton?: boolean;
-  /** Minimum confidence for pose keypoints (default: 0.3) */
-  poseMinConfidence?: number;
   /** Callback when image loads, provides natural dimensions */
   onImageLoad?: (dimensions: { width: number; height: number }) => void;
   /** Additional overlay content rendered inside the relative container */
@@ -41,9 +34,6 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
   onClick,
   enableLightbox = false,
   lightboxCaption,
-  poseKeypoints,
-  showPoseSkeleton = true,
-  poseMinConfidence = 0.3,
   onImageLoad,
   overlayContent,
 }) => {
@@ -108,15 +98,6 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
               minConfidence={minConfidence}
               onClick={onClick}
             />
-            {poseKeypoints && (
-              <PoseSkeletonOverlay
-                keypoints={poseKeypoints}
-                imageWidth={imageDimensions.width}
-                imageHeight={imageDimensions.height}
-                visible={showPoseSkeleton}
-                minConfidence={poseMinConfidence}
-              />
-            )}
             {/* Additional overlay content (e.g., ThreatBoundingBox) */}
             {overlayContent}
           </>

@@ -25,9 +25,6 @@ expression into two different calls; the manifest's "occurrence-twin" hazard
 else-branch leg alone does NOT discharge the if-branch key") is honoured by
 never letting an else-branch leg be the only route to an if-branch key.
 
-L1542 ``self._websocket_emitter = websocket_emitter`` -> ``= None``
-- ``xǁPipelineWorkerManagerǁ__init____mutmut_2``
-  -> ``test_the_stored_attributes_are_the_injected_objects_verbatim``
 L1559 ``self._aggregator = BatchAggregator(redis_client=redis_client)``
 - ``__mutmut_13`` (assign -> ``None``), ``__mutmut_14`` (``redis_client=None``)
   -> ``test_construction_builds_one_shared_aggregator_from_the_manager_client``
@@ -139,12 +136,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from backend.services import pipeline_workers as M
-from backend.services.websocket_emitter import WebSocketEmitterService
 
 LOG_NAME = M.logger.name  # "backend.services.pipeline_workers" (get_logger(__name__))
 
@@ -358,20 +354,17 @@ def test_the_stored_attributes_are_the_injected_objects_verbatim(
     ::
 
         self._redis = redis_client
-        self._websocket_emitter = websocket_emitter
         self._frame_buffer = frame_buffer
         ...
         self._worker_stop_timeout = worker_stop_timeout
 
-    m2 nils the emitter attribute and m19 nils the stop-timeout attribute.  The
-    emitter is injected as an autospec'd ``WebSocketEmitterService`` double (the
-    parameter's declared type); the stop timeout is pinned on BOTH sides of the
-    ``worker_stop_timeout`` axis, which is what makes m19's ``= None`` visible on
-    the explicit leg while the ``None`` leg pins the other half of the contract.
+    m19 nils the stop-timeout attribute.  The stop timeout is pinned on BOTH sides
+    of the ``worker_stop_timeout`` axis, which is what makes m19's ``= None``
+    visible on the explicit leg while the ``None`` leg pins the other half of the
+    contract.
     """
     win(caplog)
     client = MagicMock(name="redis-client")
-    emitter = create_autospec(WebSocketEmitterService, instance=True)
     frame_buffer = MagicMock(name="frame-buffer")
 
     with construction() as s:
@@ -379,14 +372,10 @@ def test_the_stored_attributes_are_the_injected_objects_verbatim(
             s,
             redis_client=client,
             frame_buffer=frame_buffer,
-            websocket_emitter=emitter,
             worker_stop_timeout=2.5,
         )
 
         assert mgr._redis is client
-        assert mgr._websocket_emitter is emitter, (
-            f"self._websocket_emitter is {mgr._websocket_emitter!r}, expected the injected emitter"
-        )
         assert mgr._frame_buffer is frame_buffer
         assert mgr._worker_stop_timeout == 2.5, (
             f"self._worker_stop_timeout mutated: {mgr._worker_stop_timeout!r} != 2.5"

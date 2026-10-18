@@ -32,7 +32,7 @@
  * `operations/` seeded legs depend on.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { closedByGuard, loginAsAdmin, readOpsHarness } from './harness';
+import { closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

@@ -39,8 +39,8 @@
  * container's life: a green run must leave the retention it found.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../operations/harness';
-import { openAdminSection } from './harness';
+import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
+import { openAdminSection } from '../harness';
 
 const harness = readOpsHarness();
 

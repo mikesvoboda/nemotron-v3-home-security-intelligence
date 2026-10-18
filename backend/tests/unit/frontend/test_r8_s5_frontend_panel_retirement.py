@@ -79,6 +79,7 @@ SOURCES = [
     "frontend/src/components/events/EventEnrichmentSummary.tsx",
     "frontend/src/utils/poseVisualization.ts",
     "frontend/src/hooks/useEventEnrichmentsQuery.ts",
+    "frontend/src/components/detection/PoseSkeletonOverlay.tsx",
 ]
 
 TESTS = [
@@ -88,6 +89,8 @@ TESTS = [
     "frontend/src/components/events/EventEnrichmentSummary.test.tsx",
     "frontend/src/utils/poseVisualization.test.ts",
     "frontend/src/hooks/useEventEnrichmentsQuery.test.ts",
+    "frontend/src/components/detection/PoseSkeletonOverlay.test.tsx",
+    "frontend/src/components/detection/__snapshots__/PoseSkeletonOverlay.test.tsx.snap",
 ]
 
 # What must still be here. Each of these is a NON-VACUITY for the deletion
@@ -96,10 +99,7 @@ SURVIVORS = [
     "frontend/src/types/enrichment.ts",
     "frontend/src/components/events/EventDetailModal.tsx",
     "frontend/src/components/events/EventDetailModal.test.tsx",
-    "frontend/src/components/detection/PoseSkeletonOverlay.tsx",
     "frontend/src/components/detection/DetectionImage.tsx",
-    "frontend/src/components/detection/PoseSkeletonOverlay.test.tsx",
-    "frontend/src/components/detection/__snapshots__/PoseSkeletonOverlay.test.tsx.snap",
     "frontend/src/components/events/EnrichmentProgressBadge.tsx",
 ]
 
@@ -188,8 +188,8 @@ class TestS5SurfaceIsRealBeforeItIsGone:
         # Non-vacuity of the list itself: the scope prompt names five panels and
         # a helper; a list that had silently shrunk to nothing would make every
         # deletion pin pass on an empty loop.
-        assert len(SOURCES) == 8
-        assert len(TESTS) == 6
+        assert len(SOURCES) == 9
+        assert len(TESTS) == 8
 
     def test_the_survivors_this_slice_must_not_touch_exist(self) -> None:
         for rel in SURVIVORS:
@@ -356,22 +356,12 @@ class TestTreeIsNotLeftDangling:
         assert not hits, "retired panel still referenced: " + "; ".join(hits)
 
     def test_pose_visualization_has_no_surviving_importer(self) -> None:
-        """`utils/poseVisualization.ts` had exactly one importer pre-slice -- its
-        own test (measured) -- so this is the cleanest deletion in the slice, and
-        the one most likely to be wrongly entangled with `PoseSkeletonOverlay`
-        by a reader who assumes the overlay draws the skeleton from it. It does
-        not: the overlay imports `BODY_PART_COLORS` from `constants/chartColors`
-        and re-exports it, and never mentions poseVisualization. Both halves
-        pinned, because an overlay that stopped rendering would be a silent
-        behaviour regression dressed up as a clean deletion."""
-        overlay = _live_ts("frontend/src/components/detection/PoseSkeletonOverlay.tsx")
-        assert "poseVisualization" not in overlay
-        assert "BODY_PART_COLORS" in overlay, "the overlay's own colour surface is gone"
+        """F-069 (R2a row 32) retired `PoseSkeletonOverlay.tsx` and its
+        `poseKeypoints` prop on `DetectionImage.tsx`."""
         detection_image = _live_ts("frontend/src/components/detection/DetectionImage.tsx")
-        assert "PoseSkeletonOverlay" in detection_image, (
-            "PoseSkeletonOverlay is NOT in S5's scope; if it lost its consumer, "
-            "say so in the report -- do not delete it here"
-        )
+        assert "PoseSkeletonOverlay" not in detection_image
+        assert "poseKeypoints" not in detection_image
+        assert "poseVisualization" not in detection_image
 
 
 class TestTheKeptIslandIsUntouched:

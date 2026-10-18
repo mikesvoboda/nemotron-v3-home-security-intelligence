@@ -16,7 +16,7 @@
  * the class IS the contract here — asserted with a comment at the call site.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { closedByGuard, loginAsAdmin, readOpsHarness } from './harness';
+import { closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

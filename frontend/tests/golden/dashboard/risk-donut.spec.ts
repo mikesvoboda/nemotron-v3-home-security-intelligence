@@ -46,14 +46,14 @@
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
-  api,
+  apiShell as api,
   closedByGuard,
-  loginAsAdmin,
-  quietBoot,
+  loginAsAdminShell as loginAsAdmin,
+  quietBootDash as quietBoot,
   readDashboardHarness,
   seedTourDismissed,
   adminSession,
-} from './harness';
+} from '../harness';
 
 const harness = readDashboardHarness();
 test.skip(

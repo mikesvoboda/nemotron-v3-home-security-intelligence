@@ -15,7 +15,7 @@ import { Layers, AlertTriangle, Clock, Users, Zap, Skull } from 'lucide-react';
 
 import { getHealthStatusBadgeColor, formatWaitTime, formatThroughput } from '../../types/queue';
 
-import type { QueueStatus, QueueHealthStatus, QueuesStatusResponse } from '../../types/queue';
+import type { QueueStatus, QueuesStatusResponse } from '../../types/queue';
 
 export interface PipelineQueuesProps {
   /** Number of items in detection queue (fallback when detailed data unavailable) */
@@ -90,8 +90,8 @@ export default function PipelineQueues({
     (q) => q.name === 'dlq' || q.name.includes('dead_letter')
   );
 
-  // Determine overall health status
-  const overallStatus = queuesStatus?.summary.overall_status ?? 'healthy';
+  // Determine overall health status; no response is no status, not "healthy".
+  const overallStatus = queuesStatus?.summary.overall_status;
   const hasCritical = overallStatus === 'critical';
   const hasWarning = overallStatus === 'warning' || hasCritical;
 
@@ -114,7 +114,7 @@ export default function PipelineQueues({
       <Title className="mb-4 flex items-center gap-2 text-white">
         <Layers className="h-5 w-5 text-[#76B900]" />
         Pipeline Queues
-        {hasDetailedStatus && (
+        {hasDetailedStatus && overallStatus && (
           <Badge
             color={getHealthStatusBadgeColor(overallStatus)}
             size="sm"
@@ -244,10 +244,10 @@ function QueueRow({
 }: QueueRowProps) {
   const hasDetailedStatus = queueStatus !== undefined;
   const depth = queueStatus?.depth ?? fallbackDepth;
-  const healthStatus: QueueHealthStatus = queueStatus?.status ?? 'healthy';
+  const healthStatus = queueStatus?.status;
 
   // Use health status for badge color if available, otherwise fall back to legacy logic
-  const badgeColor = hasDetailedStatus
+  const badgeColor = healthStatus
     ? getHealthStatusBadgeColor(healthStatus)
     : getQueueBadgeColor(depth, warningThreshold);
 
