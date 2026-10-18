@@ -244,10 +244,12 @@ def test_a_reinstanciated_check_collapse_is_positional_last_wins():
     conclusion. The duplicate-name shape was OBSERVED, not assumed -- #7240's head carried
     `CI Gate (Required Checks)` twice in the window (self-review of #7238, 2026-10-17). Whether a
     re-run leaves the superseded instance in the `contexts(last: ...)` window is not a documented
-    order: the self-review's head `362f45f04` is a counter-example where the rollup and REST's
-    newest-instance disagree. That is exactly the assumption this pins: LAST-position, whatever
-    "newest" means. Nothing in the query fetches a check-run `id` to rank on (pinned by
-    `test_the_check_window_selects_no_id_to_rank_on`), so if those rows ever arrive in the other
+    order: the commit the self-review read, `362f45f04`, is a counter-example where the rollup
+    and REST's newest-instance disagree. That is exactly the assumption this pins: LAST-position,
+    whatever "newest" means. Nothing in the query fetches any of a check-run's three id fields --
+    `id`, `databaseId`, `externalId` (the schema's whole id-bearing set at this head, introspected)
+    -- to rank on (pinned by `test_the_check_window_selects_no_id_to_rank_on`), so if those rows
+    ever arrive in the other
     order the watcher reports the SUPERSEDED verdict and prints it as news. The failure this pins
     is silent: both rows are green-ish strings and the line still looks sane.
 
@@ -257,12 +259,28 @@ def test_a_reinstanciated_check_collapse_is_positional_last_wins():
     state = seed()
     twice = envelope(
         [
+            # VERBATIM nodes (#7245 re-review): the fixture carries a `databaseId` per row, with
+            # the ids DESCENDING -- the later node has the SMALLER id, so an id-max ranker would
+            # store the FIRST row. `pr_node`'s plain `checks` shape cannot express that (it
+            # builds {name, conclusion, status} only), and without an id in the fixture a
+            # `databaseId`-ranking `_checks` would be invisible to this behavioral test.
             pr_node(
                 PR,
-                checks=(
-                    ("CI Gate (Required Checks)", "FAILURE", "COMPLETED"),
-                    ("CI Gate (Required Checks)", "SUCCESS", "COMPLETED"),
-                ),
+                checks=(),
+                raw_checks=[
+                    {
+                        "name": "CI Gate (Required Checks)",
+                        "conclusion": "FAILURE",
+                        "status": "COMPLETED",
+                        "databaseId": 200,
+                    },
+                    {
+                        "name": "CI Gate (Required Checks)",
+                        "conclusion": "SUCCESS",
+                        "status": "COMPLETED",
+                        "databaseId": 100,
+                    },
+                ],
             )
         ],
         ruling_ids=[1],
@@ -280,36 +298,49 @@ def test_a_reinstanciated_check_collapse_is_positional_last_wins():
 
 
 def test_the_check_window_selects_no_id_to_rank_on():
-    """The CheckRun selection fetches no `id`, which is WHY the collapse above is positional.
+    """The CheckRun selection fetches NO id field, which is WHY the collapse above is positional.
 
-    Two scopes, both deliberate. Whole-query substrings would prove nothing: `id` IS selected for
-    reviews and comments (`nodes { id author … }`). But a per-LINE scan (the first version of this
-    test) had its own hole, found by #7238's fresh-context self-review: reformat the selection as
-    `... on CheckRun {` with `id` on its own continuation line and the anchor line stays clean
-    while the query now fetches an id. So this scans the whole selection BLOCK -- the anchor line
-    plus any continuation lines up to the next fragment or the closing brace -- and it scans only
-    that block: a `... on StatusContext` id is a status-context id, outside this test's claim.
+    Three holes, each found by a review of an earlier version of this test, all closed:
+    (1) whole-query substrings prove nothing -- `id` IS selected for reviews and comments
+        (`nodes { id author … }`), so the scan is per-fragment;
+    (2) a per-LINE scan is fooled by a reformat that moves fields to continuation lines
+        (#7238's self-review), so the scan walks the whole selection BLOCK;
+    (3) the block was then found blind twice more (#7245's re-review): a `\\bid\\b` needle
+        misses GitHub's rankable numeric id `databaseId` (`\\b` will not split `databaseId`),
+        and an `anchor.endswith("{")` block detector misses `... on CheckRun` when the brace
+        opens on the NEXT line -- block = the anchor line alone, fields invisible.
+
+    So: walk to the brace-matching close by counting depth (the fields' block ends there,
+    wherever the braces sit), and pin the schema's WHOLE id-bearing set for CheckRun at this
+    head -- `id` (opaque cursor, unrankable), `databaseId` (numeric), `externalId` -- names
+    introspected from GitHub's schema, not guessed. Any one of them in the selection means
+    someone started ranking, and the positional collapse must be re-ruled in the same commit.
+    A `... on StatusContext` id is a status-context id, outside this test's claim.
     """
     query = watch.query_text([PR], REPO, RULING_ISSUE)
     lines = query.splitlines()
     anchors = [i for i, ln in enumerate(lines) if "on CheckRun" in ln]
     assert anchors, "the query must select CheckRun nodes at all"
     for i in anchors:
-        head = lines[i].strip()
-        if head.endswith("{"):  # multi-line selection: fields live on the continuation lines
-            block = []
-            for j in range(i + 1, len(lines)):
-                nxt = lines[j].strip()
-                if nxt.startswith("...") or nxt.startswith("}"):
-                    break
-                block.append(nxt)
-        else:
-            block = [head]
-        assert block, f"the CheckRun selection must select fields: {lines[i].strip()}"
+        block: list[str] = []
+        depth = 0
+        opened = False
+        for j in range(i, len(lines)):
+            stripped = lines[j].strip()
+            depth += stripped.count("{") - stripped.count("}")
+            if "{" in stripped:
+                opened = True
+            if opened:
+                block.append(stripped)
+            if opened and depth == 0:
+                break
+        assert opened and block, (
+            f"the CheckRun selection must open and close a brace: {lines[i].strip()!r}"
+        )
         joined = " ".join(block)
-        assert not re.search(r"\bid\b", joined), (
-            f"check rows carry no id to rank on: {joined!r} -- if you added one to rank on, "
-            "fix the collapse in `_checks` in the same commit, not just this line"
+        assert not re.search(r"\b(?:id|databaseId|externalId)\b", joined), (
+            f"check rows carry no id field to rank on: {joined!r} -- if you added one to rank "
+            "on, fix the collapse in `_checks` in the same commit, not just this line"
         )
 
 
