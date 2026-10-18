@@ -210,7 +210,7 @@ sandbox run's deployment, in a comment on each PR (rulings 154 and 256).
 ### O3.1 Prune `ai/` to what ships
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`.
-**PR:** none yet. (ruling 241)
+**PR:** #7256 (ruling 241)
 
 **Assigned:** heavy-b, first on its queue (ruling 260). It is owner tier as destructive work (UR-98,
 ruling 249).
