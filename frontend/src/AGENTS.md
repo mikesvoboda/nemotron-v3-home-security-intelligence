@@ -574,11 +574,7 @@ Global state management via React Context:
 | File                      | Purpose                    |
 | ------------------------- | -------------------------- |
 | `AnnouncementContext.tsx` | System announcements       |
-| `CameraContext.tsx`       | Camera state and selection |
 | `DebugModeContext.tsx`    | Debug mode toggle          |
-| `HealthContext.tsx`       | System health state        |
-| `MetricsContext.tsx`      | Metrics data context       |
-| `SystemDataContext.tsx`   | System-wide data context   |
 | `index.ts`                | Barrel export              |
 
 Each context has a co-located test file (named `*.test.tsx`).
