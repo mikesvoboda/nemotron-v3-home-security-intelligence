@@ -88,7 +88,6 @@ class TranscodeCacheSettings(BaseSettings):
         "Default: 0.8 (80%). Must be less than cleanup_threshold_percent.",
     )
 
-
     # Feature flag
     enabled: bool = Field(
         default=True,
@@ -979,8 +978,6 @@ class Settings(BaseSettings):
         "Prevents memory exhaustion and LLM timeouts with large batches.",
     )
 
-
-
     # Pipeline worker configuration (NEM-5375)
     detection_worker_count: int = Field(
         default=2,
@@ -1107,7 +1104,6 @@ class Settings(BaseSettings):
         "server is exactly the case being paid for, and a failed wake is swallowed "
         "(spec §6) rather than retried.",
     )
-
 
     # AI service retry settings
     detector_max_retries: int = Field(
@@ -1309,7 +1305,6 @@ class Settings(BaseSettings):
         "test_ai_vlm_compose_service.TestShippedServingIdentity.",
     )
 
-
     # AI service concurrency settings (NEM-1463)
     # Default dynamically set based on Python runtime (free-threading support)
     ai_max_concurrent_inferences: int = Field(
@@ -1447,7 +1442,6 @@ class Settings(BaseSettings):
                 f"Example: 'http://ai-gateway:8090'. Error: {e}"
             ) from None
 
-
     # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
     # go2rtc enables low-latency live video streaming from RTSP cameras to browser
     # Development: http://localhost:1984 (local service)
@@ -1570,7 +1564,6 @@ class Settings(BaseSettings):
         description="Enable Florence-2 vision extraction for vehicle/person attributes",
     )
 
-
     image_quality_enabled: bool = Field(
         default=True,
         description="Enable BRISQUE image quality assessment (CPU-based). "
@@ -1623,7 +1616,6 @@ class Settings(BaseSettings):
         "'reid' model at ENRICHMENT_LIGHT_URL/person-reid, the same network and weights. "
         "Stays 'local' until the owner's parity run is posted; switching back is the rollback.",
     )
-
 
     # Face auto-enrollment settings (NEM-4941)
     face_auto_enroll_enabled: bool = Field(
@@ -2085,9 +2077,6 @@ class Settings(BaseSettings):
         le=10,
         description="Successful DLQ writes needed to close circuit from half-open state",
     )
-
-
-
 
     # Redis compression settings (Python 3.14 compression.zstd)
     redis_compression_enabled: bool = Field(
@@ -2608,7 +2597,6 @@ class Settings(BaseSettings):
         le=60.0,
         description="How often (in seconds) to check if conditions are met for background evaluation.",
     )
-
 
     # Orphan file cleanup settings (NEM-2260)
     # Periodic cleanup of files on disk without corresponding database records

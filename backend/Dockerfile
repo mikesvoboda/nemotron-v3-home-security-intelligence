@@ -103,6 +103,12 @@ RUN groupadd -g 1000 appgroup && \
 # Copy application code with proper ownership (avoids separate chown layer)
 COPY --chown=appuser:appgroup backend/ ./backend/
 
+# Copy the recorded schema upgrades: backend/migrations reads its SQL text from this path at
+# startup, and docs/ is otherwise dockerignored (.dockerignore re-includes only this directory).
+# Without this line the container boots a database that owes an upgrade with a loud UpgradeError
+# instead of silently skipping the upgrade.
+COPY --chown=appuser:appgroup docs/api/migrations ./docs/api/migrations
+
 # Create data directory for logs and thumbnails with proper ownership
 RUN mkdir -p /app/data/thumbnails /app/data/logs && \
     chown -R appuser:appgroup /app/data /app/.venv
@@ -280,6 +286,11 @@ COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 
 # Copy application code with proper ownership
 COPY --chown=appuser:appuser backend/ ./backend/
+
+# Copy the recorded schema upgrades (see the dev stage above): backend/migrations reads the SQL
+# text from this path at startup and docs/ is otherwise dockerignored. This is the stage that
+# boots real databases, so a missing COPY here means a production boot failure, not a dev annoyance.
+COPY --chown=appuser:appuser docs/api/migrations ./docs/api/migrations
 
 # Copy unified model configuration (single source of truth for model_zoo.py)
 COPY --chown=appuser:appuser models.yml ./
