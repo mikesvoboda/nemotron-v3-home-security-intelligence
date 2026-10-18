@@ -9583,42 +9583,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/summaries/{summary_id}/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Export Summary
-         * @description Export summary data in various formats.
-         *
-         *     Exports the summary and its related events in JSON, CSV, or PDF format.
-         *     Useful for downloading and sharing summary reports.
-         *
-         *     Args:
-         *         summary_id: ID of the summary to export
-         *         format: Export format (json, csv, pdf)
-         *         db: Database session
-         *         cache: Cache service
-         *
-         *     Returns:
-         *         Export data in requested format
-         *
-         *     Raises:
-         *         HTTPException: 404 if summary not found
-         *         HTTPException: 400 if invalid format
-         */
-        get: operations["summaries_export_summary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/system/ai-services": {
         parameters: {
             query?: never;
@@ -56672,56 +56636,6 @@ export interface operations {
                      */
                     "application/json": components["schemas"]["SummaryDetailResponse"];
                 };
-            };
-            /** @description Summary not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    summaries_export_summary: {
-        parameters: {
-            query?: {
-                /** @description Export format: json, csv, or pdf */
-                format?: "json" | "csv" | "pdf";
-            };
-            header?: never;
-            path: {
-                summary_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Export data in requested format */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                    "application/pdf": unknown;
-                    "text/csv": unknown;
-                };
-            };
-            /** @description Invalid export format */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Summary not found */
             404: {
