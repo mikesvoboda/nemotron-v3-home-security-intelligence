@@ -296,7 +296,9 @@ async def test_boot_upgrades_a_pre_upgrade_database(pre_upgrade_url, monkeypatch
 
 
 @pytest.mark.timeout(120)
-async def test_a_failing_upgrade_statement_rolls_back_and_leaves_no_record(pre_upgrade_url, monkeypatch):
+async def test_a_failing_upgrade_statement_rolls_back_and_leaves_no_record(
+    pre_upgrade_url, monkeypatch
+):
     """The runner's central safety claim, pinned: a statement that fails mid-file leaves the
     database without the upgrade's partial work and without a record, and the boot fails.
 
