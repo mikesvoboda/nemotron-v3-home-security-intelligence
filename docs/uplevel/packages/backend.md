@@ -147,9 +147,14 @@ outside `keep.toml`, and the suite is green.
       and delete them with their `.env.example` and compose lines.
 - [x] Add a ratchet test: every `Settings` field is read outside `config.py`, or sits on an
       allowlist with a reason.
-- [ ] Rename live code still carrying retired names (`get_nemotron_analyzer_dep`,
+- [x] Rename live code still carrying retired names (`get_nemotron_analyzer_dep`,
       `summary_generator._call_nemotron`, Nemotron-named metrics); delete the uncalled metrics and
-      unused exception classes `00 §4.1` lists.
+      unused exception classes `00 §4.1` lists. (Box 3's work is #7244's: the renames
+      (`65275de9b`), the dead-symbol census `scripts/audit/dead_symbols.py` with its CI leg
+      (`d2a0eb0b0`) — two exception classes deleted, zero uncalled or Nemotron-named metrics in the
+      registry, and the audit's "11" not reproducible under any stated definition (the census
+      records why the rest is not residue, and the FLORENCE_UNAVAILABLE consumers make it an owner
+      contract call that rides the fourth box's PR); the repo-wide ratchet test pins the census.)
 - [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
 - [x] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
       `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
