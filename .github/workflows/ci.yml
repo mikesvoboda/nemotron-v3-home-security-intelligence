@@ -336,6 +336,7 @@ jobs:
           scripts/test_workflow_draft_guards.py
           scripts/audit/test_retired_names.py
           scripts/audit/test_settings_orphans.py
+          scripts/audit/test_dead_symbols.py
           scripts/audit/test_env_dead_vars.py
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
