@@ -1411,35 +1411,6 @@ export async function deleteCamera(id: string): Promise<void> {
 }
 
 /**
- * Fetch all soft-deleted cameras (trash view).
- *
- * Returns cameras that have been soft-deleted (deleted_at is not null),
- * ordered by deleted_at descending (most recently deleted first).
- *
- * @returns Array of soft-deleted Camera objects
- */
-export async function fetchDeletedCameras(): Promise<Camera[]> {
-  const response = await fetchApi<GeneratedCameraListResponse>('/api/cameras/deleted');
-  return response.items;
-}
-
-/**
- * Restore a soft-deleted camera.
- *
- * Clears the deleted_at timestamp on a soft-deleted camera, making it
- * visible again in normal queries.
- *
- * @param id - The camera ID to restore
- * @returns The restored Camera object
- * @throws ApiError if camera not found (404) or not deleted (400)
- */
-export async function restoreCamera(id: string): Promise<Camera> {
-  return fetchApi<Camera>(`/api/cameras/${id}/restore`, {
-    method: 'POST',
-  });
-}
-
-/**
  * Get the URL for a camera's latest snapshot.
  * This URL can be used directly in an img src attribute.
  *
@@ -2358,8 +2329,6 @@ export async function fetchEventClusters(
 
 export interface EventUpdateData {
   reviewed?: boolean;
-  /** Flag or unflag event for follow-up (NEM-3839) */
-  flagged?: boolean;
   notes?: string | null;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-2359) */
   snooze_until?: string | null;

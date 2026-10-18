@@ -227,7 +227,6 @@ describe('API Response Schemas', () => {
         created_at: validTimestamp(),
         updated_at: validTimestamp(),
         version: 1,
-        flagged: false,
       };
 
       it('should accept valid event response', () => {

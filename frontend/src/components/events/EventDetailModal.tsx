@@ -7,7 +7,6 @@ import {
   Download,
   Eye,
   Film,
-  Flag,
   Printer,
   RefreshCw,
   Save,
@@ -119,7 +118,6 @@ export interface Event {
   ended_at?: string | null;
   reviewed?: boolean;
   notes?: string | null;
-  flagged?: boolean;
   entity_id?: string | null;
   /** Florence-2 generated scene caption describing the overall scene */
   scene_caption?: string | null;
@@ -143,7 +141,6 @@ export interface EventDetailModalProps {
   onMarkReviewed?: (eventId: string) => void;
   onNavigate?: (direction: 'prev' | 'next') => void;
   onSaveNotes?: (eventId: string, notes: string) => Promise<void>;
-  onFlagEvent?: (eventId: string, flagged: boolean) => Promise<void>;
   onDownloadMedia?: (eventId: string) => Promise<void>;
   /** Callback to snooze the event for a duration in seconds (NEM-3640) */
   onSnooze?: (eventId: string, seconds: number) => void;
@@ -161,7 +158,6 @@ export default function EventDetailModal({
   onMarkReviewed,
   onNavigate,
   onSaveNotes,
-  onFlagEvent,
   onDownloadMedia,
   onSnooze,
   onUnsnooze,
@@ -176,9 +172,6 @@ export default function EventDetailModal({
 
   // State for selected detection in thumbnail strip
   const [selectedDetectionId, setSelectedDetectionId] = useState<number | undefined>();
-
-  // State for flag event
-  const [isFlagging, setIsFlagging] = useState<boolean>(false);
 
   // State for download media
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
@@ -269,22 +262,6 @@ export default function EventDetailModal({
       console.error('Failed to save notes:', error);
     } finally {
       setIsSavingNotes(false);
-    }
-  };
-
-  // Handle flag event toggle
-  const handleFlagEvent = async () => {
-    if (!event || !onFlagEvent) return;
-
-    setIsFlagging(true);
-
-    try {
-      const newFlaggedState = !event.flagged;
-      await onFlagEvent(event.id, newFlaggedState);
-    } catch (error) {
-      console.error('Failed to flag event:', error);
-    } finally {
-      setIsFlagging(false);
     }
   };
 
@@ -1274,23 +1251,6 @@ export default function EventDetailModal({
                         size="md"
                         data-testid="snooze-button"
                       />
-                    )}
-
-                    {/* Flag Event button */}
-                    {onFlagEvent && (
-                      <button
-                        onClick={() => void handleFlagEvent()}
-                        disabled={isFlagging}
-                        className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                          event.flagged
-                            ? 'bg-yellow-600 text-white hover:bg-yellow-700 active:bg-yellow-800'
-                            : 'bg-gray-800 text-white hover:bg-gray-700 active:bg-gray-900'
-                        }`}
-                        aria-label={event.flagged ? 'Unflag event' : 'Flag event'}
-                      >
-                        <Flag className="h-4 w-4" />
-                        {isFlagging ? 'Flagging...' : event.flagged ? 'Unflag Event' : 'Flag Event'}
-                      </button>
                     )}
 
                     {/* Download Media button */}

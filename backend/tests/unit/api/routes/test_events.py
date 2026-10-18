@@ -349,3 +349,10 @@ class TestEdgeCaseCombinations:
 
         result = get_detection_ids_from_event(mock_event)
         assert result == []
+
+    def test_event_schemas_omit_retired_flagged_field(self):
+        """Test EventUpdate and EventResponse omit the retired flagged field (F-058, R2a row 5)."""
+        from backend.api.schemas.events import EventResponse, EventUpdate
+
+        assert "flagged" not in EventUpdate.model_fields
+        assert "flagged" not in EventResponse.model_fields

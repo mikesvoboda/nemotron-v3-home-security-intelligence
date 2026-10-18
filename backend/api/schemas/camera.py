@@ -24,7 +24,6 @@ __all__ = [
     "CameraStatus",
     "CameraUpdate",
     "CameraValidationInfo",
-    "DeletedCamerasListResponse",
     "PreviewStartRequest",
     "PreviewStartResponse",
     "PreviewStopResponse",
@@ -425,43 +424,6 @@ class CameraListResponse(BaseModel):
     )
 
     items: list[CameraResponse] = Field(..., description="List of cameras")
-    pagination: PaginationMeta = Field(..., description="Pagination metadata")
-
-
-class DeletedCamerasListResponse(BaseModel):
-    """Schema for listing soft-deleted cameras (trash view).
-
-    NEM-1955: Provides a trash view of soft-deleted cameras that can be restored.
-    Cameras are ordered by deleted_at descending (most recently deleted first).
-    NEM-2075: Standardized pagination envelope with items + pagination structure.
-    """
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "items": [
-                    {
-                        "id": "front_door",
-                        "name": "Front Door Camera",
-                        "folder_path": "/export/foscam/front_door",
-                        "status": "offline",
-                        "created_at": "2025-12-23T10:00:00Z",
-                        "last_seen_at": "2025-12-23T12:00:00Z",
-                    }
-                ],
-                "pagination": {
-                    "total": 1,
-                    "limit": 50,
-                    "offset": 0,
-                    "cursor": None,
-                    "next_cursor": None,
-                    "has_more": False,
-                },
-            }
-        }
-    )
-
-    items: list[CameraResponse] = Field(..., description="List of soft-deleted cameras")
     pagination: PaginationMeta = Field(..., description="Pagination metadata")
 
 

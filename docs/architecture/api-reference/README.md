@@ -42,23 +42,21 @@ This section provides comprehensive documentation for all REST API endpoints in 
 
 ### Cameras API (`/api/cameras`)
 
-| Method | Endpoint                                                  | Description               | Source                                    |
-| ------ | --------------------------------------------------------- | ------------------------- | ----------------------------------------- |
-| GET    | `/api/cameras`                                            | List all cameras          | `backend/api/routes/cameras.py:106-221`   |
-| POST   | `/api/cameras`                                            | Create new camera         | `backend/api/routes/cameras.py:362-453`   |
-| GET    | `/api/cameras/deleted`                                    | List soft-deleted cameras | `backend/api/routes/cameras.py:231-282`   |
-| GET    | `/api/cameras/validation/paths`                           | Validate camera paths     | `backend/api/routes/cameras.py:912-996`   |
-| GET    | `/api/cameras/{camera_id}`                                | Get camera by ID          | `backend/api/routes/cameras.py:342-359`   |
-| PATCH  | `/api/cameras/{camera_id}`                                | Update camera             | `backend/api/routes/cameras.py:456-532`   |
-| DELETE | `/api/cameras/{camera_id}`                                | Delete camera             | `backend/api/routes/cameras.py:535-589`   |
-| POST   | `/api/cameras/{camera_id}/restore`                        | Restore deleted camera    | `backend/api/routes/cameras.py:285-339`   |
-| GET    | `/api/cameras/{camera_id}/snapshot`                       | Get camera snapshot       | `backend/api/routes/cameras.py:799-909`   |
-| GET    | `/api/cameras/{camera_id}/baseline`                       | Get camera baseline       | `backend/api/routes/cameras.py:999-1048`  |
-| GET    | `/api/cameras/{camera_id}/baseline/anomalies`             | Get baseline anomalies    | `backend/api/routes/cameras.py:1051-1086` |
-| GET    | `/api/cameras/{camera_id}/baseline/activity`              | Get activity baseline     | `backend/api/routes/cameras.py:1089-1160` |
-| GET    | `/api/cameras/{camera_id}/baseline/classes`               | Get class baseline        | `backend/api/routes/cameras.py:1163-1222` |
-| GET    | `/api/cameras/{camera_id}/scene-changes`                  | Get scene changes         | `backend/api/routes/cameras.py:1225-1319` |
-| POST   | `/api/cameras/{camera_id}/scene-changes/{id}/acknowledge` | Acknowledge scene change  | `backend/api/routes/cameras.py:1322-1421` |
+| Method | Endpoint                                                  | Description              | Source                                    |
+| ------ | --------------------------------------------------------- | ------------------------ | ----------------------------------------- |
+| GET    | `/api/cameras`                                            | List all cameras         | `backend/api/routes/cameras.py:106-221`   |
+| POST   | `/api/cameras`                                            | Create new camera        | `backend/api/routes/cameras.py:362-453`   |
+| GET    | `/api/cameras/validation/paths`                           | Validate camera paths    | `backend/api/routes/cameras.py:912-996`   |
+| GET    | `/api/cameras/{camera_id}`                                | Get camera by ID         | `backend/api/routes/cameras.py:342-359`   |
+| PATCH  | `/api/cameras/{camera_id}`                                | Update camera            | `backend/api/routes/cameras.py:456-532`   |
+| DELETE | `/api/cameras/{camera_id}`                                | Delete camera            | `backend/api/routes/cameras.py:535-589`   |
+| GET    | `/api/cameras/{camera_id}/snapshot`                       | Get camera snapshot      | `backend/api/routes/cameras.py:799-909`   |
+| GET    | `/api/cameras/{camera_id}/baseline`                       | Get camera baseline      | `backend/api/routes/cameras.py:999-1048`  |
+| GET    | `/api/cameras/{camera_id}/baseline/anomalies`             | Get baseline anomalies   | `backend/api/routes/cameras.py:1051-1086` |
+| GET    | `/api/cameras/{camera_id}/baseline/activity`              | Get activity baseline    | `backend/api/routes/cameras.py:1089-1160` |
+| GET    | `/api/cameras/{camera_id}/baseline/classes`               | Get class baseline       | `backend/api/routes/cameras.py:1163-1222` |
+| GET    | `/api/cameras/{camera_id}/scene-changes`                  | Get scene changes        | `backend/api/routes/cameras.py:1225-1319` |
+| POST   | `/api/cameras/{camera_id}/scene-changes/{id}/acknowledge` | Acknowledge scene change | `backend/api/routes/cameras.py:1322-1421` |
 
 ### Detections API (`/api/detections`)
 

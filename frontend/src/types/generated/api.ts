@@ -2921,38 +2921,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/cameras/deleted": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all soft-deleted cameras
-         * @description List all soft-deleted cameras for trash view.
-         *
-         *     Returns cameras that have been soft-deleted (deleted_at is not null),
-         *     ordered by deleted_at descending (most recently deleted first).
-         *
-         *     This endpoint enables a "trash" view where users can see deleted cameras
-         *     and optionally restore them.
-         *
-         *     Args:
-         *         db: Database session
-         *
-         *     Returns:
-         *         DeletedCamerasListResponse containing list of deleted cameras and count
-         */
-        get: operations["cameras_list_deleted_cameras"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/cameras/onvif/discover": {
         parameters: {
             query?: never;
@@ -3640,41 +3608,6 @@ export interface paths {
          *         PreviewStopResponse with success status
          */
         delete: operations["cameras_stop_camera_preview"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/cameras/{camera_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore a soft-deleted camera
-         * @description Restore a soft-deleted camera.
-         *
-         *     Clears the deleted_at timestamp on a soft-deleted camera, making it
-         *     visible again in normal queries.
-         *
-         *     Args:
-         *         camera_id: ID of the camera to restore
-         *         db: Database session
-         *         cache: Cache service for invalidation
-         *
-         *     Returns:
-         *         CameraResponse with the restored camera data
-         *
-         *     Raises:
-         *         HTTPException: 404 if camera not found
-         *         HTTPException: 400 if camera is not deleted (nothing to restore)
-         */
-        post: operations["cameras_restore_camera"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -20358,41 +20291,6 @@ export interface components {
             services?: components["schemas"]["ServiceHealthStatusResponse"][];
         };
         /**
-         * DeletedCamerasListResponse
-         * @description Schema for listing soft-deleted cameras (trash view).
-         *
-         *     NEM-1955: Provides a trash view of soft-deleted cameras that can be restored.
-         *     Cameras are ordered by deleted_at descending (most recently deleted first).
-         *     NEM-2075: Standardized pagination envelope with items + pagination structure.
-         * @example {
-         *       "items": [
-         *         {
-         *           "created_at": "2025-12-23T10:00:00Z",
-         *           "folder_path": "/export/foscam/front_door",
-         *           "id": "front_door",
-         *           "last_seen_at": "2025-12-23T12:00:00Z",
-         *           "name": "Front Door Camera",
-         *           "status": "offline"
-         *         }
-         *       ],
-         *       "pagination": {
-         *         "has_more": false,
-         *         "limit": 50,
-         *         "offset": 0,
-         *         "total": 1
-         *       }
-         *     }
-         */
-        DeletedCamerasListResponse: {
-            /**
-             * Items
-             * @description List of soft-deleted cameras
-             */
-            items: components["schemas"]["CameraResponse"][];
-            /** @description Pagination metadata */
-            pagination: components["schemas"]["PaginationMeta"];
-        };
-        /**
          * DeletedEventsListResponse
          * @description Schema for listing soft-deleted events (trash view).
          *
@@ -23226,12 +23124,6 @@ export interface components {
              */
             entities?: components["schemas"]["RiskEntity"][];
             /**
-             * Flagged
-             * @description Whether event is flagged for follow-up (NEM-3839)
-             * @default false
-             */
-            flagged: boolean;
-            /**
              * Flags
              * @description Risk flags raised during analysis
              */
@@ -23463,11 +23355,6 @@ export interface components {
          *     }
          */
         EventUpdate: {
-            /**
-             * Flagged
-             * @description Flag or unflag event for follow-up (NEM-3839)
-             */
-            flagged?: boolean | null;
             /**
              * Notes
              * @description User notes for the event
@@ -47378,26 +47265,6 @@ export interface operations {
             };
         };
     };
-    cameras_list_deleted_cameras: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of soft-deleted cameras */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeletedCamerasListResponse"];
-                };
-            };
-        };
-    };
     cameras_discover_onvif_devices: {
         parameters: {
             query?: never;
@@ -48237,51 +48104,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PreviewStopResponse"];
                 };
-            };
-            /** @description Camera not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cameras_restore_camera: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Camera restored successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CameraResponse"];
-                };
-            };
-            /** @description Camera is not deleted */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Camera not found */
             404: {

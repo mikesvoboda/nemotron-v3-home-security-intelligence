@@ -37,7 +37,6 @@ function createMockEvent(overrides: Partial<Event> = {}): Event {
     risk_level: 'high',
     summary: 'Test event',
     reviewed: false,
-    flagged: false,
     detection_count: 3,
     version: 1,
     snooze_until: null,

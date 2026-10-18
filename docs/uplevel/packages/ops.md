@@ -275,7 +275,7 @@ Specified in [`01-mutation-policy.md`](../01-mutation-policy.md) §M2. Needs `O2
 ### O3.6 PR mutation evidence tool (`01` M4)
 
 **Flags:** `heavy`. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7251
 
 Specified in [`01-mutation-policy.md`](../01-mutation-policy.md) §M4. Phase 4's just-in-time
 consolidation depends on it.

@@ -52,22 +52,6 @@ export type {
   UseCameraCountsQueryReturn,
 } from './useCamerasQuery';
 
-// Camera soft delete hooks (NEM-3643)
-export {
-  useDeletedCamerasQuery,
-  useDeleteCameraMutation,
-  useRestoreCameraMutation,
-  useCameraDeleteRestore,
-  deletedCamerasQueryKeys,
-} from './useCameraDelete';
-export type {
-  UseDeletedCamerasQueryOptions,
-  UseDeletedCamerasQueryReturn,
-  UseDeleteCameraMutationReturn,
-  UseRestoreCameraMutationReturn,
-  UseCameraDeleteRestoreReturn,
-} from './useCameraDelete';
-
 export { useGpuStatsQuery, useGpuHistoryQuery } from './useGpuStatsQuery';
 export type {
   UseGpuStatsQueryOptions,

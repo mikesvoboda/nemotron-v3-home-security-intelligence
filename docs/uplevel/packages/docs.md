@@ -87,18 +87,47 @@ list covers them, each directory added in the PR that fixes its citations (owner
 ### W3.4 Carry out the docs rulings
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7250. (ruling 241)
 
-- [ ] Apply the `R2` rulings from `W2.2`: the single plan home, the register's shape, the
+- [x] Apply the `R2` rulings from `W2.2`: the single plan home, the register's shape, the
       image-validation plans. `R2a` ruled them (ruling 89):
   - **OD-33:** future plans go in `docs/superpowers/<date>-<slug>/`; `docs/plans/` freezes as
     history; `docs/vss-integration/` stays the register's live home; nothing moves.
+    **Done** — UR-87 (`rules.md`) states the rule, and a re-measure at `9806a5298` finds **0**
+    date-named plan files under `docs/` outside `docs/superpowers/` whose name date is after
+    2026-10-10; nothing moved, as the wording requires.
   - **OD-34:** the register gains a ruling column, and closed issues move to a history file. Each
     moved issue leaves a one-line dated pointer; the two halves are separate commits; filling the
     column is a read of all 32 rows, not a grep.
+    **Done** — #7127 (merged 2026-10-14 as `ff7e8f5da`) added the `Ruling` column and moved the
+    closed blocks. Measured **at `ff7e8f5da`**, where it landed: **13** archived `#### ISS-` blocks
+    in `history/17-closed-issues.md` against **13** dated "Moved to history" pointers in the
+    register — the pair the ruling requires to match, and they do. Measured **at the base
+    `9806a5298`**: the same pair reads **14** and **14**, the fourteenth arriving later in
+    `12fd37341` (ISS-073, 2026-10-16), and the register's `OD-` table carries **39** rows, **39**
+    with a populated `Ruling` cell (grown past the 32 the ruling's own "read all 32 rows"
+    instruction names). `check-vss-docs-currency.py` recomputes and enforces the pairing and exits
+    0 at the base.
   - **OD-35:** the 26 image-(re)validation plans are deleted with `git rm`, so history keeps them.
+    **Done** — `a911285a1` deletes exactly **26** files / **8,314** lines (`git diff --numstat
+origin/main...a911285a1` — the deleted tree itself yields 0 by `ls`, so the diff is the
+    instrument that carries the count), matching the ruling's own count, and lists them in
+    `scripts/retired_paths.txt` so
+    the gate keeps them gone and flags a living citation. Citation census over `docs/plans` falls
+    385 checked / 164 OK / **221** ERR at `9806a5298` to 370 / 160 / **210** after the deletion,
+    and the whole delta is attributable to the family: **3** of the 26 files carry citation blocks,
+    holding 15 checked cites — 4 OK, 11 ERR — which is the delta line for line. The other 23 cite
+    nothing. `audit_mkdocs.py` prints the same two pre-existing warnings before and after.
 
-**Done when:** each ruling is applied and the link checker passes.
+**Done when:** each ruling is applied and the link checker passes. **MET** — OD-33 and OD-34 are
+applied in merged work (above); OD-35 is applied in this PR, where its own instrument,
+`scripts/test_retired_paths.py`, goes **red with 26 "retired path exists again" findings** when the
+entries are listed and **green (`OK: 37 retired path(s) stay gone`) once the files are removed** —
+red-then-green on one tree, not a claim. `scripts/test_retired_paths.py` exits 0, `audit_mkdocs.py`
+reports 0 errors and its 2 pre-existing warnings, and `check-vss-docs-currency.py` exits 0. "The link
+checker" here is `audit_mkdocs.py`, which this lane runs by hand: CI's own link leg is `docs.yml`'s
+lychee at `continue-on-error: true`, so it cannot pass or fail for anyone. The clause is met by the
+instrument that can, and that instrument's two warnings are unchanged from the base tree.
 
 ## Phase 4 — Keep it true
 
