@@ -1348,124 +1348,13 @@ def cleanup_stale_databases(request: pytest.FixtureRequest) -> Generator[None]:
     yield
 
 
-def _apply_schema_to_database(db_url: str) -> None:
-    """Apply full schema to a database synchronously.
-
-    This function creates all tables and adds any missing columns to ensure
-    the database schema matches the current SQLAlchemy models.
-
-    Args:
-        db_url: PostgreSQL connection URL for the database
-    """
-    from sqlalchemy import create_engine, text
-
-    # Import all models to ensure they're registered with Base.metadata
-    from backend.models import Camera, Detection, Event, GPUStats, JobTransition  # noqa: F401
-    from backend.models.camera import Base as ModelsBase
-    from backend.models.event_feedback import EventFeedback  # noqa: F401
-    from backend.models.user_calibration import UserCalibration  # noqa: F401
-
-    # Create synchronous engine, naming psycopg2 -- a bare "postgresql://" means
-    # psycopg 3 under SQLAlchemy 2.1, and psycopg 3 is not installed here.
-    sync_url = db_url.replace("+asyncpg", "+psycopg2")
-    engine = create_engine(sync_url)
-
-    try:
-        with engine.begin() as conn:
-            # Create all tables
-            ModelsBase.metadata.create_all(conn)
-
-            # Add any missing columns (using IF NOT EXISTS for idempotency)
-            # These match the columns added in _reset_db_schema()
-            conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
-            conn.execute(
-                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
-            )
-            conn.execute(
-                text(
-                    "ALTER TABLE cameras "
-                    "ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
-                )
-            )
-            conn.execute(
-                text(
-                    "ALTER TABLE events "
-                    "ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
-                )
-            )
-            conn.execute(
-                text(
-                    "ALTER TABLE events "
-                    "ADD COLUMN IF NOT EXISTS snooze_until TIMESTAMP WITH TIME ZONE"
-                )
-            )
-            conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS search_vector TSVECTOR"))
-            conn.execute(
-                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
-            )
-            conn.execute(text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS labels JSONB"))
-            conn.execute(
-                text(
-                    "ALTER TABLE user_calibration "
-                    "ADD COLUMN IF NOT EXISTS correct_count INTEGER DEFAULT 0"
-                )
-            )
-            conn.execute(
-                text(
-                    "ALTER TABLE user_calibration "
-                    "ADD COLUMN IF NOT EXISTS missed_threat_count INTEGER DEFAULT 0"
-                )
-            )
-            conn.execute(
-                text(
-                    "ALTER TABLE user_calibration "
-                    "ADD COLUMN IF NOT EXISTS severity_wrong_count INTEGER DEFAULT 0"
-                )
-            )
-            conn.execute(
-                text(
-                    "ALTER TABLE event_feedback ADD COLUMN IF NOT EXISTS expected_severity VARCHAR"
-                )
-            )
-            # F11 ruling 2: vector provenance. create_all adds the column to
-            # NEW databases, but a test DB whose face tables predate the
-            # column needs the explicit ALTER (same recipe as production's
-            # docs/api/migrations recipe) — and the NOT NULL + sentinel
-            # DEFAULT must match the model exactly, or a row written without
-            # the column would land unflagged instead of flagged.
-            conn.execute(
-                text(
-                    "ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS "
-                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                )
-            )
-            conn.execute(
-                text(
-                    "ALTER TABLE face_detection_events ADD COLUMN IF NOT EXISTS "
-                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                )
-            )
-            # Ledger item 20 (the full re-ID swap): the person gallery needs
-            # the same drift repair, DEFAULT spelled byte-identically.
-            conn.execute(
-                text(
-                    "ALTER TABLE person_embeddings ADD COLUMN IF NOT EXISTS "
-                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                )
-            )
-
-            # Create unique indexes for cameras table
-            conn.execute(
-                text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
-            )
-            conn.execute(
-                text(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS "
-                    "idx_cameras_folder_path_unique ON cameras (folder_path)"
-                )
-            )
-    finally:
-        engine.dispose()
+# B3.3: `_apply_schema_to_database` (a sync create_all + 15 hand-written ALTERs
+# twin of `_reset_db_schema`) was deleted here. `git grep` repo-wide found no
+# call site -- only this file referenced it, in a comment -- and "no fixture
+# adds a column" is the box 6 clause; a DEAD column-adding fixture is still a
+# column-adding fixture wearing the schema's clothes. The columns it hand-added
+# are recorded upgrades now (0002/0003 for the model_id trio, 0005 for the
+# rest) and the upgrade path runs at boot, which this function never did.
 
 
 # Track if schema has been reset this worker process to avoid redundant operations
@@ -1488,11 +1377,12 @@ async def _ensure_clean_db() -> None:
 
 
 async def _reset_db_schema() -> None:
-    """Create all tables and add any missing columns to match current models.
+    """Create all tables, then let the recorded upgrades add the columns.
 
     This is called once per database to ensure the database schema matches
-    the current SQLAlchemy models. Uses create_all for new tables and
-    explicit ALTER TABLE for missing columns.
+    the current SQLAlchemy models. Uses create_all for new tables; the missing
+    columns are added by the upgrade command at ``init_db()`` (B3.3 -- this
+    function's 15 hand-written ALTERs are upgrades 0002/0003/0005 now).
 
     Uses a PostgreSQL advisory lock to prevent deadlocks when multiple pytest-xdist
     workers attempt to modify schema concurrently. The lock key is different from
@@ -1539,85 +1429,23 @@ async def _reset_db_schema() -> None:
             # Create tables if they don't exist
             await conn.run_sync(ModelsBase.metadata.create_all)
 
-            # Add any missing columns that create_all doesn't handle
-            # This handles schema drift without dropping data
-            # Using IF NOT EXISTS makes this idempotent and safe to run in parallel
-            await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
-            await conn.execute(
-                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
-            )
-            # NEM-1652: Add soft delete columns
-            await conn.execute(
-                text(
-                    "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
-                )
-            )
-            await conn.execute(
-                text(
-                    "ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
-                )
-            )
-            # NEM-2363: Add snooze_until column for event snoozing
-            await conn.execute(
-                text(
-                    "ALTER TABLE events ADD COLUMN IF NOT EXISTS snooze_until TIMESTAMP WITH TIME ZONE"
-                )
-            )
-            # Add search_vector columns for full-text search
-            await conn.execute(
-                text("ALTER TABLE events ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
-            )
-            await conn.execute(
-                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
-            )
-            # Add labels column for detections
-            await conn.execute(text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS labels JSONB"))
-
-            # NEM-2348: Add 4 feedback types columns for user_calibration
-            await conn.execute(
-                text(
-                    "ALTER TABLE user_calibration ADD COLUMN IF NOT EXISTS correct_count INTEGER DEFAULT 0"
-                )
-            )
-            await conn.execute(
-                text(
-                    "ALTER TABLE user_calibration ADD COLUMN IF NOT EXISTS missed_threat_count INTEGER DEFAULT 0"
-                )
-            )
-            await conn.execute(
-                text(
-                    "ALTER TABLE user_calibration ADD COLUMN IF NOT EXISTS severity_wrong_count INTEGER DEFAULT 0"
-                )
-            )
-
-            # NEM-2348: Add expected_severity column for event_feedback
-            await conn.execute(
-                text(
-                    "ALTER TABLE event_feedback ADD COLUMN IF NOT EXISTS expected_severity VARCHAR"
-                )
-            )
-
-            # F11 ruling 2: vector provenance on the face tables — see the
-            # sync twin in _apply_schema_to_database for why the DEFAULT must
-            # match the model's sentinel exactly.
-            await conn.execute(
-                text(
-                    "ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS "
-                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                )
-            )
-            await conn.execute(
-                text(
-                    "ALTER TABLE face_detection_events ADD COLUMN IF NOT EXISTS "
-                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                )
-            )
-            await conn.execute(
-                text(
-                    "ALTER TABLE person_embeddings ADD COLUMN IF NOT EXISTS "
-                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                )
-            )
+            # B3.3: the 15 hand-written ALTERs that used to sit here -- the 12
+            # January-2026 model columns and the three vector-provenance
+            # model_id columns -- are recorded upgrades now (0005, and 0002/0003
+            # for model_id), and the upgrade command runs at BOOT: every caller
+            # of this function does `await init_db()` first, and init_db() runs
+            # apply_all inside its own advisory lock and transaction (box 5).
+            # create_all stays here because init_db takes its lock with
+            # pg_try_advisory_lock -- a worker that fails to get it SKIPS schema
+            # creation -- while this function's pg_advisory_lock blocks, so this
+            # is the pass that catches that worker's database. The dedup DELETEs
+            # and unique indexes below stay on purpose: the cameras unique
+            # indexes are create_all-blind and deliberately NOT in 0005 (the
+            # index needs these DELETEs first, and deleting rows is owner-tier,
+            # UR-98). test_schema_upgrade_path.py::
+            # test_upgrade_command_records_a_create_all_database_without_running_sql
+            # pins this boot shape: create_all first, then the command, every
+            # upgrade `verified` with zero statements run.
 
             # Add unique indexes for cameras table (migration adds these for production)
             # First, clean up any duplicate cameras that might prevent index creation
