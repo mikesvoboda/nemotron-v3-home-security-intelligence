@@ -976,22 +976,6 @@ export type {
 export { useRtspTest } from './useRtspTest';
 export type { UseRtspTestReturn } from './useRtspTest';
 
-// Worker status WebSocket hook (NEM-3127)
-export {
-  useWorkerStatusWebSocket,
-  default as useWorkerStatusWebSocketDefault,
-} from './useWorkerStatusWebSocket';
-export type {
-  WorkerEventType,
-  WorkerEventPayload,
-  WorkerStatusEntry,
-  WorkerStatusMap,
-  PipelineHealthStatus,
-  WorkerStatusChangeHandler,
-  UseWorkerStatusWebSocketOptions,
-  UseWorkerStatusWebSocketReturn,
-} from './useWorkerStatusWebSocket';
-
 // Worker events hook (NEM-3127) - higher-level hook with toast notifications
 export { useWorkerEvents, default as useWorkerEventsDefault } from './useWorkerEvents';
 export type { UseWorkerEventsOptions, UseWorkerEventsReturn } from './useWorkerEvents';

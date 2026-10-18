@@ -56,10 +56,3 @@ export type {
   ContainerCategory,
   ContainerWithStatus,
 } from './ContainersPanel';
-
-// Worker Status panel (NEM-3127, NEM-3402)
-export {
-  default as WorkerStatusPanel,
-  WorkerStatusPanel as WorkerStatusPanelNamed,
-} from './WorkerStatusPanel';
-export type { WorkerStatusPanelProps } from './WorkerStatusPanel';

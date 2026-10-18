@@ -383,7 +383,7 @@ The System page uses these data sources (page component: `SystemMonitoringPage.t
 
 ### SystemMonitoringPage
 
-The parent page component (`frontend/src/components/system/SystemMonitoringPage.tsx`) assembles the visualization inside collapsible sections, alongside the interactive panels it imports: `PipelineFlowVisualization`, `PipelineLatencyHistoryPanel`, `QueueMetricsPanel`, `ServicesPanel`, `WorkerStatusPanel` / `WorkerManagementPanel`, `DatabasesPanel`, `CircuitBreakerPanel`, `GPUHistoryPanel`, `ContainersPanel`, `HostSystemPanel`, `WebSocketHealthPanel`, `PrometheusMonitoringPanel`, and `KubernetesProbesPanel`. Detailed metrics charts live in Grafana; the page keeps the actionable panels.
+The parent page component (`frontend/src/components/system/SystemMonitoringPage.tsx`) assembles the visualization inside collapsible sections, alongside the interactive panels it imports: `PipelineFlowVisualization`, `PipelineLatencyHistoryPanel`, `ServicesPanel`, `WorkerManagementPanel`, `DatabasesPanel`, `CircuitBreakerPanel`, `GPUHistoryPanel`, `ContainersPanel`, `HostSystemPanel`, `WebSocketHealthPanel`, `PrometheusMonitoringPanel`, and `KubernetesProbesPanel`. Detailed metrics charts live in Grafana; the page keeps the actionable panels.
 
 ### PipelineFlowVisualization
 

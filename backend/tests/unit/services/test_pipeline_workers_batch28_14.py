@@ -602,9 +602,7 @@ def build_manager(**kwargs: Any) -> tuple[PipelineWorkerManager, dict[str, Any]]
        ``worker_stop_timeout`` pair of arms, the NEM-5375 count loops) and stores a
        spec'd instance double in the matching attribute - AsyncMock
        ``start``/``stop``, MagicMock ``running``/``stats`` - and
-    2. ``BatchAggregator`` (which the constructor builds directly) is patched too, and
-       ``websocket_emitter`` stays ``None`` so the shipped ``broadcast_worker_event``
-       helper takes its documented no-emitter arm.
+    2. ``BatchAggregator`` (which the constructor builds directly) is patched too.
 
     No real worker loop or task is ever started, and the ``start()`` / ``stop()``
     control flow - the ``asyncio.TaskGroup`` bodies included - is the shipped one.

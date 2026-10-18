@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 

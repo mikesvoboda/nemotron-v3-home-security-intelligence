@@ -7,15 +7,11 @@ byte-identical to the manifest-proven source).  Admitted manifest:
 ``survivors.json`` for the exact per-key diffs.
 
 Everything in this group sits in ONE def - ``PipelineWorkerManager.start``
-(shipped L1811-1882).  The legs drive the REAL ``start()`` on a REAL manager
+(shipped L1811-1853).  The legs drive the REAL ``start()`` on a REAL manager
 whose five constructed collaborators are per-leg name-spies in the LIVE
 name-resolution dict of ``__init__`` (``live_globals``), so ``_detection_workers``
 / ``_analysis_workers`` / ``_timeout_worker`` / ``_metrics_worker`` are doubles
-with an awaitable ``start`` while the code under test stays shipped.  The
-WebSocket side is observed through an autospec'd ``WebSocketEmitterService``
-instance, i.e. through the shipped ``broadcast_worker_event`` helper rather than
-by replacing it, so the four ``worker.started`` payloads are read as the shipped
-payload dicts.
+with an awaitable ``start`` while the code under test stays shipped.
 
 Two shipped details are pre-set rather than exercised, both declared in the
 manifest as another group's keys:
@@ -46,49 +42,12 @@ L1853 ``logger.info("PipelineWorkerManager started all workers")`` -> ``None`` /
 ``"XX...XX"`` / lower / upper
 - ``__mutmut_23`` / ``_24`` / ``_25`` / ``_26``
   -> ``test_the_second_info_announces_that_all_workers_started``
-L1856-1862 the detection ``broadcast_worker_event`` call
-- ``__mutmut_28`` emitter -> ``None``, ``_29`` ``"worker.started"`` -> ``None``,
-  ``_30`` ``f"detection_worker_{i}"`` -> ``None``, ``_31`` ``"detection"`` -> ``None``,
-  ``_36``/``_37`` (``worker.started`` XX/upper), ``_38``/``_39``
-  (``detection`` XX/upper)
-  -> ``test_each_detection_worker_broadcasts_its_own_started_event``
-L1863-1869 the analysis call
-- ``__mutmut_41`` / ``_42`` / ``_43`` / ``_44`` / ``_49`` / ``_50`` / ``_51`` / ``_52``
-  -> ``test_each_analysis_worker_broadcasts_its_own_started_event``
-L1870-1876 the timeout-singleton call
-- ``__mutmut_53`` / ``_54`` / ``_55`` / ``_56`` / ``_61`` / ``_62`` / ``_63`` /
-  ``_64`` / ``_65`` / ``_66``
-  -> ``test_the_timeout_worker_broadcasts_the_singleton_started_event``
-L1877-1883 the metrics-singleton call
-- ``__mutmut_67`` / ``_68`` / ``_69`` / ``_70`` / ``_75`` / ``_76`` / ``_77`` /
-  ``_78`` / ``_79`` / ``_80``
-  -> ``test_the_metrics_worker_broadcasts_the_singleton_started_event``
-  (the emitter-slot ``arg->None`` mutants are caught by the MISSING emit -
-  ``broadcast_worker_event`` returns before emitting when ``emitter is None`` -
-  which is why each leg pins the emit COUNT as well as the payload)
 
 Control legs that state the surrounding shipped contract - the TaskGroup
-fan-out, the ``enable_*`` gates, the cross-type ORDER and the literal
-four-broadcast count, the None-emitter arm, and the absence of any extra payload
-key - so a killing leg can never be satisfied by an accidental fall-through:
+fan-out, the ``enable_*`` gates, and the signal-handler guard:
 ``test_a_fresh_start_awaits_the_start_of_every_enabled_worker``,
-``test_a_disabled_worker_is_neither_started_nor_broadcast``,
-``test_the_started_events_arrive_in_the_shipped_order_with_no_extra_payload_key``,
-``test_exactly_four_started_broadcasts_arrive_in_the_shipped_order``,
-``test_a_manager_without_an_emitter_skips_every_broadcast``,
-``test_signal_handlers_are_installed_only_when_the_flag_says_so``.  (Measured:
-none of the 54 keys has its ONLY route through one of these six - every key's
-failing set includes at least one of the dedicated per-site legs above - though
-several of them join the failing set redundantly, which only strengthens the
-matrix.)
-
-Shipped behaviour only - nothing here invents a contract.  Every pinned string is
-transcribed from the shipped file at the line quoted in the test that asserts it:
-the four log texts (L1822/L1826/L1853 + the helper's L104/L127), the shipped
-``"worker.started"`` event key, the shipped ``f"detection_worker_{i}"`` /
-``f"analysis_worker_{i}"`` / ``"timeout_worker"`` / ``"metrics_worker"`` names,
-the four ``worker_type`` labels, and the payload key set
-``{worker_name, worker_type, timestamp}`` at L122-126.
+``test_a_disabled_worker_is_not_started``,
+``test_signal_handlers_are_installed_only_when_the_flag_says_so``.
 
 Discipline
 ----------
@@ -97,17 +56,11 @@ Discipline
   plus ``record.args`` / ``record.exc_info`` / ``record.levelno`` (batch27_01
   pattern).  The ``extra`` values are read off the record attributes the shipped
   ``extra=`` dict creates.
-* Mocks of real attributes are autospec'd (WP4.2 fast path): the emitter is
-  ``create_autospec(WebSocketEmitterService, instance=True)``, so ``emit`` is an
-  AsyncMock with the shipped signature.  The collaborator spies replace
-  ``__init__``'s LOCAL names (``patch.dict`` over the live globals dict) rather
-  than module attributes, and the signal-handler spy is a
-  ``patch.object(manager, ...)`` on the instance double - none of these is a
-  convertible module-attribute patch site.
+* The collaborator spies replace ``__init__``'s LOCAL names (``patch.dict`` over
+  the live globals dict) rather than module attributes, and the signal-handler
+  spy is a ``patch.object(manager, ...)`` on the instance double - none of these
+  is a convertible module-attribute patch site.
 * No import-time global spy: every spy is installed per test and removed at exit.
-* ``time.monotonic`` / ``time.perf_counter`` are never patched and no duration is
-  asserted; the broadcast payload's ``timestamp`` is pinned only as a parseable
-  ISO-8601 string (the shipped ``datetime.now(UTC).isoformat()``).
 """
 
 from __future__ import annotations
@@ -116,15 +69,12 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.core.websocket.event_types import WebSocketEventType
 from backend.services import pipeline_workers as M
-from backend.services.websocket_emitter import WebSocketEmitterService
 
 LOG_NAME = M.logger.name  # "backend.services.pipeline_workers" (get_logger(__name__))
 
@@ -141,14 +91,6 @@ ALREADY_RUNNING_WARNING = "PipelineWorkerManager already running"
 STARTING_INFO = "Starting PipelineWorkerManager"
 # L1853: logger.info("PipelineWorkerManager started all workers")
 STARTED_ALL_INFO = "PipelineWorkerManager started all workers"
-# L1859/L1866/L1873/L1880: the event type handed to broadcast_worker_event
-STARTED_EVENT = "worker.started"
-# L127: logger.debug(f"Broadcast worker event: {event_type}")
-BROADCAST_DEBUG = "Broadcast worker event: worker.started"
-# L104: the None-emitter arm of the shipped helper
-SKIP_EMITTER_DEBUG = "WebSocket emitter not available, skipping worker.started broadcast"
-# L122-126: payload = {"worker_name": ..., "worker_type": ..., "timestamp": ...}
-PAYLOAD_KEYS = {"worker_name", "worker_type", "timestamp"}
 
 
 # =============================================================================
@@ -259,7 +201,6 @@ class Rig:
     analysis: MagicMock
     timeout: MagicMock
     metrics: MagicMock
-    emitter: Any
     manager: M.PipelineWorkerManager
 
     @property
@@ -296,7 +237,6 @@ def make_manager(
     enable_analysis_worker: bool = True,
     enable_timeout_worker: bool = True,
     enable_metrics_worker: bool = True,
-    with_emitter: bool = True,
 ) -> Rig:
     """Build a real ``PipelineWorkerManager`` through the spied names.
 
@@ -304,13 +244,11 @@ def make_manager(
     the process-wide signal table (see the module docstring); the flag's own
     contract is g16's and is covered by a control leg.
     """
-    emitter = create_autospec(WebSocketEmitterService, instance=True) if with_emitter else None
     manager = M.PipelineWorkerManager(
         redis_client=MagicMock(name="redis-client"),
         detector_client=MagicMock(name="detector-client"),
         analyzer=MagicMock(name="analyzer"),
         frame_buffer=MagicMock(name="frame-buffer"),
-        websocket_emitter=emitter,
         detection_worker_count=detection_worker_count,
         analysis_worker_count=analysis_worker_count,
         enable_detection_worker=enable_detection_worker,
@@ -325,52 +263,8 @@ def make_manager(
         analysis=spies["AnalysisQueueWorker"],
         timeout=spies["BatchTimeoutWorker"],
         metrics=spies["QueueMetricsWorker"],
-        emitter=emitter,
         manager=manager,
     )
-
-
-def emit_calls(rig: Rig) -> list[tuple[Any, dict[str, Any]]]:
-    """The shipped helper's ``emitter.emit(ws_event_type, payload)`` calls."""
-    assert rig.emitter is not None, "this leg needs an emitter"
-    out: list[tuple[Any, dict[str, Any]]] = []
-    for call in rig.emitter.emit.await_args_list:
-        assert not call.kwargs, (
-            f"emitter.emit took keyword args, the shipped call is positional: {call!r}"
-        )
-        assert len(call.args) == 2, f"emitter.emit call shape mutated: {call!r}"
-        out.append((call.args[0], call.args[1]))
-    return out
-
-
-def pin_payload(payload: Any, *, worker_name: str, worker_type: str) -> None:
-    """Pin the shipped payload dict at broadcast_worker_event L122-126.
-
-    ::
-
-        payload = {
-            "worker_name": worker_name,
-            "worker_type": worker_type,
-            "timestamp": datetime.now(UTC).isoformat(),
-            **extra_fields,
-        }
-
-    The key SET is pinned too: ``start()`` passes no ``**extra_fields``, so an
-    added key (or a missing one) is a payload mutation, and the timestamp must be
-    the shipped ISO-8601 text.
-    """
-    assert isinstance(payload, dict), f"emit payload is not a dict: {payload!r}"
-    assert set(payload) == PAYLOAD_KEYS, f"payload key set mutated: {sorted(payload)!r}"
-    assert "reason" not in payload, "start() passes no extra fields, so 'reason' must be absent"
-    assert payload["worker_name"] == worker_name, (
-        f"payload worker_name mutated: {payload['worker_name']!r} != {worker_name!r}"
-    )
-    assert payload["worker_type"] == worker_type, (
-        f"payload worker_type mutated: {payload['worker_type']!r} != {worker_type!r}"
-    )
-    stamp = payload["timestamp"]
-    assert isinstance(stamp, str), f"timestamp must be the ISO text, got {stamp!r}"
-    assert datetime.fromisoformat(stamp).tzinfo is UTC, f"naive timestamp: {stamp!r}"
 
 
 # =============================================================================
@@ -436,9 +330,6 @@ async def test_an_already_running_manager_warns_once_and_starts_nothing(
             assert worker.start.await_count == 0, (
                 f"a worker was started by the already-running arm: {worker.start.await_count}"
             )
-        assert rig.emitter.emit.await_count == 0, (
-            f"the already-running arm broadcast {rig.emitter.emit.await_count} events"
-        )
 
 
 # =============================================================================
@@ -547,15 +438,10 @@ async def test_a_fresh_start_awaits_the_start_of_every_enabled_worker(
         assert len(rig.detection.created) == 2 and len(rig.analysis.created) == 2
 
 
-async def test_a_disabled_worker_is_neither_started_nor_broadcast(
+async def test_a_disabled_worker_is_not_started(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Shipped ``if self._timeout_worker:`` / ``if self._metrics_worker:`` gates.
-
-    With the two singletons disabled the emits are exactly the loop-type ones,
-    which is what makes the singleton legs below (one emit each, named) the only
-    route to their keys.
-    """
+    """Shipped ``if self._timeout_worker:`` / ``if self._metrics_worker:`` gates."""
     win(caplog)
 
     with spied_names() as spies:
@@ -570,10 +456,8 @@ async def test_a_disabled_worker_is_neither_started_nor_broadcast(
 
         assert rig.manager._timeout_worker is None
         assert rig.manager._metrics_worker is None
-        emits = emit_calls(rig)
-        assert len(emits) == 2, f"expected 2 emits (detection + analysis), got {len(emits)}"
-        assert [p["worker_type"] for _e, p in emits] == ["detection", "analysis"]
-        assert rig.emitter.emit.await_count == 2
+        for worker in rig.workers:
+            assert worker.start.await_count == 1
 
 
 async def test_signal_handlers_are_installed_only_when_the_flag_says_so(
@@ -596,271 +480,3 @@ async def test_signal_handlers_are_installed_only_when_the_flag_says_so(
         assert install.call_count == 1, (
             f"start() installed signal handlers {install.call_count} times, expected 1"
         )
-
-
-# =============================================================================
-# 4) the four worker.started broadcasts (L1855-1883)
-# =============================================================================
-
-
-async def test_each_detection_worker_broadcasts_its_own_started_event(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Shipped:1855-1862 - one WORKER_STARTED emit per detection worker.
-
-    ::
-
-        for i, _detection_worker in enumerate(self._detection_workers):
-            await broadcast_worker_event(
-                self._websocket_emitter,
-                "worker.started",
-                f"detection_worker_{i}",
-                "detection",
-            )
-
-    The emits are read at the emitter, i.e. AFTER the shipped helper has mapped
-    ``"worker.started"`` to ``WebSocketEventType.WORKER_STARTED`` and built the
-    payload:
-
-    * ``_28`` (emitter -> ``None``) makes the helper log the skip DEBUG and emit
-      NOTHING -> the count pin fails;
-    * ``_29`` / ``_36`` / ``_37`` (the event type -> ``None`` / XX / upper) miss
-      the helper's ``event_type_map`` -> the helper warns and emits nothing;
-    * ``_30`` (name -> ``None``) and ``_38`` / ``_39`` (``"detection"`` -> XX /
-      upper) land in the payload and fail the value pins;
-    * ``_31`` (``"detection"`` -> ``None``) fails the ``worker_type`` pin.
-    """
-    win(caplog)
-
-    with spied_names() as spies:
-        rig = make_manager(
-            spies,
-            detection_worker_count=2,
-            analysis_worker_count=0,
-            enable_analysis_worker=False,
-            enable_timeout_worker=False,
-            enable_metrics_worker=False,
-        )
-        await rig.manager.start()
-
-        emits = emit_calls(rig)
-        assert len(emits) == 2, (
-            f"expected one WORKER_STARTED emit per detection worker (2), got {len(emits)}"
-        )
-        for index, (event_type, payload) in enumerate(emits):
-            assert event_type is WebSocketEventType.WORKER_STARTED, (
-                f"emit #{index} event type mutated: {event_type!r}"
-            )
-            pin_payload(payload, worker_name=f"detection_worker_{index}", worker_type="detection")
-
-    debugs = at(caplog, logging.DEBUG)
-    assert len(debugs) == 2, (
-        f"one helper DEBUG per broadcast expected (2 emits), got {[r.msg for r in debugs]}"
-    )
-    for rec in debugs:
-        pin_record(rec, msg=BROADCAST_DEBUG, level=logging.DEBUG)
-    assert at(caplog, logging.WARNING) == [], (
-        "an unknown mapped event type would warn - the shipped call must not"
-    )
-
-
-async def test_each_analysis_worker_broadcasts_its_own_started_event(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Shipped:1863-1869 - the analysis loop, ``f"analysis_worker_{i}"`` / ``"analysis"``.
-
-    Kills ``_41`` (emitter -> None), ``_42`` (event type -> None), ``_43``
-    (worker name -> None), ``_44`` (``"analysis"`` -> None) and the XX/upper
-    variants ``_49``/``_50`` (event type) and ``_51``/``_52`` (worker type).
-    """
-    win(caplog)
-
-    with spied_names() as spies:
-        rig = make_manager(
-            spies,
-            detection_worker_count=0,
-            analysis_worker_count=2,
-            enable_detection_worker=False,
-            enable_timeout_worker=False,
-            enable_metrics_worker=False,
-        )
-        await rig.manager.start()
-
-        emits = emit_calls(rig)
-        assert len(emits) == 2, f"expected 2 analysis emits, got {len(emits)}"
-        for index, (event_type, payload) in enumerate(emits):
-            assert event_type is WebSocketEventType.WORKER_STARTED, (
-                f"emit #{index} event type mutated: {event_type!r}"
-            )
-            pin_payload(payload, worker_name=f"analysis_worker_{index}", worker_type="analysis")
-
-    assert at(caplog, logging.WARNING) == [], (
-        "an unmapped event type would warn - the shipped call must not"
-    )
-
-
-async def test_the_timeout_worker_broadcasts_the_singleton_started_event(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Shipped:1870-1876 - the literal ``"timeout_worker"`` / ``"timeout"`` pair.
-
-    Kills ``_53``-``_56`` (each positional argument -> ``None``) and the six
-    string variants ``_61``/``_62`` (event type), ``_63``/``_64`` (worker name),
-    ``_65``/``_66`` (worker type).  The manager is built with every loop-type
-    worker disabled, so this leg's emit list is exactly the singleton's.
-    """
-    win(caplog)
-
-    with spied_names() as spies:
-        rig = make_manager(
-            spies,
-            enable_detection_worker=False,
-            enable_analysis_worker=False,
-            enable_metrics_worker=False,
-        )
-        await rig.manager.start()
-
-        emits = emit_calls(rig)
-        assert len(emits) == 1, f"expected exactly the timeout singleton emit, got {len(emits)}"
-        event_type, payload = emits[0]
-        assert event_type is WebSocketEventType.WORKER_STARTED, (
-            f"event type mutated: {event_type!r}"
-        )
-        pin_payload(payload, worker_name="timeout_worker", worker_type="timeout")
-
-    assert at(caplog, logging.WARNING) == []
-
-
-async def test_the_metrics_worker_broadcasts_the_singleton_started_event(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Shipped:1877-1883 - the literal ``"metrics_worker"`` / ``"metrics"`` pair.
-
-    Kills ``_67``-``_70`` and the six string variants ``_75``/``_76`` (event
-    type), ``_77``/``_78`` (worker name), ``_79``/``_80`` (worker type).
-    """
-    win(caplog)
-
-    with spied_names() as spies:
-        rig = make_manager(
-            spies,
-            enable_detection_worker=False,
-            enable_analysis_worker=False,
-            enable_timeout_worker=False,
-        )
-        await rig.manager.start()
-
-        emits = emit_calls(rig)
-        assert len(emits) == 1, f"expected exactly the metrics singleton emit, got {len(emits)}"
-        event_type, payload = emits[0]
-        assert event_type is WebSocketEventType.WORKER_STARTED, (
-            f"event type mutated: {event_type!r}"
-        )
-        pin_payload(payload, worker_name="metrics_worker", worker_type="metrics")
-
-    assert at(caplog, logging.WARNING) == []
-
-
-async def test_the_started_events_arrive_in_the_shipped_order_with_no_extra_payload_key(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """The full cross-type sequence: 2 detection, 1 analysis, timeout, metrics.
-
-    The manifest's order leg - ``detection_worker_0``/``detection``,
-    ``detection_worker_1``/``detection``, ``analysis_worker_0``/``analysis``,
-    ``timeout_worker``/``timeout``, ``metrics_worker``/``metrics`` - with every
-    payload limited to the three shipped keys.  Order is load-bearing here and
-    nowhere else, so this leg is stated even though the four per-type legs above
-    already pin each site's own values.
-    """
-    win(caplog)
-
-    with spied_names() as spies:
-        rig = make_manager(spies, detection_worker_count=2, analysis_worker_count=1)
-        await rig.manager.start()
-
-        emits = emit_calls(rig)
-        assert len(emits) == 5, f"expected 5 WORKER_STARTED emits, got {len(emits)}"
-        assert [(p["worker_name"], p["worker_type"]) for _event, p in emits] == [
-            ("detection_worker_0", "detection"),
-            ("detection_worker_1", "detection"),
-            ("analysis_worker_0", "analysis"),
-            ("timeout_worker", "timeout"),
-            ("metrics_worker", "metrics"),
-        ], "the started-broadcast sequence mutated"
-        for _event, payload in emits:
-            assert set(payload) == PAYLOAD_KEYS, f"payload key set mutated: {sorted(payload)!r}"
-            assert "reason" not in payload
-
-
-async def test_exactly_four_started_broadcasts_arrive_in_the_shipped_order(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """The manifest's verbatim order leg: one worker each -> EXACTLY 4 emits.
-
-    ``detection_worker_0``/``detection``, ``analysis_worker_0``/``analysis``,
-    ``timeout_worker``/``timeout``, ``metrics_worker``/``metrics`` - the shipped
-    default configuration (1 detection, 1 analysis, both singletons on, emitter
-    present), each payload limited to the three shipped keys with no ``reason``.
-    ``test_the_started_events_arrive_in_the_shipped_order_with_no_extra_payload_key``
-    above runs the same sequence with 2 detection workers to also pin the
-    ``f"detection_worker_{i}"`` interpolation; this leg is the literal
-    four-broadcast reading, so the COUNT is the whole assertion's subject.
-    """
-    win(caplog)
-
-    with spied_names() as spies:
-        rig = make_manager(spies)
-        await rig.manager.start()
-
-        emits = emit_calls(rig)
-        assert len(emits) == 4, (
-            f"the shipped default rig must broadcast exactly 4 worker.started events, got {len(emits)}"
-        )
-        sequence = [
-            ("detection_worker_0", "detection"),
-            ("analysis_worker_0", "analysis"),
-            ("timeout_worker", "timeout"),
-            ("metrics_worker", "metrics"),
-        ]
-        for (name, wtype), (event_type, payload) in zip(sequence, emits, strict=True):
-            assert event_type is WebSocketEventType.WORKER_STARTED, (
-                f"{name}: event type mutated: {event_type!r}"
-            )
-            pin_payload(payload, worker_name=name, worker_type=wtype)
-
-    assert len(at(caplog, logging.INFO)) == 2, "the two start INFOs and nothing more"
-
-
-async def test_a_manager_without_an_emitter_skips_every_broadcast(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """The None-emitter arm of the shipped helper, stated as the mirror of ``_28``.
-
-    ``websocket_emitter=None`` is the shipped default, and the helper's
-    ``if emitter is None:`` arm (L103-105) is what an emitter-slot mutant turns
-    EVERY call into - one skip DEBUG per call and 0 emits.  Pinning that shape
-    here is what makes the emit-count pins in the four legs above the
-    discriminator rather than an accident of the double.
-
-    The default rig is 1 detection + 1 analysis + timeout + metrics = 4 calls.
-    """
-    win(caplog)
-
-    with spied_names() as spies:
-        rig = make_manager(
-            spies,
-            detection_worker_count=1,
-            analysis_worker_count=1,
-            with_emitter=False,
-        )
-        await rig.manager.start()
-
-        assert rig.manager._websocket_emitter is None
-        assert at(caplog, logging.WARNING) == []
-        assert len(at(caplog, logging.INFO)) == 2, "the two start INFOs still fire"
-
-    debugs = [r.msg for r in at(caplog, logging.DEBUG)]
-    assert debugs == [SKIP_EMITTER_DEBUG] * 4, (
-        f"every call must fall into the helper's None-emitter arm: {debugs!r}"
-    )

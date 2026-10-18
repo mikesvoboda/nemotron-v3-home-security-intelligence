@@ -6,7 +6,7 @@ Contains React components for comprehensive system observability and monitoring 
 
 ## Files
 
-Most `.tsx` files here have a co-located `.test.tsx`. Exceptions: `GPUHistoryPanel.tsx` and `PerformanceHistoryPanel.tsx` are covered through `SystemMonitoringPage.test.tsx`, and `WorkerStatusPanel.tsx` has no test coverage yet.
+Most `.tsx` files here have a co-located `.test.tsx`. Exceptions: `GPUHistoryPanel.tsx` and `PerformanceHistoryPanel.tsx` are covered through `SystemMonitoringPage.test.tsx`.
 
 | File                              | Purpose                                              |
 | --------------------------------- | ---------------------------------------------------- |
@@ -34,7 +34,6 @@ Most `.tsx` files here have a co-located `.test.tsx`. Exceptions: `GPUHistoryPan
 | `WorkerActionConfirmDialog.tsx`   | Confirm dialog for stop/restart worker actions       |
 | `WorkerCard.tsx`                  | Single worker status card (NEM-4831)                 |
 | `WorkerManagementPanel.tsx`       | Supervisor status plus worker start/stop/restart     |
-| `WorkerStatusPanel.tsx`           | Read-only background worker status display           |
 | `index.ts`                        | Barrel exports                                       |
 
 > **Deleted in #3471** ("remove orphaned Infrastructure page and components"):
@@ -63,7 +62,7 @@ Sections rendered (from the page's own imports): `PipelineFlowVisualization`,
 `DatabasesPanel`, `ServicesPanel`, `ContainersPanel`,
 `HostSystemPanel`, `CircuitBreakerPanel`, `WebSocketHealthPanel`,
 `PrometheusMonitoringPanel`, `KubernetesProbesPanel`, `FileOperationsPanel`,
-`WorkerManagementPanel`, `WorkerStatusPanel`, and `BatchStatisticsDashboard`
+`WorkerManagementPanel`, and `BatchStatisticsDashboard`
 (from `../batch`).
 
 **No props** - Top-level page component
@@ -122,38 +121,6 @@ interface PipelineFlowVisualizationProps {
 - Failure counts and thresholds
 - Last state change timestamp
 - Color-coded indicators
-
----
-
-### WorkerStatusPanel.tsx
-
-**Purpose:** Read-only view of pipeline worker health, driven entirely by
-WebSocket events (NEM-3127, NEM-3402). It does not poll a REST endpoint.
-
-**Key Features:**
-
-- Subscribes through `useWorkerStatusWebSocket`; no timer, no fetch
-- Overall pipeline health badge: `PipelineHealthStatus` of `healthy` /
-  `warning` / `error` / `unknown`
-- One card per reported worker with states `running`, `stopped`, `error`,
-  `starting`
-- A connection indicator (Wi-Fi icon) distinguishes "all workers down" from
-  "we lost the WebSocket"
-
-**Props:**
-
-```typescript
-interface WorkerStatusPanelProps {
-  className?: string;
-  'data-testid'?: string;
-}
-```
-
-The worker roster is not enumerated here — it comes from the backend
-supervisor. `WorkerManagementPanel.tsx` (NEM-4831) is the interactive
-counterpart: it reads `GET /api/system/supervisor` and offers
-start/stop/restart through `POST /api/system/supervisor/workers/{name}/{action}`,
-with `WorkerActionConfirmDialog` guarding the destructive ones.
 
 ---
 
@@ -288,8 +255,7 @@ directly rather than through the barrel):
   SeverityConfigPanel,
   FileOperationsPanel,
   HostSystemPanel,
-  ContainersPanel,
-  WorkerStatusPanel(+WorkerStatusPanelNamed));
+  ContainersPanel);
 ```
 
 Components not in the barrel — `PipelineFlowVisualization`,
@@ -315,9 +281,6 @@ type TimeRange = '5m' | '15m' | '60m';
 type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
 ```
 
-`PipelineHealthStatus` (from `hooks/useWorkerStatusWebSocket`) is a separate
-four-value union: `healthy | warning | error | unknown`.
-
 ## Related Hooks
 
 The panels use TanStack Query hooks in `frontend/src/hooks/`, imported by
@@ -328,7 +291,6 @@ path. The ones that matter here:
 | `useGPUMetricsHistory`                                                                                         | `GPUHistoryPanel`             |
 | `usePerformanceHistory`                                                                                        | `PerformanceHistoryPanel`     |
 | `usePipelineLatencyHistory`                                                                                    | `PipelineLatencyHistoryPanel` |
-| `useWorkerStatusWebSocket`                                                                                     | `WorkerStatusPanel`           |
 | `useSupervisorStatus`, `useWorkerActions`, `useRestartHistory`                                                 | worker management panels      |
 | `useServiceStatus`, `useServiceMutations`                                                                      | `ServicesPanel`               |
 | `useMonitoringHealth`                                                                                          | `SystemHealthIndicator`       |
