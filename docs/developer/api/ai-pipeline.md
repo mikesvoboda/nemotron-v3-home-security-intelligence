@@ -1272,48 +1272,6 @@ nested objects; the id field is `id`, not `job_id`):
 }
 ```
 
-### Get Job History
-
-Get complete execution history with state transitions:
-
-```bash
-GET /api/jobs/550e8400-e29b-41d4-a716-446655440000/history
-```
-
-**Response** (`JobHistoryResponse` — transitions use `from`/`to`/`at`/
-`triggered_by`, attempts use `attempt_number`):
-
-```json
-{
-  "job_id": "550e8400-e29b-41d4-a716-446655440000",
-  "job_type": "export",
-  "status": "completed",
-  "created_at": "2026-10-02T12:00:00Z",
-  "started_at": "2026-10-02T12:00:01Z",
-  "completed_at": "2026-10-02T12:01:30Z",
-  "transitions": [
-    { "at": "2026-10-02T12:00:00Z", "to": "pending", "triggered_by": "api" },
-    {
-      "at": "2026-10-02T12:00:01Z",
-      "from": "pending",
-      "to": "running",
-      "triggered_by": "worker",
-      "details": { "worker_id": "worker-1" }
-    }
-  ],
-  "attempts": [
-    {
-      "attempt_number": 1,
-      "started_at": "2026-10-02T12:00:01Z",
-      "ended_at": "2026-10-02T12:01:30Z",
-      "status": "succeeded",
-      "duration_seconds": 89.0,
-      "worker_id": "worker-1"
-    }
-  ]
-}
-```
-
 ### Get Job Logs
 
 ```bash

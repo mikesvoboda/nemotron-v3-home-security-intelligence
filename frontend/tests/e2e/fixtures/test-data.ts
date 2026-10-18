@@ -1387,26 +1387,3 @@ export const mockJobLogs = [
     message: 'Slow response from database',
   },
 ];
-
-export const mockJobHistory = [
-  {
-    timestamp: new Date(Date.now() - 240000).toISOString(),
-    status: 'pending',
-    message: 'Job queued',
-  },
-  {
-    timestamp: new Date(Date.now() - 230000).toISOString(),
-    status: 'running',
-    message: 'Job started',
-  },
-  {
-    timestamp: new Date(Date.now() - 180000).toISOString(),
-    status: 'running',
-    message: 'Progress: 25%',
-  },
-  {
-    timestamp: new Date(Date.now() - 120000).toISOString(),
-    status: 'running',
-    message: 'Progress: 45%',
-  },
-];

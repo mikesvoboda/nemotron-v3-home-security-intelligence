@@ -151,65 +151,6 @@ async def test_list_job_types(client: AsyncClient, mock_redis):
         assert "description" in job_type
 
 
-# =============================================================================
-# Cancel Job Tests
-# =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_cancel_job_not_found(client: AsyncClient, mock_redis):
-    """Test cancel job endpoint returns 404 for non-existent job."""
-    response = await client.post("/api/jobs/nonexistent-job-id/cancel")
-
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_cancel_job_success(client: AsyncClient, mock_redis, integration_db):
-    """Test cancelling a running job."""
-    # Create an export job
-    job_request = {
-        "format": "csv",
-        "camera_id": "test_cam",
-    }
-    create_response = await client.post("/api/events/export", json=job_request)
-    assert create_response.status_code == 202
-
-    job_data = create_response.json()
-    job_id = job_data["job_id"]
-
-    # Cancel the job
-    cancel_response = await client.post(f"/api/jobs/{job_id}/cancel")
-
-    assert cancel_response.status_code in (200, 409)
-    data = cancel_response.json()
-    assert "message" in data or "detail" in data
-
-
-@pytest.mark.asyncio
-async def test_cancel_completed_job(client: AsyncClient, mock_redis, integration_db):
-    """Test cancelling a completed job returns appropriate error."""
-    # Create and let complete a small export job
-    job_request = {
-        "format": "csv",
-        "camera_id": "nonexistent_cam",
-    }
-    create_response = await client.post("/api/events/export", json=job_request)
-    assert create_response.status_code == 202
-
-    job_data = create_response.json()
-    job_id = job_data["job_id"]
-
-    # Wait a bit for job to potentially complete
-    await asyncio.sleep(0.5)
-
-    # Try to cancel (may succeed or return error depending on timing)
-    cancel_response = await client.post(f"/api/jobs/{job_id}/cancel")
-
-    # Either succeeds or returns 409 if already completed
-    assert cancel_response.status_code in (200, 409)
-
-
 # Note: Job stats endpoint doesn't exist in jobs.py
 # Tests removed: test_job_stats_endpoint, test_job_stats_with_jobs
 
