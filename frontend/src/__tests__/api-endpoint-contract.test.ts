@@ -137,7 +137,11 @@ describe('endpoint contract (D2)', () => {
   it('scans the client, not a fixture', () => {
     // Guards against the scan silently matching nothing, which is how a contract
     // test becomes decoration: green because it found no claims.
-    expect(audit.scan.files.length).toBeGreaterThan(800);
+    // The floor moved 800 -> 650 when F3.2 deleted 137 unreachable production files
+    // and the 115 tests of only them: 864 source files were scanned at `7bfb34124`
+    // and 725 after the cut. 650 keeps the guard's meaning (a broken walk drops to
+    // tens) without re-failing on the next honest deletion.
+    expect(audit.scan.files.length).toBeGreaterThan(650);
     expect(audit.scan.claims.length).toBeGreaterThan(300);
     expect(audit.restPaths.length).toBeGreaterThan(300);
     expect(audit.matched.length).toBeGreaterThan(300);
@@ -252,10 +256,9 @@ describe('endpoint contract (D2)', () => {
       "src/hooks/useZoneHouseholdConfig.ts:231  built at runtime: url.toString()
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
-      src/services/aiAuditApi.ts:386  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:150: not a literal path
-      src/services/api.ts:1508  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:1580  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3242  built at runtime: isVideo
+      src/services/api.ts:1537  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:1609  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:3271  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/errorReporting.ts:113  built at runtime: config.endpoint
