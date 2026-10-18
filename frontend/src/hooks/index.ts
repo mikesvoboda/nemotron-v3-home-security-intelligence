@@ -447,10 +447,6 @@ export type { UseJobMutationsOptions, UseJobMutationsReturn } from './useJobMuta
 export { useJobLogsQuery, jobLogsQueryKeys } from './useJobLogsQuery';
 export type { UseJobLogsQueryOptions, UseJobLogsQueryReturn } from './useJobLogsQuery';
 
-// Job logs WebSocket hooks (NEM-2711)
-export { useJobLogsWebSocket, default as useJobLogsWebSocketDefault } from './useJobLogsWebSocket';
-export type { UseJobLogsWebSocketOptions, UseJobLogsWebSocketReturn } from './useJobLogsWebSocket';
-
 // Job history query hooks (NEM-2713)
 export { useJobHistoryQuery, jobHistoryQueryKeys } from './useJobHistoryQuery';
 export type { UseJobHistoryQueryOptions, UseJobHistoryQueryReturn } from './useJobHistoryQuery';

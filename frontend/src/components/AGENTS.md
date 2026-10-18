@@ -39,7 +39,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **face-recognition/** | Face recognition and person identification       | FaceRecognitionPage, FaceGallery, FaceMatchPanel                                                                                                                                                                                                                                                                                                                          |
 | **feedback/**         | User feedback components                         | FeedbackPanel                                                                                                                                                                                                                                                                                                                                                             |
 | **forms/**            | React 19 form components and patterns            | FormField, FormSection                                                                                                                                                                                                                                                                                                                                                    |
-| **jobs/**             | Background job monitoring components             | JobsPage, JobsList, JobsListItem, JobsEmptyState, JobsSearchBar, JobActions, JobHeader, JobDetailPanel, JobHistoryTimeline, JobLogsViewer, JobMetadata, ConnectionIndicator, ConfirmDialog, LogLine, StatusDot, TimelineEntry                                                                                                                                             |
+| **jobs/**             | Background job monitoring components             | JobsPage, JobsList, JobsListItem, JobsEmptyState, JobsSearchBar, JobActions, JobHeader, JobDetailPanel, JobHistoryTimeline, JobMetadata, ConfirmDialog, StatusDot, TimelineEntry                                                                                                                                                                                          |
 | **layout/**           | Application shell components                     | Layout, Header, Sidebar                                                                                                                                                                                                                                                                                                                                                   |
 | **logs/**             | System logs via Grafana/Loki embed               | LogsPage                                                                                                                                                                                                                                                                                                                                                                  |
 | **notifications/**    | Notification delivery history and management     | NotificationHistoryPage, NotificationList                                                                                                                                                                                                                                                                                                                                 |
@@ -119,8 +119,7 @@ Routes:
 ├── /jobs -> JobsPage (jobs/)
 │ ├── JobsList
 │ ├── JobsSearchBar
-│ ├── JobDetailPanel
-│ └── JobLogsViewer
+│ └── JobDetailPanel
 ├── /dev-tools -> DeveloperToolsPage (developer-tools/)
 │ ├── ConfigInspectorPanel
 │ ├── LogLevelPanel
@@ -425,16 +424,10 @@ See `system/AGENTS.md` for the full, current file list. Deleted in #3471:
 - `JobDetailPanel.tsx` - Job detail panel
 - `JobHistoryTimeline.tsx` - Job execution history timeline
 - `JobHistoryTimeline.test.tsx` - Test suite for JobHistoryTimeline
-- `JobLogsViewer.tsx` - Job logs viewer with streaming
-- `JobLogsViewer.test.tsx` - Test suite for JobLogsViewer
 - `JobMetadata.tsx` - Job metadata display
 - `JobMetadata.test.tsx` - Test suite for JobMetadata
-- `ConnectionIndicator.tsx` - WebSocket connection indicator
-- `ConnectionIndicator.test.tsx` - Test suite for ConnectionIndicator
 - `ConfirmDialog.tsx` - Confirmation dialog component
 - `ConfirmDialog.test.tsx` - Test suite for ConfirmDialog
-- `LogLine.tsx` - Individual log line component
-- `LogLine.test.tsx` - Test suite for LogLine
 - `StatusDot.tsx` - Job status indicator dot
 - `StatusDot.test.tsx` - Test suite for StatusDot
 - `TimelineEntry.tsx` - Timeline entry component
