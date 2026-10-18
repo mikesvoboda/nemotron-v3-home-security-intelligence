@@ -341,4 +341,3 @@ class TestEventQueryFiltering:
 
         assert event is not None
         assert event.is_deleted is True
-

@@ -256,4 +256,3 @@ class TestListDeletedEvents:
         assert data["items"][0]["id"] == 2
         assert data["items"][1]["id"] == 3
         assert data["items"][2]["id"] == 1
-

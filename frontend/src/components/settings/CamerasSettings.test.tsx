@@ -230,7 +230,6 @@ describe('CamerasSettings', () => {
       data: undefined,
       reset: vi.fn(),
     };
-
   });
 
   afterEach(() => {

@@ -772,8 +772,6 @@ class TestConcurrentSoftDelete:
             return camera
 
 
-
-
 # =============================================================================
 # Test 9: Concurrent Batch Detection Addition
 # =============================================================================
