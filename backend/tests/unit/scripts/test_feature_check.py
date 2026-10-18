@@ -3586,6 +3586,68 @@ def test_the_prod_render_swaps_in_the_generated_env_file(
     ]
 
 
+def test_the_prod_shape_render_lifts_the_device_changes_into_the_run_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Ruling 256's record duty, end to end: every transform test above reads
+    # `as_prod_shape_deployment(...)._device_changes` — the payload key the transform
+    # returns — but no test drove a render through `Run.render_prod_shape`, so the lift
+    # that actually publishes it (`rendered.pop("_device_changes")` ->
+    # `summary["results"]["device_changes"]`) had no witness: a rename of the payload
+    # key or the summary key passed all 291 tests while the summary carried nothing.
+    # Driven with a device-carrying prod render through BOTH venues, with the
+    # transforms' real inputs (the CI+fake render answers the second compose call).
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    # the fake bodies must survive the run's own deepcopy in fake_service_bodies()
+    ci_render = json.dumps({"services": {"ai-vlm": _fake_vlm_body()}})
+
+    def compose_dispatch(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        prod = _prod_rendered(**_ruling256_doc()["services"])
+        body = ci_render if fc.CI_STACK in files else json.dumps(prod)
+        return subprocess.CompletedProcess(["fake"], 0, stdout=body, stderr="")
+
+    run.compose = compose_dispatch  # type: ignore[method-assign] # both renders, by file set
+    run.render(fc.Snapshot.from_engine([], []), vlm=None)  # vlm=None -> the maui venue
+
+    recorded = run.summary["results"]["device_changes"]
+    assert "ai-vlm" in json.dumps(recorded) and "nvidia.com/gpu=0" in json.dumps(recorded), (
+        f"the maui venue's one device change must reach the summary's results: {recorded}"
+    )
+    assert "ai-gateway" not in json.dumps(recorded), "the maui venue strips nothing else"
+    # and the artifact is still the post-splice, post-limits render the run boots
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert "devices" not in landed["services"]["ai-vlm"]
+
+
+def test_the_prod_shape_render_lifts_the_sandbox_device_changes_into_the_run_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The other venue: with a VLM (any --real run), the sandbox transform strips the
+    # gateway's CDI + deploy reservation, drops dcgm-exporter and strips the backend's
+    # reservation — and the record must name all of them, not just the VLM swap.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    ci_render = json.dumps(
+        {"services": {"ai-vlm": _fake_vlm_body(), "ai-gateway": _fake_gateway_body()}}
+    )
+
+    def compose_dispatch(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        prod = _prod_rendered(**_ruling256_doc()["services"])
+        body = ci_render if fc.CI_STACK in files else json.dumps(prod)
+        return subprocess.CompletedProcess(["fake"], 0, stdout=body, stderr="")
+
+    run.compose = compose_dispatch  # type: ignore[method-assign] # both renders, by file set
+    # a started AgentGpu carries its URL; a bare AgentGpu(run) has url=None and the venue
+    # guard refuses fake_gateway without vlm_url -- so this uses the started-shape stub.
+    run.render(fc.Snapshot.from_engine([], []), vlm=_StubVlm())
+
+    recorded = json.dumps(run.summary["results"]["device_changes"])
+    for name in ("ai-gateway", "nvidia.com/gpu=all", "backend", "dcgm-exporter"):
+        assert name in recorded, f"the sandbox record must name {name}: {recorded}"
+    assert "ai-vlm" in recorded, "the in-stack VLM pop is named too"
+
+
 def test_the_prod_render_refuses_before_the_engine_without_the_socket(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

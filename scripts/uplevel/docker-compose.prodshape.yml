@@ -103,9 +103,11 @@ services:
     ports: !override
       # The ONLY service not at prod + 15000. 3100 + 15000 = 18100 is the first address of the pool
       # the runner publishes the VLM on (scripts/feature_check.py AGENT_GPU_PORTS, 18100-18199), and
-      # `--prod-shape` requires `--real`, so a run boots this stack beside that VLM. 18201 is the
-      # first free port above the pool (tempo took 18200 = 3200 + 15000). [r195] box 3; pinned by
-      # test_no_published_port_lands_in_the_runners_vlm_pool in scripts/test_prodshape_override.py.
+      # `--real` starts that VLM -- ruling 256's venue split: the sandbox `--real` venue boots this
+      # stack beside it; the maui run is plain `--prod-shape` and starts no agent-gpu at all. 18201
+      # is the first free port above the pool (tempo took 18200 = 3200 + 15000). [r195] box 3;
+      # pinned by test_no_published_port_lands_in_the_runners_vlm_pool in
+      # scripts/test_prodshape_override.py.
       - '127.0.0.1:18201:3100'
 
   node-exporter:

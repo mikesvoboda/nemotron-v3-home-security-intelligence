@@ -469,11 +469,14 @@ def test_ports_are_offset_and_collide_with_nothing(prod_services, merged_service
 def test_no_published_port_lands_in_the_runners_vlm_pool(
     prod_services, merged_services, gpu_merged_services
 ):
-    """`--prod-shape` requires `--real` (scripts/feature_check.py:3187), so a prod-shape run boots the
-    stack AND `agent-gpu run`, which publishes the VLM on 127.0.0.1 somewhere in AGENT_GPU_PORTS.
-    A stack service published inside that band either squats the address the VLM expects (loki's
-    3100 + 15000 = 18100 was exactly the pool's floor — [r195] box 3) or loses the VLM's port to a
-    bind conflict, and neither failure names itself as a port collision at boot.
+    """The pool belongs to `agent-gpu run`, which only `--real` starts — and a `--real`
+    run publishes the VLM on 127.0.0.1 somewhere in AGENT_GPU_PORTS. The two prod-shape
+    venues differ (ruling 256): the maui run is plain `--prod-shape` (no agent-gpu, no VLM
+    pool in use), and the sandbox `--real` venue serves its VLM through agent-gpu — so a
+    stack service published inside that band either squats the address the VLM expects
+    (loki's 3100 + 15000 = 18100 was exactly the pool's floor — [r195] box 3) or loses the
+    VLM's port to a bind conflict, and neither failure names itself as a port collision at
+    boot.
 
     Two-sided: the assertion must catch a squat AND must not fire on the ports that sit beside the
     pool today (tempo's 18200 is the pool's first address +1, 18002/18200 are both legal). The
