@@ -24,13 +24,13 @@ import { expect, test } from '../guard';
 import {
   alertRuleIds,
   apiPath,
-  assertGuardSurvives,
+  assertGuardSurvivesCameras as assertGuardSurvives,
   deleteAlertRuleIfPresent,
   readHarness,
   settledGoto,
   signIn,
   type Harness,
-} from './harness';
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

@@ -104,12 +104,12 @@ import type { Page } from '@playwright/test';
 import {
   SEARCH_QUERY_TOKEN,
   adminSession,
-  api,
+  apiShell as api,
   apiWrite,
   closedByGuard,
   createSearchFixture,
   hardDeleteFixtureRows,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -118,7 +118,7 @@ import {
   type SearchFixture,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 const h = readTimelineHarness();
 test.skip(!h.ready, h.ready ? '' : h.why);

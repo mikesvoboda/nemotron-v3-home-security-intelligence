@@ -24,7 +24,7 @@
  * this panel; so the spec also requires those cards to mount on this route.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../operations/harness';
+import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

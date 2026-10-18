@@ -59,14 +59,14 @@
  */
 import { expect, test } from '../guard';
 import {
-  adminSession,
+  adminSessionId as adminSession,
   assertGuardSurvives,
   grantNotifications,
   login,
   readHarness,
   sectionTitle,
   type Harness,
-} from './harness';
+} from '../harness';
 
 // Ruling 194: the golden project sets no `channel`, so Playwright 1.64 launches
 // chromium-headless-shell, and on that binary `grantPermissions(['notifications'])`

@@ -29,7 +29,7 @@
  * exist) stay demoted with their own citations in the inventory notes.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../operations/harness';
+import { api, closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

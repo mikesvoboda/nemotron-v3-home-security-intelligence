@@ -181,11 +181,11 @@ import type { Page } from '@playwright/test';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   apiWrite,
   closedByGuard,
   hardDeleteFixtureRows,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -193,7 +193,7 @@ import {
   waitForEventCards,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 /* -------------------------------------------------------------------------- */
 /* Collection-time readiness. Playwright runs COLLECTION before any runtime    */

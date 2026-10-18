@@ -22,7 +22,7 @@
  * live Grafana health and provisioned dashboard UID over the stack's proxy.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, apiCookie, closedByGuard, loginAsAdmin, readOpsHarness } from './harness';
+import { api, apiCookie, closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

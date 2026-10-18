@@ -37,18 +37,18 @@ import type { Page } from '@playwright/test';
 
 import { expect, test } from '../guard';
 import {
-  adminSession,
+  adminSessionAlerts as adminSession,
   assertDropEventStored,
   assertDropStoredItsDetection,
-  assertGuardSurvives,
+  assertGuardSurvivesAlerts as assertGuardSurvives,
   assertSoleAlertIsSmoke,
-  authedFetch,
+  authedFetchAlerts as authedFetch,
   awaitVerdictedEvents,
   dropDo1Fixture,
   expectedTier,
-  login,
-  readHarness,
-} from './harness';
+  loginAlerts as login,
+  readHarnessAlerts as readHarness,
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

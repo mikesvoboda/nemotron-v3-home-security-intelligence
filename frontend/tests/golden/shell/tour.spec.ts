@@ -105,7 +105,7 @@
  * adds up to two boots per test (first visit + the no-return reload).
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { BOOT_QUIET_MS, closedByGuard, readShellHarness, type ShellHarness } from './harness';
+import { BOOT_QUIET_MS, closedByGuard, readShellHarness, type ShellHarness } from '../harness';
 
 const harness = readShellHarness();
 test.skip(

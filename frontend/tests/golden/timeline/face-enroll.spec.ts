@@ -209,12 +209,12 @@ import type { Page } from '@playwright/test';
 import {
   BOOT_QUIET_MS,
   adminSession,
-  api,
+  apiShell as api,
   apiWrite,
   closedByGuard,
   createDetailFixture,
   hardDeleteFixtureRows,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -223,7 +223,7 @@ import {
   type DetailFixture,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 /* -------------------------------------------------------------------------- */
 /* Collection-time readiness. Playwright runs COLLECTION before any runtime    */

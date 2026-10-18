@@ -12,7 +12,14 @@
  * back to `closed` and the list re-fetches.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, authPost, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harness';
+import {
+  api,
+  authPost,
+  closedByGuard,
+  loginAsAdmin,
+  openSection,
+  readOpsHarness,
+} from '../harness';
 
 const harness = readOpsHarness();
 

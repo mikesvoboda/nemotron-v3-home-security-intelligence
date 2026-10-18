@@ -43,7 +43,7 @@ import {
   readOpsHarness,
   type Session,
   type OpsHarness,
-} from './harness';
+} from '../harness';
 
 const harness = readOpsHarness();
 

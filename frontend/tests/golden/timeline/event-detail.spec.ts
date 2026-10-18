@@ -101,12 +101,12 @@ import type { Page } from '@playwright/test';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
   createDetailFixture,
   DETAIL_ROWS,
   hardDeleteFixtureRows,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -116,7 +116,7 @@ import {
   type DetailFixture,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 /** The fields these two rows mutate, read from the uncached single-row route. */
 interface EventRow {
