@@ -197,7 +197,7 @@ UR-147.
 | F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | in progress | #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255 |
 | F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | not started |     |
 | F3.3    | frontend                | 3          | Quarantined tests                              |               | not started |     |
-| O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | not started |     |
+| O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | in progress |     |
 | O3.2    | ops                     | 3          | Compose base and overlays                      |               | not started |     |
 | O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | not started |     |
 | O3.4    | ops                     | 3          | Reachability gates in CI                       |               | not started |     |
