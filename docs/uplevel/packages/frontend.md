@@ -167,10 +167,10 @@ nothing in `frontend/`.
 **Flags:** none. **Depends on:** `R2`.
 **PR:** #7246. (ruling 241)
 
-- [ ] **MEASURE** the unreachable production files (236 files, ~71,800 lines at `d6ba78d5`,
+- [x] **MEASURE** the unreachable production files (236 files, ~71,800 lines at `d6ba78d5`,
       `00 §4.3`). Delete them and the tests that test only them — except files a **complete**
       feature's row claims, which stay and go on knip's ignore list with that row's id.
-- [ ] Remove the dead contexts and stores, the duplicate `Result`, `ModelContributionChart`,
+- [x] Remove the dead contexts and stores, the duplicate `Result`, `ModelContributionChart`,
       `BulkActionBar` and toast implementations, the stale `modulePreload` filter in
       `vite.config.ts`, and `bun.lock` (CI and the Dockerfile run `npm ci`).
 
