@@ -718,14 +718,16 @@ declares the `ai/` entry points first, so `ai/gateway/export/` stays; `synthbenc
 
 ### Frontend
 
-**F3.2 deleted this list's rows and the 115 tests that tested only them** (2026-10-18;
-`c6c5f3d7d`): 137 production files / 37,564 lines and 115 test files / 48,894 lines by import
-resolution. No frontend module is unreachable at that head — `reachableFiles` finds 717 of 728
-production files reachable, and the 11 left (8 complete-claimed, 2 row 17, 1 unruled) are held by
-a ruling, not by reachability — which is why the table below is empty.
+**F3.2 deleted this list's rows and the 113 tests that tested only them** (2026-10-18;
+`c6c5f3d7d`, the cut commit `9a88f97f2`): 136 production files / 37,516 lines and 113 test files /
+48,661 lines by import resolution — the 137th production file the package's first body reported is
+the row below, which the cut deleted and the R8/S5 retirement guard ordered back. At the PR's head
+`reachableFiles` finds 706 of 713 production files reachable, and the 10 left (8 complete-claimed,
+1 unruled, 1 hold below) are held by a ruling, not by reachability — which is why the table below
+holds one row.
 
 The list was the 136 production files under `frontend/src/` that `src/main.tsx` cannot reach
-(37,583 lines), minus the files a row claims. The same set was
+(37,583 lines), minus the files a row claims. The same set is
 `npx knip --production --include files` (run in `frontend/`) with the PR's `knip.json`, and the
 gate's own import walk (`reachableFiles` in `frontend/scripts/feature-inventory-lib.mjs`); the two
 agreed file for file. A future entry is added the same way, and `F3.2` deletes what `R2` approves.
@@ -737,6 +739,7 @@ carried was measured by the two methods above, which agree, and was the one to r
 <!-- prettier-ignore -->
 | module | lane | lines | last meaningful commit | notes |
 | --- | --- | --- | --- | --- |
+| `frontend/src/types/enrichment.ts` | frontend | 912 | `4b3c8a72e` 2026-01-12 | unreachable from `src/main.tsx`, but not deleted: the R8/S5 goal prompt holds it (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md:610` — "What stays, pinned rather than assumed"), and `backend/tests/unit/frontend/test_r8_s5_frontend_panel_retirement.py` pins it as a survivor. F3.2's cut deleted it with the census set; CI reddened, and the file came back on this PR. Its own two test files came back with it. |
 
 ### Python
 
