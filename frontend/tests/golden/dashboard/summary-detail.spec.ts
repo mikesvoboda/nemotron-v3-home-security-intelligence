@@ -310,7 +310,7 @@ test.describe('golden path: dashboard summary detail panel @critical', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test("F-034: the timeline section is keyed on the endpoint — no events renders the shipped empty branch, events render rows mirroring camera/summary/conditional badge, and the Export section is present (its click behavior is F-035's adjudicated row)", async ({
+  test('F-034: the timeline section is keyed on the endpoint — no events renders the shipped empty branch, events render rows mirroring camera/summary/conditional badge, and the retired Export buttons do not render', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
