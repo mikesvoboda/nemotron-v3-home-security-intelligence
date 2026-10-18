@@ -350,6 +350,7 @@ jobs:
           scripts/test_orchestrator_engine_socket.py
           scripts/test_pr_watch.py
           scripts/test_inventory_witness.py
+          scripts/test_mutation_diff.py
           -q
       # Ruling 197: the plan fields the lane digest acts on (roster queues, package `**PR:**`
       # fields, ruling-map record ids), linted with the digest's own parsers. On a PR it fails

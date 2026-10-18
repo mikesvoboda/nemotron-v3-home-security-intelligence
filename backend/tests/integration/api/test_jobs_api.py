@@ -287,41 +287,6 @@ class TestGetJobStatusEndpoint:
         assert "no job found" in data["detail"].lower()
 
 
-class TestCancelJobEndpoint:
-    """Integration tests for POST /api/jobs/{job_id}/cancel endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_cancel_pending_job(self, client: AsyncClient, test_jobs: list[JobInfo]) -> None:
-        """Test cancelling a pending (queued) job."""
-        # Find a pending job
-        pending_job = next(job for job in test_jobs if job["status"] == "pending")
-
-        response = await client.post(f"/api/jobs/{pending_job['job_id']}/cancel")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["job_id"] == pending_job["job_id"]
-
-    @pytest.mark.asyncio
-    async def test_cancel_completed_job_fails(
-        self, client: AsyncClient, test_jobs: list[JobInfo]
-    ) -> None:
-        """Test that cancelling a completed job returns 409."""
-        # Find a completed job
-        completed_job = next(job for job in test_jobs if job["status"] == "completed")
-
-        response = await client.post(f"/api/jobs/{completed_job['job_id']}/cancel")
-
-        assert response.status_code == 409
-
-    @pytest.mark.asyncio
-    async def test_cancel_nonexistent_job(self, client: AsyncClient, clean_tracker) -> None:
-        """Test cancelling a non-existent job returns 404."""
-        response = await client.post("/api/jobs/nonexistent-job-id/cancel")
-
-        assert response.status_code == 404
-
-
 class TestBulkCancelEndpoint:
     """Integration tests for POST /api/jobs/bulk-cancel endpoint."""
 
@@ -381,36 +346,3 @@ class TestBulkCancelEndpoint:
         # Exactly one cancelled (pending), one failed (completed)
         assert data["cancelled"] == 1
         assert data["failed"] == 1
-
-
-class TestDeleteJobEndpoint:
-    """Integration tests for DELETE /api/jobs/{job_id} endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_delete_queued_job(self, client: AsyncClient, test_jobs: list[JobInfo]) -> None:
-        """Test deleting (cancelling) a pending job."""
-        pending_job = next(job for job in test_jobs if job["status"] == "pending")
-
-        response = await client.delete(f"/api/jobs/{pending_job['job_id']}")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["job_id"] == pending_job["job_id"]
-
-    @pytest.mark.asyncio
-    async def test_delete_completed_job_fails(
-        self, client: AsyncClient, test_jobs: list[JobInfo]
-    ) -> None:
-        """Test that deleting a completed job returns 400."""
-        completed_job = next(job for job in test_jobs if job["status"] == "completed")
-
-        response = await client.delete(f"/api/jobs/{completed_job['job_id']}")
-
-        assert response.status_code == 400
-
-    @pytest.mark.asyncio
-    async def test_delete_nonexistent_job(self, client: AsyncClient, clean_tracker) -> None:
-        """Test deleting a non-existent job returns 404."""
-        response = await client.delete("/api/jobs/nonexistent-job-id")
-
-        assert response.status_code == 404

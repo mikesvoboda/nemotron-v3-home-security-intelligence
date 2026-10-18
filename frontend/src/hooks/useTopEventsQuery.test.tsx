@@ -26,7 +26,6 @@ function createMockEvent(id: number, riskScore: number): Event {
     summary: `Event ${id} summary`,
     reasoning: 'Test reasoning',
     reviewed: false,
-    flagged: false,
     detection_count: 1,
     thumbnail_url: `/api/events/${id}/thumbnail`,
     version: 1,

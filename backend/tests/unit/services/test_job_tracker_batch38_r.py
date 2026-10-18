@@ -60,7 +60,6 @@ killed, or registered before run 2.
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 import types
 import uuid
@@ -793,7 +792,7 @@ def test_fail_job_state_log_broadcast_ttl():
 
 
 # --------------------------------------------------------------------------
-# cancel_job / cancel_queued_job (30 + 20 keys)
+# cancel_job (30 keys)
 # --------------------------------------------------------------------------
 
 
@@ -832,145 +831,6 @@ def test_cancel_job_full_state_log_broadcast_ttl():
         jid2 = t.create_job("cj2")
         t.complete_job(jid2)
         assert t.cancel_job(jid2) is False
-    finally:
-        restore_log()
-
-
-def test_cancel_queued_job_branches():
-    cap, restore_log = _install_logger()
-    try:
-        rec = _Recorder()
-        t = JobTracker(broadcast_callback=rec)
-        run_id = t.create_job("cqr")
-        t.start_job(run_id)
-        done_id = t.create_job("cqdone")
-        t.start_job(done_id)
-        t.complete_job(done_id)
-        jid = t.create_job("cq")
-        spy = _PersistSpy()
-        t._schedule_persist = spy
-        cap.calls.clear()
-        # guard branches (exact strings; m11 XX-wrapped)
-        assert t.cancel_queued_job(run_id) == (
-            False,
-            "Cannot cancel running job - use abort instead",
-        )
-        assert t.cancel_queued_job(done_id) == (False, "Cannot cancel job with status: completed")
-        assert spy.calls == []
-        rec.calls.clear()  # start/complete broadcasts above are not our subject
-        # success path
-        assert t.cancel_queued_job(jid) == (True, "")
-        j = t._jobs[jid]
-        assert j["status"] is JobStatus.FAILED
-        assert j["error"] == "Cancelled by user"
-        assert j["message"] == "Job cancelled by user request"
-        _assert_tz_aware(j["completed_at"])  # m2: naive from datetime.now(None)
-        assert cap.names() == [("info", "Queued job cancelled")]  # m37/41/42/43
-        assert _extra(cap.at("info")[0]) == {"job_id": jid, "job_type": "cq"}  # m34/38/40/44-47
-        assert spy.calls == [((jid,), {"ttl": 3600})]  # m48/49/51
-        # m54 job_type None / m57 dropped kwarg / m66/67 "type" key case
-        assert rec.calls == [
-            (
-                "job_failed",
-                {
-                    "type": "job_failed",
-                    "data": {"job_id": jid, "job_type": "cq", "error": "Cancelled by user"},
-                },
-            )
-        ]
-    finally:
-        restore_log()
-
-
-# --------------------------------------------------------------------------
-# abort_job (46 keys)
-# --------------------------------------------------------------------------
-
-
-def test_abort_job_full_success_path():
-    cap, restore_log = _install_logger()
-    try:
-        r = _FakeRedis()
-        rec = _Recorder()
-        t = JobTracker(rec, r)
-        pend = t.create_job("ap")
-        run = t.create_job("ar")
-        t.start_job(run)
-        done = t.create_job("ad")
-        t.complete_job(done)
-        spy = _PersistSpy()
-        t._schedule_persist = spy
-        cap.calls.clear()
-        try:
-            asyncio.run(t.abort_job("absent"))
-            raise AssertionError("KeyError expected")
-        except KeyError as exc:
-            assert str(exc) == "'Job not found: absent'"
-        assert asyncio.run(t.abort_job(pend)) == (
-            False,
-            "Cannot abort queued job - use cancel instead",  # m12 XX-wrapped
-        )
-        assert asyncio.run(t.abort_job(done)) == (False, "Cannot abort job with status: completed")
-        ok, msg = asyncio.run(t.abort_job(run, reason="ship it"))
-        assert (ok, msg) == (True, "")
-        channel = f"job:{run}:control"
-        # exact channel + json.dumps separator shape
-        assert r.published == [(channel, json.dumps({"action": "abort", "reason": "ship it"}))]
-        assert t._jobs[run]["message"] == "Aborting: ship it"
-        assert cap.names() == [("info", "Job abort signal sent"), ("info", "Job abort requested")]
-        sent = cap.at("info")[0]
-        assert _extra(sent) == {"job_id": run, "job_type": "ar", "channel": channel}
-        req = cap.at("info")[1]
-        assert _extra(req) == {"job_id": run, "job_type": "ar", "reason": "ship it"}
-        assert spy.calls == [((run,), {})]  # m85: _schedule_persist(None)
-    finally:
-        restore_log()
-
-
-def test_abort_job_without_redis_warns():
-    cap, restore_log = _install_logger()
-    try:
-        t = JobTracker()  # no redis
-        jid = t.create_job("nr")
-        t.start_job(jid)
-        spy = _PersistSpy()
-        t._schedule_persist = spy
-        cap.calls.clear()
-        ok, msg = asyncio.run(t.abort_job(jid))
-        assert (ok, msg) == (True, "")
-        assert cap.names() == [
-            ("warning", "No Redis client - abort signal not sent via pub/sub"),  # m64
-            ("info", "Job abort requested"),
-        ]  # m61/63/72/73/75-84
-        assert _extra(cap.calls[0]) == {"job_id": jid}  # m67/68 key case
-        # default reason exact shape: m1/m2/m3 (default -> None/lower/UPPER)
-        assert t._jobs[jid]["message"] == "Aborting: User requested"
-        assert _extra(cap.at("info")[0]) == {
-            "job_id": jid,
-            "job_type": "nr",
-            "reason": "User requested",
-        }
-        assert spy.calls == [((jid,), {})]
-    finally:
-        restore_log()
-
-
-def test_abort_job_publish_failure_returns_false():
-    cap, restore_log = _install_logger()
-    try:
-        t = JobTracker(redis_client=_BoomRedis())
-        jid = t.create_job("bf")
-        t.start_job(jid)
-        spy = _PersistSpy()
-        t._schedule_persist = spy
-        cap.calls.clear()
-        out = asyncio.run(t.abort_job(jid))
-        assert out == (False, "Failed to send abort signal: kaboom")
-        assert cap.names() == [("error", "Failed to send abort signal")]  # m47/51/52/53
-        assert _extra(cap.at("error")[0]) == {"job_id": jid, "error": "kaboom"}  # m48/50/54-58
-        # early return: the aborting message must NOT have been written
-        assert t._jobs[jid]["message"] is None
-        assert spy.calls == []  # and nothing persisted
     finally:
         restore_log()
 

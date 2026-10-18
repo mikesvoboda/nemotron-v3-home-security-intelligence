@@ -373,7 +373,6 @@ Four tabs with an underline indicator (`activeTab` in `frontend/src/components/e
 
 - **Previous/Next** buttons - Navigate between events (ArrowLeft/ArrowRight icons)
   - Keyboard: Left/Right arrow keys also work
-- **Flag Event** - Mark for special attention (yellow when flagged, shows Flag icon)
 - **Download Media** - Download detection images/videos (Download icon)
 - **Mark as Reviewed** - Complete review workflow (green button with CheckCircle2)
   - Only shown when event is not yet reviewed

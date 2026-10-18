@@ -530,20 +530,16 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 
 ### Jobs
 
-| Endpoint                     | Method | Consumer(s)                                           | Purpose                      |
-| ---------------------------- | ------ | ----------------------------------------------------- | ---------------------------- |
-| `/api/jobs`                  | GET    | `FileOperationsPanel.tsx`, `api.ts`                   | List all jobs                |
-| `/api/jobs/bulk-cancel`      | POST   | —                                                     | Bulk cancel jobs             |
-| `/api/jobs/search`           | GET    | `api.ts`, `useJobsSearchQuery.ts`                     | Search and filter jobs       |
-| `/api/jobs/stats`            | GET    | —                                                     | Get job statistics           |
-| `/api/jobs/types`            | GET    | —                                                     | List available job types     |
-| `/api/jobs/{job_id}`         | DELETE | `ExportButton.tsx`, `api.ts`, `useJobsSearchQuery.ts` | Cancel or abort a job        |
-| `/api/jobs/{job_id}`         | GET    | `ExportButton.tsx`, `api.ts`, `useJobsSearchQuery.ts` | Get job status               |
-| `/api/jobs/{job_id}/abort`   | POST   | `api.ts`                                              | Abort a running job          |
-| `/api/jobs/{job_id}/cancel`  | POST   | `api.ts`                                              | Cancel a job                 |
-| `/api/jobs/{job_id}/detail`  | GET    | `api.ts`                                              | Get detailed job information |
-| `/api/jobs/{job_id}/history` | GET    | `api.ts`                                              | Get job history              |
-| `/api/jobs/{job_id}/logs`    | GET    | `api.ts`                                              | Get job logs                 |
+| Endpoint                    | Method | Consumer(s)                                           | Purpose                      |
+| --------------------------- | ------ | ----------------------------------------------------- | ---------------------------- |
+| `/api/jobs`                 | GET    | `FileOperationsPanel.tsx`, `api.ts`                   | List all jobs                |
+| `/api/jobs/bulk-cancel`     | POST   | —                                                     | Bulk cancel jobs             |
+| `/api/jobs/search`          | GET    | `api.ts`, `useJobsSearchQuery.ts`                     | Search and filter jobs       |
+| `/api/jobs/stats`           | GET    | —                                                     | Get job statistics           |
+| `/api/jobs/types`           | GET    | —                                                     | List available job types     |
+| `/api/jobs/{job_id}`        | GET    | `ExportButton.tsx`, `api.ts`, `useJobsSearchQuery.ts` | Get job status               |
+| `/api/jobs/{job_id}/detail` | GET    | `api.ts`                                              | Get detailed job information |
+| `/api/jobs/{job_id}/logs`   | GET    | `api.ts`                                              | Get job logs                 |
 
 ### Known Persons
 

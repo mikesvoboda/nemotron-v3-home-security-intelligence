@@ -222,7 +222,6 @@ interface EventTimelineProps {
 - Detailed detection list with confidence percentages
 - User notes section with save functionality
 - "Mark as Reviewed" button
-- "Flag Event" toggle button
 - "Download Media" button
 - Previous/Next navigation buttons
 - Keyboard shortcuts:
@@ -240,7 +239,6 @@ interface EventDetailModalProps {
   onMarkReviewed?: (eventId: string) => void;
   onNavigate?: (direction: 'prev' | 'next') => void;
   onSaveNotes?: (eventId: string, notes: string) => Promise;
-  onFlagEvent?: (eventId: string, flagged: boolean) => Promise;
   onDownloadMedia?: (eventId: string) => Promise;
 }
 ```
@@ -263,7 +261,6 @@ interface Event {
   ended_at?: string | null;
   reviewed?: boolean;
   notes?: string | null;
-  flagged?: boolean;
 }
 ```
 

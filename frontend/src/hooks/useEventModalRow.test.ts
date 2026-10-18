@@ -51,7 +51,6 @@ function makeEvent(id: number, summary = `row ${id}`): Event {
     summary,
     reasoning: 'Motion detected with high confidence',
     reviewed: false,
-    flagged: false,
     notes: null,
     detection_count: 1,
     detection_ids: [id * 10],

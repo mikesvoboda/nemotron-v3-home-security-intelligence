@@ -171,7 +171,6 @@ class TestEventResponseSnapshots:
             ended_at=sample_datetime,
             risk_score=75,
             reviewed=False,
-            flagged=False,
             detection_count=3,
             object_types=["person", "car"],
         )
