@@ -152,23 +152,19 @@ EXPECTED_BOUNDARY_PATHS = {
     "frontend",
     "frontend/src",
     "frontend/src/components/ai",
-    "frontend/src/components/alerts",
     "frontend/src/components/analytics",
     "frontend/src/components/common",
     "frontend/src/components/dashboard",
     "frontend/src/components/developer-tools",
-    "frontend/src/components/entities",
     "frontend/src/components/events",
     "frontend/src/components/face-recognition",
     "frontend/src/components/jobs",
     "frontend/src/components/settings",
     "frontend/src/components/system",
     "frontend/src/components/zones",
-    "frontend/src/contexts",
     "frontend/src/hooks",
     "frontend/src/pages",
     "frontend/src/services",
-    "frontend/src/stores",
     "frontend/src/types",
     "frontend/src/utils",
     "monitoring",
@@ -650,8 +646,7 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
 
     A cap that failed on adoption would redden every PR touching a file that
     is itself scheduled to be rewritten (measured in PR #6920: 29 of the 42
-    committed boundary files are over cap today, backend/services by 2864
-    lines). Green-on-caps is therefore the pinned behaviour, not an oversight
+    then-listed boundary files were over cap). Green-on-caps is therefore the pinned behaviour, not an oversight
     — and `failing: False` is pinned False so W3.2's flip is a reviewed edit
     to the validator, not a silent drift.
 
@@ -864,29 +859,36 @@ def test_committed_boundary_list_covers_the_rule():
     supports, including the part that refutes the argument the first version of
     this docstring made. The plan says "Expect 30 to 50 entries"; that band is a
     WEAK filter here, not a selector — measured over thresholds 1..60 at this
-    tree, thresholds 11 through 46 ALL land inside it (36 of the 60 values), so
-    the band rules out >= 10 (52 entries) and >= 47 (29) and says nothing at all
-    about 20 vs 15. It is kept as a coarse guard: a rule edit that puts a
+    tree (post-#7246: the cut shrank the frontend, moving the band's edges),
+    thresholds 10 through 39 ALL land inside it (30 of the 60 values), so the
+    band rules out <= 9 (53 entries) and >= 40 (28 entries) and says nothing at
+    all about 20 vs 15. It is kept as a coarse guard: a rule edit that puts a
     threshold's output outside the band is selecting the wrong thing.
 
     What does discriminate 20 is structural, and it is a keep-argument rather
     than a cut-argument: the committed set is a PLATEAU, equal at thresholds
-    18, 19 and 20, so the exact number inside the plateau is not load-bearing —
+    19 and 20, so the exact number inside the plateau is not load-bearing —
     what is load-bearing is the plateau's two edges, and both are asserted
     below.
 
     - Its top edge: >= 21 drops setup_lib, which has exactly 20 code files and
       NO kept ancestor at all — it is a top-level package, so at >= 21 the tree
       carries a real package that no boundary file covers. Every other entry a
-      tighter cut drops (frontend/src/stores at 21; components/alerts and
-      src/contexts at 22) is a satellite that folds into frontend/src.
+      tighter cut drops is a satellite that folds into frontend/src (at the
+      F3.2 tree these were all frontend dirs already under the plateau — the
+      cut of #7246 dropped stores/alerts/contexts/entities from 20-23 files to
+      6-18 and removed them from the list entirely; their AGENTS.md files left
+      with the dirs' last loads, re-derived below like everything else).
       setup_lib is also, measured, the ONLY entry the size rule keeps with no
-      proper kept ancestor: the other 26 have one. So "20" is "the largest
+      proper kept ancestor: the other 22 have one. So "20" is "the largest
       threshold that still covers the one orphan package".
     - Its bottom edge: every entry a looser cut adds is a parent-split —
       >= 17 and >= 16 add exactly one dir, components/settings/prompts (17 code
       files, under the listed components/settings); >= 15 adds audit,
-      common/skeletons and src/schemas, all under frontend/src. The standard's
+      common/skeletons and src/components/entities (18 code files post-#7246,
+      folded into frontend/src by the cut's own satellite doctrine — the same
+      dir the pre-cut tree listed and the cut delisted), all under frontend/src.
+      The standard's
       doctrine is that a satellite folds into its nearest kept ancestor, so no
       threshold below the plateau can be defended on the rule's own terms. (A
       previous draft of this paragraph claimed the marginal additions were "all
@@ -988,13 +990,16 @@ def test_committed_boundary_list_covers_the_rule():
         assert (REPO_ROOT / d / "AGENTS.md").is_file(), f"{d} has no AGENTS.md"
         assert entry["reason"].strip(), d
     assert 30 <= len(committed) <= 50, f"outside the plan's 30-50 band: {len(committed)}"
-    # The band as a COARSE guard only — see the docstring: thresholds 11..46 all
+    # The band as a COARSE guard only — see the docstring: thresholds 10..39 all
     # land inside it at this tree, so being in-band is not the argument for 20.
     # Only the looser side is asserted, because that is the side that stays true
     # as the tree grows (more dirs -> bigger lists); asserting the tight side
-    # (>= 47 falls out at 29 today) would redden a green rule for an unrelated
-    # package gaining files.
-    assert len(derive(5)) > 50 and len(derive(10)) > 50, "a looser threshold now fits the band"
+    # (>= 40 falls out at 28 today) would redden a green rule for an unrelated
+    # package gaining files. F3.2's cut moved the loose edge from threshold 10
+    # (52 entries, outside) to 9 (53 entries, still outside) — derive(10) is 49
+    # now, inside the band; the pin follows the tree per the docstring's
+    # re-derivation clause.
+    assert len(derive(5)) > 50 and len(derive(9)) > 50, "a looser threshold now fits the band"
 
     def proper_ancestors(candidate: str, base: set[str]) -> list[str]:
         """Kept directories that STRICTLY contain `candidate`. `.` is out — it is
@@ -1068,9 +1073,9 @@ def test_committed_boundary_list_and_caps_are_pinned():
       lane roots from cap 500 to cap 300, moves the over-cap set, and reddens
       nothing here because derive() rebuilt `roots` from the same edited set.
       That is the review-blind edit the docstring above is about.
-    - The tier CENSUS of the committed list. The report's `measured == 42` says
-      every listed path resolved to a file; it does not say the 42 still SORT
-      1/7/34. A lane root that loses its AGENTS.md, or a boundary renamed out of
+    - The tier CENSUS of the committed list. The report's `measured == 38`
+      says every listed path resolved to a file; it does not say the 38 still SORT
+      1/7/30. A lane root that loses its AGENTS.md, or a boundary renamed out of
       a lane root, silently moves files between caps.
     - The census is asserted against boundary_tier(), the module's own
       classifier, which is the right way round for a pin: the literals fix HOW
@@ -1097,8 +1102,8 @@ def test_committed_boundary_list_and_caps_are_pinned():
     census = collections.Counter(v.boundary_tier(p) for p in committed)
     assert census["root"] == 1, census
     assert census["lane_root"] == len(EXPECTED_LANE_ROOTS) == 7, census
-    assert census["package"] == len(EXPECTED_BOUNDARY_PATHS) - 1 - 7 == 34, census
-    assert sum(census.values()) == len(EXPECTED_BOUNDARY_PATHS) == 42, (
+    assert census["package"] == len(EXPECTED_BOUNDARY_PATHS) - 1 - 7 == 30, census
+    assert sum(census.values()) == len(EXPECTED_BOUNDARY_PATHS) == 38, (
         f"boundary_tier() returned a tier outside the three capped ones: {census}"
     )
 
@@ -1176,8 +1181,8 @@ def test_real_tree_caps_arm_denominator(real_run):
     fixtures. test_line_caps_report_every_tier_and_never_fail proves the arm
     works on a built tree; nothing until here proves it is measuring THIS one.
     The three numbers are the non-vacuity claim the PR body makes — "measured ==
-    boundaries == 42 is what makes the list non-vacuous" — and a report that
-    quietly measured 30 of 42 would have said so here instead of in review.
+    boundaries == 38 is what makes the list non-vacuous" — and a report that
+    quietly measured 30 of 38 would have said so here instead of in review.
 
     What is asserted is the arm's ARITHMETIC on the real tree, recomputed here
     from the filesystem — not its SIZE. The over-cap count (29 at adoption) is
@@ -1196,7 +1201,7 @@ def test_real_tree_caps_arm_denominator(real_run):
     a change in HOW lines are counted; it is aimed at the join — config path ->
     scanned file -> tier -> cap -> over — which is where a rename, a mis-tiered
     directory, or an off-by-one comparison would hide, and which no fixture
-    covers because a fixture cannot be the real 42 files.
+    covers because a fixture cannot be the real 38 files.
 
     The expected tier below is spelled out from the LITERALS, not from
     v.boundary_tier(). The first draft of this test called the module for it, and
@@ -1210,7 +1215,7 @@ def test_real_tree_caps_arm_denominator(real_run):
     rc, report, stderr = real_run
     assert rc == 0, stderr
     caps = report["ratchet"]["line_caps"]
-    assert caps["boundaries"] == len(EXPECTED_BOUNDARY_PATHS) == 42, caps["boundaries"]
+    assert caps["boundaries"] == len(EXPECTED_BOUNDARY_PATHS) == 38, caps["boundaries"]
     assert caps["measured"] == caps["boundaries"], (
         f"a listed boundary resolved to no scanned AGENTS.md: measured "
         f"{caps['measured']} of {caps['boundaries']} — the denominator is a hole, "
