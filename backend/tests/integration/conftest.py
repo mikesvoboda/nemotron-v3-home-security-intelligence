@@ -796,12 +796,14 @@ def worker_redis_url(
 def _ensure_worker_schema(worker_db_url: str) -> str:
     """Create the worker database schema ONCE per xdist worker session.
 
-    M3 Task 4 / audit Part 2.1: the schema DDL (create_all + legacy ALTERs +
-    dedup DELETEs + unique indexes) used to run inside the function-scoped
-    ``integration_db`` fixture on EVERY test (~3,386 of 4,222 integration
-    tests transitively). Every statement is IF-NOT-EXISTS-idempotent and the
-    per-test TRUNCATE in ``clean_tables`` prevents duplicate rows
+    M3 Task 4 / audit Part 2.1: the schema DDL used to run inside the
+    function-scoped ``integration_db`` fixture on EVERY test (~3,386 of 4,222
+    integration tests transitively). Every statement is IF-NOT-EXISTS-idempotent
+    and the per-test TRUNCATE in ``clean_tables`` prevents duplicate rows
     reaccumulating, so the whole block now runs once per worker database.
+    B3.3 took the column ALTERs out of that block entirely -- the columns are
+    recorded upgrades now and the per-test ``integration_db``'s ``init_db()``
+    runs the upgrade command on this database (see the block below).
     Per-worker DBs already exist (``worker_db_url`` is session-scoped), so
     cross-worker isolation is unchanged; within a worker the schema is
     immutable across tests (verified: no test mutates Base tables —
@@ -852,53 +854,25 @@ def _ensure_worker_schema(worker_db_url: str) -> str:
             try:
                 ModelsBase.metadata.create_all(conn)
 
-                # Add any missing columns (using IF NOT EXISTS for idempotency)
-                conn.execute(sa_text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
-                conn.execute(
-                    sa_text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
-                )
-                # F11 ruling 2: vector provenance. A worker database that a
-                # prior session left behind has face tables WITHOUT the
-                # column, and create_all never adds columns to existing
-                # tables — same drift repair as the unit conftest's two
-                # schema twins, DEFAULT spelled to match the model and
-                # docs/api/migrations/2026-09-26-face-vector-provenance-model-id.sql
-                # exactly.
-                conn.execute(
-                    sa_text(
-                        "ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS "
-                        "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                    )
-                )
-                conn.execute(
-                    sa_text(
-                        "ALTER TABLE face_detection_events ADD COLUMN IF NOT EXISTS "
-                        "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                    )
-                )
-                # Ledger item 20 (the full re-ID swap): the person gallery
-                # gets the same repair, DEFAULT byte-identical to the model
-                # and docs/api/migrations/
-                #   2026-09-26-person-vector-provenance-model-id.sql.
-                conn.execute(
-                    sa_text(
-                        "ALTER TABLE person_embeddings ADD COLUMN IF NOT EXISTS "
-                        "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
-                    )
-                )
-                # NEM-1652: soft delete columns
-                conn.execute(
-                    sa_text(
-                        "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS deleted_at "
-                        "TIMESTAMP WITH TIME ZONE"
-                    )
-                )
-                conn.execute(
-                    sa_text(
-                        "ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at "
-                        "TIMESTAMP WITH TIME ZONE"
-                    )
-                )
+                # B3.3: no column ALTERs here any more. The columns that used
+                # to be hand-added at this site (llm_prompt, enrichment_data,
+                # the three model_id ones, the cameras/events deleted_at pair)
+                # are recorded upgrades now -- 0002/0003 for model_id, 0005 for
+                # the rest -- and the upgrade command runs where this fixture
+                # cannot: at every later `init_db()`. Per-test
+                # ``integration_db`` calls it on this same worker database
+                # (create_all and the runner both run in whatever order the
+                # tables arrived in), and
+                # test_schema_upgrade_path.py::
+                # test_upgrade_command_records_a_create_all_database_without_running_sql
+                # pins exactly this boot shape: create_all first, then the
+                # command, every upgrade `verified` with zero statements.
+                # The dedup DELETEs and unique indexes below stay on purpose:
+                # the cameras unique indexes are create_all-blind and are NOT
+                # in 0005 -- the index needs these DELETEs first, and deleting
+                # rows is owner-tier (UR-98), so they are not a fixture
+                # shortcut, they are the index-creation recipe waiting on its
+                # own upgrade.
 
                 # Clean up duplicate cameras before unique index creation. Rows
                 # can only exist here if a crashed prior session left the

@@ -470,7 +470,6 @@ def settings_factory():
             "use_ai_gateway": False,
             "ai_gateway_url": None,
             "detector_max_retries": 1,
-            "enrichment_max_retries": 1,
         }
         base.update(overrides)
         # _env_file=None so the sandbox .env cannot bleed prod values into
@@ -2282,7 +2281,7 @@ async def test_vlm_wake_needs_a_200_and_a_sleeping_engine_stays_unclaimed(
 _COMPLETION_SITES: dict[str, dict[str, Any]] = {
     "backend.services.summary_generator": {
         "cls": "SummaryGenerator",
-        "method": "_call_nemotron",
+        "method": "_call_vlm",
         "drive": lambda: (
             datetime(2026, 9, 29, tzinfo=UTC),
             datetime(2026, 9, 29, 1, tzinfo=UTC),
@@ -2601,7 +2600,7 @@ class TestCompletionClientBypassFamily:
         monkeypatch.setattr(sgmod, "httpx", _Shim())
         svc = sgmod.SummaryGenerator()
         with pytest.raises(ValueError, match="Empty completion"):
-            await svc._call_nemotron(
+            await svc._call_vlm(
                 datetime(2026, 9, 29, tzinfo=UTC),
                 datetime(2026, 9, 29, 1, tzinfo=UTC),
                 "hour",

@@ -32,12 +32,6 @@ class SessionExpiredError(Exception):
     pass
 
 
-class SessionNotFoundError(Exception):
-    """Raised when a session is not found."""
-
-    pass
-
-
 class SessionService:
     """Redis-backed session management service.
 
@@ -124,8 +118,7 @@ class SessionService:
 
         Raises:
             ValueError: If session_id is empty.
-            SessionExpiredError: If the session has expired.
-            SessionNotFoundError: If the session doesn't exist.
+            SessionExpiredError: If the session has expired or doesn't exist.
         """
         if not session_id:
             msg = "session_id cannot be empty"

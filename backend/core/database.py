@@ -406,12 +406,34 @@ async def init_db() -> None:
             try:
                 # We have the lock - proceed with schema creation
                 await conn.run_sync(ModelsBase.metadata.create_all)
+                # B3.3 / ruling 203: create_all creates missing TABLES and never alters an
+                # existing one, so a database that predates a column or a type change stays on
+                # the old shape forever. The ordered, checked upgrades in backend/migrations
+                # are the other half, and they run here, inside the same advisory lock and the
+                # same transaction, as savepoints (`nested=True`) so a failing upgrade rolls
+                # back to just before itself. The rollback that wipes create_all's work is the
+                # OUTER transaction's: the failure propagates out of apply_all through the
+                # `begin()` below, so nothing half-applied survives and the next boot retries
+                # from a clean database (savepoint undo is only the inner half; the unlock in
+                # the finally is what still runs on that failure path).
+                from backend.migrations.runner import apply_all
+
+                await apply_all(conn, nested=True)
             finally:
                 # Always release the lock, even if schema creation fails
                 unlock_sql = text(f"SELECT pg_advisory_unlock({_INIT_DB_LOCK_KEY})")  # nosemgrep
                 await conn.execute(unlock_sql)
         # If lock not acquired, another worker is handling schema creation
         # The tables will be available after that worker completes
+        #
+        # Read that as what it is, since the upgrades now ride this branch too: a worker that
+        # loses the lock starts serving WITHOUT waiting for the winner to finish. That is
+        # pre-existing behaviour for create_all (this function has never waited); B3.3 widens
+        # what a losing worker may miss from "tables" to "tables and pending upgrades". Making
+        # losers wait is a startup-lifetime change (a wedged winner would then wedge every
+        # worker behind it) and is deliberately not smuggled in here. The upgrade runner is
+        # idempotent and re-runs on every boot, so the steady state is correct; the window is a
+        # boot-order race, not a permanently missed upgrade.
 
 
 async def close_db() -> None:

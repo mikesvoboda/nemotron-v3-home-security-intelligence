@@ -850,7 +850,15 @@ def test_real_tree_matches_spec_baselines():
         # label happened to name an actually-orphaned row (its def went away in
         # 602379e29 with enrichment_pipeline.py, licensing zero tests), which is
         # why the miscount stayed invisible. That is the reason to name ids.
-        "tpa_slow_list": 8,
+        # 8->9 (2026-10-18): B3.3's settings-orphan ratchet, two tests sharing
+        # one module fixture, admitted with measured CI breaches on PR #7244
+        # head feab2a0a2 (job 117605357915: 51.42s and 48.37s against the 4.0s
+        # unit threshold). The cost is the assertion — the fixture re-runs the
+        # whole-tree census script (61.5s measured solo) rather than trusting a
+        # committed count — so it cannot be fake-clocked away, and the pattern
+        # is one regex covering both ids, so the CENSUS (+1) and the tests it
+        # exempts (+2) differ deliberately.
+        "tpa_slow_list": 9,
         # [r173] ruling 173 — the new arm, measured (see the docstring's
         # 0→2 entry). Asserted here as well as in the baseline file so a golden
         # test.fixme added later trips this mirror AND the ratchet.

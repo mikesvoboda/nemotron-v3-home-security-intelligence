@@ -217,7 +217,13 @@ def replace_region(text: str, label: str, body: str) -> str:
     s, e = text.find(START), text.find(END)
     if s == -1 or e == -1 or e < s:
         raise SystemExit(f"r2-python-dead-list: markers not found in {label}")
-    return text[: s + len(START)] + "\n" + body.rstrip("\n") + "\n" + text[e:]
+    # One blank line on each side of the body: prettier's fixpoint for a
+    # paragraph and a table between HTML comments. Without it the generator writes a form
+    # the prettier hook then rewrites, so `pre-commit run --files` reports the
+    # file "not at its hook's fixpoint" on every regeneration (measured on
+    # #7244 head 9f3ebf663, job 117612199436). Emitting prettier's form keeps
+    # `r2-python-dead-list.py` idempotent THROUGH the hook.
+    return text[: s + len(START)] + "\n\n" + body.rstrip("\n") + "\n\n" + text[e:]
 
 
 def main(argv: list[str] | None = None) -> int:

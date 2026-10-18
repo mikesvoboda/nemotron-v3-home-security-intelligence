@@ -45,9 +45,9 @@ stopped and started on a running stack.
       the date per row.
 - [ ] Rows demoted only because the CI stack cannot reach them (UR-153) are reached this way:
   - **Real tier:** the Grafana and GPU rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176,
-    F-178, F-182) get their witness from the `O2.5` run. If `O2.5`'s spike says no, they are
-    checked on the test deployment in the per-batch real-tier runs, and ops adds what they need to
-    the test deployment's compose (rulings 127, 144).
+    F-178, F-182) get their witness from `O2.5`'s two runs (ruling 256). If `O2.5`'s spike says no,
+    they are checked on the test deployment in the per-batch real-tier runs, and ops adds what they
+    need to the test deployment's compose (rulings 127, 144).
   - **Seeded on CI:** a golden project with `DEBUG=true`, which covers the debug-gated rows and the
     request recorder; a fault seed behind the debug guard that trips a breaker and a threshold; a
     fixture that plants an orphan file; a writable `runtime.env` in the CI compose; and, after the
@@ -138,7 +138,8 @@ same way after the owner's `R2b` session.
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
 **Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258.
 
-Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
+Lands in the same PR as `B3.1`, one R2a row per PR (ruling 255; `B3.1` states the rule), starting
+with OD-20's enrichment surface.
 
 - [ ] For each feature ruled **retire**: delete its routes, components, hooks, types, stores, MSW
       handlers, tests, snapshots, visual baselines and Playwright specs, and its `docs/ui/` page.
@@ -173,8 +174,11 @@ nothing in `frontend/`.
       `BulkActionBar` and toast implementations, the stale `modulePreload` filter in
       `vite.config.ts`, and `bun.lock` (CI and the Dockerfile run `npm ci`).
 
-**Done when:** `npx knip --production` exits 0 and the PR reports files and lines removed. (`O3.4`
-wires it into CI.)
+**Done when:** the PR reports files and lines removed, and records in its body what `npx knip
+--production` still reports at its head (unused exports, files and dependencies) as not cleared:
+that is the baseline `O3.4` pins, so "exits 0" reads relative to it (ruling 257). `knip.json` keeps
+`exports: "error"`, and the PR does not edit the 239 kept modules to clear their unused exports.
+(`O3.4` wires the gate into CI.)
 
 ### F3.3 Quarantined tests
 
