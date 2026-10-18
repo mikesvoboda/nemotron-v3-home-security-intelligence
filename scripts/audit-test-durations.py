@@ -56,6 +56,7 @@ SLOW_TEST_PATTERNS = [
     r"TestHandleUnhealthy::test_handle_unhealthy_stamps",  # persistent x7/17, 18.2s peak (WP1.3)
     r"test_r8_s2b_nemotron_deletion.*test_no_test_module_imports_a_name_that_no_longer_exists",  # 4.40s PR head (run 37560500061) + 4.116s main junit 37541671553, 5.28s solo — full-tree import sweep, grows with the suite (2026-10-06)
     r"TestLiveWiring.*test_child_session_restores_root_logging_between_tests",  # 6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots a real child pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked, 20s child wall) (2026-10-11)
+    r"test_settings_orphan_ratchet::test_(no_unread_field_outside_the_allowlist|allowlist_carries_no_zombies)",  # 8→10 (2026-10-18): B3.3's settings orphan ratchet, measured 51.42s + 48.37s on PR #7244 head feab2a0a2 (job 117605357915) against a 4.0s unit threshold. The cost IS the assertion: the module fixture re-runs scripts/audit/settings_orphans.py over the whole tree rather than trusting a committed count, and that scan is O(297 settings fields x ~1900 non-test .py files) regex passes — 61.5s measured solo here. A second test reuses the module fixture, so both breach. Registry entry same commit (scripts/test_suppression_census.py's tpa_slow_list 8→10).
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely
