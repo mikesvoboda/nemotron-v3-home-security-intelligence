@@ -310,7 +310,7 @@ test.describe('golden path: dashboard summary detail panel @critical', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test("F-034: the timeline section is keyed on the endpoint — no events renders the shipped empty branch, events render rows mirroring camera/summary/conditional badge, and the Export section is present (its click behavior is F-035's adjudicated row)", async ({
+  test('F-034: the timeline section is keyed on the endpoint — no events renders the shipped empty branch, events render rows mirroring camera/summary/conditional badge, and the retired Export buttons do not render', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -396,12 +396,9 @@ test.describe('golden path: dashboard summary detail panel @critical', () => {
       }
     }
 
-    // The Export section is PART OF THE PANEL the row opens, so it must exist;
-    // its dead click behavior belongs to F-035's own inventory row (header
-    // cite 3) and is stated there, cited and action-slated — not re-litigated
-    // here, per the inventory's row split.
+    // F-035 (R2a row 18) retired the Export section and its buttons.
     for (const btn of [L.exportJson, L.exportCsv, L.exportPdf]) {
-      await expect(btn, 'the panel mounts without an Export button').toBeVisible();
+      await expect(btn, 'retired Export button must not render (F-035)').toHaveCount(0);
     }
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
