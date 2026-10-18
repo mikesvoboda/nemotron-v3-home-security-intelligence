@@ -771,45 +771,7 @@ class TestConcurrentSoftDelete:
             await db.refresh(camera)
             return camera
 
-    async def _soft_delete_camera(self, camera_id: str) -> bool:
-        """Soft delete a camera.
 
-        Returns:
-            True if camera was soft deleted, False if it was already deleted
-        """
-        async with get_session() as db:
-            stmt = select(Camera).where(Camera.id == camera_id)
-            result = await db.execute(stmt)
-            camera = result.scalar_one()
-
-            if camera.deleted_at is not None:
-                return False
-
-            camera.soft_delete()
-            await db.commit()
-            return True
-
-    @pytest.mark.asyncio
-    async def test_concurrent_soft_delete(self, integration_db: Any, sample_camera: Camera) -> None:
-        """Concurrent soft delete operations should be idempotent.
-
-        Expected: First call sets deleted_at, subsequent calls are no-ops.
-        """
-        # 10 concurrent soft delete attempts
-        tasks = [self._soft_delete_camera(sample_camera.id) for _ in range(10)]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # At least one should succeed (others may return False if already deleted)
-        successful_deletes = sum(1 for result in results if result is True)
-        assert successful_deletes >= 1, "At least one delete should succeed"
-
-        # Verify camera is soft deleted
-        async with get_session() as db:
-            stmt = select(Camera).where(Camera.id == sample_camera.id)
-            result = await db.execute(stmt)
-            camera = result.scalar_one()
-
-        assert camera.deleted_at is not None, "Camera should be soft deleted"
 
 
 # =============================================================================

@@ -3,8 +3,6 @@
 Tests cover:
 - POST /api/events/{event_id}/restore - Restore a soft-deleted event
 - GET /api/events/deleted - List all deleted events
-- POST /api/cameras/{camera_id}/restore - Restore a soft-deleted camera
-- GET /api/cameras/deleted - List all deleted cameras
 
 NEM-1955: Add restore API endpoints for soft-deleted records
 """
@@ -20,12 +18,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.dependencies import get_cache_service_dep
-from backend.api.routes.cameras import router as cameras_router
 from backend.api.routes.events import router as events_router
 from backend.core.database import get_db
-from backend.models.camera import Camera
 from backend.models.event import Event
-from backend.tests.factories import CameraFactory, EventFactory
+from backend.tests.factories import EventFactory
 
 # Fixed UUIDs for consistent testing
 DELETED_CAMERA_UUID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
@@ -100,25 +96,6 @@ def events_client(mock_db_session: AsyncMock, mock_cache_service: MagicMock) -> 
 
 
 @pytest.fixture
-def cameras_client(mock_db_session: AsyncMock, mock_cache_service: MagicMock) -> TestClient:
-    """Create a test client for cameras endpoints with mocked dependencies."""
-    app = FastAPI()
-    app.include_router(cameras_router)
-
-    async def override_get_db() -> Any:
-        yield mock_db_session
-
-    async def override_cache_service() -> Any:
-        yield mock_cache_service
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_cache_service_dep] = override_cache_service
-
-    with TestClient(app) as test_client:
-        yield test_client
-
-
-@pytest.fixture
 def deleted_event() -> Event:
     """Create a soft-deleted event for testing."""
     return EventFactory(
@@ -134,26 +111,6 @@ def active_event() -> Event:
     return EventFactory(
         id=2,
         camera_id=SAMPLE_CAMERA_UUID,
-        deleted_at=None,
-    )
-
-
-@pytest.fixture
-def deleted_camera() -> Camera:
-    """Create a soft-deleted camera for testing."""
-    return CameraFactory(
-        id=DELETED_CAMERA_UUID,
-        name="Deleted Camera",
-        deleted_at=datetime.now(UTC) - timedelta(hours=1),
-    )
-
-
-@pytest.fixture
-def active_camera() -> Camera:
-    """Create an active (non-deleted) camera for testing."""
-    return CameraFactory(
-        id=ACTIVE_CAMERA_UUID,
-        name="Active Camera",
         deleted_at=None,
     )
 
@@ -300,139 +257,3 @@ class TestListDeletedEvents:
         assert data["items"][1]["id"] == 3
         assert data["items"][2]["id"] == 1
 
-
-# =============================================================================
-# Camera Restore Endpoint Tests (POST /api/cameras/{camera_id}/restore)
-# =============================================================================
-
-
-class TestRestoreCamera:
-    """Tests for POST /api/cameras/{camera_id}/restore endpoint."""
-
-    def test_restore_deleted_camera_success(
-        self,
-        cameras_client: TestClient,
-        mock_db_session: AsyncMock,
-        deleted_camera: Camera,
-    ) -> None:
-        """Test successfully restoring a soft-deleted camera."""
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = deleted_camera
-        mock_db_session.execute = AsyncMock(return_value=mock_result)
-
-        response = cameras_client.post(f"/api/cameras/{DELETED_CAMERA_UUID}/restore")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["id"] == DELETED_CAMERA_UUID
-        # After restore, deleted_at should be None
-        assert deleted_camera.deleted_at is None
-
-    def test_restore_camera_not_found(
-        self,
-        cameras_client: TestClient,
-        mock_db_session: AsyncMock,
-    ) -> None:
-        """Test restoring a non-existent camera returns 404."""
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db_session.execute = AsyncMock(return_value=mock_result)
-
-        response = cameras_client.post(f"/api/cameras/{NONEXISTENT_CAMERA_UUID}/restore")
-
-        assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
-
-    def test_restore_non_deleted_camera_returns_400(
-        self,
-        cameras_client: TestClient,
-        mock_db_session: AsyncMock,
-        active_camera: Camera,
-    ) -> None:
-        """Test restoring a non-deleted camera returns 400 Bad Request."""
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = active_camera
-        mock_db_session.execute = AsyncMock(return_value=mock_result)
-
-        response = cameras_client.post(f"/api/cameras/{ACTIVE_CAMERA_UUID}/restore")
-
-        assert response.status_code == 400
-        assert "not deleted" in response.json()["detail"].lower()
-
-
-# =============================================================================
-# List Deleted Cameras Tests (GET /api/cameras/deleted)
-# =============================================================================
-
-
-class TestListDeletedCameras:
-    """Tests for GET /api/cameras/deleted endpoint."""
-
-    def test_list_deleted_cameras_empty(
-        self,
-        cameras_client: TestClient,
-        mock_db_session: AsyncMock,
-    ) -> None:
-        """Test listing deleted cameras when none exist."""
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
-        mock_db_session.execute = AsyncMock(return_value=mock_result)
-
-        response = cameras_client.get("/api/cameras/deleted")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["items"] == []
-        assert data["pagination"]["total"] == 0
-
-    def test_list_deleted_cameras_with_data(
-        self,
-        cameras_client: TestClient,
-        mock_db_session: AsyncMock,
-    ) -> None:
-        """Test listing deleted cameras with existing data."""
-        deleted_cameras = [
-            CameraFactory(id="cam1", deleted_at=datetime.now(UTC) - timedelta(hours=1)),
-            CameraFactory(id="cam2", deleted_at=datetime.now(UTC) - timedelta(hours=2)),
-        ]
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = deleted_cameras
-        mock_db_session.execute = AsyncMock(return_value=mock_result)
-
-        response = cameras_client.get("/api/cameras/deleted")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 2
-        assert data["pagination"]["total"] == 2
-
-    def test_list_deleted_cameras_ordered_by_deleted_at_desc(
-        self,
-        cameras_client: TestClient,
-        mock_db_session: AsyncMock,
-    ) -> None:
-        """Test that deleted cameras are ordered by deleted_at descending."""
-        now = datetime.now(UTC)
-        deleted_cameras = [
-            CameraFactory(id="cam1", deleted_at=now - timedelta(hours=3)),  # oldest
-            CameraFactory(id="cam2", deleted_at=now - timedelta(hours=1)),  # newest
-            CameraFactory(id="cam3", deleted_at=now - timedelta(hours=2)),  # middle
-        ]
-        # Mock should return in descending order
-        ordered_cameras = sorted(
-            deleted_cameras,
-            key=lambda c: c.deleted_at,
-            reverse=True,  # type: ignore[arg-type]
-        )
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = ordered_cameras
-        mock_db_session.execute = AsyncMock(return_value=mock_result)
-
-        response = cameras_client.get("/api/cameras/deleted")
-
-        assert response.status_code == 200
-        data = response.json()
-        # Most recently deleted should be first
-        assert data["items"][0]["id"] == "cam2"
-        assert data["items"][1]["id"] == "cam3"
-        assert data["items"][2]["id"] == "cam1"

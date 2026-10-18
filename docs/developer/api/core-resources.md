@@ -94,8 +94,6 @@ Cameras represent physical security devices that upload images to configured fol
 | POST   | `/api/cameras`                                            | Create new camera         |
 | PATCH  | `/api/cameras/{camera_id}`                                | Update camera             |
 | DELETE | `/api/cameras/{camera_id}`                                | Delete camera             |
-| GET    | `/api/cameras/deleted`                                    | List soft-deleted cameras |
-| POST   | `/api/cameras/{camera_id}/restore`                        | Restore deleted camera    |
 | GET    | `/api/cameras/{camera_id}/snapshot`                       | Get latest snapshot       |
 | GET    | `/api/cameras/validation/paths`                           | Validate folder paths     |
 | GET    | `/api/cameras/{camera_id}/baseline`                       | Get baseline summary      |
@@ -203,46 +201,6 @@ GET /api/cameras/front_door/scene-changes?acknowledged=false
 | cursor       | datetime | Pagination cursor (detected_at timestamp) |
 
 **Change Types:** `view_blocked`, `angle_changed`, `view_tampered`, `unknown`
-
-### Soft-Deleted Cameras
-
-List cameras that have been soft-deleted for trash view:
-
-```bash
-GET /api/cameras/deleted
-```
-
-**Response:**
-
-```json
-{
-  "cameras": [
-    {
-      "id": "old_camera",
-      "name": "Old Camera",
-      "folder_path": "/export/foscam/old_camera",
-      "status": "offline",
-      "deleted_at": "2026-01-10T15:30:00Z"
-    }
-  ],
-  "count": 1
-}
-```
-
-### Restore Camera
-
-Restore a soft-deleted camera:
-
-```bash
-POST /api/cameras/old_camera/restore
-```
-
-**Response:** Returns the restored camera object.
-
-**Errors:**
-
-- `404` - Camera not found
-- `400` - Camera is not deleted (nothing to restore)
 
 ### Activity Heatmap Data
 

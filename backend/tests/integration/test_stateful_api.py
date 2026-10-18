@@ -279,24 +279,6 @@ class CameraStatusStateMachine(RuleBasedStateMachine):
 
         note(f"Camera {camera}: {old_status} → {new_status}")
 
-    @rule(camera=cameras)
-    @precondition(lambda self: any(not c["deleted"] for c in self.camera_states.values()))
-    def soft_delete_camera(self, camera: str) -> None:
-        """Soft delete a camera."""
-        assume(not self.camera_states[camera]["deleted"])
-
-        self.camera_states[camera]["deleted"] = True
-        note(f"Soft deleted camera: {camera}")
-
-    @rule(camera=cameras)
-    @precondition(lambda self: any(c["deleted"] for c in self.camera_states.values()))
-    def restore_camera(self, camera: str) -> None:
-        """Restore a soft-deleted camera."""
-        assume(self.camera_states[camera]["deleted"])
-
-        self.camera_states[camera]["deleted"] = False
-        note(f"Restored camera: {camera}")
-
     @invariant()
     def cameras_have_valid_status(self) -> None:
         """Verify all cameras have valid status."""

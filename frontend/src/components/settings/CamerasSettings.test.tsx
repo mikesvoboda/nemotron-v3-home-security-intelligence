@@ -5,15 +5,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import CamerasSettings from './CamerasSettings';
 import * as hooks from '../../hooks';
 
-import type { UseCameraMutationReturn, UseRestoreCameraMutationReturn } from '../../hooks';
+import type { UseCameraMutationReturn } from '../../hooks';
 import type { Camera } from '../../services/api';
 
 // Mock the hooks module
 vi.mock('../../hooks', () => ({
   useCamerasQuery: vi.fn(),
   useCameraMutation: vi.fn(),
-  useDeletedCamerasQuery: vi.fn(),
-  useRestoreCameraMutation: vi.fn(),
 }));
 
 // Mock the useRtspTest hook (NEM-4748)
@@ -163,7 +161,6 @@ describe('CamerasSettings', () => {
   ];
 
   let mockMutationReturn: UseCameraMutationReturn;
-  let mockRestoreMutationReturn: UseRestoreCameraMutationReturn;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -234,19 +231,6 @@ describe('CamerasSettings', () => {
       reset: vi.fn(),
     };
 
-    // Mock deleted cameras hooks (NEM-3643)
-    vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
-      deletedCameras: [],
-      isLoading: false,
-      isRefetching: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    mockRestoreMutationReturn = {
-      restoreMutation: createMockMutation<Camera, Error, string>(),
-    };
-    vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue(mockRestoreMutationReturn);
   });
 
   afterEach(() => {
@@ -1265,19 +1249,6 @@ describe('CamerasSettings', () => {
   });
 
   describe('Soft Delete UI (NEM-3643)', () => {
-    const mockDeletedCameras: Camera[] = [
-      {
-        id: 'deleted-cam-1',
-        name: 'Deleted Front Door',
-        folder_path: '/export/foscam/front_door',
-        status: 'offline',
-        created_at: '2025-01-01T00:00:00Z',
-        last_seen_at: '2025-01-15T12:00:00Z',
-        ingestion_mode: 'ftp',
-        motion_sensitivity: 0.5,
-      },
-    ];
-
     beforeEach(() => {
       vi.mocked(hooks.useCamerasQuery).mockReturnValue({
         cameras: mockCameras,
@@ -1289,35 +1260,8 @@ describe('CamerasSettings', () => {
       });
     });
 
-    it('should show "Show deleted cameras" toggle when deleted cameras exist', async () => {
-      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
-        deletedCameras: mockDeletedCameras,
-        isLoading: false,
-        isRefetching: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(<CamerasSettings />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
-      });
-
-      expect(screen.getByTestId('show-deleted-toggle')).toBeInTheDocument();
-      expect(screen.getByText(/Show deleted cameras/)).toBeInTheDocument();
-      expect(screen.getByText('1')).toBeInTheDocument(); // Badge showing count
-    });
-
-    it('should hide toggle when no deleted cameras exist', async () => {
-      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
-        deletedCameras: [],
-        isLoading: false,
-        isRefetching: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
+    it('does not render retired deleted cameras trash view or export deleted camera hooks (F-202)', async () => {
+      const apiModule = await import('../../services/api');
       render(<CamerasSettings />);
 
       await waitFor(() => {
@@ -1325,131 +1269,11 @@ describe('CamerasSettings', () => {
       });
 
       expect(screen.queryByTestId('show-deleted-toggle')).not.toBeInTheDocument();
-    });
-
-    it('should toggle deleted cameras section visibility', async () => {
-      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
-        deletedCameras: mockDeletedCameras,
-        isLoading: false,
-        isRefetching: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(<CamerasSettings />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
-      });
-
-      const user = userEvent.setup();
-
-      // Initially deleted section should be hidden
       expect(screen.queryByTestId('deleted-cameras-section')).not.toBeInTheDocument();
-
-      // Click toggle to show deleted cameras
-      await user.click(screen.getByTestId('show-deleted-toggle'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('deleted-cameras-section')).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Deleted Cameras')).toBeInTheDocument();
-      expect(screen.getByText('Deleted Front Door')).toBeInTheDocument();
-
-      // Click toggle again to hide
-      await user.click(screen.getByTestId('show-deleted-toggle'));
-
-      await waitFor(() => {
-        expect(screen.queryByTestId('deleted-cameras-section')).not.toBeInTheDocument();
-      });
-    });
-
-    it('should show restore button for deleted cameras', async () => {
-      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
-        deletedCameras: mockDeletedCameras,
-        isLoading: false,
-        isRefetching: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(<CamerasSettings />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
-      });
-
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId('show-deleted-toggle'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('deleted-cameras-section')).toBeInTheDocument();
-      });
-
-      expect(screen.getByTestId('restore-camera-deleted-cam-1')).toBeInTheDocument();
-      expect(screen.getByLabelText('Restore Deleted Front Door')).toBeInTheDocument();
-    });
-
-    it('should call restore mutation when restore button is clicked', async () => {
-      const mockRestoreMutateAsync = vi.fn().mockResolvedValue(mockDeletedCameras[0]);
-      mockRestoreMutationReturn.restoreMutation = createMockMutation({
-        mutateAsync: mockRestoreMutateAsync,
-      });
-      vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue(mockRestoreMutationReturn);
-
-      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
-        deletedCameras: mockDeletedCameras,
-        isLoading: false,
-        isRefetching: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(<CamerasSettings />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
-      });
-
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId('show-deleted-toggle'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('deleted-cameras-section')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByTestId('restore-camera-deleted-cam-1'));
-
-      await waitFor(() => {
-        expect(mockRestoreMutateAsync).toHaveBeenCalledWith('deleted-cam-1');
-      });
-    });
-
-    it('should style deleted cameras with strikethrough', async () => {
-      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
-        deletedCameras: mockDeletedCameras,
-        isLoading: false,
-        isRefetching: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(<CamerasSettings />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
-      });
-
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId('show-deleted-toggle'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('deleted-cameras-section')).toBeInTheDocument();
-      });
-
-      const deletedCameraName = screen.getByText('Deleted Front Door');
-      expect(deletedCameraName).toHaveClass('line-through');
+      expect('useDeletedCamerasQuery' in hooks).toBe(false);
+      expect('useRestoreCameraMutation' in hooks).toBe(false);
+      expect('fetchDeletedCameras' in apiModule).toBe(false);
+      expect('restoreCamera' in apiModule).toBe(false);
     });
 
     it('should require typing camera name to confirm delete', async () => {

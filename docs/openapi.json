@@ -10741,47 +10741,6 @@
         "title": "DegradationStatusResponse",
         "type": "object"
       },
-      "DeletedCamerasListResponse": {
-        "description": "Schema for listing soft-deleted cameras (trash view).\n\nNEM-1955: Provides a trash view of soft-deleted cameras that can be restored.\nCameras are ordered by deleted_at descending (most recently deleted first).\nNEM-2075: Standardized pagination envelope with items + pagination structure.",
-        "example": {
-          "items": [
-            {
-              "created_at": "2025-12-23T10:00:00Z",
-              "folder_path": "/export/foscam/front_door",
-              "id": "front_door",
-              "last_seen_at": "2025-12-23T12:00:00Z",
-              "name": "Front Door Camera",
-              "status": "offline"
-            }
-          ],
-          "pagination": {
-            "has_more": false,
-            "limit": 50,
-            "offset": 0,
-            "total": 1
-          }
-        },
-        "properties": {
-          "items": {
-            "description": "List of soft-deleted cameras",
-            "items": {
-              "$ref": "#/components/schemas/CameraResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "pagination": {
-            "$ref": "#/components/schemas/PaginationMeta",
-            "description": "Pagination metadata"
-          }
-        },
-        "required": [
-          "items",
-          "pagination"
-        ],
-        "title": "DeletedCamerasListResponse",
-        "type": "object"
-      },
       "DeletedEventsListResponse": {
         "description": "Schema for listing soft-deleted events (trash view).\n\nNEM-1955: Provides a trash view of soft-deleted events that can be restored.\nEvents are ordered by deleted_at descending (most recently deleted first).\nNEM-2075: Standardized pagination envelope with items + pagination structure.",
         "example": {
@@ -48350,28 +48309,6 @@
         ]
       }
     },
-    "/api/cameras/deleted": {
-      "get": {
-        "description": "List all soft-deleted cameras for trash view.\n\nReturns cameras that have been soft-deleted (deleted_at is not null),\nordered by deleted_at descending (most recently deleted first).\n\nThis endpoint enables a \"trash\" view where users can see deleted cameras\nand optionally restore them.\n\nArgs:\n    db: Database session\n\nReturns:\n    DeletedCamerasListResponse containing list of deleted cameras and count",
-        "operationId": "cameras_list_deleted_cameras",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeletedCamerasListResponse"
-                }
-              }
-            },
-            "description": "List of soft-deleted cameras"
-          }
-        },
-        "summary": "List all soft-deleted cameras",
-        "tags": [
-          "cameras"
-        ]
-      }
-    },
     "/api/cameras/onvif/discover": {
       "post": {
         "description": "Discover ONVIF devices on the network using WS-Discovery.\n\nScans the specified subnet for ONVIF-compatible cameras and returns\ndevice information including IP, manufacturer, model, and RTSP URLs.\n\nArgs:\n    request: Discovery request with subnet and timeout\n\nReturns:\n    OnvifDiscoveryResponse with discovered devices and count\n\nRaises:\n    HTTPException: 500 if discovery fails",
@@ -49376,55 +49313,6 @@
           }
         },
         "summary": "Stop preview for a specific camera",
-        "tags": [
-          "cameras"
-        ]
-      }
-    },
-    "/api/cameras/{camera_id}/restore": {
-      "post": {
-        "description": "Restore a soft-deleted camera.\n\nClears the deleted_at timestamp on a soft-deleted camera, making it\nvisible again in normal queries.\n\nArgs:\n    camera_id: ID of the camera to restore\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    CameraResponse with the restored camera data\n\nRaises:\n    HTTPException: 404 if camera not found\n    HTTPException: 400 if camera is not deleted (nothing to restore)",
-        "operationId": "cameras_restore_camera",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CameraResponse"
-                }
-              }
-            },
-            "description": "Camera restored successfully"
-          },
-          "400": {
-            "description": "Camera is not deleted"
-          },
-          "404": {
-            "description": "Camera not found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Restore a soft-deleted camera",
         "tags": [
           "cameras"
         ]
