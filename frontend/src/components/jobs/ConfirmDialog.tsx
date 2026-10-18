@@ -11,11 +11,11 @@
  * ```tsx
  * <ConfirmDialog
  *   isOpen={showDialog}
- *   title="Delete Job"
- *   description="This action cannot be undone. The job record will be permanently deleted."
+ *   title="Delete Item"
+ *   description="This action cannot be undone. The item will be permanently deleted."
  *   confirmLabel="Delete"
  *   variant="danger"
- *   onConfirm={() => deleteJob(jobId)}
+ *   onConfirm={handleConfirm}
  *   onCancel={() => setShowDialog(false)}
  * />
  * ```

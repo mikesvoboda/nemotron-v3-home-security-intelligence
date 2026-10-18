@@ -10,9 +10,6 @@ export type { JobHeaderProps } from './JobHeader';
 export { default as JobMetadata } from './JobMetadata';
 export type { JobMetadataProps } from './JobMetadata';
 
-// Job action components (NEM-2712)
+// Confirmation dialog component (NEM-2712)
 export { default as ConfirmDialog } from './ConfirmDialog';
 export type { ConfirmDialogProps, ConfirmDialogVariant } from './ConfirmDialog';
-
-export { default as JobActions } from './JobActions';
-export type { JobActionsProps, JobActionType } from './JobActions';

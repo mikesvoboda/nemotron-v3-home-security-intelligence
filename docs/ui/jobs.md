@@ -108,33 +108,7 @@ Real-time log streaming for active jobs (enabled when job status is "running" or
 
 #### Result Section
 
-For completed jobs with output data, displays JSON result below the logs.
-
-### Job Actions
-
-Available actions depend on job status:
-
-| Status    | Available Actions |
-| --------- | ----------------- |
-| Pending   | Cancel, Delete    |
-| Running   | Cancel, Abort     |
-| Completed | Delete            |
-| Failed    | Retry, Delete     |
-
-**Note:** Cancelled jobs do not have a retry option in the current implementation.
-
-Action descriptions:
-
-- **Cancel** - Gracefully stops the job after current operation (amber button)
-- **Abort** - Forcefully terminates immediately, may cause data inconsistency (red button, only for running jobs)
-- **Retry** - Re-queues a failed job for another attempt (blue button, no confirmation needed)
-- **Delete** - Permanently removes job record from database (gray button)
-
-Destructive actions (Cancel, Abort, Delete) show confirmation dialogs with warnings:
-
-- Cancel dialog warns that the job will complete its current operation before stopping
-- Abort dialog shows a WARNING about potential data inconsistency
-- Delete dialog warns that the action cannot be undone
+For completed jobs with output data, displays JSON result.
 
 ### Status Indicators
 
@@ -272,45 +246,36 @@ For developers wanting to understand the underlying systems.
 
 ### API Endpoints
 
-| Endpoint                 | Method | Description                                                         |
-| ------------------------ | ------ | ------------------------------------------------------------------- |
-| `/api/jobs`              | GET    | List jobs with filtering and pagination                             |
-| `/api/jobs/types`        | GET    | List available job types with descriptions                          |
-| `/api/jobs/stats`        | GET    | Get aggregate job statistics (counts by status/type, avg duration)  |
-| `/api/jobs/search`       | GET    | Advanced search with aggregations and faceted filtering             |
-| `/api/jobs/{id}`         | GET    | Get job status                                                      |
-| `/api/jobs/{id}/detail`  | GET    | Get detailed job information (progress, timing, retry info)         |
-| `/api/jobs/{id}/cancel`  | POST   | Cancel a pending/running job (graceful stop)                        |
-| `/api/jobs/{id}/abort`   | POST   | Force abort a running job (immediate termination)                   |
-| `/api/jobs/{id}`         | DELETE | Cancel/abort based on current state (pending=cancel, running=abort) |
-| `/api/jobs/bulk-cancel`  | POST   | Cancel multiple jobs at once                                        |
-| `/api/jobs/{id}/history` | GET    | Get job execution history with state transitions and attempts       |
-| `/api/jobs/{id}/logs`    | GET    | Get job execution logs with optional level/time filtering           |
-| `/api/events/export`     | POST   | Start a new export job (returns 202 Accepted with job_id)           |
-
-**Note:** There is no dedicated retry endpoint. Retry functionality is handled through the frontend's job mutation hooks.
+| Endpoint                | Method | Description                                                        |
+| ----------------------- | ------ | ------------------------------------------------------------------ |
+| `/api/jobs`             | GET    | List jobs with filtering and pagination                            |
+| `/api/jobs/types`       | GET    | List available job types with descriptions                         |
+| `/api/jobs/stats`       | GET    | Get aggregate job statistics (counts by status/type, avg duration) |
+| `/api/jobs/search`      | GET    | Advanced search with aggregations and faceted filtering            |
+| `/api/jobs/{id}`        | GET    | Get job status                                                     |
+| `/api/jobs/{id}/detail` | GET    | Get detailed job information (progress, timing, retry info)        |
+| `/api/jobs/bulk-cancel` | POST   | Cancel multiple jobs at once                                       |
+| `/api/jobs/{id}/logs`   | GET    | Get job execution logs with optional level/time filtering          |
+| `/api/events/export`    | POST   | Start a new export job (returns 202 Accepted with job_id)          |
 
 ### Related Code
 
 **Frontend Components** (`frontend/src/components/jobs/`):
 
-| File                     | Purpose                                                  |
-| ------------------------ | -------------------------------------------------------- |
-| `JobsPage.tsx`           | Main page component with split-view layout               |
-| `JobsList.tsx`           | Scrollable list container for jobs                       |
-| `JobsListItem.tsx`       | Individual job card with status, type, progress          |
-| `JobDetailPanel.tsx`     | Right-side detail view with header, metadata, logs       |
-| `JobHeader.tsx`          | Job title, status badge, and progress bar                |
-| `JobMetadata.tsx`        | Timestamps (created, started, completed), duration, type |
-| `JobsSearchBar.tsx`      | Search input plus the status/type filter dropdowns       |
-| `JobsEmptyState.tsx`     | Empty state when no jobs exist                           |
-| `JobActions.tsx`         | Cancel/Abort/Retry/Delete action buttons                 |
-| `JobErrorModal.tsx`      | Error detail modal for failed jobs                       |
-| `ConfirmDialog.tsx`      | Confirmation modal for destructive actions               |
-| `StatusDot.tsx`          | Colored status indicator dot                             |
-| `JobHistoryTimeline.tsx` | Collapsible timeline of job state transitions            |
-| `TimelineEntry.tsx`      | Individual entry in the history timeline                 |
-| `index.ts`               | Component exports                                        |
+| File                 | Purpose                                                  |
+| -------------------- | -------------------------------------------------------- |
+| `JobsPage.tsx`       | Main page component with split-view layout               |
+| `JobsList.tsx`       | Scrollable list container for jobs                       |
+| `JobsListItem.tsx`   | Individual job card with status, type, progress          |
+| `JobDetailPanel.tsx` | Right-side detail view with header, metadata, and error  |
+| `JobHeader.tsx`      | Job title, status badge, and progress bar                |
+| `JobMetadata.tsx`    | Timestamps (created, started, completed), duration, type |
+| `JobsSearchBar.tsx`  | Search input plus the status/type filter dropdowns       |
+| `JobsEmptyState.tsx` | Empty state when no jobs exist                           |
+| `JobErrorModal.tsx`  | Error detail modal for failed jobs                       |
+| `ConfirmDialog.tsx`  | Confirmation modal for destructive actions               |
+| `StatusDot.tsx`      | Colored status indicator dot                             |
+| `index.ts`           | Component exports                                        |
 
 **Backend Services** (`backend/services/`):
 

@@ -234,12 +234,8 @@ import type {
   JobLogsResponse,
   JobLogEntryResponse,
   JobDetailResponse,
-  JobHistoryResponse,
-  JobTransitionResponse,
   JobSearchResponse,
   JobSearchAggregations,
-  JobCancelResponse,
-  JobAbortResponse,
   CleanupStatusResponse,
   OrphanedFileCleanupResponse,
   EventFeedbackCreate,
@@ -285,12 +281,8 @@ export type {
   JobLogsResponse,
   JobLogEntryResponse,
   JobDetailResponse,
-  JobHistoryResponse,
-  JobTransitionResponse,
   JobSearchResponse,
   JobSearchAggregations,
-  JobCancelResponse,
-  JobAbortResponse,
   CleanupStatusResponse,
   OrphanedFileCleanupResponse,
 };
@@ -3983,16 +3975,6 @@ export async function fetchJobDetail(jobId: string): Promise<JobDetailResponse> 
 }
 
 /**
- * Fetch job history including state transitions.
- *
- * @param jobId - The job ID to fetch history for
- * @returns JobHistoryResponse with transitions and attempts
- */
-export async function fetchJobHistory(jobId: string): Promise<JobHistoryResponse> {
-  return fetchApi<JobHistoryResponse>(`/api/jobs/${jobId}/history`);
-}
-
-/**
  * Query parameters for job search endpoint.
  */
 export interface JobsSearchQueryParams {
@@ -4029,69 +4011,6 @@ export async function searchJobs(params?: JobsSearchQueryParams): Promise<JobSea
   const queryString = queryParams.toString();
   const url = queryString ? `/api/jobs/search?${queryString}` : '/api/jobs/search';
   return fetchApi<JobSearchResponse>(url);
-}
-
-/**
- * Cancel a job (graceful cancellation).
- *
- * Requests graceful cancellation of a pending or running job.
- * Jobs that are already completed or failed cannot be cancelled.
- *
- * @param jobId - The job ID to cancel
- * @returns JobCancelResponse with cancellation status
- */
-export async function cancelJob(jobId: string): Promise<JobCancelResponse> {
-  return fetchApi<JobCancelResponse>(`/api/jobs/${jobId}/cancel`, {
-    method: 'POST',
-  });
-}
-
-/**
- * Abort a running job (force stop).
- *
- * Forces immediate termination of a running job by sending abort signal
- * to the worker. Only jobs with status 'running' can be aborted.
- * For queued jobs, use cancelJob instead.
- *
- * WARNING: Force abort may cause data inconsistency. Use with caution.
- *
- * @param jobId - The job ID to abort
- * @returns JobAbortResponse with abort status
- */
-export async function abortJob(jobId: string): Promise<JobAbortResponse> {
-  return fetchApi<JobAbortResponse>(`/api/jobs/${jobId}/abort`, {
-    method: 'POST',
-  });
-}
-
-/**
- * Retry a failed or cancelled job.
- *
- * Creates a new job with the same parameters as the original failed job.
- * Only jobs with status 'failed' or 'cancelled' can be retried.
- *
- * @param jobId - The job ID to retry
- * @returns JobResponse with the new job details
- */
-export async function retryJob(jobId: string): Promise<JobResponse> {
-  return fetchApi<JobResponse>(`/api/jobs/${jobId}/retry`, {
-    method: 'POST',
-  });
-}
-
-/**
- * Delete a job record.
- *
- * Permanently removes a job record from the database.
- * Jobs that are currently running cannot be deleted - cancel or abort first.
- *
- * @param jobId - The job ID to delete
- * @returns JobCancelResponse with deletion status
- */
-export async function deleteJob(jobId: string): Promise<JobCancelResponse> {
-  return fetchApi<JobCancelResponse>(`/api/jobs/${jobId}`, {
-    method: 'DELETE',
-  });
 }
 
 // ============================================================================

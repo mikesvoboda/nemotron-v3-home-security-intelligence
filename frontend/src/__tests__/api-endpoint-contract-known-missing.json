@@ -19,13 +19,6 @@
   ],
   "entries": [
     {
-      "path": "/api/jobs/{id}/retry",
-      "calledFrom": "src/services/api.ts:4134",
-      "cited": "00-audit.md §3 D2",
-      "backend": "jobs router serves /api/jobs/{job_id}/abort; there is no retry route",
-      "next": "docs/reference/feature-inventory.md F-095: job retry"
-    },
-    {
       "path": "/api/events/{id}/entity-matches",
       "calledFrom": "src/services/api.ts:5888",
       "cited": "00-audit.md §3 D2",

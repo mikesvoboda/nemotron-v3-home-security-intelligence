@@ -146,7 +146,7 @@ interface ExportJobCreateParams {
 - `GET /api/cameras` - Fetch cameras for filter dropdown
 - `POST /api/exports` - Create export job
 - `GET /api/jobs/{job_id}` - Poll job status
-- `DELETE /api/jobs/{job_id}` - Cancel export job
+- `DELETE /api/exports/{job_id}` - Cancel export job
 
 ## Entry Points
 
