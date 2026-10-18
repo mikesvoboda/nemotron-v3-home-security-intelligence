@@ -38,8 +38,9 @@ mounts `ThemeProvider`, `AnnouncementProvider` and `AuthProvider` from that
 barrel.
 
 Two families were removed by F3.2 (2026-10-18) because nothing mounted them:
-`ToastContext` (the live pair today is `hooks/useToast.ts`, sonner-backed, and
-`components/common/ToastProvider.tsx`) and the `SystemDataContext` family
+`ToastContext` (the live pair today is `../hooks/useToast.ts`, sonner-backed,
+and `../components/common/ToastProvider.tsx`) and the `SystemDataContext`
+family
 (`SystemDataContext`, `CameraContext`, `HealthContext`, `MetricsContext`),
 whose only importer was `index.ts` itself. Before adding a context back, grep
 for a production consumer of its hook — a barrel export is not a consumer, and
@@ -54,4 +55,4 @@ that is what let these four survive reachability checks.
 
 - A provider is only live if something mounts it; check `App.tsx` and the
   route tree, not the barrel.
-- `useToast()` (from `hooks/useToast.ts`) is the toast API.
+- `useToast()` (from `../hooks/useToast.ts`) is the toast API.
