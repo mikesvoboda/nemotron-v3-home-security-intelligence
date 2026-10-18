@@ -1405,13 +1405,20 @@ jobs:
         # being appended, and each keyword selects ONLY its proven file(s)
         # (per-keyword collect census: no collisions with any existing shard).
         # Do not append further suites here without the same green-proof.
-        # B3.3 (2026-10-17): test_schema_upgrade_path appended with that proof —
-        # collect census 2/4051 selected (4049 deselected, no collisions), and
-        # this leg's exact expression run at -n0 against live PG+redis:
-        # 473 passed, 23 skipped, 0 deadlocks, 115s. It runs here because the
-        # upgrade path is a service: a boot that silently skipped the upgrades
-        # is invisible to every other suite (they all boot a schema the fixtures
-        # already built).
+        # B3.3 (2026-10-17, census refreshed 2026-10-18 when box 6 added a third
+        # test): test_schema_upgrade_path appended with that proof — collect
+        # census 3/37213 over all of backend/tests/ (37210 deselected, no
+        # collisions: the keyword matches this file's three tests and nothing
+        # else anywhere), and this leg's exact expression run at -n0 against
+        # live PG+redis: 474 passed, 23 skipped, 0 deadlocks, 117s (was 473/23
+        # at two tests; +1 = the new verified-branch test, and the junit names
+        # all three upgrade tests as passing inside the leg). The new test's
+        # teeth are mutation-proven, not asserted: deleting upgrade 0005's entry
+        # from checks.CHECKS turns it red with 'applied (12 statement(s))' !=
+        # 'verified' — so it is genuinely watching for the no-op SQL it claims to
+        # prevent. It runs here because the upgrade path is a service: a boot that
+        # silently skipped the upgrades is invisible to every other suite (they
+        # all boot a schema the fixtures already built).
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
         run: |
           set -euo pipefail

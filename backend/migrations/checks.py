@@ -6,7 +6,8 @@ Each check answers a question about the DATABASE, not about the file:
   * effect already in place  -> a property of this database; it means re-running is UNNECESSARY.
 
 Only the second one is what startup needs to know. `create_all` builds today's shape, so on a
-fresh database three of the four historical files are already in effect -- running them anyway
+fresh database every registered upgrade is already in effect -- all five, and the census is what
+`test_upgrade_command_records_a_create_all_database_without_running_sql` asserts -- so running them anyway
 would take `ACCESS EXCLUSIVE` on `alerts`/`alert_rules` (NEM-5051's `ALTER COLUMN ... TYPE jsonb`
 rewrites the column) on every single boot, and would fail outright if a view ever depended on
 those columns. So the runner records those as verified-without-running (`executed = false`) and
@@ -19,12 +20,14 @@ for a non-idempotent one on an unrecorded database, which is the case a human mu
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from backend.migrations.errors import UpgradeNotRegisteredError
+from backend.migrations.registry import UPGRADES
 from backend.migrations.registry import ids as registry_ids
 
 #: Predicate: True means "the effect is ALREADY in place, do not run the file".
@@ -134,6 +137,38 @@ _NEM_5051_COLUMNS: Mapping[str, Sequence[str]] = {
     ),
 }
 
+
+def _add_column_pairs(upgrade_id: str) -> tuple[tuple[str, str], ...]:
+    """The `(table, column)` pairs an upgrade's own file adds, read from the shipped text.
+
+    Derived rather than transcribed. `_NEM_5051_COLUMNS` above IS a transcription and says so,
+    which means its drift direction is "a column the runner never looked at"; for 0005 the
+    column list is 12 long and purely mechanical, so there is no reason to hand-copy it and
+    every reason not to. Raises at import if the file adds nothing it can recognise -- a
+    reworded file reddens here instead of quietly turning a checked upgrade into an unchecked
+    one (`CHECKS` missing a key defaults to "run it", which here would be harmless but silent).
+    """
+    upgrade = next(u for u in UPGRADES if u.id == upgrade_id)
+    pairs = re.findall(
+        r"ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+(\w+)",
+        " ".join(upgrade.statements()),
+        re.IGNORECASE,
+    )
+    if not pairs:
+        raise UpgradeNotRegisteredError(
+            f"upgrade {upgrade_id}: no `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` found in "
+            f"{upgrade.filename}, so its CHECK cannot be derived. Update the CHECK rather than "
+            f"rewording a shipped file (its digest is recorded per database)."
+        )
+    return tuple(pairs)
+
+
+#: The 12 columns 0005 adds, derived from its file. Named so the CHECK's shape is inspectable
+#: from a shell: `python -c "from backend.migrations.checks import _UNRECORDED_MODEL_COLUMNS"`.
+_UNRECORDED_MODEL_COLUMNS: tuple[tuple[str, str], ...] = _add_column_pairs(
+    "0005-add-unrecorded-model-columns"
+)
+
 #: upgrade id -> its predicate. Keys are checked against the registry at import (see
 #: `_assert_keys_are_registered`) so a rename in `sql.py` reddens here rather than silently
 #: turning a checked upgrade into an unchecked one.
@@ -154,6 +189,9 @@ CHECKS: dict[str, Check] = {
     "0003-person-vector-provenance-model-id": column_present("person_embeddings", "model_id"),
     "0004-retire-demographics-reid-tables": all_present(
         [table_absent("reid_embeddings"), table_absent("demographics_results")]
+    ),
+    "0005-add-unrecorded-model-columns": all_present(
+        [column_present(table, column) for table, column in _UNRECORDED_MODEL_COLUMNS]
     ),
 }
 

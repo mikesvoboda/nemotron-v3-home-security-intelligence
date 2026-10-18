@@ -137,6 +137,16 @@ def test_unterminated_quoted_identifier_raises():
         ("0002-face-vector-provenance-model-id", 2),
         ("0003-person-vector-provenance-model-id", 1),
         ("0004-retire-demographics-reid-tables", 2),
+        # 0005 is one statement per column, 12 of them, measured off the file with
+        # `grep -v '^--' docs/api/migrations/2026-10-18-add-unrecorded-model-columns.sql
+        #  | grep -c 'ADD COLUMN IF NOT EXISTS'` = 12. The `grep -v` is load-bearing, not fussiness:
+        # the file's own header prose names that phrase, so a bare `grep -c` returns 13 -- the exact
+        # wrong number this line nearly got, before the lexer count is what settled it. BEGIN/COMMIT
+        # are control words and drop out before the count. Pinned here as well as in checks.py's
+        # derivation because the two read the file differently -- this one through the lexer,
+        # that one through a regex -- and a lexer that swallowed a statement would otherwise
+        # show up only as a missing column at boot.
+        ("0005-add-unrecorded-model-columns", 12),
     ],
 )
 def test_shipped_files_lex_to_the_expected_statement_count(upgrade_id, expected_statements):

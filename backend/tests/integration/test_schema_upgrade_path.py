@@ -1,6 +1,6 @@
 """B3.3 box 6: the upgrade path is checked against a SAVED pre-upgrade database, with rows.
 
-Two theses, one per test:
+Three theses, one per test:
 
   1. `test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date` -- the command
      (`python -m backend.migrations`, driven here through `upgrade_database`, the call it makes)
@@ -10,6 +10,13 @@ Two theses, one per test:
   2. `test_boot_upgrades_a_pre_upgrade_database` -- the same thing happens on startup, because
      `init_db()` runs the upgrades under the same advisory lock as `create_all`. Nothing else in
      the repo can check this: every other test boots a database the fixtures already built.
+  3. `test_upgrade_command_records_a_create_all_database_without_running_sql` -- the OTHER half of
+     every deployment: a database `create_all` built fresh already has every effect, so the
+     command must RECORD all five upgrades and run NO upgrade SQL. This is the branch
+     (`state == "verified"`) that a census of the whole suite showed nothing asserted, and it is
+     the branch a fresh box takes on every install. Getting it wrong in the pessimistic direction
+     means a fresh box runs NEM-5051's `ALTER COLUMN ... TYPE jsonb` at boot; wrong in the
+     optimistic direction means the box never records the upgrades and re-runs them forever.
 
 Why a saved .sql fixture and not `drop_all`/`create_all`: `create_all` only ever produces TODAY's
 shape, so a test that starts from it cannot express "before". The old shapes live in
@@ -31,6 +38,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
 from backend.migrations import registry
+from backend.migrations.checks import _UNRECORDED_MODEL_COLUMNS
 from backend.migrations.runner import apply_all, read_records_tx, upgrade_database
 from backend.tests.integration.conftest import (
     _create_worker_database,
@@ -96,6 +104,28 @@ def pre_upgrade_url(postgres_container) -> Iterator[str]:
         _drop_worker_database(base_url, db_name)
 
 
+async def _missing_0005_columns(conn: AsyncConnection) -> list[str]:
+    """The 0005 columns this database does NOT have yet, as `table.column`.
+
+    A set difference rather than a count, so a failure names which column is missing instead of
+    reporting "6 of 12" and leaving someone to find the six.
+
+    The pair list is `checks._UNRECORDED_MODEL_COLUMNS` -- the same derived list the runner's own
+    CHECK is built from, which is deliberate: a test that re-typed the 12 names could pass while
+    the CHECK it is meant to be checking watched a different list.
+    """
+    result = await conn.exec_driver_sql(
+        "SELECT table_name || '.' || column_name FROM information_schema.columns "
+        "WHERE table_schema = current_schema()"
+    )
+    present = {row[0] for row in result.all()}
+    return sorted(
+        f"{table}.{column}"
+        for table, column in _UNRECORDED_MODEL_COLUMNS
+        if f"{table}.{column}" not in present
+    )
+
+
 async def _json_types(conn: AsyncConnection) -> dict[str, str]:
     """`table.column` -> data_type for every json/jsonb column on the alert tables."""
     result = await conn.exec_driver_sql(
@@ -106,7 +136,7 @@ async def _json_types(conn: AsyncConnection) -> dict[str, str]:
     return {row[0]: row[1] for row in result.all()}
 
 
-# Creating a database, loading a fixture, and running four upgrades is real work; 5s (the
+# Creating a database, loading a fixture, and running five upgrades is real work; 5s (the
 # integration default) cannot fit it. Set from the conftest's own schema-creation ceiling.
 @pytest.mark.timeout(120)
 async def test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date(pre_upgrade_url):
@@ -129,6 +159,12 @@ async def test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date(pr
                     "SELECT count(*) FROM information_schema.columns WHERE column_name = 'model_id'"
                 )
             ).scalar() == 0
+            # 0005's subject matter, measured: a pre-upgrade database has NONE of the twelve
+            # January-2026 model columns. If the fixture ever grows one, this fails here rather
+            # than letting 0005 report "applied" for a no-op.
+            assert await _missing_0005_columns(conn) == sorted(
+                f"{table}.{column}" for table, column in _UNRECORDED_MODEL_COLUMNS
+            )
 
         # ---- run the upgrade command ----
         results = await upgrade_database(engine)
@@ -177,6 +213,9 @@ async def test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date(pr
             assert (
                 await conn.exec_driver_sql("SELECT count(*) FROM person_embeddings")
             ).scalar() == 3
+
+            # ---- 0005: the twelve unrecorded columns are now present ----
+            assert await _missing_0005_columns(conn) == []
 
             still_present = {
                 row[0]
@@ -253,6 +292,66 @@ async def test_boot_upgrades_a_pre_upgrade_database(pre_upgrade_url, monkeypatch
         else:
             os.environ["DATABASE_URL"] = original
         get_settings.cache_clear()
+
+
+# A full create_all over ~90 models plus five CHECK passes over the catalog.
+@pytest.mark.timeout(120)
+async def test_upgrade_command_records_a_create_all_database_without_running_sql(
+    postgres_container,
+):
+    """A database `create_all` built fresh: record all five upgrades, run NO upgrade SQL.
+
+    This is what a new installation does, and it is the branch nothing else in the repo asserted
+    (census: `grep -rn 'state == .verified.' backend/tests/` was empty). The runner answers "is
+    this upgrade's effect already in THIS database?" per upgrade, and on a create_all database the
+    answer is yes five times: jsonb alert columns (0001), the three provenance columns (0002/0003),
+    the two retired tables gone (0004 -- the models no longer define them, so create_all cannot
+    bring them back), and the twelve January-2026 columns (0005).
+
+    `executed=False` is asserted twice over -- on the returned results AND on the rows read back
+    out of `schema_migrations` -- because the record is the thing later boots trust. A run that
+    reported "verified" while writing executed=true would look identical in the log and would
+    make the next boot skip an upgrade it never ran.
+    """
+    base_url = _get_postgres_url(postgres_container)
+    db_name = f"b33_fresh_{uuid.uuid4().hex[:8]}"
+    url = _create_worker_database(base_url, db_name)
+    engine = create_async_engine(url)
+    try:
+        # TODAY's shape, the way a fresh deployment gets it: create_all and nothing else.
+        # Same import the two conftests use for their own create_all (backend.models.camera
+        # owns the shared declarative Base), so this test builds what a deploy builds.
+        from backend.models.camera import Base as ModelsBase
+
+        async with engine.begin() as conn:
+            await conn.run_sync(ModelsBase.metadata.create_all)
+
+        results = await upgrade_database(engine)
+        assert [r.id for r in results] == list(registry.ids())
+        assert [r.state for r in results] == ["verified"] * len(registry.ids()), [
+            r.describe() for r in results
+        ]
+        assert not any(r.executed for r in results), [r.describe() for r in results]
+        assert not any(r.statements for r in results), "a verified upgrade must run zero statements"
+
+        async with engine.connect() as conn:
+            records = await read_records_tx(conn)
+            assert set(records) == set(registry.ids())
+            assert not any(rec.executed for rec in records.values()), {
+                uid: rec.executed for uid, rec in records.items()
+            }
+            by_id = {u.id: u for u in registry.UPGRADES}
+            assert all(records[uid].checksum == by_id[uid].checksum() for uid in records)
+            # 0005's effect on this database came from create_all, not from the upgrade.
+            assert await _missing_0005_columns(conn) == []
+
+        # And the second boot is inert, exactly as test 1's is for an upgraded box.
+        async with engine.connect() as conn:
+            second = await apply_all(conn)
+            assert [r.state for r in second] == ["already_recorded"] * len(registry.ids())
+    finally:
+        await engine.dispose()
+        _drop_worker_database(base_url, db_name)
 
 
 __all__: list[str] = []  # pytest collects tests; nothing here is importable API

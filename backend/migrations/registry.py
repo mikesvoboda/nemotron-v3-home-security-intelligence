@@ -1,8 +1,10 @@
 """B3.3: the ordered upgrade registry and the SQL text handles.
 
 The upgrade TEXT lives in ``docs/api/migrations/*.sql``; the ORDER lives here. The file set is
-not self-ordering -- a date prefix sorts three of the four and the fourth (``NEM-5051``) has no
-date at all, so "sort the directory" is a guess, and a guess in a schema tool is the bug. Listing
+not self-ordering -- among the four folded-in runbooks a date prefix sorts three and ``NEM-5051``
+has no date at all, so "sort the directory" is a guess, and a guess in a schema tool is the bug.
+(Upgrades authored here since -- 0005 -- do carry a date and would sort into place, which only
+proves the point: the rule cannot be "the filenames happen to work today.") Listing
 an upgrade here is what makes it run, which also means **adding the file is not enough**: an
 unlisted file is reported by ``python -m backend.migrations --status`` as drift, loudly, rather
 than skipped in silence (``scripts/audit/AGENTS.md``: a silent skip turns a census into a fossil).
@@ -113,6 +115,11 @@ UPGRADES: tuple[Upgrade, ...] = (
         id="0004-retire-demographics-reid-tables",
         filename="2026-09-30-retire-demographics-reid-tables.sql",
         source="R8 S4 owner ruling 2026-09-30 (folded in by B3.3)",
+    ),
+    Upgrade(
+        id="0005-add-unrecorded-model-columns",
+        filename="2026-10-18-add-unrecorded-model-columns.sql",
+        source="B3.3 box 6 (the 12 January-2026 model columns no upgrade ever recorded)",
     ),
 )
 

@@ -9,7 +9,7 @@ its SQL (`executed = false`); else the SQL runs and is recorded. The CHECK, the 
 record for one upgrade share ONE transaction, so an upgrade and its record land together or not
 at all, and a concurrent worker cannot slip between the check and the record.
 
-Why not "just run the files": three of the four are ``IF NOT EXISTS``-idempotent, but NEM-5051 is
+Why not "just run the files": the four runbooks split -- three are ``IF NOT EXISTS``-idempotent, but NEM-5051 is
 ``ALTER TABLE ... ALTER COLUMN ... TYPE jsonb``, which rewrites the column and takes
 ``ACCESS EXCLUSIVE`` on ``alerts`` and ``alert_rules``. A database that `create_all` built
 already has those columns as ``jsonb``, so blind re-apply would take that lock on every boot and
@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncTransaction
 
 from backend.migrations import registry
 from backend.migrations.checks import CHECKS
@@ -288,7 +288,12 @@ async def apply_all(
     if dry_run:
         return await plan(conn, upgrades, nested=nested)
 
-    def begin():
+    def begin() -> AsyncTransaction:
+        # Measured, not stylistic: with the annotation removed, `mypy --disallow-untyped-calls`
+        # reports "Call to untyped function \"begin\" in typed context" at the `async with
+        # begin():` sites, i.e. the transaction handling -- the part that must not regress -- is
+        # exactly what loses its types. Both helpers return AsyncTransaction (checked with
+        # typing.get_type_hints), so the annotation is exact rather than a widening to Any.
         return conn.begin_nested() if nested else conn.begin()
 
     if nested:

@@ -33,10 +33,29 @@ backend/migrations/
 2. Add an `Upgrade(id, filename, source)` to `registry.UPGRADES`. **The id is permanent** — once
    a database records it, renaming it is `UpgradeDriftError`, not a renumber. Append; never
    reorder what shipped.
-3. Add a predicate to `checks.CHECKS` **if the file is not safe to re-run** (it changes a type,
-   rewrites rows, or drops something a running server reads). A file that is
-   `IF NOT EXISTS`-idempotent needs no check: the runner's default is "assume not in place, run
-   it", which for an idempotent file is both correct and self-healing.
+3. Add a predicate to `checks.CHECKS` when EITHER is true:
+   - the file is **not safe to re-run** (changes a type, rewrites rows, drops something a running
+     server reads) — then the check is the thing standing between a fresh boot and a rewrite; or
+   - the file's effect is one `create_all` **already delivers** on a fresh database — then the
+     check keeps a no-op from being _executed_ on every boot of every fresh install.
+
+   "It changes nothing" is not "it costs nothing." An `IF NOT EXISTS` statement is safe to re-run
+   but still takes a lock before it evaluates the `IF NOT EXISTS`: `ALTER TABLE` takes
+   `ACCESS EXCLUSIVE` (blocks readers and writers), `CREATE INDEX` takes `SHARE` (blocks writers),
+   and `ALTER COLUMN … TYPE` is the worst — `ACCESS EXCLUSIVE` _and_ a full rewrite. So a file
+   whose effect `create_all` already built wants a check purely to skip that lock on a healthy
+   boot, even though re-running it would be harmless.
+
+   A file that is neither case is the only one where the runner's "assume not in place, run it"
+   default is what you want: correct and self-healing for an idempotent file whose effect
+   `create_all` cannot build. **0005 is the precedent for the second bullet**: twelve
+   `ADD COLUMN IF NOT EXISTS` statements, safe to re-run, still given an
+   `all_present(column_present(…))` check because a `create_all` database already has all twelve
+   columns — proven by `test_upgrade_command_records_a_create_all_database_without_running_sql`,
+   which asserts `verified` + zero statements for every upgrade on a fresh database. Do NOT strip
+   that check because "the file is idempotent"; that reading of this list is what the second
+   bullet exists to block.
+
 4. `uv run python -m backend.migrations --dry-run` against a scratch database, then `--apply`
    twice: the second run must print `recorded, nothing to do` for every upgrade.
 
@@ -45,10 +64,10 @@ An `.sql` file in `docs/api/migrations/` that no `UPGRADES` entry names is repor
 
 ## The two questions, which are not the same question
 
-- *"Is this file idempotent?"* is a property of the SQL text. It means re-running is harmless.
-- *"Is the effect already in place?"* is a property of **this database**. It means re-running is
+- _"Is this file idempotent?"_ is a property of the SQL text. It means re-running is harmless.
+- _"Is the effect already in place?"_ is a property of **this database**. It means re-running is
   unnecessary — and for NEM-5051 that difference is the whole design: `ALTER COLUMN ... TYPE
-  jsonb` rewrites the column and takes `ACCESS EXCLUSIVE` on `alerts`/`alert_rules`, and a
+jsonb` rewrites the column and takes `ACCESS EXCLUSIVE` on `alerts`/`alert_rules`, and a
   `create_all`-built database already has those columns as `jsonb`. Blind re-apply at startup
   would take that lock on every boot, and would fail outright the day a view depends on one of
   those columns. So the runner asks the second question, and when the answer is yes it records
@@ -69,9 +88,16 @@ An `.sql` file in `docs/api/migrations/` that no `UPGRADES` entry names is repor
   `COPY docs/api/migrations` in every runtime stage or the startup upgrade silently no-ops.
   Both stages do (dev + prod), and `.dockerignore` carries `!docs/api/migrations/**` to re-include
   the directory through the `docs/` prune — verified empirically that the negation brings the
-  directory *and its contents* back and nothing else under `docs/`. `Upgrade.read_sql` fails loud
+  directory _and its contents_ back and nothing else under `docs/`. `Upgrade.read_sql` fails loud
   naming that remedy if the COPY goes missing, and
   `backend/tests/unit/migrations/test_registry_lexing.py` pins the message.
+- 0005's CHECK **derives its column list from the shipped file** (`checks._add_column_pairs`), so
+  `import backend.migrations.checks` reads `docs/api/migrations/2026-10-18-*.sql` from disk. That
+  moves the missing-file failure earlier: an image that lost its `COPY` now fails at package
+  import — which is during `init_db()`, since the startup hook imports the runner — instead of when
+  0005 runs. Same loud `UpgradeError` naming the COPY remedy, one step sooner, and "loud at boot" is
+  the outcome this whole rule is about. New upgrades should follow the pattern: a hand-transcribed
+  column list drifts silently, a derived one cannot.
 - `init_db()` runs `apply_all` **inside the same advisory lock and transaction as `create_all`**,
   as savepoints (`nested=True`). That is what makes a restart upgrade a database, and it is why
   `plan`/`apply_all` take a `nested` flag: on an already-open transaction `conn.begin()` raises
@@ -91,4 +117,4 @@ An `.sql` file in `docs/api/migrations/` that no `UPGRADES` entry names is repor
 - `backend/tests/unit/migrations/test_registry_lexing.py` — the failure modes that no database can
   see: a lexer that splits inside a string literal, a checksum that normalizes a real edit away, a
   `checks.py` list that loses a column. It found the block-comment hang in `split_statements`,
-  which the four shipped files cannot trigger (they use only `--` comments).
+  which the shipped files cannot trigger (they use only `--` comments).
