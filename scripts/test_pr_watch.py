@@ -239,15 +239,17 @@ def test_check_still_running_is_not_reported():
 def test_a_reinstanciated_check_collapse_is_positional_last_wins():
     """A name with two instances collapses to the LAST node in the window, not the first.
 
-    Characterization, found while reading #7238's CI: one CheckRun name has many instances (a
-    re-run mints a new row and the old one stays in the connection), so `contexts.nodes` really can
-    carry `CI Gate (Required Checks)` twice, and `_checks` builds `{name: conclusion}` with
-    `out[name] = conclusion` -- LAST node wins. That is a MEASURED ORDER ASSUMPTION, not a lookup:
-    the window is `contexts(last: …)`, which is oldest-first, so last-position happens to be the
-    newest instance. Nothing in the query fetches a check-run `id` to rank on (pinned by
-    `test_the_check_window_selects_no_id_to_rank_on`), so if GitHub ever returns those two rows in
-    the other order the watcher reports the SUPERSEDED verdict and prints it as news. The failure
-    this pins is silent: both rows are green-ish strings and the line still looks sane.
+    Characterization, found while reading #7238's CI: `_checks` builds `{name: conclusion}` with
+    `out[name] = conclusion`, so a name carried twice by `contexts.nodes` keeps the LAST node's
+    conclusion. The duplicate-name shape was OBSERVED, not assumed -- #7240's head carried
+    `CI Gate (Required Checks)` twice in the window (self-review of #7238, 2026-10-17). Whether a
+    re-run leaves the superseded instance in the `contexts(last: ...)` window is not a documented
+    order: the self-review's head `362f45f04` is a counter-example where the rollup and REST's
+    newest-instance disagree. That is exactly the assumption this pins: LAST-position, whatever
+    "newest" means. Nothing in the query fetches a check-run `id` to rank on (pinned by
+    `test_the_check_window_selects_no_id_to_rank_on`), so if those rows ever arrive in the other
+    order the watcher reports the SUPERSEDED verdict and prints it as news. The failure this pins
+    is silent: both rows are green-ish strings and the line still looks sane.
 
     Not aspirational -- do not "fix" this test into demanding an id sort. It is here so that the
     day someone ranks by id, they change the query AND this test together.
@@ -280,14 +282,35 @@ def test_a_reinstanciated_check_collapse_is_positional_last_wins():
 def test_the_check_window_selects_no_id_to_rank_on():
     """The CheckRun selection fetches no `id`, which is WHY the collapse above is positional.
 
-    Line-scoped on purpose: `id` IS selected for reviews and comments (`nodes { id author … }`), so
-    a substring test over the whole query would pass while telling nothing about the check window.
+    Two scopes, both deliberate. Whole-query substrings would prove nothing: `id` IS selected for
+    reviews and comments (`nodes { id author … }`). But a per-LINE scan (the first version of this
+    test) had its own hole, found by #7238's fresh-context self-review: reformat the selection as
+    `... on CheckRun {` with `id` on its own continuation line and the anchor line stays clean
+    while the query now fetches an id. So this scans the whole selection BLOCK -- the anchor line
+    plus any continuation lines up to the next fragment or the closing brace -- and it scans only
+    that block: a `... on StatusContext` id is a status-context id, outside this test's claim.
     """
     query = watch.query_text([PR], REPO, RULING_ISSUE)
-    lines = [ln for ln in query.splitlines() if "on CheckRun" in ln]
-    assert lines, "the query must select CheckRun nodes at all"
-    for line in lines:
-        assert not re.search(r"\bid\b", line), f"check rows carry no id to rank on: {line.strip()}"
+    lines = query.splitlines()
+    anchors = [i for i, ln in enumerate(lines) if "on CheckRun" in ln]
+    assert anchors, "the query must select CheckRun nodes at all"
+    for i in anchors:
+        head = lines[i].strip()
+        if head.endswith("{"):  # multi-line selection: fields live on the continuation lines
+            block = []
+            for j in range(i + 1, len(lines)):
+                nxt = lines[j].strip()
+                if nxt.startswith("...") or nxt.startswith("}"):
+                    break
+                block.append(nxt)
+        else:
+            block = [head]
+        assert block, f"the CheckRun selection must select fields: {lines[i].strip()}"
+        joined = " ".join(block)
+        assert not re.search(r"\bid\b", joined), (
+            f"check rows carry no id to rank on: {joined!r} -- if you added one to rank on, "
+            "fix the collapse in `_checks` in the same commit, not just this line"
+        )
 
 
 def test_new_review_is_reported():
