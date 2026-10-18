@@ -3067,7 +3067,17 @@ class AgentGpu:
         subcommand (``drop`` included) die at import time there. Here is the
         only reader; only ``start`` pays for it.
         """
-        import yaml
+        try:
+            import yaml
+        except ModuleNotFoundError as error:
+            raise HarnessError(
+                "this path reads docker-compose.prod.yml with pyyaml, which bare "
+                "python3 does not carry (pyyaml is a dev-only dependency, "
+                "pyproject.toml). Run the harness under a python that has it: "
+                "`uv run scripts/feature_check.py …`, or `export "
+                "PATH=<checkout>/.venv/bin:$PATH` first. The wrapper's bare "
+                "python3 stays import-clean on purpose."
+            ) from error
 
         raw = yaml.safe_load(PROD_STACK.read_text(encoding="utf-8"))
         return (raw.get("services") or {}).get("ai-vlm", {}).get("environment") or []
