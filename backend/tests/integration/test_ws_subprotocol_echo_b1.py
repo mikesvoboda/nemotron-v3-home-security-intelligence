@@ -105,11 +105,10 @@ def _iswebsocket_receiver(fn: ast.Attribute) -> bool:
 
 
 def test_the_accept_sweep_finds_the_known_sites() -> None:
-    """The sweep finds the 10 production accept sites the tree holds as
-    re-counted on 2026-10-12 (5 in websocket_auth, 2 in auth.py — gate refuse
-    + route-key fallback, 1 route accept, 2 broadcaster connects) — if it
-    finds fewer, the sweep itself rotted and every other test here would pass
-    vacuously.
+    """The sweep finds the 9 production accept sites the tree holds as
+    re-counted on 2026-10-18 (5 in websocket_auth, 2 in auth.py — gate refuse
+    + route-key fallback, 2 broadcaster connects) — if it finds fewer, the
+    sweep itself rotted and every other test here would pass vacuously.
 
     B-1 counted 12 on 2026-10-09. #6950 (`49dd54a90`) deleted two of them in
     ``websocket_auth.py`` — one in ``authenticate_websocket_cookie``, one in
@@ -121,7 +120,15 @@ def test_the_accept_sweep_finds_the_known_sites() -> None:
     and is wrong: ``authenticate_websocket_jwt`` keeps both of its accepts
     (``:262``, ``:267``) at this head, untouched by that commit. So the FLOOR
     went stale, not the sweep: the nightly's red is this arithmetic, and the
-    two deleted sites are gone on purpose. Re-count the sites here whenever
+    two deleted sites are gone on purpose.
+
+    #7247 (`395576010`, F-091 jobs-live-log-viewer retirement, merged
+    2026-10-18) deleted the one ROUTE accept: with the manager the only
+    connection owner since #7230, the jobs live-log stream socket is gone,
+    and ``backend/api/routes/websocket.py`` holds no ``accept()`` any more
+    (its whole 269-line route module left in that commit). Same reading as
+    the #6950 red: the floor went stale, not the sweep — 10 -> 9, all four
+    remaining files untouched. Re-count the sites here whenever
     accept sites legitimately move. The floor's job is to notice a DELETION
     the sweep did not mean, which is what the bound above is for — it is a
     BOUND (``>=``), not an exact count, exactly as the retired floor was
@@ -138,18 +145,19 @@ def test_the_accept_sweep_finds_the_known_sites() -> None:
     what the ``>=`` shape buys — a new accept belongs in this tuple only when
     someone re-counts, and tier 2 is what forces ``subprotocol=`` on it now."""
     sites = _production_accepts()
-    assert len(sites) >= 10, f"sweep found only {len(sites)} accept sites: {sites}"
+    assert len(sites) >= 9, f"sweep found only {len(sites)} accept sites: {sites}"
     counts: dict[str, int] = {}
     for site in sites:
         counts[site.split(":")[0]] = counts.get(site.split(":")[0], 0) + 1
     # Floor per file the docstring above counts, set AT today's count so a
     # deletion in any one of them trips THIS file's floor rather than hiding
     # inside the total. ``got`` prints the whole census so a red says which
-    # file moved, not just which floor broke.
+    # file moved, not just which floor broke. websocket.py's row left with
+    # F-091's route accept (see the docstring); the other four counts are the
+    # 2026-10-18 census.
     floors = {
         "backend/api/middleware/auth.py": 2,
         "backend/api/middleware/websocket_auth.py": 5,
-        "backend/api/routes/websocket.py": 1,
         "backend/services/event_broadcaster.py": 1,
         "backend/services/system_broadcaster.py": 1,
     }
