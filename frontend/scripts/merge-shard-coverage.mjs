@@ -162,14 +162,22 @@ export function mergeFiles(paths) {
   return merged;
 }
 
-// WP2.3 R-1: the frontend floors ARE these numbers, measured 2026-09-20 on
-// run 35486259345's merged totals (statements 80.0 / branches 74.6 /
-// functions 78.4 / lines 80.9). They replace the declared 83/77/81/84 —
-// which no run ever met, so "enforcing" them was never on the table; R-7
-// makes the gate blocking once the baseline is the measured value. These
-// constants + the --enforce flag below are the enforcement point; CI passes
-// the flag so a merged number under any floor reddens the merge job.
-export const FLOORS = { statements: 80, branches: 74.6, functions: 78.4, lines: 80.9 };
+// WP2.3 R-1: the frontend floors ARE these numbers, measured from the
+// merged totals of CI's own coverage shards (statements / branches /
+// functions / lines, rounded down to one decimal place). They replace the
+// declared 83/77/81/84 — which no run ever met, so "enforcing" them was
+// never on the table; R-7 makes the gate blocking once the baseline is the
+// measured value. These constants + the --enforce flag below are the
+// enforcement point; CI passes the flag so a merged number under any floor
+// reddens the merge job.
+//
+// Owner ruling 261 (record 6256508661, 2026-10-18): a one-off exception to
+// UR-69 — re-pinned to the post-cut merged values of run 39161827871 at
+// d78f1a7ed (79.7 / 74.6 / 77.4 / 80.7 over 692 kept files; the floors the
+// cut's composition shifts required). Makes no standing rule for other
+// deletion PRs; a later deletion PR that lowers merged coverage the same
+// way asks the owner again.
+export const FLOORS = { statements: 79.7, branches: 74.6, functions: 77.4, lines: 80.7 };
 
 function main() {
   const argv = process.argv.slice(2);
