@@ -77,6 +77,13 @@ class TestInitDbAdvisoryLock:
                     autospec=True,
                 ),
                 patch("backend.core.database.async_sessionmaker", autospec=True),
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the advisory lock around create_all, so the
+                # upgrade step is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -148,6 +155,13 @@ class TestInitDbAdvisoryLock:
                     autospec=True,
                 ),
                 patch("backend.core.database.async_sessionmaker", autospec=True),
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the advisory lock around create_all, so the
+                # upgrade step is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -223,6 +237,13 @@ class TestInitDbAdvisoryLock:
                     autospec=True,
                 ),
                 patch("backend.core.database.async_sessionmaker", autospec=True),
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the advisory lock around create_all, so the
+                # upgrade step is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -288,6 +309,11 @@ class TestInitDbAdvisoryLock:
             mock_engine = AsyncMock()
             mock_engine.begin = MagicMock(return_value=mock_begin_ctx)
 
+            # B3.3: the skip must cover BOTH halves of the guarded branch -- create_all and the
+            # upgrade run -- so hold the apply_all stub to assert it was never awaited, not just
+            # that run_sync was never called.
+            apply_all_mock = AsyncMock(return_value=[])
+
             with (
                 patch("backend.core.database.get_settings", autospec=True) as mock_settings,
                 patch(
@@ -296,6 +322,13 @@ class TestInitDbAdvisoryLock:
                     autospec=True,
                 ),
                 patch("backend.core.database.async_sessionmaker", autospec=True),
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the advisory lock around create_all, so the
+                # upgrade step is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=apply_all_mock),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -314,6 +347,9 @@ class TestInitDbAdvisoryLock:
                     "init_db should skip schema creation when advisory lock is not acquired "
                     "(another worker is handling it)"
                 )
+                # The upgrade run rides the same guarded branch; skipping it is part of the
+                # contract (the winner worker runs it under the same lock).
+                apply_all_mock.assert_not_awaited()
 
         finally:
             # Restore original state
@@ -375,6 +411,13 @@ class TestInitDbAdvisoryLock:
                     autospec=True,
                 ),
                 patch("backend.core.database.async_sessionmaker", autospec=True),
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the advisory lock around create_all, so the
+                # upgrade step is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",

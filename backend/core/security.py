@@ -26,12 +26,6 @@ class PathSecurityError(ValueError):
     pass
 
 
-class ModelIntegrityError(ValueError):
-    """Raised when model integrity verification fails."""
-
-    pass
-
-
 # =============================================================================
 # Path Validation (NEM-4501, NEM-4511, NEM-4514)
 # =============================================================================
@@ -341,10 +335,8 @@ def verify_model_integrity(
         algorithm: Hash algorithm to use
 
     Returns:
-        True if checksum matches, False otherwise
-
-    Raises:
-        ModelIntegrityError: If verification fails and strict mode is enabled
+        True if checksum matches, False otherwise. A missing known checksum or an
+        unreadable file is logged and reported as a bool -- nothing is raised.
     """
     path = Path(file_path)
 

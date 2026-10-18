@@ -62,6 +62,13 @@ class TestInitDbPoolConfiguration:
                 patch(
                     "backend.core.database.async_sessionmaker", autospec=True
                 ) as mock_sessionmaker,
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the engine/pool kwargs, so the upgrade step
+                # is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -123,6 +130,13 @@ class TestInitDbPoolConfiguration:
                 patch(
                     "backend.core.database.async_sessionmaker", autospec=True
                 ) as mock_sessionmaker,
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the engine/pool kwargs, so the upgrade step
+                # is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -179,6 +193,13 @@ class TestInitDbPoolConfiguration:
                     autospec=True,
                 ) as mock_create_engine,
                 patch("backend.core.database.async_sessionmaker", autospec=True),
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the engine/pool kwargs, so the upgrade step
+                # is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -401,6 +422,13 @@ class TestPoolTimeoutBehavior:
                     autospec=True,
                 ) as mock_create_engine,
                 patch("backend.core.database.async_sessionmaker", autospec=True),
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the engine/pool kwargs, so the upgrade step
+                # is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -454,6 +482,13 @@ class TestPoolTimeoutBehavior:
                     autospec=True,
                 ) as mock_create_engine,
                 patch("backend.core.database.async_sessionmaker", autospec=True),
+                # B3.3: init_db() runs the recorded upgrades after create_all, and these
+                # tests MOCK the connection -- so the real apply_all would issue catalog
+                # queries against an AsyncMock and die on its first result.mappings().
+                # The runner has its own suite (unit/migrations + the integration upgrade
+                # path); here the subject is the engine/pool kwargs, so the upgrade step
+                # is stubbed out rather than faked.
+                patch("backend.migrations.runner.apply_all", new=AsyncMock(return_value=[])),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",

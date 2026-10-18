@@ -141,25 +141,28 @@ outside `keep.toml`, and the suite is green.
 ### B3.3 Settings and residue truth
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7244. (ruling 241)
 
-- [ ] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
+- [x] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
       and delete them with their `.env.example` and compose lines.
-- [ ] Add a ratchet test: every `Settings` field is read outside `config.py`, or sits on an
+- [x] Add a ratchet test: every `Settings` field is read outside `config.py`, or sits on an
       allowlist with a reason.
 - [ ] Rename live code still carrying retired names (`get_nemotron_analyzer_dep`,
       `summary_generator._call_nemotron`, Nemotron-named metrics); delete the uncalled metrics and
       unused exception classes `00 §4.1` lists.
 - [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
-- [ ] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
+- [x] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
       `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
       `docs/api/migrations/` is applied by hand. One ordered, checked upgrade command records which
       upgrades a database has had; Alembic or a small runner over `docs/api/migrations/` is this
       package's design choice, and the `alembic` dependency stays or goes with it (`00 §7`). The
       four existing SQL files become its first recorded upgrades or are marked applied.
-- [ ] A test starts from a saved pre-upgrade schema with rows in it, upgrades it, and checks the
-      rows survive. The integration tests boot through the command; no fixture adds a column
-      (`backend/tests/integration/conftest.py:855` does today).
+- [x] A test starts from a saved pre-upgrade schema with rows in it, upgrades it, and checks the
+      rows survive. The integration tests boot through the command; no fixture adds a column. (The
+      three fixture sites that did -- `backend/tests/integration/conftest.py`,
+      `backend/tests/conftest.py`'s two twins -- are deleted in this PR; the duplicate-camera
+      DELETEs and unique indexes stay, because the index cannot be built before them and deleting
+      rows is owner-tier, UR-98.)
 
 **Done when:** the ratchet test passes; a database saved from today's `main` upgrades with its rows
 intact in CI; and the PR reports the before/after count of `nemotron`, `florence` and `enrichment`

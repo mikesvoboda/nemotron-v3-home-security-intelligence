@@ -623,7 +623,7 @@ Provides FastAPI-compatible dependency functions that inject services from the D
 | `get_redis_dependency`                  | RedisClient             | Redis client for caching/queues   |
 | `get_context_enricher_dependency`       | ContextEnricher         | Detection context enrichment      |
 | `get_enrichment_pipeline_dependency`    | EnrichmentPipeline      | Full enrichment pipeline          |
-| `get_nemotron_analyzer_dependency`      | NemotronAnalyzer        | LLM risk analysis                 |
+| `get_vlm_analyzer_dependency`           | VlmAnalyzer             | LLM risk analysis                 |
 | `get_detector_dependency`               | DetectorClient          | YOLO26 object detection           |
 | `get_face_detector_service_dependency`  | FaceDetectorService     | Face detection in person regions  |
 | `get_plate_detector_service_dependency` | PlateDetectorService    | License plate detection           |

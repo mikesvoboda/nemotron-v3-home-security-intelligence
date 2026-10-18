@@ -514,6 +514,11 @@ ignore = [
 "backend/scripts/**/*.py" = [
     "T201",   # print() ok in benchmark/utility scripts for CLI output
 ]
+# The upgrade CLI's whole job is the operator-readable status table (`--status` prints what a
+# database has had and what it owes); logging is the wrong channel for a command a human runs.
+"backend/migrations/__main__.py" = [
+    "T201",   # print() ok in a CLI entry point
+]
 "setup.py" = [
     "T201",   # print() ok in setup script for CLI output
 ]

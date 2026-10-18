@@ -272,7 +272,7 @@ class SummaryGenerator:
             )
         else:
             try:
-                content = await self._call_nemotron(
+                content = await self._call_vlm(
                     window_start=window_start,
                     window_end=window_end,
                     period_type=period_type,
@@ -381,7 +381,7 @@ class SummaryGenerator:
 
         return context
 
-    async def _call_nemotron(
+    async def _call_vlm(
         self,
         window_start: datetime,
         window_end: datetime,

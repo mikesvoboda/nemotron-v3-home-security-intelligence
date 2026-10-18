@@ -19,8 +19,6 @@ def mock_settings():
     settings = MagicMock()
     settings.redis_cluster_enabled = True
     settings.redis_cluster_nodes = "redis-node1:6379,redis-node2:6379,redis-node3:6379"
-    settings.redis_cluster_read_from_replicas = True
-    settings.redis_cluster_max_connections_per_node = 10
     settings.redis_password = None
     settings.redis_ssl_enabled = False
     return settings
