@@ -104,7 +104,7 @@ scripts/
   generate-docs.sh                   # Generate documentation
   load-test.sh                       # Load testing shell wrapper
   load_test.py                       # Load testing Python implementation
-  mutation-test.sh                   # Mutation testing runner
+  mutation-test.sh                   # Mutation testing runner (+ mutation-run.sh, mutation-diff.py)
   verify-observability.sh            # Verify observability stack (Prometheus, Grafana, etc)
 
   # Utilities
@@ -1030,7 +1030,7 @@ git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/models/
 
 **Runs:**
 
-- `mutmut` for Python backend
+- `mutmut` for Python backend (`scripts/mutation-run.sh`; PR kill-loss diff via `scripts/mutation-diff.py`)
 - `stryker` for TypeScript frontend
 - Generates mutation score reports
 

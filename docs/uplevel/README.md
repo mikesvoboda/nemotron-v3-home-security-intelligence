@@ -202,7 +202,7 @@ UR-147.
 | O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | not started |     |
 | O3.4    | ops                     | 3          | Reachability gates in CI                       |               | not started |     |
 | O3.5    | ops                     | 3          | Weekly mutation scorer and history (`01` M2)   |               | not started |     |
-| O3.6    | ops                     | 3          | PR mutation evidence tool (`01` M4)            | heavy         | not started |     |
+| O3.6    | ops                     | 3          | PR mutation evidence tool (`01` M4)            | heavy         | done        | #7251 |
 | O3.7    | ops                     | 3          | `scripts/` truth                               |               | not started |     |
 | B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
