@@ -82,7 +82,6 @@ Node.js major version is specified by `.nvmrc` at the repository root (currently
 | `README-TESTING.md`  | Bun vs Vitest compatibility guide                                                                                                                                                                                                  |
 | `TEST_QUICKSTART.md` | Quick reference for running tests                                                                                                                                                                                                  |
 | `package-lock.json`  | npm lockfile — **the one that matters**: every CI job installs with `npm ci`, and `scripts/validate.sh` runs the frontend checks through npm                                                                                       |
-| `bun.lock`           | Bun lockfile, kept for local Bun users only. Bun is a convenience: `bun install`/`bun run` work, but nothing in CI uses Bun. If the two lockfiles disagree, `package-lock.json` wins — refresh `bun.lock` from it, not the reverse |
 
 ## NPM Scripts
 
@@ -598,15 +597,12 @@ Located in `src/stores/`. All stores follow Zustand 5 patterns with Immer middle
 
 | Store File                  | Purpose                                      | Key Exports                                        |
 | --------------------------- | -------------------------------------------- | -------------------------------------------------- |
-| `settings-store.ts`         | App settings (ambient, audio, notifications) | `useSettingsStore`, `useAudioSettings`             |
 | `dashboard-config-store.ts` | Dashboard widget layout and theme            | `useDashboardConfigStore`, `useDashboardWidgets`   |
 | `prometheus-alert-store.ts` | Prometheus alert state                       | `usePrometheusAlertStore`, `selectCriticalAlerts`  |
 | `rate-limit-store.ts`       | API rate limit tracking                      | `useRateLimitStore`, `useRateLimitStatus`          |
-| `realtime-metrics-store.ts` | GPU, pipeline, and inference metrics         | `useRealtimeMetricsStore`, `handleGPUStatsEvent`   |
 | `storage-status-store.ts`   | Storage usage and warnings                   | `useStorageStatusStore`, `useStorageWarningStatus` |
 | `worker-status-store.ts`    | Background worker health                     | `useWorkerStatusStore`, `usePipelineHealth`        |
 | `middleware.ts`             | Shared Zustand middleware utilities          | `createImmerStore`, `useShallow`, `shallow`        |
-| `dashboardConfig.ts`        | Legacy dashboard config (compatibility)      | `getDashboardConfig`, `setDashboardConfig`         |
 | `index.ts`                  | Barrel re-exports for all stores             | All store exports                                  |
 
 ## Application Routes

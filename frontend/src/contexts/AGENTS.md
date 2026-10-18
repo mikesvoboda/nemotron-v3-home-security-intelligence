@@ -31,8 +31,6 @@ frontend/src/contexts/
 | `DebugModeContext.test.tsx`    | Tests for debug mode context                     |
 | `SystemDataContext.tsx`        | System data provider for shared system state     |
 | `SystemDataContext.test.tsx`   | Tests for system data context                    |
-| `ToastContext.tsx`             | Toast notification provider with auto-dismiss    |
-| `ToastContext.test.tsx`        | Comprehensive tests for toast functionality      |
 
 ## Toast Context (`ToastContext.tsx`)
 

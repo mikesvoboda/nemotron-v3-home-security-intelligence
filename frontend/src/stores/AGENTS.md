@@ -20,8 +20,6 @@ Stores manage application state that needs to persist across sessions or be shar
 | `middleware.test.ts`               | Tests for middleware utilities                              |
 | `settings-store.ts`                | **Application settings with Zustand 5 patterns (NEM-3786)** |
 | `settings-store.test.ts`           | Tests for settings store                                    |
-| `../utils/createSelectors.ts`      | Auto-selector generator for optimized re-renders            |
-| `../utils/createSelectors.test.ts` | Tests for auto-selector utility                             |
 | `dashboard-config-store.ts`        | Dashboard widget configuration store (Zustand)              |
 | `dashboard-config-store.test.ts`   | Tests for dashboard configuration store                     |
 | `dashboardConfig.ts`               | Legacy dashboard config (deprecated, use new store)         |

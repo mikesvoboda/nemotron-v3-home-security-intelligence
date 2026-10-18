@@ -9,7 +9,6 @@ Focused tests for settings panels that need isolation from the rest of the setti
 | File                                         | Component Under Test         | Key Coverage                                                                                                |
 | -------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `CamerasSettings.motionSensitivity.test.tsx` | `../CamerasSettings.tsx`     | Motion-sensitivity slider: RTSP-only, 0-1 range step 0.01, default 0.5, `motion_sensitivity` in API payload |
-| `FeatureTogglesPanel.test.tsx`               | `../FeatureTogglesPanel.tsx` | Toggle rendering, `useSettingsApi` save/invalidate behavior                                                 |
 
 ## Test Patterns
 
