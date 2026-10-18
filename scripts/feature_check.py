@@ -779,7 +779,13 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
     )
 
 
-def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None) -> dict[str, Any]:
+def as_prod_shape_deployment(
+    rendered: Mapping[str, Any],
+    *,
+    vlm_url: str | None,
+    fake_gateway: Mapping[str, Any] | None = None,
+    fake_vlm: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """The run-time transforms the authored override cannot carry.
 
     The prod-shape path does NOT go through :func:`as_test_deployment` (measured:
@@ -799,6 +805,37 @@ def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None
       ask the engine for ``nvidia.com/gpu=0``: a second GPU consumer racing agent-gpu's
       own container, and not the deployment the 12 real-tier rows witness.
 
+    Ruling 256 (record 6250363327) split O2.5 by venue and binds two more shapes on
+    these transforms. Its reason names the mechanism: agent-gpu gives the GPU to one
+    container it starts on the host, never to the containers of a compose stack inside
+    a sandbox -- the operator's attempt 2 (record 6195692210) died at
+    ``unresolvable CDI devices nvidia.com/gpu=all`` with exactly one device-declaring
+    service left in its boot document. The ruling:
+
+    * SANDBOX RUN (``--real --prod-shape``, item 1): the stack keeps no GPU consumer
+      except the VLM. The caller passes ``fake_gateway`` (the fake ``ai-gateway`` body
+      the CI+fake render produces -- ruling 207's CI-tier fake) and this function
+      replaces prod's gateway wholesale with it: the prod body's CDI
+      ``nvidia.com/gpu=all`` and its deploy GPU reservation never boot, and the
+      backend's gateway URLs keep working because the fake answers the same port and
+      routes. ``backend``'s own deploy GPU reservation is stripped (the backend sees a
+      GPU through NVML in its own container -- the maui run witnesses that; a sandbox
+      boot that died asking for a GPU the venue never had would be indistinguishable
+      from a harness bug). A ``dcgm-exporter`` that somehow reaches the transform is
+      dropped (it sits behind prod's ``gpu-rootful`` profile, so a profile-less render
+      never carries it -- the drop is belt, the naming is the ruling's clause).
+    * MAUI RUN (``--prod-shape`` without ``--real``, item 2): the caller passes
+      ``fake_vlm`` instead -- the fake VLM replaces the in-stack one, whose CDI line is
+      "the one GPU line neither run boots" (the ruling's own words), while production's
+      CDI for ``ai-gateway``, ``dcgm-exporter`` and ``backend`` is kept UNTOUCHED -- that
+      stack booting with every device resolved is what the maui run witnesses. Passing
+      the sandbox venue's ``fake_gateway`` here is refused: a caller asking for one
+      venue's transform on the other venue would silently witness the wrong deployment.
+    * the record names every removed or stripped device, on both venues. The
+      deployment carries ``_device_changes`` so the caller can lift it into the run
+      summary verbatim -- a silent swap would describe a deployment the venue never
+      booted, which is the failure mode the operator's attempt-2 record shows.
+
     These are NOT put in the authored override for two reasons. It is a frozen,
     hand-authored artifact whose changes ruling 162 item 3 caps at three kinds
     (socket, pinned name, port/path) -- ``test_only_the_three_kinds_of_key_change``
@@ -806,17 +843,116 @@ def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None
     is per-run, so static YAML cannot express it at all. Same split as the CI tier:
     the file carries the shape, the runner carries the run.
     """
+    if fake_gateway is not None and fake_vlm is not None:
+        raise HarnessError(
+            "fake_gateway and fake_vlm cannot combine: the sandbox run swaps the gateway "
+            "(--real --prod-shape), the maui run swaps the VLM (--prod-shape without --real), "
+            "and one run witnesses exactly one of the two venues"
+        )
+    if fake_gateway is not None and vlm_url is None:
+        raise HarnessError(
+            "fake_gateway without vlm_url is the sandbox venue's transform on no venue: "
+            "--real --prod-shape carries both the agent-gpu VLM and the fake gateway "
+            "(ruling 256 item 1)"
+        )
+    if fake_vlm is not None and vlm_url is not None:
+        raise HarnessError(
+            "fake_vlm and vlm_url combine two venues' shapes: the maui run (ruling 256 "
+            "item 2) has no agent-gpu, so it has no URL to pass"
+        )
     deployment = copy.deepcopy(dict(rendered))
     services = deployment.get("services") or {}
     backend = services.get("backend")
     if backend is None:
         raise HarnessError("the prod-shape render has no backend service")
+    device_changes: list[str] = []
     environment = backend.setdefault("environment", {})
     environment["ORCHESTRATOR_ENABLED"] = "false"
+
+    def _consume_devices(service: Mapping[str, Any]) -> list[str]:
+        """Every device-shaped stanza on one service, for the record's naming duty."""
+        found = [str(device) for device in service.get("devices") or []]
+        reservations = ((service.get("deploy") or {}).get("resources") or {}).get(
+            "reservations"
+        ) or {}
+        found.extend(str(device) for device in reservations.get("devices") or [])
+        return found
+
+    if fake_gateway is not None:
+        prod_gateway = services.get("ai-gateway")
+        if prod_gateway is None:
+            raise HarnessError(
+                "the prod-shape render has no ai-gateway; the sandbox run's swap "
+                "(ruling 256 item 1) has nothing to replace"
+            )
+        removed = _consume_devices(prod_gateway)
+        services["ai-gateway"] = copy.deepcopy(dict(fake_gateway))
+        device_changes.append(
+            f"ai-gateway: replaced with the fake gateway (ruling 207's CI-tier fake); "
+            f"removed devices {removed or 'none'}"
+        )
+        for key, value in (
+            ("AI_GATEWAY_URL", "http://ai-gateway:8090"),
+            ("YOLO26_URL", "http://ai-gateway:8090/yolo26"),
+            ("ENRICHMENT_LIGHT_URL", "http://ai-gateway:8090/enrich-lt"),
+        ):
+            if key in environment:
+                environment[key] = value
+    else:
+        # The maui run keeps production's CDI for ai-gateway, dcgm-exporter and backend
+        # (ruling 256 item 2): the stack booting with every device resolved is what it
+        # witnesses. A profile-less render cannot carry dcgm-exporter (the gpu-rootful
+        # profile hides it), so the keeping is implicit -- and the device strip below is
+        # what must NOT run.
+        pass
+    if fake_vlm is not None:
+        prod_vlm = services.get("ai-vlm")
+        if prod_vlm is None:
+            raise HarnessError(
+                "the prod-shape render has no ai-vlm; the maui run's swap (ruling 256 "
+                "item 2) has nothing to replace"
+            )
+        removed = _consume_devices(prod_vlm)
+        services["ai-vlm"] = copy.deepcopy(dict(fake_vlm))
+        device_changes.append(
+            f"ai-vlm: replaced with the fake VLM; removed devices {removed or 'none'}"
+        )
     if vlm_url is not None:
         environment["AI_VLM_URL"] = vlm_url
-        services.pop("ai-vlm", None)
-    for name, service in services.items():
+        prod_vlm = services.get("ai-vlm")
+        if prod_vlm is not None:
+            removed = _consume_devices(prod_vlm)
+            services.pop("ai-vlm", None)
+            device_changes.append(
+                f"ai-vlm: removed (served by agent-gpu outside this render); "
+                f"removed devices {removed or 'none'}"
+            )
+    for name in list(services):
+        service = services[name]
+        deploy = service.get("deploy")
+        if name == "backend" and fake_gateway is not None and isinstance(deploy, dict):
+            # Sandbox venue only (ruling 256 item 1). The maui run KEEPS this reservation
+            # -- the backend seeing a GPU through NVML in its own container is exactly what
+            # the maui run witnesses (F-176, F-178, F-182).
+            resources = deploy.get("resources") or {}
+            reservations = resources.get("reservations") or {}
+            if reservations.get("devices"):
+                stripped = [str(device) for device in reservations["devices"]]
+                reservations.pop("devices", None)
+                if not reservations:
+                    resources.pop("reservations", None)
+                device_changes.append(
+                    f"backend: deploy GPU reservation stripped (the sandbox venue keeps no "
+                    f"GPU consumer except the VLM, ruling 256 item 1); removed {stripped}"
+                )
+        if name == "dcgm-exporter" and fake_gateway is not None:
+            removed = _consume_devices(service)
+            services.pop(name, None)
+            device_changes.append(
+                f"{name}: dropped (ruling 256 item 1: the sandbox run keeps no GPU "
+                f"consumer except the VLM); removed devices {removed or 'none'}"
+            )
+            continue
         depends_on = service.get("depends_on")
         if isinstance(depends_on, dict) and "ai-vlm" not in services:
             # the omission this transform performs deliberately (mirrors
@@ -827,6 +963,7 @@ def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None
                 raise HarnessError(
                     f"{name} depends on {dependency}, which this prod-shape render omits"
                 )
+    deployment["_device_changes"] = device_changes
     return deployment
 
 
@@ -1998,7 +2135,29 @@ class Run:
             # disk, so a refused render must leave nothing to boot.
             raise Refused(problems)
         self._write("prod-rendered.json", rendered)
-        rendered = as_prod_shape_deployment(rendered, vlm_url=vlm.url if vlm else None)
+        # Ruling 256 split O2.5 by venue, and the fake bodies come from the same place the
+        # CI tier gets its whole stack: the CI+fake render. The fake service CANNOT be
+        # spelled here statically -- its image is hsi-fake-ai and it must be BUILT first
+        # (docker/fake-ai/Dockerfile FROMs this run's backend image, so the fake and the
+        # backend it answers share one dependency set), and the runner decides per venue
+        # which of the two fakes it carries. prod's own build: sections are left exactly as
+        # prod spells them: the pre-build builds them under the project tag, and the maui
+        # run's gateway is the REAL one, built from prod's own Dockerfile.
+        fake_bodies = self.fake_service_bodies()
+        fake_gateway = fake_bodies.get("ai-gateway") if vlm else None
+        fake_vlm = fake_bodies.get("ai-vlm") if vlm is None else None
+        rendered = as_prod_shape_deployment(
+            rendered,
+            vlm_url=vlm.url if vlm else None,
+            fake_gateway=fake_gateway,
+            fake_vlm=fake_vlm,
+        )
+        device_changes = rendered.pop("_device_changes", [])
+        if device_changes:
+            # The record names every removed or stripped device (ruling 256): a reader of
+            # the summary must be able to see the venue's shape without diffing renders.
+            self.summary["results"]["device_changes"] = device_changes
+            _log(f"prod-shape device changes: {'; '.join(device_changes)}")
         # The CI tier's render() writes self.compose_file and EVERY later lifecycle call
         # boots it -- `up`, `_address` (`compose port`), `collect` (`logs`/`ps`) and
         # `teardown` (`down -v`) all go through deployment(). Without this line a
@@ -2014,6 +2173,28 @@ class Run:
             name: service.get("image") for name, service in (rendered.get("services") or {}).items()
         }
         self.prebuild_images()
+
+    def fake_service_bodies(self) -> dict[str, dict[str, Any]]:
+        """The fake AI services the CI tier renders, by name, for the prod-shape transforms.
+
+        The fake overlay cannot render alone (measured: its services join ``ci-net``,
+        which only ``docker-compose.ci.yml`` defines, so a solo render is refused by
+        compose rather than silently mixing with the prod stack) -- rendering CI+fake
+        here yields exactly two bodies worth taking, the ones ruling 256's two venues
+        swap in: ``ai-vlm`` and ``ai-gateway``. The bodies carry the fake's own image
+        (``hsi-fake-ai``), command, environment, healthcheck and deploy limits, and
+        nothing device-shaped. The prod render's network membership stays the prod
+        render's (``security-net``): the transform keeps it.
+        """
+        rendered = json.loads(
+            self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
+        )
+        services = rendered.get("services") or {}
+        return {
+            name: copy.deepcopy(service)
+            for name, service in services.items()
+            if name in ("ai-vlm", "ai-gateway")
+        }
 
     def prebuild_images(self) -> None:
         """Build the stack's `build:` images BEFORE `up`, so `up` builds nothing.
@@ -3240,9 +3421,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--prod-shape",
         action="store_true",
-        help="with --real, bring up the PRODUCTION compose shape (O2.5, ruling 144/162): "
+        help="bring up the PRODUCTION compose shape (O2.5, ruling 144/162): "
         "docker-compose.prod.yml + the prod-shape override on Podman, instead of the CI "
-        "stack. Refused without --real — the prod shape is the real tier's prod shape.",
+        "stack. With --real it is the sandbox run; without --real it is the maui run with "
+        "the fake VLM (ruling 256's venue split). Refused with --fake or --seeded.",
     )
     parser.add_argument(
         "--seeded",
@@ -3282,13 +3464,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         print(drop(args.image, args.camera, Path(root)))
         return 0
-    if args.prod_shape and not args.real:
-        # O2.5's flag is a SHAPE of the real tier, not a third mode: the prod shape
-        # renders docker-compose.prod.yml, and --fake renders docker-compose.ci.yml.
-        # "the CI stack in the shape of prod" has no referent, and accepting it
-        # would let a reader of a run record believe prod was exercised when the CI
-        # stack ran. Refused at parse time, before any engine call.
-        parser.error("--prod-shape needs --real (it is the real tier's production shape)")
     if args.seeded and args.prod_shape:
         # Ruling 235 keeps this refusal explicit rather than inheriting it from the old
         # `--seeded needs --fake` line, which is what actually blocked this combination
@@ -3303,14 +3478,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         # What stays refused is `--seeded --prod-shape`, ruled above: production never runs
         # DEBUG=true. `--fake --seeded` is byte-for-byte the command the CI leg runs.
         parser.error("--seeded needs --fake or --real (it is a boot shape, not a mode)")
+    if args.fake and args.prod_shape:
+        # "The CI stack in the shape of prod" has no referent: --fake renders
+        # docker-compose.ci.yml and the prod shape renders docker-compose.prod.yml,
+        # and no run can claim both. Refused at parse time, before any engine call,
+        # so a reader of a run record can never believe prod was exercised when the
+        # CI stack ran. (Ruling 256 keeps THIS refusal; it lifts only the
+        # needs---real one, for the maui run's bare --prod-shape below.)
+        parser.error("--fake is the CI stack: it cannot also take --prod-shape")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:
             _log(unavailable)
             return EXIT_UNAVAILABLE
         return run_check(args, mode="real")
-    if not args.fake:
-        parser.error("choose --fake or --real")
+    # Ruling 256 item 2: the venue split gives the prod shape a second caller, the maui
+    # run -- `feature_check.py --prod-shape` with the fake VLM, from a host login. The
+    # mode handed down is "fake" (the fake VLM serves the engine wire the CI tier's fake
+    # serves, and the run record's shape string is "fake-prod-shape"); with no AgentGpu
+    # on that path, render_prod_shape() splices the fake VLM in place of ai-vlm's body
+    # and keeps production CDI for ai-gateway/dcgm-exporter/backend -- the maui venue
+    # keeps its GPU consumers, per ruling 256 item 2. Plain --fake is the CI tier,
+    # unchanged.
     return run_check(args, mode="fake")
 
 
