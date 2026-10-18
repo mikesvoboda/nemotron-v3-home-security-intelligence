@@ -28,8 +28,6 @@ import type { Camera } from '../../../services/api';
 vi.mock('../../../hooks', () => ({
   useCamerasQuery: vi.fn(),
   useCameraMutation: vi.fn(),
-  useDeletedCamerasQuery: vi.fn(),
-  useRestoreCameraMutation: vi.fn(),
 }));
 
 // CamerasSettings consumes these hooks via direct imports (not the barrel), so
@@ -182,19 +180,6 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
     vi.clearAllMocks();
     mockMutationReturn = createDefaultMutationReturn();
     vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
-
-    // Mock deleted cameras hooks
-    vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
-      deletedCameras: [],
-      isLoading: false,
-      isRefetching: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue({
-      restoreMutation: createMockMutation<Camera, Error, string>(),
-    });
   });
 
   describe('Motion Sensitivity Slider - RTSP Cameras', () => {

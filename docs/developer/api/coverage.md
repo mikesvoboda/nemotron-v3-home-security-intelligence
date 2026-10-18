@@ -313,7 +313,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | ---------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------- | -------------------------------------------- |
 | `/api/cameras`                                                         | GET    | `api.ts`, `baselineConfigApi.ts`, `ptzApi.ts`, `useQueryPatterns.ts`    | List Cameras                                 |
 | `/api/cameras`                                                         | POST   | `api.ts`, `baselineConfigApi.ts`, `ptzApi.ts`, `useQueryPatterns.ts`    | Create Camera                                |
-| `/api/cameras/deleted`                                                 | GET    | `api.ts`                                                                | List all soft-deleted cameras                |
 | `/api/cameras/onvif/discover`                                          | POST   | `useOnvifDiscovery.ts`                                                  | Discover ONVIF devices on the network        |
 | `/api/cameras/preview/start`                                           | POST   | `go2rtcClient.ts`                                                       | Start RTSP preview stream (no camera lookup) |
 | `/api/cameras/preview/{stream_id}/stop`                                | DELETE | `go2rtcClient.ts`                                                       | Stop RTSP preview stream by stream ID        |
@@ -336,7 +335,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/cameras/{camera_id}/onvif/ptz/stop`                              | POST   | —                                                                       | Stop PTZ movement                            |
 | `/api/cameras/{camera_id}/preview/start`                               | POST   | —                                                                       | Start preview for a specific camera          |
 | `/api/cameras/{camera_id}/preview/stop`                                | DELETE | —                                                                       | Stop preview for a specific camera           |
-| `/api/cameras/{camera_id}/restore`                                     | POST   | `api.ts`                                                                | Restore a soft-deleted camera                |
 | `/api/cameras/{camera_id}/scene-changes`                               | GET    | `api.ts`                                                                | Get Camera Scene Changes                     |
 | `/api/cameras/{camera_id}/scene-changes/{scene_change_id}/acknowledge` | POST   | `api.ts`                                                                | Acknowledge Scene Change                     |
 | `/api/cameras/{camera_id}/snapshot`                                    | GET    | `api.ts`                                                                | Get Camera Snapshot                          |
