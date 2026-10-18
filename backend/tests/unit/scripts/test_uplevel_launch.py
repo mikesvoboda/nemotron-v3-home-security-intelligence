@@ -1938,6 +1938,44 @@ def test_main_supervise_passes_its_budget_to_the_fire(
     assert "timeout 120 claude" in script, script
 
 
+def test_a_non_positive_budget_refuses_naming_the_value(tmp_path: Path) -> None:
+    """`--budget` is the tick's kill switch: a zero or negative value either never kills
+    (`timeout 0`) or errors deep inside the fire (`timeout -5` exits 125 after `claude`
+    started) - measured on this machine: `timeout -5 true` exits 125 with `timeout:
+    invalid kill value`. The guard sits before any probe or fire, names the value and
+    the next step, and nothing reaches the sandbox."""
+    for bad in ("0", "-5"):
+        fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+        with pytest.raises(launch.Refused) as caught:
+            launch.supervise(host(tmp_path, fake), "uplevel-coordinator", budget=int(bad))
+        message = str(caught.value)
+        assert bad in message, message
+        assert "positive integer" in message, "the refusal must name the contract: " + message
+        assert not fake.ran("sbx", "exec"), "nothing may fire on a bad budget"
+
+
+def test_main_supervise_exits_two_on_a_non_positive_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The CLI wires the guard to box 4's exit: a bad `--budget` exits 2 naming it, and
+    no sandbox is touched. (`main` parses `--budget` as `int`, so the string arms are the
+    type's job; the value arms are this guard's.)"""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    for argv in (
+        ["supervise", "uplevel-coordinator", "--budget", "0"],
+        ["supervise", "uplevel-coordinator", "--budget", "-5"],
+    ):
+        assert launch.main(argv) == 2, argv
+        err = capsys.readouterr().err
+        assert "--budget must be a positive integer" in err, err
+        assert not fake.ran("sbx", "exec"), argv
+
+
 def test_the_fire_carries_no_manifest_arguments(tmp_path: Path) -> None:
     """Box 1 as ruling 259 answered Q1: the fire is `claude -p <prompt>` plus the three
     pane-mirroring flags, and nothing else on the `claude` line.
@@ -1974,7 +2012,10 @@ def test_the_fire_carries_no_manifest_arguments(tmp_path: Path) -> None:
     # --endpoint dgx`) must not appear here even in part: its flags are agent-dgx
     # vocabulary. The shape assert above excludes the row's bare tokens too (`claude`
     # coincides with the binary itself - the trap the first draft of this pin hit - and
-    # `dgx` cannot survive the exact list), so only the row's flags need naming here.
+    # `dgx` cannot survive the exact list), so only the row's flags need naming here. The
+    # two file flags are `$HOME`-absolute (owner answer on #6854): the sandbox shell
+    # expands them, and the exact-list assert below pins the literal unexpanded spelling
+    # so a workspace-relative or host-expanded path cannot slip back.
     assert tokens[start:] == [
         "claude",
         "-p",
@@ -1984,6 +2025,9 @@ def test_the_fire_carries_no_manifest_arguments(tmp_path: Path) -> None:
         launch.DGX_SETTINGS,
         f"--mcp-config={launch.DGX_MCP}",
     ], f"the fire must be `claude -p <prompt>` + the pane's three flags; got {tokens[start:]!r}"
+    assert "--settings $HOME/" in script or "$HOME/.claude/agent-dgx/" in script, (
+        f"the two file flags must carry the literal $HOME path the sandbox shell expands: {script}"
+    )
     assert not ({"--agent", "--endpoint"} & set(tokens[start:])), (
         f"the manifest row resolves to {forbidden!r}, and none of it belongs on the wire"
     )
@@ -2029,15 +2073,27 @@ def test_the_fire_probes_the_dgx_files_and_refuses_both_missing(tmp_path: Path) 
 
 def test_the_probe_runs_inside_the_sandbox_not_on_the_host(tmp_path: Path) -> None:
     """The host cannot see the sandbox's filesystem; the check must be the sandbox's own
-    shell answering, and it must resolve the files relative to the session's workspace (the
-    cwd the pane's claude runs with, so the flags' relative paths mean the same thing)."""
+    shell answering, and it must resolve the files at their absolute paths under the
+    sandbox's HOME (`$HOME/.claude/agent-dgx/`, the owner answer on #6854): agent-dgx
+    keeps them there, the pane's launch line names those absolute paths, and
+    `workspace/.claude/agent-dgx/` does not exist. The `$HOME` expansion is the sandbox
+    shell's - the same shell the fire's flags resolve under - so the script must carry
+    the literal unexpanded `$HOME` and no `cd <workspace>` prefix."""
     fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
     launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
     probe = next(argv[-1] for argv, _ in fake.calls if "missing:" in argv[-1])
-    assert probe.startswith("cd /agents/agent-uplevel-coordinator/workspace && "), probe
-    assert "for f in" in probe and '[ -f "$f" ]' in probe, (
+    assert (
+        "for f in $HOME/.claude/agent-dgx/claude-settings.json"
+        " $HOME/.claude/agent-dgx/mcp.json" in probe
+    ), probe
+    assert '[ -f "$f" ]' in probe, (
         "the existence check is the sandbox's own shell test, not a host-side guess: " + probe
     )
+    assert "cd " not in probe.split("for f in")[0], (
+        "the files are home-absolute; a workspace cwd prefix would only invite the old "
+        "workspace-relative bug back: " + probe
+    )
+    assert "/agents/agent-uplevel-coordinator" not in probe, probe
 
 
 def test_a_probe_that_cannot_reach_the_sandbox_still_logs_as_refused(

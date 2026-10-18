@@ -45,11 +45,13 @@ changes nothing):
   it lands even if `sbx exec` later stops answering; the host timeout stays as a backstop).
   The fire mirrors the pane (ruling 259, Q1 answered with (a)): its `claude` line carries
   the prompt plus exactly the flags agent-dgx starts the pane with -
-  `--dangerously-skip-permissions --settings .claude/agent-dgx/claude-settings.json
---mcp-config=.claude/agent-dgx/mcp.json`, paths resolved inside the sandbox - and nothing
-  else; the manifest row's arguments are `agent-dgx run` vocabulary, not `claude` flags.
-  Before the fire it probes the two files inside the sandbox and refuses one missing,
-  naming it and the next step, rather than firing a tick without the pane's settings. It
+  `--dangerously-skip-permissions --settings $HOME/.claude/agent-dgx/claude-settings.json
+--mcp-config=$HOME/.claude/agent-dgx/mcp.json`, the literal `$HOME` paths the sandbox's own
+  shell expands (owner answer on #6854: agent-dgx keeps the files there; the workspace has no
+  copy) - and nothing else; the manifest row's arguments are `agent-dgx run` vocabulary, not
+  `claude` flags. Before the fire it probes the two files inside the sandbox, at those absolute
+  paths, and refuses one missing, naming it and the next step, rather than firing a tick
+  without the pane's settings. It
   refuses a run launched from a session's clone, as `up` and `retire` do. A host `flock`
   skips a fire while a tick runs (the kernel drops it when the holder dies, so a killed
   supervisor leaves no stale lock), a tick past its budget (default 3600 s) is recorded

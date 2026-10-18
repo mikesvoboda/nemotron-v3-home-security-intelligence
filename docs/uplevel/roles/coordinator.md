@@ -210,9 +210,10 @@ on 2026-10-16 the in-pane dispatcher stopped and the coordinator posted nothing 
 One fire is one tick: the host runs the prompt below, word for word, as a headless `claude -p`
 inside `agent-uplevel-coordinator` through `sbx exec`, carrying exactly the pane's own launch
 flags (ruling 259, answering [r247]'s Q1 with (a): the fire mirrors the pane) -
-`--dangerously-skip-permissions`, `--settings .claude/agent-dgx/claude-settings.json` and
-`--mcp-config=.claude/agent-dgx/mcp.json`, the same files agent-dgx starts the pane with,
-resolved inside the sandbox relative to its workspace. The manifest row's arguments are
+`--dangerously-skip-permissions`, `--settings $HOME/.claude/agent-dgx/claude-settings.json` and
+`--mcp-config=$HOME/.claude/agent-dgx/mcp.json`, the same files agent-dgx starts the pane with,
+at their absolute paths under the sandbox's HOME (agent-dgx keeps them there; the `$HOME`
+expansion is the sandbox shell's). The manifest row's arguments are
 `agent-dgx run` vocabulary (how a session is started), not `claude` flags, and stay off the wire.
 Before the fire, the launcher probes the two files inside the sandbox (the host cannot see that
 filesystem) and refuses - naming the missing file and the next step, as `up` and `retire` do -

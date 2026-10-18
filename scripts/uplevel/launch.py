@@ -834,9 +834,14 @@ TICK_BUDGET = 60 * 60  # a tick that has run 60 minutes is killed ([r247], box 2
 # The pane's own launch flags, inside the sandbox (ruling 259): agent-dgx starts the
 # coordinator's claude with bypass permissions, this settings file and this MCP config,
 # and a bare headless `claude -p` drops all three. The fire mirrors the pane; it reads
-# these two files in the sandbox and copies no setting into the repo.
-DGX_SETTINGS = ".claude/agent-dgx/claude-settings.json"
-DGX_MCP = ".claude/agent-dgx/mcp.json"
+# these two files in the sandbox and copies no setting into the repo. The files live in
+# the sandbox's HOME, not the workspace: agent-dgx keeps them at
+# `$HOME/.claude/agent-dgx/` (measured: `/home/agent/.claude/agent-dgx/` in a running
+# session, and `workspace/.claude/agent-dgx/` does not exist), so the paths stay
+# unexpanded here and the sandbox's own shell resolves `$HOME` on both wires (owner
+# answer on #6854, 2026-10-18T23:31Z).
+DGX_SETTINGS = "$HOME/.claude/agent-dgx/claude-settings.json"
+DGX_MCP = "$HOME/.claude/agent-dgx/mcp.json"
 KICKOFF_DOC = Path(__file__).resolve().parents[2] / "docs" / "uplevel" / "roles" / "coordinator.md"
 
 
@@ -894,16 +899,16 @@ def _clock() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _sbx_probe(host: Host, sandbox: str, workspace: Path) -> None:
+def _sbx_probe(host: Host, sandbox: str) -> None:
     """The two agent-dgx files the fire's flags point at must exist in the sandbox.
 
-    Probed by the sandbox's own shell, one round-trip, relative to the session's
-    workspace (the pane's `claude` runs with its cwd there, and the flags' relative
-    paths resolve the same way): anything missing is refused before a tick runs, so a
-    fire never guesses whether the files exist (ruling 259, item 2 - it refuses rather
-    than guesses, as `up` and `retire` do). A sandbox that cannot answer is not this
-    check's subject: the fire hits the same wall one command later and its own
-    handlers record the gap (`status=refused` for a failed connection,
+    Probed by the sandbox's own shell, one round-trip, at their absolute paths under the
+    sandbox's HOME (`$HOME/.claude/agent-dgx/`): anything missing is refused before a
+    tick runs, so a fire never guesses whether the files exist (ruling 259, item 2 - it
+    refuses rather than guesses, as `up` and `retire` do; the `$HOME` expansion is the
+    sandbox shell's, the same expansion the fire's flags get). A sandbox that cannot
+    answer is not this check's subject: the fire hits the same wall one command later
+    and its own handlers record the gap (`status=refused` for a failed connection,
     `killed=yes status=timeout` for a read that overruns the 120s cap).
     """
     argv = [
@@ -912,8 +917,7 @@ def _sbx_probe(host: Host, sandbox: str, workspace: Path) -> None:
         sandbox,
         "bash",
         "-lc",
-        f"cd {workspace} && for f in {DGX_SETTINGS} {DGX_MCP}; do "
-        '[ -f "$f" ] || echo "missing:$f"; done',
+        f'for f in {DGX_SETTINGS} {DGX_MCP}; do [ -f "$f" ] || echo "missing:$f"; done',
     ]
     try:
         done = host.run(argv, capture_output=True, text=True, timeout=120, check=False)
@@ -932,7 +936,7 @@ def _sbx_probe(host: Host, sandbox: str, workspace: Path) -> None:
         quoted = ", ".join(m for m in missing)
         raise Refused(
             f"{sandbox} is missing the agent-dgx file(s) the fire mirrors the pane with "
-            f"({quoted}; paths relative to the workspace). The pane was started with "
+            f"({quoted}). The pane was started with "
             "them; restore them inside the sandbox "
             "(agent-dgx recreated the session without them?) and run this again."
         )
@@ -971,6 +975,11 @@ def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
     reach the sandbox is logged too - `status=refused` - so the log records the gap an
     absent line would hide.
     """
+    if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0:
+        raise Refused(
+            f"--budget must be a positive integer (seconds before a running tick is "
+            f"killed), not {budget!r}. Nothing was fired."
+        )
     _check_owner_checkout(host)
     if name != COORDINATOR:
         raise Refused(
@@ -1000,7 +1009,7 @@ def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
     # shell-injection seam had the row ever changed). The probe refuses rather than
     # guesses: a missing file is checked by the sandbox itself, not by a host-side guess
     # about its filesystem.
-    _sbx_probe(host, session.sandbox, Path(session.workspace))
+    _sbx_probe(host, session.sandbox)
     script = (
         f"timeout {budget} claude -p {shlex.quote(prompt)} "
         f"--dangerously-skip-permissions "
