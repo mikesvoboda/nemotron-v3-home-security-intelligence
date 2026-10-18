@@ -100,7 +100,9 @@ Read this section before you take, claim, assign, park or release a package.
   `uplevel-heavy-a`. To give a heavy agent a package the status table does not mark `heavy`, label its
   PR `heavy` (plus `cell:heavy-b` for heavy-b) and no lane label; the row keeps its flags. A heavy
   agent takes only the PRs assigned to it and follows the owning lane's package text, file ownership
-  and kickoff line. (rulings 50, 53, 184; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
+  and kickoff line. Rulings 258 and 260 make one exception: heavy-b claims the packages on its
+  roster row itself, with draft PRs labelled `heavy`, `cell:heavy-b` and the owning lane's label.
+  (rulings 50, 53, 184, 258, 260; owner design session 2026-10-12; roles/lane.md "Who takes what"; the deleted
   50-coordination.md "Two heavy sandboxes", "Where agents run")
 - **UR-63** The status comment lists every package whose dependencies have merged, whose row is not
   `done` or `awaiting real tier`, and that has stayed unclaimed for two coordinator ticks, with the
@@ -588,7 +590,10 @@ when a phase exits, are UR-10 (contract rule 5).
   titles carry the row's `F-nnn`. It needs no run or job id: `scripts/uplevel/inventory_witness.py`
   re-proves every **awaiting real tier** and **works** row against each Feature check run. Demotion
   history, supersessions and re-anchoring go in the PR body. A long cell is cut to this shape when
-  its row is next edited; there is no sweep. (rulings 179, 218)
+  its row is next edited; there is no sweep. Re-anchoring a cite whose target a merge or a file move
+  shifted (the same claim at a new path or line) is not an edit of the row and does not trigger the
+  cut; a row is edited when its status changes or its evidence cell says something new. (rulings
+  179, 218, 253)
 
 ## Posting, heartbeats and the urgent path
 

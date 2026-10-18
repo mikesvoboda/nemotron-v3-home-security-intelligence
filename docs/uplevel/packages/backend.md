@@ -60,11 +60,11 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-b`, none while heavy-b is out of service (ruling 190). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
-**Assigned:** heavy-a; the coordinator assigns it next once `O2.4`'s `RESULT: PASS` is posted and
-the `B3.1`/`F3.1` PR in hand has merged (ruling 241). **PR:** none yet.
+**Assigned:** heavy-b, next once `O2.4`'s `RESULT: PASS` is posted, after the PR heavy-b holds then
+(rulings 258 and 260). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -87,6 +87,16 @@ one PR with `F3.1`.
 `B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
+
+**One R2a row per PR** (ruling 255, amending ruling 241 item 1). A `B3.1`/`F3.1` PR retires every
+feature ruled retire under one R2a row, across backend and frontend, and never spans two rows. It
+may retire less of its row when part of the row must wait (a table drop waits for `B3.3`'s upgrade
+command) or when the author's review finds the diff too large for one round; the body names the
+features left out and why, and they follow as one later PR for that row. UR-98's plain-retirement
+exception (ruling 249) is judged once for the whole PR, and the Done-when grep is checked for each
+feature it retires; if any feature misses a condition, the PR keeps `owner` and its Owner tier line
+names that feature and condition. Ruling 258 lifts the pause in the assignment above: the
+retirements continue without waiting for `B2.3`, which is heavy-b's.
 
 - [x] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
       tombstone in one commit; ISS-073).
@@ -154,6 +164,19 @@ outside `keep.toml`, and the suite is green.
 **Done when:** the ratchet test passes; a database saved from today's `main` upgrades with its rows
 intact in CI; and the PR reports the before/after count of `nemotron`, `florence` and `enrichment`
 hits in `backend/`.
+
+**The fourth box, as ruling 254 reads it** (R2a row 27). `florence2`, `yolo_world`, `xclip` and
+`fashion_clip` leave `AIModelEnum` and `AIModel` with their config schemas, as a recorded upgrade on
+the fifth box's runner that lands after the runner does. The upgrade removes or rewrites the
+`prompt_versions` rows storing those values, as backend's design chooses; its test checks that every
+other row survives and that the changed rows are exactly those four models' rows. That is how the
+Done when's "rows intact" reads for this upgrade. In the same PR (UR-9), backend leading and
+frontend's files riding as cross-lane parts: the frontend's four prompt editors and the Version
+History filter and labels change, so no editor sends a value the API refuses; and
+`FlorenceUnavailableError` and the `FLORENCE_UNAVAILABLE` code retire with Florence, with the
+frontend copy and the docs row. `AnalyzerUnavailableError` and `EnrichmentUnavailableError` stay,
+with their codes. The PR that carries this is owner tier (UR-98), and backend chooses which `B3.3`
+PR it is. The row's design note stays with Phase 4's prompt-management package.
 
 ### [r236] Two documented endpoints become External rows
 
