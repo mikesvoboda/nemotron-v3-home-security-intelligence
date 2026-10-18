@@ -123,8 +123,9 @@ def all_present(checks: Sequence[Check]) -> Check:
 #: `grep -c 'ALTER COLUMN' docs/api/migrations/NEM-5051-convert-alert-json-to-jsonb.sql` = 8:
 #: two on ``alerts``, six on ``alert_rules``. It is a transcription, so it can drift from the
 #: file; the drift direction is a column the runner does not check, hence `executed = false`
-#: for a column it never looked at. `test_checks_cover_every_alter_column_in_the_file` pins
-#: this mapping against the file's own text so the drift reddens instead of rotting.
+#: for a column it never looked at.
+#: `test_registry_lexing.py::test_checks_covers_every_alter_column_in_the_nem_5051_file` pins this
+#: mapping against the file's own text, so a column dropped from the list reddens instead of rotting.
 _NEM_5051_COLUMNS: Mapping[str, Sequence[str]] = {
     "alerts": ("channels", "metadata"),
     "alert_rules": (
