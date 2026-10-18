@@ -735,6 +735,75 @@ def test_the_generated_boot_file_rebinds_its_objects_to_the_live_project(tmp_pat
     assert reblessed == full, (
         "boot_render changed what would be deployed, not just who owns the objects")
 
+
+# ------------------------------------------------ ruling 256: the spliced boot document renders --
+def _splice_venue(fc, venue: str) -> tuple[dict, dict]:
+    """The boot document one prod-shape run would write, via the real compose oracle.
+
+    Renders prod+override (the run's base) and CI+fake (where the fake bodies come from),
+    then applies `as_prod_shape_deployment` exactly as `render_prod_shape` does -- the
+    WHOLE document, not abbreviated fixtures, because abbreviated fixtures are how the
+    ci-net/ports divergence shipped: a dict-level test that omits the keys under test
+    cannot see them. Returns (the boot document, the pre-fix control)."""
+    full = _render_full([PROD, OVERRIDE], "prodshape-audit")
+    bodies = _render_full([REPO / "docker-compose.ci.yml", REPO / "docker-compose.fake-ai.yml"],
+                          "ci-fake")
+    fakes = {n: b for n, b in bodies["services"].items() if n in ("ai-vlm", "ai-gateway")}
+    if venue == "sandbox":
+        swapped, kwargs = "ai-gateway", {"vlm_url": "http://127.0.0.1:18100",
+                                         "fake_gateway": fakes["ai-gateway"]}
+    elif venue == "maui":
+        swapped, kwargs = "ai-vlm", {"vlm_url": None, "fake_vlm": fakes["ai-vlm"]}
+    else:
+        raise AssertionError(venue)
+    boot = fc.as_prod_shape_deployment(copy.deepcopy(full), **kwargs)
+    boot.pop("_device_changes", None)
+    # must-catch control: the PRE-FIX splice, reconstructed by restoring the raw fake
+    # body's networks/ports over the repaired output. (The transform repairs
+    # unconditionally, so a "raw body in" control would exercise the same fixed code and
+    # prove nothing.) That pre-fix shape is what first shipped: the fake body's ci-net and
+    # CI-band publishes left in the prod document, which compose refuses. The refusal must
+    # reproduce on this compose, or the repair guards a phantom.
+    control = copy.deepcopy(boot)
+    for key in ("networks", "ports"):
+        if key in fakes[swapped]:
+            control["services"][swapped][key] = copy.deepcopy(fakes[swapped][key])
+        else:
+            control["services"][swapped].pop(key, None)
+    return boot, control
+
+
+@pytest.mark.parametrize("venue", ["sandbox", "maui"])
+def test_the_spliced_boot_document_renders_and_keeps_prod_network_and_ports(venue, tmp_path):
+    """Ruling 256's transforms meet the compose oracle end to end: `docker compose config`
+    on the document the run would boot must RENDER (the ci-net divergence made it refuse),
+    the spliced service must sit on the prod render's security-net, and it must publish on
+    the prod-shape band the override set -- not the CI band, whose 8090/8098 binds are the
+    LIVE stack's own beside production on maui. Two-sided: the pre-fix control (the fake
+    body's ci-net/ports left in) must still be REFUSED naming ci-net, so this leg cannot
+    pass by matching everything."""
+    fc = _feature_check()
+    boot, control = _splice_venue(fc, venue)
+
+    boot_file = tmp_path / f"boot-{venue}.json"
+    boot_file.write_text(json.dumps(fc.boot_render(boot), indent=2) + "\n", encoding="utf-8")
+    rendered = _render_full([boot_file], "hsi-splice-probe")
+    spliced = rendered["services"]["ai-gateway" if venue == "sandbox" else "ai-vlm"]
+    assert set(spliced.get("networks") or {}) == {"security-net"}, spliced.get("networks")
+    ci_band = {"8090", "8098"}
+    assert not ci_band & {str(p.get("published")) for p in spliced.get("ports") or []}, (
+        f"the spliced body publishes on the CI band beside production: {spliced.get('ports')}")
+
+    control_file = tmp_path / f"control-{venue}.json"
+    control_file.write_text(json.dumps(fc.boot_render(control), indent=2) + "\n", encoding="utf-8")
+    p = subprocess.run(
+        ["docker", "compose", "-p", "hsi-splice-control", "--project-directory", str(REPO),
+         "-f", str(control_file), "config", "--format", "json"],
+        cwd=REPO, env=_clean_env(), capture_output=True, text=True, check=False)
+    assert p.returncode != 0, "the pre-fix control renders -- the refusal this test guards is gone"
+    assert "ci-net" in p.stderr, p.stderr[-400:]
+
+
 # ------------------------------------------------ the anti-rot ceiling this file rides ----------
 # This file is a member of Collection Sanity's ONE-argv anti-rot battery (ci.yml:263), so every node
 # here runs under the root `timeout = 5` in pyproject's [tool.pytest.ini_options] unless something

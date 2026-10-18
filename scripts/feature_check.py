@@ -878,6 +878,34 @@ def as_prod_shape_deployment(
         found.extend(str(device) for device in reservations.get("devices") or [])
         return found
 
+    def _splice(name: str, fake_body: Mapping[str, Any], replaced: Mapping[str, Any]) -> None:
+        """Replace one prod service with a fake body, keeping the PROD render's network
+        membership and host publishes.
+
+        The fake bodies are the CI+fake render's bodies verbatim: they join ``ci-net``
+        (defined only by the CI stack) and publish the CI band's host ports
+        (``127.0.0.1:8090``/``8098``). Spliced into the prod render unedited, the boot
+        document is REFUSED -- compose answers ``refers to undefined network ci-net``
+        (the same measured refusal the solo fake render dies at, on BOTH venues) -- and
+        were the network somehow defined, the publishes would be bind-fatal beside
+        production on maui, where the LIVE stack holds ``127.0.0.1:8090`` (ai-gateway)
+        and ``127.0.0.1:8098`` (ai-vlm). So the swap restores the replaced prod body's
+        ``networks`` and ``ports`` onto the fake body: the fake joins the prod network
+        the service it replaces was on (the backend reaches it by service name either
+        way), and publishes on the prod-shape band the authored override set (23090/
+        23098 via the override's +15000). The prod render's network membership stays the
+        prod render's (``security-net``): the transform keeps it.
+        """
+        services[name] = copy.deepcopy(dict(fake_body))
+        if "networks" in replaced:
+            services[name]["networks"] = copy.deepcopy(replaced["networks"])
+        else:
+            services[name].pop("networks", None)
+        if "ports" in replaced:
+            services[name]["ports"] = copy.deepcopy(replaced["ports"])
+        else:
+            services[name].pop("ports", None)
+
     if fake_gateway is not None:
         prod_gateway = services.get("ai-gateway")
         if prod_gateway is None:
@@ -886,7 +914,7 @@ def as_prod_shape_deployment(
                 "(ruling 256 item 1) has nothing to replace"
             )
         removed = _consume_devices(prod_gateway)
-        services["ai-gateway"] = copy.deepcopy(dict(fake_gateway))
+        _splice("ai-gateway", fake_gateway, prod_gateway)
         device_changes.append(
             f"ai-gateway: replaced with the fake gateway (ruling 207's CI-tier fake); "
             f"removed devices {removed or 'none'}"
@@ -913,7 +941,7 @@ def as_prod_shape_deployment(
                 "item 2) has nothing to replace"
             )
         removed = _consume_devices(prod_vlm)
-        services["ai-vlm"] = copy.deepcopy(dict(fake_vlm))
+        _splice("ai-vlm", fake_vlm, prod_vlm)
         device_changes.append(
             f"ai-vlm: replaced with the fake VLM; removed devices {removed or 'none'}"
         )
@@ -2118,8 +2146,6 @@ class Run:
         rendered = json.loads(
             self.compose([PROD_STACK, PROD_SHAPE_OVERRIDE], "config", "--format", "json").stdout
         )
-        self.summary["limits"] = decide_resource_limits(rendered, read_subtree_control())
-        _log(self.summary["limits"])
         sockets = engine_socket_mounts(rendered, socket_path=os.environ.get("PODMAN_SOCKET", ""))
         problems = [
             f"{name} mounts the engine socket {source} -> {target} in the render this run "
@@ -2134,7 +2160,6 @@ class Run:
             # Deliberately before writing the artifact: `up` boots from what is on
             # disk, so a refused render must leave nothing to boot.
             raise Refused(problems)
-        self._write("prod-rendered.json", rendered)
         # Ruling 256 split O2.5 by venue, and the fake bodies come from the same place the
         # CI tier gets its whole stack: the CI+fake render. The fake service CANNOT be
         # spelled here statically -- its image is hsi-fake-ai and it must be BUILT first
@@ -2158,6 +2183,16 @@ class Run:
             # the summary must be able to see the venue's shape without diffing renders.
             self.summary["results"]["device_changes"] = device_changes
             _log(f"prod-shape device changes: {'; '.join(device_changes)}")
+        # Ruling 162 item 2's limits decision runs on the render AFTER the transform: the
+        # spliced fake bodies carry the CI tier's deploy.resources.limits (0.5 CPU / 512M),
+        # and a decision taken before the splice would strip prod's limits and then let the
+        # splice re-introduce ones a rootless container refuses -- exactly the failure the
+        # strip exists to remove. The artifact below is written after this too, so
+        # prod-rendered.json is the shape the run BOOTS (post-splice, post-limits), not the
+        # pre-splice render the transform then edited out of band.
+        self.summary["limits"] = decide_resource_limits(rendered, read_subtree_control())
+        _log(self.summary["limits"])
+        self._write("prod-rendered.json", rendered)
         # The CI tier's render() writes self.compose_file and EVERY later lifecycle call
         # boots it -- `up`, `_address` (`compose port`), `collect` (`logs`/`ps`) and
         # `teardown` (`down -v`) all go through deployment(). Without this line a

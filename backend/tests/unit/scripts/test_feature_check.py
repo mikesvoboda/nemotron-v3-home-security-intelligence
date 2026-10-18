@@ -3627,6 +3627,37 @@ def test_the_prod_render_records_and_applies_the_limits_decision(
     assert "limits" not in landed2["services"]["postgres"]["deploy"]["resources"]
 
 
+def test_the_prod_render_limits_decision_reaches_the_spliced_fake_bodies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The splice happens in the same render, and the fake bodies carry the CI tier's
+    # deploy.resources.limits (0.5 CPU / 512M). If the limits decision runs BEFORE the
+    # transform, a machine with no cgroup delegation strips the prod render's limits and
+    # then the splice re-introduces ones the strip exists to remove -- a rootless
+    # container refusing a limit is what the strip's docstring records. The decision must
+    # see the render the run BOOTS, i.e. run after the transform.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    spliced = _prod_rendered(postgres=_PG_LIMITS, **{"ai-vlm": _fake_vlm_body()})
+    _fake_compose(run, copy.deepcopy(spliced))
+    run.render(fc.Snapshot.from_engine([], []))
+    assert run.summary["limits"] == fc.LIMITS_STRIPPED
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert "limits" not in (
+        landed["services"]["ai-vlm"].get("deploy", {}).get("resources") or {}
+    ), "the spliced fake's CI-tier limits must be inside the strip's reach, not outside it"
+    # the other direction stays green: where the machine delegates, the spliced limits stay
+    run2 = _prod_run(tmp_path / "b", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "cpuset cpu io memory pids\n")
+    _fake_compose(run2, copy.deepcopy(spliced))
+    run2.render(fc.Snapshot.from_engine([], []))
+    landed2 = json.loads((run2.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert landed2["services"]["ai-vlm"]["deploy"]["resources"]["limits"] == {
+        "cpus": 0.5,
+        "memory": "536870912",
+    }
+
+
 def test_the_prod_render_refuses_a_render_that_still_mounts_the_socket(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -3929,12 +3960,14 @@ def _ruling256_doc() -> dict[str, Any]:
     """The prod render's GPU-bearing half, as compose produces it (measured 2026-10-18 at
     9aa06a1f0): backend carries a deploy GPU reservation AND depends on ai-gateway healthy;
     ai-gateway carries CDI nvidia.com/gpu=all plus its own deploy reservation and the prod
-    gateway env; ai-vlm carries CDI nvidia.com/gpu=0."""
+    gateway env; ai-vlm carries CDI nvidia.com/gpu=0. Every service joins security-net
+    (measured at the same head) — the key the splice must restore."""
     return {
         "name": "hsi-check-x",
         "services": {
             "backend": {
                 "image": "backend:test",
+                "networks": {"security-net": None},
                 "environment": {
                     "AI_VLM_URL": "http://ai-vlm:8098",
                     "AI_GATEWAY_URL": "http://ai-gateway:8090",
@@ -3990,8 +4023,13 @@ def _ruling256_doc() -> dict[str, Any]:
 
 def _fake_gateway_body() -> dict[str, Any]:
     """The fake ai-gateway as the CI+fake render produces it (measured): uvicorn command,
-    fake env, httpx healthcheck, hsi-fake-ai image, 0.5 CPU / 512M deploy — and NOTHING
-    device-shaped. The transform takes this body from the CI-tier render the same run makes."""
+    fake env, httpx healthcheck, hsi-fake-ai image, 0.5 CPU / 512M deploy, the CI tier's
+    ci-net membership and the CI band's host publishes — and NOTHING device-shaped. The
+    transform takes this body from the CI-tier render the same run makes. The shape of
+    networks/ports/deploy here is load-bearing: these are the three keys the spliced body
+    must NOT keep (the first two are the prod render's, the third belongs to
+    decide_resource_limits), and an abbreviated fixture hides exactly the bug that
+    omission caused."""
     return {
         "image": "hsi-fake-ai:latest",
         "command": [
@@ -4020,6 +4058,16 @@ def _fake_gateway_body() -> dict[str, Any]:
             "start_period": "10s",
         },
         "deploy": {"resources": {"limits": {"cpus": 0.5, "memory": "536870912"}}},
+        "networks": {"ci-net": None},
+        "ports": [
+            {
+                "mode": "ingress",
+                "host_ip": "127.0.0.1",
+                "target": 8090,
+                "published": "8090",
+                "protocol": "tcp",
+            }
+        ],
     }
 
 
@@ -4032,7 +4080,20 @@ def test_the_sandbox_run_swaps_the_real_gateway_for_the_fake_and_names_the_devic
         _ruling256_doc(), vlm_url="http://10.0.0.5:8123", fake_gateway=_fake_gateway_body()
     )
     gw = out["services"]["ai-gateway"]
-    assert gw == _fake_gateway_body(), "the prod gateway body must be replaced wholesale"
+    # the fake body, except the prod render's own networks and publishes: the swap takes the
+    # fake's command/env/healthcheck/image and restores the replaced body's network
+    # membership and host publishes (the splice's own repair -- a body carrying ci-net or
+    # the CI band would be refused at boot, or bind-fatal beside production). This doc
+    # fixture's gateway declares no ports, so the restored body drops the key outright --
+    # the same absent-means-absent rule the transform implements.
+    expect = copy.deepcopy(_fake_gateway_body())
+    replaced = _ruling256_doc()["services"]["ai-gateway"]
+    expect["networks"] = copy.deepcopy(replaced["networks"])
+    if "ports" in replaced:
+        expect["ports"] = copy.deepcopy(replaced["ports"])
+    else:
+        expect.pop("ports", None)
+    assert gw == expect, "the prod gateway body must be replaced wholesale"
     assert "devices" not in gw, "the fake carries no CDI device"
     assert "nvidia" not in json.dumps(gw), "no deploy GPU reservation survives the swap"
     backend = out["services"]["backend"]
@@ -4147,9 +4208,51 @@ def test_the_maui_run_points_the_backend_at_the_fake_vlm() -> None:
     assert out["services"]["backend"]["environment"]["AI_VLM_URL"] == "http://ai-vlm:8098"
 
 
+def _ci_net_leftovers(out: dict[str, Any]) -> list[str]:
+    """Every service whose body still carries the CI tier's network or host band, measured
+    after a transform. The fake bodies arrive with `ci-net` and the CI-band publishes because
+    they are the CI+fake render's bodies verbatim; the wholesale swap replaces the prod body
+    INCLUDING its security-net membership and 23xxx publishes, so the boot document would
+    name a network the prod render never defines (compose refuses it: the measured solo-render
+    failure `refers to undefined network ci-net`) and re-publish prod's OWN host ports beside
+    production on maui (the live stack holds 127.0.0.1:8090/8098)."""
+    return [
+        name
+        for name, svc in out["services"].items()
+        if "ci-net" in (svc.get("networks") or {})
+        or any(str(p.get("published")) in ("8090", "8098") for p in (svc.get("ports") or []))
+    ]
+
+
+def test_the_sandbox_run_leaves_no_ci_net_or_ci_band_in_the_boot_document() -> None:
+    # The compose oracle caught what the abbreviated fixtures hid: a wholesale body swap
+    # replaces the prod body's security-net membership and 23xxx publishes with the fake
+    # body's ci-net and CI-band publishes. `docker compose config` on that boot document is
+    # refused ("refers to undefined network ci-net" — the same measured failure the solo
+    # fake render dies at), and on maui the 8090/8098 binds are the LIVE stack's own.
+    # The docstring's own sentence is the contract: "The prod render's network membership
+    # stays the prod render's (security-net): the transform keeps it."
+    out = fc.as_prod_shape_deployment(
+        _ruling256_doc(), vlm_url="http://10.0.0.5:8123", fake_gateway=_fake_gateway_body()
+    )
+    assert _ci_net_leftovers(out) == []
+    for name in ("ai-gateway", "backend"):
+        assert out["services"][name]["networks"] == {"security-net": None}, name
+
+
+def test_the_maui_run_leaves_no_ci_net_or_ci_band_in_the_boot_document() -> None:
+    # Same contract on the maui venue: the swapped-in fake VLM must join the prod network
+    # the replaced service had, and publish nothing on the CI band (the live ai-vlm holds
+    # 127.0.0.1:8098 beside production — a bind attempt on it dies before any VLM read).
+    out = fc.as_prod_shape_deployment(_ruling256_doc(), vlm_url=None, fake_vlm=_fake_vlm_body())
+    assert _ci_net_leftovers(out) == []
+    assert out["services"]["ai-vlm"]["networks"] == {"security-net": None}
+
+
 def _fake_vlm_body() -> dict[str, Any]:
     """The fake ai-vlm as the CI+fake render produces it (measured): same image as the fake
-    gateway, port 8098, fake env, httpx healthcheck."""
+    gateway, port 8098, fake env, httpx healthcheck, ci-net membership and the CI band's
+    host publish — the same three keys the gateway fixture carries, for the same reason."""
     return {
         "image": "hsi-fake-ai:latest",
         "command": [
@@ -4178,6 +4281,16 @@ def _fake_vlm_body() -> dict[str, Any]:
             "start_period": "10s",
         },
         "deploy": {"resources": {"limits": {"cpus": 0.5, "memory": "536870912"}}},
+        "networks": {"ci-net": None},
+        "ports": [
+            {
+                "mode": "ingress",
+                "host_ip": "127.0.0.1",
+                "target": 8098,
+                "published": "8098",
+                "protocol": "tcp",
+            }
+        ],
     }
 
 
