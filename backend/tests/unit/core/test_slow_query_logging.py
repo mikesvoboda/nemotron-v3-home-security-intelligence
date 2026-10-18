@@ -170,14 +170,21 @@ class TestAfterCursorExecute:
 
         from backend.core.database import _after_cursor_execute
 
-        mock_conn = MagicMock()
-        mock_conn.info = {"query_start_time": time.perf_counter()}
-
         with (
             patch("backend.core.database.get_settings", autospec=True) as mock_settings,
             patch("backend.core.metrics.observe_db_query_duration", autospec=True) as mock_observe,
         ):
             mock_settings.return_value = MagicMock(slow_query_threshold_ms=100.0)
+
+            # Stamp INSIDE the patched context, after both mocks exist. The old stamp sat
+            # before the `with`, so the asserted window included building two autospec
+            # mocks (~1 ms each, locally measured 1.1-1.7 ms) — scheduling-amplified
+            # under `-n auto` into the 0.94 s worst call the flaky-hunt run measured
+            # (mean 0.161 s, CV 238%) against this test's 0.1 s bound. What the window
+            # must measure is the listener call alone, not test scaffolding; the
+            # < 0.1 s assertion now bounds exactly that.
+            mock_conn = MagicMock()
+            mock_conn.info = {"query_start_time": time.perf_counter()}
 
             _after_cursor_execute(
                 mock_conn,  # conn
