@@ -358,6 +358,12 @@ def test_entry_list_is_what_ci_and_hooks_actually_name():
     app_roots = {
         "backend/main.py",
         "ai/gateway/main.py",
+        "ai/gateway/patch_triton_configs.py",
+        "ai/gateway/export/copy_yolo26_engine.py",
+        "ai/gateway/export/export_reid.py",
+        "ai/gateway/export/export_yolo26.py",
+        "ai/gateway/export/export_yolo_threat.py",
+        "ai/yolo26/build_engine.py",
         "synthbench/__main__.py",
         "synthbench/cli.py",
     }
@@ -467,6 +473,18 @@ def test_keep_edges_ship_in_the_real_tree(real_out):
     # reached only through ai_contract/__init__, which fake/app.py's edges
     # ask for no names from.
     assert "backend/ai_contract/providers.py" in dead
+
+
+@pytest.mark.timeout(120)  # shares the real_out walk
+def test_o31_no_non_shipping_ai_or_synthbench_modules(real_out):
+    """O3.1 Done-when (ruling 210): O2.3 reports no non-shipping module under
+    ai/ or synthbench/ outside keep.toml."""
+    ai_dead = [m["module"] for m in real_out["not_shipping"] if m["module"].startswith("ai/")]
+    sb_dead = [
+        m["module"] for m in real_out["not_shipping"] if m["module"].startswith("synthbench/")
+    ]
+    assert ai_dead == [], f"non-shipping modules remain under ai/: {ai_dead}"
+    assert sb_dead == [], f"non-shipping modules remain under synthbench/: {sb_dead}"
 
 
 @pytest.mark.timeout(120)  # shares the real_out walk

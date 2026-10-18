@@ -27,7 +27,7 @@ class TestAIServiceResourceLimits:
     # ai-llm kept being asserted after R8 S2b (602379e2) deleted the service.
     EXPECTED_AI_SERVICES: ClassVar[list[str]] = [
         "ai-gateway",
-        "ai-llm-vllm",
+        # O3.1 (OD-17, ruling 89) removed ai-llm-vllm
         "ai-vlm",
     ]
 

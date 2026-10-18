@@ -887,56 +887,13 @@ candidates; the table below is the measured list.
 
 <!-- r2-python-dead-list:start -->
 
-Measured at tool-inputs `33b93b9e1b` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
+Measured at tool-inputs `340dd20fcb` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
 
-**158 non-shipping Python modules (61284 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
+**97 non-shipping Python modules (38689 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
 
 <!-- prettier-ignore -->
 | module | lane | lines | last meaningful commit | notes |
 | --- | --- | --- | --- | --- |
-| `ai/batch_utils.py` | ai | 531 | `c9389a190` 2026-02-02 | non-shipping |
-| `ai/common/__init__.py` | ai | 74 | `c7f5bae1b` 2026-01-26 | non-shipping |
-| `ai/common/tensorrt_inference.py` | ai | 686 | `647ce020d` 2026-01-28 | non-shipping |
-| `ai/common/tensorrt_utils.py` | ai | 809 | `647ce020d` 2026-01-28 | non-shipping |
-| `ai/compile_utils.py` | ai | 451 | `c9389a190` 2026-02-02 | non-shipping |
-| `ai/cuda_graph_manager.py` | ai | 515 | `d697b216b` 2026-01-26 | non-shipping |
-| `ai/cuda_streams.py` | ai | 802 | `c9389a190` 2026-02-02 | non-shipping |
-| `ai/flash_attention_config.py` | ai | 318 | `cd8071600` 2026-01-28 | non-shipping |
-| `ai/gateway/export/__init__.py` | ai | 1 | - | non-shipping |
-| `ai/gateway/export/copy_yolo26_engine.py` | ai | 261 | - | non-shipping |
-| `ai/gateway/export/export_clip.py` | ai | 120 | `3710a98c7` 2026-02-08 | non-shipping |
-| `ai/gateway/export/export_clip_text.py` | ai | 121 | `3710a98c7` 2026-02-08 | non-shipping |
-| `ai/gateway/export/export_demographics.py` | ai | 357 | - | non-shipping |
-| `ai/gateway/export/export_depth.py` | ai | 302 | `8395fb640` 2026-02-11 | non-shipping |
-| `ai/gateway/export/export_fashion_clip.py` | ai | 746 | - | non-shipping |
-| `ai/gateway/export/export_pet.py` | ai | 257 | - | non-shipping |
-| `ai/gateway/export/export_reid.py` | ai | 1047 | `be8627161` 2026-10-17 | non-shipping |
-| `ai/gateway/export/export_stgcn.py` | ai | 281 | `610882b47` 2026-09-22 | non-shipping |
-| `ai/gateway/export/export_vehicle.py` | ai | 276 | - | non-shipping |
-| `ai/gateway/export/export_yolo26.py` | ai | 551 | `54e927366` 2026-09-28 | non-shipping |
-| `ai/gateway/export/export_yolo_pose.py` | ai | 389 | - | non-shipping |
-| `ai/gateway/export/export_yolo_threat.py` | ai | 437 | - | non-shipping |
-| `ai/gateway/patch_triton_configs.py` | ai | 140 | `3396d3ef8` 2026-02-25 | non-shipping |
-| `ai/gpu_memory_pool.py` | ai | 722 | `cd8071600` 2026-01-28 | non-shipping |
-| `ai/gpu_oom_handler.py` | ai | 393 | - | non-shipping |
-| `ai/hub_cache_config.py` | ai | 281 | `cd8071600` 2026-01-28 | non-shipping |
-| `ai/quantization_config.py` | ai | 346 | `cd8071600` 2026-01-28 | non-shipping |
-| `ai/shared/__init__.py` | ai | 10 | `cd8071600` 2026-01-28 | non-shipping |
-| `ai/shared/gpu_profiler.py` | ai | 140 | `cd8071600` 2026-01-28 | non-shipping |
-| `ai/static_kv_cache.py` | ai | 607 | `cd8071600` 2026-01-28 | non-shipping |
-| `ai/tensorrt_prebuild.py` | ai | 211 | - | non-shipping |
-| `ai/torch_optimizations.py` | ai | 664 | `c9389a190` 2026-02-02 | non-shipping |
-| `ai/triton/__init__.py` | ai | 67 | `75d6aa356` 2026-01-26 | non-shipping |
-| `ai/triton/client.py` | ai | 869 | `75d6aa356` 2026-01-26 | non-shipping |
-| `ai/triton/scripts/quantize_cpu_models.py` | ai | 43 | - | non-shipping |
-| `ai/warmup_utils.py` | ai | 446 | `c9389a190` 2026-02-02 | non-shipping |
-| `ai/yolo26/__init__.py` | ai | 4 | `a5e47aa22` 2026-01-26 | non-shipping |
-| `ai/yolo26/build_engine.py` | ai | 258 | - | non-shipping |
-| `ai/yolo26/contract.py` | ai | 342 | `e947e7aea` 2026-09-19 | non-shipping |
-| `ai/yolo26/metrics.py` | ai | 284 | `033deba8f` 2026-01-27 | non-shipping |
-| `ai/yolo26/model.py` | ai | 1793 | `2ab66ff13` 2026-09-19 | non-shipping |
-| `ai/yolo26/pose_estimation.py` | ai | 965 | `bc3ae4e45` 2026-09-30 | non-shipping |
-| `ai/yolo26/security.py` | ai | 191 | `62753b76e` 2026-01-31 | non-shipping |
 | `backend/ai_contract/providers.py` | backend | 199 | `ce9d8aa45` 2026-10-07 | non-shipping |
 | `backend/api/middleware/accept_header.py` | backend | 304 | `a2ec5a3e2` 2026-01-09 | non-shipping |
 | `backend/api/middleware/content_negotiation.py` | backend | 102 | `cb3f490aa` 2026-01-11 | non-shipping |
@@ -1034,24 +991,6 @@ Measured at tool-inputs `33b93b9e1b` by `scripts/r2-python-dead-list.py` — the
 | `backend/services/websocket_service.py` | backend | 576 | - | non-shipping |
 | `backend/services/zone_baseline_service.py` | backend | 74 | `d54f28ed6` 2026-01-21 | non-shipping |
 | `backend/services/zone_crossing_service.py` | backend | 733 | `64aa963e7` 2026-01-28 | non-shipping |
-| `synthbench/contract/truth.py` | synthbench | 74 | `27d87993e` 2026-09-28 | non-shipping |
-| `synthbench/generate/comfy/smoke.py` | synthbench | 71 | `fa123f2d1` 2026-09-28 | non-shipping |
-| `synthbench/generate/comfy/snapshot.py` | synthbench | 39 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/generate/comfy/validate.py` | synthbench | 143 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/generate/window.py` | synthbench | 407 | `fa123f2d1` 2026-09-28 | non-shipping |
-| `synthbench/host/agent.py` | synthbench | 326 | `45d850160` 2026-09-30 | non-shipping |
-| `synthbench/host/guard.py` | synthbench | 230 | `c0ad17f8d` 2026-09-29 | non-shipping |
-| `synthbench/host/renderer.py` | synthbench | 168 | `b8c3068ee` 2026-09-28 | non-shipping |
-| `synthbench/host/units.py` | synthbench | 153 | `12da4ba10` 2026-09-29 | non-shipping |
-| `synthbench/spikes/__init__.py` | synthbench | 1 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/spikes/p1_bakeoff/__init__.py` | synthbench | 1 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/spikes/p1_bakeoff/cases.py` | synthbench | 206 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/spikes/p1_bakeoff/judge.py` | synthbench | 660 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/spikes/p1_bakeoff/measure.py` | synthbench | 315 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/spikes/p1_bakeoff/plan.py` | synthbench | 114 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/spikes/p1_bakeoff/report.py` | synthbench | 944 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/spikes/p1_bakeoff/run.py` | synthbench | 357 | `e316ad797` 2026-09-28 | non-shipping |
-| `synthbench/spikes/p1_bakeoff/sheet.py` | synthbench | 278 | `e316ad797` 2026-09-28 | non-shipping |
 
 **Claimed by a row, excluded from the list (6):**
 

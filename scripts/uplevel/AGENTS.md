@@ -238,7 +238,7 @@ command and not a scratchpad (`[r157]`, rulings 157 + 159). Two modes:
 - `stages` - ruling 157's five-stage diagnostic: PyTorch -> ONNX Runtime CPU -> the plan
   called directly FP32 -> FP16 -> the gateway endpoint, cosine per crop against stage 1,
   and the first stage under the gate names where parity breaks. Stages 3/4 bind the plan by
-  device pointer using `ai/common/tensorrt_utils.py`'s own idiom, so they exercise the
+  device pointer (the standard TensorRT Python API idiom), so they exercise the
   same plan the Triton backend loads, and each precision PRINTS the binding the engine
   reports (input/output names, declared shape, dtype, plus what the probe feeds) because
   bullet 2 names that print as a deliverable - a CHW-vs-transposed fault is shape-legal and

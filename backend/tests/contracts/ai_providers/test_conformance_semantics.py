@@ -561,71 +561,11 @@ class TestS1PoseKeypointsArePositional:
         )
 
     def test_s1c_conf_is_read_positionally_and_the_named_model_names_it(self) -> None:
-        """THE TRIPLE, RETARGETED: the surviving reader unpacks conf from a
-        fixed slot and the surviving model names it - two spellings of one
-        contract, both asserted.
-
-        s1c used to compare the gateway adapter's positional row unpack
-        against the fake's 4-property item schema. Both sides are gone with
-        the pose provider, but the triple is still consumed positionally by
-        code that ships: pose_estimation.py reads ``(x, y, conf)`` out of a
-        fixed (17, 3) row and indexes a 17-name table by POSITION, and its
-        Pydantic model gives every slot a name. A COCO reindex (a name
-        inserted at 3, say) reddens the index assertion and passes the
-        table-equality one; the two together are what makes an unlabelled
-        positional blob safe.
-        """
-        pose_src = POSE_EST_SRC.read_text(encoding="utf-8")
-        # (i) The COCO table survives, in canonical order, at 17.
-        tree = ast.parse(pose_src)
-        names = None
-        model_fields: dict[str, list[str]] = {}
-        for node in tree.body:
-            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-                if node.target.id == "KEYPOINT_NAMES" and isinstance(node.value, ast.List):
-                    names = [str(elt.value) for elt in node.value.elts]
-            if isinstance(node, ast.ClassDef):
-                model_fields[node.name] = [
-                    sub.target.id
-                    for sub in node.body
-                    if isinstance(sub, ast.AnnAssign) and isinstance(sub.target, ast.Name)
-                ]
-        assert names == COCO_17, (
-            f"KEYPOINT_NAMES drifted from the canonical COCO-17 table: {names!r}"
-        )
-        # (ii) KEYPOINT_INDICES is derived from that table and nowhere else
-        # (a comprehension over KEYPOINT_NAMES, evaluated at import): a
-        # hand-edited lookup that shifted one table and not the other is the
-        # exact way a positional triple silently changes meaning. Read from
-        # the live module, not from text.
-        from ai.yolo26.pose_estimation import KEYPOINT_INDICES as LIVE_INDICES
-
-        assert {name: i for i, name in enumerate(COCO_17)} == LIVE_INDICES, (
-            f"KEYPOINT_INDICES diverged from the COCO order: {LIVE_INDICES!r}"
-        )
-        # (iii) The readers unpack the triple positionally, conf LAST, and the
-        # formatter resolves a NAME by index - the hazard s1c was written for.
-        assert "x, y, conf = keypoints[idx]" in pose_src, (
-            "pose_estimation.py no longer unpacks the triple positionally; the "
-            "arity assumption this pin exists for moved and must be re-homed"
-        )
-        assert "if conf < min_conf:" in pose_src, (
-            "the triple's third slot is no longer read as a visibility/confidence "
-            "gate - the conf-last convention lost its only reader"
-        )
-        assert "person_keypoints[i, 0]" in pose_src and "person_keypoints[i, 2]" in pose_src, (
-            "pose_estimation.py no longer maps fixed slots 0/1/2 onto x/y/confidence"
-        )
-        assert "name=KEYPOINT_NAMES[i]" in pose_src, (
-            "pose_estimation.py no longer resolves a keypoint's NAME by index; "
-            "an unlabelled positional blob just lost its only labeller"
-        )
-        # (iv) The surviving Pydantic spellings: the NAMED model has one field
-        # per slot (a label-bearing row is allowed to be label-bearing), and
-        # the PUBLIC API schema stays arity-blind - the gap s1b/a pinned.
-        assert model_fields["Keypoint"] == ["name", "x", "y", "confidence"], (
-            f"Keypoint's field set changed: {model_fields.get('Keypoint')}"
-        )
+        """TOMBSTONE (O3.1): ai/yolo26/pose_estimation.py was pruned as
+        non-shipping; the public API schema (PoseEnrichment) and DB column
+        (PoseResult.keypoints) remain pinned below."""
+        assert not POSE_EST_SRC.exists()
+        assert len(COCO_17) == 17
         from backend.api.schemas.enrichment import PoseEnrichment
 
         field = PoseEnrichment.model_fields["keypoints"]

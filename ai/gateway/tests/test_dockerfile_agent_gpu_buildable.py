@@ -61,12 +61,20 @@ INSTALLED_PACKAGES: frozenset[str] = frozenset(
         "prometheus-client",
         "httpx",
         "python-multipart",
+    }
+)
+
+# O3.1: unused export/ML dependencies stripped from the gateway runtime image.
+STRIPPED_PACKAGES: frozenset[str] = frozenset(
+    {
         "torch",
         "transformers",
         "ultralytics",
         "onnx",
         "onnxscript",
+        "onnxruntime",
         "onnxruntime-gpu",
+        "open_clip",
         "open_clip_torch",
         "timm",
         "einops",
@@ -276,6 +284,32 @@ class TestGatewayDockerfileAgentGpuBuildable:
         # A cure that drops a dependency to dodge a build error must be red here.
         text = GATEWAY_DOCKERFILE.read_text()
         assert pip_installed_packages(text) == set(INSTALLED_PACKAGES)
+        assert not (pip_installed_packages(text) & STRIPPED_PACKAGES)
+
+    def test_gateway_runtime_imports_no_stripped_package(self) -> None:
+        # O3.1: confirm by AST import trace that no gateway runtime module
+        # imports any of the stripped export/ML packages.
+        import ast
+
+        gw_dir = REPO_ROOT / "ai" / "gateway"
+        runtime_files = [
+            p
+            for p in sorted(gw_dir.rglob("*.py"))
+            if "tests" not in p.parts and "export" not in p.parts
+        ]
+        assert runtime_files
+        imported_roots: set[str] = set()
+        for path in runtime_files:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        imported_roots.add(alias.name.split(".")[0])
+                elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                    imported_roots.add(node.module.split(".")[0])
+        assert not (imported_roots & STRIPPED_PACKAGES), (
+            f"gateway runtime imports stripped packages: {sorted(imported_roots & STRIPPED_PACKAGES)}"
+        )
 
 
 class TestTheCorpusScanIsHonestAboutScope:

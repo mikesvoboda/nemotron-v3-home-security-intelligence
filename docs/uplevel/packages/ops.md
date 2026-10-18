@@ -215,17 +215,17 @@ sandbox run's deployment, in a comment on each PR (rulings 154 and 256).
 **Assigned:** heavy-b, first on its queue (ruling 260). It is owner tier as destructive work (UR-98,
 ruling 249).
 
-- [ ] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
+- [x] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
       every build script a Dockerfile or workflow runs. Delete what does not ship (~27K of 35K
       lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it. The declaration lands
       first, so `ai/gateway/export/` (O2.4, B2.3) is never on the deleted list (ruling 210).
-- [ ] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
+- [x] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
       "synthbench workstream (UR-82), ruling 210"; delete `synthbench/spikes/` (ruling 210 amends
       UR-82 for it).
-- [ ] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
+- [x] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
       timm, onnxruntime). Confirm each by import trace; a build-time-only need moves to a build
       stage. **MEASURE** the image size before and after.
-- [ ] Apply the `R2` ruling on OD-17: the Triton `reid`/`threat` models, `/enrich-lt`, and
+- [x] Apply the `R2` ruling on OD-17: the Triton `reid`/`threat` models, `/enrich-lt`, and
       `ai-llm-vllm`. `R2a` ruled it (ruling 89): `ai-llm-vllm` is removed — the service, its `vllm`
       profile and every setting that names it; the re-ID half is `B2.2` (ruling 68); and Triton's
       role is UR-86.
