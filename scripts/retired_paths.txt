@@ -81,3 +81,39 @@ docs/archive/
 # stem and both stay alive, so a `feature-check` term would flag living text
 # (same trap the header's derived-stem paragraph warns about).
 .github/workflows/feature-check.yml
+
+# OD-35 (R2a, ruling 89): the 26 image-(re)validation plans go. They are one
+# January audit run's outputs, produced almost twice over (~11 architecture
+# areas covered by 12 revalidation + 14 validation files), not plans: the
+# revalidation half cross-cites the validation half by stem, the validation
+# half cites back zero times, and nothing in the living tree links them — no
+# mkdocs nav entry, no AGENTS.md, no markdown link from any other file. OD-33
+# froze docs/plans/ as history; OD-35 deletes the family so history keeps it.
+# `git rm` of the two pathspecs is the deletion; these entries are the guard
+# that keeps the family gone and catches a living citation of it.
+docs/plans/image-validation-ai-orchestration.md
+docs/plans/image-validation-api-reference.md
+docs/plans/image-validation-background-services.md
+docs/plans/image-validation-data-model.md
+docs/plans/image-validation-dataflows.md
+docs/plans/image-validation-detection-pipeline.md
+docs/plans/image-validation-frontend.md
+docs/plans/image-validation-middleware.md
+docs/plans/image-validation-observability.md
+docs/plans/image-validation-realtime-system.md
+docs/plans/image-validation-resilience-patterns.md
+docs/plans/image-validation-security.md
+docs/plans/image-validation-system-overview.md
+docs/plans/image-validation-testing.md
+docs/plans/image-revalidation-ai-orchestration.md
+docs/plans/image-revalidation-api-reference.md
+docs/plans/image-revalidation-background-services.md
+docs/plans/image-revalidation-data-model.md
+docs/plans/image-revalidation-detection-pipeline.md
+docs/plans/image-revalidation-frontend.md
+docs/plans/image-revalidation-middleware.md
+docs/plans/image-revalidation-observability.md
+docs/plans/image-revalidation-realtime-system.md
+docs/plans/image-revalidation-resilience-patterns.md
+docs/plans/image-revalidation-system-overview.md
+docs/plans/image-revalidation-testing.md
