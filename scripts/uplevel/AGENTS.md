@@ -212,7 +212,7 @@ window that shrinks from full to short re-opened the bug (50 false `new comment`
 the last one has no anchor and announces no arrival — position it cannot prove, it does not claim —
 while the vanished side still prints, which is what keeps an honest append reporting.
 
-`scripts/test_pr_watch.py` (73 tests, in ci.yml's anti-rot-gates list) drives one seam —
+`scripts/test_pr_watch.py` (75 tests, in ci.yml's anti-rot-gates list) drives one seam —
 `run(query, variables)` plus an injected clock and sleeper, no network, no monkeypatching. Its `Run`
 fixture **raises** on an unscripted poll rather than returning an empty response, so a watcher that
 starts reading something new fails loudly instead of passing on `{}`.

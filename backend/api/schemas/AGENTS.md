@@ -1541,8 +1541,6 @@ Pydantic schemas for background job tracking API (NEM-2390, NEM-2392, NEM-2396).
 | -------------------- | ----------------------------------- |
 | `ExportJobRequest`   | Request to start an export job      |
 | `ExportJobResult`    | Result data for completed export    |
-| `JobCancelResponse`  | Cancellation response               |
-| `JobAbortResponse`   | Abort response for running jobs     |
 | `BulkCancelRequest`  | Request to cancel multiple jobs     |
 | `BulkCancelError`    | Error for single job in bulk cancel |
 | `BulkCancelResponse` | Summary of bulk cancellation        |
@@ -1554,15 +1552,12 @@ Pydantic schemas for background job tracking API (NEM-2390, NEM-2392, NEM-2396).
 | `JobSearchAggregations` | Aggregation counts by status and type           |
 | `JobSearchResponse`     | Search results with pagination and aggregations |
 
-**Job History Schemas (NEM-2396):**
+**Job Log Schemas (NEM-2396):**
 
-| Schema                  | Purpose                                    |
-| ----------------------- | ------------------------------------------ |
-| `JobTransitionResponse` | Single state transition record             |
-| `JobAttemptResponse`    | Single execution attempt record            |
-| `JobHistoryResponse`    | Complete history with transitions/attempts |
-| `JobLogEntryResponse`   | Single log entry                           |
-| `JobLogsResponse`       | Job logs with pagination                   |
+| Schema                | Purpose                  |
+| --------------------- | ------------------------ |
+| `JobLogEntryResponse` | Single log entry         |
+| `JobLogsResponse`     | Job logs with pagination |
 
 ---
 

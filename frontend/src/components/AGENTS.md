@@ -39,7 +39,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **face-recognition/** | Face recognition and person identification       | FaceRecognitionPage, FaceGallery, FaceMatchPanel                                                                                                                                                                                                                                                                                                                          |
 | **feedback/**         | User feedback components                         | FeedbackPanel                                                                                                                                                                                                                                                                                                                                                             |
 | **forms/**            | React 19 form components and patterns            | FormField, FormSection                                                                                                                                                                                                                                                                                                                                                    |
-| **jobs/**             | Background job monitoring components             | JobsPage, JobsList, JobsListItem, JobsEmptyState, JobsSearchBar, JobActions, JobHeader, JobDetailPanel, JobHistoryTimeline, JobLogsViewer, JobMetadata, ConnectionIndicator, ConfirmDialog, LogLine, StatusDot, TimelineEntry                                                                                                                                             |
+| **jobs/**             | Background job monitoring components             | JobsPage, JobsList, JobsListItem, JobsEmptyState, JobsSearchBar, JobHeader, JobDetailPanel, JobMetadata, ConfirmDialog, StatusDot                                                                                                                                                                                                                                         |
 | **layout/**           | Application shell components                     | Layout, Header, Sidebar                                                                                                                                                                                                                                                                                                                                                   |
 | **logs/**             | System logs via Grafana/Loki embed               | LogsPage                                                                                                                                                                                                                                                                                                                                                                  |
 | **notifications/**    | Notification delivery history and management     | NotificationHistoryPage, NotificationList                                                                                                                                                                                                                                                                                                                                 |
@@ -119,8 +119,7 @@ Routes:
 ├── /jobs -> JobsPage (jobs/)
 │ ├── JobsList
 │ ├── JobsSearchBar
-│ ├── JobDetailPanel
-│ └── JobLogsViewer
+│ └── JobDetailPanel
 ├── /dev-tools -> DeveloperToolsPage (developer-tools/)
 │ ├── ConfigInspectorPanel
 │ ├── LogLevelPanel
@@ -418,27 +417,15 @@ See `system/AGENTS.md` for the full, current file list. Deleted in #3471:
 - `JobsEmptyState.tsx` - Empty state for jobs list
 - `JobsSearchBar.tsx` - Jobs search bar with filters
 - `JobsSearchBar.test.tsx` - Test suite for JobsSearchBar
-- `JobActions.tsx` - Job action buttons (cancel, retry, etc.)
-- `JobActions.test.tsx` - Test suite for JobActions
 - `JobHeader.tsx` - Job detail header
 - `JobHeader.test.tsx` - Test suite for JobHeader
 - `JobDetailPanel.tsx` - Job detail panel
-- `JobHistoryTimeline.tsx` - Job execution history timeline
-- `JobHistoryTimeline.test.tsx` - Test suite for JobHistoryTimeline
-- `JobLogsViewer.tsx` - Job logs viewer with streaming
-- `JobLogsViewer.test.tsx` - Test suite for JobLogsViewer
 - `JobMetadata.tsx` - Job metadata display
 - `JobMetadata.test.tsx` - Test suite for JobMetadata
-- `ConnectionIndicator.tsx` - WebSocket connection indicator
-- `ConnectionIndicator.test.tsx` - Test suite for ConnectionIndicator
 - `ConfirmDialog.tsx` - Confirmation dialog component
 - `ConfirmDialog.test.tsx` - Test suite for ConfirmDialog
-- `LogLine.tsx` - Individual log line component
-- `LogLine.test.tsx` - Test suite for LogLine
 - `StatusDot.tsx` - Job status indicator dot
 - `StatusDot.test.tsx` - Test suite for StatusDot
-- `TimelineEntry.tsx` - Timeline entry component
-- `TimelineEntry.test.tsx` - Test suite for TimelineEntry
 - `index.ts` - Barrel exports
 
 ### performance/
