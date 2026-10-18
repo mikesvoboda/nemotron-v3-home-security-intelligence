@@ -446,7 +446,7 @@ async def _run_batch_audit_job(
                     # an AsyncSession -> MissingGreenlet, which this loop's
                     # `except Exception` turned into failed_events for 100% of
                     # events while complete_job still reported a normal result
-                    # (ruling 129). Precedent: background_evaluator.py:322-324.
+                    # (ruling 129). Precedent: event_service.py:200-210.
                     result = await db.execute(
                         select(Event)
                         .where(Event.id == event_id)
