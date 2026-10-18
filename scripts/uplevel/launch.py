@@ -43,7 +43,10 @@ MEASURE, open (history/packages-done.md §O0.1): whether `sbx exec` still reache
 once the agent's session has ended. This order does not depend on the answer: the inspection and the
 export run while the sandbox is still up, and `agent-dgx stop` comes after them. An
 inspection that fails still refuses, and the owner's `retire` run on a throwaway session
-posts the measurement.
+posts the measurement. The supervisor's budget kill does not depend on the answer either: the
+`timeout` wrapper runs *inside* the sandbox, so the tick dies at the budget even if `sbx exec`
+later stops reaching it; the host's own timeout stays only as the backstop for a fire whose
+`sandbox` never answers at all.
 
 Exit codes: 0 done; 2 refused, or a step failed, with what to do next.
 """
@@ -813,10 +816,7 @@ def retire(host: Host, name: str) -> None:
     )
 
 
-# ----------------------------------------------------------------------- cli
-
-
-# ------------------------------------------------------------------------ supervise
+# ----------------------------------------------------------------- supervise
 #
 # [r247]. The coordinator's tick is already a fresh, unnamed subagent whose only memory is
 # the read-through cursor in its heartbeat (UR-173), so the in-pane `/loop` dispatcher adds
@@ -885,11 +885,12 @@ def _clock() -> str:
 
 
 def coordinator_session(host: Host) -> Session:
-    """The coordinator's row from the manifest, so the fire uses the pane's own model.
+    """The coordinator's row from the manifest, which the fire runs inside.
 
-    Read from the manifest rather than assumed: `[models]` maps each row's `model` key to the
-    `claude` arguments the owner starts that session with (UR-28), and box 1 asks the
-    supervisor to run on the pane session's model, not on whatever `claude` defaults to.
+    Read from the manifest rather than assumed: the row is what proves the session is
+    declared and running before anything fires. Its `[models]` entry is `agent-dgx run`
+    vocabulary - how the owner STARTS the pane - and is deliberately not on the fire's
+    `claude` line (the fire carries the prompt and nothing else; see `supervise`).
     """
     data = _load_toml(host.manifest)
     for sessions in _phases_of(data, host.manifest).values():
@@ -897,37 +898,25 @@ def coordinator_session(host: Host) -> Session:
             if session.name == COORDINATOR:
                 return session
     raise Refused(
-        f"{host.manifest} declares no {COORDINATOR} session, so there is no pane model to "
-        "inherit. Restore its row (scripts/uplevel/sandboxes.toml, Phase 0/1)."
+        f"{host.manifest} declares no {COORDINATOR} session, so there is no session to "
+        "fire inside. Restore its row (scripts/uplevel/sandboxes.toml, Phase 0/1)."
     )
-
-
-def tick_model_args(host: Host, session: Session) -> list[str]:
-    """The `claude` arguments that reproduce the pane's model for one headless fire.
-
-    `run_args_for` resolves the manifest's row to its `agent-dgx run` arguments, which carry
-    the model selection (`--agent claude --endpoint dgx`). `--model` is NOT among them: the
-    row's model is a `claude` endpoint, so the pane runs Claude Code's own default and the
-    supervisor must pass the same thing rather than invent a `--model`.
-    """
-    data = _load_toml(host.manifest)
-    args = run_args_for(data, host.manifest, session)
-    if args[:2] != ["--agent", "claude"]:
-        raise Refused(
-            f"the {session.name} row resolves to {args!r}, which is not an `--agent claude` "
-            "invocation, so the supervisor cannot reproduce its model for a headless fire."
-        )
-    return args
 
 
 def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
     """One timer fire: run the coordinator's tick once, inside its sandbox.
 
     A fire is a no-op that says so when the session is not running (exit 2, naming the
-    command that starts it), and when another fire holds the lock. Otherwise it runs the
-    tick prompt as a headless `claude -p` through `sbx exec`, kills it at `budget`, and
-    appends one line carrying start, end, status, killed and the tick's own summary.
+    command that starts it), when another fire holds the lock, and when the run itself was
+    launched from a session's clone (as `up` and `retire` refuse; a fire from there would
+    create `supervise/` in an agent-writable checkout). Otherwise it runs the tick prompt
+    as a headless `claude -p` through `sbx exec` under `timeout <budget>` (the kill lives
+    inside the sandbox; the host budget stays as the backstop), and appends one line
+    carrying start, end, status, killed and the tick's own summary. A fire that cannot
+    reach the sandbox is logged too - `status=refused` - so the log records the gap an
+    absent line would hide.
     """
+    _check_owner_checkout(host)
     if name != COORDINATOR:
         raise Refused(
             f"supervise runs the coordinator's ticks only, and {name} is not {COORDINATOR}. "
@@ -942,15 +931,15 @@ def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
         )
 
     session = coordinator_session(host)
-    model_args = tick_model_args(host, session)
     prompt = tick_prompt()
     directory = host.checkout / SUPERVISE_DIR
     log = directory / f"{name}.log"
-    # The pane's own model, not a default: the manifest's row for the coordinator names it,
-    # and `run_args_for` is the one place those arguments are resolved. `--print` has no
-    # interactive prompter, so the permission mode travels too, or a tick would answer the
-    # pane's settings with something else.
-    script = " ".join(["claude", "-p", *model_args, shlex.quote(prompt)])
+    # The manifest row's arguments stay off the wire: `[models]` is `agent-dgx run`
+    # vocabulary (how the owner starts a session), and joined into a `claude` line it is
+    # both wrong (`--endpoint dgx` is no `claude` flag - measured: unknown option, rc 1)
+    # and a shell-injection seam had the row ever changed. The fire is the prompt and
+    # nothing else. Permission mode is the open owner question Q1, not a code answer.
+    script = f"timeout {budget} claude -p {shlex.quote(prompt)}"
     argv = ["sbx", "exec", session.sandbox, "bash", "-lc", f"cd {session.workspace} && {script}"]
 
     if host.dry_run:
@@ -971,11 +960,26 @@ def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
         summary = ""
         try:
             done = host.run(argv, capture_output=True, text=True, timeout=budget, check=False)
-            status = "ok" if done.returncode == 0 else f"exit {done.returncode}"
+            # the tick's partial stdout is the summary even on a kill: what the tick was
+            # printing when the budget caught it is the one diagnostic the log can carry
             summary = " ".join(str(done.stdout or "").split())[:300]
+            if done.returncode == 124:
+                # `timeout` killed the tick at the budget inside the sandbox
+                killed, status = True, "timeout"
+            else:
+                status = "ok" if done.returncode == 0 else f"exit {done.returncode}"
         except subprocess.TimeoutExpired:
+            # the host backstop: the sandbox itself stopped answering (the wrapper would
+            # have killed claude in-sandbox at the same budget had it been reached)
             killed, status = True, "timeout"
         except OSError as error:
+            ended = _clock()
+            note = " ".join(str(error).split())[:300]
+            _log_line(
+                log,
+                f"{started} {name} start={started} end={ended} status=refused "
+                f"killed=no summary={shlex.quote(note)}",
+            )
             raise Refused(
                 f"could not fire {name}'s tick ({error}). Whether `sbx exec` still reaches "
                 "the sandbox is this module header's open MEASURE; the session was left as "
@@ -985,9 +989,12 @@ def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
         _log_line(
             log,
             f"{started} {name} start={started} end={ended} status={status} "
-            f"killed={'yes' if killed else 'no'} summary={summary or '(none)'}",
+            f"killed={'yes' if killed else 'no'} summary={shlex.quote(summary) if summary else '(none)'}",
         )
         _say(f"fired {name}: status={status} killed={'yes' if killed else 'no'}")
+
+
+# ----------------------------------------------------------------------- cli
 
 
 def main(argv: Sequence[str] | None = None) -> int:

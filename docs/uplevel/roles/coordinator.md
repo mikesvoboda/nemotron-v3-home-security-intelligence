@@ -208,11 +208,15 @@ on 2026-10-16 the in-pane dispatcher stopped and the coordinator posted nothing 
 **The supervisor (default from [r247]).** The owner's timer runs
 `scripts/uplevel/launch.py supervise uplevel-coordinator` every 30 minutes on maui (ruling 239).
 One fire is one tick: the host runs the prompt below, word for word, as a headless `claude -p`
-inside `agent-uplevel-coordinator` through `sbx exec`, on the pane session's model and permission
-mode. A host lock skips a fire while a tick runs, a tick that has run 60 minutes is killed, and
-each fire appends one line to `<checkout>/supervise/uplevel-coordinator.log` carrying start, end,
-exit status, whether it was killed, and the tick's five-line summary. The prompt is read out of
-this file, so this section is the one place it is written.
+inside `agent-uplevel-coordinator` through `sbx exec`, with no arguments beyond the prompt itself -
+the manifest row's arguments are `agent-dgx run` vocabulary (how a session is started), not
+`claude` flags, so the fire takes `claude`'s own defaults and whether that reproduces the pane's
+model and permission mode is an open owner question ([r247], Q1 in the PR). A host lock skips a
+fire while a tick runs, a tick that has run 60 minutes is killed by a `timeout` wrapper the fire
+runs inside the sandbox, and each fire appends one line to
+`<checkout>/supervise/uplevel-coordinator.log` carrying start, end, exit status, whether it was
+killed, and the tick's five-line summary. The prompt is read out of this file; the `/loop` line
+below is where it is written.
 
 The switch-over is the owner's: end the pane's `/loop` session first, then enable the timer. Two
 dispatchers must never run at once.
