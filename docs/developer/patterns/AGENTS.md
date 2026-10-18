@@ -62,6 +62,7 @@ patterns/
 - Understanding and improving mutation score
 - The interface bar — which kills count, and the below-bar assertions that don't
 - Accepted survivors — the `equivalent` / `below-bar` kinds and the file that records them
+- PR evidence runs (zero kill-loss) — `scripts/mutation-diff.py` and the `scripts/mutation-run.sh` workflow for test-only PRs (`01` M4 / `O3.6`)
 - CI integration (non-blocking)
 - Troubleshooting surviving mutants
 

@@ -453,6 +453,117 @@ An **accepted survivor** is a mutant the policy lets survive, recorded with a re
 Accepted survivors live in one file, `backend/tests/mutation/accepted_survivors.toml`. The
 weekly scorer will report scores both with and without them (`01` package M2).
 
+## PR evidence runs (zero kill-loss)
+
+A test-only PR that deletes, merges, moves or rewrites tests for a scored module — leaving the
+module's production bytes unchanged — carries before/after evidence under the zero kill-loss
+protocol (`docs/uplevel/01-mutation-policy.md`, section "The floor", package M4 / `O3.6`).
+
+### Mechanism decision (`01` M4 DECIDE)
+
+M4 evaluated two ways to keep the baseline mutant set fixed across the base and head suites when
+running `scripts/mutation-run.sh`:
+
+- **Chosen: turn `mutate_only_covered_lines` off (`mutate_only_covered_lines = false`) for
+  evidence runs** (`scripts/mutation-diff.py --configure-toml`), so mutant generation depends on
+  the module's production bytes alone. When `mutate_only_covered_lines` is `false`, mutmut skips
+  the `coverage.py` pre-pass (`store_lines_covered_by_tests()` is a no-op when
+  `config().mutate_only_covered_lines` is false) and passes `covered_lines = None` to
+  `mutate_file_contents()`. Because step 1 of the floor confirms the module's production bytes are
+  unchanged (`git diff --stat <base> -- <module path>` is empty), both the base run and the head
+  run generate the exact same mutant set regardless of which tests the PR deleted or rewrote.
+- **Rejected: generate once at the base and swap the head's tests into `mutants/`.**
+  `scripts/mutation-run.sh` invokes `uv run mutmut run`, which unconditionally calls
+  `copy_also_copy_files()` (`shutil.copytree("backend", "mutants/backend", dirs_exist_ok=True)`)
+  before `store_lines_covered_by_tests()` and `create_mutants()`. Because `"backend/"` is in
+  `[tool.mutmut] also_copy`, `copy2` overwrites `mutants/backend/<module>.py` with the source
+  file's `mtime`, resetting `mutant_mtime == source_mtime` and defeating
+  `create_mutants_for_file()`'s `source_mtime < mutant_mtime` reuse guard. Under
+  `mutate_only_covered_lines = true`, the second `mutation-run.sh` call therefore re-runs coverage
+  against the head tests and regenerates the module: on `backend/services/verdict_engine_status.py`
+  (deleting `test_timeout_probe_is_unknown_with_its_message`, the last test covering the
+  `if details is None:` branch of `_derive_state`), the head run shrank the generated set from
+  `107` to `103` keys (dropping all 4 mutants on lines 99–102) and renumbered
+  `x__derive_state__mutmut_6..15` down to `x__derive_state__mutmut_2..11`. Even if someone passes
+  such a pair of runs to `scripts/mutation-diff.py`, matching by stable identity
+  (`module`, `function`, `body_sha256`) rather than positional key catches the dropped mutants as
+  `killed -> missing`, while `mutate_only_covered_lines = false` keeps all `118` baseline mutants
+  present and directly tested (`killed -> survived` or `killed -> no tests`).
+
+### Wall-clock measurement (`01` M4 MEASURE)
+
+Measured on `backend/services/verdict_engine_status.py` (326 lines, 118 mutants with
+`mutate_only_covered_lines = false`, 12 unit tests in
+`backend/tests/unit/services/test_verdict_engine_status.py`, `MUTMAX=8`, generation and stats
+collection included):
+
+| Step                                                         | Wall-clock | Mutants (caught / total) |
+| ------------------------------------------------------------ | ---------: | -----------------------: |
+| Base run (`./scripts/mutation-run.sh verdict_engine_status`) |     43.9 s |                 60 / 118 |
+| Head run (after deleting the branch's last test)             |     37.1 s |                 58 / 118 |
+| Diff (`scripts/mutation-diff.py --before ... --after ...`)   |      0.1 s |     2 kill-losses caught |
+| **Total (both runs + generation + diff)**                    | **81.1 s** |                        — |
+
+For comparison, the same pair of runs with `mutate_only_covered_lines = true` took **93.2 s**
+(`50.5 s` base + `42.7 s` head) because each run paid an extra `coverage.py` pass before mutant
+generation.
+
+### Exact commands for a test-only PR
+
+Run in a throwaway git worktree so the checkout's `pyproject.toml` and working tree stay clean:
+
+```bash
+MODULE="verdict_engine_status"
+MODULE_PATH="backend/services/verdict_engine_status.py"
+TEST_PATHS=("backend/tests/unit/services/test_verdict_engine_status.py")
+BASE_REF="origin/main"
+HEAD_REF="HEAD"
+EVID_DIR="$(mktemp -d -t mut-evidence-XXXXXX)"
+
+# 1. Confirm production bytes of the scored module are unchanged
+git diff --stat "${BASE_REF}" "${HEAD_REF}" -- "${MODULE_PATH}"
+
+# 2. Run the base suite against the module's full baseline mutant set
+git worktree add --detach "${EVID_DIR}/wt" "${BASE_REF}"
+uv run python scripts/mutation-diff.py \
+  --configure-toml "${EVID_DIR}/wt/pyproject.toml" \
+  --module "${MODULE_PATH}" \
+  --tests "${TEST_PATHS[@]}"
+(cd "${EVID_DIR}/wt" && MUTMAX=8 ./scripts/mutation-run.sh "${MODULE}")
+uv run python scripts/mutation-diff.py \
+  --snapshot "${EVID_DIR}/before.json" \
+  --from "${EVID_DIR}/wt/mutants" \
+  --module "${MODULE}"
+
+# 3. Run the head suite against the same baseline mutant set
+git -C "${EVID_DIR}/wt" checkout -f "${HEAD_REF}"
+rm -rf "${EVID_DIR}/wt/mutants"
+uv run python scripts/mutation-diff.py \
+  --configure-toml "${EVID_DIR}/wt/pyproject.toml" \
+  --module "${MODULE_PATH}" \
+  --tests "${TEST_PATHS[@]}"
+(cd "${EVID_DIR}/wt" && MUTMAX=8 ./scripts/mutation-run.sh "${MODULE}")
+uv run python scripts/mutation-diff.py \
+  --snapshot "${EVID_DIR}/after.json" \
+  --from "${EVID_DIR}/wt/mutants" \
+  --module "${MODULE}"
+
+# 4. Diff by stable identity (exits non-zero if any kill-loss is not in accepted_survivors.toml)
+uv run python scripts/mutation-diff.py \
+  --before "${EVID_DIR}/before.json" \
+  --after "${EVID_DIR}/after.json" \
+  --survivors backend/tests/mutation/accepted_survivors.toml
+
+# 5. Clean up the throwaway worktree
+git worktree remove --force "${EVID_DIR}/wt"
+```
+
+`scripts/mutation-diff.py --before <results> --after <results>` accepts `.json` snapshot/fixture
+files, mutmut `.py.meta` files (with their sibling mutated `.py` files alongside), or `mutants/`
+directories directly. Every uncovered kill-loss prints the exact `module`, `mutant`, and
+`body_sha256` fields needed for a `below-bar` entry in
+`backend/tests/mutation/accepted_survivors.toml`.
+
 ## Equivalent Mutants
 
 Some mutations produce code that is semantically identical to the original. These "equivalent mutants" can never be killed; under the current policy they are recorded as `equivalent` accepted survivors (see above) rather than ignored silently.
