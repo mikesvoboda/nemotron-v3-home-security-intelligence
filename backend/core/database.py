@@ -411,7 +411,11 @@ async def init_db() -> None:
                 # the old shape forever. The ordered, checked upgrades in backend/migrations
                 # are the other half, and they run here, inside the same advisory lock and the
                 # same transaction, as savepoints (`nested=True`) so a failing upgrade rolls
-                # back to just before itself and cannot take create_all's work with it.
+                # back to just before itself. The rollback that wipes create_all's work is the
+                # OUTER transaction's: the failure propagates out of apply_all through the
+                # `begin()` below, so nothing half-applied survives and the next boot retries
+                # from a clean database (savepoint undo is only the inner half; the unlock in
+                # the finally is what still runs on that failure path).
                 from backend.migrations.runner import apply_all
 
                 await apply_all(conn, nested=True)
