@@ -58,7 +58,6 @@ import PrometheusMonitoringPanel from './PrometheusMonitoringPanel';
 import ServicesPanel from './ServicesPanel';
 import WebSocketHealthPanel from './WebSocketHealthPanel';
 import { WorkerManagementPanel } from './WorkerManagementPanel';
-import WorkerStatusPanel from './WorkerStatusPanel';
 
 import type { DatabaseMetrics, RedisMetrics, DatabaseHistoryData } from './DatabasesPanel';
 import type {
@@ -555,19 +554,6 @@ export default function SystemMonitoringPage() {
                   data-testid="worker-management-section"
                 >
                   <WorkerManagementPanel data-testid="worker-management-panel" />
-                </CollapsibleSection>
-              </div>
-
-              {/* Worker Status Panel (WebSocket-based real-time status) */}
-              <div id="section-worker-status">
-                <CollapsibleSection
-                  title="Pipeline Workers (Live)"
-                  icon={<Activity className="h-5 w-5 text-[#76B900]" />}
-                  isOpen={sectionStates['worker-status']}
-                  onToggle={() => toggleSection('worker-status')}
-                  data-testid="worker-status-section"
-                >
-                  <WorkerStatusPanel data-testid="worker-status-panel" />
                 </CollapsibleSection>
               </div>
 

@@ -447,10 +447,6 @@ export type { UseJobMutationsOptions, UseJobMutationsReturn } from './useJobMuta
 export { useJobLogsQuery, jobLogsQueryKeys } from './useJobLogsQuery';
 export type { UseJobLogsQueryOptions, UseJobLogsQueryReturn } from './useJobLogsQuery';
 
-// Job logs WebSocket hooks (NEM-2711)
-export { useJobLogsWebSocket, default as useJobLogsWebSocketDefault } from './useJobLogsWebSocket';
-export type { UseJobLogsWebSocketOptions, UseJobLogsWebSocketReturn } from './useJobLogsWebSocket';
-
 // Job history query hooks (NEM-2713)
 export { useJobHistoryQuery, jobHistoryQueryKeys } from './useJobHistoryQuery';
 export type { UseJobHistoryQueryOptions, UseJobHistoryQueryReturn } from './useJobHistoryQuery';
@@ -975,22 +971,6 @@ export type {
 // RTSP connection testing hook (NEM-4748)
 export { useRtspTest } from './useRtspTest';
 export type { UseRtspTestReturn } from './useRtspTest';
-
-// Worker status WebSocket hook (NEM-3127)
-export {
-  useWorkerStatusWebSocket,
-  default as useWorkerStatusWebSocketDefault,
-} from './useWorkerStatusWebSocket';
-export type {
-  WorkerEventType,
-  WorkerEventPayload,
-  WorkerStatusEntry,
-  WorkerStatusMap,
-  PipelineHealthStatus,
-  WorkerStatusChangeHandler,
-  UseWorkerStatusWebSocketOptions,
-  UseWorkerStatusWebSocketReturn,
-} from './useWorkerStatusWebSocket';
 
 // Worker events hook (NEM-3127) - higher-level hook with toast notifications
 export { useWorkerEvents, default as useWorkerEventsDefault } from './useWorkerEvents';

@@ -18,7 +18,7 @@
  * own and bubbles to the row.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, authPost, closedByGuard, loginAsAdmin, pollApi, readOpsHarness } from './harness';
+import { api, authPost, closedByGuard, loginAsAdmin, pollApi, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

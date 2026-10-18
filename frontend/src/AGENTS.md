@@ -504,15 +504,12 @@ Background jobs management:
 - `JobHeader.tsx` - Job header display
 - `JobMetadata.tsx` - Job metadata display
 - `JobActions.tsx` - Job action buttons
-- `JobLogsViewer.tsx` - Job logs viewer
 - `JobHistoryTimeline.tsx` - Job history timeline
 - `JobsSearchBar.tsx` - Jobs search and filter bar
 - `JobsEmptyState.tsx` - Empty state for no jobs
 - `ConfirmDialog.tsx` - Confirmation dialog
-- `ConnectionIndicator.tsx` - Connection status indicator
 - `StatusDot.tsx` - Job status indicator dot
 - `TimelineEntry.tsx` - Timeline entry component
-- `LogLine.tsx` - Log line display
 - `index.ts` - Barrel export
 
 #### `/components/performance/`

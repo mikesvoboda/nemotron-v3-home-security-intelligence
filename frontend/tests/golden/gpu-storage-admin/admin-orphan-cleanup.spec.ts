@@ -18,8 +18,8 @@
  * POST — the clean-up request exists only behind the dialog's confirm.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { closedByGuard, loginAsAdmin, readOpsHarness } from '../operations/harness';
-import { openAdminSection } from './harness';
+import { closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
+import { openAdminSection } from '../harness';
 
 const harness = readOpsHarness();
 

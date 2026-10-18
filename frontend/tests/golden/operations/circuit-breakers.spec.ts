@@ -10,7 +10,7 @@
  * inventory, so this spec stays on the closed-card path by design.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harness';
+import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

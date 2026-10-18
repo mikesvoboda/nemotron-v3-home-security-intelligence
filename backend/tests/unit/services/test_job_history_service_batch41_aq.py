@@ -50,7 +50,6 @@ from unittest import mock
 from uuid import UUID
 
 import backend.services.job_history_service as jhs
-import backend.services.job_log_emitter as jle
 from backend.services.job_history_service import (
     AttemptRecord,
     JobHistory,
@@ -201,41 +200,8 @@ class Session:
         self.flushes += 1
 
 
-class Emitter:
-    """Mirrors JobLogEmitter.emit_log's positional-or-keyword signature."""
-
-    def __init__(self, error: Exception | None = None) -> None:
-        self.calls: list[tuple[Any, ...]] = []
-        self.error = error
-
-    async def emit_log(self, job_id: Any, level: Any, message: Any, context: Any = None) -> bool:
-        self.calls.append(("emit_log", job_id, level, message, context))
-        if self.error is not None:
-            raise self.error
-        return True
-
-
 def svc_with(session: Session) -> JobHistoryService:
     return JobHistoryService(session)
-
-
-def patch_emitter(em: Emitter, *, boom: bool = False):
-    """Patch the FUNCTION THE SERVICE IMPORTS AT CALL TIME (the service does
-    ``from backend.services.job_log_emitter import get_job_log_emitter``
-    inside add_job_log, so patching the emitter MODULE attribute is the one
-    position the call actually reads)."""
-
-    async def _getter() -> Emitter:
-        return em
-
-    async def _boom() -> Emitter:
-        # the GETTER raises — patching emit_log instead would never fire:
-        # the service's late `from ... import get_job_log_emitter` re-reads
-        # THIS attribute inside every add_job_log call, after the session
-        # flush, so the import itself is the failure-injection point.
-        raise RuntimeError("redis down")
-
-    return mock.patch.object(jle, "get_job_log_emitter", new=_boom if boom else _getter)
 
 
 # =============================================================================
@@ -721,20 +687,15 @@ def test_record_attempt_end_not_found_warns_exact() -> None:
 
 
 # =============================================================================
-# add_job_log — the x2 occurrence twins: ONE success row exercises BOTH
-# kwargs sites (the JobLog constructor AND the emitter call), so the removed/
-# None context/message twins die at their own site (redcheck-subset-feed-
-# shape-twins).  level="WARNING" input -> stored "warning" (the .lower()) but
-# emitted RAW (the emitter gets what the caller passed).  context non-None
-# pins the context=None/removed twins; attempt_number=4 (not default 1)
+# add_job_log — level="WARNING" input -> stored "warning" (the .lower());
+# context non-None pins context=None/removed; attempt_number=4 (not default 1)
 # pins that pair.
 # =============================================================================
 
 
-def test_add_job_log_stores_row_and_emits_raw_kwargs() -> None:
+def test_add_job_log_stores_row() -> None:
     session = Session()
-    em = Emitter()
-    with patch_emitter(em), log_rec() as rec:
+    with log_rec() as rec:
         entry = run(
             svc_with(session).add_job_log(
                 JID, "WARNING", "latency high", context={"p95": 2.1}, attempt_number=4
@@ -746,34 +707,7 @@ def test_add_job_log_stores_row_and_emits_raw_kwargs() -> None:
     assert entry.message == "latency high"
     assert entry.context == {"p95": 2.1}
     assert session.flushes == 1
-    assert em.calls == [("emit_log", JID, "WARNING", "latency high", {"p95": 2.1})]
     assert rec.calls == []
-
-
-def test_add_job_log_skips_emitter_when_flag_false() -> None:
-    session = Session()
-    em = Emitter()
-    with patch_emitter(em), log_rec() as rec:
-        entry = run(svc_with(session).add_job_log(JID, "info", "quiet", emit_to_websocket=False))
-    assert entry is not None
-    assert entry.level == "info"
-    assert em.calls == []
-    assert rec.calls == []
-
-
-def test_add_job_log_emit_failure_is_swallowed() -> None:
-    session = Session()
-    with patch_emitter(Emitter(), boom=True), log_rec() as rec:
-        entry = run(svc_with(session).add_job_log(JID, "error", "disk full"))
-    assert entry is not None
-    assert session.added == [entry]
-    assert rec.calls == [
-        (
-            "warning",
-            ("Failed to emit job log to WebSocket: redis down",),
-            {"extra": {"job_id": JID}},
-        )
-    ]
 
 
 def test_add_job_log_invalid_uuid_warns_and_adds_nothing() -> None:

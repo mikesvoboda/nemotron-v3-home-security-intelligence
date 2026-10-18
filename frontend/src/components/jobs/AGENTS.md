@@ -2,40 +2,34 @@
 
 ## Purpose
 
-Contains React components for the background jobs monitoring page, providing a split-view interface for listing, searching, filtering, and viewing details of background jobs like exports, batch audits, cleanup tasks, and AI re-evaluations. Includes WebSocket-based real-time log streaming and job history timeline visualization.
+Contains React components for the background jobs monitoring page, providing a split-view interface for listing, searching, filtering, and viewing details of background jobs like exports, batch audits, cleanup tasks, and AI re-evaluations.
 
 ## Files
 
-| File                           | Purpose                                         |
-| ------------------------------ | ----------------------------------------------- |
-| `JobsPage.tsx`                 | Main page with split view (list + detail panel) |
-| `JobsPage.test.tsx`            | Test suite for JobsPage                         |
-| `JobsList.tsx`                 | Scrollable list of jobs                         |
-| `JobsListItem.tsx`             | Individual job item in the list                 |
-| `JobsSearchBar.tsx`            | Search and filter controls                      |
-| `JobsSearchBar.test.tsx`       | Test suite for JobsSearchBar                    |
-| `JobsEmptyState.tsx`           | Empty state when no jobs exist                  |
-| `JobDetailPanel.tsx`           | Right panel showing job details                 |
-| `JobHeader.tsx`                | Job title, status badge, and progress bar       |
-| `JobHeader.test.tsx`           | Test suite for JobHeader                        |
-| `JobMetadata.tsx`              | Job timestamps and type information             |
-| `JobMetadata.test.tsx`         | Test suite for JobMetadata                      |
-| `JobActions.tsx`               | Action buttons (cancel, abort, retry, delete)   |
-| `JobActions.test.tsx`          | Test suite for JobActions                       |
-| `JobLogsViewer.tsx`            | WebSocket-based real-time log viewer            |
-| `JobLogsViewer.test.tsx`       | Test suite for JobLogsViewer                    |
-| `JobHistoryTimeline.tsx`       | Collapsible job state transition timeline       |
-| `JobHistoryTimeline.test.tsx`  | Test suite for JobHistoryTimeline               |
-| `ConnectionIndicator.tsx`      | WebSocket connection status indicator           |
-| `ConnectionIndicator.test.tsx` | Test suite for ConnectionIndicator              |
-| `ConfirmDialog.tsx`            | Confirmation dialog for destructive actions     |
-| `ConfirmDialog.test.tsx`       | Test suite for ConfirmDialog                    |
-| `StatusDot.tsx`                | Colored dot for job status indication           |
-| `StatusDot.test.tsx`           | Test suite for StatusDot                        |
-| `TimelineEntry.tsx`            | Single entry in the job history timeline        |
-| `TimelineEntry.test.tsx`       | Test suite for TimelineEntry                    |
-| `LogLine.tsx`                  | Individual log line with level coloring         |
-| `LogLine.test.tsx`             | Test suite for LogLine                          |
+| File                          | Purpose                                         |
+| ----------------------------- | ----------------------------------------------- |
+| `JobsPage.tsx`                | Main page with split view (list + detail panel) |
+| `JobsPage.test.tsx`           | Test suite for JobsPage                         |
+| `JobsList.tsx`                | Scrollable list of jobs                         |
+| `JobsListItem.tsx`            | Individual job item in the list                 |
+| `JobsSearchBar.tsx`           | Search and filter controls                      |
+| `JobsSearchBar.test.tsx`      | Test suite for JobsSearchBar                    |
+| `JobsEmptyState.tsx`          | Empty state when no jobs exist                  |
+| `JobDetailPanel.tsx`          | Right panel showing job details                 |
+| `JobHeader.tsx`               | Job title, status badge, and progress bar       |
+| `JobHeader.test.tsx`          | Test suite for JobHeader                        |
+| `JobMetadata.tsx`             | Job timestamps and type information             |
+| `JobMetadata.test.tsx`        | Test suite for JobMetadata                      |
+| `JobActions.tsx`              | Action buttons (cancel, abort, retry, delete)   |
+| `JobActions.test.tsx`         | Test suite for JobActions                       |
+| `JobHistoryTimeline.tsx`      | Collapsible job state transition timeline       |
+| `JobHistoryTimeline.test.tsx` | Test suite for JobHistoryTimeline               |
+| `ConfirmDialog.tsx`           | Confirmation dialog for destructive actions     |
+| `ConfirmDialog.test.tsx`      | Test suite for ConfirmDialog                    |
+| `StatusDot.tsx`               | Colored dot for job status indication           |
+| `StatusDot.test.tsx`          | Test suite for StatusDot                        |
+| `TimelineEntry.tsx`           | Single entry in the job history timeline        |
+| `TimelineEntry.test.tsx`      | Test suite for TimelineEntry                    |
 
 ## Key Components
 
@@ -165,7 +159,6 @@ interface JobsSearchBarProps {
 - JobHeader with status and progress
 - JobMetadata with timestamps
 - JobActions for lifecycle management
-- JobLogsViewer with WebSocket streaming
 - JobHistoryTimeline for state transitions
 
 **Props Interface:**
@@ -262,35 +255,6 @@ interface JobActionsProps {
 
 ---
 
-### JobLogsViewer.tsx
-
-**Purpose:** Real-time log viewer with WebSocket streaming
-
-**Key Features:**
-
-- WebSocket connection for live logs
-- Connection indicator showing status
-- Log level filtering (ALL, DEBUG, INFO, WARNING, ERROR)
-- Auto-scroll toggle
-- Clear logs button
-- Monospace font for log readability
-- Color-coded log levels
-
-**Props Interface:**
-
-```typescript
-interface JobLogsViewerProps {
-  jobId: string;
-  enabled: boolean;
-  maxHeight?: number;
-  className?: string;
-}
-```
-
-**Related:** NEM-2711
-
----
-
 ### JobHistoryTimeline.tsx
 
 **Purpose:** Collapsible timeline of job state transitions
@@ -312,40 +276,6 @@ interface JobHistoryTimelineProps {
   className?: string;
 }
 ```
-
----
-
-### ConnectionIndicator.tsx
-
-**Purpose:** Visual indicator for WebSocket connection status
-
-**Key Features:**
-
-- Color-coded dot:
-  - Green (pulsing): Connected
-  - Yellow: Reconnecting
-  - Gray: Disconnected
-  - Red: Failed
-- Optional label display
-- Tooltip with status details
-- Retry button when failed
-- Size variants (sm, md, lg)
-
-**Props Interface:**
-
-```typescript
-interface ConnectionIndicatorProps {
-  status: JobLogsConnectionStatus;
-  reconnectCount?: number;
-  showLabel?: boolean;
-  showTooltip?: boolean;
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
-  onRetry?: () => void;
-}
-```
-
-**Related:** NEM-2711
 
 ---
 
@@ -429,33 +359,9 @@ interface TimelineEntryProps {
 }
 ```
 
----
-
-### LogLine.tsx
-
-**Purpose:** Individual log line with level-based coloring
-
-**Key Features:**
-
-- Timestamp display
-- Level badge (DEBUG, INFO, WARN, ERROR)
-- Message content
-- Attempt number for retries
-- Context indicator with tooltip
-- Memoized for performance
-
-**Props Interface:**
-
-```typescript
-interface LogLineProps {
-  log: JobLogEntryResponse;
-}
-```
-
 ## Related Hooks
 
 - `useJobsSearchQuery` - Job search with debouncing and filtering
-- `useJobLogsWebSocket` - WebSocket connection for log streaming
 - `useJobHistoryQuery` - Fetch job state transition history
 - `useJobMutations` - Cancel, abort, retry, delete mutations
 
@@ -484,13 +390,11 @@ interface LogLineProps {
 - `POST /api/jobs/{job_id}/retry` - Retry failed job
 - `DELETE /api/jobs/{job_id}` - Delete job
 - `GET /api/jobs/{job_id}/history` - Get state transitions
-- `WS /ws/jobs/{job_id}/logs` - Log streaming
 
 ## Entry Points
 
 **Start here:** `JobsPage.tsx` - Main page component
 **Then explore:** `JobDetailPanel.tsx` - Detail panel composition
-**Then explore:** `JobLogsViewer.tsx` - Real-time log streaming
 **Also see:** `JobHistoryTimeline.tsx` - State transition history
 **Also see:** `JobActions.tsx` - Lifecycle management buttons
 
@@ -502,7 +406,6 @@ interface LogLineProps {
 - `clsx` - Conditional class composition
 - `react-router-dom` - useSearchParams for URL state
 - `../../hooks/useJobsSearchQuery` - Search hook
-- `../../hooks/useJobLogsWebSocket` - WebSocket hook
 - `../../hooks/useJobHistoryQuery` - History hook
 - `../../hooks/useJobMutations` - Mutation hooks
 - `../../services/api` - API client

@@ -19,7 +19,7 @@
  * (F-154), Replay (F-155) and Delete (F-156) end to end.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harness';
+import { api, closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

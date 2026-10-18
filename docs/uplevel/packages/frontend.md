@@ -136,7 +136,7 @@ same way after the owner's `R2b` session.
 
 **Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233.
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247.
 
 Lands in the same PR as `B3.1`, feature by feature, starting with OD-20's enrichment surface.
 
@@ -343,9 +343,9 @@ owner-tier ruling as its route.
 ### [r148a] One shared golden harness
 
 **Flags:** none; test-only. **Assigned:** frontend. **Depends on:** `F2.3`'s last batch merged.
-**PR:** none yet. (ruling 148, record 6136930446)
+**PR:** #7241. (ruling 148, record 6136930446)
 
-- [ ] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
+- [x] Merge every batch's `frontend/tests/golden/*/harness.ts` into one
       `frontend/tests/golden/harness.ts`, keeping every comment that explains a fix, and repoint each
       spec's import. Until `F2.3`'s last batch merges, each batch keeps its own copy.
 
@@ -541,8 +541,8 @@ leg executed and passed, or was demoted for `R2b` with the failure as evidence (
 for the spec's legs. **PR:** #7210, #7225. (rulings 211, 221, 233; records 6200331506, 6205729827, 6216193689)
 
 - [x] **Now, ahead of the rest of `[r196a]`:** invert the search fixture as `[r211f]` commits on
-      #7187's branch (ruling 221). `frontend/tests/golden/timeline/harness.ts:1191` requires search
-      to exclude the soft-deleted row, and `harness.ts:1215`'s `searchTotal` is the live count. In
+      #7187's branch (ruling 221). `frontend/tests/golden/harness.ts:2351` requires search
+      to exclude the soft-deleted row, and `harness.ts:2375`'s `searchTotal` is the live count. In
       `frontend/tests/golden/timeline/timeline-search.spec.ts` the `fx.searchTotal` reads follow,
       `timeline-search.spec.ts:650` reads `false`, `timeline-search.spec.ts:654`'s 404 stays, and
       the `timeline-search.spec.ts:570` leg's defect half takes a live row on search page 2 that the

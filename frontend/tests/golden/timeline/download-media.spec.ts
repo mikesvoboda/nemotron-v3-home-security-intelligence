@@ -197,10 +197,10 @@ import type { Download, Page } from '@playwright/test';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   apiWrite,
   closedByGuard,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -208,7 +208,7 @@ import {
   waitForEventCards,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 const h = readTimelineHarness();
 test.skip(!h.ready, h.ready ? '' : h.why);

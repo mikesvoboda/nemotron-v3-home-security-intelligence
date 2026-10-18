@@ -76,11 +76,11 @@ import {
   FEEDBACK_SEEDED_THREAT_LEVEL,
   FEEDBACK_TYPED_NOTES,
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
   createFeedbackFixture,
   hardDeleteFixtureRows,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -89,7 +89,7 @@ import {
   type FeedbackFixture,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 const h = readTimelineHarness();
 test.skip(!h.ready, h.ready ? '' : h.why);

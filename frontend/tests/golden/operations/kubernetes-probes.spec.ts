@@ -15,7 +15,7 @@
  * body — card presence alone would let `{"status":"dying"}` on a 200 pass.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harness';
+import { closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

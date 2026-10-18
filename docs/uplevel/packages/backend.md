@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -318,7 +318,7 @@ on:** queues behind `[r122]`. **PR:** #7031 (merged).
 F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_prompt` are
 `deferred()` (`backend/models/event.py:72-74`). `_export_table`
 (`backend/services/backup_service.py:336`) and the batch audit
-(`backend/api/routes/ai_audit.py:445`) read them inside an `AsyncSession`, which raises
+(`backend/api/routes/ai_audit.py:475`) read them inside an `AsyncSession`, which raises
 `MissingGreenlet`: every backup fails once any event exists, and the audit fails on every event.
 
 - [ ] Items (4) and (5) of the Done when touch `frontend/`: backend either takes frontend's review on
@@ -458,7 +458,7 @@ the three handlers change, each invalidated.
 
 **Flags:** `owner` (security and auth). **Assigned:** `uplevel-backend`, after `[r223]`. #7157
 becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 3 put on it ends.
-**Depends on:** none. **PR:** none yet. (ruling 244, record 6222984876)
+**Depends on:** none. **PR:** #7157. (ruling 244, record 6222984876)
 
 `GET /api/ai-audit/recommendations` is in the monitoring scope (`backend/core/constants.py`,
 `MONITORING_SCOPE_PATHS`), and each item's `suggestion` is the LLM's free-text advice
@@ -466,13 +466,13 @@ becomes this package's PR, retitled with `[r244]`, and the hold ruling 209 item 
 key only the fields its consumer reads, and Grafana's panel shows `$.recommendations[*].suggestion`
 through that key (`monitoring/grafana/dashboards/consolidated.json:5934`).
 
-- [ ] A monitoring-scoped key gets `suggestion: null`, through the `scoped_key_ceiling` posture
+- [x] A monitoring-scoped key gets `suggestion: null`, through the `scoped_key_ceiling` posture
       #7135 takes. A session cookie and an unscoped key still get the prose.
-- [ ] `RecommendationItem.suggestion` becomes `str | None` in the same commit, and
+- [x] `RecommendationItem.suggestion` becomes `str | None` in the same commit, and
       `docs/openapi.json` and `frontend/src/types/generated/api.ts` are regenerated in it.
-- [ ] The panel labels its rows by `category` and `priority`, not by `suggestion`
+- [x] The panel labels its rows by `category` and `priority`, not by `suggestion`
       (`consolidated.json:5934`), as a cross-lane part (UR-9) that ops reviews.
-- [ ] Tests: the clamp is red on the unclamped handler, a leg is red if the schema flip is omitted,
+- [x] Tests: the clamp is red on the unclamped handler, a leg is red if the schema flip is omitted,
       and both postures are checked (the monitoring key nulled; a cookie and an unscoped key get
       the prose).
 

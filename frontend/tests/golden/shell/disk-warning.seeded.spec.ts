@@ -40,15 +40,15 @@
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   adminSession,
-  api,
+  apiShell as api,
   BOOT_QUIET_MS,
   closedByGuard,
-  quietBoot,
-  loginAsAdmin,
+  quietBootShell as quietBoot,
+  loginAsAdminShell as loginAsAdmin,
   readShellHarness,
   seedTourDismissed,
   type ShellHarness,
-} from './harness';
+} from '../harness';
 
 const harness = readShellHarness();
 test.skip(

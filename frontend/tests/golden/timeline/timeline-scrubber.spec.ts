@@ -116,10 +116,10 @@ import type { Page } from '@playwright/test';
 import {
   FIXTURE_ROWS,
   adminSession,
-  api,
+  apiShell as api,
   apiWrite,
   closedByGuard,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedDefaultViewMode,
@@ -128,7 +128,7 @@ import {
   waitForCameraInList,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 /* A FOURTH camera, for a reason specific to this row. FE-3's other cameras exist
  * because its endpoints disagree about soft-deleted rows (stats counts them, the

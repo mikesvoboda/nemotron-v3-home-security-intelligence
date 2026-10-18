@@ -15,7 +15,7 @@
  * wiping the DB serially would make every later spec's data assertions a race.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { closedByGuard, loginAsAdmin, openSection, readOpsHarness } from './harness';
+import { closedByGuard, loginAsAdmin, openSection, readOpsHarness } from '../harness';
 
 const harness = readOpsHarness();
 

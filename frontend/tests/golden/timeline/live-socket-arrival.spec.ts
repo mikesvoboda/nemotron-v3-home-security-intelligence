@@ -140,16 +140,16 @@ import type { Page } from '@playwright/test';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedTourDismissed,
   settledReload,
   type Session,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 /** Collection-time readiness: Playwright runs collection before any runtime
  *  skip, so every env read goes through the harness's defensive reader. */

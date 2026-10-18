@@ -128,7 +128,7 @@
 import { expect, test } from '../guard';
 import type { Page, Response } from '@playwright/test';
 import {
-  adminSession,
+  adminSessionId as adminSession,
   apiPath,
   assertGuardSurvives,
   authedFetch,
@@ -137,7 +137,7 @@ import {
   readHarness,
   type AuthedFetch,
   type Harness,
-} from './harness';
+} from '../harness';
 
 const harness = readHarness();
 test.skip(

@@ -708,9 +708,12 @@ export interface paths {
          *     Args:
          *         days: Number of days to analyze (1-90, default 7)
          *         db: Database session
+         *         key_ceiling: whether the PRESENTED key carries a scope, so its
+         *             `suggestion` prose is clamped (see below)
          *
          *     Returns:
-         *         RecommendationsResponse with prioritized recommendations
+         *         RecommendationsResponse with prioritized recommendations, with
+         *         `suggestion` nulled for a scoped key.
          */
         get: operations["ai-audit_get_recommendations"];
         put?: never;
@@ -36350,7 +36353,7 @@ export interface components {
             /** Priority */
             priority: string;
             /** Suggestion */
-            suggestion: string;
+            suggestion: string | null;
         };
         /**
          * RecommendationsResponse

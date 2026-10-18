@@ -80,19 +80,19 @@ import type { Page } from '@playwright/test';
 
 import {
   adminSession,
-  api,
+  apiShell as api,
   closedByGuard,
   createStatsFixture,
   hardDeleteFixtureRows,
   STATS_FIXTURE_ROWS,
-  loginAsAdmin,
+  loginAsAdminShell as loginAsAdmin,
   quietBoot,
   readTimelineHarness,
   seedTourDismissed,
   type Session,
   type StatsFixture,
   type TimelineHarness,
-} from './harness';
+} from '../harness';
 
 interface StatsBody {
   total_events: number;

@@ -34,7 +34,6 @@ import { useState } from 'react';
 
 import JobErrorModal from './JobErrorModal';
 import JobHeader from './JobHeader';
-import JobLogsViewer from './JobLogsViewer';
 import JobMetadata from './JobMetadata';
 import {
   isJobDetailResponse,
@@ -53,8 +52,6 @@ export interface JobDetailPanelProps {
   job: JobResponse | JobDetailResponse | null;
   /** Whether job data is loading */
   isLoading?: boolean;
-  /** Whether to show the logs viewer */
-  showLogs?: boolean;
 }
 
 /**
@@ -90,11 +87,7 @@ function getJobId(job: Job): string {
   return job.job_id;
 }
 
-export default function JobDetailPanel({
-  job,
-  isLoading = false,
-  showLogs = true,
-}: JobDetailPanelProps) {
+export default function JobDetailPanel({ job, isLoading = false }: JobDetailPanelProps) {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
 
   // Placeholder state when no job is selected
@@ -128,9 +121,6 @@ export default function JobDetailPanel({
   }
 
   if (!job) return null;
-
-  // Determine if logs streaming should be enabled
-  const isJobActive = job.status === 'running' || job.status === 'pending';
 
   // Check if we have detailed job info
   const isDetailed = isJobDetailResponse(job);
@@ -248,13 +238,6 @@ export default function JobDetailPanel({
           </div>
         )}
       </div>
-
-      {/* Scrollable Logs Section */}
-      {showLogs && (
-        <div className="min-h-0 flex-1 p-6 pt-4">
-          <JobLogsViewer jobId={jobId} enabled={isJobActive} maxHeight={400} className="h-full" />
-        </div>
-      )}
 
       {/* Result (if completed and has result data) */}
       {job.result !== null && (
