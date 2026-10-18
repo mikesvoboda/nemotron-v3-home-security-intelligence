@@ -39,6 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
 from backend.migrations import registry
 from backend.migrations.checks import _UNRECORDED_MODEL_COLUMNS
+from backend.migrations.errors import UpgradeError
 from backend.migrations.runner import apply_all, read_records_tx, upgrade_database
 from backend.tests.integration.conftest import (
     _create_worker_database,
@@ -292,6 +293,80 @@ async def test_boot_upgrades_a_pre_upgrade_database(pre_upgrade_url, monkeypatch
         else:
             os.environ["DATABASE_URL"] = original
         get_settings.cache_clear()
+
+
+@pytest.mark.timeout(120)
+async def test_a_failing_upgrade_statement_rolls_back_and_leaves_no_record(pre_upgrade_url, monkeypatch):
+    """The runner's central safety claim, pinned: a statement that fails mid-file leaves the
+    database without the upgrade's partial work and without a record, and the boot fails.
+
+    Nothing else in the repo observes this path (the unit suite covers lexing, drift, checksum
+    and spelling gates -- all failures BEFORE a statement runs; the happy-path tests here cover
+    success). `runner.py`'s comment "a failure leaves no half-written history" is a claim about
+    runtime behaviour on the database, and only this test makes one fail at runtime: 0005's
+    statement list is patched to a real DDL (CREATE TABLE) followed by a statement that cannot
+    run. The savepoint must undo the DDL, the record must be absent, the earlier upgrades' work
+    must survive, and `UpgradeError` must name the upgrade id and say "rolled back" -- the error
+    a boot's caller sees, not a bare re-raise of the driver's own exception.
+    """
+    # The first upgrade a pre-upgrade database needs EXECUTING is 0001 (json -> jsonb):
+    # the pre-upgrade database carries no records for 0001-0004, so the runner reaches 0001
+    # first. Patch exactly that upgrade's statement list, keyed by id, so the failure lands
+    # where the runner will actually be.
+    target = next(u for u in registry.UPGRADES if u.id.startswith("0001"))
+    real_statements = registry.Upgrade.statements
+
+    def failing_statements(self: registry.Upgrade) -> list[str]:
+        if self.id == target.id:
+            return [
+                # A statement that WOULD persist if the savepoint were not a savepoint.
+                "CREATE TABLE probe_failed_upgrade (id int primary key)",
+                # Then a statement that fails at runtime, after the DDL has run.
+                "SELECT * FROM no_such_table_created_by_the_probe",
+            ]
+        return real_statements(self)
+
+    engine = create_async_engine(pre_upgrade_url)
+    try:
+        with monkeypatch.context() as m:
+            m.setattr(registry.Upgrade, "statements", failing_statements)
+            with pytest.raises(UpgradeError) as excinfo:
+                await upgrade_database(engine)
+            assert target.id in str(excinfo.value) and "rolled back" in str(excinfo.value)
+
+        async with engine.connect() as conn:
+            # No record: the next boot must re-attempt, not skip.
+            assert (
+                await conn.exec_driver_sql(
+                    "SELECT count(*) FROM schema_migrations WHERE id LIKE '0001%'"
+                )
+            ).scalar() == 0
+            # The partial work is gone: the savepoint rolled the CREATE TABLE back.
+            assert (
+                await conn.exec_driver_sql(
+                    "SELECT count(*) FROM information_schema.tables "
+                    "WHERE table_name = 'probe_failed_upgrade'"
+                )
+            ).scalar() == 0
+            # No cross-upgrade partial damage either: 0001 is the FIRST upgrade this database
+            # needed executing, so the pre-upgrade state must be exactly what the fixture
+            # loaded -- the alert columns still json (0001's work did NOT happen), and the two
+            # retired tables still present (0004's drop did NOT happen either).
+            assert set((await _json_types(conn)).values()) == {"json"}
+            assert (
+                await conn.exec_driver_sql(
+                    "SELECT count(*) FROM information_schema.tables "
+                    "WHERE table_name IN ('reid_embeddings', 'demographics_results')"
+                )
+            ).scalar() == 2
+
+        # The repaired run (context exited, so statements() is real again) applies everything.
+        results = await upgrade_database(engine)
+        states = {r.id: r.state for r in results}
+        assert all(state == "applied" for state in states.values()), states
+        assert states[target.id] == "applied"
+    finally:
+        await engine.dispose()
 
 
 # A full create_all over ~90 models plus five CHECK passes over the catalog.
