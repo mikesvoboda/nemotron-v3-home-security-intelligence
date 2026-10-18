@@ -265,6 +265,14 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 250    | UR-89, UR-91: from round 2 only blocking findings change the head (record 6224354057)                       |
 | 251    | package `[r251]`: the inventory's §2 is computed, not stored; owner PR (record 6224408012)                  |
 | 252    | package `[r252]`: re-ID's ONNX→TensorRT plan-build root cause, ahead of B2.3 (record 6235589555)            |
+| 253    | UR-181: re-anchoring a cite a merge or a file move shifted is not a row edit (record 6242299001)            |
+| 254    | package B3.3: the fourth box per R2a row 27; four models leave by recorded upgrade (record 6244092557)      |
+| 255    | package B3.1/F3.1: one R2a row per PR, amending 241 item 1 (record 6244403809)                              |
+| 256    | package O2.5, `[r195]`: O2.5 splits by venue, sandbox run then maui run (record 6250363327)                 |
+| 257    | package F3.2, O3.4: knip's exit 0 reads against F3.2's recorded baseline (record 6250472120)                |
+| 258    | packages O3.6, B2.3: heavy-b in service again; heavy-a keeps B3.1/F3.1, B3.2 (record 6250529550)            |
+| 259    | package `[r247]`: the supervisor's tick runs with the pane's launch flags (record 6253915725)               |
+| 260    | packages O3.1, O3.2, O3.3: from ops-a's queue to heavy-b (record 6254983272)                                |
 
 ## Owner records
 

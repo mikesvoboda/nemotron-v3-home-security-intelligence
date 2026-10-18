@@ -588,7 +588,10 @@ when a phase exits, are UR-10 (contract rule 5).
   titles carry the row's `F-nnn`. It needs no run or job id: `scripts/uplevel/inventory_witness.py`
   re-proves every **awaiting real tier** and **works** row against each Feature check run. Demotion
   history, supersessions and re-anchoring go in the PR body. A long cell is cut to this shape when
-  its row is next edited; there is no sweep. (rulings 179, 218)
+  its row is next edited; there is no sweep. Re-anchoring a cite whose target a merge or a file move
+  shifted (the same claim at a new path or line) is not an edit of the row and does not trigger the
+  cut; a row is edited when its status changes or its evidence cell says something new. (rulings
+  179, 218, 253)
 
 ## Posting, heartbeats and the urgent path
 
