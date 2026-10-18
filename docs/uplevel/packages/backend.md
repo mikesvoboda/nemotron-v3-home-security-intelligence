@@ -94,8 +94,9 @@ may retire less of its row when part of the row must wait (a table drop waits fo
 command) or when the author's review finds the diff too large for one round; the body names the
 features left out and why, and they follow as one later PR for that row. UR-98's plain-retirement
 exception (ruling 249) is judged once for the whole PR, and the Done-when grep is checked for each
-feature it retires. Ruling 258 lifts the pause in the assignment above: the retirements continue
-without waiting for `B2.3`, which is heavy-b's.
+feature it retires; if any feature misses a condition, the PR keeps `owner` and its Owner tier line
+names that feature and condition. Ruling 258 lifts the pause in the assignment above: the
+retirements continue without waiting for `B2.3`, which is heavy-b's.
 
 - [x] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
       tombstone in one commit; ISS-073).
@@ -166,13 +167,16 @@ hits in `backend/`.
 
 **The fourth box, as ruling 254 reads it** (R2a row 27). `florence2`, `yolo_world`, `xclip` and
 `fashion_clip` leave `AIModelEnum` and `AIModel` with their config schemas, as a recorded upgrade on
-the fifth box's runner that removes or rewrites the `prompt_versions` rows storing those values; its
-test checks that every other row survives and that the changed rows are exactly those four models'
-rows. The frontend's four prompt editors and the Version History filter and labels change in the
-same PR (UR-9). `FlorenceUnavailableError` and the `FLORENCE_UNAVAILABLE` code retire with Florence,
-with the frontend copy and the docs row; `AnalyzerUnavailableError` and `EnrichmentUnavailableError`
-stay. The PR that carries this is owner tier (UR-98), and backend chooses which `B3.3` PR it is. Row
-27's design note stays with Phase 4's prompt-management package.
+the fifth box's runner that lands after the runner does. The upgrade removes or rewrites the
+`prompt_versions` rows storing those values, as backend's design chooses; its test checks that every
+other row survives and that the changed rows are exactly those four models' rows. That is how the
+Done when's "rows intact" reads for this upgrade. In the same PR (UR-9), backend leading and
+frontend's files riding as cross-lane parts: the frontend's four prompt editors and the Version
+History filter and labels change, so no editor sends a value the API refuses; and
+`FlorenceUnavailableError` and the `FLORENCE_UNAVAILABLE` code retire with Florence, with the
+frontend copy and the docs row. `AnalyzerUnavailableError` and `EnrichmentUnavailableError` stay,
+with their codes. The PR that carries this is owner tier (UR-98), and backend chooses which `B3.3`
+PR it is. The row's design note stays with Phase 4's prompt-management package.
 
 ### [r236] Two documented endpoints become External rows
 

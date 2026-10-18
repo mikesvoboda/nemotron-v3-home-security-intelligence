@@ -151,7 +151,7 @@ then. It does not flip `REID_BACKEND`; production stays `local`.
 
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
 `feature_check.py --real` and ruling 143's Playwright container. It is on ops-a's roster queue
-(UR-52); the operator runs its real-tier check.
+(UR-52); the operator runs its sandbox run and the owner its maui run (ruling 256).
 It gates only ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222), not
 Phase 2's exit (UR-10, contract rule 5).
 
@@ -170,8 +170,9 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes: two runs, split by venue (ruling 256).** `feature_check.py --prod-shape`
       brings up that stack and runs the golden suite against it, using the Playwright container
-      from ruling 143, on a test deployment (UR-133). ops-a posts both commands on #7037 once
-      `[r195]` carries the transforms, and the operator reads both outputs (ruling 185 item 3).
+      from ruling 143, on a test deployment (UR-133). The operator runs the sandbox run from the
+      command ops-a posts (UR-140); ops-a posts the maui command on #7037 once `[r195]` carries it,
+      and the operator reads that run's output (ruling 185 item 3).
   - **The sandbox run, first (operator).** `--real --prod-shape` in the operator's sandbox, with no
     GPU consumer in the stack but the VLM: `ai-vlm` served by `agent-gpu`, the fake `ai-gateway`, no
     `dcgm-exporter`, and `backend`'s GPU reservation stripped. These are runtime transforms in
@@ -180,8 +181,9 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
     F-169, F-174, F-295 and F-296.
   - **The maui run, after it (owner).** `--prod-shape` with the fake VLM, from a host login on maui,
     keeping production's CDI devices for `ai-gateway`, `dcgm-exporter` and `backend`. It witnesses
-    F-176, F-178 and F-182 and the CDI wiring, and its stop-test states the GPU memory the run takes
-    beside production. `ai-vlm`'s own CDI line is the one GPU line neither run boots.
+    F-176, F-178 and F-182 and the CDI wiring (the stack boots with every device resolved), and its
+    stop-test states the GPU memory the run takes beside production. `ai-vlm`'s own CDI line is the
+    one GPU line neither run boots.
 - [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
       and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
       record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
@@ -191,7 +193,7 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
 - [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
-      F-182), F-295 (ruling 219) and F-296 (ruling 222) get their witness from the `O2.5` run. If
+      F-182), F-295 (ruling 219) and F-296 (ruling 222) get their witness from `O2.5`'s two runs. If
       the spike says no, they fall back to ruling 127's original route: ops adds what they need to
       the test deployment's compose.
 
@@ -200,16 +202,18 @@ on yes, both Step 2 runs have posted: the operator's sandbox run witnesses its 1
 owner's maui run its 3 rows and the CDI wiring, together ruling 127's 12 rows, F-295 and F-296
 (rulings 185, 188, 219, 222, 256); on no, the owner has ruled on the
 blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
-(#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto that
-deployment, in a comment on each PR (ruling 154).
+(#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto the
+sandbox run's deployment, in a comment on each PR (rulings 154 and 256).
 
 ## Phase 3 — The tree matches the rulings
 
 ### O3.1 Prune `ai/` to what ships
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`.
-**Assigned:** heavy-b, first on its queue (ruling 260); owner tier as destructive work (UR-98,
-ruling 249). **PR:** none yet. (rulings 241 and 260)
+**PR:** none yet. (ruling 241)
+
+**Assigned:** heavy-b, first on its queue (ruling 260). It is owner tier as destructive work (UR-98,
+ruling 249).
 
 - [ ] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
       every build script a Dockerfile or workflow runs. Delete what does not ship (~27K of 35K
@@ -231,7 +235,7 @@ image builds, and the golden paths stay green.
 
 ### O3.2 Compose base and overlays
 
-**Flags:** none. **Depends on:** `R2`.
+**Flags:** none. **Depends on:** `R2`; both `O2.5` runs posted (ruling 260).
 **Assigned:** heavy-b, after `O3.3`, once both `O2.5` runs have posted (ruling 260).
 **PR:** none yet. (rulings 241 and 260)
 
@@ -248,7 +252,7 @@ tool's tests pass, and the golden paths stay green.
 
 ### O3.3 `models.yml` and env truth
 
-**Flags:** none. **Depends on:** `R2`.
+**Flags:** none. **Depends on:** `R2`; #7244 (`B3.3`) merged (ruling 260).
 **Assigned:** heavy-b, after `O3.1`, once #7244 (`B3.3`) has merged (ruling 260). **PR:** none yet.
 (rulings 241 and 260)
 
@@ -582,8 +586,8 @@ instead of picking a route to the VLM, so this package carries:
 Ruling 256 dropped this package's earlier boxes: the harness reaching the VLM on loopback outside a
 sandbox, the container-to-host route, the `loki`/VLM-pool collision and `AGENT_GPU_TOKEN_FILE`.
 
-**Done when:** the fixes are on `main` with tests, and ops-a has posted both commands on its PR and
-on #7037 (ruling 185 item 3: the operator reads the output).
+**Done when:** the fixes are on `main` with tests, and ops-a has posted the maui command on its PR
+and on #7037 (ruling 185 item 3: the operator reads the output).
 
 ### [r196c] The seeded rows F-186, F-196 and F-197
 
