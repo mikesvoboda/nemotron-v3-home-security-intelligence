@@ -884,6 +884,42 @@ def _clock() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def coordinator_session(host: Host) -> Session:
+    """The coordinator's row from the manifest, so the fire uses the pane's own model.
+
+    Read from the manifest rather than assumed: `[models]` maps each row's `model` key to the
+    `claude` arguments the owner starts that session with (UR-28), and box 1 asks the
+    supervisor to run on the pane session's model, not on whatever `claude` defaults to.
+    """
+    data = _load_toml(host.manifest)
+    for sessions in _phases_of(data, host.manifest).values():
+        for session in sessions:
+            if session.name == COORDINATOR:
+                return session
+    raise Refused(
+        f"{host.manifest} declares no {COORDINATOR} session, so there is no pane model to "
+        "inherit. Restore its row (scripts/uplevel/sandboxes.toml, Phase 0/1)."
+    )
+
+
+def tick_model_args(host: Host, session: Session) -> list[str]:
+    """The `claude` arguments that reproduce the pane's model for one headless fire.
+
+    `run_args_for` resolves the manifest's row to its `agent-dgx run` arguments, which carry
+    the model selection (`--agent claude --endpoint dgx`). `--model` is NOT among them: the
+    row's model is a `claude` endpoint, so the pane runs Claude Code's own default and the
+    supervisor must pass the same thing rather than invent a `--model`.
+    """
+    data = _load_toml(host.manifest)
+    args = run_args_for(data, host.manifest, session)
+    if args[:2] != ["--agent", "claude"]:
+        raise Refused(
+            f"the {session.name} row resolves to {args!r}, which is not an `--agent claude` "
+            "invocation, so the supervisor cannot reproduce its model for a headless fire."
+        )
+    return args
+
+
 def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
     """One timer fire: run the coordinator's tick once, inside its sandbox.
 
@@ -905,11 +941,16 @@ def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
             f"with `agent-dgx run {name} --agent claude --split`, then run this again."
         )
 
-    session = Session(name=name, model="", kickoff="")
+    session = coordinator_session(host)
+    model_args = tick_model_args(host, session)
     prompt = tick_prompt()
     directory = host.checkout / SUPERVISE_DIR
     log = directory / f"{name}.log"
-    script = "claude -p " + shlex.quote(prompt)
+    # The pane's own model, not a default: the manifest's row for the coordinator names it,
+    # and `run_args_for` is the one place those arguments are resolved. `--print` has no
+    # interactive prompter, so the permission mode travels too, or a tick would answer the
+    # pane's settings with something else.
+    script = " ".join(["claude", "-p", *model_args, shlex.quote(prompt)])
     argv = ["sbx", "exec", session.sandbox, "bash", "-lc", f"cd {session.workspace} && {script}"]
 
     if host.dry_run:

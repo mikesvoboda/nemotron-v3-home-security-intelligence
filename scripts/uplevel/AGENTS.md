@@ -17,8 +17,9 @@ phase boundary, and what rulings 157/159 require repeated verbatim on the GPU ho
 
 ### launch.py
 
-Brings a phase's agent sandboxes up and retires one down without losing work. Two
-commands (`--dry-run` on both prints every step and changes nothing):
+Brings a phase's agent sandboxes up, retires one down without losing work, and fires the
+coordinator's tick from the host. Three commands (`--dry-run` on each prints every step and
+changes nothing):
 
 - `launch.py up --phase <n>` - from a clean host checkout of `main` inside a herdr pane,
   creates each missing session with `agent-dgx run <name> … --split` (one sandbox and one
@@ -36,6 +37,15 @@ commands (`--dry-run` on both prints every step and changes nothing):
   Only a clean workspace exports (`git bundle create --all` + a working-tree archive, made
   inside the sandbox), verified on the host from the owner's checkout, and only then
   `agent-dgx stop` and `agent-dgx session rm --force`.
+
+- `launch.py supervise <name> [--budget <s>]` - one timer fire is one tick (`[r247]`): it
+  runs the prompt `docs/uplevel/roles/coordinator.md` quotes on its `/loop` line, **read out of
+  that file** rather than restated here or in code, as a headless `claude -p` inside the
+  session through `sbx exec`. A host `flock` skips a fire while a tick runs (the kernel drops it
+  when the holder dies, so a killed supervisor leaves no stale lock), a tick past its budget
+  (default 3600 s) is killed, and each fire appends one line to
+  `<checkout>/supervise/<name>.log`: start, end, status, killed, summary. Coordinator only -
+  extending it to lanes is the owner's later ruling.
 
 Exit codes: 0 done; 2 refused or a step failed, always naming the next step. It follows
 `synthbench/host/agent.py`: every command goes through one `Host` seam, all checks run

@@ -1757,3 +1757,45 @@ def test_main_supervise_dry_run_creates_no_log(
     assert launch.main(["supervise", "uplevel-coordinator", "--dry-run"]) == 0
     assert not fake.ran("sbx", "exec")
     assert not (tmp_path / "checkout" / "supervise").exists()
+
+
+def test_the_fire_inherits_the_coordinators_manifest_model(tmp_path: Path) -> None:
+    """Box 1: the fire runs on the pane session's model, and this PR shows how.
+
+    The manifest's `[models]` row is where that model is declared (UR-28); the fire must pass
+    exactly those arguments, not `claude`'s default. Read them, do not restate them: the test
+    derives the expectation from the same file the implementation reads.
+    """
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    script = next(argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])[-1]
+    tokens = shlex.split(script)
+
+    manifest = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    row = next(
+        s for sessions in manifest.values() for s in sessions if s.name == "uplevel-coordinator"
+    )
+    data = launch._load_toml(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    expected = launch.run_args_for(data, REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml", row)
+
+    start = tokens.index("claude")
+    # `claude -p <row arguments> <prompt>`: the -p sits between the binary and the row's flags
+    assert tokens[start : start + 2 + len(expected)] == ["claude", "-p", *expected], (
+        f"the fire must carry the row's arguments {expected!r}; got {tokens[start : start + 6]!r}"
+    )
+    assert "--model" not in tokens, (
+        "the row is an endpoint, not a --model; inventing one would not be the pane's model"
+    )
+
+
+def test_a_manifest_without_a_coordinator_refuses(tmp_path: Path) -> None:
+    """No row means no pane model to inherit: refuse rather than silently use a default."""
+    manifest = tmp_path / "sandboxes.toml"
+    manifest.write_text(
+        '[[phase]]\nnumber = 0\n\n[[phase.session]]\nname = "somebody"\n'
+        'model = "fast"\nkickoff = "x"\n'
+    )
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    with pytest.raises(launch.Refused, match="no uplevel-coordinator"):
+        launch.supervise(host(tmp_path, fake, manifest=manifest), "uplevel-coordinator")
+    assert not fake.ran("sbx", "exec")
