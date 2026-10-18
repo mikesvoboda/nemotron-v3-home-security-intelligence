@@ -2004,7 +2004,7 @@ def test_the_fire_probes_the_dgx_files_and_refuses_one_missing(tmp_path: Path) -
     with pytest.raises(launch.Refused) as caught:
         launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
     message = str(caught.value)
-    assert f"~/{launch.DGX_SETTINGS}" in message, message
+    assert launch.DGX_SETTINGS in message, message
     assert "restore them inside the sandbox" in message, "the refusal must name the next step"
     # the probe happened; the fire did not - a refusal before a tick runs is the point
     execs = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
@@ -2021,7 +2021,7 @@ def test_the_fire_probes_the_dgx_files_and_refuses_both_missing(tmp_path: Path) 
     with pytest.raises(launch.Refused) as caught:
         launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
     message = str(caught.value)
-    assert f"~/{launch.DGX_SETTINGS}" in message and f"~/{launch.DGX_MCP}" in message, message
+    assert launch.DGX_SETTINGS in message and launch.DGX_MCP in message, message
     execs = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
     assert len(execs) == 1, execs
     assert not any("claude -p" in argv[-1] for argv in execs)
@@ -2057,6 +2057,26 @@ def test_a_probe_that_cannot_reach_the_sandbox_still_logs_as_refused(
         launch.supervise(replace(host(tmp_path, fake), run=unreachable), "uplevel-coordinator")
     log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
     assert "status=refused" in log, log
+
+
+def test_a_probe_that_times_out_still_reaches_the_fires_timeout_arm(
+    tmp_path: Path,
+) -> None:
+    """The probe's own read can hang (the sandbox stops answering without the socket
+    failing): `host.run` then raises TimeoutExpired, not an OSError, and the probe
+    passes it through the same way. The fire never starts a tick (its `sbx exec` hangs
+    the same wall), but the fire's `TimeoutExpired` arm - not an uncaught rc 1 - is what
+    records the gap: `killed=yes status=timeout`, one line, no traceback."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+
+    def wedged(argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if [str(a) for a in argv][:2] == ["sbx", "exec"]:
+            raise subprocess.TimeoutExpired(cmd="sbx exec", timeout=kwargs.get("timeout") or 120)
+        return fake(argv, **kwargs)
+
+    launch.supervise(replace(host(tmp_path, fake), run=wedged), "uplevel-coordinator")
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    assert "status=timeout" in log and "killed=yes" in log, log
 
 
 def test_supervise_dry_run_probes_and_prints_the_flags(

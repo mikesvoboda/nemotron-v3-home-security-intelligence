@@ -47,9 +47,10 @@ posts the measurement. The supervisor's budget kill does not depend on the answe
 `timeout` wrapper runs *inside* the sandbox, so the tick dies at the budget even if `sbx exec`
 later stops reaching it; the host's own timeout stays only as the backstop for a fire whose
 `sandbox` never answers at all. The supervisor's dgx-file probe answers through the same
-channel and its OSError arm passes through for the same reason: the fire's own handler is
-what records the unreachable sandbox (`status=refused`), so the gap is logged rather than
-refused away before any log line exists.
+channel and its failure arms pass through for the same reason: the fire's own handlers are
+what record the unreachable sandbox (`status=refused` for a failed connection,
+`killed=yes status=timeout` for a read that overruns the probe's 120s cap), so the gap is
+logged rather than refused away before any log line exists.
 
 Exit codes: 0 done; 2 refused, or a step failed, with what to do next.
 """
@@ -901,7 +902,9 @@ def _sbx_probe(host: Host, sandbox: str, workspace: Path) -> None:
     paths resolve the same way): anything missing is refused before a tick runs, so a
     fire never guesses whether the files exist (ruling 259, item 2 - it refuses rather
     than guesses, as `up` and `retire` do). A sandbox that cannot answer is not this
-    check's subject: the fire itself will refuse on `host.run` and log `status=refused`.
+    check's subject: the fire hits the same wall one command later and its own
+    handlers record the gap (`status=refused` for a failed connection,
+    `killed=yes status=timeout` for a read that overruns the 120s cap).
     """
     argv = [
         "sbx",
@@ -914,10 +917,11 @@ def _sbx_probe(host: Host, sandbox: str, workspace: Path) -> None:
     ]
     try:
         done = host.run(argv, capture_output=True, text=True, timeout=120, check=False)
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         # A sandbox that cannot answer is not this check's subject: the fire hits the
-        # same wall one command later and its own handler logs `status=refused`, so the
-        # gap is recorded. Refusing here too would skip that log line.
+        # same wall one command later and its own handler records the gap - `status=refused`
+        # for an OSError, `killed=yes status=timeout` for an overrunning read. Refusing
+        # here too would skip both log lines.
         return
     missing = [
         line.removeprefix("missing:")
@@ -925,7 +929,7 @@ def _sbx_probe(host: Host, sandbox: str, workspace: Path) -> None:
         if line.startswith("missing:")
     ]
     if missing:
-        quoted = ", ".join(f"~/{m}" for m in missing)
+        quoted = ", ".join(m for m in missing)
         raise Refused(
             f"{sandbox} is missing the agent-dgx file(s) the fire mirrors the pane with "
             f"({quoted}; paths relative to the workspace). The pane was started with "
@@ -940,7 +944,8 @@ def coordinator_session(host: Host) -> Session:
     Read from the manifest rather than assumed: the row is what proves the session is
     declared and running before anything fires. Its `[models]` entry is `agent-dgx run`
     vocabulary - how the owner STARTS the pane - and is deliberately not on the fire's
-    `claude` line (the fire carries the prompt and nothing else; see `supervise`).
+    `claude` line (the fire carries the prompt and the pane's own three launch flags,
+    per ruling 259; see `supervise`).
     """
     data = _load_toml(host.manifest)
     for sessions in _phases_of(data, host.manifest).values():
