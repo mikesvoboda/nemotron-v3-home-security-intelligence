@@ -208,12 +208,17 @@ on 2026-10-16 the in-pane dispatcher stopped and the coordinator posted nothing 
 **The supervisor (default from [r247]).** The owner's timer runs
 `scripts/uplevel/launch.py supervise uplevel-coordinator` every 30 minutes on maui (ruling 239).
 One fire is one tick: the host runs the prompt below, word for word, as a headless `claude -p`
-inside `agent-uplevel-coordinator` through `sbx exec`, with no arguments beyond the prompt itself -
-the manifest row's arguments are `agent-dgx run` vocabulary (how a session is started), not
-`claude` flags, so the fire takes `claude`'s own defaults and whether that reproduces the pane's
-model and permission mode is an open owner question ([r247], Q1 in the PR). A host lock skips a
-fire while a tick runs, a tick that has run 60 minutes is killed by a `timeout` wrapper the fire
-runs inside the sandbox, and each fire appends one line to
+inside `agent-uplevel-coordinator` through `sbx exec`, carrying exactly the pane's own launch
+flags (ruling 259, answering [r247]'s Q1 with (a): the fire mirrors the pane) -
+`--dangerously-skip-permissions`, `--settings .claude/agent-dgx/claude-settings.json` and
+`--mcp-config=.claude/agent-dgx/mcp.json`, the same files agent-dgx starts the pane with,
+resolved inside the sandbox relative to its workspace. The manifest row's arguments are
+`agent-dgx run` vocabulary (how a session is started), not `claude` flags, and stay off the wire.
+Before the fire, the launcher probes the two files inside the sandbox (the host cannot see that
+filesystem) and refuses - naming the missing file and the next step, as `up` and `retire` do -
+rather than firing a tick that would start without the pane's settings or MCP servers. A host lock
+skips a fire while a tick runs, a tick that has run 60 minutes is killed by a `timeout` wrapper the
+fire runs inside the sandbox, and each fire appends one line to
 `<checkout>/supervise/uplevel-coordinator.log` carrying start, end, exit status, whether it was
 killed, and the tick's five-line summary. The prompt is read out of this file; the `/loop` line
 below is where it is written.

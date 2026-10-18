@@ -136,6 +136,7 @@ class FakeHost:
         agents_root: Path | None = None,
         origin_url: str = ORIGIN_URL,
         checkout: Path | None = None,
+        dgx_missing: set[str] | None = None,
     ) -> None:
         self.checkout = checkout
         self.sessions = sessions or {}
@@ -147,6 +148,7 @@ class FakeHost:
         self.new_head = new_head
         self.fail = fail
         self.agents_root = agents_root
+        self.dgx_missing = dgx_missing or set()
         self.calls: list[tuple[list[str], Path | None]] = []
 
     def _stage(self, script: str, filename: str, data: bytes) -> tuple[int, str, str]:
@@ -201,6 +203,16 @@ class FakeHost:
         script = argv[-1]
         if launch.MARKER in script:
             return self._inspection(script)
+        # The dgx-file probe: the fire refuses when the agent-dgx files the pane was
+        # started with are missing from the sandbox (ruling 259). `dgx_missing` names the
+        # constants the sandbox answers "missing:" for; an empty set is the healthy pane.
+        if "missing:" in script and "for f in" in script:
+            out = "".join(
+                f"missing:{name}\n"
+                for name in (launch.DGX_SETTINGS, launch.DGX_MCP)
+                if name in self.dgx_missing
+            )
+            return (0, out, "")
         # The export steps really do write into the session's own clone, because the
         # launcher reads them back off the host's mount afterwards (synthbench's `down`
         # copies workspace files the same way).
@@ -1568,7 +1580,12 @@ class _HangingRunner:
         self.hung = False
 
     def __call__(self, argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        if [str(a) for a in argv][:2] == ["sbx", "exec"] and kwargs.get("timeout"):
+        # the fire, not the read-only probe before it: only the tick can hang the budget
+        if (
+            [str(a) for a in argv][:2] == ["sbx", "exec"]
+            and kwargs.get("timeout")
+            and "claude -p" in str(argv[-1])
+        ):
             self.hung = True
             raise subprocess.TimeoutExpired(cmd="sbx exec", timeout=kwargs["timeout"])
         return self.inner(argv, **kwargs)
@@ -1648,33 +1665,39 @@ def test_supervise_dry_run_prints_the_fire_and_changes_nothing(
     out = capsys.readouterr().out
     assert "would fire" in out
     assert "claude -p" in out
-    assert not fake.ran("sbx", "exec"), "--dry-run must not fire a tick"
+    # the read-only probe is allowed to reach the sandbox; the fire itself must not
+    assert not any(
+        "claude -p" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]
+    ), "--dry-run must not fire a tick"
     assert not (tmp_path / "checkout" / "supervise").exists(), "and must not create the log"
 
 
 def test_one_fire_runs_the_tick_prompt_inside_the_sandbox(tmp_path: Path) -> None:
     """The fire is one `sbx exec ... bash -lc` carrying `timeout <budget> claude -p` and the
-    prompt verbatim."""
+    prompt verbatim, after one probe round-trip for the dgx files."""
     fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
     launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
     fires = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
-    assert len(fires) == 1, f"one fire is one tick, got {len(fires)}"
-    script = fires[0][-1]
+    assert len(fires) == 2, f"one probe then one fire, got {len(fires)}"
+    script = fires[-1][-1]
     assert "claude -p" in script
     assert f"timeout {launch.TICK_BUDGET} " in script, (
         "the kill must live inside the sandbox (the host's subprocess timeout only kills "
         "`sbx`, not the claude it left running there): the wrapper is what makes the kill "
         "deterministic and the fire's own rc 124 says so"
     )
-    assert "agent-uplevel-coordinator" in fires[0]
+    assert "agent-uplevel-coordinator" in fires[-1]
     # Verbatim means "what the shell hands `claude`", not "a substring of the script":
     # shlex.quote rewrites the prompt's apostrophes, so the comparison has to survive the
-    # shell's own parsing. Split the script and require the last token to BE the prompt,
-    # byte for byte - a paraphrase or a dropped character fails this, a re-quoting does not.
+    # shell's own parsing. Split the script and require the token after `-p` to BE the
+    # prompt, byte for byte - a paraphrase or a dropped character fails this, a re-quoting
+    # does not. The flags after the prompt are what ruling 259 answered Q1 with; the
+    # manifest-vocabulary test below pins that the wire holds no more than those.
     tokens = shlex.split(script)
-    assert tokens[-2:] != [], tokens
-    assert tokens[-1] == _tick_prompt(), "the prompt must reach `claude -p` verbatim; got " + repr(
-        tokens[-1][:120]
+    assert tokens.index("claude") + 2 < len(tokens), tokens
+    assert tokens[tokens.index("claude") + 2] == _tick_prompt(), (
+        "the prompt must reach `claude -p` verbatim; got "
+        + repr(tokens[tokens.index("claude") + 2][:120])
     )
 
 
@@ -1773,7 +1796,10 @@ def test_a_held_lock_skips_the_fire_and_says_so(tmp_path: Path) -> None:
 
         fcntl.flock(fd, fcntl.LOCK_EX)
         launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
-        assert not fake.ran("sbx", "exec"), "a fire must not run while the lock is held"
+        # the read-only probe may run; the fire must not
+        assert not any(
+            "claude -p" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]
+        ), "a fire must not run while the lock is held"
         log = (lock_dir / "uplevel-coordinator.log").read_text()
         assert "skipped" in log and "running" in log, log
     finally:
@@ -1791,7 +1817,11 @@ def test_a_tick_past_its_budget_is_killed_and_recorded(tmp_path: Path) -> None:
     """
     fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
     launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
-    script = next(argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])[-1]
+    script = next(
+        argv[-1]
+        for argv, _ in fake.calls
+        if argv[:2] == ["sbx", "exec"] and "claude -p" in argv[-1]
+    )
     assert f"timeout {launch.TICK_BUDGET} claude" in script, (
         "the wrapper is the kill; see the docstring"
     )
@@ -1883,7 +1913,8 @@ def test_main_supervise_dry_run_creates_no_log(
         lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
     )
     assert launch.main(["supervise", "uplevel-coordinator", "--dry-run"]) == 0
-    assert not fake.ran("sbx", "exec")
+    # the read-only probe may run; the fire must not
+    assert not any("claude -p" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])
     assert not (tmp_path / "checkout" / "supervise").exists()
 
 
@@ -1899,23 +1930,35 @@ def test_main_supervise_passes_its_budget_to_the_fire(
         lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
     )
     assert launch.main(["supervise", "uplevel-coordinator", "--budget", "120"]) == 0
-    script = next(argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])[-1]
+    script = next(
+        argv[-1]
+        for argv, _ in fake.calls
+        if argv[:2] == ["sbx", "exec"] and "claude -p" in argv[-1]
+    )
     assert "timeout 120 claude" in script, script
 
 
 def test_the_fire_carries_no_manifest_arguments(tmp_path: Path) -> None:
-    """Box 1: the fire is `claude -p <prompt>` and nothing else on the `claude` line.
+    """Box 1 as ruling 259 answered Q1: the fire is `claude -p <prompt>` plus the three
+    pane-mirroring flags, and nothing else on the `claude` line.
 
     The manifest's `[models]` row holds `agent-dgx run` vocabulary (`--agent claude --endpoint
     dgx`), which is how the owner STARTS a session, not `claude`'s own flags. Measured on this
     machine: `claude -p --agent claude --endpoint dgx '<prompt>'` exits 1 with `error: unknown
     option '--endpoint'` (the pipeline that first hid this reported `tail`'s rc, not claude's).
     The test derives the row from the same file the implementation used to read and asserts the
-    row's tokens are NOT on the wire: a future manifest edit cannot smuggle them back.
+    row's tokens are NOT on the wire: a future manifest edit cannot smuggle them back. The
+    three flags the wire does carry are the pane's own (ruling 259) - bypass permissions plus
+    the two agent-dgx files, exactly what agent-dgx starts the pane with - and the shape
+    assert pins the wire to precisely those, so a fourth flag cannot slip in either.
     """
     fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
     launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
-    script = next(argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])[-1]
+    script = next(
+        argv[-1]
+        for argv, _ in fake.calls
+        if argv[:2] == ["sbx", "exec"] and "claude -p" in argv[-1]
+    )
     tokens = shlex.split(script)
 
     manifest = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
@@ -1926,20 +1969,123 @@ def test_the_fire_carries_no_manifest_arguments(tmp_path: Path) -> None:
     forbidden = launch.run_args_for(data, REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml", row)
 
     start = tokens.index("claude")
-    # the wire from `claude` to the end is exactly `-p` then the quoted prompt (see the
-    # verbatim test for why the last token is the comparison point); nothing else, ever.
-    # The row derived above (`--agent claude --endpoint dgx`) must not appear here even in
-    # part: its flags are agent-dgx vocabulary - how a session is STARTED, not how a
-    # headless tick is fired. (`--agent claude`'s second token names this same binary; the
-    # shape assert is what actually pins the wire, the named flags below are the reason.)
-    assert tokens[start:] == ["claude", "-p", tokens[-1]], (
-        f"the fire must be `claude -p <prompt>` only; got {tokens[start:]!r} — "
-        f"the manifest row resolves to {forbidden!r}, and none of it belongs here"
+    # the wire from `claude` to the end is exactly `-p`, the quoted prompt, and the three
+    # pane-mirroring flags - nothing else, ever. The row derived above (`--agent claude
+    # --endpoint dgx`) must not appear here even in part: its flags are agent-dgx
+    # vocabulary. The shape assert above excludes the row's bare tokens too (`claude`
+    # coincides with the binary itself - the trap the first draft of this pin hit - and
+    # `dgx` cannot survive the exact list), so only the row's flags need naming here.
+    assert tokens[start:] == [
+        "claude",
+        "-p",
+        _tick_prompt(),
+        "--dangerously-skip-permissions",
+        "--settings",
+        launch.DGX_SETTINGS,
+        f"--mcp-config={launch.DGX_MCP}",
+    ], f"the fire must be `claude -p <prompt>` + the pane's three flags; got {tokens[start:]!r}"
+    assert not ({"--agent", "--endpoint"} & set(tokens[start:])), (
+        f"the manifest row resolves to {forbidden!r}, and none of it belongs on the wire"
     )
-    assert tokens[-1] == _tick_prompt()
     assert "--model" not in tokens[start:], (
         "the row is an endpoint, not a --model; inventing one would not be the pane's model"
     )
+
+
+def test_the_fire_probes_the_dgx_files_and_refuses_one_missing(tmp_path: Path) -> None:
+    """Ruling 259 item 2: the fire refuses rather than guesses about the files its flags
+    point at. The probe runs inside the sandbox (the host cannot see that filesystem), one
+    round-trip before the fire, and a missing file is a refusal naming it and the next
+    step - with no fire issued."""
+    fake = FakeHost(
+        sessions={"uplevel-coordinator": RUNNING},
+        dgx_missing={launch.DGX_SETTINGS},
+    )
+    with pytest.raises(launch.Refused) as caught:
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    message = str(caught.value)
+    assert f"~/{launch.DGX_SETTINGS}" in message, message
+    assert "restore them inside the sandbox" in message, "the refusal must name the next step"
+    # the probe happened; the fire did not - a refusal before a tick runs is the point
+    execs = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
+    assert len(execs) == 1 and "missing:" in execs[0][-1], execs
+    assert not any("claude -p" in argv[-1] for argv in execs)
+
+
+def test_the_fire_probes_the_dgx_files_and_refuses_both_missing(tmp_path: Path) -> None:
+    """Both files missing names both, one refusal, still no fire."""
+    fake = FakeHost(
+        sessions={"uplevel-coordinator": RUNNING},
+        dgx_missing={launch.DGX_SETTINGS, launch.DGX_MCP},
+    )
+    with pytest.raises(launch.Refused) as caught:
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    message = str(caught.value)
+    assert f"~/{launch.DGX_SETTINGS}" in message and f"~/{launch.DGX_MCP}" in message, message
+    execs = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
+    assert len(execs) == 1, execs
+    assert not any("claude -p" in argv[-1] for argv in execs)
+
+
+def test_the_probe_runs_inside_the_sandbox_not_on_the_host(tmp_path: Path) -> None:
+    """The host cannot see the sandbox's filesystem; the check must be the sandbox's own
+    shell answering, and it must resolve the files relative to the session's workspace (the
+    cwd the pane's claude runs with, so the flags' relative paths mean the same thing)."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    probe = next(argv[-1] for argv, _ in fake.calls if "missing:" in argv[-1])
+    assert probe.startswith("cd /agents/agent-uplevel-coordinator/workspace && "), probe
+    assert "for f in" in probe and '[ -f "$f" ]' in probe, (
+        "the existence check is the sandbox's own shell test, not a host-side guess: " + probe
+    )
+
+
+def test_a_probe_that_cannot_reach_the_sandbox_still_logs_as_refused(
+    tmp_path: Path,
+) -> None:
+    """The probe's OSError arm passes through: the fire hits the same wall one command
+    later and ITS handler records `status=refused` - the probe refusing first would leave
+    the gap unlogged."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+
+    def unreachable(argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if [str(a) for a in argv][:2] == ["sbx", "exec"]:
+            raise OSError("sbx exec: sandbox gone")
+        return fake(argv, **kwargs)
+
+    with pytest.raises(launch.Refused, match="could not fire"):
+        launch.supervise(replace(host(tmp_path, fake), run=unreachable), "uplevel-coordinator")
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    assert "status=refused" in log, log
+
+
+def test_supervise_dry_run_probes_and_prints_the_flags(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Dry-run shows the fire the owner would get - the three pane flags included - and it
+    runs after the probe: a dry-run on a pane missing its dgx files refuses like the real
+    one rather than printing a fire that could not run."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake, dry_run=True), "uplevel-coordinator")
+    out = capsys.readouterr().out
+    assert "would fire" in out
+    assert "claude -p" in out
+    assert launch.DGX_SETTINGS in out and launch.DGX_MCP in out, out
+    assert "--dangerously-skip-permissions" in out, out
+    # the probe ran (a real dry-run would have refused on a missing file); the fire did not
+    assert any("missing:" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])
+    assert not any("claude -p" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])
+    assert not (tmp_path / "checkout" / "supervise").exists(), "and must not create the log"
+
+
+def test_a_dry_run_on_a_pane_missing_its_dgx_files_refuses(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING}, dgx_missing={launch.DGX_MCP})
+    with pytest.raises(launch.Refused, match="mcp"):
+        launch.supervise(host(tmp_path, fake, dry_run=True), "uplevel-coordinator")
+    out = capsys.readouterr().out
+    assert "would fire" not in out, "a refused fire prints no would-fire line"
 
 
 def test_a_manifest_without_a_coordinator_refuses(tmp_path: Path) -> None:

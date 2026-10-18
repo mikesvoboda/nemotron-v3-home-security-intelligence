@@ -46,7 +46,10 @@ inspection that fails still refuses, and the owner's `retire` run on a throwaway
 posts the measurement. The supervisor's budget kill does not depend on the answer either: the
 `timeout` wrapper runs *inside* the sandbox, so the tick dies at the budget even if `sbx exec`
 later stops reaching it; the host's own timeout stays only as the backstop for a fire whose
-`sandbox` never answers at all.
+`sandbox` never answers at all. The supervisor's dgx-file probe answers through the same
+channel and its OSError arm passes through for the same reason: the fire's own handler is
+what records the unreachable sandbox (`status=refused`), so the gap is logged rather than
+refused away before any log line exists.
 
 Exit codes: 0 done; 2 refused, or a step failed, with what to do next.
 """
@@ -827,6 +830,12 @@ def retire(host: Host, name: str) -> None:
 COORDINATOR = "uplevel-coordinator"
 SUPERVISE_DIR = Path("supervise")
 TICK_BUDGET = 60 * 60  # a tick that has run 60 minutes is killed ([r247], box 2)
+# The pane's own launch flags, inside the sandbox (ruling 259): agent-dgx starts the
+# coordinator's claude with bypass permissions, this settings file and this MCP config,
+# and a bare headless `claude -p` drops all three. The fire mirrors the pane; it reads
+# these two files in the sandbox and copies no setting into the repo.
+DGX_SETTINGS = ".claude/agent-dgx/claude-settings.json"
+DGX_MCP = ".claude/agent-dgx/mcp.json"
 KICKOFF_DOC = Path(__file__).resolve().parents[2] / "docs" / "uplevel" / "roles" / "coordinator.md"
 
 
@@ -884,6 +893,47 @@ def _clock() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _sbx_probe(host: Host, sandbox: str, workspace: Path) -> None:
+    """The two agent-dgx files the fire's flags point at must exist in the sandbox.
+
+    Probed by the sandbox's own shell, one round-trip, relative to the session's
+    workspace (the pane's `claude` runs with its cwd there, and the flags' relative
+    paths resolve the same way): anything missing is refused before a tick runs, so a
+    fire never guesses whether the files exist (ruling 259, item 2 - it refuses rather
+    than guesses, as `up` and `retire` do). A sandbox that cannot answer is not this
+    check's subject: the fire itself will refuse on `host.run` and log `status=refused`.
+    """
+    argv = [
+        "sbx",
+        "exec",
+        sandbox,
+        "bash",
+        "-lc",
+        f"cd {workspace} && for f in {DGX_SETTINGS} {DGX_MCP}; do "
+        '[ -f "$f" ] || echo "missing:$f"; done',
+    ]
+    try:
+        done = host.run(argv, capture_output=True, text=True, timeout=120, check=False)
+    except OSError:
+        # A sandbox that cannot answer is not this check's subject: the fire hits the
+        # same wall one command later and its own handler logs `status=refused`, so the
+        # gap is recorded. Refusing here too would skip that log line.
+        return
+    missing = [
+        line.removeprefix("missing:")
+        for line in done.stdout.splitlines()
+        if line.startswith("missing:")
+    ]
+    if missing:
+        quoted = ", ".join(f"~/{m}" for m in missing)
+        raise Refused(
+            f"{sandbox} is missing the agent-dgx file(s) the fire mirrors the pane with "
+            f"({quoted}; paths relative to the workspace). The pane was started with "
+            "them; restore them inside the sandbox "
+            "(agent-dgx recreated the session without them?) and run this again."
+        )
+
+
 def coordinator_session(host: Host) -> Session:
     """The coordinator's row from the manifest, which the fire runs inside.
 
@@ -934,12 +984,23 @@ def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
     prompt = tick_prompt()
     directory = host.checkout / SUPERVISE_DIR
     log = directory / f"{name}.log"
-    # The manifest row's arguments stay off the wire: `[models]` is `agent-dgx run`
-    # vocabulary (how the owner starts a session), and joined into a `claude` line it is
-    # both wrong (`--endpoint dgx` is no `claude` flag - measured: unknown option, rc 1)
-    # and a shell-injection seam had the row ever changed. The fire is the prompt and
-    # nothing else. Permission mode is the open owner question Q1, not a code answer.
-    script = f"timeout {budget} claude -p {shlex.quote(prompt)}"
+    # The fire mirrors the pane (ruling 259, #7248 Q1 answered with (a)): agent-dgx does
+    # not start the pane on defaults - it runs `claude --dangerously-skip-permissions
+    # --settings <dgx settings> --mcp-config <dgx mcp>` - and a bare headless `claude -p`
+    # drops all three: without bypass permissions a headless tick cannot approve its own
+    # tool calls, so it could not post, merge or update branches. The flags point at the
+    # agent-dgx files inside the sandbox, the same files the pane was launched with; the
+    # manifest row's arguments stay off the wire (`[models]` is `agent-dgx run`
+    # vocabulary, not `claude` flags - measured: unknown option, rc 1 - and a
+    # shell-injection seam had the row ever changed). The probe refuses rather than
+    # guesses: a missing file is checked by the sandbox itself, not by a host-side guess
+    # about its filesystem.
+    _sbx_probe(host, session.sandbox, Path(session.workspace))
+    script = (
+        f"timeout {budget} claude -p {shlex.quote(prompt)} "
+        f"--dangerously-skip-permissions "
+        f"--settings {DGX_SETTINGS} --mcp-config={DGX_MCP}"
+    )
     argv = ["sbx", "exec", session.sandbox, "bash", "-lc", f"cd {session.workspace} && {script}"]
 
     if host.dry_run:
