@@ -48,7 +48,7 @@ def mock_job_search_service() -> MagicMock:
 def mock_job_history_service() -> MagicMock:
     """Create a mock job history service."""
     service = MagicMock()
-    service.get_job_history = AsyncMock()
+    service.job_exists = AsyncMock(return_value=True)
     service.get_job_logs = AsyncMock()
     return service
 
@@ -593,46 +593,6 @@ class TestGetJobStatus:
         assert data["job_id"] == "redis-job-123"
 
 
-class TestCancelJob:
-    """Tests for POST /api/jobs/{job_id}/cancel."""
-
-    def test_cancel_job_success(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should cancel a running job."""
-        mock_job_tracker.cancel_job.return_value = True
-
-        response = client.post("/api/jobs/job-123/cancel")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["job_id"] == "job-123"
-        assert data["status"] == "failed"
-        assert "cancellation" in data["message"].lower()
-
-        mock_job_tracker.cancel_job.assert_called_once_with("job-123")
-
-    def test_cancel_job_not_found(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should return 404 when job not found."""
-        mock_job_tracker.cancel_job.side_effect = KeyError("Job not found")
-
-        response = client.post("/api/jobs/nonexistent/cancel")
-        assert response.status_code == 404
-
-        data = response.json()
-        assert "No job found" in data["detail"]
-
-    def test_cancel_job_already_completed(
-        self, client: TestClient, mock_job_tracker: MagicMock
-    ) -> None:
-        """Should return 409 when job already completed."""
-        mock_job_tracker.cancel_job.return_value = False
-
-        response = client.post("/api/jobs/completed-job/cancel")
-        assert response.status_code == 409
-
-        data = response.json()
-        assert "cannot be cancelled" in data["detail"]
-
-
 class TestStartExportJob:
     """Tests for POST /api/events/export."""
 
@@ -776,21 +736,6 @@ class TestJobSchemas:
         data = response.model_dump()
         assert len(data["job_types"]) == 1
         assert data["job_types"][0]["name"] == "export"
-
-    def test_job_cancel_response(self) -> None:
-        """Should serialize JobCancelResponse correctly."""
-        from backend.api.schemas.jobs import JobCancelResponse, JobStatusEnum
-
-        response = JobCancelResponse(
-            job_id="test-123",
-            status=JobStatusEnum.FAILED,
-            message="Job cancelled",
-        )
-
-        data = response.model_dump()
-        assert data["job_id"] == "test-123"
-        assert data["status"] == "failed"
-        assert data["message"] == "Job cancelled"
 
 
 class TestSearchJobs:
@@ -969,192 +914,6 @@ class TestGetJobDetail:
         assert data["timing"]["duration_seconds"] == 30.0
 
 
-class TestAbortJob:
-    """Tests for POST /api/jobs/{job_id}/abort."""
-
-    def test_abort_job_success(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should abort a running job."""
-        mock_job_tracker.abort_job = AsyncMock(return_value=(True, None))
-
-        response = client.post("/api/jobs/job-123/abort")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["job_id"] == "job-123"
-        assert data["status"] == "running"
-        assert "abort" in data["message"].lower()
-
-    def test_abort_job_not_found(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should return 404 when job not found."""
-        mock_job_tracker.abort_job = AsyncMock(side_effect=KeyError("Job not found"))
-
-        response = client.post("/api/jobs/nonexistent/abort")
-        assert response.status_code == 404
-
-        data = response.json()
-        assert "No job found" in data["detail"]
-
-    def test_abort_job_not_running(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should return 400 when job is not running."""
-        mock_job_tracker.abort_job = AsyncMock(return_value=(False, "Job is not running"))
-
-        response = client.post("/api/jobs/job-123/abort")
-        assert response.status_code == 400
-
-        data = response.json()
-        assert "not running" in data["detail"]
-
-
-class TestDeleteJob:
-    """Tests for DELETE /api/jobs/{job_id}."""
-
-    def test_delete_pending_job(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should cancel a pending job."""
-        mock_job_tracker.get_job.return_value = JobInfo(
-            job_id="job-123",
-            job_type="export",
-            status=JobStatus.PENDING,
-            progress=0,
-            message=None,
-            created_at="2024-01-15T10:00:00Z",
-            started_at=None,
-            completed_at=None,
-            result=None,
-            error=None,
-        )
-        mock_job_tracker.cancel_queued_job.return_value = (True, None)
-
-        response = client.delete("/api/jobs/job-123")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["job_id"] == "job-123"
-        assert data["status"] == "failed"
-        assert "cancelled" in data["message"].lower()
-
-    def test_delete_running_job(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should abort a running job."""
-        mock_job_tracker.get_job.return_value = JobInfo(
-            job_id="job-123",
-            job_type="export",
-            status=JobStatus.RUNNING,
-            progress=50,
-            message="Processing...",
-            created_at="2024-01-15T10:00:00Z",
-            started_at="2024-01-15T10:00:01Z",
-            completed_at=None,
-            result=None,
-            error=None,
-        )
-        mock_job_tracker.abort_job = AsyncMock(return_value=(True, None))
-
-        response = client.delete("/api/jobs/job-123")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["job_id"] == "job-123"
-        assert data["status"] == "running"
-        assert "abort" in data["message"].lower()
-
-    def test_delete_job_not_found(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should return 404 when job not found."""
-        mock_job_tracker.get_job.return_value = None
-        mock_job_tracker.get_job_from_redis = AsyncMock(return_value=None)
-
-        response = client.delete("/api/jobs/nonexistent")
-        assert response.status_code == 404
-
-        data = response.json()
-        assert "No job found" in data["detail"]
-
-    def test_delete_completed_job(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should return 400 for completed job."""
-        mock_job_tracker.get_job.return_value = JobInfo(
-            job_id="job-123",
-            job_type="export",
-            status=JobStatus.COMPLETED,
-            progress=100,
-            message="Done",
-            created_at="2024-01-15T10:00:00Z",
-            started_at="2024-01-15T10:00:01Z",
-            completed_at="2024-01-15T10:01:00Z",
-            result=None,
-            error=None,
-        )
-
-        response = client.delete("/api/jobs/job-123")
-        assert response.status_code == 400
-
-        data = response.json()
-        assert "Cannot stop job" in data["detail"]
-
-    def test_delete_failed_job(self, client: TestClient, mock_job_tracker: MagicMock) -> None:
-        """Should return 400 for failed job."""
-        mock_job_tracker.get_job.return_value = JobInfo(
-            job_id="job-123",
-            job_type="export",
-            status=JobStatus.FAILED,
-            progress=30,
-            message="Failed",
-            created_at="2024-01-15T10:00:00Z",
-            started_at="2024-01-15T10:00:01Z",
-            completed_at="2024-01-15T10:00:30Z",
-            result=None,
-            error="Connection error",
-        )
-
-        response = client.delete("/api/jobs/job-123")
-        assert response.status_code == 400
-
-    def test_delete_pending_job_failure(
-        self, client: TestClient, mock_job_tracker: MagicMock
-    ) -> None:
-        """Should return 400 when cancelling pending job fails."""
-        mock_job_tracker.get_job.return_value = JobInfo(
-            job_id="job-123",
-            job_type="export",
-            status=JobStatus.PENDING,
-            progress=0,
-            message=None,
-            created_at="2024-01-15T10:00:00Z",
-            started_at=None,
-            completed_at=None,
-            result=None,
-            error=None,
-        )
-        mock_job_tracker.cancel_queued_job.return_value = (False, "Cannot cancel this job")
-
-        response = client.delete("/api/jobs/job-123")
-        assert response.status_code == 400
-
-        data = response.json()
-        assert "Cannot cancel this job" in data["detail"]
-
-    def test_delete_running_job_failure(
-        self, client: TestClient, mock_job_tracker: MagicMock
-    ) -> None:
-        """Should return 400 when aborting running job fails."""
-        mock_job_tracker.get_job.return_value = JobInfo(
-            job_id="job-123",
-            job_type="export",
-            status=JobStatus.RUNNING,
-            progress=50,
-            message="Processing...",
-            created_at="2024-01-15T10:00:00Z",
-            started_at="2024-01-15T10:00:01Z",
-            completed_at=None,
-            result=None,
-            error=None,
-        )
-        mock_job_tracker.abort_job = AsyncMock(return_value=(False, "Cannot abort this job"))
-
-        response = client.delete("/api/jobs/job-123")
-        assert response.status_code == 400
-
-        data = response.json()
-        assert "Cannot abort this job" in data["detail"]
-
-
 class TestBulkCancelJobs:
     """Tests for POST /api/jobs/bulk-cancel."""
 
@@ -1240,80 +999,6 @@ class TestBulkCancelJobs:
         assert any("Unexpected error" in error["error"] for error in data["errors"])
 
 
-class TestGetJobHistory:
-    """Tests for GET /api/jobs/{job_id}/history."""
-
-    def test_get_job_history_success(
-        self, client: TestClient, mock_job_history_service: MagicMock
-    ) -> None:
-        """Should return job history with transitions and attempts."""
-        from backend.services.job_history_service import (
-            AttemptRecord,
-            JobHistory,
-            TransitionRecord,
-        )
-
-        mock_job_history_service.get_job_history.return_value = JobHistory(
-            job_id="job-123",
-            job_type="export",
-            status="completed",
-            created_at=datetime(2024, 1, 15, 10, 0, 0),
-            started_at=datetime(2024, 1, 15, 10, 0, 1),
-            completed_at=datetime(2024, 1, 15, 10, 1, 0),
-            transitions=[
-                TransitionRecord(
-                    from_status="pending",
-                    to_status="running",
-                    at=datetime(2024, 1, 15, 10, 0, 1),
-                    triggered_by="system",
-                    details=None,
-                ),
-                TransitionRecord(
-                    from_status="running",
-                    to_status="completed",
-                    at=datetime(2024, 1, 15, 10, 1, 0),
-                    triggered_by="system",
-                    details=None,
-                ),
-            ],
-            attempts=[
-                AttemptRecord(
-                    attempt_number=1,
-                    started_at=datetime(2024, 1, 15, 10, 0, 1),
-                    ended_at=datetime(2024, 1, 15, 10, 1, 0),
-                    status="completed",
-                    error=None,
-                    worker_id="worker-1",
-                    duration_seconds=59.0,
-                    result={"file_path": "/exports/events.csv"},
-                ),
-            ],
-        )
-
-        response = client.get("/api/jobs/job-123/history")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["job_id"] == "job-123"
-        assert len(data["transitions"]) == 2
-        assert len(data["attempts"]) == 1
-        # The response uses alias "from" instead of "from_status"
-        assert data["transitions"][0]["from"] == "pending"
-        assert data["attempts"][0]["attempt_number"] == 1
-
-    def test_get_job_history_not_found(
-        self, client: TestClient, mock_job_history_service: MagicMock
-    ) -> None:
-        """Should return 404 when job not found."""
-        mock_job_history_service.get_job_history.return_value = None
-
-        response = client.get("/api/jobs/nonexistent/history")
-        assert response.status_code == 404
-
-        data = response.json()
-        assert "No job found" in data["detail"]
-
-
 class TestGetJobLogs:
     """Tests for GET /api/jobs/{job_id}/logs."""
 
@@ -1321,18 +1006,9 @@ class TestGetJobLogs:
         self, client: TestClient, mock_job_history_service: MagicMock
     ) -> None:
         """Should return job logs."""
-        from backend.services.job_history_service import JobHistory, JobLogEntry
+        from backend.services.job_history_service import JobLogEntry
 
-        mock_job_history_service.get_job_history.return_value = JobHistory(
-            job_id="job-123",
-            job_type="export",
-            status="completed",
-            created_at=datetime(2024, 1, 15, 10, 0, 0),
-            started_at=datetime(2024, 1, 15, 10, 0, 1),
-            completed_at=datetime(2024, 1, 15, 10, 1, 0),
-            transitions=[],
-            attempts=[],
-        )
+        mock_job_history_service.job_exists.return_value = True
 
         mock_job_history_service.get_job_logs.return_value = [
             JobLogEntry(
@@ -1365,19 +1041,7 @@ class TestGetJobLogs:
         self, client: TestClient, mock_job_history_service: MagicMock
     ) -> None:
         """Should filter logs by level and timestamp."""
-        from backend.services.job_history_service import JobHistory
-
-        mock_job_history_service.get_job_history.return_value = JobHistory(
-            job_id="job-123",
-            job_type="export",
-            status="completed",
-            created_at=datetime(2024, 1, 15, 10, 0, 0),
-            started_at=datetime(2024, 1, 15, 10, 0, 1),
-            completed_at=datetime(2024, 1, 15, 10, 1, 0),
-            transitions=[],
-            attempts=[],
-        )
-
+        mock_job_history_service.job_exists.return_value = True
         mock_job_history_service.get_job_logs.return_value = []
 
         response = client.get(
@@ -1394,18 +1058,9 @@ class TestGetJobLogs:
         self, client: TestClient, mock_job_history_service: MagicMock
     ) -> None:
         """Should indicate when there are more logs."""
-        from backend.services.job_history_service import JobHistory, JobLogEntry
+        from backend.services.job_history_service import JobLogEntry
 
-        mock_job_history_service.get_job_history.return_value = JobHistory(
-            job_id="job-123",
-            job_type="export",
-            status="completed",
-            created_at=datetime(2024, 1, 15, 10, 0, 0),
-            started_at=datetime(2024, 1, 15, 10, 0, 1),
-            completed_at=datetime(2024, 1, 15, 10, 1, 0),
-            transitions=[],
-            attempts=[],
-        )
+        mock_job_history_service.job_exists.return_value = True
 
         # Return limit + 1 entries to trigger has_more
         mock_job_history_service.get_job_logs.return_value = [
@@ -1430,7 +1085,7 @@ class TestGetJobLogs:
         self, client: TestClient, mock_job_history_service: MagicMock
     ) -> None:
         """Should return 404 when job not found."""
-        mock_job_history_service.get_job_history.return_value = None
+        mock_job_history_service.job_exists.return_value = False
 
         response = client.get("/api/jobs/nonexistent/logs")
         assert response.status_code == 404

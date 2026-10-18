@@ -538,4 +538,42 @@ describe('JobsPage', () => {
       expect(container).toBeInTheDocument();
     });
   });
+
+  describe('Retired R2a row 17 surfaces (F-092 to F-096)', () => {
+    it('exports only the kept jobs barrel components and renders no retired action or history section', async () => {
+      const jobsBarrel = await import('./index');
+      expect(Object.keys(jobsBarrel).sort()).toEqual([
+        'ConfirmDialog',
+        'JobDetailPanel',
+        'JobHeader',
+        'JobMetadata',
+        'JobsEmptyState',
+        'JobsList',
+        'JobsListItem',
+        'JobsPage',
+      ]);
+
+      vi.mocked(api.searchJobs).mockResolvedValue(mockJobsResponse);
+      vi.mocked(api.fetchJob).mockResolvedValue(mockJobs[0]);
+
+      const user = userEvent.setup();
+      renderWithProviders(<JobsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('job-item-job-001')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('job-item-job-001'));
+
+      await waitFor(() => {
+        const detailPanel = screen.getByTestId('job-detail-panel');
+        expect(within(detailPanel).getByRole('heading', { level: 2 })).toHaveTextContent(
+          'Export #001'
+        );
+      });
+
+      expect(screen.queryByTestId('job-actions')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('job-history-timeline')).not.toBeInTheDocument();
+    });
+  });
 });

@@ -955,17 +955,13 @@ Background job tracking API with comprehensive management features.
 | GET    | `/api/jobs/search`          | Advanced job search (NEM-2392)   |
 | GET    | `/api/jobs/{job_id}`        | Get job status                   |
 | GET    | `/api/jobs/{job_id}/detail` | Get detailed job info (NEM-2390) |
-| POST   | `/api/jobs/{job_id}/cancel` | Cancel a queued job              |
-| POST   | `/api/jobs/{job_id}/abort`  | Abort a running job              |
-| DELETE | `/api/jobs/{job_id}`        | Cancel or abort based on state   |
 | POST   | `/api/jobs/bulk-cancel`     | Bulk cancel multiple jobs        |
 
-**Job History Endpoints (NEM-2396):**
+**Job Logs Endpoint (NEM-2396):**
 
-| Method | Path                         | Purpose                   |
-| ------ | ---------------------------- | ------------------------- |
-| GET    | `/api/jobs/{job_id}/history` | Get job execution history |
-| GET    | `/api/jobs/{job_id}/logs`    | Get job execution logs    |
+| Method | Path                      | Purpose                |
+| ------ | ------------------------- | ---------------------- |
+| GET    | `/api/jobs/{job_id}/logs` | Get job execution logs |
 
 **Export Endpoint:**
 

@@ -6,30 +6,24 @@ Contains React components for the background jobs monitoring page, providing a s
 
 ## Files
 
-| File                          | Purpose                                         |
-| ----------------------------- | ----------------------------------------------- |
-| `JobsPage.tsx`                | Main page with split view (list + detail panel) |
-| `JobsPage.test.tsx`           | Test suite for JobsPage                         |
-| `JobsList.tsx`                | Scrollable list of jobs                         |
-| `JobsListItem.tsx`            | Individual job item in the list                 |
-| `JobsSearchBar.tsx`           | Search and filter controls                      |
-| `JobsSearchBar.test.tsx`      | Test suite for JobsSearchBar                    |
-| `JobsEmptyState.tsx`          | Empty state when no jobs exist                  |
-| `JobDetailPanel.tsx`          | Right panel showing job details                 |
-| `JobHeader.tsx`               | Job title, status badge, and progress bar       |
-| `JobHeader.test.tsx`          | Test suite for JobHeader                        |
-| `JobMetadata.tsx`             | Job timestamps and type information             |
-| `JobMetadata.test.tsx`        | Test suite for JobMetadata                      |
-| `JobActions.tsx`              | Action buttons (cancel, abort, retry, delete)   |
-| `JobActions.test.tsx`         | Test suite for JobActions                       |
-| `JobHistoryTimeline.tsx`      | Collapsible job state transition timeline       |
-| `JobHistoryTimeline.test.tsx` | Test suite for JobHistoryTimeline               |
-| `ConfirmDialog.tsx`           | Confirmation dialog for destructive actions     |
-| `ConfirmDialog.test.tsx`      | Test suite for ConfirmDialog                    |
-| `StatusDot.tsx`               | Colored dot for job status indication           |
-| `StatusDot.test.tsx`          | Test suite for StatusDot                        |
-| `TimelineEntry.tsx`           | Single entry in the job history timeline        |
-| `TimelineEntry.test.tsx`      | Test suite for TimelineEntry                    |
+| File                     | Purpose                                         |
+| ------------------------ | ----------------------------------------------- |
+| `JobsPage.tsx`           | Main page with split view (list + detail panel) |
+| `JobsPage.test.tsx`      | Test suite for JobsPage                         |
+| `JobsList.tsx`           | Scrollable list of jobs                         |
+| `JobsListItem.tsx`       | Individual job item in the list                 |
+| `JobsSearchBar.tsx`      | Search and filter controls                      |
+| `JobsSearchBar.test.tsx` | Test suite for JobsSearchBar                    |
+| `JobsEmptyState.tsx`     | Empty state when no jobs exist                  |
+| `JobDetailPanel.tsx`     | Right panel showing job details                 |
+| `JobHeader.tsx`          | Job title, status badge, and progress bar       |
+| `JobHeader.test.tsx`     | Test suite for JobHeader                        |
+| `JobMetadata.tsx`        | Job timestamps and type information             |
+| `JobMetadata.test.tsx`   | Test suite for JobMetadata                      |
+| `ConfirmDialog.tsx`      | Confirmation dialog for destructive actions     |
+| `ConfirmDialog.test.tsx` | Test suite for ConfirmDialog                    |
+| `StatusDot.tsx`          | Colored dot for job status indication           |
+| `StatusDot.test.tsx`     | Test suite for StatusDot                        |
 
 ## Key Components
 
@@ -158,8 +152,6 @@ interface JobsSearchBarProps {
 
 - JobHeader with status and progress
 - JobMetadata with timestamps
-- JobActions for lifecycle management
-- JobHistoryTimeline for state transitions
 
 **Props Interface:**
 
@@ -219,66 +211,6 @@ interface JobMetadataProps {
 
 ---
 
-### JobActions.tsx
-
-**Purpose:** Action buttons based on job status
-
-**Key Features:**
-
-- Status-based actions:
-  - Pending: Cancel, Delete
-  - Running: Cancel, Abort
-  - Completed: Delete
-  - Failed: Retry, Delete
-  - Cancelled: Retry, Delete
-- Confirmation dialogs for destructive actions
-- Compact mode with icon-only buttons
-- Loading states during mutations
-
-**Props Interface:**
-
-```typescript
-interface JobActionsProps {
-  job: JobResponse;
-  compact?: boolean;
-  onSuccess?: (
-    action: JobActionType,
-    response: JobCancelResponse | JobAbortResponse | JobResponse
-  ) => void;
-  onError?: (action: JobActionType, error: Error) => void;
-  onDelete?: () => void;
-  onRetry?: (newJob: JobResponse) => void;
-}
-```
-
-**Related:** NEM-2712
-
----
-
-### JobHistoryTimeline.tsx
-
-**Purpose:** Collapsible timeline of job state transitions
-
-**Key Features:**
-
-- Vertical timeline with status dots
-- Transition messages (e.g., "Job created", "Started processing")
-- Timestamp display
-- Collapsible section with summary badge
-- Loading skeleton and error states
-
-**Props Interface:**
-
-```typescript
-interface JobHistoryTimelineProps {
-  jobId: string;
-  defaultOpen?: boolean;
-  className?: string;
-}
-```
-
----
-
 ### ConfirmDialog.tsx
 
 **Purpose:** Confirmation dialog for destructive actions
@@ -333,37 +265,9 @@ interface StatusDotProps {
 }
 ```
 
----
-
-### TimelineEntry.tsx
-
-**Purpose:** Single entry in the job history timeline
-
-**Key Features:**
-
-- Status dot for target state
-- Formatted timestamp
-- Transition message
-- Vertical connector line
-- Error details display
-- Triggered by attribution (optional)
-
-**Props Interface:**
-
-```typescript
-interface TimelineEntryProps {
-  transition: Transition;
-  isLast: boolean;
-  showTriggeredBy?: boolean;
-  className?: string;
-}
-```
-
 ## Related Hooks
 
 - `useJobsSearchQuery` - Job search with debouncing and filtering
-- `useJobHistoryQuery` - Fetch job state transition history
-- `useJobMutations` - Cancel, abort, retry, delete mutations
 
 ## Styling
 
@@ -385,18 +289,11 @@ interface TimelineEntryProps {
 
 - `GET /api/jobs/search` - Search jobs with filters
 - `GET /api/jobs/{job_id}` - Get job details
-- `POST /api/jobs/{job_id}/cancel` - Cancel job
-- `POST /api/jobs/{job_id}/abort` - Force abort job
-- `POST /api/jobs/{job_id}/retry` - Retry failed job
-- `DELETE /api/jobs/{job_id}` - Delete job
-- `GET /api/jobs/{job_id}/history` - Get state transitions
 
 ## Entry Points
 
 **Start here:** `JobsPage.tsx` - Main page component
 **Then explore:** `JobDetailPanel.tsx` - Detail panel composition
-**Also see:** `JobHistoryTimeline.tsx` - State transition history
-**Also see:** `JobActions.tsx` - Lifecycle management buttons
 
 ## Dependencies
 
@@ -406,8 +303,6 @@ interface TimelineEntryProps {
 - `clsx` - Conditional class composition
 - `react-router-dom` - useSearchParams for URL state
 - `../../hooks/useJobsSearchQuery` - Search hook
-- `../../hooks/useJobHistoryQuery` - History hook
-- `../../hooks/useJobMutations` - Mutation hooks
 - `../../services/api` - API client
 - `../system/CollapsibleSection` - Collapsible wrapper
 - `../common/SafeErrorMessage` - Error display
