@@ -110,7 +110,7 @@ list covers them, each directory added in the PR that fixes its citations (owner
     0 at the base.
   - **OD-35:** the 26 image-(re)validation plans are deleted with `git rm`, so history keeps them.
     **Done** — `a911285a1` deletes exactly **26** files / **8,314** lines (`git diff --numstat
-    origin/main...a911285a1` — the deleted tree itself yields 0 by `ls`, so the diff is the
+origin/main...a911285a1` — the deleted tree itself yields 0 by `ls`, so the diff is the
     instrument that carries the count), matching the ruling's own count, and lists them in
     `scripts/retired_paths.txt` so
     the gate keeps them gone and flags a living citation. Citation census over `docs/plans` falls
