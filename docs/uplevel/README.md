@@ -194,8 +194,8 @@ UR-147.
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy         | in progress | #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273 |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | in progress | #7244 |
-| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | in progress | #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273 |
-| F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | not started |     |
+| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | in progress | #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272 |
+| F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | in progress | #7246 |
 | F3.3    | frontend                | 3          | Quarantined tests                              |               | not started |     |
 | O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | not started |     |
 | O3.2    | ops                     | 3          | Compose base and overlays                      |               | not started |     |
