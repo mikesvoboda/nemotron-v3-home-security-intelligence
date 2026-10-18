@@ -15,20 +15,10 @@
 
 import clsx from 'clsx';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
-import {
-  X,
-  Clock,
-  Calendar,
-  ExternalLink,
-  FileJson,
-  FileSpreadsheet,
-  FileText,
-  AlertCircle,
-  MapPin,
-} from 'lucide-react';
+import { X, Clock, Calendar, ExternalLink, AlertCircle, MapPin } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { ExportFormat, SummaryDetail, TimelineEvent } from '@/types/summary';
+import type { SummaryDetail, TimelineEvent } from '@/types/summary';
 
 // Risk level color mapping
 const RISK_LEVEL_COLORS: Record<string, string> = {
@@ -48,12 +38,6 @@ export interface ExpandableDetailPanelProps {
   isOpen: boolean;
   /** Callback when the panel should close */
   onClose: () => void;
-  /** Callback when export is requested */
-  onExport?: (summaryId: number, format: ExportFormat) => void;
-  /** Whether an export is in progress */
-  isExporting?: boolean;
-  /** Current export format being processed */
-  exportFormat?: ExportFormat;
   /** Additional CSS class name */
   className?: string;
 }
@@ -139,53 +123,12 @@ function TimelineEventRow({ event, index }: { event: TimelineEvent; index: numbe
 }
 
 /**
- * Export button component.
- */
-function ExportButton({
-  format: _format,
-  label,
-  icon: Icon,
-  onClick,
-  isLoading,
-  testId,
-}: {
-  format: ExportFormat;
-  label: string;
-  icon: typeof FileJson;
-  onClick: () => void;
-  isLoading: boolean;
-  testId: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={isLoading}
-      className={clsx(
-        'flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm',
-        'transition-colors hover:border-gray-600 hover:bg-gray-800/50',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
-        'focus-visible:ring-offset-gray-900',
-        isLoading && 'cursor-not-allowed opacity-50'
-      )}
-      data-testid={testId}
-    >
-      <Icon className="h-4 w-4 text-gray-400" aria-hidden="true" />
-      <span className="text-gray-300">{isLoading ? 'Exporting...' : label}</span>
-    </button>
-  );
-}
-
-/**
  * ExpandableDetailPanel component.
  */
 export function ExpandableDetailPanel({
   detail,
   isOpen,
   onClose,
-  onExport,
-  isExporting = false,
-  exportFormat,
   className,
 }: ExpandableDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -234,16 +177,6 @@ export function ExpandableDetailPanel({
       }
     },
     [onClose]
-  );
-
-  // Handle export
-  const handleExport = useCallback(
-    (format: ExportFormat) => {
-      if (onExport) {
-        onExport(detail.id, format);
-      }
-    },
-    [onExport, detail.id]
   );
 
   if (!isOpen) {
@@ -351,7 +284,7 @@ export function ExpandableDetailPanel({
           </section>
 
           {/* Timeline section */}
-          <section className="mb-6">
+          <section>
             <h3 className="mb-3 text-sm font-medium uppercase tracking-wider text-gray-500">
               Timeline
             </h3>
@@ -366,39 +299,6 @@ export function ExpandableDetailPanel({
                 No events to display
               </div>
             )}
-          </section>
-
-          {/* Export section */}
-          <section>
-            <h3 className="mb-3 text-sm font-medium uppercase tracking-wider text-gray-500">
-              Export
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              <ExportButton
-                format="json"
-                label="JSON"
-                icon={FileJson}
-                onClick={() => handleExport('json')}
-                isLoading={isExporting && exportFormat === 'json'}
-                testId="export-json-btn"
-              />
-              <ExportButton
-                format="csv"
-                label="CSV"
-                icon={FileSpreadsheet}
-                onClick={() => handleExport('csv')}
-                isLoading={isExporting && exportFormat === 'csv'}
-                testId="export-csv-btn"
-              />
-              <ExportButton
-                format="pdf"
-                label="PDF"
-                icon={FileText}
-                onClick={() => handleExport('pdf')}
-                isLoading={isExporting && exportFormat === 'pdf'}
-                testId="export-pdf-btn"
-              />
-            </div>
           </section>
         </div>
       </div>

@@ -54,7 +54,7 @@ feature has triggered. Seams are designed when reached.
 - `O2.4` → `B2.3` (TensorRT re-ID, then the bake-off; ruling 107).
 - `O2.5` → ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222) in `F2.3`
   (ruling 144).
-- `B3.1` and `F3.1` land each retired feature in one PR.
+- `B3.1` and `F3.1` land each R2a row's retire-ruled features in one PR (ruling 255).
 - Each lane's Phase 3 → the docs lane's Phase 3 on that lane's directories (UR-68).
 
 ## Vocabulary
@@ -191,10 +191,10 @@ UR-147.
 | O2.5    | ops                     | 2          | Production-shape real tier                     |               | awaiting real tier | #7037 |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
-| B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy         | in progress | #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254 |
+| B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy         | in progress | #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255 |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | not started |     |
-| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | in progress | #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254 |
+| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | in progress | #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255 |
 | F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | not started |     |
 | F3.3    | frontend                | 3          | Quarantined tests                              |               | not started |     |
 | O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | not started |     |
