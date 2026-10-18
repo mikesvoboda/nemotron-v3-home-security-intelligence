@@ -7,23 +7,20 @@ a background job and displayed on the dashboard.
 Includes actionable insights generated from event analysis (NEM-5418, NEM-5419,
 NEM-5420, NEM-5421).
 
-Includes expandable detail panel with export functionality (NEM-5425, NEM-5426,
-NEM-5427).
+Includes expandable detail panel (NEM-5425, NEM-5426, NEM-5427).
 
 Endpoints:
     GET /api/summaries/latest - Returns both hourly and daily summaries
     GET /api/summaries/hourly - Returns latest hourly summary only
     GET /api/summaries/daily  - Returns latest daily summary only
     GET /api/summaries/{id}/detail - Returns detailed summary with timeline
-    GET /api/summaries/{id}/export - Export summary in JSON, CSV, or PDF format
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_cache_service_dep
@@ -556,102 +553,3 @@ async def get_summary_detail(
         logger.warning(f"Cache write failed for summary detail {summary_id}: {e}")
 
     return response
-
-
-@router.get(
-    "/{summary_id}/export",
-    response_model=None,
-    responses={
-        200: {
-            "description": "Export data in requested format",
-            "content": {
-                "application/json": {},
-                "text/csv": {},
-                "application/pdf": {},
-            },
-        },
-        400: {
-            "description": "Invalid export format",
-        },
-        404: {
-            "description": "Summary not found",
-        },
-    },
-)
-async def export_summary(
-    summary_id: int,
-    format: Literal["json", "csv", "pdf"] = Query(
-        default="json",
-        description="Export format: json, csv, or pdf",
-        alias="format",
-    ),
-    db: AsyncSession = Depends(get_db),
-    _cache: CacheService = Depends(get_cache_service_dep),
-) -> Response:
-    """Export summary data in various formats.
-
-    Exports the summary and its related events in JSON, CSV, or PDF format.
-    Useful for downloading and sharing summary reports.
-
-    Args:
-        summary_id: ID of the summary to export
-        format: Export format (json, csv, pdf)
-        db: Database session
-        cache: Cache service
-
-    Returns:
-        Export data in requested format
-
-    Raises:
-        HTTPException: 404 if summary not found
-        HTTPException: 400 if invalid format
-    """
-    # Validate format
-    valid_formats = ["json", "csv", "pdf"]
-    if format not in valid_formats:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid export format '{format}'. Supported formats: {', '.join(valid_formats)}",
-        )
-
-    # Fetch summary from database
-    repo = SummaryRepository(db)
-    summary = await repo.get_by_id(summary_id)
-
-    if summary is None:
-        raise HTTPException(status_code=404, detail=f"Summary {summary_id} not found")
-
-    # Fetch related events
-    events: list[Event] = []
-    if summary.event_ids:
-        event_repo = EventRepository(db)
-        events = await event_repo.get_by_ids(summary.event_ids, eager_load_camera=True)
-
-    # Get detail service and export
-    detail_service = get_summary_detail_service()
-
-    if format == "json":
-        json_data = detail_service.export_json(summary, events)
-        # Return as JSONResponse for proper typing
-        import json as json_module
-
-        return JSONResponse(
-            content=json_module.loads(json_data),
-            headers={"Content-Disposition": f"attachment; filename=summary_{summary_id}.json"},
-        )
-
-    elif format == "csv":
-        csv_data = detail_service.export_csv(summary, events)
-        return Response(
-            content=csv_data,
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=summary_{summary_id}.csv"},
-        )
-
-    else:  # pdf
-        pdf_data = detail_service.export_pdf(summary, events)
-        return Response(
-            content=pdf_data,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=summary_{summary_id}.pdf"},
-        )

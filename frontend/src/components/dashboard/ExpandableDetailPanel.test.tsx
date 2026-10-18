@@ -262,82 +262,12 @@ describe('ExpandableDetailPanel', () => {
   });
 
   describe('export section', () => {
-    it('renders export buttons', () => {
+    it('does not render retired export buttons (F-035)', () => {
       render(<ExpandableDetailPanel detail={mockSummaryDetail} isOpen onClose={vi.fn()} />);
 
-      expect(screen.getByTestId('export-json-btn')).toBeInTheDocument();
-      expect(screen.getByTestId('export-csv-btn')).toBeInTheDocument();
-      expect(screen.getByTestId('export-pdf-btn')).toBeInTheDocument();
-    });
-
-    it('calls onExport with json format when JSON button clicked', async () => {
-      const onExport = vi.fn();
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
-      render(
-        <ExpandableDetailPanel
-          detail={mockSummaryDetail}
-          isOpen
-          onClose={vi.fn()}
-          onExport={onExport}
-        />
-      );
-
-      await user.click(screen.getByTestId('export-json-btn'));
-
-      expect(onExport).toHaveBeenCalledWith(1, 'json');
-    });
-
-    it('calls onExport with csv format when CSV button clicked', async () => {
-      const onExport = vi.fn();
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
-      render(
-        <ExpandableDetailPanel
-          detail={mockSummaryDetail}
-          isOpen
-          onClose={vi.fn()}
-          onExport={onExport}
-        />
-      );
-
-      await user.click(screen.getByTestId('export-csv-btn'));
-
-      expect(onExport).toHaveBeenCalledWith(1, 'csv');
-    });
-
-    it('calls onExport with pdf format when PDF button clicked', async () => {
-      const onExport = vi.fn();
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
-      render(
-        <ExpandableDetailPanel
-          detail={mockSummaryDetail}
-          isOpen
-          onClose={vi.fn()}
-          onExport={onExport}
-        />
-      );
-
-      await user.click(screen.getByTestId('export-pdf-btn'));
-
-      expect(onExport).toHaveBeenCalledWith(1, 'pdf');
-    });
-
-    it('shows loading state during export', () => {
-      render(
-        <ExpandableDetailPanel
-          detail={mockSummaryDetail}
-          isOpen
-          onClose={vi.fn()}
-          isExporting
-          exportFormat="json"
-        />
-      );
-
-      const jsonBtn = screen.getByTestId('export-json-btn');
-      expect(jsonBtn).toBeDisabled();
-      expect(jsonBtn).toHaveTextContent(/exporting/i);
+      expect(screen.queryByTestId('export-json-btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('export-csv-btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('export-pdf-btn')).not.toBeInTheDocument();
     });
   });
 
