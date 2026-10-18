@@ -213,17 +213,17 @@ Full event detail modal.
 
 **Props:**
 
-| Prop            | Type                                                   | Default | Description             |
-| --------------- | ------------------------------------------------------ | ------- | ----------------------- |
-| event           | `Event \| null`                                        | -       | Event data              |
-| isOpen          | `boolean`                                              | -       | Modal visibility        |
-| onClose         | `() => void`                                           | -       | Close handler           |
-| onMarkReviewed  | `(eventId: string) => void`                            | -       | Mark reviewed           |
-| onNavigate      | `(direction: 'prev' \| 'next') => void`                | -       | Navigate events         |
-| onSaveNotes     | `(eventId: string, notes: string) => Promise<void>`    | -       | Save notes handler      |
-| onDownloadMedia | `(eventId: string) => Promise<void>`                   | -       | Download media          |
-| onSnooze        | `(eventId: string, seconds: number) => void`           | -       | Snooze event (NEM-3640) |
-| onUnsnooze      | `(eventId: string) => void`                            | -       | Clear snooze (NEM-3640) |
+| Prop            | Type                                                | Default | Description             |
+| --------------- | --------------------------------------------------- | ------- | ----------------------- |
+| event           | `Event \| null`                                     | -       | Event data              |
+| isOpen          | `boolean`                                           | -       | Modal visibility        |
+| onClose         | `() => void`                                        | -       | Close handler           |
+| onMarkReviewed  | `(eventId: string) => void`                         | -       | Mark reviewed           |
+| onNavigate      | `(direction: 'prev' \| 'next') => void`             | -       | Navigate events         |
+| onSaveNotes     | `(eventId: string, notes: string) => Promise<void>` | -       | Save notes handler      |
+| onDownloadMedia | `(eventId: string) => Promise<void>`                | -       | Download media          |
+| onSnooze        | `(eventId: string, seconds: number) => void`        | -       | Snooze event (NEM-3640) |
+| onUnsnooze      | `(eventId: string) => void`                         | -       | Clear snooze (NEM-3640) |
 
 **Content:**
 
