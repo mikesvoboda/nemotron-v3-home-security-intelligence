@@ -28,6 +28,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -1552,3 +1554,206 @@ def test_assess_passes_a_clean_and_pushed_workspace() -> None:
         )
     )
     assert launch.assess_inspection(sections, session=SCRATCH) == []
+
+
+class _HangingRunner:
+    """A runner that answers the inspect read and then overruns the tick's budget.
+
+    Composed around FakeHost rather than added to it: only this one test needs a tick that
+    hangs, and a keyword on the shared fake would be dead weight in every other test.
+    """
+
+    def __init__(self, inner: FakeHost) -> None:
+        self.inner = inner
+        self.hung = False
+
+    def __call__(self, argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if [str(a) for a in argv][:2] == ["sbx", "exec"] and kwargs.get("timeout"):
+            self.hung = True
+            raise subprocess.TimeoutExpired(cmd="sbx exec", timeout=kwargs["timeout"])
+        return self.inner(argv, **kwargs)
+
+
+# ------------------------------------------------------------------ supervise
+#
+# [r247]: a host-side supervisor runs the coordinator's ticks. One fire is one tick: the
+# coordinator's tick prompt, verbatim as `roles/coordinator.md` quotes it, run once as a
+# headless `claude -p` inside agent-<session> through `sbx exec`. The host lock skips a fire
+# while a tick runs; a tick past its budget is killed; each fire appends one line to a host
+# log. The two facts these tests cannot supply are the ones the package defers to the owner:
+# whether the prompt really drives a tick (Done when's manual fire) and whether `sbx exec`
+# still reaches the sandbox (the module header's open MEASURE).
+
+
+def _tick_prompt() -> str:
+    """The prompt the supervisor fires, read through the module under test."""
+    return launch.tick_prompt(REPO_ROOT / "docs" / "uplevel" / "roles" / "coordinator.md")
+
+
+def test_the_tick_prompt_is_the_loop_lines_quotation_word_for_word() -> None:
+    """The supervisor must not paraphrase: it runs the prompt the `/loop` line quotes.
+
+    Read out of the document itself rather than restated, so the two cannot drift: the
+    `/loop 30m ...` fenced block names the prompt in double quotes, and that is the string.
+    """
+    text = (REPO_ROOT / "docs" / "uplevel" / "roles" / "coordinator.md").read_text()
+    quoted = re.search(r'/loop 30m Dispatch one fresh[^\n]*?"(.+?)"', text)
+    assert quoted, "coordinator.md must still quote the tick prompt on its /loop line"
+    assert _tick_prompt() == quoted.group(1)
+    assert _tick_prompt().startswith("You are the uplevel coordinator.")
+    # "Skip this fire if a tick is still running." is the /loop line's instruction TO the
+    # dispatcher, outside the quotes: it is not part of the text a tick receives.
+    assert "Skip this fire" not in _tick_prompt()
+    assert _tick_prompt().endswith("main's CI state.")
+
+
+def test_supervise_refuses_a_session_that_is_not_running(tmp_path: Path) -> None:
+    """Exit 2, naming the next step, exactly as `up` and `retire` do."""
+    fake = FakeHost(sessions={})
+    with pytest.raises(launch.Refused, match="not running") as caught:
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    assert "agent-dgx run uplevel-coordinator" in str(caught.value), (
+        "the refusal must name the command that starts the session"
+    )
+    assert not fake.ran("sbx", "exec")
+
+
+def test_supervise_refuses_a_manifest_with_no_sandbox(tmp_path: Path) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": NO_SANDBOX})
+    with pytest.raises(launch.Refused, match="not running"):
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+
+
+def test_supervise_dry_run_prints_the_fire_and_changes_nothing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake, dry_run=True), "uplevel-coordinator")
+    out = capsys.readouterr().out
+    assert "would fire" in out
+    assert "claude -p" in out
+    assert not fake.ran("sbx", "exec"), "--dry-run must not fire a tick"
+    assert not (tmp_path / "checkout" / "supervise").exists(), "and must not create the log"
+
+
+def test_one_fire_runs_the_tick_prompt_inside_the_sandbox(tmp_path: Path) -> None:
+    """The fire is one `sbx exec ... bash -lc` carrying `claude -p` and the prompt verbatim."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    fires = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
+    assert len(fires) == 1, f"one fire is one tick, got {len(fires)}"
+    script = fires[0][-1]
+    assert "claude -p" in script
+    assert "agent-uplevel-coordinator" in fires[0]
+    # Verbatim means "what the shell hands `claude`", not "a substring of the script":
+    # shlex.quote rewrites the prompt's apostrophes, so the comparison has to survive the
+    # shell's own parsing. Split the script and require the last token to BE the prompt,
+    # byte for byte - a paraphrase or a dropped character fails this, a re-quoting does not.
+    tokens = shlex.split(script)
+    assert tokens[-2:] != [], tokens
+    assert tokens[-1] == _tick_prompt(), "the prompt must reach `claude -p` verbatim; got " + repr(
+        tokens[-1][:120]
+    )
+
+
+def test_one_fire_appends_one_log_line_naming_start_end_status_and_killed(
+    tmp_path: Path,
+) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    # `host()` puts the checkout at tmp_path/"checkout"; the supervisor's log lives beside it
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    lines = [ln for ln in log.splitlines() if ln.strip()]
+    assert len(lines) == 1, f"one fire, one line: {lines}"
+    line = lines[0]
+    for field in ("start=", "end=", "status=", "killed="):
+        assert field in line, f"the log line must carry {field}: {line}"
+
+
+def test_a_held_lock_skips_the_fire_and_says_so(tmp_path: Path) -> None:
+    """Two dispatchers never run at once. The lock is the kernel's, so a dead holder frees it."""
+    lock_dir = tmp_path / "checkout" / "supervise"
+    lock_dir.mkdir(parents=True)
+    lock_path = lock_dir / "uplevel-coordinator.lock"
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        import fcntl
+
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+        assert not fake.ran("sbx", "exec"), "a fire must not run while the lock is held"
+        log = (lock_dir / "uplevel-coordinator.log").read_text()
+        assert "skipped" in log and "running" in log, log
+    finally:
+        os.close(fd)
+
+
+def test_a_tick_past_its_budget_is_killed_and_recorded(tmp_path: Path) -> None:
+    """A hung tick is killed at the budget, and the log line says it was killed."""
+    # The tick overruns its budget: the fire must kill it and record that it did. Modelled as
+    # the runner raising TimeoutExpired, which is what subprocess does at `timeout=`.
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    hang = _HangingRunner(fake)
+    launch.supervise(replace(host(tmp_path, fake), run=hang), "uplevel-coordinator", budget=1)
+    assert hang.hung, "the fixture must really have hit the budget"
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    assert "killed=yes" in log, log
+    assert "status=timeout" in log, log
+
+
+def test_supervise_takes_no_session_name_other_than_a_declared_coordinator(
+    tmp_path: Path,
+) -> None:
+    """The package scopes this to the coordinator: a lane session is refused, not supervised."""
+    fake = FakeHost(sessions={"uplevel-ops-a": RUNNING})
+    with pytest.raises(launch.Refused, match="coordinator"):
+        launch.supervise(host(tmp_path, fake), "uplevel-ops-a")
+    assert not fake.ran("sbx", "exec")
+
+
+def test_main_supervise_fires_and_exits_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The subcommand is wired: one argv in, one fire out, exit 0."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    assert launch.main(["supervise", "uplevel-coordinator"]) == 0
+    assert fake.ran("sbx", "exec"), "a real fire must reach the sandbox"
+
+
+def test_main_supervise_exits_two_and_names_the_next_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Box 4: exit 2 naming the next step when the sandbox is not running, as `up` and
+    `retire` do. The message must carry the command that starts the session, or the owner
+    reading the timer's mail has an exit code and no next move."""
+    fake = FakeHost(sessions={})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    assert launch.main(["supervise", "uplevel-coordinator"]) == 2
+    err = capsys.readouterr().err
+    assert "not running" in err
+    assert "agent-dgx run uplevel-coordinator" in err
+    assert not fake.ran("sbx", "exec")
+
+
+def test_main_supervise_dry_run_creates_no_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    assert launch.main(["supervise", "uplevel-coordinator", "--dry-run"]) == 0
+    assert not fake.ran("sbx", "exec")
+    assert not (tmp_path / "checkout" / "supervise").exists()

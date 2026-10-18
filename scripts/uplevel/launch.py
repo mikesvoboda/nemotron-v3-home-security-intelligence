@@ -51,15 +51,19 @@ Exit codes: 0 done; 2 refused, or a step failed, with what to do next.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tomllib
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -460,9 +464,7 @@ def up(host: Host, *, phase: int) -> None:
             # mount at or under it.
             if session.gpu:
                 run.append("--gpu")
-            _do(
-                host, f"create {session.name}", [*run, "--split"], cwd=host.checkout, timeout=900
-            )
+            _do(host, f"create {session.name}", [*run, "--split"], cwd=host.checkout, timeout=900)
             created.append(session)
         elif found.get("sandbox") is None:
             # Half-removal is real, not hypothetical: both of the owner's real retires on
@@ -814,6 +816,139 @@ def retire(host: Host, name: str) -> None:
 # ----------------------------------------------------------------------- cli
 
 
+# ------------------------------------------------------------------------ supervise
+#
+# [r247]. The coordinator's tick is already a fresh, unnamed subagent whose only memory is
+# the read-through cursor in its heartbeat (UR-173), so the in-pane `/loop` dispatcher adds
+# nothing but a process that can die or hang - on 2026-10-16 it did, and the coordinator
+# posted nothing from 03:47Z to 13:30Z. The supervisor replaces that process from the host:
+# each timer fire is one tick, run headless inside the sandbox.
+
+COORDINATOR = "uplevel-coordinator"
+SUPERVISE_DIR = Path("supervise")
+TICK_BUDGET = 60 * 60  # a tick that has run 60 minutes is killed ([r247], box 2)
+KICKOFF_DOC = Path(__file__).resolve().parents[2] / "docs" / "uplevel" / "roles" / "coordinator.md"
+
+
+def tick_prompt(doc: Path = KICKOFF_DOC) -> str:
+    """The tick prompt, word for word as the `/loop` line in `coordinator.md` quotes it.
+
+    Read out of the document rather than restated here, because box 1's whole claim is that
+    the supervisor fires *that* string and not a paraphrase: the `/loop 30m ...` line names
+    it in double quotes, and that quotation is the definition. A test pins the two together,
+    so amending the prompt in one place cannot silently leave the other firing the old text.
+    """
+    text = doc.read_text(encoding="utf-8")
+    quoted = re.search(r'/loop \d+m Dispatch one fresh[^\n]*?"(.+?)"', text)
+    if quoted is None:
+        raise Refused(
+            f"{doc} no longer quotes the tick prompt on its `/loop` line, so the supervisor "
+            "has nothing to fire. Restore the quoted prompt, or update tick_prompt() with it."
+        )
+    return quoted.group(1)
+
+
+@contextmanager
+def _tick_lock(path: Path) -> Iterator[bool]:
+    """Hold the tick lock, or yield False at once if another fire holds it.
+
+    The kernel drops a flock when its holder dies, so a supervisor killed mid-tick never
+    leaves a marker that blocks the next fire (the idiom and its reason:
+    synthbench/generate/window.py's `_window_lock`).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+    finally:
+        os.close(lock_fd)
+
+
+def _log_line(path: Path, line: str) -> None:
+    """Append one line to the fire log, flushing so a killed run still leaves its start."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+        handle.flush()
+
+
+def _clock() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
+    """One timer fire: run the coordinator's tick once, inside its sandbox.
+
+    A fire is a no-op that says so when the session is not running (exit 2, naming the
+    command that starts it), and when another fire holds the lock. Otherwise it runs the
+    tick prompt as a headless `claude -p` through `sbx exec`, kills it at `budget`, and
+    appends one line carrying start, end, status, killed and the tick's own summary.
+    """
+    if name != COORDINATOR:
+        raise Refused(
+            f"supervise runs the coordinator's ticks only, and {name} is not {COORDINATOR}. "
+            "Lanes, heavy agents and the operator keep their panes; whether the supervisor "
+            "extends to them is the owner's decision after 48 hours ([r247], box 7)."
+        )
+    found = _session(host, name)
+    if found is None or found.get("sandbox") is None:
+        raise Refused(
+            f"{name} is not running: there is no sandbox to fire a tick inside. Start it "
+            f"with `agent-dgx run {name} --agent claude --split`, then run this again."
+        )
+
+    session = Session(name=name, model="", kickoff="")
+    prompt = tick_prompt()
+    directory = host.checkout / SUPERVISE_DIR
+    log = directory / f"{name}.log"
+    script = "claude -p " + shlex.quote(prompt)
+    argv = ["sbx", "exec", session.sandbox, "bash", "-lc", f"cd {session.workspace} && {script}"]
+
+    if host.dry_run:
+        _say(f"would fire {name}'s tick: {shlex.join(argv)}")
+        _say(f"would append one line to {log} (start, end, status, killed, summary)")
+        return
+
+    with _tick_lock(directory / f"{name}.lock") as held:
+        if not held:
+            _log_line(log, f"{_clock()} {name} skipped: a tick is still running")
+            _say(f"{name} is already running a tick: this fire is skipped")
+            return
+
+        started = _clock()
+        _say(f"== fire {name}'s tick: {shlex.join(argv)}")
+        killed = False
+        status = "ok"
+        summary = ""
+        try:
+            done = host.run(argv, capture_output=True, text=True, timeout=budget, check=False)
+            status = "ok" if done.returncode == 0 else f"exit {done.returncode}"
+            summary = " ".join(str(done.stdout or "").split())[:300]
+        except subprocess.TimeoutExpired:
+            killed, status = True, "timeout"
+        except OSError as error:
+            raise Refused(
+                f"could not fire {name}'s tick ({error}). Whether `sbx exec` still reaches "
+                "the sandbox is this module header's open MEASURE; the session was left as "
+                "it was."
+            ) from error
+        ended = _clock()
+        _log_line(
+            log,
+            f"{started} {name} start={started} end={ended} status={status} "
+            f"killed={'yes' if killed else 'no'} summary={summary or '(none)'}",
+        )
+        _say(f"fired {name}: status={status} killed={'yes' if killed else 'no'}")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="scripts/uplevel/launch.py",
@@ -824,7 +959,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     up_p.add_argument("--phase", type=int, required=True, help="the phase to bring up")
     retire_p = commands.add_parser("retire", help="export a session's work, then remove it")
     retire_p.add_argument("name", help="the session, as agent-dgx names it (uplevel-ops-a)")
-    for sub in (up_p, retire_p):
+    sup_p = commands.add_parser(
+        "supervise", help="one timer fire: run the coordinator's tick once, inside its sandbox"
+    )
+    sup_p.add_argument("name", help="the session to fire for ([r247]: uplevel-coordinator only)")
+    sup_p.add_argument(
+        "--budget",
+        type=int,
+        default=TICK_BUDGET,
+        help=f"seconds before a running tick is killed (default {TICK_BUDGET})",
+    )
+    for sub in (up_p, retire_p, sup_p):
         sub.add_argument(
             "--dry-run",
             action="store_true",
@@ -839,6 +984,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         host = Host(checkout=repo, dry_run=dry)
         if args.command == "up":
             up(host, phase=args.phase)
+        elif args.command == "supervise":
+            supervise(host, args.name, budget=args.budget)
         else:
             retire(host, args.name)
     except Refused as error:
