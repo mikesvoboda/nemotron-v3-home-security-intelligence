@@ -165,7 +165,7 @@ nothing in `frontend/`.
 ### F3.2 Unreachable files and the knip gate
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7246. (ruling 241)
 
 - [ ] **MEASURE** the unreachable production files (236 files, ~71,800 lines at `d6ba78d5`,
       `00 §4.3`). Delete them and the tests that test only them — except files a **complete**
