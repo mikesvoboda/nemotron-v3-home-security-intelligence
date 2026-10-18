@@ -13,7 +13,6 @@ import {
   Network,
   Play,
   Plus,
-  RotateCcw,
   Search,
   Trash2,
   X,
@@ -22,12 +21,7 @@ import { Fragment, useEffect, useState } from 'react';
 
 import ConnectionStatusCard from './ConnectionStatusCard';
 import ONVIFDiscoveryPanel from './ONVIFDiscoveryPanel';
-import {
-  useCamerasQuery,
-  useCameraMutation,
-  useDeletedCamerasQuery,
-  useRestoreCameraMutation,
-} from '../../hooks';
+import { useCamerasQuery, useCameraMutation } from '../../hooks';
 import { useRtspTest } from '../../hooks/useRtspTest';
 import { useSettingsQuery, useUpdateSettings } from '../../hooks/useSettingsApi';
 import {
@@ -92,10 +86,6 @@ export default function CamerasSettings() {
   const { cameras, isLoading, error: queryError, refetch } = useCamerasQuery();
   const { createMutation, updateMutation, deleteMutation } = useCameraMutation();
 
-  // Deleted cameras hooks (soft delete feature - NEM-3643)
-  const { deletedCameras, isLoading: isLoadingDeleted } = useDeletedCamerasQuery();
-  const { restoreMutation } = useRestoreCameraMutation();
-
   // Modal and form state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -116,9 +106,6 @@ export default function CamerasSettings() {
 
   // Delete confirmation state (type camera name to confirm)
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
-
-  // Show deleted cameras toggle (trash view)
-  const [showDeletedCameras, setShowDeletedCameras] = useState(false);
 
   // Zone editor state
   const [zoneEditorCamera, setZoneEditorCamera] = useState<Camera | null>(null);
@@ -157,10 +144,7 @@ export default function CamerasSettings() {
   const loading = isLoading;
   const error = queryError?.message ?? mutationError;
   const submitting =
-    createMutation.isPending ||
-    updateMutation.isPending ||
-    deleteMutation.isPending ||
-    restoreMutation.isPending;
+    createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   // Check if delete confirmation matches camera name
   const isDeleteConfirmed = deletingCamera?.name === deleteConfirmInput;
@@ -323,15 +307,6 @@ export default function CamerasSettings() {
       // Set the error to display in the main error section
       setMutationError(err instanceof Error ? err.message : 'Failed to delete camera');
       handleCloseDeleteModal();
-    }
-  };
-
-  const handleRestore = async (camera: Camera) => {
-    try {
-      await restoreMutation.mutateAsync(camera.id);
-      // Cache is automatically invalidated by the mutation
-    } catch (err) {
-      setMutationError(err instanceof Error ? err.message : 'Failed to restore camera');
     }
   };
 
@@ -679,102 +654,6 @@ export default function CamerasSettings() {
               })}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Show Deleted Cameras Toggle */}
-      {(deletedCameras.length > 0 || showDeletedCameras) && (
-        <div className="border-t border-gray-800 pt-6">
-          <button
-            onClick={() => setShowDeletedCameras(!showDeletedCameras)}
-            className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
-            data-testid="show-deleted-toggle"
-          >
-            <Trash2 className="h-4 w-4" />
-            {showDeletedCameras ? 'Hide deleted cameras' : 'Show deleted cameras'}
-            {deletedCameras.length > 0 && (
-              <span className="ml-1 rounded-full bg-gray-800 px-2 py-0.5 text-xs">
-                {deletedCameras.length}
-              </span>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Deleted Cameras Section (Trash View) */}
-      {showDeletedCameras && (
-        <div className="space-y-4" data-testid="deleted-cameras-section">
-          <div className="flex items-center gap-2">
-            <Trash2 className="h-5 w-5 text-gray-400" />
-            <h3 className="text-lg font-semibold text-text-primary">Deleted Cameras</h3>
-          </div>
-
-          {isLoadingDeleted ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-text-secondary">Loading deleted cameras...</div>
-            </div>
-          ) : deletedCameras.length === 0 ? (
-            <div className="rounded-lg border border-gray-800 bg-card p-6 text-center">
-              <Trash2 className="mx-auto h-10 w-10 text-gray-600" />
-              <p className="mt-3 text-sm text-text-secondary">No deleted cameras</p>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-gray-800">
-              <table className="w-full">
-                <thead className="bg-gray-900">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">
-                      Folder Path
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800 bg-card">
-                  {deletedCameras.map((camera) => (
-                    <tr
-                      key={camera.id}
-                      className="opacity-60"
-                      data-testid={`deleted-camera-row-${camera.id}`}
-                    >
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <CameraIcon className="h-5 w-5 text-gray-500" />
-                          <span className="font-medium text-text-secondary line-through">
-                            {camera.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <span className="font-mono text-sm text-text-secondary line-through">
-                          {camera.folder_path}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right">
-                        <IconButton
-                          icon={<RotateCcw />}
-                          aria-label={`Restore ${camera.name}`}
-                          onClick={() => {
-                            void handleRestore(camera);
-                          }}
-                          variant="ghost"
-                          size="md"
-                          tooltip="Restore camera"
-                          disabled={restoreMutation.isPending}
-                          className="hover:!text-green-500 focus-visible:!ring-green-500"
-                          data-testid={`restore-camera-${camera.id}`}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       )}
 

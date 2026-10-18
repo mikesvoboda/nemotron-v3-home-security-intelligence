@@ -111,8 +111,6 @@ ingestion.
   (`ftp` | `rtsp`), rtsp_url, rtsp_username, rtsp_password
 - RTSP connection testing through `useRtspTest` + `ConnectionStatusCard`
 - ONVIF network discovery through `ONVIFDiscoveryPanel`
-- Soft-delete/restore: deleted-camera list and restore via
-  `useDeletedCamerasQuery` / `useRestoreCameraMutation`
 
 **State:** data comes from hooks - `useCamerasQuery`, `useCameraMutation`
 (POST create / PATCH update / DELETE), `useSettingsQuery` +

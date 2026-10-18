@@ -2,7 +2,7 @@
 
 This module tests the soft-delete functionality implemented in NEM-1954, NEM-1955, and NEM-1956:
 - Filtering: Soft-deleted items return 404 on direct access and are excluded from list endpoints
-- Trash views: /api/events/deleted and /api/cameras/deleted return deleted items
+- Trash views: /api/events/deleted returns deleted items
 - Restore: POST /{id}/restore restores soft-deleted items
 - Cascade: Events cascade soft-delete to related detections (future capability)
 
@@ -499,114 +499,6 @@ class TestCameraSoftDeleteFiltering:
             assert response.status_code == 404
 
 
-@pytest.mark.asyncio
-class TestCameraTrashList:
-    """Test the /api/cameras/deleted trash view endpoint."""
-
-    async def test_trash_list_returns_deleted_cameras(self, client: AsyncClient) -> None:
-        """Verify GET /api/cameras/deleted returns soft-deleted cameras."""
-        async with get_session() as db:
-            # Create deleted cameras
-            deleted_cam1 = await create_test_camera(
-                db, camera_id="deleted_trash_1", name="Deleted Cam 1", deleted=True
-            )
-            deleted_cam2 = await create_test_camera(
-                db, camera_id="deleted_trash_2", name="Deleted Cam 2", deleted=True
-            )
-            # Also create an active camera
-            active_cam = await create_test_camera(
-                db, camera_id="active_trash_test", name="Active Cam", deleted=False
-            )
-            await db.commit()
-
-            # Fetch trash list
-            response = await client.get("/api/cameras/deleted")
-            assert response.status_code == 200
-
-            data = response.json()
-            camera_ids = [c["id"] for c in data["items"]]
-
-            # Deleted cameras should be present, active should not
-            assert deleted_cam1.id in camera_ids
-            assert deleted_cam2.id in camera_ids
-            assert active_cam.id not in camera_ids
-
-    async def test_trash_list_returns_camera_details(self, client: AsyncClient) -> None:
-        """Verify trash list returns camera details for each deleted camera.
-
-        Note: The CameraResponse schema used by the trash list does NOT include
-        the deleted_at field. This is a schema limitation - the deleted_at info
-        is used for ordering but not returned in the response.
-        """
-        async with get_session() as db:
-            deleted_cam = await create_test_camera(
-                db, camera_id="deleted_details_cam", deleted=True
-            )
-            await db.commit()
-
-            response = await client.get("/api/cameras/deleted")
-            assert response.status_code == 200
-
-            data = response.json()
-            our_cam = next((c for c in data["items"] if c["id"] == deleted_cam.id), None)
-            assert our_cam is not None
-            # Verify camera details are present
-            assert "id" in our_cam
-            assert "name" in our_cam
-            assert "folder_path" in our_cam
-            assert "status" in our_cam
-
-
-@pytest.mark.asyncio
-class TestCameraRestore:
-    """Test the POST /api/cameras/{id}/restore endpoint."""
-
-    async def test_restore_deleted_camera_succeeds(self, client: AsyncClient) -> None:
-        """Verify restoring a soft-deleted camera makes it visible again."""
-        async with get_session() as db:
-            deleted_cam = await create_test_camera(
-                db, camera_id="restore_cam_test", name="Camera To Restore", deleted=True
-            )
-            camera_id = deleted_cam.id
-            await db.commit()
-
-            # Verify camera is in trash
-            trash_response = await client.get("/api/cameras/deleted")
-            assert camera_id in [c["id"] for c in trash_response.json()["items"]]
-
-            # Restore the camera
-            restore_response = await client.post(f"/api/cameras/{camera_id}/restore")
-            assert restore_response.status_code == 200
-
-            # Verify camera is now accessible
-            get_response = await client.get(f"/api/cameras/{camera_id}")
-            assert get_response.status_code == 200
-
-            # Verify camera is no longer in trash
-            trash_response2 = await client.get("/api/cameras/deleted")
-            trash_ids = [c["id"] for c in trash_response2.json()["items"]]
-            assert camera_id not in trash_ids
-
-    async def test_restore_non_deleted_camera_returns_400(self, client: AsyncClient) -> None:
-        """Verify restoring a non-deleted camera returns 400 Bad Request."""
-        async with get_session() as db:
-            active_cam = await create_test_camera(
-                db, camera_id="active_restore_test", deleted=False
-            )
-            camera_id = active_cam.id
-            await db.commit()
-
-            # Try to restore a camera that's not deleted
-            response = await client.post(f"/api/cameras/{camera_id}/restore")
-            assert response.status_code == 400
-            assert "not deleted" in response.json()["detail"].lower()
-
-    async def test_restore_nonexistent_camera_returns_404(self, client: AsyncClient) -> None:
-        """Verify restoring a non-existent camera returns 404."""
-        response = await client.post("/api/cameras/nonexistent_camera_xyz/restore")
-        assert response.status_code == 404
-
-
 # =============================================================================
 # Cascade Soft Delete Tests
 # =============================================================================
@@ -814,8 +706,3 @@ class TestSoftDeleteEdgeCases:
             # Event should NOT be accessible (cascade deleted with camera)
             event_response = await client.get(f"/api/events/{event_id}")
             assert event_response.status_code == 404
-
-            # Camera should NOT be in trash (hard deleted, not soft deleted)
-            trash_response = await client.get("/api/cameras/deleted")
-            trash_ids = [c["id"] for c in trash_response.json()["items"]]
-            assert camera_id not in trash_ids
