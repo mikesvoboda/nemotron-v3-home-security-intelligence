@@ -209,22 +209,22 @@ describe('endpoint contract (D2)', () => {
       audit.scan.opaqueMethod.map((o) => `${o.path}  ${o.file}:${o.line}  ${o.reason}`).join('\n'),
       `${audit.scan.opaqueMethod.length} claim(s) send a verb the scan cannot read`
     ).toMatchInlineSnapshot(`
-      "/api/cameras  src/services/api.ts:1393  options passed by name: options
-      /api/system/health  src/services/api.ts:1992  options passed by name: options
-      /api/system/health/full  src/services/api.ts:2067  options passed by name: options
-      /api/system/gpu  src/services/api.ts:2077  options passed by name: options
-      /api/system/health/websocket  src/services/api.ts:2153  options passed by name: options
-      /api/system/health/live  src/services/api.ts:2176  options passed by name: options
-      /api/events  src/services/api.ts:2282  options passed by name: options
-      /api/events/stats  src/services/api.ts:2317  options passed by name: options
-      /api/events/clusters  src/services/api.ts:2364  options passed by name: options
-      /api/events/deleted  src/services/api.ts:2547  options passed by name: options
-      /api/events/search  src/services/api.ts:3755  options passed by name: options
-      /api/audit  src/services/api.ts:4488  options passed by name: options
-      /api/entities  src/services/api.ts:5709  options passed by name: options
-      /api/entities/matches/{}  src/services/api.ts:5805  options passed by name: options
-      /api/logs  src/services/api.ts:8960  options passed by name: options
-      /api/reid/similar/{}  src/services/api.ts:9073  options passed by name: options"
+      "/api/cameras  src/services/api.ts:1385  options passed by name: options
+      /api/system/health  src/services/api.ts:1984  options passed by name: options
+      /api/system/health/full  src/services/api.ts:2059  options passed by name: options
+      /api/system/gpu  src/services/api.ts:2069  options passed by name: options
+      /api/system/health/websocket  src/services/api.ts:2145  options passed by name: options
+      /api/system/health/live  src/services/api.ts:2168  options passed by name: options
+      /api/events  src/services/api.ts:2274  options passed by name: options
+      /api/events/stats  src/services/api.ts:2309  options passed by name: options
+      /api/events/clusters  src/services/api.ts:2356  options passed by name: options
+      /api/events/deleted  src/services/api.ts:2537  options passed by name: options
+      /api/events/search  src/services/api.ts:3745  options passed by name: options
+      /api/audit  src/services/api.ts:4405  options passed by name: options
+      /api/entities  src/services/api.ts:5626  options passed by name: options
+      /api/entities/matches/{}  src/services/api.ts:5722  options passed by name: options
+      /api/logs  src/services/api.ts:8877  options passed by name: options
+      /api/reid/similar/{}  src/services/api.ts:8990  options passed by name: options"
     `);
   });
 
@@ -253,9 +253,9 @@ describe('endpoint contract (D2)', () => {
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
       src/services/aiAuditApi.ts:386  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:150: not a literal path
-      src/services/api.ts:1545  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:1617  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3281  built at runtime: isVideo
+      src/services/api.ts:1537  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:1609  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:3271  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/errorReporting.ts:113  built at runtime: config.endpoint

@@ -361,25 +361,6 @@ class JobTypesResponse(BaseModel):
     )
 
 
-class JobCancelResponse(BaseModel):
-    """Response model for job cancellation request."""
-
-    job_id: str = Field(description="Job ID that was cancelled")
-    status: JobStatusEnum = Field(description="New job status after cancellation")
-    message: str = Field(description="Cancellation status message")
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "job_id": "550e8400-e29b-41d4-a716-446655440000",
-                "status": "failed",
-                "message": "Job cancellation requested",
-            }
-        },
-    )
-
-
 class JobStatusCount(BaseModel):
     """Count of jobs by status."""
 
@@ -409,25 +390,6 @@ class JobTypeCount(BaseModel):
             "example": {
                 "job_type": "export",
                 "count": 25,
-            }
-        },
-    )
-
-
-class JobAbortResponse(BaseModel):
-    """Response model for job abort request."""
-
-    job_id: str = Field(description="Job ID that is being aborted")
-    status: JobStatusEnum = Field(description="New job status (aborting/failed)")
-    message: str = Field(description="Abort status message")
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "job_id": "550e8400-e29b-41d4-a716-446655440000",
-                "status": "failed",
-                "message": "Job abort requested - worker notified",
             }
         },
     )
@@ -634,140 +596,8 @@ class JobSearchResponse(BaseModel):
 
 
 # =============================================================================
-# Job History Schemas (NEM-2396)
+# Job Log Schemas (NEM-2396)
 # =============================================================================
-
-
-class JobTransitionResponse(BaseModel):
-    """A single state transition record in job history."""
-
-    from_status: str | None = Field(
-        None, alias="from", description="Previous status (null for initial)"
-    )
-    to_status: str = Field(alias="to", description="New status after transition")
-    at: datetime = Field(description="Timestamp of the transition")
-    triggered_by: str = Field(
-        description="What triggered the transition (api, worker, system, etc)"
-    )
-    details: dict[str, Any] | None = Field(None, description="Additional transition details")
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        json_schema_extra={
-            "example": {
-                "from": None,
-                "to": "queued",
-                "at": "2024-01-15T10:30:00Z",
-                "triggered_by": "api",
-                "details": {"user": "system"},
-            }
-        },
-    )
-
-
-class JobAttemptResponse(BaseModel):
-    """A single job execution attempt record."""
-
-    attempt_number: int = Field(ge=1, description="Sequential attempt number (1-based)")
-    started_at: datetime = Field(description="When this attempt started")
-    ended_at: datetime | None = Field(None, description="When this attempt ended")
-    status: str = Field(
-        description="Status of this attempt (started, succeeded, failed, cancelled)"
-    )
-    error: str | None = Field(None, description="Error message if failed")
-    worker_id: str | None = Field(None, description="ID of worker that processed this attempt")
-    duration_seconds: float | None = Field(
-        None, ge=0, description="Duration in seconds if completed"
-    )
-    result: dict[str, Any] | None = Field(None, description="Result data if successful")
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "attempt_number": 1,
-                "started_at": "2024-01-15T10:30:01Z",
-                "ended_at": "2024-01-15T10:31:30Z",
-                "status": "succeeded",
-                "error": None,
-                "worker_id": "worker-1",
-                "duration_seconds": 89.0,
-                "result": {"processed": 1000},
-            }
-        },
-    )
-
-
-class JobHistoryResponse(BaseModel):
-    """Complete job history with transitions and attempts.
-
-    NEM-2396: GET /api/jobs/{job_id}/history endpoint response.
-    """
-
-    job_id: str = Field(description="Unique job identifier")
-    job_type: str = Field(description="Type of job (e.g., 'export', 'cleanup')")
-    status: str = Field(description="Current job status")
-    created_at: datetime = Field(description="When the job was created")
-    started_at: datetime | None = Field(None, description="When job execution started")
-    completed_at: datetime | None = Field(None, description="When the job finished")
-    transitions: list[JobTransitionResponse] = Field(
-        default_factory=list,
-        description="State transitions in chronological order",
-    )
-    attempts: list[JobAttemptResponse] = Field(
-        default_factory=list,
-        description="Execution attempts in order",
-    )
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "job_id": "550e8400-e29b-41d4-a716-446655440000",
-                "job_type": "export",
-                "status": "completed",
-                "created_at": "2024-01-15T10:30:00Z",
-                "started_at": "2024-01-15T10:30:01Z",
-                "completed_at": "2024-01-15T10:31:30Z",
-                "transitions": [
-                    {
-                        "from": None,
-                        "to": "queued",
-                        "at": "2024-01-15T10:30:00Z",
-                        "triggered_by": "api",
-                        "details": None,
-                    },
-                    {
-                        "from": "queued",
-                        "to": "running",
-                        "at": "2024-01-15T10:30:01Z",
-                        "triggered_by": "worker",
-                        "details": {"worker_id": "worker-1"},
-                    },
-                    {
-                        "from": "running",
-                        "to": "completed",
-                        "at": "2024-01-15T10:31:30Z",
-                        "triggered_by": "worker",
-                        "details": None,
-                    },
-                ],
-                "attempts": [
-                    {
-                        "attempt_number": 1,
-                        "started_at": "2024-01-15T10:30:01Z",
-                        "ended_at": "2024-01-15T10:31:30Z",
-                        "status": "succeeded",
-                        "error": None,
-                        "worker_id": "worker-1",
-                        "duration_seconds": 89.0,
-                        "result": {"events_exported": 1000},
-                    }
-                ],
-            }
-        },
-    )
 
 
 class JobLogEntryResponse(BaseModel):

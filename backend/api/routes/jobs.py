@@ -21,11 +21,7 @@ from backend.api.schemas.jobs import (
     BulkCancelResponse,
     ExportFormat,
     ExportJobRequest,
-    JobAbortResponse,
-    JobAttemptResponse,
-    JobCancelResponse,
     JobDetailResponse,
-    JobHistoryResponse,
     JobListResponse,
     JobLogEntryResponse,
     JobLogsResponse,
@@ -35,7 +31,6 @@ from backend.api.schemas.jobs import (
     JobStatsResponse,
     JobStatusCount,
     JobStatusEnum,
-    JobTransitionResponse,
     JobTypeCount,
     JobTypeInfo,
     JobTypesResponse,
@@ -535,202 +530,6 @@ async def get_job_detail(
 
 
 @router.post(
-    "/jobs/{job_id}/cancel",
-    response_model=JobCancelResponse,
-    summary="Cancel a job",
-    description=(
-        "Request cancellation of a background job. "
-        "Jobs that are already completed or failed cannot be cancelled."
-    ),
-    responses={
-        404: {"description": "Job not found"},
-        409: {"description": "Job cannot be cancelled (already completed or failed)"},
-    },
-)
-async def cancel_job(
-    job_id: str,
-    job_tracker: JobTracker = Depends(get_job_tracker_dep),
-) -> JobCancelResponse:
-    """Cancel a background job.
-
-    Args:
-        job_id: The job ID to cancel.
-        job_tracker: Job tracker service.
-
-    Returns:
-        Cancellation response with updated status.
-
-    Raises:
-        HTTPException: If job not found or cannot be cancelled.
-    """
-    try:
-        cancelled = job_tracker.cancel_job(job_id)
-    except KeyError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No job found with ID: {job_id}",
-        ) from None
-
-    if not cancelled:
-        # Job was already completed or failed
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Job cannot be cancelled - it has already completed or failed",
-        )
-
-    logger.info("Job cancelled via API", extra={"job_id": job_id})
-
-    return JobCancelResponse(
-        job_id=job_id,
-        status=JobStatusEnum.FAILED,
-        message="Job cancellation requested",
-    )
-
-
-@router.post(
-    "/jobs/{job_id}/abort",
-    response_model=JobAbortResponse,
-    summary="Abort a running job",
-    description=(
-        "Abort a running background job by sending a signal to the worker. "
-        "Only jobs with status 'running' can be aborted. "
-        "Queued jobs should use the /cancel endpoint instead."
-    ),
-    responses={
-        400: {"description": "Job is not running (use cancel for queued jobs)"},
-        404: {"description": "Job not found"},
-    },
-)
-async def abort_job(
-    job_id: str,
-    job_tracker: JobTracker = Depends(get_job_tracker_dep),
-) -> JobAbortResponse:
-    """Abort a running background job.
-
-    Sends an abort signal to the worker via Redis pub/sub.
-    The worker is responsible for checking for abort signals and
-    gracefully stopping the job.
-
-    Args:
-        job_id: The job ID to abort.
-        job_tracker: Job tracker service.
-
-    Returns:
-        Abort response with status.
-
-    Raises:
-        HTTPException: If job not found or cannot be aborted.
-    """
-    try:
-        success, error_msg = await job_tracker.abort_job(job_id)
-    except KeyError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No job found with ID: {job_id}",
-        ) from None
-
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg,
-        )
-
-    logger.info("Job abort requested via API", extra={"job_id": job_id})
-
-    return JobAbortResponse(
-        job_id=job_id,
-        status=JobStatusEnum.RUNNING,  # Still running until worker acknowledges
-        message="Job abort requested - worker notified",
-    )
-
-
-@router.delete(
-    "/jobs/{job_id}",
-    response_model=JobCancelResponse,
-    summary="Cancel or abort a job",
-    description=(
-        "Cancel or abort a job based on its current state. "
-        "Queued jobs will be cancelled, running jobs will be aborted."
-    ),
-    responses={
-        400: {"description": "Job cannot be cancelled or aborted"},
-        404: {"description": "Job not found"},
-    },
-)
-async def delete_job(
-    job_id: str,
-    job_tracker: JobTracker = Depends(get_job_tracker_dep),
-) -> JobCancelResponse:
-    """Cancel or abort a job based on its state.
-
-    This endpoint intelligently handles both queued and running jobs:
-    - Queued (pending) jobs are cancelled immediately
-    - Running jobs receive an abort signal via Redis pub/sub
-
-    Args:
-        job_id: The job ID to cancel/abort.
-        job_tracker: Job tracker service.
-
-    Returns:
-        Response with updated job status.
-
-    Raises:
-        HTTPException: If job not found or cannot be stopped.
-    """
-    # Get job status first
-    job = job_tracker.get_job(job_id)
-    if job is None:
-        job = await job_tracker.get_job_from_redis(job_id)
-
-    if job is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No job found with ID: {job_id}",
-        )
-
-    job_status = job["status"]
-
-    # Route to appropriate action based on status
-    if job_status == JobStatus.PENDING:
-        # Cancel queued job
-        success, error_msg = job_tracker.cancel_queued_job(job_id)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg,
-            )
-        message = "Job cancelled"
-        final_status = JobStatusEnum.FAILED
-    elif job_status == JobStatus.RUNNING:
-        # Abort running job
-        success, error_msg = await job_tracker.abort_job(job_id)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg,
-            )
-        message = "Job abort requested - worker notified"
-        final_status = JobStatusEnum.RUNNING
-    else:
-        # Job is already completed or failed
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot stop job with status: {job_status}",
-        )
-
-    logger.info(
-        "Job stopped via DELETE",
-        extra={"job_id": job_id, "original_status": str(job_status)},
-    )
-
-    return JobCancelResponse(
-        job_id=job_id,
-        status=final_status,
-        message=message,
-    )
-
-
-@router.post(
     "/jobs/bulk-cancel",
     response_model=BulkCancelResponse,
     summary="Bulk cancel jobs",
@@ -807,89 +606,8 @@ async def bulk_cancel_jobs(
 
 
 # =============================================================================
-# Job History and Audit Trail Endpoints (NEM-2396)
+# Job Logs Endpoint (NEM-2396)
 # =============================================================================
-
-
-@router.get(
-    "/jobs/{job_id}/history",
-    response_model=JobHistoryResponse,
-    summary="Get job history",
-    description=(
-        "Retrieve complete job execution history including state transitions, "
-        "retry attempts, and execution timeline. Provides audit trail for "
-        "debugging and compliance purposes. NEM-2396."
-    ),
-    responses={
-        404: {"description": "Job not found"},
-    },
-)
-async def get_job_history(
-    job_id: str,
-    job_history_service: JobHistoryService = Depends(get_job_history_service_dep),
-) -> JobHistoryResponse:
-    """Get complete job history with transitions and attempts.
-
-    Retrieves the full execution history of a job including:
-    - State transitions (queued -> running -> completed/failed)
-    - Retry attempts with timing and error details
-    - Worker assignments
-
-    Args:
-        job_id: The job ID to retrieve history for.
-        job_history_service: Job history service for database queries.
-
-    Returns:
-        Complete job history with transitions and attempts.
-
-    Raises:
-        HTTPException: 404 if job not found.
-    """
-    history = await job_history_service.get_job_history(job_id)
-
-    if history is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No job found with ID: {job_id}",
-        )
-
-    # Convert transitions to response models
-    transitions = [
-        JobTransitionResponse(
-            from_status=t.from_status,
-            to_status=t.to_status,
-            at=t.at,
-            triggered_by=t.triggered_by,
-            details=t.details,
-        )
-        for t in history.transitions
-    ]
-
-    # Convert attempts to response models
-    attempts = [
-        JobAttemptResponse(
-            attempt_number=a.attempt_number,
-            started_at=a.started_at,
-            ended_at=a.ended_at,
-            status=a.status,
-            error=a.error,
-            worker_id=a.worker_id,
-            duration_seconds=a.duration_seconds,
-            result=a.result,
-        )
-        for a in history.attempts
-    ]
-
-    return JobHistoryResponse(
-        job_id=history.job_id,
-        job_type=history.job_type,
-        status=history.status,
-        created_at=history.created_at,
-        started_at=history.started_at,
-        completed_at=history.completed_at,
-        transitions=transitions,
-        attempts=attempts,
-    )
 
 
 @router.get(
@@ -944,11 +662,9 @@ async def get_job_logs(
         Job logs with metadata.
 
     Raises:
-        HTTPException: 404 if job not found (checked via history).
+        HTTPException: 404 if job not found.
     """
-    # First check if job exists by getting history
-    history = await job_history_service.get_job_history(job_id)
-    if history is None:
+    if not await job_history_service.job_exists(job_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No job found with ID: {job_id}",

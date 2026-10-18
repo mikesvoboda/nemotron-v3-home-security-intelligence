@@ -196,7 +196,6 @@ class EventResponse(BaseModel):
         "This field is not loaded by default in list queries. Use undefer() when querying.",
     )
     reviewed: bool = Field(False, description="Whether event has been reviewed")
-    flagged: bool = Field(False, description="Whether event is flagged for follow-up (NEM-3839)")
     notes: str | None = Field(None, description="User notes for the event")
     snooze_until: datetime | None = Field(
         None, description="Timestamp until which alerts for this event are snoozed (NEM-2359)"
@@ -309,7 +308,6 @@ class EventUpdate(BaseModel):
     )
 
     reviewed: bool | None = Field(None, description="Mark event as reviewed or not reviewed")
-    flagged: bool | None = Field(None, description="Flag or unflag event for follow-up (NEM-3839)")
     notes: str | None = Field(None, description="User notes for the event")
     snooze_until: datetime | None = Field(
         None, description="Set or clear the alert snooze timestamp (NEM-2359)"

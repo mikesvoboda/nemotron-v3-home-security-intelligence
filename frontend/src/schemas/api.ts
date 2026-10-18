@@ -171,9 +171,6 @@ export const eventResponseSchema = z.object({
   camera: cameraResponseSchema.optional(),
   risk_analysis: riskAnalysisSchema.nullable().optional(),
   // User interaction fields
-  flagged: z.boolean().optional(),
-  flagged_at: optionalTimestamp,
-  flag_reason: z.string().nullable().optional(),
   reviewed_at: optionalTimestamp,
   reviewed_by: z.string().nullable().optional(),
 });

@@ -51,7 +51,6 @@ describe('AlertCameraGroup', () => {
       risk_level: 'critical',
       summary: 'Unknown person at door',
       reviewed: false,
-      flagged: false, // NEM-3839
       detection_count: 5,
       notes: null,
       version: 1,
@@ -65,7 +64,6 @@ describe('AlertCameraGroup', () => {
       risk_level: 'high',
       summary: 'Person detected near entrance',
       reviewed: false,
-      flagged: false, // NEM-3839
       detection_count: 3,
       notes: null,
       version: 1,
@@ -79,7 +77,6 @@ describe('AlertCameraGroup', () => {
       risk_level: 'high',
       summary: 'Vehicle in driveway',
       reviewed: false,
-      flagged: false, // NEM-3839
       detection_count: 2,
       notes: null,
       version: 1,

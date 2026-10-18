@@ -221,7 +221,6 @@ Full event detail modal.
 | onMarkReviewed  | `(eventId: string) => void`                            | -       | Mark reviewed           |
 | onNavigate      | `(direction: 'prev' \| 'next') => void`                | -       | Navigate events         |
 | onSaveNotes     | `(eventId: string, notes: string) => Promise<void>`    | -       | Save notes handler      |
-| onFlagEvent     | `(eventId: string, flagged: boolean) => Promise<void>` | -       | Flag/unflag event       |
 | onDownloadMedia | `(eventId: string) => Promise<void>`                   | -       | Download media          |
 | onSnooze        | `(eventId: string, seconds: number) => void`           | -       | Snooze event (NEM-3640) |
 | onUnsnooze      | `(eventId: string) => void`                            | -       | Clear snooze (NEM-3640) |

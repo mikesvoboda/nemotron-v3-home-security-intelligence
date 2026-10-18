@@ -136,6 +136,10 @@ def test_the_route_table_is_enumerated() -> None:
     assert ("WS", "/ws/events") in MOUNTED
     assert ("GET", "/health") in MOUNTED
     assert ("GET", "/system/detectors") not in MOUNTED
+    assert ("GET", "/api/jobs/1/history") not in MOUNTED
+    assert ("POST", "/api/jobs/1/cancel") not in MOUNTED
+    assert ("POST", "/api/jobs/1/abort") not in MOUNTED
+    assert ("DELETE", "/api/jobs/1") not in MOUNTED
     assert len(MOUNTED) > 400
 
 
