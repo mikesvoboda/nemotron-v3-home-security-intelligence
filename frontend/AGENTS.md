@@ -76,12 +76,12 @@ Node.js major version is specified by `.nvmrc` at the repository root (currently
 
 ### Documentation and Scripts
 
-| File                 | Purpose                                                                                                                                                                                                                            |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TESTING.md`         | Comprehensive testing documentation                                                                                                                                                                                                |
-| `README-TESTING.md`  | Bun vs Vitest compatibility guide                                                                                                                                                                                                  |
-| `TEST_QUICKSTART.md` | Quick reference for running tests                                                                                                                                                                                                  |
-| `package-lock.json`  | npm lockfile — **the one that matters**: every CI job installs with `npm ci`, and `scripts/validate.sh` runs the frontend checks through npm                                                                                       |
+| File                 | Purpose                                                                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TESTING.md`         | Comprehensive testing documentation                                                                                                          |
+| `README-TESTING.md`  | Bun vs Vitest compatibility guide                                                                                                            |
+| `TEST_QUICKSTART.md` | Quick reference for running tests                                                                                                            |
+| `package-lock.json`  | npm lockfile — **the one that matters**: every CI job installs with `npm ci`, and `scripts/validate.sh` runs the frontend checks through npm |
 
 ## NPM Scripts
 
@@ -595,15 +595,15 @@ The `Dockerfile` uses a multi-stage build:
 
 Located in `src/stores/`. All stores follow Zustand 5 patterns with Immer middleware and shallow selectors.
 
-| Store File                  | Purpose                                      | Key Exports                                        |
-| --------------------------- | -------------------------------------------- | -------------------------------------------------- |
-| `dashboard-config-store.ts` | Dashboard widget layout and theme            | `useDashboardConfigStore`, `useDashboardWidgets`   |
-| `prometheus-alert-store.ts` | Prometheus alert state                       | `usePrometheusAlertStore`, `selectCriticalAlerts`  |
-| `rate-limit-store.ts`       | API rate limit tracking                      | `useRateLimitStore`, `useRateLimitStatus`          |
-| `storage-status-store.ts`   | Storage usage and warnings                   | `useStorageStatusStore`, `useStorageWarningStatus` |
-| `worker-status-store.ts`    | Background worker health                     | `useWorkerStatusStore`, `usePipelineHealth`        |
-| `middleware.ts`             | Shared Zustand middleware utilities          | `createImmerStore`, `useShallow`, `shallow`        |
-| `index.ts`                  | Barrel re-exports for all stores             | All store exports                                  |
+| Store File                  | Purpose                             | Key Exports                                        |
+| --------------------------- | ----------------------------------- | -------------------------------------------------- |
+| `dashboard-config-store.ts` | Dashboard widget layout and theme   | `useDashboardConfigStore`, `useDashboardWidgets`   |
+| `prometheus-alert-store.ts` | Prometheus alert state              | `usePrometheusAlertStore`, `selectCriticalAlerts`  |
+| `rate-limit-store.ts`       | API rate limit tracking             | `useRateLimitStore`, `useRateLimitStatus`          |
+| `storage-status-store.ts`   | Storage usage and warnings          | `useStorageStatusStore`, `useStorageWarningStatus` |
+| `worker-status-store.ts`    | Background worker health            | `useWorkerStatusStore`, `usePipelineHealth`        |
+| `middleware.ts`             | Shared Zustand middleware utilities | `createImmerStore`, `useShallow`, `shallow`        |
+| `index.ts`                  | Barrel re-exports for all stores    | All store exports                                  |
 
 ## Application Routes
 

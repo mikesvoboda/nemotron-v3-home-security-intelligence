@@ -571,11 +571,11 @@ Zone management and visualization:
 
 Global state management via React Context:
 
-| File                      | Purpose                    |
-| ------------------------- | -------------------------- |
-| `AnnouncementContext.tsx` | System announcements       |
-| `DebugModeContext.tsx`    | Debug mode toggle          |
-| `index.ts`                | Barrel export              |
+| File                      | Purpose              |
+| ------------------------- | -------------------- |
+| `AnnouncementContext.tsx` | System announcements |
+| `DebugModeContext.tsx`    | Debug mode toggle    |
+| `index.ts`                | Barrel export        |
 
 Each context has a co-located test file (named `*.test.tsx`).
 
@@ -606,10 +606,10 @@ Each page has a co-located test file (named `*.test.tsx`).
 
 Zod schemas for runtime validation:
 
-| File           | Purpose                       |
-| -------------- | ----------------------------- |
-| `camera.ts`    | Camera data schemas           |
-| `index.ts`     | Barrel export                 |
+| File        | Purpose             |
+| ----------- | ------------------- |
+| `camera.ts` | Camera data schemas |
+| `index.ts`  | Barrel export       |
 
 ### `/stores/` - State Stores
 
