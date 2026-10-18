@@ -864,7 +864,7 @@ class TestS3FlorenceControlTokenPrompts:
         for module in sorted(GATEWAY_MODULES):
             src = import_module(module).__file__
             assert src is not None
-            adapter_text = Path(src).read_text(encoding="utf-8")
+            adapter_text = Path(src).resolve().read_text(encoding="utf-8")
             assert 'default="<CAPTION>"' not in adapter_text
             assert 'split(">")' not in adapter_text
         assert not (REPO_ROOT / "backend/services/florence_client.py").exists()
