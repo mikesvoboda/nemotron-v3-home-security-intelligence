@@ -237,14 +237,6 @@ class Camera(Base):
         """Check if this camera is soft-deleted."""
         return self.deleted_at is not None
 
-    def soft_delete(self) -> None:
-        """Soft delete this camera by setting deleted_at timestamp."""
-        self.deleted_at = datetime.now(UTC)
-
-    def restore(self) -> None:
-        """Restore a soft-deleted camera by clearing deleted_at timestamp."""
-        self.deleted_at = None
-
     async def hard_delete(self, session: object) -> None:
         """Permanently remove this camera from the database."""
         await session.delete(self)  # type: ignore[attr-defined]
