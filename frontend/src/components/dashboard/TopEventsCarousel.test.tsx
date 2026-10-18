@@ -27,7 +27,6 @@ function createMockEvent(overrides: Partial<Event> = {}): Event {
     summary: `High risk event ${String(id)}`,
     reasoning: 'Test reasoning',
     reviewed: false,
-    flagged: false,
     detection_count: 2,
     thumbnail_url: `/api/events/${String(id)}/thumbnail`,
     version: 1,

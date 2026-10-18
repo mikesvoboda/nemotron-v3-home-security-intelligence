@@ -221,7 +221,6 @@ describe('EventTimeline', () => {
       risk_level: 'high',
       summary: 'Person detected near entrance',
       reviewed: false,
-      flagged: false, // NEM-3839
       detection_count: 5,
       notes: null,
       version: 1,
@@ -235,7 +234,6 @@ describe('EventTimeline', () => {
       risk_level: 'low',
       summary: 'Cat walking through yard',
       reviewed: true,
-      flagged: false, // NEM-3839
       detection_count: 3,
       notes: null,
       version: 1,
@@ -249,7 +247,6 @@ describe('EventTimeline', () => {
       risk_level: 'critical',
       summary: 'Unknown person at door',
       reviewed: false,
-      flagged: false, // NEM-3839
       detection_count: 8,
       notes: null,
       version: 1,
@@ -964,7 +961,6 @@ describe('EventTimeline', () => {
           risk_level: 'medium',
           summary: 'Event from unknown camera',
           reviewed: false,
-          flagged: false, // NEM-3839
           detection_count: 1,
           notes: null,
           version: 1,
@@ -1351,7 +1347,6 @@ describe('EventTimeline', () => {
           risk_level: 'high',
           summary: 'Person detected near entrance',
           reviewed: false,
-          flagged: false, // NEM-3839
           detection_count: 5,
           notes: null,
           version: 1,
@@ -1447,7 +1442,6 @@ describe('EventTimeline', () => {
           risk_level: 'medium',
           summary: 'Person detected',
           reviewed: false,
-          flagged: false, // NEM-3839
           detection_count: 5,
           notes: null,
           version: 1,
@@ -1461,7 +1455,6 @@ describe('EventTimeline', () => {
           risk_level: 'medium',
           summary: 'Vehicle detected',
           reviewed: false,
-          flagged: false, // NEM-3839
           detection_count: 3,
           notes: null,
           version: 1,

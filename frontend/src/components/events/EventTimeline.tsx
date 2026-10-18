@@ -206,7 +206,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // Snooze event hook (NEM-3592)
   const { snooze, unsnooze } = useSnoozeEvent();
 
-  // Toast notifications for flag/download actions (NEM-3839)
+  // Toast notifications for download/save actions (NEM-3839)
   const { success: toastSuccess, error: toastError } = useToast();
 
   // Handle snooze action for EventCard
@@ -903,36 +903,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     [filteredEvents, refetch]
   );
 
-  // Handle flag event from modal (NEM-3839)
-  const handleFlagEvent = useCallback(
-    async (eventId: string, flagged: boolean) => {
-      const id = parseInt(eventId, 10);
-      const event = rowForModalWrite(id);
-      try {
-        // Include version for optimistic locking if available
-        await updateEvent(id, {
-          flagged,
-          version: event?.version,
-        });
-        invalidateEventWrites();
-        toastSuccess(flagged ? 'Event flagged for follow-up' : 'Event unflagged');
-      } catch (err) {
-        if (err instanceof EventVersionConflictError) {
-          console.warn(
-            `Event ${id} was modified concurrently (current version: ${err.currentVersion})`
-          );
-          invalidateEventWrites();
-          toastError('Event was modified by another user. Please try again.');
-        } else {
-          console.error('Failed to flag event:', err);
-          toastError('Failed to flag event');
-        }
-        throw err; // Re-throw to update modal loading state
-      }
-    },
-    [rowForModalWrite, invalidateEventWrites, toastSuccess, toastError]
-  );
-
   // Handle download media from modal (NEM-3839)
   const handleDownloadMedia = useCallback(
     async (eventId: string) => {
@@ -1117,7 +1087,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       ended_at: event.ended_at,
       reviewed: event.reviewed,
       notes: event.notes,
-      flagged: event.flagged, // Include flagged state (NEM-3839)
       version: event.version, // Include version for optimistic locking (NEM-3625)
     };
   }, [selectedEventForModal, selectedModalRow, cameraNameMap]);
@@ -1941,7 +1910,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
         onNavigate={handleNavigate}
         onSaveNotes={handleSaveNotes}
-        onFlagEvent={handleFlagEvent}
         onDownloadMedia={handleDownloadMedia}
         onSnooze={(eventId, seconds) => handleSnooze(eventId, seconds)}
         onUnsnooze={(eventId) => handleSnooze(eventId, 0)}

@@ -141,7 +141,6 @@ class EventLifecycleStateMachine(RuleBasedStateMachine):
             "camera_id": camera,
             "batch_id": batch_id,
             "reviewed": False,
-            "flagged": False,
             "deleted": False,
             "snoozed": False,
             "snooze_until": None,
@@ -158,15 +157,6 @@ class EventLifecycleStateMachine(RuleBasedStateMachine):
 
         self.event_states[event]["reviewed"] = True
         note(f"Reviewed event: {event}")
-
-    @rule(event=events)
-    @precondition(lambda self: any(not e["deleted"] for e in self.event_states.values()))
-    def flag_event(self, event: int) -> None:
-        """Flag an event for investigation."""
-        assume(not self.event_states[event]["deleted"])
-
-        self.event_states[event]["flagged"] = True
-        note(f"Flagged event: {event}")
 
     @rule(event=events, hours=integers(min_value=1, max_value=24))
     @precondition(lambda self: any(not e["deleted"] for e in self.event_states.values()))

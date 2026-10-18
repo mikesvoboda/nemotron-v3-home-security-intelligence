@@ -1404,178 +1404,17 @@ describe('EventDetailModal', () => {
   });
 
   describe('flag event', () => {
-    it('renders flag event button when onFlagEvent is provided', async () => {
+    it('does not render retired flag event button even if legacy prop is passed (F-058)', async () => {
       const onFlagEvent = vi.fn();
-      renderWithQueryClient(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Flag event' })).toBeInTheDocument();
-      });
-    });
-
-    it('does not render flag event button when onFlagEvent is undefined', async () => {
-      renderWithQueryClient(<EventDetailModal {...mockProps} onFlagEvent={undefined} />);
+      renderWithQueryClient(
+        <EventDetailModal {...mockProps} {...({ onFlagEvent } as Record<string, unknown>)} />
+      );
 
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
       expect(screen.queryByRole('button', { name: 'Flag event' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Unflag event' })).not.toBeInTheDocument();
-    });
-
-    it('shows "Flag Event" when event is not flagged', async () => {
-      const eventNotFlagged = { ...mockEvent, flagged: false };
-      const onFlagEvent = vi.fn();
-      renderWithQueryClient(
-        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
-      );
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Flag event' })).toHaveTextContent('Flag Event');
-      });
-    });
-
-    it('shows "Unflag Event" when event is flagged', async () => {
-      const eventFlagged = { ...mockEvent, flagged: true };
-      const onFlagEvent = vi.fn();
-      renderWithQueryClient(
-        <EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />
-      );
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Unflag event' })).toHaveTextContent(
-          'Unflag Event'
-        );
-      });
-    });
-
-    it('calls onFlagEvent with correct parameters when flagging unflagged event', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      const eventNotFlagged = { ...mockEvent, flagged: false };
-      const onFlagEvent = vi.fn().mockResolvedValue(undefined);
-      renderWithQueryClient(
-        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
-      );
-
-      // Wait for the modal to open and button to be available
-      const flagButton = await screen.findByRole('button', { name: 'Flag event' });
-      await user.click(flagButton);
-
-      await waitFor(() => {
-        expect(onFlagEvent).toHaveBeenCalledWith('event-123', true);
-      });
-    });
-
-    it('calls onFlagEvent with correct parameters when unflagging flagged event', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      const eventFlagged = { ...mockEvent, flagged: true };
-      const onFlagEvent = vi.fn().mockResolvedValue(undefined);
-      renderWithQueryClient(
-        <EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />
-      );
-
-      // Wait for the modal to open and button to be available
-      const unflagButton = await screen.findByRole('button', { name: 'Unflag event' });
-      await user.click(unflagButton);
-
-      await waitFor(() => {
-        expect(onFlagEvent).toHaveBeenCalledWith('event-123', false);
-      });
-    });
-
-    it('disables flag button while flagging is in progress', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      let resolveFlagging: () => void;
-      const flaggingPromise = new Promise<void>((resolve) => {
-        resolveFlagging = resolve;
-      });
-      const onFlagEvent = vi.fn().mockReturnValue(flaggingPromise);
-
-      renderWithQueryClient(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
-
-      // Wait for the modal to open and button to be available
-      const flagButton = await screen.findByRole('button', { name: 'Flag event' });
-      await user.click(flagButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Flagging...')).toBeInTheDocument();
-      });
-      expect(flagButton).toBeDisabled();
-
-      resolveFlagging!();
-      await waitFor(() => {
-        expect(screen.queryByText('Flagging...')).not.toBeInTheDocument();
-      });
-    });
-
-    it('handles flagging errors gracefully', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const onFlagEvent = vi.fn().mockRejectedValue(new Error('Flagging failed'));
-
-      renderWithQueryClient(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
-
-      // Wait for the modal to open and button to be available
-      const flagButton = await screen.findByRole('button', { name: 'Flag event' });
-      await user.click(flagButton);
-
-      await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to flag event:', expect.any(Error));
-      });
-
-      consoleSpy.mockRestore();
-    });
-
-    it('applies different styling for flagged vs unflagged state', async () => {
-      const eventNotFlagged = { ...mockEvent, flagged: false };
-      const eventFlagged = { ...mockEvent, flagged: true };
-      const onFlagEvent = vi.fn();
-
-      const { rerender, queryClient } = renderWithQueryClient(
-        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
-      );
-
-      await waitFor(() => {
-        const flagButton = screen.getByRole('button', { name: 'Flag event' });
-        expect(flagButton).toHaveClass('bg-gray-800');
-      });
-
-      rerender(
-        <QueryClientProvider client={queryClient}>
-          <EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />
-        </QueryClientProvider>
-      );
-
-      await waitFor(() => {
-        const unflagButton = screen.getByRole('button', { name: 'Unflag event' });
-        expect(unflagButton).toHaveClass('bg-yellow-600');
-      });
-    });
-
-    it('has correct aria-label for flagged state', async () => {
-      const eventFlagged = { ...mockEvent, flagged: true };
-      const onFlagEvent = vi.fn();
-      renderWithQueryClient(
-        <EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />
-      );
-
-      await waitFor(() => {
-        const button = screen.getByRole('button', { name: 'Unflag event' });
-        expect(button).toHaveAttribute('aria-label', 'Unflag event');
-      });
-    });
-
-    it('has correct aria-label for unflagged state', async () => {
-      const eventNotFlagged = { ...mockEvent, flagged: false };
-      const onFlagEvent = vi.fn();
-      renderWithQueryClient(
-        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
-      );
-
-      await waitFor(() => {
-        const button = screen.getByRole('button', { name: 'Flag event' });
-        expect(button).toHaveAttribute('aria-label', 'Flag event');
-      });
     });
   });
 
@@ -1722,7 +1561,6 @@ describe('EventDetailModal', () => {
       const onClose = vi.fn();
       const onMarkReviewed = vi.fn();
       const onNavigate = vi.fn();
-      const onFlagEvent = vi.fn();
       const onDownloadMedia = vi.fn();
 
       renderWithQueryClient(
@@ -1731,14 +1569,12 @@ describe('EventDetailModal', () => {
           onClose={onClose}
           onMarkReviewed={onMarkReviewed}
           onNavigate={onNavigate}
-          onFlagEvent={onFlagEvent}
           onDownloadMedia={onDownloadMedia}
         />
       );
 
       // Verify all action buttons are present
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Flag event' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Download media' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
       });
@@ -1750,7 +1586,6 @@ describe('EventDetailModal', () => {
       const onMarkReviewed = vi.fn();
       const onNavigate = vi.fn();
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
-      const onFlagEvent = vi.fn().mockResolvedValue(undefined);
       const onDownloadMedia = vi.fn().mockResolvedValue(undefined);
 
       renderWithQueryClient(
@@ -1760,7 +1595,6 @@ describe('EventDetailModal', () => {
           onMarkReviewed={onMarkReviewed}
           onNavigate={onNavigate}
           onSaveNotes={onSaveNotes}
-          onFlagEvent={onFlagEvent}
           onDownloadMedia={onDownloadMedia}
         />
       );
@@ -1777,13 +1611,6 @@ describe('EventDetailModal', () => {
       const nextButton = await screen.findByRole('button', { name: 'Next event' });
       await user.click(nextButton);
       expect(onNavigate).toHaveBeenCalledWith('next');
-
-      // Flag event
-      const flagButton = await screen.findByRole('button', { name: 'Flag event' });
-      await user.click(flagButton);
-      await waitFor(() => {
-        expect(onFlagEvent).toHaveBeenCalledWith('event-123', true);
-      });
 
       // Download media
       const downloadButton = await screen.findByRole('button', { name: 'Download media' });
@@ -1810,7 +1637,6 @@ describe('EventDetailModal', () => {
 
       // All interactions should work without errors
       expect(onNavigate).toHaveBeenCalledTimes(2);
-      expect(onFlagEvent).toHaveBeenCalledTimes(1);
       expect(onDownloadMedia).toHaveBeenCalledTimes(1);
       expect(onSaveNotes).toHaveBeenCalledTimes(1);
       expect(onMarkReviewed).toHaveBeenCalledTimes(1);

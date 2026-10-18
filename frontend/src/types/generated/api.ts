@@ -23226,12 +23226,6 @@ export interface components {
              */
             entities?: components["schemas"]["RiskEntity"][];
             /**
-             * Flagged
-             * @description Whether event is flagged for follow-up (NEM-3839)
-             * @default false
-             */
-            flagged: boolean;
-            /**
              * Flags
              * @description Risk flags raised during analysis
              */
@@ -23463,11 +23457,6 @@ export interface components {
          *     }
          */
         EventUpdate: {
-            /**
-             * Flagged
-             * @description Flag or unflag event for follow-up (NEM-3839)
-             */
-            flagged?: boolean | null;
             /**
              * Notes
              * @description User notes for the event

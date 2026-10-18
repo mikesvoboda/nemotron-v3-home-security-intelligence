@@ -2358,8 +2358,6 @@ export async function fetchEventClusters(
 
 export interface EventUpdateData {
   reviewed?: boolean;
-  /** Flag or unflag event for follow-up (NEM-3839) */
-  flagged?: boolean;
   notes?: string | null;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-2359) */
   snooze_until?: string | null;

@@ -1507,12 +1507,6 @@
             'title': 'Entities',
             'type': 'array',
           }),
-          'flagged': dict({
-            'default': False,
-            'description': 'Whether event is flagged for follow-up (NEM-3839)',
-            'title': 'Flagged',
-            'type': 'boolean',
-          }),
           'flags': dict({
             'description': 'Risk flags raised during analysis',
             'items': dict({
@@ -2732,12 +2726,6 @@
         'title': 'Entities',
         'type': 'array',
       }),
-      'flagged': dict({
-        'default': False,
-        'description': 'Whether event is flagged for follow-up (NEM-3839)',
-        'title': 'Flagged',
-        'type': 'boolean',
-      }),
       'flags': dict({
         'description': 'Risk flags raised during analysis',
         'items': dict({
@@ -2937,7 +2925,6 @@
     'enrichment_status': None,
     'entities': list([
     ]),
-    'flagged': False,
     'flags': list([
     ]),
     'id': 1,
