@@ -50,7 +50,7 @@ Measured pins THIS session (probes, ENVIRONMENT=test):
 - result.get("content", ) trailing-comma becomes 1-ARG: missing key ->
   None -> .strip() AttributeError; default "XXXX" -> returns "XXXX"
   WITHOUT raising ValueError; both die on pytest.raises(ValueError) /
-  equality of the direct _call_nemotron contract.
+  equality of the direct _call_vlm contract.
 - Singleton: resetting sg._summary_generator lets the two module-level
   twins die IN-PROCESS (is-not-None inversion returns None on first
   call; assign-None never caches - two calls must return the SAME
@@ -443,7 +443,7 @@ def test_generate_all_summaries_creates_one_session_for_both():
 #
 # Three driven paths, each asserting EVERY observable its branch writes:
 #   ZERO   -> all-clear content, INFO x3 (generating/zero/created)
-#   OK     -> content from _call_nemotron, INFO x3 (generating/created),
+#   OK     -> content from _call_vlm, INFO x3 (generating/created),
 #             build_summary_prompt + timeout + httpx call-site pins
 #   FAIL   -> exception -> WARNING (fallback) + INFO x2, fallback content
 # ============================================================================
@@ -507,7 +507,7 @@ def test_zero_events_path_writes_every_observable():
     assert cc["window_end"] == WE
     assert cc["generated_at"].tzinfo is UTC  # m26 None / m27 naive die
     assert cc["generated_at"].isoformat().endswith("+00:00")
-    # m24: event_context=None would flow to _call_nemotron - never reached
+    # m24: event_context=None would flow to _call_vlm - never reached
     # on this path, pinned instead via the OK path's events kwarg below.
     m1 = cap.one(GS_MSG_GEN)  # m12 None message dies at the ONE-hit lookup
     assert _extras(m1, ["summary_type", "event_count", "window_start", "window_end"]) == {
@@ -538,7 +538,7 @@ def test_llm_success_path_writes_every_observable():
     assert e.repo_sessions == ["S"] and e.sum_sessions == ["S"]
     assert e.repo_calls == [(WS, WE)]  # m6 forwarding twin
     assert e.eager == [True]
-    # the branch hands its OWN arguments to _call_nemotron, which forwards
+    # the branch hands its OWN arguments to _call_vlm, which forwards
     # them to build_summary_prompt: FULL equality here kills m44
     # (period_type->None: the mock never raises on it, so ONLY this capture
     # sees it) and the m45/m46/m47 deletion twins.
@@ -744,7 +744,7 @@ def test_build_event_context_empty_returns_empty_list():
 
 
 # ============================================================================
-# _call_nemotron  (survivors m1 m3..m6 m8..m14 m21..m41 m43..m46 m49 m50
+# _call_vlm  (survivors m1 m3..m6 m8..m14 m21..m41 m43..m46 m49 m50
 #                  m52 m53 m57 m59 m62 m65 m76 m79..m92)
 #
 # The ChatML tokens are BUILT here, never written as literals (they are
@@ -779,7 +779,7 @@ API_KEY_VAL = "sekret"  # pragma: allowlist secret
 
 def _nemo(gen: Any, events: list[Any] | None = None) -> Any:
     return _run(
-        gen._call_nemotron(
+        gen._call_vlm(
             window_start=WS,
             window_end=WE,
             period_type="hour",
@@ -788,7 +788,7 @@ def _nemo(gen: Any, events: list[Any] | None = None) -> Any:
     )
 
 
-def test_call_nemotron_success_pins_every_call_site():
+def test_call_vlm_success_pins_every_call_site():
     with env(json_payload={"content": CONTENT}) as e, logcap() as cap:
         out = _nemo(sg.SummaryGenerator(llm_url=LLM_URL))
     assert out == STRIPPED
@@ -827,7 +827,7 @@ def test_call_nemotron_success_pins_every_call_site():
     }
 
 
-def test_call_nemotron_auth_headers_are_sent():
+def test_call_vlm_auth_headers_are_sent():
     with env(json_payload={"content": CONTENT}) as e:
         _nemo(sg.SummaryGenerator(llm_url=LLM_URL, api_key=API_KEY_VAL))
     assert e.posts[0][1]["headers"] == {
@@ -836,7 +836,7 @@ def test_call_nemotron_auth_headers_are_sent():
     }
 
 
-def test_call_nemotron_empty_completion_raises():
+def test_call_vlm_empty_completion_raises():
     for payload in ({}, {"content": "   "}):
         with env(json_payload=payload) as e:
             with pytest.raises(ValueError) as exc:
@@ -852,7 +852,7 @@ THINK_OPEN = "<" + "think" + ">"  # shipped regex uses <think> (od -c)
 THINK_CLOSE = "<" + "/think" + ">"  # and </think>, not ChatML
 
 
-def test_call_nemotron_strips_think_wrappers_multiline():
+def test_call_vlm_strips_think_wrappers_multiline():
     wrapped = "V1" + THINK_OPEN + "\nhidden\n" + THINK_CLOSE + "Visible"
     with env(json_payload={"content": wrapped}) as e:
         out = _nemo(sg.SummaryGenerator(llm_url=LLM_URL))
@@ -862,7 +862,7 @@ def test_call_nemotron_strips_think_wrappers_multiline():
     assert e.posts[0][0] == COMPL
 
 
-def test_call_nemotron_replacement_is_empty_not_placeholder():
+def test_call_vlm_replacement_is_empty_not_placeholder():
     wrapped = "A" + THINK_OPEN + "hidden" + THINK_CLOSE + "B"
     with env(json_payload={"content": wrapped}):
         out = _nemo(sg.SummaryGenerator(llm_url=LLM_URL))

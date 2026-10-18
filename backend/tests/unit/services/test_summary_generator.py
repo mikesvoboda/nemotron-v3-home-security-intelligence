@@ -147,7 +147,7 @@ class TestHourlySummaryGeneration:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mocks
             mock_event_repo = MagicMock()
@@ -194,7 +194,7 @@ class TestHourlySummaryGeneration:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mocks - no high/critical events
             mock_event_repo = MagicMock()
@@ -245,7 +245,7 @@ class TestHourlySummaryGeneration:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mocks - return both high and low risk events
             mock_event_repo = MagicMock()
@@ -293,7 +293,7 @@ class TestDailySummaryGeneration:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mocks
             mock_event_repo = MagicMock()
@@ -346,7 +346,7 @@ class TestDailySummaryGeneration:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Capture the time window arguments
             async def capture_date_range(
@@ -405,7 +405,7 @@ class TestGenerateAllSummaries:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             mock_event_repo = MagicMock()
             mock_event_repo.get_in_date_range = AsyncMock(return_value=[mock_event])
@@ -454,7 +454,7 @@ class TestFallbackBehavior:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             mock_event_repo = MagicMock()
             mock_event_repo.get_in_date_range = AsyncMock(return_value=[mock_event])
@@ -493,7 +493,7 @@ class TestFallbackBehavior:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             mock_event_repo = MagicMock()
             mock_event_repo.get_in_date_range = AsyncMock(
@@ -531,7 +531,7 @@ class TestFallbackBehavior:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             mock_event_repo = MagicMock()
             mock_event_repo.get_in_date_range = AsyncMock(return_value=[])
@@ -668,8 +668,8 @@ class TestNemotronCall:
     """Tests for Nemotron LLM call functionality."""
 
     @pytest.mark.asyncio
-    async def test_call_nemotron_formats_prompt_correctly(self) -> None:
-        """Test that _call_nemotron formats the prompt with ChatML."""
+    async def test_call_vlm_formats_prompt_correctly(self) -> None:
+        """Test that _call_vlm formats the prompt with ChatML."""
         generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         mock_response = MagicMock()
@@ -683,7 +683,7 @@ class TestNemotronCall:
             mock_client.__aexit__ = AsyncMock()
             mock_client_cls.return_value = mock_client
 
-            result = await generator._call_nemotron(
+            result = await generator._call_vlm(
                 window_start=datetime(2026, 1, 18, 13, 0, 0, tzinfo=UTC),
                 window_end=datetime(2026, 1, 18, 14, 0, 0, tzinfo=UTC),
                 period_type="hour",
@@ -708,7 +708,7 @@ class TestNemotronCall:
             assert "/completion" in call_args.args[0]
 
     @pytest.mark.asyncio
-    async def test_call_nemotron_raises_on_empty_response(self) -> None:
+    async def test_call_vlm_raises_on_empty_response(self) -> None:
         """Test that empty LLM response raises ValueError."""
         generator = SummaryGenerator(llm_url="http://localhost:8098")
 
@@ -724,7 +724,7 @@ class TestNemotronCall:
             mock_client_cls.return_value = mock_client
 
             with pytest.raises(ValueError, match="Empty completion"):
-                await generator._call_nemotron(
+                await generator._call_vlm(
                     window_start=datetime(2026, 1, 18, 13, 0, 0, tzinfo=UTC),
                     window_end=datetime(2026, 1, 18, 14, 0, 0, tzinfo=UTC),
                     period_type="hour",
@@ -732,7 +732,7 @@ class TestNemotronCall:
                 )
 
     @pytest.mark.asyncio
-    async def test_call_nemotron_strips_think_tags(self) -> None:
+    async def test_call_vlm_strips_think_tags(self) -> None:
         """Test that think tags are removed from LLM response."""
         generator = SummaryGenerator(llm_url="http://localhost:8098")
 
@@ -749,7 +749,7 @@ class TestNemotronCall:
             mock_client.__aexit__ = AsyncMock()
             mock_client_cls.return_value = mock_client
 
-            result = await generator._call_nemotron(
+            result = await generator._call_vlm(
                 window_start=datetime(2026, 1, 18, 13, 0, 0, tzinfo=UTC),
                 window_end=datetime(2026, 1, 18, 14, 0, 0, tzinfo=UTC),
                 period_type="hour",
@@ -857,7 +857,7 @@ class TestSettingsReHome:
             mock_client_cls.return_value = mock_client
 
             generator = SummaryGenerator()
-            result = await generator._call_nemotron(
+            result = await generator._call_vlm(
                 window_start=datetime(2026, 1, 18, 13, 0, 0, tzinfo=UTC),
                 window_end=datetime(2026, 1, 18, 14, 0, 0, tzinfo=UTC),
                 period_type="hour",
@@ -933,7 +933,7 @@ class TestSessionManagement:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mock session context manager
             mock_session = MagicMock()
@@ -979,7 +979,7 @@ class TestSessionManagement:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mock session context manager
             mock_session = MagicMock()
@@ -1029,7 +1029,7 @@ class TestSessionManagement:
             patch(
                 "backend.services.summary_generator.SummaryRepository", autospec=True
             ) as mock_summary_repo_cls,
-            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+            patch.object(generator, "_call_vlm", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mock session context manager
             mock_session = MagicMock()
