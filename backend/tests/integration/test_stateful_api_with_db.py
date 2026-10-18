@@ -93,7 +93,6 @@ class EventLifecycleAPIStateMachine(RuleBasedStateMachine):
             "id": event_id,
             "camera_id": camera,
             "reviewed": False,
-            "flagged": False,
             "deleted": False,
         }
 
@@ -111,18 +110,6 @@ class EventLifecycleAPIStateMachine(RuleBasedStateMachine):
 
         self.event_states[event]["reviewed"] = True
         note(f"Marked event {event} as reviewed")
-
-    @rule(event=events)
-    @precondition(lambda self: any(not e["deleted"] for e in self.event_states.values()))
-    def flag_event_for_investigation(self, event: int) -> None:
-        """Flag event for investigation."""
-        if event == 0:
-            return
-
-        assume(not self.event_states.get(event, {}).get("deleted", True))
-
-        self.event_states[event]["flagged"] = True
-        note(f"Flagged event {event}")
 
     @rule(event=events)
     @precondition(lambda self: any(not e["deleted"] for e in self.event_states.values()))
@@ -144,10 +131,6 @@ class EventLifecycleAPIStateMachine(RuleBasedStateMachine):
             if state["reviewed"]:
                 # Reviewed events should maintain that state
                 assert state["reviewed"] is True
-
-            if state["flagged"]:
-                # Flagged events should maintain that state
-                assert state["flagged"] is True
 
 
 # =============================================================================

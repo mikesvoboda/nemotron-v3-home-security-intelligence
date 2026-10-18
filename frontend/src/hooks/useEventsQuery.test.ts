@@ -29,7 +29,6 @@ describe('useEventsInfiniteQuery', () => {
         summary: 'Person detected at front entrance',
         reasoning: 'Motion detected with high confidence',
         reviewed: false,
-        flagged: false, // NEM-3839
         notes: null,
         detection_count: 5,
         detection_ids: [1, 2, 3, 4, 5],
@@ -45,7 +44,6 @@ describe('useEventsInfiniteQuery', () => {
         summary: 'Animal detected in backyard',
         reasoning: 'Small movement detected, likely wildlife',
         reviewed: true,
-        flagged: false, // NEM-3839
         notes: 'Just a squirrel',
         detection_count: 2,
         detection_ids: [6, 7],
@@ -72,7 +70,6 @@ describe('useEventsInfiniteQuery', () => {
         summary: 'Vehicle detected in driveway',
         reasoning: 'Car entering property',
         reviewed: false,
-        flagged: false, // NEM-3839
         notes: null,
         detection_count: 3,
         detection_ids: [8, 9, 10],

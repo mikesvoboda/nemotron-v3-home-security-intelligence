@@ -218,13 +218,13 @@ describe('endpoint contract (D2)', () => {
       /api/events  src/services/api.ts:2274  options passed by name: options
       /api/events/stats  src/services/api.ts:2309  options passed by name: options
       /api/events/clusters  src/services/api.ts:2356  options passed by name: options
-      /api/events/deleted  src/services/api.ts:2539  options passed by name: options
-      /api/events/search  src/services/api.ts:3747  options passed by name: options
-      /api/audit  src/services/api.ts:4407  options passed by name: options
-      /api/entities  src/services/api.ts:5628  options passed by name: options
-      /api/entities/matches/{}  src/services/api.ts:5724  options passed by name: options
-      /api/logs  src/services/api.ts:8879  options passed by name: options
-      /api/reid/similar/{}  src/services/api.ts:8992  options passed by name: options"
+      /api/events/deleted  src/services/api.ts:2537  options passed by name: options
+      /api/events/search  src/services/api.ts:3745  options passed by name: options
+      /api/audit  src/services/api.ts:4405  options passed by name: options
+      /api/entities  src/services/api.ts:5626  options passed by name: options
+      /api/entities/matches/{}  src/services/api.ts:5722  options passed by name: options
+      /api/logs  src/services/api.ts:8877  options passed by name: options
+      /api/reid/similar/{}  src/services/api.ts:8990  options passed by name: options"
     `);
   });
 
@@ -255,7 +255,7 @@ describe('endpoint contract (D2)', () => {
       src/services/aiAuditApi.ts:386  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:150: not a literal path
       src/services/api.ts:1537  built at runtime: getCameraSnapshotUrl(cameraId)
       src/services/api.ts:1609  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3273  built at runtime: isVideo
+      src/services/api.ts:3271  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/errorReporting.ts:113  built at runtime: config.endpoint
