@@ -702,7 +702,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/summaries/latest`              | GET    | `api.ts`, `summary.ts` | Get Latest Summaries         |
 | `/api/summaries/trends`              | GET    | `api.ts`               | Get Trends                   |
 | `/api/summaries/{summary_id}/detail` | GET    | `api.ts`               | Get Summary Detail           |
-| `/api/summaries/{summary_id}/export` | GET    | —                      | Export Summary               |
 
 ### Tracks
 
@@ -837,9 +836,8 @@ backend-only surface:
 | `/api/plate-reads/recognize`                                   | POST                | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
 | `/api/plate-reads/statistics`                                  | GET                 | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
 | `/api/scheduled-reports/{report_id}/run`                       | POST                | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
-| `/api/summaries/daily`                                         | GET                 | Summary detail/export endpoints — daily summary list consumed by `api.ts`                                                                                                    |
-| `/api/summaries/hourly`                                        | GET                 | Summary detail/export endpoints — daily summary list consumed by `api.ts`                                                                                                    |
-| `/api/summaries/{summary_id}/export`                           | GET                 | Summary detail/export endpoints — daily summary list consumed by `api.ts`                                                                                                    |
+| `/api/summaries/daily`                                         | GET                 | Summary detail endpoints — daily summary list consumed by `api.ts`                                                                                                           |
+| `/api/summaries/hourly`                                        | GET                 | Summary detail endpoints — daily summary list consumed by `api.ts`                                                                                                           |
 | `/api/system/models/{model_name}/status`                       | GET                 | Model lifecycle surface — load/unload/reload answer 501 by design                                                                                                            |
 | `/api/system/supervisor/status`                                | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/tracks`                                                  | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
