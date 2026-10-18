@@ -5,22 +5,9 @@
  * the application for centralized state management.
  */
 
-// Toast notifications context
-export {
-  ToastContext,
-  ToastProvider,
-  useToast,
-  DEFAULT_TOAST_DURATION,
-  MAX_TOASTS,
-} from './ToastContext';
-
-export type {
-  Toast,
-  ToastType,
-  ToastContextType,
-  ToastProviderContextType,
-  ToastProviderProps,
-} from './ToastContext';
+// Toast notifications live in `hooks/useToast.ts` (the live hook, sonner-backed)
+// and `components/common/ToastProvider.tsx` (the mounted provider). The
+// `contexts/ToastContext.tsx` re-implementation was dead and F3.2 removed it.
 
 // System data context for shared polling (composed from specialized contexts)
 export {

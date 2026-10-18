@@ -19,7 +19,12 @@
 
 import { expect } from 'vitest';
 
-import type { RiskLevel } from '../types/constants';
+// `RiskLevel` lived in `../types/constants`, which F3.2 deleted as an unreachable file. This test
+// helper is kept (it serves matchers.test.ts and SummaryCards.a11y.test.tsx, which test live
+// modules), so the union is inlined rather than importing a deleted module. It is the same type:
+// constants.ts spelled it `(typeof RISK_LEVELS)[number]` over RISK_LEVELS = ['low','medium','high',
+// 'critical'] as const, which evaluates to exactly this union. The matcher only string-compares.
+type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 /**
  * Camera validation interface for type safety.

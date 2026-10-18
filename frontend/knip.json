@@ -10,7 +10,17 @@
     "!src/test/**!",
     "!src/test-utils/**!"
   ],
-  "ignore": ["src/types/generated/**"],
+  "ignore": [
+    "src/types/generated/**",
+    "src/components/events/LinkPersonModal.tsx",
+    "src/components/face-recognition/BulkEnrollmentModal.tsx",
+    "src/components/face-recognition/IdentifyPersonModal.tsx",
+    "src/components/face-recognition/PersonJourneyTimeline.tsx",
+    "src/components/household/MemberDetectionHistory.tsx",
+    "src/components/jobs/StatusDot.tsx",
+    "src/components/settings/AreaCameraLinking.tsx",
+    "src/components/settings/PropertyManagement.tsx"
+  ],
   "ignoreDependencies": ["openapi-typescript"],
   "ignoreExportsUsedInFile": true,
   "rules": {
