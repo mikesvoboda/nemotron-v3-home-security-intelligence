@@ -219,8 +219,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/analytics/calibration`             | GET    | —                                                         | Get Calibration Status      |
 | `/api/analytics/camera-activity`         | GET    | `analytics.ts`, `api.ts`                                  | Get Camera Activity         |
 | `/api/analytics/camera-uptime`           | GET    | `analytics.ts`, `api.ts`                                  | Get Camera Uptime           |
-| `/api/analytics/costs`                   | GET    | `api.ts`                                                  | Get Cost Analytics          |
-| `/api/analytics/costs/trends`            | GET    | `api.ts`                                                  | Get Cost Trends             |
 | `/api/analytics/detection-trends`        | GET    | `analytics.ts`, `api.ts`, `useDetectionTrendsQuery.ts`    | Get Detection Trends        |
 | `/api/analytics/object-distribution`     | GET    | `analytics.ts`, `api.ts`, `useObjectDistributionQuery.ts` | Get Object Distribution     |
 | `/api/analytics/risk-history`            | GET    | `analytics.ts`, `api.ts`, `useRiskHistoryQuery.ts`        | Get Risk History            |
