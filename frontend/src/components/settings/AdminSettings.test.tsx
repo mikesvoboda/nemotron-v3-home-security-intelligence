@@ -256,8 +256,14 @@ describe('AdminSettings', () => {
     it('displays summary count of enabled toggles', () => {
       renderWithProviders(<AdminSettings />);
 
-      // All 6 toggles should be enabled by default, so summary should show 6/6
-      expect(screen.getByText('6/6 enabled')).toBeInTheDocument();
+      // All 4 kept toggles should be enabled by default (F-188/F-189 retired Vision Extraction and Image Quality)
+      expect(screen.getByText('4/4 enabled')).toBeInTheDocument();
+      expect(
+        screen.queryByTestId('feature-toggle-vision_extraction_enabled-switch')
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId('feature-toggle-image_quality_enabled-switch')
+      ).not.toBeInTheDocument();
     });
 
     it('switch can be toggled multiple times', async () => {

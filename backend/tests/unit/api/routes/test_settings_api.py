@@ -233,11 +233,11 @@ class TestGetSettingsEndpoint:
         assert response.status_code == 200
         data = response.json()
 
-        assert data["features"]["vision_extraction_enabled"] is False
+        assert "vision_extraction_enabled" not in data["features"]
+        assert "image_quality_enabled" not in data["features"]
         assert data["features"]["reid_enabled"] is True
         assert data["features"]["scene_change_enabled"] is False
         assert data["features"]["clip_generation_enabled"] is True
-        assert data["features"]["image_quality_enabled"] is False
         assert data["features"]["background_eval_enabled"] is True
 
     @pytest.mark.asyncio
