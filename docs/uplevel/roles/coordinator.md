@@ -133,11 +133,13 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
 
 1. **Pick** the head of the queue: the oldest ready PR (UR-104, UR-106). A PR you updated keeps
    its place while its gate runs at the new head (UR-106), so it stays the head: in §3 its
-   `base=` is `main`'s tip, its gate is pending and its approval carries (`carry=yes`). A
+   `base=` is `main`'s tip, its gate has not finished (`gate=absent` until the gate job is
+   queued, then `QUEUED` or `IN_PROGRESS`) and its approval carries (`carry=yes`). If several PRs
+   read so, the one with the oldest queue place is the head. A
    red-`main` fix (UR-111) takes the head at once, even while another update is in flight; a PR
    the owner names (UR-104) takes it next.
 2. **Skip the update** when the head is not behind `main`: §3's `base=` for it is `main`'s tip.
-   Go to step 3; if its gate is still running, end the merge pass there.
+   Go to step 3; if its gate has not finished, end the merge pass there.
    **Otherwise update** the head (UR-102, ruling 268):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
