@@ -344,17 +344,17 @@ and the re-read and merge comment are UR-29.
   reviewer cannot state that, the PR comes to the owner. Never pre-approved: destructive work
   (`B3.1` and `F3.1` other than UR-98's plain retirements, `B3.2`), security or auth or plan text
   beyond the ruling, or a PR with owner questions. (rulings 84, 249)
-- **UR-102** `main` requires `CI Gate (Required Checks)` but not "branches up to date". The
-  coordinator merges one PR at a time, and its merge pass continues past a roll to the next ready
-  PR. A lane PR on auto-merge (UR-108) merges when its gate passes, without these legs; while
-  `main` is red the coordinator disables auto-merge on every queued lane PR and re-enables it when
-  `main` is green. Otherwise a ready PR merges without an update-branch when
-  `coordinator_snapshot.py`'s three merge legs pass for it (gate at most 3 merges behind the tip, no
-  shared path with what merged since, `main` not red). Otherwise only the coordinator updates it, one at a time,
-  with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`; authors rebase their own PRs
-  to resolve conflicts. A red `main` from a merge interaction is a red-`main` fix (UR-111); after
-  two in one UTC day the coordinator turns "require branches to be up to date" back on and raises
-  the urgent path. (rulings 19, 27, 152, 156, 164; owner record 6135991251)
+- **UR-102** `main` requires `CI Gate (Required Checks)` and "require branches to be up to date"
+  (`strict: true`); no agent changes branch protection. The coordinator merges one PR at a time and
+  updates one PR at a time: it updates only the head of the queue, and only when it is behind
+  `main`, with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`, and it updates no other
+  PR until that one merges or leaves the head of the queue (its gate fails at the new head, its
+  update conflicts, or it loses its review or owner approval). A ready PR that is not behind `main`
+  merges in queue order without an update. Auto-merge (UR-108) merges the updated PR once its gate
+  passes; while `main` is red the coordinator disables auto-merge on every queued lane PR and
+  re-enables it when `main` is green. Authors rebase their own PRs to resolve conflicts. A red
+  `main` from a merge interaction is a red-`main` fix (UR-111). (rulings 19, 27, 152, 156, 164,
+  268; owner records 6135991251, 6244473689)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in

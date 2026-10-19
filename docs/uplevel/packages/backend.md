@@ -577,7 +577,7 @@ outside `PipelineWorkerManager`.
 ### [r267b] The verdict-engine emit-failure test can fail
 
 **Flags:** none. **Assigned:** backend, first on its queue after the PR it holds (UR-52).
-**Depends on:** none. **PR:** none yet. (ruling 267, record 6266846674; audit item Q-004 of
+**Depends on:** none. **PR:** #7283. (ruling 267, record 6266846674; audit item Q-004 of
 `[r262]`)
 
 `test_emit_failure_does_not_break_the_probe`
