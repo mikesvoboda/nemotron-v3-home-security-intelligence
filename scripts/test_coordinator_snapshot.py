@@ -787,6 +787,53 @@ def test_a_stalled_flag_demands_silence_in_age_only():
     assert "stalled >90m" in docs, docs
 
 
+def test_a_paused_beat_is_never_stalled_past_its_own_interval():
+    # UR-160: a paused agent is not stalled -- coordinator.md routes no assignment at a paused
+    # row, so §6 must not print `stalled` beside `[paused]` no matter how old the beat is. The
+    # default fixture's heavy beat carries `paused` in its STATUS FIELD (the thing is_paused
+    # reads, not any prose mention) and is 300 minutes old: stale, past heavy's 45-minute stall
+    # table, silent (no signed comment, and _activity never even reads its activity), yet
+    # flagless of `stalled`.
+    fake = FakeRunner()
+    beat(fake, "agent-uplevel-heavy", 300, head="heavy · paused · queue empty (ruling 88)")
+    heavy = " ".join(sec6(build(fake), "agent-uplevel-heavy"))
+    assert "paused" in heavy, heavy
+    assert "STALE >20m" in heavy, heavy
+    assert "stalled" not in heavy, heavy
+    # and the row keeps no activity read at all, so a mutant that gates only on silence can
+    # still see no keys -- the pinned thing is the gate's paused arm, not the fixture's shape.
+    items = {h["agent"]: h for h in build(fake)["heartbeats"]["items"]}
+    assert "signed_comment" not in items["agent-uplevel-heavy"]
+    assert "commit_count" not in items["agent-uplevel-heavy"]
+
+
+def test_a_beat_with_commits_since_it_is_not_stalled_even_unsigned():
+    # UR-38's silence is BOTH arms: "pushed no commit and posted no comment". The signed-comment
+    # arm is pinned above; this pins the commit arm -- a 100-minute docs beat with a commit since
+    # the beat and no signed comment is NOT stalled, though the age alone trips the table. The
+    # commit has to sit on a PR the lane owns (the commit leg reads the lane's own PR heads), so
+    # the fixture carries the docs PR itself -- and posts NOTHING that signs docs: the default
+    # repo_comments sign no docs agent, and a `docs · note` here would sign docs, flip silent
+    # False under both the head and the mutant, and leave the arm untested again.
+    fake = FakeRunner()
+    fake.prs.append(
+        {
+            "number": 7050,
+            "title": "docs claim",
+            "isDraft": False,
+            "labels": [{"name": "lane:docs"}],
+            "headRefOid": "e" * 40,
+            "mergeStateStatus": "BEHIND",
+            "statusCheckRollup": [gate()],
+        }
+    )
+    fake.pr_commits[7050] = [(t(-timedelta(minutes=10)), "f" * 40, "fix: the thing")]
+    beat(fake, "agent-uplevel-docs", 100)
+    docs = " ".join(sec6(build(fake), "agent-uplevel-docs"))
+    assert "commit_count" not in docs and "1 commit(s) since the beat" in docs, docs
+    assert "stalled" not in docs, docs
+
+
 def test_paused_is_the_status_field_not_a_word_in_the_prose():
     # UR-160's paused flag drives §6's `[paused]` and the coordinator's routing. The substring
     # test flagged 2 of 9 live heartbeats that are not paused at all (6098014375, 6098123126 —
