@@ -350,3 +350,68 @@ claim, review comment `6236622758` on #7235, dispositioned there as this package
 **Done when:** the validator reads 3 ERRs on `packages/docs.md` (not 6), the grounds sweep
 (`scripts/uplevel/grounds_sweep.py`, committed) still foots at 31/0 with F-022 and F-140 named in
 the fourth boundary, and prettier is clean on both files.
+
+### [r262] Audit the code the Qwen-era merges left on main
+
+**Flags:** owner. **Assigned:** docs, first on its queue. **Depends on:** none.
+**PR:** none yet. (ruling 262, record 6257468143)
+
+The fast lanes ran Qwen3.8-Flash-Next from #6850 (2026-10-07) until the vLLM crash at about
+2026-10-18T07:36Z, and GLM 5.3 Flash after the restart. The owner session compared the two blind on
+2026-10-19 (four matched pairs) and found no quality gap. It did find defects that each model's own
+UR-89 review let through. This package reads the code the Qwen-era merges left on main and writes a
+to-do sheet the owner rules on. It changes no code, not even a one-liner: each fix is the owner's
+call, made later by the lane that owns the path. The PR adds one file, `docs/uplevel/r262-audit.md`,
+and that file's line in the README's file map.
+
+- [ ] **MEASURE** the census at a SHA of main pinned at the claim, and write both at the sheet's
+      head with the command that produced the census. The census is every PR merged to main from
+      2026-10-07T00:00Z to 2026-10-18T07:36Z that carries a `lane:` label and no `heavy` label,
+      plus the `[red-main]` PRs with no label. For each PR it lists the files that still exist at
+      the pinned SHA, classed **production** (`backend/`, `frontend/src/`, `setup_lib/`, `ai/`,
+      `monitoring/` and the compose files, tests excluded), **test**, or **tooling** (`scripts/`,
+      `.github/`). Control: at `a3b1bd336` the owner session counted 247 PRs, 54 with production
+      files (301 files), 167 with test files (618), 83 with tooling (269) and 74 with none.
+- [ ] **Audit** each census PR, production first, then test, then tooling. The PR's diff and body
+      say what it meant to do; the verdict is on the code as it stands at the pinned SHA. Something
+      a later PR already fixed is not an item. An item is one of six classes:
+  - **bug:** wrong behaviour or an unhandled case on a reachable path;
+  - **guard:** a refusal, validation or check removed or weakened without saying so;
+  - **test:** a test that cannot fail, mirrors its implementation, or misses a behaviour the code or
+    the PR claims;
+  - **claim:** a comment, docstring, message or doc that says what the code does not do;
+  - **drift:** docs or config naming a setting, path or symbol that no longer exists;
+  - **fit:** a duplicate or an abstraction that costs something, such as two copies that diverged.
+
+  Each item has a severity. **high:** wrong behaviour on a production path, on data or on auth, or
+  a gate that passes when it should fail. **medium:** a test gap or a dropped guard that hides a
+  plausible bug, or tooling that misreports. **low:** a claim or drift that changes no behaviour.
+  Taste, cite density, line length and anything a lint or format gate enforces are not items.
+
+- [ ] **Verify** each item before it enters the sheet. It cites a path and line at the pinned SHA,
+      quotes the lines, and shows the proof: the other lines read, or a command and its output. An
+      item the auditor could not verify is not listed. A fresh, unnamed subagent (ruling 232) then
+      gets only the item and the repo at the pinned SHA and tries to refute it; a refuted item is
+      dropped, and each batch records how many were. At most two audit subagents run at once (the
+      KV-cache policy of 2026-10-13). The cites stay at the pinned SHA as main moves; the package
+      that later fixes an item re-reads it on its own base.
+- [ ] **Pilot.** Batch 1 is the first ten production PRs. The lane pushes it and posts a PR comment
+      with counts by class and severity and the refuted count, then holds until the owner comments
+      `continue` on the PR or changes the bar. Later batches are about fifteen PRs, one comment
+      each.
+- [ ] **Owner decisions.** The owner answers each item in PR comments with `fix`, `skip` or `later`,
+      and the lane writes the answer into the sheet.
+
+Each item in the sheet takes this form:
+
+```text
+### Q-001 · <class> · <severity> · <path>:<line> · #<PR>
+- Wrong: one sentence.
+- Evidence: the quoted lines, and the read or command that proves it.
+- Fix: one sentence; size S, M or L; the lane that owns the path.
+- Owner: fix | skip | later
+```
+
+**Done when:** every census PR is in the sheet with its items or "no items", every item survived the
+refutation pass, the UR-89 review approves, and every item carries an owner decision. The owner's
+next ruling turns the `fix` items into packages for the owning lanes.
