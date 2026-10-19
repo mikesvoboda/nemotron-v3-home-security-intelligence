@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -573,3 +573,21 @@ the supervisor's heartbeats and restarts cover only the extra set. Record 619875
 
 **Done when:** the tests pass in CI at a ready head, and `backend/main.py` builds no pipeline worker
 outside `PipelineWorkerManager`.
+
+### [r267b] The verdict-engine emit-failure test can fail
+
+**Flags:** none. **Assigned:** backend, first on its queue after the PR it holds (UR-52).
+**Depends on:** none. **PR:** #7283. (ruling 267, record 6266846674; audit item Q-004 of
+`[r262]`)
+
+`test_emit_failure_does_not_break_the_probe`
+(`backend/tests/unit/services/test_verdict_engine_status.py`:159) cannot fail: `observe()` schedules
+the emit with `create_task` and returns first, so the mocked error surfaces only in an orphan task.
+Deleting the `try/except` around the emit (`backend/services/verdict_engine_status.py`:285-291)
+leaves the test green.
+
+- [ ] The test observes the swallow: it captures the scheduled task and asserts it finishes
+      without an exception, or asserts the "Failed to emit verdict-engine status event" log record.
+
+**Done when:** the test passes in CI at a ready head, and the PR shows that deleting the
+`try/except` turns it red.

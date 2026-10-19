@@ -203,7 +203,6 @@ defined inside `model_zoo.py` itself.
 | `clip_generator.py` | Video clip generation for events                        | Yes                        |
 | `token_counter.py`  | LLM prompt token counting and context window validation | No (import directly)       |
 | `batch_fetch.py`    | Batch fetch detections (avoid N+1)                      | No (import directly)       |
-| `cost_tracker.py`   | LLM inference cost tracking and budget controls         | Yes                        |
 
 ### Data Management Services
 
@@ -2458,63 +2457,6 @@ is_quiet = filter_service.is_quiet_period(
 )
 ```
 
-### cost_tracker.py
-
-**Purpose:** LLM inference cost tracking and budget controls.
-
-**Key Features:**
-
-- Token usage tracking per LLM request (input/output)
-- GPU-time tracking per model inference
-- Cost estimation based on cloud equivalents
-- Daily/monthly budget limits with alerts
-- Prometheus metrics for monitoring
-- Redis persistence for usage records
-
-**Cloud Pricing Models:**
-
-- AWS GPU instances (p4d, p3, g5)
-- GCP GPU instances (a2, n1)
-- Azure GPU instances (NC, ND)
-
-**Public API:**
-
-```python
-from backend.services.cost_tracker import (
-    CostTracker,
-    CostModel,
-    get_cost_tracker,
-    reset_cost_tracker,
-)
-
-tracker = get_cost_tracker()
-
-# Track LLM usage
-tracker.track_llm_usage(
-    input_tokens=1500,
-    output_tokens=500,
-    model="nemotron",
-    duration_seconds=2.5,
-    camera_id="front_door",
-)
-
-# Track detection model usage
-tracker.track_detection_usage(
-    model="yolo26",
-    duration_seconds=0.15,
-    images_processed=1,
-)
-
-# Check budget status
-status = await tracker.get_budget_status()
-if status.daily_exceeded:
-    logger.warning("Daily budget exceeded!")
-
-# Get usage summary
-daily = await tracker.get_daily_usage()
-monthly = await tracker.get_monthly_usage()
-```
-
 ### audit_logger.py
 
 **Purpose:** High-level security audit logging interface for common security events.
@@ -2906,7 +2848,6 @@ from backend.services import (
     ManagedService,
     ServiceConfig,
     ServiceRegistry,
-    CostTracker,
 )
 
 # For context enrichment (import directly)
@@ -2969,7 +2910,6 @@ from backend.services.token_counter import get_token_counter, count_prompt_token
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_detections_by_ids
 from backend.services.prompt_parser import apply_suggestion_to_prompt
 from backend.services.inference_semaphore import get_inference_semaphore
-from backend.services.cost_tracker import get_cost_tracker
 from backend.services.audit_logger import audit_logger
 ```
 
@@ -2996,7 +2936,6 @@ Most services provide `reset_*()` functions for test isolation:
 - `reset_token_counter()`, `reset_clip_generator()`
 - `reset_inference_semaphore()`
 - `reset_ai_fallback_service()`, `reset_service_registry()`
-- `reset_cost_tracker()`
 
 ### Integration Test Patterns
 
