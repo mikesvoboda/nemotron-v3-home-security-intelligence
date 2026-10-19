@@ -305,7 +305,23 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   state the parsed-key rule without pinning a volatile count and line number.
   Size S; owner: backend.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false. Refuter verified all three claims false at the pin: the grep over the
+  12-file `TRACKED_COMPOSE_FILES` tuple (:264-294) yields exactly 7 lines (gb300.yml:43,
+  prod.yml:305 key, b14-real.yml:65, prodshape.yml :37/:161/:162 comments + :164 key);
+  prod.yml:283 at the pin is deploy.resources content with the key at :305, and was the
+  key at :283 in merge tree 3dab5c557; prodshape.yml:164 carries the exact key and
+  prodshape is enrolled in the tuple (:293). Escapes all fail: the prose is present
+  tense ("returns", "is still WRITTEN", "today") with no as-of frame; "this file set"
+  contextually means the tuple (class docstring :391 "every tracked compose file", both
+  loops iterate it), and even under a narrower gb300+prod reading the prod:283 cite is
+  stale at the pin; the executable tests parse service keys and still pass (comments
+  and exact key lines are skipped). Freshness: merge→pin blob diff (e330139e→06ece40d)
+  contains only [r243] marker additions; the prose lines are byte-identical between the
+  two trees — no later PR fixed them. Corrections: prod.yml:283 at the pin is `limits:`
+  ("memory: 10G" sits at :285) — both deploy.resources content, substance unchanged.
+  Sharper still: at the merge tree the grep over its own tuple already yielded 3 hits
+  (b14-real was enrolled at merge), so "two hits" was inconsistent with the file set
+  even at write time.
 
 ### Q-010 · claim · low · frontend/src/services/api.auth-seam.test.ts:20 · #6922
 - Wrong: the fixture comment cites the gate's 401 body as
