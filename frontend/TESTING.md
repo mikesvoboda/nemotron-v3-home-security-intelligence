@@ -145,14 +145,16 @@ shard data:
 
 | Metric     | Floor |
 | ---------- | ----- |
-| statements | 80    |
-| branches   | 74.6  |
-| functions  | 78.4  |
-| lines      | 80.9  |
+| statements | 79.6  |
+| branches   | 74.5  |
+| functions  | 77.3  |
+| lines      | 80.6  |
 
 These are **measured** values, not wish-values (R-1, WP2.3): the earlier
 declared 83/77/81/84 sat above every observed run, so they could never fail a
-build. Do not raise a floor without a measured run supporting it.
+build. Re-pinned by owner ruling 261 to run 39161827871's merged totals,
+rounded down to one decimal. Do not raise a floor without a measured run
+supporting it.
 
 ## Test Coverage
 
