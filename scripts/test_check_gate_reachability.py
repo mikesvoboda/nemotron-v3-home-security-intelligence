@@ -396,6 +396,32 @@ class TestFanInReplacesTheFakeJob(_CiYml):
             "carries a failed/cancelled shard to a red fan-in (and the WP0.6 walker's edge)"
         )
 
+    def test_the_merge_step_fails_on_every_bad_union_shape(self) -> None:
+        # The merge step's fail conditions, as string-presence pins on its run
+        # body (the same shape every other CI run-body pin here uses): the red
+        # shard path has its own test below (it is also the walker's edge), and
+        # these are the four remaining exits the [r264] package names — a shard
+        # label outside 1/4..4/4, a duplicate shard, one leg reporting two
+        # outcomes across shards, a reference leg missing from the union. A
+        # missing shard summary is covered by the same "no summary.json"
+        # literal as the label check's failure mode, so it pins by consequence.
+        fan_script = "\n".join(
+            step.get("run", "") for step in self.jobs[self.FAN_IN]["steps"] if step.get("run")
+        )
+        assert "is not one of" in fan_script, (
+            "the merge step no longer rejects a shard label outside 1/4..4/4"
+        )
+        assert "appears twice" in fan_script, "the merge step no longer rejects a duplicate shard"
+        assert "ran twice with different outcomes" in fan_script, (
+            "the merge step no longer rejects a leg reporting two outcomes across shards"
+        )
+        assert "missing from the shards' union" in fan_script, (
+            "the merge step no longer fails on a reference leg missing from the union"
+        )
+        assert "no summary.json for shard(s)" in fan_script, (
+            "the merge step no longer fails closed on a shard that uploaded nothing"
+        )
+
     def test_the_shards_are_reachable_from_the_gate(self) -> None:
         # Reachability is the production walker's own graph, not just the needs:
         # closure: a run-body `needs.X.result` read is an edge, and the fan-in's
