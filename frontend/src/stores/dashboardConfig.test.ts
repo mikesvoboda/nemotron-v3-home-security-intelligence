@@ -37,7 +37,7 @@ describe('dashboardConfig store', () => {
 
   describe('DEFAULT_CONFIG', () => {
     it('has expected default widgets', () => {
-      expect(DEFAULT_CONFIG.widgets).toHaveLength(7);
+      expect(DEFAULT_CONFIG.widgets).toHaveLength(6);
       expect(DEFAULT_CONFIG.version).toBe(1);
     });
 
@@ -51,13 +51,9 @@ describe('dashboardConfig store', () => {
       ]);
     });
 
-    it('has gpu-stats, pipeline-telemetry, and pipeline-queues hidden by default', () => {
+    it('has gpu-stats and pipeline-telemetry hidden by default (F-041 retired pipeline-queues)', () => {
       const hiddenWidgets = DEFAULT_CONFIG.widgets.filter((w) => !w.visible);
-      expect(hiddenWidgets.map((w) => w.id)).toEqual([
-        'gpu-stats',
-        'pipeline-telemetry',
-        'pipeline-queues',
-      ]);
+      expect(hiddenWidgets.map((w) => w.id)).toEqual(['gpu-stats', 'pipeline-telemetry']);
     });
 
     it('each widget has required properties', () => {
@@ -368,7 +364,6 @@ describe('dashboardConfig store', () => {
     it('returns false for hidden widgets', () => {
       expect(isWidgetVisible(DEFAULT_CONFIG, 'gpu-stats')).toBe(false);
       expect(isWidgetVisible(DEFAULT_CONFIG, 'pipeline-telemetry')).toBe(false);
-      expect(isWidgetVisible(DEFAULT_CONFIG, 'pipeline-queues')).toBe(false);
     });
 
     it('returns false for non-existent widgets', () => {
