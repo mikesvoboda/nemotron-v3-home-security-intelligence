@@ -142,11 +142,11 @@ import type {
   DetectionBulkCreateResponse,
   DetectionBulkUpdateItem,
 } from '../types/bulk';
-import type {
-  CostAnalyticsResponse,
-  CostTrendParams,
-  CostTrendResponse,
-} from '../types/costAnalytics';
+// CostAnalytics types retired in R2a row 45 (F-076):
+// - CostAnalyticsResponse
+// - CostTrendParams
+// - CostTrendResponse
+// (kept as 5-line tombstone comment so §5 declaration line anchors in api.ts stay stable)
 import type {
   ExportJob,
   ExportJobCreateParams,
@@ -8966,73 +8966,6 @@ export async function fetchReidSimilar(
     }
     throw error;
   }
-}
-
-// ============================================================================
-// Cost Analytics API (NEM-5024)
-// ============================================================================
-
-// Re-export cost analytics types for consumers of this module
-export type {
-  CostAnalyticsResponse,
-  CostTrendResponse,
-  CostTrendParams,
-  DailyCostEntry,
-  BudgetUtilization,
-  TokenUsageMetrics,
-  ModelCostBreakdown,
-  CostEfficiencyMetrics,
-  PricingConfig,
-  CostTrendDataPoint,
-} from '../types/costAnalytics';
-
-/**
- * Fetch comprehensive cost analytics data.
- *
- * Returns cost metrics including today's summary, budget utilization,
- * token usage, cost breakdowns by model, efficiency metrics, and
- * historical cost data.
- *
- * Part of NEM-5024 Phase 2: Cost Analytics Dashboard.
- *
- * @returns CostAnalyticsResponse with all cost metrics
- *
- * @example
- * ```typescript
- * const analytics = await fetchCostAnalytics();
- * console.log(`Today's cost: $${analytics.today.total_cost_usd.toFixed(4)}`);
- * console.log(`Monthly budget: ${(analytics.monthly_budget.utilization_ratio * 100).toFixed(1)}% used`);
- * ```
- */
-export async function fetchCostAnalytics(): Promise<CostAnalyticsResponse> {
-  return fetchApi<CostAnalyticsResponse>('/api/analytics/costs');
-}
-
-/**
- * Fetch cost trend data for a date range.
- *
- * Returns daily cost totals for the specified date range,
- * suitable for trend visualization in charts.
- *
- * Part of NEM-5024 Phase 2: Cost Analytics Dashboard.
- *
- * @param params - Date range parameters
- * @returns CostTrendResponse with daily cost data points
- *
- * @example
- * ```typescript
- * const endDate = new Date().toISOString().split('T')[0];
- * const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
- * const trends = await fetchCostTrends({ start_date: startDate, end_date: endDate });
- * console.log(`Total cost over period: $${trends.total_cost_usd.toFixed(4)}`);
- * ```
- */
-export async function fetchCostTrends(params: CostTrendParams): Promise<CostTrendResponse> {
-  const searchParams = new URLSearchParams();
-  searchParams.append('start_date', params.start_date);
-  searchParams.append('end_date', params.end_date);
-
-  return fetchApi<CostTrendResponse>(`/api/analytics/costs/trends?${searchParams.toString()}`);
 }
 
 // ============================================================================
