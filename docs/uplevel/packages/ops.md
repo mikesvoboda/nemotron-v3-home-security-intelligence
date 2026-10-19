@@ -660,7 +660,7 @@ judges the union of both shards' legs, and the PR posts the before-and-after wal
 ### [r239] The coordinator's heartbeat goes stale at 90 minutes
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` and `[r240]` (rulings 239, 240).
-**Depends on:** none. **PR:** none yet. (ruling 239, record 6217014151; ruling 245, record 6223117374)
+**Depends on:** none. **PR:** #7268. (ruling 239, record 6217014151; ruling 245, record 6223117374)
 
 The coordinator's loop fires every 30 minutes (`roles/coordinator.md`), and a tick may run 60, so a
 healthy coordinator's heartbeat can be about 90 minutes old. `scripts/uplevel/coordinator_snapshot.py:66`
