@@ -13,13 +13,12 @@
 #
 #     download_method != "skip"  AND  (hf_repo OR download_method)
 #
-# That rule yields 5 of the 10 catalogue entries and 763 MB of models.yml
+# That rule yields 3 of the 8 catalogue entries and 102 MB of models.yml
 # size_mb estimates — figures a reader can re-measure (parse models.yml, or
 # run backend/tests/unit/setup_lib/test_download_models_script_vlm_retirement.py,
 # which re-derives them and pins this script's fetch list to the rule).  The 5
-# excluded entries are the download_method: skip ones (face-detector-scrfd,
-# face-recognizer, fast-alpr, paddleocr, yolo26-general) — their libraries
-# fetch what they need at runtime.
+# excluded entries are the download_method: skip ones (qwen3-vl-8b-instruct,
+# qwen3-vl-8b-instruct-mmproj, face-detector-scrfd, face-recognizer, fast-alpr).
 #
 # R8 (slices S1-S3, 2026-09-29, ledger items 46-55) retired the ~32GB legacy
 # zoo this script used to provision: the Nemotron GGUF (the text-only LLM path
@@ -40,13 +39,11 @@
 # export_all.sh read model-zoo/yolo26/yolo26m.pt and
 # scripts/prebuild-tensorrt-engines.sh builds the TensorRT engine from it.
 #
-# Models fetched (5 entries, 763 MB by models.yml size_mb):
+# Models fetched (3 entries, 102 MB by models.yml size_mb):
 #   - YOLO26 n/s/m .pt - 67MB - object detection (gateway Triton export input)
 #   - OSNet-AIN x1.0 - 10MB - person re-ID (Triton `reid`; osnet_loader.py
 #       reads the short-name link this script creates)
 #   - Threat-Detection-YOLOv8n - 25MB - weapon detection (Triton `threat`)
-#   - YOLO11 face - 11MB - face detection on person crops
-#   - YOLO11 license-plate - 650MB - plate detection
 #
 # Deliberately NOT provisioned by anything in this repo: the shipped reasoning
 # engine's GGUF pair.  VLM_MODEL_PATH + VLM_MMPROJ_PATH (one identity — the
@@ -116,8 +113,6 @@ declare -A MODEL_CHECKSUMS=(
 # Leave empty to skip commit verification (Git LFS still provides integrity)
 declare -A HF_REPO_COMMITS=(
     ["Subh775/Threat-Detection-YOLOv8n"]=""
-    ["AdamCodd/YOLOv11n-face-detection"]=""
-    ["morsetechlab/yolov11-license-plate-detection"]=""
 )
 
 # ==========================================
@@ -397,8 +392,6 @@ download_file() {
 # a test instead of quietly over- or under-provisioning a deploy.
 HF_DOWNLOADS=(
     "threat-detection-yolov8n|Subh775/Threat-Detection-YOLOv8n|model-zoo/threat-detection-yolov8n|25"
-    "yolo11-face|AdamCodd/YOLOv11n-face-detection|model-zoo/yolo11-face-detection|11"
-    "yolo11-license-plate|morsetechlab/yolov11-license-plate-detection|model-zoo/yolo11-license-plate|650"
 )
 
 # 2 custom-method sections (yolo26, osnet) + the HF snapshot rows above.
@@ -478,15 +471,13 @@ echo "=========================================="
 echo ""
 echo "Models installed to: ${AI_MODELS_PATH}"
 echo ""
-echo "Directory structure (5 entries fetched, 763 MB by models.yml size_mb;"
+echo "Directory structure (3 entries fetched, 102 MB by models.yml size_mb;"
 echo "the rule selects exactly these — see the header re-derivation):"
 echo "  ${AI_MODELS_PATH}/"
 echo "  ├── model-zoo/"
 echo "  │   ├── yolo26/                        (Detection — n/s/m .pt; gateway export)"
 echo "  │   ├── osnet-ain-x1-0/                (Person Re-ID — Triton reid)"
-echo "  │   ├── threat-detection-yolov8n/      (Weapons — Triton threat)"
-echo "  │   ├── yolo11-face-detection/         (Faces)"
-echo "  │   └── yolo11-license-plate/          (License plates)"
+echo "  │   └── threat-detection-yolov8n/      (Weapons — Triton threat)"
 echo "  ├── triton/                            (TensorRT/ONNX engine cache)"
 echo "  └── quantized/                         (INT8 variants)"
 echo ""
@@ -498,19 +489,10 @@ echo "  is text-only and every vlm_assess call degrades silently) under:"
 echo "    ${AI_MODELS_PATH}/vlm/"
 echo "  which compose mounts read-only into ai-vlm at /models. ai-vlm starts"
 echo "  with the stack:    podman compose -f docker-compose.prod.yml up -d ai-vlm"
-echo "  (The opt-in --profile vllm benchmarking harness is separate: it wants"
-echo "  HF-format models under ${AI_MODELS_PATH}/huggingface.)"
 echo ""
-echo "Not downloaded (models.yml download_method: skip — their library fetches"
-echo "them at runtime, so the download rule excludes them):"
+echo "Not downloaded (models.yml download_method: skip):"
 echo "  - face-detector-scrfd, face-recognizer (insightface/onnxruntime),"
-echo "    fast-alpr (ONNX auto-download), paddleocr"
-echo "  - yolo26-general (weights not released yet — models.yml comment)"
-echo ""
-echo "Note: \`enabled\` in models.yml governs backend model_zoo VRAM slots, not"
-echo "disk provisioning — yolo26 and yolo26-general are enabled: false; yolo26"
-echo "is still downloaded here because the gateway export/TensorRT-prebuild"
-echo "path reads its .pt files off disk."
+echo "    fast-alpr (ONNX auto-download)"
 echo ""
 echo "Security verification:"
 echo "  - Direct downloads: SHA256 checksum verification"

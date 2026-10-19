@@ -9,7 +9,7 @@
 # Field reference:
 #   name            Canonical identifier. Matches model_zoo dict key for backend models.
 #   description     Human-readable summary.
-#   service         Which service(s) load this model: backend | ai-gateway | ai-llm | both
+#   service         Which service(s) load this model: backend | ai-gateway | ai-vlm | both
 #   hf_repo         HuggingFace repo ID. Empty string or null if using custom download.
 #   local_path      Path relative to AI_MODELS_PATH. null for library/HF-cache models.
 #   size_mb         Estimated download size in MB.
@@ -81,22 +81,60 @@ models:
   # ===========================================================
 
   - name: yolo26
-    description: 'YOLO26 primary object detection (n/s/m variants) — backend calls via HTTP'
-    service: backend
+    description: 'YOLO26 primary object detection (n/s/m variants) — served by ai-gateway Triton'
+    service: ai-gateway
     hf_repo: ''
     local_path: model-zoo/yolo26
+    runtime_file: yolo26m.pt
+    sha256: 401cea9ab23ad19246ff7744859816bc599f350e93c9dd30367b6f0a0745d0b7 # pragma: allowlist secret
     size_mb: 67
     download_phase: 0
     required: true
     download_method: yolo26
     category: detection
-    vram_mb: 0
-    enabled: false
-    priority: medium
+    vram_mb: 100
+    enabled: true
+    priority: critical
     preload: false
     never_evict: false
     triton_name: yolo26
     triton_kind: KIND_GPU
+
+  - name: qwen3-vl-8b-instruct
+    description: 'Qwen3-VL-8B-Instruct vision-language verdict model (Q4_K_M GGUF, ~5.03 GB; M2 pick, ledger item 35)'
+    service: ai-vlm
+    hf_repo: Qwen/Qwen3-VL-8B-Instruct-GGUF
+    local_path: vlm
+    runtime_file: Qwen3VL-8B-Instruct-Q4_K_M.gguf
+    sha256: 67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2 # pragma: allowlist secret
+    size_mb: 4795
+    download_phase: 0
+    required: true
+    download_method: skip
+    category: vision-language
+    vram_mb: 5000
+    enabled: true
+    priority: critical
+    preload: false
+    never_evict: false
+
+  - name: qwen3-vl-8b-instruct-mmproj
+    description: 'Qwen3-VL-8B-Instruct multimodal projector (Q8_0 GGUF, ~752 MB; paired with qwen3-vl-8b-instruct)'
+    service: ai-vlm
+    hf_repo: Qwen/Qwen3-VL-8B-Instruct-GGUF
+    local_path: vlm
+    runtime_file: mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
+    sha256: c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd # pragma: allowlist secret
+    size_mb: 717
+    download_phase: 0
+    required: true
+    download_method: skip
+    category: vision-language
+    vram_mb: 717
+    enabled: true
+    priority: critical
+    preload: false
+    never_evict: false
 
   # ===========================================================
   # PHASE 1 — CORE ENRICHMENT (ai-gateway primary models)
@@ -193,9 +231,10 @@ models:
 
   - name: threat-detection-yolov8n
     description: 'YOLOv8n threat/weapon detection (knives, guns, bats)'
-    service: both
+    service: ai-gateway
     hf_repo: Subh775/Threat-Detection-YOLOv8n
     local_path: model-zoo/threat-detection-yolov8n
+    runtime_file: weights/best.pt
     size_mb: 25
     download_phase: 1
     required: false
@@ -207,46 +246,6 @@ models:
     never_evict: false
     triton_name: threat
     triton_kind: KIND_GPU
-
-  # ===========================================================
-  # PHASE 2 — DEMOGRAPHICS AND ACTION RECOGNITION
-  # ===========================================================
-
-  # ===========================================================
-  # PHASE 3 — SPECIALIZED BACKEND + ADDITIONAL MODELS
-  # ===========================================================
-
-  - name: yolo11-face
-    description: 'YOLO11n face detection on person crops'
-    service: both
-    hf_repo: AdamCodd/YOLOv11n-face-detection
-    local_path: model-zoo/yolo11-face-detection
-    size_mb: 11
-    download_phase: 3
-    required: false
-    category: detection
-    vram_mb: 200
-    enabled: true
-    priority: medium
-    preload: false
-    never_evict: false
-    runtime_file: model.pt
-
-  - name: yolo11-license-plate
-    description: 'YOLO11n license plate detection (multiple model variants)'
-    service: both
-    hf_repo: morsetechlab/yolov11-license-plate-detection
-    local_path: model-zoo/yolo11-license-plate
-    size_mb: 650
-    download_phase: 3
-    required: false
-    category: detection
-    vram_mb: 300
-    enabled: true
-    priority: medium
-    preload: false
-    never_evict: false
-    runtime_file: license-plate-finetune-v1n.pt
 
   # ===========================================================
   # LIBRARY / SPECIAL — no HF download, auto-managed by library
@@ -268,40 +267,3 @@ models:
     preload: false
     never_evict: false
     runtime_path: fast-alpr
-
-  - name: paddleocr
-    description: 'PaddleOCR text recognition (superseded by fast-alpr for license plates)'
-    service: backend
-    hf_repo: null
-    local_path: model-zoo/paddleocr
-    size_mb: 100
-    download_phase: 3
-    required: false
-    download_method: skip
-    category: ocr
-    vram_mb: 100
-    enabled: true
-    priority: medium
-    preload: false
-    never_evict: false
-
-  # ===========================================================
-  # DISABLED / FUTURE
-  # ===========================================================
-
-  - name: yolo26-general
-    description: 'YOLO26 general detection via ultralytics (future release, TBD)'
-    service: backend
-    hf_repo: null
-    local_path: null
-    size_mb: 400
-    download_phase: 3
-    required: false
-    download_method: skip
-    category: detection
-    vram_mb: 400
-    enabled: false
-    priority: medium
-    preload: false
-    never_evict: false
-    runtime_path: 'ultralytics/yolo26'

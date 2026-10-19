@@ -68,11 +68,6 @@ PIPELINE_MODE=vlm
 GATEWAY_MODEL_SET=vlm
 CUDA_ARCHITECTURES=86
 GPU_LLM=0
-GPU_FLORENCE=0
-GPU_YOLO26=0
-GPU_CLIP=0
-GPU_ENRICHMENT=0
-GPU_ENRICHMENT_LIGHT=0
 GPU_AI_SERVICES=0
 VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf
 VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
@@ -180,7 +175,9 @@ class TestGpuAssignment:
         env = _write(
             tmp_path,
             "dual.env",
-            GREEN_ENV.replace("GPU_YOLO26=0", "GPU_YOLO26=1").replace("GPU_CLIP=0", "GPU_CLIP=2"),
+            GREEN_ENV.replace("GPU_LLM=0", "GPU_LLM=1").replace(
+                "GPU_AI_SERVICES=0", "GPU_AI_SERVICES=2"
+            ),
         )
         checks = run_precheck(
             env_path=env,
@@ -189,8 +186,9 @@ class TestGpuAssignment:
         )
         c = _by_id(checks)["gpu_assignment"]
         assert c.verdict == FAIL
-        assert "GPU_YOLO26=1" in c.detail
-        assert "GPU_CLIP=2" in c.detail
+        assert "GPU_LLM=1" in c.detail
+        assert "GPU_AI_SERVICES=2" in c.detail
+        assert REQUIRED_GPU_VARS == ("GPU_LLM", "GPU_AI_SERVICES")
 
     def test_missing_required_var_named(self, tmp_path: Path) -> None:
         env = _write(tmp_path, "thin.env", "CUDA_ARCHITECTURES=86\nGPU_LLM=0\n")
