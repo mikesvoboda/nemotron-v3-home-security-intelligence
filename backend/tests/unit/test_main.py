@@ -658,3 +658,17 @@ class TestSecureCookieLoginLoopWarning:
 
         src = Path("backend/main.py").read_text()
         assert "_warn_if_secure_cookie_loops_login(settings)" in src
+
+    def test_retired_f114_background_evaluator_absent(self) -> None:
+        """R2a row 28 (F-114): BackgroundEvaluator and EvaluationQueue are retired."""
+        from pathlib import Path
+
+        import backend.main as main_mod
+        import backend.services as services_mod
+
+        assert not hasattr(main_mod, "BackgroundEvaluator")
+        assert not hasattr(main_mod, "get_evaluation_queue")
+        assert not hasattr(services_mod, "BackgroundEvaluator")
+        assert not hasattr(services_mod, "EvaluationQueue")
+        assert not Path("backend/services/background_evaluator.py").exists()
+        assert not Path("backend/services/evaluation_queue.py").exists()

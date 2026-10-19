@@ -168,11 +168,6 @@ def sync_client_for_broadcast(integration_env):
     mock_health_registry.register_performance_collector = MagicMock()
     mock_container.get = MagicMock(return_value=mock_health_registry)
 
-    # Mock BackgroundEvaluator (NEM-2467)
-    mock_background_evaluator = MagicMock()
-    mock_background_evaluator.start = AsyncMock()
-    mock_background_evaluator.stop = AsyncMock()
-
     # Mock ContainerOrchestrator
     mock_container_orchestrator = MagicMock()
     mock_container_orchestrator.start = AsyncMock()
@@ -263,15 +258,6 @@ def sync_client_for_broadcast(integration_env):
                 return_value=mock_performance_collector,
             )
         )
-        stack.enter_context(
-            patch(
-                "backend.main.BackgroundEvaluator",
-                autospec=True,
-                return_value=mock_background_evaluator,
-            )
-        )
-        stack.enter_context(patch("backend.main.get_evaluation_queue", MagicMock()))
-        stack.enter_context(patch("backend.main.get_audit_service", MagicMock()))
         stack.enter_context(
             patch(
                 "backend.main.ContainerOrchestrator",

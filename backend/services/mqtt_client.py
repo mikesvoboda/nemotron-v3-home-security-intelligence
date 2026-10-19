@@ -626,7 +626,7 @@ class MQTTClient:
             # R-T9-MQTTPUMP: start the message pump (once) so registered
             # callbacks actually fire — the _message_task slot and the
             # disconnect() cancel-path existed from the start but nothing
-            # ever spawned the task. Pattern: background_evaluator.py:507.
+            # ever spawned the task.
             if self._message_task is None:
                 self._message_task = asyncio.create_task(
                     self._message_processing_loop(), name="mqtt-message-pump"

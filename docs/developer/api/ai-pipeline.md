@@ -106,7 +106,7 @@ _State machine showing batch lifecycle from creation through collection to closu
 
 ## AI Audit
 
-The AI audit system provides transparency into model decision-making, prompt management, and self-evaluation capabilities for security and compliance. Audit rows live in the `event_audits` table (`backend/models/event_audit.py`). The analysis run itself does not write audit rows: a row is created when you trigger an audit (`POST /api/ai-audit/batch`, or the per-event routes below), or by the background evaluator when it runs while the GPU is idle (`backend/services/background_evaluator.py`). Self-evaluation makes four completion calls to `ai-vlm` per event, so a fresh install with no audits yet shows `0%` coverage — `GET /api/ai-audit/stats` carries a `message` saying so.
+The AI audit system provides transparency into model decision-making, prompt management, and self-evaluation capabilities for security and compliance. Audit rows live in the `event_audits` table (`backend/models/event_audit.py`). The analysis run itself does not write audit rows: a row is created when you trigger an audit (`POST /api/ai-audit/batch`, or the per-event routes below). Self-evaluation makes four completion calls to `ai-vlm` per event, so a fresh install with no audits yet shows `0%` coverage — `GET /api/ai-audit/stats` carries a `message` saying so.
 
 ### AI Audit Workflow
 
