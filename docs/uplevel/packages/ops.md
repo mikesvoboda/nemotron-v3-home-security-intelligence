@@ -628,7 +628,7 @@ posted on the PR.
 ### [r240] The fake-AI golden leg runs as two shards
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]`, ahead of `[r239]` (ruling 240).
-**Depends on:** none. **PR:** none yet. (ruling 240, record 6217450751)
+**Depends on:** none. **PR:** #7267. (ruling 240, record 6217450751)
 
 `Feature check (fake AI)` gates every PR and took 32 to 47 minutes in the last 30 completed CI runs.
 On `main`'s run `38906420530` the harness step took 39m09s, and its golden Playwright leg took 36.0
