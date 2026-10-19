@@ -7,7 +7,6 @@ import CameraGrid, { type CameraStatus } from './CameraGrid';
 import DashboardLayout from './DashboardLayout';
 import { ExpandableDetailPanel } from './ExpandableDetailPanel';
 import GpuStats from './GpuStats';
-import PipelineQueues from './PipelineQueues';
 import PipelineTelemetry from './PipelineTelemetry';
 import RiskDistributionChart from './RiskDistributionChart';
 import StatsRow from './StatsRow';
@@ -544,11 +543,6 @@ export default function DashboardPage() {
             queueWarningThreshold: 10,
             latencyWarningThreshold: 10000,
           },
-          pipelineQueues: {
-            detectionQueue: 0, // Would come from telemetry API
-            analysisQueue: 0, // Would come from telemetry API
-            warningThreshold: 10,
-          },
         }}
         renderStatsRow={(props) => (
           <>
@@ -636,16 +630,6 @@ export default function DashboardPage() {
               pollingInterval={props.pollingInterval}
               queueWarningThreshold={props.queueWarningThreshold}
               latencyWarningThreshold={props.latencyWarningThreshold}
-            />
-          ) : null
-        }
-        renderPipelineQueues={(props) =>
-          props ? (
-            <PipelineQueues
-              detectionQueue={props.detectionQueue}
-              analysisQueue={props.analysisQueue}
-              warningThreshold={props.warningThreshold}
-              className={props.className}
             />
           ) : null
         }
