@@ -143,10 +143,6 @@ class FeatureSettings(BaseModel):
     Controls which AI processing features are active in the detection pipeline.
     """
 
-    vision_extraction_enabled: bool = Field(
-        ...,
-        description="Enable Florence-2 vision extraction for vehicle/person attributes",
-    )
     reid_enabled: bool = Field(
         ...,
         description="Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras",
@@ -159,10 +155,6 @@ class FeatureSettings(BaseModel):
         ...,
         description="Enable automatic clip generation for events",
     )
-    image_quality_enabled: bool = Field(
-        ...,
-        description="Enable BRISQUE image quality assessment (CPU-based)",
-    )
     background_eval_enabled: bool = Field(
         ...,
         description="Enable automatic background AI audit evaluation when GPU is idle",
@@ -171,11 +163,9 @@ class FeatureSettings(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "vision_extraction_enabled": True,
                 "reid_enabled": True,
                 "scene_change_enabled": True,
                 "clip_generation_enabled": True,
-                "image_quality_enabled": True,
                 "background_eval_enabled": True,
             }
         }
@@ -352,11 +342,9 @@ class SettingsResponse(BaseModel):
                     "high_max": 84,
                 },
                 "features": {
-                    "vision_extraction_enabled": True,
                     "reid_enabled": True,
                     "scene_change_enabled": True,
                     "clip_generation_enabled": True,
-                    "image_quality_enabled": True,
                     "background_eval_enabled": True,
                 },
                 "rate_limiting": {
@@ -533,10 +521,6 @@ class FeatureSettingsUpdate(BaseModel):
     Used for PATCH /api/v1/settings to partially update feature toggles.
     """
 
-    vision_extraction_enabled: bool | None = Field(
-        None,
-        description="Enable Florence-2 vision extraction for vehicle/person attributes",
-    )
     reid_enabled: bool | None = Field(
         None,
         description="Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras",
@@ -548,10 +532,6 @@ class FeatureSettingsUpdate(BaseModel):
     clip_generation_enabled: bool | None = Field(
         None,
         description="Enable automatic clip generation for events",
-    )
-    image_quality_enabled: bool | None = Field(
-        None,
-        description="Enable BRISQUE image quality assessment (CPU-based)",
     )
     background_eval_enabled: bool | None = Field(
         None,

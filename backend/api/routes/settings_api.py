@@ -53,11 +53,9 @@ SETTINGS_ENV_MAP: dict[str, dict[str, str]] = {
         "high_max": "SEVERITY_HIGH_MAX",
     },
     "features": {
-        "vision_extraction_enabled": "VISION_EXTRACTION_ENABLED",
         "reid_enabled": "REID_ENABLED",
         "scene_change_enabled": "SCENE_CHANGE_ENABLED",
         "clip_generation_enabled": "CLIP_GENERATION_ENABLED",
-        "image_quality_enabled": "IMAGE_QUALITY_ENABLED",
         "background_eval_enabled": "BACKGROUND_EVALUATION_ENABLED",
     },
     "rate_limiting": {
@@ -126,11 +124,9 @@ async def get_user_settings() -> SettingsResponse:
             high_max=settings.severity_high_max,
         ),
         features=FeatureSettings(
-            vision_extraction_enabled=settings.vision_extraction_enabled,
             reid_enabled=settings.reid_enabled,
             scene_change_enabled=settings.scene_change_enabled,
             clip_generation_enabled=settings.clip_generation_enabled,
-            image_quality_enabled=settings.image_quality_enabled,
             background_eval_enabled=settings.background_evaluation_enabled,
         ),
         rate_limiting=RateLimitingSettings(

@@ -136,7 +136,7 @@ same way after the owner's `R2b` session.
 
 **Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266.
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270.
 
 Lands in the same PR as `B3.1`, one R2a row per PR (ruling 255; `B3.1` states the rule), starting
 with OD-20's enrichment surface.
