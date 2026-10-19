@@ -1918,6 +1918,7 @@ class Run:
         mode: str,
         prod_shape: bool = False,
         seeded: bool = False,
+        shard: tuple[int, int] | None = None,
     ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
@@ -1925,6 +1926,10 @@ class Run:
         self.mode = mode
         self.prod_shape = prod_shape
         self.seeded = seeded
+        # [r264] The golden leg's shard, as (i, N) with 1 <= i <= N. None is the
+        # unsharded run -- every existing caller and pin passes no shard, and
+        # None must leave every byte of the leg's argv and record unchanged.
+        self.shard = shard
         # A run record that does not say WHICH compose shape was rendered cannot
         # witness ruling 127's 12 real-tier rows, which is the whole point of the
         # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
@@ -1951,6 +1956,11 @@ class Run:
             "image_tag": image_tag,
             "results": {},
         }
+        if shard is not None:
+            # [r264] A sharded run's record names its shard, so a merged
+            # inventory judgment (and the MEASURE table) can say what each run
+            # was. Absent when unset, so today's records byte-match today's.
+            self.summary["shard"] = f"{shard[0]}/{shard[1]}"
         self.started = False
 
     # -- processes -----------------------------------------------------------
@@ -2643,7 +2653,16 @@ class Run:
         problems = []
         results: dict[str, Any] = {}
         project_name = "golden-seeded" if self.seeded else "golden"
-        if not self.seeded and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
+        # [r264] Sharded CI runs the backend golden tests ONCE, in shard 1 (the
+        # package's Build box). A shard i>1 records the skip instead of running
+        # it, the same record shape the seeded branch below writes, so the
+        # merged summary the fan-in builds carries one backend leg set while
+        # every shard's record still says what IT ran. The skip branch makes no
+        # report, so it calls neither junit_results nor golden_execution_problems
+        # -- nothing to judge: the leg's verdict lives in shard 1's summary,
+        # whose own in-run call already covered the execution-problems check.
+        runs_backend = self.shard is None or self.shard[0] == 1
+        if not self.seeded and runs_backend and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
             junit = self.artifacts / "golden-backend.xml"
             result = self._run(
                 [
@@ -2669,6 +2688,9 @@ class Run:
             problems += golden_execution_problems("backend", results["backend_specs"])
         elif self.seeded:
             results["backend"] = "skipped on seeded"
+        elif not runs_backend:
+            i, total = self.shard  # type: ignore[misc]
+            results["backend"] = f"skipped on shard {i}/{total}"
         else:
             results["backend"] = "no specs yet"
         if PLAYWRIGHT_CONFIG.exists() and re.search(
@@ -2795,17 +2817,23 @@ class Run:
             # enforced at the place ruling 143 moved the leg to. With a real
             # install the flag is inert -- same tree, mounted :ro, it printed
             # "Version 1.63.0".
-            inner = " ".join(
-                [
-                    "npx",
-                    "--no-install",
-                    "playwright",
-                    "test",
-                    f"--project={project_name}",
-                    shlex.quote(f"--output={report}"),
-                    "--reporter=list,junit",
-                ]
-            )
+            inner_parts = [
+                "npx",
+                "--no-install",
+                "playwright",
+                "test",
+                f"--project={project_name}",
+                shlex.quote(f"--output={report}"),
+                "--reporter=list,junit",
+            ]
+            if self.shard is not None:
+                # [r264] Playwright's own shard selector: shard i of N. The
+                # worker count stays 1 and the project stays serial inside the
+                # shard -- the parallelism the package buys is across shards,
+                # each on its own stack, never within one.
+                i, total = self.shard
+                inner_parts.append(f"--shard={i}/{total}")
+            inner = " ".join(inner_parts)
             result = self._run(
                 golden_container_command(
                     engine=self.engine,
@@ -3338,6 +3366,7 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         mode=mode,
         prod_shape=args.prod_shape,
         seeded=seeded,
+        shard=getattr(args, "shard", None),
     )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
@@ -3496,6 +3525,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=Path(os.environ.get("FEATURE_CHECK_ROOT", Path("/tmp") / "hsi-feature-check")),  # noqa: S108
         help="where run directories go (default: $FEATURE_CHECK_ROOT or /tmp/hsi-feature-check)",
     )
+    parser.add_argument(
+        "--shard",
+        type=str,
+        default=os.environ.get("FEATURE_CHECK_SHARD", ""),
+        help="[r264] run only shard I of N of the golden Playwright project, as `--shard I/N` "
+        "(default: $FEATURE_CHECK_SHARD or unset -- the whole suite, unsharded). CI-only: "
+        "every shard boots its own stack under its own compose project; the real tier and "
+        "the maui run keep the whole suite on one stack (ruling 264 item 5).",
+    )
     drop_parser = sub.add_parser("drop", help="drop an image into a camera folder of a run")
     drop_parser.add_argument("image", type=Path)
     drop_parser.add_argument("camera")
@@ -3523,6 +3561,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         # What stays refused is `--seeded --prod-shape`, ruled above: production never runs
         # DEBUG=true. `--fake --seeded` is byte-for-byte the command the CI leg runs.
         parser.error("--seeded needs --fake or --real (it is a boot shape, not a mode)")
+
     if args.fake and args.prod_shape:
         # "The CI stack in the shape of prod" has no referent: --fake renders
         # docker-compose.ci.yml and the prod shape renders docker-compose.prod.yml,
@@ -3540,6 +3579,34 @@ def main(argv: Sequence[str] | None = None) -> int:
         # the shape it must keep open: a bare call with no mode and no shape has no
         # referent, while `--prod-shape` alone stays the maui run's form.
         parser.error("choose --fake or --real (or --prod-shape for the maui run)")
+    # [r264] The shard flag is the CI fake tier's own option (it exists to split
+    # that tier's golden leg across stacks). A real-tier or prod-shape run that
+    # took a shard would witness the real tier on a partial suite while its run
+    # record said `shard` -- exactly the silent-coverage-hole shape ruling 114
+    # exists for -- so it refuses at parse time, like every other shape
+    # mismatch above. `args.shard` is normalized here, once: a tuple when a
+    # shard was named, None when not (the empty-string env default must not
+    # reach Run -- its summary key check is `is not None`).
+    if args.shard:
+        match = re.fullmatch(r"(\d+)/(\d+)", args.shard.strip())
+        if not match:
+            parser.error(
+                f"--shard takes `I/N` with 1 <= I <= N (e.g. `--shard 2/3`), got {args.shard!r}"
+            )
+        shard_i, shard_n = int(match[1]), int(match[2])
+        if not (1 <= shard_i <= shard_n):
+            parser.error(
+                f"--shard takes `I/N` with 1 <= I <= N (e.g. `--shard 2/3`), got {args.shard!r}"
+            )
+        args.shard = (shard_i, shard_n)
+    else:
+        args.shard = None
+    if args.shard and (args.real or args.prod_shape):
+        parser.error(
+            "--shard is the CI fake tier's option (--fake only): the real tier and the "
+            "prod-shape run keep the whole suite on one stack (ruling 264 item 5)"
+        )
+
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:

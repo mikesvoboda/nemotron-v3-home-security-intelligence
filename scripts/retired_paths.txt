@@ -117,3 +117,13 @@ docs/plans/image-revalidation-realtime-system.md
 docs/plans/image-revalidation-resilience-patterns.md
 docs/plans/image-revalidation-system-overview.md
 docs/plans/image-revalidation-testing.md
+
+# [r264] (ruling 264, record 6257854715, PR #7264) the shard-measure workflow
+# was the MEASURE box's instrument -- it ran the N=2/3/4 + reference shapes on
+# the claim branch (runs 39190299978/39193472495/39202004102) and retired the
+# moment the Build box landed: the shape it picked is now ci.yml's
+# feature-check-shards + feature-check-fan-in. Push-only trigger on the claim
+# branch, so it never joined the pull_request fleet (the draft-guards pin's
+# count is untouched). No declared alias: "shard measure" prose lives in the
+# inventory/plans history and a derived stem would flag it.
+.github/workflows/feature-check-shard-measure.yml
