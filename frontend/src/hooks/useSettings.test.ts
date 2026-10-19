@@ -15,18 +15,15 @@ describe('useSettings', () => {
   });
 
   describe('initialization', () => {
-    it('initializes with default settings when localStorage is empty', () => {
+    it('initializes with default settings when localStorage is empty without retired audio/desktop fields (F-239)', () => {
       const { result } = renderHook(() => useSettings());
 
       expect(result.current.ambientEnabled).toBe(DEFAULT_SETTINGS.ambientStatus.ambient.enabled);
-      expect(result.current.audioEnabled).toBe(DEFAULT_SETTINGS.ambientStatus.audio.enabled);
-      expect(result.current.audioVolume).toBe(DEFAULT_SETTINGS.ambientStatus.audio.volume);
-      expect(result.current.desktopNotificationsEnabled).toBe(
-        DEFAULT_SETTINGS.ambientStatus.desktopNotifications.enabled
-      );
       expect(result.current.faviconBadgeEnabled).toBe(
         DEFAULT_SETTINGS.ambientStatus.favicon.enabled
       );
+      expect('audioEnabled' in result.current).toBe(false);
+      expect('desktopNotificationsEnabled' in result.current).toBe(false);
     });
 
     it('loads settings from localStorage', () => {

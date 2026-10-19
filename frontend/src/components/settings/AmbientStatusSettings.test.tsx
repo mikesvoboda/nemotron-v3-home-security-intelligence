@@ -70,14 +70,15 @@ describe('AmbientStatusSettings', () => {
   });
 
   describe('rendering', () => {
-    it('renders all setting sections', () => {
+    it('renders ambient background and favicon badge sections without retired audio/desktop sections (F-239)', () => {
       render(<AmbientStatusSettings />);
 
       expect(screen.getByText('Ambient Status Awareness')).toBeInTheDocument();
       expect(screen.getByText('Ambient Background')).toBeInTheDocument();
-      expect(screen.getByText('Audio Alerts')).toBeInTheDocument();
-      expect(screen.getByText('Desktop Notifications')).toBeInTheDocument();
       expect(screen.getByText('Favicon Badge')).toBeInTheDocument();
+      expect(screen.queryByText('Audio Alerts')).not.toBeInTheDocument();
+      expect(screen.queryByText('Desktop Notifications')).not.toBeInTheDocument();
+      expect(screen.queryByText('Suppress when focused')).not.toBeInTheDocument();
     });
 
     it('renders enable/disable all buttons', () => {
