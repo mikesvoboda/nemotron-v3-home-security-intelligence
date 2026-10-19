@@ -498,11 +498,12 @@ describe('AIAuditPage new features', () => {
     vi.clearAllMocks();
   });
 
-  it('renders model contribution chart section', async () => {
+  it('does not render retired model contribution chart section (F-107)', async () => {
     renderWithRouter();
     await waitFor(() => {
-      expect(screen.getByTestId('model-contribution-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('quality-score-trends')).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('model-contribution-chart')).not.toBeInTheDocument();
   });
 
   it('displays empty state when no data available', async () => {
