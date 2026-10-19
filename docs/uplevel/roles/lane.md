@@ -192,7 +192,7 @@ Read rules.md §Claiming and assigning work first.
 3. **Check** that nobody holds it: `gh pr list --state open --search "[<package>] in:title"`.
 4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from
    `main`, commit nothing but an empty commit (`git commit --allow-empty -m "[<package>] claim"`),
-   push it, and open a draft PR titled `[<package>] <name>` with
+   push it (UR-184), and open a draft PR titled `[<package>] <name>` with
    `gh pr create --draft --template uplevel.md --label lane:<lane>`. Then write the PR's number
    into the package block's `**PR:**` field in the PR's own diff, as `#N` with no state word
    (UR-183).

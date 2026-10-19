@@ -131,7 +131,8 @@ Read this section before you take, claim, assign, park or release a package.
 Read this section while you write a package's code, tests, docs and PR.
 
 - **UR-69** The rules in the root `AGENTS.md` apply unchanged: TDD (write the failing test first),
-  hooks never bypassed, podman, ports from `.env`, coverage floors never lowered. (the deleted
+  hooks never bypassed (the `SKIP` UR-184 sets is not a bypass), podman, ports from `.env`, coverage
+  floors never lowered. (the deleted
   README section "Read this first"; lane kickoff prompts)
 - **UR-70** Read the `00-audit.md` sections your package cites and re-measure any **[A]** number
   before acting on it. Read `01-mutation-policy.md` whenever your package deletes, merges or writes
@@ -432,17 +433,26 @@ Read this section before you change a workflow, a CI job, a hook or the gate.
   its reason and ruled by the owner; the four hooks ruling 39 (item E) excluded from the gate's hook
   stage stay out of it, with the suppression census delegating to `check-mock-spec`. (UR-37;
   ruling 39)
-- **UR-184** Before each push, an agent that pushes commits runs what the gate would otherwise
-  catch first: `pre-commit run --from-ref origin/main --to-ref HEAD` (CI's own command), with
-  `git status --porcelain` empty after it; the suppression census
-  (`scripts/suppression-census.py --expect` the baseline); `scripts/ratchet-check.py`; and the
-  pytest command of `ci.yml`'s step "Run the anti-rot gates' own tests". A failure counts when the
-  branch adds it: run the same command on `origin/main` in the same workspace for comparison. Each
-  sandbox installs `pre-commit` and its pre-push git hook once, with `SKIP=auto-rebase` exported in
-  the sandbox's persistent environment (that hook rewrites branches, and a rewrite resets approvals,
-  UR-106) and `hadolint` added to `SKIP` where it is not installed. A push never uses
-  `--no-verify`; a hook the sandbox cannot run goes on the heartbeat's BLOCKER line for the owner.
-  (ruling 265)
+- **UR-184** Every agent that pushes commits, except the coordinator, checks before each push what
+  the gate would otherwise catch first (ruling 265):
+  - **Once per sandbox, on its next tick:** `uv tool install pre-commit`, then
+    `pre-commit install --hook-type pre-push`, and `export SKIP=auto-rebase` in the sandbox's
+    persistent environment file (`/etc/sandbox-persistent.sh`): that push hook rewrites branches,
+    and a rewrite resets approvals (UR-106). Where `hadolint` is not installed, `SKIP` also names
+    `hadolint`. A one-off `SKIP=…` on a command keeps `auto-rebase` in its list. The push-stage
+    hooks need the clone's `.venv` (`uv sync`) and `frontend/node_modules` (`npm ci`). The
+    installed hook belongs to the sandbox: nobody pushes from that clone on the host.
+  - **Before each push:** `pre-commit run --from-ref origin/main --to-ref HEAD` (CI's own command),
+    then commit any rewrite the hooks make, so `git status --porcelain` is empty (owner ruling 24
+    (c)); `uv run python scripts/suppression-census.py --expect
+"$(cat .github/suppression-baseline.json)"`; `uv run python scripts/ratchet-check.py`; and the
+    pytest command of `ci.yml`'s step "Run the anti-rot gates' own tests". A failure counts when the
+    branch adds it: run the same command on `origin/main` in the same workspace to compare.
+  - **The push** runs the push-stage hooks through the installed git hook, among them the fast test
+    tier (`scripts/pre-push-tests.sh`, about 7 minutes at p50, budget 900 s). Run the push in the
+    background, as work and not a wait (UR-38); on a budget hit, `FAST_PREPUSH_BUDGET=<seconds>` may
+    raise it. A failing hook is fixed, never bypassed: no `--no-verify`, and only the owner adds a
+    hook to `SKIP`. A hook the sandbox cannot run goes on the heartbeat's BLOCKER line.
 - **UR-121** In a shared job of `.github/workflows/ci.yml`, the only allowed edit is appending a
   single entry, such as one test-script path, to an existing list in a step. Anything else (a new
   step, new logic, or a changed flag, condition or command) goes in its own job or its own workflow
