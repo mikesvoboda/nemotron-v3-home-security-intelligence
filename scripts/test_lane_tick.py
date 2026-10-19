@@ -1528,6 +1528,32 @@ def test_an_open_review_finding_still_offers_no_package():
     assert "next claimable" not in out
 
 
+def test_an_approval_naming_no_sha_is_not_waiting_its_turn():
+    # Item 1(a) needs a head the approval names: with no sha on it, nothing can judge the review
+    # ("no head" in at_head's words), so the offer must not rest on it. The author posts it again
+    # with the head's sha, the same repair review_marker's marker asks for.
+    no_sha = APPROVE.replace(MINE2_HEAD[:9], MY_HEAD[:9]).replace(f" `{MY_HEAD[:9]}`", "")
+    out = text(**waiting(), pr_comments={7164: [held_review(83, no_sha)]})
+    assert "next claimable" not in out
+
+
+def test_a_waiting_pr_titling_no_block_in_the_file_offers_the_plain_way():
+    # The stale-file race: an open package PR whose block is missing from the lane's package file
+    # holds NOTHING by held_claims' measured reading (the file defines holds), so a waiting PR
+    # there takes the plain UR-52 offer -- no "holding open claim" line (the mutant this kills
+    # printed one with empty names), and the offer line names no ruling, because no exception
+    # applies. [r151] is the live shape: its claim PR merged, its block left ops.md.
+    ready151 = dict(
+        prs=[pr(7158, labels=["lane:ops", "cell:b"], head=MINE2_HEAD, draft=False, title=MINE2,
+                merge="BLOCKED", rollup=[gate(), job()])],  # fmt: skip
+        heads=[head_row(7158, OTHER_BRANCH, MINE2)],
+    )
+    out = text(**ready151, pr_comments={7158: [review(84)]})
+    assert "holding open claim" not in out
+    assert "next claimable: r181" in out
+    assert "(ruling 269" not in has(out, "next claimable")[0]
+
+
 def test_two_open_packages_leave_no_offer():
     # Item 3: "At most two open packages per agent" -- the offer needs "fewer than two" (item 6).
     # The offer must EXIST here, or the test would pass on an empty queue rather than on the cap:
