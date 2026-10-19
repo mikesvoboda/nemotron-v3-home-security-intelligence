@@ -679,6 +679,114 @@ def test_heartbeat_age_over_twenty_minutes_is_flagged():
     assert items["agent-uplevel-backend"]["paused"] is False
 
 
+def _coordinator_beat(fake: FakeRunner, minutes: float) -> None:
+    """Replace the fixture's fresh coordinator beat with one MINUTES old."""
+    fake.heartbeats[0] = comment(
+        1,
+        6958,
+        "<!-- heartbeat:agent-uplevel-coordinator -->\ncoordinator · tick\nread-through: x",
+        t(-timedelta(days=2)),
+        t(-timedelta(minutes=minutes)),
+    )
+
+
+def test_a_coordinator_beat_between_twenty_and_ninety_minutes_old_is_not_stale():
+    # [r239], ruling 239 item 4: the coordinator's 30-minute loop can leave its heartbeat about
+    # 90 minutes old (a tick up to 60 plus up to 30 until the next fire), so the UR-162 trigger
+    # is the coordinator's identity at 90, not the every-agent 20 the code shipped. The default
+    # fixture's 30-minute backend beat keeps the lane rows' 20 below.
+    fake = FakeRunner()
+    _coordinator_beat(fake, 34)
+    items = {h["agent"]: h for h in build(fake)["heartbeats"]["items"]}
+    assert items["agent-uplevel-coordinator"]["stale"] is False
+    assert items["agent-uplevel-backend"]["stale"] is True  # 30m: a lane keeps its own 20
+
+
+def test_a_coordinator_beat_past_ninety_minutes_is_stale():
+    fake = FakeRunner()
+    _coordinator_beat(fake, 91)
+    items = {h["agent"]: h for h in build(fake)["heartbeats"]["items"]}
+    assert items["agent-uplevel-coordinator"]["stale"] is True
+
+
+def test_the_stale_print_names_the_row_own_threshold():
+    # §6 renders the number, not a bare flag: a 91-minute coordinator row says >90m and a
+    # 30-minute backend row says >20m, so a reader of the report sees which rule tripped
+    # without knowing the code. One shared constant can say only one of the two.
+    fake = FakeRunner()
+    _coordinator_beat(fake, 91)
+    lines = [
+        ln
+        for ln in snap.render_text(build(fake)).splitlines()
+        if "agent-uplevel-coordinator" in ln or "agent-uplevel-backend" in ln
+    ]
+    coord = next(ln for ln in lines if "agent-uplevel-coordinator" in ln)
+    lane = next(ln for ln in lines if "agent-uplevel-backend" in ln)
+    assert ">90m" in coord and "STALE" in coord, coord
+    assert ">20m" in lane and "STALE" in lane, lane
+
+
+def test_status_draft_note_names_each_row_own_threshold():
+    # [r239] box 2: the status comment's stale note "(> N min, UR-162)" carries the row's own
+    # threshold -- 90 for the coordinator, 20 for a lane -- instead of one constant for all.
+    # UR-166's 20-minute LISTING is unchanged, so a 34-minute coordinator beat still lists (the
+    # 20-minute rule), but its row names >90: the reader sees it is not yet a UR-162 raise.
+    sd = _load_status_draft()
+    fake = FakeRunner()
+    _coordinator_beat(fake, 91)
+    body = sd.render(build(fake), questions=[])
+    section = body.split("== Stalled and stale heartbeats", 1)[1].split("\n== ", 1)[0]
+    coord = next(ln for ln in section.splitlines() if "agent-uplevel-coordinator" in ln)
+    lane = next(ln for ln in section.splitlines() if "agent-uplevel-backend" in ln)
+    assert "(> 90 min, UR-162)" in coord, coord
+    assert "(> 20 min, UR-162)" in lane, lane
+    # the unchanged listing: a 34-minute coordinator beat lists with its own number, though
+    # the raise band has not opened.
+    fake2 = FakeRunner()
+    _coordinator_beat(fake2, 34)
+    body2 = sd.render(build(fake2), questions=[])
+    section2 = body2.split("== Stalled and stale heartbeats", 1)[1].split("\n== ", 1)[0]
+    coord2 = next(ln for ln in section2.splitlines() if "agent-uplevel-coordinator" in ln)
+    assert "(> 90 min, UR-162)" in coord2, coord2
+
+
+def test_a_stalled_agent_is_flagged_beside_the_stale_flag():
+    # [r239] box 4, ruling 245: an agent is stalled past THREE of its own UR-36 intervals --
+    # 90 for a lane on the 30-minute fallback ([r193] merged), 45 for heavy on 15, 90 for the
+    # coordinator and the operator -- printed beside UR-162's threshold, which is a different
+    # rule about the same beat. A 50-minute docs beat is stale (20) but NOT stalled (90); a
+    # 50-minute heavy beat IS stalled (45); the coordinator at 50 is neither (90/90).
+    fake = FakeRunner()
+    beat(fake, "agent-uplevel-docs", 50)
+    beat(fake, "agent-uplevel-heavy", 50)
+    beat(fake, "agent-uplevel-coordinator", 91)
+    data = build(fake)
+    docs = " ".join(sec6(data, "agent-uplevel-docs"))
+    heavy = " ".join(sec6(data, "agent-uplevel-heavy"))
+    coord = " ".join(sec6(data, "agent-uplevel-coordinator"))
+    assert "STALE >20m" in docs and "stalled" not in docs, docs
+    assert "STALE >20m" in heavy and "stalled >45m" in heavy, heavy
+    assert "STALE >90m" in coord and "stalled >90m" in coord, coord
+
+
+def test_a_stalled_flag_demands_silence_in_age_only():
+    # UR-38's stall is age AND silence: "an agent is not stalled unless it has also pushed no
+    # commit and posted no comment since." A 100-minute docs beat with a signed comment since
+    # the beat is NOT stalled even though the age alone would trip the interval table. The
+    # comment's first line must sign docs (head_name reads the first undecorated token;
+    # `## coverage` signs nobody) and be newer than the beat -- the signed read is windowed.
+    fake = FakeRunner()
+    fake.repo_comments.append(comment(40, 6958, "docs · note", t(-timedelta(minutes=50))))
+    beat(fake, "agent-uplevel-docs", 100)
+    docs = " ".join(sec6(build(fake), "agent-uplevel-docs"))
+    assert "stalled" not in docs, docs
+    # and the silent arm on the same shape, so the two arms differ by one fact: an unsigned
+    # comment (frontend's note signs frontend, not docs) leaves the same beat stalled.
+    fake.repo_comments[-1] = comment(40, 6958, "frontend · note", t(-timedelta(minutes=50)))
+    docs = " ".join(sec6(build(fake), "agent-uplevel-docs"))
+    assert "stalled >90m" in docs, docs
+
+
 def test_paused_is_the_status_field_not_a_word_in_the_prose():
     # UR-160's paused flag drives §6's `[paused]` and the coordinator's routing. The substring
     # test flagged 2 of 9 live heartbeats that are not paused at all (6098014375, 6098123126 —
