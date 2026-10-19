@@ -488,7 +488,24 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   builder resolves the origin and attaches no credential — and drop the destructured
   protocols. Size S; owner: frontend.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false. Refuter verified all claims at the pin: the comment (:148-151) and the
+  call verbatim (`protocols` destructured at :152, threaded into wsOptions at :155, always
+  undefined since the builder at api.ts:969-1005 returns only `{ url: wsUrl }` — harmless
+  because webSocketManager.ts:502-503 guards with `config.protocols?.length`); all five
+  siblings carry the ruling-44 wording at the pin; the sweep commit is 4447c7cc4 ("fix
+  (ruling 44): browsers authenticate only through the cookie login", Oct 9 15:35 — after
+  #6922's merge, before the pin, ancestor confirmed), which rewrote the five siblings'
+  comments across a 19-file stat that does NOT include useSummaries.ts, which existed at
+  sweep time (stale comment added by e0cd93333 "fix(F1.3)", Oct 8 23:41) — "missed by the
+  sweep" is accurate. Blob 944d6659 identical merge→boundary→pin, so no later PR fixed it.
+  Escapes fail: nothing mints an api-key subprotocol in the browser bundle at the pin; no
+  dating qualifier; the sentence's subject for both verbs is buildWebSocketOptions itself.
+  Repo-wide grep: the stale claim wording hits only useSummaries.ts:150. Corrections:
+  (1) "this exact comment" is loose — only useRecentThreats carried near-identical wording;
+  the four hook-clone siblings read "and pick up its api-key subprotocol" pre-sweep (same
+  false claim, different phrasing). (2) The fix's "drop the destructured protocols"
+  exceeds sibling parity — useRecentThreats.ts:198 still destructures it at the pin; drop
+  it only as optional cleanup, not as part of the comment fix.
 
 ### Q-015 · claim · low · frontend/src/hooks/webSocketManager.auth.test.ts:10 · #6922
 - Wrong: the header's defect-1 paragraph is a botched splice that no longer parses:
