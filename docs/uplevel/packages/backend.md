@@ -586,8 +586,9 @@ the emit with `create_task` and returns first, so the mocked error surfaces only
 Deleting the `try/except` around the emit (`backend/services/verdict_engine_status.py`:285-291)
 leaves the test green.
 
-- [ ] The test observes the swallow: it captures the scheduled task and asserts it finishes
+- [x] The test observes the swallow: it captures the scheduled task and asserts it finishes
       without an exception, or asserts the "Failed to emit verdict-engine status event" log record.
+      (ready run CI 6938, attempt 1, green at 1cb452c40; red proof in #7283)
 
 **Done when:** the test passes in CI at a ready head, and the PR shows that deleting the
 `try/except` turns it red.
