@@ -761,8 +761,8 @@ class ExportService:
         # Build query — undefer(Event.reasoning): the column is deferred() on
         # the model (memory for list queries) and reading it on an ORM row is
         # a SYNC lazy load — inside this async job that raised MissingGreenlet
-        # and failed EVERY non-empty export (R-T9-EXPORTDEFER). Precedent:
-        # event_service.py:200-210, background_evaluator.py:322-324.
+        # and failed EVERY non-empty export (R-T9-EXPORTDEFER).
+        # Precedent in event_service.py (lines 200-210).
         query = select(Event).options(undefer(Event.reasoning)).where(Event.deleted_at.is_(None))
 
         if camera_id is not None:

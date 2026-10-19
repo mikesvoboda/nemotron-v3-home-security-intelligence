@@ -641,12 +641,10 @@ on 2026-09-29; the SSIM detector keeps its baselines in process memory.
 
 ### Pipeline Workers
 
-| Service                   | Purpose                                                                                                                       |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `pipeline_workers.py`     | Background workers (DetectionQueueWorker, AnalysisQueueWorker, BatchTimeoutWorker, QueueMetricsWorker, PipelineWorkerManager) |
-| `evaluation_queue.py`     | Evaluation queue management                                                                                                   |
-| `background_evaluator.py` | Background evaluation processing                                                                                              |
-| `batch_fetch.py`          | Batch data fetching                                                                                                           |
+| Service               | Purpose                                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `pipeline_workers.py` | Background workers (DetectionQueueWorker, AnalysisQueueWorker, BatchTimeoutWorker, QueueMetricsWorker, PipelineWorkerManager) |
+| `batch_fetch.py`      | Batch data fetching                                                                                                           |
 
 ### Broadcasting and Real-time
 
