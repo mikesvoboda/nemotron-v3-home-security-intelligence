@@ -36,10 +36,6 @@ vi.mock('./AmbientStatusSettings', () => ({
   default: () => <div data-testid="ambient-settings">Ambient Status Settings</div>,
 }));
 
-vi.mock('./CalibrationPanel', () => ({
-  default: () => <div data-testid="calibration-panel">Calibration Panel</div>,
-}));
-
 vi.mock('./AccessControlSettings', () => ({
   default: () => <div data-testid="access-control-settings">Access Control Settings</div>,
 }));
@@ -111,10 +107,6 @@ function renderWithProviders(ui: React.ReactElement, options: RenderOptions = {}
                 element={<div data-testid="ambient-settings">Ambient Status Settings</div>}
               />
               <Route
-                path="calibration"
-                element={<div data-testid="calibration-panel">Calibration Panel</div>}
-              />
-              <Route
                 path="access"
                 element={<div data-testid="access-control-settings">Access Control Settings</div>}
               />
@@ -144,8 +136,8 @@ function renderWithProviders(ui: React.ReactElement, options: RenderOptions = {}
 
 describe('SettingsPage', () => {
   describe('settingsTabs configuration', () => {
-    it('should export all 11 settings tabs', () => {
-      expect(settingsTabs).toHaveLength(11);
+    it('should export all 10 settings tabs (calibration retired in F-131)', () => {
+      expect(settingsTabs).toHaveLength(10);
     });
 
     it('should have correct tab IDs', () => {
@@ -156,7 +148,6 @@ describe('SettingsPage', () => {
         'processing',
         'notifications',
         'ambient',
-        'calibration',
         'access',
         'prompts',
         'storage',
@@ -173,7 +164,6 @@ describe('SettingsPage', () => {
         '/settings/processing',
         '/settings/notifications',
         '/settings/ambient',
-        '/settings/calibration',
         '/settings/access',
         '/settings/prompts',
         '/settings/storage',
@@ -206,7 +196,7 @@ describe('SettingsPage', () => {
       expect(screen.getByTestId('settings-tab-processing')).toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-notifications')).toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-ambient')).toBeInTheDocument();
-      expect(screen.getByTestId('settings-tab-calibration')).toBeInTheDocument();
+      expect(screen.queryByTestId('settings-tab-calibration')).not.toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-access')).toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-prompts')).toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-storage')).toBeInTheDocument();
@@ -258,17 +248,6 @@ describe('SettingsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('notification-settings')).toBeInTheDocument();
-      });
-    });
-
-    it('should navigate to calibration panel when calibration tab is clicked', async () => {
-      const { user } = renderWithProviders(<SettingsPage />);
-
-      const calibrationTab = screen.getByTestId('settings-tab-calibration');
-      await user.click(calibrationTab);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('calibration-panel')).toBeInTheDocument();
       });
     });
 
@@ -453,7 +432,7 @@ describe('SettingsPage', () => {
       renderWithProviders(<SettingsPage />);
 
       const tabs = screen.getAllByRole('tab');
-      expect(tabs).toHaveLength(11);
+      expect(tabs).toHaveLength(10);
     });
 
     it('should have role="tabpanel" on content panel', () => {
