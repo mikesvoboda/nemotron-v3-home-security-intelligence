@@ -625,41 +625,10 @@ F-186, F-196, F-197, F-278), and `scripts/feature_check.py` refuses `--seeded` w
 **Done when:** the tests pass in CI at a ready head, and the operator's `--real --seeded` run is
 posted on the PR.
 
-### [r240] The fake-AI golden leg runs as two shards
-
-**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]`, ahead of `[r239]` (ruling 240).
-**Depends on:** none. **PR:** none yet. (ruling 240, record 6217450751)
-
-`Feature check (fake AI)` gates every PR and took 32 to 47 minutes in the last 30 completed CI runs.
-On `main`'s run `38906420530` the harness step took 39m09s, and its golden Playwright leg took 36.0
-of them: 236 passed and 9 skipped on the `golden` project's `workers: 1` (`frontend/playwright.config.ts`). About
-7.4 minutes are timeline fixtures waiting out the camera list's 60 s cache, which `[r228]` fixes;
-the batch idle timeout (30 s) is unchanged. `workers: 1` stays, because two drops must not share a
-camera; two stacks remove the sharing instead.
-
-- [ ] The fake-AI golden Playwright leg runs as two parallel jobs, `--shard=1/2` and `--shard=2/2`,
-      each booting its own stack through the harness, so a spec file's fixtures stay in one shard.
-- [ ] Each leg runs exactly once across the two jobs: the backend golden leg runs in one shard
-      only, and the PR shows that the two shards' Playwright lists together equal the unsharded
-      `--list`.
-- [ ] The inventory witness (ruling 218) judges the union of both shards' legs, one judgement per
-      row. It still fails closed (exit 2) when it cannot read either shard's run, and still runs
-      whenever a harness step ran.
-- [ ] `CI Gate (Required Checks)` needs both shards in the shape `scripts/test_ci_job_graph.py`
-      accepts. The change filter and the draft guard are unchanged, and `workflow_dispatch` still runs
-      the leg. Each
-      shard's `timeout-minutes` is derived by ruling 189's method and pinned in
-      `backend/tests/unit/scripts/test_feature_check.py`. Ruling 240 orders this edit to a shared
-      `ci.yml` job, so UR-122 licenses it.
-- [ ] The PR reports the job's wall time from the Actions clock for `main` before and for its own
-      head, naming `[r228]`'s merge state at each (UR-10 rule 1: measured, not targeted).
-
-**Done when:** both shards run in CI at a ready head with every leg executed once, the witness
-judges the union of both shards' legs, and the PR posts the before-and-after wall times.
-
 ### [r239] The coordinator's heartbeat goes stale at 90 minutes
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` and `[r240]` (rulings 239, 240).
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` (ruling 239; ruling 266 retired
+`[r240]`).
 **Depends on:** none. **PR:** none yet. (ruling 239, record 6217014151; ruling 245, record 6223117374)
 
 The coordinator's loop fires every 30 minutes (`roles/coordinator.md`), and a tick may run 60, so a

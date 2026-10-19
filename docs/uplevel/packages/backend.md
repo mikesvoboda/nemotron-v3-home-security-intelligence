@@ -573,3 +573,21 @@ the supervisor's heartbeats and restarts cover only the extra set. Record 619875
 
 **Done when:** the tests pass in CI at a ready head, and `backend/main.py` builds no pipeline worker
 outside `PipelineWorkerManager`.
+
+### [r267b] The verdict-engine emit-failure test can fail
+
+**Flags:** none. **Assigned:** backend, first on its queue after the PR it holds (UR-52).
+**Depends on:** none. **PR:** none yet. (ruling 267, record 6266846674; audit item Q-004 of
+`[r262]`)
+
+`test_emit_failure_does_not_break_the_probe`
+(`backend/tests/unit/services/test_verdict_engine_status.py`:159) cannot fail: `observe()` schedules
+the emit with `create_task` and returns first, so the mocked error surfaces only in an orphan task.
+Deleting the `try/except` around the emit (`backend/services/verdict_engine_status.py`:285-291)
+leaves the test green.
+
+- [ ] The test observes the swallow: it captures the scheduled task and asserts it finishes
+      without an exception, or asserts the "Failed to emit verdict-engine status event" log record.
+
+**Done when:** the test passes in CI at a ready head, and the PR shows that deleting the
+`try/except` turns it red.
