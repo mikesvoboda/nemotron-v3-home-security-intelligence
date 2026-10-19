@@ -5925,8 +5925,8 @@ def test_the_seeded_refusals_are_distinguishable(monkeypatch: Any, capsys: Any) 
     not about choosing a mode.
 
     The bare-`--seeded` pin is deliberately TWO-SIDED. Its substring `--fake or --real` is also a
-    substring of the unrelated generic fallback `choose --fake or --real`, which is what the
-    `if not args.fake` guard prints several lines later. So deleting the seeded guard entirely
+    substring of the restored generic refusal `choose --fake or --real`, which the bare-run guard
+    prints. So deleting the seeded guard entirely
     still satisfies the positive half — the run falls through to the generic refusal and the
     substring is present. The negative half is what makes this a pin: the operator has to be told
     that the SHAPE needs a mode, not that they forgot to pick a tier.
