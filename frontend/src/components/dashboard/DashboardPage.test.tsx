@@ -244,17 +244,13 @@ vi.mock('./DashboardLayout', () => ({
   },
 }));
 
-// Mock GpuStats, PipelineTelemetry, and PipelineQueues (not rendered by default)
+// Mock GpuStats and PipelineTelemetry (not rendered by default)
 vi.mock('./GpuStats', () => ({
   default: () => <div data-testid="gpu-stats">GPU Stats</div>,
 }));
 
 vi.mock('./PipelineTelemetry', () => ({
   default: () => <div data-testid="pipeline-telemetry">Pipeline Telemetry</div>,
-}));
-
-vi.mock('./PipelineQueues', () => ({
-  default: () => <div data-testid="pipeline-queues">Pipeline Queues</div>,
 }));
 
 vi.mock('./SummaryCards', () => ({

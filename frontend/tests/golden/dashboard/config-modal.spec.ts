@@ -110,9 +110,8 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
 
     await openDashboard(page, h);
 
-    // Default state, before any write: the three system widgets are absent
-    // from the DOM (store DEFAULT_WIDGETS visible:false, store :118-159).
-    await expect(page.getByTestId('pipeline-queues')).toHaveCount(0);
+    // Default state, before any write: the two system widgets are absent
+    // from the DOM (store DEFAULT_WIDGETS visible:false, store :118-152).
     await expect(page.getByTestId('pipeline-telemetry')).toHaveCount(0);
     await expect(page.getByTestId('gpu-device-name')).toHaveCount(0);
     // …while the four default-on widgets are present (the row's named set
@@ -125,9 +124,7 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
     await page.getByTestId('configure-dashboard-button').click();
     const modal = page.getByTestId('widget-list');
     await expect(modal).toBeVisible();
-    // All seven named widgets get a row in the modal (the row enumerates
-    // exactly: stats, AI row, camera grid, activity feed, GPU, telemetry,
-    // queues).
+    // All six named widgets get a row in the modal (F-041 retired pipeline-queues).
     for (const id of [
       'stats-row',
       'ai-summary-row',
@@ -135,88 +132,80 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
       'activity-feed',
       'gpu-stats',
       'pipeline-telemetry',
-      'pipeline-queues',
     ]) {
       await expect(page.getByTestId(`widget-row-${id}`)).toBeVisible();
     }
     // Reorder bounds, list-head form: stats-row is FIRST in defaults
-    // (store :118-159) so its move-up ships disabled (WidgetConfigRow
+    // (store :118-152) so its move-up ships disabled (WidgetConfigRow
     // disabled={isFirst}, modal :298-300).
     await expect(page.getByTestId('widget-move-up-stats-row')).toBeDisabled();
 
     const jarBefore = await readJar(page); // whatever the app has already persisted
-    await toggleInModal(page, 'pipeline-queues', true);
+    await toggleInModal(page, 'pipeline-telemetry', true);
     await toggleInModal(page, 'gpu-stats', true);
 
-    // Reorder inside the modal: drive queues from defaults-LAST to the list
+    // Reorder inside the modal: drive telemetry from defaults-LAST to the list
     // HEAD. One move-up click swaps exactly one adjacent pair (handleMoveUp →
-    // moveWidgetUp, modal :112-115), and the head is index 0 of the seven
-    // defaults (store :118-159), so the honest drive is a KNOWN number of
-    // clicks, not "click until something looks right". Run 38166150838 proved
-    // why: my first version clicked inside an expect.poll until the
-    // queues/gpu pair flipped — the poll kept clicking past the pair swap on
-    // CI timing and the row landed mid-list, where disabled={isFirst}
-    // (modal :300) is CORRECTLY enabled, and my toBeDisabled died with the
-    // button's own markup in the log. The assert was right about the head and
-    // the code never took the row there.
+    // moveWidgetUp, modal :112-115), and the head is index 0 of the six
+    // defaults (store :118-152).
     const rowIndex = () =>
       page.evaluate(() =>
         [...document.querySelectorAll('[data-testid^="widget-row-"]')].findIndex(
-          (el) => el.getAttribute('data-testid') === 'widget-row-pipeline-queues'
+          (el) => el.getAttribute('data-testid') === 'widget-row-pipeline-telemetry'
         )
       );
     const start = await rowIndex();
-    expect(start, 'defaults ship queues last of the seven rows').toBe(6);
+    expect(start, 'defaults ship telemetry last of the six rows').toBe(5);
     for (let i = start; i > 0; i--) {
-      await page.getByTestId('widget-move-up-pipeline-queues').click();
+      await page.getByTestId('widget-move-up-pipeline-telemetry').click();
     }
     // expect.poll, not expect(page.evaluate(...)): the latter compares the
     // Promise object, never its value. The poll retries the READ (React needs a
     // tick after the last click); it never retries a click.
     await expect.poll(rowIndex).toBe(0);
-    // The bound moved WITH the row: queues at the head is now inert…
-    await expect(page.getByTestId('widget-move-up-pipeline-queues')).toBeDisabled();
+    // The bound moved WITH the row: telemetry at the head is now inert…
+    await expect(page.getByTestId('widget-move-up-pipeline-telemetry')).toBeDisabled();
     // …and stats-row, demoted to index 1, is no longer at the head — the
     // same disabled={isFirst} rule read from the other side.
     await expect(page.getByTestId('widget-move-up-stats-row')).toBeEnabled();
-    // Queues above gpu-stats is now implied by queues-first; pin it anyway
+    // Telemetry above gpu-stats is now implied by telemetry-first; pin it anyway
     // so a future sort that keeps the disabled flags but reorders rows fails
     // HERE instead of at the saved-layout assert.
     await expect
       .poll(async () =>
         page.evaluate(() => {
-          const q = document.querySelector('[data-testid="widget-row-pipeline-queues"]')!;
+          const q = document.querySelector('[data-testid="widget-row-pipeline-telemetry"]')!;
           const g = document.querySelector('[data-testid="widget-row-gpu-stats"]')!;
           return q.compareDocumentPosition(g) & Node.DOCUMENT_POSITION_FOLLOWING
-            ? 'queues-first'
+            ? 'telemetry-first'
             : 'gpu-first';
         })
       )
-      .toBe('queues-first');
+      .toBe('telemetry-first');
 
     // SAVE.
     await page.getByTestId('save-button').click();
     await expect(modal).toHaveCount(0);
 
-    // The saved layout is on the page: both widgets render, queues BEFORE
-    // gpu-stats (document order inside system-widgets-area, layout :337-348).
-    await expect(page.getByTestId('pipeline-queues')).toBeVisible({ timeout: 15_000 });
+    // The saved layout is on the page: both widgets render, telemetry BEFORE
+    // gpu-stats (document order inside system-widgets-area).
+    await expect(page.getByTestId('pipeline-telemetry')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('gpu-device-name')).toBeVisible({ timeout: 15_000 });
     const domOrder = await page.evaluate(() => {
-      const q = document.querySelector('[data-testid="pipeline-queues"]')!;
+      const q = document.querySelector('[data-testid="pipeline-telemetry"]')!;
       const g = document.querySelector('[data-testid="gpu-device-name"]')!;
       return q.compareDocumentPosition(g) & Node.DOCUMENT_POSITION_FOLLOWING
-        ? 'queues-first'
+        ? 'telemetry-first'
         : 'gpu-first';
     });
-    expect(domOrder).toBe('queues-first');
+    expect(domOrder).toBe('telemetry-first');
 
     // The jar carries it: version 2, the two flips, the swap — read from the
     // browser's own storage, not the app's memory.
     const jar = widgetsOf(await readJar(page));
     expect(jar.find((w) => w.id === 'gpu-stats')?.visible).toBe(true);
-    expect(jar.find((w) => w.id === 'pipeline-queues')?.visible).toBe(true);
-    expect(jar.findIndex((w) => w.id === 'pipeline-queues')).toBeLessThan(
+    expect(jar.find((w) => w.id === 'pipeline-telemetry')?.visible).toBe(true);
+    expect(jar.findIndex((w) => w.id === 'pipeline-telemetry')).toBeLessThan(
       jar.findIndex((w) => w.id === 'gpu-stats')
     );
     const savedRaw = await readJar(page);
@@ -225,20 +214,20 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
     // THE ROW'S CLAUSE: reload — same context, same jar — layout persists.
     await settledReload(page);
     await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId('pipeline-queues')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('pipeline-telemetry')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('gpu-device-name')).toBeVisible({ timeout: 15_000 });
     // …and the jar is byte-identical across the reload (nothing rewrote it).
     expect(await readJar(page)).toEqual(savedRaw);
-    // Order still queues-first after reload — the persisted array order is
+    // Order still telemetry-first after reload — the persisted array order is
     // what the layout maps, not a coincidence of this session's clicks.
     const reloadedOrder = await page.evaluate(() => {
-      const q = document.querySelector('[data-testid="pipeline-queues"]')!;
+      const q = document.querySelector('[data-testid="pipeline-telemetry"]')!;
       const g = document.querySelector('[data-testid="gpu-device-name"]')!;
       return q.compareDocumentPosition(g) & Node.DOCUMENT_POSITION_FOLLOWING
-        ? 'queues-first'
+        ? 'telemetry-first'
         : 'gpu-first';
     });
-    expect(reloadedOrder).toBe('queues-first');
+    expect(reloadedOrder).toBe('telemetry-first');
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
@@ -297,27 +286,27 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
 
     await openDashboard(page, h);
 
-    // Save a changed layout first (queues ON), then reset.
+    // Save a changed layout first (telemetry ON), then reset.
     await page.getByTestId('configure-dashboard-button').click();
-    await toggleInModal(page, 'pipeline-queues', true);
+    await toggleInModal(page, 'pipeline-telemetry', true);
     await page.getByTestId('save-button').click();
-    await expect(page.getByTestId('pipeline-queues')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('pipeline-telemetry')).toBeVisible({ timeout: 15_000 });
 
     await page.getByTestId('configure-dashboard-button').click();
     await page.getByTestId('reset-defaults-button').click();
     // reset() writes DEFAULT_CONFIG_STATE through the store (modal :127-136),
-    // so the jar is now the shipped defaults: the three system widgets off.
+    // so the jar is now the shipped defaults: the two system widgets off.
     await page.getByTestId('save-button').click();
     const jar = widgetsOf(await readJar(page));
-    for (const id of ['gpu-stats', 'pipeline-telemetry', 'pipeline-queues']) {
+    for (const id of ['gpu-stats', 'pipeline-telemetry']) {
       expect(jar.find((w) => w.id === id)?.visible, `${id} after reset`).toBe(false);
     }
-    await expect(page.getByTestId('pipeline-queues')).toHaveCount(0);
+    await expect(page.getByTestId('pipeline-telemetry')).toHaveCount(0);
 
     // Reload lands on the shipped layout too.
     await settledReload(page);
     await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId('pipeline-queues')).toHaveCount(0);
+    await expect(page.getByTestId('pipeline-telemetry')).toHaveCount(0);
     await expect(page.getByTestId('camera-grid')).toBeVisible();
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);

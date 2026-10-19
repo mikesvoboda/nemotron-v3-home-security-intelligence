@@ -141,8 +141,7 @@ type WidgetId =
   | 'camera-grid'
   | 'activity-feed'
   | 'gpu-stats'
-  | 'pipeline-telemetry'
-  | 'pipeline-queues';
+  | 'pipeline-telemetry';
 
 type ThemeSetting = 'light' | 'dark' | 'system';
 
