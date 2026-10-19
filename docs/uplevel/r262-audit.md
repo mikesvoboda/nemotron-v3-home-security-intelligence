@@ -283,7 +283,24 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   the credential nginx forwarding is pinned for and state the gate reads others.
   Size S; owner: backend.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false. Refuter verified all five reads as live code at the pin (cookie :501,
+  ?token= :502 in authenticate_websocket called from websocket.py:501/:729 on proxied
+  /ws/events and /ws/system, ?api_key= :396, subprotocol :402-405, x-api-key :576),
+  OPEN_PATHS :56-69 exempting only health/auth, and the false count holding at the cited
+  baseline e9ec74ef too (cookie :257, token :258, api_key :175, subprotocol :181-185,
+  x-api-key :296). The file was introduced by #6922 itself (absent at 3dab5c557^1,
+  present at blob 2ac74aaf at 3dab5c557^2), so the falsehood shipped in the PR's own
+  content. Precision corrections: the :87 assert message annotates the /api (HTTP) test,
+  and on HTTP the gate reads exactly two kinds (session cookie :609 + x-api-key :576 via
+  _presented_api_key's early-return) — that message is defensible in its own scope; the
+  standing falsehood is the module docstring :3-4, whose "proxied path" covers /api and
+  /ws (the file's own _proxied_credential_blocks includes /ws). Also: the ?token= read
+  belongs to authenticate_websocket (called by the /ws routes), so the middleware gate
+  alone reads four kinds — either count still refutes "exactly two". Method caveat:
+  the history graph is grafted (d6344e031's parents resolve via cat-file but not ^1;
+  `git show --stat` displays the whole tree as insertions), so the blob-identity claim
+  rests on endpoint content hashes, which are graft-proof. Fix amended: correct :3-4;
+  the :87 message may stay or be clarified to name its HTTP scope.
 
 ### Q-009 · claim · low · backend/tests/security/test_docker_compose_security.py:401 · #6922
 - Wrong: three prose claims about the ai-llm census are false at the pin. (1) `:400-403`
