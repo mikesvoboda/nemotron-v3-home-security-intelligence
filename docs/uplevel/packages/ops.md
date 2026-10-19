@@ -733,8 +733,8 @@ podman-compose 1.6.0.
 ### [r247] A host-side supervisor runs the coordinator's ticks
 
 **Flags:** `owner` (privileged host tooling; plan text). **Assigned:** `uplevel-ops-b`, after
-`[r235]`, ahead of `[r240]` (ruling 247). **Depends on:** none. **PR:** #7248. (ruling 247,
-record 6223821495)
+`[r235]`, ahead of `[r240]` (ruling 247; ruling 266 retired `[r240]`). **Depends on:** none.
+**PR:** #7248. (ruling 247, record 6223821495)
 
 On 2026-10-16 the coordinator posted nothing from 03:47Z to 13:30Z: its in-pane `/loop` dispatcher
 stopped, and nothing in the swarm can restart a pane. Each tick is already a fresh, unnamed subagent

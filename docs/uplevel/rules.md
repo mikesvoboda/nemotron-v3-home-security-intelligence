@@ -349,8 +349,10 @@ and the re-read and merge comment are UR-29.
   updates one PR at a time: it updates only the head of the queue, and only when it is behind
   `main`, with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`, and it updates no other
   PR until that one merges or leaves the head of the queue (its gate fails at the new head, its
-  update conflicts, or it loses its review or owner approval). A ready PR that is not behind `main`
-  merges in queue order without an update. Auto-merge (UR-108) merges the updated PR once its gate
+  update conflicts, or it loses its review or owner approval). A red-`main` fix (UR-111) takes the
+  update slot at once, even while another update is in flight, and a PR the owner names (UR-104)
+  takes the next slot. A ready PR that is not behind `main` merges in queue order without an
+  update. Auto-merge (UR-108) merges the updated PR once its gate
   passes; while `main` is red the coordinator disables auto-merge on every queued lane PR and
   re-enables it when `main` is green. Authors rebase their own PRs to resolve conflicts. A red
   `main` from a merge interaction is a red-`main` fix (UR-111). (rulings 19, 27, 152, 156, 164,
