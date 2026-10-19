@@ -4,10 +4,10 @@ FROM nvcr.io/nvidia/tritonserver:26.01-py3
 RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 && \
     rm -rf /var/lib/apt/lists/*
 
-# Install gateway runtime dependencies (O3.1 stripped unused export/ML packages:
-# torch, transformers, ultralytics, onnx, onnxscript, onnxruntime-gpu,
-# open_clip_torch, timm, einops — confirmed unused by import trace over the
-# gateway runtime).
+# Install gateway runtime + surviving export dependencies (setup_lib/deploy_phases.py
+# runs export_all.sh and scripts/uplevel/reid_real_tier.sh runs export_reid.py and
+# stage_probe.py inside this image; O3.1 stripped the 4 packages only the deleted
+# export scripts used: transformers, open_clip_torch, timm, einops).
 # Note: packaging must be force-reinstalled (Triton base has system version pip skips)
 # Triton 26.01 ships stale numpy-1.26.4.dist-info with broken metadata; remove
 # it before installing numpy.
@@ -30,7 +30,12 @@ RUN rm -rf /usr/local/lib/python3.12/dist-packages/numpy-1.26.4.dist-info && \
     pillow \
     prometheus-client \
     httpx \
-    python-multipart
+    python-multipart \
+    torch \
+    ultralytics \
+    onnx \
+    onnxscript \
+    onnxruntime-gpu
 
 # Copy gateway application code
 COPY ai/gateway/ /app/gateway/

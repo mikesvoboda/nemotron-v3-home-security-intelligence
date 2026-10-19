@@ -61,25 +61,115 @@ INSTALLED_PACKAGES: frozenset[str] = frozenset(
         "prometheus-client",
         "httpx",
         "python-multipart",
-    }
-)
-
-# O3.1: unused export/ML dependencies stripped from the gateway runtime image.
-STRIPPED_PACKAGES: frozenset[str] = frozenset(
-    {
         "torch",
-        "transformers",
         "ultralytics",
         "onnx",
         "onnxscript",
-        "onnxruntime",
         "onnxruntime-gpu",
+    }
+)
+
+# O3.1: packages used only by the 9 deleted export scripts, stripped from the
+# gateway image.
+STRIPPED_PACKAGES: frozenset[str] = frozenset(
+    {
+        "transformers",
         "open_clip",
         "open_clip_torch",
         "timm",
         "einops",
     }
 )
+
+# Mapping from pip package spec in ai/gateway/Dockerfile to the top-level
+# Python import roots it provides.
+PIP_PACKAGE_PROVIDES: dict[str, frozenset[str]] = {
+    "packaging": frozenset({"packaging"}),
+    "numpy": frozenset({"numpy"}),
+    "fastapi": frozenset({"fastapi", "pydantic", "starlette"}),
+    "uvicorn[standard]": frozenset({"uvicorn"}),
+    "tritonclient[grpc]": frozenset({"tritonclient"}),
+    "pillow": frozenset({"PIL"}),
+    "prometheus-client": frozenset({"prometheus_client"}),
+    "httpx": frozenset({"httpx"}),
+    "python-multipart": frozenset({"multipart"}),
+    "torch": frozenset({"torch"}),
+    "ultralytics": frozenset({"ultralytics"}),
+    "onnx": frozenset({"onnx"}),
+    "onnxscript": frozenset({"onnxscript"}),
+    "onnxruntime-gpu": frozenset({"onnxruntime"}),
+}
+
+# Modules pre-installed in the nvcr.io/nvidia/tritonserver:26.01-py3 base image.
+BASE_IMAGE_MODULES: frozenset[str] = frozenset({"yaml", "tensorrt"})
+
+REID_REAL_TIER_RUNNER = REPO_ROOT / "scripts" / "uplevel" / "reid_real_tier.sh"
+GATEWAY_ENTRYPOINT = REPO_ROOT / "ai" / "gateway" / "entrypoint.sh"
+
+
+def _ast_third_party_imports(source: str, filename: str) -> set[str]:
+    import ast
+    import sys
+
+    stdlib = sys.stdlib_module_names
+    first_party = {"ai"}
+    tree = ast.parse(source, filename=filename)
+    roots: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root = alias.name.split(".")[0]
+                if root not in stdlib and root not in first_party:
+                    roots.add(root)
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            root = node.module.split(".")[0]
+            if root not in stdlib and root not in first_party:
+                roots.add(root)
+    return roots
+
+
+def gateway_and_runner_imports() -> dict[str, set[str]]:
+    """Every third-party import root across all non-test modules in ai/gateway/
+    (including ai/gateway/export/) plus the Python payloads embedded in
+    scripts/uplevel/reid_real_tier.sh and ai/gateway/entrypoint.sh."""
+    by_source: dict[str, set[str]] = {}
+    gw_dir = REPO_ROOT / "ai" / "gateway"
+    for path in sorted(gw_dir.rglob("*.py")):
+        if "tests" in path.parts:
+            continue
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        by_source[rel] = _ast_third_party_imports(path.read_text(encoding="utf-8"), rel)
+    # Extract embedded stage_probe.py heredoc from scripts/uplevel/reid_real_tier.sh
+    runner_text = REID_REAL_TIER_RUNNER.read_text(encoding="utf-8")
+    m = re.search(r"cat > \"\$RUN/stage_probe\.py\" <<'PROBE'\n(.*?)\nPROBE", runner_text, re.S)
+    assert m is not None, "stage_probe.py heredoc not found in scripts/uplevel/reid_real_tier.sh"
+    by_source["scripts/uplevel/reid_real_tier.sh:stage_probe.py"] = _ast_third_party_imports(
+        m.group(1), "stage_probe.py"
+    )
+    # Extract inline python3 -c block from ai/gateway/entrypoint.sh
+    ep_text = GATEWAY_ENTRYPOINT.read_text(encoding="utf-8")
+    ep_m = re.search(r'python3 -c "\n(.*?)\n"', ep_text, re.S)
+    assert ep_m is not None, "python3 -c block not found in ai/gateway/entrypoint.sh"
+    by_source["ai/gateway/entrypoint.sh:python3_-c"] = _ast_third_party_imports(
+        ep_m.group(1).replace("${MODELS_YAML}", "/app/models.yml"), "entrypoint.sh"
+    )
+    return by_source
+
+
+def missing_image_imports(dockerfile_text: str) -> dict[str, list[str]]:
+    """Return {source_rel: sorted missing import roots} for any module run in
+    the gateway image whose third-party imports are not covered by
+    dockerfile_text's pip install set + BASE_IMAGE_MODULES."""
+    installed = pip_installed_packages(dockerfile_text)
+    provided: set[str] = set(BASE_IMAGE_MODULES)
+    for pkg in installed:
+        provided |= PIP_PACKAGE_PROVIDES.get(pkg, frozenset({pkg.split("[")[0].replace("-", "_")}))
+    missing: dict[str, list[str]] = {}
+    for src, roots in gateway_and_runner_imports().items():
+        uncovered = sorted(roots - provided)
+        if uncovered:
+            missing[src] = uncovered
+    return missing
 
 
 def logical_instructions(text: str) -> list[str]:
@@ -286,30 +376,46 @@ class TestGatewayDockerfileAgentGpuBuildable:
         assert pip_installed_packages(text) == set(INSTALLED_PACKAGES)
         assert not (pip_installed_packages(text) & STRIPPED_PACKAGES)
 
-    def test_gateway_runtime_imports_no_stripped_package(self) -> None:
-        # O3.1: confirm by AST import trace that no gateway runtime module
-        # imports any of the stripped export/ML packages.
-        import ast
-
-        gw_dir = REPO_ROOT / "ai" / "gateway"
-        runtime_files = [
-            p
-            for p in sorted(gw_dir.rglob("*.py"))
-            if "tests" not in p.parts and "export" not in p.parts
-        ]
-        assert runtime_files
-        imported_roots: set[str] = set()
-        for path in runtime_files:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        imported_roots.add(alias.name.split(".")[0])
-                elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
-                    imported_roots.add(node.module.split(".")[0])
-        assert not (imported_roots & STRIPPED_PACKAGES), (
-            f"gateway runtime imports stripped packages: {sorted(imported_roots & STRIPPED_PACKAGES)}"
+    def test_every_gateway_export_and_runner_import_is_installed_and_no_stripped_package_is_used(
+        self,
+    ) -> None:
+        # O3.1 (owner feedback on #7256): widen the import trace to every module
+        # any image built from ai/gateway/Dockerfile runs — gateway runtime,
+        # ai/gateway/export/ (export_reid, export_yolo26, export_yolo_threat,
+        # copy_yolo26_engine), and scripts/uplevel/reid_real_tier.sh's in-image
+        # stage_probe.py.
+        imports_by_src = gateway_and_runner_imports()
+        assert "ai/gateway/export/export_reid.py" in imports_by_src
+        assert "ai/gateway/export/export_yolo26.py" in imports_by_src
+        assert "ai/gateway/export/export_yolo_threat.py" in imports_by_src
+        assert "scripts/uplevel/reid_real_tier.sh:stage_probe.py" in imports_by_src
+        all_imported = {r for roots in imports_by_src.values() for r in roots}
+        assert {"torch", "onnx", "onnxruntime", "ultralytics"} <= all_imported
+        assert not (all_imported & STRIPPED_PACKAGES), (
+            f"surviving gateway/export/runner code imports stripped packages: "
+            f"{sorted(all_imported & STRIPPED_PACKAGES)}"
         )
+        text = GATEWAY_DOCKERFILE.read_text()
+        assert missing_image_imports(text) == {}
+
+    def test_import_trace_catches_stripping_export_dependencies(self) -> None:
+        # Positive witness: stripping torch, ultralytics, onnx, or onnxruntime-gpu
+        # from ai/gateway/Dockerfile must fail missing_image_imports() naming
+        # the export and reid_real_tier.sh modules that import them.
+        text = GATEWAY_DOCKERFILE.read_text()
+        without_export_deps = (
+            text.replace("torch", "")
+            .replace("ultralytics", "")
+            .replace("onnxruntime-gpu", "")
+            .replace("onnxscript", "")
+            .replace("onnx", "")
+        )
+        missing = missing_image_imports(without_export_deps)
+        assert "ai/gateway/export/export_reid.py" in missing
+        assert "torch" in missing["ai/gateway/export/export_reid.py"]
+        assert "scripts/uplevel/reid_real_tier.sh:stage_probe.py" in missing
+        assert "ai/gateway/export/export_yolo26.py" in missing
+        assert "ultralytics" in missing["ai/gateway/export/export_yolo26.py"]
 
 
 class TestTheCorpusScanIsHonestAboutScope:
