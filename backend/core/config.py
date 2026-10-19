@@ -101,7 +101,7 @@ class OrchestratorSettings(BaseSettings):
 
     This settings model configures the container orchestrator service that provides
     health monitoring and self-healing capabilities for the managed containers
-    (ai-gateway, ai-llm (Nemotron), ai-llm-vllm, plus infrastructure and monitoring).
+    (ai-gateway, plus infrastructure and monitoring).
 
     Environment variables use the ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED).
     """
@@ -208,23 +208,21 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # AI services — live set per docker-compose.prod.yml: ai-gateway (serves the
-    # retired standalone YOLO26/Florence/CLIP/Enrichment models), ai-llm and
-    # ai-llm-vllm (behind the optional "vllm" compose profile).
+    # retired standalone YOLO26/Florence/CLIP/Enrichment models).
+    # R8 S2 deleted ai-llm (Nemotron) and its nemotron_port field;
+    # O3.1 (OD-17, owner ruling 89) deleted ai-llm-vllm, its vllm compose
+    # profile, its container_discovery.py ServiceConfig entry, and the
+    # vllm_port / VLLM_PORT setting that fed it.
+    #
+    # Note: container_orchestrator.py RETIRED_LLM_SERVICES still lists both
+    # 'ai-llm' and 'ai-llm-vllm' so a stale container on an upgraded host is
+    # never adopted by the orchestrator.
     ai_gateway_port: int = Field(
         8090,
         ge=1,
         le=65535,
         validation_alias="AI_GATEWAY_PORT",
         description="AI Gateway container service port for health checks.",
-    )
-    vllm_port: int = Field(
-        8097,
-        ge=1,
-        le=65535,
-        validation_alias="VLLM_PORT",
-        description="ai-llm-vllm host-mapped port for health checks "
-        "(compose maps VLLM_PORT -> container port 8000; table convention is "
-        "the .env host port, matching grafana's 3002-over-3000 precedent).",
     )
 
     # Monitoring services

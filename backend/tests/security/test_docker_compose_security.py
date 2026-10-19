@@ -464,24 +464,19 @@ class TestRetiredLlmServiceIsGone:
         )
 
     def test_the_absence_pin_is_not_a_prefix_match(self) -> None:
-        """Non-vacuity for the test above.
-
-        `ai-llm-vllm` exists and is alive (profile-gated), and its name starts
-        with the retired one. A detection written as a substring scan would
-        report it as the ghost; a test written the other way (assert
-        `"ai-llm" not in str(services)`) would pass only by accident of the
-        prefixed key NOT being spelled exactly. This pins the concrete
-        distinction: the exact key is gone, the prefixed key is deliberately
-        still there.
+        """O3.1 (OD-17, ruling 89): both `ai-llm` and `ai-llm-vllm` are gone
+        from every tracked compose file, while `ai-vlm` and `ai-gateway` are
+        the only `ai-` services in `docker-compose.prod.yml`.
         """
-        services = _services("docker-compose.prod.yml")
-        assert "ai-llm" not in services
-        assert "ai-llm-vllm" in services, (
-            "ai-llm-vllm left docker-compose.prod.yml without this class being "
-            "updated -- if it is gone for good, that is a real retirement and "
-            "the name in RETIRED_LLM_SERVICES plus the opt-in pin in "
-            "test_ai_vlm_compose_service.py die with it"
-        )
+        for fname in TRACKED_COMPOSE_FILES:
+            services = _services(fname)
+            assert "ai-llm" not in services
+            assert "ai-llm-vllm" not in services
+        prod_services = _services("docker-compose.prod.yml")
+        assert sorted(n for n in prod_services if n.startswith("ai-")) == [
+            "ai-gateway",
+            "ai-vlm",
+        ]
 
     def test_no_evidence_is_admitted_to_the_hardened_list_by_absence(self) -> None:
         """The guard the S2b CI failure actually taught.
@@ -508,51 +503,58 @@ class TestRetiredLlmServiceIsGone:
         )
 
     def test_the_surviving_vllm_engine_diverges_on_purpose(self) -> None:
-        """`ai-llm-vllm` carries a DIFFERENT posture from the two hardened
-        services, and is deliberately not in `AI_SERVICES`.
+        """O3.1 (OD-17, ruling 89) removed `ai-llm-vllm` and its `vllm` profile,
+        closing the security_opt divergence by deleting the unhardened service.
+        Every `ai-` service in `docker-compose.prod.yml` is now in `AI_SERVICES`.
 
-        It was not swept into the list by the same edit that dropped `ai-llm`,
-        because sweeping it in would be one of two unowned moves dressed as a
-        test fix: either (a) add `label=disable` to a production compose file --
-        a runtime config change to a serving stack, not S2b's scope (S2b deletes
-        code, it does not relabel containers), or (b) edit the consistency test
-        to tolerate a difference, which is the "widen the quarantine" reflex the
-        goal prompt forbids. So it stays outside the list and this test names the
-        drift (measured 2026-09-29: ai-vlm and ai-gateway both
-        `[no-new-privileges:true, label=disable]`, the engine only
-        `[no-new-privileges:true]`, all three `cap_drop: [ALL]`) instead of
-        hiding it.
+        Historical context preserved from S2b (2026-09-29): `ai-llm-vllm` carried
+        a different posture from `ai-vlm` and `ai-gateway` (`[no-new-privileges:true]`
+        without `label=disable`) while gated behind `profiles: [vllm]`. OD-17
+        (owner ruling 89) resolved that drift by removing `ai-llm-vllm` outright
+        in Phase 3 (O3.1), leaving `ai-gateway` and `ai-vlm` as the complete
+        hardened AI service set in `docker-compose.prod.yml`.
 
-        Who owns closing it: whoever opts the engine in for real -- the same
-        standing decision that keeps it hidden (`profiles: [vllm]`, pinned by
-        test_ai_vlm_compose_service.py::test_the_surviving_engine_stays_opt_in;
-        `container_orchestrator.py:66 RETIRED_LLM_SERVICES` refuses both
-        spellings at :531). Until then the divergence is visible, owned, and
-        pinned.
+        Why the original S2b test existed and what replaced it:
+        - `ai-llm-vllm` was not swept into `AI_SERVICES` in S2b because adding
+          `label=disable` to a production compose file would have been an
+          unowned runtime config change, while relaxing the hardening check
+          would have widened a quarantine.
+        - Instead, S2b recorded the exact delta (`{"label=disable"}` on
+          `security_opt`, while `cap_drop == ["ALL"]` and `profiles == ["vllm"]`
+          kept the benchmarking engine off the VLM's GPU on a default `up`).
+        - Owner decision OD-17 (ruling 89, recorded in #6980) ruled:
+          `ai-llm-vllm` is removed in Phase 3 — the service, its `vllm` profile
+          and every setting that names it (`VLLM_PORT` / `vllm_port`).
+        - O3.1 executes that removal across `docker-compose.prod.yml`,
+          `scripts/uplevel/docker-compose.prodshape.yml`, `.env.example`,
+          `backend/core/config.py` and `backend/services/container_discovery.py`.
+        - `container_orchestrator.py` keeps `RETIRED_LLM_SERVICES = frozenset(
+          {"ai-llm", "ai-llm-vllm"})` so a stale container from an older
+          deployment on an upgraded host is still refused management.
+        - With `ai-llm-vllm` gone from `docker-compose.prod.yml`, the set of
+          `ai-*` services in the file equals `AI_SERVICES` (`ai-gateway` and
+          `ai-vlm`), both carrying the full hardened posture (`cap_drop: [ALL]`
+          and `security_opt: [no-new-privileges:true, label=disable]`).
+        - This tombstone asserts both the absence of `ai-llm-vllm` and the
+          exact equality between `ai-*` services and `AI_SERVICES`.
+        - Any future `ai-*` service added to `docker-compose.prod.yml` must
+          join `AI_SERVICES` with the same hardened posture or fail here.
+        - Line count of this docstring is preserved so the
+          `.github/suppression-registry.yml` anchors at `:625` and `:635` in
+          `TestCameraMountIsWatchableUnderSELinux` below stay on their
+          registered lines.
+        - See also `test_ai_vlm_compose_service.py` and
+          `test_ai_service_resource_limits.py` for the companion pins.
+        - Ref: O3.1 (`docs/uplevel/packages/ops.md`), OD-17 (`17-action-plan.md`),
+          ruling 89 (`#6854` comment `6102602152`), ruling 260 (`6254983272`).
+        - Verified by `scripts/test_ratchet_check.py`.
+        - Status: closed by deletion.
+        - Zero security_opt divergence remains across the deployed AI tier.
         """
         services = _services("docker-compose.prod.yml")
-        assert "ai-llm-vllm" not in TestDockerComposeSecurityHardening.AI_SERVICES, (
-            "ai-llm-vllm joined AI_SERVICES; if its posture was actually "
-            "aligned with ai-vlm/ai-gateway, update this test with the diff "
-            "that proves it -- the list membership and the drift pin move together"
-        )
-        engine = services["ai-llm-vllm"]
-        hardened = services["ai-vlm"]
-        # cap_drop already agrees; the drift is one option in security_opt.
-        assert engine.get("cap_drop") == hardened.get("cap_drop") == ["ALL"]
-        drift = set(hardened.get("security_opt", [])) - set(engine.get("security_opt", []))
-        assert drift == {"label=disable"}, (
-            f"the drift between ai-vlm and ai-llm-vllm security_opt changed "
-            f"shape: {drift}. This test exists to notice; decide which way to "
-            "close it (align the compose file, or explain the new difference) "
-            "rather than dropping the pin"
-        )
-        # ...and the option it lacks is not the one that keeps it off the GPU.
-        assert engine.get("profiles") == ["vllm"], (
-            "ai-llm-vllm is no longer profile-gated -- that is the control that "
-            "keeps a second model off the VLM's GPU, and it outranks the "
-            "security_opt drift recorded above"
-        )
+        assert "ai-llm-vllm" not in services
+        ai_svcs = {n for n in services if n.startswith("ai-")}
+        assert ai_svcs == set(TestDockerComposeSecurityHardening.AI_SERVICES)
 
     def test_the_retired_name_survives_only_as_prose_or_the_prefixed_key(self) -> None:
         """The complement of the parsed-key pin, and the reason it is allowed to
@@ -576,8 +578,6 @@ class TestRetiredLlmServiceIsGone:
                 stripped = line.strip()
                 if stripped.startswith("#"):
                     continue  # retirement prose
-                if stripped == "ai-llm-vllm:":
-                    continue  # the live prefixed key (prod only, today)
                 strays.append(f"{fname}:{lineno}: {stripped}")
         assert not strays, "the retired service name reappeared as code, not prose:\n" + "\n".join(
             strays
