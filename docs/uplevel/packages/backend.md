@@ -407,7 +407,7 @@ golden leg passing.
 
 ### [r160b] Deferred Python major: huggingface-hub 2
 
-**Flags:** none. **Assigned:** backend. **Depends on:** Phase 2's exit. **PR:** none yet. (ruling
+**Flags:** none. **Assigned:** backend. **Depends on:** Phase 2's exit. **PR:** #7269. (ruling
 160; dependabot #7062, closed with `@dependabot ignore this major version`)
 
 - [ ] Bump `huggingface-hub` to 2.x in its own PR, lifting the ignore
