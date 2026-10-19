@@ -1074,11 +1074,6 @@ _TEST_DATA: dict[str, dict[str, Any]] = {
         "camera_id": "front_door",
         "event_type": "motion_detected",
     },
-    "event_enriched": {
-        "event_id": "test-event-001",
-        "enrichment_type": "person_detection",
-        "confidence": 0.95,
-    },
     "entity_discovered": {
         "entity_id": "test-entity-001",
         "entity_type": "person",
@@ -1095,9 +1090,6 @@ _TEST_DATA: dict[str, dict[str, Any]] = {
         "status": "degraded",
         "message": "High latency detected",
     },
-    "batch_analysis_started": {},
-    "batch_analysis_completed": {},
-    "batch_analysis_failed": {},
 }
 
 

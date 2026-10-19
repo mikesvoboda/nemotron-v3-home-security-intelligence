@@ -1917,3 +1917,19 @@ def test_format_for_integration_routes_on_exact_type(
     payload = {"event_type": "alert_fired", "data": {"k": "v"}}
     result = webhook_service._format_for_integration(webhook, payload)
     assert title_marker in result
+
+
+def test_retired_r2a_row42_webhook_event_types_absent() -> None:
+    """R2a row 42 (F-246): retired batch and enrichment webhook event types are absent."""
+    from backend.models.outbound_webhook import WebhookEventType as ModelWebhookEventType
+
+    schema_values = {e.value for e in WebhookEventType}
+    model_values = {e.value for e in ModelWebhookEventType}
+    for retired in (
+        "event_enriched",
+        "batch_analysis_started",
+        "batch_analysis_completed",
+        "batch_analysis_failed",
+    ):
+        assert retired not in schema_values
+        assert retired not in model_values
