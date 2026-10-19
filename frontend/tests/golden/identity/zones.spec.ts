@@ -283,12 +283,15 @@ function janitorFetch(h: Harness, session: Session) {
 
 type JanitorFinding = string;
 
-/** The timeout janitor. Playwright runs afterEach AFTER the test-timeout kill,
+/** The leak janitor. Playwright runs afterEach AFTER the test-timeout kill,
  *  and it runs it again for each test this describe owns — so the hook must
  *  scope itself by title (probes 14/21: an unscoped throwing hook reddens the
- *  NEXT test) and by status (the finally blocks already cover every
- *  non-timeout failure: an exception propagates through them, and the
- *  orphan-resume shapes only arise from the timeout kill).
+ *  NEXT test) and by outcome (round-1 review, B1: the timeout kill is not the
+ *  only path that can leak — a plain throw can escape a window whose cleanup
+ *  has not opened yet, so the hook also covers status === 'failed'; every
+ *  reached finally covers its own body, and the by-name sweep finds nothing
+ *  where that cleanup already succeeded, so a 'failed' sweep is a no-op when
+ *  the structure held and a report when it did not).
  *
  *  Why a hook and not a bigger finally: a test timeout cancels the test
  *  body's pending await, so the finally's own await chain only RESUMES when
@@ -303,8 +306,8 @@ type JanitorFinding = string;
  *  (the comment at the constants says why uniqueness matters) — because a
  *  mid-body death leaves the row ids unknown or partially known, while the
  *  names are the stable key. The hook's own throw attaches to the ALREADY-RED
- *  timed-out test, never to a later one (probes 13/14), so a partial sweep
- *  reports honestly without poisoning the next test. */
+ *  test, never to a later one (probes 13/14), so a partial sweep reports
+ *  honestly without poisoning the next test. */
 test.describe('DO-3 zones golden path', () => {
   // The LOGIN is bounded by race, not by signal: adminSessionId has no options
   // parameter (harness.ts:338) and taking a race keeps the harness untouched —
@@ -387,8 +390,8 @@ test.describe('DO-3 zones golden path', () => {
     return findings;
   };
 
-  test.afterEach(async (_, testInfo) => {
-    if (testInfo.status !== 'timedOut') return;
+  test.afterEach(async ({}, testInfo) => {
+    if (testInfo.status !== 'timedOut' && testInfo.status !== 'failed') return;
     if (testInfo.title !== F_256_TITLE && testInfo.title !== F_258_TITLE) return;
 
     const h = harness as Harness;
@@ -398,7 +401,7 @@ test.describe('DO-3 zones golden path', () => {
       // not throw (probes 13/14: this hook re-runs for the NEXT test, and a
       // throw here reddens a test that has not run yet).
       console.warn(
-        `[DO-3 janitor] after timeout of "${testInfo.title}": admin login failed/unbounded; ` +
+        `[DO-3 janitor] after ${testInfo.status} of "${testInfo.title}": admin login failed/unbounded; ` +
           `NO SWEEP RAN — rows named Golden DO-3* may leak into the next test.`
       );
       return;
@@ -435,13 +438,24 @@ test.describe('DO-3 zones golden path', () => {
         );
     }
     const membersAfter = await api.getJson('/api/household/members').catch(() => null);
-    if (membersAfter && membersAfter.status === 200) {
+    if (!membersAfter || membersAfter.status !== 200) {
+      // A failed witness re-read is a finding, not silence (round-1 review N1:
+      // the zones witness already reported this; the household witnesses did
+      // not — asymmetric).
+      findings.push(
+        `members witness: re-read ${membersAfter ? membersAfter.status : 'network error'}`
+      );
+    } else {
       const left = (membersAfter.body as Array<{ name: string }>).filter((m) => m.name === MEMBER);
       if (left.length > 0)
         findings.push(`members witness: ${left.length} Golden DO-3 member(s) remain after sweep`);
     }
     const vehiclesAfter = await api.getJson('/api/household/vehicles').catch(() => null);
-    if (vehiclesAfter && vehiclesAfter.status === 200) {
+    if (!vehiclesAfter || vehiclesAfter.status !== 200) {
+      findings.push(
+        `vehicles witness: re-read ${vehiclesAfter ? vehiclesAfter.status : 'network error'}`
+      );
+    } else {
       const left = (vehiclesAfter.body as Array<{ description: string }>).filter(
         (v) => v.description === VEHICLE
       );
@@ -451,13 +465,13 @@ test.describe('DO-3 zones golden path', () => {
 
     if (findings.length > 0) {
       throw new Error(
-        `DO-3 janitor after timeout of "${testInfo.title}" found ${findings.length} issue(s): ` +
+        `DO-3 janitor after ${testInfo.status} of "${testInfo.title}" found ${findings.length} issue(s): ` +
           `${findings.join(' | ')}. Rows named Golden DO-3* may poison the next test's ` +
           `fresh-state gates (the 3377684a6 cascade shape).`
       );
     }
     console.warn(
-      `[DO-3 janitor] after timeout of "${testInfo.title}": swept by name, lists witness-empty.`
+      `[DO-3 janitor] after ${testInfo.status} of "${testInfo.title}": swept by name, lists witness-empty.`
     );
   });
 
@@ -524,10 +538,12 @@ test.describe('DO-3 zones golden path', () => {
     // e.g. zoneB's 201-assert throwing, or any failure in the long
     // comment-and-leg block between them — skipped the finally entirely and
     // leaked zone A with NO cleanup attempt on a plain (non-timeout) failure.
-    // The janitor hook below scopes itself to 'timedOut' only, because a throw
-    // propagates THROUGH a finally (F-258's file-wide doctrine) — which is only
-    // true once every creation sits inside the try. Closing that window makes
-    // the hook's scoping honest instead of lucky.
+    // Two layers close that window now: this try's CATCH deletes whatever
+    // materialized before rethrowing (the catch runs only on the throw path,
+    // so the happy path never deletes a zone the card leg still needs), and
+    // the janitor hook below additionally sweeps on status 'failed' — so even
+    // a cleanup-delete that itself fails is caught, reported, and cannot
+    // self-perpetuate into the next attempt's fresh-state gate.
     let zoneA = '';
     let zoneB = '';
     let zoneACreatedAt: string | undefined;
@@ -551,12 +567,34 @@ test.describe('DO-3 zones golden path', () => {
       expect(createdB.status, 'POST zone B answers 201').toBe(201);
       zoneB = String(createdB.body?.id);
     } catch (err) {
-      // The finally still runs on this path (a throw propagates through it);
-      // this catch exists only to annotate: if zoneA exists but zoneB's POST
-      // failed, the finally's [204,404] deletes and the empty re-read prove
-      // the leak was contained here, not left for the next test.
+      // This catch runs ONLY on the throw path (a finally here would also run
+      // on the happy path and delete zones the card leg still needs), so this
+      // is where a partially-created leak gets closed: whatever materialized
+      // before the throw is deleted here, best-effort, before the rethrow.
+      // Round-1 review (B1): the rethrow used to leave zone A with no cleanup
+      // attempt at all — the remount-leg try below is never entered on this
+      // path, so its finally is unreachable from here.
+      const dropped: string[] = [];
+      for (const [label, id] of [
+        ['zone A', zoneA],
+        ['zone B', zoneB],
+      ] as const) {
+        if (id === '' || id === 'undefined') continue;
+        try {
+          const del = await api.send(`/api/cameras/${cameraId}/zones/${id}`, 'DELETE');
+          // [204, 404] — the same rule the remount finally applies: a 404 IS
+          // the proof the row is already gone.
+          dropped.push(`${label}: ${[204, 404].includes(del.status) ? 'deleted' : del.status}`);
+        } catch (e) {
+          dropped.push(`${label}: ${(e as Error).message.split('\n')[0]}`);
+        }
+      }
       console.warn(
-        `[F-256] body failed while creating zones: ${(err as Error).message.split('\n')[0]}`
+        `[F-256] body failed while creating zones: ${(err as Error).message.split('\n')[0]}` +
+          (dropped.length > 0 ? `; cleanup attempted: ${dropped.join(', ')}` : '') +
+          (dropped.some((d) => !d.endsWith('deleted'))
+            ? '; rows may remain — the DO-3 janitor hook sweeps them (status failed)'
+            : '')
       );
       throw err;
     }
