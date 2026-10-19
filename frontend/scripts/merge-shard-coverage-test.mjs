@@ -112,12 +112,12 @@ test('CLI end-to-end on temp dirs prints FRONTEND_COVERAGE line', async () => {
   }
 });
 
-// WP2.3 (R-1): the four frontend floors become the MEASURED values
-// (80 / 74.6 / 78.4 / 80.9, run 35486259345's merged totals) and CI ENFORCES
-// them. --enforce makes the merge step's exit code mean "at or above the
-// floors" — the R-FEFLOOR report-only posture is retired per R-7 (advisory
+// WP2.3 (R-1): the four frontend floors become the MEASURED values and CI
+// ENFORCES them. --enforce makes the merge step's exit code mean "at or above
+// the floors" — the R-FEFLOOR report-only posture is retired per R-7 (advisory
 // gates become blocking after baselining; the baseline here is the measured
-// value, so enforcement cannot redden a tree that didn't regress).
+// value, so enforcement cannot redden a tree that didn't regress). Re-pinned
+// by owner ruling 261 (one-off): run 39161827871's merged totals at d78f1a7ed.
 test('--enforce exits 1 when a metric is under its floor', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'wp23-'));
   try {

@@ -423,16 +423,21 @@ export default defineConfig(({ mode }) => {
         ],
         thresholds: {
           // WP2.3 (R-1): floors AT the measured values, not the declared
-          // wish-values. 83/77/81/84 sat above every observed run (merged
-          // 80.0/74.6/78.4/80.9, run 35486259345, 2026-09-20), so they were
-          // unenforceable by construction — the CI step said "R-FEFLOOR: not
-          // enforced". A floor that has never held is not a floor. These
-          // numbers are mirrored by merge-shard-coverage.mjs's FLOORS, which
-          // CI enforces on the merged shard data (node test pins the two).
-          statements: 80,
+          // wish-values. 83/77/81/84 sat above every observed run, so they
+          // were unenforceable by construction — the CI step said
+          // "R-FEFLOOR: not enforced". A floor that has never held is not a
+          // floor. These numbers are mirrored by merge-shard-coverage.mjs's
+          // FLOORS, which CI enforces on the merged shard data (node test
+          // pins the two).
+          //
+          // Owner ruling 261 (record 6256508661, 2026-10-18): re-pinned with
+          // FLOORS, the one-off post-cut measured values of run 39161827871
+          // at d78f1a7ed (79.7 / 74.6 / 77.4 / 80.7 over 692 kept files).
+          // One-off; UR-69 stands for every other PR.
+          statements: 79.7,
           branches: 74.6,
-          functions: 78.4,
-          lines: 80.9,
+          functions: 77.4,
+          lines: 80.7,
         },
       },
     },
