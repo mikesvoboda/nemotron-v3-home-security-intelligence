@@ -768,14 +768,9 @@ Settings come from `TranscodeCacheSettings` (`env_prefix="TRANSCODE_CACHE_"`).
 
 ## Background Evaluation
 
-| Variable                                   | Required | Default | Range | Description                                                |
-| ------------------------------------------ | -------- | ------- | ----- | ---------------------------------------------------------- |
-| `BACKGROUND_EVALUATION_ENABLED`            | No       | `true`  | -     | Enable background model evaluation when GPU is idle        |
-| `BACKGROUND_EVALUATION_GPU_IDLE_THRESHOLD` | No       | `20`    | 0-100 | GPU utilization % at or below which the GPU counts as idle |
-| `BACKGROUND_EVALUATION_IDLE_DURATION`      | No       | `5`     | 1-300 | Seconds GPU must stay idle before evaluation starts        |
-| `BACKGROUND_EVALUATION_POLL_INTERVAL`      | No       | `5.0`   | 1-60s | How often (seconds) to check evaluation conditions         |
-
-> `BACKGROUND_EVAL_ENABLED`/`BACKGROUND_EVAL_INTERVAL` do not exist under those names. Evaluation is idle-gated, not fixed-interval: the documented "3600 s interval" had no counterpart in code — the closest knob, `BACKGROUND_EVALUATION_POLL_INTERVAL`, is the 5 s condition check.
+| Variable                        | Required | Default | Range | Description                                       |
+| ------------------------------- | -------- | ------- | ----- | ------------------------------------------------- |
+| `BACKGROUND_EVALUATION_ENABLED` | No       | `true`  | -     | Enable background model evaluation feature toggle |
 
 ---
 

@@ -19,8 +19,7 @@ File Upload -> Detection -> Batching -> Specialists -> Analysis -> Event Creatio
                      ├── SystemBroadcaster (system status)
                      ├── HealthMonitor (service recovery)
                      ├── CleanupService (retention policy)
-                     ├── PerformanceCollector (metrics aggregation)
-                     └── BackgroundEvaluator (AI audit evaluation)
+                     └── PerformanceCollector (metrics aggregation)
 ```
 
 ### Service Categories
@@ -141,7 +140,6 @@ defined inside `model_zoo.py` itself.
 | `health_service_registry.py`     | DI registry for health monitoring (NEM-2611)  | No (import directly)       |
 | `system_broadcaster.py`          | Broadcast system health status                | No (import directly)       |
 | `performance_collector.py`       | Collect system performance metrics            | No (import directly)       |
-| `background_evaluator.py`        | Run AI audit evaluations when GPU is idle     | Yes                        |
 | `worker_supervisor.py`           | Auto-recovery for crashed worker tasks        | No (import directly)       |
 
 ### Container Orchestrator Services
@@ -212,12 +210,6 @@ defined inside `model_zoo.py` itself.
 | Service                | Purpose                         | Exported via `__init__.py` |
 | ---------------------- | ------------------------------- | -------------------------- |
 | `partition_manager.py` | PostgreSQL partition management | Yes                        |
-
-### Evaluation Services
-
-| Service               | Purpose                                 | Exported via `__init__.py` |
-| --------------------- | --------------------------------------- | -------------------------- |
-| `evaluation_queue.py` | Priority queue for AI audit evaluations | Yes                        |
 
 ### Camera Services
 
@@ -1947,83 +1939,6 @@ When `job_tracker` is provided:
 | Service not running     | Check `enabled` setting and `service.get_status()`      |
 | High disk usage         | Decrease `age_threshold_hours` or `scan_interval_hours` |
 
-### evaluation_queue.py
-
-**Purpose:** Priority queue for AI audit evaluations backed by Redis.
-
-**Key Features:**
-
-- Redis sorted set (ZSET) for priority-based ordering
-- Higher priority events (higher risk scores) are evaluated first
-- Persists across restarts (Redis-backed)
-- Supports queue status and management
-
-**Redis Storage:**
-
-- Key: `evaluation:pending` (sorted set)
-- Members: event IDs (as strings)
-- Scores: priorities (higher = evaluated first)
-
-**Public API:**
-
-```python
-from backend.services.evaluation_queue import get_evaluation_queue
-
-queue = get_evaluation_queue(redis_client)
-
-await queue.enqueue(event_id, priority=risk_score)  # Add to queue
-event_id = await queue.dequeue()  # Get highest priority event
-size = await queue.get_size()  # Get queue size
-pending = await queue.get_pending_events(limit=100)  # List pending events
-removed = await queue.remove(event_id)  # Remove specific event
-is_queued = await queue.is_queued(event_id)  # Check if event is queued
-```
-
-### background_evaluator.py
-
-**Purpose:** Background service that runs AI audit evaluations automatically when GPU is idle.
-
-**Key Features:**
-
-- Monitors GPU utilization and only processes when idle
-- Detection and analysis queues take priority over evaluation
-- Higher risk events are evaluated first (priority queue)
-- Configurable idle threshold (default: 20%) and duration requirements (default: 5s)
-
-**Processing Flow:**
-
-1. Check if detection/analysis queues are empty
-2. Check if GPU has been idle for required duration
-3. Dequeue highest priority event from evaluation queue
-4. Run full AI audit evaluation (4 LLM calls)
-5. Repeat or wait based on queue status
-
-**Configuration:**
-
-- `gpu_idle_threshold`: GPU utilization % below which GPU is idle (default: 20%)
-- `idle_duration_required`: Seconds GPU must be idle before processing (default: 5s)
-- `poll_interval`: How often to check for work (default: 5s)
-- `enabled`: Whether background evaluation is enabled (default: True)
-
-**Public API:**
-
-```python
-from backend.services.background_evaluator import get_background_evaluator
-
-evaluator = get_background_evaluator(
-    redis_client=redis_client,
-    gpu_monitor=gpu_monitor,
-    evaluation_queue=evaluation_queue,
-    audit_service=audit_service,
-)
-
-await evaluator.start()  # Start background loop
-is_idle = await evaluator.is_gpu_idle()  # Check GPU idle status
-can_process = await evaluator.can_process_evaluation()  # Check if can process
-processed = await evaluator.process_one()  # Process one evaluation manually
-await evaluator.stop()  # Stop background loop
-```
-
 ### token_counter.py
 
 **Purpose:** Token counting service for LLM context window management.
@@ -2873,20 +2788,12 @@ rtsp_url = await service.get_rtsp_url_from_device(
    | Calls: EventBroadcaster.broadcast_event() (LAST, best-effort)
    | Publishes: Redis pub/sub channel "security_events"
    | Audit: the ai_audit routes create the partial audit on demand
-   |   (service.create_partial_audit) — analysis itself does not enqueue
-   |   evaluation: EvaluationQueue.enqueue() has no production caller, so
-   |   evaluation:pending only ever fills through test fixtures
+   |   (service.create_partial_audit)
 
 7. [AlertRuleEngine] (After Event Creation)
    | Evaluates: Each rule's conditions against event
    | Creates: Alert records for triggered rules
    | Calls: NotificationService.send_alert()
-
-8. [BackgroundEvaluator] (When GPU Idle)
-   | Checks: GPU idle and queues empty
-   | Dequeues: Highest priority event from evaluation queue
-   | Calls: AuditService.run_full_evaluation()
-   | Updates: EventAudit record with quality scores
 ```
 
 ### Specialist Stage (inside analyze_batch)
@@ -2948,13 +2855,6 @@ ServiceHealthMonitor (Periodic Health Checks)
    | Checks: Redis via redis-cli ping
    | Restarts: Failed services with exponential backoff
    | Broadcasts: Service status changes via WebSocket
-
-BackgroundEvaluator (GPU Idle Processing)
-   | Every poll_interval seconds (default: 5s)
-   | Checks: GPU idle and detection/analysis queues empty
-   | Dequeues: Highest priority event from evaluation queue
-   | Runs: Full AI audit evaluation (4 LLM calls)
-   | Updates: EventAudit records with quality scores
 ```
 
 ### Redis Queue Structure
@@ -3002,8 +2902,6 @@ from backend.services import (
     CleanupService,
     CircuitBreaker,
     RetryHandler,
-    BackgroundEvaluator,
-    EvaluationQueue,
     PartitionManager,
     ManagedService,
     ServiceConfig,
@@ -3095,7 +2993,6 @@ Most services provide `reset_*()` functions for test isolation:
 - `reset_reid_service()`, `reset_dedupe_service()`
 - `reset_context_enricher()`
 - `reset_scene_change_detector()`, `reset_audit_service()`
-- `reset_background_evaluator()`, `reset_evaluation_queue()`
 - `reset_token_counter()`, `reset_clip_generator()`
 - `reset_inference_semaphore()`
 - `reset_ai_fallback_service()`, `reset_service_registry()`
