@@ -220,6 +220,20 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   touched by #6862 (its own diff renumbered the cite 1012→1017, true at its merge).
 - Fix: update the cite to `docker-compose.prod.yml:1098`. Size S; owner: ops.
 - Owner: (pending)
+- Refuted=false. Refuter re-measured the whole chain and confirmed every number:
+  pre-#6862 1012 → #6862 (1e959ccce) 1017, cite true at its merge → #6868 (8169d5c0b)
+  1022, **first mover proven by blob identity** (prod.yml blob 99351e71f identical at
+  #6862 and #6868^1; the merge's first-parent diff adds 5 lines to the AI_VLM comment
+  block near :552 — branch commits 3dedfb812/16060cb6f expanding the read-budget
+  comment) → 1024 (#6907) → 1031 (#6925) → 1063 (#6930) → 1069 (#6950) → 1085 (#7114)
+  → 1098 (#7222) → pin 1098. Cite text unedited since #6862 (blob 20f33d9c7 identical
+  at every chain merge, at #7205, and at the pin). :1017 at the pin is the frontend
+  healthcheck URL, nothing prometheus-adjacent; prodshape.yml has no prometheus_rules
+  mount, so the cite can only mean the 1098 mount. Annotations: the repo is shallow
+  with boundary at d6344e031 (#7205), which is why #7205 appears in the file's log
+  without an edit; and `monitoring/prometheus-rules.yml` (hyphenated, a different
+  file) is mounted at prod.yml:1099 — the underscore form in the cite unambiguously
+  refers to the 1098 mount.
 
 ### Q-007 · claim · low · frontend/src/hooks/useVerdictEngineStatus.ts:44 · #6909
 - Wrong: the `enabled` option's docstring claims it controls the WebSocket connection, but
@@ -238,7 +252,21 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   docstring to say enabled gates reconnection and polling rather than the connection itself.
   Size S; owner: frontend.
 - Owner: (pending)
-- Refutation: pending (refuter running).
+- Refuted=false. Refuter verified every cite at the pin: the ternary only selects options
+  (both branches pass the same url/protocols/onMessage; disabled adds reconnect:false and
+  defaults the rest), `useWebSocket.ts:200-206` runs connect() on mount with no gate, and
+  `webSocketManager.ts:282-290` opens on subscribe whenever none is OPEN/CONNECTING — its
+  connect() never consults config.reconnect (reconnect is read only in the onclose handler
+  at :594/:630). Only production caller `Layout.tsx:40` calls useVerdictEngineStatus() with
+  no options; repo-wide grep at the pin finds no other caller (banner/provider hits are
+  comments, index.ts a re-export). Born in #6909: the hook file is new in merge 34f66b38's
+  diff and byte-identical at the pin, so no later PR fixed it. Escapes rejected: reading
+  "enable the connection" as "enable the feature" doesn't rescue the false half (the
+  interface documents isConnected as "Whether the /ws/system socket is connected"); the
+  readiness-poll half being true does not rescue the false main clause. Path corrections:
+  webSocketManager.ts lives at frontend/src/hooks/, Layout.tsx at
+  frontend/src/components/layout/; the `enabled:` at Layout.tsx:60 belongs to the shortcuts
+  hook, not useVerdictEngineStatus.
 
 ### Q-008 · claim · low · backend/tests/unit/core/test_nginx_credential_forwarding.py:3 · #6922
 - Wrong: the docstring asserts B1.5's gate "reads exactly two client credentials on the
