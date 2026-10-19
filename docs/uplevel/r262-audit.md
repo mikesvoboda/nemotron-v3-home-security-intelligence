@@ -440,7 +440,19 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
 - Fix: repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update
   the :361 quote to the setupRequired-guarded form the pin ships. Size S; owner: frontend.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false. Refuter verified both cites verbatim with present-tense framing; the pin
+  coordinates exactly as itemized (:175-178 seam tail + comment, :152 "F1.3 Done when",
+  logout callback :217-221, guarded assignment :194); and substance still true (logoutApi
+  at services/authApi.ts:243-249 POSTs /api/auth/logout, only cache action is
+  invalidateQueries(CURRENT_USER_KEY); the quoted "user = currentUser ?? null" holds in
+  the operative branch, where the guarded line reduces exactly to that form). Mechanism
+  sharpened: the test blob was unchanged e9ec74ef→e0cd9333 (9b602fa6) and only became
+  7eaa7056 at merge, while AuthContext.tsx moved (7bfedf84→b0c32aa5) already in PR-branch
+  commits — the PR relocated the code without touching the test comment, so the cites
+  were stale in the PR's own content at merge, not drifted later. Nuance: the
+  setupRequired guard predates #6922 (:152 at e9ec74ef already reads the guarded form),
+  so the comment's quote was never a verbatim match of the cited line — a branch-local
+  simplification — and the item's fix (repoint + update the quote) already covers it.
 
 ### Q-014 · claim · low · frontend/src/hooks/useSummaries.ts:150 · #6922
 - Wrong: the comment claims buildWebSocketOptions "attaches the optional api-key subprotocol",
