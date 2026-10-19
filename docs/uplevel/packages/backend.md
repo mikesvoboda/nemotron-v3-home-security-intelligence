@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -189,7 +189,7 @@ PR it is. The row's design note stays with Phase 4's prompt-management package.
 ### [r236] Two documented endpoints become External rows
 
 **Flags:** none. **Assigned:** backend, after `B3.3`. **Depends on:** `R2` (Phase 2's exit).
-**PR:** none yet. (ruling 236, record 6216306194)
+**PR:** #7260. (ruling 236, record 6216306194)
 
 No client in `frontend/src` calls them, but the docs tell users to:
 `docs/guides/face-recognition.md:288` for `POST /api/household/members/{member_id}/embeddings`

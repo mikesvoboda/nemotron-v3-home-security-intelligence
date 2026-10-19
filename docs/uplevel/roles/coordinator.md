@@ -200,9 +200,36 @@ Raise it only on the criteria in UR-25.
 
 ## Kickoff prompt
 
-The `uplevel-coordinator` session is a dispatcher: every coordinator act is done by the fresh
-subagent each tick starts (owner records 6146755754, 6148551105). Paste the dispatcher prompt to the
-session, in the `uplevel-coordinator` sandbox, then arm its tick with:
+Every coordinator act is done by a fresh subagent the tick starts (owner records 6146755754,
+6148551105). There are two ways to start one, and the supervisor is the one that survives a pane:
+on 2026-10-16 the in-pane dispatcher stopped and the coordinator posted nothing from 03:47Z to
+13:30Z ([r247]).
+
+**The supervisor (default from [r247]).** The owner's timer runs
+`scripts/uplevel/launch.py supervise uplevel-coordinator` every 30 minutes on maui (ruling 239).
+One fire is one tick: the host runs the prompt below, word for word, as a headless `claude -p`
+inside `agent-uplevel-coordinator` through `sbx exec`, carrying exactly the pane's own launch
+flags (ruling 259, answering [r247]'s Q1 with (a): the fire mirrors the pane) -
+`--dangerously-skip-permissions`, `--settings $HOME/.claude/agent-dgx/claude-settings.json` and
+`--mcp-config=$HOME/.claude/agent-dgx/mcp.json`, the same files agent-dgx starts the pane with,
+at their absolute paths under the sandbox's HOME (agent-dgx keeps them there; the `$HOME`
+expansion is the sandbox shell's). The manifest row's arguments are
+`agent-dgx run` vocabulary (how a session is started), not `claude` flags, and stay off the wire.
+Before the fire, the launcher probes the two files inside the sandbox (the host cannot see that
+filesystem) and refuses - naming the missing file and the next step, as `up` and `retire` do -
+rather than firing a tick that would start without the pane's settings or MCP servers. A host lock
+skips a fire while a tick runs, a tick that has run 60 minutes is killed by a `timeout` wrapper the
+fire runs inside the sandbox, and each fire appends one line to
+`<checkout>/supervise/uplevel-coordinator.log` carrying start, end, exit status, whether it was
+killed, and the tick's five-line summary. The prompt is read out of this file; the `/loop` line
+below is where it is written.
+
+The switch-over is the owner's: end the pane's `/loop` session first, then enable the timer. Two
+dispatchers must never run at once.
+
+**The in-pane dispatcher (fallback).** Still valid, and its `/loop` line is also where the tick
+prompt is quoted, which the supervisor reads. Paste the dispatcher prompt to the session, in the
+`uplevel-coordinator` sandbox, then arm its tick with:
 
 ```text
 /loop 30m Dispatch one fresh, unnamed subagent with exactly this prompt and nothing added: "You are the uplevel coordinator. Run one tick of docs/uplevel/roles/coordinator.md, 'The tick', reading every fact from GitHub and the plan files this tick; carry nothing from earlier ticks except the read-through cursor in your heartbeat. Return a summary of at most five lines: PRs merged, other acts, raises, owner questions, main's CI state." Skip this fire if a tick is still running.

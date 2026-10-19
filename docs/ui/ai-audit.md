@@ -74,28 +74,6 @@ construction — see the metric table above — so no target applies to it.)
 Low Enrichment Utilization is not on this list: it is pinned near 0 on the shipped pipeline (the
 metric table explains why), so it carries no diagnostic signal here.
 
-#### Model Contribution Breakdown
-
-A horizontal bar chart showing the contribution rate of each AI model to event analyses. Each bar shows:
-
-- Model name with icon
-- Number of events the model contributed to
-- Percentage contribution rate (0-100%)
-
-These twelve rows are the `EventAudit.has_*` columns (`MODEL_NAMES` in
-`backend/services/pipeline_quality_audit_service.py`), and the chart is sorted by contribution rate
-in descending order. They are audit columns, not the shipped model list.
-
-**Read the chart as flat.** `model_contribution_rates` counts audits where each `has_*` flag is
-true, and the audits are built by `create_partial_audit()`, whose only call site
-(`backend/api/routes/ai_audit.py`) passes `enriched_context=None` and `enrichment_result=None`.
-Every flag except the hard-coded `has_yolo26=True` is therefore written `False`, and the chart's
-rates sit at 0 (or 100% for `yolo26`, which is what `Math.round(rate * audited_events)` turns the
-constant into). `avg_enrichment_utilization` is computed from the same two `None` arguments and
-reads 0. A flat chart says nothing about model health — the analysis path is `ai-gateway` detection,
-the in-process lookup legs, and `ai-vlm`. For what actually runs, use the
-[AI Performance](ai-performance.md) page and [current-state notes](../architecture/ai-pipeline-current-state.md).
-
 #### Prompt Improvement Recommendations
 
 AI-generated suggestions for improving prompt templates, displayed in an accordion grouped by category. The panel header shows the total "High Priority" count and how many events were analyzed.
@@ -532,19 +510,18 @@ The `event_audits` table stores:
 
 ### Related Code
 
-| Component                    | Location                                                      |
-| ---------------------------- | ------------------------------------------------------------- |
-| **Main Page**                | `frontend/src/components/ai/AIAuditPage.tsx`                  |
-| **Dashboard Component**      | `frontend/src/components/ai-audit/AIAuditDashboard.tsx`       |
-| **Quality Score Trends**     | `frontend/src/components/ai/QualityScoreTrends.tsx`           |
-| **Model Contribution Chart** | `frontend/src/components/ai-audit/ModelContributionChart.tsx` |
-| **Recommendations Panel**    | `frontend/src/components/ai/RecommendationsPanel.tsx`         |
-| **Prompt Playground**        | `frontend/src/components/ai/PromptPlayground.tsx`             |
-| **Batch Audit Modal**        | `frontend/src/components/ai/BatchAuditModal.tsx`              |
-| **Version History**          | `frontend/src/components/ai-audit/PromptVersionHistory.tsx`   |
-| **Audit Progress Bar**       | `frontend/src/components/ai-audit/AuditProgressBar.tsx`       |
-| **Audit Results Table**      | `frontend/src/components/ai-audit/AuditResultsTable.tsx`      |
-| **Backend Service**          | `backend/services/pipeline_quality_audit_service.py`          |
-| **API Routes**               | `backend/api/routes/ai_audit.py`                              |
-| **API Schemas**              | `backend/api/schemas/ai_audit.py`                             |
-| **Audit API (Frontend)**     | `frontend/src/services/auditApi.ts`                           |
+| Component                 | Location                                                    |
+| ------------------------- | ----------------------------------------------------------- |
+| **Main Page**             | `frontend/src/components/ai/AIAuditPage.tsx`                |
+| **Dashboard Component**   | `frontend/src/components/ai-audit/AIAuditDashboard.tsx`     |
+| **Quality Score Trends**  | `frontend/src/components/ai/QualityScoreTrends.tsx`         |
+| **Recommendations Panel** | `frontend/src/components/ai/RecommendationsPanel.tsx`       |
+| **Prompt Playground**     | `frontend/src/components/ai/PromptPlayground.tsx`           |
+| **Batch Audit Modal**     | `frontend/src/components/ai/BatchAuditModal.tsx`            |
+| **Version History**       | `frontend/src/components/ai-audit/PromptVersionHistory.tsx` |
+| **Audit Progress Bar**    | `frontend/src/components/ai-audit/AuditProgressBar.tsx`     |
+| **Audit Results Table**   | `frontend/src/components/ai-audit/AuditResultsTable.tsx`    |
+| **Backend Service**       | `backend/services/pipeline_quality_audit_service.py`        |
+| **API Routes**            | `backend/api/routes/ai_audit.py`                            |
+| **API Schemas**           | `backend/api/schemas/ai_audit.py`                           |
+| **Audit API (Frontend)**  | `frontend/src/services/auditApi.ts`                         |

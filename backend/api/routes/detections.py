@@ -600,6 +600,167 @@ async def list_detection_labels(db: AsyncSession = Depends(get_db)) -> Detection
     )
 
 
+# =============================================================================
+# Export Endpoints (NEM-3611)
+# =============================================================================
+
+
+@router.get(
+    "/export",
+    response_model=None,
+    responses={
+        200: {
+            "description": "Exported detections file",
+            "content": {
+                "text/csv": {
+                    "schema": {"type": "string", "format": "binary"},
+                    "example": "detection_id,camera_name,detected_at,...",
+                },
+                "application/json": {
+                    "schema": {"type": "array", "items": {"type": "object"}},
+                    "example": [{"detection_id": 1, "camera_name": "Front Door"}],
+                },
+            },
+        },
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+async def export_detections(
+    request: Request,
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    object_type: str | None = Query(None, description="Filter by object type"),
+    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    min_confidence: float | None = Query(
+        None, ge=0.0, le=1.0, description="Minimum confidence threshold"
+    ),
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.EXPORT)),
+) -> StreamingResponse | Response:
+    """Export detections as CSV or JSON file for external analysis.
+
+    Supports content negotiation via HTTP Accept header:
+    - `Accept: text/csv` or `Accept: application/csv` - CSV format (default)
+    - `Accept: application/json` - JSON format
+
+    This endpoint is rate-limited to 10 requests per minute per client IP.
+
+    Exports detections with the following fields:
+    - Detection ID, camera name, detection timestamp
+    - Object type, confidence score
+    - Bounding box coordinates (x, y, width, height)
+    - File path, media type
+
+    Args:
+        request: FastAPI request object (includes Accept header for format selection)
+        camera_id: Optional camera ID to filter by
+        object_type: Optional object type to filter by (person, vehicle, animal, etc.)
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        min_confidence: Optional minimum confidence threshold (0.0-1.0)
+        db: Database session
+        _rate_limit: Rate limiter dependency
+
+    Returns:
+        StreamingResponse with CSV or JSON Response containing exported detections
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+        HTTPException: 400 if start_date is after end_date
+    """
+    from backend.services.export_service import (
+        EXPORT_MIME_TYPES,
+        DetectionExportRow,
+        ExportFormat,
+        detections_to_csv,
+        detections_to_json,
+        generate_export_filename,
+        parse_accept_header,
+    )
+
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
+    # Determine export format from Accept header
+    accept_header = request.headers.get("Accept")
+    export_format = parse_accept_header(accept_header)
+
+    # Only CSV and JSON supported for detections export
+    if export_format == ExportFormat.EXCEL:
+        export_format = ExportFormat.CSV
+
+    # Normalize end_date to end of day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
+    # Build query with eager loading of camera relationship (NEM-4462)
+    # This uses a single JOIN query instead of N+1 queries for camera names
+    query = select(Detection).options(joinedload(Detection.camera))
+
+    # Apply filters
+    if camera_id:
+        query = query.where(Detection.camera_id == camera_id)
+    if object_type:
+        query = query.where(Detection.object_type == object_type)
+    if start_date:
+        query = query.where(Detection.detected_at >= start_date)
+    if normalized_end_date:
+        query = query.where(Detection.detected_at <= normalized_end_date)
+    if min_confidence is not None:
+        query = query.where(Detection.confidence >= min_confidence)
+
+    # Sort by detected_at descending (newest first)
+    query = query.order_by(Detection.detected_at.desc())
+
+    # Execute query - use unique() to handle joined load duplicates
+    result = await db.execute(query)
+    detections = result.scalars().unique().all()
+
+    # Convert detections to export rows
+    # Camera relationship is already loaded via joinedload (NEM-4462)
+    export_rows: list[DetectionExportRow] = []
+    for detection in detections:
+        # Access the eagerly loaded camera relationship directly
+        camera_name = detection.camera.name if detection.camera else "Unknown"
+
+        export_rows.append(
+            DetectionExportRow(
+                detection_id=detection.id,
+                camera_name=camera_name,
+                detected_at=detection.detected_at,
+                object_type=detection.object_type,
+                confidence=detection.confidence,
+                bbox_x=detection.bbox_x,
+                bbox_y=detection.bbox_y,
+                bbox_width=detection.bbox_width,
+                bbox_height=detection.bbox_height,
+                file_path=detection.file_path,
+                thumbnail_path=detection.thumbnail_path,
+                media_type=detection.media_type,
+            )
+        )
+
+    # Generate filename with timestamp
+    filename = generate_export_filename("detections_export", export_format)
+    content_type = EXPORT_MIME_TYPES[export_format]
+
+    # Generate export content based on format
+    if export_format == ExportFormat.JSON:
+        json_content = detections_to_json(export_rows)
+        return Response(
+            content=json_content,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    else:
+        # CSV format - return as streaming response
+        csv_content = detections_to_csv(export_rows)
+        return StreamingResponse(
+            iter([csv_content]),
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+
 @router.get("/{detection_id}", response_model=DetectionResponse, response_model_exclude_unset=True)
 async def get_detection(
     detection_id: int,
@@ -2015,164 +2176,3 @@ async def bulk_delete_detections(
         skipped=0,
         results=results,
     )
-
-
-# =============================================================================
-# Export Endpoints (NEM-3611)
-# =============================================================================
-
-
-@router.get(
-    "/export",
-    response_model=None,
-    responses={
-        200: {
-            "description": "Exported detections file",
-            "content": {
-                "text/csv": {
-                    "schema": {"type": "string", "format": "binary"},
-                    "example": "detection_id,camera_name,detected_at,...",
-                },
-                "application/json": {
-                    "schema": {"type": "array", "items": {"type": "object"}},
-                    "example": [{"detection_id": 1, "camera_name": "Front Door"}],
-                },
-            },
-        },
-        429: {"description": "Rate limit exceeded"},
-    },
-)
-async def export_detections(
-    request: Request,
-    camera_id: str | None = Query(None, description="Filter by camera ID"),
-    object_type: str | None = Query(None, description="Filter by object type"),
-    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
-    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
-    min_confidence: float | None = Query(
-        None, ge=0.0, le=1.0, description="Minimum confidence threshold"
-    ),
-    db: AsyncSession = Depends(get_db),
-    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.EXPORT)),
-) -> StreamingResponse | Response:
-    """Export detections as CSV or JSON file for external analysis.
-
-    Supports content negotiation via HTTP Accept header:
-    - `Accept: text/csv` or `Accept: application/csv` - CSV format (default)
-    - `Accept: application/json` - JSON format
-
-    This endpoint is rate-limited to 10 requests per minute per client IP.
-
-    Exports detections with the following fields:
-    - Detection ID, camera name, detection timestamp
-    - Object type, confidence score
-    - Bounding box coordinates (x, y, width, height)
-    - File path, media type
-
-    Args:
-        request: FastAPI request object (includes Accept header for format selection)
-        camera_id: Optional camera ID to filter by
-        object_type: Optional object type to filter by (person, vehicle, animal, etc.)
-        start_date: Optional start date for date range filter
-        end_date: Optional end date for date range filter
-        min_confidence: Optional minimum confidence threshold (0.0-1.0)
-        db: Database session
-        _rate_limit: Rate limiter dependency
-
-    Returns:
-        StreamingResponse with CSV or JSON Response containing exported detections
-
-    Raises:
-        HTTPException: 429 if rate limit exceeded
-        HTTPException: 400 if start_date is after end_date
-    """
-    from backend.services.export_service import (
-        EXPORT_MIME_TYPES,
-        DetectionExportRow,
-        ExportFormat,
-        detections_to_csv,
-        detections_to_json,
-        generate_export_filename,
-        parse_accept_header,
-    )
-
-    # Validate date range
-    validate_date_range(start_date, end_date)
-
-    # Determine export format from Accept header
-    accept_header = request.headers.get("Accept")
-    export_format = parse_accept_header(accept_header)
-
-    # Only CSV and JSON supported for detections export
-    if export_format == ExportFormat.EXCEL:
-        export_format = ExportFormat.CSV
-
-    # Normalize end_date to end of day
-    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
-
-    # Build query with eager loading of camera relationship (NEM-4462)
-    # This uses a single JOIN query instead of N+1 queries for camera names
-    query = select(Detection).options(joinedload(Detection.camera))
-
-    # Apply filters
-    if camera_id:
-        query = query.where(Detection.camera_id == camera_id)
-    if object_type:
-        query = query.where(Detection.object_type == object_type)
-    if start_date:
-        query = query.where(Detection.detected_at >= start_date)
-    if normalized_end_date:
-        query = query.where(Detection.detected_at <= normalized_end_date)
-    if min_confidence is not None:
-        query = query.where(Detection.confidence >= min_confidence)
-
-    # Sort by detected_at descending (newest first)
-    query = query.order_by(Detection.detected_at.desc())
-
-    # Execute query - use unique() to handle joined load duplicates
-    result = await db.execute(query)
-    detections = result.scalars().unique().all()
-
-    # Convert detections to export rows
-    # Camera relationship is already loaded via joinedload (NEM-4462)
-    export_rows: list[DetectionExportRow] = []
-    for detection in detections:
-        # Access the eagerly loaded camera relationship directly
-        camera_name = detection.camera.name if detection.camera else "Unknown"
-
-        export_rows.append(
-            DetectionExportRow(
-                detection_id=detection.id,
-                camera_name=camera_name,
-                detected_at=detection.detected_at,
-                object_type=detection.object_type,
-                confidence=detection.confidence,
-                bbox_x=detection.bbox_x,
-                bbox_y=detection.bbox_y,
-                bbox_width=detection.bbox_width,
-                bbox_height=detection.bbox_height,
-                file_path=detection.file_path,
-                thumbnail_path=detection.thumbnail_path,
-                media_type=detection.media_type,
-            )
-        )
-
-    # Generate filename with timestamp
-    filename = generate_export_filename("detections_export", export_format)
-    content_type = EXPORT_MIME_TYPES[export_format]
-
-    # Generate export content based on format
-    if export_format == ExportFormat.JSON:
-        json_content = detections_to_json(export_rows)
-        return Response(
-            content=json_content,
-            media_type=content_type,
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
-    else:
-        # CSV format - return as streaming response
-        csv_content = detections_to_csv(export_rows)
-        return StreamingResponse(
-            iter([csv_content]),
-            media_type=content_type,
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
