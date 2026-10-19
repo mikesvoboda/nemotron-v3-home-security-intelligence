@@ -370,8 +370,8 @@ class TestWebhookServiceTrigger:
             # Use an event type with no subscribers
             deliveries = await webhook_service.trigger_webhooks_for_event(
                 session,
-                WebhookEventType.BATCH_ANALYSIS_STARTED,
-                {"batch_id": "test-batch"},
+                WebhookEventType.SYSTEM_HEALTH_CHANGED,
+                {"component": "ai-vlm"},
             )
 
         # May be empty or not depending on other tests, but should not error
