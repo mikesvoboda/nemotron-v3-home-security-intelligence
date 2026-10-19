@@ -81,10 +81,6 @@ A React-only view rendering the native analytics components:
 
 Use native view when Grafana is unavailable or for quick access to specific metrics.
 
-#### Cost View
-
-Shows `CostAnalyticsDashboard` — a native cost-estimation dashboard (GPU/API cost tracking for the AI pipeline).
-
 ### Grafana Dashboard Panels
 
 The embedded Grafana dashboard includes panels for:
