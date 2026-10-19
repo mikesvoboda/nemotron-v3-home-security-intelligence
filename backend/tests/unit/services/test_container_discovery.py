@@ -156,7 +156,6 @@ class TestPreConfiguredServices:
         # Ports from .env.example (source of truth)
         expected_services = {
             "ai-gateway": ("AI Gateway", 8090, 120),
-            "ai-llm-vllm": ("LLM vLLM", 8097, 120),
         }
         assert set(expected_services) == set(AI_CONFIGS)
 
@@ -414,10 +413,12 @@ class TestContainerDiscoveryService:
         # (which the longer-match rule still resolves) proves the AI set did not
         # collapse to just the gateway.
         assert service.match_container_name("security-ai-llm-1") is None
+        assert service.match_container_name("security-ai-llm-vllm-1") is None
         assert service.get_config("ai-llm") is None
-        assert len(discovered) == 2
+        assert service.get_config("ai-llm-vllm") is None
+        assert len(discovered) == 1
         names = {s.name for s in discovered}
-        assert names == {"ai-gateway", "ai-llm-vllm"}
+        assert names == {"ai-gateway"}
         for s in discovered:
             assert s.category == ServiceCategory.AI
 
@@ -516,9 +517,9 @@ class TestContainerDiscoveryService:
         the service name.
         """
         mock_container = create_mock_container(
-            name="security-ai-llm-vllm-1",
-            container_id="llm123",
-            image_tags=["ghcr.io/myorg/vllm:v1.2.3"],
+            name="security-ai-gateway-1",
+            container_id="gw123",
+            image_tags=["ghcr.io/myorg/gateway:v1.2.3"],
         )
         mock_docker_client.list_containers = AsyncMock(return_value=[mock_container])
 
@@ -526,8 +527,8 @@ class TestContainerDiscoveryService:
         discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 1
-        assert discovered[0].name == "ai-llm-vllm"
-        assert discovered[0].image == "ghcr.io/myorg/vllm:v1.2.3"
+        assert discovered[0].name == "ai-gateway"
+        assert discovered[0].image == "ghcr.io/myorg/gateway:v1.2.3"
 
     @pytest.mark.asyncio
     async def test_discover_handles_container_without_image_tags(
@@ -804,7 +805,6 @@ EXPECTED_BUILDER_TABLE: dict[str, tuple] = {
     # R8 S2: the "ai-llm" row (and its settings-fed nemotron_port) is gone —
     # set(configs) == set(EXPECTED_BUILDER_TABLE) below locks the deletion.
     "ai-gateway": ("AI Gateway", "AI", 8090, "/health", None, 120, 5, 5.0, 300.0),
-    "ai-llm-vllm": ("LLM vLLM", "AI", 8097, "/health", None, 120, 5, 5.0, 300.0),
     "prometheus": ("Prometheus", "MONITORING", 9090, "/-/healthy", None, 30, 5, 10.0, 120.0),
     "grafana": ("Grafana", "MONITORING", 3002, "/api/health", None, 30, 5, 10.0, 120.0),
     "alertmanager": ("Alertmanager", "MONITORING", 9093, "/-/healthy", None, 15, 5, 10.0, 120.0),
@@ -838,9 +838,8 @@ ALL_PORTS = {
     "backend_port": 18000,
     "go2rtc_port": 19841,
     "ai_gateway_port": 18090,
-    # nemotron_port left Settings with R8 S2 (the ai-llm ServiceConfig row went
-    # with it), so the fake settings object no longer carries it either.
-    "vllm_port": 18097,
+    # nemotron_port left Settings with R8 S2 and vllm_port with O3.1 (OD-17,
+    # ruling 89), so the fake settings object carries neither.
     "prometheus_port": 19090,
     "grafana_port": 13002,
     "redis_exporter_port": 19121,
@@ -863,9 +862,8 @@ _KEY_TO_PORT_ATTR = {  # config key -> settings attribute feeding its port
     "go2rtc": "go2rtc_port",
     "frontend": "frontend_port",
     "ai-gateway": "ai_gateway_port",
-    # R8 S2: "ai-llm" -> "nemotron_port" went with that ServiceConfig row — a
-    # leftover row here would KeyError out of the settings-driven builder.
-    "ai-llm-vllm": "vllm_port",
+    # R8 S2: "ai-llm" -> "nemotron_port" and O3.1: "ai-llm-vllm" -> "vllm_port"
+    # went with their ServiceConfig rows.
     "prometheus": "prometheus_port",
     "grafana": "grafana_port",
     "alertmanager": "alertmanager_port",

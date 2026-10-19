@@ -105,7 +105,6 @@ backend/
   - `backup` - Backup management
   - `calibration` - Detection calibration settings
   - `cameras` - Camera CRUD and status
-  - `cost_analytics` - AI inference cost analytics
   - `debug` - Debug endpoints for development
   - `detections` - Detection queries with filtering
   - `detector` - Detector configuration
@@ -405,7 +404,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | `analytics.py`          | `/api/analytics`                         | Detection and event analytics             |
 | `analytics_zones.py`    | `/api/analytics-zones`                   | Analytics zone configuration              |
 | `calibration.py`        | `/api/calibration`                       | Detection calibration settings            |
-| `cost_analytics.py`     | `/api/analytics/costs`                   | AI inference cost analytics               |
 | `entity_recognition.py` | `/api/summaries/entities`                | Entity recognition operations             |
 | `face_recognition.py`   | `/api/known-persons`, `/api/face-events` | Face recognition management               |
 | `heatmaps.py`           | `/api/heatmaps`                          | Heatmap generation and queries            |
@@ -724,12 +722,11 @@ on 2026-09-29; the SSIM detector keeps its baselines in process memory.
 
 ### Audit and Compliance
 
-| Service                             | Purpose                    |
-| ----------------------------------- | -------------------------- |
-| `audit.py`                          | Audit service              |
-| `audit_logger.py`                   | Audit logging              |
-| `pipeline_quality_audit_service.py` | Pipeline quality auditing  |
-| `cost_tracker.py`                   | AI inference cost tracking |
+| Service                             | Purpose                   |
+| ----------------------------------- | ------------------------- |
+| `audit.py`                          | Audit service             |
+| `audit_logger.py`                   | Audit logging             |
+| `pipeline_quality_audit_service.py` | Pipeline quality auditing |
 
 ### Calibration
 
@@ -814,8 +811,6 @@ Scene analysis -> SceneChangeDetector -> SSIM vs in-memory baseline image -> Sce
 Activity anomaly -> BaselineService (count-based EWMA per camera/hour)
                    -> ActivityBaseline / ClassBaseline
                    -> ZoneActivityBaseline (zone_baseline_service)
-
-Cost tracking -> CostTracker -> Usage metrics -> /api/ai-audit
 ```
 
 ### Logging Flow

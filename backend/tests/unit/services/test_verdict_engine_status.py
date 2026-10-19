@@ -19,6 +19,7 @@ three promises directly, without the readiness route:
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
@@ -157,16 +158,51 @@ class TestTransitionEvents:
 
     @pytest.mark.asyncio
     async def test_emit_failure_does_not_break_the_probe(
-        self, tracker: VerdictEngineStatusTracker, ws_emitter: MagicMock
+        self,
+        tracker: VerdictEngineStatusTracker,
+        ws_emitter: MagicMock,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """A broken WebSocket must never fail the readiness probe — the event
-        is fire-and-forget and its exception is swallowed by design."""
-        ws_emitter.emit = AsyncMock(side_effect=RuntimeError("ws down"))
-        tracker.set_emitter(ws_emitter)
+        is fire-and-forget and its exception is swallowed by design.
 
-        snap = tracker.observe(_DOWN_DETAILS)
-        await asyncio.sleep(0)  # the task raises inside; must not surface
-        assert snap.state == VerdictEngineState.UNAVAILABLE  # observe() already returned fine
+        Both halves of that promise are pinned here, because a fire-and-forget
+        task hides its own outcome: observe() returns before the emit runs, so
+        nothing downstream would ever see the exception. The test captures the
+        scheduled task via the loop's task factory and awaits it, and asserts
+        the swallow's one observable trace — the "Failed to emit verdict-engine
+        status event" log record the except writes. Deleting the try/except in
+        VerdictEngineStatusTracker._emit_transition turns both assertions red
+        (ruling 267 Q-004)."""
+        caplog.set_level(logging.DEBUG, logger="backend.services.verdict_engine_status")
+        captured: list[asyncio.Task[None]] = []
+        loop = asyncio.get_running_loop()
+        previous_factory = loop.get_task_factory()
+
+        def capture_task(loop: asyncio.AbstractEventLoop, coro, **kwargs) -> asyncio.Task:
+            task = asyncio.Task(coro, **kwargs)
+            captured.append(task)
+            return task
+
+        loop.set_task_factory(capture_task)
+        try:
+            ws_emitter.emit = AsyncMock(side_effect=RuntimeError("ws down"))
+            tracker.set_emitter(ws_emitter)
+
+            snap = tracker.observe(_DOWN_DETAILS)
+            assert snap.state == VerdictEngineState.UNAVAILABLE  # observe() already returned fine
+        finally:
+            loop.set_task_factory(previous_factory)
+
+        # The scheduled emit task settles without surfacing its exception.
+        assert len(captured) == 1, "the transition must have scheduled exactly one emit task"
+        await captured[0]  # with the try/except: swallows + logs; without it: raises here
+        swallow_records = [
+            r
+            for r in caplog.records
+            if "Failed to emit verdict-engine status event" in r.getMessage()
+        ]
+        assert swallow_records, "the swallow must leave its one observable trace, the error log"
 
 
 class TestSingleton:

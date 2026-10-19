@@ -158,8 +158,8 @@ Check for these first; each has happened.
   comment unedited for hours, reported a merge before it happened, and overwritten its own heartbeat marker. Correct it
   with a ruling that names the rule in `rules.md` or the step in `roles/coordinator.md`.
 - **Status rows lag.** PRs often omit their row edit. The status comment lists rows owed (UR-166); an owner PR sets them.
-- **Two PRs updated onto the same `main` race.** The first to go green merges and the other needs another
-  update-branch and CI run. It costs CI minutes, not wall time.
+- **One update at a time.** With `strict: true`, two PRs updated onto the same `main` race, and the loser
+  needs another update and CI run; so the coordinator updates only the queue's head (UR-102, ruling 268).
 
 ## Facts that are hard to find
 

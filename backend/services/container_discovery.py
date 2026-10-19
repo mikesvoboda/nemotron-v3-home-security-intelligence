@@ -12,12 +12,12 @@ Key Components:
 
 Pre-configured Service Categories:
 - INFRASTRUCTURE_CONFIGS: PostgreSQL, Redis, Backend, go2rtc, Frontend (aggressive restart)
-- AI_CONFIGS: ai-gateway, ai-llm-vllm (standard backoff). Since bc7d6101 the
-  standalone YOLO26/Florence/CLIP/Enrichment containers are retired — those models
-  are served by ai-gateway. ai-llm-vllm is behind the optional "vllm" compose profile.
-  ai-llm is gone entirely (R8 S2): the service left every compose file, and the
-  orchestrator's RETIRED_LLM_SERVICES guard still refuses to manage one if a
-  stale container from a pre-R8 deployment survives on the host.
+- AI_CONFIGS: ai-gateway (standard backoff). Since bc7d6101 the standalone
+  YOLO26/Florence/CLIP/Enrichment containers are retired — those models are
+  served by ai-gateway. ai-llm (R8 S2) and ai-llm-vllm (O3.1, ruling 89) are
+  gone entirely: both services left every compose file, and the orchestrator's
+  RETIRED_LLM_SERVICES guard still refuses to manage either if a stale
+  container from an older deployment survives on the host.
 - MONITORING_CONFIGS: Prometheus, Grafana, Alertmanager, Loki, Pyroscope, Alloy, Tempo,
   Redis/JSON/Blackbox/Node/DCGM Exporters, cAdvisor (lenient, per CATEGORY_DEFAULTS).
   Jaeger/Elasticsearch were retired in favour of Tempo (NEM-5545) and their
@@ -186,7 +186,6 @@ def build_service_configs(
     backend_port = settings.backend_port if settings else 8000
     go2rtc_port = settings.go2rtc_port if settings else 1984
     ai_gateway_port = settings.ai_gateway_port if settings else 8090
-    vllm_port = settings.vllm_port if settings else 8097
     prometheus_port = settings.prometheus_port if settings else 9090
     grafana_port = settings.grafana_port if settings else 3002
     redis_exporter_port = settings.redis_exporter_port if settings else 9121
@@ -255,21 +254,13 @@ def build_service_configs(
         ),
     }
 
-    # Live AI set per docker-compose.prod.yml: ai-gateway, ai-llm, ai-llm-vllm
-    # (vllm is behind the optional "vllm" compose profile — the orchestrator
-    # only matches containers that exist, so an inactive one never surfaces).
+    # Live AI set per docker-compose.prod.yml: ai-gateway (ai-vlm is breaker-pushed,
+    # R8 S2 deleted ai-llm, and O3.1 / ruling 89 removed ai-llm-vllm).
     ai_configs: dict[str, ServiceConfig] = {
         "ai-gateway": ServiceConfig(
             display_name="AI Gateway",
             category=ServiceCategory.AI,
             port=ai_gateway_port,
-            health_endpoint="/health",
-            startup_grace_period=120,
-        ),
-        "ai-llm-vllm": ServiceConfig(
-            display_name="LLM vLLM",
-            category=ServiceCategory.AI,
-            port=vllm_port,
             health_endpoint="/health",
             startup_grace_period=120,
         ),
@@ -477,20 +468,13 @@ INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
 }
 
 AI_CONFIGS: dict[str, ServiceConfig] = {
-    # Live AI set per docker-compose.prod.yml (ai-llm-vllm is behind the optional
-    # "vllm" compose profile). The standalone YOLO26/Florence-2/CLIP/Enrichment
-    # containers are retired — ai-gateway serves those models.
+    # Live AI set per docker-compose.prod.yml (R8 S2 removed ai-llm, O3.1 /
+    # ruling 89 removed ai-llm-vllm). The standalone YOLO26/Florence-2/CLIP/
+    # Enrichment containers are retired — ai-gateway serves those models.
     "ai-gateway": ServiceConfig(
         display_name="AI Gateway",
         category=ServiceCategory.AI,
         port=8090,
-        health_endpoint="/health",
-        startup_grace_period=120,
-    ),
-    "ai-llm-vllm": ServiceConfig(
-        display_name="LLM vLLM",
-        category=ServiceCategory.AI,
-        port=8097,
         health_endpoint="/health",
         startup_grace_period=120,
     ),

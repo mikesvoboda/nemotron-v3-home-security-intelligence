@@ -113,17 +113,6 @@ EXPECTED_DEFAULTS: dict[str, tuple] = {
         5.0,
         300.0,
     ),
-    "ai-llm-vllm": (
-        "LLM vLLM",
-        ServiceCategory.AI,
-        8097,
-        "/health",
-        None,
-        120,
-        5,
-        5.0,
-        300.0,
-    ),
     "prometheus": (
         "Prometheus",
         ServiceCategory.MONITORING,
@@ -255,10 +244,8 @@ _SETTINGS_PORTS = {
     "backend_port": 18000,
     "go2rtc_port": 11984,
     "ai_gateway_port": 18090,
-    # nemotron_port left OrchestratorSettings with R8 S2 (the "ai-llm" row in
-    # _PORT_ATTR went with it), so the fake settings object no longer carries it
-    # either — keeping it here would silently re-legitimise a deleted field.
-    "vllm_port": 18097,
+    # nemotron_port left OrchestratorSettings with R8 S2 and vllm_port with O3.1,
+    # so the fake settings object carries neither.
     "prometheus_port": 19090,
     "grafana_port": 13002,
     "redis_exporter_port": 19121,
@@ -283,9 +270,8 @@ _PORT_ATTR = {
     "go2rtc": "go2rtc_port",
     "frontend": "frontend_port",
     "ai-gateway": "ai_gateway_port",
-    # R8 S2: "ai-llm" -> "nemotron_port" went with that ServiceConfig row; a
-    # leftover entry here would KeyError out of the settings-driven readback.
-    "ai-llm-vllm": "vllm_port",
+    # R8 S2: "ai-llm" -> "nemotron_port" and O3.1: "ai-llm-vllm" -> "vllm_port"
+    # went with their ServiceConfig rows.
     "prometheus": "prometheus_port",
     "grafana": "grafana_port",
     "alertmanager": "alertmanager_port",

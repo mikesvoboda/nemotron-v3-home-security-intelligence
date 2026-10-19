@@ -333,19 +333,19 @@ class TestFakeProviderSchemaDriven:
 
 class TestFakeProviderVocabularyMirror:
     def test_security_classes_mirror_the_source(self) -> None:
-        """The fake copies ai/yolo26 SECURITY_CLASSES as DATA (the
-        no-ai-at-runtime rule). AST-read the source table and pin equality —
-        a rename upstream reddens HERE, not silently in a fake."""
+        """O3.1 pruned the unshipped ai/yolo26/model.py dev server; the fake
+        keeps SECURITY_CLASSES as a strict 9-class subset of the gateway
+        adapter's 80 COCO_CLASSES."""
         import ast
 
-        src = (REPO_ROOT / "ai" / "yolo26" / "model.py").read_text(encoding="utf-8")
-        table = None
+        assert not (REPO_ROOT / "ai" / "yolo26" / "model.py").exists()
+        src = (REPO_ROOT / "ai" / "gateway" / "adapters" / "yolo26.py").read_text(encoding="utf-8")
+        coco = None
         for node in ast.walk(ast.parse(src)):
-            if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id == "SECURITY_CLASSES" for t in node.targets
-            ):
-                table = set(ast.literal_eval(node.value))
-        assert table == WP82_SECURITY_CLASSES
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                if node.target.id == "COCO_CLASSES" and node.value is not None:
+                    coco = set(ast.literal_eval(node.value))
+        assert coco is not None and coco > WP82_SECURITY_CLASSES
 
     def test_gateway_classes_mirror_the_adapter(self) -> None:
         import ast
