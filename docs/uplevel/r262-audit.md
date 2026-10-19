@@ -36,7 +36,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
 | Batch | PRs | Items | Refuted | Comment |
 | ----- | --- | ----- | ------- | ------- |
-| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (2 re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — 3 items moved off this batch, see below) | 0 (15/15 survived) | batch-1 comment on #7265 |
+| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (2 re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — 3 items moved off this batch, see below) | 0 (15/15 survived) | batch-1 comment on #7265 |
 
 ## Batch 1 — per-PR verdicts
 
@@ -57,6 +57,31 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
 Batch 1. Every item below was verified at the pinned SHA before entering the sheet; the
 refutation pass (ruling 232) runs next and the batch records how many it dropped.
+
+### Q-000 · drift · low · three docs paths (owner-seeded) · owner note, not a census PR
+- Provenance: seeded by the owner (comment 6266183856 on #7265, 2026-10-19T11:30Z) with the
+  ruling-262 pointer footer; it is from OUTSIDE the census window (#7244 / B3.3 merged
+  2026-10-18T23:06Z) and rides this batch's pass so the owner rules it with the others.
+  Lane: docs (the owner's fix text says so).
+- Wrong: `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` is still documented in three places, but
+  the setting no longer exists — B3.3 (#7244, merge 09e67114c) deleted
+  `OrchestratorSettings.max_consecutive_failures` from `backend/core/config.py` (the
+  "Self-healing limits" field, 5, ge=1 le=50), and `.env.example` lost its line at
+  e630d4784 ("[B3.3] UR-89 fixes: drop the dead ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES doc
+  block").
+- Where (at the pins `41bc0fce7` and `a3b1bd336`, grep-identical):
+  - `docs/architecture/system-overview/configuration.md:281`
+  - `docs/deployment/container-orchestration.md:526`
+  - `docs/operator/service-control.md:464`
+- Evidence (lane-verified at the claim pin): `git grep -n ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES
+  41bc0fce7` lists only those three doc lines; no `consecutive_failures` field in
+  `backend/core/config.py` at the pin; the #7244 diff deletes the field verbatim; the
+  sibling rows in all three tables (`ORCHESTRATOR_HEALTH_CHECK_INTERVAL`,
+  `ORCHESTRATOR_STARTUP_GRACE_PERIOD`, `ORCHESTRATOR_RESTART_BACKOFF_BASE`, …) map to live
+  fields at config.py:141-166 — only this row is dead.
+- Fix: delete the three rows. Size S. Owning lane: docs.
+- Owner: (pending)
+- Refutation: pending.
 
 ### Q-001 · bug · high · frontend/src/hooks/useServiceStatus.ts:80 · #6913
 - Wrong: the hook's service-name allowlist drops every `service_status` broadcast except
