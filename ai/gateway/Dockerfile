@@ -4,23 +4,21 @@ FROM nvcr.io/nvidia/tritonserver:26.01-py3
 RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 && \
     rm -rf /var/lib/apt/lists/*
 
-# Install gateway + model export dependencies
+# Install gateway runtime + surviving export dependencies (setup_lib/deploy_phases.py
+# runs export_all.sh and scripts/uplevel/reid_real_tier.sh runs export_reid.py and
+# stage_probe.py inside this image; O3.1 stripped the 4 packages only the deleted
+# export scripts used: transformers, open_clip_torch, timm, einops).
 # Note: packaging must be force-reinstalled (Triton base has system version pip skips)
-# PyTorch/transformers/ultralytics needed for model export pipeline (export_all.sh)
-# Triton 26.01 ships stale numpy-1.26.4.dist-info with broken metadata that prevents
-# transformers from detecting numpy version.  Remove it before installing numpy.
-#
+# Triton 26.01 ships stale numpy-1.26.4.dist-info with broken metadata; remove
+# it before installing numpy.
 #
 # NO cache mount here, on purpose: this image is built by `agent-gpu build` for
 # the O2.4 real tier (ruling 188), whose Containerfile contract refuses any flag
 # on RUN ("--mount= included") and any ONBUILD -- the contract is transcribed at
 # ai/vlm/Dockerfile:3-10, the file that dropped its own ccache mount the same way.
-# Cost, stated: every build re-downloads the wheel set below (the mount bought
-# "~5-10x faster rebuilds"). What keeps pip's cache out of the layer instead is
-# --no-cache-dir on both installs below, which is hadolint DL3042's own remedy
-# ("Avoid use of cache directory with pip"), so DL3042 left the ignore line when
-# the flag went in. --no-cache-dir is a PIP argument, not an instruction flag, so
-# the contract holds. Pinned by the test named in this file's header comment:
+# What keeps pip's cache out of the layer instead is --no-cache-dir on both
+# installs below, which is hadolint DL3042's own remedy ("Avoid use of cache
+# directory with pip"). Pinned by:
 # ai/gateway/tests/test_dockerfile_agent_gpu_buildable.py
 # hadolint ignore=DL3013,SC2102
 RUN rm -rf /usr/local/lib/python3.12/dist-packages/numpy-1.26.4.dist-info && \
@@ -34,14 +32,10 @@ RUN rm -rf /usr/local/lib/python3.12/dist-packages/numpy-1.26.4.dist-info && \
     httpx \
     python-multipart \
     torch \
-    transformers \
     ultralytics \
     onnx \
     onnxscript \
-    onnxruntime-gpu \
-    open_clip_torch \
-    timm \
-    einops
+    onnxruntime-gpu
 
 # Copy gateway application code
 COPY ai/gateway/ /app/gateway/
