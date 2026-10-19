@@ -1048,5 +1048,8 @@ cut the wall time.
       `strict: true` on `main` (record 6244473689).
 
 **Done when:** CI Gate requires the fan-in; on three consecutive green PR runs the sharded feature
-check finishes, fan-in included, in about 20 minutes or less; the union of legs equals the reference
-set at the same head; and the measured runs show no flaky leg the unsharded runs did not.
+check finishes, fan-in included, in at most 25 minutes, measured from the CI run's start to the
+fan-in job's end (owner answer 6266229360, Q1); the fan-in's code checks set equality both ways —
+it fails on a reference leg missing from the union, a leg of the union not in the reference set,
+and one leg running in two shards, any outcome (owner answer 6266229360, Q2); and the measured
+runs show no flaky leg the unsharded runs did not.

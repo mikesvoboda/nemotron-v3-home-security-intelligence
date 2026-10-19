@@ -400,11 +400,13 @@ class TestFanInReplacesTheFakeJob(_CiYml):
         # The merge step's fail conditions, as string-presence pins on its run
         # body (the same shape every other CI run-body pin here uses): the red
         # shard path has its own test below (it is also the walker's edge), and
-        # these are the four remaining exits the [r264] package names — a shard
-        # label outside 1/4..4/4, a duplicate shard, one leg reporting two
-        # outcomes across shards, a reference leg missing from the union. A
-        # missing shard summary is covered by the same "no summary.json"
-        # literal as the label check's failure mode, so it pins by consequence.
+        # these are the exits the [r264] package names — a shard label outside
+        # 1/4..4/4, a duplicate shard, one leg running on two shards (any
+        # outcome), a leg of the union that is not in the reference set, a
+        # reference leg missing from the union (owner answer 6266229360, Q2:
+        # set equality both ways in code). A missing shard summary is covered
+        # by the same "no summary.json" literal as the label check's failure
+        # mode, so it pins by consequence.
         fan_script = "\n".join(
             step.get("run", "") for step in self.jobs[self.FAN_IN]["steps"] if step.get("run")
         )
@@ -412,8 +414,13 @@ class TestFanInReplacesTheFakeJob(_CiYml):
             "the merge step no longer rejects a shard label outside 1/4..4/4"
         )
         assert "appears twice" in fan_script, "the merge step no longer rejects a duplicate shard"
-        assert "ran twice with different outcomes" in fan_script, (
-            "the merge step no longer rejects a leg reporting two outcomes across shards"
+        assert "ran on two shards" in fan_script, (
+            "the merge step no longer rejects a leg running on two shards "
+            "(any outcome — the split must partition the suite)"
+        )
+        assert "not in the reference set" in fan_script, (
+            "the merge step no longer rejects a leg the shards ran that the "
+            "reference set does not name (set equality both ways)"
         )
         assert "missing from the shards' union" in fan_script, (
             "the merge step no longer fails on a reference leg missing from the union"

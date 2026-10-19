@@ -4013,9 +4013,10 @@ jobs:
       # aggregate result being anything but success (checked first, above),
       # a missing shard summary (a failed or cancelled shard uploads nothing
       # usable), a shard label outside 1/4..4/4, a duplicate shard, one leg
-      # reporting two outcomes across shards, a reference leg missing from
-      # the union, or the witness's own exits (1: a row claims more than the
-      # run shows; 2: unreadable input — fail closed).
+      # running on two shards (any outcome — the split must partition), a leg
+      # of the union that is not in the reference set, a reference leg missing
+      # from the union, or the witness's own exits (1: a row claims more than
+      # the run shows; 2: unreadable input — fail closed).
       - name: Merge shards and run the inventory witness
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
@@ -4067,23 +4068,36 @@ jobs:
               golden = s.get("results", {}).get("golden", {})
               specs = golden.get("playwright_specs") or {}
               for key, outcome in specs.items():
-                  if key in pw_union and pw_union[key] != outcome:
-                      print(f"FATAL: leg {key!r} ran twice with different outcomes "
-                            f"({pw_union[key]} earlier vs {outcome} on shard "
-                            f"{label}) — the shard split no longer partitions the "
-                            "suite", file=sys.stderr)
+                  if key in pw_union:
+                      # A leg present on two shards fails regardless of outcome
+                      # (owner answer 6266229360, Q2): a correct split never puts
+                      # one leg on two shards, same outcome or not.
+                      print(f"FATAL: leg {key!r} ran on two shards "
+                            f"({pw_union[key]} on the earlier shard vs {outcome} "
+                            f"on shard {label}) — the shard split no longer "
+                            "partitions the suite", file=sys.stderr)
                       sys.exit(1)
                   pw_union[key] = outcome
               if label == "1/4":
                   backend_specs = dict(golden.get("backend_specs") or {})
 
           reference = set(temp.joinpath("reference-keys.txt").read_text().splitlines())
+          # Set equality both ways (owner answer 6266229360, Q2): the union must
+          # have exactly the reference set's legs — no reference leg missing,
+          # and no leg the shards ran that the reference set does not name.
           missing_legs = sorted(reference - set(pw_union))
           if missing_legs:
               print(f"FATAL: {len(missing_legs)} golden leg(s) of the reference set "
                     f"are missing from the shards' union ({len(pw_union)} legs ran, "
                     f"{len(reference)} referenced): {missing_legs[:8]}"
                     + (" ..." if len(missing_legs) > 8 else ""), file=sys.stderr)
+              sys.exit(1)
+          extra_legs = sorted(set(pw_union) - reference)
+          if extra_legs:
+              print(f"FATAL: {len(extra_legs)} leg(s) ran on the shards but are "
+                    f"not in the reference set ({len(pw_union)} legs ran, "
+                    f"{len(reference)} referenced): {extra_legs[:8]}"
+                    + (" ..." if len(extra_legs) > 8 else ""), file=sys.stderr)
               sys.exit(1)
 
           # One merged fake-mode summary, laid out the way find_summary()
