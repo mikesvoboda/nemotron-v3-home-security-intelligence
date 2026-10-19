@@ -13,9 +13,6 @@ export type { AuditProgressBarProps } from './AuditProgressBar';
 export { default as AuditResultsTable } from './AuditResultsTable';
 export type { AuditResultsTableProps, AuditResult } from './AuditResultsTable';
 
-export { default as ModelContributionChart } from './ModelContributionChart';
-export type { ModelContributionChartProps, ModelContribution } from './ModelContributionChart';
-
 export { default as PromptVersionHistory } from './PromptVersionHistory';
 export type { PromptVersionHistoryProps } from './PromptVersionHistory';
 

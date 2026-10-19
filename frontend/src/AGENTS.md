@@ -219,7 +219,6 @@ AI audit visualization components:
 - `AIAuditDashboard.tsx` - AI audit dashboard component
 - `AuditProgressBar.tsx` - Audit progress indicator
 - `AuditResultsTable.tsx` - Audit results table display
-- `ModelContributionChart.tsx` - Model contribution visualization
 - `PromptVersionHistory.tsx` - Prompt version history display
 - `index.ts` - Barrel export
 
