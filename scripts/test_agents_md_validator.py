@@ -1164,15 +1164,16 @@ def test_real_tree_scanned_count_floor(real_run):
     if the set SHRINKS, someone widened an exclusion — update the floor and
     say why in the same PR.
 
-    245 -> 243 (O1.5, UR-19, 2026-10-09): the floor moved with a deliberate
-    deletion, not a widened exclusion — `git rm -r archive docs/archive`
-    removed exactly the 2 AGENTS.md files that lived in those trees
-    (`git ls-tree -r main archive docs/archive | grep -c AGENTS.md` = 2;
-    245 - 2 = 243). Verified before lowering, which is the whole point of
-    the say-why clause above."""
+    245 -> 243 (O1.5, UR-19, 2026-10-09): `git rm -r archive docs/archive`
+    removed 2 AGENTS.md files.
+    243 -> 236 (O3.1, ruling 210, 2026-10-18): pruning non-shipping ai/ and
+    synthbench/spikes/ directories removed the 8 AGENTS.md files inside
+    ai/common/, ai/common/tests/, ai/shared/, ai/triton/tests/,
+    ai/yolo26/tests/, synthbench/spikes/, synthbench/spikes/p1_bakeoff/ and
+    backend/tests/unit/synthbench/spikes/ (244 - 8 = 236)."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 243
+    assert report["total_agents_md_files"] >= 236
 
 
 @pytest.mark.timeout(180)

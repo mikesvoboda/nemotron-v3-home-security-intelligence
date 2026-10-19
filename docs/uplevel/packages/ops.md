@@ -210,22 +210,22 @@ sandbox run's deployment, in a comment on each PR (rulings 154 and 256).
 ### O3.1 Prune `ai/` to what ships
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`.
-**PR:** none yet. (ruling 241)
+**PR:** #7256 (ruling 241)
 
 **Assigned:** heavy-b, first on its queue (ruling 260). It is owner tier as destructive work (UR-98,
 ruling 249).
 
-- [ ] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
+- [x] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
       every build script a Dockerfile or workflow runs. Delete what does not ship (~27K of 35K
       lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it. The declaration lands
       first, so `ai/gateway/export/` (O2.4, B2.3) is never on the deleted list (ruling 210).
-- [ ] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
+- [x] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
       "synthbench workstream (UR-82), ruling 210"; delete `synthbench/spikes/` (ruling 210 amends
       UR-82 for it).
-- [ ] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
+- [x] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
       timm, onnxruntime). Confirm each by import trace; a build-time-only need moves to a build
       stage. **MEASURE** the image size before and after.
-- [ ] Apply the `R2` ruling on OD-17: the Triton `reid`/`threat` models, `/enrich-lt`, and
+- [x] Apply the `R2` ruling on OD-17: the Triton `reid`/`threat` models, `/enrich-lt`, and
       `ai-llm-vllm`. `R2a` ruled it (ruling 89): `ai-llm-vllm` is removed — the service, its `vllm`
       profile and every setting that names it; the re-ID half is `B2.2` (ruling 68); and Triton's
       role is UR-86.
@@ -625,42 +625,11 @@ F-186, F-196, F-197, F-278), and `scripts/feature_check.py` refuses `--seeded` w
 **Done when:** the tests pass in CI at a ready head, and the operator's `--real --seeded` run is
 posted on the PR.
 
-### [r240] The fake-AI golden leg runs as two shards
-
-**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]`, ahead of `[r239]` (ruling 240).
-**Depends on:** none. **PR:** none yet. (ruling 240, record 6217450751)
-
-`Feature check (fake AI)` gates every PR and took 32 to 47 minutes in the last 30 completed CI runs.
-On `main`'s run `38906420530` the harness step took 39m09s, and its golden Playwright leg took 36.0
-of them: 236 passed and 9 skipped on the `golden` project's `workers: 1` (`frontend/playwright.config.ts`). About
-7.4 minutes are timeline fixtures waiting out the camera list's 60 s cache, which `[r228]` fixes;
-the batch idle timeout (30 s) is unchanged. `workers: 1` stays, because two drops must not share a
-camera; two stacks remove the sharing instead.
-
-- [ ] The fake-AI golden Playwright leg runs as two parallel jobs, `--shard=1/2` and `--shard=2/2`,
-      each booting its own stack through the harness, so a spec file's fixtures stay in one shard.
-- [ ] Each leg runs exactly once across the two jobs: the backend golden leg runs in one shard
-      only, and the PR shows that the two shards' Playwright lists together equal the unsharded
-      `--list`.
-- [ ] The inventory witness (ruling 218) judges the union of both shards' legs, one judgement per
-      row. It still fails closed (exit 2) when it cannot read either shard's run, and still runs
-      whenever a harness step ran.
-- [ ] `CI Gate (Required Checks)` needs both shards in the shape `scripts/test_ci_job_graph.py`
-      accepts. The change filter and the draft guard are unchanged, and `workflow_dispatch` still runs
-      the leg. Each
-      shard's `timeout-minutes` is derived by ruling 189's method and pinned in
-      `backend/tests/unit/scripts/test_feature_check.py`. Ruling 240 orders this edit to a shared
-      `ci.yml` job, so UR-122 licenses it.
-- [ ] The PR reports the job's wall time from the Actions clock for `main` before and for its own
-      head, naming `[r228]`'s merge state at each (UR-10 rule 1: measured, not targeted).
-
-**Done when:** both shards run in CI at a ready head with every leg executed once, the witness
-judges the union of both shards' legs, and the PR posts the before-and-after wall times.
-
 ### [r239] The coordinator's heartbeat goes stale at 90 minutes
 
-**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` and `[r240]` (rulings 239, 240).
-**Depends on:** none. **PR:** none yet. (ruling 239, record 6217014151; ruling 245, record 6223117374)
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` (ruling 239; ruling 266 retired
+`[r240]`).
+**Depends on:** none. **PR:** #7268. (ruling 239, record 6217014151; ruling 245, record 6223117374)
 
 The coordinator's loop fires every 30 minutes (`roles/coordinator.md`), and a tick may run 60, so a
 healthy coordinator's heartbeat can be about 90 minutes old. `scripts/uplevel/coordinator_snapshot.py:66`
@@ -764,8 +733,8 @@ podman-compose 1.6.0.
 ### [r247] A host-side supervisor runs the coordinator's ticks
 
 **Flags:** `owner` (privileged host tooling; plan text). **Assigned:** `uplevel-ops-b`, after
-`[r235]`, ahead of `[r240]` (ruling 247). **Depends on:** none. **PR:** #7248. (ruling 247,
-record 6223821495)
+`[r235]`, ahead of `[r240]` (ruling 247; ruling 266 retired `[r240]`). **Depends on:** none.
+**PR:** #7248. (ruling 247, record 6223821495)
 
 On 2026-10-16 the coordinator posted nothing from 03:47Z to 13:30Z: its in-pane `/loop` dispatcher
 stopped, and nothing in the swarm can restart a pane. Each tick is already a fresh, unnamed subagent
@@ -1022,6 +991,13 @@ cut the wall time.
       minutes or less; at most 4. If 4 shards still leave the slowest above that, take 4, name the
       slowest spec files on the PR, and split the longest of them (a golden spec, UR-9).
 - [ ] **Build.** `Feature check (fake AI)` becomes N shard jobs and one fan-in job.
+  - Build fix (af50878ec, from the first ready run's two failures, run 39209710736): the shard
+    jobs' setup-uv carries `ignore-nothing-to-cache: true` — shards 2–4 never invoke uv after the
+    backend-once change, so the action's post step errored on a cache dir that never materialized;
+    and the fan-in's `--list` derivation exports an absolute `FEATURE_CHECK_SCENARIOS` — the
+    repo-relative value died as `frontend/backend/...` under `cd frontend` and
+    event-detail-modal's module-scope constants crashed collection past their own test.skip guard.
+    Both pins carry teeth (test_check_gate_reachability.py).
   - The shard jobs do not run the inventory witness. The fan-in merges the shards'
     `playwright_specs` and `backend_specs` into one fake-mode summary and runs the witness once over
     it, so a row is judged on the union exactly as the single run judges it today.
@@ -1041,5 +1017,8 @@ cut the wall time.
       `strict: true` on `main` (record 6244473689).
 
 **Done when:** CI Gate requires the fan-in; on three consecutive green PR runs the sharded feature
-check finishes, fan-in included, in about 20 minutes or less; the union of legs equals the reference
-set at the same head; and the measured runs show no flaky leg the unsharded runs did not.
+check finishes, fan-in included, in at most 25 minutes, measured from the CI run's start to the
+fan-in job's end (owner answer 6266229360, Q1); the fan-in's code checks set equality both ways —
+it fails on a reference leg missing from the union, a leg of the union not in the reference set,
+and one leg running in two shards, any outcome (owner answer 6266229360, Q2); and the measured
+runs show no flaky leg the unsharded runs did not.

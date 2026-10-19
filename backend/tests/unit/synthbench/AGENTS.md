@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Unit tests for `synthbench/generate/` (the durable generation stack: pinned weights, the GPU window, the ComfyUI renderer), `synthbench/contract/`, `synthbench/taxonomy/` and the CLI. They live here rather than under `synthbench/` because CI runs only `backend/tests/unit/` (spec §7.1, deviation 1). The P1 spike's tests are in `spikes/`.
+Unit tests for `synthbench/generate/` (the durable generation stack: pinned weights, the GPU window, the ComfyUI renderer), `synthbench/contract/`, `synthbench/taxonomy/` and the CLI. They live here rather than under `synthbench/` because CI runs only `backend/tests/unit/` (spec §7.1, deviation 1).
 
 ## Directory Structure
 
@@ -67,4 +67,3 @@ uv run pytest backend/tests/unit/synthbench/ -n auto -q -p randomly   # as CI ru
 ## Related
 
 - `synthbench/AGENTS.md`, `synthbench/generate/AGENTS.md`, `synthbench/contract/AGENTS.md` and `synthbench/taxonomy/AGENTS.md`: the code under test
-- `spikes/AGENTS.md`: the P1 spike's tests

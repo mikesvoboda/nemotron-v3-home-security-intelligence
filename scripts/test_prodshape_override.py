@@ -28,6 +28,7 @@ never skipped-with-pass: a green here always means the render actually ran.
 Run explicitly (outside testpaths, like the other scripts/test_*.py):
     uv run python -m pytest scripts/test_prodshape_override.py -q
 """
+
 from __future__ import annotations
 
 import ast
@@ -64,14 +65,11 @@ NAME_VAR = "HSI_TEST_NAME_PREFIX"
 # token itself is feature_check.prod_shape_env's job; test_a_pinned_name_carries_the_run_token_...
 # renders with two different tokens and requires the name sets to be disjoint.
 DRIFT_NAME_PREFIX = "audit-"
-# prod.yml declares TWO profiles (measured: `profiles:` at docker-compose.prod.yml:284 and :1535).
-# The guard renders both, because the file it must cover is not the file a profile-less render
-# shows: `gpu-rootful` adds dcgm-exporter (a PIN and a published 9400) and `vllm` adds ai-llm-vllm
-# (unpinned, publishes 8097). On a GPU host the profile-less 6-of-7 coverage would leave both
-# services pointing at prod's host ports next to production's own.
+# prod.yml declares ONE profile (`gpu-rootful`; O3.1 removed `ai-llm-vllm` and its `vllm` profile
+# per OD-17 / ruling 89). The guard renders it because `gpu-rootful` adds dcgm-exporter (a PIN and
+# a published 9400) that a profile-less render would not see.
 GPU_PROFILE = "gpu-rootful"
-VLLM_PROFILE = "vllm"
-ALL_PROFILES = (GPU_PROFILE, VLLM_PROFILE)
+ALL_PROFILES = (GPU_PROFILE,)
 # measured: collides with no prod port, stays under the 32768 Linux ephemeral band
 # (max prod 14318 -> 29318)
 PORT_OFFSET = 15000
@@ -83,6 +81,7 @@ ENV = {
     "PROD_SHAPE_RUN_ROOT": "/run/hsitest",
     NAME_VAR: DRIFT_NAME_PREFIX,
 }
+
 
 # Every name either file interpolates, read out of the files themselves -- not a
 # hand-list. `docker compose config` is client-side interpolation, so a host var
@@ -115,6 +114,8 @@ def _clean_env(**extra: str) -> dict[str, str]:
     env.update(ENV)
     env.update(extra)
     return env
+
+
 RUN_ROOT = ENV["PROD_SHAPE_RUN_ROOT"]
 SOCKET_SENTINEL = ENV["PODMAN_SOCKET"]
 # "Outside the run" is ONE rule, not a prefix list — see _is_writable_outside_run. The first
@@ -136,7 +137,8 @@ def _compose(files: list[Path], profiles: tuple[str, ...] = ()) -> dict:
         pytest.fail(
             f"`docker compose config` rc={p.returncode}: {p.stderr[:600]}\n"
             "This leg REQUIRES the moby docker-compose CLI (v2, supports !override); it is the "
-            "oracle ruling 162 named. A missing binary must fail, not skip.")
+            "oracle ruling 162 named. A missing binary must fail, not skip."
+        )
     return json.loads(p.stdout)["services"]
 
 
@@ -149,8 +151,12 @@ def _norm(value: object) -> str:
 def _volkey(v: dict):
     bind = v.get("bind") or {}
     return (
-        v["type"], _norm(v["source"]), v["target"], bool(v.get("read_only")),
-        bind.get("selinux"), bind.get("create_host_path"),
+        v["type"],
+        _norm(v["source"]),
+        v["target"],
+        bool(v.get("read_only")),
+        bind.get("selinux"),
+        bind.get("create_host_path"),
     )
 
 
@@ -166,10 +172,14 @@ def _changed_keys(prod: dict, other: dict) -> dict:
         ch = []
         for k in set(ps) | set(ms):
             if k == "volumes":
-                if {_volkey(v) for v in ps.get("volumes", [])} != {_volkey(v) for v in ms.get("volumes", [])}:
+                if {_volkey(v) for v in ps.get("volumes", [])} != {
+                    _volkey(v) for v in ms.get("volumes", [])
+                }:
                     ch.append(k)
             elif k == "ports":
-                if {_portkey(p) for p in ps.get("ports", [])} != {_portkey(p) for p in ms.get("ports", [])}:
+                if {_portkey(p) for p in ps.get("ports", [])} != {
+                    _portkey(p) for p in ms.get("ports", [])
+                }:
                     ch.append(k)
             elif ps.get(k, "<absent>") != ms.get(k, "<absent>"):
                 ch.append(k)
@@ -187,8 +197,11 @@ def _is_writable_outside_run(v: dict) -> bool:
     """UR-133/134: a test deployment may write ONLY under its own run directory. Stated as the
     complement (any writable bind NOT under RUN_ROOT), because a prefix allowlist silently misses
     paths nobody enumerated — including a writable bind inside the checkout itself."""
-    return (str(v.get("type")) == "bind" and not v.get("read_only")
-            and not _norm(v.get("source")).startswith(RUN_ROOT + "/"))
+    return (
+        str(v.get("type")) == "bind"
+        and not v.get("read_only")
+        and not _norm(v.get("source")).startswith(RUN_ROOT + "/")
+    )
 
 
 def expected_changed_keys(prod: dict) -> dict:
@@ -249,8 +262,13 @@ def test_the_render_env_scrubs_the_compose_interpolation_surface() -> None:
     assert len(INTERPOLATED) > 50, f"derivation regressed to a trivial set: {sorted(INTERPOLATED)}"
     for name in ("AI_MODELS_PATH", "HF_CACHE_PATH", "POSTGRES_PASSWORD", "PODMAN_SOCKET"):
         assert name in INTERPOLATED, f"{name} interpolated but not scrubbed"
-    host = {"PATH": "/usr/bin", "HOME": "/root", "DOCKER_HOST": "unix:///x",
-            "AI_MODELS_PATH": "/mnt/models", "HF_CACHE_PATH": "/leak/hfcache"}
+    host = {
+        "PATH": "/usr/bin",
+        "HOME": "/root",
+        "DOCKER_HOST": "unix:///x",
+        "AI_MODELS_PATH": "/mnt/models",
+        "HF_CACHE_PATH": "/leak/hfcache",
+    }
     saved = dict(os.environ)
     os.environ.clear()
     os.environ.update(host)
@@ -260,7 +278,8 @@ def test_the_render_env_scrubs_the_compose_interpolation_surface() -> None:
         os.environ.clear()
         os.environ.update(saved)
     assert "AI_MODELS_PATH" not in clean and "HF_CACHE_PATH" not in clean, (
-        f"a leak name survived the scrub: {sorted(k for k in clean if k in INTERPOLATED)}")
+        f"a leak name survived the scrub: {sorted(k for k in clean if k in INTERPOLATED)}"
+    )
     for name in ("PATH", "HOME", "DOCKER_HOST"):
         assert clean[name] == host[name], f"the scrub ate runner plumbing: {name}"
     # the fixed sentinels still win over the host (the drop-one sites depend on it)
@@ -293,21 +312,29 @@ def test_the_profiled_leg_is_covered_too(gpu_prod_services, gpu_merged_services)
     )
     observed = _changed_keys(gpu_prod_services, gpu_merged_services)
     expected = expected_changed_keys(gpu_prod_services)
-    missing = {n: sorted(set(k) - set(observed.get(n, []))) for n, k in expected.items()
-               if set(k) - set(observed.get(n, []))}
-    extra = {n: sorted(set(k) - set(expected.get(n, []))) for n, k in observed.items()
-             if set(k) - set(expected.get(n, []))}
+    missing = {
+        n: sorted(set(k) - set(observed.get(n, [])))
+        for n, k in expected.items()
+        if set(k) - set(observed.get(n, []))
+    }
+    extra = {
+        n: sorted(set(k) - set(expected.get(n, [])))
+        for n, k in observed.items()
+        if set(k) - set(expected.get(n, []))
+    }
     assert not missing, f"profiled services the override fails to neutralise: {missing}"
     assert not extra, f"override changed keys the profiled policy does not explain: {extra}"
     for n, svc in gpu_merged_services.items():
         pin = gpu_prod_services[n].get("container_name")
         if pin:
-            assert svc.get("container_name") == RUN_PREFIX + DRIFT_NAME_PREFIX + pin, \
+            assert svc.get("container_name") == RUN_PREFIX + DRIFT_NAME_PREFIX + pin, (
                 f"{n}: profiled pin not prefixed: {svc.get('container_name')!r}"
+            )
         prod_pub = {str(p["target"]) for p in gpu_prod_services[n].get("ports", [])}
         for p in svc.get("ports", []):
-            assert str(p["published"]) not in prod_pub, \
+            assert str(p["published"]) not in prod_pub, (
                 f"{n}: profiled port {p['published']} reuses a prod target"
+            )
 
 
 # ---------------------------------------------------------------- the main assertion -----------
@@ -316,10 +343,16 @@ def test_override_covers_exactly_the_policy_changes(prod_services, merged_servic
     a production change the override does not cover makes the two sides differ."""
     observed = _changed_keys(prod_services, merged_services)
     expected = expected_changed_keys(prod_services)
-    extra = {n: sorted(set(k) - set(expected.get(n, []))) for n, k in observed.items()
-             if set(k) - set(expected.get(n, []))}
-    missing = {n: sorted(set(k) - set(observed.get(n, []))) for n, k in expected.items()
-               if set(k) - set(observed.get(n, []))}
+    extra = {
+        n: sorted(set(k) - set(expected.get(n, [])))
+        for n, k in observed.items()
+        if set(k) - set(expected.get(n, []))
+    }
+    missing = {
+        n: sorted(set(k) - set(observed.get(n, [])))
+        for n, k in expected.items()
+        if set(k) - set(observed.get(n, []))
+    }
     assert not extra, f"override changed keys prod drift does not explain: {extra}"
     assert not missing, f"override failed to neutralise prod items the policy covers: {missing}"
 
@@ -339,7 +372,9 @@ def test_control_zero_is_not_vacuous(prod_services, merged_services):
     expected = expected_changed_keys(prod_services)
     kinds = {k for ks in expected.values() for k in ks}
     assert kinds == {"container_name", "ports", "volumes"}, kinds
-    assert len(expected) >= 19, f"expected only {len(expected)} services covered — too narrow to guard"
+    assert len(expected) >= 19, (
+        f"expected only {len(expected)} services covered — too narrow to guard"
+    )
 
 
 # ---------------------------------------------------------------- UR-134 socket ----------------
@@ -347,16 +382,23 @@ def test_engine_socket_dropped_on_the_named_services(prod_services, merged_servi
     """UR-134: no container-engine socket survives on backend or alloy. The sentinel catches
     alloy, whose mount interpolates PODMAN_SOCKET into BOTH source and target."""
     for n in ("backend", "alloy"):
-        assert any(_is_socket(v) for v in prod_services[n].get("volumes", [])), \
+        assert any(_is_socket(v) for v in prod_services[n].get("volumes", [])), (
             f"{n} mounts no engine socket in prod — the premise of ruling 162 item 3 changed"
+        )
         for v in merged_services[n].get("volumes", []):
-            assert not _is_socket(v), f"{n} still mounts an engine socket: {v['source']} -> {v['target']}"
+            assert not _is_socket(v), (
+                f"{n} still mounts an engine socket: {v['source']} -> {v['target']}"
+            )
 
 
 def test_no_engine_socket_anywhere_in_the_override(prod_services, merged_services):
     """UR-134 is not limited to the two named services — sweep the whole override render."""
-    hits = [(n, str(v["source"]), str(v["target"]))
-            for n, svc in merged_services.items() for v in svc.get("volumes", []) if _is_socket(v)]
+    hits = [
+        (n, str(v["source"]), str(v["target"]))
+        for n, svc in merged_services.items()
+        for v in svc.get("volumes", [])
+        if _is_socket(v)
+    ]
     assert not hits, f"engine socket survives on: {hits}"
 
 
@@ -444,9 +486,12 @@ def test_ports_are_offset_and_collide_with_nothing(prod_services, merged_service
         for p in svc.get("ports", []):
             tgt = str(p["target"])
             assert tgt in prod_by_target, f"{n}: override publishes target {tgt} that prod does not"
-            assert str(p["published"]) == str(int(prod_by_target[tgt]["published"]) + PORT_OFFSET), \
-                f"{n}:{tgt} published {p['published']} != prod + {PORT_OFFSET}"
-            assert str(p.get("host_ip")) == str(prod_by_target[tgt].get("host_ip")), f"{n}:{tgt} host_ip changed"
+            assert str(p["published"]) == str(
+                int(prod_by_target[tgt]["published"]) + PORT_OFFSET
+            ), f"{n}:{tgt} published {p['published']} != prod + {PORT_OFFSET}"
+            assert str(p.get("host_ip")) == str(prod_by_target[tgt].get("host_ip")), (
+                f"{n}:{tgt} host_ip changed"
+            )
             key = (str(p.get("host_ip")), str(p["published"]))
             assert key not in seen, f"{n} collides with {seen[key]} on {key}"
             seen[key] = n
@@ -457,10 +502,14 @@ def test_ports_are_offset_and_collide_with_nothing(prod_services, merged_service
 def test_no_writable_host_bind_outside_the_run(prod_services, merged_services):
     """After the override, no bind mounts a host path as read-write outside the run root.
     Read-only binds and named volumes are allowed and must survive untouched."""
-    bad = [(n, str(v["source"]), str(v["target"]))
-           for n, svc in merged_services.items() for v in svc.get("volumes", [])
-           if str(v.get("type")) == "bind" and not v.get("read_only")
-           and not _norm(v["source"]).startswith(RUN_ROOT + "/")]
+    bad = [
+        (n, str(v["source"]), str(v["target"]))
+        for n, svc in merged_services.items()
+        for v in svc.get("volumes", [])
+        if str(v.get("type")) == "bind"
+        and not v.get("read_only")
+        and not _norm(v["source"]).startswith(RUN_ROOT + "/")
+    ]
     assert not bad, f"writable host bind outside the run survives: {bad}"
 
 
@@ -468,8 +517,11 @@ def test_readonly_binds_and_named_volumes_survive(prod_services, merged_services
     """Redirecting writable binds must not quietly drop the read-only binds or named volumes
     beside them — `!override` replaces the whole list, so this is the guard against that."""
     for n, svc in prod_services.items():
-        keep = {_volkey(v) for v in svc.get("volumes", [])
-                if not (_is_socket(v) or _is_writable_outside_run(v))}
+        keep = {
+            _volkey(v)
+            for v in svc.get("volumes", [])
+            if not (_is_socket(v) or _is_writable_outside_run(v))
+        }
         after = {_volkey(v) for v in merged_services[n].get("volumes", [])}
         lost = keep - after
         assert not lost, f"{n}: override dropped mounts it had no reason to change: {sorted(lost)}"
@@ -483,20 +535,30 @@ def test_uncovered_prod_change_is_caught(prod_services, merged_services):
     observed_now = _changed_keys(prod_services, merged_services)
     assert observed_now == expected, "precondition: the shipped override matches policy"
     # a service with no writable non-run bind and no socket -> policy predicts no volume change
-    cand = next(n for n, s in prod_services.items()
-                if "volumes" not in expected.get(n, set()) and s.get("volumes"))
+    cand = next(
+        n
+        for n, s in prod_services.items()
+        if "volumes" not in expected.get(n, set()) and s.get("volumes")
+    )
     tampered = copy.deepcopy(prod_services)
     tampered[cand]["volumes"].append(
-        {"type": "bind", "source": "/export/planted-after-the-override", "target": "/planted",
-         "read_only": False})
-    assert "volumes" in expected_changed_keys(tampered)[cand], \
+        {
+            "type": "bind",
+            "source": "/export/planted-after-the-override",
+            "target": "/planted",
+            "read_only": False,
+        }
+    )
+    assert "volumes" in expected_changed_keys(tampered)[cand], (
         "the policy itself failed to notice a new writable bind"
+    )
     # but the SHIPPED override does not cover it -> observed delta no longer equals expected
     merged_tampered = _tampered_merged(merged_services, cand)
     observed_after = _changed_keys(tampered, merged_tampered)
     assert observed_after != expected, (
         "an uncovered new prod mount left the delta unchanged — the guard cannot fail, so it "
-        "proves nothing")
+        "proves nothing"
+    )
 
 
 def _tampered_merged(merged: dict, svc: str) -> dict:
@@ -520,20 +582,36 @@ def test_override_refuses_to_render_without_the_run_root():
     render exits nonzero and names the variable; rc=0 here is the breach.
     """
     env = {k: v for k, v in _clean_env().items() if k != "PROD_SHAPE_RUN_ROOT"}
-    cmd = ["docker", "compose", "-p", "prodshape-audit", "--project-directory", str(REPO),
-           "-f", str(PROD), "-f", str(OVERRIDE), "config", "--quiet"]
+    cmd = [
+        "docker",
+        "compose",
+        "-p",
+        "prodshape-audit",
+        "--project-directory",
+        str(REPO),
+        "-f",
+        str(PROD),
+        "-f",
+        str(OVERRIDE),
+        "config",
+        "--quiet",
+    ]
     p = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
     assert p.returncode != 0, (
         "the override rendered with PROD_SHAPE_RUN_ROOT unset — its writable binds land at the "
-        f"filesystem root, outside the run directory: {p.stdout[:200]}")
+        f"filesystem root, outside the run directory: {p.stdout[:200]}"
+    )
     assert "PROD_SHAPE_RUN_ROOT" in p.stderr, (
-        f"the render failed for a reason that is not the missing variable: {p.stderr[:300]}")
+        f"the render failed for a reason that is not the missing variable: {p.stderr[:300]}"
+    )
 
 
 # ------------------------------------------------ the runner's generated boot file (O2.5) --------
 def _feature_check():
     """Load scripts/feature_check.py as a module (it is a script, not a package)."""
-    spec = importlib.util.spec_from_file_location("feature_check", REPO / "scripts" / "feature_check.py")
+    spec = importlib.util.spec_from_file_location(
+        "feature_check", REPO / "scripts" / "feature_check.py"
+    )
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     sys.modules["feature_check"] = mod
@@ -623,7 +701,8 @@ def test_the_generated_boot_file_rebinds_its_objects_to_the_live_project(tmp_pat
     names_one, names_two = _object_names(run_one), _object_names(run_two)
     assert names_one and names_two, "the stack has no networks or volumes to isolate?"
     assert not (names_one & names_two), (
-        f"two runs sharing a boot file created the same objects: {names_one & names_two}")
+        f"two runs sharing a boot file created the same objects: {names_one & names_two}"
+    )
     assert all(n.startswith("hsi-run-one_") for n in names_one), names_one
     assert all(n.startswith("hsi-run-two_") for n in names_two), names_two
 
@@ -634,18 +713,23 @@ def test_the_generated_boot_file_rebinds_its_objects_to_the_live_project(tmp_pat
     unstripped.write_text(json.dumps(full, indent=2) + "\n", encoding="utf-8")
     assert any(n.startswith(source_project + "_") for n in _object_names(full)), (
         "the source render bakes no project names at all -- the clause below is vacuous "
-        "and boot_render would be dead code")
+        "and boot_render would be dead code"
+    )
     leaked = _object_names(_render_full([unstripped], "hsi-run-leak"))
     assert any(n.startswith(source_project + "_") for n in leaked), (
         "compose no longer bakes object names against a -p rebind; boot_render is then "
-        f"dead code and THIS leg is what changed, not the runner ({sorted(leaked)[:3]})")
+        f"dead code and THIS leg is what changed, not the runner ({sorted(leaked)[:3]})"
+    )
     assert not any(n.startswith("hsi-run-leak_") for n in leaked), (
-        f"a baked boot file DID rebind to the live project ({sorted(leaked)[:3]})")
+        f"a baked boot file DID rebind to the live project ({sorted(leaked)[:3]})"
+    )
 
     # faithfulness: at the project it was rendered for, the boot file deploys the SAME stack.
     reblessed = _render_full([boot_file], source_project)
     assert reblessed == full, (
-        "boot_render changed what would be deployed, not just who owns the objects")
+        "boot_render changed what would be deployed, not just who owns the objects"
+    )
+
 
 # ------------------------------------------------ the anti-rot ceiling this file rides ----------
 # This file is a member of Collection Sanity's ONE-argv anti-rot battery (ci.yml:263), so every node
@@ -781,7 +865,7 @@ def test_the_ceiling_guard_itself_discriminates() -> None:
     )
 
 
-if __name__ == "__main__":   # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-q"]))
 
 
@@ -796,15 +880,11 @@ def _writable_outside_run(prod: dict) -> dict[str, list[dict]]:
     return {
         n: [v for v in svc.get("volumes", []) if _is_writable_outside_run(v) and not _is_socket(v)]
         for n, svc in prod.items()
-        if any(
-            _is_writable_outside_run(v) and not _is_socket(v) for v in svc.get("volumes", [])
-        )
+        if any(_is_writable_outside_run(v) and not _is_socket(v) for v in svc.get("volumes", []))
     }
 
 
-def test_every_writable_prod_bind_is_redirected_at_its_own_target(
-    prod_services, merged_services
-):
+def test_every_writable_prod_bind_is_redirected_at_its_own_target(prod_services, merged_services):
     """must-ignore side of the two-sided control: the shipped override redirects EVERY writable
     prod bind, at the same target, to a path under the run root.
 
@@ -820,7 +900,8 @@ def test_every_writable_prod_bind_is_redirected_at_its_own_target(
         for v in want:
             tgt = str(v["target"])
             redirects = [
-                m for m in merged_services[n].get("volumes", [])
+                m
+                for m in merged_services[n].get("volumes", [])
                 if str(m["target"]) == tgt
                 and str(m.get("type")) == "bind"
                 and not m.get("read_only")
@@ -845,9 +926,15 @@ def test_an_uncovered_new_writable_bind_is_caught(prod_services, merged_services
     )  # precondition: the shipped pair is compliant
     # a service the override ALREADY restates -- i.e. one whose volumes the policy expects to
     # change. That is precisely where the key-name comparison is blind.
-    cand = next(n for n in sorted(prod_services) if "volumes" in expected_changed_keys(prod_services).get(n, []))
+    cand = next(
+        n
+        for n in sorted(prod_services)
+        if "volumes" in expected_changed_keys(prod_services).get(n, [])
+    )
     planted = {
-        "type": "bind", "source": "/export/planted-after-the-override", "target": "/planted",
+        "type": "bind",
+        "source": "/export/planted-after-the-override",
+        "target": "/planted",
         "read_only": False,
     }
     tampered_prod = copy.deepcopy(prod_services)
@@ -866,4 +953,5 @@ def test_an_uncovered_new_writable_bind_is_caught(prod_services, merged_services
     # assert ever fails, _changed_keys has become content-aware and this companion test can go.
     assert _changed_keys(tampered_prod, tampered_merged) == expected_changed_keys(tampered_prod), (
         "the key-level guard now DISAGREES with itself on the tampered pair, so it is no longer "
-        "blind here -- re-check whether this companion test is still needed")
+        "blind here -- re-check whether this companion test is still needed"
+    )
