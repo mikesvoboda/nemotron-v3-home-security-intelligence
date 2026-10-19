@@ -101,7 +101,8 @@ watcher names the comment id and author, never which packages the ruling assigns
 4. **Your own open PRs** (UR-35): read the full thread of a row the digest shows with new comments,
    reviews or a `DIRTY`/red gate; fix what is red, answer what is requested, and rebase what
    conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
-   run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
+   run `gh pr merge <n> --disable-auto` (UR-108). Before every push, run UR-184's checks. The
+   digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. **Re-arm the watcher** (ruling 193) unless one is already running for these PRs. Arm it as a
    background task **by discovery**, not by naming the PRs you happen to have open: a lane discovers
@@ -191,7 +192,7 @@ Read rules.md §Claiming and assigning work first.
 3. **Check** that nobody holds it: `gh pr list --state open --search "[<package>] in:title"`.
 4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from
    `main`, commit nothing but an empty commit (`git commit --allow-empty -m "[<package>] claim"`),
-   push it, and open a draft PR titled `[<package>] <name>` with
+   push it (UR-184), and open a draft PR titled `[<package>] <name>` with
    `gh pr create --draft --template uplevel.md --label lane:<lane>`. Then write the PR's number
    into the package block's `**PR:**` field in the PR's own diff, as `#N` with no state word
    (UR-183).
