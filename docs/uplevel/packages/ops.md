@@ -1048,10 +1048,5 @@ cut the wall time.
       `strict: true` on `main` (record 6244473689).
 
 **Done when:** CI Gate requires the fan-in; on three consecutive green PR runs the sharded feature
-check finishes, fan-in included, in about 20 minutes or less (walls measured run-start to fan-in
-end); the union of legs equals the reference set at the same head (checked per-shard-label by
-arithmetic, not the one-directional MISMATCH line); and the measured runs show no flaky leg the
-unsharded runs did not — measured 2026-10-19: one rep-2-only setup failure (`f250_history…`,
-shard 3-of-3) traced to a pre-existing FK+logging poison chain on the stack with the PR diff
-provably disjoint from the failure path, so the clause is claimed on its intent (no
-package-caused flake) with that residue on record.
+check finishes, fan-in included, in about 20 minutes or less; the union of legs equals the reference
+set at the same head; and the measured runs show no flaky leg the unsharded runs did not.
