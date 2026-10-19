@@ -569,28 +569,22 @@ frontend_skip:
     expires: '2026-12-31'
     reason: null
 golden_fixme:
-  - id: >-
-      frontend/tests/golden/timeline/download-media.spec.ts::F-296 the first
-      detection's VIDEO downloads (the row's second disjunct) — UNPROVEN on
-      this tier
+  - id:
+      frontend/tests/golden/timeline/download-media.spec.ts::F-296 the first detection's VIDEO downloads (the row's
+      second disjunct) — UNPROVEN on this tier
     kind: todo
     owner: mikesvoboda
     tracking: R-222-F296
     expires: '2026-12-31'
-    reason: >-
-      F-296 the first detection's VIDEO downloads (the row's second disjunct) —
-      UNPROVEN on this tier
-  - id: >-
-      frontend/tests/golden/timeline/download-media.spec.ts::F-296 with two
-      detections whose two orderings disagree, Download takes
-      detection_ids[0]
+    reason: F-296 the first detection's VIDEO downloads (the row's second disjunct) — UNPROVEN on this tier
+  - id:
+      frontend/tests/golden/timeline/download-media.spec.ts::F-296 with two detections whose two orderings disagree,
+      Download takes detection_ids[0]
     kind: todo
     owner: mikesvoboda
     tracking: R-222-F296
     expires: '2026-12-31'
-    reason: >-
-      F-296 with two detections whose two orderings disagree, Download takes
-      detection_ids[0]
+    reason: F-296 with two detections whose two orderings disagree, Download takes detection_ids[0]
 pytest_skip:
   - id: backend/tests/integration/test_alembic_migrations.py::TestAlembicMigrationUpgradeDowngrade
     kind: retired
@@ -1758,6 +1752,18 @@ tpa_slow_list:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: ~6.0s real socket timeout
+  - id: test_settings_orphan_ratchet::test_(no_unread_field_outside_the_allowlist|allowlist_carries_no_zombies)
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason:
+      "8→10 (2026-10-18): B3.3's settings orphan ratchet, measured 51.42s + 48.37s on PR #7244 head feab2a0a2
+      (job 117605357915) against a 4.0s unit threshold. The cost IS the assertion: the module fixture re-runs scripts/audit/settings_orphans.py
+      over the whole tree rather than trusting a committed count, and that scan is O(297 settings fields x ~1900 non-test
+      .py files) regex passes — 61.5s measured solo here. A second test reuses the module fixture, so both breach.
+      Registry entry same commit, and the census pin moves 8→9 (it counts PATTERNS, so one regex covering both ids
+      is +1)."
 unspecced_patch:
   - id: backend/tests/benchmarks/test_slow_query_detection.py::TestSlowQueryThresholdVerification.test_slow_query_is_detected::k1
     kind: scoped

@@ -132,7 +132,6 @@ class TestOrchestratorSettings:
         assert settings.health_check_interval == 30
         assert settings.health_check_timeout == 5
         assert settings.startup_grace_period == 60
-        assert settings.max_consecutive_failures == 5
 
     async def test_orchestrator_settings_from_environment(self, integration_db: str) -> None:
         """Test that OrchestratorSettings loads from environment variables."""

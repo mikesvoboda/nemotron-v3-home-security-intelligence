@@ -103,6 +103,19 @@ async def init_schema(force: bool = False) -> None:
         print("Dropping all existing tables...")
         await conn.run_sync(Base.metadata.drop_all)
 
+        # B3.3: schema_migrations is deliberately NOT in Base.metadata (backend/migrations
+        # creates it), so the drop_all above cannot reach it. Dropping it here is what keeps the
+        # record honest: a schema rebuilt from today's models has received no recorded upgrades,
+        # and leaving yesterday's rows behind would tell the runner to skip upgrades this brand
+        # new schema has never had. It is recreated, and the pending upgrades re-recorded, by the
+        # next init_db().
+        from backend.migrations.runner import SCHEMA_TABLE
+
+        print(f"Dropping {SCHEMA_TABLE} (upgrade history does not survive a rebuild)...")
+        await conn.exec_driver_sql(
+            f"DROP TABLE IF EXISTS {SCHEMA_TABLE}"
+        )  # nosemgrep: module constant
+
         print("Creating all tables from models...")
         await conn.run_sync(Base.metadata.create_all)
 

@@ -803,7 +803,7 @@ class TestAnalyzeBatchStreaming:
 
     def test_analyze_batch_streaming_invalid_detection_ids(self, client: TestClient):
         """Test analyze_batch_streaming with invalid detection IDs format."""
-        from backend.api.dependencies import get_nemotron_analyzer_dep
+        from backend.api.dependencies import get_vlm_analyzer_dep
 
         # Mock the analyzer dependency to avoid Redis connection
         mock_analyzer = AsyncMock()
@@ -812,7 +812,7 @@ class TestAnalyzeBatchStreaming:
         async def override_get_analyzer():
             return mock_analyzer
 
-        client.app.dependency_overrides[get_nemotron_analyzer_dep] = override_get_analyzer
+        client.app.dependency_overrides[get_vlm_analyzer_dep] = override_get_analyzer
         try:
             # This will be handled by the event_generator (invalid detection_ids parsing)
             response = client.get(
@@ -827,11 +827,11 @@ class TestAnalyzeBatchStreaming:
             assert "INVALID_DETECTION_IDS" in content
         finally:
             # Clean up the override
-            client.app.dependency_overrides.pop(get_nemotron_analyzer_dep, None)
+            client.app.dependency_overrides.pop(get_vlm_analyzer_dep, None)
 
     def test_analyze_batch_streaming_exception_handling(self, client: TestClient):
         """Test analyze_batch_streaming handles exceptions properly."""
-        from backend.api.dependencies import get_nemotron_analyzer_dep
+        from backend.api.dependencies import get_vlm_analyzer_dep
 
         # Create an async generator that raises an exception
         # Note: yield after raise is required for async generator syntax
@@ -849,7 +849,7 @@ class TestAnalyzeBatchStreaming:
         async def override_get_analyzer():
             return mock_analyzer
 
-        client.app.dependency_overrides[get_nemotron_analyzer_dep] = override_get_analyzer
+        client.app.dependency_overrides[get_vlm_analyzer_dep] = override_get_analyzer
         try:
             response = client.get("/api/events/analyze/batch1/stream")
 
@@ -859,7 +859,7 @@ class TestAnalyzeBatchStreaming:
             assert "INTERNAL_ERROR" in content
         finally:
             # Clean up the override
-            client.app.dependency_overrides.pop(get_nemotron_analyzer_dep, None)
+            client.app.dependency_overrides.pop(get_vlm_analyzer_dep, None)
 
 
 # =============================================================================

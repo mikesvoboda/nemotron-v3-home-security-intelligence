@@ -68,7 +68,6 @@ def mock_settings() -> MagicMock:
     settings.health_check_interval = 30
     settings.health_check_timeout = 5
     settings.startup_grace_period = 60
-    settings.max_consecutive_failures = 5
     settings.restart_backoff_base = 5.0
     settings.restart_backoff_max = 300.0
     return settings

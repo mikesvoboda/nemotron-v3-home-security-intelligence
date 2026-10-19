@@ -245,7 +245,7 @@ See `core/AGENTS.md` for detailed documentation. The core layer contains 54 modu
 - Queue depth gauges (detection, analysis)
 - Stage duration histograms (detect, batch, analyze)
 - Event/detection counters
-- AI request duration tracking (the only `service` label the pipeline still records is `yolo26`; the `hsi_nemotron_*` histograms stay defined because the Grafana dashboards and `monitoring/*.yml` alert rules query them — API surface, not a live engine)
+- AI request duration tracking — one histogram, `hsi_ai_request_duration_seconds`, labeled by `service`. There is no per-brand histogram to keep defined: no metric registered here carries a retired brand in its name (`scripts/audit/dead_symbols.py` enumerates all 119 registrations and matches each against the dashboard/alert corpus), and the older claim that such histograms survived because the dashboards query them described names that do not exist
 - Error counters by type
 - `PipelineLatencyTracker` - In-memory latency tracking with percentile calculations
 
@@ -641,12 +641,10 @@ on 2026-09-29; the SSIM detector keeps its baselines in process memory.
 
 ### Pipeline Workers
 
-| Service                   | Purpose                                                                                                                       |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `pipeline_workers.py`     | Background workers (DetectionQueueWorker, AnalysisQueueWorker, BatchTimeoutWorker, QueueMetricsWorker, PipelineWorkerManager) |
-| `evaluation_queue.py`     | Evaluation queue management                                                                                                   |
-| `background_evaluator.py` | Background evaluation processing                                                                                              |
-| `batch_fetch.py`          | Batch data fetching                                                                                                           |
+| Service               | Purpose                                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `pipeline_workers.py` | Background workers (DetectionQueueWorker, AnalysisQueueWorker, BatchTimeoutWorker, QueueMetricsWorker, PipelineWorkerManager) |
+| `batch_fetch.py`      | Batch data fetching                                                                                                           |
 
 ### Broadcasting and Real-time
 

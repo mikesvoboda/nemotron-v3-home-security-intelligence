@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -141,25 +141,33 @@ outside `keep.toml`, and the suite is green.
 ### B3.3 Settings and residue truth
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7244. (ruling 241)
 
-- [ ] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
+- [x] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
       and delete them with their `.env.example` and compose lines.
-- [ ] Add a ratchet test: every `Settings` field is read outside `config.py`, or sits on an
+- [x] Add a ratchet test: every `Settings` field is read outside `config.py`, or sits on an
       allowlist with a reason.
-- [ ] Rename live code still carrying retired names (`get_nemotron_analyzer_dep`,
+- [x] Rename live code still carrying retired names (`get_nemotron_analyzer_dep`,
       `summary_generator._call_nemotron`, Nemotron-named metrics); delete the uncalled metrics and
-      unused exception classes `00 §4.1` lists.
+      unused exception classes `00 §4.1` lists. (Box 3's work is #7244's: the renames
+      (`65275de9b`), the dead-symbol census `scripts/audit/dead_symbols.py` with its CI leg
+      (`d2a0eb0b0`) — two exception classes deleted, zero uncalled or Nemotron-named metrics in the
+      registry, and the audit's "11" not reproducible under any stated definition (the census
+      records why the rest is not residue, and the FLORENCE_UNAVAILABLE consumers make it an owner
+      contract call that rides the fourth box's PR); the repo-wide ratchet test pins the census.)
 - [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
-- [ ] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
+- [x] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
       `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
       `docs/api/migrations/` is applied by hand. One ordered, checked upgrade command records which
       upgrades a database has had; Alembic or a small runner over `docs/api/migrations/` is this
       package's design choice, and the `alembic` dependency stays or goes with it (`00 §7`). The
       four existing SQL files become its first recorded upgrades or are marked applied.
-- [ ] A test starts from a saved pre-upgrade schema with rows in it, upgrades it, and checks the
-      rows survive. The integration tests boot through the command; no fixture adds a column
-      (`backend/tests/integration/conftest.py:855` does today).
+- [x] A test starts from a saved pre-upgrade schema with rows in it, upgrades it, and checks the
+      rows survive. The integration tests boot through the command; no fixture adds a column. (The
+      three fixture sites that did -- `backend/tests/integration/conftest.py`,
+      `backend/tests/conftest.py`'s two twins -- are deleted in this PR; the duplicate-camera
+      DELETEs and unique indexes stay, because the index cannot be built before them and deleting
+      rows is owner-tier, UR-98.)
 
 **Done when:** the ratchet test passes; a database saved from today's `main` upgrades with its rows
 intact in CI; and the PR reports the before/after count of `nemotron`, `florence` and `enrichment`

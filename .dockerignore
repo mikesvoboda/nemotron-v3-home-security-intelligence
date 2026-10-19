@@ -68,6 +68,12 @@ Thumbs.db
 .circleci/
 .gitlab-ci.yml
 docs/
+# ...except the recorded schema upgrades. The docs/ exclude above is right for the rest of the
+# tree, but backend/migrations reads its SQL text from docs/api/migrations at STARTUP, so an image
+# without that path cannot boot an existing database -- it would only find out on a box that
+# actually owed an upgrade. Re-included because the exclude is a parent-directory match (verified:
+# the negation re-includes the directory and its contents, and nothing else under docs/).
+!docs/api/migrations/**
 CHANGELOG.md
 README.md
 LICENSE
