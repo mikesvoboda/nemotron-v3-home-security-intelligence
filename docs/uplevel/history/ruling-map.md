@@ -276,6 +276,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 261    | one-off: #7246 re-pins the frontend coverage floors; UR-69 stands (record 6256508661)                       |
 | 262    | package `[r262]`: docs audits the Qwen-era merges' code on main; owner rules each item (record 6257468143)  |
 | 263    | one-off: #7258's merge stands; its auth-path test edits count as mechanical (record 6257521861)             |
+| 264    | package `[r264]`: golden suite in shards on separate stacks; ops-a beside #7231 (record 6257854715)         |
 
 ## Owner records
 

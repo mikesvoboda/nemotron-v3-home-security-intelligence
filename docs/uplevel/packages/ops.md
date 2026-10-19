@@ -991,3 +991,40 @@ both with `agent-dgx <name> pi --split`, but `launch.py` still builds
 
 **Done when:** the launcher test passes in CI at a ready head, and `sandboxes.toml`'s comment no
 longer says the launcher does not print the form.
+
+### [r264] The golden Playwright suite runs in shards, each on its own stack
+
+**Flags:** owner (it changes what `CI Gate (Required Checks)` runs, UR-119). **Assigned:** ops-a,
+first on its queue, held beside #7231 under ruling 264 item 2 (a one-off exception to UR-52).
+`lane_tick` prints no claimable package while #7231 is open, so ops-a claims this one from this
+block. **Depends on:** none. ops-b reviews; frontend reviews any golden spec edit (UR-9).
+**PR:** none yet. (ruling 264, record 6257854715)
+
+A full CI run takes 45–50 minutes, and `Feature check (fake AI)` is 42–47 of them; no other job
+passes 9, and jobs wait a median 0.3 minutes for a runner (8 runs measured on 2026-10-19). Inside
+that job the golden Playwright project takes about 39 minutes, on one worker and in series
+(`frontend/playwright.config.ts`:289-290), because every spec shares one stack. Each PR runs CI two
+or three times, so CI sets every lane's pace. Shards on separate stacks keep each shard serial and
+cut the wall time.
+
+- [ ] **MEASURE** before the gate changes. Beside the current job, run the golden project split
+      across N shards, each in its own CI job with its own stack (Playwright's `--shard=i/N`), for
+      N = 2, 3 and 4, at least twice each. Post a table on the PR: each shard's wall time, the
+      slowest shard's, whether the union of the shards' legs equals the unsharded run's legs at the
+      same head (names and count), and every failure seen only when sharded. Pick the smallest N
+      whose slowest shard, setup included, finishes in about 20 minutes or less; at most 4.
+- [ ] **Build.** `Feature check (fake AI)` becomes N shard jobs and one fan-in job. The fan-in
+      merges the shards' JUnit files and run records and judges the inventory exactly as the single
+      run does today. It fails if any shard failed or was cancelled, or if a mapped leg is missing
+      from the union. `CI Gate (Required Checks)` needs the fan-in in place of the single job, and
+      stays the one required check (UR-119). The backend golden tests run once, in one shard.
+- [ ] A spec that passed only because of the serial run's order is fixed in its spec, with frontend
+      reviewing. The golden leg's time cap (ruling 189) applies per shard, and every duration
+      baseline the change moves is re-measured, not raised by hand.
+- [ ] **Unchanged:** the real-tier and maui runs of `scripts/feature_check.py` keep the whole suite
+      on one stack (sharding is a CI option, off by default); `Feature check (seeded)`; and
+      `strict: true` on `main` (record 6244473689).
+
+**Done when:** CI Gate requires the fan-in; on three consecutive green PR runs the sharded feature
+check finishes, fan-in included, in about 20 minutes or less; the union of legs equals the unsharded
+set at the same head; and the measured runs show no flaky leg the unsharded runs did not.
