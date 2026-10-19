@@ -36,7 +36,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
 | Batch | PRs                                                        | Items                                                                                                                                                                         | Refuted                        | Comment                                                                                      |
 | ----- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------- |
-| 1     | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below) | 0 (16/16 survived incl. Q-000) | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180) |
+| 1     | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below) | 0 (16/16 survived incl. Q-000) | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180); ruled by 267 (r267a/r267b now, 11 lows later) |
 
 ## Batch 1 — per-PR verdicts
 
@@ -61,22 +61,24 @@ batch 1 were re-attributed by mover-owns to their first movers (Q-012 → #7230 
 Q-015 → #6936 batch 2 — full sections below, they rule with those batches). Per the owner's
 continue (comment 6266204180): the low items and Q-000 rule from the compact table, with their
 quoted lines and proof in the collapsed block under it; Q-001 (high) keeps the full template.
-Owner decisions may arrive in bulk and are written into the rows.
+Owner decisions may arrive in bulk and are written into the rows. Ruling 267
+(record 6266846674) ruled batch 1: Q-001 fix now as `[r267a]`, Q-004 fix now as
+`[r267b]`, the 11 lows `later` (one cleanup PR per lane at the audit's end).
 
 | id    | class | path:line                                                                                                                                    | PR                      | wrong (one line)                                                                                                                                                                                                                                                    | fix (size, lane)                                                                                                                                                                                                               | owner     |
 | ----- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
-| Q-000 | drift | docs/architecture/system-overview/configuration.md:281, docs/deployment/container-orchestration.md:526, docs/operator/service-control.md:464 | owner note (6266183856) | `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` still documented in three env-var tables, but #7244 (merge 09e67114c) deleted `OrchestratorSettings.max_consecutive_failures` and `.env.example` lost its line (e630d4784)                                                  | delete the three rows. Size S; docs                                                                                                                                                                                            | (pending) |
-| Q-002 | drift | docker-compose.ci.yml:190                                                                                                                    | #6862                   | the ci.yml comment cites `docker-compose.prod.yml:902` for the read-only-rootfs NOTE, but the NOTE sits at `:950-951` at the pin (`:902` is a disabled `cpus: '0.25'` line)                                                                                         | update the cite to `docker-compose.prod.yml:950`. Size S; ops                                                                                                                                                                  | (pending) |
-| Q-003 | claim | monitoring/ai-pipeline-alerts.yml:20                                                                                                         | #6868                   | the rewritten header says "the five this file alerts on" but the file alerts on only four — no expression matches `vlm_circuit_open` (recorded at vlm_client.py:927, never alerted on)                                                                              | drop `vlm_circuit_open` from the list, or reword to say the file covers circuit-open only through the degraded-gauge proxy. Size S; ops                                                                                        | (pending) |
-| Q-004 | test  | backend/tests/unit/services/test_verdict_engine_status.py:159                                                                                | #6886                   | the only test named for emit-failure containment cannot fail against removal of the swallowing `try/except` — the mocked RuntimeError surfaces only in an orphan task, so the docstring's "swallowed by design" clause is unpinned (mutation-proven by the refuter) | make the swallow observable — capture/gather the scheduled task and assert it completes without exception, or assert the structured "Failed to emit verdict-engine status event" log record. Size S; backend                   | (pending) |
-| Q-005 | drift | docker-compose.prod.yml:573                                                                                                                  | #6862                   | the backend's vlm_assess comment still calls ai-vlm "the profiled ai-vlm service", but the same PR deleted the `vlm` profile from ai-vlm — no ai-vlm profile exists at the pin and the default `up` starts it                                                       | drop "profiled" from the comment ("the default ai-vlm service"). Size S; ops                                                                                                                                                   | (pending) |
-| Q-006 | drift | monitoring/prometheus_rules.yml:4                                                                                                            | #6868 (mover-owns)      | the prometheus-rules header cites `docker-compose.prod.yml:1017` for the bind-mount line, but at the pin the mount sits at `:1098` (`:1017` is a frontend healthcheck URL); cite true at #6862's merge, first broken by #6868                                       | update the cite to `docker-compose.prod.yml:1098`. Size S; ops                                                                                                                                                                 | (pending) |
-| Q-007 | claim | frontend/src/hooks/useVerdictEngineStatus.ts:44                                                                                              | #6909                   | the `enabled` option's docstring claims it controls the WebSocket connection, but `enabled=false` still opens the /ws/system socket — only the reconnect flag and the readiness poll are gated                                                                      | skip the useWebSocket subscription when enabled is false, or reword the docstring to say enabled gates reconnection and polling. Size S; frontend                                                                              | (pending) |
-| Q-008 | claim | backend/tests/unit/core/test_nginx_credential_forwarding.py:3                                                                                | #6922                   | the docstring asserts B1.5's gate "reads exactly two client credentials on the proxied path", but at the pin the gate reads five credential kinds, all arriving on the proxied path (false even at its own cited baseline e9ec74ef)                                 | rewrite :3-4 to the pin's credential set, or scope the sentence to the credential nginx forwarding is pinned for and state the gate reads others (the :87 message may stay, scoped to its HTTP test). Size S; backend          | (pending) |
-| Q-009 | claim | backend/tests/security/test_docker_compose_security.py:401                                                                                   | #6922                   | three present-tense ai-llm census prose claims are false at the pin: the tracked set greps 7 matching lines (not "two"), the live key sits at `prod.yml:305` (not `:283`), and `prodshape.yml:164` also carries the exact key                                       | update :400-403, :559-566 and :580 to the pin counts and coordinates, or reword to state the parsed-key rule without pinning a volatile count and line number. Size S; backend                                                 | (pending) |
-| Q-010 | claim | frontend/src/services/api.auth-seam.test.ts:20                                                                                               | #6922                   | the fixture comment cites the gate's 401 body as `backend/api/middleware/auth.py:405-408` with no dating frame, but at the pin that span is the WebSocket subprotocol extraction and the JSON refusal body sits at `:692-696` (body text itself still exact)        | repoint the cite to auth.py:692-696, or drop the line numbers and name the refusal body. Size S; frontend                                                                                                                      | (pending) |
-| Q-011 | claim | frontend/src/services/api.ts:2928                                                                                                            | #6922                   | nine comment blocks assert media/snapshot/detection endpoints are "exempt from API key authentication in the backend middleware", but OPEN_PATHS holds none of those paths — under EXPOSE_LAN they are gated and work via the same-origin session cookie            | rewrite the nine sites to the pin behaviour, plus the six backend route-docstring sites carrying the same claim (detections.py :170/:644/:1221/:1399/:1546, cameras.py :1075) found by the refuter. Size S; frontend + backend | (pending) |
-| Q-013 | claim | frontend/src/contexts/AuthContext.test.tsx:356                                                                                               | #6922                   | two inline cites give pin-stale coordinates for claims whose substance is still true — logout cited at AuthContext.tsx:175-178 (pin: :217-221) and the assignment at :152 (pin: :194, now the setupRequired-guarded form)                                           | repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update the :361 quote to the guarded form the pin ships. Size S; frontend                                                                         | (pending) |
+| Q-000 | drift | docs/architecture/system-overview/configuration.md:281, docs/deployment/container-orchestration.md:526, docs/operator/service-control.md:464 | owner note (6266183856) | `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` still documented in three env-var tables, but #7244 (merge 09e67114c) deleted `OrchestratorSettings.max_consecutive_failures` and `.env.example` lost its line (e630d4784)                                                  | delete the three rows. Size S; docs                                                                                                                                                                                            | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-002 | drift | docker-compose.ci.yml:190                                                                                                                    | #6862                   | the ci.yml comment cites `docker-compose.prod.yml:902` for the read-only-rootfs NOTE, but the NOTE sits at `:950-951` at the pin (`:902` is a disabled `cpus: '0.25'` line)                                                                                         | update the cite to `docker-compose.prod.yml:950`. Size S; ops                                                                                                                                                                  | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-003 | claim | monitoring/ai-pipeline-alerts.yml:20                                                                                                         | #6868                   | the rewritten header says "the five this file alerts on" but the file alerts on only four — no expression matches `vlm_circuit_open` (recorded at vlm_client.py:927, never alerted on)                                                                              | drop `vlm_circuit_open` from the list, or reword to say the file covers circuit-open only through the degraded-gauge proxy. Size S; ops                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-004 | test  | backend/tests/unit/services/test_verdict_engine_status.py:159                                                                                | #6886                   | the only test named for emit-failure containment cannot fail against removal of the swallowing `try/except` — the mocked RuntimeError surfaces only in an orphan task, so the docstring's "swallowed by design" clause is unpinned (mutation-proven by the refuter) | make the swallow observable — capture/gather the scheduled task and assert it completes without exception, or assert the structured "Failed to emit verdict-engine status event" log record. Size S; backend                   | ruled fix now as [r267b] (backend; first on backend's queue after the PR it holds; UR-52) — ruling 267, record 6266846674 |
+| Q-005 | drift | docker-compose.prod.yml:573                                                                                                                  | #6862                   | the backend's vlm_assess comment still calls ai-vlm "the profiled ai-vlm service", but the same PR deleted the `vlm` profile from ai-vlm — no ai-vlm profile exists at the pin and the default `up` starts it                                                       | drop "profiled" from the comment ("the default ai-vlm service"). Size S; ops                                                                                                                                                   | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-006 | drift | monitoring/prometheus_rules.yml:4                                                                                                            | #6868 (mover-owns)      | the prometheus-rules header cites `docker-compose.prod.yml:1017` for the bind-mount line, but at the pin the mount sits at `:1098` (`:1017` is a frontend healthcheck URL); cite true at #6862's merge, first broken by #6868                                       | update the cite to `docker-compose.prod.yml:1098`. Size S; ops                                                                                                                                                                 | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-007 | claim | frontend/src/hooks/useVerdictEngineStatus.ts:44                                                                                              | #6909                   | the `enabled` option's docstring claims it controls the WebSocket connection, but `enabled=false` still opens the /ws/system socket — only the reconnect flag and the readiness poll are gated                                                                      | skip the useWebSocket subscription when enabled is false, or reword the docstring to say enabled gates reconnection and polling. Size S; frontend                                                                              | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-008 | claim | backend/tests/unit/core/test_nginx_credential_forwarding.py:3                                                                                | #6922                   | the docstring asserts B1.5's gate "reads exactly two client credentials on the proxied path", but at the pin the gate reads five credential kinds, all arriving on the proxied path (false even at its own cited baseline e9ec74ef)                                 | rewrite :3-4 to the pin's credential set, or scope the sentence to the credential nginx forwarding is pinned for and state the gate reads others (the :87 message may stay, scoped to its HTTP test). Size S; backend          | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-009 | claim | backend/tests/security/test_docker_compose_security.py:401                                                                                   | #6922                   | three present-tense ai-llm census prose claims are false at the pin: the tracked set greps 7 matching lines (not "two"), the live key sits at `prod.yml:305` (not `:283`), and `prodshape.yml:164` also carries the exact key                                       | update :400-403, :559-566 and :580 to the pin counts and coordinates, or reword to state the parsed-key rule without pinning a volatile count and line number. Size S; backend                                                 | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-010 | claim | frontend/src/services/api.auth-seam.test.ts:20                                                                                               | #6922                   | the fixture comment cites the gate's 401 body as `backend/api/middleware/auth.py:405-408` with no dating frame, but at the pin that span is the WebSocket subprotocol extraction and the JSON refusal body sits at `:692-696` (body text itself still exact)        | repoint the cite to auth.py:692-696, or drop the line numbers and name the refusal body. Size S; frontend                                                                                                                      | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-011 | claim | frontend/src/services/api.ts:2928                                                                                                            | #6922                   | nine comment blocks assert media/snapshot/detection endpoints are "exempt from API key authentication in the backend middleware", but OPEN_PATHS holds none of those paths — under EXPOSE_LAN they are gated and work via the same-origin session cookie            | rewrite the nine sites to the pin behaviour, plus the six backend route-docstring sites carrying the same claim (detections.py :170/:644/:1221/:1399/:1546, cameras.py :1075) found by the refuter. Size S; frontend + backend | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
+| Q-013 | claim | frontend/src/contexts/AuthContext.test.tsx:356                                                                                               | #6922                   | two inline cites give pin-stale coordinates for claims whose substance is still true — logout cited at AuthContext.tsx:175-178 (pin: :217-221) and the assignment at :152 (pin: :194, now the setupRequired-guarded form)                                           | repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update the :361 quote to the guarded form the pin ships. Size S; frontend                                                                         | ruled later (one cleanup PR per lane at the audit's end) — ruling 267, record 6266846674 |
 
 ### Q-001 · bug · high · frontend/src/hooks/useServiceStatus.ts:80 · #6913
 
@@ -114,7 +116,16 @@ ServicesPanel.tsx:363,662` (`hasUnhealthy` → panel badge). Provenance: the gua
 - Fix: update `SERVICE_NAMES` (or widen the guard) to the broadcast population — replace
   `rtdetr` with `yolo26`, drop `nemotron`, and decide whether container-name statuses are
   in scope; sync the alert's label map. Size M; owner: frontend.
-- Owner: (pending)
+- Ruling 267 (record 6266846674): ruled fix now as `[r267a]` (frontend).
+  The fix: the hook accepts the names and status values the backend actually broadcasts, and
+  drops the retired names. The health monitor's probes (`backend/main.py`, today `yolo26`) are
+  in scope. The container orchestrator's names and the worker supervisor's `worker:<name>`:
+  frontend measures where else each is shown, and the PR states whether it is in scope and
+  why. Both broadcast through the same guard. Done when: a test feeds each in-scope emitter's
+  real payload shape through the hook, and an unhealthy `yolo26` lights `ServiceStatusAlert`.
+  The backend's payloads do not change. Flags: none. First on frontend's queue, after the PR
+  it holds (UR-52).
+- Owner: [r267a] — fix now (ruling 267).
 
 <details>
 <summary>Batch-1 low-item evidence — quoted lines, proof, refutation verdicts (Q-000, Q-002…Q-011, Q-013)</summary>
@@ -142,7 +153,7 @@ ServicesPanel.tsx:363,662` (`hasUnhealthy` → panel badge). Provenance: the gua
   `ORCHESTRATOR_STARTUP_GRACE_PERIOD`, `ORCHESTRATOR_RESTART_BACKOFF_BASE`, …) map to live
   fields at config.py:141-166 — only this row is dead.
 - Fix: delete the three rows. Size S. Owning lane: docs.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter verified every leg at both pins: the needle census at 41bc0fce7 AND
   a3b1bd336 returns exactly the three named doc rows, byte-identical at both SHAs;
   `consecutive` is absent from config.py at both pins and `max_consecutive` repo-wide hits
@@ -196,7 +207,7 @@ filesystem.`; `prod.yml:902` at the pin is `#         cpus: '0.25'`. History: at
   refuter verified digit-for-digit including a repo-wide pickaxe (the ':902' cite
   string was never edited after #6862).
 - Fix: update the cite to `docker-compose.prod.yml:950`. Size S; owner: ops.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 
 ### Q-003 · claim · low · monitoring/ai-pipeline-alerts.yml:20 · #6868
 
@@ -230,7 +241,7 @@ PLUS the reason codes B1.1 added to the allowlist:`. The file's only `error_type
   non-executable prose).
 - Fix: drop `vlm_circuit_open` from the "five this file alerts on" list, or reword to say
   the file covers circuit-open only through the degraded-gauge proxy. Size S; owner: ops.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 
 ### Q-004 · test · low · backend/tests/unit/services/test_verdict_engine_status.py:159 · #6886
 
@@ -264,7 +275,13 @@ test_websocket_system_channel_delivery.py`) passes both mutated and pristine, so
   it completes without exception, or assert the structured "Failed to emit verdict-engine
   status event" log record — so removing the `except` turns this test red. Size S;
   owner: backend.
-- Owner: (pending)
+- Ruling 267 (record 6266846674): ruled fix now as `[r267b]` (backend). The test
+  becomes able to fail: it can capture the scheduled emit task and assert that it finishes
+  without an exception, or assert the "Failed to emit verdict-engine status event" log
+  record. Done when: the PR shows that deleting the `try/except` at
+  `backend/services/verdict_engine_status.py:285-291` turns the test red. Flags: none.
+  First on backend's queue, after the PR it holds (UR-52).
+- Owner: [r267b] — fix now (ruling 267).
 
 ### Q-005 · drift · low · docker-compose.prod.yml:573 · #6862
 
@@ -282,7 +299,7 @@ the backend dial the profiled ai-vlm / # service, ...`. 6862's own diff deleted
   parent the comment (then at :539) was true: ai-vlm carried `profiles: [vlm]` (:154-155).
 - Fix: drop "profiled" from the comment ("the default ai-vlm service") to match the O1.3
   state the same file documents. Size S; owner: ops.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter verified all cites at the pin; the whole ai-vlm block (:163-302)
   carries no `profiles:` key, the only two are :306 (ai-llm-vllm) and :1564
   (dcgm-exporter), and no `- vlm` value exists anywhere in the file; no other mechanism
@@ -310,7 +327,7 @@ the backend dial the profiled ai-vlm / # service, ...`. 6862's own diff deleted
   keeping PR's merge, first broken by a batch-1 PR). The citing file itself was last
   touched by #6862 (its own diff renumbered the cite 1012→1017, true at its merge).
 - Fix: update the cite to `docker-compose.prod.yml:1098`. Size S; owner: ops.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter re-measured the whole chain and confirmed every number:
   pre-#6862 1012 → #6862 (1e959ccce) 1017, cite true at its merge → #6868 (8169d5c0b)
   1022, **first mover proven by blob identity** (prod.yml blob 99351e71f identical at
@@ -343,7 +360,7 @@ polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and 
 - Fix: either skip the useWebSocket subscription when enabled is false, or reword the
   docstring to say enabled gates reconnection and polling rather than the connection itself.
   Size S; owner: frontend.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter verified every cite at the pin: the ternary only selects options
   (both branches pass the same url/protocols/onMessage; disabled adds reconnect:false and
   defaults the rest), `useWebSocket.ts:200-206` runs connect() on mount with no gate, and
@@ -375,7 +392,7 @@ polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and 
 - Fix: rewrite :3-4 and the :87 message to the pin's credential set, or scope the sentence to
   the credential nginx forwarding is pinned for and state the gate reads others.
   Size S; owner: backend.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter verified all five reads as live code at the pin (cookie :501,
   ?token= :502 in authenticate_websocket called from websocket.py:501/:729 on proxied
   /ws/events and /ws/system, ?api_key= :396, subprotocol :402-405, x-api-key :576),
@@ -415,7 +432,7 @@ polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and 
 - Fix: update :400-403, :559-566 and :580 to the pin counts and coordinates, or reword to
   state the parsed-key rule without pinning a volatile count and line number.
   Size S; owner: backend.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter verified all three claims false at the pin: the grep over the
   12-file `TRACKED_COMPOSE_FILES` tuple (:264-294) yields exactly 7 lines (gb300.yml:43,
   prod.yml:305 key, b14-real.yml:65, prodshape.yml :37/:161/:162 comments + :164 key);
@@ -446,7 +463,7 @@ polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and 
   written against the pre-PR layout. File blob-identical merge→pin (0b759dcbdcff…).
 - Fix: repoint the cite to auth.py:692-696, or drop the line numbers and name the refusal
   body/constant. Size S; owner: frontend.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter verified: the comment (:18-21) is verbatim with no dating frame —
   the file's own :4 dates its sibling api.ts cite ("at origin/main e9ec74ef"), so the
   author's dating convention exists and this cite lacks it; at the pin auth.py:405 is the
@@ -481,7 +498,7 @@ polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and 
 - Fix: rewrite the nine sites to state the pin behaviour — media endpoints are not exempt;
   the middleware gates them under EXPOSE_LAN and the browser's same-origin session cookie
   authenticates img/video tag loads. Size S; owner: frontend.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter verified every leg at the pin: the nine sites sit at exactly the
   cited lines with :2928-2940 verbatim; `auth.py:56-68` OPEN_PATHS holds only
   health/auth paths; `__call__` (:660-670) refuses any non-OPEN, non-preflight request
@@ -518,7 +535,7 @@ polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and 
   logout at :217 at e0cd9333 — the cites were stale in the PR's own content.
 - Fix: repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update
   the :361 quote to the setupRequired-guarded form the pin ships. Size S; owner: frontend.
-- Owner: (pending)
+- Owner: ruled later (ruling 267): one cleanup PR per lane at the audit's end.
 - Refuted=false. Refuter verified both cites verbatim with present-tense framing; the pin
   coordinates exactly as itemized (:175-178 seam tail + comment, :152 "F1.3 Done when",
   logout callback :217-221, guarded assignment :194); and substance still true (logoutApi
