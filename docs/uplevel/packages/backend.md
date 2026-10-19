@@ -258,6 +258,14 @@ version relates to replay measurement; the package is flagged `owner` and the ow
 note. OD-36 (debug tooling) and OD-37 ("Clear All Test Data") packages are flagged `owner`
 (ruling 89).
 
+### B4.1 Snooze an event or alert
+
+**Flags:** design: `heavy` (UR-24). **Depends on:** `R2`. **PR:** #7287.
+(R2a row 2; ruling 89, record 6102602152)
+
+F-050, F-079: the notification decision reads `snooze_until`. Opens with its design session
+(UR-79) — the session's open questions are on the claim PR.
+
 ### BB.\* Background track
 
 **Flags:** none. **Depends on:** none named.
