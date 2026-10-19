@@ -353,28 +353,76 @@ the fourth boundary, and prettier is clean on both files.
 
 ### [r262] Audit the code the Qwen-era merges left on main
 
-**Flags:** owner. **Assigned:** docs, first on its queue. **Depends on:** none.
+**Flags:** owner (ruling 262: the owner rules on every item). **Assigned:** docs, first on its
+queue. **Depends on:** none.
 **PR:** none yet. (ruling 262, record 6257468143)
 
 The fast lanes ran Qwen3.8-Flash-Next from #6850 (2026-10-07) until the vLLM crash at about
 2026-10-18T07:36Z, and GLM 5.3 Flash after the restart. The owner session compared the two blind on
 2026-10-19 (four matched pairs) and found no quality gap. It did find defects that each model's own
 UR-89 review let through. This package reads the code the Qwen-era merges left on main and writes a
-to-do sheet the owner rules on. It changes no code, not even a one-liner: each fix is the owner's
-call, made later by the lane that owns the path. The PR adds one file, `docs/uplevel/r262-audit.md`,
-and that file's line in the README's file map.
+to-do sheet the owner rules on. Ruling 262 is this lane's trigger (UR-68).
 
-- [ ] **MEASURE** the census at a SHA of main pinned at the claim, and write both at the sheet's
-      head with the command that produced the census. The census is every PR merged to main from
+It changes no code, not even a one-liner: each fix is the owner's call, made later by the lane that
+owns the path. The PR adds one file, `docs/uplevel/r262-audit.md`, and that file's line in the
+README's file map; its claim also writes this block's `**PR:**` field (UR-183). Label the claim PR
+`lane:docs` and `owner`.
+
+- [ ] **MEASURE** the census at a SHA of main pinned at the claim. Write the SHA, the census command
+      below and its counts at the sheet's head. The census is every PR merged to main from
       2026-10-07T00:00Z to 2026-10-18T07:36Z that carries a `lane:` label and no `heavy` label,
-      plus the `[red-main]` PRs with no label. For each PR it lists the files that still exist at
-      the pinned SHA, classed **production** (`backend/`, `frontend/src/`, `setup_lib/`, `ai/`,
-      `monitoring/` and the compose files, tests excluded), **test**, or **tooling** (`scripts/`,
-      `.github/`). Control: at `a3b1bd336` the owner session counted 247 PRs, 54 with production
-      files (301 files), 167 with test files (618), 83 with tooling (269) and 74 with none.
-- [ ] **Audit** each census PR, production first, then test, then tooling. The PR's diff and body
-      say what it meant to do; the verdict is on the code as it stands at the pinned SHA. Something
-      a later PR already fixed is not an item. An item is one of six classes:
+      plus the `[red-main]` PRs with no label at all. A PR's files are its merge commit's diff
+      against its first parent, kept if the same path exists at the pinned SHA (a file a later PR
+      renamed drops out). Each kept file has one class, the first that matches: Markdown is not
+      code and is skipped; **test** is a path with a `tests/`, `test/` or `__tests__/` directory,
+      or a `test_*.py`, `conftest.py`, `*.test.*` or `*.spec.*` file; **production** is under
+      `backend/`, `frontend/src/`, `setup_lib/`, `ai/` or `monitoring/`, or a root
+      `docker-compose*.yml`; **tooling** is under `scripts/` or `.github/`; anything else is
+      skipped. A PR's class is the first it has, in the order production, test, tooling.
+
+```bash
+python3 - "$PIN" <<'PY'
+import json, re, subprocess, sys
+pin = sys.argv[1]
+run = lambda *a: subprocess.run(a, capture_output=True, text=True, check=True).stdout
+prs = json.loads(run("gh", "pr", "list", "--state", "merged", "--limit", "600",
+    "--search", "merged:2026-10-07..2026-10-18T07:36:00Z",
+    "--json", "number,title,labels,mergeCommit"))
+live = set(run("git", "ls-tree", "-r", "--name-only", pin).split())
+TEST = re.compile(r"(^|/)(tests?|__tests__)/|(^|/)(test_[^/]*\.py|conftest\.py)$"
+                  r"|\.(test|spec)\.")
+def kind(p):
+    if p.endswith(".md"): return None
+    if TEST.search(p): return "test"
+    if p.startswith(("backend/", "frontend/src/", "setup_lib/", "ai/", "monitoring/")) \
+            or re.match(r"docker-compose[^/]*\.ya?ml$", p): return "production"
+    if p.startswith(("scripts/", ".github/")): return "tooling"
+    return None
+out = []
+for p in sorted(prs, key=lambda p: p["number"]):
+    names = {l["name"] for l in p["labels"]}
+    if "heavy" in names: continue
+    if not any(n.startswith("lane:") for n in names) and not (
+            not names and p["title"].startswith("[red-main]")): continue
+    m = p["mergeCommit"]["oid"]
+    k = {}
+    for f in run("git", "diff", "--no-renames", "--name-only", f"{m}^1", m).split():
+        if f in live and kind(f): k.setdefault(kind(f), []).append(f)
+    first = next((c for c in ("production", "test", "tooling") if c in k), "none")
+    out.append({"pr": p["number"], "class": first, "files": k})
+print(json.dumps(out, indent=1))
+PY
+```
+
+Control: at `a3b1bd336` the owner session's run gave 247 PRs, by class 52 production, 114 test, 6
+tooling and 75 none. A different count at the pinned SHA is recorded at the sheet's head with its
+reason; it is not a stop.
+
+- [ ] **Audit** each census PR once, in its class, with all its kept files: production first, then
+      test, then tooling, and within a class in PR-number order. The PR's diff and body say what it
+      meant to do; the verdict is on the code as it stands at the pinned SHA. Something a later PR
+      already fixed is not an item. A PR of class none is listed with "no code on main". An item
+      is one of six classes:
   - **bug:** wrong behaviour or an unhandled case on a reachable path;
   - **guard:** a refusal, validation or check removed or weakened without saying so;
   - **test:** a test that cannot fail, mirrors its implementation, or misses a behaviour the code or
@@ -392,15 +440,18 @@ and that file's line in the README's file map.
       quotes the lines, and shows the proof: the other lines read, or a command and its output. An
       item the auditor could not verify is not listed. A fresh, unnamed subagent (ruling 232) then
       gets only the item and the repo at the pinned SHA and tries to refute it; a refuted item is
-      dropped, and each batch records how many were. At most two audit subagents run at once (the
-      KV-cache policy of 2026-10-13). The cites stay at the pinned SHA as main moves; the package
-      that later fixes an item re-reads it on its own base.
+      dropped, and each batch records how many were. At most two audit subagents run at once. The
+      cites stay at the pinned SHA as main moves; the package that later fixes an item re-reads it
+      on its own base.
 - [ ] **Pilot.** Batch 1 is the first ten production PRs. The lane pushes it and posts a PR comment
-      with counts by class and severity and the refuted count, then holds until the owner comments
-      `continue` on the PR or changes the bar. Later batches are about fifteen PRs, one comment
-      each.
+      with counts by class and severity and the refuted count. It then holds: the PR stays draft,
+      each tick reads the PR's comments, the lane pushes nothing, and its heartbeat says it is
+      holding for the owner. An owner comment (one that starts `**Owner`) saying `continue` ends
+      the hold. If the owner's comment changes the bar instead, the lane re-checks batch 1 against
+      the new bar before batch 2. Later batches are about fifteen PRs, one comment each.
 - [ ] **Owner decisions.** The owner answers each item in PR comments with `fix`, `skip` or `later`,
-      and the lane writes the answer into the sheet.
+      and the lane writes the answer into the sheet. The PR stays draft until every item has an
+      answer; the lane then marks it ready and runs its UR-89 review.
 
 Each item in the sheet takes this form:
 
@@ -412,6 +463,6 @@ Each item in the sheet takes this form:
 - Owner: fix | skip | later
 ```
 
-**Done when:** every census PR is in the sheet with its items or "no items", every item survived the
-refutation pass, the UR-89 review approves, and every item carries an owner decision. The owner's
-next ruling turns the `fix` items into packages for the owning lanes.
+**Done when:** every census PR is in the sheet with its items, "no items" or "no code on main";
+every item survived the refutation pass; every item carries an owner decision; and the UR-89 review
+approves. The owner's next ruling turns the `fix` items into packages for the owning lanes.
