@@ -302,7 +302,7 @@ cross-lane part. **Depends on:** none named. **PR:** #7038 (merged).
       gate key scoping depends on. (pinned by
       `test_enter_only_rerun_keeps_lan_exposure_and_derives`, `test_r94_env_preserving_reruns.py:159`)
 - [x] **Fix 1:** on a re-run, every prompt's default is the value already in `.env`. A first run
-      keeps today's defaults. (same file, 30 tests; CI run 38329937197 at head `0a48b71a6` green)
+      keeps today's defaults. (same file, 29 tests — 38 ids expanded, two parametrized; CI run 38329937197 at head `0a48b71a6` green)
 - [x] **Fix 2:** a `--convert-monitoring-key` flag rewrites only the plain monitoring-key entry in
       `API_KEYS` as a scoped entry (`{"key": …, "scope": "monitoring"}`, #6959's format) and touches
       nothing else in `.env`. Ruling 79's docs line (`docs/operator/admin/security.md`) points at
@@ -457,9 +457,11 @@ records 6200331506, 6205729827)
       read by both. (#7187; `search.py:355` filters on `Event.computed_risk_level`)
 - [x] Tests: a soft-deleted event never appears in search; a filter on the level a result displays
       finds it (a `high` row at score 91 is found by the level it shows).
-      (`test_search_api.py:342` and `:381`; 16 legs in the file, CI run 38833479192 at #7187's
-      merged head `ef7c50364` ran them — its red jobs are the Feature-check ones #7187's body
-      disclosed, fixed by `[r211f]` below)
+      (`test_search_api.py:342` and `:381`; 16 legs in the file, CI run 38833479192 at head
+      `ef7c50364` ran them — its red jobs were `Feature check (fake AI)`, the `CI Gate` aggregate,
+      and `Collection Sanity`'s expired-`pytest_skip` ratchet (7 entries, disclosed in #7187's
+      review comment `IC_kwDOQs9zJM8AAAABceRGAw`, not the body); the ratchet fix is #7195
+      `ec6650761`, the Feature-check reds are the ones `[r211f]` below repairs)
 
 - [x] Frontend's `[r211f]` commits on this PR invert F-048's golden fixture (ruling 221): search
       excludes the soft-deleted row, `searchTotal` is the live count, and the defect half of the
@@ -586,7 +588,7 @@ stored as a `verification_failed` event (`backend/services/vlm_analyzer.py:656`)
       registered in CI's shard list, `.github/workflows/ci.yml:1435`)
 - [x] The PR body says whether the detection worker's stream loop (`pipeline_workers.py:400-418`)
       has the same shape. It changes nothing there. (#7182 body: Yes — the same
-      unconditional-acknowledge shape at `:404-405`/`:416-417`; unchanged per ruling 199 item 4)
+      unconditional-acknowledge shape at `:406-407`/`:418-419`; unchanged per ruling 199 item 4)
 
 **Done when:** tests (a) to (d) pass in CI at a ready head, and the PR body names the line where
 each disposition is decided. (CI witness run 38794448920 at head `3aca9abfc` —
@@ -616,7 +618,8 @@ the supervisor's heartbeats and restarts cover only the extra set. Record 619875
       analysis consumers, one batch-timeout worker and one metrics worker; a worker whose task dies
       is restarted without the count growing; shutdown stops each worker once.
       (`backend/tests/unit/services/test_pipeline_worker_single_owner.py`, 3/3; golden
-      `frontend/tests/golden/worker-management.spec.ts:51` names 6 supervised workers)
+      `frontend/tests/golden/operations/worker-management.spec.ts:50-58` names the 6 supervised
+      workers)
 - [x] The PR body reports whether today's two batch-timeout workers can close the same batch twice.
       (#7191 body: Yes — two `BatchAggregator` instances with per-instance `asyncio.Lock`s
       (`pipeline_workers.py:212`/`:1190`, `batch_aggregator.py:211`), the non-atomic
