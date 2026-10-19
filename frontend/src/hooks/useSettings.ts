@@ -21,38 +21,6 @@ export interface AmbientSettings {
 }
 
 /**
- * Settings for audio notifications
- */
-export interface AudioSettings {
-  /**
-   * Whether audio notifications are enabled
-   * @default true
-   */
-  enabled: boolean;
-  /**
-   * Volume level (0.0 to 1.0)
-   * @default 0.5
-   */
-  volume: number;
-}
-
-/**
- * Settings for desktop notifications
- */
-export interface DesktopNotificationSettings {
-  /**
-   * Whether desktop notifications are enabled
-   * @default true
-   */
-  enabled: boolean;
-  /**
-   * Whether to suppress notifications when window has focus
-   * @default false
-   */
-  suppressWhenFocused: boolean;
-}
-
-/**
  * Settings for favicon badge
  */
 export interface FaviconSettings {
@@ -68,8 +36,6 @@ export interface FaviconSettings {
  */
 export interface AmbientStatusSettings {
   ambient: AmbientSettings;
-  audio: AudioSettings;
-  desktopNotifications: DesktopNotificationSettings;
   favicon: FaviconSettings;
 }
 
@@ -87,14 +53,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ambientStatus: {
     ambient: {
       enabled: true,
-    },
-    audio: {
-      enabled: true,
-      volume: 0.5,
-    },
-    desktopNotifications: {
-      enabled: true,
-      suppressWhenFocused: false,
     },
     favicon: {
       enabled: true,
@@ -122,42 +80,6 @@ export interface UseSettingsReturn {
    * Set ambient effects enabled state
    */
   setAmbientEnabled: (enabled: boolean) => void;
-
-  // Audio settings
-  /**
-   * Whether audio is enabled
-   */
-  audioEnabled: boolean;
-  /**
-   * Set audio enabled state
-   */
-  setAudioEnabled: (enabled: boolean) => void;
-  /**
-   * Current audio volume (0.0 to 1.0)
-   */
-  audioVolume: number;
-  /**
-   * Set audio volume
-   */
-  setAudioVolume: (volume: number) => void;
-
-  // Desktop notification settings
-  /**
-   * Whether desktop notifications are enabled
-   */
-  desktopNotificationsEnabled: boolean;
-  /**
-   * Set desktop notifications enabled state
-   */
-  setDesktopNotificationsEnabled: (enabled: boolean) => void;
-  /**
-   * Whether to suppress notifications when window has focus
-   */
-  suppressNotificationsWhenFocused: boolean;
-  /**
-   * Set suppress when focused state
-   */
-  setSuppressNotificationsWhenFocused: (suppress: boolean) => void;
 
   // Favicon settings
   /**
@@ -190,31 +112,6 @@ export interface UseSettingsReturn {
 
 /**
  * Hook to manage application settings with localStorage persistence.
- *
- * @example
- * ```tsx
- * const {
- *   ambientEnabled,
- *   setAmbientEnabled,
- *   audioEnabled,
- *   setAudioEnabled,
- *   audioVolume,
- *   setAudioVolume,
- * } = useSettings();
- *
- * // Toggle ambient effects
- * <Switch checked={ambientEnabled} onChange={setAmbientEnabled} />
- *
- * // Volume slider
- * <input
- *   type="range"
- *   min={0}
- *   max={1}
- *   step={0.1}
- *   value={audioVolume}
- *   onChange={(e) => setAudioVolume(Number(e.target.value))}
- * />
- * ```
  */
 export function useSettings(): UseSettingsReturn {
   const [settings, setSettings] = useLocalStorage<AppSettings>(
@@ -229,14 +126,6 @@ export function useSettings(): UseSettingsReturn {
         ambient: {
           ...DEFAULT_SETTINGS.ambientStatus.ambient,
           ...settings?.ambientStatus?.ambient,
-        },
-        audio: {
-          ...DEFAULT_SETTINGS.ambientStatus.audio,
-          ...settings?.ambientStatus?.audio,
-        },
-        desktopNotifications: {
-          ...DEFAULT_SETTINGS.ambientStatus.desktopNotifications,
-          ...settings?.ambientStatus?.desktopNotifications,
         },
         favicon: {
           ...DEFAULT_SETTINGS.ambientStatus.favicon,
@@ -256,73 +145,6 @@ export function useSettings(): UseSettingsReturn {
           ambient: {
             ...prev.ambientStatus.ambient,
             enabled,
-          },
-        },
-      }));
-    },
-    [setSettings]
-  );
-
-  // Audio settings
-  const setAudioEnabled = useCallback(
-    (enabled: boolean) => {
-      setSettings((prev) => ({
-        ...prev,
-        ambientStatus: {
-          ...prev.ambientStatus,
-          audio: {
-            ...prev.ambientStatus.audio,
-            enabled,
-          },
-        },
-      }));
-    },
-    [setSettings]
-  );
-
-  const setAudioVolume = useCallback(
-    (volume: number) => {
-      const clampedVolume = Math.max(0, Math.min(1, volume));
-      setSettings((prev) => ({
-        ...prev,
-        ambientStatus: {
-          ...prev.ambientStatus,
-          audio: {
-            ...prev.ambientStatus.audio,
-            volume: clampedVolume,
-          },
-        },
-      }));
-    },
-    [setSettings]
-  );
-
-  // Desktop notification settings
-  const setDesktopNotificationsEnabled = useCallback(
-    (enabled: boolean) => {
-      setSettings((prev) => ({
-        ...prev,
-        ambientStatus: {
-          ...prev.ambientStatus,
-          desktopNotifications: {
-            ...prev.ambientStatus.desktopNotifications,
-            enabled,
-          },
-        },
-      }));
-    },
-    [setSettings]
-  );
-
-  const setSuppressNotificationsWhenFocused = useCallback(
-    (suppress: boolean) => {
-      setSettings((prev) => ({
-        ...prev,
-        ambientStatus: {
-          ...prev.ambientStatus,
-          desktopNotifications: {
-            ...prev.ambientStatus.desktopNotifications,
-            suppressWhenFocused: suppress,
           },
         },
       }));
@@ -371,8 +193,6 @@ export function useSettings(): UseSettingsReturn {
       ...prev,
       ambientStatus: {
         ambient: { ...prev.ambientStatus.ambient, enabled: true },
-        audio: { ...prev.ambientStatus.audio, enabled: true },
-        desktopNotifications: { ...prev.ambientStatus.desktopNotifications, enabled: true },
         favicon: { ...prev.ambientStatus.favicon, enabled: true },
       },
     }));
@@ -383,8 +203,6 @@ export function useSettings(): UseSettingsReturn {
       ...prev,
       ambientStatus: {
         ambient: { ...prev.ambientStatus.ambient, enabled: false },
-        audio: { ...prev.ambientStatus.audio, enabled: false },
-        desktopNotifications: { ...prev.ambientStatus.desktopNotifications, enabled: false },
         favicon: { ...prev.ambientStatus.favicon, enabled: false },
       },
     }));
@@ -396,19 +214,6 @@ export function useSettings(): UseSettingsReturn {
     // Ambient
     ambientEnabled: normalizedSettings.ambientStatus.ambient.enabled,
     setAmbientEnabled,
-
-    // Audio
-    audioEnabled: normalizedSettings.ambientStatus.audio.enabled,
-    setAudioEnabled,
-    audioVolume: normalizedSettings.ambientStatus.audio.volume,
-    setAudioVolume,
-
-    // Desktop notifications
-    desktopNotificationsEnabled: normalizedSettings.ambientStatus.desktopNotifications.enabled,
-    setDesktopNotificationsEnabled,
-    suppressNotificationsWhenFocused:
-      normalizedSettings.ambientStatus.desktopNotifications.suppressWhenFocused,
-    setSuppressNotificationsWhenFocused,
 
     // Favicon
     faviconBadgeEnabled: normalizedSettings.ambientStatus.favicon.enabled,

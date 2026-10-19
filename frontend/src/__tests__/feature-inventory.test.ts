@@ -106,6 +106,18 @@ const claimText = (c: Claim) =>
   `${c.kind === 'ws' ? 'WS' : (c.method ?? '?')} ${c.path}  (${c.file}:${c.line})`;
 
 describe('feature inventory (F2.2)', () => {
+  it('does not include retired R2a row 42 webhook event types (F-246)', async () => {
+    const { WEBHOOK_EVENT_TYPES } = await import('../types/webhook');
+    for (const retired of [
+      'event_enriched',
+      'batch_analysis_started',
+      'batch_analysis_completed',
+      'batch_analysis_failed',
+    ]) {
+      expect(WEBHOOK_EVENT_TYPES).not.toContain(retired);
+    }
+  });
+
   it('has rows, each with a unique id, and parses every row the file holds', () => {
     expect(inv.rows.length).toBeGreaterThan(0);
     const raw = fs.readFileSync(INVENTORY, 'utf8').match(/^\| F-\d{3,} \|/gm) ?? [];

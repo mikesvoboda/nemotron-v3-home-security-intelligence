@@ -34,7 +34,7 @@ A ruling binds as UR-39 and UR-40 say. Treat every ruling as settled (UR-44).
 - **Never wait inside a turn** (UR-38).
 - **Commit and push only when the owner asks.** Commit as
   `git -c user.name="Mike Svoboda" -c user.email=mikesvoboda@users.noreply.github.com`. Never bypass hooks (UR-69: no
-  `--no-verify`, no `SKIP=`).
+  `--no-verify`, no `SKIP=` beyond UR-184's), and run UR-184's checks before each push.
 - **Agents' sandboxes are theirs** (UR-163, UR-170; `docs/synthbench/operator-runbook.md`).
 - **`agent-dgx`** (UR-26, UR-28).
 - **Real tier** (UR-133, UR-137).
