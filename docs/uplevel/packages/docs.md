@@ -372,8 +372,10 @@ README's file map; its claim also writes this block's `**PR:**` field (UR-183). 
       below and its counts at the sheet's head. The census is every PR merged to main from
       2026-10-07T00:00Z to 2026-10-18T07:36Z that carries a `lane:` label, plus the `[red-main]`
       PRs with no label at all. Ruling 262 excludes two kinds: a PR with any label containing
-      `heavy` (`heavy`, `cell:heavy`, `cell:heavy-b`: another model), and the owner session's PRs,
-      whose head branch starts `uplevel/owner-`. A PR's files are its merge commit's diff
+      `heavy` (`heavy`, `cell:heavy`, `cell:heavy-b`: another model), and the owner session's PRs:
+      a head branch that starts `uplevel/owner-`, or a commit with a `Co-Authored-By: Claude Opus`
+      trailer (the owner session's; the lanes' commits carry `Claude Code`). A PR's files are its
+      merge commit's diff
       against its first parent, kept if the same path exists at the pinned SHA (a file a later PR
       renamed drops out). Each kept file has one class, the first that matches: Markdown is not
       code and is skipped; **test** is a path with a `tests/`, `test/` or `__tests__/` directory,
@@ -408,6 +410,8 @@ for p in sorted(prs, key=lambda p: p["number"]):
     if not any(n.startswith("lane:") for n in names) and not (
             not names and p["title"].startswith("[red-main]")): continue
     m = p["mergeCommit"]["oid"]
+    if "Co-Authored-By: Claude Opus" in run("git", "log", "--format=%B", f"{m}^1..{m}"):
+        continue
     k = {}
     for f in run("git", "diff", "--no-renames", "--name-only", f"{m}^1", m).split():
         if f in live and kind(f): k.setdefault(kind(f), []).append(f)
@@ -417,7 +421,7 @@ print(json.dumps(out, indent=1))
 PY
 ```
 
-Control: at `a3b1bd336` the owner session's run gave 229 PRs, by class 52 production, 111 test, 6
+Control: at `a3b1bd336` the owner session's run gave 228 PRs, by class 52 production, 110 test, 6
 tooling and 60 none. A different count at the pinned SHA is recorded at the sheet's head with its
 reason; it is not a stop.
 
