@@ -22,10 +22,8 @@ import { clsx } from 'clsx';
 import {
   AlertTriangle,
   Database,
-  Eye,
   FileText,
   Fingerprint,
-  Image,
   Loader2,
   RefreshCw,
   RotateCcw,
@@ -61,12 +59,7 @@ export interface AdminSettingsProps {
 
 /** Feature toggle key type matching backend settings */
 export type FeatureToggleKey =
-  | 'vision_extraction_enabled'
-  | 'reid_enabled'
-  | 'scene_change_enabled'
-  | 'clip_generation_enabled'
-  | 'image_quality_enabled'
-  | 'background_eval_enabled';
+  'reid_enabled' | 'scene_change_enabled' | 'clip_generation_enabled' | 'background_eval_enabled';
 
 /** Feature toggle configuration */
 interface FeatureToggleConfig {
@@ -82,13 +75,6 @@ export type FeatureTogglesState = Record<FeatureToggleKey, boolean>;
 
 /** Feature toggle configurations - static config outside component */
 const FEATURE_TOGGLE_CONFIGS: FeatureToggleConfig[] = [
-  {
-    id: 'vision_extraction_enabled',
-    name: 'Vision Extraction',
-    description: 'Extract visual features from frames using AI models',
-    icon: null, // Icons are rendered inline as they use JSX
-    color: 'green',
-  },
   {
     id: 'reid_enabled',
     name: 'Re-ID Tracking',
@@ -111,13 +97,6 @@ const FEATURE_TOGGLE_CONFIGS: FeatureToggleConfig[] = [
     color: 'green',
   },
   {
-    id: 'image_quality_enabled',
-    name: 'Image Quality',
-    description: 'Assess and filter low-quality images',
-    icon: null,
-    color: 'blue',
-  },
-  {
     id: 'background_eval_enabled',
     name: 'Background Eval',
     description: 'Evaluate background consistency',
@@ -128,21 +107,17 @@ const FEATURE_TOGGLE_CONFIGS: FeatureToggleConfig[] = [
 
 /** Map of feature toggle icons */
 const FEATURE_TOGGLE_ICONS: Record<FeatureToggleKey, React.FC<{ className?: string }>> = {
-  vision_extraction_enabled: Eye,
   reid_enabled: Fingerprint,
   scene_change_enabled: RefreshCw,
   clip_generation_enabled: Video,
-  image_quality_enabled: Image,
   background_eval_enabled: Sparkles,
 };
 
 /** Default feature toggle state - all enabled by default */
 const DEFAULT_FEATURE_TOGGLES: FeatureTogglesState = {
-  vision_extraction_enabled: true,
   reid_enabled: true,
   scene_change_enabled: true,
   clip_generation_enabled: true,
-  image_quality_enabled: true,
   background_eval_enabled: true,
 };
 
@@ -237,11 +212,9 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
   const featureToggles: FeatureTogglesState = useMemo(() => {
     if (settings) {
       return {
-        vision_extraction_enabled: settings.features.vision_extraction_enabled,
         reid_enabled: settings.features.reid_enabled,
         scene_change_enabled: settings.features.scene_change_enabled,
         clip_generation_enabled: settings.features.clip_generation_enabled,
-        image_quality_enabled: settings.features.image_quality_enabled,
         background_eval_enabled: settings.features.background_eval_enabled,
       };
     }

@@ -98,9 +98,6 @@ describe('DashboardLayout', () => {
   const mockRenderPipelineTelemetry = vi.fn(() => (
     <div data-testid="mock-pipeline-telemetry">Pipeline Telemetry</div>
   ));
-  const mockRenderPipelineQueues = vi.fn(() => (
-    <div data-testid="mock-pipeline-queues">Pipeline Queues</div>
-  ));
   const mockRenderLoadingSkeleton = vi.fn(() => (
     <div data-testid="mock-loading-skeleton">Loading...</div>
   ));
@@ -140,11 +137,6 @@ describe('DashboardLayout', () => {
     pipelineTelemetry: {
       pollingInterval: 5000,
     },
-    pipelineQueues: {
-      detectionQueue: 0,
-      analysisQueue: 0,
-      warningThreshold: 10,
-    },
   };
 
   const defaultProps = {
@@ -154,7 +146,6 @@ describe('DashboardLayout', () => {
     renderActivityFeed: mockRenderActivityFeed,
     renderGpuStats: mockRenderGpuStats,
     renderPipelineTelemetry: mockRenderPipelineTelemetry,
-    renderPipelineQueues: mockRenderPipelineQueues,
     renderLoadingSkeleton: mockRenderLoadingSkeleton,
   };
 

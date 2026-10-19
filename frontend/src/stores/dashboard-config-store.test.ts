@@ -55,8 +55,9 @@ describe('dashboard-config-store', () => {
   });
 
   describe('DEFAULT_CONFIG_STATE', () => {
-    it('has expected default widgets', () => {
-      expect(DEFAULT_CONFIG_STATE.widgets).toHaveLength(7);
+    it('has expected default widgets without retired pipeline-queues (F-041)', () => {
+      expect(DEFAULT_CONFIG_STATE.widgets).toHaveLength(6);
+      expect(DEFAULT_CONFIG_STATE.widgets.map((w) => w.id)).not.toContain('pipeline-queues');
       expect(DEFAULT_CONFIG_STATE.version).toBe(CONFIG_VERSION);
     });
 
@@ -70,13 +71,9 @@ describe('dashboard-config-store', () => {
       ]);
     });
 
-    it('has gpu-stats, pipeline-telemetry, and pipeline-queues hidden by default', () => {
+    it('has gpu-stats and pipeline-telemetry hidden by default (F-041 retired pipeline-queues)', () => {
       const hiddenWidgets = DEFAULT_CONFIG_STATE.widgets.filter((w) => !w.visible);
-      expect(hiddenWidgets.map((w) => w.id)).toEqual([
-        'gpu-stats',
-        'pipeline-telemetry',
-        'pipeline-queues',
-      ]);
+      expect(hiddenWidgets.map((w) => w.id)).toEqual(['gpu-stats', 'pipeline-telemetry']);
     });
 
     it('has default theme set to dark', () => {
@@ -481,7 +478,6 @@ describe('dashboard-config-store', () => {
         const state = useDashboardConfigStore.getState();
         expect(selectIsWidgetVisible(state, 'gpu-stats')).toBe(false);
         expect(selectIsWidgetVisible(state, 'pipeline-telemetry')).toBe(false);
-        expect(selectIsWidgetVisible(state, 'pipeline-queues')).toBe(false);
       });
 
       it('returns false for non-existent widgets', () => {
@@ -545,7 +541,7 @@ describe('dashboard-config-store', () => {
     describe('selectCanMoveDown', () => {
       it('returns false for last widget', () => {
         const state = useDashboardConfigStore.getState();
-        expect(selectCanMoveDown(state, 'pipeline-queues')).toBe(false);
+        expect(selectCanMoveDown(state, 'pipeline-telemetry')).toBe(false);
       });
 
       it('returns true for non-last widgets', () => {

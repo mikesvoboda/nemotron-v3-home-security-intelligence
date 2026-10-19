@@ -206,31 +206,6 @@ All metric props are optional overrides — the widget fetches its own data via 
 
 ---
 
-### PipelineQueues
-
-AI pipeline queue depth display.
-
-**Location:** `frontend/src/components/dashboard/PipelineQueues.tsx`
-
-**Props:**
-
-| Prop             | Type                           | Default | Description                                        |
-| ---------------- | ------------------------------ | ------- | -------------------------------------------------- |
-| detectionQueue   | `number`                       | -       | Detection queue depth (fallback value)             |
-| analysisQueue    | `number`                       | -       | Analysis queue depth (fallback value)              |
-| queuesStatus     | `QueuesStatusResponse \| null` | -       | Detailed status from `useQueuesStatus` (preferred) |
-| isLoading        | `boolean`                      | -       | Queue status loading state                         |
-| warningThreshold | `number`                       | `10`    | Depth above which a warning is shown               |
-| className        | `string`                       | -       | Additional CSS classes                             |
-
-**Displays:**
-
-- Detection queue depth
-- Analysis queue depth
-- Warning indicator when a queue exceeds `warningThreshold`
-
----
-
 ### PipelineTelemetry
 
 Pipeline latency and throughput metrics.
@@ -362,7 +337,6 @@ WebSocket Connection
         ├──► CameraGrid (camera feeds)
         ├──► ActivityFeed (event stream)
         ├──► GpuStats (GPU metrics)
-        ├──► PipelineQueues (queue depths)
         └──► PipelineTelemetry (latency/throughput)
 ```
 
@@ -370,14 +344,13 @@ WebSocket Connection
 
 ## Refresh Patterns
 
-| Widget            | Refresh Method                                                                                          | Interval                     |
-| ----------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| StatsRow          | `/ws/system` push (`useSystemStatus`) + event stats queries                                             | System channel cadence (5 s) |
-| CameraGrid        | Manual per-card snapshot refresh (`onSnapshotRefresh`); optional WebSocket status updates               | On demand                    |
-| ActivityFeed      | `/ws/events` push (`useEventStream`)                                                                    | Real-time                    |
-| GpuStats          | `useGpuStatsQuery` polling (`statsQueryOptions.refetchInterval`)                                        | 5 s default                  |
-| PipelineQueues    | `queuesStatus` from `useQueuesStatus` polling, else the `detectionQueue`/`analysisQueue` fallback props | 5 s default                  |
-| PipelineTelemetry | `fetchTelemetry` polling (`pollingInterval`)                                                            | 5 s default                  |
+| Widget            | Refresh Method                                                                            | Interval                     |
+| ----------------- | ----------------------------------------------------------------------------------------- | ---------------------------- |
+| StatsRow          | `/ws/system` push (`useSystemStatus`) + event stats queries                               | System channel cadence (5 s) |
+| CameraGrid        | Manual per-card snapshot refresh (`onSnapshotRefresh`); optional WebSocket status updates | On demand                    |
+| ActivityFeed      | `/ws/events` push (`useEventStream`)                                                      | Real-time                    |
+| GpuStats          | `useGpuStatsQuery` polling (`statsQueryOptions.refetchInterval`)                          | 5 s default                  |
+| PipelineTelemetry | `fetchTelemetry` polling (`pollingInterval`)                                              | 5 s default                  |
 
 ---
 

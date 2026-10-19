@@ -470,13 +470,12 @@ re-ID lookup runs in-process in the backend.
 
 ### Feature Toggles
 
-| Variable                    | Default | Reader                       |
-| --------------------------- | ------- | ---------------------------- |
-| `REID_ENABLED`              | `true`  | Surfaced in the settings API |
-| `SCENE_CHANGE_ENABLED`      | `true`  | Surfaced in the settings API |
-| `VISION_EXTRACTION_ENABLED` | `true`  | Surfaced in the settings API |
+| Variable               | Default | Reader                       |
+| ---------------------- | ------- | ---------------------------- |
+| `REID_ENABLED`         | `true`  | Surfaced in the settings API |
+| `SCENE_CHANGE_ENABLED` | `true`  | Surfaced in the settings API |
 
-None of the three gates a call on the live path today — they are read by
+Neither gates a call on the live path today — they are read by
 `api/routes/settings_api.py` and reported to the UI. What actually decides whether a
 lookup leg runs is residency: `BACKEND_MODEL_PRELOAD` (ships `false`; `setup.py` writes
 `true` at >= 24 GB VRAM). With it off, `faces` and `person_reid` report `unavailable` on

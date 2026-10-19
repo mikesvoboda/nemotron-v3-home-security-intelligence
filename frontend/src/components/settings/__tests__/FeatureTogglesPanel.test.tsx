@@ -29,11 +29,9 @@ describe('FeatureTogglesPanel', () => {
       high_max: 84,
     },
     features: {
-      vision_extraction_enabled: true,
       reid_enabled: true,
       scene_change_enabled: false,
       clip_generation_enabled: true,
-      image_quality_enabled: false,
       background_eval_enabled: true,
     },
     rate_limiting: {
@@ -85,25 +83,21 @@ describe('FeatureTogglesPanel', () => {
       expect(panel).toHaveClass('custom-class');
     });
 
-    it('renders all 6 feature toggles', () => {
+    it('renders all 4 feature toggles', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
-      expect(screen.getByTestId('feature-toggle-vision_extraction_enabled')).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-reid_enabled')).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-scene_change_enabled')).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-clip_generation_enabled')).toBeInTheDocument();
-      expect(screen.getByTestId('feature-toggle-image_quality_enabled')).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-background_eval_enabled')).toBeInTheDocument();
     });
 
     it('displays feature labels', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
-      expect(screen.getByText('Vision Extraction')).toBeInTheDocument();
       expect(screen.getByText('Re-ID Tracking')).toBeInTheDocument();
       expect(screen.getByText('Scene Change Detection')).toBeInTheDocument();
       expect(screen.getByText('Clip Generation')).toBeInTheDocument();
-      expect(screen.getByText('Image Quality Assessment')).toBeInTheDocument();
       expect(screen.getByText('Background Evaluation')).toBeInTheDocument();
     });
 
@@ -111,18 +105,18 @@ describe('FeatureTogglesPanel', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
       expect(
-        screen.getByText('Enable Florence-2 vision extraction for vehicle and person attributes')
+        screen.getByText('Enable CLIP re-identification for tracking entities across cameras')
       ).toBeInTheDocument();
       expect(
-        screen.getByText('Enable CLIP re-identification for tracking entities across cameras')
+        screen.getByText('Enable SSIM-based scene change detection for camera views')
       ).toBeInTheDocument();
     });
 
     it('displays summary count of enabled features', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
-      // 4 features are enabled in mockSettings
-      expect(screen.getByTestId('feature-toggles-summary')).toHaveTextContent('4/6 enabled');
+      // 3 of 4 features are enabled in mockSettings
+      expect(screen.getByTestId('feature-toggles-summary')).toHaveTextContent('3/4 enabled');
     });
   });
 
@@ -130,22 +124,18 @@ describe('FeatureTogglesPanel', () => {
     it('renders switches with correct initial state', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
       const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
       const sceneSwitch = screen.getByTestId('feature-toggle-scene_change_enabled-switch');
       const clipSwitch = screen.getByTestId('feature-toggle-clip_generation_enabled-switch');
-      const imageSwitch = screen.getByTestId('feature-toggle-image_quality_enabled-switch');
       const bgSwitch = screen.getByTestId('feature-toggle-background_eval_enabled-switch');
 
       // Check aria-checked for enabled features
-      expect(visionSwitch).toHaveAttribute('aria-checked', 'true');
       expect(reidSwitch).toHaveAttribute('aria-checked', 'true');
       expect(clipSwitch).toHaveAttribute('aria-checked', 'true');
       expect(bgSwitch).toHaveAttribute('aria-checked', 'true');
 
       // Check aria-checked for disabled features
       expect(sceneSwitch).toHaveAttribute('aria-checked', 'false');
-      expect(imageSwitch).toHaveAttribute('aria-checked', 'false');
     });
 
     it('calls updateMutation when toggle is clicked', async () => {
@@ -164,13 +154,13 @@ describe('FeatureTogglesPanel', () => {
       const user = userEvent.setup();
       renderWithProviders(<FeatureTogglesPanel />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
-      expect(visionSwitch).toHaveAttribute('aria-checked', 'true');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
+      expect(reidSwitch).toHaveAttribute('aria-checked', 'true');
 
-      await user.click(visionSwitch);
+      await user.click(reidSwitch);
 
       expect(mockUpdateMutation.mutateAsync).toHaveBeenCalledWith({
-        features: { vision_extraction_enabled: false },
+        features: { reid_enabled: false },
       });
     });
   });
@@ -204,14 +194,12 @@ describe('FeatureTogglesPanel', () => {
 
       renderWithProviders(<FeatureTogglesPanel />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
-      await user.click(visionSwitch);
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
+      await user.click(reidSwitch);
 
       // Should show loading indicator
       await waitFor(() => {
-        expect(
-          screen.getByTestId('feature-toggle-vision_extraction_enabled-loading')
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('feature-toggle-reid_enabled-loading')).toBeInTheDocument();
       });
 
       // Resolve the promise
@@ -219,9 +207,7 @@ describe('FeatureTogglesPanel', () => {
 
       // Loading indicator should disappear
       await waitFor(() => {
-        expect(
-          screen.queryByTestId('feature-toggle-vision_extraction_enabled-loading')
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('feature-toggle-reid_enabled-loading')).not.toBeInTheDocument();
       });
     });
   });
@@ -281,8 +267,8 @@ describe('FeatureTogglesPanel', () => {
     it('switches have proper aria-label attributes', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
-      expect(visionSwitch).toHaveAttribute('aria-label', 'Toggle Vision Extraction off');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
+      expect(reidSwitch).toHaveAttribute('aria-label', 'Toggle Re-ID Tracking off');
 
       const sceneSwitch = screen.getByTestId('feature-toggle-scene_change_enabled-switch');
       expect(sceneSwitch).toHaveAttribute('aria-label', 'Toggle Scene Change Detection on');
@@ -291,21 +277,21 @@ describe('FeatureTogglesPanel', () => {
     it('switches have role="switch" attribute', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
-      expect(visionSwitch).toHaveAttribute('role', 'switch');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
+      expect(reidSwitch).toHaveAttribute('role', 'switch');
     });
 
     it('labels are associated with switches via htmlFor', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
       // Labels use htmlFor to associate with switch id
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
-      expect(visionSwitch).toHaveAttribute('id', 'toggle-vision_extraction_enabled');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
+      expect(reidSwitch).toHaveAttribute('id', 'toggle-reid_enabled');
 
       // Click the label text should focus/toggle the switch
-      const visionLabel = screen.getByText('Vision Extraction');
-      expect(visionLabel.tagName.toLowerCase()).toBe('label');
-      expect(visionLabel).toHaveAttribute('for', 'toggle-vision_extraction_enabled');
+      const reidLabel = screen.getByText('Re-ID Tracking');
+      expect(reidLabel.tagName.toLowerCase()).toBe('label');
+      expect(reidLabel).toHaveAttribute('for', 'toggle-reid_enabled');
     });
 
     it('switch is disabled while toggling', async () => {
@@ -319,12 +305,12 @@ describe('FeatureTogglesPanel', () => {
 
       renderWithProviders(<FeatureTogglesPanel />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
-      await user.click(visionSwitch);
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
+      await user.click(reidSwitch);
 
       // Should be disabled while toggling
       await waitFor(() => {
-        expect(visionSwitch).toHaveClass('opacity-50');
+        expect(reidSwitch).toHaveClass('opacity-50');
       });
 
       // Resolve the promise
@@ -332,7 +318,7 @@ describe('FeatureTogglesPanel', () => {
 
       // Should be enabled again
       await waitFor(() => {
-        expect(visionSwitch).not.toHaveClass('opacity-50');
+        expect(reidSwitch).not.toHaveClass('opacity-50');
       });
     });
   });
@@ -342,11 +328,9 @@ describe('FeatureTogglesPanel', () => {
       const allEnabledSettings = {
         ...mockSettings,
         features: {
-          vision_extraction_enabled: true,
           reid_enabled: true,
           scene_change_enabled: true,
           clip_generation_enabled: true,
-          image_quality_enabled: true,
           background_eval_enabled: true,
         },
       };
@@ -361,18 +345,16 @@ describe('FeatureTogglesPanel', () => {
 
       renderWithProviders(<FeatureTogglesPanel />);
 
-      expect(screen.getByTestId('feature-toggles-summary')).toHaveTextContent('6/6 enabled');
+      expect(screen.getByTestId('feature-toggles-summary')).toHaveTextContent('4/4 enabled');
     });
 
     it('shows correct count when all features are disabled', () => {
       const allDisabledSettings = {
         ...mockSettings,
         features: {
-          vision_extraction_enabled: false,
           reid_enabled: false,
           scene_change_enabled: false,
           clip_generation_enabled: false,
-          image_quality_enabled: false,
           background_eval_enabled: false,
         },
       };
@@ -387,7 +369,7 @@ describe('FeatureTogglesPanel', () => {
 
       renderWithProviders(<FeatureTogglesPanel />);
 
-      expect(screen.getByTestId('feature-toggles-summary')).toHaveTextContent('0/6 enabled');
+      expect(screen.getByTestId('feature-toggles-summary')).toHaveTextContent('0/4 enabled');
     });
   });
 
@@ -397,16 +379,16 @@ describe('FeatureTogglesPanel', () => {
       renderWithProviders(<FeatureTogglesPanel />);
 
       const sceneSwitch = screen.getByTestId('feature-toggle-scene_change_enabled-switch');
-      const imageSwitch = screen.getByTestId('feature-toggle-image_quality_enabled-switch');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
 
       await user.click(sceneSwitch);
       expect(mockUpdateMutation.mutateAsync).toHaveBeenCalledWith({
         features: { scene_change_enabled: true },
       });
 
-      await user.click(imageSwitch);
+      await user.click(reidSwitch);
       expect(mockUpdateMutation.mutateAsync).toHaveBeenCalledWith({
-        features: { image_quality_enabled: true },
+        features: { reid_enabled: false },
       });
 
       expect(mockUpdateMutation.mutateAsync).toHaveBeenCalledTimes(2);

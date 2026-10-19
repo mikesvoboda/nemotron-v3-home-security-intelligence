@@ -56,13 +56,6 @@ export interface WidgetProps {
     queueWarningThreshold?: number;
     latencyWarningThreshold?: number;
   };
-  /** Props for PipelineQueues widget */
-  pipelineQueues?: {
-    detectionQueue: number;
-    analysisQueue: number;
-    warningThreshold?: number;
-    className?: string;
-  };
 }
 
 export interface DashboardLayoutProps {
@@ -80,8 +73,6 @@ export interface DashboardLayoutProps {
   renderGpuStats?: (props: WidgetProps['gpuStats']) => React.ReactNode;
   /** Render function for PipelineTelemetry (optional) */
   renderPipelineTelemetry?: (props: WidgetProps['pipelineTelemetry']) => React.ReactNode;
-  /** Render function for PipelineQueues (optional) */
-  renderPipelineQueues?: (props: WidgetProps['pipelineQueues']) => React.ReactNode;
   /** Whether loading state is active */
   isLoading?: boolean;
   /** Render function for loading skeleton */
@@ -124,7 +115,6 @@ export default function DashboardLayout({
   renderActivityFeed,
   renderGpuStats,
   renderPipelineTelemetry,
-  renderPipelineQueues,
   isLoading = false,
   renderLoadingSkeleton,
   className = '',
@@ -229,16 +219,6 @@ export default function DashboardLayout({
           }
           return null;
 
-        case 'pipeline-queues':
-          if (renderPipelineQueues && widgetProps.pipelineQueues) {
-            return (
-              <div key={widgetId} data-testid="widget-pipeline-queues">
-                {renderPipelineQueues(widgetProps.pipelineQueues)}
-              </div>
-            );
-          }
-          return null;
-
         default:
           return null;
       }
@@ -251,7 +231,6 @@ export default function DashboardLayout({
       renderActivityFeed,
       renderGpuStats,
       renderPipelineTelemetry,
-      renderPipelineQueues,
     ]
   );
 
@@ -312,10 +291,7 @@ export default function DashboardLayout({
 
           {/* Top Widgets (full width) */}
           {topWidgets
-            .filter(
-              (w) =>
-                w.id !== 'gpu-stats' && w.id !== 'pipeline-telemetry' && w.id !== 'pipeline-queues'
-            )
+            .filter((w) => w.id !== 'gpu-stats' && w.id !== 'pipeline-telemetry')
             .map((widget) => renderWidget(widget.id))}
 
           {/* Main Content Area - Responsive layout optimized for tablet (NEM-3610) */}
@@ -337,21 +313,13 @@ export default function DashboardLayout({
           )}
 
           {/* System Widgets (GPU Stats, Pipeline Telemetry, etc.) - Responsive for tablet (NEM-3610) */}
-          {topWidgets.some(
-            (w) =>
-              w.id === 'gpu-stats' || w.id === 'pipeline-telemetry' || w.id === 'pipeline-queues'
-          ) && (
+          {topWidgets.some((w) => w.id === 'gpu-stats' || w.id === 'pipeline-telemetry') && (
             <div
               className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:mt-6 md:gap-6 lg:grid-cols-3"
               data-testid="system-widgets-area"
             >
               {topWidgets
-                .filter(
-                  (w) =>
-                    w.id === 'gpu-stats' ||
-                    w.id === 'pipeline-telemetry' ||
-                    w.id === 'pipeline-queues'
-                )
+                .filter((w) => w.id === 'gpu-stats' || w.id === 'pipeline-telemetry')
                 .map((widget) => renderWidget(widget.id))}
             </div>
           )}

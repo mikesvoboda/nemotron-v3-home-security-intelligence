@@ -25327,10 +25327,8 @@ export interface components {
          * @example {
          *       "background_eval_enabled": true,
          *       "clip_generation_enabled": true,
-         *       "image_quality_enabled": true,
          *       "reid_enabled": true,
-         *       "scene_change_enabled": true,
-         *       "vision_extraction_enabled": true
+         *       "scene_change_enabled": true
          *     }
          */
         FeatureSettings: {
@@ -25345,11 +25343,6 @@ export interface components {
              */
             clip_generation_enabled: boolean;
             /**
-             * Image Quality Enabled
-             * @description Enable BRISQUE image quality assessment (CPU-based)
-             */
-            image_quality_enabled: boolean;
-            /**
              * Reid Enabled
              * @description Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras
              */
@@ -25359,11 +25352,6 @@ export interface components {
              * @description Enable SSIM-based scene change detection
              */
             scene_change_enabled: boolean;
-            /**
-             * Vision Extraction Enabled
-             * @description Enable Florence-2 vision extraction for vehicle/person attributes
-             */
-            vision_extraction_enabled: boolean;
         };
         /**
          * FeatureSettingsUpdate
@@ -25386,11 +25374,6 @@ export interface components {
              */
             clip_generation_enabled?: boolean | null;
             /**
-             * Image Quality Enabled
-             * @description Enable BRISQUE image quality assessment (CPU-based)
-             */
-            image_quality_enabled?: boolean | null;
-            /**
              * Reid Enabled
              * @description Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras
              */
@@ -25400,11 +25383,6 @@ export interface components {
              * @description Enable SSIM-based scene change detection
              */
             scene_change_enabled?: boolean | null;
-            /**
-             * Vision Extraction Enabled
-             * @description Enable Florence-2 vision extraction for vehicle/person attributes
-             */
-            vision_extraction_enabled?: boolean | null;
         };
         /**
          * FeedbackStatsResponse
@@ -38247,10 +38225,8 @@ export interface components {
          *       "features": {
          *         "background_eval_enabled": true,
          *         "clip_generation_enabled": true,
-         *         "image_quality_enabled": true,
          *         "reid_enabled": true,
-         *         "scene_change_enabled": true,
-         *         "vision_extraction_enabled": true
+         *         "scene_change_enabled": true
          *       },
          *       "queue": {
          *         "backpressure_threshold": 0.8,

@@ -211,8 +211,7 @@ The registry holds three breakers, registered in `backend/main.py:311-332`:
 The settings API and the frontend console expose these switches, and the values
 persist and read back correctly. Nothing in the event pipeline branches on them, so
 flipping one changes what the console displays, not what the system does:
-`VISION_EXTRACTION_ENABLED`, `REID_ENABLED`, `SCENE_CHANGE_ENABLED`,
-`IMAGE_QUALITY_ENABLED`, plus the tuning values `REID_TTL_HOURS` and
+`REID_ENABLED`, `SCENE_CHANGE_ENABLED`, plus the tuning values `REID_TTL_HOURS` and
 `SCENE_CHANGE_THRESHOLD`.
 
 ### AI Service Retries

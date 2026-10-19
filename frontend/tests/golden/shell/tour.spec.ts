@@ -250,7 +250,6 @@ function hiddenDashboardWidget(hideId: string): {
     ['activity-feed', true],
     ['gpu-stats', false],
     ['pipeline-telemetry', false],
-    ['pipeline-queues', false],
   ];
   const payload = JSON.stringify({
     state: {

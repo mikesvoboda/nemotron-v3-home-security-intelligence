@@ -665,9 +665,9 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 
 ### Queues
 
-| Endpoint             | Method | Consumer(s)                                          | Purpose          |
-| -------------------- | ------ | ---------------------------------------------------- | ---------------- |
-| `/api/queues/status` | GET    | `PipelineQueues.tsx`, `api.ts`, `useQueuesStatus.ts` | Get queue status |
+| Endpoint             | Method | Consumer(s)                    | Purpose          |
+| -------------------- | ------ | ------------------------------ | ---------------- |
+| `/api/queues/status` | GET    | `api.ts`, `useQueuesStatus.ts` | Get queue status |
 
 ### Re-ID Search
 
