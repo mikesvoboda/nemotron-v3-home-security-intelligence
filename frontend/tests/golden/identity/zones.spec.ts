@@ -159,6 +159,7 @@ import {
   login,
   readHarness,
   type Harness,
+  type Session,
 } from '../harness';
 
 const harness = readHarness();
@@ -174,6 +175,16 @@ const ZONE_A = 'Golden DO-3 Driveway';
 const ZONE_B = 'Golden DO-3 Yard';
 const MEMBER = 'Golden DO-3 Member';
 const VEHICLE = 'Golden DO-3 Vehicle';
+
+/** The two test titles the janitor scopes itself to. The test() declarations
+ *  below take these constants directly — there is no copied literal to drift
+ *  from, so the hook's title check and the tests' own titles cannot disagree.
+ *  An unscoped throwing hook reddens the NEXT test (the probe-14 shape), so
+ *  the scoping is the load-bearing part of the design. */
+const F_256_TITLE =
+  'F-256 grid: empty mount, cards with type/status/priority, type filter, browser-built CSV, full screen';
+const F_258_TITLE =
+  'F-258 trust matrix: None by default, cell editor writes Full/Partial/None, vehicles cap at Partial';
 
 /** The schema demands >=3 points (min_length=3, backend/api/schemas/zone.py:180)
  *  and five geometry checks (_validate_polygon_geometry, :115-:155): 2 values per
@@ -232,10 +243,225 @@ function zoneCards(page: Page, ids: string[]): Locator {
   return page.getByTestId(new RegExp(`^zone-card-(${escaped.join('|')})$`));
 }
 
+/** Per-call network budget for the janitor's own requests, ms.
+ *
+ *  Every call the hook makes MUST be bounded: it runs AFTER a 15 s test
+ *  timeout (playwright.config.ts:112) already consumed the test's budget, and
+ *  the same backend stall that reddened the body is plausibly still live when
+ *  the hook runs — an unbounded fetch there would hang the hook on the
+ *  runner's own hook timeout and produce a second red shaped like the first.
+ *  AbortSignal.timeout stops the fetch itself, not just the await (node >=22
+ *  per package.json engines; supported since node 17.3). 4 s is generous for
+ *  a same-host call: the cascade this janitor exists for measured its
+ *  per-request service times in the tens of milliseconds (the leaked row's
+ *  created_at is 150 ms after the empty page-GET that preceded it). */
+const JANITOR_FETCH_MS = 4_000;
+
+/** A bounded, single-cookie fetch the janitor owns — NOT the harness's
+ *  authedFetch, whose awaits are unbounded by design (harness.ts:469-487 has
+ *  no timeout bound; the hook cannot afford an unbounded call after a
+ *  timeout). Bounded GET and bounded DELETE, [204|404]-or-record semantics
+ *  for deletes (the access.spec.ts rule: a 404 IS the proof the row is
+ *  already gone); every other outcome — including a network error — is
+ *  swallowed and recorded, and the witness re-reads below are what make a
+ *  remaining row loud. */
+function janitorFetch(h: Harness, session: Session) {
+  const call = async (
+    urlPath: string,
+    method: 'GET' | 'DELETE'
+  ): Promise<{ status: number; body: unknown }> => {
+    const response = await fetch(`${h.api}${urlPath}`, {
+      method,
+      headers: { Cookie: `${session.name}=${session.value}` },
+      signal: AbortSignal.timeout(JANITOR_FETCH_MS),
+    });
+    const body = await response.json().catch(() => null);
+    return { status: response.status, body };
+  };
+  return { getJson: (u: string) => call(u, 'GET'), del: (u: string) => call(u, 'DELETE') };
+}
+
+type JanitorFinding = string;
+
+/** The timeout janitor. Playwright runs afterEach AFTER the test-timeout kill,
+ *  and it runs it again for each test this describe owns — so the hook must
+ *  scope itself by title (probes 14/21: an unscoped throwing hook reddens the
+ *  NEXT test) and by status (the finally blocks already cover every
+ *  non-timeout failure: an exception propagates through them, and the
+ *  orphan-resume shapes only arise from the timeout kill).
+ *
+ *  Why a hook and not a bigger finally: a test timeout cancels the test
+ *  body's pending await, so the finally's own await chain only RESUMES when
+ *  fixture teardown rejects it — and then completes an arbitrary subset of
+ *  its steps before dying (measured: run 39207980157's leaked row was zone B;
+ *  the orphaned finally deleted zone A first and died before zone B). What
+ *  the finally can never do is run AFTER the test is dead. The hook can:
+ *  probe27 showed its awaits complete post-timeout with the sentinel test
+ *  staying green.
+ *
+ *  Sweep is BY NAME — the 'Golden DO-3' names no other test can collide with
+ *  (the comment at the constants says why uniqueness matters) — because a
+ *  mid-body death leaves the row ids unknown or partially known, while the
+ *  names are the stable key. The hook's own throw attaches to the ALREADY-RED
+ *  timed-out test, never to a later one (probes 13/14), so a partial sweep
+ *  reports honestly without poisoning the next test. */
 test.describe('DO-3 zones golden path', () => {
-  test('F-256 grid: empty mount, cards with type/status/priority, type filter, browser-built CSV, full screen', async ({
-    page,
-  }) => {
+  // The LOGIN is bounded by race, not by signal: adminSessionId has no options
+  // parameter (harness.ts:338) and taking a race keeps the harness untouched —
+  // the janitor's edits stay inside this spec file.
+  const boundedSession = async (): Promise<Session | null> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        adminSession(harness as Harness),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('janitor login exceeded its budget')), 8_000);
+        }),
+      ]);
+    } catch {
+      return null;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
+  // The sweep itself. Returns findings instead of throwing mid-sweep so the
+  // whole pass runs even when one DELETE stalls or 500s; the caller decides
+  // what to do with the findings (below: witness asserts already do).
+  const sweepGoldenDo3 = async (
+    api: ReturnType<typeof janitorFetch>,
+    camId: string
+  ): Promise<JanitorFinding[]> => {
+    const findings: JanitorFinding[] = [];
+    const zones = await api.getJson(`/api/cameras/${camId}/zones`).catch(() => null);
+    if (!zones || zones.status !== 200) {
+      findings.push(`zones GET ${camId} answered ${zones ? zones.status : 'network error'}`);
+      return findings;
+    }
+    for (const zone of (zones.body as { items?: Array<{ id: string; name: string }> })?.items ??
+      []) {
+      if (zone.name !== ZONE_A && zone.name !== ZONE_B) continue;
+      const status = await api.del(`/api/cameras/${camId}/zones/${zone.id}`).catch(() => null);
+      if (status === null || (status.status !== 204 && status.status !== 404)) {
+        findings.push(
+          `zone ${zone.name} (${zone.id}) on ${camId}: delete ${status ? status.status : 'network error'}`
+        );
+      }
+    }
+    return findings;
+  };
+
+  const sweepHousehold = async (
+    api: ReturnType<typeof janitorFetch>
+  ): Promise<JanitorFinding[]> => {
+    const findings: JanitorFinding[] = [];
+    // BARE lists (household.py:61/:218 — the same contract the tests assert).
+    const members = await api.getJson('/api/household/members').catch(() => null);
+    if (!members || members.status !== 200) {
+      findings.push(`members GET answered ${members ? members.status : 'network error'}`);
+    } else {
+      for (const m of (members.body as Array<{ id: number; name: string }>) ?? []) {
+        if (m.name !== MEMBER) continue;
+        const status = await api.del(`/api/household/members/${m.id}`).catch(() => null);
+        if (status === null || (status.status !== 204 && status.status !== 404)) {
+          findings.push(
+            `member ${m.name} (${m.id}): delete ${status ? status.status : 'network error'}`
+          );
+        }
+      }
+    }
+    const vehicles = await api.getJson('/api/household/vehicles').catch(() => null);
+    if (!vehicles || vehicles.status !== 200) {
+      findings.push(`vehicles GET answered ${vehicles ? vehicles.status : 'network error'}`);
+    } else {
+      for (const v of (vehicles.body as Array<{ id: number; description: string }>) ?? []) {
+        if (v.description !== VEHICLE) continue;
+        const status = await api.del(`/api/household/vehicles/${v.id}`).catch(() => null);
+        if (status === null || (status.status !== 204 && status.status !== 404)) {
+          findings.push(
+            `vehicle ${v.description} (${v.id}): delete ${status ? status.status : 'network error'}`
+          );
+        }
+      }
+    }
+    return findings;
+  };
+
+  test.afterEach(async (_, testInfo) => {
+    if (testInfo.status !== 'timedOut') return;
+    if (testInfo.title !== F_256_TITLE && testInfo.title !== F_258_TITLE) return;
+
+    const h = harness as Harness;
+    const session = await boundedSession();
+    if (!session) {
+      // A janitor that cannot authenticate reports that and stops — it does
+      // not throw (probes 13/14: this hook re-runs for the NEXT test, and a
+      // throw here reddens a test that has not run yet).
+      console.warn(
+        `[DO-3 janitor] after timeout of "${testInfo.title}": admin login failed/unbounded; ` +
+          `NO SWEEP RAN — rows named Golden DO-3* may leak into the next test.`
+      );
+      return;
+    }
+    const api = janitorFetch(h, session);
+    const findings: string[] = [];
+    const cams = await api.getJson('/api/cameras').catch(() => null);
+    const camIds = (
+      cams && cams.status === 200
+        ? ((cams.body as { items?: Array<{ id: string }> })?.items ?? [])
+        : []
+    ).map((c) => String(c.id));
+    if (cams === null || cams.status !== 200) {
+      findings.push(`cameras GET answered ${cams ? cams.status : 'network error'}`);
+    }
+    for (const cam of camIds) findings.push(...(await sweepGoldenDo3(api, cam)));
+    findings.push(...(await sweepHousehold(api)));
+
+    // The witnesses: after the sweep, the lists this describe asserts empty
+    // MUST read empty, or the leak is real and the timed-out test's record
+    // carries it. These attach to the ALREADY-RED test only (probes 13/14).
+    for (const cam of camIds) {
+      const reRead = await api.getJson(`/api/cameras/${cam}/zones`).catch(() => null);
+      const leftover =
+        reRead && reRead.status === 200
+          ? ((reRead.body as { items?: Array<{ name: string }> })?.items ?? []).filter(
+              (z) => z.name === ZONE_A || z.name === ZONE_B
+            )
+          : null;
+      if (leftover === null) findings.push(`zones witness on ${cam}: re-read failed`);
+      else if (leftover.length > 0)
+        findings.push(
+          `zones witness on ${cam}: ${leftover.length} Golden DO-3 row(s) remain after sweep`
+        );
+    }
+    const membersAfter = await api.getJson('/api/household/members').catch(() => null);
+    if (membersAfter && membersAfter.status === 200) {
+      const left = (membersAfter.body as Array<{ name: string }>).filter((m) => m.name === MEMBER);
+      if (left.length > 0)
+        findings.push(`members witness: ${left.length} Golden DO-3 member(s) remain after sweep`);
+    }
+    const vehiclesAfter = await api.getJson('/api/household/vehicles').catch(() => null);
+    if (vehiclesAfter && vehiclesAfter.status === 200) {
+      const left = (vehiclesAfter.body as Array<{ description: string }>).filter(
+        (v) => v.description === VEHICLE
+      );
+      if (left.length > 0)
+        findings.push(`vehicles witness: ${left.length} Golden DO-3 vehicle(s) remain after sweep`);
+    }
+
+    if (findings.length > 0) {
+      throw new Error(
+        `DO-3 janitor after timeout of "${testInfo.title}" found ${findings.length} issue(s): ` +
+          `${findings.join(' | ')}. Rows named Golden DO-3* may poison the next test's ` +
+          `fresh-state gates (the 3377684a6 cascade shape).`
+      );
+    }
+    console.warn(
+      `[DO-3 janitor] after timeout of "${testInfo.title}": swept by name, lists witness-empty.`
+    );
+  });
+
+  test(F_256_TITLE, async ({ page }) => {
     const h = harness as Harness;
     const api = await signIn(page, h);
 
@@ -292,23 +518,55 @@ test.describe('DO-3 zones golden path', () => {
     expect(before.body?.items, 'the fake-AI stack seeds no zones').toHaveLength(0);
     expect(before.body?.pagination?.total, 'pagination.total agrees with the empty list').toBe(0);
 
-    const createdA = await api.send(
-      `/api/cameras/${cameraId}/zones`,
-      'POST',
-      newZone(ZONE_A, 'driveway', 7)
-    );
-    expect(createdA.status, 'POST zone A answers 201').toBe(201);
-    const zoneA = String(createdA.body?.id);
-    expect(zoneA, 'the POST response carries the server-minted id (zones.py:89 uuid4)').not.toBe(
-      'undefined'
-    );
-    const createdB = await api.send(
-      `/api/cameras/${cameraId}/zones`,
-      'POST',
-      newZone(ZONE_B, 'yard', 3)
-    );
-    expect(createdB.status, 'POST zone B answers 201').toBe(201);
-    const zoneB = String(createdB.body?.id);
+    // Both zone ids are declared BEFORE the try opens, and the try now opens
+    // BEFORE the first POST. The previous shape opened try only at the remount
+    // leg (below), so a body death between zoneA's creation and that try —
+    // e.g. zoneB's 201-assert throwing, or any failure in the long
+    // comment-and-leg block between them — skipped the finally entirely and
+    // leaked zone A with NO cleanup attempt on a plain (non-timeout) failure.
+    // The janitor hook below scopes itself to 'timedOut' only, because a throw
+    // propagates THROUGH a finally (F-258's file-wide doctrine) — which is only
+    // true once every creation sits inside the try. Closing that window makes
+    // the hook's scoping honest instead of lucky.
+    let zoneA = '';
+    let zoneB = '';
+    let zoneACreatedAt: string | undefined;
+    try {
+      const createdA = await api.send(
+        `/api/cameras/${cameraId}/zones`,
+        'POST',
+        newZone(ZONE_A, 'driveway', 7)
+      );
+      expect(createdA.status, 'POST zone A answers 201').toBe(201);
+      zoneA = String(createdA.body?.id);
+      zoneACreatedAt = createdA.body?.created_at as string | undefined;
+      expect(zoneA, 'the POST response carries the server-minted id (zones.py:89 uuid4)').not.toBe(
+        'undefined'
+      );
+      const createdB = await api.send(
+        `/api/cameras/${cameraId}/zones`,
+        'POST',
+        newZone(ZONE_B, 'yard', 3)
+      );
+      expect(createdB.status, 'POST zone B answers 201').toBe(201);
+      zoneB = String(createdB.body?.id);
+    } catch (err) {
+      // The finally still runs on this path (a throw propagates through it);
+      // this catch exists only to annotate: if zoneA exists but zoneB's POST
+      // failed, the finally's [204,404] deletes and the empty re-read prove
+      // the leak was contained here, not left for the next test.
+      console.warn(
+        `[F-256] body failed while creating zones: ${(err as Error).message.split('\n')[0]}`
+      );
+      throw err;
+    }
+    if (zoneA === '' || zoneA === 'undefined' || zoneB === '') {
+      // Unreachable unless a POST answered 201 with no id; the id asserts
+      // above fail first. Guarded anyway because the finally's DELETE URLs
+      // are built from these strings — an 'undefined' in a URL path reads as
+      // a 404 and would make the cleanup LOOK clean while leaking.
+      throw new Error(`zone id did not materialize (zoneA=${zoneA} zoneB=${zoneB})`);
+    }
 
     // A second observation of the page's derived camera across a re-navigation,
     // then the card leg.
@@ -511,7 +769,7 @@ test.describe('DO-3 zones golden path', () => {
       expect(
         filteredMine[0],
         'the row is the WHOLE zone: id,name,type,Yes,priority,color,created'
-      ).toBe(`${zoneA},${ZONE_A},driveway,Yes,7,#3B82F6,${createdA.body?.created_at}`);
+      ).toBe(`${zoneA},${ZONE_A},driveway,Yes,7,#3B82F6,${zoneACreatedAt}`);
 
       // 4. Filter back to all; the unfiltered export then carries BOTH rows.
       //    The count target is the CARDS (both created ids), never the
@@ -573,10 +831,26 @@ test.describe('DO-3 zones golden path', () => {
         'exiting remounts the trust panel'
       ).toBeVisible();
     } finally {
+      // [204, 404], not strict 204 — the access.spec.ts rule, adopted here for a
+      // measured reason. A timed-out body's finally is an ORPHAN: fixture
+      // teardown rejects its pending await, it resumes mid-teardown, and it
+      // completes an arbitrary SUBSET of its steps before dying again (run
+      // 39207980157: zone A's DELETE landed, zone B's never ran; the janitor
+      // below then sweeps what remains). When the orphan resumes AFTER that
+      // sweep, a row it remembers may already be gone — a strict toBe(204)
+      // would throw on the 404 and abort the orphan before it finishes the
+      // rest of its steps. A 404 IS the proof the row is gone; the witness
+      // re-read below is the actual gate, and it stays strict.
       const delA = await api.send(`/api/cameras/${cameraId}/zones/${zoneA}`, 'DELETE');
       const delB = await api.send(`/api/cameras/${cameraId}/zones/${zoneB}`, 'DELETE');
-      expect(delA.status, 'DELETE zone A answers 204').toBe(204);
-      expect(delB.status, 'DELETE zone B answers 204').toBe(204);
+      expect(
+        [204, 404],
+        'DELETE zone A answers 204 (or 404: already gone — see janitor)'
+      ).toContain(delA.status);
+      expect(
+        [204, 404],
+        'DELETE zone B answers 204 (or 404: already gone — see janitor)'
+      ).toContain(delB.status);
       const after = await api.getJson(`/api/cameras/${cameraId}/zones`);
       expect(
         after.body?.items,
@@ -587,9 +861,7 @@ test.describe('DO-3 zones golden path', () => {
     await assertGuardSurvives(page, h);
   });
 
-  test('F-258 trust matrix: None by default, cell editor writes Full/Partial/None, vehicles cap at Partial', async ({
-    page,
-  }) => {
+  test(F_258_TITLE, async ({ page }) => {
     // NO test.setTimeout here — deliberately, and it is worth the paragraph.
     // Being indifferent to the page's camera pick costs one zone POST per seeded
     // camera (5 on the current stack), and the cleanup pays back 2 DELETEs plus a
