@@ -5890,6 +5890,33 @@ def test_seeded_with_prod_shape_is_refused_under_real(monkeypatch: Any) -> None:
     assert booted == []
 
 
+def test_a_bare_invocation_is_refused(monkeypatch: Any, capsys: Any) -> None:
+    """The generic mode refusal lives again, narrowed to the shape ruling 256 kept open.
+
+    The ruling-256 venue split deleted the old `choose --fake or --real` guard so the maui
+    run's bare `--prod-shape` could fall through to the fake tier, and a bare invocation fell
+    through with it — silently booting the CI fake tier (ruling 262's audit found the defect
+    on this file). The restored guard refuses a call with no mode and no shape, names all
+    three forms, and `--prod-shape` alone still boots the fake tier (the maui run's form,
+    pinned by the next test).
+    """
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main([])
+    booted_refused = booted == []
+    err = capsys.readouterr().err
+    assert booted_refused, "a bare invocation must not reach run_check"
+    assert "choose --fake or --real" in err, err
+    assert "--prod-shape" in err, err
+
+
+def test_a_bare_prod_shape_boots_the_fake_tier(monkeypatch: Any) -> None:
+    """The maui run's form (`--prod-shape`, no mode flag) is the one fall-through that stays."""
+    booted = _fake_boot(monkeypatch)
+    assert fc.main(["--prod-shape"]) == 0
+    assert booted == [("fake", False, True)]
+
+
 def test_the_seeded_refusals_are_distinguishable(monkeypatch: Any, capsys: Any) -> None:
     """A refusal that cannot be told apart from another one teaches an operator nothing.
 

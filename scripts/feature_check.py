@@ -3531,6 +3531,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         # CI stack ran. (Ruling 256 keeps THIS refusal; it lifts only the
         # needs---real one, for the maui run's bare --prod-shape below.)
         parser.error("--fake is the CI stack: it cannot also take --prod-shape")
+    if not (args.fake or args.real or args.prod_shape):
+        # The old generic refusal (`choose --fake or --real`) was deleted in the
+        # ruling-256 venue split so the maui run's bare `--prod-shape` could fall
+        # through to the fake tier; the deletion went further than the widening
+        # needed and a bare invocation now silently boots the CI fake tier
+        # (ruling 262's defect, found by the owner's audit). Restored, narrowed to
+        # the shape it must keep open: a bare call with no mode and no shape has no
+        # referent, while `--prod-shape` alone stays the maui run's form.
+        parser.error("choose --fake or --real (or --prod-shape for the maui run)")
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:
