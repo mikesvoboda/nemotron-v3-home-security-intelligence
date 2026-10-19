@@ -20,7 +20,13 @@ at the pinned SHA as main moves; the package that later fixes an item re-reads i
 
 ## Census counts at the pinned SHA
 
-(batch 1 pending — filled when the census has run)
+Census re-run at the pin `41bc0fce7` with the `[r262]` command: **227 kept — 52
+production, 109 test, 6 tooling, 60 none.** The owner's control at `a3b1bd336` gave 228
+kept (52/110/6/60): re-running the census at the control SHA with the same script
+reproduces 227/52/109/6/60 exactly, and a per-PR membership diff control→pin is empty —
+the 110-vs-109 delta is in the classification of a PR both counts include, not a PR that
+left the census. Batch placement (production order): batch 1 = positions 0-9
+(#6862…#6925), batch 2 = 10-24, batch 3 = 25-39, batch 4 = 40-51 (12 PRs).
 
 ## Batches
 
@@ -30,7 +36,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
 | Batch | PRs | Items | Refuted | Comment |
 | ----- | --- | ----- | ------- | ------- |
-| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 14 (Q-012 re-attributed to #7230, batch 4) | refutation pass in flight (all verdicts so far: survived) | batch-1 comment on #7265 |
+| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (2 re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — 3 items moved off this batch, see below) | 0 (15/15 survived) | batch-1 comment on #7265 |
 
 ## Batch 1 — per-PR verdicts
 
@@ -44,7 +50,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 | #6907 | production | no items (docstring cite drift attaches to #7114's batch) |
 | #6909 | production | 1 item (Q-007) |
 | #6913 | production | 1 item (Q-001 — pre-existing bug on a kept file) |
-| #6922 | production | 7 items kept here (Q-008, Q-009, Q-010, Q-011, Q-013, Q-014, Q-015, all claim/low) + Q-012 found here but re-attributed to #7230 (batch 4, mover-owns) |
+| #6922 | production | 5 items kept here (Q-008, Q-009, Q-010, Q-011, Q-013, all claim/low) + 3 found here but re-attributed by mover-owns: Q-012 → #7230 (batch 4), Q-014 + Q-015 → #6936 (batch 2) |
 | #6925 | production | no items |
 
 ## Items
@@ -506,8 +512,18 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   false claim, different phrasing). (2) The fix's "drop the destructured protocols"
   exceeds sibling parity — useRecentThreats.ts:198 still destructures it at the pin; drop
   it only as optional cleanup, not as part of the comment fix.
+- Re-attribution (mover-owns, applied after Q-015's refuter identified the sweep's PR):
+  the comment was TRUE at #6922's merge — the builder at 3dab5c557 api.ts:974-1017 still
+  carried `if (apiKey) { options.protocols = [`api-key.${apiKey}`]; }`. The comment became
+  false when the sweep commit 4447c7cc4 rewrote the builder to `return { url: wsUrl };` —
+  and the same commit's 49-file stat rewrites the five siblings while missing
+  useSummaries.ts. 4447c7cc4 is PR #6936's content (merged as c382693bf, 2026-10-09
+  22:23, after #6922's merge, not an ancestor of it). The first mover of the falsehood is
+  #6936, not #6922: the item re-attributes to **#6936 (batch 2, mover-owns)**. #6922's
+  only relation is that it merged a hook (from #7228's e0cd93333 content) whose comment
+  was still accurate at its merge.
 
-### Q-015 · claim · low · frontend/src/hooks/webSocketManager.auth.test.ts:10 · #6922
+### Q-015 · claim · low · frontend/src/hooks/webSocketManager.auth.test.ts:10 · re-attributed #6922 → **#6936 (batch 2)**
 - Wrong: the header's defect-1 paragraph is a botched splice that no longer parses:
   "the plumbing below / still pins that any protocols a caller sets are not dropped /
   through `useWebSocket` is dropped on the floor (useWebSocket.ts:19 admits it: …)" carries
@@ -529,7 +545,36 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   (webSocketManager.ts:503-504); before F1.3 they were dropped on the floor, as
   useWebSocket.ts:19 admitted at e9ec74ef. Size S; owner: frontend.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false. Refuter verified every leg at the pin: :9-13 byte-exact as quoted; one
+  subject ("any protocols a caller sets") carries two conflicting predicates ("are not
+  dropped" / "is dropped on the floor") with no punctuation or relative structure between
+  them — the charitable two-claim reading requires inserting a subject ("the subprotocol")
+  absent from the text, so no coherent claim is extractable; not taste (a
+  self-contradicting comment destroying its own claim, not a style preference), not a
+  Markdown file. At #6922's merge (blob 49a64d414) the same tail was coherent because the
+  front carried the relative clause ("the `api-key.{key}` subprotocol that
+  `buildWebSocketOptions` mints (api.ts:995-999) and 18 hooks pass down"); a rewrite
+  replaced that front and left the old tail. Test body verified: all six executables hold
+  at the pin (constructor ternary webSocketManager.ts:503-504,
+  AUTH_TERMINAL_CLOSE_CODES [4001,4002] at :155 used at :586 — terminal 4001, no retry
+  storm; close-code pass-through to subscriber onClose; rerender identity via
+  content-keyed protocolsKey, useWebSocket.ts:95); the quoted "protocols are not yet
+  supported by the manager" is verbatim at e9ec74ef useWebSocket.ts:19.
+- Re-attribution (mover-owns): the defect does not belong to #6922. The blob at #6922's
+  branch tip (a6b07d74) and merge (3dab5c557) is the coherent 49a64d414 — the test file
+  was authored by #6922 with a well-formed sentence. The broken front half was written by
+  commit 4447c7cc4 ("fix(ruling 44): browsers authenticate only through the cookie
+  login"), part of PR #6936 (merged as c382693bf, 2026-10-09 22:23, after #6922's merge):
+  diff-tree shows 49a64d414 → d0986216 at 4447c7cc4, and the tag pair v0.38.3 (last
+  coherent; #6943 merge) → v0.38.4 (first broken; #6936 merge) brackets it with
+  4447c7cc4 as the only commit in the range touching the file. The r204/#7230 branch only
+  inherited the broken blob from main (every r204 commit from bc9769473 back carries
+  d0986216; deletion commit 70c5d96ae did not touch this file), so this is NOT the
+  Q-012-style re-attribution to #7230 the refutation prompt's hypothesis anticipated —
+  re-attribute to **#6936 (batch 2, mover-owns)**, the PR whose sweep adapted the header
+  to ruling 44 and botched the splice. Severity low / class claim unchanged.
+  (Refuter's check that no later PR fixed it: no commit between e2843aa1d and the pin
+  touched the file — path log empty.)
 
 ### Deferred out of batch 1 (recorded here so they are not lost)
 
