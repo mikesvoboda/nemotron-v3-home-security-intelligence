@@ -196,10 +196,14 @@ No client in `frontend/src` calls them, but the docs tell users to:
 (`backend/api/routes/household.py:460-461`), and `docs/developer/api/core-resources.md:881` for
 `GET /api/detections/export` (`backend/api/routes/detections.py:2025-2026`).
 
-- [ ] Each gets an `External ›` inventory row (as F-290–F-294 are) with its documented action.
-- [ ] Each gets a backend golden test, as F-294's
+- [x] Each gets an `External ›` inventory row (as F-290–F-294 are) with its documented action.
+      (#7260 ticks it: F-297/F-298 rows at `docs/reference/feature-inventory.md:706-707`, both
+      `awaiting real tier`; CI run 39187485514 at head `610efbbbe` — `Feature check (fake AI)` job
+      117853658715 success, CI Gate 117865842291 success)
+- [x] Each gets a backend golden test, as F-294's
       `backend/tests/golden/external/test_metrics_scrape.py` is, and its row flips on the run where
-      it passes (rulings 103, 114).
+      it passes (rulings 103, 114). (#7260: `backend/tests/golden/external/test_household_embeddings.py`
+      4 legs and `backend/tests/golden/external/test_detections_export.py` 4 legs, named in both rows)
 
 **Done when:** both rows exist and neither says **unverified**.
 
@@ -291,17 +295,20 @@ the PR that finishes one updates its row in [`../history/ruling-map.md`](../hist
 **Assigned:** `uplevel-backend`, test-first; `setup.py` is ops's file, so the PR lists it as a
 cross-lane part. **Depends on:** none named. **PR:** #7038 (merged).
 
-- [ ] **The defect:** on a re-run, the LAN-exposure prompt defaults to `n` (`setup.py:685` quick
+- [x] **The defect:** on a re-run, the LAN-exposure prompt defaults to `n` (`setup.py:685` quick
       path, `:900` guided), and that answer drives `EXPOSE_LAN`, `FRONTEND_BIND_ADDRESS` and the
       Grafana anonymous-auth derives (`:447`, `:449`, `:482`–`:491`). Pressing Enter through a
       re-run on a LAN-exposed install silently re-binds the frontend to loopback and disarms the
-      gate key scoping depends on.
-- [ ] **Fix 1:** on a re-run, every prompt's default is the value already in `.env`. A first run
-      keeps today's defaults.
-- [ ] **Fix 2:** a `--convert-monitoring-key` flag rewrites only the plain monitoring-key entry in
+      gate key scoping depends on. (pinned by
+      `test_enter_only_rerun_keeps_lan_exposure_and_derives`, `test_r94_env_preserving_reruns.py:159`)
+- [x] **Fix 1:** on a re-run, every prompt's default is the value already in `.env`. A first run
+      keeps today's defaults. (same file, 29 tests — 38 ids expanded, two parametrized; CI run 38329937197 at head `0a48b71a6` green)
+- [x] **Fix 2:** a `--convert-monitoring-key` flag rewrites only the plain monitoring-key entry in
       `API_KEYS` as a scoped entry (`{"key": …, "scope": "monitoring"}`, #6959's format) and touches
       nothing else in `.env`. Ruling 79's docs line (`docs/operator/admin/security.md`) points at
-      this flag instead of a full re-run.
+      this flag instead of a full re-run. (`security.md:24` names the flag; byte-compare pins at
+      `test_convert_leaves_every_other_byte_alone:383` and
+      `test_convert_leaves_an_already_scoped_key_alone:493`)
 
 **Done when:** tests pin that an Enter-only re-run over a LAN-exposed `.env` keeps
 `EXPOSE_LAN=true`, `FRONTEND_BIND_ADDRESS` and the Grafana derives unchanged; that
@@ -334,12 +341,15 @@ and still accept an unscoped key, and a test pins the narrowed `monitoring` gran
 **Flags:** pre-approved under ruling 83's limits (UR-112). **Assigned:**
 backend. **Depends on:** queues behind #7003 (merged). **PR:** #7027 (merged).
 
-- [ ] The unit tests that land in the 1.5–4.0 s WARN band every run (about 10 ids, mostly
+- [x] The unit tests that land in the 1.5–4.0 s WARN band every run (about 10 ids, mostly
       100-example property tests) are made cheaper in the tests themselves: draw counts, fixtures,
-      fake clocks. Neither timing gate is edited (rules.md §Test timing gates).
+      fake clocks. Neither timing gate is edited (rules.md §Test timing gates). (#7027)
 
 **Done when:** the slowest unit test in each of 5 consecutive green `main` runs is at or under
-3.0 s, giving at least 1 s of headroom under the 4.0 s line (ruling 122).
+3.0 s, giving at least 1 s of headroom under the 4.0 s line (ruling 122). (#7027 merged
+2026-10-13T01:53:27Z as `9310832d3`; the `Test Performance Audit` logs of 5 consecutive green
+`main` runs read at or under 3.0 s: runs 39149793951 (2.93 s), 39153995413 (2.92 s),
+39160117175 (2.92 s), 39169627409 (2.98 s), 39177015082 (2.92 s), all 2026-10-18)
 
 ### [r129] Backups and the batch audit load the deferred columns
 
@@ -352,8 +362,12 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
 (`backend/api/routes/ai_audit.py:475`) read them inside an `AsyncSession`, which raises
 `MissingGreenlet`: every backup fails once any event exists, and the audit fails on every event.
 
-- [ ] Items (4) and (5) of the Done when touch `frontend/`: backend either takes frontend's review on
-      those lines or splits them into a small frontend PR that merges after `[r129]`.
+- [x] Items (4) and (5) of the Done when touch `frontend/`: backend either takes frontend's review on
+      those lines or splits them into a small frontend PR that merges after `[r129]`. (backend took
+      frontend's review: frontend's approves on #7031 — `6133286085`, superseded by `6149268676` —
+      read items (1)–(3) observed and routed items (4)/(5) to frontend's own follow-up, naming the
+      `AIAuditPage.tsx` lines and the dead `queued_count` mirror; #7031's body section 5 records the
+      measured handoff. The follow-up work itself is F-108's open register row, not this box's.)
 
 **Done when** (ruling 129):
 
@@ -382,9 +396,12 @@ F-100, F-106 and F-108 are ruled **complete**. `Event.reasoning` and `Event.llm_
       describe the base, not the fix.
 - [x] **F-089.** Give the `job_type` query parameter `alias="type"` (`routes/jobs.py:296-299`),
       matching `job_status`.
-- [ ] **F-034, link half.** `summary_detail_service.py:147` builds `/events/{id}`, a route the app
+- [x] **F-034, link half.** `summary_detail_service.py:147` builds `/events/{id}`, a route the app
       does not have; it builds the app's working target, `/timeline?event=…`. If frontend adds an
       `/events/:id` redirect instead, backend leaves this line alone. One side changes, not both.
+      (frontend shipped the redirect — ruling 167 via #7039, `frontend/src/App.tsx:273-275`
+      `EventDeepLinkRedirect`; backend's line is unchanged at
+      `backend/services/summary_detail_service.py:135`)
 
 **Done when:** for each row, its golden spec, already written to pin the broken behaviour, is
 flipped to assert the fix and passes. F-190 and F-191 also need ruling 127's writable `runtime.env`
@@ -399,8 +416,12 @@ on the CI compose before their save leg can go green; until then they flip on th
 - [x] `list_events` returns `notes`: add it to the row dict (`backend/api/routes/events.py:499-536`)
       and to `VALID_EVENT_LIST_FIELDS` (`:142`), with a test that a saved note comes back from
       `GET /api/events`.
-- [ ] The read-back `test.fixme` in `frontend/tests/golden/timeline/event-detail.spec.ts` is
+- [x] The read-back `test.fixme` in `frontend/tests/golden/timeline/event-detail.spec.ts` is
       flipped by `[r238]` (heavy-a; ruling 238); that golden path rules F-057. No `R2b` entry.
+      (#7219 merged 2026-10-16T16:43:18Z as `30fb45c31`; the file has zero `test.fixme(` calls at
+      main and the read-back leg is a real test at `:337`; F-057's row at
+      `docs/reference/feature-inventory.md:407` is `awaiting real tier`; CI witness run 38925068835
+      job 117055688744 at head `4d2d7b473`)
 
 **Done when:** `GET /api/events` returns a saved note, and `[r238]` merges with F-057's read-back
 golden leg passing.
@@ -427,18 +448,29 @@ ready run 39256128444 and the local re-run), AI-path import smoke in the PR body
 **PR:** #7187 (merged 2026-10-16T04:40:26Z as `5365165f8`, head `4819ce171`). (rulings 211, 221;
 records 6200331506, 6205729827)
 
-- [ ] `search_events` (`backend/services/search.py`) takes the browse route's `deleted_at` predicate
+- [x] `search_events` (`backend/services/search.py`) takes the browse route's `deleted_at` predicate
       (`backend/api/routes/events.py:410`), so search never lists a soft-deleted event.
-- [ ] The severity filter (`search.py:332`) tests the value the response reports
+      (#7187; live at main: `search.py:451` `base_query.where(Event.deleted_at.is_(None))`,
+      pinned by `test_search_never_returns_soft_deleted_events`, `test_search_api.py:342`)
+- [x] The severity filter (`search.py:332`) tests the value the response reports
       (`backend/api/schemas/search.py:44` derives `risk_level` from `risk_score`): one derivation,
-      read by both.
-- [ ] Tests: a soft-deleted event never appears in search; a filter on the level a result displays
+      read by both. (#7187; `search.py:355` filters on `Event.computed_risk_level`)
+- [x] Tests: a soft-deleted event never appears in search; a filter on the level a result displays
       finds it (a `high` row at score 91 is found by the level it shows).
+      (`test_search_api.py:342` and `:381`; 16 legs in the file, CI run 38833479192 at head
+      `ef7c50364` ran them — its red jobs were `Feature check (fake AI)`, the `CI Gate` aggregate,
+      and `Collection Sanity`'s expired-`pytest_skip` ratchet (7 entries, disclosed in #7187's
+      review comment `IC_kwDOQs9zJM8AAAABceRGAw`, not the body); the ratchet fix is #7195
+      `ec6650761`, the Feature-check reds are the ones `[r211f]` below repairs)
 
-- [ ] Frontend's `[r211f]` commits on this PR invert F-048's golden fixture (ruling 221): search
+- [x] Frontend's `[r211f]` commits on this PR invert F-048's golden fixture (ruling 221): search
       excludes the soft-deleted row, `searchTotal` is the live count, and the defect half of the
       leg at `frontend/tests/golden/timeline/timeline-search.spec.ts:585` takes a live row on search
       page 2. Neither lane force-pushes the branch, and each fetches it before it pushes.
+      (#7210 merged 2026-10-16T20:07:51Z, #7225 merged 2026-10-17T01:32:18Z; the spec has zero
+      `test.fixme(` marks at main, its 8 legs green in run 38932915995 job 117083054790, and the
+      post-repair `Feature check` legs are green in run 39027699075 at `954187e1f` —
+      `Feature check (fake AI)` and `(seeded)` jobs 117381981896/117381981913, CI Gate success)
 
 **Done when:** the tests pass in CI at a ready head, and `Feature check (fake AI)` passes at the
 head carrying both lanes' commits, with `timeline-search.spec.ts`'s 6 legs green and its 2
@@ -455,18 +487,22 @@ prefix, and `get` (`:123`) and `set` (`:196`) prepend `CACHE_PREFIX` (`:82`) aga
 list is stored as `cache:hsi:cache:cameras:list:all`. `invalidate_pattern` (`:463`) prepends it to
 the short-form pattern (`:486`), which does not match. `_get_cache_prefix()` (`:75`) has no caller.
 
-- [ ] `CacheService`'s `get`, `set`, `invalidate_pattern` and the other `f"{CACHE_PREFIX}{key}"`
+- [x] `CacheService`'s `get`, `set`, `invalidate_pattern` and the other `f"{CACHE_PREFIX}{key}"`
       sites, and `CacheKeys`, agree on one key shape, so each invalidator reaches the key its route
       stores. The PR states the form chosen (for example, `CacheKeys` authoritative and
-      `_get_cache_prefix()` used or deleted).
-- [ ] **MEASURE** against a real Redis, before and after: each cached route's stored key and
-      whether its invalidator deletes it, as a table in the PR.
-- [ ] Tests: the short-form pins in `backend/tests/integration/test_cache_invalidation_comprehensive.py`
+      `_get_cache_prefix()` used or deleted). (#7215: `CacheKeys` authoritative, `_get_cache_prefix()`
+      consumed at `cache_service.py:104`, the double prepend and the prepend-in-`invalidate_pattern`
+      deleted; `CACHE_PREFIX` kept only for backward-compatible imports, `:85`)
+- [x] **MEASURE** against a real Redis, before and after: each cached route's stored key and
+      whether its invalidator deletes it, as a table in the PR. (#7215 body's table: 0/8 → 7/8
+      pre-existing matches, the 8th the orphan `timeline_summary:*` family, deleted by design)
+- [x] Tests: the short-form pins in `backend/tests/integration/test_cache_invalidation_comprehensive.py`
       (`:440-448`) pin the stored shape, and a test proves an invalidator deletes a key its route
-      stored.
+      stored. (`TestCacheKeysRoutesReachTheirInvalidator` at `:966`, red-before/green-after)
 
 **Done when:** the tests pass in CI at a ready head, and the PR's table shows every listed
-invalidator deleting its route's stored key.
+invalidator deleting its route's stored key. (CI run 38930467741 success at the ready head
+`4da8cca9ee3d1c1e67468f16a354519c1ee94dfc` — 0 failed jobs, 46 success; merged as `4cefe81e4`)
 
 ### [r223] The developer tools' seed and clear refresh the caches they change
 
@@ -478,17 +514,22 @@ invalidating the camera list cache, which every camera route does
 (`_invalidate_cameras_cache_background`, `backend/api/routes/cameras.py:132`). `GET /api/cameras`
 caches for 60 s (`cameras.py:261`), so F-197's toast names cameras the list does not show yet.
 
-- [ ] `seed_cameras` and `clear_seeded_data` schedule the same background invalidation of the
-      cameras cache as the camera routes.
-- [ ] **MEASURE** every other cached read the three developer-tool writes change, and list it in the
+- [x] `seed_cameras` and `clear_seeded_data` schedule the same background invalidation of the
+      cameras cache as the camera routes. (#7201; `_invalidate_devtool_caches_background` at
+      `backend/api/routes/admin.py:46`, wired into both handlers)
+- [x] **MEASURE** every other cached read the three developer-tool writes change, and list it in the
       PR: `clear_seeded_data` deletes all events and detections (`admin.py:714-715`), `seed_events`
       (`:450`) adds events, and `backend/api/routes/events.py` caches `get_event_stats` (`:731`) and
       `get_timeline_summary` (`:907`). Each one a handler's write changes is invalidated the same way.
-- [ ] Unit tests pin each handler scheduling its invalidations. No golden spec changes; #7189's
+      (#7201 body's census table, restated after its round-1 review flagged 2 false rows; the
+      invalidator now names cameras, events, event_stats, timeline_summary and trends, `admin.py:84-89`)
+- [x] Unit tests pin each handler scheduling its invalidations. No golden spec changes; #7189's
       F-197 leg reads around the cache and does not wait for this.
+      (`backend/tests/unit/api/routes/test_admin_cache_invalidation.py`, 10 pins)
 
 **Done when:** the unit tests pass in CI at a ready head, and the PR's list names every cached read
-the three handlers change, each invalidated.
+the three handlers change, each invalidated. (CI run 38975925208 attempt 2 success at `6db72093c`,
+0 red jobs; merged 2026-10-17T00:40:09Z as `cd68cbca6`, head `85a2d8b21`)
 
 ### [r244] The monitoring key gets no recommendation prose
 
@@ -526,28 +567,33 @@ catches every exception and returns (`:1153`). So a failure other than a VLM err
 write error, a Redis error, a bug) is acknowledged with no event stored. VLM errors are already
 stored as a `verification_failed` event (`backend/services/vlm_analyzer.py:656`).
 
-- [ ] `_process_analysis_item` returns a disposition, and the loop acts on it. **Stored** (the
+- [x] `_process_analysis_item` returns a disposition, and the loop acts on it. **Stored** (the
       batch has an event): acknowledge. **Terminal** (the payload fails validation, or the batch is
       missing or has no detections): move it to the dead-letter stream with its reason. **Retry**
       (anything else): leave it pending for the existing reclaim (`:925-931`), whose third
       delivery goes to the dead-letter stream. The `batch.analysis_failed` broadcast's `retryable`
-      field follows the disposition.
-- [ ] When the Redis key misses (`vlm_analyzer.py:468`), `analyze_batch` looks up `events.batch_id`
+      field follows the disposition. (#7182; `AnalysisDisposition` at `pipeline_workers.py:708`,
+      returned at `:980`/`:1102`/`:1126`/`:1156`)
+- [x] When the Redis key misses (`vlm_analyzer.py:468`), `analyze_batch` looks up `events.batch_id`
       (unique, `backend/models/event.py:54`). If an event exists, it returns that event without
       calling the VLM, and writes whatever post-commit step is missing: the Redis key, and the
-      notify decision when the event has none.
-- [ ] Test (a), integration tier: a write that fails before the commit leaves the message pending,
-      and a redelivery stores exactly one event.
-- [ ] Test (b): a process that stops after the commit, before the Redis key and the notify
+      notify decision when the event has none. (#7182)
+- [x] Test (a), integration tier: a write that fails before the commit leaves the message pending,
+      and a redelivery stores exactly one event. (`test_analysis_stream_delivery.py:159`)
+- [x] Test (b): a process that stops after the commit, before the Redis key and the notify
       decision. The redelivery stores no second event, makes no VLM call, and writes the notify
-      decision.
-- [ ] Test (c): an invalid payload leaves one dead-letter entry and nothing pending. Test (d): a
-      failure on all three deliveries leaves one dead-letter entry.
-- [ ] The PR body says whether the detection worker's stream loop (`pipeline_workers.py:400-418`)
-      has the same shape. It changes nothing there.
+      decision. (`:237`)
+- [x] Test (c): an invalid payload leaves one dead-letter entry and nothing pending. Test (d): a
+      failure on all three deliveries leaves one dead-letter entry. (`:331`, `:374`; the file
+      registered in CI's shard list, `.github/workflows/ci.yml:1435`)
+- [x] The PR body says whether the detection worker's stream loop (`pipeline_workers.py:400-418`)
+      has the same shape. It changes nothing there. (#7182 body: Yes — the same
+      unconditional-acknowledge shape at `:406-407`/`:418-419`; unchanged per ruling 199 item 4)
 
 **Done when:** tests (a) to (d) pass in CI at a ready head, and the PR body names the line where
-each disposition is decided.
+each disposition is decided. (CI witness run 38794448920 at head `3aca9abfc` —
+`Integration Tests (Services)` job 116631886441 and the `Backend Integration Tests` gate
+116635317375, both success; merged 2026-10-15T20:25:39Z as `5d990377e`)
 
 ### [r200] One owner for the running pipeline workers
 
@@ -563,16 +609,27 @@ and each builds and starts one more worker: three analysis consumers where two a
 two batch-timeout and two metrics workers. The manager passes no supervisor to its own workers, so
 the supervisor's heartbeats and restarts cover only the extra set. Record 6198757258.
 
-- [ ] The supervisor restarts the workers the manager built and reads their heartbeats; the
-      factories that build a second set are deleted.
-- [ ] Shutdown has one path: whichever owner stays stops each worker once.
-- [ ] Tests: after startup the process runs exactly the configured number of detection and
+- [x] The supervisor restarts the workers the manager built and reads their heartbeats; the
+      factories that build a second set are deleted. (#7191; the manager attaches its own four
+      workers to one supervisor, `pipeline_workers.py:1913-1950`; the `create_*_worker` factories
+      are gone from `backend/services/pipeline_workers.py`)
+- [x] Shutdown has one path: whichever owner stays stops each worker once. (#7191)
+- [x] Tests: after startup the process runs exactly the configured number of detection and
       analysis consumers, one batch-timeout worker and one metrics worker; a worker whose task dies
       is restarted without the count growing; shutdown stops each worker once.
-- [ ] The PR body reports whether today's two batch-timeout workers can close the same batch twice.
+      (`backend/tests/unit/services/test_pipeline_worker_single_owner.py`, 3/3; golden
+      `frontend/tests/golden/operations/worker-management.spec.ts:50-58` names the 6 supervised
+      workers)
+- [x] The PR body reports whether today's two batch-timeout workers can close the same batch twice.
+      (#7191 body: Yes — two `BatchAggregator` instances with per-instance `asyncio.Lock`s
+      (`pipeline_workers.py:212`/`:1190`, `batch_aggregator.py:211`), the non-atomic
+      `set(batch:…:closing)` at `batch_aggregator.py:875` with the re-check at `:881` leaving a
+      close-close window)
 
 **Done when:** the tests pass in CI at a ready head, and `backend/main.py` builds no pipeline worker
-outside `PipelineWorkerManager`.
+outside `PipelineWorkerManager`. (CI witness run 38825213735 at head `2d8fce09f` — unit shards
+116733233591/116733233670 and the `Backend Unit Tests` gate 116735062460 success; merged
+2026-10-16T00:34:47Z as `78951c9b9`; `backend/main.py:954` starts only the manager)
 
 ### [r267b] The verdict-engine emit-failure test can fail
 
