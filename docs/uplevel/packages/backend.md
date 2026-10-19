@@ -189,7 +189,7 @@ PR it is. The row's design note stays with Phase 4's prompt-management package.
 ### [r236] Two documented endpoints become External rows
 
 **Flags:** none. **Assigned:** backend, after `B3.3`. **Depends on:** `R2` (Phase 2's exit).
-**PR:** none yet. (ruling 236, record 6216306194)
+**PR:** #7260. (ruling 236, record 6216306194)
 
 No client in `frontend/src` calls them, but the docs tell users to:
 `docs/guides/face-recognition.md:288` for `POST /api/household/members/{member_id}/embeddings`
