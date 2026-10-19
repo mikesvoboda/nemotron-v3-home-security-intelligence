@@ -421,7 +421,7 @@ async def test_update_webhook_event_types(client, sample_webhook_create):
     webhook_id = create_response.json()["id"]
 
     # Update event types
-    new_event_types = ["event_enriched", "anomaly_detected"]
+    new_event_types = ["event_created", "anomaly_detected"]
     update_data = {"event_types": new_event_types}
     response = await client.patch(f"/api/outbound-webhooks/{webhook_id}", json=update_data)
 

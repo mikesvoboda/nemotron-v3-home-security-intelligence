@@ -41514,7 +41514,7 @@ export interface components {
          * @description Event types that can trigger webhooks.
          * @enum {string}
          */
-        WebhookEventType: "alert_fired" | "alert_dismissed" | "alert_acknowledged" | "event_created" | "event_enriched" | "entity_discovered" | "anomaly_detected" | "system_health_changed" | "batch_analysis_started" | "batch_analysis_completed" | "batch_analysis_failed";
+        WebhookEventType: "alert_fired" | "alert_dismissed" | "alert_acknowledged" | "event_created" | "entity_discovered" | "anomaly_detected" | "system_health_changed";
         /**
          * WebhookHealthSummary
          * @description Health summary for all webhooks.
