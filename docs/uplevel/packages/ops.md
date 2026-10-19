@@ -999,7 +999,7 @@ first on its queue, held beside #7231 under ruling 264 item 2, a one-off excepti
 `lane_tick` prints no claimable package while #7231 is open, so ops-a claims this one from this
 block. Work the O2.5 runs need on #7231 or #7037 comes first whenever it arises: the operator's
 sandbox run once its disk grows, the maui command, and the no-flag refusal the owner asked for
-(`6257622404`). The exception ends when either PR merges. **Depends on:** none. Its one review is
+(`6257622404`). The exception ends when #7231 or #7264 merges. **Depends on:** none. Its one review is
 ops-a's UR-89 subagent (UR-32); an edit to a golden spec follows UR-9.
 **PR:** #7264. (ruling 264, record 6257854715)
 
