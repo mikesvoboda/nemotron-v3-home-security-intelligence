@@ -761,7 +761,7 @@ a row.
 ### [r267a] The service-status hook accepts what the backend broadcasts
 
 **Flags:** none. **Assigned:** frontend, first on its queue after the PR it holds (UR-52).
-**Depends on:** none. **PR:** none yet. (ruling 267, record 6266846674; audit item Q-001 of
+**Depends on:** none. **PR:** #7293. (ruling 267, record 6266846674; audit item Q-001 of
 `[r262]`)
 
 `frontend/src/hooks/useServiceStatus.ts`:80 keeps only `redis`, `rtdetr` and `nemotron`, and its
