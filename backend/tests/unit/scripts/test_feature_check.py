@@ -1599,6 +1599,7 @@ def _golden_only_run(
     lock_strip_version: bool = False,
     lock_absent: bool = False,
     run_rc: int = 0,
+    shard: tuple[int, int] | None = None,
 ) -> Any:
     """A Run whose golden() reaches the Playwright branch with every filesystem
     fact pointed at tmp_path, and whose ``_run`` is recorded, not executed.
@@ -1618,6 +1619,11 @@ def _golden_only_run(
     image — ``image_present`` and ``pull_rc`` are the new firewall question.
     """
     run = _run(tmp_path, mode="fake")
+    if shard is not None:
+        # [r264] A shard is a shape fact: it goes into the Run at construction
+        # so the record written at init already names it.
+        run.shard = shard
+        run.summary["shard"] = f"{shard[0]}/{shard[1]}"
     run.api, run.ui = "http://api.invalid", "http://ui.invalid"
     # The password's VALUE is never what the pins read — they only check that the
     # npm call carries no env at all, and that the container argv carries the
@@ -1764,6 +1770,60 @@ def test_the_leg_runs_in_the_image_with_the_same_argv_inside(
     # 1739 s (job 116184218975 at c1b804a82), x 1.5 rounded up to a minute = 2640. A later edit
     # of the constant reds this line — that is the point — and its author brings new numbers here.
     assert kwargs["timeout"] == 2640, "a golden suite is minutes; 2640 = measured 1739 s x 1.5"
+
+
+def test_the_unsharded_leg_carries_no_shard_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r264] Without --shard the inner command is exactly today's: no `--shard=` substring.
+
+    The union-of-legs judgment compares shard runs against the unsharded run at the
+    same head, and a run record that carried a shard the argv never took would be a
+    claim the leg did not make. Absence here is the pin: `--shard=` must appear in a
+    sharded run's inner command and NOWHERE in an unsharded one.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.shard = None
+    assert run.golden() == []
+    _inner, kwargs = _golden_container(calls)
+    assert "--shard=" not in _inner, _inner
+    assert kwargs["timeout"] == 2640
+
+
+def test_a_sharded_leg_passes_playwrights_own_shard_selector(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r264] With shard (2,3) the inner command ends with Playwright's `--shard=2/3`.
+
+    The flag is spelled the way Playwright documents it (`--shard=i/N`), inside the
+    same container argv -- same mounts, same image, same reporters -- so a shard's
+    legs are the same kinds of evidence an unsharded run's are, and the junit the
+    fan-in merges is written by the same runner. The record names the shard too:
+    a merged judgment must be able to say which run each leg came from. The shard
+    is passed at CONSTRUCTION, like every other shape fact (mode, seeded,
+    prod_shape): a record patched after init would witness nothing.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    argv, _kwargs = _golden_container(calls)
+    inner = argv[-1]
+    assert inner.endswith(" --shard=2/3"), inner
+    assert inner.startswith("npx --no-install playwright test --project=golden "), inner
+    assert run.summary["results"]["golden"]["playwright"] == "ok"
+    assert run.summary["shard"] == "2/3", run.summary.get("shard")
+
+
+def test_a_shard_record_is_absent_on_an_unsharded_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r264] The `shard` key exists only when a shard ran, so today's record shape holds."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.shard = None
+    assert run.golden() == []
+    assert "shard" not in run.summary, run.summary.get("shard")
 
 
 def test_the_feature_check_job_budget_covers_the_new_cap_with_10_minutes_of_margin() -> None:
@@ -5265,6 +5325,65 @@ def test_seeded_with_prod_shape_is_refused_under_real(monkeypatch: Any) -> None:
     with pytest.raises(SystemExit):
         fc.main(["--real", "--seeded", "--prod-shape"])
     assert booted == []
+
+
+# [r264] The golden leg's shard flag. Refusals first (a shard on the wrong tier
+# is a silent coverage hole, ruling 114's shape), then the argv pin (the inner
+# command carries Playwright's own `--shard=i/N`, and the unsharded run's argv
+# stays byte-identical).
+
+
+def test_a_shard_needs_the_fake_tier(monkeypatch: Any) -> None:
+    """`--shard` is the CI fake tier's option: on --real it refuses, before any boot."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--real", "--shard", "1/2"])
+    assert booted == []
+
+
+def test_a_shard_is_refused_with_prod_shape(monkeypatch: Any) -> None:
+    """The prod shape is the real tier's shape; a shard there witnesses a partial suite."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--prod-shape", "--shard", "1/2"])
+    assert booted == []
+
+
+@pytest.mark.parametrize("bad", ["0/2", "3/2", "5/5x", "/2", "2/", "2", "1/0", "a/b"])
+def test_a_malformed_shard_is_refused(monkeypatch: Any, bad: str) -> None:
+    """The flag takes exactly `I/N` with 1 <= I <= N; anything else refuses at parse time."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--fake", "--shard", bad])
+    assert booted == []
+
+
+def test_a_sharded_fake_run_boots_with_the_shard(monkeypatch: Any) -> None:
+    """`--fake --shard 2/3` boots the fake tier, and the record carries the shard."""
+    seen: dict[str, Any] = {}
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        seen["shard"] = args.shard
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    assert fc.main(["--fake", "--shard", "2/3"]) == 0
+    assert seen["shard"] == (2, 3)
+
+
+def test_an_unset_shard_boots_with_none(monkeypatch: Any) -> None:
+    """Without --shard the run is the unsharded run: shard is None, nothing else moves."""
+    seen: dict[str, Any] = {}
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        seen["shard"] = args.shard
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    assert fc.main(["--fake"]) == 0
+    assert seen["shard"] is None
 
 
 def test_the_seeded_refusals_are_distinguishable(monkeypatch: Any, capsys: Any) -> None:
