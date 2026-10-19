@@ -104,11 +104,9 @@ const mockSettingsResponse: SettingsResponse = {
     high_max: 85,
   },
   features: {
-    vision_extraction_enabled: true,
     reid_enabled: true,
     scene_change_enabled: true,
     clip_generation_enabled: true,
-    image_quality_enabled: false,
     background_eval_enabled: true,
   },
   rate_limiting: {
@@ -413,7 +411,7 @@ describe('useUpdateSettings', () => {
 
     const partialUpdate: SettingsUpdate = {
       features: {
-        image_quality_enabled: true,
+        reid_enabled: true,
       },
     };
 

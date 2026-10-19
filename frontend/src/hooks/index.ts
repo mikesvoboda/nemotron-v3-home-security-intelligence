@@ -365,8 +365,6 @@ export type {
 export { useSettings } from './useSettings';
 export type {
   AmbientSettings,
-  AudioSettings,
-  DesktopNotificationSettings,
   FaviconSettings,
   AmbientStatusSettings,
   AppSettings,

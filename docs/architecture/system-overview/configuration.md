@@ -242,20 +242,7 @@ the token counter uses (`backend/core/config.py:1271-1290`), so the number in `.
 
 `GET/PATCH /api/settings` reports a `features` block whose keys are mapped to environment variables by
 `SETTINGS_ENV_MAP` (`backend/api/routes/settings_api.py:40`); a PATCH writes them to
-`data/runtime.env` and clears the settings cache (`backend/api/routes/settings_api.py:279`). Three of
-the reported toggles have no consumer in the shipped pipeline — they are surfaced and mapped, and
-nothing reads them:
-
-| Variable                    | Default | What actually reads it                         |
-| --------------------------- | ------- | ---------------------------------------------- |
-| `VISION_EXTRACTION_ENABLED` | true    | nothing — reported and mapped only             |
-| `REID_ENABLED`              | true    | nothing — reported and mapped only             |
-| `IMAGE_QUALITY_ENABLED`     | true    | nothing — no BRISQUE model ships in this stack |
-
-**Sources:** the fields at `backend/core/config.py:1694`, `backend/core/config.py:1724`, and
-`backend/core/config.py:1719`; the response assembles them at
-`backend/api/routes/settings_api.py:126-133`; the shipped-stack note on BRISQUE is at
-`backend/api/routes/system.py:4845`.
+`data/runtime.env` and clears the settings cache (`backend/api/routes/settings_api.py:279`). `REID_ENABLED` and `SCENE_CHANGE_ENABLED` are surfaced and mapped in `backend/api/routes/settings_api.py:55-56`.
 
 Two neighbouring toggles in the same block do gate live code: `CLIP_GENERATION_ENABLED`
 (`backend/services/clip_generator.py:176`) and `BACKGROUND_EVALUATION_ENABLED`

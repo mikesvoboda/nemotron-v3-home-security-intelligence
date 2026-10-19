@@ -219,7 +219,6 @@ AI audit visualization components:
 - `AIAuditDashboard.tsx` - AI audit dashboard component
 - `AuditProgressBar.tsx` - Audit progress indicator
 - `AuditResultsTable.tsx` - Audit results table display
-- `ModelContributionChart.tsx` - Model contribution visualization
 - `PromptVersionHistory.tsx` - Prompt version history display
 - `index.ts` - Barrel export
 
@@ -272,7 +271,6 @@ Main dashboard components:
 - `ActivityFeed.tsx` - Real-time event activity stream
 - `GpuStats.tsx` - GPU utilization and metrics display
 - `StatsRow.tsx` - Dashboard statistics row with integrated risk sparkline
-- `PipelineQueues.tsx` - Pipeline queue depths visualization
 - `PipelineTelemetry.tsx` - Pipeline performance telemetry display
 - `DashboardConfigModal.tsx` - Dashboard configuration modal
 - `DashboardLayout.tsx` - Dashboard layout component

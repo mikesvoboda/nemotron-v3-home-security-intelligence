@@ -253,15 +253,14 @@ Triton serving through the gateway is the production path (see
 `docker-compose.prod.yml` and `ai/gateway/AGENTS.md`): the server runs inside
 the `ai-gateway` service over `model_repository/`, and yolo26 is one of the
 model directories there (`model_repository/yolo26/`).
-`ai/triton/client.py` is the standalone client wrapper kept for direct gRPC
-access; production traffic goes through the gateway's HTTP routers instead.
+Production traffic goes through the gateway's HTTP routers (`ai/gateway/`).
 
 ## Testing
 
 ### Unit Tests
 
 ```bash
-uv run pytest ai/triton/tests/ -v
+uv run pytest ai/gateway/tests/ -v
 ```
 
 ### Against a Running Gateway/Triton
@@ -318,10 +317,9 @@ perf_analyzer -m yolo26 --percentile=95
 
 ## Entry Points
 
-1. **Client usage**: Import from `ai.triton` package
-2. **Configuration**: Modify `config.pbtxt` files (then rebuild the gateway image or remount configs)
-3. **Testing**: `ai/triton/tests/` directory
-4. **Deployment**: `ai/gateway/Dockerfile` + `docker-compose.prod.yml` service `ai-gateway`
+1. **Configuration**: Modify `config.pbtxt` files (then rebuild the gateway image or remount configs)
+2. **Testing**: `ai/gateway/tests/` directory
+3. **Deployment**: `ai/gateway/Dockerfile` + `docker-compose.prod.yml` service `ai-gateway`
 
 ## Related Files
 

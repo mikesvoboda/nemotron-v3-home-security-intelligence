@@ -86,6 +86,10 @@ ai/nemotron/*.gguf
 logs/
 !frontend/src/components/logs/
 
+# Supervisor fires ([r247]): the tick log matches *.log, but the flock file is not a log,
+# and one untracked entry here would leave the owner's checkout dirty - which `up` refuses.
+supervise/
+
 # Testing/Coverage
 .coverage
 .coverage.*

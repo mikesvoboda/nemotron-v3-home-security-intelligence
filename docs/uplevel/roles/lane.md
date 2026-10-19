@@ -20,10 +20,10 @@ to it.
 | sandbox               | model     | queue                                                                                                                                                                                                                                                                                                                    | review label |
 | --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
 | `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)                                                                                                                                                                                                                                                                                         | none         |
-| `uplevel-backend`     | fast      | `[r211b]`, `[r228]`, `[r223]`, `[r244]`, `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`, `[r236]`; cells A and B for Phase 3's deletions                                                                                                                                                   | none         |
-| `uplevel-frontend`    | fast      | `[r196a]`, `[r211f]`, `[r204]`, `[r205]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3`                                                                           | none         |
+| `uplevel-backend`     | fast      | `[r267b]` (ruling 267), `[r211b]`, `[r228]`, `[r223]`, `[r244]`, `[r149d]`, `[r129]`, `[r130b]`, `[r94]`, `[r95]`, `F2.3` API batches, `B3.3`, `[r236]`; cells A and B for Phase 3's deletions                                                                                                                           | none         |
+| `uplevel-frontend`    | fast      | `[r267a]` (ruling 267), `[r196a]`, `[r211f]`, `[r204]`, `[r205]`, `[r130f]`, `[r144n]`, `[r148b]`, `[r148c]`, `[r149e]`, `[r132]`, `[r133]`, `[r134]`, `F2.3` UI (FE-1, FE-2, FE-3; reviews every batch), `[r168]`, `[r173]`, `[r148a]`, `R2b` records, `F3.2`, `F3.3`                                                   | none         |
 | `uplevel-ops-a`       | fast      | `[r264]` (ruling 264), `[r243]`, `[r189]`, `[r193]`, `[r195]`, `OB.3`, `F2.3` UI (OP-2, OP-4; OP-1 to heavy-b, ruling 184), `[r164a]`, `O2.5`, `[r96i11]`, `[r184]`                                                                                                                                                      | none         |
-| `uplevel-ops-b`       | fast      | `[r252]`, `[r235]`, `[r247]`, `[r240]`, `[r239]`, `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                              | none         |
+| `uplevel-ops-b`       | fast      | `[r252]`, `[r235]`, `[r247]`, `[r239]`, `[r196c]`, `[r157]`, `[r141]` follow-up (ruling 145), `[r151]`, `[r149b]`, `[r149f]`, `F2.3` UI (OP-3, after `[r157]`'s runner is ready for the owner), `[r181]`, `[r172]`, `O3.4`, `O3.5`, `O3.7`; `OB.4` on its trigger                                                        | none         |
 | `uplevel-docs`        | fast      | `[r196b]`, `[r215d]`, `[r207]`, `[r231]`, `[r165b]`, `F2.3` UI batches (DO-2, DO-3; FE-4 to heavy-a, ruling 184), `[r262]` (ruling 262), `W3.1`, `W3.2`, `W3.3`, `W3.4`                                                                                                                                                  | none         |
 | `uplevel-heavy-a`     | strongest | inherited from heavy-b (ruling 190): #7155, OP-1's seeded rows, F-012's disk seed (ruling 192), `[r199]`, `[r215a]`, `[r200]`, F-012 then F-064 of `[r196a]` (ruling 226), `[r212]`, `[r213]`, `[r214]` (ruling 224), `[r234]`, `[r238]`, `B3.1` with `F3.1` (rulings 241 and 255), `B3.2`; then Phase 4 design sessions | none         |
 | `uplevel-heavy-b`     | strongest | `O3.1`, `O3.3` once #7244 (`B3.3`) merges, `O3.2` once both `O2.5` runs post (ruling 260); `B2.3` next whenever `O2.4` passes, after the PR in hand (ruling 258)                                                                                                                                                         | none         |
@@ -101,7 +101,8 @@ watcher names the comment id and author, never which packages the ruling assigns
 4. **Your own open PRs** (UR-35): read the full thread of a row the digest shows with new comments,
    reviews or a `DIRTY`/red gate; fix what is red, answer what is requested, and rebase what
    conflicts with `main` (what a new head resets: UR-106). Before you push to a PR on auto-merge,
-   run `gh pr merge <n> --disable-auto` (UR-108). The digest is this step's one CI read (UR-38).
+   run `gh pr merge <n> --disable-auto` (UR-108). Before every push, run UR-184's checks. The
+   digest is this step's one CI read (UR-38).
 5. **Continue your package,** or take the next one ("Claiming a package" below).
 6. **Re-arm the watcher** (ruling 193) unless one is already running for these PRs. Arm it as a
    background task **by discovery**, not by naming the PRs you happen to have open: a lane discovers
@@ -191,7 +192,7 @@ Read rules.md §Claiming and assigning work first.
 3. **Check** that nobody holds it: `gh pr list --state open --search "[<package>] in:title"`.
 4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from
    `main`, commit nothing but an empty commit (`git commit --allow-empty -m "[<package>] claim"`),
-   push it, and open a draft PR titled `[<package>] <name>` with
+   push it (UR-184), and open a draft PR titled `[<package>] <name>` with
    `gh pr create --draft --template uplevel.md --label lane:<lane>`. Then write the PR's number
    into the package block's `**PR:**` field in the PR's own diff, as `#N` with no state word
    (UR-183).

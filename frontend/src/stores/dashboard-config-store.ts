@@ -33,8 +33,7 @@ export type WidgetId =
   | 'camera-grid'
   | 'activity-feed'
   | 'gpu-stats'
-  | 'pipeline-telemetry'
-  | 'pipeline-queues';
+  | 'pipeline-telemetry';
 
 /**
  * Widget configuration including visibility and display metadata.
@@ -150,12 +149,6 @@ export const DEFAULT_WIDGETS: WidgetConfig[] = [
     id: 'pipeline-telemetry',
     name: 'Pipeline Telemetry',
     description: 'AI pipeline latency, throughput, and error metrics',
-    visible: false,
-  },
-  {
-    id: 'pipeline-queues',
-    name: 'Pipeline Queues',
-    description: 'Detection and analysis queue depths',
     visible: false,
   },
 ];

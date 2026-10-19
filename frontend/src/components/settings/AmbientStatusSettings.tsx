@@ -3,17 +3,13 @@
  *
  * Settings panel for configuring ambient status awareness features:
  * - Ambient background effects
- * - Audio notifications with volume control
- * - Desktop notifications with permission management
  * - Favicon badge
  */
 
-import { Card, Title, Text, Switch, Badge, Button } from '@tremor/react';
+import { Card, Title, Text, Switch, Button } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Bell, BellOff, Eye, EyeOff, Monitor, MonitorOff, Volume2, VolumeX } from 'lucide-react';
-import { useCallback } from 'react';
+import { Eye, EyeOff, Monitor, MonitorOff } from 'lucide-react';
 
-import { useDesktopNotifications } from '../../hooks/useDesktopNotifications';
 import { useSettings } from '../../hooks/useSettings';
 
 export interface AmbientStatusSettingsProps {
@@ -27,32 +23,11 @@ export default function AmbientStatusSettings({ className }: AmbientStatusSettin
   const {
     ambientEnabled,
     setAmbientEnabled,
-    audioEnabled,
-    setAudioEnabled,
-    audioVolume,
-    setAudioVolume,
-    desktopNotificationsEnabled,
-    setDesktopNotificationsEnabled,
-    suppressNotificationsWhenFocused,
-    setSuppressNotificationsWhenFocused,
     faviconBadgeEnabled,
     setFaviconBadgeEnabled,
     enableAllAmbientStatus,
     disableAllAmbientStatus,
   } = useSettings();
-
-  const { hasPermission, isDenied, isSupported, requestPermission } = useDesktopNotifications();
-
-  const handleRequestPermission = useCallback(async () => {
-    await requestPermission();
-  }, [requestPermission]);
-
-  const handleVolumeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setAudioVolume(parseFloat(e.target.value));
-    },
-    [setAudioVolume]
-  );
 
   return (
     <Card
@@ -63,7 +38,7 @@ export default function AmbientStatusSettings({ className }: AmbientStatusSettin
         <div>
           <Title className="text-white">Ambient Status Awareness</Title>
           <Text className="mt-1 text-gray-400">
-            Configure visual and audio cues that communicate system status
+            Configure visual cues that communicate system status
           </Text>
         </div>
         <div className="flex gap-2">
@@ -110,131 +85,6 @@ export default function AmbientStatusSettings({ className }: AmbientStatusSettin
               aria-label="Enable ambient background effects"
             />
           </div>
-        </div>
-
-        {/* Audio Notifications */}
-        <div className="rounded-lg border border-gray-800 bg-[#121212] p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {audioEnabled ? (
-                <Volume2 className="h-5 w-5 text-[#76B900]" />
-              ) : (
-                <VolumeX className="h-5 w-5 text-gray-500" />
-              )}
-              <div>
-                <Text className="font-medium text-gray-200">Audio Alerts</Text>
-                <Text className="mt-1 text-xs text-gray-500">
-                  Sound notifications for security events
-                </Text>
-              </div>
-            </div>
-            <Switch
-              checked={audioEnabled}
-              onChange={setAudioEnabled}
-              className="focus:ring-[#76B900]"
-              aria-label="Enable audio notifications"
-            />
-          </div>
-
-          {/* Volume Slider */}
-          {audioEnabled && (
-            <div className="mt-4 pl-8">
-              <div className="flex items-center gap-4">
-                <Text className="w-16 text-sm text-gray-400">Volume</Text>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={audioVolume}
-                  onChange={handleVolumeChange}
-                  className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-                  aria-label="Audio volume"
-                />
-                <Text className="w-10 text-sm text-gray-400">{Math.round(audioVolume * 100)}%</Text>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Desktop Notifications */}
-        <div className="rounded-lg border border-gray-800 bg-[#121212] p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {desktopNotificationsEnabled && hasPermission ? (
-                <Bell className="h-5 w-5 text-[#76B900]" />
-              ) : (
-                <BellOff className="h-5 w-5 text-gray-500" />
-              )}
-              <div>
-                <Text className="font-medium text-gray-200">Desktop Notifications</Text>
-                <Text className="mt-1 text-xs text-gray-500">Browser notifications for alerts</Text>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Permission Status Badge */}
-              {isSupported && (
-                <Badge size="sm" color={hasPermission ? 'green' : isDenied ? 'red' : 'gray'}>
-                  {hasPermission ? 'Granted' : isDenied ? 'Blocked' : 'Not Set'}
-                </Badge>
-              )}
-              {!isSupported && (
-                <Badge size="sm" color="gray">
-                  Not Supported
-                </Badge>
-              )}
-              <Switch
-                checked={desktopNotificationsEnabled}
-                onChange={setDesktopNotificationsEnabled}
-                className="focus:ring-[#76B900]"
-                aria-label="Enable desktop notifications"
-                disabled={!isSupported}
-              />
-            </div>
-          </div>
-
-          {/* Permission Request Button */}
-          {isSupported && !hasPermission && !isDenied && (
-            <div className="mt-4 pl-8">
-              <Button
-                size="xs"
-                variant="secondary"
-                onClick={() => void handleRequestPermission()}
-                className="bg-[#76B900] text-gray-950 hover:bg-[#5a8f00]"
-              >
-                Request Permission
-              </Button>
-            </div>
-          )}
-
-          {/* Denied Warning */}
-          {isDenied && (
-            <div className="mt-4 pl-8">
-              <Text className="text-xs text-red-400">
-                Notifications are blocked. Please enable them in your browser settings.
-              </Text>
-            </div>
-          )}
-
-          {/* Suppress When Focused Option */}
-          {desktopNotificationsEnabled && hasPermission && (
-            <div className="mt-4 border-t border-gray-800 pl-8 pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Text className="text-sm text-gray-300">Suppress when focused</Text>
-                  <Text className="mt-1 text-xs text-gray-500">
-                    Don&apos;t show notifications when the app is in focus
-                  </Text>
-                </div>
-                <Switch
-                  checked={suppressNotificationsWhenFocused}
-                  onChange={setSuppressNotificationsWhenFocused}
-                  className="focus:ring-[#76B900]"
-                  aria-label="Suppress notifications when window has focus"
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Favicon Badge */}

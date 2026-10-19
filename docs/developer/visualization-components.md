@@ -153,7 +153,6 @@ interface DashboardLayoutProps {
   renderActivityFeed: (props: ActivityFeedProps) => React.ReactNode;
   renderGpuStats?: (props: GpuStatsProps) => React.ReactNode;
   renderPipelineTelemetry?: (props: PipelineTelemetryProps) => React.ReactNode;
-  renderPipelineQueues?: (props: PipelineQueuesProps) => React.ReactNode;
   isLoading?: boolean;
   renderLoadingSkeleton?: () => React.ReactNode;
 }
@@ -262,30 +261,6 @@ function getPowerColor(watts: number): 'green' | 'yellow' | 'red' {
 - Utilization (emerald/green area chart)
 - Temperature (amber area chart)
 - Memory (blue area chart)
-
-### PipelineQueues
-
-Location: `frontend/src/components/dashboard/PipelineQueues.tsx`
-
-Shows AI pipeline queue depths.
-
-```typescript
-interface PipelineQueuesProps {
-  detectionQueue: number;
-  analysisQueue: number;
-  warningThreshold?: number; // Default: 10
-  className?: string;
-}
-```
-
-**Queue Status Colors:**
-
-| Depth | Color  |
-| ----- | ------ |
-| 0     | gray   |
-| 1-5   | green  |
-| 6-10  | yellow |
-| >10   | red    |
 
 ### PipelineTelemetry
 

@@ -39,11 +39,9 @@ def create_mock_settings(
     severity_low_max: int = 29,
     severity_medium_max: int = 59,
     severity_high_max: int = 84,
-    vision_extraction_enabled: bool = True,
     reid_enabled: bool = True,
     scene_change_enabled: bool = True,
     clip_generation_enabled: bool = True,
-    image_quality_enabled: bool = True,
     background_evaluation_enabled: bool = True,
     rate_limit_enabled: bool = True,
     rate_limit_requests_per_minute: int = 60,
@@ -71,11 +69,9 @@ def create_mock_settings(
     mock.severity_low_max = severity_low_max
     mock.severity_medium_max = severity_medium_max
     mock.severity_high_max = severity_high_max
-    mock.vision_extraction_enabled = vision_extraction_enabled
     mock.reid_enabled = reid_enabled
     mock.scene_change_enabled = scene_change_enabled
     mock.clip_generation_enabled = clip_generation_enabled
-    mock.image_quality_enabled = image_quality_enabled
     mock.background_evaluation_enabled = background_evaluation_enabled
     mock.rate_limit_enabled = rate_limit_enabled
     mock.rate_limit_requests_per_minute = rate_limit_requests_per_minute
@@ -209,11 +205,9 @@ class TestGetSettingsEndpoint:
     async def test_returns_correct_feature_settings(self) -> None:
         """Test that feature toggle settings are returned correctly."""
         mock_settings = create_mock_settings(
-            vision_extraction_enabled=False,
             reid_enabled=True,
             scene_change_enabled=False,
             clip_generation_enabled=True,
-            image_quality_enabled=False,
             background_evaluation_enabled=True,
         )
         app = create_test_app()
@@ -233,11 +227,11 @@ class TestGetSettingsEndpoint:
         assert response.status_code == 200
         data = response.json()
 
-        assert data["features"]["vision_extraction_enabled"] is False
+        assert "vision_extraction_enabled" not in data["features"]
+        assert "image_quality_enabled" not in data["features"]
         assert data["features"]["reid_enabled"] is True
         assert data["features"]["scene_change_enabled"] is False
         assert data["features"]["clip_generation_enabled"] is True
-        assert data["features"]["image_quality_enabled"] is False
         assert data["features"]["background_eval_enabled"] is True
 
     @pytest.mark.asyncio
@@ -348,7 +342,7 @@ class TestGetSettingsEndpoint:
         assert settings_response.detection.confidence_threshold == 0.5
         assert settings_response.batch.window_seconds == 90
         assert settings_response.severity.low_max == 29
-        assert settings_response.features.vision_extraction_enabled is True
+        assert settings_response.features.reid_enabled is True
         assert settings_response.rate_limiting.enabled is True
         assert settings_response.queue.max_size == 10000
         assert settings_response.retention.days == 30
@@ -376,11 +370,9 @@ class TestSettingsResponseSchema:
                 "high_max": 84,
             },
             "features": {
-                "vision_extraction_enabled": True,
                 "reid_enabled": True,
                 "scene_change_enabled": True,
                 "clip_generation_enabled": True,
-                "image_quality_enabled": True,
                 "background_eval_enabled": True,
             },
             "rate_limiting": {
@@ -685,7 +677,7 @@ class TestPatchSettingsEndpoint:
                     "/api/v1/settings",
                     json={
                         "features": {
-                            "vision_extraction_enabled": False,
+                            "reid_enabled": False,
                             "scene_change_enabled": True,
                         }
                     },
@@ -695,7 +687,7 @@ class TestPatchSettingsEndpoint:
 
         content = temp_runtime_env.read_text()
         # Booleans should be lowercase
-        assert "VISION_EXTRACTION_ENABLED=false" in content
+        assert "REID_ENABLED=false" in content
         assert "SCENE_CHANGE_ENABLED=true" in content
 
     @pytest.mark.asyncio
@@ -1201,7 +1193,6 @@ class TestSettingsUpdateSchema:
         assert batch.idle_timeout_seconds is None
 
         feat = FeatureSettingsUpdate.model_validate({})
-        assert feat.vision_extraction_enabled is None
         assert feat.reid_enabled is None
 
         camera = CameraSettingsUpdate.model_validate({})

@@ -65,16 +65,12 @@ export interface SeveritySettings {
  * Feature toggle settings for AI pipeline components.
  */
 export interface FeatureSettings {
-  /** Enable Florence-2 vision extraction for vehicle/person attributes */
-  vision_extraction_enabled: boolean;
   /** Enable CLIP re-identification for tracking entities across cameras */
   reid_enabled: boolean;
   /** Enable SSIM-based scene change detection */
   scene_change_enabled: boolean;
   /** Enable automatic clip generation for events */
   clip_generation_enabled: boolean;
-  /** Enable BRISQUE image quality assessment (CPU-based) */
-  image_quality_enabled: boolean;
   /** Enable automatic background AI audit evaluation when GPU is idle */
   background_eval_enabled: boolean;
 }
@@ -174,11 +170,9 @@ export interface SeveritySettingsUpdate {
  * Feature settings update (all fields optional).
  */
 export interface FeatureSettingsUpdate {
-  vision_extraction_enabled?: boolean;
   reid_enabled?: boolean;
   scene_change_enabled?: boolean;
   clip_generation_enabled?: boolean;
-  image_quality_enabled?: boolean;
   background_eval_enabled?: boolean;
 }
 
