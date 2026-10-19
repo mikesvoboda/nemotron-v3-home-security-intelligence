@@ -295,16 +295,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/backup/{job_id}`          | GET    | `backupApi.ts` | Get backup status    |
 | `/api/backup/{job_id}/download` | GET    | `backupApi.ts` | Download backup file |
 
-### Calibration
-
-| Endpoint                    | Method | Consumer(s) | Purpose                  |
-| --------------------------- | ------ | ----------- | ------------------------ |
-| `/api/calibration`          | GET    | `api.ts`    | Get Calibration          |
-| `/api/calibration`          | PATCH  | `api.ts`    | Patch Calibration        |
-| `/api/calibration`          | PUT    | `api.ts`    | Update Calibration       |
-| `/api/calibration/defaults` | GET    | `api.ts`    | Get Calibration Defaults |
-| `/api/calibration/reset`    | POST   | `api.ts`    | Reset Calibration        |
-
 ### Cameras
 
 | Endpoint                                                               | Method | Consumer(s)                                                             | Purpose                                      |
@@ -479,7 +469,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | -------------------------------- | ------ | ----------- | ------------------------- |
 | `/api/feedback`                  | POST   | `api.ts`    | Submit event feedback     |
 | `/api/feedback/event/{event_id}` | GET    | `api.ts`    | Get feedback for an event |
-| `/api/feedback/stats`            | GET    | `api.ts`    | Get feedback statistics   |
 
 ### Health
 

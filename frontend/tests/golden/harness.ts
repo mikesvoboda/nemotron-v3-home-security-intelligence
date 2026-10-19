@@ -2392,8 +2392,8 @@ export async function createSearchFixture(
 /* `hardDeleteFixtureRows` already performs also removes each row's feedback.   */
 /* Measured on the probe stack, same run: POST /api/feedback → 201, then        */
 /* DELETE /api/events/bulk {soft_delete:false} → 207 succeeded:1, then          */
-/* GET /api/feedback/event/<id> → 404 and GET /api/feedback/stats               */
-/* → {total_feedback: 0}. There is NO feedback-delete endpoint, and none is     */
+/* GET /api/feedback/event/<id> → 404 (feedback row cascaded with the event).   */
+/* There is NO standalone feedback-delete endpoint, and none is                 */
 /* needed — which matters because a fixture that could not clear its feedback   */
 /* would be unrunnable here, not merely untidy: the same UNIQUE(event_id)       */
 /* (:78) that makes the second POST a 409 would make the second RUN a 409.     */

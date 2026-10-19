@@ -260,12 +260,6 @@ defined inside `model_zoo.py` itself.
 | `job_search_service.py`    | Job search and filtering                       | No (import directly)       |
 | `job_progress_reporter.py` | WebSocket job progress emission (NEM-2380)     | No (import directly)       |
 
-### Calibration Services
-
-| Service                  | Purpose                                     | Exported via `__init__.py` |
-| ------------------------ | ------------------------------------------- | -------------------------- |
-| `calibration_service.py` | Adaptive threshold adjustment from feedback | No (import directly)       |
-
 ### Queue Status Services
 
 | Service                   | Purpose                           | Exported via `__init__.py` |

@@ -3,8 +3,8 @@
  *
  * Inventory row F-198:
  *   Surface: `/settings` (`frontend/src/App.tsx:297-315`, `frontend/src/components/settings/SettingsPage.tsx:174-238`)
- *   Action: opens `/settings`; sees the 11-tab bar (`cameras`, `rules`, `processing`,
- *           `notifications`, `ambient`, `calibration`, `access`, `prompts`, `storage`,
+ *   Action: opens `/settings`; sees the 10-tab bar (`cameras`, `rules`, `processing`,
+ *           `notifications`, `ambient`, `access`, `prompts`, `storage`,
  *           `ai-models`, `admin`), secure-context banner if on HTTP, and debug-mode
  *           context from `/api/system/config`.
  *   API: `GET /api/system/config` (`frontend/src/contexts/DebugModeContext.tsx:62` ->
@@ -42,7 +42,6 @@ const EXPECTED_TABS = [
   { id: 'processing', label: 'PROCESSING', path: '/settings/processing' },
   { id: 'notifications', label: 'NOTIFICATIONS', path: '/settings/notifications' },
   { id: 'ambient', label: 'AMBIENT', path: '/settings/ambient' },
-  { id: 'calibration', label: 'CALIBRATION', path: '/settings/calibration' },
   { id: 'access', label: 'ACCESS', path: '/settings/access' },
   { id: 'prompts', label: 'PROMPTS', path: '/settings/prompts' },
   { id: 'storage', label: 'STORAGE', path: '/settings/storage' },
@@ -90,7 +89,7 @@ test.describe('FE-4 settings shell golden path (F-198)', () => {
     const tablist = page.getByRole('tablist', { name: 'Settings sections' });
     await expect(tablist).toBeVisible();
 
-    // All 11 tabs from settingsTabsConfig.ts:37-115 are rendered with accurate ARIA wiring
+    // All 10 tabs from settingsTabsConfig.ts are rendered with accurate ARIA wiring
     for (const tab of EXPECTED_TABS) {
       const tabLoc = page.getByTestId(`settings-tab-${tab.id}`);
       await expect(tabLoc, `tab ${tab.id} is visible`).toBeVisible();

@@ -432,70 +432,10 @@ export type EntityTrustUpdate = components['schemas']['EntityTrustUpdate'];
 export type EntityTrustResponse = components['schemas']['EntityTrustResponse'];
 export type TrustedEntityListResponse = components['schemas']['TrustedEntityListResponse'];
 
-// Calibration types (manually defined - pending OpenAPI type generation)
-// These match backend/api/schemas/calibration.py
-
-/** User calibration response with all threshold settings */
-export interface CalibrationResponse {
-  /** Calibration record ID */
-  id: number;
-  /** User identifier (default for single-user system) */
-  user_id: string;
-  /** Upper bound for low risk (0-100) */
-  low_threshold: number;
-  /** Upper bound for medium risk (0-100) */
-  medium_threshold: number;
-  /** Upper bound for high risk (0-100) */
-  high_threshold: number;
-  /** Learning rate for threshold adjustment (0.0-1.0) */
-  decay_factor: number;
-  /** Total false positives reported */
-  false_positive_count: number;
-  /** Total missed threats reported */
-  missed_threat_count: number;
-  /** When the calibration record was created */
-  created_at: string;
-  /** When the calibration was last modified */
-  updated_at: string;
-}
-
-/** Request schema for updating calibration thresholds */
-export interface CalibrationUpdate {
-  /** Upper bound for low risk (0-100, optional) */
-  low_threshold?: number | null;
-  /** Upper bound for medium risk (0-100, optional) */
-  medium_threshold?: number | null;
-  /** Upper bound for high risk (0-100, optional) */
-  high_threshold?: number | null;
-  /** Learning rate for threshold adjustment (0.0-1.0, optional) */
-  decay_factor?: number | null;
-}
-
-/** Default calibration threshold values */
-export interface CalibrationDefaultsResponse {
-  /** Default upper bound for low risk */
-  low_threshold: number;
-  /** Default upper bound for medium risk */
-  medium_threshold: number;
-  /** Default upper bound for high risk */
-  high_threshold: number;
-  /** Default learning rate for threshold adjustment */
-  decay_factor: number;
-}
-
-/** Response for calibration reset operation */
-export interface CalibrationResetResponse {
-  /** Success message */
-  message: string;
-  /** Reset calibration data */
-  calibration: CalibrationResponse;
-}
-
 // Event Feedback types
 export type EventFeedbackCreate = components['schemas']['EventFeedbackCreate'];
 export type EventFeedbackResponse = components['schemas']['EventFeedbackResponse'];
 export type FeedbackType = components['schemas']['FeedbackType'];
-export type FeedbackStatsResponse = components['schemas']['FeedbackStatsResponse'];
 export type ActualThreatLevel = components['schemas']['ActualThreatLevel'];
 
 // Request Recording types (NEM-2721)

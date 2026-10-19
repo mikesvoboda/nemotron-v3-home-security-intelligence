@@ -139,13 +139,12 @@ function ScrollableNavList({ children }: ScrollableNavListProps) {
 /**
  * SettingsPage component with route-based navigation
  *
- * Contains eleven settings sections accessible via nested routes:
+ * Contains ten settings sections accessible via nested routes:
  * - /settings/cameras: Camera configuration and management
  * - /settings/rules: Alert rules configuration
  * - /settings/processing: Event processing settings
  * - /settings/notifications: Email and webhook notification settings
  * - /settings/ambient: Ambient status awareness settings
- * - /settings/calibration: AI risk sensitivity and feedback calibration
  * - /settings/access: Household members, vehicles, and zone-based access control
  * - /settings/prompts: AI prompt template management and version history
  * - /settings/storage: Disk storage usage and file cleanup operations
@@ -162,7 +161,6 @@ function ScrollableNavList({ children }: ScrollableNavListProps) {
  * - Responsive layout
  * - Keyboard navigation support
  *
- * @see NEM-2356 - Add CalibrationPanel to Settings page
  * @see NEM-2388 - Add FileOperationsPanel to Settings page
  * @see NEM-3084 - Add AI MODELS tab integrating AIModelsSettings and ModelZooSection
  * @see NEM-3138 - Add ADMIN tab for AdminSettings component
