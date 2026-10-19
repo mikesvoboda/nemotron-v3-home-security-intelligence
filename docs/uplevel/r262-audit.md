@@ -710,4 +710,3 @@ authenticates the browser.` / `return { url: wsUrl };` — no protocols field is
   #6862's own merge (its diff renumbered the example `:154`→`:284` to stay
   true) and unchanged through #6950; first moved by #7114 (`:284` →
   `device_ids:`), then #7222. Attaches to #7114's batch.
-
