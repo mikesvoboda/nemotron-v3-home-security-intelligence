@@ -370,8 +370,10 @@ README's file map; its claim also writes this block's `**PR:**` field (UR-183). 
 
 - [ ] **MEASURE** the census at a SHA of main pinned at the claim. Write the SHA, the census command
       below and its counts at the sheet's head. The census is every PR merged to main from
-      2026-10-07T00:00Z to 2026-10-18T07:36Z that carries a `lane:` label and no `heavy` label,
-      plus the `[red-main]` PRs with no label at all. A PR's files are its merge commit's diff
+      2026-10-07T00:00Z to 2026-10-18T07:36Z that carries a `lane:` label, plus the `[red-main]`
+      PRs with no label at all. Ruling 262 excludes two kinds: a PR with any label containing
+      `heavy` (`heavy`, `cell:heavy`, `cell:heavy-b`: another model), and the owner session's PRs,
+      whose head branch starts `uplevel/owner-`. A PR's files are its merge commit's diff
       against its first parent, kept if the same path exists at the pinned SHA (a file a later PR
       renamed drops out). Each kept file has one class, the first that matches: Markdown is not
       code and is skipped; **test** is a path with a `tests/`, `test/` or `__tests__/` directory,
@@ -387,7 +389,7 @@ pin = sys.argv[1]
 run = lambda *a: subprocess.run(a, capture_output=True, text=True, check=True).stdout
 prs = json.loads(run("gh", "pr", "list", "--state", "merged", "--limit", "600",
     "--search", "merged:2026-10-07..2026-10-18T07:36:00Z",
-    "--json", "number,title,labels,mergeCommit"))
+    "--json", "number,title,labels,headRefName,mergeCommit"))
 live = set(run("git", "ls-tree", "-r", "--name-only", pin).split())
 TEST = re.compile(r"(^|/)(tests?|__tests__)/|(^|/)(test_[^/]*\.py|conftest\.py)$"
                   r"|\.(test|spec)\.")
@@ -401,7 +403,8 @@ def kind(p):
 out = []
 for p in sorted(prs, key=lambda p: p["number"]):
     names = {l["name"] for l in p["labels"]}
-    if "heavy" in names: continue
+    if any("heavy" in n for n in names) or p["headRefName"].startswith("uplevel/owner-"):
+        continue
     if not any(n.startswith("lane:") for n in names) and not (
             not names and p["title"].startswith("[red-main]")): continue
     m = p["mergeCommit"]["oid"]
@@ -414,8 +417,8 @@ print(json.dumps(out, indent=1))
 PY
 ```
 
-Control: at `a3b1bd336` the owner session's run gave 247 PRs, by class 52 production, 114 test, 6
-tooling and 75 none. A different count at the pinned SHA is recorded at the sheet's head with its
+Control: at `a3b1bd336` the owner session's run gave 229 PRs, by class 52 production, 111 test, 6
+tooling and 60 none. A different count at the pinned SHA is recorded at the sheet's head with its
 reason; it is not a stop.
 
 - [ ] **Audit** each census PR once, in its class, with all its kept files: production first, then
@@ -449,9 +452,10 @@ reason; it is not a stop.
       holding for the owner. An owner comment (one that starts `**Owner`) saying `continue` ends
       the hold. If the owner's comment changes the bar instead, the lane re-checks batch 1 against
       the new bar before batch 2. Later batches are about fifteen PRs, one comment each.
-- [ ] **Owner decisions.** The owner answers each item in PR comments with `fix`, `skip` or `later`,
-      and the lane writes the answer into the sheet. The PR stays draft until every item has an
-      answer; the lane then marks it ready and runs its UR-89 review.
+- [ ] **Owner decisions.** The owner answers each item in an owner comment (one that starts
+      `**Owner`) with `fix`, `skip` or `later`, and the lane writes the answer into the sheet. The
+      PR stays draft until every item has an answer; the lane then marks it ready and runs its
+      UR-89 review.
 
 Each item in the sheet takes this form:
 
