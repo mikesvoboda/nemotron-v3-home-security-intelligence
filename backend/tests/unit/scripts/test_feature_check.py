@@ -1826,30 +1826,71 @@ def test_a_shard_record_is_absent_on_an_unsharded_run(
     assert "shard" not in run.summary, run.summary.get("shard")
 
 
-def test_the_feature_check_job_budget_covers_the_new_cap_with_10_minutes_of_margin() -> None:
-    """Ruling 189's second clause: the job's timeout-minutes rises when boot + the backend leg +
-    the new cap would leave it under 10 minutes.
+# [r264] Build box: the backend golden tests run once, in one shard. Shard 1 (or an
+# unsharded run) keeps the pytest leg; every other shard records the skip with the
+# record shape the seeded branch already writes ("skipped on ..."), and carries no
+# backend_specs at all -- the fan-in's merge takes shard 1's, and a shard that ran
+# no backend leg must not look like one that ran none and passed everything.
+@pytest.mark.parametrize("shard", [(2, 4), (3, 4), (4, 4)])
+def test_a_non_first_shard_skips_the_backend_leg_in_the_seeded_record_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shard: tuple[int, int]
+) -> None:
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=shard)
+    run.golden()
+    backend = run.summary["results"]["golden"]
+    assert backend.get("backend") == f"skipped on shard {shard[0]}/{shard[1]}", backend.get(
+        "backend"
+    )
+    assert "backend_specs" not in backend, backend.get("backend_specs")
+    # no pytest invocation was recorded: every recorded argv is the Playwright leg
+    assert not any(argv[0] == "uv" for argv, _ in calls), [a for a, _ in calls]
+    # the recorded shard still names this run (the fan-in reads it)
+    assert run.summary["shard"] == f"{shard[0]}/{shard[1]}"
 
-    Measured on the same 10 green runs as the leg pin, on the job's own clock (the Actions
-    `started_at`/`completed_at` bounds are what `timeout-minutes` counts): worst boot+backend
-    BEFORE the golden leg was 562 s (job 116184218975), worst teardown after it 31 s. Conservative
-    sum with the new cap: 562 + 2640 + 31 = 3233 s = 53.9 min, which under the old 60 min leaves
-    6.1 min — below the ruling's floor. 64 min restores it: 3840 - 3233 = 607 s >= 600. Pinned
-    against the workflow file itself, so an edit to either side (the cap, or the budget) reds a
-    test that says why.
+
+def test_shard_1_still_runs_the_backend_leg(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The backend golden tests run once, in ONE shard (the Build box): shard 1's."""
+    run = _golden_leg(tmp_path, monkeypatch, "backend", _RAN_JUNIT)
+    run.shard = (1, 4)
+    run.summary["shard"] = "1/4"
+    run.golden()
+    backend = run.summary["results"]["golden"]
+    assert backend.get("backend") == "ok", backend.get("backend")
+    # The specs can only come from a report the leg's own pytest wrote, so
+    # "ok" with a leg's record is the execution proof here (the fixture's
+    # fake writes the report only when the leg runs).
+    assert backend.get("backend_specs") == {"golden::one": "passed"}, backend.get("backend_specs")
+
+
+def test_the_feature_check_job_budget_covers_the_new_cap_with_10_minutes_of_margin() -> None:
+    """Ruling 189's second clause, re-measured for the [r264] sharded shape: each shard job's
+    timeout-minutes leaves >= 10 minutes after boot + the golden leg + teardown on that shard's
+    own clock.
+
+    Measured on run 39202004102's four 4/4 shards (the picked shape, #7264's table): the
+    slowest shard's harness clock topped at 1097 s, worst job setup (checkout through
+    Playwright install, i.e. everything before the harness step) 320 s, worst teardown
+    31 s. Conservative sum with the cap: 320 + 2640 + 31 = 2991 s = 49.9 min, which under
+    the standing 64 min leaves 849 s >= 600. The budget is NOT raised by hand — 64 min
+    stands from ruling 189 — and the pin is against the workflow file itself, so an edit
+    to either side (the cap, or the budget) reds a test that says why.
     """
     yaml = pytest.importorskip("yaml")
     ci = yaml.safe_load(
         (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     )
-    job = ci["jobs"]["feature-check"]
+    job = ci["jobs"]["feature-check-shards"]
     assert job["name"] == "Feature check (fake AI)", "the job this package budgets is this job"
     minutes = job["timeout-minutes"]
-    # ruling 189's measurement, same 10 runs, on the job's started_at/completed_at clock
-    boot_backend_worst_s, teardown_worst_s = 562, 31
-    margin_s = minutes * 60 - (boot_backend_worst_s + fc.GOLDEN_LEG_TIMEOUT_S + teardown_worst_s)
+    # [r264]'s re-measurement, run 39202004102's 4/4 shards, on each job's started_at/
+    # completed_at clock: worst setup (to the harness step) 320 s, worst teardown 31 s.
+    setup_worst_s, teardown_worst_s = 320, 31
+    margin_s = minutes * 60 - (setup_worst_s + fc.GOLDEN_LEG_TIMEOUT_S + teardown_worst_s)
     assert margin_s >= 600, (
-        f"ruling 189: boot + backend + cap must leave the job >= 10 min; "
+        f"ruling 189: setup + cap + teardown must leave each shard >= 10 min; "
         f"timeout-minutes: {minutes} leaves {margin_s} s"
     )
 

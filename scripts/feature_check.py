@@ -2353,7 +2353,16 @@ class Run:
         problems = []
         results: dict[str, Any] = {}
         project_name = "golden-seeded" if self.seeded else "golden"
-        if not self.seeded and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
+        # [r264] Sharded CI runs the backend golden tests ONCE, in shard 1 (the
+        # package's Build box). A shard i>1 records the skip instead of running
+        # it, the same record shape the seeded branch below writes, so the
+        # merged summary the fan-in builds carries one backend leg set while
+        # every shard's record still says what IT ran. The skip branch makes no
+        # report, so it calls neither junit_results nor golden_execution_problems
+        # -- nothing to judge: the leg's verdict lives in shard 1's summary,
+        # whose own in-run call already covered the execution-problems check.
+        runs_backend = self.shard is None or self.shard[0] == 1
+        if not self.seeded and runs_backend and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
             junit = self.artifacts / "golden-backend.xml"
             result = self._run(
                 [
@@ -2379,6 +2388,9 @@ class Run:
             problems += golden_execution_problems("backend", results["backend_specs"])
         elif self.seeded:
             results["backend"] = "skipped on seeded"
+        elif not runs_backend:
+            i, total = self.shard  # type: ignore[misc]
+            results["backend"] = f"skipped on shard {i}/{total}"
         else:
             results["backend"] = "no specs yet"
         if PLAYWRIGHT_CONFIG.exists() and re.search(
