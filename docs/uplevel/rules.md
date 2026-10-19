@@ -432,6 +432,17 @@ Read this section before you change a workflow, a CI job, a hook or the gate.
   its reason and ruled by the owner; the four hooks ruling 39 (item E) excluded from the gate's hook
   stage stay out of it, with the suppression census delegating to `check-mock-spec`. (UR-37;
   ruling 39)
+- **UR-184** Before each push, an agent that pushes commits runs what the gate would otherwise
+  catch first: `pre-commit run --from-ref origin/main --to-ref HEAD` (CI's own command), with
+  `git status --porcelain` empty after it; the suppression census
+  (`scripts/suppression-census.py --expect` the baseline); `scripts/ratchet-check.py`; and the
+  pytest command of `ci.yml`'s step "Run the anti-rot gates' own tests". A failure counts when the
+  branch adds it: run the same command on `origin/main` in the same workspace for comparison. Each
+  sandbox installs `pre-commit` and its pre-push git hook once, with `SKIP=auto-rebase` exported in
+  the sandbox's persistent environment (that hook rewrites branches, and a rewrite resets approvals,
+  UR-106) and `hadolint` added to `SKIP` where it is not installed. A push never uses
+  `--no-verify`; a hook the sandbox cannot run goes on the heartbeat's BLOCKER line for the owner.
+  (ruling 265)
 - **UR-121** In a shared job of `.github/workflows/ci.yml`, the only allowed edit is appending a
   single entry, such as one test-script path, to an existing list in a step. Anything else (a new
   step, new logic, or a changed flag, condition or command) goes in its own job or its own workflow
