@@ -55,8 +55,9 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    not re-read what it reports. It prints, in order: the cursor and `now`; the comments since the
    cursor, with `BINDING NOW` and `URGENT PATH` flagged, and the live `BINDING NOW` records on #6854
    (UR-40); the open PRs, each with its `CI Gate` at the head and whether its newest
-   `Review: approve` names that head (UR-106); UR-102's three legs for each green non-draft PR,
-   measured from the `main` its gate's run tested;
+   `Review: approve` names that head (UR-106); the merge legs for each green non-draft PR,
+   measured from the `main` its gate's run tested (with `strict: true` only §3's `base=` says
+   whether a PR is behind `main`, ruling 268);
    `main`'s CI, Deploy, Nightly Full Gate and flaky-test runs; and every heartbeat with its age, and
    -- beside each non-paused agent -- the signed-activity read step 5 acts on (its latest signed
    comment, commits on its open PR branches since its beat, and any `BLOCKER:` line).
@@ -101,8 +102,8 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
 11. **Route on reviews.** Route on each author review's `Plan text:` line, and send a review
     without it back to its author unless UR-92's default reads it as `none` (UR-32, ruling 198).
 12. **Audit and merge.** Audit each PR merged since the cursor ("Auditing an auto-merge" below), then
-    merge what meets the merge rule, one PR at a time, continuing past a roll ("Merging a PR"
-    below); the report's merge legs answer UR-102's three conditions.
+    merge what meets the merge rule, one PR at a time; the pass ends at an update or at a gate
+    still running ("Merging a PR" below; UR-102, ruling 268).
 13. **Edit the status comment** in place with what this tick read ("The status comment" below).
 14. **Advance the cursor:** write your end-of-tick heartbeat (step 3's limits) with `read-through:`
     set to the report's `now` (the time of its comments call in step 2). Do this last, so a tick that stops early leaves the old cursor and
@@ -130,14 +131,22 @@ both heavy agents are `paused` goes on the urgent path (UR-174).
 Read rules.md §Merging first: it defines ready time, queue order, the owner tier, pre-approval
 and which PRs may jump the queue, and names the merge rules that sit elsewhere.
 
-1. **Pick** the oldest ready PR (UR-104, UR-106).
-2. **Skip the update** when the snapshot's three merge legs pass for the PR (UR-102). Go to step 3.
-   **Otherwise update** the PR, one at a time (UR-102):
+1. **Pick** the head of the queue: the oldest ready PR (UR-104, UR-106). A PR you updated keeps
+   its place while its gate runs at the new head (UR-106), so it stays the head: in §3 its
+   `base=` is `main`'s tip, its gate has not finished (`gate=absent` until the gate job is
+   queued, then `QUEUED` or `IN_PROGRESS`) and its approval carries (`carry=yes`). If several PRs
+   read so, the one with the oldest queue place is the head. A
+   red-`main` fix (UR-111) takes the head at once, even while another update is in flight; a PR
+   the owner names (UR-104) takes it next.
+2. **Skip the update** when the head is not behind `main`: §3's `base=` for it is `main`'s tip.
+   Go to step 3; if its gate has not finished, end the merge pass there.
+   **Otherwise update** the head (UR-102, ruling 268):
    `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch` (GitHub makes the merge commit; the
    agents' `gh` has no `gh pr update-branch`). For an owner PR, record the hash of the PR's own diff
    (UR-106) before and after the update from `coordinator_snapshot.py` (its `ur106_diff_hash`; §3
-   prints it per open PR). Conflicts go to the author (UR-102). End the turn; the next tick reads
-   its CI.
+   prints it per open PR). Conflicts go to the author (UR-102). Update no other PR until this one
+   merges or leaves the head of the queue (its gate fails at the new head, its update conflicts,
+   or it loses its review or owner approval). End the turn; the next tick reads its CI.
 3. **Re-read** the PR (UR-29): `gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`,
    and `gh run list --commit <head>`; merge only on green (UR-34).
 4. **Read the owner's word on it** (UR-94). Merge an owner-tier PR only on an owner approval UR-100
