@@ -173,11 +173,15 @@ export function mergeFiles(paths) {
 //
 // Owner ruling 261 (record 6256508661, 2026-10-18): a one-off exception to
 // UR-69 — re-pinned to the post-cut merged values of run 39161827871 at
-// d78f1a7ed (79.7 / 74.6 / 77.4 / 80.7 over 692 kept files; the floors the
-// cut's composition shifts required). Makes no standing rule for other
-// deletion PRs; a later deletion PR that lowers merged coverage the same
-// way asks the owner again.
-export const FLOORS = { statements: 79.7, branches: 74.6, functions: 77.4, lines: 80.7 };
+// d78f1a7ed, rounded DOWN to one decimal place per the ruling's own wording
+// (unrounded: 79.6525 / 74.5888 / 77.3963 / 80.6666 over 692 kept files →
+// 79.6 / 74.5 / 77.3 / 80.6). The rounding matters: statements sits exactly
+// at the 0.05 edge (26545/33326 = 79.6525), so a half-up 79.7 floor is ABOVE
+// the measured value and flips red on between-run noise (run 39192274492
+// printed 79.6 at a byte-identical tree — one statement's coverage coin).
+// Makes no standing rule for other deletion PRs; a later deletion PR that
+// lowers merged coverage the same way asks the owner again.
+export const FLOORS = { statements: 79.6, branches: 74.5, functions: 77.3, lines: 80.6 };
 
 function main() {
   const argv = process.argv.slice(2);

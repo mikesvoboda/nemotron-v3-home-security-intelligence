@@ -2435,7 +2435,7 @@ jobs:
           if [ -f coverage-merged/coverage-summary.json ]; then
             node -e '
               const s = require("./coverage-merged/coverage-summary.json").total;
-              const line = `Frontend merged coverage — statements ${s.statements.pct}% (floor 79.7), branches ${s.branches.pct}% (floor 74.6), functions ${s.functions.pct}% (floor 77.4), lines ${s.lines.pct}% (floor 80.7). Enforced by the merge step when all shards pass (WP2.3, ruling 261).`;
+              const line = `Frontend merged coverage — statements ${s.statements.pct}% (floor 79.6), branches ${s.branches.pct}% (floor 74.5), functions ${s.functions.pct}% (floor 77.3), lines ${s.lines.pct}% (floor 80.6). Enforced by the merge step when all shards pass (WP2.3, ruling 261 — floors are the measured values rounded down).`;
               console.log(line);
               require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, line + "\n");
             '

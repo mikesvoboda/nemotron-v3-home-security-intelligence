@@ -432,12 +432,15 @@ export default defineConfig(({ mode }) => {
           //
           // Owner ruling 261 (record 6256508661, 2026-10-18): re-pinned with
           // FLOORS, the one-off post-cut measured values of run 39161827871
-          // at d78f1a7ed (79.7 / 74.6 / 77.4 / 80.7 over 692 kept files).
-          // One-off; UR-69 stands for every other PR.
-          statements: 79.7,
-          branches: 74.6,
-          functions: 77.4,
-          lines: 80.7,
+          // at d78f1a7ed, rounded DOWN to one decimal per the ruling's wording
+          // (unrounded 79.6525/74.5888/77.3963/80.6666 → 79.6/74.5/77.3/80.6;
+          // a half-up 79.7 sits above the measured value and flips red on
+          // between-run noise — run 39192274492 printed 79.6 at a
+          // byte-identical tree).
+          statements: 79.6,
+          branches: 74.5,
+          functions: 77.3,
+          lines: 80.6,
         },
       },
     },

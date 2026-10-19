@@ -123,7 +123,7 @@ test('--enforce exits 1 when a metric is under its floor', async () => {
   try {
     const s1 = join(dir, 'shard1');
     mkdirSync(s1, { recursive: true });
-    // fileA+fileB merged totals ~66.7 statements: under the 80 floor.
+    // fileA+fileB merged totals ~66.7 statements: under every FLOORS floor.
     writeFileSync(join(s1, 'coverage-final.json'), JSON.stringify({ [fileA.path]: fileA }));
     const { execFileSync } = await import('node:child_process');
     let failed = false;
