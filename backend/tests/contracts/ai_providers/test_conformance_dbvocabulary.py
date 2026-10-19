@@ -417,8 +417,6 @@ LIGHT_THREAT_FALLBACK = _ast_fstring_template(LIGHT_ADAPTER, "threat_")
 # `f"class_{cls_id}"` and whose names land in detections.object_type.
 YOLO26_CLASSES = _ast_assign(YOLO26_ADAPTER, "COCO_CLASSES")
 YOLO26_CLASS_FALLBACK = _ast_fstring_template(YOLO26_ADAPTER, "class_")
-# The surviving pose classifier's emitted alphabet.
-YOLO26_POSE_RETURNS = _ast_return_literals(YOLO26_POSE, "classify_pose")
 
 # Emitted threat names, INCLUDING the fallback shape (the CHECK refuses a
 # generated name exactly as hard as a table name).
@@ -632,29 +630,11 @@ class TestStaticSubset:
         )
 
     def test_yolo26_pose_classifier_delta_vs_db_check(self) -> None:
-        """WP8.5 discovery red — RULING parked (F1): RETARGETED onto the only
-        pose classifier left in the tree. ai/yolo26/pose_estimation.py:502
-        ``classify_pose`` (called by its own pipeline at :800, exported at :950)
-        emits ``fallen``, ``reaching_up`` and ``aggressive`` — all rejected by
-        ck_pose_results_pose_class; ``aggressive`` additionally collides
-        semantically with the DB's ``arms_raised`` slot, so the two alphabets
-        are not even disjoint-by-accident.
-
-        LANDED AS CHARACTERIZATION (goal rule; RULING `WP8.5-vocab-alignment`
-        parked): pins the exact illegal return set as shipped."""
-        assert (
-            frozenset({"fallen", "reaching_up", "aggressive"}) == YOLO26_POSE_RETURNS - DB_POSE
-        ), (
-            f"yolo26 classify_pose delta moved to {sorted(YOLO26_POSE_RETURNS - DB_POSE)} — "
-            "the WP8.5-vocab-alignment ruling landed; rewrite to the new shape"
-        )
-        # Non-vacuity in the same test: the classifier also emits legal names,
-        # so the delta is a partial-overlap hazard, not a wholesale mismatch.
-        assert {"standing", "crouching", "lying_down"} <= YOLO26_POSE_RETURNS & DB_POSE, (
-            f"legal overlap is {sorted(YOLO26_POSE_RETURNS & DB_POSE)} — if the "
-            "classifier stopped emitting legal classes too, every pose row "
-            "would be illegal and the finding changes shape entirely"
-        )
+        """TOMBSTONE (O3.1): ai/yolo26/pose_estimation.py was pruned as
+        non-shipping; no classify_pose emitter remains in shipped code, while
+        DB_POSE still enforces ck_pose_results_pose_class."""
+        assert not YOLO26_POSE.exists()
+        assert {"fallen", "reaching_up", "aggressive"}.isdisjoint(DB_POSE)
 
 
 # ===========================================================================
@@ -790,9 +770,8 @@ class TestRetiredEmitterTombstones:
             "resolved by widening the schema, and this record should be "
             "replaced by whatever normalizes the surviving classifier's names"
         )
-        assert YOLO26_POSE_RETURNS - DB_POSE, (
-            "the surviving pose emitter no longer disagrees with the pose "
-            "CHECK: this class would be asserting nothing has live work"
+        assert LIGHT_THREAT_EMITTED - DB_THREAT, (
+            "the surviving threat emitter no longer disagrees with its CHECK"
         )
 
     def test_enrichment_pose_estimator_classifier_retired(self) -> None:
@@ -818,17 +797,12 @@ class TestRetiredEmitterTombstones:
                 for n in ast.walk(_parsed(p))
             )
         )
-        assert classifiers == ["ai/yolo26/pose_estimation.py"], (
-            f"shipped classify_pose implementations: {classifiers} — a second "
-            "pose classifier re-arms the F1 finding and needs its own subset "
-            "assertion (crawling was the retired one's signature name)"
+        assert classifiers == [], (
+            f"shipped classify_pose implementations: {classifiers} — O3.1 pruned "
+            "ai/yolo26/pose_estimation.py, so no pose classifier ships"
         )
-        # Non-vacuity: the F1 method (AST-extract the reachable classifier
-        # instead of trusting the cited table) still has a live subject and a
-        # live delta, and `crawling` is still unnameable.
         assert "crawling" not in DB_POSE, "the CHECK gained the retired emitter's name"
-        assert YOLO26_POSE == REPO_ROOT / "ai/yolo26/pose_estimation.py"
-        assert YOLO26_POSE.is_file()
+        assert not YOLO26_POSE.exists()
 
     def test_demographics_age_buckets_retired_with_the_service(self) -> None:
         """HAZARD IT PINNED: ``ai/enrichment/models/demographics.py:44-51``
@@ -1038,10 +1012,8 @@ class TestMissingInvariants:
         # scan CAN see a 768 at all, so the runtime absence is not a blind
         # spot of the reader).
         exports = _named_constants("ai/gateway/export", "EMBEDDING_DIM", module_level_only=True)
-        assert any(value == 768 for _f, _n, value in exports), (
-            f"no 768 constant left anywhere, even offline ({exports}) — the "
-            "768-absence assertion above would be vacuous; re-cite what still "
-            "carries a CLIP-era width"
+        assert exports and all(value == 512 for _f, _n, value in exports), (
+            f"O3.1 pruned the 768-d CLIP export scripts; surviving exports must be 512: {exports}"
         )
         assert not any(value == 768 for _f, _n, value in runtime)
 

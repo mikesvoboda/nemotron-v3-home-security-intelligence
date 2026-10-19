@@ -352,12 +352,10 @@ class TestRetiredLlmIsOptIn:
         )
 
     def test_the_surviving_engine_stays_opt_in(self, compose: dict) -> None:
-        """The other half of the guarantee, still live: ai-llm-vllm is the only
-        engine left in the file beside ai-vlm, and it hides behind profile
-        `vllm` — so a plain `up` cannot land a second model on the GPU the
-        verdict engine serves on. O1.3 leaves this gate alone: OD-17 decides
-        ai-llm-vllm at R2."""
-        assert compose["services"]["ai-llm-vllm"].get("profiles") == ["vllm"]
+        """O3.1 (OD-17, ruling 89): ai-llm-vllm and its `vllm` profile are
+        removed from docker-compose.prod.yml, leaving ai-vlm as the sole
+        LLM/VLM engine in the file."""
+        assert "ai-llm-vllm" not in compose["services"]
 
     def test_backend_depends_on_no_llm_engine(self, compose: dict) -> None:
         """Retargeted from the `required: false` pin. That flag existed only so

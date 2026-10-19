@@ -508,23 +508,13 @@ async def _drive_gateway_detect(client, mock, class_ids_and_confs: list[tuple[in
 
 class TestV1ClassVocabulary:
     def test_V1a_security_classes_mirror_the_server_source(self) -> None:
-        """V1a: ai/yolo26/model.py:151 defines exactly the 9 security
-        classes, keyed off the COCO id->name map at :154 and applied by the
-        ONE server-side filter at :1085 (re-measured this slice: model.py
-        carries exactly two SECURITY_CLASSES lines — the definition and that
-        single membership test — so the draft's "second path" note was
-        already stale when written and is corrected here rather than
-        inherited).
-        Source: ai/yolo26/model.py:151,154,1085.
-        Provider-agnostic AST pin (not drivable) — GREEN."""
-        src_lines = (REPO_ROOT / "ai/yolo26/model.py").read_text(encoding="utf-8").splitlines()
-        table = _ast_assign(REPO_ROOT / "ai/yolo26/model.py", "SECURITY_CLASSES")
-        assert set(table) == WP83_SECURITY_CLASSES
-        assert len(table) == 9
-        # one definition + one filter site, and nothing else reaches for it
-        cites = [ln for ln in src_lines if "SECURITY_CLASSES" in ln]
-        assert len(cites) == 2, cites
-        assert sum("not in SECURITY_CLASSES" in ln for ln in cites) == 1, cites
+        """TOMBSTONE (O3.1): ai/yolo26/model.py (which defined the 9-class
+        SECURITY_CLASSES filter) was pruned as non-shipping; the gateway
+        adapter's 80 COCO_CLASSES strictly contains all 9."""
+        assert not (REPO_ROOT / "ai/yolo26/model.py").exists()
+        coco = _ast_assign(REPO_ROOT / "ai/gateway/adapters/yolo26.py", "COCO_CLASSES")
+        assert len(WP83_SECURITY_CLASSES) == 9
+        assert set(coco) > WP83_SECURITY_CLASSES
 
     async def test_V1a_fake_security_profile_expresses_the_nine(self, fake_client) -> None:
         """V1a via the fake: /fake/profiles/classes exposes both tables as
@@ -604,41 +594,15 @@ class TestV1ClassVocabulary:
         assert classes <= set(profiles["gateway"])
 
     def test_V1c_triton_client_filter_is_real_but_orphaned(self) -> None:
-        """V1c characterization, RE-MEASURED after the S3 sweep: ai/triton/
-        client.py:230 TritonClient.SECURITY_CLASSES is the same 9 with
-        filters at :692/:752 — REAL but ORPHANED. The sweep is what makes
-        this pin worth its keep: the heavy enrichment tier (the module's
-        historical consumer) is gone, so the symbol is now load-bearing on
-        nobody, and a future suite must not mistake it for the gateway's
-        filter. The live gateway path (ai/gateway/triton_client.py) filters
-        NOTHING — zero SECURITY references anywhere under ai/gateway.
-        Source: ai/triton/client.py:230,692,752; ai/gateway/** (census, zero).
-        GREEN (ai/triton import is numpy + stdlib only)."""
-        from ai.triton import TritonClient
-
-        assert set(TritonClient.SECURITY_CLASSES) == WP83_SECURITY_CLASSES
-        # the filters are real code, not a dead constant: both membership
-        # tests still read the ClassVar.
-        client_src = (REPO_ROOT / "ai/triton/client.py").read_text(encoding="utf-8")
-        assert client_src.count("in self.SECURITY_CLASSES") == 2, client_src.count(
-            "in self.SECURITY_CLASSES"
-        )
-
-        # orphan proof: no PRODUCTION module outside ai/triton/ imports it.
+        """TOMBSTONE (O3.1): the orphaned ai/triton/client.py and
+        ai/triton/__init__.py were pruned as non-shipping. No production
+        module imports ai.triton, and the live gateway path filters nothing.
+        """
+        assert not (REPO_ROOT / "ai/triton/client.py").exists()
+        assert not (REPO_ROOT / "ai/triton/__init__.py").exists()
         consumers = _production_ai_triton_consumers()
         assert consumers == [], f"ai.triton has unexpected consumers: {consumers}"
-
-        # Non-vacuity (doctrine 3, stated in the test that needs it): the
-        # census can actually FIND an importer — otherwise "no consumers" is
-        # a claim about a scan that scanned nothing. ai/triton/__init__.py is
-        # a real importer of the same import form, excluded from the census
-        # ONLY by the self-module rule, so feeding the census's own predicate
-        # over that file must hit.
-        own_site = REPO_ROOT / "ai/triton/__init__.py"
-        assert _ORPHAN_NEEDLE in own_site.read_text(encoding="utf-8")
-        assert _ORPHAN_IMPORT.search(own_site.read_text(encoding="utf-8"))
-
-        # and the LIVE gateway path filters nothing
+        assert _ORPHAN_IMPORT.search("from ai.triton import TritonClient\n")
         gw_tree = REPO_ROOT / "ai/gateway"
         gw_files = [p for p in gw_tree.rglob("*.py") if "__pycache__" not in p.parts]
         assert gw_files, "the gateway tree vanished — this arm would pass vacuously"
@@ -655,23 +619,11 @@ class TestV1ClassVocabulary:
 
 class TestV2ConfidenceTables:
     def test_V2a_server_table_values(self) -> None:
-        """V2a: ai/yolo26/model.py:173 _DEFAULT_CLASS_CONFIDENCE_THRESHOLDS
-        — person 0.45, car/truck/bus 0.70, motorcycle/bicycle 0.65,
-        dog/cat/bird 0.55; env override YOLO26_CLASS_THRESHOLDS (:189-219);
-        applied server-side at :1093 inside the single detect() path.
-        Source: ai/yolo26/model.py:173,197,219,1093. Characterization of the
-        server constants via AST read — drivable nowhere else without
-        booting the server. GREEN."""
-        table = _ast_assign(
-            REPO_ROOT / "ai/yolo26/model.py", "_DEFAULT_CLASS_CONFIDENCE_THRESHOLDS"
-        )
-        assert table == WP83_SERVER_THRESHOLDS
-        assert set(table) == WP83_SECURITY_CLASSES  # the table is exactly the 9
-        # the env-override story the docstring claims is real plumbing, not
-        # a comment: the default is copied then merged from the env var.
-        src = (REPO_ROOT / "ai/yolo26/model.py").read_text(encoding="utf-8")
-        assert "YOLO26_CLASS_THRESHOLDS" in src
-        assert "dict(_DEFAULT_CLASS_CONFIDENCE_THRESHOLDS)" in src
+        """TOMBSTONE (O3.1): ai/yolo26/model.py (which held
+        _DEFAULT_CLASS_CONFIDENCE_THRESHOLDS) was pruned as non-shipping;
+        WP83_SERVER_THRESHOLDS remains the recorded baseline for V2b."""
+        assert not (REPO_ROOT / "ai/yolo26/model.py").exists()
+        assert set(WP83_SERVER_THRESHOLDS) == WP83_SECURITY_CLASSES
 
     def test_V2b_backend_table_is_strictly_lower(self) -> None:
         """V2b: backend/core/config.py:1829 declared default — every one of

@@ -28,7 +28,6 @@ Phase plans live in `docs/superpowers/plans/*-synthbench-*.md`.
 | `generate/render.py`                          | ComfyUI discovery, yield to the flagship, the per-attempt FLUX.2 graph                                                                    |
 | `generate/camera/`                            | the camera stage and its committed default parameters                                                                                     |
 | `host/`                                       | host-only: the guard, the renderer unit's checks, the unit files, snapshots and pruning, the agent's sandbox                              |
-| `spikes/p1_bakeoff/`                          | throwaway P1 bake-off harness (not a pattern to copy)                                                                                     |
 
 ## Rules
 
