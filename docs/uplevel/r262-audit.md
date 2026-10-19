@@ -36,7 +36,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
 | Batch | PRs | Items | Refuted | Comment |
 | ----- | --- | ----- | ------- | ------- |
-| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (2 re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — 3 items moved off this batch, see below) | 0 (15/15 survived) | batch-1 comment on #7265 |
+| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (2 re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — 3 items moved off this batch, see below) | 0 (16/16 survived incl. Q-000) | batch-1 comment on #7265 |
 
 ## Batch 1 — per-PR verdicts
 
@@ -81,7 +81,37 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   fields at config.py:141-166 — only this row is dead.
 - Fix: delete the three rows. Size S. Owning lane: docs.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false. Refuter verified every leg at both pins: the needle census at 41bc0fce7 AND
+  a3b1bd336 returns exactly the three named doc rows, byte-identical at both SHAs;
+  `consecutive` is absent from config.py at both pins and `max_consecutive` repo-wide hits
+  only the three doc rows (plus an unrelated synthbench MAX_CONSECUTIVE_TIMEOUTS constant) —
+  zero in backend/, test or non-test; the deletion provenance is exact (merge 09e67114c =
+  PR #7244 removes `max_consecutive_failures: int = Field(5, ge=1, le=50, …)` under
+  "# Self-healing limits" verbatim; e630d4784 removes the 4-line .env.example block and
+  touches nothing else doc-wise), and 09e67114c is an ancestor of both pins (the deletion
+  is already in both pin trees, which is what makes the rows stale there); the sibling
+  control holds — all seven named siblings are real Fields in OrchestratorSettings
+  (env_prefix ORCHESTRATOR_, config.py ~115-166), so this is drift, not a whole-stale-table;
+  nothing at the pin reads ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES from the environment (no
+  os.environ/getenv hit, no compose passthrough, no test); no dating qualifier near any row;
+  no later PR fixed the rows (all three doc blobs byte-identical from the merge through both
+  pins). The Markdown exclusion does not apply: "Markdown is skipped" in the census command
+  is a PR-file classification rule for which PRs enter the census, not an item exclusion —
+  the drift class explicitly covers "docs or config naming a setting … that no longer
+  exists", and the real exclusions are taste/cite-density/line-length/lint-enforced only.
+  Corrections: (1) the rows' described BEHAVIOR is not entirely fictional —
+  failure-before-disable with per-category defaults (AI 5, infrastructure 10) is still real
+  via CATEGORY_DEFAULTS at backend/services/orchestrator/models.py:22 and the
+  `orchestrator.max_failures` compose label/healthcheck-retries path at
+  compose_parser.py:236-239; what is dead is the env-var knob the Variable column names —
+  the rows sit in env-var tables and promise a tunable that no longer exists (previously
+  ge=1 le=50 via the deleted Field). Drift per the sheet's own definition stands.
+  (2) The refutation prompt's date question read backwards — the #7244 merge (23:06Z) is
+  before, not after, both pins were cut; that ancestry is exactly what the item requires
+  (my sheet entry said "after both pins", which is wrong — the refuter's framing is the
+  correct one). (3) Deleting the service-control row removes that file's only
+  CATEGORY_DEFAULTS mention; acceptable as written since container-orchestration.md
+  documents the same defaults in a dedicated section. Fix stands as written.
 
 ### Q-001 · bug · high · frontend/src/hooks/useServiceStatus.ts:80 · #6913
 - Wrong: the hook's service-name allowlist drops every `service_status` broadcast except
