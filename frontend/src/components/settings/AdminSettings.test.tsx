@@ -118,11 +118,9 @@ vi.mock('../../hooks/useSettingsApi', () => ({
   useSettingsApi: () => ({
     settings: {
       features: {
-        vision_extraction_enabled: true,
         reid_enabled: true,
         scene_change_enabled: true,
         clip_generation_enabled: true,
-        image_quality_enabled: true,
         background_eval_enabled: true,
       },
       rate_limiting: {
@@ -183,36 +181,28 @@ describe('AdminSettings', () => {
       renderWithProviders(<AdminSettings />);
 
       // Section should be expanded by default
-      expect(screen.getByText('Vision Extraction')).toBeInTheDocument();
       expect(screen.getByText('Re-ID Tracking')).toBeInTheDocument();
       expect(screen.getByText('Scene Change')).toBeInTheDocument();
       expect(screen.getByText('Clip Generation')).toBeInTheDocument();
-      expect(screen.getByText('Image Quality')).toBeInTheDocument();
       expect(screen.getByText('Background Eval')).toBeInTheDocument();
     });
 
     it('displays feature toggle descriptions', () => {
       renderWithProviders(<AdminSettings />);
 
-      expect(
-        screen.getByText('Extract visual features from frames using AI models')
-      ).toBeInTheDocument();
       expect(screen.getByText('Track individuals across camera views')).toBeInTheDocument();
+      expect(screen.getByText('Detect significant changes in camera scenes')).toBeInTheDocument();
     });
 
     it('renders switch components for each feature toggle', () => {
       renderWithProviders(<AdminSettings />);
 
       // Check that each toggle has a switch with the correct test id
-      expect(
-        screen.getByTestId('feature-toggle-vision_extraction_enabled-switch')
-      ).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-reid_enabled-switch')).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-scene_change_enabled-switch')).toBeInTheDocument();
       expect(
         screen.getByTestId('feature-toggle-clip_generation_enabled-switch')
       ).toBeInTheDocument();
-      expect(screen.getByTestId('feature-toggle-image_quality_enabled-switch')).toBeInTheDocument();
       expect(
         screen.getByTestId('feature-toggle-background_eval_enabled-switch')
       ).toBeInTheDocument();
@@ -222,19 +212,15 @@ describe('AdminSettings', () => {
       renderWithProviders(<AdminSettings />);
 
       // All switches should be checked (enabled) by default
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
       const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
       const sceneSwitch = screen.getByTestId('feature-toggle-scene_change_enabled-switch');
       const clipSwitch = screen.getByTestId('feature-toggle-clip_generation_enabled-switch');
-      const imageSwitch = screen.getByTestId('feature-toggle-image_quality_enabled-switch');
       const bgSwitch = screen.getByTestId('feature-toggle-background_eval_enabled-switch');
 
       // HeadlessUI Switch uses aria-checked for state
-      expect(visionSwitch).toHaveAttribute('aria-checked', 'true');
       expect(reidSwitch).toHaveAttribute('aria-checked', 'true');
       expect(sceneSwitch).toHaveAttribute('aria-checked', 'true');
       expect(clipSwitch).toHaveAttribute('aria-checked', 'true');
-      expect(imageSwitch).toHaveAttribute('aria-checked', 'true');
       expect(bgSwitch).toHaveAttribute('aria-checked', 'true');
     });
 
@@ -242,15 +228,15 @@ describe('AdminSettings', () => {
       const user = userEvent.setup();
       renderWithProviders(<AdminSettings />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
-      expect(visionSwitch).toHaveAttribute('aria-checked', 'true');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
+      expect(reidSwitch).toHaveAttribute('aria-checked', 'true');
 
       // Click to toggle off - this should trigger the mutation
-      await user.click(visionSwitch);
+      await user.click(reidSwitch);
 
       // The switch can still be clicked (mutation was triggered)
       // Note: The actual state change depends on the API response
-      expect(visionSwitch).toBeInTheDocument();
+      expect(reidSwitch).toBeInTheDocument();
     });
 
     it('displays summary count of enabled toggles', () => {
@@ -270,22 +256,22 @@ describe('AdminSettings', () => {
       const user = userEvent.setup();
       renderWithProviders(<AdminSettings />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
 
       // Click to toggle - should not throw
-      await user.click(visionSwitch);
+      await user.click(reidSwitch);
 
       // Click again - should still work
-      await user.click(visionSwitch);
+      await user.click(reidSwitch);
 
-      expect(visionSwitch).toBeInTheDocument();
+      expect(reidSwitch).toBeInTheDocument();
     });
 
     it('switch has correct aria-label', () => {
       renderWithProviders(<AdminSettings />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
-      expect(visionSwitch).toHaveAttribute('aria-label', 'Toggle Vision Extraction off');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
+      expect(reidSwitch).toHaveAttribute('aria-label', 'Toggle Re-ID Tracking off');
     });
 
     it('can collapse and expand the Feature Toggles section', async () => {
@@ -293,14 +279,14 @@ describe('AdminSettings', () => {
       renderWithProviders(<AdminSettings />);
 
       const toggleButton = screen.getByTestId('admin-feature-toggles-toggle');
-      expect(screen.getByText('Vision Extraction')).toBeInTheDocument();
+      expect(screen.getByText('Re-ID Tracking')).toBeInTheDocument();
 
       // Collapse the section
       await user.click(toggleButton);
 
       // Wait for animation and check content is hidden
       await waitFor(() => {
-        expect(screen.queryByText('Vision Extraction')).not.toBeInTheDocument();
+        expect(screen.queryByText('Re-ID Tracking')).not.toBeInTheDocument();
       });
     });
   });
@@ -814,12 +800,12 @@ describe('AdminSettings', () => {
     it('feature toggle switches have proper aria attributes', () => {
       renderWithProviders(<AdminSettings />);
 
-      const visionSwitch = screen.getByTestId('feature-toggle-vision_extraction_enabled-switch');
+      const reidSwitch = screen.getByTestId('feature-toggle-reid_enabled-switch');
 
       // HeadlessUI Switch provides role="switch" and aria-checked
-      expect(visionSwitch).toHaveAttribute('role', 'switch');
-      expect(visionSwitch).toHaveAttribute('aria-checked');
-      expect(visionSwitch).toHaveAttribute('aria-label');
+      expect(reidSwitch).toHaveAttribute('role', 'switch');
+      expect(reidSwitch).toHaveAttribute('aria-checked');
+      expect(reidSwitch).toHaveAttribute('aria-label');
     });
   });
 });

@@ -69,11 +69,9 @@ vi.mock('../../../hooks/useSettingsApi', () => ({
       batch: { window_seconds: 90, idle_timeout_seconds: 30 },
       severity: { low_max: 29, medium_max: 59, high_max: 84 },
       features: {
-        vision_extraction_enabled: true,
         reid_enabled: true,
         scene_change_enabled: true,
         clip_generation_enabled: true,
-        image_quality_enabled: true,
         background_eval_enabled: true,
       },
       rate_limiting: { enabled: true, requests_per_minute: 60, burst_size: 10 },

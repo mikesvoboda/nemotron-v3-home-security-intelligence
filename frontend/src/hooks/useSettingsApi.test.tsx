@@ -44,11 +44,9 @@ const mockSettingsResponse: SettingsResponse = {
     high_max: 84,
   },
   features: {
-    vision_extraction_enabled: true,
     reid_enabled: true,
     scene_change_enabled: true,
     clip_generation_enabled: true,
-    image_quality_enabled: true,
     background_eval_enabled: true,
   },
   rate_limiting: {
