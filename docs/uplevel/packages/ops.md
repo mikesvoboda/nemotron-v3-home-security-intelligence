@@ -1022,6 +1022,13 @@ cut the wall time.
       minutes or less; at most 4. If 4 shards still leave the slowest above that, take 4, name the
       slowest spec files on the PR, and split the longest of them (a golden spec, UR-9).
 - [ ] **Build.** `Feature check (fake AI)` becomes N shard jobs and one fan-in job.
+  - Build fix (af50878ec, from the first ready run's two failures, run 39209710736): the shard
+    jobs' setup-uv carries `ignore-nothing-to-cache: true` — shards 2–4 never invoke uv after the
+    backend-once change, so the action's post step errored on a cache dir that never materialized;
+    and the fan-in's `--list` derivation exports an absolute `FEATURE_CHECK_SCENARIOS` — the
+    repo-relative value died as `frontend/backend/...` under `cd frontend` and
+    event-detail-modal's module-scope constants crashed collection past their own test.skip guard.
+    Both pins carry teeth (test_check_gate_reachability.py).
   - The shard jobs do not run the inventory witness. The fan-in merges the shards'
     `playwright_specs` and `backend_specs` into one fake-mode summary and runs the witness once over
     it, so a row is judged on the union exactly as the single run judges it today.
