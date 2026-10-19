@@ -210,22 +210,22 @@ sandbox run's deployment, in a comment on each PR (rulings 154 and 256).
 ### O3.1 Prune `ai/` to what ships
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`.
-**PR:** none yet. (ruling 241)
+**PR:** #7256 (ruling 241)
 
 **Assigned:** heavy-b, first on its queue (ruling 260). It is owner tier as destructive work (UR-98,
 ruling 249).
 
-- [ ] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
+- [x] Declare the `ai/` entry points in `O2.3`'s file: the gateway's `main.py`, `export_all.sh`, and
       every build script a Dockerfile or workflow runs. Delete what does not ship (~27K of 35K
       lines at `d6ba78d5`, `00 §4.2`), with the tests that test only it. The declaration lands
       first, so `ai/gateway/export/` (O2.4, B2.3) is never on the deleted list (ruling 210).
-- [ ] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
+- [x] `synthbench/host`, `synthbench/generate` and `synthbench/contract` go on `keep.toml` as
       "synthbench workstream (UR-82), ruling 210"; delete `synthbench/spikes/` (ruling 210 amends
       UR-82 for it).
-- [ ] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
+- [x] Strip the gateway image's unused dependencies (torch, transformers, ultralytics, open_clip,
       timm, onnxruntime). Confirm each by import trace; a build-time-only need moves to a build
       stage. **MEASURE** the image size before and after.
-- [ ] Apply the `R2` ruling on OD-17: the Triton `reid`/`threat` models, `/enrich-lt`, and
+- [x] Apply the `R2` ruling on OD-17: the Triton `reid`/`threat` models, `/enrich-lt`, and
       `ai-llm-vllm`. `R2a` ruled it (ruling 89): `ai-llm-vllm` is removed — the service, its `vllm`
       profile and every setting that names it; the re-ID half is `B2.2` (ruling 68); and Triton's
       role is UR-86.
@@ -991,6 +991,13 @@ cut the wall time.
       minutes or less; at most 4. If 4 shards still leave the slowest above that, take 4, name the
       slowest spec files on the PR, and split the longest of them (a golden spec, UR-9).
 - [ ] **Build.** `Feature check (fake AI)` becomes N shard jobs and one fan-in job.
+  - Build fix (af50878ec, from the first ready run's two failures, run 39209710736): the shard
+    jobs' setup-uv carries `ignore-nothing-to-cache: true` — shards 2–4 never invoke uv after the
+    backend-once change, so the action's post step errored on a cache dir that never materialized;
+    and the fan-in's `--list` derivation exports an absolute `FEATURE_CHECK_SCENARIOS` — the
+    repo-relative value died as `frontend/backend/...` under `cd frontend` and
+    event-detail-modal's module-scope constants crashed collection past their own test.skip guard.
+    Both pins carry teeth (test_check_gate_reachability.py).
   - The shard jobs do not run the inventory witness. The fan-in merges the shards'
     `playwright_specs` and `backend_specs` into one fake-mode summary and runs the witness once over
     it, so a row is judged on the union exactly as the single run judges it today.
@@ -1010,5 +1017,8 @@ cut the wall time.
       `strict: true` on `main` (record 6244473689).
 
 **Done when:** CI Gate requires the fan-in; on three consecutive green PR runs the sharded feature
-check finishes, fan-in included, in about 20 minutes or less; the union of legs equals the reference
-set at the same head; and the measured runs show no flaky leg the unsharded runs did not.
+check finishes, fan-in included, in at most 25 minutes, measured from the CI run's start to the
+fan-in job's end (owner answer 6266229360, Q1); the fan-in's code checks set equality both ways —
+it fails on a reference leg missing from the union, a leg of the union not in the reference set,
+and one leg running in two shards, any outcome (owner answer 6266229360, Q2); and the measured
+runs show no flaky leg the unsharded runs did not.
