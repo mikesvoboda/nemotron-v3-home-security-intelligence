@@ -38,11 +38,9 @@ import { openAdminSection } from '../harness';
 const harness = readOpsHarness();
 
 const TOGGLE_IDS = [
-  'vision_extraction_enabled',
   'reid_enabled',
   'scene_change_enabled',
   'clip_generation_enabled',
-  'image_quality_enabled',
   'background_eval_enabled',
 ];
 
@@ -89,7 +87,7 @@ test.describe('golden path: admin settings sections load from the settings API @
     // Loaded render, section by section (the row's named sections):
     const toggles = page.getByTestId('admin-feature-toggles');
     await expect(toggles).toBeVisible();
-    await expect(toggles).toContainText('6/6 enabled'); // DEFAULT_FEATURE_TOGGLES: all true
+    await expect(toggles).toContainText('4/4 enabled'); // DEFAULT_FEATURE_TOGGLES: all true
     for (const id of TOGGLE_IDS) {
       await expect(toggles.getByTestId(`feature-toggle-${id}-switch`)).toBeVisible();
     }

@@ -17799,10 +17799,8 @@
         "example": {
           "background_eval_enabled": true,
           "clip_generation_enabled": true,
-          "image_quality_enabled": true,
           "reid_enabled": true,
-          "scene_change_enabled": true,
-          "vision_extraction_enabled": true
+          "scene_change_enabled": true
         },
         "properties": {
           "background_eval_enabled": {
@@ -17815,11 +17813,6 @@
             "title": "Clip Generation Enabled",
             "type": "boolean"
           },
-          "image_quality_enabled": {
-            "description": "Enable BRISQUE image quality assessment (CPU-based)",
-            "title": "Image Quality Enabled",
-            "type": "boolean"
-          },
           "reid_enabled": {
             "description": "Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras",
             "title": "Reid Enabled",
@@ -17829,19 +17822,12 @@
             "description": "Enable SSIM-based scene change detection",
             "title": "Scene Change Enabled",
             "type": "boolean"
-          },
-          "vision_extraction_enabled": {
-            "description": "Enable Florence-2 vision extraction for vehicle/person attributes",
-            "title": "Vision Extraction Enabled",
-            "type": "boolean"
           }
         },
         "required": [
-          "vision_extraction_enabled",
           "reid_enabled",
           "scene_change_enabled",
           "clip_generation_enabled",
-          "image_quality_enabled",
           "background_eval_enabled"
         ],
         "title": "FeatureSettings",
@@ -17877,18 +17863,6 @@
             "description": "Enable automatic clip generation for events",
             "title": "Clip Generation Enabled"
           },
-          "image_quality_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Enable BRISQUE image quality assessment (CPU-based)",
-            "title": "Image Quality Enabled"
-          },
           "reid_enabled": {
             "anyOf": [
               {
@@ -17912,18 +17886,6 @@
             ],
             "description": "Enable SSIM-based scene change detection",
             "title": "Scene Change Enabled"
-          },
-          "vision_extraction_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Enable Florence-2 vision extraction for vehicle/person attributes",
-            "title": "Vision Extraction Enabled"
           }
         },
         "title": "FeatureSettingsUpdate",
@@ -36242,10 +36204,8 @@
           "features": {
             "background_eval_enabled": true,
             "clip_generation_enabled": true,
-            "image_quality_enabled": true,
             "reid_enabled": true,
-            "scene_change_enabled": true,
-            "vision_extraction_enabled": true
+            "scene_change_enabled": true
           },
           "queue": {
             "backpressure_threshold": 0.8,

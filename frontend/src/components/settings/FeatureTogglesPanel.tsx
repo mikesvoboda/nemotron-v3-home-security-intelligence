@@ -12,9 +12,7 @@ import { Card, Title, Text } from '@tremor/react';
 import { clsx } from 'clsx';
 import {
   AlertCircle,
-  Eye,
   Fingerprint,
-  Image,
   Loader2,
   RefreshCw,
   Sparkles,
@@ -47,12 +45,6 @@ interface FeatureToggleConfig {
  */
 const FEATURE_TOGGLE_CONFIGS: FeatureToggleConfig[] = [
   {
-    id: 'vision_extraction_enabled',
-    label: 'Vision Extraction',
-    description: 'Enable Florence-2 vision extraction for vehicle and person attributes',
-    icon: Eye,
-  },
-  {
     id: 'reid_enabled',
     label: 'Re-ID Tracking',
     description: 'Enable CLIP re-identification for tracking entities across cameras',
@@ -69,12 +61,6 @@ const FEATURE_TOGGLE_CONFIGS: FeatureToggleConfig[] = [
     label: 'Clip Generation',
     description: 'Enable automatic video clip generation for security events',
     icon: Video,
-  },
-  {
-    id: 'image_quality_enabled',
-    label: 'Image Quality Assessment',
-    description: 'Enable BRISQUE image quality assessment (CPU-based)',
-    icon: Image,
   },
   {
     id: 'background_eval_enabled',

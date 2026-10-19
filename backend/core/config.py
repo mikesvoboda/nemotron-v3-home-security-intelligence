@@ -1558,17 +1558,7 @@ class Settings(BaseSettings):
                 f"Example: 'http://localhost:8090/florence'. Error: {e}"
             ) from None
 
-    # Vision extraction settings (Florence-2, OSNet re-id, scene analysis)
-    vision_extraction_enabled: bool = Field(
-        default=True,
-        description="Enable Florence-2 vision extraction for vehicle/person attributes",
-    )
-
-    image_quality_enabled: bool = Field(
-        default=True,
-        description="Enable BRISQUE image quality assessment (CPU-based). "
-        "Provides quality scores to help identify blurry, noisy, or degraded images.",
-    )
+    # Vision extraction settings (OSNet re-id, scene analysis)
     reid_enabled: bool = Field(
         default=True,
         description="Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking "
