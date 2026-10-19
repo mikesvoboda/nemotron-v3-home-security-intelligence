@@ -36,7 +36,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
 | Batch | PRs | Items | Refuted | Comment |
 | ----- | --- | ----- | ------- | ------- |
-| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (2 re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — 3 items moved off this batch, see below) | 0 (16/16 survived incl. Q-000) | batch-1 comment on #7265 |
+| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below) | 0 (16/16 survived incl. Q-000) | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180) |
 
 ## Batch 1 — per-PR verdicts
 
@@ -55,8 +55,68 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
 ## Items
 
-Batch 1. Every item below was verified at the pinned SHA before entering the sheet; the
-refutation pass (ruling 232) runs next and the batch records how many it dropped.
+Batch 1. Every item was verified at the pinned SHA before entering the sheet, and the refutation
+pass (ruling 232) is complete: 16/16 verdicts in, none refuted; three items found while auditing
+batch 1 were re-attributed by mover-owns to their first movers (Q-012 → #7230 batch 4; Q-014 +
+Q-015 → #6936 batch 2 — full sections below, they rule with those batches). Per the owner's
+continue (comment 6266204180): the low items and Q-000 rule from the compact table, with their
+quoted lines and proof in the collapsed block under it; Q-001 (high) keeps the full template.
+Owner decisions may arrive in bulk and are written into the rows.
+
+| id | class | path:line | PR | wrong (one line) | fix (size, lane) | owner |
+| -- | ----- | --------- | -- | ---------------- | ---------------- | ----- |
+| Q-000 | drift | docs/architecture/system-overview/configuration.md:281, docs/deployment/container-orchestration.md:526, docs/operator/service-control.md:464 | owner note (6266183856) | `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` still documented in three env-var tables, but #7244 (merge 09e67114c) deleted `OrchestratorSettings.max_consecutive_failures` and `.env.example` lost its line (e630d4784) | delete the three rows. Size S; docs | (pending) |
+| Q-002 | drift | docker-compose.ci.yml:190 | #6862 | the ci.yml comment cites `docker-compose.prod.yml:902` for the read-only-rootfs NOTE, but the NOTE sits at `:950-951` at the pin (`:902` is a disabled `cpus: '0.25'` line) | update the cite to `docker-compose.prod.yml:950`. Size S; ops | (pending) |
+| Q-003 | claim | monitoring/ai-pipeline-alerts.yml:20 | #6868 | the rewritten header says "the five this file alerts on" but the file alerts on only four — no expression matches `vlm_circuit_open` (recorded at vlm_client.py:927, never alerted on) | drop `vlm_circuit_open` from the list, or reword to say the file covers circuit-open only through the degraded-gauge proxy. Size S; ops | (pending) |
+| Q-004 | test | backend/tests/unit/services/test_verdict_engine_status.py:159 | #6886 | the only test named for emit-failure containment cannot fail against removal of the swallowing `try/except` — the mocked RuntimeError surfaces only in an orphan task, so the docstring's "swallowed by design" clause is unpinned (mutation-proven by the refuter) | make the swallow observable — capture/gather the scheduled task and assert it completes without exception, or assert the structured "Failed to emit verdict-engine status event" log record. Size S; backend | (pending) |
+| Q-005 | drift | docker-compose.prod.yml:573 | #6862 | the backend's vlm_assess comment still calls ai-vlm "the profiled ai-vlm service", but the same PR deleted the `vlm` profile from ai-vlm — no ai-vlm profile exists at the pin and the default `up` starts it | drop "profiled" from the comment ("the default ai-vlm service"). Size S; ops | (pending) |
+| Q-006 | drift | monitoring/prometheus_rules.yml:4 | #6868 (mover-owns) | the prometheus-rules header cites `docker-compose.prod.yml:1017` for the bind-mount line, but at the pin the mount sits at `:1098` (`:1017` is a frontend healthcheck URL); cite true at #6862's merge, first broken by #6868 | update the cite to `docker-compose.prod.yml:1098`. Size S; ops | (pending) |
+| Q-007 | claim | frontend/src/hooks/useVerdictEngineStatus.ts:44 | #6909 | the `enabled` option's docstring claims it controls the WebSocket connection, but `enabled=false` still opens the /ws/system socket — only the reconnect flag and the readiness poll are gated | skip the useWebSocket subscription when enabled is false, or reword the docstring to say enabled gates reconnection and polling. Size S; frontend | (pending) |
+| Q-008 | claim | backend/tests/unit/core/test_nginx_credential_forwarding.py:3 | #6922 | the docstring asserts B1.5's gate "reads exactly two client credentials on the proxied path", but at the pin the gate reads five credential kinds, all arriving on the proxied path (false even at its own cited baseline e9ec74ef) | rewrite :3-4 to the pin's credential set, or scope the sentence to the credential nginx forwarding is pinned for and state the gate reads others (the :87 message may stay, scoped to its HTTP test). Size S; backend | (pending) |
+| Q-009 | claim | backend/tests/security/test_docker_compose_security.py:401 | #6922 | three present-tense ai-llm census prose claims are false at the pin: the tracked set greps 7 matching lines (not "two"), the live key sits at `prod.yml:305` (not `:283`), and `prodshape.yml:164` also carries the exact key | update :400-403, :559-566 and :580 to the pin counts and coordinates, or reword to state the parsed-key rule without pinning a volatile count and line number. Size S; backend | (pending) |
+| Q-010 | claim | frontend/src/services/api.auth-seam.test.ts:20 | #6922 | the fixture comment cites the gate's 401 body as `backend/api/middleware/auth.py:405-408` with no dating frame, but at the pin that span is the WebSocket subprotocol extraction and the JSON refusal body sits at `:692-696` (body text itself still exact) | repoint the cite to auth.py:692-696, or drop the line numbers and name the refusal body. Size S; frontend | (pending) |
+| Q-011 | claim | frontend/src/services/api.ts:2928 | #6922 | nine comment blocks assert media/snapshot/detection endpoints are "exempt from API key authentication in the backend middleware", but OPEN_PATHS holds none of those paths — under EXPOSE_LAN they are gated and work via the same-origin session cookie | rewrite the nine sites to the pin behaviour, plus the six backend route-docstring sites carrying the same claim (detections.py :170/:644/:1221/:1399/:1546, cameras.py :1075) found by the refuter. Size S; frontend + backend | (pending) |
+| Q-013 | claim | frontend/src/contexts/AuthContext.test.tsx:356 | #6922 | two inline cites give pin-stale coordinates for claims whose substance is still true — logout cited at AuthContext.tsx:175-178 (pin: :217-221) and the assignment at :152 (pin: :194, now the setupRequired-guarded form) | repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update the :361 quote to the guarded form the pin ships. Size S; frontend | (pending) |
+
+### Q-001 · bug · high · frontend/src/hooks/useServiceStatus.ts:80 · #6913
+- Wrong: the hook's service-name allowlist drops every `service_status` broadcast except
+  `redis`/`rtdetr`/`nemotron`, but at this pin the monitor broadcasts `yolo26` (the only
+  probe it runs) and orchestrator container names (`ai-vlm`, `ai-gateway`, `go2rtc`, …) —
+  so the UI never sees the detector's health, and the `rtdetr`/`nemotron` slots can never
+  populate.
+- Evidence: `frontend/src/hooks/useServiceStatus.ts:80` at the pin reads
+  `const SERVICE_NAMES: ServiceName[] = ['redis', 'rtdetr', 'nemotron'];` and
+  `:91-93` `function isServiceName(value: unknown): value is ServiceName { return typeof
+  value === 'string' && SERVICE_NAMES.includes(value as ServiceName); }`. The only
+  monitor probe is `backend/main.py:727-735` `return [ ServiceConfig( name="yolo26", …`
+  (block spans :727-735; refuter's precision correction), plus two emitters the
+  original read missed — `backend/services/worker_supervisor.py:750` broadcasts
+  `service="worker:<name>"` and `backend/services/websocket_emitter.py:461`
+  forwards SERVICE_STATUS_CHANGED payloads through the same guard — and the
+  container broadcasts' status values (running/stopped/disabled) are also
+  rejected by the hook's `isServiceStatusType` (`:98-107`), so a scope fix
+  touches both lists. Refuted=false; refuter found no escape path (zero
+  backend-wide `rtdetr` occurrences at the pin; no emitter ever satisfies the
+  allowlist).
+  (one probe; the R8 comment at `:724-726` records nemotron's retirement). The monitor
+  broadcasts `{"service": service.name}` (`backend/services/health_monitor.py:353-361`);
+  `backend/services/event_broadcaster.py:841` `broadcast_service_status` publishes it
+  (schema `backend/api/schemas/websocket.py:402-412` accepts any `service: str`).
+  `backend/services/container_orchestrator.py:222-241` `_broadcast_status` broadcasts
+  container names. Consumers: `frontend/src/components/layout/Layout.tsx:37,157`
+  (`useServiceStatus` → `ServiceStatusAlert`), `frontend/src/components/system/
+  ServicesPanel.tsx:363,662` (`hasUnhealthy` → panel badge). Provenance: the guard was
+  born 2025-12-26 (c790a3781); rtdetr→yolo26 renamed 2026-01-26 (ed218ca76, #4442);
+  nemotron monitoring retired 2026-09-28 (b3fe4dad4) — all pre-window. #6913 is the only
+  census PR whose kept files include the hook; its own edit to the file is formatting
+  (prettier reflow), not the guard. Item attaches as a pre-existing bug on a kept file.
+- Fix: update `SERVICE_NAMES` (or widen the guard) to the broadcast population — replace
+  `rtdetr` with `yolo26`, drop `nemotron`, and decide whether container-name statuses are
+  in scope; sync the alert's label map. Size M; owner: frontend.
+- Owner: (pending)
+
+<details>
+<summary>Batch-1 low-item evidence — quoted lines, proof, refutation verdicts (Q-000, Q-002…Q-011, Q-013)</summary>
 
 ### Q-000 · drift · low · three docs paths (owner-seeded) · owner note, not a census PR
 - Provenance: seeded by the owner (comment 6266183856 on #7265, 2026-10-19T11:30Z) with the
@@ -112,43 +172,6 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   correct one). (3) Deleting the service-control row removes that file's only
   CATEGORY_DEFAULTS mention; acceptable as written since container-orchestration.md
   documents the same defaults in a dedicated section. Fix stands as written.
-
-### Q-001 · bug · high · frontend/src/hooks/useServiceStatus.ts:80 · #6913
-- Wrong: the hook's service-name allowlist drops every `service_status` broadcast except
-  `redis`/`rtdetr`/`nemotron`, but at this pin the monitor broadcasts `yolo26` (the only
-  probe it runs) and orchestrator container names (`ai-vlm`, `ai-gateway`, `go2rtc`, …) —
-  so the UI never sees the detector's health, and the `rtdetr`/`nemotron` slots can never
-  populate.
-- Evidence: `frontend/src/hooks/useServiceStatus.ts:80` at the pin reads
-  `const SERVICE_NAMES: ServiceName[] = ['redis', 'rtdetr', 'nemotron'];` and
-  `:91-93` `function isServiceName(value: unknown): value is ServiceName { return typeof
-  value === 'string' && SERVICE_NAMES.includes(value as ServiceName); }`. The only
-  monitor probe is `backend/main.py:727-735` `return [ ServiceConfig( name="yolo26", …`
-  (block spans :727-735; refuter's precision correction), plus two emitters the
-  original read missed — `backend/services/worker_supervisor.py:750` broadcasts
-  `service="worker:<name>"` and `backend/services/websocket_emitter.py:461`
-  forwards SERVICE_STATUS_CHANGED payloads through the same guard — and the
-  container broadcasts' status values (running/stopped/disabled) are also
-  rejected by the hook's `isServiceStatusType` (`:98-107`), so a scope fix
-  touches both lists. Refuted=false; refuter found no escape path (zero
-  backend-wide `rtdetr` occurrences at the pin; no emitter ever satisfies the
-  allowlist).
-  (one probe; the R8 comment at `:724-726` records nemotron's retirement). The monitor
-  broadcasts `{"service": service.name}` (`backend/services/health_monitor.py:353-361`);
-  `backend/services/event_broadcaster.py:841` `broadcast_service_status` publishes it
-  (schema `backend/api/schemas/websocket.py:402-412` accepts any `service: str`).
-  `backend/services/container_orchestrator.py:222-241` `_broadcast_status` broadcasts
-  container names. Consumers: `frontend/src/components/layout/Layout.tsx:37,157`
-  (`useServiceStatus` → `ServiceStatusAlert`), `frontend/src/components/system/
-  ServicesPanel.tsx:363,662` (`hasUnhealthy` → panel badge). Provenance: the guard was
-  born 2025-12-26 (c790a3781); rtdetr→yolo26 renamed 2026-01-26 (ed218ca76, #4442);
-  nemotron monitoring retired 2026-09-28 (b3fe4dad4) — all pre-window. #6913 is the only
-  census PR whose kept files include the hook; its own edit to the file is formatting
-  (prettier reflow), not the guard. Item attaches as a pre-existing bug on a kept file.
-- Fix: update `SERVICE_NAMES` (or widen the guard) to the broadcast population — replace
-  `rtdetr` with `yolo26`, drop `nemotron`, and decide whether container-name statuses are
-  in scope; sync the alert's label map. Size M; owner: frontend.
-- Owner: (pending)
 
 ### Q-002 · drift · low · docker-compose.ci.yml:190 · #6862
 - Wrong: the ci.yml comment cites `docker-compose.prod.yml:902` for the read-only-rootfs
@@ -466,6 +489,42 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   :1546) and `backend/api/routes/cameras.py` (:1075) — so the fix spans frontend and
   backend (owners: frontend + backend).
 
+### Q-013 · claim · low · frontend/src/contexts/AuthContext.test.tsx:356 · #6922
+- Wrong: two inline cites give pin-stale coordinates for claims whose substance is still
+  true. `:356` "Shipped logout (AuthContext.tsx:175-178) POSTs /api/auth/logout and then only
+  invalidateQueries(CURRENT_USER_KEY)" — at the pin `:175-178` is the tail of the 401-seam
+  useEffect and a loading-state comment; the logout callback lives at `:217-221`. `:361`
+  "user = currentUser ?? null (AuthContext.tsx:152)" — at the pin `:152` is an "F1.3 Done
+  when" comment line; the assignment is at `:194` and now reads
+  `setupRequired ? null : (currentUser ?? null)`. The present-tense framing tells the reader
+  these lines hold the code, and they don't.
+- Evidence: pin cites match the pre-PR layout: at e9ec74ef, AuthContext.tsx:175-178 IS the
+  logout block and :152 IS the assignment. Pin AuthContext.tsx: `:173-175` seam useEffect
+  tail, `:194` the guarded assignment, `:217-221` the logout callback. Both files
+  blob-identical merge→pin (7eaa705632d0… / b0c32aa52d97…), and AuthContext.tsx already had
+  logout at :217 at e0cd9333 — the cites were stale in the PR's own content.
+- Fix: repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update
+  the :361 quote to the setupRequired-guarded form the pin ships. Size S; owner: frontend.
+- Owner: (pending)
+- Refuted=false. Refuter verified both cites verbatim with present-tense framing; the pin
+  coordinates exactly as itemized (:175-178 seam tail + comment, :152 "F1.3 Done when",
+  logout callback :217-221, guarded assignment :194); and substance still true (logoutApi
+  at services/authApi.ts:243-249 POSTs /api/auth/logout, only cache action is
+  invalidateQueries(CURRENT_USER_KEY); the quoted "user = currentUser ?? null" holds in
+  the operative branch, where the guarded line reduces exactly to that form). Mechanism
+  sharpened: the test blob was unchanged e9ec74ef→e0cd9333 (9b602fa6) and only became
+  7eaa7056 at merge, while AuthContext.tsx moved (7bfedf84→b0c32aa5) already in PR-branch
+  commits — the PR relocated the code without touching the test comment, so the cites
+  were stale in the PR's own content at merge, not drifted later. Nuance: the
+  setupRequired guard predates #6922 (:152 at e9ec74ef already reads the guarded form),
+  so the comment's quote was never a verbatim match of the cited line — a branch-local
+  simplification — and the item's fix (repoint + update the quote) already covers it.
+
+
+</details>
+
+### Found in batch 1, re-attributed by mover-owns (rule with the re-attributed batch)
+
 ### Q-012 · claim · low · frontend/src/__tests__/api-endpoint-contract.test.ts:241 · re-attributed #6922 → **#7230 (batch 4)**
 - Wrong: the comment's present-tense measurement is false against the file's own adjacent
   snapshot: "Measured now: 24 entries over 24 distinct positions, i.e. no position is
@@ -499,37 +558,6 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   already inconsistent at merge too; no later PR fixed it (pickaxe -S 'Measured now' over
   70c5d96ae..pin empty); the executable assertion derives the length at runtime and the
   inline snapshot pins 23 entries, so the test is green — prose-only.
-
-### Q-013 · claim · low · frontend/src/contexts/AuthContext.test.tsx:356 · #6922
-- Wrong: two inline cites give pin-stale coordinates for claims whose substance is still
-  true. `:356` "Shipped logout (AuthContext.tsx:175-178) POSTs /api/auth/logout and then only
-  invalidateQueries(CURRENT_USER_KEY)" — at the pin `:175-178` is the tail of the 401-seam
-  useEffect and a loading-state comment; the logout callback lives at `:217-221`. `:361`
-  "user = currentUser ?? null (AuthContext.tsx:152)" — at the pin `:152` is an "F1.3 Done
-  when" comment line; the assignment is at `:194` and now reads
-  `setupRequired ? null : (currentUser ?? null)`. The present-tense framing tells the reader
-  these lines hold the code, and they don't.
-- Evidence: pin cites match the pre-PR layout: at e9ec74ef, AuthContext.tsx:175-178 IS the
-  logout block and :152 IS the assignment. Pin AuthContext.tsx: `:173-175` seam useEffect
-  tail, `:194` the guarded assignment, `:217-221` the logout callback. Both files
-  blob-identical merge→pin (7eaa705632d0… / b0c32aa52d97…), and AuthContext.tsx already had
-  logout at :217 at e0cd9333 — the cites were stale in the PR's own content.
-- Fix: repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update
-  the :361 quote to the setupRequired-guarded form the pin ships. Size S; owner: frontend.
-- Owner: (pending)
-- Refuted=false. Refuter verified both cites verbatim with present-tense framing; the pin
-  coordinates exactly as itemized (:175-178 seam tail + comment, :152 "F1.3 Done when",
-  logout callback :217-221, guarded assignment :194); and substance still true (logoutApi
-  at services/authApi.ts:243-249 POSTs /api/auth/logout, only cache action is
-  invalidateQueries(CURRENT_USER_KEY); the quoted "user = currentUser ?? null" holds in
-  the operative branch, where the guarded line reduces exactly to that form). Mechanism
-  sharpened: the test blob was unchanged e9ec74ef→e0cd9333 (9b602fa6) and only became
-  7eaa7056 at merge, while AuthContext.tsx moved (7bfedf84→b0c32aa5) already in PR-branch
-  commits — the PR relocated the code without touching the test comment, so the cites
-  were stale in the PR's own content at merge, not drifted later. Nuance: the
-  setupRequired guard predates #6922 (:152 at e9ec74ef already reads the guarded form),
-  so the comment's quote was never a verbatim match of the cited line — a branch-local
-  simplification — and the item's fix (repoint + update the quote) already covers it.
 
 ### Q-014 · claim · low · frontend/src/hooks/useSummaries.ts:150 · #6922
 - Wrong: the comment claims buildWebSocketOptions "attaches the optional api-key subprotocol",
@@ -667,3 +695,4 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   #6862's own merge (its diff renumbered the example `:154`→`:284` to stay
   true) and unchanged through #6950; first moved by #7114 (`:284` →
   `device_ids:`), then #7222. Attaches to #7114's batch.
+
