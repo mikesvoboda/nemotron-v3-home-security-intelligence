@@ -684,6 +684,8 @@ class TestSecureCookieLoginLoopWarning:
         assert "Action Recognition" not in ai_titles
         assert "Florence-2 Vision-Language Model" not in ai_titles
 
-        vid_dash = json.loads(Path("monitoring/grafana/dashboards/video-analytics.json").read_text())
+        vid_dash = json.loads(
+            Path("monitoring/grafana/dashboards/video-analytics.json").read_text()
+        )
         vid_titles = {p.get("title") for p in vid_dash.get("panels", [])}
         assert "Action Recognition" not in vid_titles
