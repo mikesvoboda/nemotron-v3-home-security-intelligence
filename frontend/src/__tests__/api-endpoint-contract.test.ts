@@ -256,9 +256,9 @@ describe('endpoint contract (D2)', () => {
       "src/hooks/useZoneHouseholdConfig.ts:231  built at runtime: url.toString()
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
-      src/services/api.ts:1537  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:1609  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3271  built at runtime: isVideo
+      src/services/api.ts:1508  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:1580  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:3242  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/errorReporting.ts:113  built at runtime: config.endpoint
