@@ -722,9 +722,12 @@ declares the `ai/` entry points first, so `ai/gateway/export/` stays; `synthbenc
 `c6c5f3d7d`, the cut commit `9a88f97f2`): 136 production files / 37,516 lines and 113 test files /
 48,661 lines by import resolution — the 137th production file the package's first body reported is
 the row below, which the cut deleted and the R8/S5 retirement guard ordered back. At the PR's head
-`reachableFiles` finds 706 of 713 production files reachable, and the 10 left (8 complete-claimed,
-1 unruled, 1 hold below) are held by a ruling, not by reachability — which is why the table below
-holds one row.
+(after the rebases: `reachableFiles` finds 702 of 709 production files reachable; the cut's drift
+had left `types/queue.ts` unreachable too once its three importing modules went with the census,
+and this PR's follow-up commit deletes it with its own test, per the package contract) the 10 left
+— nine claimed by rows (the eight `knip.json` ignore entries, plus
+`WorkerActionConfirmDialog.tsx` claimed by F-143) and the one hold below — are held by a ruling,
+not by reachability, which is why the table below holds one row.
 
 The list was the 136 production files under `frontend/src/` that `src/main.tsx` cannot reach
 (37,583 lines), minus the files a row claims. The same set is
@@ -963,41 +966,41 @@ grew `useFaceRecognitionApi.ts` by 13 lines under a row this document had alread
 | `GET /api/tracks/{}` | `useTrack` | `frontend/src/hooks/useTracks.ts` | line 423; knip --production: unused export |
 | `GET /api/action-events/{}` | `fetchActionEvent` | `frontend/src/services/actionEventsApi.ts` | line 243; knip --production: unused export |
 | `GET /api/action-events/camera/{}` | `fetchActionEventsForCamera` | `frontend/src/services/actionEventsApi.ts` | line 277; knip --production: unused export |
-| `GET /api/cameras/validation/paths` | `fetchCameraPathValidation` | `frontend/src/services/api.ts` | line 1481; knip --production: unused export |
-| `GET /api/system/stats` | `fetchStats` | `frontend/src/services/api.ts` | line 2089; knip --production: unused export |
-| `GET /api/queues/status` | `fetchQueuesStatus` | `frontend/src/services/api.ts` | line 2214; knip --production: unused export |
-| `GET /api/system/websocket/events` | `fetchWebSocketEventTypes` | `frontend/src/services/api.ts` | line 2239; knip --production: unused export |
-| `GET /api/events/clusters` | `fetchEventClusters` | `frontend/src/services/api.ts` | line 2338; knip --production: unused export |
-| `GET /api/detections` | `fetchDetections` | `frontend/src/services/api.ts` | line 2674; knip --production: unused export |
-| `GET /api/detections/search` | `searchDetections` | `frontend/src/services/api.ts` | line 2727; knip --production: unused export |
-| `GET /api/detections/{}` | `fetchDetection` | `frontend/src/services/api.ts` | line 2768; knip --production: unused export |
-| `POST /api/detections/bulk` | `bulkCreateDetections` | `frontend/src/services/api.ts` | line 2813; knip --production: unused export |
-| `PATCH /api/detections/bulk` | `bulkUpdateDetections` | `frontend/src/services/api.ts` | line 2841; knip --production: unused export |
-| `DELETE /api/detections/bulk` | `bulkDeleteDetections` | `frontend/src/services/api.ts` | line 2871; knip --production: unused export |
-| `GET /api/events/analyze/{}/stream` | `createAnalysisStream` | `frontend/src/services/api.ts` | line 2935; knip --production: unused export |
-| `POST /api/dlq/requeue/{}` | `requeueDlqJob` | `frontend/src/services/api.ts` | line 3353; knip --production: unused export |
-| `GET /api/events/export` | `exportEventsCSV` | `frontend/src/services/api.ts` | line 3409; knip --production: unused export |
-| `GET /api/exports/{}/download/info` | `getExportDownloadInfo` | `frontend/src/services/api.ts` | line 3621; knip --production: unused export |
-| `GET /api/jobs/{}/detail` | `fetchJobDetail` | `frontend/src/services/api.ts` | line 3973; knip --production: unused export |
-| `PATCH /api/notification/config` | `updateNotificationConfig` | `frontend/src/services/api.ts` | line 4125; knip --production: unused export |
-| `GET /api/notification-preferences/cameras/{}` | `fetchCameraNotificationSetting` | `frontend/src/services/api.ts` | line 4264; knip --production: unused export |
-| `GET /api/audit/{}` | `fetchAuditLog` | `frontend/src/services/api.ts` | line 4425; knip --production: unused export |
-| `GET /api/alerts/rules/{}` | `fetchAlertRule` | `frontend/src/services/api.ts` | line 4481; knip --production: unused export |
-| `GET /api/ai-audit/leaderboard` | `fetchModelLeaderboard` | `frontend/src/services/api.ts` | line 4755; its only caller is `AIAuditDashboard`, which nothing mounts (`node scripts/feature-inventory-callers.mjs src/services/api.ts fetchModelLeaderboard` → `AIAuditDashboard` → NOT MOUNTED). Latent at base: an unreachable duplicate client (`services/aiAuditApi.ts`, knip-unused, deleted by F3.2) claimed the same path, and the contract scan keeps one claim per path, so the dead one masked this one. |
-| `GET /api/prompts/history/{}` | `fetchModelHistory` | `frontend/src/services/api.ts` | line 5480; knip --production: unused export |
-| `POST /api/prompts/history/{}` | `restorePromptVersion` | `frontend/src/services/api.ts` | line 5499; knip --production: unused export |
-| `GET /api/entities` | `fetchTrackedEntities` | `frontend/src/services/api.ts` | line 6238; knip --production: unused export |
-| `GET /api/entities/trusted` | `fetchTrustedEntities` | `frontend/src/services/api.ts` | line 6748; knip --production: unused export |
-| `GET /api/entities/untrusted` | `fetchUntrustedEntities` | `frontend/src/services/api.ts` | line 6786; knip --production: unused export |
-| `GET /api/analytics/camera-activity` | `fetchCameraActivity` | `frontend/src/services/api.ts` | line 7137; knip --production: unused export |
-| `GET /api/summaries/entities` | `fetchEntityRecognitionStats` | `frontend/src/services/api.ts` | line 7982; knip --production: unused export |
-| `GET /api/v1/households/{}` | `fetchHousehold` | `frontend/src/services/api.ts` | line 8201; knip --production: unused export |
-| `GET /api/v1/properties/{}` | `fetchProperty` | `frontend/src/services/api.ts` | line 8264; knip --production: unused export |
-| `GET /api/v1/areas/{}` | `fetchArea` | `frontend/src/services/api.ts` | line 8326; knip --production: unused export |
-| `GET /api/logs/stats` | `fetchLogStats` | `frontend/src/services/api.ts` | line 8824; knip --production: unused export |
-| `GET /api/logs` | `fetchLogs` | `frontend/src/services/api.ts` | line 8860; knip --production: unused export |
-| `GET /api/reid/similar/{}` | `fetchReidSimilar` | `frontend/src/services/api.ts` | line 8970; knip --production: unused export |
-| `GET /api/summaries/trends` | `fetchTrends` | `frontend/src/services/api.ts` | line 9164; knip --production: unused export |
+| `GET /api/cameras/validation/paths` | `fetchCameraPathValidation` | `frontend/src/services/api.ts` | line 1452; knip --production: unused export |
+| `GET /api/system/stats` | `fetchStats` | `frontend/src/services/api.ts` | line 2060; knip --production: unused export |
+| `GET /api/queues/status` | `fetchQueuesStatus` | `frontend/src/services/api.ts` | line 2185; knip --production: unused export |
+| `GET /api/system/websocket/events` | `fetchWebSocketEventTypes` | `frontend/src/services/api.ts` | line 2210; knip --production: unused export |
+| `GET /api/events/clusters` | `fetchEventClusters` | `frontend/src/services/api.ts` | line 2309; knip --production: unused export |
+| `GET /api/detections` | `fetchDetections` | `frontend/src/services/api.ts` | line 2643; knip --production: unused export |
+| `GET /api/detections/search` | `searchDetections` | `frontend/src/services/api.ts` | line 2696; knip --production: unused export |
+| `GET /api/detections/{}` | `fetchDetection` | `frontend/src/services/api.ts` | line 2737; knip --production: unused export |
+| `POST /api/detections/bulk` | `bulkCreateDetections` | `frontend/src/services/api.ts` | line 2782; knip --production: unused export |
+| `PATCH /api/detections/bulk` | `bulkUpdateDetections` | `frontend/src/services/api.ts` | line 2810; knip --production: unused export |
+| `DELETE /api/detections/bulk` | `bulkDeleteDetections` | `frontend/src/services/api.ts` | line 2840; knip --production: unused export |
+| `GET /api/events/analyze/{}/stream` | `createAnalysisStream` | `frontend/src/services/api.ts` | line 2904; knip --production: unused export |
+| `POST /api/dlq/requeue/{}` | `requeueDlqJob` | `frontend/src/services/api.ts` | line 3322; knip --production: unused export |
+| `GET /api/events/export` | `exportEventsCSV` | `frontend/src/services/api.ts` | line 3378; knip --production: unused export |
+| `GET /api/exports/{}/download/info` | `getExportDownloadInfo` | `frontend/src/services/api.ts` | line 3590; knip --production: unused export |
+| `GET /api/jobs/{}/detail` | `fetchJobDetail` | `frontend/src/services/api.ts` | line 3942; knip --production: unused export |
+| `PATCH /api/notification/config` | `updateNotificationConfig` | `frontend/src/services/api.ts` | line 4094; knip --production: unused export |
+| `GET /api/notification-preferences/cameras/{}` | `fetchCameraNotificationSetting` | `frontend/src/services/api.ts` | line 4233; knip --production: unused export |
+| `GET /api/audit/{}` | `fetchAuditLog` | `frontend/src/services/api.ts` | line 4394; knip --production: unused export |
+| `GET /api/alerts/rules/{}` | `fetchAlertRule` | `frontend/src/services/api.ts` | line 4450; knip --production: unused export |
+| `GET /api/ai-audit/leaderboard` | `fetchModelLeaderboard` | `frontend/src/services/api.ts` | line 4724; its only caller is `AIAuditDashboard`, which nothing mounts (`node scripts/feature-inventory-callers.mjs src/services/api.ts fetchModelLeaderboard` → `AIAuditDashboard` → NOT MOUNTED). Latent at base: an unreachable duplicate client (`services/aiAuditApi.ts`, knip-unused, deleted by F3.2) claimed the same path, and the contract scan keeps one claim per path, so the dead one masked this one. |
+| `GET /api/prompts/history/{}` | `fetchModelHistory` | `frontend/src/services/api.ts` | line 5449; knip --production: unused export |
+| `POST /api/prompts/history/{}` | `restorePromptVersion` | `frontend/src/services/api.ts` | line 5468; knip --production: unused export |
+| `GET /api/entities` | `fetchTrackedEntities` | `frontend/src/services/api.ts` | line 6207; knip --production: unused export |
+| `GET /api/entities/trusted` | `fetchTrustedEntities` | `frontend/src/services/api.ts` | line 6717; knip --production: unused export |
+| `GET /api/entities/untrusted` | `fetchUntrustedEntities` | `frontend/src/services/api.ts` | line 6755; knip --production: unused export |
+| `GET /api/analytics/camera-activity` | `fetchCameraActivity` | `frontend/src/services/api.ts` | line 7106; knip --production: unused export |
+| `GET /api/summaries/entities` | `fetchEntityRecognitionStats` | `frontend/src/services/api.ts` | line 7951; knip --production: unused export |
+| `GET /api/v1/households/{}` | `fetchHousehold` | `frontend/src/services/api.ts` | line 8170; knip --production: unused export |
+| `GET /api/v1/properties/{}` | `fetchProperty` | `frontend/src/services/api.ts` | line 8233; knip --production: unused export |
+| `GET /api/v1/areas/{}` | `fetchArea` | `frontend/src/services/api.ts` | line 8295; knip --production: unused export |
+| `GET /api/logs/stats` | `fetchLogStats` | `frontend/src/services/api.ts` | line 8793; knip --production: unused export |
+| `GET /api/logs` | `fetchLogs` | `frontend/src/services/api.ts` | line 8829; knip --production: unused export |
+| `GET /api/reid/similar/{}` | `fetchReidSimilar` | `frontend/src/services/api.ts` | line 8939; knip --production: unused export |
+| `GET /api/summaries/trends` | `fetchTrends` | `frontend/src/services/api.ts` | line 9133; knip --production: unused export |
 | `GET /api/llm-reasoning/events/{}/prompt` | `fetchLLMPromptDebug` | `frontend/src/services/llmReasoningApi.ts` | line 275; knip --production: unused export |
 | `GET /api/system/monitoring/targets` | `fetchMonitoringTargets` | `frontend/src/services/monitoringApi.ts` | line 73; knip --production: unused export |
 | `GET /api/plate-reads/{}` | `fetchPlateReadById` | `frontend/src/services/plateReadsApi.ts` | line 203; knip --production: unused export |
