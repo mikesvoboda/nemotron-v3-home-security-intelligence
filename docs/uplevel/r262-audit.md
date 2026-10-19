@@ -369,7 +369,24 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   the middleware gates them under EXPOSE_LAN and the browser's same-origin session cookie
   authenticates img/video tag loads. Size S; owner: frontend.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false. Refuter verified every leg at the pin: the nine sites sit at exactly the
+  cited lines with :2928-2940 verbatim; `auth.py:56-68` OPEN_PATHS holds only
+  health/auth paths; `__call__` (:660-670) refuses any non-OPEN, non-preflight request
+  without a valid credential (HTTP refusal 401 at :693); no alternative exemption exists
+  (no decorator, per-route guard, router dependencies, or dependency_overrides). The
+  "stale wording, not a broken feature" judgment holds: `authenticated_principal`
+  (:607-611) is transport-agnostic and accepts the session cookie on HTTP GET
+  (httponly/SameSite=lax rides same-origin img/video loads), and #6922's own run-1
+  evidence confirms media rendered after login. Escape (b) rejected decisively: the
+  comment enumerates the paths as the middleware's exempt set, and unscoped API keys are
+  in fact accepted on gated paths by the middleware — false under both readings. The PR
+  body's disclosure confirms rather than refutes (not in ruling 262's exclusion list).
+  Freshness: 5 commits touch api.ts merge→pin, none touch an `exempt` line; the comments
+  pre-date the PR (present in both merge parents). Corrections: OPEN_PATHS spans :56-68
+  (not :56-67); and the same stale claim also lives in backend route docstrings the
+  item's fix must cover — `backend/api/routes/detections.py` (:170, :644, :1221, :1399,
+  :1546) and `backend/api/routes/cameras.py` (:1075) — so the fix spans frontend and
+  backend (owners: frontend + backend).
 
 ### Q-012 · claim · low · frontend/src/__tests__/api-endpoint-contract.test.ts:241 · #6922
 - Wrong: the comment's present-tense measurement is false against the file's own adjacent
