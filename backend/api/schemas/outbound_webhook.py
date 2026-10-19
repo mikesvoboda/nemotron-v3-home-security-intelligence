@@ -12,13 +12,9 @@ Webhook Event Types:
     - alert_dismissed: Alert was dismissed
     - alert_acknowledged: Alert was acknowledged
     - event_created: Security event was created
-    - event_enriched: Event was enriched with AI analysis
     - entity_discovered: New entity was discovered
     - anomaly_detected: Anomaly was detected
     - system_health_changed: System health status changed
-    - batch_analysis_started: Batch analysis processing started
-    - batch_analysis_completed: Batch analysis completed successfully
-    - batch_analysis_failed: Batch analysis failed
 
 Integration Types:
     - generic: Custom webhook with configurable payload
@@ -45,13 +41,9 @@ class WebhookEventType(StrEnum):
     ALERT_DISMISSED = "alert_dismissed"
     ALERT_ACKNOWLEDGED = "alert_acknowledged"
     EVENT_CREATED = "event_created"
-    EVENT_ENRICHED = "event_enriched"
     ENTITY_DISCOVERED = "entity_discovered"
     ANOMALY_DETECTED = "anomaly_detected"
     SYSTEM_HEALTH_CHANGED = "system_health_changed"
-    BATCH_ANALYSIS_STARTED = "batch_analysis_started"
-    BATCH_ANALYSIS_COMPLETED = "batch_analysis_completed"
-    BATCH_ANALYSIS_FAILED = "batch_analysis_failed"
 
 
 class WebhookDeliveryStatus(StrEnum):
