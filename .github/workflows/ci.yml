@@ -3756,12 +3756,21 @@ jobs:
       # the shell wrapper (O2.3's entries rule: wrappers are not followed, so
       # the path is deliberately un-prefixed here). Same canonical invocation as
       # every other backend job (version from the env block). Every shard gets
-      # uv: shard 1 is the one whose backend leg the fan-in merges.
+      # uv: shard 1 is the one whose backend leg the fan-in merges. Shards 2–4
+      # never invoke uv (the backend golden leg runs once, in shard 1), so
+      # UV_CACHE_DIR never materializes on them and the action's post step —
+      # with its default ignore-nothing-to-cache: false — errors "Cache path
+      # ... does not exist on disk" whenever the pre-restore finds nothing
+      # (measured on run 39209710736: shards 2, 3 and 4 all failed in Post Set
+      # up uv while every test leg stayed green; shard 1 succeeded because its
+      # `uv run pytest` leg populates the cache dir). The input exists for
+      # exactly this shape: nothing to save, so skip the save.
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          ignore-nothing-to-cache: true
 
       - name: Free disk space (minimal)
         run: |
@@ -3931,7 +3940,20 @@ jobs:
           FEATURE_CHECK_ADMIN_PASSWORD: reference-derivation # pragma: allowlist secret
           FEATURE_CHECK_CAMERAS: ${{ runner.temp }}/reference-cameras.json
           FEATURE_CHECK_CAMERA_ROOT: ${{ runner.temp }}/reference-cameras
-          FEATURE_CHECK_SCENARIOS: backend/ai_contract/fake/scenario_fixtures/scenarios.json
+          # Absolute, not repo-relative: the step runs `npx playwright` from
+          # frontend/ (the --list must resolve the specs' own imports), and the
+          # specs read this path with existsSync against their cwd — a
+          # repo-relative value dies as frontend/backend/... and every
+          # scenario-book spec SKIPs... except event-detail-modal, whose
+          # module-scope constants dereference the harness past its own
+          # test.skip guard and crash collection instead. Measured: the
+          # relative value reddened run 39209710736's fan-in on exactly this
+          # ("Cannot read properties of undefined (reading 'verdict')",
+          # event-detail-modal.spec.ts:377); the absolute value derives the
+          # 245-leg reference set. The real leg never sees the relative form —
+          # feature_check.py:2349 exports an absolute path — so this mirrors
+          # the proven container shape instead of inventing a new one.
+          FEATURE_CHECK_SCENARIOS: ${{ github.workspace }}/backend/ai_contract/fake/scenario_fixtures/scenarios.json
         run: |
           # The cameras map the golden specs read (one camera id per scenario
           # name); the ids are well-formed UUIDs standing in for the ones the

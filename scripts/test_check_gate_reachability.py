@@ -455,6 +455,48 @@ class TestFanInReplacesTheFakeJob(_CiYml):
             "the walker never reaches the shards: a red shard would be invisible"
         )
 
+    def test_the_shard_setup_uv_tolerates_a_job_that_never_calls_uv(self) -> None:
+        # [r264] backend-once left shards 2–4 with no uv invocation, and
+        # setup-uv's post step (default ignore-nothing-to-cache: false) fails
+        # "Cache path ... does not exist on disk" when nothing materialized the
+        # cache dir — run 39209710736: three red jobs, every test leg green.
+        # The pin is structural: the SHARD job's setup-uv carries the input.
+        # Not a string pin on the run body (the action is `uses:`, not `run:`),
+        # and deliberately scoped to this job: other setup-uv sites all invoke
+        # uv in their own step list, so the default is correct there.
+        setup_uv = [
+            step
+            for step in self.jobs[self.SHARDS]["steps"]
+            if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")
+        ]
+        assert len(setup_uv) == 1, "the shard job carries more than one setup-uv"
+        assert setup_uv[0].get("with", {}).get("ignore-nothing-to-cache") is True, (
+            "the shard job's setup-uv errors in its post step when the job "
+            "never invokes uv (shards 2–4: nothing to cache)"
+        )
+
+    def test_the_reference_derivation_exports_an_absolute_scenario_path(self) -> None:
+        # [r264] The Derive step runs --list from frontend/, and the specs read
+        # FEATURE_CHECK_SCENARIOS with existsSync against their cwd: a
+        # repo-relative value dies as frontend/backend/... and
+        # event-detail-modal's module-scope constants crash collection past
+        # their own test.skip guard (run 39209710736: the fan-in reddened on
+        # "Cannot read properties of undefined (reading 'verdict')",
+        # event-detail-modal.spec.ts:377). feature_check.py:2349 exports an
+        # ABSOLUTE path to the real leg, so the derivation must mirror that
+        # shape — pinned by consequence: the value must start at the
+        # workspace, and the relative literal must be gone.
+        env = next(
+            step["env"]
+            for step in self.jobs[self.FAN_IN]["steps"]
+            if step.get("name") == "Derive the reference leg set (--list)"
+        )
+        scenarios = str(env["FEATURE_CHECK_SCENARIOS"])
+        assert scenarios.startswith("${{ github.workspace }}"), (
+            f"FEATURE_CHECK_SCENARIOS must be absolute, saw {scenarios!r} — the "
+            "--list runs from frontend/ and the specs existSync against their cwd"
+        )
+
 
 class TestStepNamedSuitesStillWired(_CiYml):
     """The doc's "two sharpest absence-pins": wired by step invocation only.
