@@ -1192,11 +1192,6 @@ class WebhookService:
                 "camera_id": "front_door",
                 "event_type": "motion_detected",
             },
-            "event_enriched": {
-                "event_id": "test-event-001",
-                "enrichment_type": "person_detection",
-                "confidence": 0.95,
-            },
             "entity_discovered": {
                 "entity_id": "test-entity-001",
                 "entity_type": "person",
