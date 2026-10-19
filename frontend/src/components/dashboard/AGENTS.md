@@ -24,8 +24,6 @@ Contains all components for the main security dashboard page, including risk vis
 | `ExpandableSummary.test.tsx`        | Test suite for ExpandableSummary                         |
 | `GpuStats.tsx`                      | GPU metrics with utilization history                     |
 | `GpuStats.test.tsx`                 | Test suite for GpuStats                                  |
-| `PipelineQueues.tsx`                | AI pipeline queue depth display                          |
-| `PipelineQueues.test.tsx`           | Test suite for PipelineQueues                            |
 | `PipelineTelemetry.tsx`             | Pipeline latency and throughput metrics                  |
 | `PipelineTelemetry.test.tsx`        | Test suite for PipelineTelemetry                         |
 | `SeverityBadge.tsx`                 | Severity level badge component                           |
@@ -329,43 +327,6 @@ interface StatsRowProps {
 
 ---
 
-### PipelineQueues.tsx
-
-**Purpose:** Display AI processing pipeline queue depths
-
-**Props Interface:**
-
-```typescript
-interface PipelineQueuesProps {
-  detectionQueue: number;
-  analysisQueue: number;
-  warningThreshold?: number; // Default: 10
-  className?: string;
-}
-```
-
-**Key Features:**
-
-- Shows queue depth for YOLO26 detection and Nemotron analysis
-- Warning indicators when queues exceed threshold
-- Color-coded badges (gray/green/yellow/red)
-- Warning alert when queues are backing up
-
-**Queue Status Colors:**
-
-| Depth | Color  |
-| ----- | ------ |
-| 0     | gray   |
-| 1-5   | green  |
-| 6-10  | yellow |
-| > 10  | red    |
-
-**Dependencies:**
-
-- `@tremor/react` - Card, Title, Text, Badge
-
----
-
 ### PipelineTelemetry.tsx
 
 **Purpose:** Display pipeline latency and throughput metrics with time series charts
@@ -457,7 +418,6 @@ All components have comprehensive test files:
 - `ActivityFeed.test.tsx` - Auto-scroll, pause/resume, event rendering, empty state
 - `GpuStats.test.tsx` - Tremor components, temperature colors, null handling, history chart
 - `StatsRow.test.tsx` - Stat cards, status colors, risk level display, sparkline rendering
-- `PipelineQueues.test.tsx` - Queue badges, warning states, thresholds
 - `PipelineTelemetry.test.tsx` - Latency charts, throughput display, auto-refresh
 
 ## Component Hierarchy

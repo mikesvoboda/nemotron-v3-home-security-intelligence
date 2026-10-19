@@ -18,8 +18,6 @@ export { default as DashboardPage } from './DashboardPage';
 export { default as GpuStats } from './GpuStats';
 export type { GpuStatsProps } from './GpuStats';
 
-export { default as PipelineQueues } from './PipelineQueues';
-
 export { default as PipelineTelemetry } from './PipelineTelemetry';
 
 export { default as RiskDistributionChart } from './RiskDistributionChart';
