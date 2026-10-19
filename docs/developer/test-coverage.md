@@ -30,9 +30,10 @@ derivation); do not treat any of them as aspirational targets.
   (`scripts/check-test-coverage-gate.py`).
 - **Codecov:** project target 85%, patch target 80%, critical paths 90%
   (`codecov.yml`).
-- **Frontend (Vitest):** floors 80 statements / 74.6 branches / 78.4
-  functions / 80.9 lines (measured, R-1; `frontend/vite.config.ts`
-  `coverage.thresholds`, enforced by
+- **Frontend (Vitest):** floors 79.6 statements / 74.5 branches / 77.3
+  functions / 80.6 lines (measured, R-1; re-pinned by owner ruling 261 to run
+  39161827871's merged totals, rounded down to one decimal;
+  `frontend/vite.config.ts` `coverage.thresholds`, enforced by
   `frontend/scripts/merge-shard-coverage.mjs --enforce` in CI when all shards
   passed).
 
@@ -57,10 +58,10 @@ Vitest shard passed.
 
 | Metric     | Threshold | Configuration             |
 | ---------- | --------- | ------------------------- |
-| Statements | 80%       | `frontend/vite.config.ts` |
-| Branches   | 74.6%     | `frontend/vite.config.ts` |
-| Functions  | 78.4%     | `frontend/vite.config.ts` |
-| Lines      | 80.9%     | `frontend/vite.config.ts` |
+| Statements | 79.6%     | `frontend/vite.config.ts` |
+| Branches   | 74.5%     | `frontend/vite.config.ts` |
+| Functions  | 77.3%     | `frontend/vite.config.ts` |
+| Lines      | 80.6%     | `frontend/vite.config.ts` |
 
 ### Critical Paths
 
