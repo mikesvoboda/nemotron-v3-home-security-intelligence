@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -407,14 +407,19 @@ golden leg passing.
 
 ### [r160b] Deferred Python major: huggingface-hub 2
 
-**Flags:** none. **Assigned:** backend. **Depends on:** Phase 2's exit. **PR:** none yet. (ruling
+**Flags:** none. **Assigned:** backend. **Depends on:** Phase 2's exit. **PR:** #7269. (ruling
 160; dependabot #7062, closed with `@dependabot ignore this major version`)
 
-- [ ] Bump `huggingface-hub` to 2.x in its own PR, lifting the ignore
-      (`@dependabot unignore huggingface-hub`).
+- [x] Bump `huggingface-hub` to 2.x in its own PR, lifting the ignore
+      (`@dependabot unignore huggingface-hub`). **PR:** #7269 merged 2026-10-19T14:00:23Z as
+      `c0f125305`; huggingface-hub 2.2.0 with the floor raised to `>=2.0.0`. Green at head
+      `63a62d3baa` from the first ready run, CI run 39256128444 (all five workflows; slow-tier
+      census 30.74s vs the 60.0s budget), backend unit suite 31,876 passed / 122 skipped /
+      8 xfailed re-run locally at that head.
 
 **Done when:** `huggingface-hub` 2.x is on `main` with the backend and AI-path suites green at its
-head.
+head. — OBSERVED: 2.2.0 on `main` (`c0f125305`), backend unit suite green at the head (both the
+ready run 39256128444 and the local re-run), AI-path import smoke in the PR body's evidence 4.
 
 ### [r211b] F-048: search skips deleted events and filters the severity it reports
 
