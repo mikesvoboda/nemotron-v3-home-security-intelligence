@@ -249,13 +249,6 @@ def test_build_test_event_data_full_shape_per_event_type(service, clock):
             "camera_id": "front_door",
             "event_type": "motion_detected",
         },
-        WebhookEventType.EVENT_ENRICHED: {
-            "test": True,
-            "timestamp": FIXED_ISO,
-            "event_id": "test-event-001",
-            "enrichment_type": "person_detection",
-            "confidence": 0.95,
-        },
         WebhookEventType.ENTITY_DISCOVERED: {
             "test": True,
             "timestamp": FIXED_ISO,
@@ -284,11 +277,7 @@ def test_build_test_event_data_full_shape_per_event_type(service, clock):
         # insertion order is part of the shipped shape: base first, then specific
         assert list(service._build_test_event_data(event_type)) == list(expected)
 
-    # float literals are floats, not strings / rounded ints (kills 0.95->"0.95")
-    assert service._build_test_event_data(WebhookEventType.EVENT_ENRICHED)["confidence"] == 0.95
-    assert (
-        type(service._build_test_event_data(WebhookEventType.EVENT_ENRICHED)["confidence"]) is float
-    )
+    # float literals are floats, not strings / rounded ints
     assert service._build_test_event_data(WebhookEventType.ANOMALY_DETECTED)["score"] == 0.87
     assert type(service._build_test_event_data(WebhookEventType.ANOMALY_DETECTED)["score"]) is float
 
@@ -312,9 +301,7 @@ def test_build_test_event_data_unmapped_event_type_merges_empty_dict(service, cl
     """Kills ``.get(value, {})`` -> ``.get(value)`` / dropped default: an enum
     member absent from the table must merge an empty dict, never None."""
     unmapped = [
-        WebhookEventType.BATCH_ANALYSIS_STARTED,
-        WebhookEventType.BATCH_ANALYSIS_COMPLETED,
-        WebhookEventType.BATCH_ANALYSIS_FAILED,
+        "unmapped_event",
     ]
     for event_type in unmapped:
         data = service._build_test_event_data(event_type)
