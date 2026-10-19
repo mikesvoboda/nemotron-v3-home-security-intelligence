@@ -160,14 +160,18 @@ def render(data: dict[str, Any], questions: Sequence[str] = ()) -> str:
 
     out.append("== Stalled and stale heartbeats")
     hb = data["heartbeats"]
-    stale = [h for h in hb["items"] if h["stale"]]
+    # UR-166's 20-minute listing is unchanged ([r239]): every heartbeat older than 20 lists.
+    # Each row names its own UR-162 threshold -- 90 for the coordinator, 20 for the rest -- so
+    # a 34-minute coordinator beat still lists (the 20-minute rule) while naming >90, the
+    # band the raise has not opened.
+    old = [h for h in hb["items"] if h["age_min"] > snap.STALE_HEARTBEAT_MIN]
     paused = [h for h in hb["items"] if h["paused"]]
-    if not stale and not paused:
+    if not old and not paused:
         out.append("- none")
-    for h in stale:
+    for h in old:
         out.append(
             f"- {h['agent']} heartbeat {h['updated_at']} age {h['age_min']}m"
-            f" (> {snap.STALE_HEARTBEAT_MIN} min, UR-162)"
+            f" (> {snap.stale_threshold(h['agent'])} min, UR-162)"
         )
     for h in paused:
         out.append(f"- {h['agent']} says it is paused (UR-160)")
