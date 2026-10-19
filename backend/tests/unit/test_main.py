@@ -672,3 +672,18 @@ class TestSecureCookieLoginLoopWarning:
         assert not hasattr(services_mod, "EvaluationQueue")
         assert not Path("backend/services/background_evaluator.py").exists()
         assert not Path("backend/services/evaluation_queue.py").exists()
+
+    def test_retired_r2a_row31_grafana_panels_absent(self) -> None:
+        """R2a row 31 (F-103, F-116, F-119): retired-model Grafana panels are removed."""
+        import json
+        from pathlib import Path
+
+        ai_dash = json.loads(Path("monitoring/grafana/dashboards/ai-services.json").read_text())
+        ai_titles = {p.get("title") for p in ai_dash.get("panels", [])}
+        assert "Enrichment Models" not in ai_titles
+        assert "Action Recognition" not in ai_titles
+        assert "Florence-2 Vision-Language Model" not in ai_titles
+
+        vid_dash = json.loads(Path("monitoring/grafana/dashboards/video-analytics.json").read_text())
+        vid_titles = {p.get("title") for p in vid_dash.get("panels", [])}
+        assert "Action Recognition" not in vid_titles
