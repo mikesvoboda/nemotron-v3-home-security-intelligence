@@ -28,6 +28,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -134,6 +136,7 @@ class FakeHost:
         agents_root: Path | None = None,
         origin_url: str = ORIGIN_URL,
         checkout: Path | None = None,
+        dgx_missing: set[str] | None = None,
     ) -> None:
         self.checkout = checkout
         self.sessions = sessions or {}
@@ -145,6 +148,7 @@ class FakeHost:
         self.new_head = new_head
         self.fail = fail
         self.agents_root = agents_root
+        self.dgx_missing = dgx_missing or set()
         self.calls: list[tuple[list[str], Path | None]] = []
 
     def _stage(self, script: str, filename: str, data: bytes) -> tuple[int, str, str]:
@@ -199,6 +203,16 @@ class FakeHost:
         script = argv[-1]
         if launch.MARKER in script:
             return self._inspection(script)
+        # The dgx-file probe: the fire refuses when the agent-dgx files the pane was
+        # started with are missing from the sandbox (ruling 259). `dgx_missing` names the
+        # constants the sandbox answers "missing:" for; an empty set is the healthy pane.
+        if "missing:" in script and "for f in" in script:
+            out = "".join(
+                f"missing:{name}\n"
+                for name in (launch.DGX_SETTINGS, launch.DGX_MCP)
+                if name in self.dgx_missing
+            )
+            return (0, out, "")
         # The export steps really do write into the session's own clone, because the
         # launcher reads them back off the host's mount afterwards (synthbench's `down`
         # copies workspace files the same way).
@@ -1552,3 +1566,651 @@ def test_assess_passes_a_clean_and_pushed_workspace() -> None:
         )
     )
     assert launch.assess_inspection(sections, session=SCRATCH) == []
+
+
+class _HangingRunner:
+    """A runner that answers the inspect read and then overruns the tick's budget.
+
+    Composed around FakeHost rather than added to it: only this one test needs a tick that
+    hangs, and a keyword on the shared fake would be dead weight in every other test.
+    """
+
+    def __init__(self, inner: FakeHost) -> None:
+        self.inner = inner
+        self.hung = False
+
+    def __call__(self, argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        # the fire, not the read-only probe before it: only the tick can hang the budget
+        if (
+            [str(a) for a in argv][:2] == ["sbx", "exec"]
+            and kwargs.get("timeout")
+            and "claude -p" in str(argv[-1])
+        ):
+            self.hung = True
+            raise subprocess.TimeoutExpired(cmd="sbx exec", timeout=kwargs["timeout"])
+        return self.inner(argv, **kwargs)
+
+
+# ------------------------------------------------------------------ supervise
+#
+# [r247]: a host-side supervisor runs the coordinator's ticks. One fire is one tick: the
+# coordinator's tick prompt, verbatim as `roles/coordinator.md` quotes it, run once as a
+# headless `claude -p` inside agent-<session> through `sbx exec`. The host lock skips a fire
+# while a tick runs; a tick past its budget is killed; each fire appends one line to a host
+# log. The two facts these tests cannot supply are the ones the package defers to the owner:
+# whether the prompt really drives a tick (Done when's manual fire) and whether `sbx exec`
+# still reaches the sandbox (the module header's open MEASURE).
+
+
+def _tick_prompt() -> str:
+    """The prompt the supervisor fires, read through the module under test."""
+    return launch.tick_prompt(REPO_ROOT / "docs" / "uplevel" / "roles" / "coordinator.md")
+
+
+def test_the_tick_prompt_is_the_loop_lines_quotation_word_for_word() -> None:
+    """The supervisor must not paraphrase: it runs the prompt the `/loop` line quotes.
+
+    Read out of the document itself rather than restated, so the two cannot drift: the
+    `/loop <interval> ...` fenced block names the prompt in double quotes, and that is the
+    string. The interval itself is not pinned - the owner sets the cadence (ruling 239 says
+    30 minutes today), and a cadence change must not have to edit this suite.
+    """
+    text = (REPO_ROOT / "docs" / "uplevel" / "roles" / "coordinator.md").read_text()
+    quoted = re.search(r'/loop \d+m Dispatch one fresh[^\n]*?"(.+?)"', text)
+    assert quoted, "coordinator.md must still quote the tick prompt on its /loop line"
+    assert _tick_prompt() == quoted.group(1)
+    assert _tick_prompt().startswith("You are the uplevel coordinator.")
+    # "Skip this fire if a tick is still running." is the /loop line's instruction TO the
+    # dispatcher, outside the quotes: it is not part of the text a tick receives.
+    assert "Skip this fire" not in _tick_prompt()
+    assert _tick_prompt().endswith("main's CI state.")
+
+
+def test_supervise_refuses_a_session_that_is_not_running(tmp_path: Path) -> None:
+    """Exit 2, naming the next step, exactly as `up` and `retire` do."""
+    fake = FakeHost(sessions={})
+    with pytest.raises(launch.Refused, match="not running") as caught:
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    assert "agent-dgx run uplevel-coordinator" in str(caught.value), (
+        "the refusal must name the command that starts the session"
+    )
+    assert not fake.ran("sbx", "exec")
+
+
+def test_supervise_refuses_a_run_from_a_sessions_clone(tmp_path: Path) -> None:
+    """Same guard as `up` and `retire`: a fire launched from inside a session's clone would
+    create `supervise/` in an agent-writable checkout - and the lock file, not unlinked after
+    release, would then sit in front of every later `git add -A` there (the `.lock` is not a
+    `.log`, so `*.log` does not cover it). Refused before anything, before even the inspect."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    in_clone = host(tmp_path, fake)
+    in_clone = replace(in_clone, checkout=in_clone.agents_root / SCRATCH_SANDBOX / "workspace")
+    (in_clone.checkout).mkdir(parents=True)
+    with pytest.raises(launch.Refused, match="session's own clone"):
+        launch.supervise(in_clone, "uplevel-coordinator")
+    assert fake.calls == []  # refused before even the read-only commands
+
+
+def test_supervise_refuses_a_manifest_with_no_sandbox(tmp_path: Path) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": NO_SANDBOX})
+    with pytest.raises(launch.Refused, match="not running"):
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+
+
+def test_supervise_dry_run_prints_the_fire_and_changes_nothing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake, dry_run=True), "uplevel-coordinator")
+    out = capsys.readouterr().out
+    assert "would fire" in out
+    assert "claude -p" in out
+    # the read-only probe is allowed to reach the sandbox; the fire itself must not
+    assert not any(
+        "claude -p" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]
+    ), "--dry-run must not fire a tick"
+    assert not (tmp_path / "checkout" / "supervise").exists(), "and must not create the log"
+
+
+def test_one_fire_runs_the_tick_prompt_inside_the_sandbox(tmp_path: Path) -> None:
+    """The fire is one `sbx exec ... bash -lc` carrying `timeout <budget> claude -p` and the
+    prompt verbatim, after one probe round-trip for the dgx files."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    fires = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
+    assert len(fires) == 2, f"one probe then one fire, got {len(fires)}"
+    script = fires[-1][-1]
+    assert "claude -p" in script
+    assert f"timeout {launch.TICK_BUDGET} " in script, (
+        "the kill must live inside the sandbox (the host's subprocess timeout only kills "
+        "`sbx`, not the claude it left running there): the wrapper is what makes the kill "
+        "deterministic and the fire's own rc 124 says so"
+    )
+    assert "agent-uplevel-coordinator" in fires[-1]
+    # Verbatim means "what the shell hands `claude`", not "a substring of the script":
+    # shlex.quote rewrites the prompt's apostrophes, so the comparison has to survive the
+    # shell's own parsing. Split the script and require the token after `-p` to BE the
+    # prompt, byte for byte - a paraphrase or a dropped character fails this, a re-quoting
+    # does not. The flags after the prompt are what ruling 259 answered Q1 with; the
+    # manifest-vocabulary test below pins that the wire holds no more than those.
+    tokens = shlex.split(script)
+    assert tokens.index("claude") + 2 < len(tokens), tokens
+    assert tokens[tokens.index("claude") + 2] == _tick_prompt(), (
+        "the prompt must reach `claude -p` verbatim; got "
+        + repr(tokens[tokens.index("claude") + 2][:120])
+    )
+
+
+def test_one_fire_appends_one_log_line_naming_start_end_status_and_killed(
+    tmp_path: Path,
+) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    # `host()` puts the checkout at tmp_path/"checkout"; the supervisor's log lives beside it
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    lines = [ln for ln in log.splitlines() if ln.strip()]
+    assert len(lines) == 1, f"one fire, one line: {lines}"
+    line = lines[0]
+    for field in ("start=", "end=", "status=", "killed="):
+        assert field in line, f"the log line must carry {field}: {line}"
+
+
+def test_the_log_summary_is_quoted_data_not_formatting(tmp_path: Path) -> None:
+    """The tick's stdout is untrusted log content: whitespace-collapsed but otherwise raw.
+
+    Two things quoting buys: field-shaped text inside the summary (`status=ok killed=no`,
+    a line-forging summary) cannot be mistaken for the fire's own fields by a grepper that
+    reads `status=` from the left, and the shlex form round-trips a reader back to the exact
+    bytes. Plain whitespace collapse alone would leave the forging half open.
+    """
+    forging = "tick says status=ok killed=no then more"
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    quoted = replace(
+        host(tmp_path, fake),
+        run=lambda argv, **kw: (
+            subprocess.CompletedProcess(argv, 0, forging, "")
+            if [str(a) for a in argv][:2] == ["sbx", "exec"]
+            else fake(argv, **kw)
+        ),
+    )
+    launch.supervise(quoted, "uplevel-coordinator")
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    line = [ln for ln in log.splitlines() if ln.strip()][-1]
+    fields, _, summary = line.rpartition(" summary=")
+    assert "status=ok killed=no" in fields, "the fire's own fields must say ok/no: " + line
+    assert shlex.split(summary) == [forging], (
+        f"the summary must round-trip as one quoted value; got {summary!r}"
+    )
+
+
+def test_the_log_summary_is_capped_at_300_characters(tmp_path: Path) -> None:
+    """A tick that answers with a dump must not make the log line unbounded."""
+    wide = "x" * 2000
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    capped = replace(
+        host(tmp_path, fake),
+        run=lambda argv, **kw: (
+            subprocess.CompletedProcess(argv, 0, wide, "")
+            if [str(a) for a in argv][:2] == ["sbx", "exec"]
+            else fake(argv, **kw)
+        ),
+    )
+    launch.supervise(capped, "uplevel-coordinator")
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    line = [ln for ln in log.splitlines() if ln.strip()][-1]
+    _, _, summary = line.rpartition(" summary=")
+    assert shlex.split(summary) == ["x" * 300], summary[:80] + "..."
+
+
+def test_a_fire_that_never_reaches_the_sandbox_still_logs(tmp_path: Path) -> None:
+    """`OSError` from `host.run` (sbx missing, unreachable) refuses with exit 2, but the log
+    contract - each fire appends one line - does not depend on the fire reaching anything:
+    the record says the fire happened and did not run, so the owner reading the log sees the
+    gap instead of an absent hour."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+
+    def unreachable(argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if [str(a) for a in argv][:2] == ["sbx", "exec"]:
+            raise OSError("sbx exec: sandbox gone")
+        return fake(argv, **kwargs)
+
+    with pytest.raises(launch.Refused, match="could not fire"):
+        launch.supervise(replace(host(tmp_path, fake), run=unreachable), "uplevel-coordinator")
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    lines = [ln for ln in log.splitlines() if ln.strip()]
+    assert len(lines) == 1, f"the refused fire still records itself: {lines}"
+    fields, _, summary = lines[0].rpartition(" summary=")
+    assert "status=refused" in fields and "killed=no" in fields, lines[0]
+    assert "sbx exec: sandbox gone" in shlex.split(summary)[0]
+
+
+def test_a_held_lock_skips_the_fire_and_says_so(tmp_path: Path) -> None:
+    """Two dispatchers never run at once. The lock is the kernel's, so a dead holder frees it."""
+    lock_dir = tmp_path / "checkout" / "supervise"
+    lock_dir.mkdir(parents=True)
+    lock_path = lock_dir / "uplevel-coordinator.lock"
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        import fcntl
+
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+        # the read-only probe may run; the fire must not
+        assert not any(
+            "claude -p" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]
+        ), "a fire must not run while the lock is held"
+        log = (lock_dir / "uplevel-coordinator.log").read_text()
+        assert "skipped" in log and "running" in log, log
+    finally:
+        os.close(fd)
+
+
+def test_a_tick_past_its_budget_is_killed_and_recorded(tmp_path: Path) -> None:
+    """A hung tick is killed at the budget, and the log line says it was killed.
+
+    The kill lives inside the sandbox: the fire wraps `claude` in `timeout <budget>`, whose
+    rc 124 is what the host sees when the tick overruns - the host's own subprocess timeout
+    kills only the `sbx exec` child, which would leave the tick running in the sandbox with
+    the lock already released. A `timeout`-killed fire is recorded exactly like an overrun
+    should be: `killed=yes status=timeout`.
+    """
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    script = next(
+        argv[-1]
+        for argv, _ in fake.calls
+        if argv[:2] == ["sbx", "exec"] and "claude -p" in argv[-1]
+    )
+    assert f"timeout {launch.TICK_BUDGET} claude" in script, (
+        "the wrapper is the kill; see the docstring"
+    )
+
+    # and the record: drive the same code with a runner that answers rc 124 for the fire
+    # only (what `timeout` returns) - a blanket rc 124 would fail the inspect preflight,
+    # which runs with check=True and refuses on any nonzero rc.
+    def overrun(argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if [str(a) for a in argv][:2] == ["sbx", "exec"]:
+            return subprocess.CompletedProcess(argv, 124, "the tick never finished", "")
+        return fake(argv, **kwargs)
+
+    launch.supervise(replace(host(tmp_path, fake), run=overrun), "uplevel-coordinator")
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    lines = [ln for ln in log.splitlines() if ln.strip()]
+    fields, _, summary = lines[-1].rpartition(" summary=")
+    # rpartition before `summary=`: the summary is quoted data and may itself carry
+    # field-shaped text (that is what the quoting test pins), so the verdict reads the
+    # structured prefix only.
+    assert "status=timeout" in fields and "killed=yes" in fields, lines[-1]
+    assert summary == "'the tick never finished'", summary
+
+
+def test_the_host_budget_backstop_still_kills_a_hung_fire(tmp_path: Path) -> None:
+    """The host timeout stays as the backstop: if even `timeout` never answers - `sbx exec`
+    itself hanging, the wrapper never reached - the fire kills the child and records the
+    overrun, exactly as before the wrapper existed."""
+    # The tick overruns its budget: the fire must kill it and record that it did. Modelled as
+    # the runner raising TimeoutExpired, which is what subprocess does at `timeout=`.
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    hang = _HangingRunner(fake)
+    launch.supervise(replace(host(tmp_path, fake), run=hang), "uplevel-coordinator", budget=1)
+    assert hang.hung, "the fixture must really have hit the budget"
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    assert "killed=yes" in log, log
+    assert "status=timeout" in log, log
+
+
+def test_supervise_takes_no_session_name_other_than_a_declared_coordinator(
+    tmp_path: Path,
+) -> None:
+    """The package scopes this to the coordinator: a lane session is refused, not supervised."""
+    fake = FakeHost(sessions={"uplevel-ops-a": RUNNING})
+    with pytest.raises(launch.Refused, match="coordinator"):
+        launch.supervise(host(tmp_path, fake), "uplevel-ops-a")
+    assert not fake.ran("sbx", "exec")
+
+
+def test_main_supervise_fires_and_exits_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The subcommand is wired: one argv in, one fire out, exit 0."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    assert launch.main(["supervise", "uplevel-coordinator"]) == 0
+    assert fake.ran("sbx", "exec"), "a real fire must reach the sandbox"
+
+
+def test_main_supervise_exits_two_and_names_the_next_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Box 4: exit 2 naming the next step when the sandbox is not running, as `up` and
+    `retire` do. The message must carry the command that starts the session, or the owner
+    reading the timer's mail has an exit code and no next move."""
+    fake = FakeHost(sessions={})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    assert launch.main(["supervise", "uplevel-coordinator"]) == 2
+    err = capsys.readouterr().err
+    assert "not running" in err
+    assert "agent-dgx run uplevel-coordinator" in err
+    assert not fake.ran("sbx", "exec")
+
+
+def test_main_supervise_dry_run_creates_no_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    assert launch.main(["supervise", "uplevel-coordinator", "--dry-run"]) == 0
+    # the read-only probe may run; the fire must not
+    assert not any("claude -p" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])
+    assert not (tmp_path / "checkout" / "supervise").exists()
+
+
+def test_main_supervise_passes_its_budget_to_the_fire(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--budget` reaches the wrapper, not just the help text: the CLI's seconds are what
+    the in-sandbox `timeout` and the host backstop both run with."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    assert launch.main(["supervise", "uplevel-coordinator", "--budget", "120"]) == 0
+    script = next(
+        argv[-1]
+        for argv, _ in fake.calls
+        if argv[:2] == ["sbx", "exec"] and "claude -p" in argv[-1]
+    )
+    assert "timeout 120 claude" in script, script
+
+
+def test_a_non_positive_budget_refuses_naming_the_value(tmp_path: Path) -> None:
+    """`--budget` is the tick's kill switch: a zero or negative value either never kills
+    (`timeout 0`) or errors deep inside the fire (`timeout -5` exits 125 after `claude`
+    started) - measured on this machine: `timeout -5 true` exits 125 with `timeout:
+    invalid kill value`. The guard sits before any probe or fire, names the value and
+    the next step, and nothing reaches the sandbox."""
+    for bad in ("0", "-5"):
+        fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+        with pytest.raises(launch.Refused) as caught:
+            launch.supervise(host(tmp_path, fake), "uplevel-coordinator", budget=int(bad))
+        message = str(caught.value)
+        assert bad in message, message
+        assert "positive integer" in message, "the refusal must name the contract: " + message
+        assert not fake.ran("sbx", "exec"), "nothing may fire on a bad budget"
+
+
+def test_main_supervise_exits_two_on_a_non_positive_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The CLI wires the guard to box 4's exit: a bad `--budget` exits 2 naming it, and
+    no sandbox is touched. (`main` parses `--budget` as `int`, so the string arms are the
+    type's job; the value arms are this guard's.)"""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    for argv in (
+        ["supervise", "uplevel-coordinator", "--budget", "0"],
+        ["supervise", "uplevel-coordinator", "--budget", "-5"],
+    ):
+        assert launch.main(argv) == 2, argv
+        err = capsys.readouterr().err
+        assert "--budget must be a positive integer" in err, err
+        assert not fake.ran("sbx", "exec"), argv
+
+
+def test_the_fire_carries_no_manifest_arguments(tmp_path: Path) -> None:
+    """Box 1 as ruling 259 answered Q1: the fire is `claude -p <prompt>` plus the three
+    pane-mirroring flags, and nothing else on the `claude` line.
+
+    The manifest's `[models]` row holds `agent-dgx run` vocabulary (`--agent claude --endpoint
+    dgx`), which is how the owner STARTS a session, not `claude`'s own flags. Measured on this
+    machine: `claude -p --agent claude --endpoint dgx '<prompt>'` exits 1 with `error: unknown
+    option '--endpoint'` (the pipeline that first hid this reported `tail`'s rc, not claude's).
+    The test derives the row from the same file the implementation used to read and asserts the
+    row's tokens are NOT on the wire: a future manifest edit cannot smuggle them back. The
+    three flags the wire does carry are the pane's own (ruling 259) - bypass permissions plus
+    the two agent-dgx files, exactly what agent-dgx starts the pane with - and the shape
+    assert pins the wire to precisely those, so a fourth flag cannot slip in either.
+    """
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    script = next(
+        argv[-1]
+        for argv, _ in fake.calls
+        if argv[:2] == ["sbx", "exec"] and "claude -p" in argv[-1]
+    )
+    tokens = shlex.split(script)
+
+    manifest = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    row = next(
+        s for sessions in manifest.values() for s in sessions if s.name == "uplevel-coordinator"
+    )
+    data = launch._load_toml(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    forbidden = launch.run_args_for(data, REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml", row)
+
+    start = tokens.index("claude")
+    # the wire from `claude` to the end is exactly `-p`, the quoted prompt, and the three
+    # pane-mirroring flags - nothing else, ever. The row derived above (`--agent claude
+    # --endpoint dgx`) must not appear here even in part: its flags are agent-dgx
+    # vocabulary. The shape assert above excludes the row's bare tokens too (`claude`
+    # coincides with the binary itself - the trap the first draft of this pin hit - and
+    # `dgx` cannot survive the exact list), so only the row's flags need naming here. The
+    # two file flags are `$HOME`-absolute (owner answer on #6854): the sandbox shell
+    # expands them, and the exact-list assert below pins the literal unexpanded spelling
+    # so a workspace-relative or host-expanded path cannot slip back.
+    assert tokens[start:] == [
+        "claude",
+        "-p",
+        _tick_prompt(),
+        "--dangerously-skip-permissions",
+        "--settings",
+        launch.DGX_SETTINGS,
+        f"--mcp-config={launch.DGX_MCP}",
+    ], f"the fire must be `claude -p <prompt>` + the pane's three flags; got {tokens[start:]!r}"
+    assert "--settings $HOME/" in script or "$HOME/.claude/agent-dgx/" in script, (
+        f"the two file flags must carry the literal $HOME path the sandbox shell expands: {script}"
+    )
+    assert not ({"--agent", "--endpoint"} & set(tokens[start:])), (
+        f"the manifest row resolves to {forbidden!r}, and none of it belongs on the wire"
+    )
+    assert "--model" not in tokens[start:], (
+        "the row is an endpoint, not a --model; inventing one would not be the pane's model"
+    )
+
+
+def test_the_fire_probes_the_dgx_files_and_refuses_one_missing(tmp_path: Path) -> None:
+    """Ruling 259 item 2: the fire refuses rather than guesses about the files its flags
+    point at. The probe runs inside the sandbox (the host cannot see that filesystem), one
+    round-trip before the fire, and a missing file is a refusal naming it and the next
+    step - with no fire issued."""
+    fake = FakeHost(
+        sessions={"uplevel-coordinator": RUNNING},
+        dgx_missing={launch.DGX_SETTINGS},
+    )
+    with pytest.raises(launch.Refused) as caught:
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    message = str(caught.value)
+    assert launch.DGX_SETTINGS in message, message
+    assert "restore them inside the sandbox" in message, "the refusal must name the next step"
+    # the probe happened; the fire did not - a refusal before a tick runs is the point
+    execs = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
+    assert len(execs) == 1 and "missing:" in execs[0][-1], execs
+    assert not any("claude -p" in argv[-1] for argv in execs)
+
+
+def test_the_fire_probes_the_dgx_files_and_refuses_both_missing(tmp_path: Path) -> None:
+    """Both files missing names both, one refusal, still no fire."""
+    fake = FakeHost(
+        sessions={"uplevel-coordinator": RUNNING},
+        dgx_missing={launch.DGX_SETTINGS, launch.DGX_MCP},
+    )
+    with pytest.raises(launch.Refused) as caught:
+        launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    message = str(caught.value)
+    assert launch.DGX_SETTINGS in message and launch.DGX_MCP in message, message
+    execs = [argv for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
+    assert len(execs) == 1, execs
+    assert not any("claude -p" in argv[-1] for argv in execs)
+
+
+def test_the_probe_runs_inside_the_sandbox_not_on_the_host(tmp_path: Path) -> None:
+    """The host cannot see the sandbox's filesystem; the check must be the sandbox's own
+    shell answering, and it must resolve the files at their absolute paths under the
+    sandbox's HOME (`$HOME/.claude/agent-dgx/`, the owner answer on #6854): agent-dgx
+    keeps them there, the pane's launch line names those absolute paths, and
+    `workspace/.claude/agent-dgx/` does not exist. The `$HOME` expansion is the sandbox
+    shell's - the same shell the fire's flags resolve under - so the script must carry
+    the literal unexpanded `$HOME` and no `cd <workspace>` prefix."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake), "uplevel-coordinator")
+    probe = next(argv[-1] for argv, _ in fake.calls if "missing:" in argv[-1])
+    assert (
+        "for f in $HOME/.claude/agent-dgx/claude-settings.json"
+        " $HOME/.claude/agent-dgx/mcp.json" in probe
+    ), probe
+    assert '[ -f "$f" ]' in probe, (
+        "the existence check is the sandbox's own shell test, not a host-side guess: " + probe
+    )
+    assert "cd " not in probe.split("for f in")[0], (
+        "the files are home-absolute; a workspace cwd prefix would only invite the old "
+        "workspace-relative bug back: " + probe
+    )
+    assert "/agents/agent-uplevel-coordinator" not in probe, probe
+
+
+def test_a_probe_that_cannot_reach_the_sandbox_still_logs_as_refused(
+    tmp_path: Path,
+) -> None:
+    """The probe's OSError arm passes through: the fire hits the same wall one command
+    later and ITS handler records `status=refused` - the probe refusing first would leave
+    the gap unlogged."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+
+    def unreachable(argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if [str(a) for a in argv][:2] == ["sbx", "exec"]:
+            raise OSError("sbx exec: sandbox gone")
+        return fake(argv, **kwargs)
+
+    with pytest.raises(launch.Refused, match="could not fire"):
+        launch.supervise(replace(host(tmp_path, fake), run=unreachable), "uplevel-coordinator")
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    assert "status=refused" in log, log
+
+
+def test_a_probe_that_times_out_still_reaches_the_fires_timeout_arm(
+    tmp_path: Path,
+) -> None:
+    """The probe's own read can hang (the sandbox stops answering without the socket
+    failing): `host.run` then raises TimeoutExpired, not an OSError, and the probe
+    passes it through the same way. The fire never starts a tick (its `sbx exec` hangs
+    the same wall), but the fire's `TimeoutExpired` arm - not an uncaught rc 1 - is what
+    records the gap: `killed=yes status=timeout`, one line, no traceback."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+
+    def wedged(argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if [str(a) for a in argv][:2] == ["sbx", "exec"]:
+            raise subprocess.TimeoutExpired(cmd="sbx exec", timeout=kwargs.get("timeout") or 120)
+        return fake(argv, **kwargs)
+
+    launch.supervise(replace(host(tmp_path, fake), run=wedged), "uplevel-coordinator")
+    log = (tmp_path / "checkout" / "supervise" / "uplevel-coordinator.log").read_text()
+    assert "status=timeout" in log and "killed=yes" in log, log
+
+
+def test_supervise_dry_run_probes_and_prints_the_flags(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Dry-run shows the fire the owner would get - the three pane flags included - and it
+    runs after the probe: a dry-run on a pane missing its dgx files refuses like the real
+    one rather than printing a fire that could not run."""
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    launch.supervise(host(tmp_path, fake, dry_run=True), "uplevel-coordinator")
+    out = capsys.readouterr().out
+    assert "would fire" in out
+    assert "claude -p" in out
+    assert launch.DGX_SETTINGS in out and launch.DGX_MCP in out, out
+    assert "--dangerously-skip-permissions" in out, out
+    # the probe ran (a real dry-run would have refused on a missing file); the fire did not
+    assert any("missing:" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])
+    assert not any("claude -p" in argv[-1] for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"])
+    assert not (tmp_path / "checkout" / "supervise").exists(), "and must not create the log"
+
+
+def test_a_dry_run_on_a_pane_missing_its_dgx_files_refuses(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING}, dgx_missing={launch.DGX_MCP})
+    with pytest.raises(launch.Refused, match="mcp"):
+        launch.supervise(host(tmp_path, fake, dry_run=True), "uplevel-coordinator")
+    out = capsys.readouterr().out
+    assert "would fire" not in out, "a refused fire prints no would-fire line"
+
+
+def test_a_manifest_without_a_coordinator_refuses(tmp_path: Path) -> None:
+    """No row means no pane model to inherit: refuse rather than silently use a default."""
+    manifest = tmp_path / "sandboxes.toml"
+    manifest.write_text(
+        '[[phase]]\nnumber = 0\n\n[[phase.session]]\nname = "somebody"\n'
+        'model = "fast"\nkickoff = "x"\n'
+    )
+    fake = FakeHost(sessions={"uplevel-coordinator": RUNNING})
+    with pytest.raises(launch.Refused, match="no uplevel-coordinator"):
+        launch.supervise(host(tmp_path, fake, manifest=manifest), "uplevel-coordinator")
+    assert not fake.ran("sbx", "exec")
+
+
+def test_a_fire_leaves_the_checkout_clean_the_log_and_lock_are_ignored(
+    tmp_path: Path,
+) -> None:
+    """A real fire creates `supervise/` (a log and a `.lock` never unlinked) in the owner's
+    checkout. `up` refuses any dirty checkout, so an untracked entry there permanently
+    bricks the launcher until someone hand-cleans it. The log is covered by `*.log`; the
+    lock is NOT - it is not a log - so the pin must cover the directory the pair live in.
+
+    Checked through `git check-ignore -v --no-index` against the real root `.gitignore`
+    (as `test_tickscratch_is_git_ignored.py` does), not through a planted fire: the pin is
+    about the ignore rules, which exist whether or not anything was fired on this machine.
+    """
+    base = ["git", "-c", "core.excludesFile=/dev/null", "check-ignore"]
+    for pathname in ("supervise/", "supervise/uplevel-coordinator.lock"):
+        done = subprocess.run(  # real: this file's own repo's rules  # noqa: S603
+            [*base, "-v", "--no-index", "--", pathname],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert done.returncode == 0, (
+            f"{pathname!r} is not ignored (rc {done.returncode}): a fire's lock or log "
+            "would leave the owner's checkout dirty, and `up` refuses dirty checkouts"
+        )
+        assert done.stdout.startswith(".gitignore:"), (
+            f"{pathname!r} is ignored by {done.stdout.strip()!r}, not the repo's .gitignore"
+        )
+    # and the control: the rule must not eat the tracked files around it
+    done = subprocess.run(  # real: the same instrument, negative arm  # noqa: S603
+        [*base, "--no-index", "launch.py"],
+        cwd=REPO_ROOT / "scripts" / "uplevel",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode == 1, f"the ignore rule eats a tracked file: {done.stdout!r}"

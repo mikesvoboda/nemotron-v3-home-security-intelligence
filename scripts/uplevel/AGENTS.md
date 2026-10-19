@@ -17,8 +17,9 @@ phase boundary, and what rulings 157/159 require repeated verbatim on the GPU ho
 
 ### launch.py
 
-Brings a phase's agent sandboxes up and retires one down without losing work. Two
-commands (`--dry-run` on both prints every step and changes nothing):
+Brings a phase's agent sandboxes up, retires one down without losing work, and fires the
+coordinator's tick from the host. Three commands (`--dry-run` on each prints every step and
+changes nothing):
 
 - `launch.py up --phase <n>` - from a clean host checkout of `main` inside a herdr pane,
   creates each missing session with `agent-dgx run <name> … --split` (one sandbox and one
@@ -36,6 +37,28 @@ commands (`--dry-run` on both prints every step and changes nothing):
   Only a clean workspace exports (`git bundle create --all` + a working-tree archive, made
   inside the sandbox), verified on the host from the owner's checkout, and only then
   `agent-dgx stop` and `agent-dgx session rm --force`.
+
+- `launch.py supervise <name> [--budget <s>]` - one timer fire is one tick (`[r247]`): it
+  runs the prompt `docs/uplevel/roles/coordinator.md` quotes on its `/loop` line, **read out of
+  that file** rather than restated here or in code, as a headless `claude -p` inside the
+  session through `sbx exec` under `timeout <budget>` (the kill lives inside the sandbox, so
+  it lands even if `sbx exec` later stops answering; the host timeout stays as a backstop).
+  The fire mirrors the pane (ruling 259, Q1 answered with (a)): its `claude` line carries
+  the prompt plus exactly the flags agent-dgx starts the pane with -
+  `--dangerously-skip-permissions --settings $HOME/.claude/agent-dgx/claude-settings.json
+--mcp-config=$HOME/.claude/agent-dgx/mcp.json`, the literal `$HOME` paths the sandbox's own
+  shell expands (owner answer on #6854: agent-dgx keeps the files there; the workspace has no
+  copy) - and nothing else; the manifest row's arguments are `agent-dgx run` vocabulary, not
+  `claude` flags. Before the fire it probes the two files inside the sandbox, at those absolute
+  paths, and refuses one missing, naming it and the next step, rather than firing a tick
+  without the pane's settings. It
+  refuses a run launched from a session's clone, as `up` and `retire` do. A host `flock`
+  skips a fire while a tick runs (the kernel drops it when the holder dies, so a killed
+  supervisor leaves no stale lock), a tick past its budget (default 3600 s) is recorded
+  `killed=yes status=timeout`, and each fire appends one line to
+  `<checkout>/supervise/<name>.log`: start, end, status, killed, summary (the summary is
+  shlex-quoted tick stdout; a fire that cannot reach the sandbox logs `status=refused`).
+  Coordinator only - extending it to lanes is the owner's later ruling.
 
 Exit codes: 0 done; 2 refused or a step failed, always naming the next step. It follows
 `synthbench/host/agent.py`: every command goes through one `Host` seam, all checks run

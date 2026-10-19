@@ -43,7 +43,14 @@ MEASURE, open (history/packages-done.md §O0.1): whether `sbx exec` still reache
 once the agent's session has ended. This order does not depend on the answer: the inspection and the
 export run while the sandbox is still up, and `agent-dgx stop` comes after them. An
 inspection that fails still refuses, and the owner's `retire` run on a throwaway session
-posts the measurement.
+posts the measurement. The supervisor's budget kill does not depend on the answer either: the
+`timeout` wrapper runs *inside* the sandbox, so the tick dies at the budget even if `sbx exec`
+later stops reaching it; the host's own timeout stays only as the backstop for a fire whose
+`sandbox` never answers at all. The supervisor's dgx-file probe answers through the same
+channel and its failure arms pass through for the same reason: the fire's own handlers are
+what record the unreachable sandbox (`status=refused` for a failed connection,
+`killed=yes status=timeout` for a read that overruns the probe's 120s cap), so the gap is
+logged rather than refused away before any log line exists.
 
 Exit codes: 0 done; 2 refused, or a step failed, with what to do next.
 """
@@ -51,15 +58,19 @@ Exit codes: 0 done; 2 refused, or a step failed, with what to do next.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tomllib
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -460,9 +471,7 @@ def up(host: Host, *, phase: int) -> None:
             # mount at or under it.
             if session.gpu:
                 run.append("--gpu")
-            _do(
-                host, f"create {session.name}", [*run, "--split"], cwd=host.checkout, timeout=900
-            )
+            _do(host, f"create {session.name}", [*run, "--split"], cwd=host.checkout, timeout=900)
             created.append(session)
         elif found.get("sandbox") is None:
             # Half-removal is real, not hypothetical: both of the owner's real retires on
@@ -811,6 +820,255 @@ def retire(host: Host, name: str) -> None:
     )
 
 
+# ----------------------------------------------------------------- supervise
+#
+# [r247]. The coordinator's tick is already a fresh, unnamed subagent whose only memory is
+# the read-through cursor in its heartbeat (UR-173), so the in-pane `/loop` dispatcher adds
+# nothing but a process that can die or hang - on 2026-10-16 it did, and the coordinator
+# posted nothing from 03:47Z to 13:30Z. The supervisor replaces that process from the host:
+# each timer fire is one tick, run headless inside the sandbox.
+
+COORDINATOR = "uplevel-coordinator"
+SUPERVISE_DIR = Path("supervise")
+TICK_BUDGET = 60 * 60  # a tick that has run 60 minutes is killed ([r247], box 2)
+# The pane's own launch flags, inside the sandbox (ruling 259): agent-dgx starts the
+# coordinator's claude with bypass permissions, this settings file and this MCP config,
+# and a bare headless `claude -p` drops all three. The fire mirrors the pane; it reads
+# these two files in the sandbox and copies no setting into the repo. The files live in
+# the sandbox's HOME, not the workspace: agent-dgx keeps them at
+# `$HOME/.claude/agent-dgx/` (measured: `/home/agent/.claude/agent-dgx/` in a running
+# session, and `workspace/.claude/agent-dgx/` does not exist), so the paths stay
+# unexpanded here and the sandbox's own shell resolves `$HOME` on both wires (owner
+# answer on #6854, 2026-10-18T23:31Z).
+DGX_SETTINGS = "$HOME/.claude/agent-dgx/claude-settings.json"
+DGX_MCP = "$HOME/.claude/agent-dgx/mcp.json"
+KICKOFF_DOC = Path(__file__).resolve().parents[2] / "docs" / "uplevel" / "roles" / "coordinator.md"
+
+
+def tick_prompt(doc: Path = KICKOFF_DOC) -> str:
+    """The tick prompt, word for word as the `/loop` line in `coordinator.md` quotes it.
+
+    Read out of the document rather than restated here, because box 1's whole claim is that
+    the supervisor fires *that* string and not a paraphrase: the `/loop 30m ...` line names
+    it in double quotes, and that quotation is the definition. A test pins the two together,
+    so amending the prompt in one place cannot silently leave the other firing the old text.
+    """
+    text = doc.read_text(encoding="utf-8")
+    quoted = re.search(r'/loop \d+m Dispatch one fresh[^\n]*?"(.+?)"', text)
+    if quoted is None:
+        raise Refused(
+            f"{doc} no longer quotes the tick prompt on its `/loop` line, so the supervisor "
+            "has nothing to fire. Restore the quoted prompt, or update tick_prompt() with it."
+        )
+    return quoted.group(1)
+
+
+@contextmanager
+def _tick_lock(path: Path) -> Iterator[bool]:
+    """Hold the tick lock, or yield False at once if another fire holds it.
+
+    The kernel drops a flock when its holder dies, so a supervisor killed mid-tick never
+    leaves a marker that blocks the next fire (the idiom and its reason:
+    synthbench/generate/window.py's `_window_lock`).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+    finally:
+        os.close(lock_fd)
+
+
+def _log_line(path: Path, line: str) -> None:
+    """Append one line to the fire log, flushing so a killed run still leaves its start."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+        handle.flush()
+
+
+def _clock() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _sbx_probe(host: Host, sandbox: str) -> None:
+    """The two agent-dgx files the fire's flags point at must exist in the sandbox.
+
+    Probed by the sandbox's own shell, one round-trip, at their absolute paths under the
+    sandbox's HOME (`$HOME/.claude/agent-dgx/`): anything missing is refused before a
+    tick runs, so a fire never guesses whether the files exist (ruling 259, item 2 - it
+    refuses rather than guesses, as `up` and `retire` do; the `$HOME` expansion is the
+    sandbox shell's, the same expansion the fire's flags get). A sandbox that cannot
+    answer is not this check's subject: the fire hits the same wall one command later
+    and its own handlers record the gap (`status=refused` for a failed connection,
+    `killed=yes status=timeout` for a read that overruns the 120s cap).
+    """
+    argv = [
+        "sbx",
+        "exec",
+        sandbox,
+        "bash",
+        "-lc",
+        f'for f in {DGX_SETTINGS} {DGX_MCP}; do [ -f "$f" ] || echo "missing:$f"; done',
+    ]
+    try:
+        done = host.run(argv, capture_output=True, text=True, timeout=120, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        # A sandbox that cannot answer is not this check's subject: the fire hits the
+        # same wall one command later and its own handler records the gap - `status=refused`
+        # for an OSError, `killed=yes status=timeout` for an overrunning read. Refusing
+        # here too would skip both log lines.
+        return
+    missing = [
+        line.removeprefix("missing:")
+        for line in done.stdout.splitlines()
+        if line.startswith("missing:")
+    ]
+    if missing:
+        quoted = ", ".join(m for m in missing)
+        raise Refused(
+            f"{sandbox} is missing the agent-dgx file(s) the fire mirrors the pane with "
+            f"({quoted}). The pane was started with "
+            "them; restore them inside the sandbox "
+            "(agent-dgx recreated the session without them?) and run this again."
+        )
+
+
+def coordinator_session(host: Host) -> Session:
+    """The coordinator's row from the manifest, which the fire runs inside.
+
+    Read from the manifest rather than assumed: the row is what proves the session is
+    declared and running before anything fires. Its `[models]` entry is `agent-dgx run`
+    vocabulary - how the owner STARTS the pane - and is deliberately not on the fire's
+    `claude` line (the fire carries the prompt and the pane's own three launch flags,
+    per ruling 259; see `supervise`).
+    """
+    data = _load_toml(host.manifest)
+    for sessions in _phases_of(data, host.manifest).values():
+        for session in sessions:
+            if session.name == COORDINATOR:
+                return session
+    raise Refused(
+        f"{host.manifest} declares no {COORDINATOR} session, so there is no session to "
+        "fire inside. Restore its row (scripts/uplevel/sandboxes.toml, Phase 0/1)."
+    )
+
+
+def supervise(host: Host, name: str, *, budget: int = TICK_BUDGET) -> None:
+    """One timer fire: run the coordinator's tick once, inside its sandbox.
+
+    A fire is a no-op that says so when the session is not running (exit 2, naming the
+    command that starts it), when another fire holds the lock, and when the run itself was
+    launched from a session's clone (as `up` and `retire` refuse; a fire from there would
+    create `supervise/` in an agent-writable checkout). Otherwise it runs the tick prompt
+    as a headless `claude -p` through `sbx exec` under `timeout <budget>` (the kill lives
+    inside the sandbox; the host budget stays as the backstop), and appends one line
+    carrying start, end, status, killed and the tick's own summary. A fire that cannot
+    reach the sandbox is logged too - `status=refused` - so the log records the gap an
+    absent line would hide.
+    """
+    if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0:
+        raise Refused(
+            f"--budget must be a positive integer (seconds before a running tick is "
+            f"killed), not {budget!r}. Nothing was fired."
+        )
+    _check_owner_checkout(host)
+    if name != COORDINATOR:
+        raise Refused(
+            f"supervise runs the coordinator's ticks only, and {name} is not {COORDINATOR}. "
+            "Lanes, heavy agents and the operator keep their panes; whether the supervisor "
+            "extends to them is the owner's decision after 48 hours ([r247], box 7)."
+        )
+    found = _session(host, name)
+    if found is None or found.get("sandbox") is None:
+        raise Refused(
+            f"{name} is not running: there is no sandbox to fire a tick inside. Start it "
+            f"with `agent-dgx run {name} --agent claude --split`, then run this again."
+        )
+
+    session = coordinator_session(host)
+    prompt = tick_prompt()
+    directory = host.checkout / SUPERVISE_DIR
+    log = directory / f"{name}.log"
+    # The fire mirrors the pane (ruling 259, #7248 Q1 answered with (a)): agent-dgx does
+    # not start the pane on defaults - it runs `claude --dangerously-skip-permissions
+    # --settings <dgx settings> --mcp-config <dgx mcp>` - and a bare headless `claude -p`
+    # drops all three: without bypass permissions a headless tick cannot approve its own
+    # tool calls, so it could not post, merge or update branches. The flags point at the
+    # agent-dgx files inside the sandbox, the same files the pane was launched with; the
+    # manifest row's arguments stay off the wire (`[models]` is `agent-dgx run`
+    # vocabulary, not `claude` flags - measured: unknown option, rc 1 - and a
+    # shell-injection seam had the row ever changed). The probe refuses rather than
+    # guesses: a missing file is checked by the sandbox itself, not by a host-side guess
+    # about its filesystem.
+    _sbx_probe(host, session.sandbox)
+    script = (
+        f"timeout {budget} claude -p {shlex.quote(prompt)} "
+        f"--dangerously-skip-permissions "
+        f"--settings {DGX_SETTINGS} --mcp-config={DGX_MCP}"
+    )
+    argv = ["sbx", "exec", session.sandbox, "bash", "-lc", f"cd {session.workspace} && {script}"]
+
+    if host.dry_run:
+        _say(f"would fire {name}'s tick: {shlex.join(argv)}")
+        _say(f"would append one line to {log} (start, end, status, killed, summary)")
+        return
+
+    with _tick_lock(directory / f"{name}.lock") as held:
+        if not held:
+            _log_line(log, f"{_clock()} {name} skipped: a tick is still running")
+            _say(f"{name} is already running a tick: this fire is skipped")
+            return
+
+        started = _clock()
+        _say(f"== fire {name}'s tick: {shlex.join(argv)}")
+        killed = False
+        status = "ok"
+        summary = ""
+        try:
+            done = host.run(argv, capture_output=True, text=True, timeout=budget, check=False)
+            # the tick's partial stdout is the summary even on a kill: what the tick was
+            # printing when the budget caught it is the one diagnostic the log can carry
+            summary = " ".join(str(done.stdout or "").split())[:300]
+            if done.returncode == 124:
+                # `timeout` killed the tick at the budget inside the sandbox
+                killed, status = True, "timeout"
+            else:
+                status = "ok" if done.returncode == 0 else f"exit {done.returncode}"
+        except subprocess.TimeoutExpired:
+            # the host backstop: the sandbox itself stopped answering (the wrapper would
+            # have killed claude in-sandbox at the same budget had it been reached)
+            killed, status = True, "timeout"
+        except OSError as error:
+            ended = _clock()
+            note = " ".join(str(error).split())[:300]
+            _log_line(
+                log,
+                f"{started} {name} start={started} end={ended} status=refused "
+                f"killed=no summary={shlex.quote(note)}",
+            )
+            raise Refused(
+                f"could not fire {name}'s tick ({error}). Whether `sbx exec` still reaches "
+                "the sandbox is this module header's open MEASURE; the session was left as "
+                "it was."
+            ) from error
+        ended = _clock()
+        _log_line(
+            log,
+            f"{started} {name} start={started} end={ended} status={status} "
+            f"killed={'yes' if killed else 'no'} summary={shlex.quote(summary) if summary else '(none)'}",
+        )
+        _say(f"fired {name}: status={status} killed={'yes' if killed else 'no'}")
+
+
 # ----------------------------------------------------------------------- cli
 
 
@@ -824,7 +1082,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     up_p.add_argument("--phase", type=int, required=True, help="the phase to bring up")
     retire_p = commands.add_parser("retire", help="export a session's work, then remove it")
     retire_p.add_argument("name", help="the session, as agent-dgx names it (uplevel-ops-a)")
-    for sub in (up_p, retire_p):
+    sup_p = commands.add_parser(
+        "supervise", help="one timer fire: run the coordinator's tick once, inside its sandbox"
+    )
+    sup_p.add_argument("name", help="the session to fire for ([r247]: uplevel-coordinator only)")
+    sup_p.add_argument(
+        "--budget",
+        type=int,
+        default=TICK_BUDGET,
+        help=f"seconds before a running tick is killed (default {TICK_BUDGET})",
+    )
+    for sub in (up_p, retire_p, sup_p):
         sub.add_argument(
             "--dry-run",
             action="store_true",
@@ -839,6 +1107,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         host = Host(checkout=repo, dry_run=dry)
         if args.command == "up":
             up(host, phase=args.phase)
+        elif args.command == "supervise":
+            supervise(host, args.name, budget=args.budget)
         else:
             retire(host, args.name)
     except Refused as error:
