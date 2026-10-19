@@ -20,7 +20,9 @@ Two defects pinned here (plan P WP2.3):
    saying exactly which tier's absence it is.
 
 2. FLOOR HYGIENE (R-1). Backend integration floor 37 and frontend floors
-   80/74.6/78.4/80.9 are the MEASURED values (runs fetched 2026-09-20; the
+   79.7/74.6/77.4/80.7 are the MEASURED values (backend fetched 2026-09-20;
+   frontend re-pinned to run 39161827871's merged totals by owner ruling 261,
+   one-off 2026-10-18; the
    frontend declared 83/77/81/84 sat above every observed run — a floor that
    never held). The merge step enforces the frontend floors only when all
    shards passed, so a red shard can't launder a false coverage FAIL either.
@@ -212,11 +214,14 @@ def test_frontend_floor_numbers_are_the_measured_ones():
     block = re.search(r"thresholds:\s*\{([^}]*)\}", vite)
     assert block, "vite.config.ts coverage thresholds block must exist"
     vals = dict(re.findall(r"(statements|branches|functions|lines):\s*([0-9.]+)", block.group(1)))
-    measured = {"statements": "80", "branches": "74.6", "functions": "78.4", "lines": "80.9"}
+    # R-1 floors are the measured values; re-pinned to run 39161827871's merged
+    # totals at d78f1a7ed by owner ruling 261 (one-off, 2026-10-18) — a record
+    # of the measurement, not a declared wish (UR-69 stands for every other PR).
+    measured = {"statements": "79.7", "branches": "74.6", "functions": "77.4", "lines": "80.7"}
     for k, v in measured.items():
         assert float(vals[k]) == float(v), (
-            f"frontend floor {k} must be the measured {v} (run 35486259345); the "
-            "declared 83/77/81/84 above every observed run is not a floor (R-1)"
+            f"frontend floor {k} must be the measured {v} (run 39161827871, ruling 261); "
+            "a floor not the measured value is a declared wish (R-1)"
         )
 
 

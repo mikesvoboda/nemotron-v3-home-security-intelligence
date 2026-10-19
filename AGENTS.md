@@ -112,7 +112,7 @@ This project follows **Test-Driven Development (TDD)** (tasks labeled `tdd`). Fu
 | ------------------- | ------------------------------------------------------ | ---------------------------------------------- |
 | Backend unit        | tier floor 84¹                                         | `uv run pytest backend/tests/unit/ -n auto`    |
 | Backend integration | tier floor 37¹                                         | `uv run pytest backend/tests/integration/ -n0` |
-| Frontend            | floors 80 / 74.6 / 78.4 / 80.9² (measured values)      | `cd frontend && npm test`                      |
+| Frontend            | floors 79.7 / 74.6 / 77.4 / 80.7² (measured values)    | `cd frontend && npm test`                      |
 | **Full validation** | **80% combined unit+integration** (the executed floor) | `./scripts/validate.sh`                        |
 
 Gate semantics (re-verified against the tree 2026-09-22):
@@ -120,7 +120,7 @@ Gate semantics (re-verified against the tree 2026-09-22):
 - The executed **absolute** backend floor is **80% on combined unit+integration**: `scripts/validate.sh` merges both tiers and checks `--fail-under=80`, mirrored in `.github/workflows/nightly-full-gate.yml`.
 - `pyproject.toml` `fail_under = 85` is **not** an absolute floor. Per owner ruling A7.1 it is the PR diff gate's **relative baseline** over merged shard data; the diff gate (`scripts/check-test-coverage-gate.py`, `COVERAGE_DIFF_EPSILON_PP = 0.5`) forgives drops up to its 0.5pp noise band (WP2.5 re-derived the band from post-seed-pin runs).
 - ¹ Per-tier absolute floors (unit 84, integration 37 — WP2.5 measured) are enforced in the CI merge steps **only when the tier fully passed** — a red shard means partial data, and partial data is never floor-checked (`ci.yml` unit/integration floor steps).
-- ² Frontend floors are the **measured** stmts/branches/functions/lines values (R-1/WP2.3; run 35486259345), defined in `frontend/scripts/merge-shard-coverage.mjs` and enforced via `--enforce` in CI only when all Vitest shards passed.
+- ² Frontend floors are the **measured** stmts/branches/functions/lines values (R-1/WP2.3; run 39161827871 at d78f1a7ed, re-pinned by owner ruling 261 — one-off), defined in `frontend/scripts/merge-shard-coverage.mjs` and enforced via `--enforce` in CI only when all Vitest shards passed.
 - Reference measurement (2026-09-20): 84.12% blended / 86.02% line / 76.27% branch — three different numbers (`--format=total` is the blend). Main runs publish line and branch separately; see the testing guide.
 
 ## Git Rules
