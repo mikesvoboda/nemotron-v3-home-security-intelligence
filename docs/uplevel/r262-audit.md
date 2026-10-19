@@ -34,24 +34,24 @@ Production first, then test, then tooling; within a class in PR-number order. Ba
 first ten production PRs; later batches are about fifteen PRs, one comment each. Each batch
 records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
-| Batch | PRs | Items | Refuted | Comment |
-| ----- | --- | ----- | ------- | ------- |
-| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below) | 0 (16/16 survived incl. Q-000) | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180) |
+| Batch | PRs                                                        | Items                                                                                                                                                                         | Refuted                        | Comment                                                                                      |
+| ----- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------- |
+| 1     | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below) | 0 (16/16 survived incl. Q-000) | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180) |
 
 ## Batch 1 — per-PR verdicts
 
-| PR | Class | Verdict |
-| -- | ----- | ------- |
-| #6862 | production | 2 items (Q-002, Q-005); 5 more stale cites first-moved by #7114, recorded on its batch; retirement-gate timeout = sandbox environment, no item |
-| #6868 | production | 2 items (Q-003, Q-006 — Q-006 mover-owns) |
-| #6869 | production | no items |
-| #6880 | production | no items |
-| #6886 | production | 1 item (Q-004) |
-| #6907 | production | no items (docstring cite drift attaches to #7114's batch) |
-| #6909 | production | 1 item (Q-007) |
-| #6913 | production | 1 item (Q-001 — pre-existing bug on a kept file) |
+| PR    | Class      | Verdict                                                                                                                                                                       |
+| ----- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #6862 | production | 2 items (Q-002, Q-005); 5 more stale cites first-moved by #7114, recorded on its batch; retirement-gate timeout = sandbox environment, no item                                |
+| #6868 | production | 2 items (Q-003, Q-006 — Q-006 mover-owns)                                                                                                                                     |
+| #6869 | production | no items                                                                                                                                                                      |
+| #6880 | production | no items                                                                                                                                                                      |
+| #6886 | production | 1 item (Q-004)                                                                                                                                                                |
+| #6907 | production | no items (docstring cite drift attaches to #7114's batch)                                                                                                                     |
+| #6909 | production | 1 item (Q-007)                                                                                                                                                                |
+| #6913 | production | 1 item (Q-001 — pre-existing bug on a kept file)                                                                                                                              |
 | #6922 | production | 5 items kept here (Q-008, Q-009, Q-010, Q-011, Q-013, all claim/low) + 3 found here but re-attributed by mover-owns: Q-012 → #7230 (batch 4), Q-014 + Q-015 → #6936 (batch 2) |
-| #6925 | production | no items |
+| #6925 | production | no items                                                                                                                                                                      |
 
 ## Items
 
@@ -63,22 +63,23 @@ continue (comment 6266204180): the low items and Q-000 rule from the compact tab
 quoted lines and proof in the collapsed block under it; Q-001 (high) keeps the full template.
 Owner decisions may arrive in bulk and are written into the rows.
 
-| id | class | path:line | PR | wrong (one line) | fix (size, lane) | owner |
-| -- | ----- | --------- | -- | ---------------- | ---------------- | ----- |
-| Q-000 | drift | docs/architecture/system-overview/configuration.md:281, docs/deployment/container-orchestration.md:526, docs/operator/service-control.md:464 | owner note (6266183856) | `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` still documented in three env-var tables, but #7244 (merge 09e67114c) deleted `OrchestratorSettings.max_consecutive_failures` and `.env.example` lost its line (e630d4784) | delete the three rows. Size S; docs | (pending) |
-| Q-002 | drift | docker-compose.ci.yml:190 | #6862 | the ci.yml comment cites `docker-compose.prod.yml:902` for the read-only-rootfs NOTE, but the NOTE sits at `:950-951` at the pin (`:902` is a disabled `cpus: '0.25'` line) | update the cite to `docker-compose.prod.yml:950`. Size S; ops | (pending) |
-| Q-003 | claim | monitoring/ai-pipeline-alerts.yml:20 | #6868 | the rewritten header says "the five this file alerts on" but the file alerts on only four — no expression matches `vlm_circuit_open` (recorded at vlm_client.py:927, never alerted on) | drop `vlm_circuit_open` from the list, or reword to say the file covers circuit-open only through the degraded-gauge proxy. Size S; ops | (pending) |
-| Q-004 | test | backend/tests/unit/services/test_verdict_engine_status.py:159 | #6886 | the only test named for emit-failure containment cannot fail against removal of the swallowing `try/except` — the mocked RuntimeError surfaces only in an orphan task, so the docstring's "swallowed by design" clause is unpinned (mutation-proven by the refuter) | make the swallow observable — capture/gather the scheduled task and assert it completes without exception, or assert the structured "Failed to emit verdict-engine status event" log record. Size S; backend | (pending) |
-| Q-005 | drift | docker-compose.prod.yml:573 | #6862 | the backend's vlm_assess comment still calls ai-vlm "the profiled ai-vlm service", but the same PR deleted the `vlm` profile from ai-vlm — no ai-vlm profile exists at the pin and the default `up` starts it | drop "profiled" from the comment ("the default ai-vlm service"). Size S; ops | (pending) |
-| Q-006 | drift | monitoring/prometheus_rules.yml:4 | #6868 (mover-owns) | the prometheus-rules header cites `docker-compose.prod.yml:1017` for the bind-mount line, but at the pin the mount sits at `:1098` (`:1017` is a frontend healthcheck URL); cite true at #6862's merge, first broken by #6868 | update the cite to `docker-compose.prod.yml:1098`. Size S; ops | (pending) |
-| Q-007 | claim | frontend/src/hooks/useVerdictEngineStatus.ts:44 | #6909 | the `enabled` option's docstring claims it controls the WebSocket connection, but `enabled=false` still opens the /ws/system socket — only the reconnect flag and the readiness poll are gated | skip the useWebSocket subscription when enabled is false, or reword the docstring to say enabled gates reconnection and polling. Size S; frontend | (pending) |
-| Q-008 | claim | backend/tests/unit/core/test_nginx_credential_forwarding.py:3 | #6922 | the docstring asserts B1.5's gate "reads exactly two client credentials on the proxied path", but at the pin the gate reads five credential kinds, all arriving on the proxied path (false even at its own cited baseline e9ec74ef) | rewrite :3-4 to the pin's credential set, or scope the sentence to the credential nginx forwarding is pinned for and state the gate reads others (the :87 message may stay, scoped to its HTTP test). Size S; backend | (pending) |
-| Q-009 | claim | backend/tests/security/test_docker_compose_security.py:401 | #6922 | three present-tense ai-llm census prose claims are false at the pin: the tracked set greps 7 matching lines (not "two"), the live key sits at `prod.yml:305` (not `:283`), and `prodshape.yml:164` also carries the exact key | update :400-403, :559-566 and :580 to the pin counts and coordinates, or reword to state the parsed-key rule without pinning a volatile count and line number. Size S; backend | (pending) |
-| Q-010 | claim | frontend/src/services/api.auth-seam.test.ts:20 | #6922 | the fixture comment cites the gate's 401 body as `backend/api/middleware/auth.py:405-408` with no dating frame, but at the pin that span is the WebSocket subprotocol extraction and the JSON refusal body sits at `:692-696` (body text itself still exact) | repoint the cite to auth.py:692-696, or drop the line numbers and name the refusal body. Size S; frontend | (pending) |
-| Q-011 | claim | frontend/src/services/api.ts:2928 | #6922 | nine comment blocks assert media/snapshot/detection endpoints are "exempt from API key authentication in the backend middleware", but OPEN_PATHS holds none of those paths — under EXPOSE_LAN they are gated and work via the same-origin session cookie | rewrite the nine sites to the pin behaviour, plus the six backend route-docstring sites carrying the same claim (detections.py :170/:644/:1221/:1399/:1546, cameras.py :1075) found by the refuter. Size S; frontend + backend | (pending) |
-| Q-013 | claim | frontend/src/contexts/AuthContext.test.tsx:356 | #6922 | two inline cites give pin-stale coordinates for claims whose substance is still true — logout cited at AuthContext.tsx:175-178 (pin: :217-221) and the assignment at :152 (pin: :194, now the setupRequired-guarded form) | repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update the :361 quote to the guarded form the pin ships. Size S; frontend | (pending) |
+| id    | class | path:line                                                                                                                                    | PR                      | wrong (one line)                                                                                                                                                                                                                                                    | fix (size, lane)                                                                                                                                                                                                               | owner     |
+| ----- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| Q-000 | drift | docs/architecture/system-overview/configuration.md:281, docs/deployment/container-orchestration.md:526, docs/operator/service-control.md:464 | owner note (6266183856) | `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` still documented in three env-var tables, but #7244 (merge 09e67114c) deleted `OrchestratorSettings.max_consecutive_failures` and `.env.example` lost its line (e630d4784)                                                  | delete the three rows. Size S; docs                                                                                                                                                                                            | (pending) |
+| Q-002 | drift | docker-compose.ci.yml:190                                                                                                                    | #6862                   | the ci.yml comment cites `docker-compose.prod.yml:902` for the read-only-rootfs NOTE, but the NOTE sits at `:950-951` at the pin (`:902` is a disabled `cpus: '0.25'` line)                                                                                         | update the cite to `docker-compose.prod.yml:950`. Size S; ops                                                                                                                                                                  | (pending) |
+| Q-003 | claim | monitoring/ai-pipeline-alerts.yml:20                                                                                                         | #6868                   | the rewritten header says "the five this file alerts on" but the file alerts on only four — no expression matches `vlm_circuit_open` (recorded at vlm_client.py:927, never alerted on)                                                                              | drop `vlm_circuit_open` from the list, or reword to say the file covers circuit-open only through the degraded-gauge proxy. Size S; ops                                                                                        | (pending) |
+| Q-004 | test  | backend/tests/unit/services/test_verdict_engine_status.py:159                                                                                | #6886                   | the only test named for emit-failure containment cannot fail against removal of the swallowing `try/except` — the mocked RuntimeError surfaces only in an orphan task, so the docstring's "swallowed by design" clause is unpinned (mutation-proven by the refuter) | make the swallow observable — capture/gather the scheduled task and assert it completes without exception, or assert the structured "Failed to emit verdict-engine status event" log record. Size S; backend                   | (pending) |
+| Q-005 | drift | docker-compose.prod.yml:573                                                                                                                  | #6862                   | the backend's vlm_assess comment still calls ai-vlm "the profiled ai-vlm service", but the same PR deleted the `vlm` profile from ai-vlm — no ai-vlm profile exists at the pin and the default `up` starts it                                                       | drop "profiled" from the comment ("the default ai-vlm service"). Size S; ops                                                                                                                                                   | (pending) |
+| Q-006 | drift | monitoring/prometheus_rules.yml:4                                                                                                            | #6868 (mover-owns)      | the prometheus-rules header cites `docker-compose.prod.yml:1017` for the bind-mount line, but at the pin the mount sits at `:1098` (`:1017` is a frontend healthcheck URL); cite true at #6862's merge, first broken by #6868                                       | update the cite to `docker-compose.prod.yml:1098`. Size S; ops                                                                                                                                                                 | (pending) |
+| Q-007 | claim | frontend/src/hooks/useVerdictEngineStatus.ts:44                                                                                              | #6909                   | the `enabled` option's docstring claims it controls the WebSocket connection, but `enabled=false` still opens the /ws/system socket — only the reconnect flag and the readiness poll are gated                                                                      | skip the useWebSocket subscription when enabled is false, or reword the docstring to say enabled gates reconnection and polling. Size S; frontend                                                                              | (pending) |
+| Q-008 | claim | backend/tests/unit/core/test_nginx_credential_forwarding.py:3                                                                                | #6922                   | the docstring asserts B1.5's gate "reads exactly two client credentials on the proxied path", but at the pin the gate reads five credential kinds, all arriving on the proxied path (false even at its own cited baseline e9ec74ef)                                 | rewrite :3-4 to the pin's credential set, or scope the sentence to the credential nginx forwarding is pinned for and state the gate reads others (the :87 message may stay, scoped to its HTTP test). Size S; backend          | (pending) |
+| Q-009 | claim | backend/tests/security/test_docker_compose_security.py:401                                                                                   | #6922                   | three present-tense ai-llm census prose claims are false at the pin: the tracked set greps 7 matching lines (not "two"), the live key sits at `prod.yml:305` (not `:283`), and `prodshape.yml:164` also carries the exact key                                       | update :400-403, :559-566 and :580 to the pin counts and coordinates, or reword to state the parsed-key rule without pinning a volatile count and line number. Size S; backend                                                 | (pending) |
+| Q-010 | claim | frontend/src/services/api.auth-seam.test.ts:20                                                                                               | #6922                   | the fixture comment cites the gate's 401 body as `backend/api/middleware/auth.py:405-408` with no dating frame, but at the pin that span is the WebSocket subprotocol extraction and the JSON refusal body sits at `:692-696` (body text itself still exact)        | repoint the cite to auth.py:692-696, or drop the line numbers and name the refusal body. Size S; frontend                                                                                                                      | (pending) |
+| Q-011 | claim | frontend/src/services/api.ts:2928                                                                                                            | #6922                   | nine comment blocks assert media/snapshot/detection endpoints are "exempt from API key authentication in the backend middleware", but OPEN_PATHS holds none of those paths — under EXPOSE_LAN they are gated and work via the same-origin session cookie            | rewrite the nine sites to the pin behaviour, plus the six backend route-docstring sites carrying the same claim (detections.py :170/:644/:1221/:1399/:1546, cameras.py :1075) found by the refuter. Size S; frontend + backend | (pending) |
+| Q-013 | claim | frontend/src/contexts/AuthContext.test.tsx:356                                                                                               | #6922                   | two inline cites give pin-stale coordinates for claims whose substance is still true — logout cited at AuthContext.tsx:175-178 (pin: :217-221) and the assignment at :152 (pin: :194, now the setupRequired-guarded form)                                           | repoint :356 to AuthContext.tsx:217-221 and :361 to AuthContext.tsx:194, and update the :361 quote to the guarded form the pin ships. Size S; frontend                                                                         | (pending) |
 
 ### Q-001 · bug · high · frontend/src/hooks/useServiceStatus.ts:80 · #6913
+
 - Wrong: the hook's service-name allowlist drops every `service_status` broadcast except
   `redis`/`rtdetr`/`nemotron`, but at this pin the monitor broadcasts `yolo26` (the only
   probe it runs) and orchestrator container names (`ai-vlm`, `ai-gateway`, `go2rtc`, …) —
@@ -87,7 +88,7 @@ Owner decisions may arrive in bulk and are written into the rows.
 - Evidence: `frontend/src/hooks/useServiceStatus.ts:80` at the pin reads
   `const SERVICE_NAMES: ServiceName[] = ['redis', 'rtdetr', 'nemotron'];` and
   `:91-93` `function isServiceName(value: unknown): value is ServiceName { return typeof
-  value === 'string' && SERVICE_NAMES.includes(value as ServiceName); }`. The only
+value === 'string' && SERVICE_NAMES.includes(value as ServiceName); }`. The only
   monitor probe is `backend/main.py:727-735` `return [ ServiceConfig( name="yolo26", …`
   (block spans :727-735; refuter's precision correction), plus two emitters the
   original read missed — `backend/services/worker_supervisor.py:750` broadcasts
@@ -105,7 +106,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   `backend/services/container_orchestrator.py:222-241` `_broadcast_status` broadcasts
   container names. Consumers: `frontend/src/components/layout/Layout.tsx:37,157`
   (`useServiceStatus` → `ServiceStatusAlert`), `frontend/src/components/system/
-  ServicesPanel.tsx:363,662` (`hasUnhealthy` → panel badge). Provenance: the guard was
+ServicesPanel.tsx:363,662` (`hasUnhealthy` → panel badge). Provenance: the guard was
   born 2025-12-26 (c790a3781); rtdetr→yolo26 renamed 2026-01-26 (ed218ca76, #4442);
   nemotron monitoring retired 2026-09-28 (b3fe4dad4) — all pre-window. #6913 is the only
   census PR whose kept files include the hook; its own edit to the file is formatting
@@ -119,6 +120,7 @@ Owner decisions may arrive in bulk and are written into the rows.
 <summary>Batch-1 low-item evidence — quoted lines, proof, refutation verdicts (Q-000, Q-002…Q-011, Q-013)</summary>
 
 ### Q-000 · drift · low · three docs paths (owner-seeded) · owner note, not a census PR
+
 - Provenance: seeded by the owner (comment 6266183856 on #7265, 2026-10-19T11:30Z) with the
   ruling-262 pointer footer; it is from OUTSIDE the census window (#7244 / B3.3 merged
   2026-10-18T23:06Z) and rides this batch's pass so the owner rules it with the others.
@@ -134,7 +136,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   - `docs/deployment/container-orchestration.md:526`
   - `docs/operator/service-control.md:464`
 - Evidence (lane-verified at the claim pin): `git grep -n ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES
-  41bc0fce7` lists only those three doc lines; no `consecutive_failures` field in
+41bc0fce7` lists only those three doc lines; no `consecutive_failures` field in
   `backend/core/config.py` at the pin; the #7244 diff deletes the field verbatim; the
   sibling rows in all three tables (`ORCHESTRATOR_HEALTH_CHECK_INTERVAL`,
   `ORCHESTRATOR_STARTUP_GRACE_PERIOD`, `ORCHESTRATOR_RESTART_BACKOFF_BASE`, …) map to live
@@ -174,16 +176,17 @@ Owner decisions may arrive in bulk and are written into the rows.
   documents the same defaults in a dedicated section. Fix stands as written.
 
 ### Q-002 · drift · low · docker-compose.ci.yml:190 · #6862
+
 - Wrong: the ci.yml comment cites `docker-compose.prod.yml:902` for the read-only-rootfs
   NOTE, but at the pin the NOTE sits at `prod.yml:950-951` and `:902` is a commented-out
   `cpus: '0.25'` line inside a disabled `deploy.resources` block.
 - Evidence: `docker-compose.ci.yml:190-193` at the pin:
   `# read_only NOT used — same NOTE as docker-compose.prod.yml:902: the / # image's
-  entrypoint sed -i's /etc/nginx/conf.d/default.conf at startup / # and dies on a
-  read-only rootfs (...)`. The NOTE at the pin is `docker-compose.prod.yml:950` `#
-  NOTE: read_only not used — nginx entrypoint uses sed -i on /etc/nginx/conf.d/default.conf`
+entrypoint sed -i's /etc/nginx/conf.d/default.conf at startup / # and dies on a
+read-only rootfs (...)`. The NOTE at the pin is `docker-compose.prod.yml:950` `#
+NOTE: read_only not used — nginx entrypoint uses sed -i on /etc/nginx/conf.d/default.conf`
   and `:951` `# and generates SSL certificates at runtime. These require a writable root
-  filesystem.`; `prod.yml:902` at the pin is `#         cpus: '0.25'`. History: at
+filesystem.`; `prod.yml:902` at the pin is `#         cpus: '0.25'`. History: at
   #6862's first parent the cite already read `:897` while the NOTE sat at `:894` (3 lines
   stale pre-window); #6862's own diff renumbered both by +5 (cite :897→:902, NOTE
   :894→:899), preserving the offset — so this is pre-existing drift the PR touched but
@@ -196,14 +199,15 @@ Owner decisions may arrive in bulk and are written into the rows.
 - Owner: (pending)
 
 ### Q-003 · claim · low · monitoring/ai-pipeline-alerts.yml:20 · #6868
+
 - Wrong: the rewritten header says "The VLM-path values that survive are the five this
   file alerts on", but the file alerts on only four of them — no expression anywhere in
   the file matches `vlm_circuit_open`, which is recorded (`vlm_client.py:927`) and
   described but never alerted on.
 - Evidence: `monitoring/ai-pipeline-alerts.yml:20-22` at the pin: `# to "other". The
-  VLM-path values that survive are the five this file alerts on / # (vlm_transport_error,
-  vlm_http_error, vlm_schema_invalid, vlm_circuit_open, / # vlm_verification_failed)
-  PLUS the reason codes B1.1 added to the allowlist:`. The file's only `error_type`
+VLM-path values that survive are the five this file alerts on / # (vlm_transport_error,
+vlm_http_error, vlm_schema_invalid, vlm_circuit_open, / # vlm_verification_failed)
+PLUS the reason codes B1.1 added to the allowlist:`. The file's only `error_type`
   expressions are `:150` `sum(rate(hsi_pipeline_errors_total{error_type="vlm_verification_failed"}[30m]))`
   and `:173` `sum(increase(hsi_pipeline_errors_total{error_type=~"vlm_transport_error|vlm_http_error|vlm_schema_invalid"}[10m])) > 30`;
   the circuit-open condition is alerted only via the proxy gauge `:195` `hsi_ai_service_degraded{service="ai-vlm"} == 1`
@@ -229,6 +233,7 @@ Owner decisions may arrive in bulk and are written into the rows.
 - Owner: (pending)
 
 ### Q-004 · test · low · backend/tests/unit/services/test_verdict_engine_status.py:159 · #6886
+
 - Wrong: the only test named for emit-failure containment cannot fail against removal of
   the `try/except` that swallows the emit exception — `observe()` schedules
   `_emit_transition` via `asyncio.create_task` and returns first, so the mocked
@@ -237,11 +242,11 @@ Owner decisions may arrive in bulk and are written into the rows.
 - Evidence: test at the pin `:159-169` `test_emit_failure_does_not_break_the_probe`:
   `:164` `ws_emitter.emit = AsyncMock(side_effect=RuntimeError("ws down"))`, `:167-169`
   `snap = tracker.observe(_DOWN_DETAILS)` / `await asyncio.sleep(0)  # the task raises
-  inside; must not surface` / `assert snap.state == VerdictEngineState.UNAVAILABLE`. The
+inside; must not surface` / `assert snap.state == VerdictEngineState.UNAVAILABLE`. The
   guarded block it names: `backend/services/verdict_engine_status.py:285-291` `try: await
-  self._emitter.emit(WebSocketEventType.SYSTEM_VERDICT_ENGINE_STATUS_CHANGED, payload) /
-  except Exception as e: logger.error(f"Failed to emit verdict-engine status event: {e}",
-  exc_info=True)`. Proof the test cannot fail: `observe()` → `_schedule_transition_event`
+self._emitter.emit(WebSocketEventType.SYSTEM_VERDICT_ENGINE_STATUS_CHANGED, payload) /
+except Exception as e: logger.error(f"Failed to emit verdict-engine status event: {e}",
+exc_info=True)`. Proof the test cannot fail: `observe()` → `_schedule_transition_event`
   → `asyncio.get_running_loop().create_task(...)` returns before the coroutine runs
   (`verdict_engine_status.py:245-255`), so removing the `except` lets the RuntimeError
   kill only the background task — asyncio's default handler logs "Task exception was
@@ -252,7 +257,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   empirically: the refuter deleted the try/except in a scratch worktree at the pin and ran
   the named test and its file green against the mutation (1 and 12 passed), and the other
   file touching the tracker (`backend/tests/integration/
-  test_websocket_system_channel_delivery.py`) passes both mutated and pristine, so nothing
+test_websocket_system_channel_delivery.py`) passes both mutated and pristine, so nothing
   else pins the swallow; docstring clause sits at :162-163, the schedule call at :225 with
   create_task :246-253.
 - Fix: make the swallow observable — capture the scheduled task (or gather it) and assert
@@ -262,11 +267,12 @@ Owner decisions may arrive in bulk and are written into the rows.
 - Owner: (pending)
 
 ### Q-005 · drift · low · docker-compose.prod.yml:573 · #6862
+
 - Wrong: the backend's vlm_assess client-wire comment still calls ai-vlm "the profiled
   ai-vlm service", but #6862 deleted the `vlm` profile from the ai-vlm service in the
   same PR — no ai-vlm profile exists at the pin and the default `up` starts it.
 - Evidence: `docker-compose.prod.yml:573` at the pin: `# PIPELINE_MODE=vlm (above) makes
-  the backend dial the profiled ai-vlm / # service, ...`. 6862's own diff deleted
+the backend dial the profiled ai-vlm / # service, ...`. 6862's own diff deleted
   `-    profiles: / -      - vlm` from the ai-vlm block (the hunk sits directly under the
   `CUDA_ARCHITECTURES` line); the ai-vlm block at the pin (`:163` `ai-vlm:`) has no
   `profiles:` key, and the only remaining `profiles:` keys (`:306`, `:1564`) belong to
@@ -289,11 +295,12 @@ Owner decisions may arrive in bulk and are written into the rows.
   vocabulary and the connection-refused narrative only fit the profile-gate reading).
 
 ### Q-006 · drift · low · monitoring/prometheus_rules.yml:4 · #6868 (mover-owns; cite true at #6862's merge)
+
 - Wrong: the prometheus-rules header cites `docker-compose.prod.yml:1017` as the
   bind-mount line, but at the pin the mount sits at `prod.yml:1098` and `:1017` is a
   frontend healthcheck URL.
 - Evidence: `monitoring/prometheus_rules.yml:4` at the pin: `# as
-  /etc/prometheus/prometheus_rules.yml (docker-compose.prod.yml:1017) and it`. The mount
+/etc/prometheus/prometheus_rules.yml (docker-compose.prod.yml:1017) and it`. The mount
   at the pin is `prod.yml:1098` `./monitoring/prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml:ro,z`;
   `prod.yml:1017` at the pin is `'http://localhost:${FRONTEND_INTERNAL_PORT:-8080}/health',`
   (frontend healthcheck). Mover trace across the census production PRs keeping
@@ -320,11 +327,12 @@ Owner decisions may arrive in bulk and are written into the rows.
   refers to the 1098 mount.
 
 ### Q-007 · claim · low · frontend/src/hooks/useVerdictEngineStatus.ts:44 · #6909
+
 - Wrong: the `enabled` option's docstring claims it controls the WebSocket connection, but
   `enabled=false` still opens the /ws/system socket — only the reconnect flag and the
   readiness poll are gated.
 - Evidence: at the pin `:43-47` `Whether to enable the WebSocket connection and readiness
-  polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and disabled
+polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and disabled
   branches pass the same url/protocols/onMessage to useWebSocket and differ only in
   `reconnect: true` vs `reconnect: false`; `useWebSocket.ts:200-206` runs `connect()` on
   mount unconditionally, and `webSocketManager.ts:282-290` opens the connection on every
@@ -353,6 +361,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   hook, not useVerdictEngineStatus.
 
 ### Q-008 · claim · low · backend/tests/unit/core/test_nginx_credential_forwarding.py:3 · #6922
+
 - Wrong: the docstring asserts B1.5's gate "reads exactly two client credentials on the
   proxied path: the session_id cookie and the api-key.<key> WebSocket subprotocol", and the
   `:87` assert message repeats "reads only the session_id cookie and the API key". At the pin
@@ -387,6 +396,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   the :87 message may stay or be clarified to name its HTTP scope.
 
 ### Q-009 · claim · low · backend/tests/security/test_docker_compose_security.py:401 · #6922
+
 - Wrong: three prose claims about the ai-llm census are false at the pin. (1) `:400-403`
   "`grep -c ai-llm` over this file set returns two hits -- one sentence of retirement prose
   (config/docker-compose.gb300.yml:43) and the live prefixed key ai-llm-vllm:
@@ -425,6 +435,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   even at write time.
 
 ### Q-010 · claim · low · frontend/src/services/api.auth-seam.test.ts:20 · #6922
+
 - Wrong: the fixture comment cites the gate's 401 body as
   `backend/api/middleware/auth.py:405-408: 401 {"detail": "Authentication required"}` with no
   dating frame, but at the pin `:405-407` is the WebSocket subprotocol extraction and the
@@ -454,6 +465,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   merge and pin.
 
 ### Q-011 · claim · low · frontend/src/services/api.ts:2928 · #6922
+
 - Wrong: nine comment blocks assert media/snapshot/detection endpoints are "exempt from API
   key authentication in the backend middleware" (listing /api/media/{path},
   /api/detections/{id}/image, /api/detections/{id}/video, /api/cameras/{id}/snapshot). At the
@@ -490,6 +502,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   backend (owners: frontend + backend).
 
 ### Q-013 · claim · low · frontend/src/contexts/AuthContext.test.tsx:356 · #6922
+
 - Wrong: two inline cites give pin-stale coordinates for claims whose substance is still
   true. `:356` "Shipped logout (AuthContext.tsx:175-178) POSTs /api/auth/logout and then only
   invalidateQueries(CURRENT_USER_KEY)" — at the pin `:175-178` is the tail of the 401-seam
@@ -520,12 +533,12 @@ Owner decisions may arrive in bulk and are written into the rows.
   so the comment's quote was never a verbatim match of the cited line — a branch-local
   simplification — and the item's fix (repoint + update the quote) already covers it.
 
-
 </details>
 
 ### Found in batch 1, re-attributed by mover-owns (rule with the re-attributed batch)
 
-### Q-012 · claim · low · frontend/src/__tests__/api-endpoint-contract.test.ts:241 · re-attributed #6922 → **#7230 (batch 4)**
+### Q-012 · claim · low · frontend/src/**tests**/api-endpoint-contract.test.ts:241 · re-attributed #6922 → **#7230 (batch 4)**
+
 - Wrong: the comment's present-tense measurement is false against the file's own adjacent
   snapshot: "Measured now: 24 entries over 24 distinct positions, i.e. no position is
   doubled" — the pinned dynamic snapshot immediately below (:252-274) holds 23 entries over
@@ -560,6 +573,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   inline snapshot pins 23 entries, so the test is green — prose-only.
 
 ### Q-014 · claim · low · frontend/src/hooks/useSummaries.ts:150 · #6922
+
 - Wrong: the comment claims buildWebSocketOptions "attaches the optional api-key subprotocol",
   but at the pin the builder attaches no credential and never returns protocols — the WS
   connection rides the session cookie. The five sibling hooks (useAlertWebSocket,
@@ -567,9 +581,9 @@ Owner decisions may arrive in bulk and are written into the rows.
   useRecentThreats) had this exact comment rewritten to ruling-44 wording by the post-merge
   sweep; this file was missed, so the comment describes code that no longer exists at the pin.
 - Evidence: pin `:148-152` as quoted, then `const { url: wsUrl, protocols } =
-  buildWebSocketOptions('/ws/events');` — protocols is always undefined. The builder at
+buildWebSocketOptions('/ws/events');` — protocols is always undefined. The builder at
   `frontend/src/services/api.ts:986-987` reads `// No credential is attached: the cookie
-  authenticates the browser.` / `return { url: wsUrl };` — no protocols field is ever
+authenticates the browser.` / `return { url: wsUrl };` — no protocols field is ever
   returned. Blob identity: merge tree = pin = 944d6659acd2…, so the file was untouched
   between merge and pin. Contrast: sibling hooks at the pin say "buildWebSocketOptions
   attaches no protocols" (useRecentThreats.ts:194-195 "rides the session cookie").
@@ -607,6 +621,7 @@ Owner decisions may arrive in bulk and are written into the rows.
   was still accurate at its merge.
 
 ### Q-015 · claim · low · frontend/src/hooks/webSocketManager.auth.test.ts:10 · re-attributed #6922 → **#6936 (batch 2)**
+
 - Wrong: the header's defect-1 paragraph is a botched splice that no longer parses:
   "the plumbing below / still pins that any protocols a caller sets are not dropped /
   through `useWebSocket` is dropped on the floor (useWebSocket.ts:19 admits it: …)" carries
