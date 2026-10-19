@@ -30,7 +30,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
 | Batch | PRs | Items | Refuted | Comment |
 | ----- | --- | ----- | ------- | ------- |
-| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 15 | 0 so far (q001–q005 survived; q006, q007 running; Q-008–Q-015 pending refuters) | batch-1 comment on #7265 |
+| 1 | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925 | 14 (Q-012 re-attributed to #7230, batch 4) | refutation pass in flight (all verdicts so far: survived) | batch-1 comment on #7265 |
 
 ## Batch 1 — per-PR verdicts
 
@@ -44,7 +44,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 | #6907 | production | no items (docstring cite drift attaches to #7114's batch) |
 | #6909 | production | 1 item (Q-007) |
 | #6913 | production | 1 item (Q-001 — pre-existing bug on a kept file) |
-| #6922 | production | 8 items (Q-008–Q-015, all claim/low) |
+| #6922 | production | 7 items kept here (Q-008, Q-009, Q-010, Q-011, Q-013, Q-014, Q-015, all claim/low) + Q-012 found here but re-attributed to #7230 (batch 4, mover-owns) |
 | #6925 | production | no items |
 
 ## Items
@@ -405,7 +405,7 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   :1546) and `backend/api/routes/cameras.py` (:1075) — so the fix spans frontend and
   backend (owners: frontend + backend).
 
-### Q-012 · claim · low · frontend/src/__tests__/api-endpoint-contract.test.ts:241 · #6922
+### Q-012 · claim · low · frontend/src/__tests__/api-endpoint-contract.test.ts:241 · re-attributed #6922 → **#7230 (batch 4)**
 - Wrong: the comment's present-tense measurement is false against the file's own adjacent
   snapshot: "Measured now: 24 entries over 24 distinct positions, i.e. no position is
   doubled" — the pinned dynamic snapshot immediately below (:252-274) holds 23 entries over
@@ -417,11 +417,27 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
   tokens (first-token sort -u = 23; webSocketManager.ts:503 and :504 both present, so the
   "distinct lines" claim at :241 is true and only the count is wrong). File blob differs
   merge→pin (the post-merge snapshot refresh); the pin snapshot is what binds.
+- **Re-attribution (refutation pass, 2026-10-19):** the current "24 entries" wording was
+  authored by [r204] commit 70c5d96ae (PR #7230), whose own branch snapshot was genuinely
+  24/24 — the count was correct when written. Concurrent detector-retire PR #7228
+  (`heavy`, 3h earlier) had already deleted the detectorApi.ts:144 entry, and #7230's
+  merge resolution (9e71bfde8) carried that removal in, so the tree read 23/23 under the
+  24-claiming comment from the moment #7230 landed — merge-resolution drift, the
+  mover-owns doctrine. #7230 is a census production PR (position 50, batch 4), so the
+  item attaches to #7230's batch, not batch 1. (The item was first found while auditing
+  #6922's kept files, hence its original attribution; #6922's merge version said
+  "25/24" against a 26/25 snapshot — already inconsistent — but the wording the pin
+  carries is #7230's.)
 - Fix: correct :241-242 to "23 entries over 23 distinct positions", or make the count a
   computed interpolation from audit.scan.dynamic so it cannot drift again.
   Size S; owner: frontend.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false (verified against the re-attributed owner): no reading of "entries" yields
+  24 (23 array lines, 23 tokens, 14 distinct files, nonApi empty); the merge blob said
+  "25/24" against an actual 26/25 (useWebSocketStatus.ts:145 doubled), so the comment was
+  already inconsistent at merge too; no later PR fixed it (pickaxe -S 'Measured now' over
+  70c5d96ae..pin empty); the executable assertion derives the length at runtime and the
+  inline snapshot pins 23 entries, so the test is green — prose-only.
 
 ### Q-013 · claim · low · frontend/src/contexts/AuthContext.test.tsx:356 · #6922
 - Wrong: two inline cites give pin-stale coordinates for claims whose substance is still
