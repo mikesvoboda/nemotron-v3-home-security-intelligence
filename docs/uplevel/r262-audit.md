@@ -335,7 +335,22 @@ refutation pass (ruling 232) runs next and the batch records how many it dropped
 - Fix: repoint the cite to auth.py:692-696, or drop the line numbers and name the refusal
   body/constant. Size S; owner: frontend.
 - Owner: (pending)
-- Refutation: pending.
+- Refuted=false. Refuter verified: the comment (:18-21) is verbatim with no dating frame —
+  the file's own :4 dates its sibling api.ts cite ("at origin/main e9ec74ef"), so the
+  author's dating convention exists and this cite lacks it; at the pin auth.py:405 is the
+  subprotocol extraction and the JSONResponse spans :692-695 (content at :694, await at
+  :696); at e9ec74ef the body sat exactly at :405-408, and the authoring commit aa1e50734
+  has an empty auth.py diff vs e9ec74ef. Escapes fail: no qualifier or past-tense framing
+  (unlike the sibling cite), and the comment reads as current-state documentation, not
+  fixture provenance — the fixture builds the same body text, so nothing anchors the
+  pointer to a snapshot. Provenance sharpened, not refuted: the body was still at
+  :405-407 at #6922's merge too, so the cite was accurate when merged; the displacement
+  to :692 came from the r213 wave (shallow-boundary d6344e031, #7205 — labeled `heavy`,
+  excluded from the census) between merge and pin. The defect is therefore stale-by-
+  later-non-census-drift, not wrong-when-merged — the comment was never corrected as the
+  code moved under it — and since the mover is outside the census, the item stays with
+  #6922 as the census PR keeping the citing file. auth.py itself changed 329/42 between
+  merge and pin.
 
 ### Q-011 · claim · low · frontend/src/services/api.ts:2928 · #6922
 - Wrong: nine comment blocks assert media/snapshot/detection endpoints are "exempt from API
