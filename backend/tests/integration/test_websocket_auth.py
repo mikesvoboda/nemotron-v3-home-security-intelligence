@@ -107,11 +107,6 @@ def _get_common_lifespan_mocks():
     mock_health_registry.register_performance_collector = MagicMock()
     mock_container.get = MagicMock(return_value=mock_health_registry)
 
-    # Mock BackgroundEvaluator (NEM-2467)
-    mock_background_evaluator = MagicMock()
-    mock_background_evaluator.start = AsyncMock()
-    mock_background_evaluator.stop = AsyncMock()
-
     # Mock ContainerOrchestrator
     mock_container_orchestrator = MagicMock()
     mock_container_orchestrator.start = AsyncMock()
@@ -143,7 +138,6 @@ def _get_common_lifespan_mocks():
         "ai_health": mock_ai_health,
         "worker_supervisor": mock_worker_supervisor,
         "container": mock_container,
-        "background_evaluator": mock_background_evaluator,
         "container_orchestrator": mock_container_orchestrator,
         "docker_client": mock_docker_client,
         "performance_collector": mock_performance_collector,
@@ -251,15 +245,6 @@ def _apply_common_lifespan_patches(stack, mocks, mock_init_db, mock_close_db):
             return_value=mocks["performance_collector"],
         )
     )
-    stack.enter_context(
-        patch(
-            "backend.main.BackgroundEvaluator",
-            autospec=True,
-            return_value=mocks["background_evaluator"],
-        )
-    )
-    stack.enter_context(patch("backend.main.get_evaluation_queue", MagicMock()))
-    stack.enter_context(patch("backend.main.get_audit_service", MagicMock()))
     stack.enter_context(
         patch(
             "backend.main.ContainerOrchestrator",

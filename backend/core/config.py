@@ -2568,32 +2568,9 @@ class Settings(BaseSettings):
     )
 
     # Background evaluation settings
-    # Run AI audit evaluations automatically when GPU is idle
     background_evaluation_enabled: bool = Field(
         default=True,
-        description="Enable automatic background AI audit evaluation when GPU is idle. "
-        "Full evaluations (self-critique, rubric scoring, consistency check, prompt improvement) "
-        "run automatically instead of requiring manual 'Run Evaluation' clicks.",
-    )
-    background_evaluation_gpu_idle_threshold: int = Field(
-        default=20,
-        ge=0,
-        le=100,
-        description="GPU utilization percentage below which GPU is considered idle. "
-        "Background evaluations only run when utilization is at or below this threshold.",
-    )
-    background_evaluation_idle_duration: int = Field(
-        default=5,
-        ge=1,
-        le=300,
-        description="Seconds GPU must remain idle before background evaluation starts. "
-        "Prevents evaluation from starting during brief pauses in detection pipeline.",
-    )
-    background_evaluation_poll_interval: float = Field(
-        default=5.0,
-        ge=1.0,
-        le=60.0,
-        description="How often (in seconds) to check if conditions are met for background evaluation.",
+        description="Enable background AI audit evaluation feature toggle.",
     )
 
     # Orphan file cleanup settings (NEM-2260)

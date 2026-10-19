@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -147,9 +147,14 @@ outside `keep.toml`, and the suite is green.
       and delete them with their `.env.example` and compose lines.
 - [x] Add a ratchet test: every `Settings` field is read outside `config.py`, or sits on an
       allowlist with a reason.
-- [ ] Rename live code still carrying retired names (`get_nemotron_analyzer_dep`,
+- [x] Rename live code still carrying retired names (`get_nemotron_analyzer_dep`,
       `summary_generator._call_nemotron`, Nemotron-named metrics); delete the uncalled metrics and
-      unused exception classes `00 §4.1` lists.
+      unused exception classes `00 §4.1` lists. (Box 3's work is #7244's: the renames
+      (`65275de9b`), the dead-symbol census `scripts/audit/dead_symbols.py` with its CI leg
+      (`d2a0eb0b0`) — two exception classes deleted, zero uncalled or Nemotron-named metrics in the
+      registry, and the audit's "11" not reproducible under any stated definition (the census
+      records why the rest is not residue, and the FLORENCE_UNAVAILABLE consumers make it an owner
+      contract call that rides the fourth box's PR); the repo-wide ratchet test pins the census.)
 - [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
 - [x] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
       `create_all` (`backend/core/database.py:408`), which never changes an existing table, and

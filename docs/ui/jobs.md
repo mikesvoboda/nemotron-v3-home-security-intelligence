@@ -138,9 +138,8 @@ Status dots appear throughout the UI with consistent styling:
 What the backend actually creates differs from that catalogue (measured call
 sites of `job_tracker.create_job`): `export` (`routes/jobs.py`,
 `routes/exports.py`), `batch_audit` (`routes/ai_audit.py`), `orphan_cleanup`
-(`services/orphan_cleanup_service.py`, `jobs/orphan_cleanup_job.py`),
-`orphaned_file_cleanup` and `data_cleanup` (`services/cleanup_service.py`), and
-`evaluation` / `background_evaluation` (`services/background_evaluator.py`).
+(`services/orphan_cleanup_service.py`, `jobs/orphan_cleanup_job.py`), and
+`orphaned_file_cleanup` and `data_cleanup` (`services/cleanup_service.py`).
 `backup` and `import` are never created today, and the new-style cleanup and
 evaluation types are missing from the catalogue and from the page's Type
 dropdown (which offers Export, Batch Audit, Cleanup, Re-evaluation — note
