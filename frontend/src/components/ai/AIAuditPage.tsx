@@ -31,7 +31,7 @@ import { ChartSkeleton, StatsCardSkeleton, Skeleton, ErrorState } from '../commo
 import QualityScoreTrends from './QualityScoreTrends';
 import RecommendationsPanel from './RecommendationsPanel';
 import { fetchAiAuditStats, fetchAuditRecommendations } from '../../services/api';
-import { ModelContributionChart, PromptVersionHistory } from '../ai-audit';
+import { PromptVersionHistory } from '../ai-audit';
 
 import type {
   AiAuditStatsResponse,
@@ -39,28 +39,6 @@ import type {
   AiAuditRecommendationItem,
 } from '../../services/api';
 import type { BatchAuditResponse } from '../../services/auditApi';
-import type { ModelContribution } from '../ai-audit';
-
-/**
- * Format model names for display
- */
-function formatModelName(name: string): string {
-  const nameMap: Record<string, string> = {
-    rtdetr: 'RT-DETRv2',
-    florence: 'Florence-2',
-    clip: 'X-CLIP',
-    violence: 'Violence Detection',
-    clothing: 'Clothing Analysis',
-    vehicle: 'Vehicle Detection',
-    pet: 'Pet Detection',
-    weather: 'Weather Analysis',
-    image_quality: 'Image Quality',
-    zones: 'Zone Analysis',
-    baseline: 'Baseline Comparison',
-    cross_camera: 'Cross-Camera',
-  };
-  return nameMap[name] || name;
-}
 
 /**
  * Tab configuration
@@ -193,15 +171,6 @@ export default function AIAuditPage() {
   const isInitialLoading = isLoading && !stats;
   const hasError = error && !stats;
   const hasData = stats !== null && stats.audited_events > 0;
-
-  // Transform model contribution rates to ModelContribution format
-  const modelContributions: ModelContribution[] = stats
-    ? Object.entries(stats.model_contribution_rates).map(([modelName, rate]) => ({
-        modelName: formatModelName(modelName),
-        rate,
-        eventCount: Math.round(rate * stats.audited_events),
-      }))
-    : [];
 
   return (
     <div
@@ -390,11 +359,6 @@ export default function AIAuditPage() {
                     totalEvents={stats.total_events}
                     fullyEvaluatedEvents={stats.fully_evaluated_events}
                   />
-
-                  {/* Model Contribution Breakdown */}
-                  {modelContributions.length > 0 && (
-                    <ModelContributionChart contributions={modelContributions} />
-                  )}
 
                   {/* Recommendations Panel (full width) */}
                   {recommendations && (
