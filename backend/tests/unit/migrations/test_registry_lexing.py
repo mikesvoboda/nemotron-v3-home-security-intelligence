@@ -150,6 +150,7 @@ def test_unterminated_quoted_identifier_raises():
         ("0006-retire-user-calibration-table", 1),
         ("0007-retire-action-events-table", 1),
         ("0008-retire-alert-rule-pose-action-smoke-columns", 1),
+        ("0009-retire-gpu-devices-table", 1),
     ],
 )
 def test_shipped_files_lex_to_the_expected_statement_count(upgrade_id, expected_statements):
@@ -297,3 +298,10 @@ def test_0008_retire_alert_rule_pose_action_smoke_columns_registered():
     """R2a row 32 (F-220) registers 0008-retire-alert-rule-pose-action-smoke-columns with a CHECK."""
     assert "0008-retire-alert-rule-pose-action-smoke-columns" in registry.ids()
     assert "0008-retire-alert-rule-pose-action-smoke-columns" in checks.CHECKS
+
+
+def test_0009_retire_gpu_devices_table_registered():
+    """R2a row 36 (F-177) registers 0009-retire-gpu-devices-table with a table_absent check."""
+    assert "0009-retire-gpu-devices-table" in registry.ids()
+    assert "0009-retire-gpu-devices-table" in checks.CHECKS
+
