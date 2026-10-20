@@ -111,6 +111,10 @@ _os.environ.setdefault("ENVIRONMENT", "test")
 # the test session only — prod/compose keep the PYROSCOPE_ENABLED=true default
 # (docker-compose.prod.yml), and an explicit env value still wins (setdefault).
 _os.environ.setdefault("PYROSCOPE_ENABLED", "false")
+# [r279]: Prevent ultralytics.utils.patches.image_open from spawning network
+# `uv pip install pi-heif` subprocesses when PIL.Image.open hits corrupt test images.
+_os.environ.setdefault("YOLO_AUTOINSTALL", "false")
+_os.environ.setdefault("ULTRALYTICS_SKIP_REQUIREMENTS_CHECKS", "1")
 
 import logging
 import os
@@ -2610,6 +2614,15 @@ def pytest_runtest_protocol():
     state is provably clean (the diagnostic run for this finding saw pytest's
     two handlers only, at session start and between tests).
     """
+    _disarm_ultralytics_pil_autoinstall()
     state = _root_logging_state()
     yield
+    _disarm_ultralytics_pil_autoinstall()
     _restore_root_logging(state)
+
+
+def _disarm_ultralytics_pil_autoinstall() -> None:
+    """Disarm ultralytics' PIL.Image.open wrapper from spawning uv pip install pi-heif."""
+    upatches = sys.modules.get("ultralytics.utils.patches")
+    if upatches is not None and not getattr(upatches, "_pil_plugins_registered", False):
+        upatches._pil_plugins_registered = True
