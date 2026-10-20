@@ -283,3 +283,9 @@ def test_registry_directory_is_the_path_the_owner_named():
     """
     assert registry.MIGRATION_DIR.as_posix() == "docs/api/migrations"
     assert (registry.REPO_ROOT / registry.MIGRATION_DIR).is_dir()
+
+
+def test_0007_retire_action_events_table_registered():
+    """R2a row 32 (F-068) registers 0007-retire-action-events-table with a table_absent check."""
+    assert "0007-retire-action-events-table" in registry.ids()
+    assert "0007-retire-action-events-table" in checks.CHECKS
