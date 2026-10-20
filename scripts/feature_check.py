@@ -81,6 +81,14 @@ BACKEND_GOLDEN = REPO_ROOT / "backend" / "tests" / "golden"
 FRONTEND = REPO_ROOT / "frontend"
 FRONTEND_MODULES = FRONTEND / "node_modules"
 PLAYWRIGHT_CONFIG = FRONTEND / "playwright.config.ts"
+# [r282] The checked-in golden shard manifest (regen script:
+# scripts/golden_shard_manifest.py; union/balance pinned by
+# backend/tests/unit/scripts/test_golden_shard_manifest.py). The sharded
+# fake tier reads it host-side and hands each shard its own spec files as
+# FEATURE_CHECK_GOLDEN_FILES -- replacing Playwright's count-based --shard
+# split, which measured 337/262/494/457 s across the shards (a 231 s spread
+# a count split cannot close on a corpus this top-heavy).
+GOLDEN_SHARDS_MANIFEST = FRONTEND / "golden-shards.json"
 # The lock ruling 143 names as the golden image's version source.
 PACKAGE_LOCK = FRONTEND / "package-lock.json"
 
@@ -1891,6 +1899,14 @@ GOLDEN_CONTAINER_ENVIRONMENT = (
     "PLAYWRIGHT_JUNIT_OUTPUT_FILE",
     "CI",
 )
+# [r282] The manifest shard's selected spec files, space-separated,
+# frontend-relative. NOT in the whitelist above: the whitelist forwards names
+# every leg has always had, and r282's unsharded legs (the real tier, the maui
+# prod-shape run, the local operator) must keep today's argv byte for byte --
+# so the selection's name is forwarded only when a selection exists, through
+# golden_container_command's extra_environment, and playwright.config.ts
+# treats an unset/empty FEATURE_CHECK_GOLDEN_FILES as "no selection".
+R282_GOLDEN_FILES_ENV = "FEATURE_CHECK_GOLDEN_FILES"
 
 
 def playwright_image(lock_path: Path) -> str:
@@ -1936,6 +1952,7 @@ def golden_container_command(
     inner: str,
     read_only_mounts: Sequence[Path] = (),
     mounts: Sequence[Path] = (),
+    extra_environment: Sequence[str] = (),
 ) -> list[str]:
     """The `<engine> run` argv that runs `inner` inside the golden image.
 
@@ -1960,6 +1977,14 @@ def golden_container_command(
       turns "the container wrote in the tree" from a quiet possibility into a
       loud failure.
 
+    ``extra_environment`` [r282] carries names forwarded ONLY when this run's
+    shape produced them (today: ``FEATURE_CHECK_GOLDEN_FILES``, the manifest
+    shard's selected files). A name that is always forwarded would put
+    ``-e FEATURE_CHECK_GOLDEN_FILES`` on every leg's argv, unsharded legs
+    included — and then the unsharded leg's argv is no longer today's argv,
+    which the r282 pins refuse: the option's existence must not change a leg
+    that does not use it, exactly as the shard flag never did.
+
     ``z`` (shared SELinux relabel) goes on the binds only under podman, matching
     docker-compose.prod.yml's ``:z`` camera and data mounts: on an SELinux host a
     podman bind without a relabel context reads Permission denied. Docker has no
@@ -1972,6 +1997,8 @@ def golden_container_command(
     for path in mounts:
         command += ["-v", f"{path}:{path}{suffix}"]
     for name in GOLDEN_CONTAINER_ENVIRONMENT:
+        command += ["-e", name]
+    for name in extra_environment:
         command += ["-e", name]
     return [*command, image, "sh", "-c", inner]
 
@@ -3223,13 +3250,73 @@ asyncio.run(main())
                 shlex.quote(f"--output={report}"),
                 "--reporter=list,junit",
             ]
+            # [r282] A manifest-sharded run selects its files HERE, host-side,
+            # and hands them to the leg as FEATURE_CHECK_GOLDEN_FILES; the
+            # count-based --shard append below is skipped when a selection was
+            # made. The route is OPT-IN through $FEATURE_CHECK_SHARD_MANIFEST:
+            # [r264]'s --shard keeps its count-based meaning byte for byte for
+            # every existing caller (its pins pin that argv), and the workflow
+            # flips the manifest route on per job -- so a head without this
+            # opt-in behaves exactly as before, and flipping it on is the
+            # workflow's decision, visible in its diff. Reading the manifest in
+            # the harness (not in the config) keeps the split a fact the run
+            # record can witness: the selection is recorded in results.golden,
+            # where the fan-in and the pins can judge it, instead of being
+            # re-derived inside the image. Under the opt-in the manifest is
+            # REQUIRED (fail closed: a silent fall-back to the count split
+            # would run the whole suite on every cell).
+            golden_files_env: str | None = None
+            if self.shard is not None and os.environ.get("FEATURE_CHECK_SHARD_MANIFEST"):
+                if not GOLDEN_SHARDS_MANIFEST.is_file():
+                    raise HarnessError(
+                        f"--shard {self.shard[0]}/{self.shard[1]} with "
+                        "$FEATURE_CHECK_SHARD_MANIFEST needs "
+                        f"{GOLDEN_SHARDS_MANIFEST} and it is not on this tree -- "
+                        "the manifest is checked in; its absence is a broken "
+                        "checkout, not a shape to fall back from"
+                    )
+                manifest = json.loads(GOLDEN_SHARDS_MANIFEST.read_text(encoding="utf-8"))
+                shard_count = manifest.get("shard_count")
+                if not isinstance(shard_count, int) or shard_count < 1:
+                    raise HarnessError(
+                        f"{GOLDEN_SHARDS_MANIFEST} carries shard_count {shard_count!r}, "
+                        "not a positive integer -- the manifest is checked in; run "
+                        "scripts/golden_shard_manifest.py to regenerate it"
+                    )
+                if self.shard[0] > shard_count:
+                    raise HarnessError(
+                        f"--shard {self.shard[0]}/{self.shard[1]} is outside "
+                        f"{GOLDEN_SHARDS_MANIFEST} (shard_count {shard_count}) -- "
+                        "the workflow's matrix and the manifest disagree; the run "
+                        "refuses rather than witness a partial suite as a full one"
+                    )
+                index = self.shard[0] - 1
+                if index >= len(manifest["shards"]):
+                    raise HarnessError(
+                        f"{GOLDEN_SHARDS_MANIFEST} declares shard_count {shard_count} "
+                        f"but holds {len(manifest['shards'])} shard lists -- regenerate "
+                        "it with scripts/golden_shard_manifest.py"
+                    )
+                selected = manifest["shards"][index]
+                golden_files_env = " ".join(selected)
+                results["shard_manifest"] = str(
+                    GOLDEN_SHARDS_MANIFEST.relative_to(FRONTEND.parent)
+                )
+                results["shard_files"] = list(selected)
+            # No opt-in set: self.shard falls through untouched to the
+            # count-based --shard append below -- [r264]'s contract, byte for
+            # byte, for every caller that has not asked for the manifest.
             if self.shard is not None:
                 # [r264] Playwright's own shard selector: shard i of N. The
                 # worker count stays 1 and the project stays serial inside the
                 # shard -- the parallelism the package buys is across shards,
-                # each on its own stack, never within one.
-                i, total = self.shard
-                inner_parts.append(f"--shard={i}/{total}")
+                # each on its own stack, never within one. [r282] When the
+                # manifest selected this shard's files, this append is skipped:
+                # composing both would let Playwright re-split the manifest's
+                # own selection (a second, silent partition).
+                if golden_files_env is None:
+                    i, total = self.shard
+                    inner_parts.append(f"--shard={i}/{total}")
             if self.golden_specs is not None:
                 # [r287] The named-spec limit: the specs as Playwright
                 # positionals -- the runner's own file filter -- so the leg's
@@ -3262,10 +3349,26 @@ asyncio.run(main())
                     # are inputs; the leg's writes stay in the run dir below.
                     read_only_mounts=[FRONTEND, SCENARIO_DIR, SCRIPTS_DIR],
                     mounts=[self.dir],
+                    # [r282] The selection's name rides the argv only when a
+                    # selection exists: an unsharded (or count-sharded) leg
+                    # keeps today's argv exactly, and the whitelist above
+                    # forwards only the names every leg has always had.
+                    extra_environment=(
+                        [R282_GOLDEN_FILES_ENV] if golden_files_env else []
+                    ),
                 ),
                 check=False,
                 timeout=GOLDEN_LEG_TIMEOUT_S,
-                env={**env, "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit)},
+                env={
+                    **env,
+                    "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit),
+                    # [r282] The manifest selection, as env -- the config's
+                    # testIgnore function ignores every spec file not in this
+                    # list. Absent when there is no selection (unsharded or
+                    # count-sharded), matching the argv above: no key, no
+                    # name, no lie about a selection that did not happen.
+                    **({R282_GOLDEN_FILES_ENV: golden_files_env} if golden_files_env else {}),
+                },
             )
             (self.artifacts / "golden-playwright.log").write_text(
                 result.stdout + result.stderr, encoding="utf-8"

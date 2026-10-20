@@ -1,0 +1,414 @@
+{
+  "files": {
+    "tests/golden/ai-pages/model-zoo-section.spec.ts": {
+      "median": 31.727,
+      "n": 5
+    },
+    "tests/golden/analytics-alerts/alerts.spec.ts": {
+      "median": 44.773,
+      "n": 5
+    },
+    "tests/golden/analytics-alerts/analytics.spec.ts": {
+      "median": 3.126,
+      "n": 5
+    },
+    "tests/golden/dashboard-drop.spec.ts": {
+      "median": 37.85,
+      "n": 5
+    },
+    "tests/golden/dashboard/activity-feed.spec.ts": {
+      "median": 9.113,
+      "n": 5
+    },
+    "tests/golden/dashboard/ai-summary-row.spec.ts": {
+      "median": 10.144,
+      "n": 5
+    },
+    "tests/golden/dashboard/camera-grid.spec.ts": {
+      "median": 14.302,
+      "n": 5
+    },
+    "tests/golden/dashboard/config-modal.spec.ts": {
+      "median": 23.621,
+      "n": 5
+    },
+    "tests/golden/dashboard/gpu-stats.spec.ts": {
+      "median": 9.62,
+      "n": 5
+    },
+    "tests/golden/dashboard/pipeline-telemetry.spec.ts": {
+      "median": 14.177,
+      "n": 5
+    },
+    "tests/golden/dashboard/risk-donut.spec.ts": {
+      "median": 8.432,
+      "n": 5
+    },
+    "tests/golden/dashboard/stats-row.spec.ts": {
+      "median": 17.215,
+      "n": 5
+    },
+    "tests/golden/dashboard/summary-cards.spec.ts": {
+      "median": 16.47,
+      "n": 5
+    },
+    "tests/golden/dashboard/summary-detail.spec.ts": {
+      "median": 10.451,
+      "n": 5
+    },
+    "tests/golden/data-ui/job-detail-panel.spec.ts": {
+      "median": 3.384,
+      "n": 5
+    },
+    "tests/golden/data-ui/jobs-page.spec.ts": {
+      "median": 2.833,
+      "n": 5
+    },
+    "tests/golden/data-ui/trash-restore.spec.ts": {
+      "median": 4.948,
+      "n": 5
+    },
+    "tests/golden/gpu-storage-admin/admin-cache-clear.spec.ts": {
+      "median": 1.98,
+      "n": 5
+    },
+    "tests/golden/gpu-storage-admin/admin-logging.spec.ts": {
+      "median": 2.238,
+      "n": 5
+    },
+    "tests/golden/gpu-storage-admin/admin-orphan-cleanup.spec.ts": {
+      "median": 3.623,
+      "n": 5
+    },
+    "tests/golden/gpu-storage-admin/admin-settings-page.spec.ts": {
+      "median": 1.534,
+      "n": 5
+    },
+    "tests/golden/gpu-storage-admin/gpu-page-no-hardware.spec.ts": {
+      "median": 1.789,
+      "n": 5
+    },
+    "tests/golden/gpu-storage-admin/storage-cleanup-preview.spec.ts": {
+      "median": 2.05,
+      "n": 5
+    },
+    "tests/golden/gpu-storage-admin/storage-file-operations.spec.ts": {
+      "median": 32.494,
+      "n": 5
+    },
+    "tests/golden/guard-contract.spec.ts": {
+      "median": 2.142,
+      "n": 5
+    },
+    "tests/golden/identity/household.spec.ts": {
+      "median": 6.789,
+      "n": 5
+    },
+    "tests/golden/identity/persons.spec.ts": {
+      "median": 4.442,
+      "n": 5
+    },
+    "tests/golden/identity/zones.spec.ts": {
+      "median": 6.131,
+      "n": 5
+    },
+    "tests/golden/notify-access/access.spec.ts": {
+      "median": 12.937,
+      "n": 5
+    },
+    "tests/golden/notify-access/ambient.spec.ts": {
+      "median": 3.427,
+      "n": 5
+    },
+    "tests/golden/notify-access/notify.spec.ts": {
+      "median": 12.706,
+      "n": 5
+    },
+    "tests/golden/notify-access/permission.spec.ts": {
+      "median": 8.232,
+      "n": 5
+    },
+    "tests/golden/notify-access/quiet-hours.spec.ts": {
+      "median": 6.05,
+      "n": 5
+    },
+    "tests/golden/operations/audit.spec.ts": {
+      "median": 2.767,
+      "n": 5
+    },
+    "tests/golden/operations/batch-statistics.spec.ts": {
+      "median": 2.62,
+      "n": 5
+    },
+    "tests/golden/operations/circuit-breaker-reset.spec.ts": {
+      "median": 2.695,
+      "n": 5
+    },
+    "tests/golden/operations/circuit-breakers.spec.ts": {
+      "median": 2.449,
+      "n": 5
+    },
+    "tests/golden/operations/cleanup-preview.spec.ts": {
+      "median": 2.621,
+      "n": 5
+    },
+    "tests/golden/operations/config-inspector.spec.ts": {
+      "median": 2.192,
+      "n": 5
+    },
+    "tests/golden/operations/databases.spec.ts": {
+      "median": 3.674,
+      "n": 5
+    },
+    "tests/golden/operations/debug-mode-toggle.spec.ts": {
+      "median": 1.372,
+      "n": 5
+    },
+    "tests/golden/operations/gpu-history.spec.ts": {
+      "median": 2.492,
+      "n": 5
+    },
+    "tests/golden/operations/grafana-embeds.spec.ts": {
+      "median": 8.98,
+      "n": 5
+    },
+    "tests/golden/operations/kubernetes-probes.spec.ts": {
+      "median": 1.643,
+      "n": 5
+    },
+    "tests/golden/operations/latency-history.spec.ts": {
+      "median": 2.7,
+      "n": 5
+    },
+    "tests/golden/operations/log-level.spec.ts": {
+      "median": 2.287,
+      "n": 5
+    },
+    "tests/golden/operations/operations-page.spec.ts": {
+      "median": 1.692,
+      "n": 5
+    },
+    "tests/golden/operations/performance-alerts.spec.ts": {
+      "median": 34.816,
+      "n": 5
+    },
+    "tests/golden/operations/performance-history.spec.ts": {
+      "median": 2.061,
+      "n": 5
+    },
+    "tests/golden/operations/performance.spec.ts": {
+      "median": 65.153,
+      "n": 5
+    },
+    "tests/golden/operations/pipeline-flow.spec.ts": {
+      "median": 2.147,
+      "n": 5
+    },
+    "tests/golden/operations/prometheus-panel.spec.ts": {
+      "median": 1.992,
+      "n": 5
+    },
+    "tests/golden/operations/recording-replay.spec.ts": {
+      "median": 2.359,
+      "n": 5
+    },
+    "tests/golden/operations/test-data.spec.ts": {
+      "median": 9.017,
+      "n": 5
+    },
+    "tests/golden/operations/websocket-health.spec.ts": {
+      "median": 1.904,
+      "n": 5
+    },
+    "tests/golden/operations/worker-management.spec.ts": {
+      "median": 8.43,
+      "n": 5
+    },
+    "tests/golden/settings-cameras/alert-rules.spec.ts": {
+      "median": 8.723,
+      "n": 5
+    },
+    "tests/golden/settings-cameras/cameras-baseline.spec.ts": {
+      "median": 3.122,
+      "n": 5
+    },
+    "tests/golden/settings-cameras/cameras-crud.spec.ts": {
+      "median": 14.139,
+      "n": 5
+    },
+    "tests/golden/settings-cameras/cameras-protocols.spec.ts": {
+      "median": 21.843,
+      "n": 5
+    },
+    "tests/golden/settings-cameras/cameras-zones.spec.ts": {
+      "median": 9.305,
+      "n": 5
+    },
+    "tests/golden/settings-cameras/processing-settings.spec.ts": {
+      "median": 9.654,
+      "n": 5
+    },
+    "tests/golden/settings-cameras/processing-storage-dlq.spec.ts": {
+      "median": 6.975,
+      "n": 5
+    },
+    "tests/golden/settings-cameras/settings-shell.spec.ts": {
+      "median": 3.326,
+      "n": 5
+    },
+    "tests/golden/settings/ai-models-panel.spec.ts": {
+      "median": 2.23,
+      "n": 5
+    },
+    "tests/golden/shell/ambient.spec.ts": {
+      "median": 35.446,
+      "n": 5
+    },
+    "tests/golden/shell/auth-gate.spec.ts": {
+      "median": 10.3,
+      "n": 5
+    },
+    "tests/golden/shell/frontend-logs.spec.ts": {
+      "median": 17.057,
+      "n": 5
+    },
+    "tests/golden/shell/header.spec.ts": {
+      "median": 19.362,
+      "n": 5
+    },
+    "tests/golden/shell/nav.spec.ts": {
+      "median": 15.66,
+      "n": 5
+    },
+    "tests/golden/shell/offline-cache.spec.ts": {
+      "median": 13.749,
+      "n": 5
+    },
+    "tests/golden/shell/palette.spec.ts": {
+      "median": 15.189,
+      "n": 5
+    },
+    "tests/golden/shell/rate-limit.spec.ts": {
+      "median": 31.198,
+      "n": 5
+    },
+    "tests/golden/shell/rum.spec.ts": {
+      "median": 25.295,
+      "n": 5
+    },
+    "tests/golden/shell/sentry-inert.spec.ts": {
+      "median": 5.615,
+      "n": 5
+    },
+    "tests/golden/shell/setup-bootstrap.spec.ts": {
+      "median": 8.836,
+      "n": 5
+    },
+    "tests/golden/shell/tour.spec.ts": {
+      "median": 33.133,
+      "n": 5
+    },
+    "tests/golden/shell/verdict-banner.spec.ts": {
+      "median": 33.348,
+      "n": 5
+    },
+    "tests/golden/shell/ws-status.spec.ts": {
+      "median": 17.549,
+      "n": 5
+    },
+    "tests/golden/timeline/download-media.spec.ts": {
+      "median": 37.675,
+      "n": 5
+    },
+    "tests/golden/timeline/event-arrival-strict.spec.ts": {
+      "median": 64.869,
+      "n": 5
+    },
+    "tests/golden/timeline/event-bulk-reviewed.spec.ts": {
+      "median": 13.557,
+      "n": 5
+    },
+    "tests/golden/timeline/event-detail-modal.spec.ts": {
+      "median": 64.336,
+      "n": 5
+    },
+    "tests/golden/timeline/event-detail.spec.ts": {
+      "median": 22.758,
+      "n": 5
+    },
+    "tests/golden/timeline/event-feedback.spec.ts": {
+      "median": 118.773,
+      "n": 5
+    },
+    "tests/golden/timeline/event-list.spec.ts": {
+      "median": 24.86,
+      "n": 5
+    },
+    "tests/golden/timeline/event-reevaluate.spec.ts": {
+      "median": 17.683,
+      "n": 5
+    },
+    "tests/golden/timeline/event-stats.spec.ts": {
+      "median": 12.725,
+      "n": 5
+    },
+    "tests/golden/timeline/export-modal.spec.ts": {
+      "median": 33.61,
+      "n": 5
+    },
+    "tests/golden/timeline/face-enroll.spec.ts": {
+      "median": 19.329,
+      "n": 5
+    },
+    "tests/golden/timeline/live-socket-arrival.spec.ts": {
+      "median": 73.161,
+      "n": 5
+    },
+    "tests/golden/timeline/timeline-scrubber.spec.ts": {
+      "median": 18.799,
+      "n": 5
+    },
+    "tests/golden/timeline/timeline-search.spec.ts": {
+      "median": 91.426,
+      "n": 5
+    },
+    "tests/golden/timeline/video-clip.spec.ts": {
+      "median": 19.821,
+      "n": 5
+    },
+    "tests/golden/webhooks/delete.spec.ts": {
+      "median": 2.667,
+      "n": 5
+    },
+    "tests/golden/webhooks/list.spec.ts": {
+      "median": 3.865,
+      "n": 5
+    },
+    "tests/golden/webhooks/scheduled-reports-delete.spec.ts": {
+      "median": 2.203,
+      "n": 5
+    },
+    "tests/golden/webhooks/test-modal.spec.ts": {
+      "median": 2.972,
+      "n": 5
+    },
+    "tests/golden/webhooks/toggle.spec.ts": {
+      "median": 4.124,
+      "n": 5
+    }
+  },
+  "provenance": {
+    "keying": "paths are frontend-relative (tests/golden/...); each junit artifact is keyed to its shard by its own artifacts/summary.json (results.golden.backend ok = shard 1, else 'skipped on shard i/N')",
+    "measured": "2026-10-20",
+    "note": "an earlier cut of this corpus held 69 of the 99 files: its extraction regex did not match every junit classname (classnames are the full spec path ../golden/<dir>/<file>.spec.ts, 99 unique per run) and rows without a time attribute crashed it. The correction is why the manifest re-packed here differs from any earlier draft.",
+    "package": "r282",
+    "runs": [
+      "39438896950",
+      "39440429144",
+      "39441319838",
+      "39445382087",
+      "39445965194"
+    ],
+    "unit": "per spec FILE: the sum of that file's test-case times on the one shard leg that ran it, median across the five green runs"
+  }
+}
