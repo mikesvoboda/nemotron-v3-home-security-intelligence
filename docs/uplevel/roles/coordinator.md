@@ -126,12 +126,22 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
 A heavy package with no strong model or owner free waits (UR-24). Heavy work that appears while
 both heavy agents are `paused` goes on the urgent path (UR-174).
 
+**The weekly Dependabot combine** (ruling 284). Dependabot opens its grouped PRs every Monday at
+06:00 America/Chicago (`.github/dependabot.yml`). At your first tick after that run, when two or
+more Dependabot PRs are open, assign the combine to an idle agent as an operational call (ruling
+281): first an agent holding no open package, otherwise heavy-b. Name the package
+`[dep-YYYY-MM-DD]` for that Monday. Its method is ruling 273's, unchanged (`packages/ops.md`,
+`[r273]`). A week with one Dependabot PR or none goes through the queue as it is. A security update
+does not wait for Monday: a `*-security` group, or a PR for an open alert, goes through the queue
+at once as its own PR, as UR-111 handles a red-`main` fix.
+
 ## Merging a PR
 
 Read rules.md §Merging first: it defines ready time, queue order, the owner tier, pre-approval
 and which PRs may jump the queue, and names the merge rules that sit elsewhere.
 
-1. **Pick** the head of the queue: the oldest ready PR (UR-104, UR-106). A PR you updated keeps
+1. **Pick** the head of the queue: the oldest ready PR (UR-104, UR-106), which is the first entry
+   of the queue line you write ("The status comment" below). A PR you updated keeps
    its place while its gate runs at the new head (UR-106), so it stays the head: in §3 its
    `base=` is `main`'s tip, its gate has not finished (`gate=absent` until the gate job is
    queued, then `QUEUED` or `IN_PROGRESS`) and its approval carries (`carry=yes`). If several PRs
@@ -146,11 +156,20 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    (UR-106) before and after the update from `coordinator_snapshot.py` (its `ur106_diff_hash`; §3
    prints it per open PR). Conflicts go to the author (UR-102). Update no other PR until this one
    merges or leaves the head of the queue (its gate fails at the new head, its update conflicts,
-   or it loses its review or owner approval). End the turn; the next tick reads its CI.
+   or it loses its review or owner approval). End the turn; the next tick reads its CI. An approval
+   carries when the hashes match or the update is a subset carry (UR-106, ruling 278); for a
+   subset carry, quote the two own diffs' comparison, name each dropped line and show where
+   `main`'s change holds it.
+   **After the switch-over pointer** (ruling 272 item 5; UR-102): the queue-update workflow makes
+   this update when `main` moves, and its PR comment carries the two own-diff hashes you quote.
+   Update the head yourself only when it has been behind `main` for more than 10 minutes since
+   `main` last moved: update it, arm auto-merge (`gh pr merge <n> --auto --merge`), and raise the
+   workflow's failure in the status comment. A red-`main` fix still takes the slot at once through
+   its `!` entry. Until that pointer, update as above.
 3. **Re-read** the PR (UR-29): `gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`,
    and `gh run list --commit <head>`; merge only on green (UR-34).
 4. **Read the owner's word on it** (UR-94). Merge an owner-tier PR only on an owner approval UR-100
-   accepts.
+   accepts, which includes the owner partner's delegated approval (ruling 281).
 5. **Merge** in the repository's existing merge style (UR-23). An owner PR carries auto-merge
    (UR-108): GitHub merges it once the gate passes after your update. Read the PR back
    (`gh pr view <n> --json state,mergeCommit`) and call it merged only when `state` is `MERGED`,
@@ -196,6 +215,16 @@ on #6854, never by replying to it.
    judgements) and post the result through step 2.
 4. **Drop what is settled.** An answered question leaves the comment; its answer lives in the
    ruling's PR. A decided ruling is never asked again (UR-25).
+5. **The queue line** (ruling 272 item 2). Every tick's comment carries one line,
+   `<!-- queue: 7294@b043d29d9 7290@d94ee05a8 -->`, listing every PR you judge ready (UR-104,
+   UR-106) in queue order, each with the head SHA you judged (at least 9 hex characters). A
+   red-`main` fix (UR-111) comes first, prefixed `!`; a PR the owner names (UR-104) comes next.
+   An empty queue is written `<!-- queue: -->`. The queue-update workflow reads this line and
+   nothing else. Until #7312 (`[r272]`'s red-`main` read fix) merges, list only `!` entries while
+   `main` is red, because the workflow cannot yet tell (ruling 288 item 1).
+6. **Delegated acts** (ruling 281 item 5). The comment carries a "Delegated (last 24 h)" line
+   listing, by comment id, each delegated approval and each owner-partner record (delegated,
+   ruling 281) posted on #6854 in the last 24 hours.
 
 ## The urgent path
 

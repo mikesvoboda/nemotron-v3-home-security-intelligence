@@ -284,6 +284,23 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 269    | UR-52 and package `[r269]`: a waiting PR's author may claim the next, at most two (record 6275028285)       |
 | 270    | package `[r270]`: the snapshot's merge legs read for strict mode, ops-b (record 6276943371)                 |
 | 271    | packages `[r271a]`, `[r271b]`, `[r271c]`: audit batch 2's fixes; lows later (record 6277412644)             |
+| 272    | UR-102, package `[r272]`: the queue-update workflow and the queue line (records 6282551725, 6290019383)     |
+| 273    | package `[r273]`: one PR for every open Dependabot PR, heavy-b (record 6282749517)                          |
+| 274    | package `[r274]`: `up --no-build` after a prebuild only (records 6282871050, 6290084892)                    |
+| 275    | one-off: #7246's coverage floors at the lowest printed value; UR-69 stands (record 6290039971)              |
+| 276    | one-off: `O2.5` on both venues; the operator re-probes with cgroups disabled (record 6290063282)            |
+| 277    | packages `[r277a]`, `[r277b]`: audit batch 3's fixes; lows later (record 6291992942)                        |
+| 278    | UR-106's subset carry and package `[r278]`, ops-b (record 6293203635)                                       |
+| 279    | package `[r279]`: three flaky CI checks made deterministic, heavy-b (record 6293490330)                     |
+| 280    | `O2.5`: both runs from the owner's maui login; the sandbox venue closed (record 6293639903)                 |
+| 281    | UR-98, UR-99, UR-100, `roles/owner-partner.md`: delegated approval (record 6293911155)                      |
+| 282    | package `[r282]`: golden shards balanced by measured duration, ops-a (record 6294042743)                    |
+| 283    | UR-47 and `roles/lane.md` "Closing": bookkeeping rides the package PR (record 6294043011)                   |
+| 284    | `roles/coordinator.md` "Assigning a package": the weekly Dependabot combine (record 6294043265)             |
+| 285    | package `[r285]`; F-182 under ruling 182 (records 6300916398, 6301639831, 6302995876)                       |
+| 286    | one-off, delegated: red-`main` fixes for `certifi` and Pillow (records 6301229929, 6302966882)              |
+| 287    | `O2.5` item 2's pass and venue fixes; package `[r287b]` (record 6302941592)                                 |
+| 288    | one-off, delegated: `[r272]`'s red-`main` read, #7314, #7311's F-254 (record 6303093964)                    |
 
 ## Owner records
 

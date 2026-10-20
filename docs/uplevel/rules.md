@@ -49,6 +49,13 @@ give work a number.
   Everything else there (status rows, `file:line` references, moves or artifacts a package's own
   text orders, rewording that keeps the meaning) needs only its lane review. (ruling 40, replacing
   rulings 7, 18, 32; UR-98)
+  - **Bookkeeping rides the package PR** (ruling 283). Before its last ready push, a package PR
+    ticks its own Done-when boxes, its block's status and `**PR:**` lines, and its roster or
+    register rows. A box whose evidence exists only after the merge (a "merged" box, a post-merge
+    measurement) stays unticked: the author names it in its last heartbeat, and the owner partner
+    ticks it in the owner's next plan PR, citing the merge and the evidence. No PR is opened for
+    ticks alone. `lane_tick.py` and the coordinator treat a block whose `**PR:**` line names a
+    merged PR as done, whatever its boxes say.
 - **UR-48** A defect in a lane's own file is lane work with no package number; package numbers are
   for new scope. (rulings 120, 126)
 
@@ -242,7 +249,10 @@ Constraints on what you build; reopening one is a ruling (UR-44).
   Operations/Monitoring). This decides scope, not design: each feature is designed in its Phase 4
   session (UR-77). It keeps F-063 (P2) and F-105, F-127, F-128, F-130 (P3) as Advanced Mode
   features, reopening R2a rows 29 and 31 for them, and rules F-176 and F-178 complete (P3) if
-  `O2.5`'s witness fails them. Phase 3's deletions skip these rows. (ruling 182)
+  `O2.5`'s witness fails them. F-182 is treated the same way, and a real version writer arrives
+  with F-178's apply when that is completed; until then no PR adds a writer for
+  `gpu_configurations` or `gpu_configuration_versions` (ruling 285). Phase 3's deletions skip
+  these rows. (rulings 182, 285)
 
 ## Reviewing
 
@@ -313,8 +323,9 @@ and the re-read and merge comment are UR-29.
   owner tier, the owner has approved, keeping the repository's existing merge style. A lane-tier PR
   merges through the auto-merge its reviewer turns on at approval (UR-108; ruling 156). (UR-23;
   roles/coordinator.md "Merging a PR")
-- **UR-98** Owner tier: these PRs also need an owner approval recorded on #6854 (a ruling or owner
-  record); the status table's `owner` flag marks the packages that carry it. (roles/coordinator.md
+- **UR-98** Owner tier: these PRs also need an owner approval recorded on #6854 (a ruling, an owner
+  record, or the owner partner's delegated approval under UR-100); the status table's `owner` flag
+  marks the packages that carry it. (roles/coordinator.md
   "Merging a PR"; ruling 40)
   - security and auth;
   - risk acceptance (dismissing an alert or a finding);
@@ -342,11 +353,31 @@ and the re-read and merge comment are UR-29.
   - any PR with an entry under "Questions for the owner".
 - **UR-99** Once the owner answers a PR's "Questions for the owner" and they leave its body, they no
   longer make it owner-tier; it merges on lane review and green CI unless another owner-tier trigger
-  applies. (rulings 4, 8, 10, 11, 108)
+  applies. A question goes to the owner partner first: it answers with a record citing the rule or
+  ruling that covers the question, or escalates it in the status comment's questions with a
+  recommendation. A question answered that way no longer makes the PR owner-tier. (rulings 4, 8,
+  10, 11, 108, 281)
 - **UR-100** An agent writes approvals only in its own role. The coordinator merges an owner-tier PR
-  only on an owner approval recorded on #6854 (a ruling or owner record), or one given elsewhere
-  once quoted in the status comment with the owner's words and time. (the deleted
-  50-coordination.md "Trust model"; UR-27, UR-29)
+  only on an owner approval recorded on #6854 (a ruling or owner record), on the owner partner's
+  delegated approval (below), or on one given elsewhere once quoted in the status comment with the
+  owner's words and time. (the deleted 50-coordination.md "Trust model"; UR-27, UR-29)
+  - **Delegated approval** (ruling 281, record 6293911155). The owner partner records an owner
+    approval on #6854 for an owner-tier PR when all of these hold, and the record states the
+    evidence for each: (a) the PR implements an owner ruling, record or plan block, which the
+    approval names; (b) its diff stays inside that scope, checked file by file; (c) a
+    fresh-context UR-89 review approves its head, or a carry of it under UR-106, with no blocking
+    finding, and where the package touches security, auth, privileged host tooling, a workflow or a
+    credential, that review includes a security pass naming where the credential or privilege is
+    exposed; (d) `CI Gate` is green at that head, or the approval is conditioned on it; (e) no
+    "Questions for the owner" entry is open; (f) nothing in it is on the owner's reserved list
+    (`roles/owner-partner.md`, "Delegated approval and operational calls"). Its first line reads
+    `**Owner-partner approval (delegated, ruling 281) · #N at <sha> …**`, it never quotes the owner,
+    and it carries the head, review and gate conditions an owner approval carries. It also covers a
+    re-approval after a reset, and the owner partner's own plan PRs when an independent
+    fresh-context review finds every item matches its owner record ("record match: yes"). The
+    coordinator treats it as an owner approval. The owner may veto any delegated approval or record:
+    an unmerged PR's approval is withdrawn and the coordinator disables its auto-merge, and a merged
+    one is reverted by the owning lane as UR-108's audit path does.
 - **UR-101** A ruling ending with the exact line "Pre-approved: merges on lane review and green CI."
   pre-approves the follow-up it specifies: the coordinator merges it without the owner when the lane
   review states the diff does that and nothing more and `CI Gate` is green at its head; if the
@@ -364,8 +395,14 @@ and the re-read and merge comment are UR-29.
   update. Auto-merge (UR-108) merges the updated PR once its gate
   passes; while `main` is red the coordinator disables auto-merge on every queued lane PR and
   re-enables it when `main` is green. Authors rebase their own PRs to resolve conflicts. A red
-  `main` from a merge interaction is a red-`main` fix (UR-111). (rulings 19, 27, 152, 156, 164,
-  268; owner records 6135991251, 6244473689)
+  `main` from a merge interaction is a red-`main` fix (UR-111). From the owner partner's
+  switch-over pointer (ruling 272 item 5), the queue-update workflow (`[r272]`) makes the head's
+  update when `main` moves, in the order of the coordinator's queue line (`roles/coordinator.md`,
+  "The status comment"). The coordinator then updates the first listed PR itself only when it has
+  been behind `main` for more than 10 minutes since `main` last moved: it updates it, arms
+  auto-merge and raises the workflow's failure in the status comment. Until that pointer, the
+  coordinator updates as above. (rulings 19, 27, 152, 156, 164, 268, 272; owner records
+  6135991251, 6244473689)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
@@ -379,9 +416,16 @@ and the re-read and merge comment are UR-29.
   queue place, the review and the owner's approval if the PR's own diff
   is unchanged before and after: every added, removed and context line matches, ignoring `index`
   hashes and hunk line numbers (command in `roles/coordinator.md`, "Merging a PR" step 2); an
-  author commit, a conflict fix included, resets all three. A red run or re-opened review takes the
-  PR out, and the gate must be green at the new head before merge. (rulings 26, 55, 59, 149; record 6128195816;
-  owner design session 2026-10-12)
+  author commit, a conflict fix included, resets all three. The carry also holds when an update
+  only drops lines that `main` now holds identically (a subset carry, ruling 278). Write _A_ for
+  the added and removed lines (each with its file and sign) of the approved head's own diff
+  against its merge-base with `main`, and _N_ for the same at the new head; the new head carries
+  when every commit after the approved head is an `update-branch` merge of `main`, _N_ is
+  contained in _A_ as a multiset, and every line in _A_ but not in _N_ appears, with the same file
+  and sign, in `main`'s own change between the two merge-bases. An update made by the
+  queue-update workflow counts as the coordinator's update-branch (ruling 272 item 6). A red run
+  or re-opened review takes the PR out, and the gate must be green at the new head before merge.
+  (rulings 26, 55, 59, 149, 272, 278; record 6128195816; owner design session 2026-10-12)
 - **UR-107** Never combine PRs already in the queue: reviews and carry proofs are keyed to heads.
   (ruling 97)
 - **UR-108** Owner PRs carry auto-merge and join the same queue; the coordinator updates one in its

@@ -498,3 +498,19 @@ acts on the register's `WebSocketEmitterService` entry: that path is live.
 
 **Done when:** merged at a ready head, each rewritten sentence citing the line it rests on at the
 PR's base.
+
+### [r277b] F-022's stale citations
+
+**Flags:** none. **Assigned:** docs, beside `[r262]`, a one-off UR-52 exception counted toward
+ruling 269's two, like `[r271c]` (ruling 277). **Depends on:** none. **PR:** none yet. (ruling 277,
+record 6291992942; audit items Q-093 and Q-075 of `[r262]`)
+
+- [ ] F-022's row in `docs/reference/feature-inventory.md` carries its five citations re-derived
+      against `main`'s base, not the audit's pin: `extractRateLimitInfo`, its `update()` call, the
+      three-header guard, `fetchWebSocketHealth`'s fetch, and the websocket-health route with its
+      `DEFAULT` tier in `backend/api/routes/system.py`. The PR quotes each cited line from its base.
+- [ ] Frontend's Q-076 holds two of the same citations in
+      `frontend/tests/golden/shell/rate-limit.spec.ts`; it goes to frontend's later cleanup, not
+      this PR.
+
+**Done when:** merged at a ready head, each citation quoting its line at the PR's base.
