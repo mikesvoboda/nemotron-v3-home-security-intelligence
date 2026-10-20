@@ -1469,8 +1469,7 @@ async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeou
         f"system_status delivered locally on {system_sends} ticks while redis publish timed out"
     )
     assert perf_sends >= 3, (
-        f"performance_update delivered locally on {perf_sends} ticks while redis publish "
-        "timed out"
+        f"performance_update delivered locally on {perf_sends} ticks while redis publish timed out"
     )
 
 

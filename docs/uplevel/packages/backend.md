@@ -653,7 +653,7 @@ leaves the test green.
 ### [r271a] The system broadcaster survives a Redis timeout and reads Redis's health result
 
 **Flags:** none. **Assigned:** backend, first on its queue after the packages it holds (UR-52).
-**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644, corrected by 6281398804
+**Depends on:** none. **PR:** #7301. (ruling 271, record 6277412644, corrected by 6281398804
 and 6281511059; audit items Q-052, Q-053, Q-055 to Q-057 and the re-issued Q-054 of `[r262]`,
 #7041)
 
@@ -669,20 +669,38 @@ whatever the dict `health_check()` returns says, and the storm probe
 (`backend/tests/unit/services/test_system_broadcaster.py:1345`) stubs `broadcast_status` and
 `broadcast_performance`, so it passes against the loss.
 
-- [ ] Every `except` clause in `system_broadcaster.py` that guards a Redis call also catches
+- [x] Every `except` clause in `system_broadcaster.py` that guards a Redis call also catches
       `redis.exceptions.RedisError`: at the pin `:314`, `:364`, `:564`, `:583`, `:589`, `:612`,
       `:617`, `:631` and `:693`. The PR lists the clauses it changed (ruling 271's corrections).
-- [ ] A test shows a `RedisError` from `unsubscribe` or `close` during reset does not stop the
+      (78805557a widens exactly those nine: six builtin-only tuples become
+      `(ConnectionError, TimeoutError, OSError, RedisError)` and three builtin+RuntimeError
+      tuples become `(ConnectionError, TimeoutError, OSError, RuntimeError, RedisError)`;
+      the DB-guard clauses :790/:878/:901/:940/:959/:1101 are untouched, and :988/:1010
+      already carried RedisError from 88e0d3457.)
+- [x] A test shows a `RedisError` from `unsubscribe` or `close` during reset does not stop the
       re-subscribe or kill the listener.
-- [ ] `_check_redis_health` reads the result `health_check()` returns: healthy returns True,
+      (test_system_broadcaster_reset_survives_rediserror_and_resubscribes in a8bae59c2: both
+      cleanup arms raise redis.exceptions.TimeoutError, the re-subscribe still wins
+      `_pubsub`; red on the pre-fix code - the escape aborted `_reset_pubsub_connection`.)
+- [x] `_check_redis_health` reads the result `health_check()` returns: healthy returns True,
       anything else returns False and logs the payload; the `RedisError` arm stays; the callers
       (`:807`, `:1093`) keep their boolean contract; the twin test's stub (`:1321`) returns a
       result dict in the same edit.
-- [ ] The storm probe runs the real broadcast methods with publish raising
+      (78805557a branches on the dict: healthy -> True, anything else -> log + False; the arm
+      stays, reworded per Q-057; twin stub is a result dict in a8bae59c2; the new
+      unhealthy-dict test is red on the pre-fix code, which returned True regardless.)
+- [x] The storm probe runs the real broadcast methods with publish raising
       `redis.exceptions.TimeoutError` and asserts every message type is still delivered locally
       each tick; the PR shows it red on the pre-fix code.
-- [ ] The timeout test's docstrings say its seam is synthetic (Q-056), and the `RedisError`
+      (a8bae59c2 rewrites the probe: real broadcast_status/broadcast_performance, publish
+      raising every call, per-type local send_text census >= 3 ticks; red on the pre-fix code
+      (0 deliveries), green at 78805557a.)
+- [x] The timeout test's docstrings say its seam is synthetic (Q-056), and the `RedisError`
       comment states the real reason (Q-057).
+      (168a5b5bd: all three sibling docstrings - failure, timeout, storm probe - state the
+      seam is synthetic and the wrapper absorbs every Exception; 78805557a rewords the
+      :1010 comment to the real rationale, keeping the hierarchy clause and the
+      outside-guard parenthetical; the true escape claim at :988 is left untouched.)
 
 **Done when:** the tests pass in CI at a ready head, and the PR shows the corrected probe red
 before the fix.
