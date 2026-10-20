@@ -97,7 +97,6 @@ from .file_watcher import (
     is_valid_image,
 )
 from .frame_extractor import FrameExtractor
-from .gpu_config_service import GpuAssignment, GpuConfigService
 from .gpu_detection_service import (
     AI_SERVICE_VRAM_REQUIREMENTS_MB,
     GpuDetectionService,
@@ -407,8 +406,6 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "FaceDetection",
     "FileWatcher",
     "FrameExtractor",
-    "GpuAssignment",
-    "GpuConfigService",
     "GpuDetectionService",
     "GpuDevice",
     "GpuUtilization",

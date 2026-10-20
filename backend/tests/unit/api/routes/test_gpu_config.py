@@ -1,25 +1,8 @@
-"""Unit tests for GPU configuration API routes.
+"""Unit tests for kept GPU configuration API routes (F-176, F-178, F-182).
 
-This test file provides comprehensive coverage for all 7 GPU configuration
-endpoints in backend/api/routes/gpu_config.py:
-
-1. GET /api/system/gpus - List detected GPUs
-2. GET /api/system/gpu-config - Get current GPU configuration
-3. PUT /api/system/gpu-config - Update GPU configuration
-4. POST /api/system/gpu-config/apply - Apply configuration and restart services
-5. GET /api/system/gpu-config/status - Get apply operation status
-6. POST /api/system/gpu-config/detect - Re-detect GPUs and update DB
-7. GET /api/system/gpu-config/preview - Preview auto-assignment strategy
-
-Target: ~30-40 test cases covering all success and error scenarios.
-
-Related Issues:
-    - NEM-3321: Add backend API route tests for GPU configuration
-    - NEM-3318: Implement GPU configuration API routes
-    - NEM-3292: Multi-GPU Support Epic
-
-Design Document:
-    See docs/plans/2025-01-23-multi-gpu-support-design.md
+R2a row 36 retired F-177 (POST /gpu-config/detect), F-179 (PUT /gpu-config),
+F-180 (GET /gpu-config/services), F-181 (POST /gpu-config/apply, GET /gpu-config/status),
+and F-183 (POST /gpu-config/import, POST /gpu-config/rollback).
 """
 
 from __future__ import annotations
@@ -38,15 +21,10 @@ from backend.api.schemas.gpu_config import (
     GpuConfigResponse,
     GpuDeviceResponse,
     GpuDevicesResponse,
-    ServiceStatus,
 )
 from backend.core.database import get_db
 from backend.models.gpu_config import GpuConfiguration, SystemSetting
 from backend.services.gpu_detection_service import GpuDevice as GpuDeviceDataclass
-
-# =============================================================================
-# Fixtures
-# =============================================================================
 
 
 @pytest.fixture
@@ -63,18 +41,6 @@ def mock_db_session() -> AsyncMock:
 @pytest.fixture
 def client(mock_db_session: AsyncMock) -> TestClient:
     """Create a test client with mocked dependencies."""
-    # Reset global fallback state before each test to ensure isolation
-    from backend.api.routes import gpu_config
-
-    gpu_config._apply_state_fallback = {
-        "in_progress": False,
-        "operation_id": None,
-        "services_pending": [],
-        "services_completed": [],
-        "service_statuses": [],
-        "last_updated": None,
-    }
-
     app = FastAPI()
     app.include_router(router)
 
@@ -120,24 +86,22 @@ def sample_assignments() -> list[GpuAssignment]:
     ]
 
 
-@pytest.fixture(autouse=True)
-def reset_apply_state():
-    """Reset the global _apply_state before each test."""
-    from backend.api.routes import gpu_config
+class TestMountedGpuRoutes:
+    """Tests that only the kept F-176, F-178, and F-182 GET routes remain on router."""
 
-    gpu_config._apply_state = {
-        "in_progress": False,
-        "services_pending": [],
-        "services_completed": [],
-        "service_statuses": [],
-        "last_updated": None,
-    }
-    yield
-
-
-# =============================================================================
-# GET /api/system/gpus Tests
-# =============================================================================
+    def test_only_kept_gpu_routes_are_mounted(self) -> None:
+        """R2a row 36 retired detect, update, apply, status, services, import, and rollback."""
+        mounted = sorted((m, r.path) for r in router.routes for m in getattr(r, "methods", ()))
+        assert mounted == [
+            ("GET", "/api/system/ai-services"),
+            ("GET", "/api/system/gpu-config"),
+            ("GET", "/api/system/gpu-config/export"),
+            ("GET", "/api/system/gpu-config/history"),
+            ("GET", "/api/system/gpu-config/history/diff"),
+            ("GET", "/api/system/gpu-config/history/{version_id}"),
+            ("GET", "/api/system/gpu-config/preview"),
+            ("GET", "/api/system/gpus"),
+        ]
 
 
 class TestListGpus:
@@ -175,7 +139,6 @@ class TestListGpus:
         data = response.json()
         assert len(data["gpus"]) == 2
 
-        # Validate first GPU
         gpu0 = data["gpus"][0]
         assert gpu0["index"] == 0
         assert gpu0["name"] == "RTX A5500"
@@ -183,7 +146,6 @@ class TestListGpus:
         assert gpu0["vram_used_mb"] == 19304
         assert gpu0["compute_capability"] == "8.6"
 
-        # Validate second GPU
         gpu1 = data["gpus"][1]
         assert gpu1["index"] == 1
         assert gpu1["name"] == "RTX A400"
@@ -202,7 +164,6 @@ class TestListGpus:
 
         response = client.get("/api/system/gpus")
 
-        # Graceful degradation: returns 200 with empty GPU list
         assert response.status_code == 200
         assert response.json()["gpus"] == []
 
@@ -224,11 +185,6 @@ class TestListGpus:
         assert validated.gpus[1].index == 1
 
 
-# =============================================================================
-# GET /api/system/gpu-config Tests
-# =============================================================================
-
-
 class TestGetGpuConfig:
     """Tests for GET /api/system/gpu-config endpoint."""
 
@@ -236,7 +192,6 @@ class TestGetGpuConfig:
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that default config is returned when no config exists in DB."""
-        # Mock empty results for strategy and assignments
         mock_strategy_result = MagicMock()
         mock_strategy_result.scalar_one_or_none.return_value = None
 
@@ -256,18 +211,16 @@ class TestGetGpuConfig:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["strategy"] == "manual"  # Default strategy
+        assert data["strategy"] == "manual"
         assert "assignments" in data
         assert isinstance(data["assignments"], list)
-        # Should have default assignments for all services
-        assert len(data["assignments"]) >= 1  # every service in the VRAM roster
+        assert len(data["assignments"]) >= 1
         assert data["updated_at"] is None
 
     def test_get_gpu_config_returns_saved_config(
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that saved config is returned from database."""
-        # Mock strategy setting
         mock_strategy_setting = SystemSetting(
             key="gpu_assignment_strategy",
             value={"strategy": "vram_based"},
@@ -275,7 +228,6 @@ class TestGetGpuConfig:
         mock_strategy_result = MagicMock()
         mock_strategy_result.scalar_one_or_none.return_value = mock_strategy_setting
 
-        # Mock GPU configurations
         mock_config1 = GpuConfiguration(
             service_name="ai-llm",
             gpu_index=0,
@@ -295,7 +247,6 @@ class TestGetGpuConfig:
             mock_config2,
         ]
 
-        # Mock updated_at timestamp
         updated_at = datetime(2026, 1, 23, 10, 30, 0, tzinfo=UTC)
         mock_updated_at_result = MagicMock()
         mock_updated_at_result.scalar_one_or_none.return_value = updated_at
@@ -369,505 +320,6 @@ class TestGetGpuConfig:
         assert "Failed to load GPU configuration" in response.json()["detail"]
 
 
-# =============================================================================
-# PUT /api/system/gpu-config Tests
-# =============================================================================
-
-
-class TestUpdateGpuConfig:
-    """Tests for PUT /api/system/gpu-config endpoint."""
-
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
-    def test_update_gpu_config_validates_required_fields(
-        self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """Test that update validates required fields (though request body is optional)."""
-        # Empty request body is valid - should keep current config
-        mock_strategy_result = MagicMock()
-        mock_strategy_result.scalar_one_or_none.return_value = None
-
-        mock_assignments_result = MagicMock()
-        mock_assignments_result.scalars.return_value.all.return_value = []
-
-        mock_existing_configs_result = MagicMock()
-        mock_existing_configs_result.scalars.return_value.all.return_value = []
-
-        # Mock for version number query (NEM-4945)
-        mock_version_number_result = MagicMock()
-        mock_version_number_result.scalar_one_or_none.return_value = None  # No existing versions
-
-        # update_gpu_config flow:
-        # 1. Get current strategy (line 583-585)
-        # 2. Get current assignments (line 587-590)
-        # 3. Detect GPUs for validation (mocked via get_gpu_detection_service)
-        # 4. Set current strategy (line 599) - calls db.execute in _set_current_strategy
-        # 5. Save assignments (line 602) - calls db.execute in _save_assignments_to_db
-        # 6. Save version history (NEM-4945) - calls db.execute for version number
-        mock_db_session.execute.side_effect = [
-            mock_strategy_result,  # Get current strategy
-            mock_assignments_result,  # Get current assignments
-            mock_strategy_result,  # Set current strategy - check if exists
-            mock_existing_configs_result,  # Save assignments - get existing configs
-            mock_version_number_result,  # Get next version number (NEM-4945)
-        ]
-
-        mock_service = AsyncMock()
-        mock_service.detect_gpus = AsyncMock(return_value=[])
-        mock_get_service.return_value = mock_service
-
-        response = client.put("/api/system/gpu-config", json={})
-
-        # Should succeed with empty request
-        assert response.status_code == 200
-        assert response.json()["success"] is True
-
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
-    def test_update_gpu_config_rejects_invalid_gpu_indices(
-        self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """Test that invalid GPU indices are flagged in warnings."""
-        mock_service = AsyncMock()
-        mock_service.detect_gpus = AsyncMock(
-            return_value=[
-                GpuDeviceDataclass(
-                    index=0,
-                    name="GPU 0",
-                    vram_total_mb=8000,
-                    vram_used_mb=0,
-                    uuid="GPU-00000000-0000-0000-0000-000000000000",
-                    compute_capability="8.6",
-                )
-            ]
-        )
-        mock_get_service.return_value = mock_service
-
-        mock_strategy_result = MagicMock()
-        mock_strategy_result.scalar_one_or_none.return_value = None
-
-        mock_assignments_result = MagicMock()
-        mock_assignments_result.scalars.return_value.all.return_value = []
-
-        mock_existing_configs_result = MagicMock()
-        mock_existing_configs_result.scalars.return_value.all.return_value = []
-
-        # Mock for version number query (NEM-4945)
-        mock_version_number_result = MagicMock()
-        mock_version_number_result.scalar_one_or_none.return_value = None
-
-        mock_db_session.execute.side_effect = [
-            mock_strategy_result,
-            mock_assignments_result,
-            mock_strategy_result,
-            mock_existing_configs_result,
-            mock_version_number_result,  # NEM-4945
-        ]
-
-        # Assign to non-existent GPU 2
-        request_data = {
-            "strategy": "manual",
-            "assignments": [{"service": "ai-llm", "gpu_index": 2, "vram_budget_override": None}],
-        }
-
-        response = client.put("/api/system/gpu-config", json=request_data)
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert len(data["warnings"]) > 0
-        assert any("non-existent GPU 2" in w for w in data["warnings"])
-
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
-    def test_update_gpu_config_returns_vram_warnings_when_over_budget(
-        self,
-        mock_get_service: MagicMock,
-        client: TestClient,
-        mock_db_session: AsyncMock,
-        sample_gpus: list[GpuDeviceDataclass],
-    ) -> None:
-        """Test that VRAM warnings are returned when assignments exceed GPU capacity."""
-        mock_service = AsyncMock()
-        mock_service.detect_gpus = AsyncMock(return_value=sample_gpus)
-        mock_get_service.return_value = mock_service
-
-        mock_strategy_result = MagicMock()
-        mock_strategy_result.scalar_one_or_none.return_value = None
-
-        mock_assignments_result = MagicMock()
-        mock_assignments_result.scalars.return_value.all.return_value = []
-
-        mock_existing_configs_result = MagicMock()
-        mock_existing_configs_result.scalars.return_value.all.return_value = []
-
-        # Mock for version number query (NEM-4945)
-        mock_version_number_result = MagicMock()
-        mock_version_number_result.scalar_one_or_none.return_value = None
-
-        mock_db_session.execute.side_effect = [
-            mock_strategy_result,
-            mock_assignments_result,
-            mock_strategy_result,
-            mock_existing_configs_result,
-            mock_version_number_result,  # NEM-4945
-        ]
-
-        # Assign more VRAM than GPU 1 has (4094 MB)
-        request_data = {
-            "strategy": "manual",
-            "assignments": [
-                {"service": "ai-llm", "gpu_index": 1, "vram_budget_override": 10.0},  # 10GB > 4GB
-            ],
-        }
-
-        response = client.put("/api/system/gpu-config", json=request_data)
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert len(data["warnings"]) > 0
-        assert any("over budget" in w.lower() for w in data["warnings"])
-        assert any("GPU 1" in w for w in data["warnings"])
-
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
-    def test_update_gpu_config_saves_to_database_correctly(
-        self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """Test that configuration is saved to database correctly."""
-        mock_service = AsyncMock()
-        mock_service.detect_gpus = AsyncMock(return_value=[])
-        mock_get_service.return_value = mock_service
-
-        mock_strategy_result = MagicMock()
-        mock_strategy_result.scalar_one_or_none.return_value = None
-
-        mock_assignments_result = MagicMock()
-        mock_assignments_result.scalars.return_value.all.return_value = []
-
-        mock_existing_configs_result = MagicMock()
-        mock_existing_configs_result.scalars.return_value.all.return_value = []
-
-        # Mock for version number query (NEM-4945)
-        mock_version_number_result = MagicMock()
-        mock_version_number_result.scalar_one_or_none.return_value = None
-
-        mock_db_session.execute.side_effect = [
-            mock_strategy_result,
-            mock_assignments_result,
-            mock_strategy_result,
-            mock_existing_configs_result,
-            mock_version_number_result,  # NEM-4945
-        ]
-
-        request_data = {
-            "strategy": "vram_based",
-            "assignments": [
-                {"service": "ai-llm", "gpu_index": 0, "vram_budget_override": None},
-            ],
-        }
-
-        response = client.put("/api/system/gpu-config", json=request_data)
-
-        assert response.status_code == 200
-        assert response.json()["success"] is True
-        # Verify commit was called
-        mock_db_session.commit.assert_called_once()
-
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
-    def test_update_gpu_config_handles_database_errors(
-        self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """Test that database errors are handled with rollback."""
-        mock_service = AsyncMock()
-        mock_service.detect_gpus = AsyncMock(return_value=[])
-        mock_get_service.return_value = mock_service
-
-        mock_db_session.execute.side_effect = Exception("Database error")
-
-        request_data = {"strategy": "manual"}
-
-        response = client.put("/api/system/gpu-config", json=request_data)
-
-        assert response.status_code == 500
-        assert "Failed to save GPU configuration" in response.json()["detail"]
-        mock_db_session.rollback.assert_called_once()
-
-
-# =============================================================================
-# POST /api/system/gpu-config/apply Tests
-# =============================================================================
-
-
-class TestApplyGpuConfig:
-    """Tests for POST /api/system/gpu-config/apply endpoint."""
-
-    @patch("backend.api.routes.gpu_config.GpuConfigService", autospec=True)
-    def test_apply_gpu_config_returns_success_response(
-        self, mock_config_service_class: MagicMock, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """Test that apply returns success response with service statuses."""
-        # Mock config service
-        mock_config_service = AsyncMock()
-        mock_config_service.write_config_files = AsyncMock()
-        mock_config_service_class.return_value = mock_config_service
-
-        # Mock strategy and assignments
-        mock_strategy_result = MagicMock()
-        mock_strategy_result.scalar_one_or_none.return_value = None
-
-        mock_config1 = GpuConfiguration(
-            service_name="ai-llm", gpu_index=0, strategy="manual", enabled=True
-        )
-        mock_assignments_result = MagicMock()
-        mock_assignments_result.scalars.return_value.all.return_value = [mock_config1]
-
-        mock_db_session.execute.side_effect = [
-            mock_strategy_result,
-            mock_assignments_result,
-        ]
-
-        response = client.post("/api/system/gpu-config/apply")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "restarted_services" in data
-        assert "service_statuses" in data
-        assert "warnings" in data
-        assert len(data["restarted_services"]) >= 1
-
-    @patch("backend.api.routes.gpu_config.GpuConfigService", autospec=True)
-    def test_apply_gpu_config_handles_restart_failures(
-        self, mock_config_service_class: MagicMock, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """Test that restart failures are handled gracefully."""
-        # Mock config service to raise error
-        mock_config_service = AsyncMock()
-        mock_config_service.write_config_files = AsyncMock(
-            side_effect=Exception("Docker restart failed")
-        )
-        mock_config_service_class.return_value = mock_config_service
-
-        mock_strategy_result = MagicMock()
-        mock_strategy_result.scalar_one_or_none.return_value = None
-
-        mock_config = GpuConfiguration(
-            service_name="ai-llm", gpu_index=0, strategy="manual", enabled=True
-        )
-        mock_assignments_result = MagicMock()
-        mock_assignments_result.scalars.return_value.all.return_value = [mock_config]
-
-        mock_db_session.execute.side_effect = [
-            mock_strategy_result,
-            mock_assignments_result,
-        ]
-
-        response = client.post("/api/system/gpu-config/apply")
-
-        assert response.status_code == 500
-        assert "Failed to apply GPU configuration" in response.json()["detail"]
-
-    @patch("backend.api.routes.gpu_config.GpuConfigService", autospec=True)
-    def test_apply_gpu_config_rejects_concurrent_applies(
-        self, mock_config_service_class: MagicMock, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """Test that concurrent apply operations are rejected with 409."""
-        from backend.api.routes import gpu_config
-        from backend.services.gpu_config_service import ApplyResult, RestartStatus
-
-        # Set apply state to in-progress using the fallback state
-        # Note: The endpoint now uses Redis when available, but falls back to
-        # _apply_state_fallback for in-memory tracking without Redis (NEM-3547)
-        gpu_config._apply_state_fallback["in_progress"] = True
-        gpu_config._apply_state_fallback["operation_id"] = "test-operation-id"
-
-        # Mock the config service to return an incomplete operation
-        mock_service = AsyncMock()
-        mock_config_service_class.return_value = mock_service
-        mock_service.get_operation_status.return_value = ApplyResult(
-            success=False,
-            operation_id="test-operation-id",
-            started_at=datetime.now(UTC),
-            changed_services=["ai-llm"],
-            service_statuses={"ai-llm": MagicMock(status=RestartStatus.PENDING)},
-            completed_at=None,  # Operation not completed - still in progress
-        )
-
-        response = client.post("/api/system/gpu-config/apply")
-
-        # Clean up state for other tests
-        gpu_config._apply_state_fallback["in_progress"] = False
-        gpu_config._apply_state_fallback["operation_id"] = None
-
-        assert response.status_code == 409
-        assert "already in progress" in response.json()["detail"]
-
-    def test_apply_gpu_config_fails_closed_when_apply_state_unreadable(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """The concurrent-apply guard must fail CLOSED when the apply state is unreadable.
-
-        NEM-3547's in-memory fallback stands in only when Redis is ABSENT. When a
-        Redis client exists but the current-operation read raises, `_apply_state_fallback`
-        holds only the last COMPLETED apply (it is never updated during a Redis-backed
-        operation) — so it is not evidence either way. The old behavior returned None
-        from the read, the guard read "no operation running", and a transient Redis
-        blip silently permitted a concurrent apply: the exact race the 409 guard
-        exists to prevent. Surfaced by the honest WP0.5-era validate.sh run
-        (seed 1556902420) as this endpoint answering 500/200 instead of 409 when a
-        stale event-loop redis client poisoned the worker global.
-        """
-        stale_client = MagicMock()
-        stale_client.get = AsyncMock(side_effect=RuntimeError("Event loop is closed"))
-
-        with patch(
-            "backend.api.routes.gpu_config._get_redis_client",
-            return_value=stale_client,
-            autospec=True,
-        ):
-            response = client.post("/api/system/gpu-config/apply")
-
-        assert response.status_code == 503
-        assert "could not be verified" in response.json()["detail"]
-
-
-# =============================================================================
-# GET /api/system/gpu-config/status Tests
-# =============================================================================
-
-
-class TestGetGpuConfigStatus:
-    """Tests for GET /api/system/gpu-config/status endpoint."""
-
-    def test_get_gpu_config_status_returns_status_correctly(self, client: TestClient) -> None:
-        """Test that status endpoint returns current apply status."""
-        from backend.api.routes import gpu_config
-
-        # Set up status using the fallback state
-        # Note: The endpoint now uses Redis when available, but falls back to
-        # _apply_state_fallback for in-memory tracking without Redis (NEM-3547)
-        gpu_config._apply_state_fallback = {
-            "in_progress": True,
-            "operation_id": None,  # No Redis operation, so this uses fallback state
-            "services_pending": ["ai-llm", "ai-yolo26"],
-            "services_completed": ["ai-enrichment"],
-            "service_statuses": [
-                ServiceStatus(service="ai-llm", status="starting", message=None),
-                ServiceStatus(service="ai-yolo26", status="pending", message=None),
-                ServiceStatus(service="ai-enrichment", status="running", message=None),
-            ],
-            "last_updated": datetime.now(UTC),
-        }
-
-        response = client.get("/api/system/gpu-config/status")
-
-        # Clean up state for other tests
-        gpu_config._apply_state_fallback = {
-            "in_progress": False,
-            "operation_id": None,
-            "services_pending": [],
-            "services_completed": [],
-            "service_statuses": [],
-            "last_updated": None,
-        }
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["in_progress"] is True
-        assert len(data["services_pending"]) == 2
-        assert len(data["services_completed"]) == 1
-        assert len(data["service_statuses"]) == 3
-        assert data["services_pending"][0] == "ai-llm"
-        assert data["services_completed"][0] == "ai-enrichment"
-
-    def test_get_gpu_config_status_when_not_in_progress(self, client: TestClient) -> None:
-        """Test status when no apply operation is running."""
-        response = client.get("/api/system/gpu-config/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["in_progress"] is False
-        assert data["services_pending"] == []
-        assert data["services_completed"] == []
-
-
-# =============================================================================
-# POST /api/system/gpu-config/detect Tests
-# =============================================================================
-
-
-class TestDetectGpus:
-    """Tests for POST /api/system/gpu-config/detect endpoint."""
-
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
-    def test_detect_gpus_triggers_gpu_rescan(
-        self,
-        mock_get_service: MagicMock,
-        client: TestClient,
-        mock_db_session: AsyncMock,
-        sample_gpus: list[GpuDeviceDataclass],
-    ) -> None:
-        """Test that detect endpoint triggers GPU re-scan."""
-        mock_service = AsyncMock()
-        mock_service.detect_gpus = AsyncMock(return_value=sample_gpus)
-        mock_get_service.return_value = mock_service
-
-        # Mock existing devices query
-        mock_existing_devices_result = MagicMock()
-        mock_existing_devices_result.scalars.return_value.all.return_value = []
-        mock_db_session.execute.return_value = mock_existing_devices_result
-
-        response = client.post("/api/system/gpu-config/detect")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "gpus" in data
-        assert len(data["gpus"]) == 2
-        # Verify detection service was called
-        mock_service.detect_gpus.assert_called_once()
-
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
-    def test_detect_gpus_updates_database(
-        self,
-        mock_get_service: MagicMock,
-        client: TestClient,
-        mock_db_session: AsyncMock,
-        sample_gpus: list[GpuDeviceDataclass],
-    ) -> None:
-        """Test that detect endpoint updates database with detected GPUs."""
-        mock_service = AsyncMock()
-        mock_service.detect_gpus = AsyncMock(return_value=sample_gpus)
-        mock_get_service.return_value = mock_service
-
-        mock_existing_devices_result = MagicMock()
-        mock_existing_devices_result.scalars.return_value.all.return_value = []
-        mock_db_session.execute.return_value = mock_existing_devices_result
-
-        response = client.post("/api/system/gpu-config/detect")
-
-        assert response.status_code == 200
-        # Verify database commit was called
-        mock_db_session.commit.assert_called_once()
-
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
-    def test_detect_gpus_handles_detection_failures(
-        self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
-        """Test that detection failures are handled with 500 and rollback."""
-        mock_service = AsyncMock()
-        mock_service.detect_gpus = AsyncMock(side_effect=Exception("NVML initialization failed"))
-        mock_get_service.return_value = mock_service
-
-        response = client.post("/api/system/gpu-config/detect")
-
-        assert response.status_code == 500
-        assert "GPU detection failed" in response.json()["detail"]
-        mock_db_session.rollback.assert_called_once()
-
-
-# =============================================================================
-# GET /api/system/gpu-config/preview Tests
-# =============================================================================
-
-
 class TestPreviewGpuConfig:
     """Tests for GET /api/system/gpu-config/preview endpoint."""
 
@@ -888,17 +340,16 @@ class TestPreviewGpuConfig:
         assert "proposed_assignments" in data
         assert "warnings" in data
         assert isinstance(data["proposed_assignments"], list)
-        assert len(data["proposed_assignments"]) >= 1  # every service in the VRAM roster
+        assert len(data["proposed_assignments"]) >= 1
 
     @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_preview_gpu_config_validates_strategy_parameter(
         self, mock_get_service: MagicMock, client: TestClient
     ) -> None:
         """Test that invalid strategy parameter is rejected."""
-        # Missing required strategy parameter
         response = client.get("/api/system/gpu-config/preview")
 
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 422
         assert "Field required" in response.text or "required" in response.text.lower()
 
     @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
@@ -931,7 +382,6 @@ class TestPreviewGpuConfig:
         self, mock_get_service: MagicMock, client: TestClient
     ) -> None:
         """Test that preview returns warnings when strategy constraints aren't met."""
-        # Single GPU scenario - isolation_first should warn
         single_gpu = [
             GpuDeviceDataclass(
                 index=0,
@@ -972,11 +422,6 @@ class TestPreviewGpuConfig:
         assert any("No GPUs detected" in w for w in data["warnings"])
 
 
-# =============================================================================
-# Schema Validation Tests
-# =============================================================================
-
-
 class TestGpuConfigSchemas:
     """Tests for GPU configuration schemas."""
 
@@ -1010,7 +455,6 @@ class TestGpuConfigSchemas:
         assert data["gpu_index"] == 0
         assert data["vram_budget_override"] is None
 
-        # With override
         assignment2 = GpuAssignment(
             service="ai-enrichment",
             gpu_index=1,
@@ -1031,19 +475,6 @@ class TestGpuConfigSchemas:
         assert data["strategy"] == "manual"
         assert len(data["assignments"]) == 1
         assert data["updated_at"] is not None
-
-    def test_service_status_schema(self):
-        """Test ServiceStatus schema."""
-        status = ServiceStatus(
-            service="ai-llm",
-            status="running",
-            message="Configuration applied",
-        )
-
-        data = status.model_dump()
-        assert data["service"] == "ai-llm"
-        assert data["status"] == "running"
-        assert data["message"] == "Configuration applied"
 
     def test_gpu_assignment_strategy_enum_values(self):
         """Test GpuAssignmentStrategy enum has all expected values."""

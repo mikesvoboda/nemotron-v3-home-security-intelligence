@@ -75,7 +75,6 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "alert_rules",
     "audit_logs",
     "gpu_stats",
-    "gpu_devices",  # GPU device tracking
     "gpu_configurations",  # GPU service assignments
     "system_settings",  # System-wide settings
     "logs",
