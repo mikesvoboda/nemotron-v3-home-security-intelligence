@@ -653,7 +653,7 @@ leaves the test green.
 ### [r271a] The system broadcaster survives a Redis timeout and reads Redis's health result
 
 **Flags:** none. **Assigned:** backend, first on its queue after the packages it holds (UR-52).
-**Depends on:** none. **PR:** #7301. (ruling 271, record 6277412644, corrected by 6281398804
+**Depends on:** none. **PR:** #7299. (ruling 271, record 6277412644, corrected by 6281398804
 and 6281511059; audit items Q-052, Q-053, Q-055 to Q-057 and the re-issued Q-054 of `[r262]`,
 #7041)
 
