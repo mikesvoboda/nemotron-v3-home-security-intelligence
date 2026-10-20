@@ -770,13 +770,13 @@ status guard keeps only its own status values. The backend's health monitor prob
 supervisor broadcasts `worker:<name>`, all through `broadcast_service_status`. So no broadcast
 passes, and `yolo26`'s health never reaches `ServiceStatusAlert` or the services panel's badge.
 
-- [ ] **MEASURE** each `service_status` emitter and the names and status values it sends, and
+- [x] **MEASURE** each `service_status` emitter and the names and status values it sends, and
       where else the frontend shows each one. The PR states, for the container and worker
       broadcasts, whether the hook takes them and why.
-- [ ] The hook accepts the health monitor's probe names and status values and every other
+- [x] The hook accepts the health monitor's probe names and status values and every other
       in-scope emitter's, and drops `rtdetr` and `nemotron`; the alert's label map follows. The
       backend's payloads do not change.
-- [ ] A test feeds each in-scope emitter's real payload shape through the hook, and an unhealthy
+- [x] A test feeds each in-scope emitter's real payload shape through the hook, and an unhealthy
       `yolo26` lights `ServiceStatusAlert`.
 
 **Done when:** the tests above pass in CI at a ready head, and the PR names each emitter's decision.
