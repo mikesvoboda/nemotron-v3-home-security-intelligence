@@ -15,7 +15,6 @@ docs/developer/api/
   system-ops.md          # Health checks, config, alerts, logs, notifications
   system-monitoring.md   # System monitoring endpoints
   realtime.md            # WebSocket streams for events and system status
-  calibration.md         # Camera calibration API
   coverage.md            # API endpoint coverage tracking
   webhooks.md            # Webhook configuration and delivery
   websocket-contracts.md # WebSocket message formats and contracts
@@ -31,7 +30,6 @@ docs/developer/api/
 | [System Operations](system-ops.md)        | Health checks, configuration, alerts, logs, notifications |
 | [System Monitoring](system-monitoring.md) | System monitoring and telemetry endpoints                 |
 | [Real-time](realtime.md)                  | WebSocket streams for events and system status            |
-| [Calibration](calibration.md)             | Camera calibration API endpoints                          |
 | [Webhooks](webhooks.md)                   | Inbound (Alertmanager) and outbound webhook configuration |
 
 ## Supporting Documentation

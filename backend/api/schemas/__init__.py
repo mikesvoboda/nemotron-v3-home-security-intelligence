@@ -199,7 +199,6 @@ from .feedback import (
     ActualThreatLevel,
     EventFeedbackCreate,
     EventFeedbackResponse,
-    FeedbackStatsResponse,
     FeedbackType,
 )
 from .gpu_config import (
@@ -536,7 +535,6 @@ __all__ = [  # noqa: RUF022
     "FaceEnrichment",
     "FaceMatchRequest",
     "FaceMatchResponse",
-    "FeedbackStatsResponse",
     "FeedbackType",
     "FieldSelectionParams",
     "FilterParams",

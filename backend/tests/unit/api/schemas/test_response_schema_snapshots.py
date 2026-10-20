@@ -36,7 +36,7 @@ from backend.api.schemas.events import (
     EventListResponse,
     EventResponse,
 )
-from backend.api.schemas.feedback import EventFeedbackResponse, FeedbackStatsResponse
+from backend.api.schemas.feedback import EventFeedbackResponse
 from backend.api.schemas.health import LivenessResponse
 from backend.api.schemas.pagination import PaginationMeta
 
@@ -206,26 +206,6 @@ class TestFeedbackResponseSnapshots:
             actual_threat_level="no_threat",
             suggested_score=10,
             created_at=sample_datetime,
-        )
-        serialized = response.model_dump(mode="json")
-        assert serialized == snapshot
-
-    def test_feedback_stats_response_json_schema(self, snapshot):
-        """Test FeedbackStatsResponse JSON schema structure."""
-        schema = FeedbackStatsResponse.model_json_schema()
-        assert schema == snapshot
-
-    def test_feedback_stats_response_serialization(self, snapshot):
-        """Test FeedbackStatsResponse serialization format."""
-        response = FeedbackStatsResponse(
-            total_feedback=100,
-            by_type={
-                "accurate": 10,
-                "false_positive": 40,
-                "missed_threat": 30,
-                "severity_wrong": 20,
-            },
-            by_camera={"front_door": 50, "back_yard": 30, "garage": 20},
         )
         serialized = response.model_dump(mode="json")
         assert serialized == snapshot

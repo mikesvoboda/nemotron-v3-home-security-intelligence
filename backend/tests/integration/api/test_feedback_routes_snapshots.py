@@ -128,7 +128,7 @@ async def test_create_feedback_with_notes_schema_snapshot(
 # Removed (ledger R-T9-FEEDBACK): GET /api/feedback/{id} and the three
 # GET /api/feedback list tests. The shipped router (api/routes/feedback.py)
 # registers exactly POST /api/feedback, GET /api/feedback/event/{event_id},
-# and GET /api/feedback/stats — there is no list endpoint (GET hit the POST
+# — there is no list endpoint (GET hit the POST
 # route → 405) and no by-id route (→ 404). Testing a 405/404 shape adds no
 # contract coverage, so the ghost-endpoint snapshots were dropped rather
 # than rewritten.
@@ -161,59 +161,6 @@ async def test_get_feedback_by_event_id_response_schema_snapshot(
 
 
 # === GET /api/feedback Snapshots ===
-
-
-# (list / pagination / empty-list snapshots removed — see R-T9-FEEDBACK note
-# above: GET /api/feedback is not a shipped endpoint.)
-
-# === GET /api/feedback/stats Snapshots ===
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_get_feedback_stats_response_schema_snapshot(
-    client,
-    snapshot: SnapshotAssertion,
-):
-    """Test GET /api/feedback/stats response schema with snapshot."""
-    # Create feedback with different types
-    _, event1 = await create_test_camera_and_event(client)
-    _, event2 = await create_test_camera_and_event(client)
-
-    await client.post(
-        "/api/feedback",
-        json={"event_id": event1["id"], "feedback_type": "false_positive"},
-    )
-    await client.post(
-        "/api/feedback",
-        json={"event_id": event2["id"], "feedback_type": "missed_threat"},
-    )
-
-    response = await client.get("/api/feedback/stats")
-    assert response.status_code == 200
-
-    data = response.json()
-    # by_camera is keyed by dynamic test camera ids (unique_id()); collapse it
-    # to one representative entry so the snapshot stays key-stable across runs.
-    if isinstance(data.get("by_camera"), dict) and data["by_camera"]:
-        first = next(iter(data["by_camera"]))
-        data["by_camera"] = {"<camera_id>": data["by_camera"][first]}
-    schema = extract_schema(data)
-    assert schema == snapshot
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_get_feedback_stats_empty_schema_snapshot(
-    client,
-    snapshot: SnapshotAssertion,
-):
-    """Test stats endpoint schema when no feedback exists."""
-    response = await client.get("/api/feedback/stats")
-    assert response.status_code == 200
-
-    schema = extract_schema(response.json())
-    assert schema == snapshot
 
 
 # === Error Response Snapshots ===

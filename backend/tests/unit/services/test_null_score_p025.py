@@ -18,7 +18,7 @@ The second class tests are GREEN PINS - they lock NULL-safety that already
 exists so a later refactor cannot silently remove it (0.25's job is "every
 live consumer", not "fix things that are broken"): analytics SQL filter,
 ExperimentResult non-NULL columns, calibration caller guard (also pinned by
-test_calibration_service.py::test_handles_null_risk_score), audit consistency
+audit consistency
 guard (also pinned in test_pipeline_quality_audit_service.py).
 """
 
@@ -270,21 +270,6 @@ class TestArithmeticSitesAreAlreadyNullSafe_PINS:
             experiment_version="shadow",
         )
         assert row.calculated_score_diff == 5
-
-    def test_calibration_adjustment_guard_is_caller_side(self) -> None:
-        """`risk_score / 50.0` sits in calculate_adjustment(), whose ONLY
-        production caller (adjust_from_feedback flow) returns early on
-        `risk_score is None` with a warning (calibration_service.py:250) -
-        behavior pinned by test_calibration_service.py::test_handles_null_
-        risk_score; this pin locks the caller-side guard itself so neither
-        side drifts alone. (Signal-based here rather than re-running the
-        async flow: the guard is one line, its absence is the defect.)"""
-        import inspect
-
-        from backend.services import calibration_service
-
-        src = inspect.getsource(calibration_service.CalibrationService.adjust_from_feedback)
-        assert "risk_score is None" in src
 
     def test_audit_consistency_diff_requires_both_scores(self) -> None:
         """pipeline_quality_audit_service computes the consistency diff ONLY
