@@ -143,21 +143,53 @@ def _auth(token: str | None) -> list[str]:
     return ["-H", f"Authorization: token {token}"] if token else []
 
 
+class _GhRestError(Exception):
+    """A ``gh api`` write call exited non-zero, CARRYING its stdout with it.
+
+    ``real_run`` raises on a non-zero exit and discards stdout -- but ``gh api --include``
+    prints the HTTP status line on STDOUT even when it exits 1 (every HTTP >= 400 exits 1),
+    so the status the caller must parse (409 conflict, 422 mismatch, 500 boom) lives in the
+    exception, not in a return value. Catching the bare exception and treating stdout as
+    empty read every such answer as status 0 (N10): the conflict branch stayed unreachable
+    in production while the fake, whose contract is stdout-carrying, passed. The runner
+    contract here is therefore: an HTTP-answered call raises ``_GhRestError`` with
+    ``stdout`` set; a transport death (no answer at all) raises anything else.
+    """
+
+    def __init__(self, message: str, stdout: str = "") -> None:
+        super().__init__(message)
+        self.stdout = stdout
+
+
+class _CarryingError(snap.CommandError):
+    """``real_run``'s raise, with the process stdout attached for ``_gh_rest`` to read."""
+
+    stdout: str
+
+
 def _gh_rest(
     run: Runner, method: str, path: str, stdin: str = "", token: str | None = None
 ) -> tuple[int, dict | list]:
     """A REST call answered with its HTTP status and parsed body -- update-branch answers 202
-    and a conflict 409 (and its expected_head_sha mismatch class is 422), all of which the
+    and a conflict 409 (the ``expected_head_sha`` mismatch class is 422), all of which the
     caller must tell apart. ``stdin`` is the request body (the PUT's JSON), fed through the
     runner's stdin channel; ``token`` overrides the auth for this one call (the write
-    credential's two calls only). The status survives a gh non-zero exit: ``gh api`` exits 1
-    on every HTTP >= 400 while the status line still lands on stdout (--include), so the
-    caller parses stdout with the error swallowed (a transport failure reads as status 0,
-    which is not any branch's shape)."""
+    credential's two calls only).
+
+    The status survives BOTH of gh's failure shapes: an HTTP >= 400 answer exits 1 with the
+    ``--include`` status line on stdout -- the runner raises, so a raising runner must carry
+    its stdout (``_GhRestError``; ``real_run`` wraps it) -- while a transport death answers
+    with nothing at all and reads as status 0, which is not any branch's shape (N10: the
+    swallowed-stdout shape read every conflict as 0)."""
     try:
         out = run(
             ["gh", "api", "-X", method, path, *_auth(token), "--input", "-", "--include"], stdin
         )
+    except snap.CommandError as exc:
+        carried = getattr(exc, "stdout", None)
+        out = carried if isinstance(carried, str) else ""
+    except _GhRestError as exc:  # a test fakes the raising contract directly
+        out = exc.stdout
     except Exception:
         out = ""
     # `gh api --include` prints the headers, a blank line, then the body; the status is the
@@ -399,8 +431,9 @@ def act(
     if status in (409, 422):
         # A conflict falls through to the next entry in the SAME fire (step 5). The
         # fallthrough lives in fire(): this fire re-decides with this entry marked skipped.
-        # GitHub documents 409 for update-branch; the expected_head_sha mismatch and
-        # merge-conflict class is 422 -- both read as "this entry cannot update now".
+        # GitHub's REST reference documents 202/403/422 for update-branch, and names 422
+        # as the expected_head_sha-mismatch class. 409 is kept in the conflict set as
+        # defense against undocumented codes -- both read as "this entry cannot update now".
         plan.action = "conflict-fallthrough"
         plan.action_note = f"update of #{n} conflicted ({status}): falling through to the next entry"
         st.errors.append(f"update-branch conflicted ({status})")
@@ -656,15 +689,21 @@ def parser() -> argparse.ArgumentParser:
 
 def real_run(cmd: Sequence[str], stdin: str = "") -> str:
     """The real runner: ``gh api``/``git`` with stdout returned, CommandError on failure;
-    ``stdin`` is piped in -- the update-branch PUT body rides it."""
+    ``stdin`` is piped in -- the update-branch PUT body rides it.
+
+    On a non-zero exit the stdout rides the raise (``_gh_rest`` reads the ``--include``
+    status line off it): ``gh api`` exits 1 on every HTTP >= 400 while the status line is
+    stdout, so a discard-the-stdout raise would read every conflict as status 0 (N10)."""
     proc = subprocess.run(
         list(cmd), input=stdin, capture_output=True, text=True, check=False, timeout=120
     )
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout).strip().splitlines()
-        raise snap.CommandError(
+        err = _CarryingError(
             f"{' '.join(cmd[:3])} exited {proc.returncode}: {tail[-1] if tail else 'no output'}"
         )
+        err.stdout = proc.stdout  # the --include status line survives the raise (N10)
+        raise err
     return proc.stdout
 
 

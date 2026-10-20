@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -63,11 +64,13 @@ def diff_for(rev: str, content: str = "+line\n") -> str:
 class Fake:
     """Answers by command shape, records every call, raises on a command nobody scripted.
 
-    The fake models gh's exit-code contract on WRITES: an HTTP >= 400 answer reaches the
-    script as stdout carrying the `--include` status line, with the runner never raising
-    (gh exits 1 there but the status line is stdout). Reads fail by raise, as a failed
-    read must. A write answered with NO status line (a transport failure) returns empty
-    stdout -- the drift this modeling prevents is a caller that assumes the raise.
+    The fake models gh's REAL write contract (N10): an HTTP >= 400 answer exits 1 with the
+    `--include` status line on stdout -- so the fake RAISES a stdout-carrying error there,
+    exactly what `real_run` does in production. Status 0 means the answer arrived with NO
+    status line at all (a transport death): empty stdout, no raise... which the fake
+    returns as empty output. A fake whose HTTP >= 400 answers arrived as plain returns
+    would pass tests while production read every conflict as status 0 -- the drift N10
+    caught.
     """
 
     def __init__(self, **over):
@@ -81,7 +84,6 @@ class Fake:
         self.diffs = over.get("diffs", {})  # rev -> diff text; default below = one carry
         self.update_status = over.get("update_status", 200)
         self.update_answer = over.get("update_answer", {"message": "Merged"})
-        self.update_answer_lines = over.get("update_answer_lines", 1)  # stdout lines on exit-1
         self.post_update_head = over.get("post_update_head", NEW_HEAD)
         self.update_pr = over.get("update_pr", 111)  # which PR's head moves on the update
 
@@ -154,11 +156,16 @@ class Fake:
             self.calls[-1].append(f"stdin={stdin}")
             if self.update_status in (200, 202) and self.update_pr is not None:
                 self.prs[self.update_pr]["head"]["sha"] = self.post_update_head
-            # gh's contract, modeled: the status line is stdout (--include) even on the
-            # exit-1 statuses; 0 means the answer arrived with NO status line at all.
+            # gh's real contract, modeled (N10): the status line is stdout (--include) even
+            # on the exit-1 statuses -- the fake RAISES with stdout carried, exactly what
+            # real_run does; status 0 means no status line at all (transport death), which
+            # arrives as plain empty output.
             if self.update_status == 0:
                 return ""
-            return f"HTTP/2.0 {self.update_status}\n\n{json.dumps(self.update_answer)}"
+            out = f"HTTP/2.0 {self.update_status}\n\n{json.dumps(self.update_answer)}"
+            if self.update_status in (200, 202):
+                return out
+            raise qu._GhRestError(f"gh api exited 1 ({self.update_status})", stdout=out)
         if method == "POST" and "issues/111/comments" in path:
             self.comment_body = cmd[-1].removeprefix("body=")
             return json.dumps({"id": QUEUE_ID, "html_url": "u"})
@@ -512,6 +519,55 @@ def test_a_transport_failure_on_the_put_is_not_a_conflict_nor_a_crash():
     assert "answered 0" in plan.action_note
     assert not getattr(fake, "comment_body", None), "commented on a fire that wrote nothing"
     assert not getattr(fake, "armed", None)
+
+
+def test_real_run_carries_stdout_through_the_raise():
+    # N10's production pin: real_run on rc != 0 must carry stdout on the raised error --
+    # the --include status line is stdout, and a discard-the-stdout raise reads every
+    # HTTP >= 400 answer as status 0 (the reviewer's end-to-end proof).
+    proc = subprocess.run(
+        [sys.executable, "-c", "print('HTTP/1.1 409 Conflict'); raise SystemExit(1)"],
+        capture_output=True, text=True, check=False,
+    )
+    assert proc.returncode != 0 and proc.stdout.startswith("HTTP/1.1 409")
+    # the real contract through real_run itself, with a stubbed subprocess.run that mimics
+    # gh's shape: rc=1, status line on stdout, error on stderr.
+    class FakeProc:
+        returncode = 1
+        stdout = "HTTP/1.1 409 Conflict\r\n\r\n{\"message\": \"conflict\"}"
+        stderr = "gh: Not found"
+
+    orig = qu.subprocess.run
+    qu.subprocess.run = lambda *_a, **_k: FakeProc()
+    try:
+        qu.real_run(["gh", "api", "-X", "PUT", "x"])
+        raise AssertionError("real_run did not raise on rc=1")
+    except qu.snap.CommandError as exc:
+        assert getattr(exc, "stdout", "").startswith("HTTP/1.1 409"), (
+            "the --include status line did not ride the raise (N10)"
+        )
+    finally:
+        qu.subprocess.run = orig
+
+
+def test_the_raising_contract_fires_the_fallthrough():
+    # N10 end-to-end at the production contract: the fake RAISES on the 409 (stdout
+    # carried), and fire() must still fall through to the next entry in the same fire --
+    # exactly the behavior the swallow-only shape silently degraded to a status-0 stop.
+    queue = f"111@{HEAD[:9]} 222@{HEAD2[:9]}"
+    fake = green(queue=queue)
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    fake.prs[222] = pr(222, HEAD2, base="0" * 40)
+    gate_answer(fake, GREEN)
+    fake.update_status = 409
+    fake.update_answer = {"message": "conflict"}
+    plan = qu.fire(fake, REPO, ISSUE, "tok-1")
+    assert len([c for c in fake.calls if "update-branch" in " ".join(c)]) == 2, (
+        "the raise broke the same-fire fallthrough"
+    )
+    assert plan.action in ("update", "no-op")  # 222's own answer decides which
+    if plan.action == "no-op":
+        assert "a second entry conflicted too" in plan.action_note
 
 
 def test_update_failure_stops_the_fire_and_reports():
