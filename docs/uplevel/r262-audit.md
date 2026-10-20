@@ -34,10 +34,11 @@ Production first, then test, then tooling; within a class in PR-number order. Ba
 first ten production PRs; later batches are about fifteen PRs, one comment each. Each batch
 records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
-| Batch | PRs                                                                                      | Items                                                                                                                                                                                                                                                                     | Refuted                                                                                                        | Comment                                                                                                                                      |
-| ----- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925                               | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below)                                                                                             | 0 (16/16 survived incl. Q-000)                                                                                 | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180); ruled by 267 (r267a/r267b now, 11 lows later)  |
-| 2     | 6927, 6930, 6931, 6936, 6943, 6950, 6959, 7002, 7015, 7019, 7031, 7038, 7039, 7041, 7044 | 45 (41 auditor candidates − 1 dedup (6927_c1 = Q-012's same defect) + 5 probe items from the two empty verdicts re-looked per ruling 232) + 1 supplementary outside the diff (7015 probe, DashboardPage.test.tsx:1091 — scope call for the coordinator, not in the count) | 1 (7002_c2, provenance mover-leg only — re-issued as Q-037 with corrected provenance; staleness and fix stand) | batch-2 comment on #7265; lows in the compact table per owner continue (6266204180); the seven mediums + re-issued Q-037 keep full templates |
+| Batch | PRs                                                                                      | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Refuted                                                                                                                                                                  | Comment                                                                                                                                      |
+| ----- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925                               | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below)                                                                                                                                                                                                                                                                                                                                                                                                                      | 0 (16/16 survived incl. Q-000)                                                                                                                                           | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180); ruled by 267 (r267a/r267b now, 11 lows later)  |
+| 2     | 6927, 6930, 6931, 6936, 6943, 6950, 6959, 7002, 7015, 7019, 7031, 7038, 7039, 7041, 7044 | 45 (41 auditor candidates − 1 dedup (6927_c1 = Q-012's same defect) + 5 probe items from the two empty verdicts re-looked per ruling 232) + 1 supplementary outside the diff (7015 probe, DashboardPage.test.tsx:1091 — scope call for the coordinator, not in the count)                                                                                                                                                                                                                                                                                                                          | 1 (7002_c2, provenance mover-leg only — re-issued as Q-037 with corrected provenance; staleness and fix stand)                                                           | batch-2 comment on #7265; lows in the compact table per owner continue (6266204180); the seven mediums + re-issued Q-037 keep full templates |
+| 3     | 7052, 7070, 7074, 7077, 7086, 7088, 7103, 7114, 7125, 7135, 7139, 7145, 7146, 7156, 7157 | 62 rows from 69 auditor candidates + 5 deferred items Q-062..Q-066 (− 1 refuted genre-kill 7135_c4, − 1 dedup merge 7086-C1+C2, − 2 dedup twins 7157-C1/C5 resolved onto 7135-C1's verdict, − 1 batch-4 certification 7070-C2, − 2 record-only 7070-C7/C10, − 2 record-only 7114-C2/C3, − 1 re-assigned to #7222 7114-C4; Q-075 stays as a pointer row onto Q-093's fix; the phantom q067 was REFUTED and dies unnumbered — it was never a candidate row) + ~20 rows' dead coordinate cites across feature-inventory.md consolidate into the #7135-family and #7146-family items; enumerated there | 2 (phantom coordinate q067 — a `prod.yml:160` cite that exists nowhere at the pin, dies unnumbered; 7135_c4 genre-kill — ticked Done-when boxes are task specifications) | batch-3 comment on #7265; lows in the compact table per owner continue (6266204180); the two mediums (Q-093, Q-114) keep full templates      |
 
 ## Batch 1 — per-PR verdicts
 
@@ -773,59 +774,59 @@ table. Owner decisions are pending and may arrive in bulk, written into the rows
 | #7041 | production | 6 items (Q-052, Q-053, Q-054, Q-055 mediums; Q-056, Q-057 low)                                                                                                                                      |
 | #7044 | production | 2 items (Q-060, Q-061 low) — Q-061 corrects the batch-1-era attribution: #7044 DELIVERED the security.md paragraph (PR-side commits), not a keeper-miscast                                          |
 
-| id    | class        | path:line                                                                                            | PR                                                        | wrong (one line)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | fix (size, lane)                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | owner                                                                                                                                 |
-| ----- | ------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Q-016 | claim        | backend/api/middleware/websocket_auth.py:158-160                                                     | #6927 (mover-owns → #6950, batch 2)                       | the R55 docstring cites `middleware/auth.py::_session_username, used by authenticated_principal at :329` — pin truth is def :585 / caller :600 / call :610; pin :329 is a blank line in require_api_key's docstring ~270 lines from the object; born-wrong at its authoring commit 49dd54a90 (#6950)                                                                                                                                                                                                                                                                                                                                                     | repoint to `auth.py::_session_username (def :585), called by authenticated_principal (:600) at :610`, or drop the bare line number. Size S; backend                                                                                                                                                                                                                                                                                                                                    | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-017 | dedup        | (batch 1 Q-012's same defect — see that row)                                                         | #6927 candidate, not counted here                         | 6927_c1 is the same-file twin of Q-012 (same comment, same 23/24 mismatch, same mover #7230) — one defect, counted once at Q-012                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | cross-reference only. — rules with batch 4                                                                                                                                                                                                                                                                                                                                                                                                                                             | ruled with batch 4 (a duplicate of Q-012; decided there) — ruling 271, record 6277412644                                              |
-| Q-018 | claim        | docs/operations/profiling-runbook.md:12, :30, :811                                                   | #6930                                                     | three present-tense compose cites point far from their objects at the pin: pyroscope.profile labels :151-152→:173, GF_SERVER_ROOT_URL/SERVE_FROM_SUB_PATH :1095-1096→:1215-1216, provisioning mount :1074→:1165; runbook blob byte-identical merge→pin                                                                                                                                                                                                                                                                                                                                                                                                   | re-point the three cites (173 / 1215-1216 / 1165) or drop the numbers and keep the substance. Size S; docs                                                                                                                                                                                                                                                                                                                                                                             | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-019 | claim        | docs/operations/profiling-runbook.md:804-808                                                         | #6930                                                     | the PR's own UR-9 sentence says under EXPOSE_LAN "these API calls need the machine key or a login session", but the machine key is not a Grafana credential — nothing wires it to Grafana's API; the runbook's own procedures use `-u admin:admin`                                                                                                                                                                                                                                                                                                                                                                                                       | rewrite to pin truth: under EXPOSE_LAN the Grafana API needs basic auth (GF_ADMIN pair) or a login session; the machine key is for the backend gate (Prometheus/Alertmanager/json-exporter). Size S; docs                                                                                                                                                                                                                                                                              | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-020 | claim        | .trivyignore:264                                                                                     | #6931                                                     | the AVD-DS-0002 rationale cites `ci.yml:1889-1901` for deploy.yml's backend+frontend matrix, but that pin range is the Linear issue-creation shell; the matrix lives at deploy.yml:44-66 — wrong file, false at authorship (22ccdde31, PR #6792)                                                                                                                                                                                                                                                                                                                                                                                                         | point the cite at deploy.yml:44-66 or drop the coordinate and keep the prose claim. Size S; backend                                                                                                                                                                                                                                                                                                                                                                                    | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-021 | claim        | .github/workflows/ci.yml:2224                                                                        | #6931                                                     | the vitest rerun comment cites `ci.yml:455-463` as "the pytest jobs' rerun block", but that pin range is the WP0.1 pre-push gate; the pytest rerun blocks sit at :1287/:1432/:1556                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | update to :1287/:1432/:1556 or name the steps without line numbers. Size S; ops                                                                                                                                                                                                                                                                                                                                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-022 | claim        | docs/architecture/frontend-hooks.md:9 + :364                                                         | #6936                                                     | both headline cites into useConnectionStatus.ts name :117, past EOF of the 111-line pin file; the export sits at :105 (the doc's own body at :206 correctly cites :108) — cites authored true by 8352c1e07, broken by 70c5d96ae (r204 hook rewrite)                                                                                                                                                                                                                                                                                                                                                                                                      | re-aim both to `useConnectionStatus.ts:useConnectionStatus:105` (frontmatter) and `useConnectionStatus.ts:105` (Source line). Size S; docs                                                                                                                                                                                                                                                                                                                                             | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-023 | claim        | frontend/src/hooks/useWebSocket.ts:87                                                                | #6936                                                     | the F1.3 dependency comment still says "Callers rebuild this list every render — buildWebSocketOptions returns a fresh array", but the pin builder returns only `{ url: wsUrl }` — no array, no protocols key at all; the PR's own test pins `expect('protocols' in options).toBe(false)`                                                                                                                                                                                                                                                                                                                                                                | rewrite the stale clause for the shipped contract (builder attaches no protocols; mechanism inert) or trim the fresh-array rationale. Size S; frontend                                                                                                                                                                                                                                                                                                                                 | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-024 | claim/medium | docs/reference/backend-entry-points.md:1530 (+ :1349)                                                | #6943 (probe)                                             | two dead-code-register entries assert WebSocketEmitterService unwired wholesale — every clause false at pin (main.py:147/:1032 wire it with the system broadcaster; :377-378 fires)                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | rewrite :1530 to residual truth (system broadcaster only wired; four call sites bare) + re-aim :1349's publisher sentence to main.py:1032. Size M; docs                                                                                                                                                                                                                                                                                                                                | ruled fix now as `[r271c]` (docs; this lane's, one-off UR-52 exception, worked between audit batches) — ruling 271, record 6277412644 |
-| Q-025 | claim        | docs/reference/backend-entry-points.md:1349                                                          | #6943 (probe)                                             | the same /ws/system Feed-chain bullet's three internal main.py cites drifted — :1025-1026→:1017-1018, :1031→:1037, :1036-1037→:1042-1043 — made stale by #6943's own 15-line insertion                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | re-aim the three cites to :1017-1018, :1037, :1042-1043. Size S; docs                                                                                                                                                                                                                                                                                                                                                                                                                  | ruled fix now as `[r271c]` (docs; this lane's, one-off UR-52 exception, worked between audit batches) — ruling 271, record 6277412644 |
-| Q-026 | claim        | docs/reference/feature-inventory.md:1207, :344 (F-008), :352 (F-016)                                 | #6943 (probe)                                             | three wiring-line cites miss the wiring at main.py:1032 — :1041 born-true made stale by d6344e031 (edited the row without re-aiming); the two :1038 cites born-stale, never true in any of 169 reachable main.py blobs                                                                                                                                                                                                                                                                                                                                                                                                                                   | re-aim all three to backend/main.py:1032. Size S; docs                                                                                                                                                                                                                                                                                                                                                                                                                                 | ruled fix now as `[r271c]` (docs; this lane's, one-off UR-52 exception, worked between audit batches) — ruling 271, record 6277412644 |
-| Q-027 | bug          | backend/api/middleware/websocket_auth.py:193                                                         | #6950                                                     | validate_websocket_jwt gates success on `hmac.compare_digest(token, token)` — always true — so the docstring/comment/module-bullet "constant-time comparison" claims are unexercised and `return None` :195 is dead code; #6950 deleted the cookie twin but left this line and its pinning test                                                                                                                                                                                                                                                                                                                                                          | delete the comparison and dead branch; correct the three prose sites (:12 can stay only scoped to validate_websocket_token; :179, :192 must go); rewrite or drop test_validate_websocket_jwt_constant_time_comparison. Size S; backend                                                                                                                                                                                                                                                 | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-028 | bug          | backend/api/middleware/websocket_auth.py:196                                                         | #6950                                                     | validate_websocket_jwt catches only InvalidTokenError/TokenExpiredError, but _get_jwt_secret raises ValueError when settings.jwt_secret is None — the shipped default (production env, no JWT_SECRET in compose or .env.example) — so a client presenting ?token= kills the handshake with an unhandled exception instead of the designed no-vote refusal                                                                                                                                                                                                                                                                                                | add ValueError to the caught set: `except (InvalidTokenError, TokenExpiredError, ValueError):`. Size S; backend                                                                                                                                                                                                                                                                                                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-029 | claim        | docs/reference/config/env-reference.md:377                                                           | #6950                                                     | the SESSION_COOKIE_SECURE warning parenthetical states the no-bind state as "TLS_MODE set with BOTH paths" — the inverse of the code: the warning fires when NOT (mode != disabled and both set), so TLS_MODE=disabled with both paths still warns and TLS_MODE=provided with both paths DOES bind                                                                                                                                                                                                                                                                                                                                                       | reword the parenthetical to the actual no-bind condition ("TLS_MODE is disabled, or TLS_CERT_PATH/TLS_KEY_PATH are not both set"), keeping the link to the precise :387-437 section. Size S; docs                                                                                                                                                                                                                                                                                      | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-030 | drift        | backend/api/middleware/README.md:66                                                                  | #6959                                                     | the tail still offers "Key permissions/scopes" under Future Enhancements although R60 shipped API-key scopes and the same file's Configuration table documents the scoped object entry — the list contradicts the table in the same file                                                                                                                                                                                                                                                                                                                                                                                                                 | delete the bullet or replace with a pointer to the Configuration table's R60 row. Size S; docs                                                                                                                                                                                                                                                                                                                                                                                         | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-031 | claim        | docs/architecture/security/authentication-roadmap.md:9 + :34                                         | #6959 (its own re-aim; block later moved by #6970 + B3.3) | config.py:1999-2012 cite dead (block now at :1794-1874)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | re-aim to :1794-1874 or def-anchor on setting names api_key_enabled/api_keys/parse_api_key_scopes — the only anchor formulation that has survived this file (S, docs)                                                                                                                                                                                                                                                                                                                  | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-032 | claim/medium | docs/reference/config/env-reference.md:372                                                           | #6959 (mover-owns → r95, 75ea5ee10)                       | the row's verify_api_key clause is false for scoped entries — both verify_api_key defs (dlq.py:42, system.py:272) skip scoped keys and 401                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | scope the assertion: plain entries accepted, scoped entries honored only by the middleware gate and refused by legacy verify_api_key (dlq.py, system.py). Size M; docs                                                                                                                                                                                                                                                                                                                 | ruled fix now as `[r271c]` (docs; this lane's, one-off UR-52 exception, worked between audit batches) — ruling 271, record 6277412644 |
-| Q-033 | claim        | backend/core/constants.py:273                                                                        | #6959 (mover-owns → #7205/B3.1/r223)                      | the R60 rationale cites events.py's bulk write verbs at :1493/:1617/:1733; at the pin those hold a read signature, an enumerate loop, and `failed = 0` — the verbs sit at :1575/:1699/:1815; drift chain #7205 +48, B3.1 −1, r223 +22, r223-round-1 +13                                                                                                                                                                                                                                                                                                                                                                                                  | re-point to :1575/:1699/:1815 — or, durably, drop coordinates for handler names (bulk_create_events, bulk_update_events, bulk_delete_events, …); note the trio covers only the bulk verbs of the file's seven write verbs. Size S; backend — movers outside the census; rules here                                                                                                                                                                                                     | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-034 | claim        | setup_lib/core.py:254                                                                                | #6959                                                     | merge_api_keys' docstring cites `docker-compose.prod.yml:636` for the API_KEYS interpolation; at the pin :636 is a reid comment and the interpolation sits at :665                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | retarget to docker-compose.prod.yml:665 or drop the coordinate. Size S; backend                                                                                                                                                                                                                                                                                                                                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-035 | drift        | docs/reference/nvidia-technology-inventory.md:328-329                                                | #7002                                                     | the TensorRT Version-and-status section still says "TensorRT is **not active in Triton** — all three repository models use the ONNX Runtime backend", contradicting reid/config.pbtxt:24 (`backend: "tensorrt"`) and the same file's Model Repository section (:282) — adjacent ## sections, 48 lines apart                                                                                                                                                                                                                                                                                                                                              | rewrite the paragraph: TensorRT is active for exactly one model — reid serves a trtexec-compiled 1/model.plan since O2.4 (ruling 107; compiled at deploy time on the serving GPU — the repo ships no plan binary), ONNX Runtime's CUDA EP fails on the GB300 (ruling 106); yolo26/threat remain onnxruntime; cross-reference the Model Repository section. Size S; docs                                                                                                                | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-036 | claim        | docs/reference/nvidia-technology-inventory.md:395-397                                                | #7002                                                     | the providers paragraph says "Six scripts under ai/gateway/export/ do this" with the CUDA-first list, but O2.4 made export_reid.py CPU-only (export_reid.py:623) — exactly five scripts carry the CUDA-first list; the one script whose provider choice is the PR's whole point is counted in the wrong list                                                                                                                                                                                                                                                                                                                                             | change to five scripts; add the clause: export_reid.py pins CPUExecutionProvider for its ONNX validation pass (ruling 106) — its GPU path is the trtexec plan, not an execution provider; keep the "only export_reid.py corresponds to a model in the repository" clause intact. Size S; docs                                                                                                                                                                                          | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-037 | drift        | ai/triton/AGENTS.md:168 (+ :46-59, :160, :171-175, :177-191)                                         | #7002 (re-issued; refuter REFUTED the mover leg only)     | the Model Repository section says "model_repository/ ships 14 model directories. 12 are loadable at startup" against a 3-dir tree (yolo26, reid, threat) — 14 tree rows :46-59, 13-row table :177-191, stale healthcheck comment :160; O2.4 flipped the reid table row (:186) and added the reid paragraph inside the stale-14-count section                                                                                                                                                                                                                                                                                                             | rewrite the section to the shipped reality: three directories, loadable at startup once the entrypoint symlinks version dirs from the model cache; replace the 13-row table or point at nvidia-technology-inventory.md's Model Repository section (corrected by this same PR); fix the tree block, the healthcheck comment, and the follow-up-count paragraph. Size M; docs                                                                                                            | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-038 | drift        | ai/gateway/tests/AGENTS.md:5 (+ :17-23)                                                              | #7002                                                     | the purpose line says the suite covers "all five adapter modules" but adapters/ holds exactly two (enrichment_light, yolo26); the tree names three phantom test_adapters_* files and omits six real ones (test_residency, test_entrypoint_residency, test_dockerfile_agent_gpu_buildable, test_export_reid_onnx_fidelity, test_export_yolo26, test_py312_compat) — pin-frame count; merge-frame would be four                                                                                                                                                                                                                                            | correct :5 to two adapter modules; delete the three phantom rows; add the six named rows (plus conftest.py for a full reconstruction). Size S; docs                                                                                                                                                                                                                                                                                                                                    | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-039 | test         | frontend/src/hooks/**tests**/useFaceRecognitionApi.test.ts:65 (+ :76, useKnownPersonsApi.test.ts:63) | #7019                                                     | the wire-mock fixtures still carry `household_member_id` on person items — a field the pin's backend KnownPersonResponse (7 fields) never sends; the PR corrected the envelope shape of the same fixtures but left the item-field shape overstating the contract (contract-mock overstatement, not mock-seam)                                                                                                                                                                                                                                                                                                                                            | drop household_member_id from the three fixture literals and from hand-maintained KnownPerson (faceRecognition.ts:192; also :206/:220 per F-280's three type sites); the field is NOT fictional — it is writable and readable on HouseholdMember responses, so fix says "drop from the person fixtures/type", not "the field never exists". Size S; frontend                                                                                                                           | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-040 | bug/medium   | backend/services/backup_service.py:361                                                               | #7031                                                     | the getattr walk stringifies Alert's reserved metadata (MetaData) to "metadata": "MetaData()" and drops the alert_metadata payload; restore side swallows the key (Alert(**processed)) so alert_metadata stays NULL                                                                                                                                                                                                                                                                                                                                                                                                                                      | special-case the collision in the walk — read alert_metadata for the "metadata" key; do not generalize (Alert is the only walked model with it). Size M; backend                                                                                                                                                                                                                                                                                                                       | ruled fix now as `[r271b]` (backend backups package) — ruling 271, record 6277412644                                                  |
-| Q-041 | claim        | backend/tests/golden/external/test_backup.py:39 + :43                                                | #7031                                                     | the module docstring cites backup_service.py:324/:354 for the getattr walk (pin: walk at :361-362; :354 is the "type unresolved" comment) and :338-341 for the undefer loop (pin: :346-349) — both true at PR head b763116b7, broken by the PR's own commit 13a0ff66e (+10/-2 in backup_service.py) without re-anchoring the docstring it documents                                                                                                                                                                                                                                                                                                      | re-anchor to :361-362 (walk) and :346-349 (undefer). Size S; backend                                                                                                                                                                                                                                                                                                                                                                                                                   | ruled fix now as `[r271b]` (backend backups package) — ruling 271, record 6277412644                                                  |
-| Q-042 | claim        | backend/tests/integration/test_backup_service.py:142                                                 | #7031                                                     | the class docstring cites backup_service.py:353-354 for the getattr walk; at the pin that span is the unresolved-scalar-type comment; the walk is at :361-362 — same mover (13a0ff66e) as Q-041                                                                                                                                                                                                                                                                                                                                                                                                                                                          | re-anchor to backup_service.py:361-362 (land together with Q-041's edit). Size S; backend                                                                                                                                                                                                                                                                                                                                                                                              | ruled fix now as `[r271b]` (backend backups package) — ruling 271, record 6277412644                                                  |
-| Q-043 | claim        | backend/tests/integration/test_ai_audit_api.py:1530 (+ :1525, :1539, :1620, :1653, :1703)            | #7031                                                     | six present-tense ai_audit.py cites in the new test class are all shifted off their objects at the pin (:433-437→undefer :450-454, :458→read :475, :475-480→except :492-497, :440-446→None-guard :457-463, :576→create_job :593) — all true at the merge, broken by eb7ce4431 ([r244], +17 lines earlier in ai_audit.py)                                                                                                                                                                                                                                                                                                                                 | re-anchor the six cites to the pin coordinates. Size S; backend                                                                                                                                                                                                                                                                                                                                                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-044 | claim        | backend/api/routes/ai_audit.py:443                                                                   | #7031                                                     | the PR's undefer comment self-cites its own fatal read as "event.llm_prompt is read below (:445)" — never true at any reachable revision: born-false (read at :458 at authoring 702198999, at :475 at pin); the same self-review that re-anchored the test-docstring cites left this stale ':445' in the source comment                                                                                                                                                                                                                                                                                                                                  | drop the line-precise form ("in create_partial_audit below") — born-false and drifted twice, the coordinate is the defect; changing ':445'→':475' also works. TRAP: the sibling escape claim in _get_queue_stats (:988-992) is TRUE there — do not reword it. Size S; backend                                                                                                                                                                                                          | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-045 | drift        | scripts/uplevel-r94-mutation/README.md:19 (+ :34, :45, M-table :51-68)                               | #7038 (mover-owns → #7044 lineage)                        | the README documents a 16-mutant battery; battery.py at the pin holds 20 (M1-M20) — four dead count claims, the M16 row describes a superseded mutation ("keep no quote as found" vs the pin's "only a single-quoted line is recognized as quoted"), M17-M20 have no rows, and battery.py:10's own docstring still says "16/16"                                                                                                                                                                                                                                                                                                                          | widen: 16→20 (or count-free "every mutant in MUTANTS" — the count has drifted once already; battery.py:272 prints it dynamically), add M17-M20 rows, rewrite the M16 row, fix battery.py:10's "16/16" in the same commit. Size S; ops — rules with #7044's batch                                                                                                                                                                                                                       | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-046 | claim        | backend/tests/unit/setup_lib/AGENTS.md:31                                                            | #7038 (mover-owns → #7044 lineage)                        | the gotcha bullet says "four are not" 1:1 with a setup_lib module and enumerates four files, but 967f8476d added a fifth (test_r94_crlf_env_flag.py, named after the r94 ruling like its sibling) — false from #7044's merge onward                                                                                                                                                                                                                                                                                                                                                                                                                      | change to "five are not" and add test_r94_crlf_env_flag.py with ruling-named rationale; preserve the bullet's accurate tail (credentials/models_config/rootful_services untested). Size S; backend — rules with #7044's batch                                                                                                                                                                                                                                                          | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-047 | claim        | frontend/src/components/ai-performance/AGENTS.md:61 (+ :34/:75, :56, :25, :27, :92)                  | #7039                                                     | the AGENTS.md contradicts the component in six claim-groups: IndicatorType union omits dlq and says yolo26 (code: rtdetr + dlq at AIPerformanceSummaryRow.tsx:36); props/usage name a yolo26 prop the component does not have (:58 takes rtdetr); "5 columns desktop" vs lg:grid-cols-6 (:366); Queues band "Green <5 / Yellow 5-20 / Red >20" vs getQueueStatus 0-10/11-50/51+; Errors band "Green 0 / Yellow 1-5 / Red >5" vs getErrorStatus yellow 1-49 / red >=50; icon list omits Archive. The DLQ row :28 and the 5→6 counts :11/:19 are correct; the props block :33-47 + usage :74-86 also omit dlqCounts (eighth staleness, added by a24d095bd) | update the union to 'rtdetr' \| 'nemotron' \| 'queues' \| 'throughput' \| 'errors' \| 'dlq', rename yolo26→rtdetr in props/usage, 6 columns, restate both bands, add Archive + dlqCounts to the props/usage blocks. Size S; frontend                                                                                                                                                                                                                                                   | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-048 | claim        | frontend/src/components/ai-performance/AIPerformanceSummaryRow.test.tsx:76                           | #7039                                                     | the test titled "renders all 5 indicator cards" mounts six — the DLQ card renders even when dlqCounts is omitted (:688 sibling pins that), and the PR's own golden witness counts six (ai-summary-row.spec.ts:290 "the row now carries six indicators"); the body asserts only the five original testids                                                                                                                                                                                                                                                                                                                                                 | retitle to 6 AND add expect(screen.getByTestId('dlq-indicator')).toBeInTheDocument() — without the added assertion the retitled test inverts the mismatch (title-claims-6/body-proves-5). Grid-invariant corroboration: :97-130 requires cardCount % lg-cols === 0. Size S; frontend                                                                                                                                                                                                   | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-049 | claim        | frontend/src/components/settings/ModelManagementPanel.tsx:38 (+ hooks/AGENTS.md:1360)                | #7039                                                     | the router-mount comment cites main.py:1648/:1663 — dead (pin: :1603/:1618); the order claim (model_management before system, so list_models answers GET /api/system/models) stays true; same drifted pair in hooks/AGENTS.md:1360                                                                                                                                                                                                                                                                                                                                                                                                                       | re-point both carriers to main.py:1603/:1618 in the same edit, or count-free ("mounted before system.router") for durability — drift = 3d8418fec then 9fcb5f453, both failed to re-point either carrier. Size S; frontend                                                                                                                                                                                                                                                              | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-050 | claim        | frontend/tests/golden/shell/tour.spec.ts:55 + :303 (+ feature-inventory.md:357)                      | #7039                                                     | three carriers cite the ProductTour mount as App.tsx:342; the pin mount is :361 (:342 is a /heatmaps route line) — spec cites born true 8f87050d7, made off-by-one by 62c72165e BEFORE #7039 existed (inventory coordinate predates the PR, transcribed), born-false-in-place in the spec rewrite 4238c6260, off-by-ten from 453bec830 (inside the PR)                                                                                                                                                                                                                                                                                                   | re-point all three carriers to App.tsx:361, or use the stable anchor ("the <ProductTour /> line just inside </BrowserRouter>") — the mount has drifted three times post-qualification and survived one re-anchoring pass that fixed neighbors (bc43387c8 missed this row). Size S; frontend                                                                                                                                                                                            | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-051 | claim        | frontend/tests/golden/operations/config-inspector.spec.ts:94                                         | #7039                                                     | of three coordinates in the testid-drop explanation, one stale (SystemMonitoringPage.tsx:738 → pin :709 pass-site) and one never-true (panel root div ":135" → pin :138; panel blob byte-stable since January); ":73 _props" is exact; the substantive testid-drop claim is true                                                                                                                                                                                                                                                                                                                                                                         | re-point to SystemMonitoringPage.tsx:709 and ConfigInspectorPanel.tsx:138 (panel lives in components/developer-tools/, NOT system/), or anchor on the _props signature :73. Size S; frontend                                                                                                                                                                                                                                                                                           | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-052 | bug/medium   | backend/services/system_broadcaster.py:1008-1014                                                     | #7041                                                     | the RedisError arm discards the wrapper's unhealthy dict and the success path returns True unconditionally — the production failure signal is read as healthy                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | capture the dict, branch on healthiness, keep the RedisError arm as defense-in-depth, log the payload. Size M; backend                                                                                                                                                                                                                                                                                                                                                                 | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
-| Q-053 | bug/medium   | backend/services/system_broadcaster.py:1008 companion :1321                                          | #7041                                                     | twin test :1321's bare AsyncMock breaks the Q-052 fix (Mock return is not a dict → AttributeError) — the fix ships RED without the companion edit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | same edit as Q-052: twin stub becomes return_value={"status": "healthy"} (house style system.py:893-894/:5346-5347); two callers keep the boolean contract. Size M; backend                                                                                                                                                                                                                                                                                                            | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
-| Q-054 | bug/medium   | backend/services/system_broadcaster.py:693 (+ :564, :631)                                            | #7041                                                     | retries=10 shipped but every retry knob builds Retry(NoBackoff(), 0) — zero retries, one failed read kills the tick; three sibling sites; loop :1235 absorbs → per-tick indefinite loss                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Retry(NoBackoff(), retries) at all three sites in one pass + unit that a RedisTimeoutError on read #1 no longer aborts the tick. Size M; backend                                                                                                                                                                                                                                                                                                                                       | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
-| Q-055 | test/medium  | backend/tests/unit/services/test_system_broadcaster.py:1345 (storm probe)                            | #7041                                                     | the probe stubs broadcast_status/performance (the exact losing layer) and counts STUB INVOCATIONS (:1424-1428) — real publish handlers catch only builtins (:307-316/:357-366), so loss is per-tick indefinite and the probe passes on a starvation                                                                                                                                                                                                                                                                                                                                                                                                      | run against the real broadcast methods with publish raising redis.exceptions.TimeoutError, asserting per-message-type delivery every tick — sequence behind Q-054's tick-abort fix. Size M; backend                                                                                                                                                                                                                                                                                    | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
-| Q-056 | test         | backend/tests/unit/services/test_system_broadcaster.py:1432                                          | #7041                                                     | the timeout test drives _check_redis_health's except-branch through an AsyncMock seam only — production wiring cannot deliver a raised TimeoutError (RedisClient.health_check absorbs every Exception), so the test pins a branch shipped wiring never reaches; the seam is shared by THREE sibling sites (:1332/:1361/:1432); docstring :1436-1437 implies production raises                                                                                                                                                                                                                                                                            | document the seam's synthetic nature (all three docstrings), or re-seam through the production path — which goes RED until Q-053's fix lands, so sequence it behind c1. Size S; backend                                                                                                                                                                                                                                                                                                | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
-| Q-057 | claim        | backend/services/system_broadcaster.py:1011 (+ test docstring :1434-1440)                            | #7041                                                     | the PR's comment on the new RedisError arm asserts "without it a timeout under load escapes this helper" — false: the only production client type (RedisClient) absorbs every Exception into a returned dict, so the arm is dead in production; born-false at authoring (88e0d3457), zero drift, never true at any reachable milestone                                                                                                                                                                                                                                                                                                                   | reword ONLY :1011-1013 with the real rationale (defense-in-depth for non-wrapper clients / wrapper absorbs Exception) + the twin test docstring :1434-1440. TRAP: the near-identical escape claim in _get_queue_stats (:988-992) is TRUE there (raw client.llen) — mechanical "reword the #7041 comments" damage; keep the hierarchy clause (RedisError covers redis.exceptions.TimeoutError) and the outside-guard parenthetical (:807 outside guarded try :785-801). Size S; backend | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
-| Q-058 | claim        | docs/reference/feature-inventory.md F-031 row (5 cites)                                              | #7015 (probe)                                             | events.py :282/:468 and vlm_analyzer.py :671/:692/:980 cite stale lines — targets moved to :317/:513/:677/:698/:1077 by later commits the row never re-measured                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | re-point the five cites or def-anchor each target (S, docs)                                                                                                                                                                                                                                                                                                                                                                                                                            | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-059 | claim        | docs/reference/feature-inventory.md F-031 row (bug sentence)                                         | #7015 (probe)                                             | present-tense "mapper DROPS verification/verdict" sentence is false at pin (mapper maps both fields — the PR's own fix) and its span drifted :206-221→:206-235                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | mark the sentence history per F-021 convention or re-tense past; re-bound span to :206-235 (S, docs)                                                                                                                                                                                                                                                                                                                                                                                   | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-060 | drift        | docs/uplevel/packages/backend.md:294-296                                                             | #7044                                                     | the r94 record's defect bullet still reads present tense ("on a re-run, the LAN-exposure prompt defaults to n") with six dead coordinates (setup.py:685/:900/:447/:449/:482/:491 all unrelated at pin) — but the behavior was fixed INTRA-PR by 4430762dd inside #7038's own chain, NOT by a post-merge fixer; #7044's only touch = register update 888974d16                                                                                                                                                                                                                                                                                            | mark fixed-at-pin naming 4430762dd in #7038 (not a post-merge commit); convert to past tense; if re-anchoring, pin coordinates: prompts :784/:1011, derives :533/:535/:567-577; or drop the bullet. Size S; docs                                                                                                                                                                                                                                                                       | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
-| Q-061 | claim        | docs/operator/admin/security.md:33-36                                                                | #7044                                                     | the cure sentence "for every other one a full interactive python setup.py still works and converts it as a side effect" is false for exactly one of seven refusal cases — no-monitoring-key mints a FRESH key (setup.py:722/:921 `existing_env.get(...) or generate_api_key()`); merge_api_keys dedupes on VALUE, so the old plain entry stays live — the exact failure the sentence's own parenthetical attributes only to --yes/--defaults                                                                                                                                                                                                             | narrow to the key-known cases ("for every other one that still names the key in MONITORING_API_KEY …") or add no-monitoring-key to the exceptions with its actual remedy (the re-run mints a fresh key; remove or manually re-scope the stale plain entry). Do NOT touch the other six cases (verified true). The paragraph was DELIVERED by #7044 (PR-side commits 2571a8846 + 593dc4d8e via merge d393ff9ce); false advice reachable only in a hand-mangled .env state. Size S; docs | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| id    | class        | path:line                                                                                                           | PR                                                        | wrong (one line)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | fix (size, lane)                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | owner                                                                                                                                 |
+| ----- | ------------ | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Q-016 | claim        | backend/api/middleware/websocket_auth.py:159-160                                                                    | #6927 (mover-owns → #6950, batch 2)                       | the R55 docstring cites `middleware/auth.py::_session_username, used by authenticated_principal at :329` — pin truth is def :585 / caller :600 / call :610; pin :329 is a blank line in require_api_key's docstring ~270 lines from the object; born-wrong at its authoring commit 49dd54a90 (#6950)                                                                                                                                                                                                                                                                                                                                                     | repoint to `auth.py::_session_username (def :585), called by authenticated_principal (:600) at :610`, or drop the bare line number. Size S; backend                                                                                                                                                                                                                                                                                                                                    | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-017 | dedup        | (batch 1 Q-012's same defect — see that row)                                                                        | #6927 candidate, not counted here                         | 6927_c1 is the same-file twin of Q-012 (same comment, same 23/24 mismatch, same mover #7230) — one defect, counted once at Q-012                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | cross-reference only. — rules with batch 4                                                                                                                                                                                                                                                                                                                                                                                                                                             | ruled with batch 4 (a duplicate of Q-012; decided there) — ruling 271, record 6277412644                                              |
+| Q-018 | claim        | docs/operations/profiling-runbook.md:12, :30, :811                                                                  | #6930                                                     | three present-tense compose cites point far from their objects at the pin: pyroscope.profile labels :151-152→:173, GF_SERVER_ROOT_URL/SERVE_FROM_SUB_PATH :1095-1096→:1215-1216, provisioning mount :1074→:1165; runbook blob byte-identical merge→pin                                                                                                                                                                                                                                                                                                                                                                                                   | re-point the three cites (173 / 1215-1216 / 1165) or drop the numbers and keep the substance. Size S; docs                                                                                                                                                                                                                                                                                                                                                                             | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-019 | claim        | docs/operations/profiling-runbook.md:804-808                                                                        | #6930                                                     | the PR's own UR-9 sentence says under EXPOSE_LAN "these API calls need the machine key or a login session", but the machine key is not a Grafana credential — nothing wires it to Grafana's API; the runbook's own procedures use `-u admin:admin`                                                                                                                                                                                                                                                                                                                                                                                                       | rewrite to pin truth: under EXPOSE_LAN the Grafana API needs basic auth (GF_ADMIN pair) or a login session; the machine key is for the backend gate (Prometheus/Alertmanager/json-exporter). Size S; docs                                                                                                                                                                                                                                                                              | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-020 | claim        | .trivyignore:264                                                                                                    | #6931                                                     | the AVD-DS-0002 rationale cites `ci.yml:1889-1901` for deploy.yml's backend+frontend matrix, but that pin range is the Linear issue-creation shell; the matrix lives at deploy.yml:44-66 — wrong file, false at authorship (22ccdde31, PR #6792)                                                                                                                                                                                                                                                                                                                                                                                                         | point the cite at deploy.yml:44-66 or drop the coordinate and keep the prose claim. Size S; backend                                                                                                                                                                                                                                                                                                                                                                                    | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-021 | claim        | .github/workflows/ci.yml:2224                                                                                       | #6931                                                     | the vitest rerun comment cites `ci.yml:455-463` as "the pytest jobs' rerun block", but that pin range is the WP0.1 pre-push gate; the pytest rerun blocks sit at :1287/:1432/:1556                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | update to :1287/:1432/:1556 or name the steps without line numbers. Size S; ops                                                                                                                                                                                                                                                                                                                                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-022 | claim        | docs/architecture/frontend-hooks.md:9 + :364                                                                        | #6936                                                     | both headline cites into useConnectionStatus.ts name :117, past EOF of the 111-line pin file; the export sits at :105 (the doc's own body at :206 correctly cites :108) — cites authored true by 8352c1e07, broken by 70c5d96ae (r204 hook rewrite)                                                                                                                                                                                                                                                                                                                                                                                                      | re-aim both to `useConnectionStatus.ts:useConnectionStatus:105` (frontmatter) and `useConnectionStatus.ts:105` (Source line). Size S; docs                                                                                                                                                                                                                                                                                                                                             | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-023 | claim        | frontend/src/hooks/useWebSocket.ts:87                                                                               | #6936                                                     | the F1.3 dependency comment still says "Callers rebuild this list every render — buildWebSocketOptions returns a fresh array", but the pin builder returns only `{ url: wsUrl }` — no array, no protocols key at all; the PR's own test pins `expect('protocols' in options).toBe(false)`                                                                                                                                                                                                                                                                                                                                                                | rewrite the stale clause for the shipped contract (builder attaches no protocols; mechanism inert) or trim the fresh-array rationale. Size S; frontend                                                                                                                                                                                                                                                                                                                                 | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-024 | claim/medium | docs/reference/backend-entry-points.md:1530 (+ :1349)                                                               | #6943 (probe)                                             | two dead-code-register entries assert WebSocketEmitterService unwired wholesale — every clause false at pin (main.py:147/:1032 wire it with the system broadcaster; :377-378 fires)                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | rewrite :1530 to residual truth (system broadcaster only wired; four call sites bare) + re-aim :1349's publisher sentence to main.py:1032. Size M; docs                                                                                                                                                                                                                                                                                                                                | ruled fix now as `[r271c]` (docs; this lane's, one-off UR-52 exception, worked between audit batches) — ruling 271, record 6277412644 |
+| Q-025 | claim        | docs/reference/backend-entry-points.md:1349                                                                         | #6943 (probe)                                             | the same /ws/system Feed-chain bullet's three internal main.py cites drifted — :1025-1026→:1017-1018, :1031→:1037, :1036-1037→:1042-1043 — made stale by #6943's own 15-line insertion                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | re-aim the three cites to :1017-1018, :1037, :1042-1043. Size S; docs                                                                                                                                                                                                                                                                                                                                                                                                                  | ruled fix now as `[r271c]` (docs; this lane's, one-off UR-52 exception, worked between audit batches) — ruling 271, record 6277412644 |
+| Q-026 | claim        | docs/reference/feature-inventory.md:1207, :344 (F-008), :352 (F-016)                                                | #6943 (probe)                                             | three wiring-line cites miss the wiring at main.py:1032 — :1041 born-true made stale by d6344e031 (edited the row without re-aiming); the two :1038 cites born-stale, never true in any of 169 reachable main.py blobs                                                                                                                                                                                                                                                                                                                                                                                                                                   | re-aim all three to backend/main.py:1032. Size S; docs                                                                                                                                                                                                                                                                                                                                                                                                                                 | ruled fix now as `[r271c]` (docs; this lane's, one-off UR-52 exception, worked between audit batches) — ruling 271, record 6277412644 |
+| Q-027 | bug          | backend/api/middleware/websocket_auth.py:193                                                                        | #6950                                                     | validate_websocket_jwt gates success on `hmac.compare_digest(token, token)` — always true — so the docstring/comment/module-bullet "constant-time comparison" claims are unexercised and `return None` :195 is dead code; #6950 deleted the cookie twin but left this line and its pinning test                                                                                                                                                                                                                                                                                                                                                          | delete the comparison and dead branch; correct the three prose sites (:12 can stay only scoped to validate_websocket_token; :179, :192 must go); rewrite or drop test_validate_websocket_jwt_constant_time_comparison. Size S; backend                                                                                                                                                                                                                                                 | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-028 | bug          | backend/api/middleware/websocket_auth.py:196                                                                        | #6950                                                     | validate_websocket_jwt catches only InvalidTokenError/TokenExpiredError, but _get_jwt_secret raises ValueError when settings.jwt_secret is None — the shipped default (production env, no JWT_SECRET in compose or .env.example) — so a client presenting ?token= kills the handshake with an unhandled exception instead of the designed no-vote refusal                                                                                                                                                                                                                                                                                                | add ValueError to the caught set: `except (InvalidTokenError, TokenExpiredError, ValueError):`. Size S; backend                                                                                                                                                                                                                                                                                                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-029 | claim        | docs/reference/config/env-reference.md:377                                                                          | #6950                                                     | the SESSION_COOKIE_SECURE warning parenthetical states the no-bind state as "TLS_MODE set with BOTH paths" — the inverse of the code: the warning fires when NOT (mode != disabled and both set), so TLS_MODE=disabled with both paths still warns and TLS_MODE=provided with both paths DOES bind                                                                                                                                                                                                                                                                                                                                                       | reword the parenthetical to the actual no-bind condition ("TLS_MODE is disabled, or TLS_CERT_PATH/TLS_KEY_PATH are not both set"), keeping the link to the precise :387-437 section. Size S; docs                                                                                                                                                                                                                                                                                      | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-030 | drift        | backend/api/middleware/README.md:66                                                                                 | #6959                                                     | the tail still offers "Key permissions/scopes" under Future Enhancements although R60 shipped API-key scopes and the same file's Configuration table documents the scoped object entry — the list contradicts the table in the same file                                                                                                                                                                                                                                                                                                                                                                                                                 | delete the bullet or replace with a pointer to the Configuration table's R60 row. Size S; docs                                                                                                                                                                                                                                                                                                                                                                                         | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-031 | claim        | docs/architecture/security/authentication-roadmap.md:9 + :34                                                        | #6959 (its own re-aim; block later moved by #6970 + B3.3) | config.py:1999-2012 cite dead (block now at :1794-1874)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | re-aim to :1794-1874 or def-anchor on setting names api_key_enabled/api_keys/parse_api_key_scopes — the only anchor formulation that has survived this file (S, docs)                                                                                                                                                                                                                                                                                                                  | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-032 | claim/medium | docs/reference/config/env-reference.md:372                                                                          | #6959 (mover-owns → r95, 75ea5ee10)                       | the row's verify_api_key clause is false for scoped entries — both verify_api_key defs (dlq.py:42, system.py:272) skip scoped keys and 401                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | scope the assertion: plain entries accepted, scoped entries honored only by the middleware gate and refused by legacy verify_api_key (dlq.py, system.py). Size M; docs                                                                                                                                                                                                                                                                                                                 | ruled fix now as `[r271c]` (docs; this lane's, one-off UR-52 exception, worked between audit batches) — ruling 271, record 6277412644 |
+| Q-033 | claim        | backend/core/constants.py:273                                                                                       | #6959 (mover-owns → #7205/B3.1/r223)                      | the R60 rationale cites events.py's bulk write verbs at :1493/:1617/:1733; at the pin those hold a read signature, an enumerate loop, and `failed = 0` — the verbs sit at :1575/:1699/:1815; drift chain #7205 +48, B3.1 −1, r223 +22, r223-round-1 +13                                                                                                                                                                                                                                                                                                                                                                                                  | re-point to :1575/:1699/:1815 — or, durably, drop coordinates for handler names (bulk_create_events, bulk_update_events, bulk_delete_events, …); note the trio covers only the bulk verbs of the file's seven write verbs. Size S; backend — movers outside the census; rules here                                                                                                                                                                                                     | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-034 | claim        | setup_lib/core.py:254                                                                                               | #6959                                                     | merge_api_keys' docstring cites `docker-compose.prod.yml:636` for the API_KEYS interpolation; at the pin :636 is a reid comment and the interpolation sits at :665                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | retarget to docker-compose.prod.yml:665 or drop the coordinate. Size S; backend                                                                                                                                                                                                                                                                                                                                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-035 | drift        | docs/reference/nvidia-technology-inventory.md:328-329                                                               | #7002                                                     | the TensorRT Version-and-status section still says "TensorRT is **not active in Triton** — all three repository models use the ONNX Runtime backend", contradicting reid/config.pbtxt:24 (`backend: "tensorrt"`) and the same file's Model Repository section (:282) — adjacent ## sections, 48 lines apart                                                                                                                                                                                                                                                                                                                                              | rewrite the paragraph: TensorRT is active for exactly one model — reid serves a trtexec-compiled 1/model.plan since O2.4 (ruling 107; compiled at deploy time on the serving GPU — the repo ships no plan binary), ONNX Runtime's CUDA EP fails on the GB300 (ruling 106); yolo26/threat remain onnxruntime; cross-reference the Model Repository section. Size S; docs                                                                                                                | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-036 | claim        | docs/reference/nvidia-technology-inventory.md:395-397                                                               | #7002                                                     | the providers paragraph says "Six scripts under ai/gateway/export/ do this" with the CUDA-first list, but O2.4 made export_reid.py CPU-only (export_reid.py:623) — exactly five scripts carry the CUDA-first list; the one script whose provider choice is the PR's whole point is counted in the wrong list                                                                                                                                                                                                                                                                                                                                             | change to five scripts; add the clause: export_reid.py pins CPUExecutionProvider for its ONNX validation pass (ruling 106) — its GPU path is the trtexec plan, not an execution provider; keep the "only export_reid.py corresponds to a model in the repository" clause intact. Size S; docs                                                                                                                                                                                          | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-037 | drift        | ai/triton/AGENTS.md:168 (+ :46-59, :160, :171-175, :177-191)                                                        | #7002 (re-issued; refuter REFUTED the mover leg only)     | the Model Repository section says "model_repository/ ships 14 model directories. 12 are loadable at startup" against a 3-dir tree (yolo26, reid, threat) — 14 tree rows :46-59, 13-row table :177-191, stale healthcheck comment :160; O2.4 flipped the reid table row (:186) and added the reid paragraph inside the stale-14-count section                                                                                                                                                                                                                                                                                                             | rewrite the section to the shipped reality: three directories, loadable at startup once the entrypoint symlinks version dirs from the model cache; replace the 13-row table or point at nvidia-technology-inventory.md's Model Repository section (corrected by this same PR); fix the tree block, the healthcheck comment, and the follow-up-count paragraph. Size M; docs                                                                                                            | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-038 | drift        | ai/gateway/tests/AGENTS.md:5 (+ :17-23)                                                                             | #7002                                                     | the purpose line says the suite covers "all five adapter modules" but adapters/ holds exactly two (enrichment_light, yolo26); the tree names three phantom test_adapters_* files and omits six real ones (test_residency, test_entrypoint_residency, test_dockerfile_agent_gpu_buildable, test_export_reid_onnx_fidelity, test_export_yolo26, test_py312_compat) — pin-frame count; merge-frame would be four                                                                                                                                                                                                                                            | correct :5 to two adapter modules; delete the three phantom rows; add the six named rows (plus conftest.py for a full reconstruction). Size S; docs                                                                                                                                                                                                                                                                                                                                    | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-039 | test         | frontend/src/hooks/**tests**/useFaceRecognitionApi.test.ts:65 (+ :76, useKnownPersonsApi.test.ts:63)                | #7019                                                     | the wire-mock fixtures still carry `household_member_id` on person items — a field the pin's backend KnownPersonResponse (7 fields) never sends; the PR corrected the envelope shape of the same fixtures but left the item-field shape overstating the contract (contract-mock overstatement, not mock-seam)                                                                                                                                                                                                                                                                                                                                            | drop household_member_id from the three fixture literals and from hand-maintained KnownPerson (faceRecognition.ts:192; also :206/:220 per F-280's three type sites); the field is NOT fictional — it is writable and readable on HouseholdMember responses, so fix says "drop from the person fixtures/type", not "the field never exists". Size S; frontend                                                                                                                           | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-040 | bug/medium   | backend/services/backup_service.py:361                                                                              | #7031                                                     | the getattr walk stringifies Alert's reserved metadata (MetaData) to "metadata": "MetaData()" and drops the alert_metadata payload; restore side swallows the key (Alert(**processed)) so alert_metadata stays NULL                                                                                                                                                                                                                                                                                                                                                                                                                                      | special-case the collision in the walk — read alert_metadata for the "metadata" key; do not generalize (Alert is the only walked model with it). Size M; backend                                                                                                                                                                                                                                                                                                                       | ruled fix now as `[r271b]` (backend backups package) — ruling 271, record 6277412644                                                  |
+| Q-041 | claim        | backend/tests/golden/external/test_backup.py:39 + :43                                                               | #7031                                                     | the module docstring cites backup_service.py:324/:354 for the getattr walk (pin: walk at :361-362; :354 is the "type unresolved" comment) and :338-341 for the undefer loop (pin: :346-349) — both true at PR head b763116b7, broken by the PR's own commit 13a0ff66e (+10/-2 in backup_service.py) without re-anchoring the docstring it documents                                                                                                                                                                                                                                                                                                      | re-anchor to :361-362 (walk) and :346-349 (undefer). Size S; backend                                                                                                                                                                                                                                                                                                                                                                                                                   | ruled fix now as `[r271b]` (backend backups package) — ruling 271, record 6277412644                                                  |
+| Q-042 | claim        | backend/tests/integration/test_backup_service.py:142                                                                | #7031                                                     | the class docstring cites backup_service.py:353-354 for the getattr walk; at the pin that span is the unresolved-scalar-type comment; the walk is at :361-362 — same mover (13a0ff66e) as Q-041                                                                                                                                                                                                                                                                                                                                                                                                                                                          | re-anchor to backup_service.py:361-362 (land together with Q-041's edit). Size S; backend                                                                                                                                                                                                                                                                                                                                                                                              | ruled fix now as `[r271b]` (backend backups package) — ruling 271, record 6277412644                                                  |
+| Q-043 | claim        | backend/tests/integration/test_ai_audit_api.py:1530 (+ :1525, :1539, :1620, :1653, :1703)                           | #7031                                                     | six present-tense ai_audit.py cites in the new test class are all shifted off their objects at the pin (:433-437→undefer :450-454, :458→read :475, :475-480→except :492-497, :440-446→None-guard :457-463, :576→create_job :593) — all true at the merge, broken by eb7ce4431 ([r244], +17 lines earlier in ai_audit.py)                                                                                                                                                                                                                                                                                                                                 | re-anchor the six cites to the pin coordinates. Size S; backend                                                                                                                                                                                                                                                                                                                                                                                                                        | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-044 | claim        | backend/api/routes/ai_audit.py:443                                                                                  | #7031                                                     | the PR's undefer comment self-cites its own fatal read as "event.llm_prompt is read below (:445)" — never true at any reachable revision: born-false (read at :458 at authoring 702198999, at :475 at pin); the same self-review that re-anchored the test-docstring cites left this stale ':445' in the source comment                                                                                                                                                                                                                                                                                                                                  | drop the line-precise form ("in create_partial_audit below") — born-false and drifted twice, the coordinate is the defect; changing ':445'→':475' also works. TRAP: the sibling escape claim in _get_queue_stats (:988-992) is TRUE there — do not reword it. Size S; backend                                                                                                                                                                                                          | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-045 | drift        | scripts/uplevel-r94-mutation/README.md:19 (+ :34, :45, M-table :51-68)                                              | #7038 (mover-owns → #7044 lineage)                        | the README documents a 16-mutant battery; battery.py at the pin holds 20 (M1-M20) — four dead count claims, the M16 row describes a superseded mutation ("keep no quote as found" vs the pin's "only a single-quoted line is recognized as quoted"), M17-M20 have no rows, and battery.py:10's own docstring still says "16/16"                                                                                                                                                                                                                                                                                                                          | widen: 16→20 (or count-free "every mutant in MUTANTS" — the count has drifted once already; battery.py:272 prints it dynamically), add M17-M20 rows, rewrite the M16 row, fix battery.py:10's "16/16" in the same commit. Size S; ops — rules with #7044's batch                                                                                                                                                                                                                       | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-046 | claim        | backend/tests/unit/setup_lib/AGENTS.md:31                                                                           | #7038 (mover-owns → #7044 lineage)                        | the gotcha bullet says "four are not" 1:1 with a setup_lib module and enumerates four files, but 967f8476d added a fifth (test_r94_crlf_env_flag.py, named after the r94 ruling like its sibling) — false from #7044's merge onward                                                                                                                                                                                                                                                                                                                                                                                                                      | change to "five are not" and add test_r94_crlf_env_flag.py with ruling-named rationale; preserve the bullet's accurate tail (credentials/models_config/rootful_services untested). Size S; backend — rules with #7044's batch                                                                                                                                                                                                                                                          | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-047 | claim        | frontend/src/components/ai-performance/AGENTS.md:61 (+ :34/:75, :56, :25, :27, :92)                                 | #7039                                                     | the AGENTS.md contradicts the component in six claim-groups: IndicatorType union omits dlq and says yolo26 (code: rtdetr + dlq at AIPerformanceSummaryRow.tsx:36); props/usage name a yolo26 prop the component does not have (:58 takes rtdetr); "5 columns desktop" vs lg:grid-cols-6 (:366); Queues band "Green <5 / Yellow 5-20 / Red >20" vs getQueueStatus 0-10/11-50/51+; Errors band "Green 0 / Yellow 1-5 / Red >5" vs getErrorStatus yellow 1-49 / red >=50; icon list omits Archive. The DLQ row :28 and the 5→6 counts :11/:19 are correct; the props block :33-47 + usage :74-86 also omit dlqCounts (eighth staleness, added by a24d095bd) | update the union to 'rtdetr' \| 'nemotron' \| 'queues' \| 'throughput' \| 'errors' \| 'dlq', rename yolo26→rtdetr in props/usage, 6 columns, restate both bands, add Archive + dlqCounts to the props/usage blocks. Size S; frontend                                                                                                                                                                                                                                                   | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-048 | claim        | frontend/src/components/ai-performance/AIPerformanceSummaryRow.test.tsx:76                                          | #7039                                                     | the test titled "renders all 5 indicator cards" mounts six — the DLQ card renders even when dlqCounts is omitted (:688 sibling pins that), and the PR's own golden witness counts six (ai-summary-row.spec.ts:290 "the row now carries six indicators"); the body asserts only the five original testids                                                                                                                                                                                                                                                                                                                                                 | retitle to 6 AND add expect(screen.getByTestId('dlq-indicator')).toBeInTheDocument() — without the added assertion the retitled test inverts the mismatch (title-claims-6/body-proves-5). Grid-invariant corroboration: :97-130 requires cardCount % lg-cols === 0. Size S; frontend                                                                                                                                                                                                   | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-049 | claim        | frontend/src/components/settings/ModelManagementPanel.tsx:38 (+ hooks/AGENTS.md:1360)                               | #7039                                                     | the router-mount comment cites main.py:1648/:1663 — dead (pin: :1603/:1618); the order claim (model_management before system, so list_models answers GET /api/system/models) stays true; same drifted pair in hooks/AGENTS.md:1360                                                                                                                                                                                                                                                                                                                                                                                                                       | re-point both carriers to main.py:1603/:1618 in the same edit, or count-free ("mounted before system.router") for durability — drift = 3d8418fec then 9fcb5f453, both failed to re-point either carrier. Size S; frontend                                                                                                                                                                                                                                                              | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-050 | claim        | frontend/tests/golden/shell/tour.spec.ts:55 + :303 (+ feature-inventory.md:357)                                     | #7039                                                     | three carriers cite the ProductTour mount as App.tsx:342; the pin mount is :361 (:342 is a /heatmaps route line) — spec cites born true 8f87050d7, made off-by-one by 62c72165e BEFORE #7039 existed (inventory coordinate predates the PR, transcribed), born-false-in-place in the spec rewrite 4238c6260, off-by-ten from 453bec830 (inside the PR)                                                                                                                                                                                                                                                                                                   | re-point all three carriers to App.tsx:361, or use the stable anchor ("the <ProductTour /> line just inside </BrowserRouter>") — the mount has drifted three times post-qualification and survived one re-anchoring pass that fixed neighbors (bc43387c8 missed this row). Size S; frontend                                                                                                                                                                                            | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-051 | claim        | frontend/tests/golden/operations/config-inspector.spec.ts:94                                                        | #7039                                                     | of three coordinates in the testid-drop explanation, one stale (SystemMonitoringPage.tsx:738 → pin :709 pass-site) and one never-true (panel root div ":135" → pin :138; panel blob byte-stable since January); ":73 _props" is exact; the substantive testid-drop claim is true                                                                                                                                                                                                                                                                                                                                                                         | re-point to SystemMonitoringPage.tsx:709 and ConfigInspectorPanel.tsx:138 (panel lives in components/developer-tools/, NOT system/), or anchor on the _props signature :73. Size S; frontend                                                                                                                                                                                                                                                                                           | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-052 | bug/medium   | backend/services/system_broadcaster.py:1008-1014                                                                    | #7041                                                     | the RedisError arm discards the wrapper's unhealthy dict and the success path returns True unconditionally — the production failure signal is read as healthy                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | capture the dict, branch on healthiness, keep the RedisError arm as defense-in-depth, log the payload. Size M; backend                                                                                                                                                                                                                                                                                                                                                                 | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
+| Q-053 | bug/medium   | backend/services/system_broadcaster.py:1008 companion :1320                                                         | #7041                                                     | twin test :1320's bare AsyncMock breaks the Q-052 fix (Mock return is not a dict → AttributeError) — the fix ships RED without the companion edit (:1321 then sets `health_check.return_value=True`)                                                                                                                                                                                                                                                                                                                                                                                                                                                     | same edit as Q-052: twin stub becomes return_value={"status": "healthy"} (house style system.py:893-894/:5346-5347); two callers keep the boolean contract. Size M; backend                                                                                                                                                                                                                                                                                                            | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
+| Q-054 | bug/medium   | backend/services/system_broadcaster.py — REFUTED AS WRITTEN; re-issued as Q-054R below (nine builtin-only handlers) | #7041                                                     | as-written (Retry(NoBackoff(), 0) zero-retry wiring) disprovable by one grep at the pin: NoBackoff/Retry( absent from backend/; :564/:631/:693 are listener handlers, not retry sites; refutation-pass note logged (refuter verified lines but never checked the quoted tokens against them); real defect = the NINE builtin-only except handlers (:314/:364/:564/:583/:589/:612/:617/:631/:693) letting redis.exceptions.TimeoutError (a RedisError) escape — full template at Q-054R below                                                                                                                                                             | re-issue ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271 + corrections 6281398804/6281511059; re-issue verified at the pin line-by-line (nine tuples, :33 import, :1235 loop absorb)                                                                                                                                                                                                                                                          | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
+| Q-055 | test/medium  | backend/tests/unit/services/test_system_broadcaster.py:1345 (storm probe)                                           | #7041                                                     | the probe stubs broadcast_status/performance (the exact losing layer) and counts STUB INVOCATIONS (:1424-1428) — real publish handlers catch only builtins (:307-316/:357-366), so loss is per-tick indefinite and the probe passes on a starvation; cross-refs updated to Q-054R (the zero-retry cross-ref died with as-written Q-054)                                                                                                                                                                                                                                                                                                                  | run against the real broadcast methods with publish raising redis.exceptions.TimeoutError, asserting per-message-type delivery every tick — sequence behind Q-054R's handler fix. Size M; backend                                                                                                                                                                                                                                                                                      | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
+| Q-056 | test         | backend/tests/unit/services/test_system_broadcaster.py:1432                                                         | #7041                                                     | the timeout test drives _check_redis_health's except-branch through an AsyncMock seam only — production wiring cannot deliver a raised TimeoutError (RedisClient.health_check absorbs every Exception), so the test pins a branch shipped wiring never reaches; the seam is shared by THREE sibling sites (:1332/:1361/:1432); docstring :1436-1437 implies production raises                                                                                                                                                                                                                                                                            | document the seam's synthetic nature (all three docstrings), or re-seam through the production path — which goes RED until Q-053's fix lands, so sequence it behind c1. Size S; backend                                                                                                                                                                                                                                                                                                | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
+| Q-057 | claim        | backend/services/system_broadcaster.py:1011 (+ test docstring :1434-1440)                                           | #7041                                                     | the PR's comment on the new RedisError arm asserts "without it a timeout under load escapes this helper" — false: the only production client type (RedisClient) absorbs every Exception into a returned dict, so the arm is dead in production; born-false at authoring (88e0d3457), zero drift, never true at any reachable milestone                                                                                                                                                                                                                                                                                                                   | reword ONLY :1011-1013 with the real rationale (defense-in-depth for non-wrapper clients / wrapper absorbs Exception) + the twin test docstring :1434-1440. TRAP: the near-identical escape claim in _get_queue_stats (:988-992) is TRUE there (raw client.llen) — mechanical "reword the #7041 comments" damage; keep the hierarchy clause (RedisError covers redis.exceptions.TimeoutError) and the outside-guard parenthetical (:807 outside guarded try :785-801). Size S; backend | ruled fix now as `[r271a]` (backend broadcaster package; UR-52, ruling 269) — ruling 271, record 6277412644                           |
+| Q-058 | claim        | docs/reference/feature-inventory.md F-031 row (5 cites)                                                             | #7015 (probe)                                             | events.py :282/:468 and vlm_analyzer.py :671/:692/:980 cite stale lines — targets moved to :317/:513/:677/:698/:1077 by later commits the row never re-measured                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | re-point the five cites or def-anchor each target (S, docs)                                                                                                                                                                                                                                                                                                                                                                                                                            | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-059 | claim        | docs/reference/feature-inventory.md F-031 row (bug sentence)                                                        | #7015 (probe)                                             | present-tense "mapper DROPS verification/verdict" sentence is false at pin (mapper maps both fields — the PR's own fix) and its span drifted :206-221→:206-235                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | mark the sentence history per F-021 convention or re-tense past; re-bound span to :206-235 (S, docs)                                                                                                                                                                                                                                                                                                                                                                                   | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-060 | drift        | docs/uplevel/packages/backend.md:294-296                                                                            | #7044                                                     | the r94 record's defect bullet still reads present tense ("on a re-run, the LAN-exposure prompt defaults to n") with six dead coordinates (setup.py:685/:900/:447/:449/:482/:491 all unrelated at pin) — but the behavior was fixed INTRA-PR by 4430762dd inside #7038's own chain, NOT by a post-merge fixer; #7044's only touch = register update 888974d16                                                                                                                                                                                                                                                                                            | mark fixed-at-pin naming 4430762dd in #7038 (not a post-merge commit); convert to past tense; if re-anchoring, pin coordinates: prompts :784/:1011, derives :533/:535/:567-577; or drop the bullet. Size S; docs                                                                                                                                                                                                                                                                       | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
+| Q-061 | claim        | docs/operator/admin/security.md:33-36                                                                               | #7044                                                     | the cure sentence "for every other one a full interactive python setup.py still works and converts it as a side effect" is false for exactly one of seven refusal cases — no-monitoring-key mints a FRESH key (setup.py:722/:921 `existing_env.get(...) or generate_api_key()`); merge_api_keys dedupes on VALUE, so the old plain entry stays live — the exact failure the sentence's own parenthetical attributes only to --yes/--defaults                                                                                                                                                                                                             | narrow to the key-known cases ("for every other one that still names the key in MONITORING_API_KEY …") or add no-monitoring-key to the exceptions with its actual remedy (the re-run mints a fresh key; remove or manually re-scope the stale plain entry). Do NOT touch the other six cases (verified true). The paragraph was DELIVERED by #7044 (PR-side commits 2571a8846 + 593dc4d8e via merge d393ff9ce); false advice reachable only in a hand-mangled .env state. Size S; docs | ruled later (one cleanup PR per lane at the audit's end) — ruling 271, record 6277412644                                              |
 
 <details>
 <summary>Batch-2 low-item evidence — quoted lines, proof, refutation verdicts (all batch-2 rows except the seven full-template mediums Q-024, Q-032, Q-040, Q-052, Q-053, Q-054, Q-055, and the re-issued Q-037, which also carries a full template below)</summary>
 
-### Q-016 · claim · low · backend/api/middleware/websocket_auth.py:158-160 · #6927 (mover-owns → #6950, batch 2)
+### Q-016 · claim · low · backend/api/middleware/websocket_auth.py:159-160 · #6927 (mover-owns → #6950, batch 2)
 
 - Wrong: the validate_session_cookie docstring (the R55 rewrite) cites
   `middleware/auth.py::_session_username, used by authenticated_principal at :329` — at the
@@ -833,7 +834,8 @@ table. Owner decisions are pending and may arrive in bulk, written into the rows
   _session_username (def at :585) at :610, while pin auth.py:329 is a blank line inside
   `require_api_key`'s docstring (def :315 — refuter's precision correction; the item first
   named `_api_key_principal`'s docstring, def :275), roughly 270 lines from the object cited.
-- Evidence: cite at pin :158-160; pin auth.py:585/600/610 confirmed; auth.py:329 blank inside
+- Evidence: cite at pin :159-160 (row header previously said :158-160 — pointer P2 sweep
+  correction, the cite text sits on :159-160); pin auth.py:585/600/610 confirmed; auth.py:329 blank inside
   the D3/R60 fail-closed prose. Born-wrong at authoring: at 49dd54a90 auth.py held
   _session_username at :348, authenticated_principal at :363, call at :369 — :329 there is
   `await websocket.close(code=close_code)`. No alternative reading rescues it.
@@ -1654,7 +1656,9 @@ API key authentication settings` (:9), and the Python block at :33-49 opens with
   `if start_date:` (the `order_by` statement sits at :513, its comment at :512);
   vlm_analyzer.py:671 is a blank line (the `event = Event(` construction sits at :677);
   :692 is `await session.flush()` (the `row = EventVerification(` construction sits at
-  :698); :980 is the `_should_notify` parameter (the `broadcast_event` call sits at
+  :698); :980 is the `verdict: str,` parameter of `_notify_decision` in
+  vlm_analyzer.py (its def sits at :973 — name correction per pointer P2 sweep: the
+  function is `_notify_decision`, not `_should_notify`; the `broadcast_event` call sits at
   :1077). Per-cite provenance: the events.py cites were born 3f614c49e (2026-10-11 18:44,
   FE-2 lane) citing :281/:467 true at authoring, re-anchored to :282/:468 by 1fb9b87d1
   (2026-10-13 12:10, "docs: re-anchor the events.py cites my F-057 insert moved"), and
@@ -1897,10 +1901,12 @@ self._redis.health_check() … except RedisError: return True` — the except ar
   non-wrapper clients, and log the payload. Size M; backend.
 - Owner: `[r271a]` — fix now (ruling 271). First on backend's queue, after the packages it holds (UR-52, ruling 269).
 
-### Q-053 · bug · medium · backend/services/system_broadcaster.py:1008 companion :1321 · #7041
+### Q-053 · bug · medium · backend/services/system_broadcaster.py:1008 companion :1320 · #7041
 
-- Wrong: companion to Q-052 (one fix covers both) — the twin test at :1321 stubs
-  health_check with a bare AsyncMock, so once the dict-inspecting fix (Q-052) ships, that
+- Wrong: companion to Q-052 (one fix covers both) — the twin test at :1320 stubs
+  health_check with a bare AsyncMock (the row header previously said :1321 — pointer P2
+  sweep correction; :1321 is the line that sets `health_check.return_value=True`), so once
+  the dict-inspecting fix (Q-052) ships, that
   test breaks with AttributeError (AsyncMock's return value is a Mock, not a dict) and
   the fix arrives RED. The bare stub must become
   `return_value={"status": "healthy"}` (or the codebase's house-style equivalent —
@@ -1908,29 +1914,63 @@ self._redis.health_check() … except RedisError: return True` — the except ar
   Q-052's fix. Two callers of _check_redis_health (:807 and :1093) keep the boolean
   contract — the fix must preserve their expectations. The secondary seam at
   dependencies.py:303-312 is OUT OF SCOPE (different helper).
-- Evidence: twin test :1321 bare AsyncMock; house style system.py:893-894/:5346-5347.
+- Evidence: twin test :1320 bare AsyncMock (at :1321 `health_check.return_value=True`);
+  house style system.py:893-894/:5346-5347.
 - Refuted=false (NOT-REFUTED).
 - Fix: as above — the twin-test edit is LOAD-BEARING: without it the dict-inspecting fix
   ships RED. Size M; backend.
 - Owner: `[r271a]` — fix now (ruling 271). First on backend's queue, after the packages it holds (UR-52, ruling 269).
 
-### Q-054 · bug · medium · backend/services/system_broadcaster.py:693 (+ :564, :631) · #7041
+### Q-054 · bug · medium · backend/services/system_broadcaster.py · #7041 — REFUTED AS WRITTEN; re-issued below
 
-- Wrong: `retries=10` is accepted and shipped but never wired — every retry knob
-  constructs `Retry(NoBackoff(), 0)`: zero retries. One failed read (a single
-  redis.exceptions.TimeoutError on the first get) kills the tick. WIDENED census: the
-  same `Retry(NoBackoff(), 0)` construction sits at THREE sibling sites (:564, :631,
-  :693) — all three are the same defect, one fix covers them. Death chain verified: the
-  loop's `except Exception` (:1235) absorbs the abort, so the loss is per-tick and
-  indefinite — the broadcaster degrades permanently without dying loudly. The PR body
-  itself names ":693" verbatim as a deferred follow-up (the register knows).
-- Evidence: :564/:631/:693 all `Retry(NoBackoff(), 0)`; loop absorb :1235; PR body
-  follow-up note.
-- Refuted=false (NOT-REFUTED).
-- Fix: `Retry(NoBackoff(), retries)` at all three sites in one pass, preserving the
-  stop-path guard ordering, plus a unit test that a RedisTimeoutError on read #1 no
-  longer aborts the tick. Size M; backend.
-- Owner: `[r271a]` — fix now (ruling 271). First on backend's queue, after the packages it holds (UR-52, ruling 269).
+- **Refuted as written (owner pointer, 2026-10-20 01:46Z).** The as-written claim —
+  `retries=10` accepted but never wired, `Retry(NoBackoff(), 0)` at :564/:631/:693,
+  loop absorb at :1235 — is disprovable by one line at the pin:
+  `git grep -E 'NoBackoff|Retry\(' 41bc0fce7 -- backend/` returns nothing; the pin's
+  system_broadcaster.py has no `retries` and no `Retry(` anywhere, and :564/:631/:693
+  are pub/sub listener except-handlers, not retry constructions. The death chain,
+  the fix, and the PR-body follow-up note were all built on a mechanism that does
+  not exist in the code.
+- **Refutation-pass note (owner-mandated):** Q-054's refuter returned NOT-REFUTED on
+  a claim a one-line `git grep` disproves — the refuter verified the cited lines
+  contained text but never checked the quoted tokens against those lines. Rule going
+  forward: a refuter must run its own `git show`/`grep` against every load-bearing
+  quote before returning a verdict; a verdict asserting text the refuter never
+  mechanically checked is worth nothing.
+
+### Q-054R (re-issue, keeps the number) · bug · medium · backend/services/system_broadcaster.py — nine builtin-only except handlers let redis.exceptions.TimeoutError escape · #7041
+
+- Wrong: NINE handlers in system_broadcaster.py guard Redis calls with builtin-only
+  except tuples, so `redis.exceptions.TimeoutError` — a `RedisError`, not a builtin
+  (import at :33 brings in only `RedisError`; the tuple names resolve to the
+  builtins) — escapes every one of them. The census at the pin
+  (41bc0fce7, `git show 41bc0fce7:backend/services/system_broadcaster.py | sed -n
+'<line>p'` for each): the two publish handlers
+  :314 and :364 `except (ConnectionError, TimeoutError, OSError) as e:`;
+  the four pub/sub cleanup/reset handlers :583/:589 (unsubscribe/close in
+  _stop_pubsub_listener) and :612/:617 (unsubscribe/close in _reset_pubsub_connection),
+  all `except (ConnectionError, TimeoutError, OSError) as e:`;
+  the three pub/sub listener handlers :564, :631 and :693
+  `except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:`.
+  A timeout escaping :314/:364 propagates to the loop's `except Exception` (:1235),
+  which absorbs it and sleeps — per-tick, indefinite loss; a timeout escaping
+  :564/:631/:693 ends the listener region and skips recovery. The events.py layer
+  is out of scope: it has NO redis exception handlers at the pin.
+- Evidence: the nine except-tuples above, all verified at the pin line-by-line;
+  MRO `redis.exceptions.TimeoutError -> RedisError -> Exception` (venv
+  redis/exceptions.py:23/:29); loop absorb :1235 `except Exception as e:`.
+- Refuted=false (NOT-REFUTED; re-issued per owner pointer with the owner's mechanism;
+  refuter re-run recorded as the refutation-pass note above).
+- Fix: widen all nine tuples to include `redis.exceptions.RedisError` (one name, one
+  import — `RedisError` is already imported at :33), preserving each tuple's other
+  members. Plus a reset test: a test shows that a `redis.exceptions.TimeoutError`
+  raised by `unsubscribe` or `close` during reset does not stop the re-subscribe or
+  kill the listener (the test must inject `redis.exceptions.TimeoutError`
+  explicitly — every existing test injects the builtin `ConnectionError`, which the
+  current tuples already catch, so a builtin-only test proves nothing about this
+  defect). Size M; backend.
+- Owner: `[r271a]` — fix now (ruling 271, corrections 6281398804 + 6281511059).
+  First on backend's queue, after the packages it holds (UR-52, ruling 269).
 
 ### Q-055 · test · medium · backend/tests/unit/services/test_system_broadcaster.py:1345 (storm probe) · #7041
 
@@ -1938,18 +1978,999 @@ self._redis.health_check() … except RedisError: return True` — the except ar
   stubs broadcast_status/broadcast_performance with autospec — the exact layer the loss
   lives UNDER, so the real publish handlers are never exercised. The real publish
   handlers catch builtin exceptions only (:307-316, :357-366) and do NOT catch
-  redis.exceptions.TimeoutError; production wiring (Q-054's `Retry(NoBackoff(), 0)`)
-  lets the first failed publish propagate, so loss is PER-TICK and INDEFINITE — a
-  permanent degradation, not a task death. The probe's assertions (:1424-1428) count
-  STUB INVOCATIONS, which succeed regardless of Redis state, so the probe passes while
-  production loses every message. Executed at the pin NOW: 1 passed, 7.59s — green on a
-  starvation it was built to catch. Blind spot singular (only this probe has the shape).
+  redis.exceptions.TimeoutError; production lets the first failed publish propagate,
+  so loss is PER-TICK and INDEFINITE — a permanent degradation, not a task death. The
+  probe's assertions (:1424-1428) count STUB INVOCATIONS, which succeed regardless of
+  Redis state, so the probe passes while production loses every message. Executed at
+  the pin NOW: 1 passed, 7.59s — green on a starvation it was built to catch. Blind
+  spot singular (only this probe has the shape). [Cross-references to Q-054 updated
+  2026-10-20 per owner pointer: the defect in Q-054 as originally written (zero-retry
+  wiring) was refuted; the real defect is the nine builtin-only handlers — see
+  Q-054R. The publish handlers :314/:364 belong to that census.]
 - Evidence: stubs at :1345; assertions :1424-1428; real handlers :307-316/:357-366;
-  Q-054's zero-retry wiring.
+  the builtin-only census (Q-054R, nine handlers).
 - Refuted=false (NOT-REFUTED).
 - Fix: run the probe against the real broadcast methods with publish raising
   redis.exceptions.TimeoutError, asserting PER MESSAGE TYPE local delivery every tick —
-  requires Q-054's fix scope to include the tick-abort guard (or reorder) so the test
+  requires Q-054R's fix scope to include the tick-abort guard (or reorder) so the test
   can pass; otherwise the corrected test documents the starvation RED. Pairs with
-  Q-054's Retry fix and Q-052/Q-053's dict fix. Size M; backend.
+  Q-054R's handler fix and Q-052/Q-053's dict fix. Size M; backend.
 - Owner: `[r271a]` — fix now (ruling 271). First on backend's queue, after the packages it holds (UR-52, ruling 269).
+
+## Batch 3 — per-PR verdicts
+
+Production positions 25-39, audited under the same ruling-232 protocol as batches 1 and 2: a
+fresh unnamed refutation subagent per item, verdicts in /tmp/r262_b3_refutations/, nothing
+dropped by refutation. One candidate was refuted as a phantom coordinate (q067: the auditor
+attributed a `prod.yml:160` cite to config.py:203-206; `grep -c '160'` on the pin blob is 0 and
+the only `prod.yml:160` carrier at the pin is Q-065's own site, a5500_precheck.py:696 — dies
+unnumbered) and one was refuted on genre (7135_c4: ticked Done-when boxes are task
+specifications — the register's own gloss backend.md:382, "…so this row is met by [r130b] and
+the `2.0`/`le=10.0` above describe the base, not the fix", kills the class claim). Coverage: 68
+verdict files on disk (66 NOT-REFUTED + 2 REFUTED), plus 2 dedup twins (7157-C1 and 7157-C5
+cite 7135-C1's verdict — same defect, same blob, different PR) = 70 candidate-verdicts;
+record-only dispositions for 7070-C7, 7070-C10, 7114-C2, 7114-C3 (batch-4 cross-refs, listed
+under their PRs). Numbering: Q-067..Q-118 in PR order; the deferred five keep Q-062..Q-066.
+Per the owner's continue (comment 6275088190): the low items rule from the compact table with
+their evidence in the collapsed block under it; the two mediums keep the full templates after
+the table. Owner decisions are pending and may arrive in bulk, written into the rows.
+
+Provenance mechanisms seen in batch 3, named: authored-live-rotted (7088 c1/c2/c3/c5 —
+authored against a live tree that moved under the author before merge); drifted-post-merge
+(7088 c3 jobs.py leg, c4 config.py get_settings leg); wrong-at-birth (7088 c4 schemas:49 leg;
+7077-C2; 7074-C0 spec:3); pre-existing-stale-kept (7088 c6/c7/c8 — the PR edited around the
+stale text and left it); last-writer-with-knowledge (7070-C5/C6 — 1fb9b87d1's own commit
+message names the defect it re-anchored past); correct-at-remap-born-stale-by-later-drift
+(7157-C4); false-witness claim (7145-C4 "comment-only-equal" — the harness fold and describe
+tag changed spec bytes); retirement-lag systematic (7070-C4 — the sheet keeps a row for a
+retired field through two later passes).
+
+| PR    | Class      | Verdict                                                                                                                                                                                                                                 |
+| ----- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #7052 | production | 1 item (Q-067)                                                                                                                                                                                                                          |
+| #7070 | production | 6 items (Q-068, Q-069, Q-070 [C5+C6 one defect two carriers], Q-071, Q-072) + 7070-C2 certified as batch-4 cross-ref (F-057/F-049/F-050/F-056/F-078/F-079 family) + 7070-C7, 7070-C10 record-only → batch-4 + 7070-C3 twin of 7146-C1   |
+| #7074 | production | 2 items (Q-073, Q-074)                                                                                                                                                                                                                  |
+| #7077 | production | 4 items (Q-075 [dedup twin of 7103-C0, one defect two carriers], Q-076, Q-077, Q-078)                                                                                                                                                   |
+| #7086 | production | 6 rows from 7 candidates (Q-079..Q-084; C1+C2 merged — one drifted anchor :268→:276, scope wider than the item: 5 carriers total, one fix sweeps all)                                                                                   |
+| #7088 | production | 8 items (Q-085..Q-092; four provenance mechanisms among them)                                                                                                                                                                           |
+| #7103 | production | 2 items (Q-093 medium — F-022's five cites, full template below; Q-094)                                                                                                                                                                 |
+| #7114 | production | 1 own item (Q-095) + the five deferred items Q-062..Q-066 ride this PR's batch (they cite lines its diffs moved) + 7114-C2/C3 record-only → batch-4 + 7114-C4 re-assigned to #7222 (batch 4): first author 51a2738f0 [r243], born false |
+| #7125 | production | 1 item (Q-096 — mechanism-3 flagship, false at birth)                                                                                                                                                                                   |
+| #7135 | production | 4 rows from 5 candidates (Q-097..Q-100; c4 REFUTED on genre) + the A-family census joins Q-097's row + 7157-C1/C5 dedup twins ride 7135-C1's verdict                                                                                    |
+| #7139 | production | 6 items (Q-101..Q-106)                                                                                                                                                                                                                  |
+| #7145 | production | 4 items (Q-107..Q-110; C2 self-authored error, C4 false-witness claim)                                                                                                                                                                  |
+| #7146 | production | 3 items (Q-111..Q-113; C1 anchors the B-family census, C3 keeper-deletion)                                                                                                                                                              |
+| #7156 | production | 5 items (Q-114 medium — full template below; Q-115..Q-118)                                                                                                                                                                              |
+| #7157 | production | 5 own items (Q-119..Q-123 mapping C2/C3/C4/C6/C7) + C1/C5 dedup twins resolved onto 7135-C1's verdict                                                                                                                                   |
+
+Compact table. Owner decisions are pending; the owner column carries write-time wording only.
+
+| id    | class | path:line                                                                            | PR    | wrong (one line)                                                                                                                                   | fix (size, lane)                                                        | owner                |
+| ----- | ----- | ------------------------------------------------------------------------------------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------- |
+| Q-062 | claim | monitoring/alerting-rules.yml:960                                                    | #7114 | cites prod.yml:151-152 for VLM labels; pin has the ai-vlm header there, real labels at :173-174                                                    | re-point to :173-174 (S, docs)                                          | pending (write-time) |
+| Q-063 | claim | backend/api/routes/model_management.py:253                                           | #7114 | cites prod.yml:398 for SERVICE_NAME; pin :398 is a CUDA kernel-cache comment, real at :405                                                         | re-point to :405 (S, backend)                                           | pending (write-time) |
+| Q-064 | claim | backend/tests/unit/scripts/test_ci_compose_cap_drop_bootable.py:149                  | #7114 | cites prod.yml:479 for ENVIRONMENT; pin :479 is a ":U chown" comment, real at :508                                                                 | re-point to :508 (S, backend)                                           | pending (write-time) |
+| Q-065 | claim | scripts/a5500_precheck.py:696                                                        | #7114 | cites prod.yml:160 for label=disable; pin :160 is a comment, real at :167                                                                          | re-point to :167 (S, scripts)                                           | pending (write-time) |
+| Q-066 | claim | scripts/a5500_precheck.py:815                                                        | #7114 | cites prod.yml:188 for VLM_GPU_LAYERS; pin :188 is a comment, real at :210                                                                         | re-point to :210 (S, scripts)                                           | pending (write-time) |
+| Q-067 | low   | docs/uplevel/packages/ops.md:373-376 + pyproject.toml:345-346                        | #7052 | ticked "no longer coupled to 3.14 by one line" unqualified while 157 bare-except sites in 79 files (AST census at the pin) remain                  | scope the clause + fix the two named PEP-758 carriers (M, docs+backend) | pending (write-time) |
+| Q-068 | low   | backend/api/routes/events.py:340                                                     | #7070 | fields Query description lists detection_ids (not in the allowlist :177-197) and omits notify (:196)                                               | align description with the allowlist (S, backend)                       | pending (write-time) |
+| Q-069 | low   | docs/uplevel/r2-sheet.md:197 (F-058)                                                 | #7070 | row still targets the retired `flagged` field (deleted by e2d65dda3); movers passed it by twice post-retirement                                    | retire or re-target the F-058 row (S, docs)                             | pending (write-time) |
+| Q-070 | low   | docs/architecture/api-reference/README.md:29 + events-api.md :26/:106/:160/:205/:233 | #7070 | five Source spans stale; 2/5 wrong-spans-not-dead, 3/5 dead; wrong since 910d09f23 (~262 days)                                                     | re-anchor all five Source cells in both files (S, docs)                 | pending (write-time) |
+| Q-071 | low   | docs/architecture/event-lifecycle.md:233                                             | #7070 | PATCH span :2123; fix span is :2004-2200 (decorator to def end); 1fb9b87d1 re-anchored against the base tree                                       | re-anchor to :2004-2200 (S, docs)                                       | pending (write-time) |
+| Q-072 | low   | docs/uplevel/packages/backend.md:399-401 (register row)                              | #7070 | events.py dict cites :546-601 dead since 6db72093c; box checked while cites still live; post-check drift                                           | repair the register row (S, docs)                                       | pending (write-time) |
+| Q-073 | low   | frontend/tests/golden/operations/admin-logging.spec.ts (nine cites)                  | #7074 | nine stale cites incl. spec:3's :379 wrong at birth; validated by nothing (no gate reaches tests/golden)                                           | re-derive all nine + api.ts:2102→:2053 (M, frontend)                    | pending (write-time) |
+| Q-074 | low   | backend/tests/unit/scripts/test_ci_compose_cap_drop_bootable.py:247                  | #7074 | cites system.py:2572; guard list at :2554-2559, :2572 is blank inside a docstring                                                                  | re-point to :2554-2560 (S, backend)                                     | pending (write-time) |
+| Q-075 | low   | feature-inventory F-022 (5 cites)                                                    | #7077 | one defect, two carriers — same five stale F-022 cites as Q-093; this PR's carrier attribution differs                                             | resolved with Q-093's fix (—)                                           | see Q-093            |
+| Q-076 | low   | frontend/tests/golden/rate-limit.spec.ts :31/:33/:147/:570                           | #7077 | four stale cites, one past EOF (SystemMonitoringPage.tsx:751; file is 745 lines)                                                                   | re-derive, fix anchor :2116/:2113 (S, frontend)                         | pending (write-time) |
+| Q-077 | low   | docs/uplevel/packages/frontend.md :149/:410                                          | #7077 | queryClient.ts:249-297 dead range — symbol absent at merge (wrong-at-birth) and at pin                                                             | re-derive to :247-251/:295-299 (S, docs)                                | pending (write-time) |
+| Q-078 | low   | frontend/src/services/queryClient.ts:123                                             | #7077 | @example 60000ms vs MAX_RETRY_DELAY_MS=30000; the example exercises the capped path                                                                | fix the example value (S, frontend)                                     | pending (write-time) |
+| Q-079 | low   | DashboardConfigModal.tsx:110 + DashboardConfigModal.test.tsx:468                     | #7086 | cite DashboardLayout.tsx:268→:276; scope wider: 5 carriers (gpu-stats.spec.ts:199/:246, pipeline-telemetry.spec.ts:192)                            | one fix sweeps all five (S, frontend)                                   | pending (write-time) |
+| Q-080 | low   | frontend/tests/golden/pipeline-telemetry.spec.ts:16                                  | #7086 | three first-mover stories kept distinct (api.ts 2099deab6, schemas 3a1bc8fdf, layout 4238c6260); spec author 3d14e7da2                             | re-derive all cites (M, frontend)                                       | pending (write-time) |
+| Q-081 | low   | feature-inventory F-042/F-040 rows :383/:385                                         | #7086 | :268→:276 same drift; mints-sentence author 8f39f6102                                                                                              | re-anchor both rows (S, docs)                                           | pending (write-time) |
+| Q-082 | low   | feature-inventory F-042 works-cell                                                   | #7086 | '**works** waits on the real tier' = 57 hits repo-wide — systemic pattern                                                                          | sweep the phrase repo-wide (M, docs)                                    | pending (write-time) |
+| Q-083 | low   | feature-inventory F-040 '9 commits behind'                                           | #7086 | authoring-tip miscount: true count 7 (97c602ae9..1132ab8c9)                                                                                        | correct to 7 (S, docs)                                                  | pending (write-time) |
+| Q-084 | low   | frontend/tests/golden/config-modal.spec.ts:13                                        | #7086 | four stale anchors; PR moved handleSave/handleCancel without re-deriving (Save :152, Cancel :158-161)                                              | re-derive all four (S, frontend)                                        | pending (write-time) |
+| Q-085 | low   | docs/architecture/decisions.md:188                                                   | #7088 | cites config.py:1942-1982 (real :1739/:1731-1767) + prod.yml:643 (real :672); authored-live-rotted                                                 | re-point both (S, docs)                                                 | pending (write-time) |
+| Q-086 | low   | docs/architecture/configuration.md:174                                               | #7088 | same root as Q-085; true block 1730-1770, fields-only 1739-1754                                                                                    | re-point (S, docs)                                                      | pending (write-time) |
+| Q-087 | low   | docs/uplevel/packages/backend.md :377/:383 (F-187/190/191, F-089)                    | #7088 | config.py:1952→:1740; jobs.py:296-299→:291-295 (one mover 6b691302d)                                                                               | re-point all (S, docs)                                                  | pending (write-time) |
+| Q-088 | low   | backend/tests/unit/test_config_fast_path_flag.py :63-64/:75-76                       | #7088 | schemas settings_api.py:49 wrong-at-birth (:53 threshold, :56 le=1.0); config.py:3497-3500 → real get_settings :3171                               | re-derive (S, backend)                                                  | pending (write-time) |
+| Q-089 | low   | frontend/tests/golden/test_settings_save_roundtrip.py :19/:142/:171                  | #7088 | three dead cites incl. one past EOF (config.py had 3176 lines at pin); mover af7690bfd first and only content mover                                | re-derive to :2098/:2431/:3170-3176 (S, frontend)                       | pending (write-time) |
+| Q-090 | low   | docs/architecture/critical-paths.md:129                                              | #7088 | vlm_analyzer.py:690-705 pre-existing-stale-kept; real fn :898-914 (moved 801→898 by #7182)                                                         | re-point to :898-914 (S, docs)                                          | pending (write-time) |
+| Q-091 | low   | docs/uplevel/packages/batch-aggregator.md:24                                         | #7088 | table says BATCH_MAX_DETECTIONS=100; config.py:972-973 default=500; six other docs say 500 — outlier not ambiguity                                 | fix the row to 500 (S, docs)                                            | pending (write-time) |
+| Q-092 | low   | docs/uplevel/packages/batching-logic.md :103/:124                                    | #7088 | dead symbol _is_fast_path_eligible; real gate _should_use_fast_path :1186, _process_fast_path :1227                                                | replace symbol + re-point (S, docs)                                     | pending (write-time) |
+| Q-093 | med   | feature-inventory F-022 (5 cites)                                                    | #7103 | rate-limit store contract record carries five stale cites; first breaker 834d51097; full template below                                            | re-derive five + re-anchor (M, docs)                                    | pending (write-time) |
+| Q-094 | low   | docs/architecture/frontend/state-management.md:367                                   | #7103 | comment-over-set() describes a timer branch (:106-118) that no longer exists after #7103 deleted secondsUntilReset                                 | rewrite the comment (S, docs)                                           | pending (write-time) |
+| Q-095 | low   | scripts/test_orchestrator_engine_socket.py:3                                         | #7114 | docstring's "451 lines" parenthetical false at own merge (643 lines); mechanisms 1+3+2                                                             | fix the parenthetical (S, scripts)                                      | pending (write-time) |
+| Q-096 | claim | scripts/uplevel/reid_real_tier.sh S5 :794-799                                        | #7125 | universal "NO plan" contradicts S3's refusal shape + export_reid.py:1008-1019 + AGENTS.md :257-258 vs :262-263; false at birth                     | align S5 with S3/export/AGENTS (M, scripts)                             | pending (write-time) |
+| Q-097 | claim | test_monitoring_key_field_ceiling.py docstring + A-family census                     | #7135 | docstring cites dead at pin (events.py :441/:564/:566/:452-455, conftest :1729, ci.yml :2052-2053/:2058-2059) + A-family dead-coordinate census    | re-derive + census sweep (M, backend)                                   | pending (write-time) |
+| Q-098 | low   | backend/tests/unit/api/test_api_key_scopes.py :27-28 (:702)                          | #7135 | "(2)" is an amendment number misread as instance count; section comment :702 carries the same stale framing                                        | fix both sites (S, backend)                                             | pending (write-time) |
+| Q-099 | low   | scripts/vulture_whitelist.py :37-38/:42                                              | #7135 | 'seven bodies' vs 11 at pin; the 2026-10-15 stamp attached to the wrong sentence                                                                   | update count + restamp (S, scripts)                                     | pending (write-time) |
+| Q-100 | low   | backend/api/routes/events.py :587-588 + ceiling test :93                             | #7135 | "0 hits for verification under monitoring/" — 7 matching lines; needle needs qualification, both sites                                             | qualify the needle at both (S, backend)                                 | pending (write-time) |
+| Q-101 | low   | feature-inventory F-019 :355                                                         | #7139 | App.tsx:275 → real /operations route :293 (18 off); own code commit worsened drift while docs commit re-anchored five other rows                   | re-anchor (S, frontend)                                                 | pending (write-time) |
+| Q-102 | low   | feature-inventory F-021 :357                                                         | #7139 | App.tsx:342 off-by-one from birth (mount :341); stale by 19 at pin; content true of :361                                                           | re-anchor to :361 (S, frontend)                                         | pending (write-time) |
+| Q-103 | low   | feature-inventory F-020 :356                                                         | #7139 | span 251-334 open/close asymmetry; true span 260-353; close never exact in the row's lifetime                                                      | re-derive span (S, frontend)                                            | pending (write-time) |
+| Q-104 | low   | feature-inventory F-238 :634                                                         | #7139 | App.tsx:251 correct at own merge, re-staled by 70c5d96ae (+9); shares mover with Q-103                                                             | re-anchor with Q-103's fix (S, frontend)                                | pending (write-time) |
+| Q-105 | low   | feature-inventory F-034 :378                                                         | #7139 | mount fix re-staled by 70c5d96ae; catch-all :347 exact; rescue-by-wrapper fails (wrapper inside the span)                                          | re-anchor (S, frontend)                                                 | pending (write-time) |
+| Q-106 | low   | frontend/src/**tests**/pwa-install-prompt-retired.test.tsx:58                        | #7139 | "Devtools +10" bare cite false at pin (:358=</Routes>, :368=Devtools) in the sentence teaching why bare cites can't be trusted                     | re-word to a revision anchor (S, frontend)                              | pending (write-time) |
+| Q-107 | low   | frontend/tests/golden/operations/batch-statistics.spec.ts:19-94                      | #7145 | ~14 stale cites across 5 files; authored exact at its merge, displaced by 5+ later PRs                                                             | re-derive all (M, frontend)                                             | pending (write-time) |
+| Q-108 | low   | frontend/tests/golden/operations/batch-statistics.spec.ts :56-57                     | #7145 | "checks every 10 s" self-authored error — settings default is 5.0 (config.py:965-966); false at merge and pin                                      | fix to 5 s (S, frontend)                                                | pending (write-time) |
+| Q-109 | low   | feature-inventory F-135 :518                                                         | #7145 | get_pipeline_status :4253→:4241 (mover a4916e3ea #7183); no wired gate checks feature-inventory line cites at all                                  | re-anchor (S, docs)                                                     | pending (write-time) |
+| Q-110 | low   | feature-inventory F-135 witness clause                                               | #7145 | "spec bytes differ by comment only" false — harness fold ('./harness') + describe tag '(F-135)' changed bytes                                      | correct strength to comment-only-equal (S, docs)                        | pending (write-time) |
+| Q-111 | claim | backend/tests/integration/test_soft_delete.py :209/:218/:251                         | #7146 | four dead docstring cites; B-family census anchor (with 7070-C2 siblings and C3)                                                                   | re-derive + B-family sweep (M, backend)                                 | pending (write-time) |
+| Q-112 | low   | backend/api/routes/events.py:691                                                     | #7146 | cites ci.yml:692→:772 (mypy backend/); total drift +80 across seven landings; repo-wide exactly one carrier                                        | re-point to :772 (S, backend)                                           | pending (write-time) |
+| Q-113 | low   | backend/tests/integration/test_soft_delete.py:667                                    | #7146 | vacuous stats leg asserts 200 + membership while the real leg (:204-253) carries three aggregates; keeper = #7146 (deletion of pre-existing rot)   | delete the 18-line block; re-check internal cites after (S, backend)    | pending (write-time) |
+| Q-114 | med   | backend/api/routes/system.py:4132-4135                                               | #7156 | "add_detection rewrites these through the set wrapper (batch_aggregator.py:641)" — plural half-false: started_at raw via :427; full template below | reword to singular + fix cites (S, backend)                             | pending (write-time) |
+| Q-115 | low   | docs/superpowers/plans/2026-09-27-a5500-vlm-bringup-checklist.md:58                  | #7156 | first mover 2467cea06 (not 734f5e409); gaps 2/36/4, "broken before this PR" stands                                                                 | fix cites + gap numbers (S, docs)                                       | pending (write-time) |
+| Q-116 | low   | docs/superpowers/plans/2026-09-25-a5500-bringup-checklist.md:48                      | #7156 | same first mover (one commit, two rows); .env.example:58 stale at row entry (a0105b630 already had :57)                                            | fix cites + TMPDIR :55 + three test defs (S, docs)                      | pending (write-time) |
+| Q-117 | low   | scripts/a5500_precheck.py :967-975                                                   | #7156 | generator/test expectations diverge from rendered output (:576/:598 vs :577/:599); disposition SHA unresolvable — cite 7ad0fd8fd's message         | sync expectations + cite the commit (S, scripts)                        | pending (write-time) |
+| Q-118 | low   | backend/tests/e2e/test_pipeline_integration.py :121-122                              | #7156 | "mock_get refuses GET on these" blanket — pipeline seam (:249-259) unguarded; well-formed detection_count=0 survives                               | guard the get-branch or narrow the comment (S, backend)                 | pending (write-time) |
+| Q-119 | low   | five qualified carriers citing ai_audit.py:194                                       | #7157 | pin :194 = decorator close paren, def :195; blind +1 remap by eb7ce4431                                                                            | re-point all five to :195 (S, docs)                                     | pending (write-time) |
+| Q-120 | low   | docs/reference/backend-entry-points.md F-062 :413                                    | #7157 | F-062's relative :194 contradicts F-061's :195 two rows apart; 62a2d7eea rewrote both and left :194                                                | fix F-062 to :195 (S, docs)                                             | pending (write-time) |
+| Q-121 | low   | docs/vss-integration/17-action-plan.md:5653                                          | #7157 | :228/:274 correct-at-remap born-stale-by-later-drift; calls at :229/:275; adjacent dead cites (config.py:2707-2708, main.py:1054-1068)             | fix the whole bullet (S, docs)                                          | pending (write-time) |
+| Q-122 | low   | docs/reference/backend-entry-points.md:158                                           | #7157 | prose `POST /batch` (:504) vs own table :153 citing :534 (decorator :524, "/batch" :525) — same-pass oversight                                     | re-derive prose (S, docs)                                               | pending (write-time) |
+| Q-123 | low   | feature-inventory F-104 :480 + F-129 :504                                            | #7157 | system.py:4936 dead (get_model_zoo_status :4992); F-104's has_clip :4839 dead → backend/models/event_audit.py:37; disclosure ≠ repair              | fix both rows (S, docs)                                                 | pending (write-time) |
+
+Census consolidation: ~20 rows' dead coordinate cites across feature-inventory.md consolidate
+into the #7135-family and #7146-family items; enumerated there. A-family (first breaker #7135):
+:282×7, :569×3, :427, :468, :542 — joins Q-097's row (with 7070-C5/C6/C9). B-family (first
+breaker #7146): :1952×5, :2010×2, :719, :2430/:2512, :2139, :1424, :1793, :2703/:2726×3/:2745 —
+folds into Q-111's row (with 7070-C2 siblings and 7070-C3). C-family (first breaker #7201) →
+batch-4 cross-ref (incl. F-059/F-296/:1919 authored TRUE by 19845d681 [r196a]; F-059's :2174
+also dead, first breaker #7146).
+
+Record-only dispositions (no refuter dispatched per prior ruling; batch-4 cross-refs):
+
+- 7070-C7 and 7070-C10: recorded against #7070's batch-4 set.
+- 7114-C2 (ci.yml "Pin the compose CLI") and 7114-C3 (feature_check.py docstring): recorded
+  against #7222's batch-4 set.
+- 7114-C4 (deployment/README.md:904-906 "because alloy precedes backend"): refuted on
+  attribution, NOT on defect — first author 51a2738f0 ([r243] #7222 branch commit), born false
+  (backend :463 precedes alloy :1592 at that commit; compose reports every service whose
+  interpolation fails, in alphabetical service order — file order is irrelevant). Re-assigned
+  to #7222, batch 4. The fix wording: "compose reports every service whose interpolation
+  fails, in alphabetical service order, so an unset PODMAN_SOCKET fails the render naming
+  services.alloy.volumes and services.backend.volumes in BOTH states regardless of file order
+  — alloy heads the list only because the names sort that way."
+
+<details>
+<summary>Batch 3 evidence — low items (collapsed)</summary>
+
+### Q-062 · claim · monitoring/alerting-rules.yml:960 · #7114
+
+- Wrong: the comment cites `prod.yml:151-152` for the VLM labels; the pin has the ai-vlm
+  header comment there and the labels at :173-174.
+- Evidence: pin prod.yml :151-152 vs :173-174; blob a9be3a71 byte-identical boundary→pin;
+  the move is #7114's branch commit ac84fd7d96 (include insert :43-57 moves labels 151→166),
+  then #7222's 51a2738f03 (166→173); 56 first-parent merges to the boundary, not 52.
+- Refuted=false (NOT-REFUTED; verdict 7114_q062.md).
+- Fix: re-point to :173-174. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-063 · claim · backend/api/routes/model_management.py:253 · #7114
+
+- Wrong: cites `prod.yml:398` for SERVICE_NAME; pin :398 is a CUDA kernel-cache comment, the
+  SERVICE_NAME line is at :405.
+- Evidence: chain #6862 wrote :397-ish → #6907 renumbered truthfully (193498dac, true at its
+  own merge) → #7114 moved the line away (false at its own merge; its own diff never touches
+  the cite file) → #7222's :420.
+- Refuted=false (NOT-REFUTED; verdict 7114_q063.md).
+- Fix: re-point to :405. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-064 · claim · backend/tests/unit/scripts/test_ci_compose_cap_drop_bootable.py:149 · #7114
+
+- Wrong: cites `prod.yml:479` for ENVIRONMENT; pin :479 is a ":U chown" comment, ENVIRONMENT
+  is at :508.
+- Evidence: chain #6907 :479 (true) → #7114 in-branch ac84fd7d9 :495 → #7222 :508; zero
+  corrections; #7074 co-ownership proven irrelevant (its diff grep "479"/"ENVIRONMENT" rc=1);
+  graft-truncation check clean.
+- Refuted=false (NOT-REFUTED; verdict 7114_q064.md).
+- Fix: re-point to :508. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-065 · claim · scripts/a5500_precheck.py:696 · #7114
+
+- Wrong: cites `prod.yml:160` for label=disable; pin :160 is the "interim GPU-less path"
+  comment, the label is at :167.
+- Evidence: walk 254 merges → #7114 :175 → #7222 :182; CUDA_ARCHITECTURES at :182; blob
+  transition 3276f3a1→30bc7f47 is #6907's, NOT #7114's.
+- Refuted=false (NOT-REFUTED; verdict 7114_q065.md). This is the only `prod.yml:160` carrier
+  at the pin — the phantom q067 (REFUTED) had bound the same coordinate to config.py:203-206,
+  which actually cites :284.
+- Fix: re-point to :167. Size S; scripts.
+- Owner: pending (write-time).
+
+### Q-066 · claim · scripts/a5500_precheck.py:815 · #7114
+
+- Wrong: cites `prod.yml:188` for VLM_GPU_LAYERS; pin :188 is a comment, the real line is at
+  :210.
+- Evidence: :188 true exactly at #6862's merge (its own diff moved 183→188) → #7114 :203 →
+  #7222 :210; distinct AMENDMENTS blocks confirmed.
+- Refuted=false (NOT-REFUTED; verdict 7114_q066.md).
+- Fix: re-point to :210. Size S; scripts.
+- Owner: pending (write-time).
+
+### Q-067 · low · docs/uplevel/packages/ops.md:373-376 · #7052
+
+- Wrong: the ticked bullet "no longer coupled to 3.14 by one line" carries no scoping clause,
+  and the Done-when checks only the literal line — 157 bare-except sites across 79 files
+  remain at the pin (AST census; item said ~125/65).
+- Evidence: second carrier pyproject.toml:345-346; the two named code carriers
+  scripts/reachability.py:126 (`ast.parse(text, filename=self.rel)`, zero handlers) and
+  backend/api/middleware/request_recorder.py:281 (bare PEP-758 `except
+json.JSONDecodeError, UnicodeDecodeError:`); tick 21411ba33 2026-10-15T00:43:35Z (the item
+  had mislabeled local as Z); ruling-map.md:184 ruling-169 acceptance has no scope prose; the
+  bullet is pre-existing unticked at base and [x] by the tick. Counter-read DEFEATED — the
+  item stands on the second carrier alone.
+- Refuted=false (NOT-REFUTED; verdict 7052_c0.md).
+- Fix: scope the clause to what ruling 169 actually accepted + fix the two named carriers.
+  Size M; docs+backend.
+- Owner: pending (write-time).
+
+### Q-068 · low · backend/api/routes/events.py:340 · #7070
+
+- Wrong: the fields Query description lists detection_ids (not in the allowlist :177-197) and
+  omits notify (:196, not :199).
+- Evidence: parse path :407-411 (FieldFilterError field_filter.py:107 → :408-411 HTTP_400);
+  pre-existing at base; the PR edited this exact string AND disclosed it in the PR body as
+  "finding 7 of my self-review — deliberately NOT in this PR"; the follow-up never landed;
+  the body's own cites (:305/:161) are pre-rebase, +35 off at the pin.
+- Refuted=false (NOT-REFUTED; verdict 7070_c1.md).
+- Fix: align the description with the allowlist; the fix should carry the PR body's
+  self-disclosure. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-069 · low · docs/uplevel/r2-sheet.md:197 (F-058) · #7070
+
+- Wrong: the F-058 row is half-built — it targets the `flagged` field, which e2d65dda3
+  deleted (gone at the pin: :312 is snooze_until; present at #7070's merge).
+- Evidence: e2d65dda3 deleted the Field but did not touch the sheet; the sheet movers 7f4a40893
+  (regeneration) and 351e97001 (prettier) POSTDATE the retirement yet left the row
+  byte-identical. Counter-read REJECTED: the row's "S — persist flagged" action would re-add a
+  retired field. Siblings F-035 :210, F-114 :221 — a systematic lag, not a one-off. routes
+  :2000 is the optimistic-locking comment (reviewed write :2070, notes :2074, snooze :2079).
+  Class: substance drift, distinct from cite-rot.
+- Refuted=false (NOT-REFUTED; verdict 7070_c4.md).
+- Fix: retire or re-target the F-058 row. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-070 · low · docs/architecture/api-reference/README.md:29 + events-api.md · #7070
+
+- Wrong: five Source spans stale (README:29 list 225-469; events-api :26 stats 472-616,
+  :106 timeline 634-792, :160 search 795-905, :205 export 908-1012, :233 mirror).
+- Evidence: 2/5 wrong-spans-not-dead (list def@317 ∈ 225-469; timeline def@788 ∈ 634-792
+  barely), 3/5 genuinely dead (stats/search/export); the search span now sits inside
+  get_timeline_summary's body (795-905 ⊂ 788-945); wrong since 910d09f23 2026-01-25 (~262
+  days); #7070 owns as last-writer-with-knowledge — 1fb9b87d1's own commit message names the
+  search-span defect ("leaves search_events_endpoint for get_event_clusters") and it
+  re-anchored the span anyway; only the list span shifted +1, the others +13 (difflib
+  re-alignment, not uniform); def anchors 317/634/788/949/1154/1300; search body ends 1274,
+  export body ends ~1476 (decorator 1276-1299, def :1300); movers never touched api-reference
+  (0 hits in --stat). No gate reaches docs/architecture.
+- Refuted=false (NOT-REFUTED; verdict 7070_c56.md — one refuter for both carriers, one
+  defect, two renderings).
+- Fix: re-anchor all five Source cells in both files to freshly-measured pin extents
+  (decorator-to-body-end convention). Size S; docs.
+- Owner: pending (write-time).
+
+### Q-071 · low · docs/architecture/event-lifecycle.md:233 · #7070
+
+- Wrong: the PATCH span cites events.py:2123 as the response build; :2123 is update_event's
+  audit-log details dict (:2120-2124), not the response build (:2184).
+- Evidence: fix span :2004-2200 (@router.patch :2004, responses :2005-2020, :2021 def, :2200
+  def end, :2204 VALID_DETECTION_ORDER_BY, :2207 next decorator); 1fb9b87d1 re-anchored
+  against the BASE tree (exact at 841bb53ea, 13/14 early at its own merge); movers worsened
+  the start into bulk_delete (361199a99). Coordinator override of the refuter's :2020
+  (decorator). No gate reaches docs/architecture.
+- Refuted=false (NOT-REFUTED; verdict 7070_c8.md).
+- Fix: re-anchor to :2004-2200. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-072 · low · docs/uplevel/packages/backend.md:399-401 (register row) · #7070
+
+- Wrong: the register row's events.py dict cites are dead (:546-601 at the pin) and the row's
+  box was CHECKED (e0dd810a7, 2026-10-14) while both cites still live — the deadness is
+  post-check drift.
+- Evidence: 75ea5ee10 contributed +11 dict-start/+31 dict-end/+1 allowlist (NOT "+35" — the
+  +35 is the ALLOWLIST net shift); dict 501-536 (merge) → 546-601 (pin); allowlist 142→177;
+  full death at 6db72093c 2026-10-16; the row must NOT attribute deadness to #7070 (born-loose
+  only at start — a 2-line leading context disclosed in 1fb9b87d1's message; the end was
+  AST-exact at merge; damage owned by the post-merge movers 361199a99 + 6db72093c primary,
+  834d51097 -1 secondary). Gate: check-uplevel-cites.py SCAN=["rules.md"] — packages/*.md
+  file:line cites are outside its grammar AND its scan set; auditor-eyed. Pin truth:
+  events.py :142 (r223 docstring), :177 (frozenset def), :198 (close), :546 (event_dict = {),
+  :577 ("notes": event.notes,), :601 (}).
+- Refuted=false (NOT-REFUTED; verdict 7070_c9.md).
+- Fix: repair the register row (fix attributed to the register repairer, not #7070). Size S;
+  docs.
+- Owner: pending (write-time).
+
+### Q-073 · low · frontend/tests/golden/operations/admin-logging.spec.ts · #7074
+
+- Wrong: nine stale cites (:3 :16 :25 :101 :119 :147 :168 :171-172 :177-178), four badly —
+  junit_results :853→:1188 (:853 is `return [value]` in _strings), toast :166→:178 (pin :166
+  is toast.error('Failed to change log level'), :178 is toast.success('Log retention
+  updated')), loader catch :129-131→:141-143, fetchConfig :86-127→:134-149.
+- Evidence: routes/system.py :2668 = detection_confidence_threshold if, :2680 = cache_clear,
+  :2710 = AuditService.log_action (TRUE at merge, broke post-merge via #7205); schemas
+  log_retention_days Field :559-564 (not :560-565); passed-mapping :1203-1207; spec:3's :379
+  cite WRONG AT BIRTH (merge :379 = F-194 row, F-195 at :380); api.ts:2102 leg also stale
+  (updateConfig now :2053) — underclaim folded into the row; :172 carries both system.py
+  numbers; spec blob 27b719aa2 (merge) → 3b48b5f2b (pin). Gate: guard.ts runtime-only,
+  check-uplevel-cites.py scopes docs/uplevel only, no docs-drift rule for tests/golden —
+  validated by NOTHING.
+- Refuted=false (NOT-REFUTED; verdict 7074_c0.md).
+- Fix: re-derive all nine + the api.ts leg. Size M; frontend.
+- Owner: pending (write-time).
+
+### Q-074 · low · backend/tests/unit/scripts/test_ci_compose_cap_drop_bootable.py:247 · #7074
+
+- Wrong: cites system.py:2572 for the guard list; the guard list is at :2554-2559 and :2572
+  is a blank line inside _write_runtime_env's docstring (def :2570).
+- Evidence: net regional shift +8 (hunk arithmetic +19-6-5; the "~80 lines" was a whole-file
+  diff count); pin :2545-2556 grazes the guard head (docstring :2545-2549 + getenv/resolve
+  :2550-2551 + comment/allowed_bases/first two entries :2552-2556), not purely docstring;
+  TRUE at merge 5b395461f (:2545 = "# Allowed directories", :2552 startswith if, :2572 =
+  mkdir); test blob 8768beb8947… identical merge=pin; aed03e1ae ancestor of merge;
+  d6344e031's system.py blob 75fecb572 = the pin blob. Severity low fair (symbols named in
+  prose :233/:247-248).
+- Refuted=false (NOT-REFUTED; verdict 7074_c1.md).
+- Fix: re-point to :2554-2560. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-075 · low · feature-inventory F-022 (5 cites) · #7077
+
+- Wrong: one defect, two carriers — the same five stale F-022 cites as Q-093, attributed here
+  under #7077 (its diff touches the same surface).
+- Evidence: Depends at :1639 RESOLVED (route 1637-1638, Depends :1639); guard :1040-1041;
+  the rowCites gate is existence-only; 6b691302d's blind -8 was wrong at its own tree;
+  834d51097 is the first breaker; movers exactly {834d51097, d6344e031, e2d65dda3, 516cffc98};
+  the row's own prose admits un-policability.
+- Refuted=false (NOT-REFUTED; verdict 7077_c0.md). Dedup twin of Q-093 — resolved with
+  Q-093's fix; the full template lives there.
+- Fix: see Q-093.
+- Owner: see Q-093.
+
+### Q-076 · low · frontend/tests/golden/rate-limit.spec.ts · #7077
+
+- Wrong: four stale cites (:31 :33 :147 :570), one PAST EOF — SystemMonitoringPage.tsx:751;
+  the file is 745 lines at the pin, so :751 is unresolvable.
+- Evidence: fix anchor :2116 or :2113; api.ts:901 = empty line; second past-EOF cite in
+  batch 3 (cf. Q-089's config.py:3497-3500).
+- Refuted=false (NOT-REFUTED; verdict 7077_c1.md).
+- Fix: re-derive the four; anchor the EOF case. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-077 · low · docs/uplevel/packages/frontend.md :149/:410 · #7077
+
+- Wrong: queryClient.ts:249-297 is a dead range — the symbol is absent at the merge tree
+  (wrong-at-birth) and at the pin; exact only at the diff base 8a49ae7ac.
+- Evidence: pin :247-251 queryKeys docblock / :295-299 factory; the historical-predicate
+  defense REJECTED.
+- Refuted=false (NOT-REFUTED; verdict 7077_c2.md).
+- Fix: re-derive to :247-251/:295-299. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-078 · low · frontend/src/services/queryClient.ts:123 · #7077
+
+- Wrong: the @example says 60000ms while MAX_RETRY_DELAY_MS=30000 (:75) — and the example
+  exercises the capped path.
+- Evidence: test asserts 30000; blob 6b57aae6 identical pin=merge.
+- Refuted=false (NOT-REFUTED; verdict 7077_c3.md).
+- Fix: fix the example value. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-079 · low · DashboardConfigModal.tsx:110 + DashboardConfigModal.test.tsx:468 · #7086
+
+- Wrong: both cite DashboardLayout.tsx:268 for mainWidgets; :268 is topWidgets since
+  d6344e031 (:276 is mainWidgets, declared :271).
+- Evidence: scope wider than the item — the same drifted :268 anchor also sits in
+  gpu-stats.spec.ts:199/:246 (held-as-written; re-check in batch 4) and
+  pipeline-telemetry.spec.ts:192 = 5 carriers total; one fix sweeps all five. Merge of
+  auditor candidates C1+C2 (one drifted anchor, two test carriers).
+- Refuted=false (NOT-REFUTED; verdict 7086_c1.md).
+- Fix: one fix sweeps all five carriers. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-080 · low · frontend/tests/golden/pipeline-telemetry.spec.ts:16 · #7086
+
+- Wrong: stale cites with TWO first-mover stories kept distinct — api.ts 2119→2070-2072
+  (first mover 2099deab6 [r130f]), schemas 853→862 / 799→808 / 945-948→951-954 (first mover
+  3a1bc8fdf [r130b]; fix-span 862-889 short — runs to ~:932), layout 268→276 / 377→385
+  (first mover 4238c6260 [r130f]) — NOT d6344e031 for any leg.
+- Evidence: spec author 3d14e7da2.
+- Refuted=false (NOT-REFUTED; verdict 7086_c3.md).
+- Fix: re-derive all cites. Size M; frontend.
+- Owner: pending (write-time).
+
+### Q-081 · low · feature-inventory F-042/F-040 rows :383/:385 · #7086
+
+- Wrong: the :268→:276 drift reaches the inventory rows; the mints-sentence author is
+  8f39f6102, not c997b0b7d.
+- Refuted=false (NOT-REFUTED; verdict 7086_c4.md).
+- Fix: re-anchor both rows. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-082 · low · feature-inventory F-042 works-cell · #7086
+
+- Wrong: the works-cell flip; '**works** waits on the real tier' = 57 hits repo-wide — a
+  systemic pattern, not this PR's coinage.
+- Refuted=false (NOT-REFUTED; verdict 7086_c5.md). Owner real-tier batch (5db3c56f7)
+  contributed the phrasing.
+- Fix: sweep the phrase repo-wide. Size M; docs.
+- Owner: pending (write-time).
+
+### Q-083 · low · feature-inventory F-040 '9 commits behind' · #7086
+
+- Wrong: authoring-tip miscount — the true count is 7 (97c602ae9..1132ab8c9); exactly one
+  9-shaped number exists (97c..8f39f6102 = 9).
+- Refuted=false (NOT-REFUTED; verdict 7086_c6.md).
+- Fix: correct to 7. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-084 · low · frontend/tests/golden/config-modal.spec.ts:13 · #7086
+
+- Wrong: four stale anchors (:297 vs testid :306; :147-150 Save vs :152; :152-155 Cancel vs
+  :158-161; :337-342 vs :346) and the PR's own irony — c997b0b7d moved handleSave
+  :142→:152 / handleCancel :148→:158 without re-deriving, and 5047db829's spec diff is
+  exactly the one-line :268→:278 fix.
+- Evidence: corrections folded: the layout-shift mover is 4238c6260 [r130f], NOT
+  d6344e031's own merge diff (diff bf82aa0ca→d6344e031 empty); ":154-234 never matched" was
+  overbroad (reset/cancel/save WERE in-span at authoring); :297/:337-342 defensible-at-birth
+  (testid one line after the cited coord); :147-150/:152-155 wrong at authoring too (Save
+  141-145, Cancel 147-151), the PR's +10 shift made them 5 staler; only the Switch cite :278
+  was re-derived correctly; authoring 5a3c8bbf1 (2026-10-11); spec blob ca72d0146
+  pin=boundary.
+- Refuted=false (NOT-REFUTED; verdict 7086_c7.md).
+- Fix: re-derive all four. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-085 · low · docs/architecture/decisions.md:188 · #7088
+
+- Wrong: cites config.py:1942-1982 for the fast-path Field (real :1739, banner :1729-1732,
+  validator ends :1767) and prod.yml:643 (real :672) — authored-live-rotted: written against
+  a live tree that moved under the author before merge.
+- Evidence: movers af7690bfd + 8c3c8a7f6 (both [B3.3], 2026-10-18 14:29:48) took 1951→1747→1739
+  (intermediate :1748); prod.yml first mover d6344e031, then 51a2738f0 [r243] 2026-10-16
+  659→672; merge 81b40861a 2026-10-14; the item was authored on the r130b branch side
+  (3a1bc8fdf2); the status claim still holds at the pin.
+- Refuted=false (NOT-REFUTED; verdict 7088_c1.md).
+- Fix: re-point both. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-086 · low · docs/architecture/configuration.md:174 · #7088
+
+- Wrong: same root as Q-085 — the Source line at :174 cites the same stale span; the true
+  block is 1730-1770, fields-only 1739-1754.
+- Evidence: both 3a1bc8fdf and 3a1bc8fdf2 carry the identical Source line at :174.
+- Refuted=false (NOT-REFUTED; verdict 7088_c2.md).
+- Fix: re-point. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-087 · low · docs/uplevel/packages/backend.md :377/:383 · #7088
+
+- Wrong: F-187/190/191 cite config.py:1952→:1740 and F-089 cites jobs.py:296-299→:291-295 —
+  drifted-post-merge on the jobs.py leg.
+- Evidence: ONE jobs.py mover — 6b691302d (2026-10-18 01:32, ~206 lines deleted);
+  af7690bfd touches jobs.py 0 times; pin jobs.py :291 = job_type Query, :296 = queue Query;
+  the UR-181 counter-read rejected.
+- Refuted=false (NOT-REFUTED; verdict 7088_c3.md).
+- Fix: re-point all (one fix PR sweeps Q-085/Q-086/Q-087 + the jobs.py repoint). Size S;
+  docs.
+- Owner: pending (write-time).
+
+### Q-088 · low · backend/tests/unit/test_config_fast_path_flag.py :63-64/:75-76 · #7088
+
+- Wrong: schemas settings_api.py:49 is WRONG-AT-BIRTH (:49 fast_path_enabled bool, :53
+  threshold, :56 le=1.0 — at pin AND merge); config.py:3497-3500 for get_settings (real def
+  :3171, span 3170-3176 correct; :3495 at merge with no @cache there; 3176 lines pin vs 3500
+  merge).
+- Evidence: mover chain af7690bfd (3500→3211) → 8c3c8a7f6 (→3199) → 9fcb5f453/a30a502df
+  (→3176); test blob 805920c8c identical.
+- Refuted=false (NOT-REFUTED; verdict 7088_c4.md).
+- Fix: re-derive. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-089 · low · frontend/tests/golden/test_settings_save_roundtrip.py :19/:142/:171 · #7088
+
+- Wrong: three dead cites — :3497-3500 is past EOF (config.py had 3176 lines at the pin;
+  second past-EOF carrier in the batch), :2370 is blank (was queue_max_size), :2703 is the
+  CA-cert description (was clip_generation_enabled).
+- Evidence: queue_max now :2098, clip now :2431; authored 9d284659c pre-boundary, carried in
+  by d6344e031/#7205; mover af7690bfd first AND only content mover of all three coords;
+  misdirection far-field; blob 681449a1bb identical.
+- Refuted=false (NOT-REFUTED; verdict 7088_c5.md).
+- Fix: re-derive to :2098/:2431/:3170-3176. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-090 · low · docs/architecture/critical-paths.md:129 · #7088
+
+- Wrong: cites vlm_analyzer.py:690-705 for the verification fn — pre-existing-stale-kept;
+  the real fn is :898-914 (next def :915); :690-705 is session.add(event)/EventVerification
+  code in another method.
+- Evidence: at the merge the fn was :801-817; it moved 801→898 between f8a7908fa (:803) and
+  5d990377e (#7182 merge, Oct 15 16:25, :898); the PR's doc blob 3bd933962 is identical
+  d6344e031→pin; post-7088 doc movers 365ce75d4/427b8ba79/be8627161 keep the stale text.
+- Refuted=false (NOT-REFUTED; verdict 7088_c6.md).
+- Fix: re-point to :898-914. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-091 · low · docs/uplevel/packages/batch-aggregator.md:24 · #7088
+
+- Wrong: the table row says BATCH_MAX_DETECTIONS=100; config.py:972-973 has default=500
+  ge=1 le=10000 (service binds settings.batch_max_detections :202/:587) — six other pin docs
+  say 500, so this is an outlier, not ambiguity.
+- Evidence: the default's base/merge location :1028 (pin-relative :973); doc blob 706f0f379
+  → 0e2eaedb4 = pin — the PR rewrote the table (added the FAST_PATH_ENABLED row, flipped
+  0.95→0.9, object-types) but carried the row through unchanged at line 24.
+- Refuted=false (NOT-REFUTED; verdict 7088_c7.md).
+- Fix: fix the row to 500. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-092 · low · docs/uplevel/packages/batching-logic.md :103/:124 · #7088
+
+- Wrong: cites the dead symbol _is_fast_path_eligible (grep rc=1 — dead at the pin); the
+  real gate is _should_use_fast_path :1186 (checks self._fast_path_enabled :1216 first,
+  optional args :1219), _process_fast_path def :1227 (not :1218); call sites :557/:567.
+- Evidence: the PR edited the snippet body (added the self.fast_path_enabled conjunct as
+  context) and the table, but left the dead name; doc blob 92452ea48 (base 60ca6305c) →
+  6878d3d77 (merge = d6344e031 = pin); refuter softening folded: the doc uses bare
+  `self.fast_path_enabled` vs the backend's `self._fast_path_enabled` (:1216).
+- Refuted=false (NOT-REFUTED; verdict 7088_c8.md).
+- Fix: replace the symbol + re-point. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-094 · low · docs/architecture/frontend/state-management.md:367 · #7103
+
+- Wrong: the comment-over-`set()` describes a timer branch (:106-118) that no longer exists
+  after #7103 deleted secondsUntilReset — the final set is :125, _timerId at :47/:92.
+- Evidence: the doc comment is NOT a verbatim carry of the code; blob b1f8fe921 merge=pin;
+  pre-existing at merge^1.
+- Refuted=false (NOT-REFUTED; verdict 7103_c1.md).
+- Fix: rewrite the comment. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-095 · low · scripts/test_orchestrator_engine_socket.py:3 · #7114
+
+- Wrong: the docstring's "451 lines" parenthetical was false at its OWN merge — added within
+  #7114 while ops.md had 643 lines and [r162] sat at :456 (pin: ops.md 993 lines, [r162] at
+  :508-522).
+- Evidence: mechanisms 1+3+2 (authored-false, live-rotted, and one more); [r151] :452;
+  prod.yml :502/:1613; config.py enabled :118 / compose_file :133; feature_check :604-608.
+- Refuted=false (NOT-REFUTED; verdict 7114_c1.md).
+- Fix: fix the parenthetical. Size S; scripts.
+- Owner: pending (write-time).
+
+### Q-096 · claim · scripts/uplevel/reid_real_tier.sh S5 :794-799 · #7125
+
+- Wrong: S5's universal "NO plan" contradicts S3's refusal shape (:769-778),
+  export_reid.py:1008-1019 ("Do NOT unlink here"), and scripts/uplevel/AGENTS.md :257-258 vs
+  :262-263 — and the refusal still fails via the table's stage-4 unknown exit 2.
+- Evidence: start_gateway poll 60×5s (:369-380); authored f99058805 [r157] (not 7b814c4ae);
+  blobs pin=merge; false at birth — the mechanism-3 flagship.
+- Refuted=false (NOT-REFUTED; verdict 7125_c0.md).
+- Fix: align S5 with S3/export/AGENTS. Size M; scripts.
+- Owner: pending (write-time).
+
+### Q-097 · claim · test_monitoring_key_field_ceiling.py docstring + A-family census · #7135
+
+- Wrong: the docstring's cites are dead at the pin — events.py :441/:564/:566/:452-455 (from
+  :407/:530/:532/:420-421), conftest :1729 (from :1755), ci.yml :2052-2053/:2058-2059 (from
+  :2036/:2042) — and the A-family dead-coordinate census rides this row.
+- Evidence: authored head cd9c579f5 verified at both 75ea5ee10399 and cd9c579f5; pin blob
+  09cf5fc893 vs authoring 69b9dd0604, cite text byte-identical. A-family (first breaker
+  #7135): :282×7, :569×3, :427, :468, :542 — joins here with 7070-C5/C6/C9.
+- Refuted=false (NOT-REFUTED; verdict 7135_c1.md).
+- Fix: re-derive the docstring + sweep the A-family. Size M; backend.
+- Owner: pending (write-time).
+
+### Q-098 · low · backend/tests/unit/api/test_api_key_scopes.py :27-28 · #7135
+
+- Wrong: "stayed-unscoped stance (2)" — "(2)" is an AMENDMENT NUMBER misread as an instance
+  count; the section comment at :702 carries the same stale framing (second site the
+  refuter found).
+- Evidence: half-true — "flag-off returns" survives.
+- Refuted=false (NOT-REFUTED; verdict 7135_c2.md).
+- Fix: fix both sites. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-099 · low · scripts/vulture_whitelist.py :37-38/:42 · #7135
+
+- Wrong: 'seven bodies' vs 11 at the pin (7 in TestScopedKeyFieldCeiling + 4 in
+  TestRecommendationsSuggestionCeiling); the :42 stamp "(measured 2026-10-15, run
+  38671466660 job 116218984106, 7 sites, 100%)" is attached to the CI-run sentence.
+- Evidence: 7 was true at merge 75ea5ee10399; blob 27df4f858d merge=pin.
+- Refuted=false (NOT-REFUTED; verdict 7135_c3.md).
+- Fix: update the count + restamp. Size S; scripts.
+- Owner: pending (write-time).
+
+### Q-100 · low · backend/api/routes/events.py :587-588 + ceiling test :93 · #7135
+
+- Wrong: "0 hits for verification under monitoring/" — there are 7 matching lines (6
+  alerts.yml + 1 AGENTS.md:108 tlsSkipVerify); the word-boundary variant leaves 2 lines
+  standing; none consumes the events-API verification field, so the substance holds.
+- Evidence: mirrored at test_monitoring_key_field_ceiling.py:93; false at merge too
+  (identical counts at 75ea5ee10399); comment byte-identical merge→pin.
+- Refuted=false (NOT-REFUTED; verdict 7135_c5.md).
+- Fix: qualify the needle at both sites. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-101 · low · feature-inventory F-019 :355 · #7139
+
+- Wrong: App.tsx:275 → the real /operations route is :293 (18 off); #7139's own code commit
+  3925f2094 WORSENED the drift while its docs commit ea5fbd923 re-anchored five OTHER rows
+  (F-002/F-020/F-024/F-034/F-238) and skipped F-019.
+- Evidence: corrected 5-step chain 275→[r132] 62c72165e 274→[r130f] 453bec830 285→[#7139 own
+  r133] 284→[r204] 70c5d96ae 293; pin :275 = EventDeepLinkRedirect; drift instrument
+  frontend/scripts/feature-inventory-cite-drift.mjs is HAND-RUN (no ci.yml/package.json
+  wiring); ci.yml validate_docs excludes docs/reference.
+- Refuted=false (NOT-REFUTED; verdict 7139_c1.md).
+- Fix: re-anchor. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-102 · low · feature-inventory F-021 :357 · #7139
+
+- Wrong: App.tsx:342 was off-by-one FROM BIRTH (authoring 4238c6260 mount :341, cite :342 =
+  the </BrowserRouter> line); stale by 19 at the pin.
+- Evidence: pin :342 = heatmaps Route, :361 = <ProductTour />; nesting verified (:348 inner
+  </Routes>, :355 </ProtectedRoute>, :358 outer </Routes>) — :342 IS inside both, :361
+  outside both, the exact opposite of the contrast; first breaker [r130f] 453bec830 +11 (no
+  re-anchor); #7139's 3925f2094 (-3 InstallPrompt) kept it stale (mount :351 at merge); the
+  semantic content is TRUE of :361 — a pure re-anchor fix.
+- Refuted=false (NOT-REFUTED; verdict 7139_c2.md).
+- Fix: re-anchor to :361. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-103 · low · feature-inventory F-020 :356 · #7139
+
+- Wrong: span 251-334 with open/close asymmetry — the open is exact at the merge (#7139's
+  re-anchor was a mechanical -1 shift) but the close was NEVER exact in the row's lifetime
+  (inherited shortfall); the true span is 260-353 (pin :251 = <ProtectedRoute>, :260 =
+  <AmbientStatusProvider>, :353 = </AmbientStatusProvider>).
+- Evidence: at the merge 1e1c241ed the provider spans 251-344 (close already 10 short); base
+  1ab5d084d cites 252-335; mover 70c5d96ae widened the close drift 10→19; the cited span
+  still CONTAINS the provider open (260 ∈ [251,334]) — a misstated extent, not a total miss;
+  "landing the reader on the auth-gate region" overstated.
+- Refuted=false (NOT-REFUTED; verdict 7139_c3.md).
+- Fix: re-derive the span. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-104 · low · feature-inventory F-238 :634 · #7139
+
+- Wrong: App.tsx:251 was correct at its own merge (:251 = <AmbientStatusProvider> at
+  1e1c241ed) and was re-staled by [r204] 70c5d96ae (net +9: ConnectionStatusProvider wrapper
+  - an 8-line comment), ancestor of the pin; shares its mover with Q-103 — F-020 (:356) and
+    F-238 (:634) are the only 25x cites remaining at the pin.
+- Evidence: AmbientStatusProvider.tsx:82 not re-checked.
+- Refuted=false (NOT-REFUTED; verdict 7139_c4.md).
+- Fix: re-anchor both with Q-103's fix. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-105 · low · feature-inventory F-034 :378 · #7139
+
+- Wrong: the mount fix (App.tsx:272-277 Route block, element :275 — path=/element= interior
+  per the refuter's correction from 273-276) was re-staled by 70c5d96ae (+99/-89 wrapper +
+  comment above Routes); the catch-all :347 remains exact.
+- Evidence: both exact at the merge 1e1c241ed (block 263-268, catch-all 338); the
+  Suspense-wrapper rescue fails — the wrapper is INSIDE the cited span itself; pin :338 =
+  /face-recognition opening, :263 = Suspense.
+- Refuted=false (NOT-REFUTED; verdict 7139_c5.md).
+- Fix: re-anchor. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-106 · low · frontend/src/**tests**/pwa-install-prompt-retired.test.tsx:58 · #7139
+
+- Wrong: "Devtools +10" (not +9: 358→368) — the clause was true when authored (App.tsx:358 =
+  ReactQueryDevtools at the merge 1e1c241ed) and is false at the pin (:358 = </Routes>,
+  :368 = Devtools), in the very sentence teaching why bare cites can't be trusted; the
+  "Now = as of merge" reading does NOT defuse it.
+- Evidence: the revision-qualified cite 1f6405610:App.tsx:358 = <InstallPrompt /> is still
+  correct; App.tsx blob 90735aa45 at the pin (70c5d96ae rewrote 2cb89db09→90735aa45); PR
+  #7230's number not independently confirmable in the shallow clone but [r204] label +
+  timing check out.
+- Refuted=false (NOT-REFUTED; verdict 7139_c6.md).
+- Fix: re-word to a revision anchor or drop the bare cite. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-107 · low · frontend/tests/golden/operations/batch-statistics.spec.ts:19-94 · #7145
+
+- Wrong: ~14 stale cites across 5 files — system.py 4105→4093, 4127-4133→4115-4121,
+  4032→4020, 4130→4118, 4148-4149→4136-4137, 4151→4139-4140, 4164→4152, 4175→4163;
+  vlm_analyzer 517→521; pipeline_workers 1204→1174; config 1027→973 (Field at :972, not
+  :973); 980-983→925-928; main.py worker registration→pipeline_workers 1583-1598 (main.py
+  has 0 register_worker, :997 getattr); stats-row 146→230; harness.ts:17-20→
+  tests/golden/harness.ts:60.
+- Evidence: authored by #7145, exact at its merge 096ae1bd9, displaced by
+  #7183/#7182/#7244/#7258/#7191/[r148a]; the stats-row mover is be8627161 (not [r148a]
+  10d00a96e — imports only; [r148a] keeps the harness-fold); the 4-key pipeline span is
+  :4116-4120 (the item's :4115-4121 defensible as a statement span); PR-level attributions
+  plausible but the in-window carriers are nameable as be8627161, #7243 (134bf412e, pw -30),
+  and registration below the shallow boundary.
+- Refuted=false (NOT-REFUTED; verdict 7145_c1.md).
+- Fix: re-derive all. Size M; frontend.
+- Owner: pending (write-time).
+
+### Q-108 · low · frontend/tests/golden/operations/batch-statistics.spec.ts :56-57 · #7145
+
+- Wrong: "checks every 10 s" is a self-authored error — the constructor default is 10.0 but
+  the manager passes settings.batch_check_interval_seconds, default 5.0 (config.py:965-966
+  `batch_check_interval_seconds: float = Field(default=5.0, ge=1.0, …)`, pw:1585); false at
+  BOTH the merge and the pin (merge :1619 = `check_interval =
+settings.batch_check_interval_seconds`).
+- Evidence: no env/compose override; repo docs say 5 s; #7182's provenance is +41/-14 gross
+  +27 net, displacing :1204→:1231 DOWN — "#7182 -30" wrong; the sibling config.py:980-983 is
+  also stale (field now :925) — same sentence, not claimed by the item.
+- Refuted=false (NOT-REFUTED; verdict 7145_c2.md).
+- Fix: fix to 5 s. Size S; frontend.
+- Owner: pending (write-time).
+
+### Q-109 · low · feature-inventory F-135 :518 · #7145
+
+- Wrong: get_pipeline_status :4253→:4241 (mover a4916e3ea, #7183 [UR-48], -12); authorship:
+  #7145 re-anchored :4185→:4253 itself; NO wired gate checks feature-inventory.md line cites
+  at all (ci.yml:391-397 line_bounds tier covers docs/decisions|deployment|getting-started|
+  operations|ui only; docs/reference excluded, grounds_sweep.py:33-35; the inventory
+  instruments — summary-arith, witness — never read line coords; "cannot catch" true a
+  fortiori); "#7183 the census PR" nickname not corroborated in-tree (commits say [UR-48],
+  ruling 168 item 3).
+- Evidence: severity low honest — the cite lands inside the same function; the def-line
+  convention anchor is still 12 off (the row's own convention: "batch_aggregator.py:1031,
+  def :266").
+- Refuted=false (NOT-REFUTED; verdict 7145_c3.md).
+- Fix: re-anchor. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-110 · low · feature-inventory F-135 witness clause · #7145
+
+- Wrong: "spec bytes differ by comment only" is now false — the harness fold
+  ('./harness'→'../harness' at :116 via [r148a] 10d00a96e) and the describe title's
+  '(F-135)' tag at :142 via [r218] 08030119d changed bytes; the correct strength is
+  "comment-only-equal".
+- Evidence: run 38671466660's predecessor run 38664676455 (head 9c71e27639, conclusion=
+  failure on uplevel/r134-retire-batch-history-views); run-head spec c5b38a851; 56 comment
+  lines differ, 159 non-comment identical each side; the claim was true at the merge
+  (code-only diff run-head vs merge = empty); the mover walk is exact (3 movers incl. the
+  boundary d6344e031; r218 hidden from the plain walk = the shallow-graft artifact); pin
+  :116/:142 byte-confirmed, blobs 12212c335 vs aa0cf8f39.
+- Refuted=false (NOT-REFUTED; verdict 7145_c4.md).
+- Fix: correct the strength. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-111 · claim · backend/tests/integration/test_soft_delete.py :209/:218/:251 · #7146
+
+- Wrong: four dead docstring cites — born-TRUE at the merge d57362ff0 (ea4f36209 authored):
+  :790 right-endpoint/wrong-line, :941 wrong-endpoint (worst), :606 wrong-function; the
+  B-family dead-coordinate census anchors here.
+- Evidence: mover arithmetic 606+31-1+22+13 = 671; 790→855; 941→1006; schemas 368-369→366-377
+  by e2d65dda3 -2; corrections folded: drop b5c6fea3c (rename-only); "[r95] predates the
+  merge" is timestamp-only; d6344e031 is the graft artifact. B-family (first breaker #7146):
+  :1952×5, :2010×2, :719, :2430/:2512, :2139, :1424, :1793, :2703/:2726×3/:2745 — folds here
+  with 7070-C2 siblings and 7070-C3.
+- Refuted=false (NOT-REFUTED; verdict 7146_c1.md).
+- Fix: re-derive the docstring + sweep the B-family. Size M; backend.
+- Owner: pending (write-time).
+
+### Q-112 · low · backend/api/routes/events.py:691 · #7146
+
+- Wrong: cites ci.yml:692 for the mypy check; the mypy backend/ run is at :772 at the pin.
+- Evidence: total drift +80 across SEVEN landings: +1 (r181/#7164, first mover 1cb31cab2 —
+  merged via d62b08eb8 08:43, reached main ~6h earlier) +43 (r162/#7114: ac84fd7d9 +7,
+  122365750 +4, 8b764012e +32) +30 (r197/#7186) +3 (r218/#7193) +1 (r193/#7175) +1
+  (O3.6/#7251) +1 (B3.3 3513732ef main line); hunk arithmetic independently confirms +80;
+  authored 57174acf0 18:25, merged 23:13; #7146 didn't touch ci.yml (blob identical
+  468eeee1 vs d57362ff0); the comment block is verbatim at the pin :687-692, merge :622-627
+  IDENTICAL; pin ci.yml :691-692 = "Verify installation"/pytest-import check, mypy backend/
+  at :772 (unique hit); repo-wide ci.yml:692 = exactly ONE carrier; DISTINCT from 7135-C1's
+  ci.yml cites — different region.
+- Refuted=false (NOT-REFUTED; verdict 7146_c2.md).
+- Fix: re-point to :772. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-113 · low · backend/tests/integration/test_soft_delete.py:667 · #7146
+
+- Wrong: the vacuous stats leg asserts 200 + membership (:668 docstring, :673-675 seeding,
+  :678 GET, :679 200-assert, :683 conceding comment, :684 membership-assert, next def :686)
+  while the real leg (:204-253) carries THREE aggregates (total_count_query ~:701-705,
+  risk_level_query ~:711-714, camera_stats_query :730-734 — "for condition in filters" in
+  each) + the cross-view /api/events pagination.total (:248-253).
+- Evidence: the route filter seed :692 is shared by all three; the response dict :756-761
+  carries the literal "total_events" key; the vacuous leg was authored ee5a050fa 2026-01-09
+  pre-window (with 1c0ec19a0/92f6451b5 same-message commits); the conceding comment's
+  premise is FALSE — the deterministic ==2 assert was available and declined ("didn't
+  check", not "couldn't check"); keeper = #7146 — the fix is deletion of pre-existing rot,
+  mechanical. No wired gate flags vacuous asserts (ruff select list pyproject.toml:354-371;
+  the coverage gate ci.yml:1000-1025 is percentage-based over unit tests only — a vacuous
+  test ADDS coverage, can never trip it). The deleting PR must re-check the file's internal
+  cites after the 18-line block goes (ea4f36209 precedent); the vacuous leg sits at :775 at
+  the boundary, :667 at the pin; conftest.py's client fixture runs _cleanup_test_data()
+  (grep hit :27) — deterministic counts supported.
+- Refuted=false (NOT-REFUTED; verdict 7146_c3.md).
+- Fix: delete the 18-line block; re-check internal cites after. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-115 · low · docs/superpowers/plans/2026-09-27-a5500-vlm-bringup-checklist.md:58 · #7156
+
+- Wrong: the first mover is 2467cea06 (2026-09-28 15:07, def→2609, test→107), NOT
+  734f5e409 (2026-09-29 00:17, second mover →2561/:110); both r8-era, so "broken before this
+  PR" stands; the measured gaps are 2/36/4, not "2-400+".
+- Evidence: the row in its pinned form was authored by the 09-27 re-render; a7dc48daf's
+  original had different cite forms.
+- Refuted=false (NOT-REFUTED; verdict 7156_c2.md).
+- Fix: fix the cites + the gap numbers. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-116 · low · docs/superpowers/plans/2026-09-25-a5500-bringup-checklist.md:48 · #7156
+
+- Wrong: same first mover as Q-115 (2467cea06 — one commit, two rows); .env.example:58 was
+  already stale AT ROW ENTRY: a0105b630 (#6678 squash) already had TMPDIR at :57 (58→57
+  pre-151ccc058), the authoring branch still had 58, then e40d69f56 took 57→55.
+- Evidence: TMPDIR at :55; system.py defs :2544/:2570; test_system_routes.py defs
+  :110/:2414/:2426 — the fix cites three defs though the row names four tests.
+- Refuted=false (NOT-REFUTED; verdict 7156_c3.md).
+- Fix: fix the cites + TMPDIR :55 + the three test defs. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-117 · low · scripts/a5500_precheck.py :967-975 · #7156
+
+- Wrong: the generator's test expectations (:576/:598) diverge from the rendered output
+  (:577/:599) — a future render would regress the fixed rows; the disposition SHA
+  6186718407 is UNRESOLVABLE (git cat-file fatal) — the substance lives in 7ad0fd8fd's own
+  commit message ("scripts/ is ops's cell…"): cite the commit, not the SHA.
+- Evidence: system.py:2508 mover attribution WRONG — at e0414f8ca _runtime_env_path was
+  already at :2610; walk 2610→2561 (734f5e409)→2496 (e40d69f56)→2537→2544; neither named
+  mover produced :2508; "predate the PR" half still true (stale at f9a18d028); generator
+  blob 30bc7f473 byte-identical f9a18d028→pin.
+- Refuted=false (NOT-REFUTED; verdict 7156_c4.md).
+- Fix: sync the expectations + cite the commit. Size S; scripts.
+- Owner: pending (write-time).
+
+### Q-118 · low · backend/tests/e2e/test_pipeline_integration.py :121-122 · #7156
+
+- Wrong: the header comment "mock_get refuses GET on these" is a blanket the fake doesn't
+  honor — the MockPipeline.execute get-branch (:249-259) is unguarded: it answers
+  batch_data.get(key) with no list_keys check; mock_rpush writes list_data only, so a
+  pipelined GET of an rpushed key returns None → _parse_detections(None) = [] → a
+  well-formed detection_count=0.
+- Evidence: the guard covers only the wrapper-level GET seam (mock_get :144-147 WRONGTYPE
+  raise); the author consciously scoped the raise (:141-143 wrapper-level note) but the
+  header attributes can't-hide to "this fake" as a whole; the pre-hardening parent
+  (cd00c7261) had BOTH seams unguarded — the pipeline seam was never hardened; the comment
+  sits at :121-122, not :118-121 (:118-119 are the batch_data/list_data dict declarations);
+  blob 84faf71ba f9a18d028=pin.
+- Refuted=false (NOT-REFUTED; verdict 7156_c5.md).
+- Fix: guard the get-branch or narrow the comment. Size S; backend.
+- Owner: pending (write-time).
+
+### Q-119 · low · five qualified carriers citing ai_audit.py:194 · #7157
+
+- Wrong: docs/architecture/ai-pipeline-current-state.md:163, docs/vss-integration/
+  15-progress-since-the-design.md:125, 16-errata-2026-10-03.md:1751,
+  18-world-class-target.md:502, docs/vss-integration/history/17-closed-issues.md:15 cite
+  ai_audit.py:194 for the def; the pin's :194 is the decorator close paren, the def is
+  :195.
+- Evidence: chain — 702198999 [r129 undefer] 2026-10-13 shifted the def 193→194 →
+  eb7ce4431's blind +1 remap (its own import insert at ai_audit.py:22 landed the cite on
+  the parent-tree call lines :228/:274 while eb's own tree has calls at :229/:275) →
+  62a2d7eea repaired elsewhere; the errata's "(seven hits)" is separately stale; the grep
+  substance is true at :195 (12 hits).
+- Refuted=false (NOT-REFUTED; verdict 7157_c2.md).
+- Fix: re-point all five to :195. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-120 · low · docs/reference/backend-entry-points.md F-062 :413 · #7157
+
+- Wrong: F-062's relative :194 contradicts F-061's :195 two rows apart; 62a2d7eea rewrote
+  BOTH rows in the same field edit (:157→:158) and still left :194 — exactly F-062's :194
+  is false (:195 true); the commit message names the class verbatim.
+- Evidence: no gate scans docs/reference.
+- Refuted=false (NOT-REFUTED; verdict 7157_c3.md).
+- Fix: fix F-062 to :195. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-121 · low · docs/vss-integration/17-action-plan.md:5653 · #7157
+
+- Wrong: :228/:274 correct-at-remap, born-stale-by-later-drift — born at 31551704a
+  (2026-10-03, [r213-era research refresh]) TRUE at birth (:227/:273); eb7ce4431 is the
+  remapper, not the author; the calls are at :229/:275; "one-short even pre-remap" is TRUE
+  at the boundary vantage (702198999's shift 227→228 pre-merge) and FALSE at the birth
+  vantage; adjacent dead cites ride the fix (config.py:2707-2708 dead —
+  background_evaluation_enabled now :2573, default=True :2574; main.py:1054-1068 dead — the
+  evaluator boot deleted by 9fcb5f453 B3.1; BackgroundEvaluator retired, only
+  test_main.py:663-671 asserts it).
+- Evidence: gates skip 17-action-plan.md (check-uplevel-cites.py explicitly skips it;
+  check-vss-docs-currency.py doesn't resolve .py:LINE cites) — comment-only severity.
+- Refuted=false (NOT-REFUTED; verdict 7157_c4.md).
+- Fix: fix the whole bullet. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-122 · low · docs/reference/backend-entry-points.md:158 · #7157
+
+- Wrong: the prose `POST /batch` (:504) contradicts the file's own table :153 citing :534
+  (decorator :524, "/batch" :525, def :534); true only at authoring 5f3104335 2026-10-09,
+  stale since 702198999.
+- Evidence: the PR repaired the table cell and left the prose byte-identical — a same-pass
+  oversight; docs/reference is outside ci.yml validate_docs (:395).
+- Refuted=false (NOT-REFUTED; verdict 7157_c6.md).
+- Fix: re-derive the prose. Size S; docs.
+- Owner: pending (write-time).
+
+### Q-123 · low · feature-inventory F-104 :480 + F-129 :504 · #7157
+
+- Wrong: F-104 and F-129 cite system.py:4936 for get_model_zoo_status (real def :4992; :4936
+  = a continue); F-104's has_clip cite system.py:4839 is dead — has_clip lives at
+  backend/models/event_audit.py:37 (`Mapped[bool] = mapped_column(Boolean, default=False,
+nullable=False)`); :4839 is a blank inside get_model's docstring (:4831, GET
+  /models/{model_name}).
+- Evidence: the pin rows' main.py:1212 cites are TRUE (9fcb5f453 deleted 26 lines above
+  preload and remapped the cite); F-104 = exactly two dead cites (system.py:4936, :4839) +
+  two true (main.py:1212, ai_audit.py:477); F-129 = one dead (:4936) + one true (:1212);
+  the ai_audit.py:447→:477 remap was NOT rot-repair — :447 was dead in every visible tree
+  (true :460 at the boundary/merge-base), the remap tracked the PR's own +17 shift;
+  "Ruling 250.3" does not exist (ruling-map.md:265 records ruling 250 only; UR-89
+  non-blocking class); Side-B adjudication wins (disclosure ≠ repair: the PR rewrote 11
+  rows F-026/F-061/F-062/F-104/F-106/F-107/F-108/F-125/F-129/F-164/F-294 as minus/plus
+  pairs; the no-guess excuse collapses — the body printed the correct carrier
+  backend/models/event_audit.py:37 and didn't apply it; the PR's own practice contradicts
+  its carve-out: it grep-repaired backend-entry-points.md:829 :558/:576→:575/:593); the
+  body's disclosure coords :291/:359 were true at drafting 62a2d7eea, stale +197/+129 at
+  head; body 35,791 chars/35,792 bytes; PR diff instrument 4039c7047→b4164bb7f.
+- Refuted=false (NOT-REFUTED; verdict 7157_c7.md).
+- Fix: :4936→:4992 in F-104 AND F-129; :4839→backend/models/event_audit.py:37 in F-104.
+  Size S; docs.
+- Owner: pending (write-time).
+
+</details>
+
+## Batch 3 — medium templates
+
+### Q-093 · docs · medium · feature-inventory F-022 (5 cites) · #7103
+
+- Wrong: the feature-inventory's F-022 row — the rate-limit store's contract record —
+  carries five stale coordinate cites (api.ts:1045, :1197, :1060-1061, :2165; system.py:1626)
+  after the rate-limit route moved to system.py:1637-1638 (Depends at :1639; the guard list
+  at :1040-1041). 6b691302d's renumber (-8) was blind — wrong at its own tree; 834d51097 is
+  the first breaker. The row's doctrine line says "re-traced, not re-numbered" (:88); the
+  movers did the opposite. One defect, two carriers: #7077's Q-075 cites the same F-022 row —
+  resolved together, one fix.
+- Evidence: fix text — system.py route :1637-1638, Depends :1639, guard :1040-1041, the
+  update call at merge :1205; movers exactly {834d51097, d6344e031, e2d65dda3, 516cffc98};
+  rowCites gate existence-only (catches absence, not drift).
+- Refuted=false (NOT-REFUTED; verdicts 7103_c0.md + 7077_c0.md).
+- Fix: re-derive the five cites and re-anchor the row. Size M; docs.
+- Owner: pending (write-time).
+
+### Q-114 · backend · medium · backend/api/routes/system.py:4132-4135 · #7156
+
+- Wrong: the comment "add_detection rewrites these through the set wrapper
+  (batch_aggregator.py:641), which JSON-quotes them" is plural half-false — only
+  last_activity goes through the wrapper (:641); started_at is written raw via
+  _create_batch_metadata_atomic (batch_aggregator.py:427, `pipe.set(f"batch:{batch_id}:
+started_at", str(current_time), ex=ttl)`). The witness test asserts the split (test :173,
+  not :174: `not raw["started_at"].startswith('"')`) and "one call, two serializers" sits at
+  :155-157, not :171-172. False the moment it landed — parent 7a2aa8ca8 already had the
+  split. The PR body retracted the claim at 93976fd15 but the shipped comment kept it, and
+  it is still on main today. (Fix-note typo guard: the test's variable is "starte_at".)
+- Evidence: pin system.py:4132-4135 verbatim; batch_aggregator.py :427 and :641 verbatim;
+  witness test :173; authoring f9a18d028.
+- Refuted=false (NOT-REFUTED; verdict 7156_c1.md).
+- Fix: reword to singular ("last_activity goes through the set wrapper and is JSON-quoted;
+  started_at is written raw") and correct the internal cites. Size S; backend.
+- Owner: pending (write-time).
+
+## Batch 3 — process notes
+
+- Refutation-pass note (owner P2 item 2): one refuter returned NOT-REFUTED on a claim a
+  one-line grep disproves — the lesson from Q-054's re-issue applies to this batch's intake:
+  every refuter verdict was self-verified at the pin with the coordinator's own git commands
+  (`git show 41bc0fce7:<path> | sed -n '<line>p'`) before entering the sheet, and every
+  load-bearing coordinate checked out.
+- Concurrency disclosures: the cap "at most two audit subagents at once" (docs.md:450) was
+  exceeded three times: (a) 22:15Z — 3 auditors on #7145/#7156/#7157; (b) 02:15-02:44Z — up
+  to 4 refuters, one slot lost (7157-C4 died pre-verdict, was re-dispatched, landed
+  NOT-REFUTED); (c) 04:41-04:49Z — ~7.5-minute transient at 3 concurrent (no loss — all
+  three verdicts landed).
+- Shallow-graft hazard governed the whole batch: the repo is shallow at d6344e031
+  (parents:[]) — full hashes and pairwise blob diffs throughout, never merge-base walks;
+  r218 is hidden from plain walks (the 7145-C4 mover walk needed it).
+- HOLD: no batch-4 sheet work and no new [r262] claims until the owner rules on batch 3
+  (owner continue 6275088190).
