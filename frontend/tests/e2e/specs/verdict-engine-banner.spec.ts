@@ -101,7 +101,13 @@ test.describe('verdict-engine banner (F1.2)', () => {
     // as safety caps; they are no longer the mechanism that makes this pass.
     await page.clock.install();
 
+    // Wait for the initial readiness probe to settle on mount so Layout has
+    // mounted useVerdictEngineStatus and registered its 15 s setInterval
+    // before fastForward(16_000) advances the fake clock.
+    const initialReadiness = page.waitForResponse('**/api/system/health/ready');
     await page.goto('/');
+    await initialReadiness;
+    await expect(page.getByTestId('main-content')).toBeVisible();
 
     const banner = page.getByTestId('verdict-engine-banner');
 
