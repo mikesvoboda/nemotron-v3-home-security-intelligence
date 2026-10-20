@@ -41,7 +41,7 @@ redis>=5.2.0
 # Image Processing (common across services)
 pillow>=11.0.0
 opencv-python>=4.8.0
-numpy>=1.26.0
+numpy>=2.5.4
 
 # Utilities
 prometheus-client>=0.21.0
