@@ -691,6 +691,17 @@ test.describe('DO-3 zones golden path', () => {
     // placed in front of a .catch widens what that .catch can swallow, and a leg
     // whose whole job is to
     // report an absence must not have a throw turned into one.
+    // [r279] Clear the persisted React Query cache ('security-dashboard-cache'
+    // in localStorage, queryPersistence.ts:36/55) before re-navigating after
+    // out-of-band Node POSTs. Because queryKeys.cameras.zones(cameraId) starts
+    // with 'cameras', createSyncStoragePersister's 1000 ms throttle writes the
+    // initial empty mount's { items: [] } into localStorage whenever the Node
+    // POSTs take >= 1 s; PersistQueryClientProvider then hydrates that empty
+    // result with DEFAULT_STALE_TIME (30 s), skipping the network fetch and
+    // hanging reRead for the full 15 s test timeout (runs 39207980157 and
+    // 39267494542).
+    await page.evaluate(() => window.localStorage.removeItem('security-dashboard-cache'));
+
     const armedAt = Date.now();
     let legMs = -1;
     const reRead = page
