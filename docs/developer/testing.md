@@ -771,6 +771,38 @@ summary carries what the operator posts:
   and at the end;
 - each check's result and the exit code.
 
+**The golden shards are balanced by measured duration ([r282]).** The four
+`Feature check (fake AI)` shard jobs no longer split the suite by count
+([r264]'s `--shard=i/N` remains the fallback). `frontend/golden-shards.json`
+assigns every golden spec file to a shard; the harness
+(`scripts/feature_check.py`) reads it when the job opts in with
+`FEATURE_CHECK_SHARD_MANIFEST=1` (set in `ci.yml` only on the shard jobs),
+selects that shard's files, and forwards them to the leg as
+`FEATURE_CHECK_GOLDEN_FILES`; the config's golden project ignores every spec
+outside the selection. Without the opt-in the count split applies byte for
+byte, so local and `--real` runs keep the whole suite on one stack. The
+pack balances per-file median durations (n=5 green runs) by longest-first,
+with the backend golden leg pre-loaded on shard 1 ([r264]'s rule, kept —
+the measurements support it).
+
+**When the manifest is regenerated.** Not in CI: CI's pin
+(`test_the_regen_scripts_output_byte_matches_the_checked_in_manifest`)
+runs the regen script and byte-compares it against the checked-in file, so
+a hand edit or a stale manifest goes red there — but a CI run never rewrites
+the manifest, because a manifest written inside a run would make the union
+unreviewable in the diff. Regenerate by hand, from a tree whose
+`frontend/tests/golden/` matches the tree under review, with
+`uv run python scripts/golden_shard_manifest.py` — its input is the
+checked-in medians (`scripts/golden-shard-durations.json`), not a live
+measurement, so regeneration is byte-stable and needs no CI access. Refresh
+the medians (re-run the measurement over ≥5 recent green runs' golden junit
+artifacts, re-keyed by each artifact's own `artifacts/summary.json`) whenever
+the corpus changes shape: a spec added, removed, renamed, or moved into or
+out of `tests/golden/`. The regen refuses to emit a manifest that misses a
+file on disk (the union pin
+`backend/tests/unit/scripts/test_golden_shard_manifest.py` fails first), so
+a stale manifest is caught before it can silently strand a spec on no shard.
+
 ## Pytest Configuration
 
 The pytest configuration is defined in `pyproject.toml:577`:
