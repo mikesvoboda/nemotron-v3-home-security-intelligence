@@ -56,14 +56,28 @@ def inventory(*rows: tuple[str, str, str]) -> str:
         f" | {evidence} | `frontend/src/x.ts` | — |  |  |"
         for rid, status, evidence in rows
     ]
-    return "# Feature Inventory\n\n### 3.1 Area\n\n<!-- prettier-ignore -->\n" + HEADER + "\n".join(lines) + "\n"
+    return (
+        "# Feature Inventory\n\n### 3.1 Area\n\n<!-- prettier-ignore -->\n"
+        + HEADER
+        + "\n".join(lines)
+        + "\n"
+    )
 
 
 def summary(mode: str = "fake", playwright=None, backend=None, **extra) -> dict:
-    golden: dict = {"playwright": "ok", "playwright_specs": playwright if playwright is not None else {}}
+    golden: dict = {
+        "playwright": "ok",
+        "playwright_specs": playwright if playwright is not None else {},
+    }
     if backend is not None:
         golden["backend_specs"] = backend
-    return {"mode": mode, "project": "hsi-check-1", "commit": "fixture-head-commit", "results": {"golden": golden}, **extra}
+    return {
+        "mode": mode,
+        "project": "hsi-check-1",
+        "commit": "fixture-head-commit",
+        "results": {"golden": golden},
+        **extra,
+    }
 
 
 def spec_tree(root: Path, specs: dict[str, str]) -> Path:
@@ -128,7 +142,14 @@ def test_a_to_range_names_every_id_between_its_ends() -> None:
 
 def test_a_dotted_range_names_every_id_between_its_ends() -> None:
     title = "golden path: operations grafana embed pages (F-164..F-167, F-169, F-174) @critical › renders"
-    assert witness.leg_rows(title, backend=False) == ("F-164", "F-165", "F-166", "F-167", "F-169", "F-174")
+    assert witness.leg_rows(title, backend=False) == (
+        "F-164",
+        "F-165",
+        "F-166",
+        "F-167",
+        "F-169",
+        "F-174",
+    )
 
 
 def test_package_names_like_fe_4_are_not_row_ids() -> None:
@@ -143,7 +164,10 @@ def test_a_pytest_leg_carries_its_id_as_an_f_word_in_its_name() -> None:
 
 
 def test_specs_resolve_to_repo_paths() -> None:
-    assert witness._spec_path("../golden/shell/nav.spec.ts", False) == ("frontend/tests/golden/shell/nav.spec.ts", [])
+    assert witness._spec_path("../golden/shell/nav.spec.ts", False) == (
+        "frontend/tests/golden/shell/nav.spec.ts",
+        [],
+    )
     assert witness._spec_path("backend.tests.golden.external.test_backup", True) == (
         "backend/tests/golden/external/test_backup.py",
         [],
@@ -159,37 +183,58 @@ def test_specs_resolve_to_repo_paths() -> None:
 
 @pytest.mark.parametrize("status", ["awaiting real tier", "works"])
 def test_a_claim_whose_legs_all_passed_agrees(make, capsys, status: str) -> None:
-    legs = {f"{JUNIT_FAKE}::F-001 thing › opens": "passed", f"{JUNIT_FAKE}::F-001 thing › saves": "passed"}
+    legs = {
+        f"{JUNIT_FAKE}::F-001 thing › opens": "passed",
+        f"{JUNIT_FAKE}::F-001 thing › saves": "passed",
+    }
     assert make(inventory(("F-001", status, EV_FAKE)), summary(playwright=legs)) == 0
     assert "1 claims witnessed, 0 failing" in out(capsys)
 
 
 @pytest.mark.parametrize("outcome", ["failed", "skipped"])
 @pytest.mark.parametrize("status", ["awaiting real tier", "works"])
-def test_a_claim_with_a_failed_or_skipped_leg_fails(make, capsys, status: str, outcome: str) -> None:
-    legs = {f"{JUNIT_FAKE}::F-001 thing › opens": "passed", f"{JUNIT_FAKE}::F-001 thing › saves": outcome}
+def test_a_claim_with_a_failed_or_skipped_leg_fails(
+    make, capsys, status: str, outcome: str
+) -> None:
+    legs = {
+        f"{JUNIT_FAKE}::F-001 thing › opens": "passed",
+        f"{JUNIT_FAKE}::F-001 thing › saves": outcome,
+    }
     assert make(inventory(("F-001", status, EV_FAKE)), summary(playwright=legs)) == 1
     text = out(capsys)
     assert f"FAIL: F-001 ({status}): {outcome} {FAKE_SPEC} :: F-001 thing › saves" in text
-    assert "opens" not in text.split("FAIL:")[1].splitlines()[0], "only the leg that did not pass is named"
+    assert "opens" not in text.split("FAIL:")[1].splitlines()[0], (
+        "only the leg that did not pass is named"
+    )
 
 
 def test_a_fixme_leg_reads_as_skipped_and_fails_the_claim(make) -> None:
     # Playwright's junit writes <skipped/> for test.fixme; feature_check.junit_results records "skipped".
-    legs = {f"{JUNIT_FAKE}::F-001 thing › opens": "passed", f"{JUNIT_FAKE}::F-001 thing › is broken today": "skipped"}
+    legs = {
+        f"{JUNIT_FAKE}::F-001 thing › opens": "passed",
+        f"{JUNIT_FAKE}::F-001 thing › is broken today": "skipped",
+    }
     assert make(inventory(("F-001", "awaiting real tier", EV_FAKE)), summary(playwright=legs)) == 1
 
 
 def test_a_claim_no_leg_names_fails_in_its_home_job(make, capsys) -> None:
     legs = {f"{JUNIT_FAKE}::F-002 other › opens": "passed"}
-    inv = inventory(("F-001", "awaiting real tier", EV_FAKE), ("F-002", "awaiting real tier", EV_FAKE))
+    inv = inventory(
+        ("F-001", "awaiting real tier", EV_FAKE), ("F-002", "awaiting real tier", EV_FAKE)
+    )
     assert make(inv, summary(playwright=legs)) == 1
-    assert "FAIL: F-001 (awaiting real tier): no leg in this run names it -- the fake job is its home" in out(capsys)
+    assert (
+        "FAIL: F-001 (awaiting real tier): no leg in this run names it -- the fake job is its home"
+        in out(capsys)
+    )
 
 
 def test_a_claim_whose_evidence_names_no_golden_spec_is_the_fake_jobs(make, capsys) -> None:
     legs = {f"{JUNIT_FAKE}::F-002 other › opens": "passed"}
-    inv = inventory(("F-001", "works", "Real tier 2026-10-01; cites `backend/x.py:1`."), ("F-002", "works", EV_FAKE))
+    inv = inventory(
+        ("F-001", "works", "Real tier 2026-10-01; cites `backend/x.py:1`."),
+        ("F-002", "works", EV_FAKE),
+    )
     assert make(inv, summary(playwright=legs)) == 1
     assert "FAIL: F-001 (works): no leg in this run names it" in out(capsys)
 
@@ -197,20 +242,38 @@ def test_a_claim_whose_evidence_names_no_golden_spec_is_the_fake_jobs(make, caps
 # -- unverified ----------------------------------------------------------------------------------
 
 
-def test_an_unverified_row_whose_legs_all_passed_is_ready_to_flip_with_its_cell_text(make, capsys) -> None:
-    legs = {f"{JUNIT_FAKE}::F-003 panel (F-003) › renders the list": "passed", f"{JUNIT_FAKE}::F-003 panel › saves": "passed"}
-    assert make(inventory(("F-003", "unverified", "Writer `backend/x.py:1`.")), summary(playwright=legs)) == 0
+def test_an_unverified_row_whose_legs_all_passed_is_ready_to_flip_with_its_cell_text(
+    make, capsys
+) -> None:
+    legs = {
+        f"{JUNIT_FAKE}::F-003 panel (F-003) › renders the list": "passed",
+        f"{JUNIT_FAKE}::F-003 panel › saves": "passed",
+    }
+    assert (
+        make(
+            inventory(("F-003", "unverified", "Writer `backend/x.py:1`.")), summary(playwright=legs)
+        )
+        == 0
+    )
     text = out(capsys)
-    assert "READY to flip: F-003 (unverified -> awaiting real tier): 2 leg(s), each passed in this job." in text
+    assert (
+        "READY to flip: F-003 (unverified -> awaiting real tier): 2 leg(s), each passed in this job."
+        in text
+    )
     cell = text.split("evidence text: ")[1].splitlines()[0]
     assert f"`{FAKE_SPEC}`" in cell and "`renders the list`" in cell and "`saves`" in cell
     assert "Feature check (fake AI)" in cell and "ruling 148" in cell
-    assert "hsi-check-1" not in cell and "fixture-h" not in cell, "no run id in the cell (ruling 218)"
+    assert "hsi-check-1" not in cell and "fixture-h" not in cell, (
+        "no run id in the cell (ruling 218)"
+    )
     assert len(cell) <= witness.PASTE_LIMIT
 
 
 def test_the_cell_text_counts_the_legs_it_cannot_fit() -> None:
-    legs = [witness.Leg(FAKE_SPEC, f"F-003 › leg {n:02d} " + "x" * 60, "passed", ("F-003",)) for n in range(12)]
+    legs = [
+        witness.Leg(FAKE_SPEC, f"F-003 › leg {n:02d} " + "x" * 60, "passed", ("F-003",))
+        for n in range(12)
+    ]
     cell = witness.paste_text(legs, "fake")
     assert len(cell) <= witness.PASTE_LIMIT
     shown = cell.count("`leg ")
@@ -218,8 +281,13 @@ def test_the_cell_text_counts_the_legs_it_cannot_fit() -> None:
 
 
 @pytest.mark.parametrize("outcome", ["failed", "skipped"])
-def test_an_unverified_row_with_a_leg_not_passed_is_reported_not_failed(make, capsys, outcome: str) -> None:
-    legs = {f"{JUNIT_FAKE}::F-003 panel › renders": "passed", f"{JUNIT_FAKE}::F-003 panel › saves": outcome}
+def test_an_unverified_row_with_a_leg_not_passed_is_reported_not_failed(
+    make, capsys, outcome: str
+) -> None:
+    legs = {
+        f"{JUNIT_FAKE}::F-003 panel › renders": "passed",
+        f"{JUNIT_FAKE}::F-003 panel › saves": outcome,
+    }
     assert make(inventory(("F-003", "unverified", "Writer.")), summary(playwright=legs)) == 0
     text = out(capsys)
     assert "READY" not in text
@@ -238,9 +306,14 @@ def test_an_unverified_row_no_leg_names_is_silent(make, capsys) -> None:
 
 @pytest.mark.parametrize("status", ["half-built", "leftover"])
 def test_half_built_and_leftover_rows_are_never_failed(make, capsys, status: str) -> None:
-    legs = {f"{JUNIT_FAKE}::F-004 thing › broken": "failed", f"{JUNIT_FAKE}::F-004 thing › fixme": "skipped"}
+    legs = {
+        f"{JUNIT_FAKE}::F-004 thing › broken": "failed",
+        f"{JUNIT_FAKE}::F-004 thing › fixme": "skipped",
+    }
     assert make(inventory(("F-004", status, EV_FAKE)), summary(playwright=legs)) == 0
-    assert f"info: F-004 ({status}): 2 leg(s) mapped (1 failed, 1 skipped); not judged" in out(capsys)
+    assert f"info: F-004 ({status}): 2 leg(s) mapped (1 failed, 1 skipped); not judged" in out(
+        capsys
+    )
 
 
 # -- the two jobs: home from the spec titles -----------------------------------------------------
@@ -275,31 +348,53 @@ def test_title_homes_reads_test_and_describe_titles_only(tmp_path: Path) -> None
     }
 
 
-def test_a_passing_evidence_mention_of_a_seeded_spec_cannot_move_a_titled_rows_home(make, capsys) -> None:
+def test_a_passing_evidence_mention_of_a_seeded_spec_cannot_move_a_titled_rows_home(
+    make, capsys
+) -> None:
     # The reviewer's case: prose cites a seeded spec, but only a fake-job spec's title names the row.
-    evidence = f"Green golden path `{FAKE_SPEC}`; unlike `{SEEDED_SPEC}`, which drives a seeded breaker."
-    specs = {FAKE_SPEC: "test.describe('thing (F-007) @critical', () => {});\n", SEEDED_SPEC: "test('seeded other', () => {});\n"}
+    evidence = (
+        f"Green golden path `{FAKE_SPEC}`; unlike `{SEEDED_SPEC}`, which drives a seeded breaker."
+    )
+    specs = {
+        FAKE_SPEC: "test.describe('thing (F-007) @critical', () => {});\n",
+        SEEDED_SPEC: "test('seeded other', () => {});\n",
+    }
     seeded = summary("fake-seeded", playwright={f"{JUNIT_SEEDED}::seeded other": "passed"})
     assert make(inventory(("F-007", "awaiting real tier", evidence)), seeded, specs=specs) == 0
     assert "not judged here (no leg in this run; the other job is their home): F-007" in out(capsys)
 
 
 def test_a_row_named_only_in_seeded_titles_is_the_seeded_jobs(make, capsys) -> None:
-    specs = {FAKE_SPEC: "test('fake other', () => {});\n", SEEDED_SPEC: "test.describe('seeded (F-005) @critical', () => {});\n"}
+    specs = {
+        FAKE_SPEC: "test('fake other', () => {});\n",
+        SEEDED_SPEC: "test.describe('seeded (F-005) @critical', () => {});\n",
+    }
     inv = inventory(("F-005", "awaiting real tier", "Green golden path, see the PR."))
     fake = summary("fake", playwright={f"{JUNIT_FAKE}::fake other": "passed"})
-    assert make(inv, fake, specs=specs) == 0, "the fake AI job never fails a row it was not meant to run"
+    assert make(inv, fake, specs=specs) == 0, (
+        "the fake AI job never fails a row it was not meant to run"
+    )
     assert "not judged here (no leg in this run; the other job is their home): F-005" in out(capsys)
-    seeded = summary("fake-seeded", playwright={f"{JUNIT_SEEDED}::seeded @critical › flips": "passed"})
+    seeded = summary(
+        "fake-seeded", playwright={f"{JUNIT_SEEDED}::seeded @critical › flips": "passed"}
+    )
     assert make(inv, seeded, specs=specs) == 1
-    assert "FAIL: F-005 (awaiting real tier): no leg in this run names it -- the seeded job is its home" in out(capsys)
+    assert (
+        "FAIL: F-005 (awaiting real tier): no leg in this run names it -- the seeded job is its home"
+        in out(capsys)
+    )
 
 
 def test_the_seeded_job_judges_its_own_legs(make, capsys) -> None:
     specs = {SEEDED_SPEC: "test.describe('seeded (F-005) @critical', () => {});\n"}
-    ok = summary("fake-seeded", playwright={f"{JUNIT_SEEDED}::seeded (F-005) @critical › flips": "passed"})
+    ok = summary(
+        "fake-seeded", playwright={f"{JUNIT_SEEDED}::seeded (F-005) @critical › flips": "passed"}
+    )
     assert make(inventory(("F-005", "awaiting real tier", EV_SEEDED)), ok, specs=specs) == 0
-    assert "Feature check (seeded): 1 legs read, 1 rows named, 1 claims witnessed, 0 failing" in out(capsys)
+    assert (
+        "Feature check (seeded): 1 legs read, 1 rows named, 1 claims witnessed, 0 failing"
+        in out(capsys)
+    )
 
 
 def test_a_row_named_in_both_jobs_titles_needs_legs_in_each(make, capsys) -> None:
@@ -313,11 +408,16 @@ def test_a_row_named_in_both_jobs_titles_needs_legs_in_each(make, capsys) -> Non
     assert make(inv, fake, seeded, specs=specs) == 1
     fake_part, seeded_part = out(capsys).split("Feature check (seeded), run")
     assert "FAIL" not in fake_part
-    assert "FAIL: F-006 (awaiting real tier): no leg in this run names it -- the seeded job is its home" in seeded_part
+    assert (
+        "FAIL: F-006 (awaiting real tier): no leg in this run names it -- the seeded job is its home"
+        in seeded_part
+    )
 
 
 def test_a_row_no_title_names_takes_its_home_from_its_evidence(make, capsys) -> None:
-    inv = inventory(("F-008", "awaiting real tier", EV_SEEDED), ("F-009", "awaiting real tier", EV_FAKE))
+    inv = inventory(
+        ("F-008", "awaiting real tier", EV_SEEDED), ("F-009", "awaiting real tier", EV_FAKE)
+    )
     fake = summary("fake", playwright={f"{JUNIT_FAKE}::untitled › opens": "passed"})
     seeded = summary("fake-seeded", playwright={f"{JUNIT_SEEDED}::untitled › flips": "passed"})
     assert make(inv, fake, seeded) == 1
@@ -333,7 +433,9 @@ def test_a_failed_leg_fails_the_row_in_the_job_that_ran_it_only(make, capsys) ->
     }
     inv = inventory(("F-006", "awaiting real tier", EV_FAKE))
     fake = summary("fake", playwright={f"{JUNIT_FAKE}::reset (F-006) › clicks": "passed"})
-    seeded = summary("fake-seeded", playwright={f"{JUNIT_SEEDED}::seeded (F-006) › flips": "failed"})
+    seeded = summary(
+        "fake-seeded", playwright={f"{JUNIT_SEEDED}::seeded (F-006) › flips": "failed"}
+    )
     assert make(inv, fake, seeded, specs=specs) == 1
     fake_part, seeded_part = out(capsys).split("Feature check (seeded), run")
     assert "FAIL" not in fake_part
@@ -358,14 +460,21 @@ F033_LEGS = (
 
 
 def f033_run(*outcomes: str) -> dict:
-    return summary(playwright={f"{JUNIT_FAKE}::summary cards @critical › {t}": o for t, o in zip(F033_LEGS, outcomes)})
+    return summary(
+        playwright={
+            f"{JUNIT_FAKE}::summary cards @critical › {t}": o for t, o in zip(F033_LEGS, outcomes)
+        }
+    )
 
 
 def test_a_known_leg_that_skips_is_reported_not_failed(make, capsys) -> None:
     inv = inventory(("F-033", "awaiting real tier", EV_FAKE))
     assert make(inv, f033_run("passed", "passed", "passed", "skipped"), known=KNOWN_F033) == 0
     text = out(capsys)
-    assert f"KNOWN: F-033 (awaiting real tier): skipped {FAKE_SPEC} :: summary cards @critical › {PUSH}" in text
+    assert (
+        f"KNOWN: F-033 (awaiting real tier): skipped {FAKE_SPEC} :: summary cards @critical › {PUSH}"
+        in text
+    )
     assert "known: the push leg self-skips; owner rules" in text
 
 
@@ -375,12 +484,21 @@ def test_a_known_entry_does_not_excuse_the_rows_other_legs(make, capsys) -> None
     assert make(inv, f033_run("skipped", "skipped", "skipped", "skipped"), known=KNOWN_F033) == 1
     text = out(capsys)
     fail = next(line for line in text.splitlines() if line.startswith("FAIL: F-033"))
-    assert fail.count("skipped ") == 3 and PUSH not in fail, "the three unlisted legs fail; the listed one is excused"
+    assert fail.count("skipped ") == 3 and PUSH not in fail, (
+        "the three unlisted legs fail; the listed one is excused"
+    )
 
 
 def test_a_known_entry_does_not_excuse_a_row_with_no_legs(make, capsys) -> None:
     legs = {f"{JUNIT_FAKE}::other › opens": "passed"}
-    assert make(inventory(("F-033", "awaiting real tier", EV_FAKE)), summary(playwright=legs), known=KNOWN_F033) == 1
+    assert (
+        make(
+            inventory(("F-033", "awaiting real tier", EV_FAKE)),
+            summary(playwright=legs),
+            known=KNOWN_F033,
+        )
+        == 1
+    )
     text = out(capsys)
     assert "FAIL: F-033 (awaiting real tier): no leg in this run names it" in text
     assert f"lists `{PUSH}`, which this run did not map to F-033" in text
@@ -389,7 +507,10 @@ def test_a_known_entry_does_not_excuse_a_row_with_no_legs(make, capsys) -> None:
 def test_a_known_entry_whose_listed_legs_all_pass_is_stale(make, capsys) -> None:
     inv = inventory(("F-033", "awaiting real tier", EV_FAKE))
     assert make(inv, f033_run("passed", "passed", "passed", "passed"), known=KNOWN_F033) == 1
-    assert f"F-033's known entry (inventory_witness_known.toml, fake job) lists `{PUSH}`, which passed" in out(capsys)
+    assert (
+        f"F-033's known entry (inventory_witness_known.toml, fake job) lists `{PUSH}`, which passed"
+        in out(capsys)
+    )
 
 
 def test_a_known_entry_whose_row_was_demoted_is_stale(make, capsys) -> None:
@@ -408,12 +529,30 @@ def test_a_known_entry_for_the_other_job_does_not_excuse_this_one(make, capsys) 
 @pytest.mark.parametrize(
     ("known", "reason"),
     [
-        ('[[known]]\nrow = "F-999"\njobs = ["fake"]\nlegs = ["x"]\nwhy = "x"\n', "'F-999' is not an inventory row"),
-        ('[[known]]\nrow = "F-001"\njobs = ["real"]\nlegs = ["x"]\nwhy = "x"\n', "jobs ['real'] must be"),
-        ('[[known]]\nrow = "F-001"\njobs = ["fake"]\nwhy = "x"\n', "legs None must be a non-empty list"),
-        ('[[known]]\nrow = "F-001"\njobs = ["fake"]\nlegs = []\nwhy = "x"\n', "legs [] must be a non-empty list"),
-        ('[[known]]\nrow = "F-001"\njobs = ["fake"]\nlegs = ["x"]\nwhy = " "\n', "F-001 says no why"),
-        ('[[known]]\nrow = "F-001"\njobs = ["fake", "fake"]\nlegs = ["x"]\nwhy = "x"\n', "listed twice"),
+        (
+            '[[known]]\nrow = "F-999"\njobs = ["fake"]\nlegs = ["x"]\nwhy = "x"\n',
+            "'F-999' is not an inventory row",
+        ),
+        (
+            '[[known]]\nrow = "F-001"\njobs = ["real"]\nlegs = ["x"]\nwhy = "x"\n',
+            "jobs ['real'] must be",
+        ),
+        (
+            '[[known]]\nrow = "F-001"\njobs = ["fake"]\nwhy = "x"\n',
+            "legs None must be a non-empty list",
+        ),
+        (
+            '[[known]]\nrow = "F-001"\njobs = ["fake"]\nlegs = []\nwhy = "x"\n',
+            "legs [] must be a non-empty list",
+        ),
+        (
+            '[[known]]\nrow = "F-001"\njobs = ["fake"]\nlegs = ["x"]\nwhy = " "\n',
+            "F-001 says no why",
+        ),
+        (
+            '[[known]]\nrow = "F-001"\njobs = ["fake", "fake"]\nlegs = ["x"]\nwhy = "x"\n',
+            "listed twice",
+        ),
         ("[[known]\n", "known list:"),
         ('[[knwon]]\nrow = "F-001"\n', "expected only [[known]] tables"),
         ("known = 3\n", "expected only [[known]] tables"),
@@ -436,7 +575,9 @@ def test_golden_specs_naming_no_row_are_listed(make, capsys) -> None:
         "../golden/guard-contract.spec.ts::golden guard contract @smoke › context.route throws": "passed",
     }
     backend = {"backend.tests.golden.external.test_metrics::test_scrape_parses": "passed"}
-    assert make(inventory(("F-001", "works", EV_FAKE)), summary(playwright=legs, backend=backend)) == 0
+    assert (
+        make(inventory(("F-001", "works", EV_FAKE)), summary(playwright=legs, backend=backend)) == 0
+    )
     text = out(capsys)
     assert "names no row: frontend/tests/golden/guard-contract.spec.ts (2 leg(s))" in text
     assert "names no row: backend/tests/golden/external/test_metrics.py (1 leg(s))" in text
@@ -445,7 +586,10 @@ def test_golden_specs_naming_no_row_are_listed(make, capsys) -> None:
 
 
 def test_a_leg_naming_a_row_the_inventory_lacks_fails(make, capsys) -> None:
-    legs = {f"{JUNIT_FAKE}::F-001 thing › opens": "passed", f"{JUNIT_FAKE}::F-777 typo › opens": "passed"}
+    legs = {
+        f"{JUNIT_FAKE}::F-001 thing › opens": "passed",
+        f"{JUNIT_FAKE}::F-777 typo › opens": "passed",
+    }
     assert make(inventory(("F-001", "works", EV_FAKE)), summary(playwright=legs)) == 1
     assert "FAIL: F-777 is not an inventory row, yet a leg names it" in out(capsys)
 
@@ -456,9 +600,18 @@ def test_backend_legs_witness_their_rows(make, capsys) -> None:
         "backend.tests.golden.external.test_backup::test_f100_reports_file": "passed",
         "backend.tests.golden.external.test_backup::test_f100_delete": "skipped",
     }
-    inv = inventory(("F-100", "awaiting real tier", "Green golden path `backend/tests/golden/external/test_backup.py`."))
+    inv = inventory(
+        (
+            "F-100",
+            "awaiting real tier",
+            "Green golden path `backend/tests/golden/external/test_backup.py`.",
+        )
+    )
     assert make(inv, summary(playwright=legs, backend=backend)) == 1
-    assert "FAIL: F-100 (awaiting real tier): skipped backend/tests/golden/external/test_backup.py :: test_f100_delete" in out(capsys)
+    assert (
+        "FAIL: F-100 (awaiting real tier): skipped backend/tests/golden/external/test_backup.py :: test_f100_delete"
+        in out(capsys)
+    )
 
 
 # -- read errors (fail closed) -------------------------------------------------------------------
@@ -470,14 +623,22 @@ def test_backend_legs_witness_their_rows(make, capsys) -> None:
         (summary("real"), "mode 'real' is not a CI fake-tier run"),
         (summary("real-prod-shape"), "real-tier confirmation is the operator's (ruling 148)"),
         ({"mode": "fake", "results": {"smoke": "ok"}}, "no results.golden"),
-        ({"mode": "fake", "results": {"golden": {"playwright": "image unavailable"}}}, "has no playwright_specs"),
+        (
+            {"mode": "fake", "results": {"golden": {"playwright": "image unavailable"}}},
+            "has no playwright_specs",
+        ),
         (summary(playwright={f"{JUNIT_FAKE}::F-001 x": "flaky"}), "has outcome 'flaky'"),
         (summary(playwright={f"{JUNIT_FAKE} F-001 x": "passed"}), "is not '<spec>::<title>'"),
         (summary(playwright={}), "the golden Playwright project executed no test"),
-        (summary(playwright={f"{JUNIT_FAKE}::F-001 x": "passed"}, backend=["not", "a", "map"]), "backend_specs is not a mapping"),
+        (
+            summary(playwright={f"{JUNIT_FAKE}::F-001 x": "passed"}, backend=["not", "a", "map"]),
+            "backend_specs is not a mapping",
+        ),
     ],
 )
-def test_a_summary_that_cannot_witness_is_a_read_error(make, capsys, data: dict, reason: str) -> None:
+def test_a_summary_that_cannot_witness_is_a_read_error(
+    make, capsys, data: dict, reason: str
+) -> None:
     assert make(inventory(("F-001", "works", EV_FAKE)), data) == 2
     text = out(capsys)
     assert "READ ERROR (fail closed)" in text and reason in text
@@ -485,12 +646,17 @@ def test_a_summary_that_cannot_witness_is_a_read_error(make, capsys, data: dict,
 
 def test_an_empty_playwright_report_is_a_read_error_even_with_backend_legs(make, capsys) -> None:
     # An "image unavailable" fake run: no Playwright test ran, the backend pytest leg did.
-    data = summary(playwright={}, backend={"backend.tests.golden.external.test_backup::test_f100_reports_file": "passed"})
+    data = summary(
+        playwright={},
+        backend={"backend.tests.golden.external.test_backup::test_f100_reports_file": "passed"},
+    )
     data["results"]["golden"]["playwright"] = "image unavailable"
     inv = inventory(("F-001", "works", EV_FAKE), ("F-100", "awaiting real tier", EV_FAKE))
     assert make(inv, data) == 2
     text = out(capsys)
-    assert "the golden Playwright project executed no test (playwright: 'image unavailable')" in text
+    assert (
+        "the golden Playwright project executed no test (playwright: 'image unavailable')" in text
+    )
     assert "no leg in this run names it" not in text
 
 
@@ -520,7 +686,9 @@ def test_the_run_root_must_hold_exactly_one_summary(tmp_path: Path, capsys) -> N
     for name in ("a", "b"):
         path = root / name / "artifacts" / "summary.json"
         path.parent.mkdir(parents=True)
-        path.write_text(json.dumps(summary(playwright={f"{JUNIT_FAKE}::F-001 x": "passed"})), encoding="utf-8")
+        path.write_text(
+            json.dumps(summary(playwright={f"{JUNIT_FAKE}::F-001 x": "passed"})), encoding="utf-8"
+        )
     assert witness.main(args) == 2
     assert "found 2" in out(capsys)
 
@@ -528,19 +696,29 @@ def test_the_run_root_must_hold_exactly_one_summary(tmp_path: Path, capsys) -> N
 def test_the_run_root_form_reads_the_one_run(make, capsys) -> None:
     legs = {f"{JUNIT_FAKE}::F-001 thing › opens": "passed"}
     assert make(inventory(("F-001", "works", EV_FAKE)), summary(playwright=legs), as_root=True) == 0
-    assert "inventory witness -- Feature check (fake AI), run hsi-check-1 at fixture-h" in out(capsys)
+    assert "inventory witness -- Feature check (fake AI), run hsi-check-1 at fixture-h" in out(
+        capsys
+    )
 
 
 @pytest.mark.parametrize(
     ("inv", "reason"),
     [
         (inventory(("F-001", "done", EV_FAKE)), "status 'done' is not one of"),
-        (inventory(("F-001", "works", EV_FAKE), ("F-001", "works", EV_FAKE)), "F-001 is declared twice"),
+        (
+            inventory(("F-001", "works", EV_FAKE), ("F-001", "works", EV_FAKE)),
+            "F-001 is declared twice",
+        ),
         ("# Feature Inventory\n\nno tables here\n", "the inventory has no F-NNN rows"),
-        (inventory(("F-001", "works", EV_FAKE)).replace("| F-001 |", "| X-001 |"), "is not an F-NNN row"),
+        (
+            inventory(("F-001", "works", EV_FAKE)).replace("| F-001 |", "| X-001 |"),
+            "is not an F-NNN row",
+        ),
     ],
 )
-def test_an_inventory_that_cannot_be_read_is_a_read_error(make, capsys, inv: str, reason: str) -> None:
+def test_an_inventory_that_cannot_be_read_is_a_read_error(
+    make, capsys, inv: str, reason: str
+) -> None:
     legs = {f"{JUNIT_FAKE}::F-001 thing › opens": "passed"}
     assert make(inv, summary(playwright=legs)) == 2
     text = out(capsys)
@@ -549,7 +727,9 @@ def test_an_inventory_that_cannot_be_read_is_a_read_error(make, capsys, inv: str
 
 def test_a_missing_inventory_or_known_list_is_a_read_error(tmp_path: Path, capsys) -> None:
     run = tmp_path / "summary.json"
-    run.write_text(json.dumps(summary(playwright={f"{JUNIT_FAKE}::F-001 x": "passed"})), encoding="utf-8")
+    run.write_text(
+        json.dumps(summary(playwright={f"{JUNIT_FAKE}::F-001 x": "passed"})), encoding="utf-8"
+    )
     args = _files(tmp_path)
     no_inventory = [*args[:1], str(tmp_path / "no.md"), *args[2:]]
     assert witness.main(["--summary", str(run), *no_inventory]) == 2
@@ -563,7 +743,10 @@ def test_a_missing_inventory_or_known_list_is_a_read_error(tmp_path: Path, capsy
 
 
 def test_the_witness_reads_the_rows_the_summary_checker_counts() -> None:
-    arith = _load("check_inventory_summary_arith_for_witness", REPO_ROOT / "scripts" / "check-inventory-summary-arith.py")
+    arith = _load(
+        "check_inventory_summary_arith_for_witness",
+        REPO_ROOT / "scripts" / "check-inventory-summary-arith.py",
+    )
     text = (REPO_ROOT / "docs" / "reference" / "feature-inventory.md").read_text(encoding="utf-8")
     _, census = arith.check(text)
     rows = witness.read_inventory(text)
@@ -573,11 +756,13 @@ def test_the_witness_reads_the_rows_the_summary_checker_counts() -> None:
 
 def test_the_checked_in_known_list_reads() -> None:
     text = (REPO_ROOT / "docs" / "reference" / "feature-inventory.md").read_text(encoding="utf-8")
-    known = witness.read_known(witness.KNOWN.read_text(encoding="utf-8"), witness.read_inventory(text))
+    known = witness.read_known(
+        witness.KNOWN.read_text(encoding="utf-8"), witness.read_inventory(text)
+    )
     assert all(entry.legs and entry.why for entry in known.values())
 
 
-@pytest.mark.parametrize("known", ["", "# only comments\n#   [[known]]\n#   row = \"F-001\"\n"])
+@pytest.mark.parametrize("known", ["", '# only comments\n#   [[known]]\n#   row = "F-001"\n'])
 def test_a_known_list_with_no_entries_is_valid(make, capsys, known: str) -> None:
     # Ruling 219 emptied the checked-in list: an empty or comment-only file reads as no entries.
     assert witness.read_known(known, {"F-001": witness.Row("F-001", "works", EV_FAKE)}) == {}
@@ -586,19 +771,64 @@ def test_a_known_list_with_no_entries_is_valid(make, capsys, known: str) -> None
     assert "0 failing, 0 known" in out(capsys)
 
 
-def test_both_feature_check_jobs_run_the_witness_after_the_harness_ran() -> None:
+def test_the_seeded_job_runs_the_witness_after_the_harness_ran() -> None:
+    """The seeded job keeps the single-job shape: harness, then the witness over its own run.
+
+    [r264] split the fake side into shards + fan-in (its own test below); the seeded
+    golden project stays one job on one stack (the package's Unchanged clause), and
+    so does its witness step — pinned exactly as it was.
+    """
     yaml = pytest.importorskip("yaml")
-    ci = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
-    for job_id, harness in (("feature-check", "--fake --image-tag"), ("feature-check-seeded", "--fake --seeded")):
-        steps = ci["jobs"][job_id]["steps"]
-        runs = [str(step.get("run", "")) for step in steps]
-        at_harness = next(i for i, run in enumerate(runs) if f"scripts/feature-check.sh {harness}" in run)
-        at_witness = next(i for i, run in enumerate(runs) if "python3 -m scripts.uplevel.inventory_witness" in run)
-        assert at_witness == at_harness + 1, f"{job_id}: the witness runs right after the golden project"
-        assert steps[at_harness]["id"] == "harness"
-        step = steps[at_witness]
-        # Red or green harness: run, so a red golden leg still names its rows. Harness never ran
-        # (an image build failed first): do not add a second "found 0" red.
-        assert step["if"] == "${{ !cancelled() && steps.harness.outcome != 'skipped' }}", job_id
-        assert step["env"]["FEATURE_CHECK_ROOT"] == steps[at_harness]["env"]["FEATURE_CHECK_ROOT"]
-        assert '--run-root "$FEATURE_CHECK_ROOT"' in step["run"]
+    ci = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    steps = ci["jobs"]["feature-check-seeded"]["steps"]
+    runs = [str(step.get("run", "")) for step in steps]
+    at_harness = next(
+        i for i, run in enumerate(runs) if "scripts/feature-check.sh --fake --seeded" in run
+    )
+    at_witness = next(
+        i for i, run in enumerate(runs) if "python3 -m scripts.uplevel.inventory_witness" in run
+    )
+    assert at_witness == at_harness + 1, "the witness runs right after the golden project"
+    assert steps[at_harness]["id"] == "harness"
+    step = steps[at_witness]
+    # Red or green harness: run, so a red golden leg still names its rows. Harness never ran
+    # (an image build failed first): do not add a second "found 0" red.
+    assert step["if"] == "${{ !cancelled() && steps.harness.outcome != 'skipped' }}"
+    assert step["env"]["FEATURE_CHECK_ROOT"] == steps[at_harness]["env"]["FEATURE_CHECK_ROOT"]
+    assert '--run-root "$FEATURE_CHECK_ROOT"' in step["run"]
+
+
+def test_the_fan_in_runs_the_witness_once_over_the_merged_union() -> None:
+    """[r264] The fake side's witness moved to the fan-in, which runs it ONCE over the
+    merged union — a row judged on the union exactly as the single job judged it (the
+    Build box). The shards must NOT run it: the witness judges one summary; four
+    per-shard judgments would judge each row on a partial leg set and fail rows whose
+    legs a sibling shard ran.
+    """
+    yaml = pytest.importorskip("yaml")
+    ci = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    # the fan-in: the merge writes the merged summary, the witness reads it over --run-root.
+    # Merge and witness share ONE step (the invocation sits inside the merge step's
+    # run body), so the witness's run body IS the merge step's run body.
+    fan = ci["jobs"]["feature-check-fan-in"]["steps"]
+    runs = [str(step.get("run", "")) for step in fan]
+    at_witness = next(
+        i for i, run in enumerate(runs) if "python3 -m scripts.uplevel.inventory_witness" in run
+    )
+    witness = fan[at_witness]
+    assert '--run-root "$FEATURE_CHECK_ROOT"' in witness["run"], (
+        "the witness reads the merged run root"
+    )
+    merge_step = witness
+    assert "summary.json" in merge_step["run"], "the witness step also writes the merged summary"
+    # the merged summary is fake-mode: the witness refuses any other tier
+    assert '"mode": "fake"' in merge_step["run"] or "'mode': 'fake'" in merge_step["run"]
+    # the shards: NO witness anywhere in their steps
+    shards = ci["jobs"]["feature-check-shards"]
+    shard_runs = "\n".join(str(s.get("run", "")) for s in shards["steps"] if s.get("run"))
+    assert "inventory_witness" not in shard_runs, "a shard must not judge a partial leg set"
+    assert shards["name"] == "Feature check (fake AI)", "the shard matrix carries the tier's name"

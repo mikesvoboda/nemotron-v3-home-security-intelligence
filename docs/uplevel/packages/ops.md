@@ -253,17 +253,17 @@ tool's tests pass, and the golden paths stay green.
 ### O3.3 `models.yml` and env truth
 
 **Flags:** none. **Depends on:** `R2`; #7244 (`B3.3`) merged (ruling 260).
-**Assigned:** heavy-b, after `O3.1`, once #7244 (`B3.3`) has merged (ruling 260). **PR:** none yet.
+**Assigned:** heavy-b, after `O3.1`, once #7244 (`B3.3`) has merged (ruling 260). **PR:** #7281
 (rulings 241 and 260)
 
-- [ ] `models.yml`: delete the dead rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`,
+- [x] `models.yml`: delete the dead rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`,
       `yolo26-general`), correct the `yolo26` row, and add the shipped Qwen3-VL GGUF and mmproj.
       **DECIDE** the one place that names the VLM's identity; today it is spread across compose,
       `.env.example` and `config.py`.
-- [ ] `.env.example`: delete the variables read by neither `config.py`, compose nor `setup.py`
+- [x] `.env.example`: delete the variables read by neither `config.py`, compose nor `setup.py`
       (34 at `d6ba78d5`), with `B3.3` covering the settings side. `test_a5500_precheck.py` reads the
       `GPU_*` names; update it in the same PR.
-- [ ] Add a ratchet test: every `.env.example` variable is read by `config.py`, compose or
+- [x] Add a ratchet test: every `.env.example` variable is read by `config.py`, compose or
       `setup.py`.
 
 **Done when:** the ratchet test passes and every `models.yml` row names something that loads.
@@ -570,7 +570,7 @@ each agent wakes.
 ### [r195] O2.5 runs from a host login
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, after `[r193]`; ops-b reviews. **Depends on:**
-none. **PR:** none yet. (ruling 195)
+none. **PR:** #7231. (ruling 195)
 
 The owner's maui run (`6193951294`) died at VLM readiness: the harness reaches the VLM only at
 `host.docker.internal`, which does not resolve from a host login. Ruling 256 split `O2.5` by venue
@@ -629,7 +629,7 @@ posted on the PR.
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` (ruling 239; ruling 266 retired
 `[r240]`).
-**Depends on:** none. **PR:** none yet. (ruling 239, record 6217014151; ruling 245, record 6223117374)
+**Depends on:** none. **PR:** #7268. (ruling 239, record 6217014151; ruling 245, record 6223117374)
 
 The coordinator's loop fires every 30 minutes (`roles/coordinator.md`), and a tick may run 60, so a
 healthy coordinator's heartbeat can be about 90 minutes old. `scripts/uplevel/coordinator_snapshot.py:66`
@@ -991,6 +991,13 @@ cut the wall time.
       minutes or less; at most 4. If 4 shards still leave the slowest above that, take 4, name the
       slowest spec files on the PR, and split the longest of them (a golden spec, UR-9).
 - [ ] **Build.** `Feature check (fake AI)` becomes N shard jobs and one fan-in job.
+  - Build fix (af50878ec, from the first ready run's two failures, run 39209710736): the shard
+    jobs' setup-uv carries `ignore-nothing-to-cache: true` — shards 2–4 never invoke uv after the
+    backend-once change, so the action's post step errored on a cache dir that never materialized;
+    and the fan-in's `--list` derivation exports an absolute `FEATURE_CHECK_SCENARIOS` — the
+    repo-relative value died as `frontend/backend/...` under `cd frontend` and
+    event-detail-modal's module-scope constants crashed collection past their own test.skip guard.
+    Both pins carry teeth (test_check_gate_reachability.py).
   - The shard jobs do not run the inventory witness. The fan-in merges the shards'
     `playwright_specs` and `backend_specs` into one fake-mode summary and runs the witness once over
     it, so a row is judged on the union exactly as the single run judges it today.
@@ -1010,5 +1017,8 @@ cut the wall time.
       `strict: true` on `main` (record 6244473689).
 
 **Done when:** CI Gate requires the fan-in; on three consecutive green PR runs the sharded feature
-check finishes, fan-in included, in about 20 minutes or less; the union of legs equals the reference
-set at the same head; and the measured runs show no flaky leg the unsharded runs did not.
+check finishes, fan-in included, in at most 25 minutes, measured from the CI run's start to the
+fan-in job's end (owner answer 6266229360, Q1); the fan-in's code checks set equality both ways —
+it fails on a reference leg missing from the union, a leg of the union not in the reference set,
+and one leg running in two shards, any outcome (owner answer 6266229360, Q2); and the measured
+runs show no flaky leg the unsharded runs did not.
