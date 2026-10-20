@@ -860,10 +860,14 @@ class Snapshot:
         own: dict[str, Any],
     ) -> str | None:
         """``sha256`` of the rev's own diff at its own merge-base, or None with an error named
-        ``own-diff`` -- a failed read must never read as a carry (UR-106, UR-154)."""
+        ``own-diff`` -- a failed read must never read as a carry (UR-106, UR-154). The paths
+        ride as ``:(literal)`` pathspecs: a PR-controlled filename like ``:(exclude)**`` would
+        otherwise rewrite the diff's pathspec and read as an empty diff (a false carry)."""
         try:
             base = self.git("merge-base", root, rev)
-            diff = self.run(["git", "diff", f"{base}..{rev}", "--", *files])
+            diff = self.run(
+                ["git", "diff", f"{base}..{rev}", "--", *(f":(literal){f}" for f in files)]
+            )
         except Exception as exc:  # reported, not fatal; carry stays None
             item["errors"].append(f"own-diff {rev[:9]}: {error_text(exc)}")
             own["reads"] += 1
