@@ -25,6 +25,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCORER = REPO_ROOT / "scripts" / "mutation-score.py"
 
@@ -410,6 +412,9 @@ def test_scored_set_filters_to_m1_shipping_modules(tmp_path: Path) -> None:
     assert out["totals"]["score"] == 100.0
 
 
+@pytest.mark.timeout(
+    120
+)  # full-tree reachability AST walk (scripts/test_reachability.py:388 precedent)
 def test_repo_targets_match_m1_shipping_set() -> None:
     """O3.5 / 01 M2 Box 1 on REPO_ROOT: vlm_analyzer ships and is in the scored
     set; redis_json, scenario_classifier, managed_service, and
