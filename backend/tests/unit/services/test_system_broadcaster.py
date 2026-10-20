@@ -1381,7 +1381,9 @@ async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeou
     exact losing layer - and counted stub invocations, so it passed against a starvation:
     with redis publish timing out, the real handlers' builtin-only except tuples let
     ``redis.exceptions.TimeoutError`` escape ``broadcast_status`` (the ``:314`` clause), the
-    loop's ``except Exception`` swallowed it, and every tick lost its broadcasts.
+    loop's ``except Exception`` swallowed it, and every tick lost its ``performance_update``
+    broadcast. ``system_status`` kept delivering: local sends happen before publish, so the
+    escape killed only the back half of the tick.
 
     This corrected probe runs the REAL broadcast methods: ``publish`` raises
     ``redis.exceptions.TimeoutError`` on every call, and each tick must still deliver both
