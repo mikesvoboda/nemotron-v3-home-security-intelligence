@@ -157,9 +157,9 @@ and which PRs may jump the queue, and names the merge rules that sit elsewhere.
    prints it per open PR). Conflicts go to the author (UR-102). Update no other PR until this one
    merges or leaves the head of the queue (its gate fails at the new head, its update conflicts,
    or it loses its review or owner approval). End the turn; the next tick reads its CI. An approval
-   carries when the hashes match or the update is a subset carry (UR-106, ruling 278); for a
-   subset carry, quote the two own diffs' comparison, name each dropped line and show where
-   `main`'s change holds it.
+   carries when the hashes match or the update is a subset carry (UR-106, ruling 278); until
+   `[r278]` lands, judge a subset carry by hand: quote the two own diffs' comparison, name each
+   dropped line and show where `main`'s change holds it.
    **After the switch-over pointer** (ruling 272 item 5; UR-102): the queue-update workflow makes
    this update when `main` moves, and its PR comment carries the two own-diff hashes you quote.
    Update the head yourself only when it has been behind `main` for more than 10 minutes since
@@ -219,8 +219,8 @@ on #6854, never by replying to it.
    `<!-- queue: 7294@b043d29d9 7290@d94ee05a8 -->`, listing every PR you judge ready (UR-104,
    UR-106) in queue order, each with the head SHA you judged (at least 9 hex characters). A
    red-`main` fix (UR-111) comes first, prefixed `!`; a PR the owner names (UR-104) comes next.
-   An empty queue is written `<!-- queue: -->`. The queue-update workflow reads this line and
-   nothing else. Until #7312 (`[r272]`'s red-`main` read fix) merges, list only `!` entries while
+   An empty queue is written `<!-- queue: -->`. The queue-update workflow reads only this line
+   from the comment. Until #7312 (`[r272]`'s red-`main` read fix) merges, list only `!` entries while
    `main` is red, because the workflow cannot yet tell (ruling 288 item 1).
 6. **Delegated acts** (ruling 281 item 5). The comment carries a "Delegated (last 24 h)" line
    listing, by comment id, each delegated approval and each owner-partner record (delegated,

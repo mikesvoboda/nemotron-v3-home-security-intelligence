@@ -301,6 +301,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 286    | one-off, delegated: red-`main` fixes for `certifi` and Pillow (records 6301229929, 6302966882)              |
 | 287    | `O2.5` item 2's pass and venue fixes; package `[r287b]` (record 6302941592)                                 |
 | 288    | one-off, delegated: `[r272]`'s red-`main` read, #7314, #7311's F-254 (record 6303093964)                    |
+| 289    | one-off, delegated: Phase 3 rebalance; O3.4, O3.5 to heavy-b; B3.3's box 4 (record 6303414416)              |
 
 ## Owner records
 

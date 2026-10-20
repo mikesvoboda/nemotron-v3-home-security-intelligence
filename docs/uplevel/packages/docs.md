@@ -509,8 +509,7 @@ record 6291992942; audit items Q-093 and Q-075 of `[r262]`)
       against `main`'s base, not the audit's pin: `extractRateLimitInfo`, its `update()` call, the
       three-header guard, `fetchWebSocketHealth`'s fetch, and the websocket-health route with its
       `DEFAULT` tier in `backend/api/routes/system.py`. The PR quotes each cited line from its base.
-- [ ] Frontend's Q-076 holds two of the same citations in
-      `frontend/tests/golden/shell/rate-limit.spec.ts`; it goes to frontend's later cleanup, not
-      this PR.
+      Frontend's Q-076 holds two of the same citations in
+      `frontend/tests/golden/shell/rate-limit.spec.ts`; it goes to frontend's later cleanup, not this PR.
 
 **Done when:** merged at a ready head, each citation quoting its line at the PR's base.

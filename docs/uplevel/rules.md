@@ -364,17 +364,20 @@ and the re-read and merge comment are UR-29.
   - **Delegated approval** (ruling 281, record 6293911155). The owner partner records an owner
     approval on #6854 for an owner-tier PR when all of these hold, and the record states the
     evidence for each: (a) the PR implements an owner ruling, record or plan block, which the
-    approval names; (b) its diff stays inside that scope, checked file by file; (c) a
+    approval names; (b) its diff stays inside that scope: its files and boxes checked against the
+    package, saying how; (c) a
     fresh-context UR-89 review approves its head, or a carry of it under UR-106, with no blocking
     finding, and where the package touches security, auth, privileged host tooling, a workflow or a
     credential, that review includes a security pass naming where the credential or privilege is
     exposed; (d) `CI Gate` is green at that head, or the approval is conditioned on it; (e) no
     "Questions for the owner" entry is open; (f) nothing in it is on the owner's reserved list
     (`roles/owner-partner.md`, "Delegated approval and operational calls"). Its first line reads
-    `**Owner-partner approval (delegated, ruling 281) · #N at <sha> …**`, it never quotes the owner,
+    `**Owner-partner approval (delegated, ruling 281) · #N at <sha> …**`, it never quotes or
+    paraphrases the owner as giving it,
     and it carries the head, review and gate conditions an owner approval carries. It also covers a
     re-approval after a reset, and the owner partner's own plan PRs when an independent
-    fresh-context review finds every item matches its owner record ("record match: yes"). The
+    fresh-context review finds every item matches its owner record ("record match: yes") with no
+    blocking finding. The
     coordinator treats it as an owner approval. The owner may veto any delegated approval or record:
     an unmerged PR's approval is withdrawn and the coordinator disables its auto-merge, and a merged
     one is reverted by the owning lane as UR-108's audit path does.

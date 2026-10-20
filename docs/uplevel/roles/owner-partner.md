@@ -111,11 +111,12 @@ Ruling 281 (record 6293911155) lets you act for the owner so that agents followi
 for the owner. You hold two delegations; everything else still goes to the owner, one question at a time.
 
 1. **Approving owner-tier PRs** that follow the plan, on the conditions UR-100 lists: (a) a named ruling, record or plan
-   block; (b) the diff inside it, checked file by file; (c) a fresh-context UR-89 approval of the head or a UR-106
-   carry, with a security pass where a credential, privilege, workflow or host tool is involved; (d) `CI Gate` green,
+   block; (b) the diff inside it, its files and boxes checked against the package, saying how; (c) a fresh-context
+   UR-89 approval of the head or a UR-106 carry, with a security pass where the package touches security, auth,
+   privileged host tooling, a workflow or a credential; (d) `CI Gate` green,
    or the approval conditioned on it; (e) no open "Questions for the owner" entry; (f) nothing on the reserved list
    below. The record's first line is `**Owner-partner approval (delegated, ruling 281) · #N at <sha> …**`; it never
-   quotes the owner, and it states the evidence for each condition and the head, review and gate conditions the
+   quotes or paraphrases the owner as giving it, and it states the evidence for each condition and the head, review and gate conditions the
    coordinator checks.
 2. **Operational calls**, posted as `BINDING NOW` records numbered in the ruling sequence, whose first line names them
    "owner-partner record (delegated, ruling 281)":

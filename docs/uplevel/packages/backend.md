@@ -793,7 +793,7 @@ failing-first test (UR-69), and ops-a's `O2.5` venue fixes leave them out (rulin
       `pcie_link_width` has; correct the "(1-4)" descriptions and comments
       (`backend/services/gpu_monitor.py`, `backend/models/gpu_stats.py`); regenerate
       `docs/openapi.json` and `frontend/src/types/generated/api.ts`. The test has both schemas
-      accept `pcie_link_gen=6`.
+      accept `pcie_link_gen=6` (or `GET /api/system/gpu` returns a Gen 6 sample).
 - [ ] **The webhook retry commits before it answers** (amendment 6302995876). `retry_delivery`
       (`backend/api/routes/outbound_webhooks.py`) takes `Depends(get_db)`, and `get_db` commits
       after its `yield`, which under FastAPI 0.143's default dependency scope ran after the 200 was

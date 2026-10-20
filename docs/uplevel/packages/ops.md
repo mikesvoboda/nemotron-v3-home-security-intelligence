@@ -151,7 +151,7 @@ then. It does not flip `REID_BACKEND`; production stays `local`.
 
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
 `feature_check.py --real` and ruling 143's Playwright container. It is on ops-a's roster queue
-(UR-52); the operator runs its sandbox run and the owner its maui run (ruling 256).
+(UR-52); the owner runs both runs from the maui login (rulings 256, 280).
 It gates only ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222), not
 Phase 2's exit (UR-10, contract rule 5).
 
@@ -173,7 +173,7 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       from ruling 143, on a test deployment (UR-133). The operator runs the sandbox run from the
       command ops-a posts (UR-140); ops-a posts the maui command on #7037 once `[r195]` carries it,
       and the operator reads that run's output (ruling 185 item 3).
-  - **The sandbox run, first (operator).** `--real --prod-shape` in the operator's sandbox, with no
+  - **Item 1, the `--real` run, first (the owner's on maui since ruling 280).** `--real --prod-shape`, with no
     GPU consumer in the stack but the VLM: `ai-vlm` served by `agent-gpu`, the fake `ai-gateway`, no
     `dcgm-exporter`, and `backend`'s GPU reservation stripped. These are runtime transforms in
     `as_prod_shape_deployment`, not edits to the authored override (ruling 162 item 3), and the run
@@ -1141,7 +1141,7 @@ the owner's token, because an update made with the built-in `GITHUB_TOKEN` start
       makes another workflow's run the newest on `main` (ruling 288 item 1; #7312 carries it).
 - [ ] Switch-over (item 5 as amended): the merge's own push fired the workflow live. The owner
       partner posts the switch-over pointer once a fire has made a correct update, and not before
-      the box above is ticked (ruling 288 item 1). From that pointer, UR-102's update clause and
+      #7312 merges (ruling 288 item 1). From that pointer, UR-102's update clause and
       `roles/coordinator.md` "Merging a PR" step 2 apply.
 
 **Done when:** tests over recorded API payloads cover each step, an empty or missing queue line and
@@ -1224,8 +1224,8 @@ table row that `main` absorbs resets an approval (#7301 lost one this way, `6290
 **Depends on:** none. **PR:** #7308. (ruling 279, record 6293490330)
 
 Under ruling 268 a flaky failure at the head of the queue costs a whole merge cycle. Test
-Performance Audit, Merge Integration Coverage and Feature check (fake AI) were the three that cost
-the most from 10-18.
+Performance Audit, Merge Integration Coverage and Feature check (fake AI) are the three ruling 279
+named; two of them cost #7281 about 75 minutes on 10-19.
 
 - [x] Every failure of the three checks since 2026-10-18 14:00Z is classified in the PR body as
       flaky (the same head, or the same bytes of every file the job reads, passed elsewhere) or real,
@@ -1261,7 +1261,8 @@ test counts, not durations, and shard 1 also runs the backend golden leg.
       shards, and a test pins that the shards' union is exactly the suite. Edits stay inside the
       Feature check job and the harness (UR-121), and `[r264]`'s backend-on-shard-1 rule stays
       unless the measurements argue otherwise, which the PR then says.
-- [ ] `[r279]` changed tests in the same suite; where the two PRs' files meet, this PR says so.
+- [ ] `[r279]` changed tests in the same suite. `[r282]` changes how tests are assigned to shards,
+      not the tests themselves, and where the two PRs' files meet, this PR says so.
 
 **Done when:** `CI Gate` is green at a ready head; the median of at least three full runs at the
 PR's head has a critical path of 15 min or less, with the slowest shard no more than 2 min longer
@@ -1271,7 +1272,7 @@ UR-89 review approves.
 ### [r287b] The whole golden suite passes in the production-shaped run
 
 **Flags:** none. **Assigned:** none; the owner assigns it when Phase 3's queue allows, and the
-coordinator does not (ruling 287). **Depends on:** `O2.5`. **PR:** none yet. (ruling 287, record 6302941592)
+coordinator does not (ruling 287). **Depends on:** none named. **PR:** none yet. (ruling 287, record 6302941592)
 
 The owner's maui discovery for `O2.5` item 2 (attempt 8, `hsi-check-20261020205509-0c0734`, on
 `main` `91bf685eb` plus local fixes) passed the backend golden leg 27 of 27, and Playwright passed
