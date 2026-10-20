@@ -802,7 +802,7 @@ def test_real_tree_matches_spec_baselines():
         # stack — a contract that can never be "fixed", so their deadline must be
         # null. Increase path, fifth precedent.
         "pytest_skip_imperative": 93,
-        "frontend_skip": 54,
+        "frontend_skip": 52,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
         # WP1.3: 150 uncounted patterns (P's figure, reproduced exactly) pruned
