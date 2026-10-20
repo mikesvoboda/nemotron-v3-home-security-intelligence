@@ -146,7 +146,7 @@ class TestBackupExportsDeferredEventColumns:
     ``Event.reasoning`` and ``Event.llm_prompt`` are ``deferred()``
     (backend/models/event.py:70-74), so ``select(Event)`` does not load them.
     ``_export_table`` then walks EVERY mapper column with ``getattr``
-    (backend/services/backup_service.py:353-354), and touching an unloaded
+    (backend/services/backup_service.py:324, :378), and touching an unloaded
     deferred column makes SQLAlchemy issue a lazy load -- which raises
     ``MissingGreenlet`` inside an ``AsyncSession``. Pre-fix every backup failed
     as soon as one event existed, and every backup looked healthy on an empty
