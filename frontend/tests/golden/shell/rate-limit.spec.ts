@@ -154,7 +154,14 @@
  * consumer — serial golden worker (playwright.config.ts:287-288),
  * BOOT_QUIET_MS drain before every navigation AND before the reload; test 3
  * warms the bucket and then paces its PATCH loop at 120 ms (~8.3 r/s < 10 r/s)
- * so nginx never sheds inside the tier measurement.
+ * so nginx never sheds inside the tier measurement. Test 3 leaves the shared
+ * BULK-tier window (12/60 s, client-IP keyed — one serial worker) full and
+ * then WAITS IT OUT before the file ends (one confirming probe, bucket
+ * parked at 1/12): every other bulk consumer in the corpus paces itself
+ * around that tier (export-modal's spacing helper), so the file that fills
+ * the bucket is the one that empties it. Measured cost ~62 s on shard 1
+ * (run 39476467175's witness: download-media's seed 429ed 42.6 s after this
+ * file's hammer when the two were newly co-sharded).
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
@@ -644,7 +651,7 @@ test.describe('golden path: rate-limit pill @critical', () => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
-    test.setTimeout(120_000); // warm waits included
+    test.setTimeout(240_000); // warm waits + the drain's 62s rounds; pathological path ~205s (measured sum)
 
     await seedTourDismissed(page);
     await maybeLogin(page, h);
@@ -734,5 +741,43 @@ test.describe('golden path: rate-limit pill @critical', () => {
     expect(await retiredSurface(page)).not.toMatch(RETIRED_SURFACE);
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
+
+    // ══ THE PAYBACK LEG ══
+    // The hammer loop filled the SHARED BULK-tier window (12/60 s, keyed by
+    // client IP — and the golden project is one serial worker, so every later
+    // bulk consumer on this shard shares the bucket). This file is the only
+    // spec in the corpus that deliberately fills the tier; every other bulk
+    // consumer paces around it (export-modal.spec.ts's spacing helper, 5 s
+    // between bulk calls). Leaving the window full turned deterministic once
+    // the shard manifest co-sharded this file with a consumer that seeds in
+    // beforeAll: run 39476467175's shard 1 died when download-media's seed
+    // POST 429ed 42.6 s after this file's hammer (the warm gates sit between
+    // tests 2 and 3, so the NEXT file's first bulk call had no gate of its
+    // own).
+    //
+    // Why the drain WAITS instead of polling: a denied probe is free (the
+    // sliding-window Lua script denies without ZADD), but an accepted probe
+    // is NOT — it ZADDs and re-pins the bucket at 12/12 for its own 60 s.
+    // Polling into acceptance would exit the loop having re-armed the exact
+    // trap it drains, and accepted responses carry no rate headers (asserted
+    // above), so the bucket state is unreadable from the page. So: wait out
+    // the whole window first — 62 s covers the 60 s window plus the hammer
+    // burst's ~1.6 s entry spread — THEN one probe confirms the tier answers
+    // (and parks the bucket at 1/12, 11 slots free). A denied confirmation
+    // buys one more 62 s round; a second denial fails loud instead of
+    // handing the shard a full window.
+    await page.waitForTimeout(62_000);
+    let drained = await probePatch();
+    if (drained.s === 429) {
+      await page.waitForTimeout(62_000);
+      drained = await probePatch();
+    }
+    if (drained.s === 429) {
+      throw new Error(
+        `BULK tier still denying 124 s after the hammer: ${JSON.stringify(drained)} — ` +
+          `the seed-side bulk consumers sharing this client-IP bucket would 429 ` +
+          `in their beforeAll; refusing to hand the shard a full window`
+      );
+    }
   });
 });
