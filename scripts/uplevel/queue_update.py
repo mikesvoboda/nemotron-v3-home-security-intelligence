@@ -147,13 +147,24 @@ def _gh_rest(
     run: Runner, method: str, path: str, stdin: str = "", token: str | None = None
 ) -> tuple[int, dict | list]:
     """A REST call answered with its HTTP status and parsed body -- update-branch answers 202
-    and a conflict 409, both of which the caller must tell apart. ``stdin`` is the request
-    body (the PUT's JSON), fed through the runner's stdin channel; ``token`` overrides the
-    auth for this one call (the write credential's two calls only)."""
-    out = run(["gh", "api", "-X", method, path, *_auth(token), "--input", "-", "--include"], stdin)
+    and a conflict 409 (and its expected_head_sha mismatch class is 422), all of which the
+    caller must tell apart. ``stdin`` is the request body (the PUT's JSON), fed through the
+    runner's stdin channel; ``token`` overrides the auth for this one call (the write
+    credential's two calls only). The status survives a gh non-zero exit: ``gh api`` exits 1
+    on every HTTP >= 400 while the status line still lands on stdout (--include), so the
+    caller parses stdout with the error swallowed (a transport failure reads as status 0,
+    which is not any branch's shape)."""
+    try:
+        out = run(
+            ["gh", "api", "-X", method, path, *_auth(token), "--input", "-", "--include"], stdin
+        )
+    except Exception:
+        out = ""
     # `gh api --include` prints the headers, a blank line, then the body; the status is the
     # first line's second token.
-    head, _, body = out.partition("\r\n\r\n") or out.partition("\n\n")
+    head, _, body = out.partition("\r\n\r\n")
+    if not head:
+        head, _, body = out.partition("\n\n")
     status = 0
     if head:
         first = head.splitlines()[0]
@@ -175,8 +186,13 @@ def read_state(
     (a failed read must not read as "all clear", UR-154's shape)."""
     errors: list[str] = []
     try:
-        comments = json.loads(
-            _run(run, f"{_rest_path(repo, f'issues/{issue}/comments')}?per_page=100")
+        # `--paginate`: the status comment the coordinator edits in place (UR-25) slides
+        # deeper as #6854 grows -- it sits on page 5 of 9 today (893 comments), so a
+        # single-page read would see an empty queue every fire. The house precedent is
+        # Coordinator.gh_paginated (coordinator_snapshot.py), which streams one JSON value
+        # per page and flattens arrays.
+        comments = snap.parse_json_stream(
+            _run(run, f"{_rest_path(repo, f'issues/{issue}/comments')}?per_page=100", "--paginate")
         )
     except Exception as exc:  # reported, not fatal: an unread queue is an empty plan
         return [], "", None, [f"queue-line read: {snap.error_text(exc)}"]
@@ -295,10 +311,12 @@ def _hash_at(
 ) -> str | None:
     """The UR-106 own-diff hash of one rev, hashed against ITS OWN merge-base (the _hash_own
     precedent: hashing both revs against today's merge-base would report carry=no for a roll
-    that carries)."""
+    that carries). The paths ride as ``:(literal)`` pathspecs: a PR-controlled filename like
+    ``:(exclude)**`` would otherwise rewrite the diff's pathspec and read as an empty diff --
+    equal hashes, a false carry (n4; the coordinator's _hash_own carries the same guard)."""
     try:
         base = run(["git", "merge-base", "origin/main", rev], "")
-        diff = run(["git", "diff", f"{base}..{rev}", "--", *files], "")
+        diff = run(["git", "diff", f"{base}..{rev}", "--", *(f":(literal){f}" for f in files)], "")
     except Exception as exc:
         errors.append(f"own-diff {rev[:9]}: {snap.error_text(exc)}")
         return None
@@ -378,12 +396,14 @@ def act(
     status, answer = _gh_rest(
         run, "PUT", _rest_path(repo, f"pulls/{n}/update-branch"), json.dumps(body), token
     )
-    if status == 409:
-        # A conflict falls through to the next entry in the SAME fire (step 5). The fallthrough
-        # lives in fire(): this fire re-decides with this entry marked skipped.
+    if status in (409, 422):
+        # A conflict falls through to the next entry in the SAME fire (step 5). The
+        # fallthrough lives in fire(): this fire re-decides with this entry marked skipped.
+        # GitHub documents 409 for update-branch; the expected_head_sha mismatch and
+        # merge-conflict class is 422 -- both read as "this entry cannot update now".
         plan.action = "conflict-fallthrough"
-        plan.action_note = f"update of #{n} conflicted (409): falling through to the next entry"
-        st.errors.append("update-branch conflicted (409)")
+        plan.action_note = f"update of #{n} conflicted ({status}): falling through to the next entry"
+        st.errors.append(f"update-branch conflicted ({status})")
         return plan
     if status not in (200, 202):
         plan.action_note = f"update-branch answered {status}: nothing more this fire"
@@ -398,12 +418,16 @@ def act(
             f"#{n} updated to {new_head[:9] if new_head else '?'}; own diff changed "
             "(carry: no) -- auto-merge disarmed, left to the coordinator"
         )
-        return plan
+    else:
+        plan.action_note = (
+            f"#{n} updated {st.entry.sha[:9]} -> {new_head[:9] if new_head else '?'}; "
+            f"auto-merge armed; carry: {carried}"
+        )
+    # Step 7 comments once on the PR it updated -- after an update, either way. Item 6 makes
+    # this comment the own-diff comparison UR-106's condition 1 asks the coordinator to
+    # quote, and the carry:no handoff is exactly where the coordinator reads it on the PR
+    # (the job summary is not that channel).
     _comment_update(run, repo, n, st, new_head, plan.main_tip, carried, run_url)
-    plan.action_note = (
-        f"#{n} updated {st.entry.sha[:9]} -> {new_head[:9] if new_head else '?'}; "
-        f"auto-merge armed; carry: {carried}"
-    )
     return plan
 
 
@@ -566,7 +590,11 @@ def fire(run: Runner, repo: str, issue: int, token: str | None, run_url: str = "
     plan = Plan(
         main_tip=plan.main_tip,
         main_ci_conclusion=plan.main_ci_conclusion,
-        queue_entries=plan.queue_entries,
+        # the conflicted entry leaves the QUEUE too (not just entries): decide()'s no-entry-
+        # acted fallback (`if plan.queue_entries: no-op`) and the red-main filter both read
+        # this list, so a stale row here would let the re-decide re-pick the entry that
+        # just 409ed and burn this fire's single update on a retry.
+        queue_entries=[e for e in plan.queue_entries if e.number != conflicted],
         read_errors=plan.read_errors,
         entries=[s for s in plan.entries if s.entry.number != conflicted],
     )

@@ -570,11 +570,13 @@ the run link. A job summary is written every fire, even when it does nothing. Th
 `scripts/uplevel/queue_update.py` (tests: `scripts/test_queue_update.py`, in ci.yml's
 anti-rot list).
 
-**Credentials:** the job's `GITHUB_TOKEN` is read-only (`permissions: contents: read`). Writes
-ride the `QUEUE_UPDATE_TOKEN` repository secret, which the script uses for exactly two call
-kinds — update-branch and the auto-merge arm/disable mutation. No PR code runs in this
-workflow (the checkout is the ref that fired, never a PR's head), so the secret is never in
-scope while unreviewed code executes.
+**Credentials:** the job's `GITHUB_TOKEN` is read-only for contents (`permissions: contents:
+read, issues: write` — the write scope exists only for the step-7 comment POST, which rides
+the job token). Writes ride the `QUEUE_UPDATE_TOKEN` repository secret, which the script uses
+for exactly two call kinds — update-branch and the auto-merge arm/disable mutation, via a
+per-call `-H "Authorization: token …"` override. No PR code runs in this workflow (the
+checkout is the ref that fired, never a PR's head), so the secret is never in scope while
+unreviewed code executes.
 
 **Concurrency:** group `queue-update`, `cancel-in-progress: false` — one fire at a time,
 queued, so two fires never both read "behind" and double-update.

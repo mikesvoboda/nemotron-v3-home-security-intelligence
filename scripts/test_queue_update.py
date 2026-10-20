@@ -61,7 +61,14 @@ def diff_for(rev: str, content: str = "+line\n") -> str:
 
 
 class Fake:
-    """Answers by command shape, records every call, raises on a command nobody scripted."""
+    """Answers by command shape, records every call, raises on a command nobody scripted.
+
+    The fake models gh's exit-code contract on WRITES: an HTTP >= 400 answer reaches the
+    script as stdout carrying the `--include` status line, with the runner never raising
+    (gh exits 1 there but the status line is stdout). Reads fail by raise, as a failed
+    read must. A write answered with NO status line (a transport failure) returns empty
+    stdout -- the drift this modeling prevents is a caller that assumes the raise.
+    """
 
     def __init__(self, **over):
         self.calls: list[list[str]] = []
@@ -74,6 +81,7 @@ class Fake:
         self.diffs = over.get("diffs", {})  # rev -> diff text; default below = one carry
         self.update_status = over.get("update_status", 200)
         self.update_answer = over.get("update_answer", {"message": "Merged"})
+        self.update_answer_lines = over.get("update_answer_lines", 1)  # stdout lines on exit-1
         self.post_update_head = over.get("post_update_head", NEW_HEAD)
         self.update_pr = over.get("update_pr", 111)  # which PR's head moves on the update
 
@@ -115,7 +123,12 @@ class Fake:
         if path.startswith("graphql"):
             return self.graphql(cmd[-1].removeprefix("query="))
         if "issues/6854/comments" in path:
-            return json.dumps(self.comments)
+            # the paginated contract: gh --paginate streams one JSON value per page. The
+            # fake answers in exactly that shape (one array per page), and REQUIRES the
+            # --paginate flag -- a single-page read regresses N1 and fails here, loud.
+            if "--paginate" not in cmd:
+                raise AssertionError("comments read without --paginate (N1 regression)")
+            return json.dumps(self.comments) + json.dumps([])  # two pages, second empty
         if path.endswith("commits/main"):
             return json.dumps({"sha": TIP})
         if "actions/runs?" in path:
@@ -141,6 +154,10 @@ class Fake:
             self.calls[-1].append(f"stdin={stdin}")
             if self.update_status in (200, 202) and self.update_pr is not None:
                 self.prs[self.update_pr]["head"]["sha"] = self.post_update_head
+            # gh's contract, modeled: the status line is stdout (--include) even on the
+            # exit-1 statuses; 0 means the answer arrived with NO status line at all.
+            if self.update_status == 0:
+                return ""
             return f"HTTP/2.0 {self.update_status}\n\n{json.dumps(self.update_answer)}"
         if method == "POST" and "issues/111/comments" in path:
             self.comment_body = cmd[-1].removeprefix("body=")
@@ -226,6 +243,29 @@ def test_a_failed_queue_read_is_reported_not_swallowed():
     assert plan.queue_entries == []
     assert plan.read_errors and "queue-line read" in plan.read_errors[0]
     assert plan.action == "none"  # an unread queue decides nothing
+
+
+def test_status_comment_found_on_a_later_page():
+    # N1: the status comment the coordinator edits in place slides deeper as #6854 grows
+    # (page 5 of 9 live). The paginated read must find it wherever it sits: the fake
+    # answers two pages, the status comment on the second.
+    late = status_comment(f"111@{HEAD[:9]}")
+    fake = green(comments=[{"id": 1, "body": "early chatter"}])
+    fake.comments.append(late)  # page 2's stream: parse_json_stream flattens both arrays
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert [e.number for e in plan.queue_entries] == [111]
+    assert plan.action == "no-op"  # green + current: read found, decision made
+
+
+def test_a_missing_status_comment_is_a_fire_level_noop_not_an_error():
+    # n8, at fire level: a comments list with NO marker-leading comment is a coordinator
+    # who has not posted one yet -- an empty queue, not a failed read. (The parse-level
+    # no-line shape is test_empty_queue_line_reads_as_empty.)
+    fake = green(comments=[{"id": 1, "body": "just chatter"}, {"id": 2, "body": ""}])
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.queue_entries == []
+    assert plan.read_errors == []  # the read SUCCEEDED; the queue is empty
+    assert plan.action == "none"
 
 
 def test_main_ci_none_is_neither_red_nor_green():
@@ -440,6 +480,40 @@ def test_conflict_then_second_entry_updates():
     assert "111" in once.seen[0] and "222" in once.seen[1]
 
 
+def test_conflict_422_falls_through_like_409():
+    # GitHub documents 422 for the expected_head_sha-mismatch and merge-conflict class of
+    # update-branch; both statuses read as "this entry cannot update now" (N2's widening).
+    queue = f"111@{HEAD[:9]} 222@{HEAD2[:9]}"
+    fake = green(queue=queue)
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    fake.prs[222] = pr(222, HEAD2, base="0" * 40)
+    gate_answer(fake, GREEN)
+    fake.update_status = 422
+    fake.update_answer = {"message": "head was modified"}
+    plan = qu.fire(fake, REPO, ISSUE, "tok-1")
+    assert plan.action == "no-op"  # both entries 422ed: stop
+    # the note names the second entry's conflict; the first's rode entry 111's errors on
+    # the pre-fallthrough plan (rebuilt here), so the fire shape is pinned by the PUT
+    # count instead: two PUTs, one fire, both entries tried.
+    assert "a second entry conflicted too" in plan.action_note
+    assert len([c for c in fake.calls if "update-branch" in " ".join(c)]) == 2
+
+
+def test_a_transport_failure_on_the_put_is_not_a_conflict_nor_a_crash():
+    # gh exiting with NO status line on stdout (a network death): status 0, not any
+    # branch's shape -- the fire stops, reports, writes no comment, and stays red rather
+    # than guessing (N2's second half: the raise must not escape to main()'s catch).
+    fake = green()
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    fake.update_status = 0
+    plan = qu.fire(fake, REPO, ISSUE, "tok-1")
+    assert plan.action == "update"  # the decision stands; the note says what failed
+    assert "answered 0" in plan.action_note
+    assert not getattr(fake, "comment_body", None), "commented on a fire that wrote nothing"
+    assert not getattr(fake, "armed", None)
+
+
 def test_update_failure_stops_the_fire_and_reports():
     fake = green()
     fake.prs[111] = pr(111, HEAD, base="0" * 40)
@@ -511,7 +585,7 @@ def test_disarm_mutation_also_rides_the_write_header():
 # -- step 6: the re-hash across the update ----------------------------------
 
 
-def test_carry_no_disarms_auto_merge():
+def test_carry_no_disarms_auto_merge_and_comments():
     fake = green()
     fake.prs[111] = pr(111, HEAD, base="0" * 40)
     gate_answer(fake, GREEN)
@@ -526,7 +600,12 @@ def test_carry_no_disarms_auto_merge():
     assert getattr(fake, "disarmed", None), "auto-merge stayed armed on carry: no"
     assert "disablePullRequestAutoMerge" in fake.disarmed
     assert "carry: no" in plan.action_note
-    assert not getattr(fake, "comment_body", None), "step 7's comment is for a carry"
+    # step 7's comment goes out on this path too (N3): item 6 makes it the own-diff
+    # comparison UR-106's condition 1 asks the coordinator to quote, and the carry:no
+    # handoff is exactly where the coordinator needs it, on the PR itself.
+    assert getattr(fake, "comment_body", None), "no step-7 comment on the carry:no path"
+    assert "carry: no" in fake.comment_body
+    assert NEW_HEAD[:9] in fake.comment_body
 
 
 def test_carry_yes_comments_with_both_hashes():

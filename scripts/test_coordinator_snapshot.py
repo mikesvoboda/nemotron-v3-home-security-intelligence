@@ -1369,7 +1369,12 @@ def test_own_diff_reads_scope_to_pr_files_and_use_two_ranges():
     diffs = [c for c in fake.calls if c[:2] == ["git", "diff"] and "--" in c]
     assert [c[2] for c in diffs] == [f"{BASE}..{HEAD}", f"{APPROVED_BASE}..{named(APPROVED_HEAD)}"]
     for c in diffs:
-        assert c[3] == "--" and c[4:] == ["docs/b.md"], "UR-106 hashes the OWN diff, not the tree"
+        # the paths ride as :(literal) pathspecs -- a PR-controlled filename like
+        # ":(exclude)**" would otherwise rewrite the diff's pathspec and read as an empty
+        # diff (a false carry); the literal prefix pins each path to a filename.
+        assert c[3] == "--" and c[4:] == [":(literal)docs/b.md"], (
+            "UR-106 hashes the OWN diff, not the tree, over literal pathspecs"
+        )
 
 
 def test_an_approval_naming_the_head_needs_one_read_and_carries():
