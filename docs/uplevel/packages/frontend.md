@@ -136,14 +136,14 @@ same way after the owner's `R2b` session.
 
 **Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304.
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309.
 
 Lands in the same PR as `B3.1`, one R2a row per PR (ruling 255; `B3.1` states the rule), starting
 with OD-20's enrichment surface.
 
 - [ ] For each feature ruled **retire**: delete its routes, components, hooks, types, stores, MSW
       handlers, tests, snapshots, visual baselines and Playwright specs, and its `docs/ui/` page.
-- [ ] `R2b` round 1's retirements and splits (frontend only, no backend part):
+- [x] `R2b` round 1's retirements and splits (frontend only, no backend part):
   - **F-022, rate-limit indicator** (ruling 132): the pill stays and reads "Rate limited,
     retrying…" with no count, limit or time; the countdown overlay, the invented defaults in
     `updateRateLimitStoreFromError` (`frontend/src/services/queryClient.ts:249-297`) and any store

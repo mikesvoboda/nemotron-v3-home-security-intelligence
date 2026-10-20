@@ -2,7 +2,6 @@
 
 Tests cover:
 - GpuAssignmentStrategy enum values and string representation
-- GpuDevice model initialization, fields, and __repr__
 - GpuConfiguration model initialization, fields, and __repr__
 - SystemSetting model initialization, fields, and __repr__
 - Table arguments and indexes verification
@@ -20,7 +19,6 @@ from sqlalchemy import inspect
 from backend.models.gpu_config import (
     GpuAssignmentStrategy,
     GpuConfiguration,
-    GpuDevice,
     SystemSetting,
 )
 
@@ -206,204 +204,6 @@ class TestGpuAssignmentStrategyLookup:
         """Test invalid name raises KeyError."""
         with pytest.raises(KeyError):
             GpuAssignmentStrategy["INVALID"]
-
-
-# =============================================================================
-# GpuDevice Model Tests
-# =============================================================================
-
-
-class TestGpuDeviceModelInitialization:
-    """Tests for GpuDevice model initialization."""
-
-    def test_gpu_device_creation_minimal(self):
-        """Test creating a GPU device with minimal required fields."""
-        device = GpuDevice(gpu_index=0)
-
-        assert device.gpu_index == 0
-        # Optional fields should be None
-        assert device.name is None
-        assert device.vram_total_mb is None
-        assert device.vram_available_mb is None
-        assert device.compute_capability is None
-
-    def test_gpu_device_with_all_fields(self):
-        """Test GPU device with all fields populated."""
-        now = datetime.now(UTC)
-        device = GpuDevice(
-            gpu_index=0,
-            name="NVIDIA RTX A5500",
-            vram_total_mb=24000,
-            vram_available_mb=20000,
-            compute_capability="8.6",
-            last_seen_at=now,
-        )
-
-        assert device.gpu_index == 0
-        assert device.name == "NVIDIA RTX A5500"
-        assert device.vram_total_mb == 24000
-        assert device.vram_available_mb == 20000
-        assert device.compute_capability == "8.6"
-        assert device.last_seen_at == now
-
-    def test_gpu_device_all_optional_fields_nullable(self):
-        """Test all optional GPU device fields are nullable."""
-        device = GpuDevice(gpu_index=0)
-
-        assert device.name is None
-        assert device.vram_total_mb is None
-        assert device.vram_available_mb is None
-        assert device.compute_capability is None
-
-
-class TestGpuDeviceFields:
-    """Tests for GpuDevice model fields."""
-
-    def test_gpu_device_has_id_field(self):
-        """Test GPU device has id field."""
-        device = GpuDevice(gpu_index=0)
-        assert hasattr(device, "id")
-
-    def test_gpu_device_has_gpu_index_field(self):
-        """Test GPU device has gpu_index field."""
-        device = GpuDevice(gpu_index=0)
-        assert hasattr(device, "gpu_index")
-        assert device.gpu_index == 0
-
-    def test_gpu_device_has_name_field(self):
-        """Test GPU device has name field."""
-        device = GpuDevice(gpu_index=0, name="NVIDIA RTX A5500")
-        assert hasattr(device, "name")
-        assert device.name == "NVIDIA RTX A5500"
-
-    def test_gpu_device_has_vram_total_mb_field(self):
-        """Test GPU device has vram_total_mb field."""
-        device = GpuDevice(gpu_index=0, vram_total_mb=24000)
-        assert hasattr(device, "vram_total_mb")
-        assert device.vram_total_mb == 24000
-
-    def test_gpu_device_has_vram_available_mb_field(self):
-        """Test GPU device has vram_available_mb field."""
-        device = GpuDevice(gpu_index=0, vram_available_mb=20000)
-        assert hasattr(device, "vram_available_mb")
-        assert device.vram_available_mb == 20000
-
-    def test_gpu_device_has_compute_capability_field(self):
-        """Test GPU device has compute_capability field."""
-        device = GpuDevice(gpu_index=0, compute_capability="8.6")
-        assert hasattr(device, "compute_capability")
-        assert device.compute_capability == "8.6"
-
-    def test_gpu_device_has_last_seen_at_field(self):
-        """Test GPU device has last_seen_at field."""
-        device = GpuDevice(gpu_index=0)
-        assert hasattr(device, "last_seen_at")
-
-
-class TestGpuDeviceRepr:
-    """Tests for GpuDevice string representation."""
-
-    def test_gpu_device_repr_contains_class_name(self):
-        """Test repr contains class name."""
-        device = GpuDevice(gpu_index=0, name="NVIDIA RTX A5500")
-        repr_str = repr(device)
-        assert "GpuDevice" in repr_str
-
-    def test_gpu_device_repr_contains_gpu_index(self):
-        """Test repr contains GPU index."""
-        device = GpuDevice(gpu_index=0, name="NVIDIA RTX A5500")
-        repr_str = repr(device)
-        assert "gpu_index=0" in repr_str
-
-    def test_gpu_device_repr_contains_name(self):
-        """Test repr contains GPU name."""
-        device = GpuDevice(gpu_index=0, name="NVIDIA RTX A5500", vram_total_mb=24000)
-        repr_str = repr(device)
-        assert "NVIDIA RTX A5500" in repr_str
-
-    def test_gpu_device_repr_contains_vram(self):
-        """Test repr contains VRAM total."""
-        device = GpuDevice(gpu_index=0, name="NVIDIA RTX A5500", vram_total_mb=24000)
-        repr_str = repr(device)
-        assert "vram_total_mb=24000" in repr_str
-
-    def test_gpu_device_repr_format(self):
-        """Test repr has expected format."""
-        device = GpuDevice(gpu_index=0, name="NVIDIA RTX A5500")
-        repr_str = repr(device)
-        assert repr_str.startswith("<GpuDevice(")
-        assert repr_str.endswith(")>")
-
-
-class TestGpuDeviceTableArgs:
-    """Tests for GpuDevice table arguments (indexes)."""
-
-    def test_gpu_device_has_table_args(self):
-        """Test GpuDevice model has __table_args__."""
-        assert hasattr(GpuDevice, "__table_args__")
-
-    def test_gpu_device_tablename(self):
-        """Test GpuDevice has correct table name."""
-        assert GpuDevice.__tablename__ == "gpu_devices"
-
-    def test_gpu_device_has_gpu_index_unique_index(self):
-        """Test GpuDevice has unique index on gpu_index."""
-        indexes = GpuDevice.__table_args__
-        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
-        assert "idx_gpu_devices_gpu_index" in index_names
-
-    def test_gpu_device_gpu_index_index_is_unique(self):
-        """Test gpu_index index is unique."""
-        indexes = GpuDevice.__table_args__
-        gpu_index_idx = None
-        for idx in indexes:
-            if hasattr(idx, "name") and idx.name == "idx_gpu_devices_gpu_index":
-                gpu_index_idx = idx
-                break
-        assert gpu_index_idx is not None
-        assert gpu_index_idx.unique is True
-
-    def test_gpu_device_has_last_seen_index(self):
-        """Test GpuDevice has index on last_seen_at."""
-        indexes = GpuDevice.__table_args__
-        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
-        assert "idx_gpu_devices_last_seen" in index_names
-
-    def test_gpu_device_gpu_index_column_is_unique(self):
-        """Test gpu_index column has unique constraint."""
-        mapper = inspect(GpuDevice)
-        gpu_index_col = mapper.columns["gpu_index"]
-        assert gpu_index_col.unique is True
-
-
-class TestGpuDeviceTimezoneColumns:
-    """Tests for GpuDevice timezone-aware datetime columns."""
-
-    def test_last_seen_at_column_is_timezone_aware(self):
-        """Test that last_seen_at column is defined with timezone=True."""
-        mapper = inspect(GpuDevice)
-        last_seen_at_col = mapper.columns["last_seen_at"]
-
-        assert hasattr(last_seen_at_col.type, "timezone"), (
-            "DateTime column should have timezone attribute"
-        )
-        assert last_seen_at_col.type.timezone is True, "last_seen_at must be timezone-aware"
-
-    def test_last_seen_at_default_is_timezone_aware(self):
-        """Test that the last_seen_at default function produces timezone-aware datetime."""
-        now_utc = datetime.now(UTC)
-
-        assert now_utc.tzinfo is not None, "datetime.now(UTC) should be timezone-aware"
-        assert now_utc.tzinfo == UTC, "datetime.now(UTC) should use UTC"
-
-    def test_timezone_aware_datetime_preserved_on_assignment(self):
-        """Test that timezone-aware datetimes are preserved when assigned."""
-        utc_time = datetime(2026, 1, 23, 12, 0, 0, tzinfo=UTC)
-
-        device = GpuDevice(gpu_index=0, last_seen_at=utc_time)
-
-        assert device.last_seen_at.tzinfo is not None, "last_seen_at should preserve timezone"
-        assert device.last_seen_at == utc_time
 
 
 # =============================================================================
@@ -820,58 +620,6 @@ class TestGpuAssignmentStrategyProperties:
         assert isinstance(strategy, str)
 
 
-class TestGpuDeviceProperties:
-    """Property-based tests for GpuDevice model."""
-
-    @given(index=gpu_index)
-    @settings(max_examples=20)
-    def test_gpu_index_roundtrip(self, index: int):
-        """Property: GPU index values roundtrip correctly."""
-        device = GpuDevice(gpu_index=index)
-        assert device.gpu_index == index
-
-    @given(vram=vram_mb)
-    @settings(max_examples=20)
-    def test_vram_total_roundtrip(self, vram: int):
-        """Property: VRAM total values roundtrip correctly."""
-        device = GpuDevice(gpu_index=0, vram_total_mb=vram)
-        assert device.vram_total_mb == vram
-
-    @given(vram=vram_mb)
-    @settings(max_examples=20)
-    def test_vram_available_roundtrip(self, vram: int):
-        """Property: VRAM available values roundtrip correctly."""
-        device = GpuDevice(gpu_index=0, vram_available_mb=vram)
-        assert device.vram_available_mb == vram
-
-    @given(name=gpu_names)
-    @settings(max_examples=10)
-    def test_gpu_name_roundtrip(self, name: str):
-        """Property: GPU name values roundtrip correctly."""
-        device = GpuDevice(gpu_index=0, name=name)
-        assert device.name == name
-
-    @given(capability=compute_capability)
-    @settings(max_examples=10)
-    def test_compute_capability_roundtrip(self, capability: str):
-        """Property: Compute capability values roundtrip correctly."""
-        device = GpuDevice(gpu_index=0, compute_capability=capability)
-        assert device.compute_capability == capability
-
-    @given(index=gpu_index, vram_total=vram_mb, vram_available=vram_mb)
-    @settings(max_examples=20)
-    def test_multiple_fields_roundtrip(self, index: int, vram_total: int, vram_available: int):
-        """Property: Multiple fields roundtrip correctly together."""
-        device = GpuDevice(
-            gpu_index=index,
-            vram_total_mb=vram_total,
-            vram_available_mb=vram_available,
-        )
-        assert device.gpu_index == index
-        assert device.vram_total_mb == vram_total
-        assert device.vram_available_mb == vram_available
-
-
 class TestGpuConfigurationProperties:
     """Property-based tests for GpuConfiguration model."""
 
@@ -935,25 +683,6 @@ class TestSystemSettingProperties:
         """Property: Dictionary values roundtrip correctly."""
         setting = SystemSetting(key=key, value=value)
         assert setting.value == value
-
-
-class TestGpuDeviceFieldRanges:
-    """Property-based tests for GpuDevice field ranges."""
-
-    @given(index=gpu_index)
-    @settings(max_examples=20)
-    def test_gpu_index_non_negative(self, index: int):
-        """Property: GPU index is non-negative."""
-        device = GpuDevice(gpu_index=index)
-        assert device.gpu_index >= 0
-
-    @given(vram=vram_mb)
-    @settings(max_examples=20)
-    def test_vram_values_non_negative(self, vram: int):
-        """Property: VRAM values are non-negative."""
-        device = GpuDevice(gpu_index=0, vram_total_mb=vram, vram_available_mb=vram)
-        assert device.vram_total_mb >= 0
-        assert device.vram_available_mb >= 0
 
 
 class TestGpuConfigurationFieldRanges:

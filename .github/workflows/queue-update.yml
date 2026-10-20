@@ -1,0 +1,84 @@
+name: Queue Update
+
+# Ruling 272: when `main` moves, update the next queued PR -- the coordinator's roll
+# (update-branch) automated as a workflow, so a queue entry never sits behind waiting on
+# a person to fire the same API call. One fire does at most ONE update (step 5), then
+# comments (step 7) and writes a job summary every fire, even when it does nothing.
+#
+# Triggers, four ways to fire, all reaching the same script:
+# - push to main: main moved -- the primary case (the update that follows a merge).
+# - workflow_run on CI completion: main's own CI run finished, so a conclusion that was
+#   in-flight at the push fire is now readable (step 1's "newest completed CI run").
+#   Branched on head_branch == main; other branches' CI runs are ignored.
+# - schedule every 15 min: the catch-up -- a missed push/run event (or a queue edit while
+#   main stood still) still gets a fire.
+# - workflow_dispatch: the owner's manual fire, and the one the review dry-runs from.
+#
+# Credentials (ruling 272 item 3): the job's GITHUB_TOKEN is read-only for contents, and
+# holds issues:write only for step 7's comment POST. The secret QUEUE_UPDATE_TOKEN is a
+# write credential bounded to its calls: the PUT pulls/<n>/update-branch and the auto-merge
+# arm/disable mutation. gh takes ONE token per invocation, so the script passes the write
+# token as a per-call `-H "Authorization: token ..."` override on exactly those calls --
+# every other call (all reads, the comment POST) rides the job's GH_TOKEN. The token rides
+# a command-line argument for the instant of one gh call per fire, then the process is
+# gone; it is never written to a file, a log, or a step summary. The PR body asks the
+# owner whether step 7's comment POST may also ride the write token (the ruling requires
+# the comment but its two-call sentence does not name it; the job token covers it here).
+# The write token's first exercise is the owner's workflow_dispatch run after this package
+# merges. Without the secret set the script runs dry (it prints the plan and writes
+# nothing), so the first dispatch is safe either way.
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+# One fire at a time, ever: two concurrent fires could both read "behind" and both PUT
+# update-branch (the second's expected_head_sha would 409, harmless, but the summaries
+# and step-7 comments would double up). Queue, don't cancel -- a cancelled fire is a
+# silent skip, the opposite of the every-fire duty.
+concurrency:
+  group: queue-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update the next queued PR
+    runs-on: ubuntu-latest
+    # A workflow_run fire for a non-main branch's CI run is not a main event: skip it.
+    # (push/schedule/dispatch pass the `if` untouched.)
+    if: >-
+      github.event_name != 'workflow_run' || github.event.workflow_run.head_branch == 'main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.9.18'
+          enable-cache: true
+
+      # The script prints the summary to stdout (the run log) and, when GITHUB_STEP_SUMMARY
+      # is set, appends it there itself -- one writer, no tee. It exits 0 on a no-op AND on
+      # a fire whose reads failed (failed reads are reported in the summary, never a red
+      # main); a non-zero exit is a script crash, and stays red so the next fire is noisy.
+      # GH_TOKEN is the job's read-only token -- it is what every read and the step-7
+      # comment POST ride. The script takes the write credential from QUEUE_UPDATE_TOKEN
+      # and applies it as a per-call header on its two write calls only (main() treats an
+      # absent value as dry-run).
+      - name: Run the queue update
+        env:
+          QUEUE_UPDATE_TOKEN: ${{ secrets.QUEUE_UPDATE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: uv run python scripts/uplevel/queue_update.py --repo "${{ github.repository }}"
