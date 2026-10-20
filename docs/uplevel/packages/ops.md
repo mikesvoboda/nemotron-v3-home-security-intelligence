@@ -1035,3 +1035,41 @@ fan-in job's end (owner answer 6266229360, Q1); the fan-in's code checks set equ
 it fails on a reference leg missing from the union, a leg of the union not in the reference set,
 and one leg running in two shards, any outcome (owner answer 6266229360, Q2); and the measured
 runs show no flaky leg the unsharded runs did not.
+
+### [r269] `lane_tick` offers the next package while a PR waits its merge turn
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue (ruling 269).
+**Depends on:** none. **PR:** #7290. (ruling 269, record 6275028285)
+
+UR-52 lets an agent whose open PR is waiting its merge turn claim its next package, up to two open
+packages (ruling 269). `scripts/uplevel/lane_tick.py` still prints no claimable package while the
+lane holds any open PR, so agents read their queues by hand.
+
+- [ ] `lane_tick.py` offers the next claimable package in the lane's own queue when every open PR
+      the lane holds waits its turn by UR-52's test and the lane holds fewer than two. The test:
+      approving review at the head or a UR-106 carry, owner approval for an owner-tier PR,
+      `CI Gate` passed or last run cancelled, not a draft, and nothing the author's to do (no open
+      review finding, no conflict, no unanswered owner question).
+- [ ] Tests pin each condition and the two-package cap.
+
+**Done when:** the tests pass in CI at a ready head.
+
+### [r270] `coordinator_snapshot.py`'s merge legs read for strict mode
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r269]` (ruling 270).
+**Depends on:** #7268 (`[r239]`) merged. **PR:** none yet. (ruling 270, record 6276943371)
+
+`main` keeps `strict: true` and the coordinator updates one PR at a time (UR-102, ruling 268), and
+"Merging a PR" reads "behind" from §3's `base=`. `scripts/uplevel/coordinator_snapshot.py`'s §4
+still prints UR-102's three no-update-branch legs and a "merge without update-branch" verdict, a
+path strict mode does not have (#7285's round-1 review, note 6).
+
+- [ ] Drop the "merge without update-branch" verdict and the labels naming UR-102's three legs (the
+      docstring, `MAX_MERGES_BEHIND`, §4's header and lines).
+- [ ] For each non-draft PR, print whether it is behind `main` (its `base=` is not `main`'s tip)
+      and whether it shows the in-flight sign of `roles/coordinator.md` "Merging a PR" step 1
+      (`base=` at the tip, gate `absent`, `QUEUED` or `IN_PROGRESS`, and `carry=yes`).
+- [ ] `scripts/test_coordinator_snapshot.py` pins both reads; other sections are unchanged.
+
+**Done when:** the tests pass in CI at a ready head, and a live snapshot run posted on the PR shows
+the behind and in-flight reads for the open PRs then.

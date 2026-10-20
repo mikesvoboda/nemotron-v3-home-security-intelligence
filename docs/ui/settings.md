@@ -10,14 +10,13 @@ The central configuration hub for your home security monitoring system.
 
 ## What You're Looking At
 
-The Settings page provides comprehensive control over all aspects of your security system. It uses a tabbed interface with eleven distinct sections, each focused on a specific configuration area:
+The Settings page provides comprehensive control over all aspects of your security system. It uses a tabbed interface with ten distinct sections, each focused on a specific configuration area:
 
 - **CAMERAS** - Manage security camera configurations and detection zones
 - **RULES** - Configure alert rules that trigger notifications
 - **PROCESSING** - Adjust event processing parameters and data retention
 - **NOTIFICATIONS** - Set up email, webhook, and quiet hours for alerts
 - **AMBIENT** - Configure visual and audio status awareness features
-- **CALIBRATION** - Fine-tune AI risk sensitivity and feedback learning
 - **ACCESS** - Manage household members, vehicles, and zone-based access control
 - **PROMPTS** - Manage AI model prompt configurations with version history
 - **STORAGE** - Monitor disk usage and perform cleanup operations
@@ -303,39 +302,6 @@ Desktop notifications require browser permission:
 - **Suppress When Focused** - Option to hide notifications when the app window has focus
 
 > **Note:** Ambient features respect your system's reduced motion preferences. Critical animations will be disabled when reduced motion is enabled.
-
----
-
-### Calibration Tab
-
-![Calibration Tab](../images/screenshots/settings-calibration.png)
-
-Fine-tune how the AI classifies security events based on your specific environment.
-
-#### How Calibration Works
-
-The calibration system has three main components:
-
-1. **Threshold Adjustment** - Set risk score boundaries for Low, Medium, High, and Critical event classifications
-2. **Feedback Learning** - Your feedback on event accuracy helps the system improve over time
-3. **Learning Rate** - Control how quickly thresholds adapt based on feedback
-
-#### Risk Sensitivity Settings
-
-The core calibration interface (RiskSensitivitySettings component) provides:
-
-- **Visual threshold editor** - Adjust boundaries between severity levels (Low, Medium, High, Critical)
-- **Current values display** - See active threshold configuration with numeric values
-- **Feedback statistics** - View accuracy metrics from user feedback submissions
-- **Learning rate control** - Adjust how quickly thresholds adapt based on feedback (decay factor)
-- **Reset to defaults** - Restore factory threshold settings with confirmation
-
-#### Tips for Effective Calibration
-
-- **Start with defaults** - Only adjust if you see consistent misclassifications
-- **Provide consistent feedback** - Regular feedback helps the system learn your environment
-- **Lower thresholds for more alerts** - More sensitive detection means more notifications
-- **Use a slower learning rate** - If changes seem too aggressive, reduce the rate
 
 ---
 
@@ -732,7 +698,6 @@ For developers wanting to understand the underlying systems.
 | Processing Settings   | `frontend/src/components/settings/ProcessingSettings.tsx`                                                                    |
 | Notification Settings | `frontend/src/components/settings/NotificationSettings.tsx`                                                                  |
 | Ambient Settings      | `frontend/src/components/settings/AmbientStatusSettings.tsx`                                                                 |
-| Calibration Panel     | `frontend/src/components/settings/CalibrationPanel.tsx`                                                                      |
 | Access Control        | `frontend/src/components/settings/AccessControlSettings.tsx`                                                                 |
 | Prompt Management     | `frontend/src/components/settings/prompts/PromptManagementPage.tsx`                                                          |
 | Storage Panel         | `frontend/src/components/system/FileOperationsPanel.tsx`                                                                     |
@@ -764,8 +729,3 @@ For developers wanting to understand the underlying systems.
 | `PUT /api/prompts/{model}`               | Update prompt configuration    |
 | `GET /api/prompts/history`               | Get prompt version history     |
 | `POST /api/prompts/history/{version_id}` | Restore prompt version         |
-| `GET /api/calibration`                   | Get risk thresholds            |
-| `PUT /api/calibration`                   | Update risk thresholds         |
-| `PATCH /api/calibration`                 | Partial update risk thresholds |
-| `POST /api/calibration/reset`            | Reset to default thresholds    |
-| `GET /api/calibration/defaults`          | Get default threshold values   |

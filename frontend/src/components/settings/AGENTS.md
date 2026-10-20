@@ -43,7 +43,6 @@ suites (`CamerasSettings.motionSensitivity.test.tsx`,
 | `NotificationSettings.tsx`               | Email/webhook notification status + tests                          |
 | `MqttSettings.tsx`                       | MQTT configuration (no co-located test)                            |
 | `AmbientStatusSettings.tsx`              | Ambient status display settings                                    |
-| `CalibrationPanel.tsx`                   | AI calibration and feedback statistics                             |
 | `AccessControlSettings.tsx`              | Access control config UI (no co-located test)                      |
 | `AccessScheduleEditor.tsx`               | Zone access schedule editor                                        |
 | `ZoneAccessSettings.tsx`                 | Zone-based access control                                          |
@@ -67,7 +66,6 @@ suites (`CamerasSettings.motionSensitivity.test.tsx`,
 | `GpuVersionHistory.tsx`                  | Config version history + diff view (no co-located test)            |
 | `RawSettingsPanel.tsx`                   | Admin raw-settings editor (NEM-4951)                               |
 | `LoggingSettings.tsx`                    | Logging configuration UI                                           |
-| `RiskSensitivitySettings.tsx`            | Risk sensitivity configuration                                     |
 | `SeverityThresholds.tsx`                 | Risk-score threshold editor                                        |
 | `AdminSettings.tsx`                      | ADMIN tab (developer tools entry)                                  |
 

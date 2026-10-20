@@ -1498,7 +1498,6 @@ Pydantic schemas for event feedback API (NEM-1908).
 | ----------------------- | --------------------------------------- |
 | `EventFeedbackCreate`   | Request to submit feedback for an event |
 | `EventFeedbackResponse` | Feedback record response                |
-| `FeedbackStatsResponse` | Aggregate statistics by type and camera |
 
 ---
 

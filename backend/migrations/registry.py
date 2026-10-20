@@ -121,6 +121,11 @@ UPGRADES: tuple[Upgrade, ...] = (
         filename="2026-10-18-add-unrecorded-model-columns.sql",
         source="B3.3 box 6 (the 12 January-2026 model columns no upgrade ever recorded)",
     ),
+    Upgrade(
+        id="0006-retire-user-calibration-table",
+        filename="2026-10-19-retire-user-calibration-table.sql",
+        source="B3.1 R2a row 11 (retire F-131 user_calibration table)",
+    ),
 )
 
 

@@ -17,13 +17,12 @@ Enhanced fields (NEM-3330):
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.feedback import (
     EventFeedbackCreate,
     EventFeedbackResponse,
-    FeedbackStatsResponse,
 )
 from backend.core.database import get_db
 from backend.core.logging import get_logger
@@ -197,62 +196,4 @@ async def get_event_feedback(
         what_was_wrong=feedback.what_was_wrong,
         model_failures=feedback.model_failures,
         created_at=feedback.created_at,
-    )
-
-
-@router.get(
-    "/stats",
-    response_model=FeedbackStatsResponse,
-    summary="Get feedback statistics",
-    responses={
-        200: {"description": "Statistics retrieved successfully"},
-    },
-)
-async def get_feedback_stats(
-    db: AsyncSession = Depends(get_db),
-) -> FeedbackStatsResponse:
-    """Get aggregate feedback statistics.
-
-    Returns counts of feedback grouped by:
-    - Feedback type (false_positive, missed_detection, wrong_severity, correct)
-    - Camera ID
-
-    This data is useful for:
-    - Identifying cameras with high false positive rates
-    - Calibrating risk thresholds per camera
-    - Tracking model accuracy over time
-
-    Args:
-        db: Database session
-
-    Returns:
-        Aggregate statistics including total count and breakdowns
-    """
-    # Get total count
-    count_query = select(func.count(EventFeedback.id))
-    count_result = await db.execute(count_query)
-    total_feedback = count_result.scalar() or 0
-
-    # Get counts by feedback type
-    type_query = select(EventFeedback.feedback_type, func.count(EventFeedback.id)).group_by(
-        EventFeedback.feedback_type
-    )
-    type_result = await db.execute(type_query)
-    by_type = {str(feedback_type): count for feedback_type, count in type_result.all()}
-
-    # Get counts by camera (join with Event to get camera_id)
-    camera_query = (
-        select(Event.camera_id, func.count(EventFeedback.id))
-        .join(Event, EventFeedback.event_id == Event.id)
-        .group_by(Event.camera_id)
-    )
-    camera_result = await db.execute(camera_query)
-    by_camera: dict[str, int] = {
-        str(camera_id): int(count) for camera_id, count in camera_result.all()
-    }
-
-    return FeedbackStatsResponse(
-        total_feedback=total_feedback,
-        by_type=by_type,
-        by_camera=by_camera,
     )

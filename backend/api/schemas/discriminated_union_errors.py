@@ -254,7 +254,7 @@ def get_valid_discriminator_values(union_type: type[Any], discriminator: str) ->
     return valid_values
 
 
-def _extract_literal_values(field_type: type[Any]) -> set[str]:
+def _extract_literal_values(field_type: Any) -> set[str]:
     """Extract values from a Literal type.
 
     Args:

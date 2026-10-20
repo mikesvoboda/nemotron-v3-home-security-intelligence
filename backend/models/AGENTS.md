@@ -54,7 +54,6 @@ backend/models/
 ├── smoke_fire_result.py     # Smoke/fire detection result model (NEM-5025)
 ├── package_event.py         # Package detection and tracking events (NEM-5025)
 ├── summary.py               # Summary model for dashboard summaries
-├── user_calibration.py      # Personalized risk threshold calibration
 ├── zone.py                  # Zone model (legacy alias for CameraZone)
 └── README.md                # Detailed model documentation
 ```
@@ -75,7 +74,6 @@ backend/models/
 - `CameraNotificationSetting` - Per-camera notification settings
 - `QuietHoursPeriod` - Time periods when notifications are muted
 - `RiskLevel`, `NotificationSound`, `DayOfWeek` - Notification-related enums
-- `UserCalibration` - Personalized risk threshold calibration
 - `Zone`, `ZoneType`, `ZoneShape` - Zone definition models and enums
 - `ActivityBaseline`, `ClassBaseline` - Anomaly detection baseline models
 - `AuditLog`, `AuditAction`, `AuditStatus` - Audit trail model and enums
@@ -1204,54 +1202,6 @@ This pattern provides:
 
 - `days`: All days of the week
 
-## `user_calibration.py` - User Calibration Model
-
-**Model:** `UserCalibration`
-**Table:** `user_calibration`
-**Purpose:** Stores personalized risk thresholds that adapt based on user feedback
-
-**Fields:**
-
-| Field                  | Type                    | Description                                   |
-| ---------------------- | ----------------------- | --------------------------------------------- |
-| `id`                   | int (PK, autoincrement) | Unique calibration ID                         |
-| `user_id`              | str (unique)            | User identifier (one calibration per user)    |
-| `low_threshold`        | int                     | Low risk threshold (default: 30)              |
-| `medium_threshold`     | int                     | Medium risk threshold (default: 60)           |
-| `high_threshold`       | int                     | High/critical threshold (default: 85)         |
-| `decay_factor`         | float                   | Learning rate for adjustments (default: 0.1)  |
-| `correct_count`        | int                     | Count of correct feedback (default: 0)        |
-| `false_positive_count` | int                     | Count of false positive feedback (default: 0) |
-| `missed_threat_count`  | int                     | Count of missed threat feedback (default: 0)  |
-| `severity_wrong_count` | int                     | Count of severity wrong feedback (default: 0) |
-| `created_at`           | datetime (timezone)     | Creation timestamp (UTC)                      |
-| `updated_at`           | datetime (timezone)     | Last update timestamp (auto-updated)          |
-
-**Indexes:**
-
-- `idx_user_calibration_user_id` - Index on user_id for user lookups
-
-**Constraints:**
-
-- `ck_user_calibration_low_range` - CHECK(low_threshold >= 0 AND <= 100)
-- `ck_user_calibration_medium_range` - CHECK(medium_threshold >= 0 AND <= 100)
-- `ck_user_calibration_high_range` - CHECK(high_threshold >= 0 AND <= 100)
-- `ck_user_calibration_threshold_order` - CHECK(low < medium < high)
-- `ck_user_calibration_decay_range` - CHECK(decay_factor >= 0.0 AND <= 1.0)
-- `ck_user_calibration_correct_count` - CHECK(correct_count >= 0)
-- `ck_user_calibration_fp_count` - CHECK(false_positive_count >= 0)
-- `ck_user_calibration_mt_count` - CHECK(missed_threat_count >= 0)
-- `ck_user_calibration_sw_count` - CHECK(severity_wrong_count >= 0)
-
-**Default Thresholds:**
-
-- 0-29: Low risk
-- 30-59: Medium risk
-- 60-84: High risk
-- 85-100: Critical risk
-
-**Note:** This model works in conjunction with EventFeedback to provide adaptive risk thresholds. When users provide feedback, the thresholds adjust based on the decay_factor.
-
 ## SQLAlchemy Patterns Used
 
 ### Modern SQLAlchemy 2.0 Syntax
@@ -1329,7 +1279,6 @@ EventFeedback (one-to-one with Event for user feedback)
 NotificationPreferences (standalone singleton - global notification settings)
 CameraNotificationSetting (one-to-one with Camera for per-camera notification settings)
 QuietHoursPeriod (standalone - quiet hours configuration)
-UserCalibration (standalone - personalized risk thresholds)
 Entity (standalone - re-identification tracking with optional Detection link)
 ExportJob (standalone - export job tracking)
 Job (standalone - background job tracking)

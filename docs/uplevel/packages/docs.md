@@ -474,3 +474,27 @@ Each item in the sheet takes this form:
 **Done when:** every census PR is in the sheet with its items, "no items" or "no code on main";
 every item survived the refutation pass; every item carries an owner decision; and the UR-89 review
 approves. The owner's next ruling turns the `fix` items into packages for the owning lanes.
+
+### [r271c] The dead-code register and the API_KEYS note say what the code does
+
+**Flags:** none. **Assigned:** docs, beside `[r262]` (ruling 271).
+**Depends on:** none. **PR:** #7292. (ruling 271, record 6277412644; audit items Q-024, Q-025,
+Q-026 and Q-032 of `[r262]`)
+
+Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. A one-off exception to
+UR-52: docs holds #7265 and this package's PR at once and works it between
+audit batches; the exception ends when this package merges. Until it merges, no deletion package
+acts on the register's `WebSocketEmitterService` entry: that path is live.
+
+- [ ] `docs/reference/backend-entry-points.md` `:1530` and `:1349` state that `main.py` imports
+      `WebSocketEmitterService` and wires it with the system broadcaster only; its
+      `event_broadcaster` and `redis_client` slots stay None in production, so only the
+      system-channel branch delivers.
+- [ ] Q-025 and Q-026's `main.py` cites (`backend-entry-points.md`; `feature-inventory.md` F-008,
+      F-016 and `:1207`) are re-aimed on the PR's base.
+- [ ] `docs/reference/config/env-reference.md:372`: plain `API_KEYS` entries are accepted by
+      `verify_api_key` and the gate; scoped entries are honoured only by the middleware gate, and
+      the legacy `verify_api_key` routes (`dlq.py`, `system.py`) refuse them with 401.
+
+**Done when:** merged at a ready head, each rewritten sentence citing the line it rests on at the
+PR's base.

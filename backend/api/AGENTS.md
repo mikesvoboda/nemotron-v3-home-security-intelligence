@@ -163,7 +163,6 @@ Contains FastAPI routers that define HTTP endpoints (28 route files):
 | `alerts.py`                   | Alert rules CRUD and rule testing                      |
 | `analytics.py`                | Detection trends, risk history, camera uptime, objects |
 | `audit.py`                    | Audit log listing and statistics                       |
-| `calibration.py`              | Camera calibration endpoints                           |
 | `cameras.py`                  | Camera CRUD operations and snapshot serving            |
 | `debug.py`                    | Debug endpoints for runtime diagnostics (DEBUG mode)   |
 | `detections.py`               | Object detection listing and thumbnail serving         |
@@ -198,7 +197,6 @@ Contains Pydantic models for request/response validation (43 schema files):
 | `audit.py`                    | Audit log entry and statistics schemas                     |
 | `baseline.py`                 | Camera baseline activity and anomaly detection schemas     |
 | `bulk.py`                     | Bulk create/update/delete operations with 207 Multi-Status |
-| `calibration.py`              | Camera calibration schemas                                 |
 | `camera.py`                   | Camera data validation schemas                             |
 | `clips.py`                    | Event clip generation schemas                              |
 | `detections.py`               | Detection response and enrichment data schemas             |
