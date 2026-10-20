@@ -322,6 +322,17 @@ class BackupService:
         # first so the loader options can be chosen from it.
         mapper = inspect(model)
         column_names = [col.key for col in mapper.columns]
+        # A column KEY is not always its attribute name: Alert names the payload
+        # attribute `alert_metadata` while the column key is the reserved
+        # `metadata` (models/alert.py:120-121). Resolving the attribute per
+        # column by IDENTITY (attr's column IS the walked column) handles that
+        # collision generically -- and Alert is the only walked model with one
+        # (census over BACKUP_TABLES + Event at the PR base, d5c470715). The
+        # resolved name doubles as the JSON key, so backups carry
+        # "alert_metadata": {...} instead of "metadata": "MetaData()".
+        attr_names = {
+            col.key: attr.key for attr in mapper.column_attrs for col in attr.columns
+        }
 
         # Undefer every deferred column on this model before the walk below.
         # The loop reads each column with plain getattr (synchronous lazy load),
@@ -359,23 +370,28 @@ class BackupService:
         for record in records:
             row_dict: dict[str, Any] = {}
             for col_name in column_names:
-                value = getattr(record, col_name, None)
+                # Read through the resolved ATTRIBUTE name (r271b): the plain
+                # `getattr(record, col_name)` below-stringified Alert's reserved
+                # `metadata` into "MetaData()" and dropped its payload. The
+                # attribute name is also the JSON key, so the backup round-trips.
+                attr_name = attr_names.get(col_name, col_name)
+                value = getattr(record, attr_name, None)
                 # Handle datetime serialization
                 if isinstance(value, datetime):
-                    row_dict[col_name] = value.isoformat()
+                    row_dict[attr_name] = value.isoformat()
                 # Handle bytes (e.g., embeddings) - encode as base64
                 elif isinstance(value, bytes):
-                    row_dict[col_name] = base64.b64encode(value).decode("utf-8")
+                    row_dict[attr_name] = base64.b64encode(value).decode("utf-8")
                 # Handle enum values - check for Enum type explicitly
                 elif value is not None and hasattr(type(value), "__mro__"):
                     import enum
 
                     if isinstance(value, enum.Enum):
-                        row_dict[col_name] = value.value
+                        row_dict[attr_name] = value.value
                     else:
-                        row_dict[col_name] = value
+                        row_dict[attr_name] = value
                 else:
-                    row_dict[col_name] = value
+                    row_dict[attr_name] = value
             rows.append(row_dict)
 
         # Write to JSON file
