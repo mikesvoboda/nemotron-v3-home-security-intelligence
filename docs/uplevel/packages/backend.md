@@ -662,8 +662,8 @@ Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. In
 exceptions, so `redis.exceptions.TimeoutError` (a `RedisError`) escapes them. On publish (`:314`,
 `:364`) the loop's `except Exception` (`:1235`) costs the tick; on the listener's start, stop and
 reset (`:564`, `:583`, `:589`, `:612`, `:617`, `:631`, `:693`) it ends the listener's start or
-reset, or the listener task itself. `_check_redis_health` (`:1005-1015`) returns True whatever the dict
-`health_check()` returns says, and the storm probe
+reset, or the listener task itself. `_check_redis_health` (`:1005-1015`) returns True whatever
+the dict `health_check()` returns says, and the storm probe
 (`backend/tests/unit/services/test_system_broadcaster.py:1345`) stubs `broadcast_status` and
 `broadcast_performance`, so it passes against the loss.
 
