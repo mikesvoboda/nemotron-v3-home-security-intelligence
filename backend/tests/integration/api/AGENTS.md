@@ -18,15 +18,14 @@ backend/tests/integration/api/
 └── test_jobs_api.py                   # Jobs API endpoint tests (15KB)
 ```
 
-## Test Files (5 total)
+## Test Files (4 total)
 
-| File                                       | Tests For                      | Key Coverage                        |
-| ------------------------------------------ | ------------------------------ | ----------------------------------- |
-| `test_calibration_routes.py`               | `/api/calibration/*` endpoints | Severity calibration, user settings |
-| `test_cursor_pagination.py`                | Cursor-based pagination        | Keyset pagination, performance      |
-| `test_feedback_routes.py`                  | `/api/feedback/*` endpoints    | Event feedback submission           |
-| `test_jobs_api.py`                         | `/api/jobs/*` endpoints        | Background job management           |
-| `routes/test_camera_cache_invalidation.py` | Camera cache invalidation      | Cache coherence on updates          |
+| File                                       | Tests For                   | Key Coverage                   |
+| ------------------------------------------ | --------------------------- | ------------------------------ |
+| `test_cursor_pagination.py`                | Cursor-based pagination     | Keyset pagination, performance |
+| `test_feedback_routes.py`                  | `/api/feedback/*` endpoints | Event feedback submission      |
+| `test_jobs_api.py`                         | `/api/jobs/*` endpoints     | Background job management      |
+| `routes/test_camera_cache_invalidation.py` | Camera cache invalidation   | Cache coherence on updates     |
 
 ## Running Tests
 

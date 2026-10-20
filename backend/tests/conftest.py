@@ -1403,7 +1403,6 @@ async def _reset_db_schema() -> None:
     from backend.models import Camera, Detection, Event, GPUStats, JobTransition  # noqa: F401
     from backend.models.camera import Base as ModelsBase
     from backend.models.event_feedback import EventFeedback  # noqa: F401
-    from backend.models.user_calibration import UserCalibration  # noqa: F401
 
     engine = get_engine()
     if engine is None:

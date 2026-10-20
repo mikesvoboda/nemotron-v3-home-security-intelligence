@@ -542,14 +542,40 @@ def test_a_stale_coordinator_row_does_not_raise_a_ur162_that_is_not_owed():
     assert not has(out, "UR-162"), out
 
 
-def test_a_coordinator_older_than_twenty_minutes_points_at_ur162():
-    assert has(text(beats=[coordinator(34), heartbeat(SANDBOX, 3)]), "post one")
+def test_a_coordinator_between_twenty_and_ninety_minutes_old_raises_nothing():
+    # [r239], ruling 239 item 4 (in force until the package merges; its Done when pins the same
+    # band): a healthy 30-minute loop can leave the coordinator's heartbeat about 90 minutes old
+    # (a tick up to 60 plus up to 30 until the next fire), so a beat 34 minutes old -- stale under
+    # the old every-agent 20-minute threshold the code shipped -- must NOT point a lane at UR-162.
+    # The raise stays owed past 90 (test_coordinator_older_than_ninety_points_at_ur162 below).
+    assert not has(text(beats=[coordinator(34), heartbeat(SANDBOX, 3)]), "UR-162")
+
+
+def test_a_coordinator_older_than_ninety_minutes_points_at_ur162():
+    # The rule's own wording: UR-162 raises on the coordinator's heartbeat only past 90 minutes.
+    # 91 minutes is one past the band's end; the digest's line names the raise as before.
+    assert has(text(beats=[coordinator(91), heartbeat(SANDBOX, 3)]), "post one")
+
+
+def test_a_lane_beat_between_twenty_and_ninety_minutes_old_is_still_stale():
+    # Every OTHER heartbeat keeps the 20-minute staleness: the 90-minute band is the coordinator's
+    # alone, keyed by its agent identity, not a global relaxation. The lane digest never prints
+    # other agents' rows -- the coordinator's snapshot §6 does -- so the pin lives where the rows
+    # are rendered: the snapshot's own stale tests pin the 34-minute lane row STALE >20m and the
+    # coordinator row silent at 34, so the digest's one consumer of `stale` (the coordinator's
+    # row) cannot drift from the lanes' without one of those two pins red-ing.
+    fake, out = run_tick(beats=[coordinator(5), heartbeat(SANDBOX, 34)])
+    assert fake.asked("heartbeats") or fake.calls, "the digest read the snapshot's heartbeats"
+    assert not has(out, "UR-162"), out
 
 
 def test_a_live_urgent_path_on_the_owner_issue_suppresses_the_raise_instruction():
     # UR-162: one URGENT PATH per hour, so the digest reads #6854 to see whether one is already up.
     out = text(
-        beats=[coordinator(34), heartbeat(SANDBOX, 3)],
+        beats=[
+            coordinator(91),
+            heartbeat(SANDBOX, 3),
+        ],  # past the band's end: the raise band itself
         owner_comments=[
             comment(
                 99,
@@ -568,7 +594,10 @@ def test_a_close_is_not_a_live_raise():
     # raise and stays silent while the coordinator is stale with no raise on record -- the one case
     # the rule exists for.
     out = text(
-        beats=[coordinator(34), heartbeat(SANDBOX, 3)],
+        beats=[
+            coordinator(91),
+            heartbeat(SANDBOX, 3),
+        ],  # past the band's end: the raise band itself
         owner_comments=[
             comment(
                 99,
@@ -583,7 +612,10 @@ def test_a_close_is_not_a_live_raise():
 
 def test_a_raise_older_than_the_hour_does_not_suppress_a_new_one():
     out = text(
-        beats=[coordinator(34), heartbeat(SANDBOX, 3)],
+        beats=[
+            coordinator(91),
+            heartbeat(SANDBOX, 3),
+        ],  # past the band's end: the raise band itself
         owner_comments=[
             comment(99, 6854, "URGENT PATH · coordinator stale", t(timedelta(minutes=-75)))
         ],

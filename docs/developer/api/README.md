@@ -229,16 +229,6 @@ The API is organized into domain-specific guides:
 | WS       | `/ws/detections`         | Real-time AI detection stream |
 | WS       | `/ws/jobs/{job_id}/logs` | Job log streaming             |
 
-### Calibration
-
-| Method | Endpoint                    | Description                    |
-| ------ | --------------------------- | ------------------------------ |
-| GET    | `/api/calibration`          | Get risk threshold calibration |
-| PUT    | `/api/calibration`          | Update calibration thresholds  |
-| PATCH  | `/api/calibration`          | Partial calibration update     |
-| POST   | `/api/calibration/reset`    | Reset to default thresholds    |
-| GET    | `/api/calibration/defaults` | Get default threshold values   |
-
 ### Webhooks
 
 | Method | Endpoint               | Description                   |

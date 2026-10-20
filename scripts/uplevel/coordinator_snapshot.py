@@ -64,6 +64,15 @@ SCAN_PAGE = 100
 DEFAULT_LOOKBACK = timedelta(hours=2)
 BINDING_LIFE = timedelta(hours=48)
 STALE_HEARTBEAT_MIN = 20
+# Ruling 239 ([r239]): the coordinator's own 30-minute loop can leave its heartbeat about 90
+# minutes old (a tick up to 60 plus up to 30 until the next fire), so UR-162's trigger is keyed
+# by the agent's identity -- the coordinator raises only past 90; every other heartbeat keeps 20.
+COORDINATOR_STALE_HEARTBEAT_MIN = 90
+# Ruling 245's interval table (UR-36), three of each agent's own intervals per UR-38: heavy runs
+# a 15-minute loop, every other agent 30 ([r193]'s watcher is merged, so lanes are on 30).
+LANE_LOOP_MIN = 30
+HEAVY_LOOP_MIN = 15
+STALL_MULTIPLIER = 3
 MAX_MERGES_BEHIND = 3
 FIRST_LINE_MAX = 160
 RED_CONCLUSIONS = frozenset({"failure", "timed_out", "startup_failure"})
@@ -261,6 +270,36 @@ def agent_key(beat_agent: str) -> tuple[str, str | None]:
     tail = name.removeprefix("uplevel-")
     lane, _, cell = tail.rpartition("-")
     return (tail, None) if not lane else (lane, cell.lower())
+
+
+def stall_threshold(beat_agent: str) -> int:
+    """Ruling 245's stalled age for ONE agent: three of its own UR-36 intervals (UR-38).
+
+    ``agent_key`` splits the marker's tail, so ``agent-uplevel-heavy-b`` and ``uplevel-heavy-b``
+    both read as the heavy family; every other agent -- the fast lanes, the coordinator and the
+    operator -- runs the 30-minute loop [r193] put in force. Before [r193] a lane was on 15 and
+    stalled at 45; the package's merge order note says whichever of the two merges second sets
+    the lanes' row, and [r193] has merged, so the table lands at its post-[r193] values.
+    """
+    lane, _ = agent_key(beat_agent)
+    loop = HEAVY_LOOP_MIN if lane == "heavy" else LANE_LOOP_MIN
+    return loop * STALL_MULTIPLIER
+
+
+def stale_threshold(beat_agent: str) -> int:
+    """UR-162's staleness threshold for ONE heartbeat row, keyed by the agent's identity.
+
+    Ruling 239 ([r239]): the coordinator's heartbeat raises only past 90 minutes (its 30-minute
+    loop can leave the beat about that old); every other agent keeps 20. Keyed on the marker
+    name's tail, not the raw string -- ``uplevel-coordinator`` and ``agent-uplevel-coordinator``
+    are both live spellings -- and matched with the same ``endswith`` the digest's tie-break
+    uses, so the two readers cannot disagree about who is the coordinator.
+    """
+    return (
+        COORDINATOR_STALE_HEARTBEAT_MIN
+        if beat_agent.removeprefix("agent-").endswith("coordinator")
+        else STALE_HEARTBEAT_MIN
+    )
 
 
 def head_name(line: str) -> str | None:
@@ -1091,7 +1130,7 @@ class Snapshot:
                     "head": truncate(next((ln for ln in lines[1:] if ln.strip()), ""), 70),
                     "age_min": round(age, 1),
                     "paused": is_paused(head_lines),
-                    "stale": age > STALE_HEARTBEAT_MIN,
+                    "stale": age > stale_threshold(agent),
                     # Ruling 181: the third line a blocked lane is allowed to carry.
                     "blocker": next(
                         (
@@ -1355,7 +1394,15 @@ def render_text(data: dict[str, Any]) -> str:
         if h["paused"]:
             flags.append("paused")
         if h["stale"]:
-            flags.append(f"STALE >{STALE_HEARTBEAT_MIN}m")
+            flags.append(f"STALE >{stale_threshold(h['agent'])}m")
+        # Ruling 245 ([r239] box 4), beside UR-162's flag -- a different rule about the same beat.
+        # UR-38's stall is age past three of the agent's own intervals AND silence (no signed
+        # comment, no commits since the beat); UR-160's paused agent is never stalled, and rows
+        # `_activity` skipped (paused, or the section errored) carry no activity read at all.
+        if not h["paused"] and h.get("signed_comment", h.get("commit_count")) is None:
+            silent = h.get("signed_comment") is None and h.get("commit_count", 0) == 0
+            if silent and h["age_min"] > stall_threshold(h["agent"]):
+                flags.append(f"stalled >{stall_threshold(h['agent'])}m")
         flag = f" [{', '.join(flags)}]" if flags else ""
         out.append(f"  {h['agent']} {h['updated_at']} age {h['age_min']}m id={h['id']}{flag}")
         if h.get("blocker"):

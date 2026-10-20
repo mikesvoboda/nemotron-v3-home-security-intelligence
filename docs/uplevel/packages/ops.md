@@ -253,17 +253,17 @@ tool's tests pass, and the golden paths stay green.
 ### O3.3 `models.yml` and env truth
 
 **Flags:** none. **Depends on:** `R2`; #7244 (`B3.3`) merged (ruling 260).
-**Assigned:** heavy-b, after `O3.1`, once #7244 (`B3.3`) has merged (ruling 260). **PR:** none yet.
+**Assigned:** heavy-b, after `O3.1`, once #7244 (`B3.3`) has merged (ruling 260). **PR:** #7281
 (rulings 241 and 260)
 
-- [ ] `models.yml`: delete the dead rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`,
+- [x] `models.yml`: delete the dead rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`,
       `yolo26-general`), correct the `yolo26` row, and add the shipped Qwen3-VL GGUF and mmproj.
       **DECIDE** the one place that names the VLM's identity; today it is spread across compose,
       `.env.example` and `config.py`.
-- [ ] `.env.example`: delete the variables read by neither `config.py`, compose nor `setup.py`
+- [x] `.env.example`: delete the variables read by neither `config.py`, compose nor `setup.py`
       (34 at `d6ba78d5`), with `B3.3` covering the settings side. `test_a5500_precheck.py` reads the
       `GPU_*` names; update it in the same PR.
-- [ ] Add a ratchet test: every `.env.example` variable is read by `config.py`, compose or
+- [x] Add a ratchet test: every `.env.example` variable is read by `config.py`, compose or
       `setup.py`.
 
 **Done when:** the ratchet test passes and every `models.yml` row names something that loads.
@@ -570,7 +570,7 @@ each agent wakes.
 ### [r195] O2.5 runs from a host login
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, after `[r193]`; ops-b reviews. **Depends on:**
-none. **PR:** none yet. (ruling 195)
+none. **PR:** #7231. (ruling 195)
 
 The owner's maui run (`6193951294`) died at VLM readiness: the harness reaches the VLM only at
 `host.docker.internal`, which does not resolve from a host login. Ruling 256 split `O2.5` by venue
@@ -629,7 +629,7 @@ posted on the PR.
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r235]` (ruling 239; ruling 266 retired
 `[r240]`).
-**Depends on:** none. **PR:** none yet. (ruling 239, record 6217014151; ruling 245, record 6223117374)
+**Depends on:** none. **PR:** #7268. (ruling 239, record 6217014151; ruling 245, record 6223117374)
 
 The coordinator's loop fires every 30 minutes (`roles/coordinator.md`), and a tick may run 60, so a
 healthy coordinator's heartbeat can be about 90 minutes old. `scripts/uplevel/coordinator_snapshot.py:66`
@@ -943,23 +943,36 @@ for each rule.
 ### [r184] The launcher prints the heavy sessions' pi start line
 
 **Flags:** none. **Assigned:** ops-a. **Depends on:** none.
-**PR:** none yet. (rulings 184 and 201, records 6177514438 and 6198825479)
+**PR:** #7295. (rulings 184 and 201, records 6177514438 and 6198825479; the owner's answer,
+comment 6282692806, 2026-10-20T03:32Z)
 
 Ruling 184's commit renamed the heavy rows in `scripts/uplevel/sandboxes.toml`. The owner starts
-both with `agent-dgx <name> pi --split`, but `launch.py` still builds
-`agent-dgx run <name> --agent claude --split` for them (`[models] strongest`).
+both under the pi harness; asked for the exact line (ruling 201 item 1), the owner confirmed
+`agent-dgx <name> pi --split` word for word on the PR. The form is not `agent-dgx run`-shaped
+(session name before the harness, no `--agent` flag), so the launcher refuses the rows and names
+the hand-start line - the refusal is the settled state, not a waiting one.
 
-- [ ] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
+- [x] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
       Take its exact form from `agent-dgx help` output the owner posts from maui, or from a line
       the owner pastes on the PR; the launcher never invents a flag (`history/packages-done.md`
-      §O0.1).
-- [ ] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
-      rows, naming the hand-start line, and prints no wrong line.
-- [ ] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
-      refusal, and no other row's line changes.
+      §O0.1). - the owner answered (`agent-dgx <name> pi --split`, word for word, comment
+      6282692806): the form is the hand-start line each row now carries; the launcher names it in
+      the refusal and never prints a run line for the rows, per the box below (ops-a's call, PR
+      comment 6282901290).
+- [x] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
+      rows, naming the hand-start line, and prints no wrong line. - it cannot (the session name
+      precedes the harness, no `--agent` flag); `hand_start` on each row, `run_args_for` raises
+      naming `agent-dgx <name> pi --split`, and `up` refuses the phase before any change while
+      such a row is MISSING (commit `efeaf55ff`).
+- [x] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
+      refusal, and no other row's line changes. -
+      `test_the_rosters_heavy_rows_refuse_naming_the_hand_start_line`,
+      `test_a_hand_start_row_refuses_before_any_change`,
+      `test_no_other_rows_line_changes_for_hand_start` (108 passed).
 
 **Done when:** the launcher test passes in CI at a ready head, and `sandboxes.toml`'s comment no
-longer says the launcher does not print the form.
+longer says the launcher does not print the form. - the comment now says why the launcher does
+not print the form (the form is not `run`-shaped), and the CI half needs the PR marked ready.
 
 ### [r264] The golden Playwright suite runs in shards, each on its own stack
 
@@ -1022,3 +1035,41 @@ fan-in job's end (owner answer 6266229360, Q1); the fan-in's code checks set equ
 it fails on a reference leg missing from the union, a leg of the union not in the reference set,
 and one leg running in two shards, any outcome (owner answer 6266229360, Q2); and the measured
 runs show no flaky leg the unsharded runs did not.
+
+### [r269] `lane_tick` offers the next package while a PR waits its merge turn
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, first on its queue (ruling 269).
+**Depends on:** none. **PR:** #7290. (ruling 269, record 6275028285)
+
+UR-52 lets an agent whose open PR is waiting its merge turn claim its next package, up to two open
+packages (ruling 269). `scripts/uplevel/lane_tick.py` still prints no claimable package while the
+lane holds any open PR, so agents read their queues by hand.
+
+- [ ] `lane_tick.py` offers the next claimable package in the lane's own queue when every open PR
+      the lane holds waits its turn by UR-52's test and the lane holds fewer than two. The test:
+      approving review at the head or a UR-106 carry, owner approval for an owner-tier PR,
+      `CI Gate` passed or last run cancelled, not a draft, and nothing the author's to do (no open
+      review finding, no conflict, no unanswered owner question).
+- [ ] Tests pin each condition and the two-package cap.
+
+**Done when:** the tests pass in CI at a ready head.
+
+### [r270] `coordinator_snapshot.py`'s merge legs read for strict mode
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r269]` (ruling 270).
+**Depends on:** #7268 (`[r239]`) merged. **PR:** none yet. (ruling 270, record 6276943371)
+
+`main` keeps `strict: true` and the coordinator updates one PR at a time (UR-102, ruling 268), and
+"Merging a PR" reads "behind" from §3's `base=`. `scripts/uplevel/coordinator_snapshot.py`'s §4
+still prints UR-102's three no-update-branch legs and a "merge without update-branch" verdict, a
+path strict mode does not have (#7285's round-1 review, note 6).
+
+- [ ] Drop the "merge without update-branch" verdict and the labels naming UR-102's three legs (the
+      docstring, `MAX_MERGES_BEHIND`, §4's header and lines).
+- [ ] For each non-draft PR, print whether it is behind `main` (its `base=` is not `main`'s tip)
+      and whether it shows the in-flight sign of `roles/coordinator.md` "Merging a PR" step 1
+      (`base=` at the tip, gate `absent`, `QUEUED` or `IN_PROGRESS`, and `carry=yes`).
+- [ ] `scripts/test_coordinator_snapshot.py` pins both reads; other sections are unchanged.
+
+**Done when:** the tests pass in CI at a ready head, and a live snapshot run posted on the PR shows
+the behind and in-flight reads for the open PRs then.

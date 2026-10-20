@@ -32,12 +32,12 @@
  *     `CameraCalibration` and household members from them — and that module has
  *     ZERO non-test importers (its `get_feedback_processor()` singleton is
  *     referenced only inside its own file; `models/camera_calibration.py:36` is
- *     a docstring). The other learner, `CalibrationService.adjust_from_feedback`
- *     (`services/calibration_service.py:223`), has 23 call sites, ALL in
- *     `backend/tests/`, and reads only `feedback_type` + `event.risk_score` —
- *     none of the calibration columns. `GET /api/feedback/stats`
- *     (`api/routes/feedback.py:230-256`) groups by `feedback_type` and
- *     `Event.camera_id` only.
+ *     a docstring). The feedback-learning half was retired in R2a row 11
+ *     (ruling 213), while the labelling fields are rendered on the saved card
+ *     (`FeedbackPanel.tsx:281-315`).
+ *     (Kept at same line count so golden spec line numbers do not shift.)
+ *     -
+ *     -
  * That is the enumerated half-built condition — "a break anywhere in the chain"
  * (docs/reference/feature-inventory.md §1) — met at BOTH ends: the chain from
  * these columns terminates in a write with no reader. It is the same shape as
