@@ -711,7 +711,7 @@ before the fix.
 ### [r271b] Backups keep alert metadata
 
 **Flags:** none. **Assigned:** backend, after `[r271a]` (ruling 271).
-**Depends on:** none. **PR:** #7302 (draft). (ruling 271, record 6277412644; audit items Q-040 to Q-042
+**Depends on:** none. **PR:** #7302. (ruling 271, record 6277412644; audit items Q-040 to Q-042
 of `[r262]`, #7031)
 
 Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. The export in
@@ -743,3 +743,6 @@ SQLAlchemy's `MetaData`, not the payload attribute `alert_metadata`
       numbers were re-measured and each cite read back with `sed -n` before being written.)
 
 **Done when:** the tests pass in CI at a ready head.
+      (Ticked: ready run 39417871877 at `f1b029af1` — the first non-draft run; 50 non-skipped
+      jobs all success, `CI Gate (Required Checks)` completed/success at that head, companions
+      Coverage Gate / AGENTS.md Validation / Docs Drift / PR Review Bot all success.)
