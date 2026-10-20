@@ -105,6 +105,21 @@ The inventory's remaining 4 rows are served by FastAPI/Starlette itself, not by 
 
 Handlers grouped by the inventory's `backend.api.routes.*` attribution; per-module prose follows each table. Section order is module-alphabetical as traced.
 
+### backend/api/routes/action_events.py — CRUD/query surface over the `action_events` table; no service layer
+
+| METHOD /path                              | handler def                               | chain                                                                                                                                                                                                                    |
+| ----------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET /api/action-events                    | `backend/api/routes/action_events.py:115` | `get_db` (`backend/core/database.py:817`) → `_filtered_queries` (`backend/api/routes/action_events.py:63`) → table `action_events` (`backend/models/action_event.py:59`). No service, no Redis, no outbound, no auth dep |
+| GET /api/action-events/suspicious         | `backend/api/routes/action_events.py:176` | same helper ×2 (suspicious count + total count) → `action_events`                                                                                                                                                        |
+| GET /api/action-events/{event_id}         | `backend/api/routes/action_events.py:242` | `db.get(ActionEvent)` → `action_events`; 404 on miss                                                                                                                                                                     |
+| GET /api/action-events/camera/{camera_id} | `backend/api/routes/action_events.py:276` | helper with camera filter → `action_events` (no camera-exists check)                                                                                                                                                     |
+| POST /api/action-events                   | `backend/api/routes/action_events.py:328` | builds `ActionEvent` at `backend/api/routes/action_events.py:346`, `db.commit` → `action_events`. DEAD-adjacent (see note)                                                                                               |
+| DELETE /api/action-events/{event_id}      | `backend/api/routes/action_events.py:377` | `db.delete` → `action_events`. DEAD-adjacent (see note)                                                                                                                                                                  |
+
+**Services:** none — this module talks to SQLAlchemy only (`get_db` `backend/core/database.py:817`). No Redis keys/streams, no VLM/HTTP/notification calls.
+**Tables:** `action_events`.
+**Nothing reaches:** `POST` (:328) is the only `ActionEvent(` construction outside tests (`grep -rn "ActionEvent("` → `backend/api/routes/action_events.py:346` only) and has no in-repo caller — `frontend/src/services/actionEventsApi.ts` is GET-only; the X-CLIP pipeline that fed this table was archived 2026-09-23 (`backend/AGENTS.md`, `backend/models/action_event.py:8`); kept as a manual-ingest path (`docs/developer/api/coverage.md:165`). `DELETE` (:377), `GET /{event_id}` (:242), `GET /camera/{camera_id}` (:276): client fns exist (`frontend/src/services/actionEventsApi.ts:272`, `:242`) but are imported by nothing — `frontend/src/hooks/useActionEventsQuery.ts:17-24` imports only `fetchActionEvents`/`ForEvent`/`fetchSuspiciousActions`; only backend tests call these paths. `docs/developer/api/coverage.md:165-168` claims `actionEventsApi.ts` consumes POST/DELETE — grep says otherwise.
+
 ### backend/api/routes/admin.py — dev/test seeding + destructive maintenance + admin user CRUD
 
 Gate for rows 1-7: `require_admin_access` (`backend/api/routes/admin.py:321`) checks only `settings.admin_enabled` (`backend/core/config.py:835`, default `True`) — ADMIN\*API_KEY is not consulted; the only front gate is the EXPOSE_LAN middleware (`backend/api/routes/admin.py:321-336`). Rows 8-10 use `get_current_admin_user` (`backend/api/routes/auth.py:479`).
@@ -1501,6 +1516,7 @@ Retired 410s and permanent 501s. All carry **DEAD** in their module tables.
 
 Handlers that work, verified to have zero shipped callers (frontend services + generated types checked; "tests only" means only `backend/tests/` reaches them).
 
+- `POST`/`DELETE` and two `GET` variants on action-events: `backend/api/routes/action_events.py:328/:377/:242/:276` — `frontend/src/services/actionEventsApi.ts` exposes GETs, but `useActionEventsQuery.ts:17-24` imports only three of them; POST is the sole `ActionEvent(` writer outside tests (`:346`) and has no caller; the X-CLIP pipeline that fed the table was archived 2026-09-23 (`backend/models/action_event.py:8`).
 - Admin user CRUD: `backend/api/routes/admin.py:1468/:1553/:1607` — zero frontend or script callers; only `backend/tests/unit/routes/test_admin_routes.py`.
 - `GET /api/ai-audit/batch/{job_id}` (`backend/api/routes/ai_audit.py:629`) — `POST /batch` hands out a job_id to poll with, but no poller exists in `frontend/src`.
 - All 7 routes of `backend/api/routes/alert_service.py` — the UI consumes `/api/alerts/*` (`routes/alerts.py`) instead; the webhook trigger does fire, so only UI reachability is absent.
