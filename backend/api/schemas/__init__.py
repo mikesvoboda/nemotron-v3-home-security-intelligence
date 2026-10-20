@@ -195,19 +195,12 @@ from .feedback import (
     FeedbackType,
 )
 from .gpu_config import (
-    GpuApplyResponse,
     GpuAssignment,
     GpuAssignmentStrategy,
     GpuConfigPreviewResponse,
     GpuConfigResponse,
-    GpuConfigStatusResponse,
-    GpuConfigUpdateRequest,
-    GpuConfigUpdateResponse,
     GpuDeviceResponse,
     GpuDevicesResponse,
-)
-from .gpu_config import (
-    ServiceStatus as GpuServiceStatus,
 )
 from .hateoas import (
     Link,
@@ -528,17 +521,12 @@ __all__ = [  # noqa: RUF022
     "FilterRiskLevel",
     "FlatErrorResponse",
     # GPU configuration schemas (NEM-3294)
-    "GpuApplyResponse",
     "GpuAssignment",
     "GpuAssignmentStrategy",
     "GpuConfigPreviewResponse",
     "GpuConfigResponse",
-    "GpuConfigStatusResponse",
-    "GpuConfigUpdateRequest",
-    "GpuConfigUpdateResponse",
     "GpuDeviceResponse",
     "GpuDevicesResponse",
-    "GpuServiceStatus",
     "HealthReadinessResponse",
     "HourlyPattern",
     "ImageQualityEnrichment",

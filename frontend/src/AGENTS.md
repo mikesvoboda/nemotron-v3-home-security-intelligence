@@ -346,8 +346,6 @@ Settings page components:
 - `AmbientStatusSettings.tsx` - Ambient status settings
 - `AreaCameraLinking.tsx` - Area to camera linking
 - `CleanupPreviewPanel.tsx` - Cleanup preview panel
-- `GpuApplyButton.tsx` - GPU settings apply button
-- `GpuAssignmentTable.tsx` - GPU assignment table
 - `GpuDeviceCard.tsx` - GPU device card
 - `GpuStrategySelector.tsx` - GPU strategy selector
 - `HouseholdSettings.tsx` - Household settings

@@ -27,14 +27,21 @@ CREATE TABLE alerts (
 );
 
 CREATE TABLE alert_rules (
-    id           SERIAL PRIMARY KEY,
-    name         TEXT,
-    object_types JSON,
-    camera_ids   JSON,
-    zone_ids     JSON,
-    schedule     JSON,
-    conditions   JSON,
-    channels     JSON
+    id                              SERIAL PRIMARY KEY,
+    name                            TEXT,
+    object_types                    JSON,
+    camera_ids                      JSON,
+    zone_ids                        JSON,
+    schedule                        JSON,
+    conditions                      JSON,
+    channels                        JSON,
+    pose_types                      TEXT,
+    pose_confidence_threshold       NUMERIC,
+    action_types                    TEXT,
+    action_confidence_threshold     NUMERIC,
+    smoke_fire_detection_enabled    BOOLEAN DEFAULT FALSE,
+    smoke_fire_consecutive_required INTEGER DEFAULT 2,
+    smoke_fire_confidence_threshold NUMERIC
 );
 
 INSERT INTO alerts (camera_id, channels, metadata) VALUES
@@ -167,3 +174,14 @@ CREATE TABLE action_events (
 );
 
 INSERT INTO action_events (camera_id, action) VALUES ('cam-front', 'walking normally');
+
+-- ---------------------------------------------------------------------------------------
+-- gpu_devices: present before 0009-retire-gpu-devices-table (B3.1 R2a row 36 F-177)
+-- ---------------------------------------------------------------------------------------
+CREATE TABLE gpu_devices (
+    id        SERIAL PRIMARY KEY,
+    gpu_index INTEGER,
+    name      TEXT
+);
+
+INSERT INTO gpu_devices (gpu_index, name) VALUES (0, 'RTX A5500');

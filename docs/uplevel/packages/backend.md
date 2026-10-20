@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -746,3 +746,25 @@ SQLAlchemy's `MetaData`, not the payload attribute `alert_metadata`
 (Ticked: ready run 39417871877 at `f1b029af1` — the first non-draft run; 50 non-skipped
 jobs all success, `CI Gate (Required Checks)` completed/success at that head, companions
 Coverage Gate / AGENTS.md Validation / Docs Drift / PR Review Bot all success.)
+
+### [r277a] The events `fields` contract and a misleading comment
+
+**Flags:** none. **Assigned:** backend, after `[r271b]` (#7302). **PR:** #7306. (ruling 277,
+record 6291992942; audit items Q-068 and Q-114 of `[r262]`, #7041)
+
+- [x] `list_events`' `fields` description names exactly the fields in `VALID_EVENT_LIST_FIELDS`,
+      with `detection_ids` out and `notify` in. A test fails if they drift apart, either by
+      deriving the description from the set or by asserting that every documented field is
+      accepted. Regenerate `docs/openapi.json` if it changes.
+      (Derived: `fields_query_description()`, commit `03d4daecf`; drift tests in
+      `test_events.py` + the re-pointed pin `test_events_verification_field.py` `173b7cfad`;
+      `openapi.json` regenerated.)
+- [x] The comment at `backend/api/routes/system.py:4132-4135` says that only `last_activity` goes
+      through the set wrapper (`batch_aggregator.py:641`) and is JSON-quoted, that `started_at` is
+      written raw (`:427`), and that `_coerce_scalar` handles both.
+      (Commit `03d4daecf`.)
+
+**Done when:** the description drift test passes in CI at a ready head and the comment matches the
+writers it describes.
+(ticked: run `39435442971` at `173b7cfad` — 66/66 non-skipped jobs success, CI Gate success;
+PR #7306)

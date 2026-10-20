@@ -76,8 +76,6 @@ detail see [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md).
   for faces and person re-ID on every event. Nothing fails; the degradation is
   honest. `hsi_specialist_unavailable_total` is the metric that answers "has
   this ever run"
-- `backend/services/gpu_config_service.py` writes a `VRAM_BUDGET_GB` override
-  into a service's environment when a GPU assignment declares one
 - The VLM engine sizes itself: `VLM_GPU_LAYERS` (default `auto`) lets llama.cpp
   fit the card
 

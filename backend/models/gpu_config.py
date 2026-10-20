@@ -40,44 +40,6 @@ class GpuAssignmentStrategy(str, Enum):
         return self.value
 
 
-class GpuDevice(Base):
-    """GPU device model representing a detected GPU.
-
-    Stores metadata about detected GPUs including VRAM capacity
-    and compute capability. Updated during GPU detection scans.
-    """
-
-    __tablename__ = "gpu_devices"
-    __table_args__ = (
-        Index("idx_gpu_devices_gpu_index", "gpu_index", unique=True),
-        Index("idx_gpu_devices_last_seen", "last_seen_at"),
-    )
-
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False),
-        primary_key=True,
-        server_default=text("gen_random_uuid()"),
-    )
-    gpu_index: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
-    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    vram_total_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    vram_available_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    compute_capability: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        server_default=text("now()"),
-        nullable=False,
-    )
-
-    def __repr__(self) -> str:
-        """Return string representation of GPU device."""
-        return (
-            f"<GpuDevice(id={self.id!r}, gpu_index={self.gpu_index}, "
-            f"name={self.name!r}, vram_total_mb={self.vram_total_mb})>"
-        )
-
-
 class GpuConfiguration(Base):
     """GPU configuration model for service-to-GPU assignments.
 

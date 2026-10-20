@@ -1,10 +1,5 @@
 /**
- * Unit tests for GPU Configuration API Client
- *
- * Tests all GPU Configuration API endpoints with comprehensive coverage
- * of success cases, error handling, and edge cases.
- *
- * @see NEM-3322
+ * Unit tests for GPU Configuration API Client (F-176, F-178, F-182).
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
@@ -13,25 +8,13 @@ import {
   GpuConfigApiError,
   getGpus,
   getGpuConfig,
-  updateGpuConfig,
-  applyGpuConfig,
-  getGpuStatus,
-  detectGpus,
   previewStrategy,
   type GpuListResponse,
   type GpuConfig,
-  type GpuConfigUpdateResponse,
-  type GpuApplyResult,
-  type GpuStatusResponse,
   type StrategyPreviewResponse,
   type GpuDevice,
   type GpuAssignment,
-  type ServiceStatus,
 } from './gpuConfigApi';
-
-// ============================================================================
-// Mock Data
-// ============================================================================
 
 const mockGpuDevice: GpuDevice = {
   index: 0,
@@ -71,61 +54,6 @@ const mockGpuConfig: GpuConfig = {
   updated_at: '2026-01-23T10:30:00Z',
 };
 
-const mockGpuConfigUpdateResponse: GpuConfigUpdateResponse = {
-  success: true,
-  warnings: [],
-};
-
-const mockGpuConfigUpdateResponseWithWarnings: GpuConfigUpdateResponse = {
-  success: true,
-  warnings: ['GPU 0 VRAM budget exceeds available VRAM', 'Service ai-enrichment not assigned'],
-};
-
-const mockGpuApplyResult: GpuApplyResult = {
-  success: true,
-  warnings: [],
-  restarted_services: ['ai-llm', 'ai-yolo26'],
-  service_statuses: [
-    { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-yolo26', status: 'running', message: null },
-  ],
-};
-
-const mockGpuApplyResultWithFailures: GpuApplyResult = {
-  success: false,
-  warnings: ['Container restart timed out for ai-yolo26'],
-  restarted_services: ['ai-llm'],
-  service_statuses: [
-    { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-yolo26', status: 'error', message: 'Container restart timed out' },
-  ],
-};
-
-const mockServiceStatus: ServiceStatus = {
-  service: 'ai-llm',
-  status: 'running',
-  message: null,
-};
-
-const mockServiceStatus2: ServiceStatus = {
-  service: 'ai-yolo26',
-  status: 'running',
-  message: null,
-};
-
-const mockServiceStatusRestarting: ServiceStatus = {
-  service: 'ai-llm',
-  status: 'starting',
-  message: 'Waiting for restart',
-};
-
-const mockGpuStatusResponse: GpuStatusResponse = {
-  in_progress: false,
-  services_pending: [],
-  services_completed: ['ai-llm', 'ai-yolo26'],
-  service_statuses: [mockServiceStatus, mockServiceStatus2],
-};
-
 const mockStrategyPreviewResponse: StrategyPreviewResponse = {
   strategy: 'balanced',
   proposed_assignments: [
@@ -135,10 +63,6 @@ const mockStrategyPreviewResponse: StrategyPreviewResponse = {
   ],
   warnings: [],
 };
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 function createMockResponse<T>(data: T, status = 200, statusText = 'OK'): Response {
   return {
@@ -160,10 +84,6 @@ function createMockErrorResponse(status: number, statusText: string, detail?: st
     headers: new Headers({ 'Content-Type': 'application/json' }),
   } as Response;
 }
-
-// ============================================================================
-// GpuConfigApiError Tests
-// ============================================================================
 
 describe('GpuConfigApiError', () => {
   it('creates an error with status and message', () => {
@@ -194,10 +114,6 @@ describe('GpuConfigApiError', () => {
     expect(error.message).toBe('Network failure');
   });
 });
-
-// ============================================================================
-// getGpus Tests
-// ============================================================================
 
 describe('getGpus', () => {
   beforeEach(() => {
@@ -264,10 +180,6 @@ describe('getGpus', () => {
   });
 });
 
-// ============================================================================
-// getGpuConfig Tests
-// ============================================================================
-
 describe('getGpuConfig', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -333,360 +245,6 @@ describe('getGpuConfig', () => {
     });
   });
 });
-
-// ============================================================================
-// updateGpuConfig Tests
-// ============================================================================
-
-describe('updateGpuConfig', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('updates GPU configuration with strategy only', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuConfigUpdateResponse));
-
-    const result = await updateGpuConfig({ strategy: 'vram_balanced' });
-
-    expect(fetch).toHaveBeenCalledWith('/api/system/gpu-config', {
-      method: 'PUT',
-      body: JSON.stringify({ strategy: 'vram_balanced' }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.success).toBe(true);
-    expect(result.warnings).toHaveLength(0);
-  });
-
-  it('updates GPU configuration with assignments only', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuConfigUpdateResponse));
-
-    const assignments = [
-      { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
-      { service: 'ai-yolo26', gpu_index: 1, vram_budget_override: 4.0 },
-    ];
-    const result = await updateGpuConfig({ assignments });
-
-    expect(fetch).toHaveBeenCalledWith('/api/system/gpu-config', {
-      method: 'PUT',
-      body: JSON.stringify({ assignments }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('updates GPU configuration with both strategy and assignments', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuConfigUpdateResponse));
-
-    const config = {
-      strategy: 'manual',
-      assignments: [{ service: 'ai-llm', gpu_index: 0, vram_budget_override: null }],
-    };
-    const result = await updateGpuConfig(config);
-
-    expect(fetch).toHaveBeenCalledWith('/api/system/gpu-config', {
-      method: 'PUT',
-      body: JSON.stringify(config),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('returns warnings when configuration has issues', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      createMockResponse(mockGpuConfigUpdateResponseWithWarnings)
-    );
-
-    const result = await updateGpuConfig({ strategy: 'manual' });
-
-    expect(result.success).toBe(true);
-    expect(result.warnings).toHaveLength(2);
-    expect(result.warnings).toContain('GPU 0 VRAM budget exceeds available VRAM');
-  });
-
-  it('throws GpuConfigApiError on 400 validation error', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(400, 'Bad Request', 'Invalid GPU index')
-    );
-
-    await expect(updateGpuConfig({ strategy: 'invalid' })).rejects.toThrow(GpuConfigApiError);
-    await expect(updateGpuConfig({ strategy: 'invalid' })).rejects.toMatchObject({
-      status: 400,
-      message: 'Invalid GPU index',
-    });
-  });
-
-  it('throws GpuConfigApiError on 422 unprocessable entity', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(422, 'Unprocessable Entity', 'GPU 2 does not exist')
-    );
-
-    await expect(
-      updateGpuConfig({
-        assignments: [{ service: 'ai-llm', gpu_index: 2, vram_budget_override: null }],
-      })
-    ).rejects.toMatchObject({
-      status: 422,
-      message: 'GPU 2 does not exist',
-    });
-  });
-
-  it('handles empty update request', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuConfigUpdateResponse));
-
-    const result = await updateGpuConfig({});
-
-    expect(fetch).toHaveBeenCalledWith('/api/system/gpu-config', {
-      method: 'PUT',
-      body: JSON.stringify({}),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.success).toBe(true);
-  });
-});
-
-// ============================================================================
-// applyGpuConfig Tests
-// ============================================================================
-
-describe('applyGpuConfig', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('applies GPU configuration successfully', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuApplyResult));
-
-    const result = await applyGpuConfig();
-
-    expect(fetch).toHaveBeenCalledWith('/api/system/gpu-config/apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.success).toBe(true);
-    expect(result.restarted_services).toContain('ai-llm');
-    expect(result.restarted_services).toContain('ai-yolo26');
-    expect(result.service_statuses).toHaveLength(2);
-  });
-
-  it('returns partial success with failed restarts', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuApplyResultWithFailures));
-
-    const result = await applyGpuConfig();
-
-    expect(result.success).toBe(false);
-    expect(result.restarted_services).toContain('ai-llm');
-    const failedService = result.service_statuses.find((s) => s.status === 'error');
-    expect(failedService?.service).toBe('ai-yolo26');
-    expect(result.warnings).toContain('Container restart timed out for ai-yolo26');
-  });
-
-  it('handles no services to restart', async () => {
-    const noRestartResult: GpuApplyResult = {
-      success: true,
-      warnings: ['No services required restart'],
-      restarted_services: [],
-      service_statuses: [],
-    };
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(noRestartResult));
-
-    const result = await applyGpuConfig();
-
-    expect(result.success).toBe(true);
-    expect(result.restarted_services).toHaveLength(0);
-  });
-
-  it('throws GpuConfigApiError on 500 server error', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(500, 'Internal Server Error', 'Docker daemon unavailable')
-    );
-
-    await expect(applyGpuConfig()).rejects.toThrow(GpuConfigApiError);
-    await expect(applyGpuConfig()).rejects.toMatchObject({
-      status: 500,
-      message: 'Docker daemon unavailable',
-    });
-  });
-
-  it('throws GpuConfigApiError on 503 service unavailable', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(503, 'Service Unavailable', 'System is busy')
-    );
-
-    await expect(applyGpuConfig()).rejects.toMatchObject({
-      status: 503,
-      message: 'System is busy',
-    });
-  });
-});
-
-// ============================================================================
-// getGpuStatus Tests
-// ============================================================================
-
-describe('getGpuStatus', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('fetches GPU status successfully', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuStatusResponse));
-
-    const result = await getGpuStatus();
-
-    expect(fetch).toHaveBeenCalledWith('/api/system/gpu-config/status', {
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.service_statuses).toHaveLength(2);
-  });
-
-  it('returns service status details correctly', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuStatusResponse));
-
-    const result = await getGpuStatus();
-
-    const llmService = result.service_statuses.find((s) => s.service === 'ai-llm');
-    expect(llmService?.status).toBe('running');
-    expect(llmService?.message).toBeNull();
-  });
-
-  it('returns starting service status', async () => {
-    const startingResponse: GpuStatusResponse = {
-      in_progress: true,
-      services_pending: ['ai-llm'],
-      services_completed: [],
-      service_statuses: [mockServiceStatusRestarting],
-    };
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(startingResponse));
-
-    const result = await getGpuStatus();
-
-    expect(result.service_statuses[0].status).toBe('starting');
-    expect(result.in_progress).toBe(true);
-    expect(result.services_pending).toContain('ai-llm');
-  });
-
-  it('handles service with status message', async () => {
-    const serviceWithMessage: ServiceStatus = {
-      service: 'ai-enrichment',
-      status: 'stopped',
-      message: 'Container exited with code 1',
-    };
-    const response: GpuStatusResponse = {
-      in_progress: false,
-      services_pending: [],
-      services_completed: ['ai-enrichment'],
-      service_statuses: [serviceWithMessage],
-    };
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(response));
-
-    const result = await getGpuStatus();
-
-    expect(result.service_statuses[0].message).toBe('Container exited with code 1');
-  });
-
-  it('throws GpuConfigApiError on 500 server error', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(500, 'Internal Server Error', 'Failed to query containers')
-    );
-
-    await expect(getGpuStatus()).rejects.toThrow(GpuConfigApiError);
-    await expect(getGpuStatus()).rejects.toMatchObject({
-      status: 500,
-      message: 'Failed to query containers',
-    });
-  });
-
-  it('throws GpuConfigApiError on network error', async () => {
-    vi.mocked(fetch).mockRejectedValue(new Error('Request timeout'));
-
-    await expect(getGpuStatus()).rejects.toMatchObject({
-      status: 0,
-      message: 'Request timeout',
-    });
-  });
-});
-
-// ============================================================================
-// detectGpus Tests
-// ============================================================================
-
-describe('detectGpus', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('detects GPUs successfully', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGpuListResponse));
-
-    const result = await detectGpus();
-
-    expect(fetch).toHaveBeenCalledWith('/api/system/gpu-config/detect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.gpus).toHaveLength(2);
-  });
-
-  it('handles detection returning single GPU', async () => {
-    const singleGpuResponse: GpuListResponse = { gpus: [mockGpuDevice] };
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(singleGpuResponse));
-
-    const result = await detectGpus();
-
-    expect(result.gpus).toHaveLength(1);
-    expect(result.gpus[0].name).toBe('NVIDIA RTX A5500');
-  });
-
-  it('handles detection returning no GPUs', async () => {
-    const noGpuResponse: GpuListResponse = { gpus: [] };
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(noGpuResponse));
-
-    const result = await detectGpus();
-
-    expect(result.gpus).toHaveLength(0);
-  });
-
-  it('throws GpuConfigApiError on 500 detection failure', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(500, 'Internal Server Error', 'NVIDIA driver not found')
-    );
-
-    await expect(detectGpus()).rejects.toThrow(GpuConfigApiError);
-    await expect(detectGpus()).rejects.toMatchObject({
-      status: 500,
-      message: 'NVIDIA driver not found',
-    });
-  });
-
-  it('throws GpuConfigApiError on network error', async () => {
-    vi.mocked(fetch).mockRejectedValue(new Error('Connection reset'));
-
-    await expect(detectGpus()).rejects.toMatchObject({
-      status: 0,
-      message: 'Connection reset',
-    });
-  });
-});
-
-// ============================================================================
-// previewStrategy Tests
-// ============================================================================
 
 describe('previewStrategy', () => {
   beforeEach(() => {
@@ -786,10 +344,6 @@ describe('previewStrategy', () => {
     );
   });
 });
-
-// ============================================================================
-// Error Handling Tests
-// ============================================================================
 
 describe('Error Handling', () => {
   beforeEach(() => {
@@ -905,10 +459,6 @@ describe('Error Handling', () => {
     });
   });
 });
-
-// ============================================================================
-// API Key Header Tests
-// ============================================================================
 
 describe('API Key Header', () => {
   beforeEach(() => {

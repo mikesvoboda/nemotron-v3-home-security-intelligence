@@ -303,26 +303,11 @@ class AlertRule(Base):
     dwell_threshold_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     exclude_household_members: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    # Pose condition: Alert on specific poses (crouching, lying_down, etc.)
-    pose_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    pose_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
-
-    # Action condition: Alert on X-CLIP recognized actions (loitering, etc.)
-    action_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    action_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
-
     # Threat condition: Alert on weapon detection
     threat_detection_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     threat_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     threat_min_severity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     threat_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
-
-    # Smoke/fire condition: Alert on smoke or fire detection
-    smoke_fire_detection_enabled: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
-    smoke_fire_consecutive_required: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
-    smoke_fire_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Cooldown: Deduplication key template and cooldown period
     # Template variables: {camera_id}, {rule_id}, {object_type}
@@ -373,16 +358,6 @@ class AlertRule(Base):
             name="ck_alert_rules_dwell_threshold_non_negative",
         ),
         CheckConstraint(
-            "pose_confidence_threshold IS NULL OR "
-            "(pose_confidence_threshold >= 0.0 AND pose_confidence_threshold <= 1.0)",
-            name="ck_alert_rules_pose_confidence_range",
-        ),
-        CheckConstraint(
-            "action_confidence_threshold IS NULL OR "
-            "(action_confidence_threshold >= 0.0 AND action_confidence_threshold <= 1.0)",
-            name="ck_alert_rules_action_confidence_range",
-        ),
-        CheckConstraint(
             "threat_min_severity IS NULL OR threat_min_severity IN "
             "('critical', 'high', 'medium', 'low')",
             name="ck_alert_rules_threat_min_severity",
@@ -391,15 +366,6 @@ class AlertRule(Base):
             "threat_confidence_threshold IS NULL OR "
             "(threat_confidence_threshold >= 0.0 AND threat_confidence_threshold <= 1.0)",
             name="ck_alert_rules_threat_confidence_range",
-        ),
-        CheckConstraint(
-            "smoke_fire_consecutive_required >= 1",
-            name="ck_alert_rules_smoke_fire_consecutive_positive",
-        ),
-        CheckConstraint(
-            "smoke_fire_confidence_threshold IS NULL OR "
-            "(smoke_fire_confidence_threshold >= 0.0 AND smoke_fire_confidence_threshold <= 1.0)",
-            name="ck_alert_rules_smoke_fire_confidence_range",
         ),
     )
 
@@ -415,10 +381,6 @@ class AlertRule(Base):
         # Apply defaults for boolean fields that should default to False
         kwargs.setdefault("exclude_household_members", False)
         kwargs.setdefault("threat_detection_enabled", False)
-        kwargs.setdefault("smoke_fire_detection_enabled", False)
-
-        # Apply defaults for integer fields with specific defaults
-        kwargs.setdefault("smoke_fire_consecutive_required", 2)
 
         super().__init__(**kwargs)
 

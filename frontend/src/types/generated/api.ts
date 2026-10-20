@@ -9558,52 +9558,8 @@ export interface paths {
          * @description Returns current GPU assignment strategy and service-to-GPU mappings.
          */
         get: operations["gpu-config_get_gpu_config"];
-        /**
-         * Update GPU configuration
-         * @description Updates GPU assignments. Does not apply changes - use /apply endpoint.
-         */
-        put: operations["gpu-config_update_gpu_config"];
+        put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/system/gpu-config/apply": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Apply GPU configuration
-         * @description Applies current config and restarts affected services.
-         */
-        post: operations["gpu-config_apply_gpu_config"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/system/gpu-config/detect": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Re-detect GPUs
-         * @description Triggers a fresh GPU scan and updates the database.
-         */
-        post: operations["gpu-config_detect_gpus"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9690,26 +9646,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/system/gpu-config/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Import GPU configuration
-         * @description Imports a previously exported configuration with validation.
-         */
-        post: operations["gpu-config_import_gpu_config"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/system/gpu-config/preview": {
         parameters: {
             query?: never;
@@ -9722,66 +9658,6 @@ export interface paths {
          * @description Preview what assignments would result from a given strategy.
          */
         get: operations["gpu-config_preview_gpu_config"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/system/gpu-config/rollback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Rollback to previous configuration
-         * @description Restores a previous configuration version.
-         */
-        post: operations["gpu-config_rollback_gpu_config"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/system/gpu-config/services": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get AI service health status
-         * @description Returns health status of all AI services including GPU assignments.
-         */
-        get: operations["gpu-config_get_service_health"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/system/gpu-config/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get apply operation status
-         * @description Returns current status of GPU configuration apply operation.
-         */
-        get: operations["gpu-config_get_gpu_config_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -13370,16 +13246,6 @@ export interface components {
          */
         AlertRuleCreate: {
             /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence (0.0-1.0)
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on (e.g., ['loitering', 'peering_through_window']). Actions are recognized by X-CLIP model.
-             */
-            action_types?: string[] | null;
-            /**
              * Camera Ids
              * @description Camera IDs to apply rule to (empty = all cameras)
              */
@@ -13447,16 +13313,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence (0.0-1.0)
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on (e.g., ['crouching', 'lying_down']). Valid: standing, crouching, bending_over, arms_raised, sitting, lying_down, unknown
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Alert when risk_score >= threshold
              */
@@ -13468,23 +13324,6 @@ export interface components {
              * @default medium
              */
             severity: components["schemas"]["AlertSeverity"];
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence (0.0-1.0)
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Number of consecutive smoke/fire detections required (reduces false positives)
-             * @default 2
-             */
-            smoke_fire_consecutive_required: number;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable alert on smoke/fire detection
-             * @default false
-             */
-            smoke_fire_detection_enabled: boolean;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat detection confidence (0.0-1.0)
@@ -13592,16 +13431,6 @@ export interface components {
          */
         AlertRuleResponse: {
             /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on
-             */
-            action_types?: string[] | null;
-            /**
              * Camera Ids
              * @description Camera IDs to apply to
              */
@@ -13677,16 +13506,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Risk score threshold
              */
@@ -13695,23 +13514,6 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity: components["schemas"]["AlertSeverity"];
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Consecutive detections required
-             * @default 2
-             */
-            smoke_fire_consecutive_required: number;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable smoke/fire alerts
-             * @default false
-             */
-            smoke_fire_detection_enabled: boolean;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat confidence
@@ -13806,16 +13608,6 @@ export interface components {
          */
         AlertRuleUpdate: {
             /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on
-             */
-            action_types?: string[] | null;
-            /**
              * Camera Ids
              * @description Camera IDs to apply rule to
              */
@@ -13878,16 +13670,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Alert when risk_score >= threshold
              */
@@ -13896,21 +13678,6 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity?: components["schemas"]["AlertSeverity"] | null;
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Consecutive detections required
-             */
-            smoke_fire_consecutive_required?: number | null;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable alert on smoke/fire detection
-             */
-            smoke_fire_detection_enabled?: boolean | null;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat confidence
@@ -25234,48 +25001,6 @@ export interface components {
             window_days?: number | null;
         };
         /**
-         * GpuApplyResponse
-         * @description Response schema for applying GPU configuration.
-         *
-         *     Returns the result of applying GPU configuration changes,
-         *     including which services were restarted and any warnings.
-         * @example {
-         *       "restarted_services": [
-         *         "ai-enrichment"
-         *       ],
-         *       "service_statuses": [
-         *         {
-         *           "service": "ai-enrichment",
-         *           "status": "starting"
-         *         }
-         *       ],
-         *       "success": true,
-         *       "warnings": []
-         *     }
-         */
-        GpuApplyResponse: {
-            /**
-             * Restarted Services
-             * @description Services that were restarted to apply changes
-             */
-            restarted_services?: string[];
-            /**
-             * Service Statuses
-             * @description Status of each affected service after apply
-             */
-            service_statuses?: components["schemas"]["ServiceStatus"][];
-            /**
-             * Success
-             * @description Whether the configuration was applied successfully
-             */
-            success: boolean;
-            /**
-             * Warnings
-             * @description Warnings about the configuration
-             */
-            warnings?: string[];
-        };
-        /**
          * GpuAssignment
          * @description Schema for a single service-to-GPU assignment.
          *
@@ -25444,116 +25169,6 @@ export interface components {
             strategy: string;
         };
         /**
-         * GpuConfigImportRequest
-         * @description Request schema for importing a GPU configuration.
-         *
-         *     Accepts exported configuration data and optional parameters
-         *     for how to handle the import.
-         * @example {
-         *       "apply_immediately": false,
-         *       "config": {
-         *         "assignments": [
-         *           {
-         *             "gpu_index": 0,
-         *             "service": "ai-llm"
-         *           }
-         *         ],
-         *         "export_version": "1.0",
-         *         "exported_at": "2026-01-23T10:30:00Z",
-         *         "strategy": "vram_based"
-         *       },
-         *       "description": "Imported from backup"
-         *     }
-         */
-        GpuConfigImportRequest: {
-            /**
-             * Apply Immediately
-             * @description Whether to apply the config after import (restart services)
-             * @default false
-             */
-            apply_immediately: boolean;
-            /** @description Configuration data to import */
-            config: components["schemas"]["GpuConfigExportData"];
-            /**
-             * Description
-             * @description Description for the new version (overrides export description)
-             */
-            description?: string | null;
-        };
-        /**
-         * GpuConfigImportResponse
-         * @description Response schema for GPU configuration import.
-         *
-         *     Returns the result of the import operation including
-         *     validation results and the new version if created.
-         * @example {
-         *       "applied": false,
-         *       "new_version": {
-         *         "assignment_count": 5,
-         *         "created_at": "2026-01-23T10:35:00Z",
-         *         "created_by": "import",
-         *         "description": "Imported from backup",
-         *         "id": "550e8400-e29b-41d4-a716-446655440000",
-         *         "strategy": "vram_based",
-         *         "version_number": 4
-         *       },
-         *       "success": true,
-         *       "validation": {
-         *         "errors": [],
-         *         "valid": true,
-         *         "warnings": []
-         *       }
-         *     }
-         */
-        GpuConfigImportResponse: {
-            /**
-             * Applied
-             * @description Whether the config was applied (services restarted)
-             * @default false
-             */
-            applied: boolean;
-            /** @description The newly created version (if import succeeded) */
-            new_version?: components["schemas"]["GpuConfigVersionSummary"] | null;
-            /**
-             * Success
-             * @description Whether the import was successful
-             */
-            success: boolean;
-            /** @description Validation results */
-            validation: components["schemas"]["GpuConfigImportValidation"];
-        };
-        /**
-         * GpuConfigImportValidation
-         * @description Validation results for an imported configuration.
-         *
-         *     Reports any issues found during validation before import.
-         * @example {
-         *       "errors": [],
-         *       "valid": true,
-         *       "warnings": [
-         *         "Service 'ai-vlm' not found - will be skipped",
-         *         "GPU 2 is over VRAM budget by 512 MB"
-         *       ]
-         *     }
-         */
-        GpuConfigImportValidation: {
-            /**
-             * Errors
-             * @description Blocking errors that prevent import
-             */
-            errors?: string[];
-            /**
-             * Valid
-             * @description Whether the configuration is valid for import
-             */
-            valid: boolean;
-            /**
-             * Warnings
-             * @description Non-blocking warnings about the configuration
-             */
-            warnings?: string[];
-        };
-        /**
          * GpuConfigPreviewResponse
          * @description Response schema for previewing auto-assignment.
          *
@@ -25632,178 +25247,6 @@ export interface components {
              * @description Timestamp of last configuration update
              */
             updated_at?: string | null;
-        };
-        /**
-         * GpuConfigRollbackRequest
-         * @description Request schema for rolling back to a previous configuration version.
-         *
-         *     Specifies which version to restore and how to handle the rollback.
-         * @example {
-         *       "apply_immediately": true,
-         *       "description": "Rollback to stable configuration",
-         *       "version_id": "550e8400-e29b-41d4-a716-446655440000"
-         *     }
-         */
-        GpuConfigRollbackRequest: {
-            /**
-             * Apply Immediately
-             * @description Whether to apply the rollback (restart services)
-             * @default true
-             */
-            apply_immediately: boolean;
-            /**
-             * Description
-             * @description Description for the new version created by rollback
-             */
-            description?: string | null;
-            /**
-             * Version Id
-             * @description ID of the version to roll back to
-             */
-            version_id: string;
-        };
-        /**
-         * GpuConfigRollbackResponse
-         * @description Response schema for configuration rollback.
-         *
-         *     Returns the result of the rollback operation.
-         * @example {
-         *       "applied": true,
-         *       "new_version": {
-         *         "assignment_count": 5,
-         *         "created_at": "2026-01-23T11:00:00Z",
-         *         "created_by": "rollback",
-         *         "description": "Rollback to version 3",
-         *         "id": "660f9500-f30c-52e5-b827-557766550111",
-         *         "strategy": "vram_based",
-         *         "version_number": 6
-         *       },
-         *       "rolled_back_from": 5,
-         *       "rolled_back_to": 3,
-         *       "success": true
-         *     }
-         */
-        GpuConfigRollbackResponse: {
-            /**
-             * Applied
-             * @description Whether the config was applied (services restarted)
-             */
-            applied: boolean;
-            /** @description The newly created version after rollback */
-            new_version: components["schemas"]["GpuConfigVersionSummary"];
-            /**
-             * Rolled Back From
-             * @description Version number before rollback
-             */
-            rolled_back_from: number;
-            /**
-             * Rolled Back To
-             * @description Version number that was restored
-             */
-            rolled_back_to: number;
-            /**
-             * Success
-             * @description Whether the rollback was successful
-             */
-            success: boolean;
-        };
-        /**
-         * GpuConfigStatusResponse
-         * @description Response schema for GPU configuration apply status.
-         *
-         *     Returns the current status of a GPU configuration apply operation.
-         * @example {
-         *       "in_progress": false,
-         *       "service_statuses": [
-         *         {
-         *           "service": "ai-enrichment",
-         *           "status": "running"
-         *         }
-         *       ],
-         *       "services_completed": [
-         *         "ai-enrichment"
-         *       ],
-         *       "services_pending": []
-         *     }
-         */
-        GpuConfigStatusResponse: {
-            /**
-             * In Progress
-             * @description Whether an apply operation is currently in progress
-             */
-            in_progress: boolean;
-            /**
-             * Service Statuses
-             * @description Current status of all affected services
-             */
-            service_statuses?: components["schemas"]["ServiceStatus"][];
-            /**
-             * Services Completed
-             * @description Services that have completed restart
-             */
-            services_completed?: string[];
-            /**
-             * Services Pending
-             * @description Services still pending restart
-             */
-            services_pending?: string[];
-        };
-        /**
-         * GpuConfigUpdateRequest
-         * @description Request schema for updating GPU configuration.
-         *
-         *     Allows updating the assignment strategy and/or individual assignments.
-         * @example {
-         *       "assignments": [
-         *         {
-         *           "gpu_index": 0,
-         *           "service": "ai-llm"
-         *         },
-         *         {
-         *           "gpu_index": 0,
-         *           "service": "ai-yolo26"
-         *         },
-         *         {
-         *           "gpu_index": 1,
-         *           "service": "ai-enrichment",
-         *           "vram_budget_override": 3.5
-         *         }
-         *       ],
-         *       "strategy": "manual"
-         *     }
-         */
-        GpuConfigUpdateRequest: {
-            /**
-             * Assignments
-             * @description Service-to-GPU assignments (null to keep current)
-             */
-            assignments?: components["schemas"]["GpuAssignment"][] | null;
-            /** @description GPU assignment strategy (null to keep current) */
-            strategy?: components["schemas"]["GpuAssignmentStrategy"] | null;
-        };
-        /**
-         * GpuConfigUpdateResponse
-         * @description Response schema for GPU configuration update.
-         *
-         *     Returns success status and any warnings about the configuration.
-         * @example {
-         *       "success": true,
-         *       "warnings": [
-         *         "ai-enrichment VRAM budget (6.8 GB) exceeds GPU 1 (4 GB). Auto-adjusted to 3.5 GB."
-         *       ]
-         *     }
-         */
-        GpuConfigUpdateResponse: {
-            /**
-             * Success
-             * @description Whether the configuration was saved successfully
-             */
-            success: boolean;
-            /**
-             * Warnings
-             * @description Warnings about the configuration (e.g., VRAM overages)
-             */
-            warnings?: string[];
         };
         /**
          * GpuConfigVersionDetail
@@ -36889,35 +36332,6 @@ export interface components {
          */
         ServiceCategory: "infrastructure" | "ai" | "monitoring";
         /**
-         * ServiceHealthResponse
-         * @description Response schema for AI service health status.
-         *
-         *     Returns health status of all AI services including GPU assignments.
-         * @example {
-         *       "services": [
-         *         {
-         *           "gpu_index": 0,
-         *           "health": "healthy",
-         *           "name": "ai-llm",
-         *           "status": "running"
-         *         },
-         *         {
-         *           "gpu_index": 1,
-         *           "health": "healthy",
-         *           "name": "ai-yolo26",
-         *           "status": "running"
-         *         }
-         *       ]
-         *     }
-         */
-        ServiceHealthResponse: {
-            /**
-             * Services
-             * @description Status of all AI services
-             */
-            services: components["schemas"]["ServiceHealthStatus"][];
-        };
-        /**
          * ServiceHealthState
          * @description Health state for a service in the full health check.
          *
@@ -36929,46 +36343,6 @@ export interface components {
          * @enum {string}
          */
         ServiceHealthState: "healthy" | "unhealthy" | "degraded" | "unknown";
-        /**
-         * ServiceHealthStatus
-         * @description Schema for service health status including GPU assignment.
-         *
-         *     Provides comprehensive service health information for the GPU settings UI,
-         *     including container status, health check result, and GPU assignment.
-         * @example {
-         *       "gpu_index": 0,
-         *       "health": "healthy",
-         *       "name": "ai-llm",
-         *       "status": "running"
-         *     }
-         */
-        ServiceHealthStatus: {
-            /**
-             * Gpu Index
-             * @description Assigned GPU index
-             */
-            gpu_index?: number | null;
-            /**
-             * Health
-             * @description Health check result (healthy, unhealthy, unknown)
-             */
-            health: string;
-            /**
-             * Name
-             * @description Service name (e.g., 'ai-llm')
-             */
-            name: string;
-            /**
-             * Restart Status
-             * @description Restart status if currently restarting (pending, completed)
-             */
-            restart_status?: string | null;
-            /**
-             * Status
-             * @description Container status (running, stopped, etc.)
-             */
-            status: string;
-        };
         /**
          * ServiceHealthStatusResponse
          * @description Health status of a registered service.
@@ -37079,33 +36453,6 @@ export interface components {
              * @description Seconds since container started (null if not running)
              */
             uptime_seconds?: number | null;
-        };
-        /**
-         * ServiceStatus
-         * @description Schema for service status after GPU config apply.
-         *
-         *     Reports the status of a service after applying GPU configuration changes.
-         * @example {
-         *       "service": "ai-llm",
-         *       "status": "running"
-         *     }
-         */
-        ServiceStatus: {
-            /**
-             * Message
-             * @description Optional status message or error details
-             */
-            message?: string | null;
-            /**
-             * Service
-             * @description Service name
-             */
-            service: string;
-            /**
-             * Status
-             * @description Service status (running, starting, stopped, error)
-             */
-            status: string;
         };
         /**
          * ServicesResponse
@@ -49083,7 +48430,7 @@ export interface operations {
                 offset?: number;
                 /** @description Pagination cursor from previous response */
                 cursor?: string | null;
-                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, notes, detection_count, detection_ids, thumbnail_url, verification */
+                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: camera_id, detection_count, ended_at, id, notes, notify, reasoning, reviewed, risk_level, risk_score, started_at, summary, thumbnail_url, verification */
                 fields?: string | null;
                 /** @description Include soft-deleted events in results. Default is False to hide deleted events. */
                 include_deleted?: boolean;
@@ -55246,114 +54593,6 @@ export interface operations {
             };
         };
     };
-    "gpu-config_update_gpu_config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GpuConfigUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GpuConfigUpdateResponse"];
-                };
-            };
-            /** @description Invalid configuration */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Failed to save configuration */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "gpu-config_apply_gpu_config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GpuApplyResponse"];
-                };
-            };
-            /** @description Apply operation already in progress */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Failed to apply configuration */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "gpu-config_detect_gpus": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GpuDevicesResponse"];
-                };
-            };
-            /** @description GPU detection failed */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     "gpu-config_export_gpu_config": {
         parameters: {
             query?: {
@@ -55527,53 +54766,6 @@ export interface operations {
             };
         };
     };
-    "gpu-config_import_gpu_config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GpuConfigImportRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GpuConfigImportResponse"];
-                };
-            };
-            /** @description Invalid configuration */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Failed to import configuration */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     "gpu-config_preview_gpu_config": {
         parameters: {
             query: {
@@ -55617,93 +54809,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    "gpu-config_rollback_gpu_config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GpuConfigRollbackRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GpuConfigRollbackResponse"];
-                };
-            };
-            /** @description Version not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Failed to rollback */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "gpu-config_get_service_health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceHealthResponse"];
-                };
-            };
-        };
-    };
-    "gpu-config_get_gpu_config_status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GpuConfigStatusResponse"];
-                };
             };
         };
     };

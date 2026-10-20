@@ -61,11 +61,7 @@ import backend.api.routes.gpu_config as gc
 from backend.api.schemas.gpu_config import GpuAssignment, GpuAssignmentStrategy
 from backend.models.gpu_config import (
     GpuConfiguration,
-    GpuConfigurationVersion,
     SystemSetting,
-)
-from backend.models.gpu_config import (
-    GpuDevice as GpuDeviceModel,
 )
 from backend.services.gpu_detection_service import GpuDevice
 
@@ -73,7 +69,6 @@ from backend.services.gpu_detection_service import GpuDevice
 # Measured constants
 # ============================================================================
 
-OPS_KEY = "gpu_config:current_operation_id"
 STRAT_KEY = "gpu_assignment_strategy"
 NO_GPU_MSG = "No GPUs detected - cannot calculate auto-assignments"
 SOLO_MSG = "Only one GPU detected - isolation strategy not possible, all services assigned to GPU 0"
@@ -95,15 +90,7 @@ CFG_BASE = (
     "gpu_configurations.updated_at FROM gpu_configurations"
 )
 CFG_SELECT_TRUE = CFG_BASE + " WHERE gpu_configurations.enabled IS true"
-DEV_SELECT = (
-    "SELECT gpu_devices.id, gpu_devices.gpu_index, gpu_devices.name, "
-    "gpu_devices.vram_total_mb, gpu_devices.vram_available_mb, "
-    "gpu_devices.compute_capability, gpu_devices.last_seen_at FROM gpu_devices"
-)
 UPDT_SELECT = "SELECT max(gpu_configurations.updated_at) AS max_1 FROM gpu_configurations"
-NEXTV_SELECT = (
-    "SELECT max(gpu_configuration_versions.version_number) AS max_1 FROM gpu_configuration_versions"
-)
 
 VRAM_TABLE = {"big": 200, "small": 60, "tiny": 0}
 
@@ -262,65 +249,6 @@ def assert_explicit_none_overrides(assignments: list[GpuAssignment]) -> None:
 
 
 # ============================================================================
-# Redis operation-id helpers
-# ============================================================================
-
-
-async def test_get_operation_id_reads_pinned_key() -> None:
-    r = Redis()
-    assert await gc._get_current_operation_id(r) == "op-get"
-    assert r.calls == [("get", OPS_KEY)]
-
-
-async def test_get_operation_id_falls_back_when_no_redis() -> None:
-    gc._apply_state_fallback["operation_id"] = "fb-op"
-    try:
-        assert await gc._get_current_operation_id(None) == "fb-op"
-    finally:
-        gc._apply_state_fallback["operation_id"] = None
-
-
-async def test_get_operation_id_swallows_error_with_pinned_warning() -> None:
-    r = Redis(get_exc=ValueError("boom"))
-    with log_rec() as rec:
-        assert await gc._get_current_operation_id(r) is None
-    assert r.calls == [("get", OPS_KEY)]
-    assert rec.calls == [("warning", ("Failed to get current operation ID from Redis: boom",), {})]
-
-
-async def test_set_operation_id_redis_set_pins_ttl() -> None:
-    r = Redis()
-    await gc._set_current_operation_id(r, "op-9")
-    assert r.calls == [("set", OPS_KEY, "op-9", 3600)]
-
-
-async def test_set_operation_id_redis_clear_pins_delete() -> None:
-    r = Redis()
-    await gc._set_current_operation_id(r, None)
-    assert r.calls == [("delete", OPS_KEY)]
-
-
-async def test_set_operation_id_set_failure_warns_pinned() -> None:
-    r = Redis(set_exc=OSError("down"))
-    with log_rec() as rec:
-        await gc._set_current_operation_id(r, "op-x")
-    assert rec.calls == [("warning", ("Failed to set current operation ID in Redis: down",), {})]
-
-
-async def test_set_operation_id_no_redis_writes_both_fallback_keys() -> None:
-    try:
-        await gc._set_current_operation_id(None, "op-f")
-        assert gc._apply_state_fallback["operation_id"] == "op-f"
-        assert gc._apply_state_fallback["in_progress"] is True
-        await gc._set_current_operation_id(None, None)
-        assert gc._apply_state_fallback["operation_id"] is None
-        assert gc._apply_state_fallback["in_progress"] is False
-    finally:
-        gc._apply_state_fallback["operation_id"] = None
-        gc._apply_state_fallback["in_progress"] = False
-
-
-# ============================================================================
 # Strategy persistence helpers
 # ============================================================================
 
@@ -355,26 +283,6 @@ async def test_get_current_strategy_absent_setting_defaults_quietly() -> None:
         assert await gc._get_current_strategy(s) is GpuAssignmentStrategy.MANUAL
     assert rec.calls == []
     assert s.queries == [(STRAT_SELECT, {"key_1": STRAT_KEY})]
-
-
-async def test_set_current_strategy_existing_replaces_value_wholesale() -> None:
-    setting = SystemSetting(key=STRAT_KEY, value={"strategy": "manual", "junk": 2})
-    s = Session([setting])
-    await gc._set_current_strategy(s, GpuAssignmentStrategy.VRAM_BASED)
-    assert setting.value == {"strategy": "vram_based"}
-    assert s.added == []
-    assert s.queries == [(STRAT_SELECT, {"key_1": STRAT_KEY})]
-
-
-async def test_set_current_strategy_absent_inserts_pinned_setting() -> None:
-    s = Session([None])
-    await gc._set_current_strategy(s, GpuAssignmentStrategy.ISOLATION_FIRST)
-    assert s.queries == [(STRAT_SELECT, {"key_1": STRAT_KEY})]
-    assert len(s.added) == 1
-    row = s.added[0]
-    assert isinstance(row, SystemSetting)
-    assert row.key == STRAT_KEY
-    assert row.value == {"strategy": "isolation_first"}
 
 
 # ============================================================================
@@ -432,7 +340,7 @@ async def test_get_assignments_none_fields_take_defaults() -> None:
 
 
 # ============================================================================
-# _get_latest_config_update_time / _get_next_version_number / _save_version
+# _get_latest_config_update_time
 # ============================================================================
 
 
@@ -447,265 +355,6 @@ async def test_latest_update_time_none_passthrough() -> None:
     s = Session([None])
     assert (await gc._get_latest_config_update_time(s)) is None
     assert s.queries == [(UPDT_SELECT, {})]
-
-
-async def test_next_version_pins_max_query_and_arithmetic() -> None:
-    s = Session([7])
-    assert (await gc._get_next_version_number(s)) == 8
-    assert s.queries == [(NEXTV_SELECT, {})]
-
-
-async def test_next_version_none_becomes_one() -> None:
-    s = Session([None])
-    assert (await gc._get_next_version_number(s)) == 1
-
-
-async def test_save_version_pins_row_and_json_keys() -> None:
-    s = Session([7])
-    v = await gc._save_version(
-        s,
-        "balanced",
-        [asg("svc-a", 1, 2.5), asg("svc-b", None, None)],
-        description="because",
-        created_by="tester",
-    )
-    assert isinstance(v, GpuConfigurationVersion)
-    assert s.queries == [(NEXTV_SELECT, {})]
-    assert s.added == [v]
-    assert v.version_number == 8
-    assert v.strategy == "balanced"
-    assert v.assignments == [
-        {"service": "svc-a", "gpu_index": 1, "vram_budget_override": 2.5},
-        {"service": "svc-b", "gpu_index": None, "vram_budget_override": None},
-    ]
-    assert v.description == "because"
-    assert v.created_by == "tester"
-
-
-# ============================================================================
-# _validate_vram_assignments
-# ============================================================================
-
-
-def test_validate_vram_skips_none_flags_absent_then_still_counts_later() -> None:
-    # THREE rows in this exact order: the None-index row kills the first
-    # continue->break, the ghost row must NOT short-circuit the OVERAGE row
-    # behind it (kills the second continue->break — with only two rows that
-    # mutant has nothing left to skip and survives).
-    gpus = [dev(0, 5)]
-    with mock.patch.object(gc, "AI_SERVICE_VRAM_REQUIREMENTS_MB", {"over": 10}):
-        out = gc._validate_vram_assignments(
-            [asg("none-gpu", None), asg("ghost", 9), asg("over", 0)], gpus
-        )
-    assert out == [
-        "Service 'ghost' assigned to non-existent GPU 9",
-        "GPU 0 is over budget by 5 MB (assigned: 10 MB, available: 5 MB)",
-    ]
-
-
-def test_validate_vram_override_exact_capacity_boundary_silent() -> None:
-    gpus = [dev(0, 1024)]
-    assert gc._validate_vram_assignments([asg("s", 0, 1.0)], gpus) == []
-
-
-def test_validate_vram_accumulates_and_prints_exact_usage() -> None:
-    gpus = [dev(0, 10)]
-    with mock.patch.object(gc, "AI_SERVICE_VRAM_REQUIREMENTS_MB", {"a": 6, "b": 6}):
-        out = gc._validate_vram_assignments([asg("a", 0), asg("b", 0)], gpus)
-    assert out == ["GPU 0 is over budget by 2 MB (assigned: 12 MB, available: 10 MB)"]
-
-
-def test_validate_vram_usage_equals_total_is_silent() -> None:
-    gpus = [dev(0, 10)]
-    with mock.patch.object(gc, "AI_SERVICE_VRAM_REQUIREMENTS_MB", {"a": 10}):
-        assert gc._validate_vram_assignments([asg("a", 0)], gpus) == []
-
-
-def test_validate_vram_zero_total_guard_silences() -> None:
-    gpus = [dev(0, 0)]
-    with mock.patch.object(gc, "AI_SERVICE_VRAM_REQUIREMENTS_MB", {"a": 5}):
-        assert gc._validate_vram_assignments([asg("a", 0)], gpus) == []
-
-
-def test_validate_vram_total_one_still_flags() -> None:
-    gpus = [dev(0, 1)]
-    with mock.patch.object(gc, "AI_SERVICE_VRAM_REQUIREMENTS_MB", {"a": 2}):
-        out = gc._validate_vram_assignments([asg("a", 0)], gpus)
-    assert out == ["GPU 0 is over budget by 1 MB (assigned: 2 MB, available: 1 MB)"]
-
-
-def test_validate_vram_absent_service_accumulates_with_present() -> None:
-    # BIRTH trio (vram_mb default 0 -> 1 / None / trailing-comma): 'ghost'
-    # is ABSENT from the table and ACCUMULATES after yolo fills the GPU
-    # EXACTLY.  Shipped default 0 -> usage 100 == total 100 -> SILENT
-    # (the used>total>0 chain stays false).  Default 1 -> 101 > 100 > 0 ->
-    # exact overage message.  Default None / trailing-comma-2-arg: the 2-arg
-    # .get RAISES KeyError and the None default poisons `usage += None`
-    # with TypeError (measured) — both RED by raising.
-    gpus = [dev(0, 100)]
-    with mock.patch.object(gc, "AI_SERVICE_VRAM_REQUIREMENTS_MB", {"ai-yolo26": 100}):
-        out = gc._validate_vram_assignments([asg("ai-yolo26", 0), asg("ghost", 0)], gpus)
-    assert out == []
-
-
-# ============================================================================
-# _validate_affinity_constraints
-# ============================================================================
-
-
-def test_affinity_exclusive_and_incompatible_warnings_both() -> None:
-    out = gc._validate_affinity_constraints(
-        [
-            asg("mine", 0, exclusive=True),
-            asg("freeloader", 0),
-            asg("hater", 1, incompatible=["enemy"]),
-            asg("enemy", 1),
-        ]
-    )
-    assert out == [
-        "Service 'mine' requires exclusive GPU but shares GPU 0 with: freeloader",
-        "Service 'hater' is incompatible with 'enemy' but both are on GPU 1",
-    ]
-
-
-def test_affinity_none_gpu_participates_in_no_group() -> None:
-    assert (
-        gc._validate_affinity_constraints([asg("mine", None, exclusive=True), asg("other", None)])
-        == []
-    )
-
-
-def test_affinity_exclusive_alone_is_silent() -> None:
-    assert gc._validate_affinity_constraints([asg("solo", 0, exclusive=True)]) == []
-
-
-def test_affinity_joiner_and_incompatible_count_pin() -> None:
-    # BIRTH pair.  m13 mutmaps the joiner ", " -> "XX, XX": a SINGLE co-
-    # tenant never exercises the separator (one element joins to itself), so
-    # 'mine' shares GPU 0 with TWO others — shipped renders "b, c", the XX
-    # joiner renders "bXX, XXc" (FULL-string equality, not a fragment).
-    # m14 flips `other.service == incompatible_service` to !=: the mutant
-    # matches every OTHER co-tenant with the SAME byte-identical message,
-    # so 'hater' (incompatible_with ['enemy']) on a GPU shared with 'enemy'
-    # AND an unrelated 'bystander' yields shipped 1 warning vs the mutant's 2
-    # — the count differs, the strings do not ([[fragment-count-asserts...]]
-    # territory: exact LIST equality is the pin).
-    out = gc._validate_affinity_constraints(
-        [
-            asg("mine", 0, exclusive=True),
-            asg("b", 0),
-            asg("c", 0),
-            asg("hater", 1, incompatible=["enemy"]),
-            asg("enemy", 1),
-            asg("bystander", 1),
-        ]
-    )
-    assert out == [
-        "Service 'mine' requires exclusive GPU but shares GPU 0 with: b, c",
-        "Service 'hater' is incompatible with 'enemy' but both are on GPU 1",
-    ]
-
-
-# ============================================================================
-# _save_assignments_to_db
-# ============================================================================
-
-
-async def test_save_assignments_updates_existing_fields() -> None:
-    existing = cfg_row(
-        "svc-a",
-        gpu_index=99,
-        strategy="stale",
-        vram_budget_override=9.9,
-        enabled=False,
-        exclusive_gpu=False,
-        priority_weight=1,
-        incompatible_with=None,
-    )
-    s = Session([[existing]])
-    await gc._save_assignments_to_db(
-        s,
-        [asg("svc-a", gpu_index=2, override=3.5, exclusive=True, weight=42, incompatible=["q"])],
-        GpuAssignmentStrategy.LATENCY_OPTIMIZED,
-    )
-    assert s.queries == [(CFG_BASE, {})]
-    assert s.added == []
-    assert existing.gpu_index == 2
-    assert existing.strategy == "latency_optimized"
-    assert existing.vram_budget_override == 3.5
-    assert existing.enabled is True
-    assert existing.exclusive_gpu is True
-    assert existing.priority_weight == 42
-    assert existing.incompatible_with == ["q"]
-
-
-async def test_save_assignments_creates_new_row_with_all_kwargs() -> None:
-    s = Session([[]])
-    await gc._save_assignments_to_db(
-        s,
-        [asg("fresh", gpu_index=5, override=7.25, exclusive=True, weight=61, incompatible=["z"])],
-        GpuAssignmentStrategy.BALANCED,
-    )
-    assert s.queries == [(CFG_BASE, {})]
-    assert len(s.added) == 1
-    row = s.added[0]
-    assert isinstance(row, GpuConfiguration)
-    assert row.service_name == "fresh"
-    assert row.gpu_index == 5
-    assert row.strategy == "balanced"
-    assert row.vram_budget_override == 7.25
-    assert row.enabled is True
-    assert row.exclusive_gpu is True
-    assert row.priority_weight == 61
-    assert row.incompatible_with == ["z"]
-
-
-# ============================================================================
-# _update_gpu_devices_in_db
-# ============================================================================
-
-
-async def test_update_devices_existing_fields_and_seen_stamp() -> None:
-    before = datetime(2000, 1, 1, tzinfo=UTC)
-    row = GpuDeviceModel(
-        gpu_index=0,
-        name="old",
-        vram_total_mb=1,
-        vram_available_mb=2,
-        compute_capability="0.0",
-        last_seen_at=before,
-    )
-    s = Session([[row]])
-    await gc._update_gpu_devices_in_db(s, [dev(0, 111, cc="8.6", vram_used=1)])
-    assert s.queries == [(DEV_SELECT, {})]
-    assert s.added == []
-    assert row.name == "gpu-0"
-    assert row.vram_total_mb == 111
-    assert row.vram_available_mb == 110  # property: total - used (measured)
-    assert row.compute_capability == "8.6"
-    seen = row.last_seen_at
-    assert isinstance(seen, datetime)
-    assert seen > before
-    assert seen.tzinfo is not None
-
-
-async def test_update_devices_insert_new_row_all_fields() -> None:
-    d = GpuDevice(
-        index=2, name="d2", vram_total_mb=333, vram_used_mb=111, uuid="u2", compute_capability="9.0"
-    )
-    s = Session([[]])
-    await gc._update_gpu_devices_in_db(s, [d])
-    assert s.queries == [(DEV_SELECT, {})]
-    assert len(s.added) == 1
-    row = s.added[0]
-    assert isinstance(row, GpuDeviceModel)
-    assert row.gpu_index == 2
-    assert row.name == "d2"
-    assert row.vram_total_mb == 333
-    assert row.vram_available_mb == 222  # device property: 333 - 111 (measured)
-    assert row.compute_capability == "9.0"
-    assert isinstance(row.last_seen_at, datetime)
-    assert row.last_seen_at.tzinfo is not None
 
 
 # ============================================================================
@@ -918,13 +567,4 @@ def test_calc_unmatched_strategy_yields_nothing() -> None:
 
 
 def test_module_constants_and_fallback_shape() -> None:
-    assert gc.REDIS_CURRENT_OPERATION_KEY == OPS_KEY
     assert gc.GPU_STRATEGY_SETTING_KEY == STRAT_KEY
-    assert set(gc._apply_state_fallback) == {
-        "in_progress",
-        "operation_id",
-        "services_pending",
-        "services_completed",
-        "service_statuses",
-        "last_updated",
-    }

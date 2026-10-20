@@ -39,7 +39,6 @@ from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now_naive
 from backend.models import (
-    ActionResult,
     Alert,
     AlertRule,
     AlertSeverity,
@@ -48,7 +47,6 @@ from backend.models import (
     DwellTimeRecord,
     Entity,
     Event,
-    PoseResult,
     ThreatDetection,
 )
 from backend.models.analytics_zone import PolygonZone
@@ -517,33 +515,12 @@ class AlertRuleEngine:
                 return False, [], None
             matched_conditions.extend(details)
 
-        # Check pose type condition
-        if rule.pose_types:
-            pose_matched = await self._check_pose_type(rule, detections)
-            if not pose_matched:
-                return False, [], None
-            matched_conditions.append(f"pose_type in {rule.pose_types}")
-
-        # Check action type condition
-        if rule.action_types:
-            action_matched = await self._check_action_type(rule, detections)
-            if not action_matched:
-                return False, [], None
-            matched_conditions.append(f"action_type in {rule.action_types}")
-
         # Check threat detection condition
         if rule.threat_detection_enabled:
             threat_matched = await self._check_threat_detected(rule, detections)
             if not threat_matched:
                 return False, [], None
             matched_conditions.append("threat_detected")
-
-        # Check smoke/fire condition
-        if rule.smoke_fire_detection_enabled:
-            smoke_fire_matched = await self._check_smoke_fire(rule, detections)
-            if not smoke_fire_matched:
-                return False, [], None
-            matched_conditions.append("smoke_fire_detected")
 
         # If we get here, all conditions matched (or no conditions were specified)
         # A rule with no conditions always matches
@@ -668,90 +645,6 @@ class AlertRuleEngine:
 
         return matched, details, dwell_time_match
 
-    async def _check_pose_type(
-        self,
-        rule: AlertRule,
-        detections: list[Detection],
-    ) -> bool:
-        """Check if pose type condition is met.
-
-        Queries PoseResult for detections and checks if any match the
-        specified pose types with optional confidence threshold.
-
-        Args:
-            rule: The alert rule with pose_types set
-            detections: List of detections for the event
-
-        Returns:
-            True if any detection has a matching pose type, False otherwise
-        """
-        if not rule.pose_types or not detections:
-            return False
-
-        detection_ids = [d.id for d in detections if d.id is not None]
-        if not detection_ids:
-            return False
-
-        # Query PoseResult for these detections
-        stmt = select(PoseResult).where(PoseResult.detection_id.in_(detection_ids))
-
-        result = await self.session.execute(stmt)
-        pose_results = list(result.scalars().all())
-
-        # Normalize rule pose types to lowercase for comparison
-        required_poses = [p.lower() for p in rule.pose_types]
-        confidence_threshold = rule.pose_confidence_threshold or 0.0
-
-        for pose in pose_results:
-            if pose.pose_class and pose.pose_class.lower() in required_poses:
-                # Check confidence threshold
-                if pose.confidence is None or pose.confidence >= confidence_threshold:
-                    return True
-
-        return False
-
-    async def _check_action_type(
-        self,
-        rule: AlertRule,
-        detections: list[Detection],
-    ) -> bool:
-        """Check if action type condition is met.
-
-        Queries ActionResult for detections and checks if any match the
-        specified action types with optional confidence threshold.
-
-        Args:
-            rule: The alert rule with action_types set
-            detections: List of detections for the event
-
-        Returns:
-            True if any detection has a matching action type, False otherwise
-        """
-        if not rule.action_types or not detections:
-            return False
-
-        detection_ids = [d.id for d in detections if d.id is not None]
-        if not detection_ids:
-            return False
-
-        # Query ActionResult for these detections
-        stmt = select(ActionResult).where(ActionResult.detection_id.in_(detection_ids))
-
-        result = await self.session.execute(stmt)
-        action_results = list(result.scalars().all())
-
-        # Normalize rule action types to lowercase for comparison
-        required_actions = [a.lower() for a in rule.action_types]
-        confidence_threshold = rule.action_confidence_threshold or 0.0
-
-        for action in action_results:
-            if action.action and action.action.lower() in required_actions:
-                # Check confidence threshold
-                if action.confidence is None or action.confidence >= confidence_threshold:
-                    return True
-
-        return False
-
     async def _check_threat_detected(
         self,
         rule: AlertRule,
@@ -809,93 +702,6 @@ class AlertRuleEngine:
 
             # All criteria met
             return True
-
-        return False
-
-    async def _check_smoke_fire(  # noqa: PLR0911 - complex validation requires multiple returns
-        self,
-        rule: AlertRule,
-        detections: list[Detection],
-    ) -> bool:
-        """Check if smoke/fire detection condition is met.
-
-        This method is prepared for future smoke/fire detection model.
-        Currently checks a mock/placeholder for smoke/fire results.
-
-        Args:
-            rule: The alert rule with smoke_fire_detection_enabled=True
-            detections: List of detections for the event
-
-        Returns:
-            True if smoke/fire is detected meeting criteria, False otherwise
-        """
-        if not rule.smoke_fire_detection_enabled or not detections:
-            return False
-
-        detection_ids = [d.id for d in detections if d.id is not None]
-        if not detection_ids:
-            return False
-
-        # Future: Query SmokeFireResult table when model is implemented
-        # For now, this queries for any smoke/fire detection data
-        # The test mocks session.execute to return smoke_fire results
-
-        confidence_threshold = rule.smoke_fire_confidence_threshold or 0.0
-        consecutive_required = rule.smoke_fire_consecutive_required or 2
-
-        try:
-            # Query for smoke/fire results
-            # In production, this would query a SmokeFireResult table
-            # For testing, the mock returns objects with smoke/fire attributes
-            stmt = select(Detection).where(Detection.id.in_(detection_ids))
-            result = await self.session.execute(stmt)
-            smoke_results = list(result.scalars().all())
-
-            if not smoke_results:
-                return False
-
-            # Check each result for smoke/fire criteria
-            for smoke_result in smoke_results:
-                # Check confidence threshold
-                # Use try/except to handle MagicMock objects in tests
-                try:
-                    result_confidence = smoke_result.confidence
-                    if isinstance(result_confidence, int | float):
-                        if result_confidence < confidence_threshold:
-                            continue
-                except TypeError, AttributeError:
-                    pass  # No confidence data, continue checking
-
-                # Check consecutive count requirement
-                # Only check if the object explicitly has consecutive_count as a real number
-                try:
-                    # Smoke/fire results may have consecutive_count attribute
-                    # (from future SmokeFireResult model)
-                    consecutive_count = smoke_result.consecutive_count  # type: ignore[attr-defined]
-                    # Check if it's a real number (not a MagicMock)
-                    if isinstance(consecutive_count, int | float):
-                        if consecutive_count < consecutive_required:
-                            continue
-                        # If we reach here, consecutive_count meets requirement
-                        return True
-                except TypeError, AttributeError:
-                    pass  # No consecutive count tracking
-
-                # If no consecutive_count tracking (or it's not a number),
-                # just check if this is a smoke/fire detection
-                try:
-                    # Smoke/fire results may have detection_type attribute
-                    # (from future SmokeFireResult model)
-                    detection_type = smoke_result.detection_type  # type: ignore[attr-defined]
-                    if isinstance(detection_type, str) and detection_type in ("smoke", "fire"):
-                        return True
-                except TypeError, AttributeError:
-                    pass
-
-            return False
-
-        except Exception as e:
-            logger.debug(f"Smoke/fire check error (expected during testing): {e}")
 
         return False
 

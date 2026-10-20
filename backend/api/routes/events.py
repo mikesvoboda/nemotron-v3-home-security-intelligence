@@ -198,6 +198,23 @@ VALID_EVENT_LIST_FIELDS = frozenset(
 )
 
 
+def fields_query_description() -> str:
+    """Build the `fields` query description from VALID_EVENT_LIST_FIELDS.
+
+    The description is derived from the set rather than hand-written beside it:
+    the two drifted once (the description listed `detection_ids`, removed with
+    the events table's detections column in NEM-1592, and omitted `notify`),
+    and a client that follows the API docs gets a 400 (ruling 277, Q-068).
+    Sorted so the generated text is stable across regenerations of
+    docs/openapi.json.
+    """
+    names = ", ".join(sorted(VALID_EVENT_LIST_FIELDS))
+    return (
+        "Comma-separated list of fields to include in response (sparse fieldsets). "
+        f"Valid fields: {names}"
+    )
+
+
 def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
     """Parse detection IDs stored as JSON array to list of integers.
 
@@ -335,9 +352,7 @@ async def list_events(
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     fields: str | None = Query(
         None,
-        description="Comma-separated list of fields to include in response (sparse fieldsets). "
-        "Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, "
-        "reasoning, reviewed, notes, detection_count, detection_ids, thumbnail_url, verification",
+        description=fields_query_description(),
     ),
     include_deleted: bool = Query(
         False,

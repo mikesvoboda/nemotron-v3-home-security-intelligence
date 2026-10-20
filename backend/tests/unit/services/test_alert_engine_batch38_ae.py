@@ -76,17 +76,14 @@ def n(s):
 # runtime extraction could compile a mutant's statement as the "expected"
 # text. FakeSession routes on these; a statement rewrite either mismatches
 # (AssertionError -> killed) or rebinds params.
-_SQL_RULES = "SELECT alert_rules.id, alert_rules.name, alert_rules.description, alert_rules.enabled, alert_rules.severity, alert_rules.risk_threshold, alert_rules.object_types, alert_rules.camera_ids, alert_rules.zone_ids, alert_rules.min_confidence, alert_rules.schedule, alert_rules.dwell_time_enabled, alert_rules.conditions, alert_rules.dwell_threshold_seconds, alert_rules.exclude_household_members, alert_rules.pose_types, alert_rules.pose_confidence_threshold, alert_rules.action_types, alert_rules.action_confidence_threshold, alert_rules.threat_detection_enabled, alert_rules.threat_types, alert_rules.threat_min_severity, alert_rules.threat_confidence_threshold, alert_rules.smoke_fire_detection_enabled, alert_rules.smoke_fire_consecutive_required, alert_rules.smoke_fire_confidence_threshold, alert_rules.dedup_key_template, alert_rules.cooldown_seconds, alert_rules.channels, alert_rules.created_at, alert_rules.updated_at FROM alert_rules WHERE alert_rules.enabled IS true"
+_SQL_RULES = "SELECT alert_rules.id, alert_rules.name, alert_rules.description, alert_rules.enabled, alert_rules.severity, alert_rules.risk_threshold, alert_rules.object_types, alert_rules.camera_ids, alert_rules.zone_ids, alert_rules.min_confidence, alert_rules.schedule, alert_rules.dwell_time_enabled, alert_rules.conditions, alert_rules.dwell_threshold_seconds, alert_rules.exclude_household_members, alert_rules.threat_detection_enabled, alert_rules.threat_types, alert_rules.threat_min_severity, alert_rules.threat_confidence_threshold, alert_rules.dedup_key_template, alert_rules.cooldown_seconds, alert_rules.channels, alert_rules.created_at, alert_rules.updated_at FROM alert_rules WHERE alert_rules.enabled IS true"
 _SQL_TRUST = "SELECT DISTINCT entities.trust_status FROM entities WHERE entities.primary_detection_id IN (__[POSTCOMPILE_primary_detection_id_1])"
 _SQL_EVDET = "SELECT event_detections.detection_id FROM event_detections WHERE event_detections.event_id = :event_id_1"
 _SQL_JUNC = "SELECT event_detections.event_id, event_detections.detection_id FROM event_detections WHERE event_detections.event_id IN (__[POSTCOMPILE_event_id_1])"
 _SQL_DZONES = "SELECT DISTINCT dwell_time_records.zone_id FROM dwell_time_records WHERE dwell_time_records.camera_id = :camera_id_1 AND dwell_time_records.exit_time IS NULL"
 _SQL_ZONES = "SELECT polygon_zones.id, polygon_zones.camera_id, polygon_zones.name, polygon_zones.polygon, polygon_zones.zone_type, polygon_zones.alert_threshold, polygon_zones.target_classes, polygon_zones.is_active, polygon_zones.color, polygon_zones.current_count, polygon_zones.loitering_threshold_seconds, polygon_zones.loitering_alert_enabled, polygon_zones.created_at FROM polygon_zones WHERE polygon_zones.id IN (__[POSTCOMPILE_id_1]) AND polygon_zones.loitering_alert_enabled IS true"
 _SQL_DWELL = "SELECT dwell_time_records.id, dwell_time_records.zone_id, dwell_time_records.track_id, dwell_time_records.camera_id, dwell_time_records.object_class, dwell_time_records.entry_time, dwell_time_records.exit_time, dwell_time_records.total_seconds, dwell_time_records.triggered_alert FROM dwell_time_records WHERE dwell_time_records.zone_id = :zone_id_1 AND dwell_time_records.exit_time IS NULL"
-_SQL_POSE = "SELECT pose_results.id, pose_results.detection_id, pose_results.keypoints, pose_results.pose_class, pose_results.confidence, pose_results.is_suspicious, pose_results.created_at FROM pose_results WHERE pose_results.detection_id IN (__[POSTCOMPILE_detection_id_1])"
-_SQL_ACTION = "SELECT action_results.id, action_results.detection_id, action_results.action, action_results.confidence, action_results.is_suspicious, action_results.all_scores, action_results.created_at FROM action_results WHERE action_results.detection_id IN (__[POSTCOMPILE_detection_id_1])"
 _SQL_THREAT = "SELECT threat_detections.id, threat_detections.detection_id, threat_detections.threat_type, threat_detections.confidence, threat_detections.severity, threat_detections.bbox, threat_detections.created_at FROM threat_detections WHERE threat_detections.detection_id IN (__[POSTCOMPILE_detection_id_1])"
-_SQL_SMOKE = "SELECT detections.id, detections.camera_id, detections.file_path, detections.file_type, detections.detected_at, detections.object_type, detections.confidence, detections.bbox_x, detections.bbox_y, detections.bbox_width, detections.bbox_height, detections.thumbnail_path, detections.media_type, detections.duration, detections.video_codec, detections.video_width, detections.video_height, detections.track_id, detections.track_confidence, detections.search_vector, detections.labels FROM detections WHERE detections.id IN (__[POSTCOMPILE_id_1])"
 _SQL_COOLDOWN = "SELECT alerts.id, alerts.event_id, alerts.rule_id, alerts.severity, alerts.status, alerts.created_at, alerts.updated_at, alerts.delivered_at, alerts.channels, alerts.dedup_key, alerts.metadata, alerts.version_id, alerts.is_high_priority FROM alerts WHERE alerts.dedup_key = :dedup_key_1 AND alerts.rule_id = :rule_id_1 AND alerts.created_at >= :created_at_1 LIMIT :param_1 FOR UPDATE"
 
 
@@ -143,17 +140,10 @@ def rule(**kw):
         "zone_ids": None,
         "schedule": None,
         "dwell_time_enabled": False,
-        "pose_types": None,
-        "pose_confidence_threshold": None,
-        "action_types": None,
-        "action_confidence_threshold": None,
         "threat_detection_enabled": False,
         "threat_types": None,
         "threat_min_severity": None,
         "threat_confidence_threshold": None,
-        "smoke_fire_detection_enabled": False,
-        "smoke_fire_confidence_threshold": None,
-        "smoke_fire_consecutive_required": None,
         "dedup_key_template": None,
         "cooldown_seconds": None,
         "channels": None,
@@ -225,16 +215,6 @@ class WebhookSpy:
         self.calls.append((args, kwargs))
         if self.raises:
             raise self.raises
-
-
-class WeirdEq:
-    """Not a str, yet == "smoke" - kills the isinstance-and -> or flip."""
-
-    def __eq__(self, other):
-        return other in ("smoke", "fire")
-
-    def __hash__(self):
-        return 0
 
 
 class _RecHandler(logging.Handler):
@@ -535,31 +515,14 @@ def test_verification_gate_rounds():
 
 
 @patched
-def test_threat_and_smoke_condition_labels_through_evaluate_rule():
-    # _evaluate_rule m92/m102: the "threat_detected"/"smoke_fire_detected"
-    # labels appended AFTER the sub-checks pass - the direct _check_* rounds
-    # above never observe these appends.
+def test_threat_condition_label_through_evaluate_rule():
+    # _evaluate_rule: the "threat_detected" label appended AFTER the sub-check passes.
     ae.batch_fetch_detections = BatchSpy([])
-    engine = AlertRuleEngine(
-        FakeSession({_SQL_THREAT: [_thr()], _SQL_SMOKE: [smokerow(consecutive=5)]})
-    )
+    engine = AlertRuleEngine(FakeSession({_SQL_THREAT: [_thr()]}))
     _, conds_t, _ = run(
         engine._evaluate_rule(rule(threat_detection_enabled=True), ev(), [det()], CT)
     )
     assert conds_t == ["threat_detected"]
-    _, conds_s, _ = run(
-        engine._evaluate_rule(rule(smoke_fire_detection_enabled=True), ev(), [det()], CT)
-    )
-    assert conds_s == ["smoke_fire_detected"]
-    _, conds_b, _ = run(
-        engine._evaluate_rule(
-            rule(threat_detection_enabled=True, smoke_fire_detection_enabled=True),
-            ev(),
-            [det()],
-            CT,
-        )
-    )
-    assert conds_b == ["threat_detected", "smoke_fire_detected"]
 
 
 @caplogs
@@ -714,59 +677,6 @@ def test_dwell_end_to_end_through_evaluate_event():
     assert [p for txt, p in s.calls if txt == _SQL_DZONES] == [{"camera_id_1": "cam-1"}]
 
 
-# ---------------------------------------------------------------- pose / action
-
-
-def test_pose_rounds():
-    # m1 (guard flip -> query on the pose_types=None round), m7-m9/m12, m25.
-    s = FakeSession({_SQL_POSE: [SimpleNamespace(pose_class="Sit", confidence=0.7)]})
-    r = rule(pose_types=["SIT"], pose_confidence_threshold=0.7)
-    assert run(AlertRuleEngine(s)._check_pose_type(r, [det()])) is True
-    assert s.calls[-1] == (_SQL_POSE, {"detection_id_1": [1]})
-    # m25: confidence EXACTLY at the threshold only passes under >=
-    s2 = FakeSession({_SQL_POSE: [SimpleNamespace(pose_class="sit", confidence=0.7)]})
-    assert run(AlertRuleEngine(s2)._check_pose_type(r, [det()])) is True
-    s3 = FakeSession({_SQL_POSE: [SimpleNamespace(pose_class="SIT", confidence=None)]})
-    assert run(AlertRuleEngine(s3)._check_pose_type(r, [det()])) is True
-    s4 = FakeSession({_SQL_POSE: [SimpleNamespace(pose_class="stand", confidence=1.0)]})
-    assert run(AlertRuleEngine(s4)._check_pose_type(r, [det()])) is False
-    s5 = FakeSession({_SQL_POSE: [SimpleNamespace(pose_class=None, confidence=1.0)]})
-    assert run(AlertRuleEngine(s5)._check_pose_type(r, [det()])) is False
-    s6 = FakeSession({_SQL_POSE: [SimpleNamespace(pose_class="sit", confidence=0.69)]})
-    assert run(AlertRuleEngine(s6)._check_pose_type(r, [det()])) is False
-    # guards: the and-flip would run the query on the pose_types=None round
-    s7 = FakeSession()
-    assert run(AlertRuleEngine(s7)._check_pose_type(rule(pose_types=None), [det()])) is False
-    assert run(AlertRuleEngine(s7)._check_pose_type(rule(pose_types=["sit"]), [])) is False
-    assert s7.calls == []
-
-
-def test_action_rounds():
-    # m1 guard flip, m7-m9/m12, m20 (`and`->`or` crashes on a None action),
-    # m25 threshold tie.
-    s = FakeSession({_SQL_ACTION: [SimpleNamespace(action="run", confidence=0.7)]})
-    r = rule(action_types=["RUN"], action_confidence_threshold=0.7)
-    assert run(AlertRuleEngine(s)._check_action_type(r, [det()])) is True
-    assert s.calls[-1] == (_SQL_ACTION, {"detection_id_1": [1]})
-    s2 = FakeSession(
-        {
-            _SQL_ACTION: [
-                SimpleNamespace(action=None, confidence=1.0),
-                SimpleNamespace(action="run", confidence=1.0),
-            ]
-        }
-    )
-    assert run(AlertRuleEngine(s2)._check_action_type(r, [det()])) is True  # m20 raises
-    s3 = FakeSession({_SQL_ACTION: [SimpleNamespace(action="walk", confidence=1.0)]})
-    assert run(AlertRuleEngine(s3)._check_action_type(r, [det()])) is False
-    s4 = FakeSession({_SQL_ACTION: [SimpleNamespace(action="RUN", confidence=0.7)]})
-    assert run(AlertRuleEngine(s4)._check_action_type(r, [det()])) is True  # m25 tie
-    s5 = FakeSession()
-    assert run(AlertRuleEngine(s5)._check_action_type(rule(action_types=None), [det()])) is False
-    assert run(AlertRuleEngine(s5)._check_action_type(rule(action_types=["run"]), [])) is False
-    assert s5.calls == []
-
-
 # ---------------------------------------------------------------- threat
 
 
@@ -830,81 +740,6 @@ def test_threat_rounds():
     )
     assert (
         run(AlertRuleEngine(s6)._check_threat_detected(rule(threat_detection_enabled=True), []))
-        is False
-    )
-    assert s6.calls == []
-
-
-# ---------------------------------------------------------------- smoke / fire
-
-
-def smokerow(confidence=0.9, consecutive=None, detection_type=None):
-    kw = {"confidence": confidence}
-    if consecutive is not None:
-        kw["consecutive_count"] = consecutive
-    if detection_type is not None:
-        kw["detection_type"] = detection_type
-    return SimpleNamespace(**kw)
-
-
-def test_smoke_rounds():
-    # m11/m12 (consecutive default), m13-m15/m18 stmt, m23/m24, m26/m27,
-    # m29 (and->or via a non-str equal member), m33/m34 (tuple strings).
-    s = FakeSession({_SQL_SMOKE: [smokerow(consecutive=5)]})
-    assert (
-        run(AlertRuleEngine(s)._check_smoke_fire(rule(smoke_fire_detection_enabled=True), [det()]))
-        is True
-    )
-    # the smoke/fire probe queries Detection.id, so the bind is id_1
-    assert s.calls[-1] == (_SQL_SMOKE, {"id_1": [1]})
-
-    def check(rows, **rule_kw):
-        sx = FakeSession({_SQL_SMOKE: rows})
-        return run(
-            AlertRuleEngine(sx)._check_smoke_fire(
-                rule(smoke_fire_detection_enabled=True, **rule_kw), [det()]
-            )
-        )
-
-    # m12: the DEFAULT is 2 (not 3) - both rows are 2 so the mutant exhausts
-    assert check([smokerow(consecutive=2), smokerow(consecutive=2)]) is True
-    # m11: explicit 3 stays 3 (the `and 2` mutant would accept 2)
-    assert check([smokerow(consecutive=2)], smoke_fire_consecutive_required=3) is False
-    # m23/m24: below-or-at-threshold rows must continue, not break
-    assert (
-        check(
-            [smokerow(confidence=0.5, detection_type="smoke")], smoke_fire_confidence_threshold=0.5
-        )
-        is True
-    )
-    assert (
-        check(
-            [smokerow(confidence=0.4), smokerow(confidence=0.9, detection_type="smoke")],
-            smoke_fire_confidence_threshold=0.5,
-        )
-        is True
-    )
-    # m26: consecutive EXACTLY at the required count passes under <
-    assert check([smokerow(consecutive=2)], smoke_fire_consecutive_required=2) is True
-    # m27: the under-count row continues to the fire row
-    assert check([smokerow(consecutive=1), smokerow(detection_type="fire")]) is True
-    assert check([smokerow(detection_type="smoke")]) is True
-    assert check([smokerow(detection_type="fire")]) is True  # kills m33
-    assert check([smokerow(detection_type="FIRE")]) is False  # kills m34
-    assert check([smokerow(detection_type=None)]) is False
-    assert check([smokerow(detection_type=7)]) is False
-    # m29: a non-str equal member must NOT pass the isinstance-gated `and`
-    assert check([smokerow(detection_type=WeirdEq())]) is False
-    assert check([]) is False
-    s6 = FakeSession()
-    assert (
-        run(
-            AlertRuleEngine(s6)._check_smoke_fire(rule(smoke_fire_detection_enabled=False), [det()])
-        )
-        is False
-    )
-    assert (
-        run(AlertRuleEngine(s6)._check_smoke_fire(rule(smoke_fire_detection_enabled=True), []))
         is False
     )
     assert s6.calls == []
@@ -1273,10 +1108,7 @@ def test_battery_targets_the_expected_functions():
         "_batch_load_detections_for_events",
         "_evaluate_rule",
         "_check_dwell_time",
-        "_check_pose_type",
-        "_check_action_type",
         "_check_threat_detected",
-        "_check_smoke_fire",
         "_check_schedule",
         "_build_dedup_key",
         "_check_cooldown",

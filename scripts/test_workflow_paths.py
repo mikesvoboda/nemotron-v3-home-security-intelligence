@@ -273,6 +273,9 @@ MISSING_OK: dict[str, str] = {
     "memory-results/memory-output.txt": "memory benchmark stdout redirect (generated)",
     # --- files a workflow itself writes at run time. ---
     "backend/tests/unit/test_o112_hooks_selftest.py": "ci.yml writes it via heredoc, then runs it",
+    "test-results/nightly-unit.xml": "module-import-budget.yml's pytest step writes this junit"
+                                     " (--junit-xml) in the same job that then runs the gate on the"
+                                     " directory; never committed, like the other junit paths",
     # --- bot-prompt example paths (pr-review-bot.yml prose in run: text).
     # Media types need NO entry: application/json is invisible via mechanism
     # (2) above, text/html and text/plain too (no text/ dir), and

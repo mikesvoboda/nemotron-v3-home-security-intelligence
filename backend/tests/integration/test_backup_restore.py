@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import gzip
 import hashlib
+import os
 import shutil
 import subprocess
 import tempfile
@@ -144,6 +145,14 @@ async def create_pg_backup(backup_path: Path, compress: bool = False) -> bool:
             conn_params["user"],
             "-d",
             conn_params["database"],
+            "-t",
+            "cameras",
+            "-t",
+            "detections",
+            "-t",
+            "events",
+            "-t",
+            "gpu_stats",
             "-F",
             "c",  # Custom format (compressed and portable)
             "-f",
@@ -151,7 +160,7 @@ async def create_pg_backup(backup_path: Path, compress: bool = False) -> bool:
         ]
 
         # Set PGPASSWORD environment variable for authentication
-        env = {"PGPASSWORD": conn_params["password"]}  # pragma: allowlist secret
+        env = {**os.environ, "PGPASSWORD": conn_params["password"]}  # pragma: allowlist secret
 
         # Run pg_dump
         result = await asyncio.create_subprocess_exec(
@@ -208,7 +217,36 @@ async def restore_pg_backup(backup_path: Path, target_database: str | None = Non
                     shutil.copyfileobj(f_in, f_out)
             backup_path = decompressed_path
 
-        # Build pg_restore command
+        # Validate archive header/TOC before touching the target database so a
+        # missing or corrupted dump fails fast without truncating existing rows.
+        list_proc = await asyncio.create_subprocess_exec(
+            "pg_restore",
+            "-l",
+            "-F",
+            "c",
+            str(backup_path),
+            env={**os.environ, "PGPASSWORD": conn_params["password"]},
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, list_stderr = await list_proc.communicate()
+        if list_proc.returncode != 0:
+            if backup_path != original_path and backup_path.exists():
+                backup_path.unlink()
+            return False
+
+        from backend.core.database import get_session
+
+        async with get_session() as session:
+            await session.execute(
+                text(
+                    "TRUNCATE TABLE cameras, detections, events, gpu_stats RESTART IDENTITY CASCADE"
+                )
+            )
+            await session.commit()
+
+        # Build pg_restore command (data-only over the 4 backed-up tables avoids
+        # dropping/recreating all 45+ schema tables and 150+ indexes on every test)
         cmd = [
             "pg_restore",
             "-h",
@@ -219,14 +257,15 @@ async def restore_pg_backup(backup_path: Path, target_database: str | None = Non
             conn_params["user"],
             "-d",
             db_name,
-            "-c",  # Clean (drop) database objects before recreating
+            "--data-only",
+            "--disable-triggers",
             "-F",
             "c",  # Custom format
             str(backup_path),
         ]
 
         # Set PGPASSWORD environment variable for authentication
-        env = {"PGPASSWORD": conn_params["password"]}  # pragma: allowlist secret
+        env = {**os.environ, "PGPASSWORD": conn_params["password"]}  # pragma: allowlist secret
 
         # Run pg_restore
         result = await asyncio.create_subprocess_exec(

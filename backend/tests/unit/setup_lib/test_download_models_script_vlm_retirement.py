@@ -15,7 +15,7 @@ Verdict evidence for every retired name lives in the ledger (items 51-55) and
 was re-measured per model: e.g. violence had NO reader that populates
 ``enrichment_data["violence_detection"]`` (detections.py:937 only consumes,
 defaulting false) and no ``models.yml`` row; smoke-fire's loader module no
-longer exists on disk (alert_engine's ``_check_smoke_fire`` is documented mock).
+longer exists on disk (and R2a row 32 F-220 retired the smoke/fire rule condition).
 
 D5 ruling: model identity is config — this script (and these tests) must never
 name a VLM identity; the vlm guidance is path-only.
