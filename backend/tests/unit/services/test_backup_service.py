@@ -202,6 +202,47 @@ class TestExportTable:
         (row,) = json.loads(out.read_text())
         assert row["when"] is None and row["blob"] is None
 
+    @pytest.mark.asyncio
+    async def test_alert_reserved_metadata_key_exports_alert_metadata_payload(
+        self,
+        tmp_path,
+    ) -> None:
+        """[r271b] Q-040: the walk must read the mapped attribute, not the key.
+
+        ``Alert`` names its payload column ``alert_metadata`` but maps it to the
+        table's ``metadata`` column (models/alert.py:120-121), so the mapper's
+        column KEY ``metadata`` has no class-bound attribute behind it. Reading
+        the walk's ``getattr(record, "metadata")`` therefore returns SQLAlchemy's
+        reserved ``MetaData`` object -- which the exporter stringifies into the
+        JSON as ``"metadata": "MetaData()"`` -- while the real payload is never
+        written. The fix reads each column through the mapper's column_attrs
+        (the key resolves to ``alert_metadata``), so the payload lands in the
+        backup. Red on the pre-fix code: the JSON carried ``"metadata":
+        "MetaData()"`` and no ``alert_metadata`` key.
+
+        The row is a real (unsaved) ``Alert`` instance, the same object shape
+        the integration tier's loaded rows present to the walk; the census at
+        the PR base (d5c470715) measured Alert as the only walked model with
+        this collision, so the probe is scoped to it.
+        """
+        from backend.models.alert import Alert
+
+        class PayloadRow(Alert):
+            """Instance shape the export loop sees: a mapped Alert row."""
+
+        row = PayloadRow(event_id=1, dedup_key="r271b-probe")
+        row.alert_metadata = {"sentinel": "R271B-PAYLOAD"}
+
+        svc = _service(tmp_path)
+        out = tmp_path / "alerts.json"
+        count = await svc._export_table(FakeDB([row]), Alert, out)
+        assert count == 1
+        (exported,) = json.loads(out.read_text())
+        # The payload must be IN the backup under the attribute's key ...
+        assert exported["alert_metadata"] == {"sentinel": "R271B-PAYLOAD"}
+        # ... and the reserved key must not carry a stringified MetaData.
+        assert "metadata" not in exported
+
 
 # -------------------------------------------------------------- _calculate_checksum
 
