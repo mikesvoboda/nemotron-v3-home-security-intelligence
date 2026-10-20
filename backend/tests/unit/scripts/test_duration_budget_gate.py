@@ -3389,6 +3389,219 @@ def test_module_re_runs_themselves_spend_the_shared_cap(tmp_path: Path) -> None:
     assert run.returncode == 1, f"over-cap modules stay red unverified\n{out}"
 
 
+def test_test_and_module_claims_share_one_cap_in_a_single_run(tmp_path: Path) -> None:
+    """Two test breaches + four module breaches: exactly five children, total.
+
+    The reviewer's residual on the cap hoist (UR-89 on #7305): the hoist
+    computes ``slots_left`` once from the unit tier's test breaches, and the
+    module loop decrements the SAME pool. The pin mixes both claim kinds in
+    one run — two 4.5 s testcases take two slots first, then the modules
+    draw; the third module gets the last slot and the fourth is denied
+    (named, RED unverified). Two test children + three module children = 5,
+    never 6, and the denial's note says the cap, not something else.
+    """
+    calls = tmp_path / "calls.jsonl"
+    breaches = [
+        # Two unit-tier TEST breaches, distinct ids, each 4.5 s against 4.0.
+        (
+            "tb0.xml",
+            _xml_suite("4.500", [(SLEEPER[0], "test_t0", 4.5)]),
+        ),
+        (
+            "tb1.xml",
+            _xml_suite("4.500", [(SLEEPER[0], "test_t1", 4.5)]),
+        ),
+        # Four module breaches in their own files (stall shape).
+        *[
+            (
+                f"stall{i}.xml",
+                _xml_suite(
+                    MODULE_SUITE_TIME,
+                    [(SLEEPER[0], f"test_m{i}", float(MODULE_CASE_TIME))],
+                ),
+            )
+            for i in range(4)
+        ],
+    ]
+    results = _results(tmp_path, *breaches)
+    stub = _stub_mixed_pytest(
+        tmp_path,
+        # per-test re-runs clear fast; module re-runs stall again (confirmed).
+        {
+            "backend.tests.unit.slow.test_sleeper::test_t0": "0.4",
+            "backend.tests.unit.slow.test_sleeper::test_t1": "0.4",
+        },
+        {"backend/tests/unit/slow/test_sleeper.py": "12.500"},
+        calls_file=calls,
+    )
+    run = _run(
+        results,
+        {
+            **_module_budget_env(SLEEP_GATE_MODULE_FAIL="1"),
+            "SLEEP_GATE_RERUN": "1",
+            "SLEEP_GATE_PYTEST": stub,
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    module_runs = [c for c in invoked if "--junit-xml=" in " ".join(c["argv"])]
+    assert len(invoked) == 5, (
+        f"2 test + 3 module children = the cap's five; got {len(invoked)}:\n{out}"
+    )
+    assert out.count("the module re-run is denied") == 1, (
+        f"exactly one denial, for the fourth module:\n{out}"
+    )
+    assert run.returncode == 1, f"the denied module keeps the run red\n{out}"
+
+
+def _stub_mixed_pytest(
+    tmp_path: Path,
+    tests: dict[str, str],
+    modules: dict[str, str],
+    *,
+    calls_file: Path,
+) -> str:
+    """One stub that answers both re-run shapes: ``path::test`` and ``path``.
+
+    The mixed-claims pin needs a single ``python -m pytest`` stand-in that
+    resolves a per-test target (``::``-suffixed) and a module target (bare
+    ``.py``) from the same argv stream — two helpers would mean two stubs and
+    the gate's one SLEEP_GATE_PYTEST cannot hold both.
+    """
+    script = tmp_path / "stub-pytest-mixed.py"
+    script.write_text(
+        textwrap.dedent(
+            f"""\
+            import json, os, sys
+            argv = sys.argv[1:]
+            TESTS = {tests!r}
+            MODS = {modules!r}
+            target = next((a for a in argv if ".py" in a), "")
+            xml = next((a.split("=", 1)[1] for a in argv if a.startswith("--junit-xml=")), "")
+            with open({str(calls_file)!r}, "a", encoding="utf-8") as h:
+                h.write(json.dumps({{"argv": argv, "cwd": os.getcwd()}}) + "\\n")
+            canned = TESTS.get(target, MODS.get(target))
+            if canned is None:
+                print(f"ERROR: no target canned for {{target}}", file=sys.stderr)
+                sys.exit(4)
+            suite = float(canned)
+            if xml:
+                with open(xml, "w", encoding="utf-8") as h:
+                    h.write(
+                        '<?xml version="1.0" encoding="utf-8"?>'
+                        '<testsuites><testsuite name="pytest" errors="0" failures="0" '
+                        f'skipped="0" tests="1" time="{{suite:.3f}}">'
+                        f'<testcase classname="stub" name="stub" time="0.023"/>'
+                        "</testsuite></testsuites>"
+                    )
+            sys.exit(0)
+            """
+        )
+    )
+    return f"{sys.executable} {script}"
+
+
+def test_a_module_that_ran_and_lost_its_junit_is_not_denied_by_the_cap(tmp_path: Path) -> None:
+    """The detail chain reads the recorded reason, not a re-tested slots_left.
+
+    The reviewer's second residual: the hoist made the denial and the
+    successful spend share one number. The fifth module's re-run RAN (a slot
+    was spent), the child exited 0, but wrote no readable junit — the honest
+    reason is "no junit or no usable suite time". Before the sentinel, the
+    detail chain re-tested ``slots_left`` (now 0) and blamed the cap, a
+    reason that names a denial that never happened for THIS module.
+    """
+    calls = tmp_path / "calls.jsonl"
+    breaches = [
+        (
+            f"stall{i}.xml",
+            _xml_suite(
+                MODULE_SUITE_TIME,
+                [(SLEEPER[0], f"test_m{i}", float(MODULE_CASE_TIME))],
+            ),
+        )
+        for i in range(4)
+    ] + [
+        # A SECOND module for the fifth suite: its derived re-run path is
+        # .../test_b.py, absent from the stub's map — the no-junit stub exits
+        # 0 and writes nothing for it (the "ran, nothing to read" shape; a
+        # stub that exited 4 would be "could not run it", another reason).
+        (
+            "stall4.xml",
+            _xml_suite(
+                MODULE_SUITE_TIME,
+                [("backend.tests.unit.slow.test_b", "test_m4", float(MODULE_CASE_TIME))],
+            ),
+        ),
+    ]
+    results = _results(tmp_path, *breaches)
+    stub = _stub_pytest_module_no_junit(
+        tmp_path,
+        {"backend/tests/unit/slow/test_sleeper.py": "12.500"},
+        calls_file=calls,
+    )
+    run = _run(
+        results,
+        {
+            **_module_budget_env(SLEEP_GATE_MODULE_FAIL="1"),
+            "SLEEP_GATE_RERUN": "1",
+            "SLEEP_GATE_PYTEST": stub,
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    assert len(invoked) == 5, f"all five re-runs ran; none was denied:\n{out}"
+    assert "no junit or no usable suite time" in out, (
+        f"the fifth module's reason is the missing junit:\n{out}"
+    )
+    cap_note = "the tier's re-run cap was spent on test re-runs"
+    assert out.count(cap_note) == 0, (
+        f"no module is denied here, so the cap reason must not print:\n{out}"
+    )
+
+
+def _stub_pytest_module_no_junit(
+    tmp_path: Path,
+    modules: dict[str, str],
+    *,
+    calls_file: Path,
+) -> str:
+    """Module stub whose unstalled modules exit 0 writing NOTHING (no junit).
+
+    For the stale-reason pin: a re-run that ran and produced no readable
+    junit must read as "no junit", never as the cap's denial — the stub
+    reproduces that shape by refusing to write xml for targets missing from
+    its map while still exiting 0.
+    """
+    script = tmp_path / "stub-pytest-module-nojunit.py"
+    script.write_text(
+        textwrap.dedent(
+            f"""\
+            import json, os, sys
+            argv = sys.argv[1:]
+            MOD = {modules!r}
+            target = next((a for a in argv if a.endswith(".py")), "")
+            xml = next((a.split("=", 1)[1] for a in argv if a.startswith("--junit-xml=")), "")
+            with open({str(calls_file)!r}, "a", encoding="utf-8") as h:
+                h.write(json.dumps({{"argv": argv, "cwd": os.getcwd()}}) + "\\n")
+            canned = MOD.get(target)
+            if canned is not None and xml:
+                with open(xml, "w", encoding="utf-8") as h:
+                    h.write(
+                        '<?xml version="1.0" encoding="utf-8"?>'
+                        '<testsuites><testsuite name="pytest" errors="0" failures="0" '
+                        f'skipped="0" tests="1" time="{{canned}}">'
+                        '<testcase classname="stub" name="stub" time="0.023"/>'
+                        "</testsuite></testsuites>"
+                    )
+            # Missing from the map: exit 0, no junit — ran, nothing to read.
+            sys.exit(0)
+            """
+        )
+    )
+    return f"{sys.executable} {script}"
+
+
 def test_the_module_budget_keeps_the_per_test_gates_meaning(tmp_path: Path) -> None:
     """Both passes on one corpus: per-test breaches AND the module list.
 

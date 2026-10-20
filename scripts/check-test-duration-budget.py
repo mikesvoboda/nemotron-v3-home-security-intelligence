@@ -1145,7 +1145,13 @@ def main(argv: list[str] | None = None) -> int:
                     # cost stays unverified this job. The report word is
                     # load-bearing — a denied re-run is never a pass, and the
                     # reader needs to see the cap, not infer it.
-                    module_re_runs[label] = ("unverified", None, -1)
+                    # The reason travels WITH the record: the detail chain below
+                    # re-tests slots_left, but a fifth module whose re-run RAN
+                    # and then hit an unreadable junit leaves slots_left at 0
+                    # too — same number, different reason. A misattributed
+                    # reason on the unverified list trains the reader like a
+                    # garbage row does.
+                    module_re_runs[label] = ("unverified-cap-denied", None, -1)
                     print(
                         f"  note: the unit tier's re-run cap ({MAX_RERUNS}) is spent on "
                         f"test re-runs; the module re-run is denied this job"
@@ -1163,7 +1169,7 @@ def main(argv: list[str] | None = None) -> int:
                     else:
                         module_re_runs[label] = ("unverified", cost2, code)
                 else:
-                    module_re_runs[label] = ("unverified", None, -1)
+                    module_re_runs[label] = ("unverified-rerun-off", None, -1)
                 state, replay, code = module_re_runs[label]
                 if state == "confirmed":
                     module_failed = True
@@ -1183,14 +1189,19 @@ def main(argv: list[str] | None = None) -> int:
                         f"{replay:.2f}s (did not reproduce; listed, not failed)"
                     )
                 else:
-                    if code > 0:
-                        detail = f"pytest exit {code}"
-                    elif slots_left <= 0:
+                    if state == "unverified-cap-denied":
+                        # The sentinel from the denial branch, not a re-tested
+                        # slots_left: by the time this line prints, a fifth
+                        # module's spent cap and a fifth module's unreadable
+                        # child junit both leave slots_left at 0, and only the
+                        # assignment site knows which one happened.
                         detail = (
                             "the tier's re-run cap was spent on test re-runs, "
                             "so the module cost stays unverified"
                         )
-                    elif not rerun_enabled():
+                    elif code > 0:
+                        detail = f"pytest exit {code}"
+                    elif state == "unverified-rerun-off":
                         detail = "re-run not enabled"
                     else:
                         detail = "no junit or no usable suite time"
