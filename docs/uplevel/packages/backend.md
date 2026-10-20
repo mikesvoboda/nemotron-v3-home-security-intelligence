@@ -672,36 +672,36 @@ whatever the dict `health_check()` returns says, and the storm probe
 - [x] Every `except` clause in `system_broadcaster.py` that guards a Redis call also catches
       `redis.exceptions.RedisError`: at the pin `:314`, `:364`, `:564`, `:583`, `:589`, `:612`,
       `:617`, `:631` and `:693`. The PR lists the clauses it changed (ruling 271's corrections).
-      (9189230b6 widens exactly those nine: six builtin-only tuples become
+      (861df9886 widens exactly those nine: six builtin-only tuples become
       `(ConnectionError, TimeoutError, OSError, RedisError)` and three builtin+RuntimeError
       tuples become `(ConnectionError, TimeoutError, OSError, RuntimeError, RedisError)`;
       the DB-guard clauses :790/:878/:901/:940/:959/:1101 are untouched, and :988/:1010
       already carried RedisError from 88e0d3457.)
 - [x] A test shows a `RedisError` from `unsubscribe` or `close` during reset does not stop the
       re-subscribe or kill the listener.
-      (test_system_broadcaster_reset_survives_rediserror_and_resubscribes in 04cd96105: both
+      (test_system_broadcaster_reset_survives_rediserror_and_resubscribes in c3db11808: both
       cleanup arms raise redis.exceptions.TimeoutError, the re-subscribe still wins
       `_pubsub`; red on the pre-fix code - the escape aborted `_reset_pubsub_connection`.)
 - [x] `_check_redis_health` reads the result `health_check()` returns: healthy returns True,
       anything else returns False and logs the payload; the `RedisError` arm stays; the callers
       (`:807`, `:1093`) keep their boolean contract; the twin test's stub (`:1321`) returns a
       result dict in the same edit.
-      (9189230b6 branches on the dict: healthy -> True, anything else -> log + False; the arm
-      stays, reworded per Q-057; twin stub is a result dict in 04cd96105; the new
+      (861df9886 branches on the dict: healthy -> True, anything else -> log + False; the arm
+      stays, reworded per Q-057; twin stub is a result dict in c3db11808; the new
       unhealthy-dict test is red on the pre-fix code, which returned True regardless.)
 - [x] The storm probe runs the real broadcast methods with publish raising
       `redis.exceptions.TimeoutError` and asserts every message type is still delivered locally
       each tick; the PR shows it red on the pre-fix code.
-      (04cd96105 rewrites the probe: real broadcast_status/broadcast_performance, publish
+      (c3db11808 rewrites the probe: real broadcast_status/broadcast_performance, publish
       raising every call, per-type local send_text census >= 3 ticks. Red on the pre-fix
       code means `performance_update` delivered on 0 ticks; the probe's
       `assert perf_sends >= 3` fails there; `system_status` kept delivering locally
       because local sends happen before publish (`:299-305`), so only the
-      `performance_update` leg of the loop died. Green at 9189230b6.)
+      `performance_update` leg of the loop died. Green at 861df9886.)
 - [x] The timeout test's docstrings say its seam is synthetic (Q-056), and the `RedisError`
       comment states the real reason (Q-057).
-      (1687a7b61: all three sibling docstrings - failure, timeout, storm probe - state the
-      seam is synthetic and the wrapper absorbs every Exception; 9189230b6 rewords the
+      (79aac9164: all three sibling docstrings - failure, timeout, storm probe - state the
+      seam is synthetic and the wrapper absorbs every Exception; 861df9886 rewords the
       :1010 comment to the real rationale, keeping the hierarchy clause and the
       outside-guard parenthetical; the true escape claim at :988 is left untouched.)
 
