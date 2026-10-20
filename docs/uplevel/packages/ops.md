@@ -888,7 +888,7 @@ UR-180's order, never at a routine full prune (ruling 176).
 ### [r172] A per-module import budget for the duration gate
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r157]`; ops-a reviews. **Depends on:** none.
-**PR:** none yet. (ruling 172; issue #7102)
+**PR:** #7305. (ruling 172; issue #7102)
 
 - [ ] `scripts/check-test-duration-budget.py` computes each module's import cost as
       `<testsuite time>` minus the sum of its `<testcase time>`s and applies UR-125's numbers per
