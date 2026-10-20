@@ -106,6 +106,10 @@ class Session:
     kickoff: str
     mounts: tuple[str, ...] = ()
     gpu: bool = False
+    # The hand-start line, when the session is not the launcher's to create (ruling 201 on
+    # [r184]: the heavy rows run under the pi harness, and the launcher never invents a
+    # flag). A row carrying it refuses in run_args_for, naming this line.
+    hand_start: str | None = None
 
     @property
     def sandbox(self) -> str:
@@ -296,7 +300,25 @@ def _session_row(row: Mapping[str, Any], path: Path, where: str) -> Session:
         kickoff=" ".join(str(_required(row, "kickoff", path, label)).split()),
         mounts=mounts,
         gpu=gpu,
+        hand_start=_hand_start(row, path, label),
     )
+
+
+def _hand_start(row: Mapping[str, Any], path: Path, label: str) -> str | None:
+    """The row's `hand_start` line, checked the way `gpu` is: a plain string or nothing.
+
+    A truthy non-string (`hand_start = 1`) would silently become a refusal message about
+    the number 1, so refuse the row and name the key, as the gpu refusals do."""
+    value = row.get("hand_start")
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise Refused(
+            f"{label} has `hand_start = {value!r}`. In {path} the key is the session's "
+            "hand-start line, a plain TOML string - `hand_start = \"agent-dgx <name> ...\"` "
+            "- or saying nothing withholds it."
+        )
+    return " ".join(value.split())
 
 
 def _required(row: Mapping[str, Any], key: str, path: Path, where: str) -> Any:
@@ -325,7 +347,20 @@ def run_args_for(data: Mapping[str, Any], manifest_path: Path, session: Session)
     never invents a flag (history/packages-done.md §O0.1). `data` is the parsed file from the
     same read `up` used for its phase list, so one run sees one content; `manifest_path` is named
     only in the refusal, which has to say which file to edit.
+
+    A session carrying `hand_start` is not the launcher's to create: it refuses, naming the
+    hand-start line, and prints no run line (ruling 201 on [r184] - the heavy sessions run
+    under the pi harness, and until the owner posts a pi form writable as `agent-dgx run`
+    arguments there is no correct line to print).
     """
+    if session.hand_start is not None:
+        raise Refused(
+            f"{session.name} is started by hand, not by this launcher: "
+            f"`{session.hand_start}` (ruling 201 on [r184]). When the owner posts a pi "
+            "start line that can be written as `agent-dgx run` arguments, replace "
+            f"`hand_start` with `model` in {manifest_path}; until then no run line is "
+            "printed for it."
+        )
     models = {str(k): str(v) for k, v in data.get("models", {}).items()}
     arguments = dict(DEFAULT_MODELS)
     arguments.update(models)
@@ -440,9 +475,15 @@ def up(host: Host, *, phase: int) -> None:
     sessions = phases[phase]
 
     target = _preflight(host)
-    # every session's model arguments resolve before anything is created: all checks, then
-    # all changes - so a phase naming the strongest model refuses whole.
-    arguments = {s.name: run_args_for(data, host.manifest, s) for s in sessions}
+    # every launcher-created session's model arguments resolve before anything is created:
+    # all checks, then all changes - so a phase naming the strongest model refuses whole.
+    # A hand_start row is not the launcher's to create (ruling 201 on [r184]); it
+    # contributes no arguments and never gets a run line.
+    arguments = {
+        s.name: run_args_for(data, host.manifest, s)
+        for s in sessions
+        if s.hand_start is None
+    }
     # the phase's inspect results, gathered before any change (they are reads): the
     # gpu check below must refuse a whole phase the way the model check does, and it
     # can only know a --gpu create is actually coming once it knows who is missing.
@@ -456,6 +497,18 @@ def up(host: Host, *, phase: int) -> None:
             "(history/packages-done.md §O1.10). Run this from the shell that has it, or start "
             f"{grant[0]} by hand (UR-30: one GPU holder). No session in this phase was "
             "created."
+        )
+    # A missing hand_start row refuses whole, with the other all-checks refusals: the
+    # launcher cannot create it (never invents a flag, ruling 201 on [r184]), and a phase
+    # boundary that leaves it absent is exactly the state the hand-start line names. A
+    # PRESENT one is satisfied - the owner started it - and the rest of the phase proceeds.
+    by_hand = [s for s in sessions if s.hand_start is not None and present[s.name] is None]
+    if by_hand:
+        raise Refused(
+            f"{', '.join(s.name for s in by_hand)} must be started by hand: "
+            + "; ".join(f"`{s.hand_start}`" for s in by_hand)
+            + " (ruling 201 on [r184]). Start it from the host shell, then run this again; "
+            "no session in this phase was created."
         )
     _say(f"the agents' commit: {target[:8]} (origin/main), from {host.checkout}")
 

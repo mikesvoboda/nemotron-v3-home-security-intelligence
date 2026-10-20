@@ -45,8 +45,10 @@ You are cell B of the ops lane."""
 # Phase 1: the rest of the roster (roles/lane.md, "Who takes what"). The owner opened
 # the second heavy sandbox on 2026-10-09; its row follows the first's. Ruling 184 renamed
 # them `uplevel-heavy-a` and `uplevel-heavy-b`; the owner starts both under the pi harness
-# with `agent-dgx <name> pi --split` (2026-10-14), a form the launcher does not print yet
-# (`[r184]`).
+# with `agent-dgx <name> pi --split` (2026-10-14). That form is not the launcher's to
+# invent: each row carries `hand_start`, so the launcher refuses the rows and names the
+# hand-start line instead of printing a wrong one (ruling 201 on `[r184]`), until the
+# owner posts a pi form writable as `agent-dgx run` arguments on the PR.
 [[phase]]
 number = 1
 
@@ -98,6 +100,7 @@ You are the docs lane."""
 [[phase.session]]
 name = "uplevel-heavy-a"
 model = "strongest"
+hand_start = "agent-dgx uplevel-heavy-a pi --split"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/roles/lane.md. \
 You are uplevel-heavy-a."""
@@ -108,6 +111,7 @@ You are uplevel-heavy-a."""
 [[phase.session]]
 name = "uplevel-heavy-b"
 model = "strongest"
+hand_start = "agent-dgx uplevel-heavy-b pi --split"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/roles/lane.md. \
 You are uplevel-heavy-b; take only heavy PRs labelled cell:heavy-b."""

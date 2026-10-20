@@ -819,16 +819,56 @@ def test_up_refuses_the_whole_phase_when_a_model_is_unresolvable(tmp_path: Path)
     assert not fake.ran("agent-dgx", "run")
 
 
-def test_the_rosters_strongest_row_is_the_owners_ruling() -> None:
-    """The owner's ruling on #6855, pinned: no --endpoint (Claude Code's own upstream -
-    the Anthropic API, not DGX-served), no --model (Claude Code's default model). This
-    assertion is the tripwire if either is ever restated."""
+def test_the_rosters_heavy_rows_refuse_naming_the_hand_start_line() -> None:
+    """Ruling 201 (record 6198825479) on [r184]: the heavy sessions run under the pi harness,
+    so `--agent claude` was the wrong line for them. Until the owner posts a pi form that can
+    be written as `agent-dgx run` arguments, the launcher refuses those rows and names the
+    hand-start line the manifest carries; it never invents a flag (history/packages-done.md
+    §O0.1)."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
-    heavy = next(s for s in phases[1] if s.name == HEAVY)
     data = launch._load_toml(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
-    assert launch.run_args_for(
-        data, REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml", heavy
-    ) == ["--agent", "claude"]
+    for name in (HEAVY, HEAVY_2):
+        heavy = next(s for s in phases[1] if s.name == name)
+        with pytest.raises(launch.Refused, match=f"agent-dgx {name} pi --split"):
+            launch.run_args_for(data, REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml", heavy)
+
+
+def test_a_hand_start_row_refuses_before_any_change(tmp_path: Path) -> None:
+    """A row carrying hand_start is not creatable by the launcher: the phase that carries it
+    refuses before anything changes - the same all-checks-then-all-changes shape as an
+    unresolvable model - and the refusal names that row's hand-start line, printing no run
+    line for it."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{CO}"\nmodel = "fast"\nkickoff = "k"\n'
+        f'[[phase.session]]\nname = "{HEAVY}"\nmodel = "strongest"\n'
+        f'hand_start = "agent-dgx {HEAVY} pi --split"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
+    fake = FakeHost()
+    with pytest.raises(launch.Refused, match=f"agent-dgx {HEAVY} pi --split"):
+        launch.up(host(tmp_path, fake, manifest=manifest), phase=0)
+    assert not fake.changes()
+    assert not fake.ran("agent-dgx", "run")
+
+
+def test_no_other_rows_line_changes_for_hand_start(tmp_path: Path) -> None:
+    """hand_start binds only the rows that name it: a fast row in the same manifest resolves
+    to the same arguments it always did."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        f'[[phase]]\nnumber = 0\n[[phase.session]]\nname = "{CO}"\nmodel = "fast"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
+    data = launch._load_toml(manifest)
+    phases = launch._phases_of(data, manifest)
+    assert launch.run_args_for(data, manifest, phases[0][0]) == [
+        "--agent",
+        "claude",
+        "--endpoint",
+        "dgx",
+    ]
 
 
 def test_up_creates_each_missing_session_from_the_checkout(
@@ -894,7 +934,12 @@ def test_up_adds_gpu_to_the_operator_and_no_other_session(
     appears on exactly one line.
     --dry-run because the flag must be visible in what the command would run, and a dry
     run changes nothing on a machine that may have real sessions up."""
-    fake = FakeHost()
+    fake = FakeHost(
+        # ruling 201 on [r184]: the heavy rows carry hand_start - the owner started them
+        # (ruling 184, 2026-10-14) - so phase 1 finds them present and prints run lines
+        # only for the launcher's own rows.
+        sessions={HEAVY: RUNNING, HEAVY_2: RUNNING}
+    )
     launch.up(host(tmp_path, fake, dry_run=True), phase=1)
     out = capsys.readouterr().out
 
@@ -902,8 +947,16 @@ def test_up_adds_gpu_to_the_operator_and_no_other_session(
     # derive the expected count from the manifest, not a literal: the roster grows when
     # the coordinator opens uplevel-heavy-2 (sandboxes.toml announces it), and a hardcoded
     # 8 would then fail here *and* in test_manifest_declares_the_roster for one edit.
-    expected = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")[1]
-    assert len(lines) == len(expected), out  # every session's line present, nothing filtered
+    # hand_start rows contribute no run line (ruling 201 on [r184]: the launcher prints
+    # no wrong line for a session it does not create).
+    expected = [
+        s
+        for s in launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")[1]
+        if s.hand_start is None
+    ]
+    assert len(lines) == len(expected), out  # every launcher row's line present, nothing filtered
+    # the hand_start rows name themselves in the roster report, never as a run line
+    assert not [line for line in lines if HEAVY in line or HEAVY_2 in line], lines
     operator = next(line for line in lines if OPERATOR in line)
     assert operator.split().index("--gpu") == operator.split().index("--split") - 1
     assert operator.endswith(f"--split   (in {tmp_path / 'checkout'})")
