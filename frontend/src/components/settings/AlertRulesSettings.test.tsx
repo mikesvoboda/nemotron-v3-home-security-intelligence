@@ -83,8 +83,6 @@ describe('AlertRulesSettings', () => {
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
       exclude_household_members: false,
-      smoke_fire_consecutive_required: 2,
-      smoke_fire_detection_enabled: false,
       threat_detection_enabled: false,
     },
     {
@@ -107,8 +105,6 @@ describe('AlertRulesSettings', () => {
       created_at: '2025-01-02T00:00:00Z',
       updated_at: '2025-01-02T00:00:00Z',
       exclude_household_members: false,
-      smoke_fire_consecutive_required: 2,
-      smoke_fire_detection_enabled: false,
       threat_detection_enabled: false,
     },
   ];
@@ -397,8 +393,6 @@ describe('AlertRulesSettings', () => {
         created_at: '2025-01-10T00:00:00Z',
         updated_at: '2025-01-10T00:00:00Z',
         exclude_household_members: false,
-        smoke_fire_consecutive_required: 2,
-        smoke_fire_detection_enabled: false,
         threat_detection_enabled: false,
       };
 
@@ -626,8 +620,6 @@ describe('AlertRulesSettings', () => {
         created_at: '2025-01-10T00:00:00Z',
         updated_at: '2025-01-10T00:00:00Z',
         exclude_household_members: false,
-        smoke_fire_consecutive_required: 2,
-        smoke_fire_detection_enabled: false,
         threat_detection_enabled: false,
       };
 
@@ -684,6 +676,24 @@ describe('AlertRulesSettings', () => {
       await waitFor(() => {
         expect(api.createAlertRule).toHaveBeenCalled();
       });
+
+      expect(Object.keys(vi.mocked(api.createAlertRule).mock.calls[0][0]).sort()).toEqual([
+        'camera_ids',
+        'channels',
+        'cooldown_seconds',
+        'dedup_key_template',
+        'description',
+        'dwell_time_enabled',
+        'enabled',
+        'exclude_household_members',
+        'min_confidence',
+        'name',
+        'object_types',
+        'risk_threshold',
+        'schedule',
+        'severity',
+        'threat_detection_enabled',
+      ]);
 
       await waitFor(() => {
         expect(screen.getByText('Test Rule')).toBeInTheDocument();

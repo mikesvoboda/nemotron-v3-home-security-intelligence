@@ -15,6 +15,8 @@ import { fileURLToPath } from 'url';
 
 import { chromium } from '@playwright/test';
 
+import { setupApiMocks } from './fixtures/api-mocks';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -75,6 +77,12 @@ async function warmDevServer() {
       args: ['--disable-gpu', '--disable-dev-shm-usage'],
     });
     const page = await browser.newPage();
+
+    // Register the full E2E API mock suite before the auth overrides so
+    // DashboardPage's child queries (/api/cameras, /api/events, /api/system/*)
+    // resolve during warmup instead of failing ECONNREFUSED, warming the lazy
+    // dashboard chunks too.
+    await setupApiMocks(page);
 
     // Same auth posture the specs use, so the warm navigation reaches INSIDE
     // ProtectedRoute (Layout renders `main-content`): that is the point where

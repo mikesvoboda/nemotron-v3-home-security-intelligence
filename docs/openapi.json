@@ -1417,35 +1417,6 @@
           "severity": "critical"
         },
         "properties": {
-          "action_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum action confidence (0.0-1.0)",
-            "title": "Action Confidence Threshold"
-          },
-          "action_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Action types to alert on (e.g., ['loitering', 'peering_through_window']). Actions are recognized by X-CLIP model.",
-            "title": "Action Types"
-          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1573,35 +1544,6 @@
             "description": "Object types to match (e.g., ['person', 'vehicle'])",
             "title": "Object Types"
           },
-          "pose_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum pose confidence (0.0-1.0)",
-            "title": "Pose Confidence Threshold"
-          },
-          "pose_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Pose types to alert on (e.g., ['crouching', 'lying_down']). Valid: standing, crouching, bending_over, arms_raised, sitting, lying_down, unknown",
-            "title": "Pose Types"
-          },
           "risk_threshold": {
             "anyOf": [
               {
@@ -1631,33 +1573,6 @@
             "$ref": "#/components/schemas/AlertSeverity",
             "default": "medium",
             "description": "Severity level for triggered alerts"
-          },
-          "smoke_fire_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum smoke/fire confidence (0.0-1.0)",
-            "title": "Smoke Fire Confidence Threshold"
-          },
-          "smoke_fire_consecutive_required": {
-            "default": 2,
-            "description": "Number of consecutive smoke/fire detections required (reduces false positives)",
-            "minimum": 1.0,
-            "title": "Smoke Fire Consecutive Required",
-            "type": "integer"
-          },
-          "smoke_fire_detection_enabled": {
-            "default": false,
-            "description": "Enable alert on smoke/fire detection",
-            "title": "Smoke Fire Detection Enabled",
-            "type": "boolean"
           },
           "threat_confidence_threshold": {
             "anyOf": [
@@ -1815,33 +1730,6 @@
           "updated_at": "2025-12-28T12:00:00Z"
         },
         "properties": {
-          "action_confidence_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum action confidence",
-            "title": "Action Confidence Threshold"
-          },
-          "action_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Action types to alert on",
-            "title": "Action Types"
-          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1970,33 +1858,6 @@
             "description": "Object types to match",
             "title": "Object Types"
           },
-          "pose_confidence_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum pose confidence",
-            "title": "Pose Confidence Threshold"
-          },
-          "pose_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Pose types to alert on",
-            "title": "Pose Types"
-          },
           "risk_threshold": {
             "anyOf": [
               {
@@ -2023,30 +1884,6 @@
           "severity": {
             "$ref": "#/components/schemas/AlertSeverity",
             "description": "Severity level"
-          },
-          "smoke_fire_confidence_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum smoke/fire confidence",
-            "title": "Smoke Fire Confidence Threshold"
-          },
-          "smoke_fire_consecutive_required": {
-            "default": 2,
-            "description": "Consecutive detections required",
-            "title": "Smoke Fire Consecutive Required",
-            "type": "integer"
-          },
-          "smoke_fire_detection_enabled": {
-            "default": false,
-            "description": "Enable smoke/fire alerts",
-            "title": "Smoke Fire Detection Enabled",
-            "type": "boolean"
           },
           "threat_confidence_threshold": {
             "anyOf": [
@@ -2203,35 +2040,6 @@
           "risk_threshold": 80
         },
         "properties": {
-          "action_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum action confidence",
-            "title": "Action Confidence Threshold"
-          },
-          "action_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Action types to alert on",
-            "title": "Action Types"
-          },
           "camera_ids": {
             "anyOf": [
               {
@@ -2403,35 +2211,6 @@
             "description": "Object types to match",
             "title": "Object Types"
           },
-          "pose_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum pose confidence",
-            "title": "Pose Confidence Threshold"
-          },
-          "pose_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Pose types to alert on",
-            "title": "Pose Types"
-          },
           "risk_threshold": {
             "anyOf": [
               {
@@ -2467,45 +2246,6 @@
               }
             ],
             "description": "Severity level"
-          },
-          "smoke_fire_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum smoke/fire confidence",
-            "title": "Smoke Fire Confidence Threshold"
-          },
-          "smoke_fire_consecutive_required": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Consecutive detections required",
-            "title": "Smoke Fire Consecutive Required"
-          },
-          "smoke_fire_detection_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Enable alert on smoke/fire detection",
-            "title": "Smoke Fire Detection Enabled"
           },
           "threat_confidence_threshold": {
             "anyOf": [
@@ -51472,7 +51212,7 @@
             }
           },
           {
-            "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, notes, detection_count, detection_ids, thumbnail_url, verification",
+            "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: camera_id, detection_count, ended_at, id, notes, notify, reasoning, reviewed, risk_level, risk_score, started_at, summary, thumbnail_url, verification",
             "in": "query",
             "name": "fields",
             "required": false,
@@ -51485,7 +51225,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, notes, detection_count, detection_ids, thumbnail_url, verification",
+              "description": "Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: camera_id, detection_count, ended_at, id, notes, notify, reasoning, reviewed, risk_level, risk_score, started_at, summary, thumbnail_url, verification",
               "title": "Fields"
             }
           },

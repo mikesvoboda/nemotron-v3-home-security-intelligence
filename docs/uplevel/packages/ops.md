@@ -335,10 +335,10 @@ the requirement named, and unit tests cover one and two detected GPUs.
 
 ### OB.3 Image weight
 
-**Flags:** none. **Depends on:** Phase 1 done.
+**Flags:** none. **Depends on:** Phase 1 done. **PR:** #7307.
 
-- [ ] Delete the 28 PNGs nothing references (15.4 MB).
-- [ ] **MEASURE** re-encoding the 1408×768 renders (WebP or JPEG) on a sample. If the owner accepts
+- [x] Delete the 28 PNGs nothing references (15.4 MB).
+- [x] **MEASURE** re-encoding the 1408×768 renders (WebP or JPEG) on a sample. If the owner accepts
       the quality, re-encode them and drop the large-file exemption for `docs/images/`.
 
 **Done when:** no unreferenced image remains and the PR reports bytes saved.

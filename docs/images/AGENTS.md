@@ -15,26 +15,18 @@ images/
 
   # Root-level Images
   alerts.png                   # Alerts page screenshot
-  arch-model-zoo.png           # Model Zoo architecture diagram
   arch-system-overview.png     # System overview architecture diagram
   arch-websocket-flow.png      # WebSocket communication flow diagram
   dashboard-full.png           # Full dashboard screenshot
   dashboard-mockup.svg         # Main dashboard UI mockup (vector)
   dashboard.png                # Dashboard screenshot
-  deploy-docker-topology.png   # Docker deployment topology diagram
-  erd-data-model.png           # Entity-Relationship data model diagram
   first-run-devmode.png        # First run dev mode screenshot
   flow-ai-pipeline.png         # AI pipeline flow diagram
   flow-batch-aggregator.png    # Batch aggregator flow diagram
-  ftp-ingestion-flow.png       # FTP camera ingestion flow
-  gpu-compatibility-matrix.png # GPU compatibility matrix
   info-camera-to-event.png     # Camera to event flow infographic
-  info-detection-types.png     # Detection types infographic
   info-risk-scoring.png        # Risk scoring infographic
   installation-workflow.png    # Installation workflow diagram
-  local-ai-concept.png         # Local AI concept diagram
   quickstart-decision-tree.png # Quickstart decision tree
-  service-dependencies-mermaid.png # Service dependencies (Mermaid)
   timeline.png                 # Event timeline page screenshot
   troubleshooting-decision-tree.png # Troubleshooting decision tree
 
@@ -54,14 +46,8 @@ images/
 
 Admin guide diagrams:
 
-- `alert-delivery-pipeline.png` - Alert delivery pipeline
 - `authentication-flow.png` - Authentication flow
-- `cleanup-sequence.png` - Cleanup sequence diagram
-- `configuration-hierarchy.png` - Configuration hierarchy
 - `monitoring-stack.png` - Monitoring stack
-- `network-isolation.png` - Network isolation
-- `retention-policies.png` - Retention policies
-- `security-architecture.png` - Security architecture
 
 ### ai-pipeline/
 
@@ -144,9 +130,7 @@ Application screenshots for documentation:
 
 User guide images:
 
-- `decision-flowchart.png` - User decision flowchart
 - `entity-reid-flow.png` - Entity re-identification flow
-- `risk-scale.png` - Risk scale visualization
 
 ## Color Scheme
 

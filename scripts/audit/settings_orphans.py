@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -43,8 +44,9 @@ from pathlib import Path
 CONFIG_REL = "backend/core/config.py"
 ENV_CONSUMERS_REL = ("setup.py",)
 ENV_CONSUMER_GLOBS = ("docker-compose*.yml", "config/*.yml")
-SKIP_DIRNAMES = {".git", "__pycache__", "node_modules", ".venv", ".pytest_cache", ".mypy_cache"}
+SKIP_DIRNAMES = {".git", "__pycache__", "node_modules", ".venv", ".pytest_cache", ".mypy_cache", "mutants"}
 BASE = "basesettings"
+WORD_RE = re.compile(r"\w+")
 
 
 def settings_field_names(config_path: Path) -> dict[str, str]:
@@ -86,12 +88,18 @@ def settings_field_names(config_path: Path) -> dict[str, str]:
 def reader_texts(root: Path) -> list[tuple[str, str]]:
     """(rel, text) for every non-test .py file plus compose/installer env surfaces."""
     out: list[tuple[str, str]] = []
-    for path in sorted(root.rglob("*.py")):
-        rel = path.relative_to(root).as_posix()
-        if rel == CONFIG_REL or path.name.startswith("test_") or path.name == "conftest.py":
-            continue
-        if any(part in SKIP_DIRNAMES for part in path.relative_to(root).parts[:-1]):
-            continue
+    py_paths: list[tuple[str, Path]] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRNAMES]
+        for fn in filenames:
+            if not fn.endswith(".py") or fn.startswith("test_") or fn == "conftest.py":
+                continue
+            path = Path(dirpath) / fn
+            rel = path.relative_to(root).as_posix()
+            if rel == CONFIG_REL:
+                continue
+            py_paths.append((rel, path))
+    for rel, path in sorted(py_paths):
         out.append((rel, path.read_text(encoding="utf-8", errors="replace")))
     surfaces: list[Path] = [root / r for r in ENV_CONSUMERS_REL if (root / r).is_file()]
     for glob in ENV_CONSUMER_GLOBS:
@@ -105,6 +113,11 @@ def reader_texts(root: Path) -> list[tuple[str, str]]:
 def scan(root: Path) -> dict:
     fields = settings_field_names(root / CONFIG_REL)
     texts = reader_texts(root)
+    # Tokenize each file once into lowercase word tokens instead of running ~300
+    # full-text regex passes across ~15 MB of source files (57s -> 0.4s). Every
+    # settings field name is a Python identifier (\w+), so word-boundary
+    # case-insensitive matching is identical to membership in the lowered token set.
+    words_by_file = [(rel, set(WORD_RE.findall(text.lower()))) for rel, text in texts]
     readers: dict[str, list[str]] = {}
     for name in fields:
         # Case-insensitive on purpose: the field is ai_vlm_read_timeout, the
@@ -112,8 +125,8 @@ def scan(root: Path) -> dict:
         # default match is case-insensitive). Missing the case fold would
         # report live fields orphan — the false-DEAD direction this census
         # exists to avoid.
-        pat = re.compile(rf"\b{re.escape(name)}\b", re.IGNORECASE)
-        readers[name] = [rel for rel, text in texts if pat.search(text)]
+        lowered = name.lower()
+        readers[name] = [rel for rel, words in words_by_file if lowered in words]
     orphans = sorted(n for n, rs in readers.items() if not rs)
     return {
         "fields_total": len(fields),

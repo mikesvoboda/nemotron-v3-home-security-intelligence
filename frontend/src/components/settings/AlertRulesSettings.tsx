@@ -397,8 +397,6 @@ export default function AlertRulesSettings() {
           dwell_time_enabled: false,
           dedup_key_template: '{camera_id}:{rule_id}',
           exclude_household_members: false,
-          smoke_fire_consecutive_required: 2,
-          smoke_fire_detection_enabled: false,
           threat_detection_enabled: false,
         };
         await createAlertRule(createData);
