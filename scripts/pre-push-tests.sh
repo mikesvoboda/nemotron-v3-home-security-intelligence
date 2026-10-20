@@ -187,11 +187,6 @@ fi
 # with the same reasoning (it changes the meaning of pathspecs like ":/").
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR \
     GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_PREFIX
-if ! git diff --cached --quiet 2>/dev/null; then
-    echo -e "${YELLOW}NOTICE: staged-but-uncommitted changes exist — the fast tier tested the${NC}"
-    echo -e "${YELLOW}working tree, which is NOT exactly the tree this push ships (HEAD). Commit${NC}"
-    echo -e "${YELLOW}or unstage them for an honest local verdict.${NC}"
-fi
 
 # Job 2: SELECTED backend tier. fast_select answers for the real base, the
 # tier filter keeps integration OUT (it has its own -n0 gate; tier identity,
