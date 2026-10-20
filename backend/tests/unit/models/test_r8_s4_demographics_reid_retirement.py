@@ -21,12 +21,9 @@ corrected the scope doc's premise):
       keeper's reachability class.
   Ruling: retire ONLY `demographics_results` + `reid_embeddings` here -- they have
   zero live readers AND zero shipped writers, unambiguously janitorial. `pose_
-  results`/`action_results` and their `pose_types`/`action_types` rule fields STAY
-  with `threat_detections`; any future retirement of them must null stored rule
-  values + drop the columns + drop the tables + retarget the contract oracles in
-  ONE commit (dropping the tables while the rule columns survive makes a stored
-  rule hit a missing table with no try/except on that route -- a permanent 500 a
-  user can aim at).
+  results`/`action_results` STAY with `threat_detections` in S4; R2a row 32 (F-220)
+  subsequently retired the pose, action, and smoke/fire rule condition fields on
+  `alert_rules` while keeping `threat_detection_enabled` for OD-7.
 
 Why pins rather than greps, per this repo's recurring lesson (S3's guard, the file
 this one is modeled on): prose is allowed to name the dead. Every "X is gone" check
@@ -393,13 +390,11 @@ class TestKeepersIntact:
         assert "reid_embedding" in RegisteredVehicle.__table__.columns
 
     def test_pose_action_threat_rule_fields_are_the_later_slice_not_this_one(self) -> None:
-        """The owner ruling keeps pose_types/action_types executable. If a reviewer
-        'finishes' S4 by dropping them here, this pin reddens -- their retirement is
-        a separate atomic commit that must null stored rule values first."""
+        """S4 kept threat_detection_enabled on AlertRule; R2a row 32 (F-220) retired the
+        pose, action, and smoke/fire condition columns while keeping threat_detection_enabled."""
         from backend.models.alert import AlertRule
 
-        for keep in ("pose_types", "action_types", "threat_detection_enabled"):
-            assert keep in AlertRule.__table__.columns, f"{keep} retired early"
-        # And the shipped reader they feed is still wired (alert_engine selects them).
+        assert "threat_detection_enabled" in AlertRule.__table__.columns
         engine = _src("backend/services/alert_engine.py")
-        assert "select(PoseResult)" in engine and "select(ActionResult)" in engine
+        assert "select(ThreatDetection)" in engine
+        assert "select(PoseResult)" not in engine and "select(ActionResult)" not in engine

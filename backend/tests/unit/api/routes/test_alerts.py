@@ -45,17 +45,10 @@ def create_mock_rule(
     dwell_time_enabled: bool = False,
     dwell_threshold_seconds: int | None = None,
     exclude_household_members: bool = False,
-    pose_types: list[str] | None = None,
-    pose_confidence_threshold: float | None = None,
-    action_types: list[str] | None = None,
-    action_confidence_threshold: float | None = None,
     threat_detection_enabled: bool = False,
     threat_types: list[str] | None = None,
     threat_min_severity: str | None = None,
     threat_confidence_threshold: float | None = None,
-    smoke_fire_detection_enabled: bool = False,
-    smoke_fire_consecutive_required: int = 2,
-    smoke_fire_confidence_threshold: float | None = None,
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
 ) -> MagicMock:
@@ -79,17 +72,10 @@ def create_mock_rule(
     mock_rule.dwell_time_enabled = dwell_time_enabled
     mock_rule.dwell_threshold_seconds = dwell_threshold_seconds
     mock_rule.exclude_household_members = exclude_household_members
-    mock_rule.pose_types = pose_types
-    mock_rule.pose_confidence_threshold = pose_confidence_threshold
-    mock_rule.action_types = action_types
-    mock_rule.action_confidence_threshold = action_confidence_threshold
     mock_rule.threat_detection_enabled = threat_detection_enabled
     mock_rule.threat_types = threat_types
     mock_rule.threat_min_severity = threat_min_severity
     mock_rule.threat_confidence_threshold = threat_confidence_threshold
-    mock_rule.smoke_fire_detection_enabled = smoke_fire_detection_enabled
-    mock_rule.smoke_fire_consecutive_required = smoke_fire_consecutive_required
-    mock_rule.smoke_fire_confidence_threshold = smoke_fire_confidence_threshold
     mock_rule.created_at = (
         created_at if created_at is not None else datetime(2025, 1, 1, tzinfo=UTC)
     )
