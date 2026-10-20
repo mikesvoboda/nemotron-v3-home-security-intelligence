@@ -153,16 +153,16 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 ### Utility Hooks
 
-| Hook                      | Purpose                                 | Parameters                                              | Return Value                                                                      |
-| ------------------------- | --------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `usePolling`              | Generic REST endpoint polling           | `{ fetcher, interval, enabled?, onSuccess?, onError? }` | `{ data, loading, error, refetch }`                                               |
-| `useThrottledValue`       | Throttle value updates                  | `value: T, { interval? }`                               | `T` (throttled)                                                                   |
-| `useRetry`                | Retry with exponential backoff          | `{ maxAttempts?, baseDelay? }`                          | `{ retry, isRetrying, retryCount, reset }`                                        |
-| `useCursorPaginatedQuery` | Generic cursor pagination               | `{ queryKey, fetcher, limit? }`                         | `{ data, items, hasNextPage, fetchNextPage, hasPreviousPage, fetchPreviousPage }` |
-| `useFormWithApiErrors`    | Map API validation errors to forms      | `form: UseFormReturn`                                   | `{ applyApiValidationErrors, useApiMutation }`                                    |
+| Hook                      | Purpose                                 | Parameters                                              | Return Value                                                                             |
+| ------------------------- | --------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `usePolling`              | Generic REST endpoint polling           | `{ fetcher, interval, enabled?, onSuccess?, onError? }` | `{ data, loading, error, refetch }`                                                      |
+| `useThrottledValue`       | Throttle value updates                  | `value: T, { interval? }`                               | `T` (throttled)                                                                          |
+| `useRetry`                | Retry with exponential backoff          | `{ maxAttempts?, baseDelay? }`                          | `{ retry, isRetrying, retryCount, reset }`                                               |
+| `useCursorPaginatedQuery` | Generic cursor pagination               | `{ queryKey, fetcher, limit? }`                         | `{ data, items, hasNextPage, fetchNextPage, hasPreviousPage, fetchPreviousPage }`        |
+| `useFormWithApiErrors`    | Map API validation errors to forms      | `form: UseFormReturn`                                   | `{ applyApiValidationErrors, useApiMutation }`                                           |
 | `useServiceStatus`        | Per-service status tracking             | `{ onStatusChange? }`                                   | `{ services, hasUnhealthy, hasDegraded, isAnyRestarting, allHealthy, getServiceStatus }` |
-| `useDebounce`             | Debounce value updates                  | `value: T, delay: number`                               | `T` (debounced)                                                                   |
-| `typedEventEmitter`       | Type-safe WebSocket event emitter class | N/A (class)                                             | `TypedWebSocketEmitter`                                                           |
+| `useDebounce`             | Debounce value updates                  | `value: T, delay: number`                               | `T` (debounced)                                                                          |
+| `typedEventEmitter`       | Type-safe WebSocket event emitter class | N/A (class)                                             | `TypedWebSocketEmitter`                                                                  |
 
 ## Key Files
 
