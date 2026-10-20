@@ -30,7 +30,7 @@ derivation); do not treat any of them as aspirational targets.
   (`scripts/check-test-coverage-gate.py`).
 - **Codecov:** project target 85%, patch target 80%, critical paths 90%
   (`codecov.yml`).
-- **Frontend (Vitest):** floors 79.5 statements / 74.4 branches / 77.2
+- **Frontend (Vitest):** floors 79.5 statements / 74.3 branches / 77.2
   functions / 80.5 lines (measured, R-1; re-pinned by owner ruling 261 to run
   39161827871's merged totals, then re-measured at the final head 971c98731
   per the ruling's own final-head mechanism;
@@ -60,7 +60,7 @@ Vitest shard passed.
 | Metric     | Threshold | Configuration             |
 | ---------- | --------- | ------------------------- |
 | Statements | 79.5%     | `frontend/vite.config.ts` |
-| Branches   | 74.4%     | `frontend/vite.config.ts` |
+| Branches   | 74.3%     | `frontend/vite.config.ts` |
 | Functions  | 77.2%     | `frontend/vite.config.ts` |
 | Lines      | 80.5%     | `frontend/vite.config.ts` |
 

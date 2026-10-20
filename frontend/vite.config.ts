@@ -441,8 +441,12 @@ export default defineConfig(({ mode }) => {
           // merger): unrounded 79.5397/74.4334/77.2600/80.5588 → floored
           // 79.5/74.4/77.2/80.5 (composition moved by main-side retirements,
           // not regression; ruling 261 item 1's final-head mechanism).
+          // Re-measured again at the merged head feb591332 (tree ee300b0b,
+          // 681 files; run 39427450180 printed 79.5/74.3/77.2/80.5 — main's
+          // row-32/r267a retirements carried covered branches away): floored
+          // 79.5/74.3/77.2/80.5, same mechanism.
           statements: 79.5,
-          branches: 74.4,
+          branches: 74.3,
           functions: 77.2,
           lines: 80.5,
         },

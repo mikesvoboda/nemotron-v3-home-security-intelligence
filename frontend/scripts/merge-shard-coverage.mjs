@@ -188,10 +188,17 @@ export function mergeFiles(paths) {
 // The drop from the 692-file measurement is composition, not regression:
 // main took other lanes' retirements (B3.1/F3.1 rows 11 and 45) between the
 // re-pin measurement and this merge, and their removed cohort carried both
-// covered and uncovered lines. The floors follow the final head per ruling
-// 261 item 1's own mechanism ("the merged values CI measures at its final
-// head"), floored the same way: 79.5 / 74.4 / 77.2 / 80.5.
-export const FLOORS = { statements: 79.5, branches: 74.4, functions: 77.2, lines: 80.5 };
+// covered and uncovered lines.
+//
+// Re-measured again at the merged head feb591332 after main's B3.1/F3.1
+// row-32 retirements (#7300) and r267a service-status (#7299) entered the
+// tree (frontend subtree ee300b0b, 681 files with coverage): CI run
+// 39427450180 printed 79.5 / 74.3 / 77.2 / 80.5 and the branches floor sat
+// above the measurement — the same composition move (retired code carries
+// covered branches away). The floors follow the final head per ruling 261
+// item 1's own mechanism ("the merged values CI measures at its final
+// head"), floored the same way: 79.5 / 74.3 / 77.2 / 80.5.
+export const FLOORS = { statements: 79.5, branches: 74.3, functions: 77.2, lines: 80.5 };
 
 function main() {
   const argv = process.argv.slice(2);

@@ -15,7 +15,7 @@ Coverage gates ensure code quality by requiring minimum test coverage before mer
   0.5pp noise band
 - **Per-tier floors**: unit 84 / integration 37, enforced in the CI merge
   steps only when the tier fully passed
-- **Frontend**: measured floors 79.5 (statements) / 74.4 (branches) /
+- **Frontend**: measured floors 79.5 (statements) / 74.3 (branches) /
   77.2 (functions) / 80.5 (lines) — the measured values rounded DOWN to one
   decimal place — enforced by
   `frontend/scripts/merge-shard-coverage.mjs --enforce` in CI only when all
@@ -159,7 +159,7 @@ thresholds: {
   // per ruling 261's own final-head mechanism), mirrored
   // by merge-shard-coverage.mjs's FLOORS.
   statements: 79.5,
-  branches: 74.4,
+  branches: 74.3,
   functions: 77.2,
   lines: 80.5,
 },
@@ -170,7 +170,7 @@ thresholds: {
 | Metric     | Threshold | Enforcement                                               |
 | ---------- | --------- | --------------------------------------------------------- |
 | Statements | 79.5      | `merge-shard-coverage.mjs --enforce` on merged shard data |
-| Branches   | 74.4      | same                                                      |
+| Branches   | 74.3      | same                                                      |
 | Functions  | 77.2      | same                                                      |
 | Lines      | 80.5      | same                                                      |
 

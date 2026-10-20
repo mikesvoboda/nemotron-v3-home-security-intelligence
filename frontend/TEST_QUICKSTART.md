@@ -66,7 +66,7 @@ run 39161827871's merged totals, then re-measured at the final head
 | Metric     | Floor |
 | ---------- | ----- |
 | statements | 79.5  |
-| branches   | 74.4  |
+| branches   | 74.3  |
 | functions  | 77.2  |
 | lines      | 80.5  |
 
