@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -86,6 +87,10 @@ class Fake:
         self.update_answer = over.get("update_answer", {"message": "Merged"})
         self.post_update_head = over.get("post_update_head", NEW_HEAD)
         self.update_pr = over.get("update_pr", 111)  # which PR's head moves on the update
+        # n10: where the comments list splits across the two paginated page values.
+        # None = everything on page 1 (the default shape most tests want); an index
+        # actually exercises the later-page read.
+        self.page_split = over.get("page_split")
 
     def fail(self, needle: str, message: str = "gh: HTTP 502 upstream") -> None:
         self.rules[needle] = RuntimeError(message)
@@ -130,7 +135,9 @@ class Fake:
             # --paginate flag -- a single-page read regresses N1 and fails here, loud.
             if "--paginate" not in cmd:
                 raise AssertionError("comments read without --paginate (N1 regression)")
-            return json.dumps(self.comments) + json.dumps([])  # two pages, second empty
+            # two page values; page_split moves the boundary (n10: None = all on page 1)
+            cut = len(self.comments) if self.page_split is None else self.page_split
+            return json.dumps(self.comments[:cut]) + json.dumps(self.comments[cut:])
         if path.endswith("commits/main"):
             return json.dumps({"sha": TIP})
         if "actions/runs?" in path:
@@ -255,10 +262,10 @@ def test_a_failed_queue_read_is_reported_not_swallowed():
 def test_status_comment_found_on_a_later_page():
     # N1: the status comment the coordinator edits in place slides deeper as #6854 grows
     # (page 5 of 9 live). The paginated read must find it wherever it sits: the fake
-    # answers two pages, the status comment on the second.
+    # answers two page values with the status comment only on the SECOND (n10: the
+    # boundary is real -- nothing before it can satisfy the marker scan).
     late = status_comment(f"111@{HEAD[:9]}")
-    fake = green(comments=[{"id": 1, "body": "early chatter"}])
-    fake.comments.append(late)  # page 2's stream: parse_json_stream flattens both arrays
+    fake = green(comments=[{"id": 1, "body": "early chatter"}, late], page_split=1)
     plan = qu.fire(fake, REPO, ISSUE, None)
     assert [e.number for e in plan.queue_entries] == [111]
     assert plan.action == "no-op"  # green + current: read found, decision made
@@ -504,6 +511,27 @@ def test_conflict_422_falls_through_like_409():
     # count instead: two PUTs, one fire, both entries tried.
     assert "a second entry conflicted too" in plan.action_note
     assert len([c for c in fake.calls if "update-branch" in " ".join(c)]) == 2
+    # n11: the re-decide must DROP the conflicted entry from the queue list, or this fire
+    # re-picks #111 and PUTs it again (decide() iterates queue_entries, so the entries-list
+    # filter alone cannot stop a re-pick). One PUT per entry, each PR addressed once.
+    targets = [re.search(r"pulls/(\d+)/update-branch", " ".join(c)).group(1) for c in fake.calls if "update-branch" in " ".join(c)]
+    assert targets == ["111", "222"], targets
+
+
+def test_a_conflicted_last_entry_is_not_reput_in_the_same_fire():
+    # n11's killer shape: ONE queue entry, it conflicts. The re-decide's queue_entries
+    # drop is what keeps decide() from seeing it again -- removing that drop re-PUTs the
+    # same PR within the fire and reports "a second entry conflicted too" for a queue
+    # that only ever held one entry. Pinned red-first against exactly that mutant.
+    fake = green(queue=f"111@{HEAD[:9]}")
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    fake.update_status = 409
+    fake.update_answer = {"message": "merge conflict"}
+    plan = qu.fire(fake, REPO, ISSUE, "tok-1")
+    assert plan.action == "no-op"
+    assert "second entry" not in plan.action_note  # there IS no second entry
+    assert len([c for c in fake.calls if "update-branch" in " ".join(c)]) == 1
 
 
 def test_a_transport_failure_on_the_put_is_not_a_conflict_nor_a_crash():
