@@ -267,7 +267,6 @@ def green(**over):
 
 def gate_answer(fake, conclusion):
     fake.rules["check-runs"] = json.dumps(check_runs(conclusion))
-    fake.rules["check-runs"] = json.dumps(check_runs(conclusion))
 
 
 # -- step 1: reads ----------------------------------------------------------
