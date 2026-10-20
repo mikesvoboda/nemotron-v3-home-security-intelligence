@@ -99,6 +99,17 @@ def table_absent(table: str) -> Check:
     return check
 
 
+def column_absent(table: str, column: str) -> Check:
+    """True when the column (or its table) is gone (the effect of a DROP COLUMN)."""
+
+    async def check(conn: AsyncConnection) -> bool:
+        if await _count(conn, _ANY_TABLE_QUERY, table=table) == 0:
+            return True
+        return await _count(conn, _ANY_COLUMN_QUERY, table=table, column=column) == 0
+
+    return check
+
+
 def all_present(checks: Sequence[Check]) -> Check:
     """True only when EVERY predicate says the effect is already in place.
 
@@ -172,6 +183,27 @@ _UNRECORDED_MODEL_COLUMNS: tuple[tuple[str, str], ...] = _add_column_pairs(
     "0005-add-unrecorded-model-columns"
 )
 
+
+def _drop_columns_for_table(upgrade_id: str, table: str) -> tuple[str, ...]:
+    """The columns an upgrade's own file drops from `table`, read from the shipped text."""
+    upgrade = next(u for u in UPGRADES if u.id == upgrade_id)
+    cols = re.findall(
+        r"DROP\s+COLUMN\s+IF\s+EXISTS\s+(\w+)",
+        " ".join(upgrade.statements()),
+        re.IGNORECASE,
+    )
+    if not cols:
+        raise UpgradeNotRegisteredError(
+            f"upgrade {upgrade_id}: no `DROP COLUMN IF EXISTS` found in {upgrade.filename} "
+            f"for {table}."
+        )
+    return tuple(cols)
+
+
+_RETIRED_ALERT_RULE_COLUMNS: tuple[str, ...] = _drop_columns_for_table(
+    "0008-retire-alert-rule-pose-action-smoke-columns", "alert_rules"
+)
+
 #: upgrade id -> its predicate. Keys are checked against the registry at import (see
 #: `_assert_keys_are_registered`) so a rename in `sql.py` reddens here rather than silently
 #: turning a checked upgrade into an unchecked one.
@@ -198,6 +230,9 @@ CHECKS: dict[str, Check] = {
     ),
     "0006-retire-user-calibration-table": table_absent("user_calibration"),
     "0007-retire-action-events-table": table_absent("action_events"),
+    "0008-retire-alert-rule-pose-action-smoke-columns": all_present(
+        [column_absent("alert_rules", col) for col in _RETIRED_ALERT_RULE_COLUMNS]
+    ),
 }
 
 

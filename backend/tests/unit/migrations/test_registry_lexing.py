@@ -297,4 +297,3 @@ def test_0008_retire_alert_rule_pose_action_smoke_columns_registered():
     """R2a row 32 (F-220) registers 0008-retire-alert-rule-pose-action-smoke-columns with a CHECK."""
     assert "0008-retire-alert-rule-pose-action-smoke-columns" in registry.ids()
     assert "0008-retire-alert-rule-pose-action-smoke-columns" in checks.CHECKS
-
