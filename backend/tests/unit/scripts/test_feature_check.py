@@ -4567,6 +4567,78 @@ def test_a_failed_up_with_the_vlm_also_unreachable_names_both_reasons(
     assert "buildx_buildkit_default" in message, f"compose's reason was swallowed: {message[:400]}"
 
 
+def test_up_boots_with_no_build_and_never_rebuilds_at_up(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Ruling 274 as amended (record IC_kwDOQs9zJM8AAAABdusUHA): on the prod-shape
+    modes the harness boots with `up --no-build`, so `up` never builds there.
+    `docker-compose.fake-ai.yml:34` sets `pull_policy: build`, which makes a plain
+    `up` rebuild `hsi-fake-ai` through BuildKit even when the prebuild has just
+    built it — and that rebuild's RUN step needs the cgroup delegation this venue's
+    rootless engine cannot grant (attempt 4, operator report 6280195057). The
+    prebuild builds everything with DOCKER_BUILDKIT=0 precisely so `up` builds
+    nothing; the flag makes that true."""
+
+    capture: list[tuple[str, ...]] = []
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        capture.append(args)
+        if args[:2] == ("up", "-d"):
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:2] == ("port", "backend"):
+            return subprocess.CompletedProcess(args, 0, "127.0.0.1:18000\n", "")
+        if args[:2] == ("port", "frontend"):
+            return subprocess.CompletedProcess(args, 0, "127.0.0.1:18080\n", "")
+        raise AssertionError(f"unexpected deployment call: {args}")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "check_vlm_reach", lambda *_: None)
+    run = fc.Run(
+        engine="docker", root=tmp_path / "runs", image_tag="test", mode="real", prod_shape=True
+    )
+    run.up(vlm=_StubVlm())
+    assert run.summary["urls"] == {"api": "http://127.0.0.1:18000", "ui": "http://127.0.0.1:18080"}
+    # The pin itself: the boot argv carries --no-build exactly when the prebuild ran
+    # (the prod-shape modes; amendment item 1). Position is free - it is a flag, not
+    # an operand - so this is a membership assert, not a shape.
+    up_calls = [c for c in capture if c[0] == "up"]
+    assert up_calls, f"no `up` call captured: {capture}"
+    for argv in up_calls:
+        assert "--no-build" in argv, f"the boot argv lacks --no-build: {argv}"
+
+
+def test_up_without_a_prebuild_boots_plain(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Ruling 274 as amended: fake mode's `up` is unchanged. Fake mode never ran a
+    prebuild (`prebuild_images` lives only on the prod-shape render), and nothing in
+    CI's fake-AI runs builds `hsi-fake-ai` before `up` — so with `--no-build` on
+    every run those runs failed with `No such image` and the four fake shards went
+    red (measured on #7298). The flag rides along exactly when the prebuild ran."""
+
+    capture: list[tuple[str, ...]] = []
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        capture.append(args)
+        if args[:2] == ("up", "-d"):
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:2] == ("port", "backend"):
+            return subprocess.CompletedProcess(args, 0, "127.0.0.1:18000\n", "")
+        if args[:2] == ("port", "frontend"):
+            return subprocess.CompletedProcess(args, 0, "127.0.0.1:18080\n", "")
+        if args[:2] == ("port", "ai-vlm"):
+            return subprocess.CompletedProcess(args, 0, "127.0.0.1:18098\n", "")
+        raise AssertionError(f"unexpected deployment call: {args}")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="fake")
+    run.up(vlm=None)
+    assert run.summary["urls"] == {"api": "http://127.0.0.1:18000", "ui": "http://127.0.0.1:18080"}
+    up_calls = [c for c in capture if c[0] == "up"]
+    assert up_calls, f"no `up` call captured: {capture}"
+    for argv in up_calls:
+        assert "--no-build" not in argv, f"fake mode's boot argv must not carry --no-build: {argv}"
+        assert "--wait" in argv, f"the boot argv lost --wait: {argv}"
+
+
 # ---------------------------------------------------------------------------
 # O2.5 / UR-140 slice 2a — the names `up` builds under.
 #

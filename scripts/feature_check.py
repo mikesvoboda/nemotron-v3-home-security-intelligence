@@ -2271,7 +2271,13 @@ class Run:
           something production does not run, and cost hours doing it.
 
         The images come from :func:`build_images`, applied to the boot document
-        `up` boots, so this cannot drift from the names `up` will look for.
+        `up` boots, so this cannot drift from the names `up` will look for. It
+        matters that `up` passes ``--no-build``: a service whose manifest says
+        ``pull_policy: build`` (docker-compose.fake-ai.yml:34) makes a plain
+        ``up`` rebuild its image through BuildKit even when this method has just
+        built it — and BuildKit's ``RUN`` steps need the cgroup delegation this
+        venue's rootless engine cannot grant, which is the wall this method
+        exists to dodge.
         """
         boot = json.loads(self.compose_file.read_text(encoding="utf-8"))
         wanted = build_images(boot, project=self.project)
@@ -2321,8 +2327,21 @@ class Run:
 
     def up(self, vlm: AgentGpu | None = None) -> None:
         self.started = True
+        # --no-build (ruling 274 as amended, record IC_kwDOQs9zJM8AAAABdusUHA): the
+        # flag rides along exactly when `prebuild_images()` ran in this run — the
+        # prod-shape modes. A `build:` service whose manifest sets
+        # `pull_policy: build` (docker-compose.fake-ai.yml:34) is rebuilt by a plain
+        # `up` through BuildKit even when the prebuild has just built it, and
+        # BuildKit's RUN steps need the cgroup delegation the sandbox venue's
+        # rootless engine cannot grant (attempt 4, operator report 6280195057).
+        # Fake mode never ran a prebuild, so its `up` stays plain: CI's fake-AI
+        # runs build `hsi-fake-ai` themselves at `up`, and `--no-build` there
+        # strands them with `No such image` (measured on #7298).
+        build_flag = ["--no-build"] if self.prod_shape else []
         try:
-            self.deployment("up", "-d", "--wait", "--wait-timeout", "900", timeout=1500)
+            self.deployment(
+                "up", "-d", *build_flag, "--wait", "--wait-timeout", "900", timeout=1500
+            )
         except HarnessError as boot:
             # The backend's health check calls the VLM, so on --real an
             # unreachable VLM fails `up --wait` first; name that reason if so.
