@@ -55,7 +55,9 @@ give work a number.
     measurement) stays unticked: the author names it in its last heartbeat, and the owner partner
     ticks it in the owner's next plan PR, citing the merge and the evidence. No PR is opened for
     ticks alone. `lane_tick.py` and the coordinator treat a block whose `**PR:**` line names a
-    merged PR as done, whatever its boxes say.
+    merged PR as done, whatever its boxes say, unless the README status row reads `in progress`
+    (UR-144: a package the owner ruled to span several PRs); such a package's unticked boxes stay
+    open work for the agent whose queue holds it (ruling 290).
 - **UR-48** A defect in a lane's own file is lane work with no package number; package numbers are
   for new scope. (rulings 120, 126)
 

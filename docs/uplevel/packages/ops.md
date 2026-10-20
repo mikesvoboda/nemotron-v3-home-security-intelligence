@@ -170,16 +170,16 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes: two runs, split by venue (ruling 256).** `feature_check.py --prod-shape`
       brings up that stack and runs the golden suite against it, using the Playwright container
-      from ruling 143, on a test deployment (UR-133). The operator runs the sandbox run from the
-      command ops-a posts (UR-140); ops-a posts the maui command on #7037 once `[r195]` carries it,
-      and the operator reads that run's output (ruling 185 item 3).
-  - **Item 1, the `--real` run, first (the owner's on maui since ruling 280).** `--real --prod-shape`, with no
+      from ruling 143, on a test deployment (UR-133). Since ruling 280 the owner runs both from the
+      maui login, item 2 first and then item 1, from the commands ops-a posts on #7037 (UR-140);
+      the operator reads their output (ruling 185 item 3).
+  - **Item 1, the `--real` run (the owner's on maui, after item 2; ruling 280).** `--real --prod-shape`, with no
     GPU consumer in the stack but the VLM: `ai-vlm` served by `agent-gpu`, the fake `ai-gateway`, no
     `dcgm-exporter`, and `backend`'s GPU reservation stripped. These are runtime transforms in
     `as_prod_shape_deployment`, not edits to the authored override (ruling 162 item 3), and the run
     record names each removed or stripped device. It witnesses F-102, F-115, F-117, F-164 to F-167,
     F-169, F-174, F-295 and F-296.
-  - **The maui run, after it (owner).** `--prod-shape` with the fake VLM, from a host login on maui,
+  - **Item 2, the fake-VLM run (owner, first; ruling 280).** `--prod-shape` with the fake VLM, from a host login on maui,
     keeping production's CDI devices for `ai-gateway`, `dcgm-exporter` and `backend`. It witnesses
     F-176, F-178 and F-182 and the CDI wiring (the stack boots with every device resolved), and its
     stop-test states the GPU memory the run takes beside production. `ai-vlm`'s own CDI line is the
@@ -1217,6 +1217,38 @@ table row that `main` absorbs resets an approval (#7301 lost one this way, `6290
       (no carry); an author commit (no carry); and a failed read (unknown, never yes).
 
 **Done when:** the tests pass in CI at a ready head and the UR-89 review approves.
+
+### [r290] The snapshot reads package balance, and `lane_tick` offers a multi-PR package's open box
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r278]` (both edit
+`coordinator_snapshot.py`), ahead of `O3.7` (ruling 290). **Depends on:** none. **PR:** none yet.
+(ruling 290, record 6303479997)
+
+On 2026-10-20 three agents sat idle while ops-b held three Phase 3 packages with dependencies met,
+until the owner asked for ruling 289's rebalance. One idle queue was a parser gap: `next_claimable`
+offers only a `none yet` block, so B3.3's open fourth box (ruling 254) was never offered because
+its block names the merged #7244. The coordinator detects and proposes; it never moves a package
+(`roles/coordinator.md`, "The status comment").
+
+- [ ] **The balance section.** `coordinator_snapshot.py` gains a section. For each roster agent
+      that is not paused, it prints the agent's open package PRs; its claimable queue entries (the
+      blocks `next_claimable` would offer in queue order, plus the open multi-PR packages below),
+      each with its **Depends on:** read as met, unmet or unread, where a free-text dependency it
+      cannot resolve reads unread, never met; and whether it is idle (no open package PR, and a
+      heartbeat state of idle). It flags an imbalance when an idle agent has nothing claimable and
+      another holds two or more claimable entries whose dependencies read met, and prints one
+      candidate move that keeps UR-24 (no `heavy` package to a fast agent) and the cells' file areas
+      (`roles/lane.md`), or names a heavy agent as the receiver.
+- [ ] **The multi-PR offer.** `lane_tick.py`'s `next_claimable` also offers a package on my queue
+      whose README status row reads `in progress` (UR-144), whose block has an unticked box, and
+      which no open PR of mine titles; the digest names the box (UR-47, ruling 290).
+- [ ] **Tests:** an idle agent with nothing claimable beside a backlogged one (flags); two busy
+      agents (no flag); an unread dependency (never met); a `heavy` package never proposed to a fast
+      agent; B3.3's shape (merged PR, `in progress`, an open box) is offered; a merged single-PR block
+      with an unticked post-merge box is not (ruling 283).
+
+**Done when:** the tests pass in CI at a ready head, and a live snapshot run posted on the PR shows
+the balance section for the agents then.
 
 ### [r279] Three flaky CI checks made deterministic
 

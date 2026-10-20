@@ -225,6 +225,11 @@ on #6854, never by replying to it.
 6. **Delegated acts** (ruling 281 item 5). The comment carries a "Delegated (last 24 h)" line
    listing, by comment id, each delegated approval and each owner-partner record (delegated,
    ruling 281) posted on #6854 in the last 24 hours.
+7. **Balance** (ruling 290). When the snapshot's balance section flags an imbalance, the comment
+   carries one "Balance:" line naming the package, the agent it would leave, the agent it would go
+   to, and why. Propose only: act on nothing in that line. The owner partner decides as an
+   operational call (ruling 281), or brings it to the owner when it is reserved. If the balance
+   section errors, say the line is unread (UR-29).
 
 ## The urgent path
 
