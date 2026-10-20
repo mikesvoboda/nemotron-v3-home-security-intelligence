@@ -142,11 +142,11 @@ Details: [docs/developer/git-workflow.md](docs/developer/git-workflow.md).
 ```yaml
 # CORRECT - Port from .env
 ports:
-  - '127.0.0.1:${VLLM_PORT:-8097}:8000'
+  - '127.0.0.1:${AI_VLM_PORT:-8098}:8098'
 
 # WRONG - Hardcoded port
 ports:
-  - '127.0.0.1:8097:8000'
+  - '127.0.0.1:8098:8098'
 ```
 
 Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN=true`, the single switch (OD-12; `O1.6`): `setup.py` derives `FRONTEND_BIND_ADDRESS` from it and compose publishes the frontend on `0.0.0.0` only then, while the backend's auth gate arms at the same time. Loopback binding is the primary security boundary; a host-resident Cloudflare/Brev tunnel keeps working through it (it dials `127.0.0.1`) — which is why running a tunnel is itself an `EXPOSE_LAN=true` situation: the loopback bind does not gate the callers the tunnel lets in, the auth gate does (see the Auth model bullet below). **When adding new services:** add the port variable to `.env.example` first, then reference it in docker-compose. The port tables live in **Service Ports** below; `docs/reference/config/env-reference.md` is the authoritative runtime settings reference.
@@ -434,7 +434,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 
 ## Service Ports
 
-Host ports come from `.env` (defaults shown below are from `.env.example`); `docs/reference/config/env-reference.md` is the authoritative reference for the backend settings vars (it does not document the monitoring-stack port vars below — those live in `.env.example` and `docs/developer/PORT_STANDARDIZATION.md`). `docker-compose.prod.yml` defines 21 services; 19 start by default — vLLM (profile `vllm`) and dcgm-exporter (profile `gpu-rootful`) are opt-in.
+Host ports come from `.env` (defaults shown below are from `.env.example`); `docs/reference/config/env-reference.md` is the authoritative reference for the backend settings vars (it does not document the monitoring-stack port vars below — those live in `.env.example` and `docs/developer/PORT_STANDARDIZATION.md`). `docker-compose.prod.yml` defines 20 services; 19 start by default — dcgm-exporter (profile `gpu-rootful`) is opt-in (`ai-llm-vllm` was removed in O3.1 per ruling 89).
 
 ### Core Services
 
@@ -454,10 +454,9 @@ Host ports come from `.env` (defaults shown below are from `.env.example`); `doc
 | -------------------- | --------- | -------------------------------------------------------------------------------------------------------- |
 | AI Gateway           | 8090      | Single AI entrypoint (Triton); routers `/yolo26` + `/enrich-lt` only (the rest were deleted, R8 S3)      |
 | AI Gateway metrics   | 8002      | Gateway Prometheus metrics (`AI_GATEWAY_METRICS_PORT`)                                                   |
-| vLLM (optional)      | 8097      | LLM benchmark harness (NEM-5441) — compose profile `vllm`, off by default                                |
 | VLM llama.cpp engine | 8098      | `ai-vlm` llama.cpp engine (VlmAnalyzer; model identity is config, ledger D5), in the default compose set |
 
-Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095` and `LLM_PORT=8091` (the retired `ai-llm` service's port) are the only ones of these values still in `.env.example` (dev stand-ins with no prod-compose consumer — `YOLO26_PORT` is read by `ai/start_detector.sh`); `FLORENCE_PORT`, `CLIP_PORT`, `ENRICHMENT_PORT` and `ENRICHMENT_LIGHT_PORT` were removed from `.env.example` in the R8 residue sweep (`e40d69f5`). The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
+Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `FLORENCE_PORT`, `CLIP_PORT`, `ENRICHMENT_PORT` and `ENRICHMENT_LIGHT_PORT` were removed from `.env.example` in the R8 residue sweep (`e40d69f5`), `VLLM_PORT` in O3.1 (`3bf184415`), and `YOLO26_PORT` and `LLM_PORT` in O3.3 (`#7281`). The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
 
 ### Monitoring Stack
 

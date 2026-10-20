@@ -1081,18 +1081,18 @@ class TestPromptAndDownloadModels:
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Use build_model_specs() — same source as prompt_and_download_models — to avoid
-            # false failures from name mismatches between legacy constants and models.yml.
+            # O3.3 deleted the two phase-3 HF rows (yolo11-face, yolo11-license-plate);
+            # threat-detection-yolov8n (phase 1) is the surviving generic HF download row.
             all_specs = build_model_specs()
             hf_models = [
                 m.name
                 for m in all_specs
-                if m.phase >= 2
+                if m.phase >= 1
                 and m.hf_repo
                 and m.name not in special_models
                 and m.download_method != "hf_cache"
             ]
-            assert hf_models, "no phase-3 HF rows left — retarget this test"
+            assert hf_models, "no generic HF rows left — retarget this test"
             for name in hf_models:
                 assert name in downloaded_models, f"Expected model {name} to be downloaded"
 

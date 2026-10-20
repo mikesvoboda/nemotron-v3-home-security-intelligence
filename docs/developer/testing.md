@@ -736,7 +736,11 @@ the runner's name policy (at most 32 characters; exit 2 if not), then:
    `docker-compose.prod.yml` at its default.
 5. Reads the VLM's URL from the line `run` prints
    (`port 8098 -> http://host.docker.internal:<port>`). Any other address, or
-   a port outside the runner's pool (18100-18199), fails the run (exit 1).
+   a port outside the runner's pool (18100-18199), fails the run (exit 1). That
+   address is what the run's **containers** get as `AI_VLM_URL`; the harness
+   dials the form **its own machine** can resolve — the same alias inside a
+   sandbox, `http://127.0.0.1:<port>` from a host login, where the alias has no
+   DNS entry and the runner publishes on this machine's loopback ([r195]).
 6. Waits for `/health` and records `/props`' `build_info` and `model_path`. It
    fails the run (exit 1) if `model_path` is not the pin, or if `agent-gpu ps`
    does not list the VLM by its name, on which the teardown's proof that it is
