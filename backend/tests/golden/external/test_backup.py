@@ -36,11 +36,11 @@ The defect, for the record. Every ``POST /api/backup`` used to fail as soon as
 one ``events`` row existed: the job reached ``failed`` with
 ``greenlet_spawn has not been called``, because ``BackupService._export_table``
 walks ``mapper.columns`` and ``getattr``s each one
-(``backend/services/backup_service.py:324``, ``:354``) while
+(``backend/services/backup_service.py:324``, ``:378``) while
 ``Event.reasoning`` / ``Event.llm_prompt`` are ``deferred()``
 (``backend/models/event.py:72``, ``:74``), so reading either is synchronous IO
 inside an ``AsyncSession``. The fix undeferres them at the query site
-(``backend/services/backup_service.py:338-341``), the cure the repo already used
+(``backend/services/backup_service.py:357-360``), the cure the repo already used
 elsewhere: ``export_service.py:766`` does
 ``select(Event).options(undefer(Event.reasoning))`` for the same column. Two
 pins added in the same PR guard it at tiers that need no live stack:

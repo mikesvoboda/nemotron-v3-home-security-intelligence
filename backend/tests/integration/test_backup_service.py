@@ -8,16 +8,24 @@ Related: NEM-3566 Backup/Restore Implementation
 
 from __future__ import annotations
 
+import hashlib
 import json
+import tempfile
 import uuid
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, ClassVar
 
 import pytest
 
 from backend.models.camera import Camera
-from backend.services.backup_service import BackupService, reset_backup_service
+from backend.services.backup_service import (
+    BackupContentInfo,
+    BackupManifest,
+    BackupService,
+    reset_backup_service,
+)
 from backend.tests.conftest import unique_id
 
 # Mark all tests as integration
@@ -139,7 +147,7 @@ class TestBackupExportsDeferredEventColumns:
     ``Event.reasoning`` and ``Event.llm_prompt`` are ``deferred()``
     (backend/models/event.py:70-74), so ``select(Event)`` does not load them.
     ``_export_table`` then walks EVERY mapper column with ``getattr``
-    (backend/services/backup_service.py:353-354), and touching an unloaded
+    (backend/services/backup_service.py:324, :378), and touching an unloaded
     deferred column makes SQLAlchemy issue a lazy load -- which raises
     ``MissingGreenlet`` inside an ``AsyncSession``. Pre-fix every backup failed
     as soon as one event existed, and every backup looked healthy on an empty
@@ -409,3 +417,283 @@ class TestBackupServiceGetPath:
         """Test that get_backup_path returns None for nonexistent backup."""
         path = backup_service.get_backup_path("nonexistent-id")
         assert path is None
+
+
+class TestAlertMetadataSurvivesBackupAndRestore:
+    """[r271b] Q-040: the alert payload survives backup then restore.
+
+    ``Alert`` names its payload attribute ``alert_metadata`` but maps it to the
+    table's ``metadata`` column (models/alert.py:120-121), so the mapper's
+    column key ``metadata`` has no class-bound attribute behind it. The export
+    walk reads ``getattr(record, "metadata")`` -- SQLAlchemy's reserved
+    ``MetaData`` object -- stringifies it into the JSON as
+    ``"metadata": "MetaData()"``, and the real payload is never written; the
+    restore side drops the unknown key, so the payload is lost both ways.
+    Measured at the PR base (d5c470715): exported
+    ``"metadata": "MetaData()"``, no ``alert_metadata`` key, and the restored
+    alert's ``alert_metadata`` came back ``None``.
+
+    Asserting the VALUE, not just the row count, is deliberate (r129's
+    precedent in this file): a backup that completes while silently nulling
+    every alert payload passes a count-only assertion and is still data loss.
+
+    ``Alert`` is the only walked model with this collision (census at the PR
+    base over all 8 BACKUP_TABLES models plus the lazily appended Event);
+    the tests are scoped to it.
+    """
+
+    # Sentinel payload the round trip must preserve.
+    PAYLOAD: ClassVar[dict[str, Any]] = {
+        "reason": "R271B-SENTINEL",
+        "channels_tried": ["email", "webhook"],
+    }
+
+    @pytest.fixture
+    async def seeded_alert(self, test_db) -> dict:
+        """Seed camera -> event -> alert, returning the alert's exported keys."""
+        from backend.models.alert import Alert
+        from backend.models.event import Event
+
+        camera_id = unique_id("r271b_cam")
+        async with test_db() as session:
+            session.add(
+                Camera(
+                    id=camera_id,
+                    name=f"R271B Camera {camera_id[-6:]}",
+                    folder_path=f"/export/foscam/{camera_id}",
+                )
+            )
+            await session.flush()
+            event = Event(
+                batch_id=unique_id("r271b_batch"),
+                camera_id=camera_id,
+                started_at=datetime.now(UTC),
+                risk_score=40,
+                summary=f"R271B event {camera_id[-6:]}",
+            )
+            session.add(event)
+            await session.flush()
+            alert = Alert(
+                event_id=event.id,
+                dedup_key=unique_id("r271b_dedup"),
+                alert_metadata=self.PAYLOAD,
+            )
+            session.add(alert)
+            await session.commit()
+            # Alert.id is a UUID column with a uuid7 default; read the
+            # generated value back instead of assigning a string.
+            alert_id = alert.id
+        return {"alert_id": alert_id, "camera_id": camera_id, "event_id": event.id}
+
+    @pytest.mark.asyncio
+    async def test_backup_writes_alert_metadata_payload(
+        self,
+        test_db,
+        backup_service: BackupService,
+        seeded_alert: dict,
+    ) -> None:
+        """Export leg: the payload is IN the archive, under ``alert_metadata``."""
+        job_id = unique_id("r271b_backup")
+
+        async with test_db() as session:
+            await backup_service.create_backup(session, job_id)
+
+        with zipfile.ZipFile(backup_service.get_backup_path(job_id), "r") as zf:
+            alerts = json.loads(zf.read("alerts.json").decode("utf-8"))
+
+        (row,) = [a for a in alerts if a["id"] == seeded_alert["alert_id"]]
+        assert row.get("alert_metadata") == self.PAYLOAD, (
+            f"[r271b] alert {seeded_alert['alert_id']} lost its payload in the "
+            f"backup: alert_metadata={row.get('alert_metadata')!r}, "
+            f"metadata={row.get('metadata')!r}"
+        )
+        # The reserved key must not carry the stringified MetaData object.
+        assert "metadata" not in row
+
+    @pytest.mark.asyncio
+    async def test_round_trip_restores_alert_metadata_payload(
+        self,
+        test_db,
+        backup_service: BackupService,
+        seeded_alert: dict,
+    ) -> None:
+        """Full round trip: seed -> backup -> restore -> payload intact."""
+        from sqlalchemy import select
+
+        from backend.models.alert import Alert
+        from backend.services.restore_service import (
+            RestoreService,
+            reset_restore_service,
+        )
+
+        job_id = unique_id("r271b_roundtrip")
+
+        async with test_db() as session:
+            result = await backup_service.create_backup(session, job_id)
+
+        reset_restore_service()
+        async with test_db() as session:
+            await RestoreService().restore_from_backup(
+                result.file_path, session, unique_id("r271b_restore")
+            )
+
+        async with test_db() as session:
+            restored = (
+                await session.execute(select(Alert).where(Alert.id == seeded_alert["alert_id"]))
+            ).scalar_one()
+            assert restored.alert_metadata == self.PAYLOAD, (
+                f"[r271b] restored alert {seeded_alert['alert_id']} came back "
+                f"with alert_metadata={restored.alert_metadata!r}; the payload "
+                f"did not survive the round trip"
+            )
+
+    @pytest.mark.asyncio
+    async def test_null_payload_stays_null_through_round_trip(
+        self,
+        test_db,
+        backup_service: BackupService,
+    ) -> None:
+        """A seeded NULL payload must not become ``{}`` or ``"MetaData()"``."""
+        from sqlalchemy import select
+
+        from backend.models.alert import Alert
+        from backend.models.event import Event
+        from backend.services.restore_service import (
+            RestoreService,
+            reset_restore_service,
+        )
+
+        camera_id = unique_id("r271b_null_cam")
+        async with test_db() as session:
+            session.add(
+                Camera(
+                    id=camera_id,
+                    name=f"R271B Null Camera {camera_id[-6:]}",
+                    folder_path=f"/export/foscam/{camera_id}",
+                )
+            )
+            await session.flush()
+            event = Event(
+                batch_id=unique_id("r271b_null_batch"),
+                camera_id=camera_id,
+                started_at=datetime.now(UTC),
+                risk_score=10,
+            )
+            session.add(event)
+            await session.flush()
+            alert = Alert(
+                event_id=event.id,
+                dedup_key=unique_id("r271b_null_dedup"),
+                # alert_metadata stays NULL: the constructor default.
+            )
+            session.add(alert)
+            await session.commit()
+            alert_id = alert.id
+
+        job_id = unique_id("r271b_null_backup")
+        async with test_db() as session:
+            result = await backup_service.create_backup(session, job_id)
+
+        reset_restore_service()
+        async with test_db() as session:
+            await RestoreService().restore_from_backup(
+                result.file_path, session, unique_id("r271b_null_restore")
+            )
+
+        async with test_db() as session:
+            restored = (
+                await session.execute(select(Alert).where(Alert.id == alert_id))
+            ).scalar_one()
+            assert restored.alert_metadata is None
+
+    @pytest.mark.asyncio
+    async def test_prefix_backup_restores_with_null_metadata_and_no_error(
+        self,
+        test_db,
+    ) -> None:
+        """A backup made BEFORE the fix restores with ``alert_metadata`` null.
+
+        The old export wrote ``"metadata": "MetaData()"`` and no
+        ``alert_metadata`` key; there is nothing to recover, so the restore
+        must accept the row without an error and leave the payload NULL --
+        not crash and not silently invent a payload.
+
+        The manifest contents name only ``alerts``, so the restore clears and
+        refills only that table; the camera and event seeded for the FK chain
+        survive it.
+        """
+        from sqlalchemy import select
+
+        from backend.models.alert import Alert
+        from backend.models.event import Event
+        from backend.services.restore_service import (
+            RestoreService,
+            reset_restore_service,
+        )
+
+        camera_id = unique_id("r271b_prefix_cam")
+        async with test_db() as session:
+            session.add(
+                Camera(
+                    id=camera_id,
+                    name=f"R271B Prefix Camera {camera_id[-6:]}",
+                    folder_path=f"/export/foscam/{camera_id}",
+                )
+            )
+            await session.flush()
+            event = Event(
+                batch_id=unique_id("r271b_prefix_batch"),
+                camera_id=camera_id,
+                started_at=datetime.now(UTC),
+                risk_score=10,
+            )
+            session.add(event)
+            await session.flush()
+            event_id = event.id
+            await session.commit()
+
+        prefix_row = {
+            "id": str(uuid.uuid4()),
+            "event_id": event_id,
+            "severity": "medium",
+            "status": "pending",
+            "dedup_key": unique_id("r271b_prefix_dedup"),
+            # Exactly what the pre-fix export wrote.
+            "metadata": "MetaData()",
+            "version_id": 1,
+            "is_high_priority": False,
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            alerts_path = tmpdir_path / "alerts.json"
+            alerts_path.write_text(json.dumps([prefix_row]), encoding="utf-8")
+            manifest = BackupManifest(
+                backup_id=unique_id("r271b_prefix_backup"),
+                version=BackupService.BACKUP_FORMAT_VERSION,
+                created_at=datetime.now(UTC),
+                app_version=None,
+                contents={
+                    "alerts": BackupContentInfo(
+                        count=1,
+                        checksum=hashlib.sha256(alerts_path.read_bytes()).hexdigest(),
+                    )
+                },
+            )
+            backup_path = tmpdir_path / "prefix_backup.zip"
+            with zipfile.ZipFile(backup_path, "w") as zf:
+                zf.writestr("manifest.json", json.dumps(manifest.to_dict()))
+                zf.writestr("alerts.json", json.dumps([prefix_row]))
+
+            reset_restore_service()
+            async with test_db() as session:
+                await RestoreService().restore_from_backup(
+                    backup_path, session, unique_id("r271b_prefix_restore")
+                )
+
+        async with test_db() as session:
+            restored = (
+                await session.execute(
+                    select(Alert).where(Alert.dedup_key == prefix_row["dedup_key"])
+                )
+            ).scalar_one()
+            assert restored.alert_metadata is None

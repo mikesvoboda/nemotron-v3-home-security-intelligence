@@ -772,7 +772,7 @@ def test_real_tree_reproduces_tier_a_exactly():
     # empties fails HERE instead of shipping a green blind spot.
     s = report["surfaces"]
     assert s["gateway_routes_matched"] >= 4, s
-    assert s["native_routes_matched"] >= 1, s
+    assert s["native_routes_matched"] == 0, s  # O3.1 pruned ai/yolo26/model.py
     assert s["caller_urls"] >= 3, s
     assert report["registry_ops"] >= 9, report["registry_ops"]
 

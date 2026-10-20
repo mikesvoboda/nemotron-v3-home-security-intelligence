@@ -252,7 +252,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 237    | Phase 2 exits: F2.3 excepts the O2.5 rows; R2b's last round closed (record 6216370633)                      |
 | 238    | package `[r238]`: heavy-a flips F-057's read-back leg after `[r234]` (record 6216702824)                    |
 | 239    | coordinator loop `/loop 30m`; UR-162 raises past 90 minutes, `[r239]` for ops-b (record 6217014151)         |
-| 240    | package `[r240]`: the fake-AI golden leg runs as two shards, ops-b (record 6217450751)                      |
+| 240    | package `[r240]`: two shards; superseded by `[r264]`, retired by ruling 266 (record 6217450751)             |
 | 241    | heavy-a takes `B3.1` with `F3.1` ahead of `B2.3`; Phase 3 blocks gain `**PR:**` (record 6217824144)         |
 | 242    | package `[r242]`: plan_lint checks every roster row again; owner PR, ops-b reviews (record 6221764225)      |
 | 243    | package `[r243]`: prod.yml's engine-socket condition renders on every Compose, ops-a (record 6222454848)    |
@@ -277,6 +277,13 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 262    | package `[r262]`: docs audits the Qwen-era merges' code on main; owner rules each item (record 6257468143)  |
 | 263    | one-off: #7258's merge stands; its auth-path test edits count as mechanical (record 6257521861)             |
 | 264    | package `[r264]`: golden suite in shards on separate stacks; ops-a beside #7231 (record 6257854715)         |
+| 265    | UR-184: the hooks and three Collection Sanity checks run before each push (record 6266412276)               |
+| 266    | one-off: `[r240]` retired, superseded by `[r264]` (record 6266823796)                                       |
+| 267    | packages `[r267a]`, `[r267b]`: audit batch 1's Q-001 and Q-004; lows later (record 6266846674)              |
+| 268    | UR-102: `strict: true` stays; the coordinator updates one PR at a time (record 6270622374)                  |
+| 269    | UR-52 and package `[r269]`: a waiting PR's author may claim the next, at most two (record 6275028285)       |
+| 270    | package `[r270]`: the snapshot's merge legs read for strict mode, ops-b (record 6276943371)                 |
+| 271    | packages `[r271a]`, `[r271b]`, `[r271c]`: audit batch 2's fixes; lows later (record 6277412644)             |
 
 ## Owner records
 
@@ -293,7 +300,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 6126535946                      | one-off (#7029 approved head); amended by 6128195816                                                                                                                                                                                       |
 | 6128195816                      | UR-106, UR-29                                                                                                                                                                                                                              |
 | 6128714278                      | PROGRAMME PAUSE record; supersedes ruling 146's ledger by this rewrite                                                                                                                                                                     |
-| 6135991251                      | UR-102 (merge without update-branch when safe)                                                                                                                                                                                             |
+| 6135991251                      | UR-102 (merge without update-branch when safe; superseded by ruling 268, strict stays on)                                                                                                                                                  |
 | 6146755754                      | `roles/coordinator.md` (each tick runs in a fresh subagent)                                                                                                                                                                                |
 | 6148551105                      | `roles/coordinator.md` (tick reads from a cursor; dispatcher only dispatches)                                                                                                                                                              |
 | owner design session 2026-10-12 | ruling 147. Pass 1: UR-39, UR-40, UR-41, UR-106, UR-29, UR-162, UR-163; corrected lines in UR-45, UR-66, UR-10, UR-121, UR-144. Pass 2: UR-24, UR-52, UR-59, UR-63, UR-25, UR-166, UR-168, UR-98, UR-125, UR-126, UR-151; package `[r147]` |

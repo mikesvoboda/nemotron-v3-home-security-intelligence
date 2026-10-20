@@ -34,7 +34,7 @@ A ruling binds as UR-39 and UR-40 say. Treat every ruling as settled (UR-44).
 - **Never wait inside a turn** (UR-38).
 - **Commit and push only when the owner asks.** Commit as
   `git -c user.name="Mike Svoboda" -c user.email=mikesvoboda@users.noreply.github.com`. Never bypass hooks (UR-69: no
-  `--no-verify`, no `SKIP=`).
+  `--no-verify`, no `SKIP=` beyond UR-184's), and run UR-184's checks before each push.
 - **Agents' sandboxes are theirs** (UR-163, UR-170; `docs/synthbench/operator-runbook.md`).
 - **`agent-dgx`** (UR-26, UR-28).
 - **Real tier** (UR-133, UR-137).
@@ -158,8 +158,8 @@ Check for these first; each has happened.
   comment unedited for hours, reported a merge before it happened, and overwritten its own heartbeat marker. Correct it
   with a ruling that names the rule in `rules.md` or the step in `roles/coordinator.md`.
 - **Status rows lag.** PRs often omit their row edit. The status comment lists rows owed (UR-166); an owner PR sets them.
-- **Two PRs updated onto the same `main` race.** The first to go green merges and the other needs another
-  update-branch and CI run. It costs CI minutes, not wall time.
+- **One update at a time.** With `strict: true`, two PRs updated onto the same `main` race, and the loser
+  needs another update and CI run; so the coordinator updates only the queue's head (UR-102, ruling 268).
 
 ## Facts that are hard to find
 

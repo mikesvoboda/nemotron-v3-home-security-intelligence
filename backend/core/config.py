@@ -101,7 +101,7 @@ class OrchestratorSettings(BaseSettings):
 
     This settings model configures the container orchestrator service that provides
     health monitoring and self-healing capabilities for the managed containers
-    (ai-gateway, ai-llm (Nemotron), ai-llm-vllm, plus infrastructure and monitoring).
+    (ai-gateway, plus infrastructure and monitoring).
 
     Environment variables use the ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED).
     """
@@ -208,23 +208,21 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # AI services — live set per docker-compose.prod.yml: ai-gateway (serves the
-    # retired standalone YOLO26/Florence/CLIP/Enrichment models), ai-llm and
-    # ai-llm-vllm (behind the optional "vllm" compose profile).
+    # retired standalone YOLO26/Florence/CLIP/Enrichment models).
+    # R8 S2 deleted ai-llm (Nemotron) and its nemotron_port field;
+    # O3.1 (OD-17, owner ruling 89) deleted ai-llm-vllm, its vllm compose
+    # profile, its container_discovery.py ServiceConfig entry, and the
+    # vllm_port / VLLM_PORT setting that fed it.
+    #
+    # Note: container_orchestrator.py RETIRED_LLM_SERVICES still lists both
+    # 'ai-llm' and 'ai-llm-vllm' so a stale container on an upgraded host is
+    # never adopted by the orchestrator.
     ai_gateway_port: int = Field(
         8090,
         ge=1,
         le=65535,
         validation_alias="AI_GATEWAY_PORT",
         description="AI Gateway container service port for health checks.",
-    )
-    vllm_port: int = Field(
-        8097,
-        ge=1,
-        le=65535,
-        validation_alias="VLLM_PORT",
-        description="ai-llm-vllm host-mapped port for health checks "
-        "(compose maps VLLM_PORT -> container port 8000; table convention is "
-        "the .env host port, matching grafana's 3002-over-3000 precedent).",
     )
 
     # Monitoring services
@@ -1284,25 +1282,24 @@ class Settings(BaseSettings):
         "sized file - the ordinary consequence of a video batch reaching the frame "
         "path, which the client now refuses by TYPE before it reaches this.",
     )
-    # Provenance ids written to event_verifications rows (P0.4's engine/
-    # model_id columns are NOT NULL). The repo has no served-model-id setting
-    # - the endpoint's own name is only visible in error text - so the
-    # shipped default is the canonical .env.example model identity and the
-    # deployment can override it when a different GGUF is served.
+    # Provenance ids written to event_verifications rows (P0.4's NOT NULL
+    # engine/model_id columns). O3.3: models.yml is the single source for the
+    # shipped VLM GGUF identity; vlm_model_id derives its default from it.
     nemotron_verification_engine: str = Field(
         default="llama.cpp",
         description="P0.3/P0.4: engine label written to event_verifications.engine.",
     )
     vlm_model_id: str = Field(
-        default="Qwen3VL-8B-Instruct-Q4_K_M",
-        description="Phase 1.3: degraded-path model label for "
-        "event_verifications.model_id in vlm mode (a failed call has no "
-        "verdict to read the engine's own id from, and the column is NOT "
-        "NULL). Matches the 1.2 shipped VLM_MODEL_PATH GGUF identity (rev 7 "
-        "moved that identity to the 8B pair; the two must still move "
-        "together — override both when serving a different quant). Pinned "
-        "against .env.example and the compose defaults by "
-        "test_ai_vlm_compose_service.TestShippedServingIdentity.",
+        default=next(
+            Path(str(r["runtime_file"])).stem
+            for r in __import__("yaml").safe_load(
+                (Path(__file__).resolve().parents[2] / "models.yml").read_text(encoding="utf-8")
+            )["models"]
+            if r.get("service") == "ai-vlm"
+            and not str(r.get("runtime_file", "")).startswith("mmproj-")
+        ),
+        description="Phase 1.3: degraded-path model label for event_verifications.model_id "
+        "in vlm mode, derived from models.yml's primary ai-vlm GGUF row (O3.3).",
     )
 
     # AI service concurrency settings (NEM-1463)
@@ -3164,3 +3161,19 @@ def get_settings() -> Settings:
     # `_env_file` is evaluated at call time (unlike `model_config.env_file`, which is bound at
     # import time). This lets tests and deployments override runtime config cleanly.
     return Settings(_env_file=(".env", runtime_env_path))
+
+
+def _default_vlm_model_id() -> str:
+    """Return the shipped VLM GGUF stem from models.yml (O3.3 single source)."""
+    import yaml
+
+    models_yml = Path(__file__).resolve().parents[2] / "models.yml"
+    for row in yaml.safe_load(models_yml.read_text(encoding="utf-8"))["models"]:
+        runtime_file = str(row.get("runtime_file") or "")
+        if (
+            row.get("service") == "ai-vlm"
+            and runtime_file
+            and not runtime_file.startswith("mmproj-")
+        ):
+            return Path(runtime_file).stem
+    raise RuntimeError(f"No primary ai-vlm GGUF row found in {models_yml}")

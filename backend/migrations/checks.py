@@ -83,6 +83,8 @@ def column_present(table: str, column: str) -> Check:
     """
 
     async def check(conn: AsyncConnection) -> bool:
+        if await _count(conn, _ANY_TABLE_QUERY, table=table) == 0:
+            return True
         return await _count(conn, _ANY_COLUMN_QUERY, table=table, column=column) > 0
 
     return check
@@ -194,6 +196,8 @@ CHECKS: dict[str, Check] = {
     "0005-add-unrecorded-model-columns": all_present(
         [column_present(table, column) for table, column in _UNRECORDED_MODEL_COLUMNS]
     ),
+    "0006-retire-user-calibration-table": table_absent("user_calibration"),
+    "0007-retire-action-events-table": table_absent("action_events"),
 }
 
 

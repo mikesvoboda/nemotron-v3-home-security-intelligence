@@ -9,7 +9,7 @@ Endpoints tested:
     GET    /api/feedback/{id}         - Get specific feedback
     GET    /api/feedback/event/{id}   - Get feedback for specific event
     DELETE /api/feedback/{id}         - Delete feedback
-    GET    /api/feedback/stats        - Get aggregate statistics
+
 """
 
 import uuid
@@ -423,86 +423,6 @@ async def test_get_after_delete_fails(client):
     assert response.status_code == 404
 
 
-# === STATS Tests ===
-
-
-@pytest.mark.asyncio
-async def test_get_feedback_stats_success(client):
-    """Test getting feedback statistics."""
-    # Create feedback with different types
-    _, event1 = await create_test_camera_and_event(client)
-    _, event2 = await create_test_camera_and_event(client)
-    _, event3 = await create_test_camera_and_event(client)
-
-    await create_test_feedback(client, event1["id"], feedback_type="false_positive")
-    await create_test_feedback(client, event2["id"], feedback_type="false_positive")
-    await create_test_feedback(client, event3["id"], feedback_type="missed_threat")
-
-    response = await client.get("/api/feedback/stats")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert "total_feedback" in data
-    assert "by_type" in data
-    assert "by_camera" in data
-    assert data["total_feedback"] >= 3
-    assert isinstance(data["by_type"], dict)
-    assert isinstance(data["by_camera"], dict)
-
-
-@pytest.mark.asyncio
-async def test_get_feedback_stats_by_type_aggregation(client):
-    """Test that stats correctly aggregate by feedback type."""
-    # Create 2 false_positive and 1 missed_threat
-    for _ in range(2):
-        _, event = await create_test_camera_and_event(client)
-        await create_test_feedback(client, event["id"], feedback_type="false_positive")
-
-    _, event = await create_test_camera_and_event(client)
-    await create_test_feedback(client, event["id"], feedback_type="missed_threat")
-
-    response = await client.get("/api/feedback/stats")
-
-    assert response.status_code == 200
-    data = response.json()
-
-    # Verify aggregation by type (type key format depends on enum serialization)
-    assert len(data["by_type"]) >= 2
-
-
-@pytest.mark.asyncio
-async def test_get_feedback_stats_by_camera_aggregation(client):
-    """Test that stats correctly aggregate by camera."""
-    # Create feedback for camera1
-    camera1, event1 = await create_test_camera_and_event(client)
-    await create_test_feedback(client, event1["id"])
-
-    # Create feedback for camera2 (multiple events)
-    camera2, event2 = await create_test_camera_and_event(client)
-    await create_test_feedback(client, event2["id"])
-
-    response = await client.get("/api/feedback/stats")
-
-    assert response.status_code == 200
-    data = response.json()
-
-    # Verify aggregation by camera
-    assert camera1["id"] in data["by_camera"]
-    assert camera2["id"] in data["by_camera"]
-
-
-@pytest.mark.asyncio
-async def test_get_feedback_stats_empty(client):
-    """Test getting stats when no feedback exists."""
-    response = await client.get("/api/feedback/stats")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["total_feedback"] == 0
-    assert data["by_type"] == {}
-    assert data["by_camera"] == {}
-
-
 # === Response Schema Validation Tests ===
 
 
@@ -548,20 +468,3 @@ async def test_feedback_list_response_schema(client):
     assert isinstance(data["pagination"]["limit"], int)
     assert isinstance(data["pagination"]["offset"], int)
     assert "has_more" in data["pagination"]
-
-
-@pytest.mark.asyncio
-async def test_feedback_stats_response_schema(client):
-    """Test that stats response includes all required fields."""
-    response = await client.get("/api/feedback/stats")
-
-    assert response.status_code == 200
-    data = response.json()
-
-    # Verify all required fields
-    assert "total_feedback" in data
-    assert "by_type" in data
-    assert "by_camera" in data
-    assert isinstance(data["total_feedback"], int)
-    assert isinstance(data["by_type"], dict)
-    assert isinstance(data["by_camera"], dict)

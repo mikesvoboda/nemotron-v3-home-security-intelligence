@@ -203,7 +203,6 @@ defined inside `model_zoo.py` itself.
 | `clip_generator.py` | Video clip generation for events                        | Yes                        |
 | `token_counter.py`  | LLM prompt token counting and context window validation | No (import directly)       |
 | `batch_fetch.py`    | Batch fetch detections (avoid N+1)                      | No (import directly)       |
-| `cost_tracker.py`   | LLM inference cost tracking and budget controls         | Yes                        |
 
 ### Data Management Services
 
@@ -260,12 +259,6 @@ defined inside `model_zoo.py` itself.
 | `job_history_service.py`   | Job execution history retrieval                | No (import directly)       |
 | `job_search_service.py`    | Job search and filtering                       | No (import directly)       |
 | `job_progress_reporter.py` | WebSocket job progress emission (NEM-2380)     | No (import directly)       |
-
-### Calibration Services
-
-| Service                  | Purpose                                     | Exported via `__init__.py` |
-| ------------------------ | ------------------------------------------- | -------------------------- |
-| `calibration_service.py` | Adaptive threshold adjustment from feedback | No (import directly)       |
 
 ### Queue Status Services
 
@@ -491,22 +484,21 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 
 **Runtime surface (the rows `models.yml` ships today):**
 
-| Model name               | Loader bound in `_LOADER_MAP`                          | zoo-enabled | preload | VRAM (MB) | Purpose                                                  |
-| ------------------------ | ------------------------------------------------------ | ----------- | ------- | --------- | -------------------------------------------------------- |
-| yolo26                   | — (loaded by the serving container, not in-process)    | false       | false   | 0         | Primary object detection — the backend calls it via HTTP |
-| osnet-ain-x1-0           | `osnet_loader.load_osnet_model`                        | true        | true    | 100       | Person re-ID embeddings (512-d, OSNet-AIN)               |
-| face-detector-scrfd      | `face_recognizer_loader.load_face_detector`            | true        | true    | 0         | SCRFD face detection (CPU onnxruntime, sha256-pinned)    |
-| face-recognizer          | `face_recognizer_loader.load_face_recognizer`          | true        | true    | 0         | ArcFace face embedding (CPU onnxruntime, sha256-pinned)  |
-| threat-detection-yolov8n | — (`service: both`, the gateway `threat` Triton model) | true        | false   | 300       | Threat/weapon detection                                  |
-| yolo11-face              | `load_yolo_model`                                      | true        | false   | 200       | Face detection (DB-lookup leg)                           |
-| yolo11-license-plate     | `load_yolo_model`                                      | true        | false   | 300       | License plate detection (DB-lookup leg)                  |
-| fast-alpr                | `fast_alpr_loader.load_fast_alpr`                      | true        | false   | 28        | End-to-end plate detection + OCR                         |
-| paddleocr                | `load_paddle_ocr`                                      | true        | false   | 100       | Text extraction from plates                              |
-| yolo26-general           | `load_yolo_model`                                      | false       | false   | 400       | General detection variant, disabled                      |
+| Model name                  | Loader bound in `_LOADER_MAP`                                | zoo-enabled | preload | VRAM (MB) | Purpose                                                       |
+| --------------------------- | ------------------------------------------------------------ | ----------- | ------- | --------- | ------------------------------------------------------------- |
+| yolo26                      | — (`service: ai-gateway`, the gateway `yolo26` Triton model) | true        | false   | 100       | Primary object detection — the backend calls it via HTTP      |
+| qwen3-vl-8b-instruct        | — (`service: ai-vlm`, Q4_K_M GGUF, sha256-pinned)            | true        | false   | 5000      | Primary vision-language verdict model (`ai-vlm` llama-server) |
+| qwen3-vl-8b-instruct-mmproj | — (`service: ai-vlm`, Q8_0 mmproj GGUF, sha256-pinned)       | true        | false   | 717       | Multimodal projector paired with `qwen3-vl-8b-instruct`       |
+| osnet-ain-x1-0              | `osnet_loader.load_osnet_model`                              | true        | true    | 100       | Person re-ID embeddings (512-d, OSNet-AIN)                    |
+| face-detector-scrfd         | `face_recognizer_loader.load_face_detector`                  | true        | true    | 0         | SCRFD face detection (CPU onnxruntime, sha256-pinned)         |
+| face-recognizer             | `face_recognizer_loader.load_face_recognizer`                | true        | true    | 0         | ArcFace face embedding (CPU onnxruntime, sha256-pinned)       |
+| threat-detection-yolov8n    | — (`service: ai-gateway`, the gateway `threat` Triton model) | true        | false   | 300       | Threat/weapon detection                                       |
+| fast-alpr                   | `fast_alpr_loader.load_fast_alpr`                            | true        | false   | 28        | End-to-end plate detection + OCR                              |
 
-`_LOADER_MAP` also still binds `yolov8n-pose` to `load_yolo_model`; that row
-left `models.yml` in R8 S3, so the binding is unreachable — a name with no
-row never reaches the zoo.
+O3.3 deleted `yolo11-face`, `yolo11-license-plate`, `paddleocr`, and
+`yolo26-general` from `models.yml`; `_LOADER_MAP` still binds those names plus
+`yolov8n-pose` to `load_yolo_model`/`load_paddle_ocr`, but a name with no
+`models.yml` row never reaches the zoo.
 
 **VRAM budget:**
 
@@ -2458,63 +2450,6 @@ is_quiet = filter_service.is_quiet_period(
 )
 ```
 
-### cost_tracker.py
-
-**Purpose:** LLM inference cost tracking and budget controls.
-
-**Key Features:**
-
-- Token usage tracking per LLM request (input/output)
-- GPU-time tracking per model inference
-- Cost estimation based on cloud equivalents
-- Daily/monthly budget limits with alerts
-- Prometheus metrics for monitoring
-- Redis persistence for usage records
-
-**Cloud Pricing Models:**
-
-- AWS GPU instances (p4d, p3, g5)
-- GCP GPU instances (a2, n1)
-- Azure GPU instances (NC, ND)
-
-**Public API:**
-
-```python
-from backend.services.cost_tracker import (
-    CostTracker,
-    CostModel,
-    get_cost_tracker,
-    reset_cost_tracker,
-)
-
-tracker = get_cost_tracker()
-
-# Track LLM usage
-tracker.track_llm_usage(
-    input_tokens=1500,
-    output_tokens=500,
-    model="nemotron",
-    duration_seconds=2.5,
-    camera_id="front_door",
-)
-
-# Track detection model usage
-tracker.track_detection_usage(
-    model="yolo26",
-    duration_seconds=0.15,
-    images_processed=1,
-)
-
-# Check budget status
-status = await tracker.get_budget_status()
-if status.daily_exceeded:
-    logger.warning("Daily budget exceeded!")
-
-# Get usage summary
-daily = await tracker.get_daily_usage()
-monthly = await tracker.get_monthly_usage()
-```
-
 ### audit_logger.py
 
 **Purpose:** High-level security audit logging interface for common security events.
@@ -2906,7 +2841,6 @@ from backend.services import (
     ManagedService,
     ServiceConfig,
     ServiceRegistry,
-    CostTracker,
 )
 
 # For context enrichment (import directly)
@@ -2969,7 +2903,6 @@ from backend.services.token_counter import get_token_counter, count_prompt_token
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_detections_by_ids
 from backend.services.prompt_parser import apply_suggestion_to_prompt
 from backend.services.inference_semaphore import get_inference_semaphore
-from backend.services.cost_tracker import get_cost_tracker
 from backend.services.audit_logger import audit_logger
 ```
 
@@ -2996,7 +2929,6 @@ Most services provide `reset_*()` functions for test isolation:
 - `reset_token_counter()`, `reset_clip_generator()`
 - `reset_inference_semaphore()`
 - `reset_ai_fallback_service()`, `reset_service_registry()`
-- `reset_cost_tracker()`
 
 ### Integration Test Patterns
 

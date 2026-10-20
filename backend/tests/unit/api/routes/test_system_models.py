@@ -637,9 +637,9 @@ class TestModelZooStatusEndpoint:
         """
         # Mock ModelManager with a loaded model (this endpoint uses OLD ModelManager)
         mock_manager = MagicMock()
-        mock_manager.loaded_models = ["yolo11-license-plate"]
-        mock_manager.total_loaded_vram = 300
-        mock_manager._load_counts = {"yolo11-license-plate": 1}
+        mock_manager.loaded_models = ["osnet-ain-x1-0"]
+        mock_manager.total_loaded_vram = 100
+        mock_manager._load_counts = {"osnet-ain-x1-0": 1}
 
         with patch(
             "backend.api.routes.system.get_model_manager",
@@ -655,7 +655,7 @@ class TestModelZooStatusEndpoint:
         # Find the loaded model
         loaded_model = None
         for model in data["models"]:
-            if model["name"] == "yolo11-license-plate":
+            if model["name"] == "osnet-ain-x1-0":
                 loaded_model = model
                 break
 
@@ -747,14 +747,14 @@ class TestModelZooLatencyHistoryEndpoint:
         async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
-                params={"model": "yolo11-license-plate"},
+                params={"model": "osnet-ain-x1-0"},
             )
 
         assert response.status_code == 200
         data = response.json()
 
         # Verify response structure
-        assert data["model_name"] == "yolo11-license-plate"
+        assert data["model_name"] == "osnet-ain-x1-0"
         assert "display_name" in data
         assert "snapshots" in data
         assert "window_minutes" in data
@@ -783,7 +783,7 @@ class TestModelZooLatencyHistoryEndpoint:
         async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
-                params={"model": "yolo11-license-plate", "since": 30},
+                params={"model": "osnet-ain-x1-0", "since": 30},
             )
 
         assert response.status_code == 200
@@ -796,7 +796,7 @@ class TestModelZooLatencyHistoryEndpoint:
         async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
-                params={"model": "yolo11-license-plate", "bucket_seconds": 120},
+                params={"model": "osnet-ain-x1-0", "bucket_seconds": 120},
             )
 
         assert response.status_code == 200
@@ -810,9 +810,9 @@ class TestModelZooLatencyHistoryEndpoint:
 
         # Create a tracker with some data
         mock_tracker = ModelLatencyTracker(max_samples=100)
-        mock_tracker.record_model_latency("yolo11-license-plate", 45.0)
-        mock_tracker.record_model_latency("yolo11-license-plate", 50.0)
-        mock_tracker.record_model_latency("yolo11-license-plate", 55.0)
+        mock_tracker.record_model_latency("osnet-ain-x1-0", 45.0)
+        mock_tracker.record_model_latency("osnet-ain-x1-0", 50.0)
+        mock_tracker.record_model_latency("osnet-ain-x1-0", 55.0)
 
         with patch(
             "backend.core.metrics.get_model_latency_tracker",
@@ -822,7 +822,7 @@ class TestModelZooLatencyHistoryEndpoint:
             async with authenticated_async_client() as client:
                 response = await client.get(
                     "/api/system/model-zoo/latency/history",
-                    params={"model": "yolo11-license-plate"},
+                    params={"model": "osnet-ain-x1-0"},
                 )
 
         assert response.status_code == 200
@@ -861,7 +861,7 @@ class TestModelZooLatencyHistoryEndpoint:
             async with authenticated_async_client() as client:
                 response = await client.get(
                     "/api/system/model-zoo/latency/history",
-                    params={"model": "yolo11-license-plate"},
+                    params={"model": "osnet-ain-x1-0"},
                 )
 
         assert response.status_code == 200

@@ -10,18 +10,13 @@ runs in production (`docker-compose.prod.yml` builds exactly two AI images):
 | `ai-vlm`        | 8098 (container)     | The `ai-vlm` llama.cpp engine (VlmAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). In the default compose set (since UR-18); build context `vlm/` |
 | `ai-gateway`    | 8090 (+8002 metrics) | FastAPI facade over Triton in one container; after the R8 S3 prune (2026-09-29) it serves ONLY `/yolo26` + `/enrich-lt` through Triton (`ai/gateway/AGENTS.md`)                                                |
 
-A third AI service, `ai-llm-vllm` (vLLM, host port 8097, `--profile vllm`),
-is NEM-5441's benchmarking harness — not shipped serving, and the orchestrator
-refuses to manage it (`RETIRED_LLM_SERVICES`).
+O3.1 (ruling 210, OD-17 / ruling 89) removed `ai-llm-vllm` and pruned non-shipping
+Python modules under `ai/`, leaving:
 
-The remaining capability modules are development/debugging code, not shipped
-serving:
-
-1. **YOLO26** (`yolo26/`) - pure-leaf detection contract + host-run dev server
-   (`start_detector.sh`; `model.py` falls back to `PORT=8095`)
-2. **Triton client + model repository** (`triton/`, NEM-3769) - the standalone
-   gRPC client, plus the model repository Triton runs inside the ai-gateway
-   container (residency-pruned to `yolo26` + `reid` + optional `threat`)
+1. **YOLO26 engine builder** (`yolo26/build_engine.py`) - TensorRT engine builder
+   invoked by `scripts/prebuild-tensorrt-engines.sh`
+2. **Triton model repository** (`triton/model_repository/`) - model configs
+   Triton runs inside the ai-gateway container (`yolo26`, `reid`, `threat`)
 
 The backend reaches AI through HTTP clients in `backend/services/`:
 `detector_client.py` and `vlm_client.py`. With `USE_AI_GATEWAY=true` +
@@ -37,45 +32,21 @@ are gone (R8 S2/S3, 2026-09-29).
 ai/
 ├── AGENTS.md              # This file
 ├── __init__.py            # Package init
-├── cuda_streams.py        # CUDA streams for parallel preprocessing (NEM-3770)
-├── compile_utils.py       # torch.compile() utilities (NEM-3773)
-├── batch_utils.py         # Batch processing utilities (NEM-3377)
-├── torch_optimizations.py # General PyTorch optimization utilities
-├── cuda_graph_manager.py  # CUDA graph management
-├── flash_attention_config.py # FlashAttention configuration
-├── gpu_memory_pool.py     # GPU memory pool management
-├── hub_cache_config.py    # HuggingFace hub cache configuration
-├── quantization_config.py # Quantization configuration
-├── static_kv_cache.py     # Static KV cache for inference
-├── warmup_utils.py        # Model warmup utilities
-├── shared/                # Shared utilities (gpu_profiler.py) - see shared/AGENTS.md
-├── common/                # Shared TensorRT optimization infrastructure (NEM-3838)
-│   ├── AGENTS.md          # TensorRT infrastructure documentation
-│   ├── __init__.py        # Package exports
-│   ├── tensorrt_utils.py  # ONNX-to-TensorRT conversion, engine management
-│   ├── tensorrt_inference.py  # Base classes for TensorRT-accelerated models
-│   └── tests/             # Unit tests
-│       └── __init__.py    # Package init
+├── conftest.py            # Pytest configuration for the ai/ tier
 ├── vlm/                   # ai-vlm compose build context (llama.cpp llama-server + CUDA;
 │                          #   container port 8098 — the shipped verdict engine)
-├── yolo26/                # Pure-leaf contract for backend prompts + host-run dev server
-│                          #   (GPU image retired 2026-09-23; prod: Triton /yolo26 via ai-gateway
-│                          #    - see yolo26/AGENTS.md)
+├── yolo26/                # YOLO26 TensorRT engine builder (build_engine.py)
 ├── gateway/               # AI Gateway: FastAPI facade over Triton (port 8090)
 │   ├── AGENTS.md          # Gateway documentation
 │   ├── main.py            # Routers for yolo26 + enrich-lt only (R8 S3 prune, 2026-09-29)
 │   ├── residency.py       # GATEWAY_MODEL_SET pruning (raises on unset/unknown; `full` gone)
 │   ├── adapters/          # REST-to-gRPC adapter modules (yolo26.py, enrichment_light.py)
-│   ├── export/            # ONNX/TensorRT model export pipeline
+│   ├── export/            # ONNX/TensorRT model export pipeline (yolo26, reid, threat)
 │   └── tests/             # Gateway unit tests (mocked Triton)
-                          #   (clip/, florence/, enrichment/ and enrichment-light/ were
-                          #    deleted with their gateway routers - R8 S3, 2026-09-29)
-├── triton/                # Triton client + model repository (NEM-3769)
-├── tests/                 # AI-level optimization tests (cuda streams, etc.)
+├── triton/                # Triton model repository (yolo26, reid, threat)
+├── tests/                 # Module-hygiene probes (test_module_hygiene.py)
 ├── download_models.sh     # Download AI models
-└── start_detector.sh      # HOST-RUN YOLO26 dev stand-in (YOLO26_PORT, default 8090; the GPU image was retired 2026-09-23 — prod serves via ai-gateway)
-                           #   (start_llm.sh/start_nemotron.sh were deleted with the
-                           #    retired LLM path - R8 S2, 2026-09-29)
+└── start_detector.sh      # Legacy host-run launcher script
 ```
 
 ## Model Zoo Overview
@@ -92,23 +63,16 @@ that zoo re-perceived what the shipped VLM already sees from the same key
 frames, so what is left is lookups against stores the pixels cannot reach —
 plates, faces, registered-person embeddings.
 
-### Available Models (8 registry entries, 7 enabled)
+### Available Models (4 backend registry entries, 4 enabled; 8 total `models.yml` rows)
 
-| Model                  | VRAM   | Priority | Category  | Notes                      |
-| ---------------------- | ------ | -------- | --------- | -------------------------- |
-| `osnet-ain-x1-0`       | 100 MB | medium   | embedding | `preload: true`            |
-| `face-detector-scrfd`  | 0 MB   | low      | detection | `preload: true`            |
-| `face-recognizer`      | 0 MB   | low      | embedding | `preload: true`            |
-| `yolo11-face`          | 200 MB | medium   | detection | on person crops            |
-| `yolo11-license-plate` | 300 MB | medium   | detection | on vehicle crops           |
-| `fast-alpr`            | 28 MB  | medium   | alpr      | plate detect + OCR         |
-| `paddleocr`            | 100 MB | medium   | ocr       | superseded by `fast-alpr`  |
-| `yolo26-general`       | 400 MB | medium   | detection | `enabled: false` (TBD row) |
+| Model                 | VRAM   | Priority | Category  | Notes              |
+| --------------------- | ------ | -------- | --------- | ------------------ |
+| `osnet-ain-x1-0`      | 100 MB | medium   | embedding | `preload: true`    |
+| `face-detector-scrfd` | 0 MB   | low      | detection | `preload: true`    |
+| `face-recognizer`     | 0 MB   | low      | embedding | `preload: true`    |
+| `fast-alpr`           | 28 MB  | medium   | alpr      | plate detect + OCR |
 
-Two `models.yml` rows are NOT zoo entries: `yolo26` (no `_LOADER_MAP` entry —
-it is Triton `yolo26` behind the gateway `/yolo26` router) and
-`threat-detection-yolov8n` (no `_LOADER_MAP` entry — Triton `threat`, reached
-over `/enrich-lt/threat-detect` when `GATEWAY_ENABLE_THREAT=true`).
+Four `models.yml` rows are NOT backend in-process zoo entries: `yolo26` (`service: ai-gateway` — Triton `yolo26` behind the gateway `/yolo26` router), `threat-detection-yolov8n` (`service: ai-gateway` — Triton `threat`, reached over `/enrich-lt/threat-detect` when `GATEWAY_ENABLE_THREAT=true`), and the shipped VLM pair `qwen3-vl-8b-instruct` + `qwen3-vl-8b-instruct-mmproj` (`service: ai-vlm`). O3.3 deleted the four dead backend rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`, `yolo26-general`).
 
 The X-CLIP `action_recognizer` slot was retired with the NEM-5563 move to Triton
 `stgcn_action`, and the whole action chain went next: there is no
@@ -254,8 +218,8 @@ env:
 
 Residency: see `.env.example` / the bring-up record — no measured 24 GB-class
 figure exists yet. `LLM_MODEL_PATH` no longer appears in `docker-compose.prod.yml`
-at all (the `ai-llm` service was deleted in R8 S2; `.env.example` still declares
-`LLM_PORT=8091`, which nothing in compose reads now). `.env.example` also still
+at all (the `ai-llm` service was deleted in R8 S2, and `LLM_PORT` was removed
+from `.env.example` in O3.3). `.env.example` also still
 carries `CTX_SIZE=262144` / `PARALLEL=8`; those feed only `config.py`'s
 `nemotron_context_window` slot-derivation (the shipped engine's own budget is
 `vlm_context_window` from `VLM_CTX_SIZE // VLM_PARALLEL`), not a running server.
@@ -293,29 +257,19 @@ that still writes `VRAM_BUDGET_GB` into a generated override for the deleted
 `ai-enrichment` service. (The archive copies UR-19 deleted are recoverable from
 git history.) The two survivors worth knowing:
 
-| Variable                 | Where it lives                                                     |
-| ------------------------ | ------------------------------------------------------------------ |
-| `CLOTHING_MODEL_PATH`    | read by `ai/gateway/export/export_fashion_clip.py` only            |
-| `YOLO26_POSE_MODEL_PATH` | read by `ai/yolo26/pose_estimation.py` (default `yolo11n-pose.pt`) |
-
-Model paths for the surviving zoo are `models.yml` `local_path` rows resolved
-against `MODEL_ZOO_PATH` (default `/models/model-zoo`); the Triton side is
-`ai/triton/model_repository/` (pruned to `yolo26`, `reid`, `threat`).
+O3.1 (ruling 210) also pruned the uncalled export scripts and host-run YOLO26
+server modules, so model paths for the surviving zoo are `models.yml`
+`local_path` rows resolved against `MODEL_ZOO_PATH` (default `/models/model-zoo`);
+the Triton side is `ai/triton/model_repository/` (pruned to `yolo26`, `reid`,
+`threat`).
 
 ## Security-Relevant Classes
 
-The host-run native server filters detections to these nine classes
-(`ai/yolo26/model.py`):
-
-```python
-SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
-```
-
-The DEPLOYED path does not: the gateway's Triton adapter returns all 80 COCO
-names unfiltered (`ai/gateway/adapters/yolo26.py`), so this filter is a property
-of the dev stand-in only. `backend/ai_contract/fake/app.py` keeps both tables as
-data — its default profile is `gateway` (unfiltered) and the `security` profile
-switches to the nine.
+The deployed gateway Triton adapter returns all 80 COCO names unfiltered
+(`ai/gateway/adapters/yolo26.py`). `backend/ai_contract/fake/app.py` keeps both
+tables as data — its default profile is `gateway` (unfiltered) and the
+`security` profile switches to the nine security classes (`person`, `car`,
+`truck`, `dog`, `cat`, `bird`, `bicycle`, `motorcycle`, `bus`).
 
 ## Risk Scoring
 
@@ -441,14 +395,13 @@ Two scripts exist: `download_models.sh` and `start_detector.sh`.
 The script fetches the **models.yml download set** — the rows
 `setup_lib/models_config.py::get_downloadable_models` selects
 (`download_method != skip AND (hf_repo OR download_method)`) — which on the
-current 10-row `models.yml` is **5 entries / 763 MB by `size_mb`**: `yolo26`,
-`osnet-ain-x1-0`, `threat-detection-yolov8n`, `yolo11-face`,
-`yolo11-license-plate`. The 5 `download_method: skip` rows
-(`face-detector-scrfd`, `face-recognizer`, `fast-alpr`, `paddleocr`,
-`yolo26-general`) are fetched by their libraries at runtime. The "25 of 30
-entries / 32.79 GiB" figures this file used to quote described the pre-R8
-catalogue: those rows left `models.yml` in R8 S2/S3 (2026-09-29) and the fetch
-list went with them. The pair is pinned by
+current 8-row `models.yml` is **3 entries / 102 MB by `size_mb`**: `yolo26`,
+`osnet-ain-x1-0`, and `threat-detection-yolov8n`. The 5 `download_method: skip`
+rows (`qwen3-vl-8b-instruct`, `qwen3-vl-8b-instruct-mmproj`,
+`face-detector-scrfd`, `face-recognizer`, `fast-alpr`) are operator-mounted or
+fetched by their libraries at runtime. O3.3 deleted `yolo11-face`,
+`yolo11-license-plate`, `paddleocr`, and `yolo26-general` from `models.yml`.
+The pair is pinned by
 `backend/tests/unit/setup_lib/test_download_models_script_vlm_retirement.py`,
 which re-derives the rule and asserts the script's fetch list against it.
 
@@ -457,127 +410,15 @@ The shipped VLM weights are deliberately NOT provisioned here (`grep -c -i qwen`
 `VLM_MMPROJ_PATH` are read from `${AI_MODELS_PATH}/vlm`, which compose mounts
 read-only into ai-vlm at `/models`.
 
-`enabled` in models.yml governs backend model_zoo VRAM slots, NOT disk
-provisioning. The two `enabled: false` rows today are `yolo26` (n/s/m `.pt` from
-ultralytics/assets — `ai/gateway/export/` `export_yolo26.py` +
-`scripts/prebuild-tensorrt-engines.sh` need `model-zoo/yolo26/yolo26m.pt` on
-disk) and `yolo26-general` (a `_LOADER_MAP` row, so it is a zoo entry, but
-disabled and `download_method: skip`).
-
 ### `start_detector.sh`
 
 Runs YOLO26 server (`python model.py`) on port 8090 by default: the script sets `PORT` from `YOLO26_PORT:-8090`, so it matches the gateway's port for a host-run stand-in; `model.py` itself falls back to `PORT=8095` when the script does not set it.
 
-## CUDA Streams for Parallel Preprocessing (NEM-3770)
-
-The `cuda_streams.py` module provides CUDA stream management for overlapping preprocessing, inference, and postprocessing operations. This can provide 20-40% throughput improvement for batch processing workloads.
-
-### Key Components
-
-| Component                   | Purpose                                        |
-| --------------------------- | ---------------------------------------------- |
-| `CUDAStreamPool`            | Manages a pool of CUDA streams                 |
-| `StreamedInferencePipeline` | Three-stage pipeline with overlapped execution |
-| `StreamConfig`              | Configuration for stream management            |
-| `PipelineStats`             | Statistics from pipeline execution             |
-
-### Environment Variables
-
-| Variable                 | Default | Description                          |
-| ------------------------ | ------- | ------------------------------------ |
-| `CUDA_STREAMS_ENABLED`   | `true`  | Enable/disable CUDA streams          |
-| `CUDA_STREAMS_POOL_SIZE` | `3`     | Number of streams in the pool        |
-| `CUDA_STREAMS_PRIORITY`  | `0`     | Stream priority (-1=high, 0=default) |
-
-### Usage Example
-
-```python
-from cuda_streams import CUDAStreamPool, StreamedInferencePipeline
-
-# Simple stream pool usage
-pool = CUDAStreamPool(num_streams=3)
-with pool.get_stream() as stream:
-    with torch.cuda.stream(stream):
-        tensor = preprocess(image)
-
-
-# Full pipeline with overlapped execution
-def preprocess(images):
-    return processor(images, return_tensors="pt").to("cuda")
-
-
-def postprocess(outputs, inputs):
-    return outputs.logits.argmax(dim=-1).tolist()
-
-
-pipeline = StreamedInferencePipeline(
-    model=model,
-    preprocess_fn=preprocess,
-    postprocess_fn=postprocess,
-    batch_size=8,
-)
-results, stats = pipeline.process_batch(images, return_stats=True)
-print(f"Throughput: {stats.throughput_items_per_sec:.1f} items/sec")
-```
-
-### Pipeline Architecture
-
-```
-   Batch N-1         Batch N          Batch N+1
-      │                 │                 │
-      │                 │                 │
-┌─────▼─────┐    ┌──────▼──────┐   ┌──────▼──────┐
-│ Postproc  │    │  Preprocess │   │   (waiting) │
-│ (Stream 1)│    │  (Stream 0) │   │             │
-└───────────┘    └─────────────┘   └─────────────┘
-                       │
-                 ┌─────▼─────┐
-                 │ Inference │
-                 │ (Stream 1)│ (waits for preprocess event)
-                 └───────────┘
-```
-
-### Benefits
-
-- **Overlapped Execution**: Preprocessing of the next batch while current batch is inferring
-- **20-40% Throughput Improvement**: Measured on batch processing workloads
-- **Automatic Synchronization**: Events ensure proper ordering between stages
-- **Graceful Fallback**: Falls back to sequential processing when CUDA unavailable
-
-### Testing
-
-```bash
-# Run CUDA streams unit tests
-uv run pytest ai/tests/test_cuda_streams.py -v
-
-# Run with CUDA (if available)
-uv run pytest ai/tests/test_cuda_streams.py -v -k "cuda"
-```
-
 ## NVIDIA Triton Inference Server (NEM-3769)
 
-Triton provides production-grade model serving with automatic dynamic batching, model versioning, and multi-model serving.
-
-### Benefits Over Direct Inference
-
-The "Current" column is the pre-migration standalone FastAPI servers — those
-servers are deleted (R8 S2/S3, 2026-09-29), so the left side is history, not a
-choice still on the table.
-
-| Feature          | Current (FastAPI)      | With Triton                 |
-| ---------------- | ---------------------- | --------------------------- |
-| Batching         | Manual, single request | Automatic dynamic batching  |
-| GPU Utilization  | Suboptimal             | Optimized scheduler         |
-| Model Versioning | File-based             | Built-in A/B testing        |
-| Monitoring       | Custom metrics         | Native Prometheus           |
-| Throughput       | ~25 req/s (concurrent) | ~115 req/s (5x improvement) |
-
-### Quick Start
-
-Triton already runs **inside the ai-gateway container** in production
-(`entrypoint.sh` boots Triton, waits for readiness, then uvicorn - see
-`ai/gateway/AGENTS.md`). There is no separate `triton` compose profile in
-`docker-compose.prod.yml`:
+Triton runs **inside the ai-gateway container** in production
+(`entrypoint.sh` boots Triton, waits for readiness, then starts uvicorn - see
+`ai/gateway/AGENTS.md`).
 
 ```bash
 podman compose -f docker-compose.prod.yml up -d ai-gateway
@@ -586,64 +427,18 @@ podman compose -f docker-compose.prod.yml up -d ai-gateway
 curl http://localhost:8090/health
 ```
 
-The `TRITON_*` env vars below configure the **standalone client** in
-`ai/triton/client.py` (native/dev use, e.g. pointing at a Triton you run
-manually). Set `TRITON_ENABLED=true` there only when running that path.
-
-### Environment Variables
-
-| Variable             | Default          | Description               |
-| -------------------- | ---------------- | ------------------------- |
-| `TRITON_ENABLED`     | `false`          | Enable Triton client      |
-| `TRITON_URL`         | `localhost:8001` | gRPC endpoint             |
-| `TRITON_HTTP_URL`    | `localhost:8000` | HTTP endpoint             |
-| `TRITON_PROTOCOL`    | `grpc`           | Protocol (grpc/http)      |
-| `TRITON_MODEL`       | `yolo26`         | Default model             |
-| `TRITON_TIMEOUT`     | `60`             | Request timeout (seconds) |
-| `TRITON_MAX_RETRIES` | `3`              | Retry attempts            |
-
-### Client Usage
-
-```python
-from ai.triton import TritonClient, TritonConfig
-
-config = TritonConfig.from_env()
-client = TritonClient(config)
-
-if await client.is_healthy():
-    result = await client.detect(image_bytes)
-    for det in result.detections:
-        print(f"{det.class_name}: {det.confidence:.2f}")
-
-await client.close()
-```
-
 For detailed documentation, see `triton/AGENTS.md` and `docs/plans/triton-migration.md`.
 
 ## Entry Points
 
 1. **Pipeline overview**: This file
-2. **Detection server**: `yolo26/AGENTS.md` and `yolo26/model.py`
+2. **YOLO26 engine builder**: `yolo26/AGENTS.md` and `yolo26/build_engine.py`
 3. **Gateway**: `gateway/AGENTS.md` (routers `/yolo26` + `/enrich-lt`)
-4. **VLM serving**: `vlm/Dockerfile` (the ai-vlm build context — it carries no
-   AGENTS.md) and, on the backend side, `../backend/services/vlm_client.py` /
+4. **VLM serving**: `vlm/Dockerfile` (the ai-vlm build context) and, on the
+   backend side, `../backend/services/vlm_client.py` /
    `../backend/services/vlm_analyzer.py`
 5. **Model Zoo (backend-side)**: `../backend/services/model_zoo.py` + repo-root
    `models.yml`
-6. **Triton Inference Server**: `triton/AGENTS.md` (NEM-3769)
-   - Client wrapper: `triton/client.py`
-   - Model configs: `triton/model_repository/*/config.pbtxt`
-   - Migration plan: `docs/plans/triton-migration.md`
+6. **Triton model repository**: `triton/AGENTS.md` and
+   `triton/model_repository/*/config.pbtxt`
 7. **Backend integration**: `backend/services/` directory
-8. **Optimization utilities**:
-   - CUDA streams: `cuda_streams.py` (NEM-3770)
-   - torch.compile: `compile_utils.py` (NEM-3773)
-   - Batch processing: `batch_utils.py` (NEM-3377)
-   - General optimizations: `torch_optimizations.py`
-   - CUDA graphs: `cuda_graph_manager.py`
-   - FlashAttention: `flash_attention_config.py`
-   - GPU memory pool: `gpu_memory_pool.py`
-   - Hub cache: `hub_cache_config.py`
-   - Quantization: `quantization_config.py`
-   - Static KV cache: `static_kv_cache.py`
-   - Warmup utilities: `warmup_utils.py`

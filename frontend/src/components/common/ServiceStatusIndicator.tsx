@@ -16,7 +16,11 @@ import { useEffect, useRef, useState } from 'react';
 
 import { getStatusClasses, STATUS_BG_CLASSES, STATUS_TEXT_CLASSES } from '../../theme/colors';
 
-import type { ServiceName, ServiceStatus as ServiceStatusType } from '../../hooks/useServiceStatus';
+import type {
+  ServiceName,
+  ServiceStatus,
+  ServiceStatus as ServiceStatusType,
+} from '../../hooks/useServiceStatus';
 
 /**
  * Overall service status derived from individual services.
@@ -24,8 +28,8 @@ import type { ServiceName, ServiceStatus as ServiceStatusType } from '../../hook
 export type OverallStatus = 'online' | 'degraded' | 'offline';
 
 export interface ServiceStatusIndicatorProps {
-  /** Map of services to their current status */
-  services: Record<ServiceName, ServiceStatusType | null>;
+  /** Map of services to their current status (only reported services present) */
+  services: Partial<Record<ServiceName, ServiceStatusType>>;
   /** Whether any service is unhealthy */
   hasUnhealthy: boolean;
   /** Whether any service is restarting */
@@ -38,24 +42,25 @@ export interface ServiceStatusIndicatorProps {
  * Derive overall status from individual service statuses.
  */
 function deriveOverallStatus(
-  services: Record<ServiceName, ServiceStatusType | null>,
+  services: Partial<Record<ServiceName, ServiceStatusType>>,
   hasUnhealthy: boolean,
   isAnyRestarting: boolean
 ): OverallStatus {
-  // Check if all services are null (initial state)
-  const allNull = Object.values(services).every((s) => s === null);
-  if (allNull) {
+  // No reported services yet (initial state)
+  const noReports = Object.values(services).every((s) => s === undefined);
+  if (noReports) {
     return 'online'; // Assume online until we get data
   }
 
   // Any unhealthy/failed service means degraded or offline
   if (hasUnhealthy) {
     // Check if ALL known services are unhealthy
-    const knownServices = Object.values(services).filter((s) => s !== null);
+    const knownServices = Object.values(services).filter((s) => s !== undefined);
     const allUnhealthy = knownServices.every(
       (s) =>
         s?.status === 'unhealthy' ||
         s?.status === 'failed' ||
+        s?.status === 'crashed' ||
         s?.status === 'restart_failed' ||
         s?.status === 'restart_disabled'
     );
@@ -119,6 +124,7 @@ function getServiceStatusConfig(status: string): {
 
   switch (status) {
     case 'healthy':
+    case 'running':
       return {
         dotColor: statusClasses.bgClass,
         textColor: statusClasses.textClass,
@@ -134,10 +140,19 @@ function getServiceStatusConfig(status: string): {
     case 'restart_failed':
     case 'restart_disabled':
     case 'failed':
+    case 'crashed':
+    case 'stopped':
       return {
         dotColor: STATUS_BG_CLASSES.error,
         textColor: STATUS_TEXT_CLASSES.error,
         icon: XCircle,
+      };
+    case 'disabled':
+      // Disabled is an administrative state, not a failure.
+      return {
+        dotColor: STATUS_BG_CLASSES.inactive,
+        textColor: STATUS_TEXT_CLASSES.inactive,
+        icon: Server,
       };
     default:
       return {
@@ -149,20 +164,25 @@ function getServiceStatusConfig(status: string): {
 }
 
 /**
- * Format service name for display.
+ * Format service name for display. Known names get readable labels; the
+ * container discovery names and `worker:<name>` fall back to the raw name
+ * with dashes as spaces.
  */
 function formatServiceName(name: ServiceName): string {
-  const nameMap: Record<ServiceName, string> = {
+  const nameMap: Partial<Record<ServiceName, string>> = {
     redis: 'Redis',
-    rtdetr: 'RT-DETRv2',
-    nemotron: 'Nemotron',
+    yolo26: 'YOLO26',
+    'ai-gateway': 'AI Gateway',
+    postgres: 'PostgreSQL',
+    backend: 'Backend API',
+    frontend: 'Frontend',
   };
-  return nameMap[name];
+  return nameMap[name] ?? name.replace(/-/g, ' ');
 }
 
 interface ServiceDetailRowProps {
   name: ServiceName;
-  status: ServiceStatusType | null;
+  status?: ServiceStatus;
 }
 
 function ServiceDetailRow({ name, status }: ServiceDetailRowProps) {
@@ -229,7 +249,7 @@ export default function ServiceStatusIndicator({
   };
 
   // Get services that have status data
-  const serviceEntries = Object.entries(services) as [ServiceName, ServiceStatusType | null][];
+  const serviceEntries = Object.entries(services) as [ServiceName, ServiceStatusType | undefined][];
 
   return (
     <div

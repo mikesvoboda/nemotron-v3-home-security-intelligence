@@ -1,12 +1,5 @@
 """API schemas for request/response validation."""
 
-from .action_event import (
-    ActionEventBase,
-    ActionEventCreate,
-    ActionEventListResponse,
-    ActionEventResponse,
-    SuspiciousActionsResponse,
-)
 from .ai_audit import (
     EnrichedSuggestion,
     ExampleImprovement,
@@ -199,7 +192,6 @@ from .feedback import (
     ActualThreatLevel,
     EventFeedbackCreate,
     EventFeedbackResponse,
-    FeedbackStatsResponse,
     FeedbackType,
 )
 from .gpu_config import (
@@ -382,12 +374,6 @@ __all__ = [  # noqa: RUF022
     "COMMON_ERROR_RESPONSES",
     "EVENT_REGISTRY",
     "HTTP_STATUS_PHRASES",
-    # Action event schemas (NEM-3714)
-    "ActionEventBase",
-    "ActionEventCreate",
-    "ActionEventListResponse",
-    "ActionEventResponse",
-    "SuspiciousActionsResponse",
     # AI Services Health schemas (NEM-3143)
     "AIServiceCircuitState",
     "AIServiceHealthDetail",
@@ -536,7 +522,6 @@ __all__ = [  # noqa: RUF022
     "FaceEnrichment",
     "FaceMatchRequest",
     "FaceMatchResponse",
-    "FeedbackStatsResponse",
     "FeedbackType",
     "FieldSelectionParams",
     "FilterParams",

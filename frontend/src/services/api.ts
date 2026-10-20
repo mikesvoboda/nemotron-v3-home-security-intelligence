@@ -142,11 +142,11 @@ import type {
   DetectionBulkCreateResponse,
   DetectionBulkUpdateItem,
 } from '../types/bulk';
-import type {
-  CostAnalyticsResponse,
-  CostTrendParams,
-  CostTrendResponse,
-} from '../types/costAnalytics';
+// CostAnalytics types retired in R2a row 45 (F-076):
+// - CostAnalyticsResponse
+// - CostTrendParams
+// - CostTrendResponse
+// (kept as 5-line tombstone comment so §5 declaration line anchors in api.ts stay stable)
 import type {
   ExportJob,
   ExportJobCreateParams,
@@ -241,12 +241,7 @@ import type {
   EventFeedbackCreate,
   EventFeedbackResponse,
   FeedbackType,
-  FeedbackStatsResponse,
   ActualThreatLevel,
-  CalibrationResponse,
-  CalibrationUpdate,
-  CalibrationDefaultsResponse,
-  CalibrationResetResponse,
   RecordingResponse,
   RecordingsListResponse,
   ReplayResponse,
@@ -288,21 +283,7 @@ export type {
 };
 
 // Re-export feedback types for consumers of this module
-export type {
-  EventFeedbackCreate,
-  EventFeedbackResponse,
-  FeedbackType,
-  FeedbackStatsResponse,
-  ActualThreatLevel,
-};
-
-// Re-export calibration types for consumers of this module
-export type {
-  CalibrationResponse,
-  CalibrationUpdate,
-  CalibrationDefaultsResponse,
-  CalibrationResetResponse,
-};
+export type { EventFeedbackCreate, EventFeedbackResponse, FeedbackType, ActualThreatLevel };
 
 // Re-export alert types for consumers of this module
 export type { AlertResponse, AlertStatus };
@@ -6286,122 +6267,6 @@ export async function fetchEventFeedback(eventId: number): Promise<EventFeedback
   return fetchApi<EventFeedbackResponse>(`/api/feedback/event/${eventId}`);
 }
 
-/**
- * Get aggregate feedback statistics.
- *
- * Returns counts of feedback grouped by type and camera.
- * Useful for tracking model accuracy and identifying cameras with high false positive rates.
- *
- * @returns Aggregate statistics including total count and breakdowns by type/camera
- *
- * @example
- * ```typescript
- * const stats = await fetchFeedbackStats();
- * console.log(`Total feedback: ${stats.total_feedback}`);
- * console.log(`False positives: ${stats.by_type.false_positive || 0}`);
- * ```
- */
-export async function fetchFeedbackStats(): Promise<FeedbackStatsResponse> {
-  return fetchApi<FeedbackStatsResponse>('/api/feedback/stats');
-}
-
-// ============================================================================
-// Calibration Endpoints
-// ============================================================================
-
-/**
- * Fetch the current user's calibration settings.
- *
- * Returns the calibration thresholds and feedback statistics.
- * Creates a default calibration if none exists.
- *
- * @returns CalibrationResponse with current calibration data
- *
- * @example
- * ```typescript
- * const calibration = await fetchCalibration();
- * console.log(`Low threshold: ${calibration.low_threshold}`);
- * console.log(`Medium threshold: ${calibration.medium_threshold}`);
- * console.log(`High threshold: ${calibration.high_threshold}`);
- * ```
- */
-export async function fetchCalibration(): Promise<CalibrationResponse> {
-  return fetchApi<CalibrationResponse>('/api/calibration');
-}
-
-/**
- * Update calibration thresholds.
- *
- * Allows partial updates - only provided fields will be changed.
- * Validates that threshold ordering is maintained (low < medium < high).
- *
- * @param update - CalibrationUpdate with fields to update
- * @returns CalibrationResponse with updated calibration data
- * @throws ApiError if threshold ordering would be violated (422)
- *
- * @example
- * ```typescript
- * const updated = await updateCalibration({
- *   low_threshold: 35,
- *   medium_threshold: 58,
- * });
- * console.log(`Updated thresholds: ${updated.low_threshold}, ${updated.medium_threshold}`);
- * ```
- */
-export async function updateCalibration(update: CalibrationUpdate): Promise<CalibrationResponse> {
-  return fetchApi<CalibrationResponse>('/api/calibration', {
-    method: 'PUT',
-    body: JSON.stringify(update),
-  });
-}
-
-/**
- * Reset calibration to default thresholds.
- *
- * Resets all thresholds to their default values:
- * - low_threshold: 30
- * - medium_threshold: 60
- * - high_threshold: 85
- * - decay_factor: 0.1
- *
- * Note: Feedback counts (false_positive_count, missed_threat_count)
- * are NOT reset by this operation.
- *
- * @returns CalibrationResetResponse with success message and reset calibration
- *
- * @example
- * ```typescript
- * const result = await resetCalibration();
- * console.log(result.message); // "Calibration reset to default values"
- * console.log(`New low threshold: ${result.calibration.low_threshold}`);
- * ```
- */
-export async function resetCalibration(): Promise<CalibrationResetResponse> {
-  return fetchApi<CalibrationResetResponse>('/api/calibration/reset', {
-    method: 'POST',
-  });
-}
-
-/**
- * Get default calibration threshold values.
- *
- * Returns the default values used when creating new calibrations
- * or when resetting to defaults. Useful for displaying defaults in the UI.
- *
- * @returns CalibrationDefaultsResponse with default threshold values
- *
- * @example
- * ```typescript
- * const defaults = await fetchCalibrationDefaults();
- * console.log(`Default low: ${defaults.low_threshold}`);
- * console.log(`Default medium: ${defaults.medium_threshold}`);
- * console.log(`Default high: ${defaults.high_threshold}`);
- * ```
- */
-export async function fetchCalibrationDefaults(): Promise<CalibrationDefaultsResponse> {
-  return fetchApi<CalibrationDefaultsResponse>('/api/calibration/defaults');
-}
-
 // ============================================================================
 // Entity Re-Identification V2 API (Historical + Real-time)
 // ============================================================================
@@ -8966,73 +8831,6 @@ export async function fetchReidSimilar(
     }
     throw error;
   }
-}
-
-// ============================================================================
-// Cost Analytics API (NEM-5024)
-// ============================================================================
-
-// Re-export cost analytics types for consumers of this module
-export type {
-  CostAnalyticsResponse,
-  CostTrendResponse,
-  CostTrendParams,
-  DailyCostEntry,
-  BudgetUtilization,
-  TokenUsageMetrics,
-  ModelCostBreakdown,
-  CostEfficiencyMetrics,
-  PricingConfig,
-  CostTrendDataPoint,
-} from '../types/costAnalytics';
-
-/**
- * Fetch comprehensive cost analytics data.
- *
- * Returns cost metrics including today's summary, budget utilization,
- * token usage, cost breakdowns by model, efficiency metrics, and
- * historical cost data.
- *
- * Part of NEM-5024 Phase 2: Cost Analytics Dashboard.
- *
- * @returns CostAnalyticsResponse with all cost metrics
- *
- * @example
- * ```typescript
- * const analytics = await fetchCostAnalytics();
- * console.log(`Today's cost: $${analytics.today.total_cost_usd.toFixed(4)}`);
- * console.log(`Monthly budget: ${(analytics.monthly_budget.utilization_ratio * 100).toFixed(1)}% used`);
- * ```
- */
-export async function fetchCostAnalytics(): Promise<CostAnalyticsResponse> {
-  return fetchApi<CostAnalyticsResponse>('/api/analytics/costs');
-}
-
-/**
- * Fetch cost trend data for a date range.
- *
- * Returns daily cost totals for the specified date range,
- * suitable for trend visualization in charts.
- *
- * Part of NEM-5024 Phase 2: Cost Analytics Dashboard.
- *
- * @param params - Date range parameters
- * @returns CostTrendResponse with daily cost data points
- *
- * @example
- * ```typescript
- * const endDate = new Date().toISOString().split('T')[0];
- * const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
- * const trends = await fetchCostTrends({ start_date: startDate, end_date: endDate });
- * console.log(`Total cost over period: $${trends.total_cost_usd.toFixed(4)}`);
- * ```
- */
-export async function fetchCostTrends(params: CostTrendParams): Promise<CostTrendResponse> {
-  const searchParams = new URLSearchParams();
-  searchParams.append('start_date', params.start_date);
-  searchParams.append('end_date', params.end_date);
-
-  return fetchApi<CostTrendResponse>(`/api/analytics/costs/trends?${searchParams.toString()}`);
 }
 
 // ============================================================================

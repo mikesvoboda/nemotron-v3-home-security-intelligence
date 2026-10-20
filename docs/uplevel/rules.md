@@ -79,7 +79,16 @@ Read this section before you take, claim, assign, park or release a package.
   queue has nothing it can claim, an agent claims the next such package from another queue whose
   files all lie in its own lane's area (in practice, ops-a and ops-b from each other's queues); the
   cell whose files it edits reviews it. Any other move between queues is the coordinator's or a
-  ruling's (UR-59). (owner design session 2026-10-12; lane kickoff prompts; rulings 82, 120; record 6083435595)
+  ruling's (UR-59). An agent whose open PR is waiting its merge turn may claim the next package in
+  its own queue on the conditions above, holding at most two open packages. A PR waits its turn when
+  its approving review names its head or a UR-106 carry of it (and, in the owner tier, the owner's
+  approval is in force), its `CI Gate` passed there or its last run was cancelled, it is not a
+  draft, and nothing on it is the author's to do: no open review finding, no conflict and no
+  unanswered owner question. Anything on the waiting PR that becomes the author's to do comes before
+  more work on the new package. The coordinator may assign a heavy agent's next package on the same
+  terms. Rulings 264 (ops-a's #7231) and 271 (docs' `[r271c]`) count their one-off exceptions toward
+  the two. (owner design session 2026-10-12; lane kickoff prompts; rulings 82, 120, 269;
+  record 6083435595)
 - **UR-53** Claim a package before writing any work: an empty commit on branch
   `uplevel/<package>-<slug>` from `main`, pushed, and a draft PR titled `[<package>] <name>` opened
   with the `uplevel.md` template and `lane:<lane>`. The open draft PR is the claim. (ruling 39 item
@@ -131,7 +140,8 @@ Read this section before you take, claim, assign, park or release a package.
 Read this section while you write a package's code, tests, docs and PR.
 
 - **UR-69** The rules in the root `AGENTS.md` apply unchanged: TDD (write the failing test first),
-  hooks never bypassed, podman, ports from `.env`, coverage floors never lowered. (the deleted
+  hooks never bypassed (the `SKIP` UR-184 sets is not a bypass), podman, ports from `.env`, coverage
+  floors never lowered. (the deleted
   README section "Read this first"; lane kickoff prompts)
 - **UR-70** Read the `00-audit.md` sections your package cites and re-measure any **[A]** number
   before acting on it. Read `01-mutation-policy.md` whenever your package deletes, merges or writes
@@ -343,17 +353,19 @@ and the re-read and merge comment are UR-29.
   reviewer cannot state that, the PR comes to the owner. Never pre-approved: destructive work
   (`B3.1` and `F3.1` other than UR-98's plain retirements, `B3.2`), security or auth or plan text
   beyond the ruling, or a PR with owner questions. (rulings 84, 249)
-- **UR-102** `main` requires `CI Gate (Required Checks)` but not "branches up to date". The
-  coordinator merges one PR at a time, and its merge pass continues past a roll to the next ready
-  PR. A lane PR on auto-merge (UR-108) merges when its gate passes, without these legs; while
-  `main` is red the coordinator disables auto-merge on every queued lane PR and re-enables it when
-  `main` is green. Otherwise a ready PR merges without an update-branch when
-  `coordinator_snapshot.py`'s three merge legs pass for it (gate at most 3 merges behind the tip, no
-  shared path with what merged since, `main` not red). Otherwise only the coordinator updates it, one at a time,
-  with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`; authors rebase their own PRs
-  to resolve conflicts. A red `main` from a merge interaction is a red-`main` fix (UR-111); after
-  two in one UTC day the coordinator turns "require branches to be up to date" back on and raises
-  the urgent path. (rulings 19, 27, 152, 156, 164; owner record 6135991251)
+- **UR-102** `main` requires `CI Gate (Required Checks)` and "require branches to be up to date"
+  (`strict: true`); no agent changes branch protection. The coordinator merges one PR at a time and
+  updates one PR at a time: it updates only the head of the queue, and only when it is behind
+  `main`, with `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`, and it updates no other
+  PR until that one merges or leaves the head of the queue (its gate fails at the new head, its
+  update conflicts, or it loses its review or owner approval). A red-`main` fix (UR-111) takes the
+  update slot at once, even while another update is in flight, and a PR the owner names (UR-104)
+  takes the next slot. A ready PR that is not behind `main` merges in queue order without an
+  update. Auto-merge (UR-108) merges the updated PR once its gate
+  passes; while `main` is red the coordinator disables auto-merge on every queued lane PR and
+  re-enables it when `main` is green. Authors rebase their own PRs to resolve conflicts. A red
+  `main` from a merge interaction is a red-`main` fix (UR-111). (rulings 19, 27, 152, 156, 164,
+  268; owner records 6135991251, 6244473689)
 - **UR-104** The queue runs oldest ready first, and a PR waiting on its author cannot hold the slot.
   Only an owner ruling or a red-`main` fix moves a PR ahead; activity on a thread, newness or the
   coordinator's own reading of the critical path do not. To propose a jump, the coordinator asks in
@@ -432,6 +444,26 @@ Read this section before you change a workflow, a CI job, a hook or the gate.
   its reason and ruled by the owner; the four hooks ruling 39 (item E) excluded from the gate's hook
   stage stay out of it, with the suppression census delegating to `check-mock-spec`. (UR-37;
   ruling 39)
+- **UR-184** Every agent that pushes commits, except the coordinator, checks before each push what
+  the gate would otherwise catch first (ruling 265):
+  - **Once per sandbox, on its next tick:** `uv tool install pre-commit`, then
+    `pre-commit install --hook-type pre-push`, and `export SKIP=auto-rebase` in the sandbox's
+    persistent environment file (`/etc/sandbox-persistent.sh`): that push hook rewrites branches,
+    and a rewrite resets approvals (UR-106). Where `hadolint` is not installed, `SKIP` also names
+    `hadolint`. A one-off `SKIP=…` on a command keeps `auto-rebase` in its list. The push-stage
+    hooks need the clone's `.venv` (`uv sync`) and `frontend/node_modules` (`npm ci`). The
+    installed hook belongs to the sandbox: nobody pushes from that clone on the host.
+  - **Before each push:** `pre-commit run --from-ref origin/main --to-ref HEAD` (CI's own command),
+    then commit any rewrite the hooks make, so `git status --porcelain` is empty (owner ruling 24
+    (c)); `uv run python scripts/suppression-census.py --expect
+"$(cat .github/suppression-baseline.json)"`; `uv run python scripts/ratchet-check.py`; and the
+    pytest command of `ci.yml`'s step "Run the anti-rot gates' own tests". A failure counts when the
+    branch adds it: run the same command on `origin/main` in the same workspace to compare.
+  - **The push** runs the push-stage hooks through the installed git hook, among them the fast test
+    tier (`scripts/pre-push-tests.sh`, about 7 minutes at p50, budget 900 s). Run the push in the
+    background, as work and not a wait (UR-38); on a budget hit, `FAST_PREPUSH_BUDGET=<seconds>` may
+    raise it. A failing hook is fixed, never bypassed: no `--no-verify`, and only the owner adds a
+    hook to `SKIP`. A hook the sandbox cannot run goes on the heartbeat's BLOCKER line.
 - **UR-121** In a shared job of `.github/workflows/ci.yml`, the only allowed edit is appending a
   single entry, such as one test-script path, to an existing list in a step. Anything else (a new
   step, new logic, or a changed flag, condition or command) goes in its own job or its own workflow

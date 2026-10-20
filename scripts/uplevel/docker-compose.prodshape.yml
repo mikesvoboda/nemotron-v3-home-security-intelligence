@@ -101,7 +101,14 @@ services:
   loki:
     container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}loki'
     ports: !override
-      - '127.0.0.1:18100:3100'
+      # The ONLY service not at prod + 15000. 3100 + 15000 = 18100 is the first address of the pool
+      # the runner publishes the VLM on (scripts/feature_check.py AGENT_GPU_PORTS, 18100-18199), and
+      # `--real` starts that VLM -- ruling 256's venue split: the sandbox `--real` venue boots this
+      # stack beside it; the maui run is plain `--prod-shape` and starts no agent-gpu at all. 18201
+      # is the first free port above the pool (tempo took 18200 = 3200 + 15000). [r195] box 3;
+      # pinned by test_no_published_port_lands_in_the_runners_vlm_pool in
+      # scripts/test_prodshape_override.py.
+      - '127.0.0.1:18201:3100'
 
   node-exporter:
     container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}node-exporter'
@@ -143,27 +150,14 @@ services:
       - '127.0.0.1:23098:8098'
 
   # ---- behind a PROFILE: invisible to a profile-less render, still covered here ----
-  # prod declares two profiles (docker-compose.prod.yml:284 `vllm`, :1535 `gpu-rootful`) and both
-  # add a service that needs this file. The drift test renders with BOTH enabled
-  # (test_prodshape_override.ALL_PROFILES), so these two blocks are guarded; a profile-less render
-  # would not see them and could not check them.
+  # prod declares one profile (`gpu-rootful`; O3.1 removed `ai-llm-vllm` and its `vllm` profile per
+  # OD-17 / ruling 89). The drift test renders with `test_prodshape_override.ALL_PROFILES` enabled,
+  # so this block stays guarded; a profile-less render would not see it and could not check it.
 
   dcgm-exporter: # profile gpu-rootful. The 7th pin ruling 162 item 3 counts.
     container_name: 'hsi-test-${HSI_TEST_NAME_PREFIX:?HSI_TEST_NAME_PREFIX must be set}dcgm-exporter'
     ports: !override
       - '127.0.0.1:24400:9400' # 9400 + 15000. Its one mount is a read-only bind, kept as prod.
-
-  # profile vllm (docker-compose.prod.yml:284). prod does NOT pin container_name here, so neither
-  # does this file (adding one where prod has none is a key change, not a prefix). Its two volumes
-  # — hf_cache (named) and the ${AI_MODELS_PATH} model bind, `:ro` at prod:300 — are kept verbatim:
-  # this service needs no volume restatement, only the port offset (prod's default 8097 -> 23097).
-  # The prose is on its own lines on purpose: the retired-name guard in
-  # backend/tests/security/test_docker_compose_security.py admits a line containing `ai-llm` only
-  # as a pure comment or as the exact key `ai-llm-vllm:`, so a trailing comment on that key would
-  # be admitted by neither allowance.
-  ai-llm-vllm:
-    ports: !override
-      - '127.0.0.1:23097:8000'
 
   alertmanager:
     ports: !override

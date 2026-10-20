@@ -5,6 +5,7 @@ This module provides:
 - Application lifespan management (startup/shutdown)
 - Signal handling for graceful shutdown (SIGTERM/SIGINT)
 - Health check endpoints for container orchestration
+- R2a row 32 (F-068): action_events router retired
 """
 
 import asyncio
@@ -41,7 +42,6 @@ from backend.api.middleware import (
 )
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
-    action_events,
     admin,
     ai_audit,
     alert_service,
@@ -52,9 +52,7 @@ from backend.api.routes import (
     audit,
     auth,
     backup,
-    calibration,
     cameras,
-    cost_analytics,
     debug,
     detections,
     dlq,
@@ -1559,7 +1557,7 @@ app.add_middleware(AuthMiddleware)
 register_exception_handlers(app)
 
 # Register routers
-app.include_router(action_events.router)
+# R2a row 32 (F-068) retired
 app.include_router(admin.router)
 app.include_router(ai_audit.router)
 app.include_router(alert_service.router)
@@ -1574,8 +1572,6 @@ app.include_router(auth.router)
 # (backupApi.ts) but never mounted in any revision — /api/backup 404'd in production. Owner
 # ruling: mount it. See docs/plans/2026-09-12-context-map-doc-updates.md (R-T7-BACKUP-MOUNT).
 app.include_router(backup.router)
-app.include_router(cost_analytics.router)
-app.include_router(calibration.router)
 app.include_router(cameras.router)
 app.include_router(debug.router)
 app.include_router(detections.router)

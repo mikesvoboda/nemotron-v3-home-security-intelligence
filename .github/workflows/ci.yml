@@ -526,7 +526,7 @@ jobs:
         run: uv python install 3.12 3.14
 
       - name: Set up Node.js (prettier / eslint / tsc hooks)
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -900,7 +900,7 @@ jobs:
 
       - name: Upload unit test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-unit-shard-${{ matrix.shard }}-py${{ matrix.python-version }}
           path: |
@@ -910,7 +910,7 @@ jobs:
 
       - name: Upload unit test coverage
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # WP5.1: carries the pytest-cov DATA file (via COVERAGE_FILE, named
           # non-hidden .dat) alongside the per-shard XML. The merge job combines
@@ -954,7 +954,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: coverage-unit-shard-*
           path: coverage-reports/
@@ -1059,7 +1059,7 @@ jobs:
       # main's real merged number without re-running the suite on base.
       - name: Publish coverage baseline (main)
         if: steps.combine.outputs.merged == 'true' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-baseline
           path: coverage-baseline.json
@@ -1300,7 +1300,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-integration-websocket-py${{ matrix.python-version }}
           path: |
@@ -1310,7 +1310,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-websocket-py${{ matrix.python-version }}
@@ -1445,7 +1445,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-integration-services-py${{ matrix.python-version }}
           path: |
@@ -1455,7 +1455,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-services-py${{ matrix.python-version }}
@@ -1569,7 +1569,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-integration-models-py${{ matrix.python-version }}
           path: test-results-integration-models.xml
@@ -1577,7 +1577,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-models-py${{ matrix.python-version }}
@@ -1628,7 +1628,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: coverage-integration-*
           path: coverage-reports/
@@ -1839,7 +1839,7 @@ jobs:
 
       - name: Upload contract test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-contracts
           path: test-results-contracts.xml
@@ -2040,7 +2040,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2085,7 +2085,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2120,7 +2120,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2177,7 +2177,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2283,7 +2283,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: frontend-coverage-shard-${{ matrix.shard }}-of-8-node-${{ env.NODE_VERSION }}
           path: frontend/coverage/
@@ -2386,13 +2386,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
       - name: Download all coverage artifacts
         # Downloads artifacts from all Node version + shard combinations
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: frontend-coverage-shard-*-node-*
           path: coverage-reports/
@@ -2520,7 +2520,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2598,7 +2598,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-chromium-${{ strategy.job-index }}-node-${{ env.NODE_VERSION }}
           path: frontend/playwright-report/
@@ -2606,7 +2606,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-test-results-chromium-${{ strategy.job-index }}-node-${{ env.NODE_VERSION }}
           path: frontend/test-results/
@@ -2658,7 +2658,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2737,7 +2737,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-${{ matrix.browser }}
           path: frontend/playwright-report/
@@ -2745,7 +2745,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-test-results-${{ matrix.browser }}
           path: frontend/test-results/
@@ -3106,7 +3106,7 @@ jobs:
         # degrades this report's detail, it must not red the job. The job's
         # own gate verdict stays on the calibration fetch below, which fails
         # CLOSED (WP1.3) — that asymmetry is deliberate.
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: test-results-*
           path: test-results/
@@ -3115,7 +3115,7 @@ jobs:
 
       - name: Download E2E test results
         # OB.2 reason: same best-effort doctrine as the download above.
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: playwright-test-results-*
           path: test-results/
@@ -3328,7 +3328,7 @@ jobs:
 
       - name: Upload flaky test report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: flaky-test-report-${{ github.run_id }}
           path: flaky-test-report.json
@@ -3404,7 +3404,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -3701,15 +3701,34 @@ jobs:
   # retired so it does not run twice; scripts/retired_paths.txt records it.
   # workflow_dispatch stays reachable (ruling 105 bullet 4): dispatching THIS
   # workflow runs the feature check regardless of the change filter.
-  feature-check:
+  #
+  # [r264] Build: `Feature check (fake AI)` becomes N=4 shard jobs (one stack
+  # each; N=4 picked from measured runs 39190299978/39193472495/39202004102,
+  # tables on PR #7264: the slowest 4/4 shard's harness finished in 18.3 min,
+  # under the package's ~20-minute bar) and one fan-in job. The shards run
+  # Playwright's own --shard selector and do NOT run the inventory witness;
+  # `feature-check-fan-in` merges their playwright_specs (plus shard 1's
+  # backend_specs — the backend golden tests run once, in one shard, feature_check.py
+  # records "skipped on shard i/N" on the rest) into ONE fake-mode summary and
+  # runs the witness once over it, so a row is judged on the union exactly as
+  # the single run judged it today. The measure workflow that picked this
+  # shape retired when this landed (scripts/retired_paths.txt records it).
+  feature-check-shards:
     name: Feature check (fake AI)
     runs-on: ubuntu-latest
-    # ruling 189: 60 -> 64. With the leg's cap at GOLDEN_LEG_TIMEOUT_S=2640 (measured 1739 s x 1.5,
-    # see feature_check.py's GOLDEN_LEG_TIMEOUT_S), the same 10 green runs on the job's own Actions
-    # clock put worst boot+backend at 562 s and worst teardown at 31 s: 562+2640+31 = 3233 s =
-    # 53.9 min, which under 60 min left 6.1 min — under the ruling's 10-minute floor. 64 min =
-    # 3840 s restores 607 s. The margin is pinned in
-    # backend/tests/unit/scripts/test_feature_check.py against this file.
+    strategy:
+      fail-fast: false
+      matrix:
+        # matrix.pair is slash-free ("i-of-N"): artifact names reject the
+        # slash the --shard flag's value carries (upload-artifact rejects `/`
+        # outright). The fan-in matches this name's shape, not the record's
+        # `shard` field, so the rename stays local to the workflow.
+        pair: ['1-of-4', '2-of-4', '3-of-4', '4-of-4']
+    # ruling 189, re-measured for the sharded shape (run 39202004102, #7264):
+    # each shard's harness clock (setup included) topped at 1097 s; worst setup
+    # 320 s and worst teardown 31 s stand inside the single job's old budget,
+    # so the budget is NOT raised by hand and the margin pin moves to the
+    # sharded shape with the re-measured numbers.
     # ops-b's review reads this job as shared, where UR-121 would otherwise bar a changed flag;
     # UR-122 licenses the edit because ruling 189 orders it.
     timeout-minutes: 64
@@ -3736,12 +3755,22 @@ jobs:
       # exist (since #6979) and invokes uv for the pytest leg. It runs only via
       # the shell wrapper (O2.3's entries rule: wrappers are not followed, so
       # the path is deliberately un-prefixed here). Same canonical invocation as
-      # every other backend job (version from the env block).
+      # every other backend job (version from the env block). Every shard gets
+      # uv: shard 1 is the one whose backend leg the fan-in merges. Shards 2–4
+      # never invoke uv (the backend golden leg runs once, in shard 1), so
+      # UV_CACHE_DIR never materializes on them and the action's post step —
+      # with its default ignore-nothing-to-cache: false — errors "Cache path
+      # ... does not exist on disk" whenever the pre-restore finds nothing
+      # (measured on run 39209710736: shards 2, 3 and 4 all failed in Post Set
+      # up uv while every test leg stayed green; shard 1 succeeded because its
+      # `uv run pytest` leg populates the cache dir). The input exists for
+      # exactly this shape: nothing to save, so skip the save.
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          ignore-nothing-to-cache: true
 
       - name: Free disk space (minimal)
         run: |
@@ -3792,7 +3821,7 @@ jobs:
       # (a 5m33s job) freed disk before building — this way the browser never
       # competes with the backend build for the space that step reclaims.
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -3816,39 +3845,299 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: cd frontend && npx playwright install-deps chromium
 
-      - name: Feature check (--fake)
+      - name: Feature check (--fake --shard)
         id: harness
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
-        run: scripts/feature-check.sh --fake --image-tag "$TAG"
-
-      # Ruling 218 ([r218]; it orders this step into both Feature check jobs, so UR-122 applies):
-      # each golden leg this run executed is mapped to the inventory rows its title names, and a
-      # row at `awaiting real tier` or `works` must be witnessed by its legs passing here. It
-      # prints `unverified` rows ready to flip, lists specs that name no row, and exits 2 with
-      # the reason when it cannot read the run (fail closed). The rules and how a row split
-      # across this job and the seeded one is judged are in the inventory_witness module's
-      # docstring. It runs whenever the harness step ran, red or green, so a red golden leg still
-      # names the rows it contradicts; not when the harness never started (an image build failed),
-      # which would only add a second red saying no run exists. Named by module, not path, for
-      # the plan-lint step's reachability reason.
-      - name: Inventory witness (ruling 218)
-        if: ${{ !cancelled() && steps.harness.outcome != 'skipped' }}
-        env:
-          FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
-        run: python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"
+          SHARD_PAIR: ${{ matrix.pair }}
+        run: |
+          # split "i-of-N" into --shard I/N; Actions has no arithmetic, so the
+          # pair arrives as one slash-free string from the matrix (artifact
+          # names reject the slash the flag form carries). Each shard runs its
+          # OWN stack (compose up, seed, backend golden pytest on shard 1
+          # only — feature_check.py records "skipped on shard i/N" on the
+          # others — and the sharded golden Playwright run).
+          I="${SHARD_PAIR%%-of-*}"
+          N="${SHARD_PAIR##*-of-}"
+          scripts/feature-check.sh --fake --shard "$I/$N" --image-tag "$TAG"
 
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: feature-check
+          name: feature-check-shard-${{ matrix.pair }}
           # Only each run's artifacts/: the run directory also holds the
           # throwaway admin's password (admin.json) and the camera folders.
           path: ${{ runner.temp }}/feature-check/*/artifacts
           retention-days: 14
           if-no-files-found: warn
 
+  # [r264] The fan-in. `if: always()` is DELIBERATE and is the package's third
+  # bullet: the gate counts a skipped job as passed, so a fan-in skipped after
+  # a red shard would leave the gate green. It fails when any shard failed or
+  # was cancelled — its merge step reads needs.feature-check-shards.result
+  # (the matrix aggregate: failure when ANY shard failed or was cancelled)
+  # and exits on anything but success, which is also the edge the WP0.6
+  # graph walker follows to reach the shards — or when a leg of the
+  # reference set (`playwright test --list --project=golden` at this head plus
+  # the backend golden tests) is missing from the shards' union. It then
+  # merges the shards' legs into ONE fake-mode summary and runs the witness
+  # once over it, so every row is judged on the union exactly as the single
+  # job judged it. The witness step runs whenever the fan-in runs, red or
+  # green merge: a missing leg is itself a witness failure.
+  feature-check-fan-in:
+    name: Feature check (fake AI) — fan-in
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: feature-check-shards
+    # The guard mirrors the shard jobs': a draft or a docs-only change skips
+    # the shards, and a fan-in that ran over their absence would red every run
+    # the shards themselves are excused from (the skip is the shape the gate's
+    # check_job already forgives, same as the single job before this change).
+    # `always()` keeps the fan-in RUNNING on a red or cancelled shard so its
+    # own merge step can fail with the reason, rather than skipping into the
+    # gate's forgiveness. The guard sits LEFT of the top-level && (the shape
+    # test_workflow_draft_guards.py pins: guard-AND-condition); always()'
+    # effect (no implicit success() gate) is position-independent.
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && always()
+      && (
+      github.event_name == 'workflow_dispatch' ||
+      needs.feature-check-shards.result != 'skipped'
+      )
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      # The reference leg set (the Build box): `playwright test --list
+      # --project=golden` at this head. The --list collector needs the env the
+      # harness exports (measured in this repo's tree: the four REQUIRED urls
+      # and credentials construct the harness, the cameras map the harness
+      # reads, the scenario book and root for the images readDropHarness
+      # checks) — and a cameras.json, because the fake stack writes one at
+      # runtime and this job runs no stack. The values are dummies never sent
+      # anywhere; only their names are load-bearing (the harness's own
+      # fixture comments state the same rule). Without them the lister emits
+      # "Total: 0 tests" (readTimelineHarness throws at collection time), and
+      # the derivation below fails on an empty set, fail-closed.
+      - name: Derive the reference leg set (--list)
+        id: reference
+        env:
+          FEATURE_CHECK_UI_URL: http://127.0.0.1:8080
+          FEATURE_CHECK_API_URL: http://127.0.0.1:8081
+          FEATURE_CHECK_ADMIN_USERNAME: reference-derivation
+          FEATURE_CHECK_ADMIN_PASSWORD: reference-derivation # pragma: allowlist secret
+          FEATURE_CHECK_CAMERAS: ${{ runner.temp }}/reference-cameras.json
+          FEATURE_CHECK_CAMERA_ROOT: ${{ runner.temp }}/reference-cameras
+          # Absolute, not repo-relative: the step runs `npx playwright` from
+          # frontend/ (the --list must resolve the specs' own imports), and the
+          # specs read this path with existsSync against their cwd — a
+          # repo-relative value dies as frontend/backend/... and every
+          # scenario-book spec SKIPs... except event-detail-modal, whose
+          # module-scope constants dereference the harness past its own
+          # test.skip guard and crash collection instead. Measured: the
+          # relative value reddened run 39209710736's fan-in on exactly this
+          # ("Cannot read properties of undefined (reading 'verdict')",
+          # event-detail-modal.spec.ts:377); the absolute value derives the
+          # 245-leg reference set. The real leg never sees the relative form —
+          # feature_check.py:2349 exports an absolute path — so this mirrors
+          # the proven container shape instead of inventing a new one.
+          FEATURE_CHECK_SCENARIOS: ${{ github.workspace }}/backend/ai_contract/fake/scenario_fixtures/scenarios.json
+        run: |
+          # The cameras map the golden specs read (one camera id per scenario
+          # name); the ids are well-formed UUIDs standing in for the ones the
+          # seeded stack's cameras.json carries, never real devices.
+          python3 - <<'PYEOF'
+          import json, os
+          from pathlib import Path
+          book = json.loads(Path("backend/ai_contract/fake/scenario_fixtures/scenarios.json").read_text())
+          names = [s["name"] for s in book["scenarios"]]
+          out = {name: f"00000000-0000-0000-0000-{i:012d}" for i, name in enumerate(names)}
+          Path(os.environ["FEATURE_CHECK_CAMERAS"]).write_text(json.dumps(out))
+          print(f"reference cameras: {len(out)}")
+          PYEOF
+          cd frontend
+          npx playwright test --list --project=golden --reporter=json > "${RUNNER_TEMP}/golden-list.json" 2> "${RUNNER_TEMP}/golden-list.err" || true
+          cd ..
+          # Fail closed on an empty reference: a listing that collected
+          # nothing derives nothing, and an empty set would pass any
+          # "missing leg" check vacuously.
+          python3 - "${RUNNER_TEMP}/golden-list.json" <<'PYEOF'
+          import json, os, sys
+          from pathlib import Path
+
+          def suite_keys(suites, prefix, keys):
+              for s in suites:
+                  t = s.get("title")
+                  seg = [] if (t and t == s.get("file")) else ([t] if t else [])
+                  chain = prefix + seg
+                  for sp in s.get("specs") or []:
+                      keys.append(f"{s.get('file')}::{' › '.join(chain + [sp['title']])}")
+                  suite_keys(s.get("suites") or [], chain, keys)
+
+          data = json.loads(Path(sys.argv[1]).read_text())
+          keys: list[str] = []
+          suite_keys(data.get("suites") or [], [], keys)
+          if not keys:
+              print(f"FATAL: --list derived 0 golden tests (stats: {data.get('stats')}, "
+                    f"errors: {data.get('errors')}) — an empty reference set would "
+                    "pass the union check vacuously", file=sys.stderr)
+              sys.exit(1)
+          Path(os.environ["RUNNER_TEMP"]).joinpath("reference-keys.txt").write_text(
+              "\n".join(sorted(keys)) + "\n"
+          )
+          print(f"reference leg set: {len(keys)} golden playwright legs")
+          PYEOF
+
+      - name: Download shard artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: feature-check-shard-*
+          path: runs/
+          merge-multiple: false
+
+      # The merge, the reference check, and the witness, one step, so the
+      # witness reads the summary the merge just wrote (a second step would
+      # need to re-derive the run-dir path). Exits non-zero on: the shards'
+      # aggregate result being anything but success (checked first, above),
+      # a missing shard summary (a failed or cancelled shard uploads nothing
+      # usable), a shard label outside 1/4..4/4, a duplicate shard, one leg
+      # running on two shards (any outcome — the split must partition), a leg
+      # of the union that is not in the reference set, a reference leg missing
+      # from the union, or the witness's own exits (1: a row claims more than
+      # the run shows; 2: unreadable input — fail closed).
+      - name: Merge shards and run the inventory witness
+        env:
+          FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
+        run: |
+          # The shards' verdict, read here and not only through the job's own
+          # `if:` — this is the edge that carries a shard's red to the fan-in's
+          # own conclusion (and the edge scripts/test_ci_job_graph.py's walker
+          # follows). The matrix aggregate: failure when ANY shard failed or
+          # was cancelled, success only when all four succeeded — the package's
+          # "fails if any shard failed or was cancelled".
+          echo "shards verdict: ${{ needs.feature-check-shards.result }}"
+          if [ "${{ needs.feature-check-shards.result }}" != "success" ]; then
+            echo "FATAL: feature-check-shards concluded ${{ needs.feature-check-shards.result }}; " \
+                 "the union cannot be built from a failed or cancelled shard" >&2
+            exit 1
+          fi
+          python3 - "${RUNNER_TEMP}" <<'PYEOF'
+          import json, os, sys
+          from pathlib import Path
+
+          temp = Path(sys.argv[1])
+          runs = Path("runs")
+          found = sorted(runs.glob("feature-check-shard-*/**/artifacts/summary.json"))
+          want = {f"{i}/4" for i in range(1, 5)}
+          summaries = {}
+          for path in found:
+              s = json.loads(path.read_text())
+              label = s.get("shard")
+              if label not in want:
+                  print(f"FATAL: {path}: shard label {label!r} is not one of "
+                        f"{sorted(want)}", file=sys.stderr)
+                  sys.exit(1)
+              if label in summaries:
+                  print(f"FATAL: shard {label} appears twice ({summaries[label][0]} "
+                        f"and {path})", file=sys.stderr)
+                  sys.exit(1)
+              summaries[label] = (path, s)
+          missing = sorted(want - set(summaries))
+          if missing:
+              print(f"FATAL: no summary.json for shard(s) {' '.join(missing)} — the "
+                    "shard job failed, was cancelled, or uploaded nothing (fail "
+                    "closed: the union would be missing its legs)", file=sys.stderr)
+              sys.exit(1)
+
+          pw_union: dict[str, str] = {}
+          backend_specs: dict[str, str] = {}
+          for label in sorted(summaries, key=lambda x: int(x.split("/")[0])):
+              path, s = summaries[label]
+              golden = s.get("results", {}).get("golden", {})
+              specs = golden.get("playwright_specs") or {}
+              for key, outcome in specs.items():
+                  if key in pw_union:
+                      # A leg present on two shards fails regardless of outcome
+                      # (owner answer 6266229360, Q2): a correct split never puts
+                      # one leg on two shards, same outcome or not.
+                      print(f"FATAL: leg {key!r} ran on two shards "
+                            f"({pw_union[key]} on the earlier shard vs {outcome} "
+                            f"on shard {label}) — the shard split no longer "
+                            "partitions the suite", file=sys.stderr)
+                      sys.exit(1)
+                  pw_union[key] = outcome
+              if label == "1/4":
+                  backend_specs = dict(golden.get("backend_specs") or {})
+
+          reference = set(temp.joinpath("reference-keys.txt").read_text().splitlines())
+          # Set equality both ways (owner answer 6266229360, Q2): the union must
+          # have exactly the reference set's legs — no reference leg missing,
+          # and no leg the shards ran that the reference set does not name.
+          missing_legs = sorted(reference - set(pw_union))
+          if missing_legs:
+              print(f"FATAL: {len(missing_legs)} golden leg(s) of the reference set "
+                    f"are missing from the shards' union ({len(pw_union)} legs ran, "
+                    f"{len(reference)} referenced): {missing_legs[:8]}"
+                    + (" ..." if len(missing_legs) > 8 else ""), file=sys.stderr)
+              sys.exit(1)
+          extra_legs = sorted(set(pw_union) - reference)
+          if extra_legs:
+              print(f"FATAL: {len(extra_legs)} leg(s) ran on the shards but are "
+                    f"not in the reference set ({len(pw_union)} legs ran, "
+                    f"{len(reference)} referenced): {extra_legs[:8]}"
+                    + (" ..." if len(extra_legs) > 8 else ""), file=sys.stderr)
+              sys.exit(1)
+
+          # One merged fake-mode summary, laid out the way find_summary()
+          # requires: <run-root>/<run-dir>/artifacts/summary.json. project
+          # and commit feed the witness's run label ("hsi-check-merged at
+          # <sha9>"). The union's legs keep each shard's recorded outcomes —
+          # a failed leg in any shard fails the row here, exactly as it did
+          # in the single job.
+          out_dir = Path(os.environ["FEATURE_CHECK_ROOT"]) / "hsi-check-merged" / "artifacts"
+          out_dir.mkdir(parents=True)
+          merged = {
+              "date": max(s.get("date", "") for _, s in summaries.values()),
+              "mode": "fake",
+              "project": "hsi-check-merged",
+              "commit": "${{ github.sha }}",
+              "results": {
+                  "golden": {
+                      "playwright": "ok",
+                      "playwright_specs": pw_union,
+                      "backend": "ok" if backend_specs else "no specs yet",
+                      "backend_specs": backend_specs,
+                  }
+              },
+          }
+          (out_dir / "summary.json").write_text(json.dumps(merged, indent=1))
+          print(f"merged: {len(pw_union)} playwright legs + {len(backend_specs)} backend "
+                f"legs == the reference set ({len(reference)} legs)")
+          PYEOF
+          python3 -m scripts.uplevel.inventory_witness --run-root "$FEATURE_CHECK_ROOT"
+
+      - name: Upload merged artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: feature-check-fan-in
+          # the merged run the witness just judged (only its artifacts/: the
+          # merged run directory holds no secrets — no admin.json, no cameras)
+          path: ${{ runner.temp }}/feature-check/*/artifacts
+          retention-days: 14
+          if-no-files-found: warn
   # DOCS-NJT: the negative-tooling-claim gate as ITS OWN job, per the hot-file
   # rule UR-121 (rules.md, cited by rule id, never by line: that file renumbers
   # with every ruling, so a line cite drifts while still looking plausible. A
@@ -3973,7 +4262,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -4047,7 +4336,7 @@ jobs:
           load: true
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -4071,7 +4360,7 @@ jobs:
 
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: feature-check-seeded
           path: ${{ runner.temp }}/feature-check-seeded/*/artifacts
@@ -4170,10 +4459,15 @@ jobs:
       # golden path — the check that answers "does the feature work" — could
       # not block a merge. Skipped (docs-only PR via the `feature` filter) is
       # forgiven by check_job, same semantics as every filtered job above.
-      # This need lands the direct-needs count on 30 — the cap
-      # scripts/test_check_gate_reachability.py pins; the next edge is a
+      # [r264] The single fake job became 4 shard jobs + a fan-in (feature-check-shards,
+      # feature-check-fan-in): the gate needs the FAN-IN in place of the single job (the
+      # package's fifth bullet — the gate still requires exactly one fake-check edge), and
+      # the fan-in's needs.feature-check-shards.result read (below) is what reaches the
+      # four shards for the job-graph walker. The direct-needs count stays 33 —
+      # this swap replaces one need with one, it does not add one — and the cap
+      # scripts/test_check_gate_reachability.py pins still holds; the next edge is a
       # review, not a silent edit.
-      - feature-check
+      - feature-check-fan-in
       - feature-check-seeded
       # DOCS-NJT: docs' negative-tooling-claim gate. Own job per the hot-file
       # rule UR-121 (rules.md, cited by rule id, never by line: that file
@@ -4237,7 +4531,15 @@ jobs:
           check_job "Backend Integration Coverage Floor" "${{ needs.integration-coverage-merge.result }}"
           check_job "Frontend Coverage Floors" "${{ needs.frontend-coverage-merge.result }}"
           # Ruling 105: the golden paths' verdict, first time inside the gate.
-          check_job "Feature Check (Fake AI)" "${{ needs.feature-check.result }}"
+          # [r264]: the fan-in replaces the single fake job as the gate's edge.
+          # Its name is what lane_tick's gate() renders (minus the GATE_CHECK
+          # name). A dead shard reaches the gate as a FAN-IN failure — the
+          # fan-in's merge step reads the shards' aggregate itself and exits
+          # non-zero on anything but success — never as a read here: this run
+          # body mentions only the fan-in's result, so the job-graph walker
+          # sees exactly one fake-check edge out of the gate (no phantom
+          # comment-swallowed read).
+          check_job "Feature Check (Fake AI) — fan-in" "${{ needs.feature-check-fan-in.result }}"
           # Ruling 127 / 187: the seeded golden project's verdict.
           check_job "Feature check (seeded)" "${{ needs.feature-check-seeded.result }}"
           # DOCS-NJT: a docs claim that no CI runs a tool is a claim this gate

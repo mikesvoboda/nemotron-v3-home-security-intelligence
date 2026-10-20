@@ -352,12 +352,10 @@ class TestRetiredLlmIsOptIn:
         )
 
     def test_the_surviving_engine_stays_opt_in(self, compose: dict) -> None:
-        """The other half of the guarantee, still live: ai-llm-vllm is the only
-        engine left in the file beside ai-vlm, and it hides behind profile
-        `vllm` — so a plain `up` cannot land a second model on the GPU the
-        verdict engine serves on. O1.3 leaves this gate alone: OD-17 decides
-        ai-llm-vllm at R2."""
-        assert compose["services"]["ai-llm-vllm"].get("profiles") == ["vllm"]
+        """O3.1 (OD-17, ruling 89): ai-llm-vllm and its `vllm` profile are
+        removed from docker-compose.prod.yml, leaving ai-vlm as the sole
+        LLM/VLM engine in the file."""
+        assert "ai-llm-vllm" not in compose["services"]
 
     def test_backend_depends_on_no_llm_engine(self, compose: dict) -> None:
         """Retargeted from the `required: false` pin. That flag existed only so
@@ -548,6 +546,26 @@ class TestShippedServingIdentity:
         assert vlm_env["MODEL_ALIAS"] == "${VLM_MODEL_ALIAS:-Qwen3VL-8B}", (
             "the alias carries the SIZE, so it moves with the pick; the 4B "
             "alias on an 8B server is the F11 provenance lie"
+        )
+
+    def test_models_yml_is_the_canonical_vlm_identity_source(self, vlm_env: dict) -> None:
+        """O3.3: models.yml declares the shipped Qwen3-VL GGUF and mmproj rows,
+        and config.py / .env.example / docker-compose.prod.yml agree with them."""
+        from backend.core.config import Settings
+
+        rows = yaml.safe_load((REPO_ROOT / "models.yml").read_text(encoding="utf-8"))["models"]
+        vlm_rows = {
+            r["runtime_file"]: r
+            for r in rows
+            if r.get("service") == "ai-vlm" and r.get("runtime_file")
+        }
+        assert len(vlm_rows) == 2
+        main_file = f"{self.SHIPPED}.gguf"
+        mmproj_file = Path(self._env_value("VLM_MMPROJ_PATH")).name
+        assert set(vlm_rows) == {main_file, mmproj_file}
+        assert Path(main_file).stem == Settings.model_fields["vlm_model_id"].default
+        assert f"/models/{mmproj_file}" == self._compose_default(
+            vlm_env["MMPROJ_PATH"], "VLM_MMPROJ_PATH"
         )
 
 

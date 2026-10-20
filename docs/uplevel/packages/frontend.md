@@ -136,7 +136,7 @@ same way after the owner's `R2b` session.
 
 **Flags:** `heavy`; `owner` for a retirement UR-98's plain-retirement exception does not cover
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work).
-**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273.
+**Assigned:** heavy-a, with `B3.1` and in its order (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300.
 
 Lands in the same PR as `B3.1`, one R2a row per PR (ruling 255; `B3.1` states the rule), starting
 with OD-20's enrichment surface.
@@ -757,3 +757,26 @@ hunks. **Depends on:** none. **PR:** #7236. (ruling 173)
 
 **Done when:** the census fails CI on an unregistered golden `test.fixme`, and every current site has
 a row.
+
+### [r267a] The service-status hook accepts what the backend broadcasts
+
+**Flags:** none. **Assigned:** frontend, first on its queue after the PR it holds (UR-52).
+**Depends on:** none. **PR:** #7293. (ruling 267, record 6266846674; audit item Q-001 of
+`[r262]`)
+
+`frontend/src/hooks/useServiceStatus.ts`:80 keeps only `redis`, `rtdetr` and `nemotron`, and its
+status guard keeps only its own status values. The backend's health monitor probes `yolo26`
+(`backend/main.py`), the container orchestrator broadcasts container names and the worker
+supervisor broadcasts `worker:<name>`, all through `broadcast_service_status`. So no broadcast
+passes, and `yolo26`'s health never reaches `ServiceStatusAlert` or the services panel's badge.
+
+- [x] **MEASURE** each `service_status` emitter and the names and status values it sends, and
+      where else the frontend shows each one. The PR states, for the container and worker
+      broadcasts, whether the hook takes them and why.
+- [x] The hook accepts the health monitor's probe names and status values and every other
+      in-scope emitter's, and drops `rtdetr` and `nemotron`; the alert's label map follows. The
+      backend's payloads do not change.
+- [x] A test feeds each in-scope emitter's real payload shape through the hook, and an unhealthy
+      `yolo26` lights `ServiceStatusAlert`.
+
+**Done when:** the tests above pass in CI at a ready head, and the PR names each emitter's decision.

@@ -716,5 +716,17 @@ describe('AnalyticsPage', () => {
         expect(nativeButton).toHaveClass('bg-gray-800');
       });
     });
+
+    it('does not render retired Cost view mode button (F-076)', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-grafana')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('view-mode-cost')).not.toBeInTheDocument();
+    });
   });
 });

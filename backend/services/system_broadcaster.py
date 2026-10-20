@@ -311,7 +311,7 @@ class SystemBroadcaster:
                 }
                 await redis_client.publish(SYSTEM_STATUS_CHANNEL, pubsub_message)
                 logger.debug("Published system status via Redis pub/sub")
-            except (ConnectionError, TimeoutError, OSError) as e:
+            except (ConnectionError, TimeoutError, OSError, RedisError) as e:
                 # Redis connection failures and network issues
                 logger.warning(f"Failed to publish via Redis: {e}", exc_info=True)
 
@@ -361,7 +361,7 @@ class SystemBroadcaster:
                     }
                     await redis_client.publish(PERFORMANCE_UPDATE_CHANNEL, pubsub_message)
                     logger.debug("Published performance update via Redis pub/sub")
-                except (ConnectionError, TimeoutError, OSError) as e:
+                except (ConnectionError, TimeoutError, OSError, RedisError) as e:
                     # Redis connection failures and network issues
                     logger.warning(f"Failed to publish performance via Redis: {e}", exc_info=True)
 
@@ -561,7 +561,7 @@ class SystemBroadcaster:
                 f"Started pub/sub listener on channels: {SYSTEM_STATUS_CHANNEL}, "
                 f"{PERFORMANCE_UPDATE_CHANNEL}"
             )
-        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError, RedisError) as e:
             # Redis connection failures and asyncio issues
             logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
             self._circuit_breaker.record_failure()
@@ -580,13 +580,13 @@ class SystemBroadcaster:
             try:
                 # Unsubscribe from both channels
                 await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
-            except (ConnectionError, TimeoutError, OSError) as e:
+            except (ConnectionError, TimeoutError, OSError, RedisError) as e:
                 # Redis connection issues during cleanup
                 logger.warning(f"Error unsubscribing: {e}")
             try:
                 # Close the dedicated pubsub connection
                 await self._pubsub.close()
-            except (ConnectionError, TimeoutError, OSError) as e:
+            except (ConnectionError, TimeoutError, OSError, RedisError) as e:
                 # Redis connection issues during cleanup
                 logger.warning(f"Error closing pubsub connection: {e}")
             self._pubsub = None
@@ -609,12 +609,12 @@ class SystemBroadcaster:
         if self._pubsub:
             try:
                 await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
-            except (ConnectionError, TimeoutError, OSError) as e:
+            except (ConnectionError, TimeoutError, OSError, RedisError) as e:
                 # Redis connection issues during cleanup (expected during reset)
                 logger.debug(f"Error unsubscribing during reset (expected): {e}")
             try:
                 await self._pubsub.close()
-            except (ConnectionError, TimeoutError, OSError) as e:
+            except (ConnectionError, TimeoutError, OSError, RedisError) as e:
                 # Redis connection issues during cleanup (expected during reset)
                 logger.debug(f"Error closing pubsub during reset (expected): {e}")
             self._pubsub = None
@@ -628,7 +628,7 @@ class SystemBroadcaster:
                 f"Re-established pub/sub subscription on channels: {SYSTEM_STATUS_CHANNEL}, "
                 f"{PERFORMANCE_UPDATE_CHANNEL}"
             )
-        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError, RedisError) as e:
             # Redis connection failures and asyncio issues
             logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
             self._pubsub = None
@@ -690,7 +690,7 @@ class SystemBroadcaster:
 
         except asyncio.CancelledError:
             logger.info("Pub/sub listener cancelled")
-        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError, RedisError) as e:
             # Redis connection failures and asyncio issues
             logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
             # Record failure in circuit breaker
@@ -1005,12 +1005,23 @@ class SystemBroadcaster:
         try:
             redis_client = self._get_redis()
             if redis_client:
-                await redis_client.health_check()
-                return True
+                result = await redis_client.health_check()
+                # health_check() never raises for the wrapper clients production
+                # wires (RedisClient absorbs every Exception into a returned dict),
+                # so the dict IS the health signal: healthy only when it says so.
+                # Callers (:807, :1093) keep their boolean contract.
+                if isinstance(result, dict) and result.get("status") == "healthy":
+                    return True
+                logger.warning(f"Redis health check unhealthy: {result}")
+                return False
         except (ConnectionError, TimeoutError, OSError, RedisError) as e:
-            # Redis connection failures. RedisError covers redis.exceptions.TimeoutError,
-            # which is not a builtin subclass; without it a timeout under load escapes
-            # this helper (and the call site in _get_system_status is outside its guard).
+            # Defence-in-depth for non-wrapper clients: RedisClient.health_check()
+            # absorbs every Exception, so a production call site never gets here,
+            # but a raw redis client (or a future wrapper that lets exceptions
+            # through) raises redis.exceptions.TimeoutError under load - a RedisError,
+            # not a builtin subclass - and this arm keeps the helper's boolean
+            # contract for it. The call site in _get_system_status is outside its
+            # guarded try, so the arm is what keeps that escape from costing the tick.
             logger.debug(f"Redis health check failed: {e}")
         return False
 

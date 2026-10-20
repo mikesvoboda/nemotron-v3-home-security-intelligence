@@ -386,24 +386,13 @@ class TestG1AYoloDictOfInts:
             assert b["y"] + b["height"] <= body["image_height"]
 
     def test_g1a_yolo_server_emit_block_is_int_truncation(self) -> None:
-        """Native per-model server cannot boot in-sandbox (GPU/weights) — pin
-        the shipped emission by AST + pure expression semantics."""
-        src = _read(YOLO_SERVER_SRC)
-        # source: ai/yolo26/model.py:1100 (x1, y1, x2, y2 = box.xyxy[0].tolist())
-        # and :1106-1109 ({"x": int(x1), …, "width": int(x2 - x1), …}). The
-        # WP8.3 dossier cites 1399/1406-1409: the file has since shrunk by ~300
-        # lines and those cites drifted UPWARD-to-lower by ~300; the strings are
-        # still exactly present, which is why the pin reads the emitter rather
-        # than a remembered line number.
-        assert "x1, y1, x2, y2 = box.xyxy[0].tolist()" in src
-        emitters = _bbox_emitter_names(src)
-        assert [fn for _, fn in emitters] == ["int"], emitters
-        assert '"width": int(x2 - x1),' in src
-        assert '"height": int(y2 - y1),' in src
-        # Non-vacuity: the emitter walk is not reading an empty file, and the
-        # server's SECURITY_CLASSES vocabulary filter survives S3 alongside it.
-        assert len(src.splitlines()) > 1000
-        assert "SECURITY_CLASSES" in src
+        """TOMBSTONE (O3.1): ai/yolo26/model.py (which truncated bbox coords
+        with int()) was pruned as non-shipping; the gateway adapter's round()
+        emitter is the sole surviving yolo26 bbox emitter."""
+        assert not (REPO_ROOT / "ai/yolo26/model.py").exists()
+        gw_src = _read("ai/gateway/adapters/yolo26.py")
+        emitters = _bbox_emitter_names(gw_src)
+        assert [fn for _, fn in emitters] == ["round", "round"], emitters
 
     def test_g1a_truncation_and_rounding_split_on_fractional_coords(self) -> None:
         """Pure semantics, no I/O: on ANY fractional coord the two shipped paths
@@ -811,7 +800,7 @@ class TestG4FourthSpelling:
         # ai/ — the provider/serving side — carries ZERO corners-dicts: the
         # spelling never reached a wire response. Derived victim, not a count.
         ai_prod = [p for p in prod if str(p.relative_to(REPO_ROOT)).startswith("ai/")]
-        assert len(ai_prod) > 20, "the ai/ census collapsed"
+        assert len(ai_prod) >= 15, "the ai/ census collapsed"
         assert [p.name for p in ai_prod if '"x1":' in _read(p)] == []
 
     def test_g4_the_fourth_spelling_never_crossed_the_provider_wire(self) -> None:

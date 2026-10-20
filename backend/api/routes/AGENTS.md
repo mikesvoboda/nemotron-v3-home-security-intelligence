@@ -840,39 +840,6 @@ Comprehensive analytics endpoints for video analytics, detection trends, risk an
 
 **Documentation:** See [Analytics API Reference](../../../docs/api/analytics-endpoints.md)
 
-### `calibration.py`
-
-User risk threshold calibration endpoints for personalizing event severity classification.
-
-**Router prefix:** `/api/calibration`
-
-**Endpoints:**
-
-| Method | Path                        | Purpose                          |
-| ------ | --------------------------- | -------------------------------- |
-| GET    | `/api/calibration`          | Get current calibration settings |
-| PUT    | `/api/calibration`          | Update calibration (full update) |
-| PATCH  | `/api/calibration`          | Partial calibration update       |
-| POST   | `/api/calibration/reset`    | Reset to default thresholds      |
-| GET    | `/api/calibration/defaults` | Get default threshold values     |
-
-**Default Thresholds:**
-
-- `low_threshold`: 30 (scores 0-29 = low risk)
-- `medium_threshold`: 60 (scores 30-59 = medium risk)
-- `high_threshold`: 85 (scores 60-84 = high risk, 85-100 = critical)
-- `decay_factor`: 0.1 (learning rate for threshold adjustment)
-
-**Key Features:**
-
-- Auto-creates calibration record on first GET if none exists
-- Validates threshold ordering (low < medium < high)
-- Preserves feedback counts on reset
-- Single-user system uses `user_id="default"`
-- Supports partial updates (only provided fields changed)
-
-**Related:** Works with Feedback API for threshold adjustment based on user feedback.
-
 ### `exports.py`
 
 Export job management with database persistence for event data exports.
@@ -919,11 +886,10 @@ Event feedback management for model calibration and false positive tracking (NEM
 
 **Endpoints:**
 
-| Method | Path                             | Purpose                           |
-| ------ | -------------------------------- | --------------------------------- |
-| POST   | `/api/feedback`                  | Submit feedback for an event      |
-| GET    | `/api/feedback/event/{event_id}` | Get feedback for an event         |
-| GET    | `/api/feedback/stats`            | Get aggregate feedback statistics |
+| Method | Path                             | Purpose                      |
+| ------ | -------------------------------- | ---------------------------- |
+| POST   | `/api/feedback`                  | Submit feedback for an event |
+| GET    | `/api/feedback/event/{event_id}` | Get feedback for an event    |
 
 **Feedback Types:**
 

@@ -334,6 +334,177 @@ class TestSeededFeatureCheckJobWired(_CiYml):
         )
 
 
+class TestFanInReplacesTheFakeJob(_CiYml):
+    """[r264] Build: the single fake job became 4 shard jobs + a fan-in. The gate's
+    one fake-check edge is the FAN-IN (the package's fifth bullet: the gate requires
+    the fan-in in place of the single job, and stays the one required check); the
+    shards are reached THROUGH the fan-in, not as direct needs of the gate, and the
+    fan-in carries a shard's red in its own run body (the WP0.6 edge) — the matrix
+    aggregate read, failure when any shard failed or was cancelled.
+    """
+
+    SHARDS = "feature-check-shards"
+    FAN_IN = "feature-check-fan-in"
+    LEG = "Feature check (fake AI)"
+
+    def test_the_shard_jobs_exist_and_run_the_sharded_fake_check(self) -> None:
+        job = self.jobs.get(self.SHARDS)
+        assert job is not None, f"{self.SHARDS} is missing from ci.yml"
+        argv = " ".join(str(step.get("run", "")) for step in job.get("steps", []) or [])
+        assert "--fake --shard" in argv, f"a --shard invocation is missing from {self.SHARDS}"
+        assert job.get("name") == self.LEG, "the shard matrix carries the tier's name"
+        matrix = (job.get("strategy") or {}).get("matrix") or {}
+        assert len(matrix.get("pair") or []) == 4, "the picked shape is N=4"
+        # The backend golden tests run ONCE, in one shard: the wrapper passes --shard
+        # everywhere, and feature_check.py runs the backend leg only on shard 1
+        # (pinned in backend/tests/unit/scripts/test_feature_check.py).
+
+    def test_the_fan_in_exists_and_runs_the_witness(self) -> None:
+        job = self.jobs.get(self.FAN_IN)
+        assert job is not None, f"{self.FAN_IN} is missing from ci.yml"
+        argv = " ".join(str(step.get("run", "")) for step in job.get("steps", []) or [])
+        assert "scripts.uplevel.inventory_witness" in argv, f"{self.FAN_IN} runs no witness"
+        # the fan-in runs the witness ONCE: the shards carry no witness step
+        shard_argv = " ".join(
+            str(step.get("run", "")) for step in self.jobs[self.SHARDS].get("steps", []) or []
+        )
+        assert "inventory_witness" not in shard_argv, (
+            "a shard runs the witness over a partial leg set"
+        )
+
+    def test_ci_gate_needs_the_fan_in_not_the_shards(self) -> None:
+        needs = _needs_of(self.jobs["ci-gate"])
+        assert self.FAN_IN in needs, f"ci-gate does not need {self.FAN_IN}"
+        assert self.SHARDS not in needs, (
+            "the shards are reached through the fan-in, not as gate needs"
+        )
+        assert "feature-check" not in needs, "the single fake job's need must be gone"
+        gate_run = "\n".join(
+            step.get("run", "") for step in self.jobs["ci-gate"]["steps"] if step.get("run")
+        )
+        assert f"needs.{self.FAN_IN}.result" in gate_run
+        assert f"needs.{self.SHARDS}.result" not in gate_run, (
+            "the gate reads the fan-in, not each shard — the aggregate is the fan-in's"
+        )
+
+    def test_the_fan_in_carries_a_shards_red_in_its_run_body(self) -> None:
+        fan_script = "\n".join(
+            step.get("run", "") for step in self.jobs[self.FAN_IN]["steps"] if step.get("run")
+        )
+        assert f"needs.{self.SHARDS}.result" in fan_script, (
+            "the fan-in must read the shards' aggregate result itself — the edge that "
+            "carries a failed/cancelled shard to a red fan-in (and the WP0.6 walker's edge)"
+        )
+
+    def test_the_merge_step_fails_on_every_bad_union_shape(self) -> None:
+        # The merge step's fail conditions, as string-presence pins on its run
+        # body (the same shape every other CI run-body pin here uses): the red
+        # shard path has its own test below (it is also the walker's edge), and
+        # these are the exits the [r264] package names — a shard label outside
+        # 1/4..4/4, a duplicate shard, one leg running on two shards (any
+        # outcome), a leg of the union that is not in the reference set, a
+        # reference leg missing from the union (owner answer 6266229360, Q2:
+        # set equality both ways in code). A missing shard summary is covered
+        # by the same "no summary.json" literal as the label check's failure
+        # mode, so it pins by consequence.
+        fan_script = "\n".join(
+            step.get("run", "") for step in self.jobs[self.FAN_IN]["steps"] if step.get("run")
+        )
+        assert "is not one of" in fan_script, (
+            "the merge step no longer rejects a shard label outside 1/4..4/4"
+        )
+        assert "appears twice" in fan_script, "the merge step no longer rejects a duplicate shard"
+        assert "ran on two shards" in fan_script, (
+            "the merge step no longer rejects a leg running on two shards "
+            "(any outcome — the split must partition the suite)"
+        )
+        assert "not in the reference set" in fan_script, (
+            "the merge step no longer rejects a leg the shards ran that the "
+            "reference set does not name (set equality both ways)"
+        )
+        assert "missing from the shards' union" in fan_script, (
+            "the merge step no longer fails on a reference leg missing from the union"
+        )
+        assert "no summary.json for shard(s)" in fan_script, (
+            "the merge step no longer fails closed on a shard that uploaded nothing"
+        )
+
+    def test_the_shards_are_reachable_from_the_gate(self) -> None:
+        # Reachability is the production walker's own graph, not just the needs:
+        # closure: a run-body `needs.X.result` read is an edge, and the fan-in's
+        # matrix-aggregate read is the shards' ONLY route to the gate. Reuse the
+        # walker itself (importlib, not a copy — same doctrine as
+        # check-mock-spec.py reusing autospec-sweep.py: gate and sweep can never
+        # disagree about what an edge is).
+        import importlib.util
+
+        _spec = importlib.util.spec_from_file_location(
+            "test_ci_job_graph_reuse",
+            Path(__file__).resolve().parent / "test_ci_job_graph.py",
+        )
+        assert _spec and _spec.loader
+        _walker = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_walker)
+        result_checked_needs = _walker.result_checked_needs
+
+        seen: set[str] = set()
+        stack = ["ci-gate"]
+        while stack:
+            name = stack.pop()
+            if name in seen or name not in self.jobs:
+                continue
+            seen.add(name)
+            job = self.jobs[name]
+            stack += _needs_of(job)
+            stack += sorted(result_checked_needs(job))
+        assert self.FAN_IN in seen
+        assert self.SHARDS in seen, (
+            "the walker never reaches the shards: a red shard would be invisible"
+        )
+
+    def test_the_shard_setup_uv_tolerates_a_job_that_never_calls_uv(self) -> None:
+        # [r264] backend-once left shards 2–4 with no uv invocation, and
+        # setup-uv's post step (default ignore-nothing-to-cache: false) fails
+        # "Cache path ... does not exist on disk" when nothing materialized the
+        # cache dir — run 39209710736: three red jobs, every test leg green.
+        # The pin is structural: the SHARD job's setup-uv carries the input.
+        # Not a string pin on the run body (the action is `uses:`, not `run:`),
+        # and deliberately scoped to this job: other setup-uv sites all invoke
+        # uv in their own step list, so the default is correct there.
+        setup_uv = [
+            step
+            for step in self.jobs[self.SHARDS]["steps"]
+            if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")
+        ]
+        assert len(setup_uv) == 1, "the shard job carries more than one setup-uv"
+        assert setup_uv[0].get("with", {}).get("ignore-nothing-to-cache") is True, (
+            "the shard job's setup-uv errors in its post step when the job "
+            "never invokes uv (shards 2–4: nothing to cache)"
+        )
+
+    def test_the_reference_derivation_exports_an_absolute_scenario_path(self) -> None:
+        # [r264] The Derive step runs --list from frontend/, and the specs read
+        # FEATURE_CHECK_SCENARIOS with existsSync against their cwd: a
+        # repo-relative value dies as frontend/backend/... and
+        # event-detail-modal's module-scope constants crash collection past
+        # their own test.skip guard (run 39209710736: the fan-in reddened on
+        # "Cannot read properties of undefined (reading 'verdict')",
+        # event-detail-modal.spec.ts:377). feature_check.py:2349 exports an
+        # ABSOLUTE path to the real leg, so the derivation must mirror that
+        # shape — pinned by consequence: the value must start at the
+        # workspace, and the relative literal must be gone.
+        env = next(
+            step["env"]
+            for step in self.jobs[self.FAN_IN]["steps"]
+            if step.get("name") == "Derive the reference leg set (--list)"
+        )
+        scenarios = str(env["FEATURE_CHECK_SCENARIOS"])
+        assert scenarios.startswith("${{ github.workspace }}"), (
+            f"FEATURE_CHECK_SCENARIOS must be absolute, saw {scenarios!r} — the "
+            "--list runs from frontend/ and the specs existSync against their cwd"
+        )
+
+
 class TestStepNamedSuitesStillWired(_CiYml):
     """The doc's "two sharpest absence-pins": wired by step invocation only.
 

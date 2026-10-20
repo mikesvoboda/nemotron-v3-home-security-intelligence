@@ -89,14 +89,10 @@ INFO = "INFO"
 MANUAL = "MANUAL"
 
 # Every GPU_* variable .env.example documents as REQUIRED (compose fails to
-# start if any is missing), plus the gateway's GPU_AI_SERVICES.
+# start if any is missing): GPU_LLM (ai-vlm) and GPU_AI_SERVICES (ai-gateway).
+# O3.3 deleted the 5 retired per-service GPU_* variables from .env.example.
 REQUIRED_GPU_VARS = (
     "GPU_LLM",
-    "GPU_FLORENCE",
-    "GPU_YOLO26",
-    "GPU_CLIP",
-    "GPU_ENRICHMENT",
-    "GPU_ENRICHMENT_LIGHT",
     "GPU_AI_SERVICES",
 )
 

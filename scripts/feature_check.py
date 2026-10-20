@@ -65,7 +65,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -779,7 +779,13 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
     )
 
 
-def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None) -> dict[str, Any]:
+def as_prod_shape_deployment(
+    rendered: Mapping[str, Any],
+    *,
+    vlm_url: str | None,
+    fake_gateway: Mapping[str, Any] | None = None,
+    fake_vlm: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """The run-time transforms the authored override cannot carry.
 
     The prod-shape path does NOT go through :func:`as_test_deployment` (measured:
@@ -799,6 +805,37 @@ def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None
       ask the engine for ``nvidia.com/gpu=0``: a second GPU consumer racing agent-gpu's
       own container, and not the deployment the 12 real-tier rows witness.
 
+    Ruling 256 (record 6250363327) split O2.5 by venue and binds two more shapes on
+    these transforms. Its reason names the mechanism: agent-gpu gives the GPU to one
+    container it starts on the host, never to the containers of a compose stack inside
+    a sandbox -- the operator's attempt 2 (record 6195692210) died at
+    ``unresolvable CDI devices nvidia.com/gpu=all`` with exactly one device-declaring
+    service left in its boot document. The ruling:
+
+    * SANDBOX RUN (``--real --prod-shape``, item 1): the stack keeps no GPU consumer
+      except the VLM. The caller passes ``fake_gateway`` (the fake ``ai-gateway`` body
+      the CI+fake render produces -- ruling 207's CI-tier fake) and this function
+      replaces prod's gateway wholesale with it: the prod body's CDI
+      ``nvidia.com/gpu=all`` and its deploy GPU reservation never boot, and the
+      backend's gateway URLs keep working because the fake answers the same port and
+      routes. ``backend``'s own deploy GPU reservation is stripped (the backend sees a
+      GPU through NVML in its own container -- the maui run witnesses that; a sandbox
+      boot that died asking for a GPU the venue never had would be indistinguishable
+      from a harness bug). A ``dcgm-exporter`` that somehow reaches the transform is
+      dropped (it sits behind prod's ``gpu-rootful`` profile, so a profile-less render
+      never carries it -- the drop is belt, the naming is the ruling's clause).
+    * MAUI RUN (``--prod-shape`` without ``--real``, item 2): the caller passes
+      ``fake_vlm`` instead -- the fake VLM replaces the in-stack one, whose CDI line is
+      "the one GPU line neither run boots" (the ruling's own words), while production's
+      CDI for ``ai-gateway``, ``dcgm-exporter`` and ``backend`` is kept UNTOUCHED -- that
+      stack booting with every device resolved is what the maui run witnesses. Passing
+      the sandbox venue's ``fake_gateway`` here is refused: a caller asking for one
+      venue's transform on the other venue would silently witness the wrong deployment.
+    * the record names every removed or stripped device, on both venues. The
+      deployment carries ``_device_changes`` so the caller can lift it into the run
+      summary verbatim -- a silent swap would describe a deployment the venue never
+      booted, which is the failure mode the operator's attempt-2 record shows.
+
     These are NOT put in the authored override for two reasons. It is a frozen,
     hand-authored artifact whose changes ruling 162 item 3 caps at three kinds
     (socket, pinned name, port/path) -- ``test_only_the_three_kinds_of_key_change``
@@ -806,17 +843,144 @@ def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None
     is per-run, so static YAML cannot express it at all. Same split as the CI tier:
     the file carries the shape, the runner carries the run.
     """
+    if fake_gateway is not None and fake_vlm is not None:
+        raise HarnessError(
+            "fake_gateway and fake_vlm cannot combine: the sandbox run swaps the gateway "
+            "(--real --prod-shape), the maui run swaps the VLM (--prod-shape without --real), "
+            "and one run witnesses exactly one of the two venues"
+        )
+    if fake_gateway is not None and vlm_url is None:
+        raise HarnessError(
+            "fake_gateway without vlm_url is the sandbox venue's transform on no venue: "
+            "--real --prod-shape carries both the agent-gpu VLM and the fake gateway "
+            "(ruling 256 item 1)"
+        )
+    if fake_vlm is not None and vlm_url is not None:
+        raise HarnessError(
+            "fake_vlm and vlm_url combine two venues' shapes: the maui run (ruling 256 "
+            "item 2) has no agent-gpu, so it has no URL to pass"
+        )
     deployment = copy.deepcopy(dict(rendered))
     services = deployment.get("services") or {}
     backend = services.get("backend")
     if backend is None:
         raise HarnessError("the prod-shape render has no backend service")
+    device_changes: list[str] = []
     environment = backend.setdefault("environment", {})
     environment["ORCHESTRATOR_ENABLED"] = "false"
+
+    def _consume_devices(service: Mapping[str, Any]) -> list[str]:
+        """Every device-shaped stanza on one service, for the record's naming duty."""
+        found = [str(device) for device in service.get("devices") or []]
+        reservations = ((service.get("deploy") or {}).get("resources") or {}).get(
+            "reservations"
+        ) or {}
+        found.extend(str(device) for device in reservations.get("devices") or [])
+        return found
+
+    def _splice(name: str, fake_body: Mapping[str, Any], replaced: Mapping[str, Any]) -> None:
+        """Replace one prod service with a fake body, keeping the PROD render's network
+        membership and host publishes.
+
+        The fake bodies are the CI+fake render's bodies verbatim: they join ``ci-net``
+        (defined only by the CI stack) and publish the CI band's host ports
+        (``127.0.0.1:8090``/``8098``). Spliced into the prod render unedited, the boot
+        document is REFUSED -- compose answers ``refers to undefined network ci-net``
+        (the same measured refusal the solo fake render dies at, on BOTH venues) -- and
+        were the network somehow defined, the publishes would be bind-fatal beside
+        production on maui, where the LIVE stack holds ``127.0.0.1:8090`` (ai-gateway)
+        and ``127.0.0.1:8098`` (ai-vlm). So the swap restores the replaced prod body's
+        ``networks`` and ``ports`` onto the fake body: the fake joins the prod network
+        the service it replaces was on (the backend reaches it by service name either
+        way), and publishes on the prod-shape band the authored override set (23090/
+        23098 via the override's +15000). The prod render's network membership stays the
+        prod render's (``security-net``): the transform keeps it.
+        """
+        services[name] = copy.deepcopy(dict(fake_body))
+        if "networks" in replaced:
+            services[name]["networks"] = copy.deepcopy(replaced["networks"])
+        else:
+            services[name].pop("networks", None)
+        if "ports" in replaced:
+            services[name]["ports"] = copy.deepcopy(replaced["ports"])
+        else:
+            services[name].pop("ports", None)
+
+    if fake_gateway is not None:
+        prod_gateway = services.get("ai-gateway")
+        if prod_gateway is None:
+            raise HarnessError(
+                "the prod-shape render has no ai-gateway; the sandbox run's swap "
+                "(ruling 256 item 1) has nothing to replace"
+            )
+        removed = _consume_devices(prod_gateway)
+        _splice("ai-gateway", fake_gateway, prod_gateway)
+        device_changes.append(
+            f"ai-gateway: replaced with the fake gateway (ruling 207's CI-tier fake); "
+            f"removed devices {removed or 'none'}"
+        )
+        for key, value in (
+            ("AI_GATEWAY_URL", "http://ai-gateway:8090"),
+            ("YOLO26_URL", "http://ai-gateway:8090/yolo26"),
+            ("ENRICHMENT_LIGHT_URL", "http://ai-gateway:8090/enrich-lt"),
+        ):
+            if key in environment:
+                environment[key] = value
+    else:
+        # The maui run keeps production's CDI for ai-gateway, dcgm-exporter and backend
+        # (ruling 256 item 2): the stack booting with every device resolved is what it
+        # witnesses. A profile-less render cannot carry dcgm-exporter (the gpu-rootful
+        # profile hides it), so the keeping is implicit -- and the device strip below is
+        # what must NOT run.
+        pass
+    if fake_vlm is not None:
+        prod_vlm = services.get("ai-vlm")
+        if prod_vlm is None:
+            raise HarnessError(
+                "the prod-shape render has no ai-vlm; the maui run's swap (ruling 256 "
+                "item 2) has nothing to replace"
+            )
+        removed = _consume_devices(prod_vlm)
+        _splice("ai-vlm", fake_vlm, prod_vlm)
+        device_changes.append(
+            f"ai-vlm: replaced with the fake VLM; removed devices {removed or 'none'}"
+        )
     if vlm_url is not None:
         environment["AI_VLM_URL"] = vlm_url
-        services.pop("ai-vlm", None)
-    for name, service in services.items():
+        prod_vlm = services.get("ai-vlm")
+        if prod_vlm is not None:
+            removed = _consume_devices(prod_vlm)
+            services.pop("ai-vlm", None)
+            device_changes.append(
+                f"ai-vlm: removed (served by agent-gpu outside this render); "
+                f"removed devices {removed or 'none'}"
+            )
+    for name in list(services):
+        service = services[name]
+        deploy = service.get("deploy")
+        if name == "backend" and fake_gateway is not None and isinstance(deploy, dict):
+            # Sandbox venue only (ruling 256 item 1). The maui run KEEPS this reservation
+            # -- the backend seeing a GPU through NVML in its own container is exactly what
+            # the maui run witnesses (F-176, F-178, F-182).
+            resources = deploy.get("resources") or {}
+            reservations = resources.get("reservations") or {}
+            if reservations.get("devices"):
+                stripped = [str(device) for device in reservations["devices"]]
+                reservations.pop("devices", None)
+                if not reservations:
+                    resources.pop("reservations", None)
+                device_changes.append(
+                    f"backend: deploy GPU reservation stripped (the sandbox venue keeps no "
+                    f"GPU consumer except the VLM, ruling 256 item 1); removed {stripped}"
+                )
+        if name == "dcgm-exporter" and fake_gateway is not None:
+            removed = _consume_devices(service)
+            services.pop(name, None)
+            device_changes.append(
+                f"{name}: dropped (ruling 256 item 1: the sandbox run keeps no GPU "
+                f"consumer except the VLM); removed devices {removed or 'none'}"
+            )
+            continue
         depends_on = service.get("depends_on")
         if isinstance(depends_on, dict) and "ai-vlm" not in services:
             # the omission this transform performs deliberately (mirrors
@@ -827,6 +991,7 @@ def as_prod_shape_deployment(rendered: Mapping[str, Any], *, vlm_url: str | None
                 raise HarnessError(
                     f"{name} depends on {dependency}, which this prod-shape render omits"
                 )
+    deployment["_device_changes"] = device_changes
     return deployment
 
 
@@ -1373,12 +1538,66 @@ def dockerfile_bases(text: str) -> list[str]:
     return bases
 
 
+def host_alias_resolves(name: str = "host.docker.internal") -> bool:
+    """Whether THIS process can resolve a host alias at all — a DNS question.
+
+    The two container runtimes this repo runs on add that name precisely because
+    a container is not on the machine it runs on, so it resolves exactly when
+    dialing it can work: the operator sandbox answers it with the proxy's address
+    (measured here: 169.254.1.1) and forwards it to the host, and a plain host
+    login has no entry (the owner's maui run, record 6193951294, got
+    ``curl: (6) Could not resolve host``). A container marker would be the wrong
+    probe — ``/.dockerenv`` is absent under rootless Podman, which is maui's
+    route — and ``$SANDBOX_NAME`` is a runtime convention, not a fact about
+    reachability.
+    """
+    try:
+        socket.getaddrinfo(name, None)
+    except OSError:
+        return False
+    return True
+
+
+def _require_pool_url(url: str, port: int, *, dialed: str) -> str:
+    """Re-check an already-validated VLM URL before dialing it, and return it.
+
+    Shared by both forms so the loopback one cannot be a wider door: same
+    scheme, same port inside :data:`AGENT_GPU_PORTS`, no path, query or
+    fragment. Only the HOST may differ, and only between the alias and the
+    loopback of the machine that published the port.
+    """
+    parts = urllib.parse.urlsplit(url)
+    try:
+        url_port = parts.port
+    except ValueError:
+        url_port = None
+    if (
+        parts.scheme != "http"
+        or parts.hostname not in ("host.docker.internal", "127.0.0.1")
+        or url_port != port
+        or port not in AGENT_GPU_PORTS
+        or parts.path not in ("", "/")
+        or parts.query
+        or parts.fragment
+    ):
+        raise HarnessError(
+            f"{dialed} {url}; a run reaches only port {port} of "
+            f"http://host.docker.internal:<{AGENT_GPU_PORTS.start}-{AGENT_GPU_PORTS.stop - 1}>"
+        )
+    return f"http://{parts.hostname}:{url_port}"
+
+
 def agent_gpu_url(output: str, container_port: int = VLM_PORT) -> tuple[str, int]:
     """The URL ``agent-gpu run`` printed for ``container_port``, and its port.
 
     The runner publishes from :data:`AGENT_GPU_PORTS` on the host's loopback,
     reached as host.docker.internal. Anything else could be the live stack's
     API, database or engine, so the run refuses it.
+
+    This is the address the run's CONTAINERS use: it goes to the backend as
+    ``AI_VLM_URL`` and to ``check_vlm_reach``, which dials it from inside that
+    container, where loopback would be the container's own. The harness's own
+    dial is :func:`vlm_dial_url`.
     """
     match = re.search(rf"(?m)^\s*port {container_port} -> (\S+)\s*$", output)
     if match is None:
@@ -1406,6 +1625,36 @@ def agent_gpu_url(output: str, container_port: int = VLM_PORT) -> tuple[str, int
             f"http://host.docker.internal:<{AGENT_GPU_PORTS.start}-{AGENT_GPU_PORTS.stop - 1}>"
         )
     return f"http://host.docker.internal:{port}", port
+
+
+def vlm_dial_url(
+    url: str,
+    port: int,
+    *,
+    alias_resolves: Callable[[str], bool] | None = None,
+) -> str:
+    """The form of ``url`` the HARNESS can dial from this machine.
+
+    ``agent-gpu run`` prints the alias form even from a host login, where it has
+    no DNS entry (the owner's maui run read ``/health`` at
+    ``http://127.0.0.1:18100/health`` — the same pool port — while the alias gave
+    ``curl: (6)``, and the run then sat out its 900 s readiness deadline). So the
+    alias is used when it resolves, and loopback at the same pool port when it
+    does not; this process ran ``agent-gpu run`` itself, so when the alias is
+    dead it is because it is on the machine that published the port. The port and
+    the rest of the shape are re-checked by :func:`_require_pool_url`, which
+    refuses anything ``agent_gpu_url`` would refuse.
+
+    ``alias_resolves`` is the probe, injectable so a test pins both arms without
+    depending on the machine it runs on. It is looked up at CALL time, not bound
+    as a default, so a caller that swaps ``host_alias_resolves`` on this module
+    changes what a real run does.
+    """
+    _require_pool_url(url, port, dialed="a run dials only")
+    probe = alias_resolves if alias_resolves is not None else host_alias_resolves
+    if probe("host.docker.internal"):
+        return f"http://host.docker.internal:{port}"
+    return f"http://127.0.0.1:{port}"
 
 
 # ---------------------------------------------------------------------------
@@ -1669,6 +1918,7 @@ class Run:
         mode: str,
         prod_shape: bool = False,
         seeded: bool = False,
+        shard: tuple[int, int] | None = None,
     ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
@@ -1676,6 +1926,10 @@ class Run:
         self.mode = mode
         self.prod_shape = prod_shape
         self.seeded = seeded
+        # [r264] The golden leg's shard, as (i, N) with 1 <= i <= N. None is the
+        # unsharded run -- every existing caller and pin passes no shard, and
+        # None must leave every byte of the leg's argv and record unchanged.
+        self.shard = shard
         # A run record that does not say WHICH compose shape was rendered cannot
         # witness ruling 127's 12 real-tier rows, which is the whole point of the
         # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
@@ -1702,6 +1956,11 @@ class Run:
             "image_tag": image_tag,
             "results": {},
         }
+        if shard is not None:
+            # [r264] A sharded run's record names its shard, so a merged
+            # inventory judgment (and the MEASURE table) can say what each run
+            # was. Absent when unset, so today's records byte-match today's.
+            self.summary["shard"] = f"{shard[0]}/{shard[1]}"
         self.started = False
 
     # -- processes -----------------------------------------------------------
@@ -1897,8 +2156,6 @@ class Run:
         rendered = json.loads(
             self.compose([PROD_STACK, PROD_SHAPE_OVERRIDE], "config", "--format", "json").stdout
         )
-        self.summary["limits"] = decide_resource_limits(rendered, read_subtree_control())
-        _log(self.summary["limits"])
         sockets = engine_socket_mounts(rendered, socket_path=os.environ.get("PODMAN_SOCKET", ""))
         problems = [
             f"{name} mounts the engine socket {source} -> {target} in the render this run "
@@ -1913,8 +2170,39 @@ class Run:
             # Deliberately before writing the artifact: `up` boots from what is on
             # disk, so a refused render must leave nothing to boot.
             raise Refused(problems)
+        # Ruling 256 split O2.5 by venue, and the fake bodies come from the same place the
+        # CI tier gets its whole stack: the CI+fake render. The fake service CANNOT be
+        # spelled here statically -- its image is hsi-fake-ai and it must be BUILT first
+        # (docker/fake-ai/Dockerfile FROMs this run's backend image, so the fake and the
+        # backend it answers share one dependency set), and the runner decides per venue
+        # which of the two fakes it carries. prod's own build: sections are left exactly as
+        # prod spells them: the pre-build builds them under the project tag, and the maui
+        # run's gateway is the REAL one, built from prod's own Dockerfile.
+        fake_bodies = self.fake_service_bodies()
+        fake_gateway = fake_bodies.get("ai-gateway") if vlm else None
+        fake_vlm = fake_bodies.get("ai-vlm") if vlm is None else None
+        rendered = as_prod_shape_deployment(
+            rendered,
+            vlm_url=vlm.url if vlm else None,
+            fake_gateway=fake_gateway,
+            fake_vlm=fake_vlm,
+        )
+        device_changes = rendered.pop("_device_changes", [])
+        if device_changes:
+            # The record names every removed or stripped device (ruling 256): a reader of
+            # the summary must be able to see the venue's shape without diffing renders.
+            self.summary["results"]["device_changes"] = device_changes
+            _log(f"prod-shape device changes: {'; '.join(device_changes)}")
+        # Ruling 162 item 2's limits decision runs on the render AFTER the transform: the
+        # spliced fake bodies carry the CI tier's deploy.resources.limits (0.5 CPU / 512M),
+        # and a decision taken before the splice would strip prod's limits and then let the
+        # splice re-introduce ones a rootless container refuses -- exactly the failure the
+        # strip exists to remove. The artifact below is written after this too, so
+        # prod-rendered.json is the shape the run BOOTS (post-splice, post-limits), not the
+        # pre-splice render the transform then edited out of band.
+        self.summary["limits"] = decide_resource_limits(rendered, read_subtree_control())
+        _log(self.summary["limits"])
         self._write("prod-rendered.json", rendered)
-        rendered = as_prod_shape_deployment(rendered, vlm_url=vlm.url if vlm else None)
         # The CI tier's render() writes self.compose_file and EVERY later lifecycle call
         # boots it -- `up`, `_address` (`compose port`), `collect` (`logs`/`ps`) and
         # `teardown` (`down -v`) all go through deployment(). Without this line a
@@ -1930,6 +2218,28 @@ class Run:
             name: service.get("image") for name, service in (rendered.get("services") or {}).items()
         }
         self.prebuild_images()
+
+    def fake_service_bodies(self) -> dict[str, dict[str, Any]]:
+        """The fake AI services the CI tier renders, by name, for the prod-shape transforms.
+
+        The fake overlay cannot render alone (measured: its services join ``ci-net``,
+        which only ``docker-compose.ci.yml`` defines, so a solo render is refused by
+        compose rather than silently mixing with the prod stack) -- rendering CI+fake
+        here yields exactly two bodies worth taking, the ones ruling 256's two venues
+        swap in: ``ai-vlm`` and ``ai-gateway``. The bodies carry the fake's own image
+        (``hsi-fake-ai``), command, environment, healthcheck and deploy limits, and
+        nothing device-shaped. The prod render's network membership stays the prod
+        render's (``security-net``): the transform keeps it.
+        """
+        rendered = json.loads(
+            self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
+        )
+        services = rendered.get("services") or {}
+        return {
+            name: copy.deepcopy(service)
+            for name, service in services.items()
+            if name in ("ai-vlm", "ai-gateway")
+        }
 
     def prebuild_images(self) -> None:
         """Build the stack's `build:` images BEFORE `up`, so `up` builds nothing.
@@ -1961,7 +2271,13 @@ class Run:
           something production does not run, and cost hours doing it.
 
         The images come from :func:`build_images`, applied to the boot document
-        `up` boots, so this cannot drift from the names `up` will look for.
+        `up` boots, so this cannot drift from the names `up` will look for. It
+        matters that `up` passes ``--no-build``: a service whose manifest says
+        ``pull_policy: build`` (docker-compose.fake-ai.yml:34) makes a plain
+        ``up`` rebuild its image through BuildKit even when this method has just
+        built it — and BuildKit's ``RUN`` steps need the cgroup delegation this
+        venue's rootless engine cannot grant, which is the wall this method
+        exists to dodge.
         """
         boot = json.loads(self.compose_file.read_text(encoding="utf-8"))
         wanted = build_images(boot, project=self.project)
@@ -2011,8 +2327,21 @@ class Run:
 
     def up(self, vlm: AgentGpu | None = None) -> None:
         self.started = True
+        # --no-build (ruling 274 as amended, record IC_kwDOQs9zJM8AAAABdusUHA): the
+        # flag rides along exactly when `prebuild_images()` ran in this run — the
+        # prod-shape modes. A `build:` service whose manifest sets
+        # `pull_policy: build` (docker-compose.fake-ai.yml:34) is rebuilt by a plain
+        # `up` through BuildKit even when the prebuild has just built it, and
+        # BuildKit's RUN steps need the cgroup delegation the sandbox venue's
+        # rootless engine cannot grant (attempt 4, operator report 6280195057).
+        # Fake mode never ran a prebuild, so its `up` stays plain: CI's fake-AI
+        # runs build `hsi-fake-ai` themselves at `up`, and `--no-build` there
+        # strands them with `No such image` (measured on #7298).
+        build_flag = ["--no-build"] if self.prod_shape else []
         try:
-            self.deployment("up", "-d", "--wait", "--wait-timeout", "900", timeout=1500)
+            self.deployment(
+                "up", "-d", *build_flag, "--wait", "--wait-timeout", "900", timeout=1500
+            )
         except HarnessError as boot:
             # The backend's health check calls the VLM, so on --real an
             # unreachable VLM fails `up --wait` first; name that reason if so.
@@ -2343,7 +2672,16 @@ class Run:
         problems = []
         results: dict[str, Any] = {}
         project_name = "golden-seeded" if self.seeded else "golden"
-        if not self.seeded and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
+        # [r264] Sharded CI runs the backend golden tests ONCE, in shard 1 (the
+        # package's Build box). A shard i>1 records the skip instead of running
+        # it, the same record shape the seeded branch below writes, so the
+        # merged summary the fan-in builds carries one backend leg set while
+        # every shard's record still says what IT ran. The skip branch makes no
+        # report, so it calls neither junit_results nor golden_execution_problems
+        # -- nothing to judge: the leg's verdict lives in shard 1's summary,
+        # whose own in-run call already covered the execution-problems check.
+        runs_backend = self.shard is None or self.shard[0] == 1
+        if not self.seeded and runs_backend and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
             junit = self.artifacts / "golden-backend.xml"
             result = self._run(
                 [
@@ -2369,6 +2707,9 @@ class Run:
             problems += golden_execution_problems("backend", results["backend_specs"])
         elif self.seeded:
             results["backend"] = "skipped on seeded"
+        elif not runs_backend:
+            i, total = self.shard  # type: ignore[misc]
+            results["backend"] = f"skipped on shard {i}/{total}"
         else:
             results["backend"] = "no specs yet"
         if PLAYWRIGHT_CONFIG.exists() and re.search(
@@ -2495,17 +2836,23 @@ class Run:
             # enforced at the place ruling 143 moved the leg to. With a real
             # install the flag is inert -- same tree, mounted :ro, it printed
             # "Version 1.63.0".
-            inner = " ".join(
-                [
-                    "npx",
-                    "--no-install",
-                    "playwright",
-                    "test",
-                    f"--project={project_name}",
-                    shlex.quote(f"--output={report}"),
-                    "--reporter=list,junit",
-                ]
-            )
+            inner_parts = [
+                "npx",
+                "--no-install",
+                "playwright",
+                "test",
+                f"--project={project_name}",
+                shlex.quote(f"--output={report}"),
+                "--reporter=list,junit",
+            ]
+            if self.shard is not None:
+                # [r264] Playwright's own shard selector: shard i of N. The
+                # worker count stays 1 and the project stays serial inside the
+                # shard -- the parallelism the package buys is across shards,
+                # each on its own stack, never within one.
+                i, total = self.shard
+                inner_parts.append(f"--shard={i}/{total}")
+            inner = " ".join(inner_parts)
             result = self._run(
                 golden_container_command(
                     engine=self.engine,
@@ -2690,6 +3037,7 @@ class AgentGpu:
         run.summary["vlm_name"] = self.name
         self.started = False
         self.url: str | None = None
+        self.dial_url: str | None = None
         self.host_port: int | None = None
         self.served_model: str | None = None
 
@@ -2766,7 +3114,17 @@ class AgentGpu:
         subcommand (``drop`` included) die at import time there. Here is the
         only reader; only ``start`` pays for it.
         """
-        import yaml
+        try:
+            import yaml
+        except ModuleNotFoundError as error:
+            raise HarnessError(
+                "this path reads docker-compose.prod.yml with pyyaml, which bare "
+                "python3 does not carry (pyyaml is a dev-only dependency, "
+                "pyproject.toml). Run the harness under a python that has it: "
+                "`uv run scripts/feature_check.py …`, or `export "
+                "PATH=<checkout>/.venv/bin:$PATH` first. The wrapper's bare "
+                "python3 stays import-clean on purpose."
+            ) from error
 
         raw = yaml.safe_load(PROD_STACK.read_text(encoding="utf-8"))
         return (raw.get("services") or {}).get("ai-vlm", {}).get("environment") or []
@@ -2842,20 +3200,33 @@ class AgentGpu:
                 f"agent-gpu-status-before.txt has the budget): {output.strip()[-1000:]}"
             )
         self.url, self.host_port = agent_gpu_url(output)
-        _log(f"vlm: {self.name} serves at {self.url}")
+        self.dial_url = vlm_dial_url(self.url, self.host_port)
+        self.run.summary["vlm_dial_url"] = self.dial_url
+        _log(f"vlm: {self.name} serves at {self.url} (this run dials {self.dial_url})")
 
     def wait_ready(self, timeout: float = 900) -> None:
-        """Step 3: /health answers 200, and /props' model_path is the pin."""
-        url = str(self.url)
+        """Step 3: /health answers 200, and /props' model_path is the pin.
+
+        Dialed at ``dial_url``, and with no ``origin`` when that is the loopback
+        form: ``_http``'s ``origin`` branch builds an opener that HONOURS
+        ``HTTP_PROXY`` — correct for the alias, which a sandbox reaches through
+        its proxy — while a loopback URL must go direct, which is what its
+        ``127.0.0.1`` branch (a proxy-free opener) already does. A host login
+        with a proxy set for internet access must not have its VLM probe sent
+        through it.
+        """
+        url = str(self.dial_url if self.dial_url is not None else self.url)
+        loopback = urllib.parse.urlsplit(url).hostname == "127.0.0.1"
+        origin = None if loopback else url
         deadline = time.monotonic() + timeout
         while True:
-            status, _ = _http("GET", f"{url}/health", timeout=10, origin=url)
+            status, _ = _http("GET", f"{url}/health", timeout=10, origin=origin)
             if status == 200 or time.monotonic() >= deadline:
                 break
             time.sleep(5)
         if status != 200:
             raise HarnessError(f"the VLM at {url} did not answer /health with 200 ({status})")
-        status, props = _http("GET", f"{url}/props", timeout=10, origin=url)
+        status, props = _http("GET", f"{url}/props", timeout=10, origin=origin)
         props = props if status == 200 and isinstance(props, Mapping) else {}
         model_path = str(props.get("model_path") or "")
         self.run.summary["build_info"] = props.get("build_info")
@@ -3014,6 +3385,7 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         mode=mode,
         prod_shape=args.prod_shape,
         seeded=seeded,
+        shard=getattr(args, "shard", None),
     )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
@@ -3142,9 +3514,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--prod-shape",
         action="store_true",
-        help="with --real, bring up the PRODUCTION compose shape (O2.5, ruling 144/162): "
+        help="bring up the PRODUCTION compose shape (O2.5, ruling 144/162): "
         "docker-compose.prod.yml + the prod-shape override on Podman, instead of the CI "
-        "stack. Refused without --real — the prod shape is the real tier's prod shape.",
+        "stack. With --real it is the sandbox run; without --real it is the maui run with "
+        "the fake VLM (ruling 256's venue split). Refused with --fake or --seeded.",
     )
     parser.add_argument(
         "--seeded",
@@ -3171,6 +3544,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=Path(os.environ.get("FEATURE_CHECK_ROOT", Path("/tmp") / "hsi-feature-check")),  # noqa: S108
         help="where run directories go (default: $FEATURE_CHECK_ROOT or /tmp/hsi-feature-check)",
     )
+    parser.add_argument(
+        "--shard",
+        type=str,
+        default=os.environ.get("FEATURE_CHECK_SHARD", ""),
+        help="[r264] run only shard I of N of the golden Playwright project, as `--shard I/N` "
+        "(default: $FEATURE_CHECK_SHARD or unset -- the whole suite, unsharded). CI-only: "
+        "every shard boots its own stack under its own compose project; the real tier and "
+        "the maui run keep the whole suite on one stack (ruling 264 item 5).",
+    )
     drop_parser = sub.add_parser("drop", help="drop an image into a camera folder of a run")
     drop_parser.add_argument("image", type=Path)
     drop_parser.add_argument("camera")
@@ -3184,13 +3566,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         print(drop(args.image, args.camera, Path(root)))
         return 0
-    if args.prod_shape and not args.real:
-        # O2.5's flag is a SHAPE of the real tier, not a third mode: the prod shape
-        # renders docker-compose.prod.yml, and --fake renders docker-compose.ci.yml.
-        # "the CI stack in the shape of prod" has no referent, and accepting it
-        # would let a reader of a run record believe prod was exercised when the CI
-        # stack ran. Refused at parse time, before any engine call.
-        parser.error("--prod-shape needs --real (it is the real tier's production shape)")
     if args.seeded and args.prod_shape:
         # Ruling 235 keeps this refusal explicit rather than inheriting it from the old
         # `--seeded needs --fake` line, which is what actually blocked this combination
@@ -3205,14 +3580,66 @@ def main(argv: Sequence[str] | None = None) -> int:
         # What stays refused is `--seeded --prod-shape`, ruled above: production never runs
         # DEBUG=true. `--fake --seeded` is byte-for-byte the command the CI leg runs.
         parser.error("--seeded needs --fake or --real (it is a boot shape, not a mode)")
+
+    if args.fake and args.prod_shape:
+        # "The CI stack in the shape of prod" has no referent: --fake renders
+        # docker-compose.ci.yml and the prod shape renders docker-compose.prod.yml,
+        # and no run can claim both. Refused at parse time, before any engine call,
+        # so a reader of a run record can never believe prod was exercised when the
+        # CI stack ran. (Ruling 256 keeps THIS refusal; it lifts only the
+        # needs---real one, for the maui run's bare --prod-shape below.)
+        parser.error("--fake is the CI stack: it cannot also take --prod-shape")
+    if not (args.fake or args.real or args.prod_shape):
+        # The old generic refusal (`choose --fake or --real`) was deleted in the
+        # ruling-256 venue split so the maui run's bare `--prod-shape` could fall
+        # through to the fake tier; the deletion went further than the widening
+        # needed and a bare invocation now silently boots the CI fake tier
+        # (ruling 262's defect, found by the owner's audit). Restored, narrowed to
+        # the shape it must keep open: a bare call with no mode and no shape has no
+        # referent, while `--prod-shape` alone stays the maui run's form.
+        parser.error("choose --fake or --real (or --prod-shape for the maui run)")
+    # [r264] The shard flag is the CI fake tier's own option (it exists to split
+    # that tier's golden leg across stacks). A real-tier or prod-shape run that
+    # took a shard would witness the real tier on a partial suite while its run
+    # record said `shard` -- exactly the silent-coverage-hole shape ruling 114
+    # exists for -- so it refuses at parse time, like every other shape
+    # mismatch above. `args.shard` is normalized here, once: a tuple when a
+    # shard was named, None when not (the empty-string env default must not
+    # reach Run -- its summary key check is `is not None`).
+    if args.shard:
+        match = re.fullmatch(r"(\d+)/(\d+)", args.shard.strip())
+        if not match:
+            parser.error(
+                f"--shard takes `I/N` with 1 <= I <= N (e.g. `--shard 2/3`), got {args.shard!r}"
+            )
+        shard_i, shard_n = int(match[1]), int(match[2])
+        if not (1 <= shard_i <= shard_n):
+            parser.error(
+                f"--shard takes `I/N` with 1 <= I <= N (e.g. `--shard 2/3`), got {args.shard!r}"
+            )
+        args.shard = (shard_i, shard_n)
+    else:
+        args.shard = None
+    if args.shard and (args.real or args.prod_shape):
+        parser.error(
+            "--shard is the CI fake tier's option (--fake only): the real tier and the "
+            "prod-shape run keep the whole suite on one stack (ruling 264 item 5)"
+        )
+
     if args.real:
         unavailable = real_unavailable(os.environ)
         if unavailable:
             _log(unavailable)
             return EXIT_UNAVAILABLE
         return run_check(args, mode="real")
-    if not args.fake:
-        parser.error("choose --fake or --real")
+    # Ruling 256 item 2: the venue split gives the prod shape a second caller, the maui
+    # run -- `feature_check.py --prod-shape` with the fake VLM, from a host login. The
+    # mode handed down is "fake" (the fake VLM serves the engine wire the CI tier's fake
+    # serves, and the run record's shape string is "fake-prod-shape"); with no AgentGpu
+    # on that path, render_prod_shape() splices the fake VLM in place of ai-vlm's body
+    # and keeps production CDI for ai-gateway/dcgm-exporter/backend -- the maui venue
+    # keeps its GPU consumers, per ruling 256 item 2. Plain --fake is the CI tier,
+    # unchanged.
     return run_check(args, mode="fake")
 
 

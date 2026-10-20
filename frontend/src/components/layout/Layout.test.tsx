@@ -82,7 +82,7 @@ vi.mock('../../hooks/useConnectionStatus', () => ({
 function createServiceStatus(
   service: ServiceName,
   status: ServiceStatus['status'],
-  message?: string
+  message?: string | null
 ): ServiceStatus {
   return {
     service,
@@ -92,21 +92,18 @@ function createServiceStatus(
   };
 }
 
-// Helper to create empty services record
-function createEmptyServices(): Record<ServiceName, ServiceStatus | null> {
-  return {
-    redis: null,
-    rtdetr: null,
-    nemotron: null,
-  };
+// Helper to create empty services record (the hook's map starts empty)
+function createEmptyServices(): Partial<Record<ServiceName, ServiceStatus>> {
+  return {};
 }
 
-// Helper to create healthy services
-function createHealthyServices(): Record<ServiceName, ServiceStatus | null> {
+// Helper to create healthy services (one report per emitter family)
+function createHealthyServices(): Partial<Record<ServiceName, ServiceStatus>> {
   return {
     redis: createServiceStatus('redis', 'healthy'),
-    rtdetr: createServiceStatus('rtdetr', 'healthy'),
-    nemotron: createServiceStatus('nemotron', 'healthy'),
+    yolo26: createServiceStatus('yolo26', 'healthy'),
+    postgres: createServiceStatus('postgres', 'running', null),
+    'worker:detection-0': createServiceStatus('worker:detection-0', 'running', null),
   };
 }
 
@@ -300,10 +297,8 @@ describe('Layout', () => {
     });
 
     it('shows alert when a service is unhealthy', () => {
-      const services: Record<ServiceName, ServiceStatus | null> = {
-        redis: null,
-        rtdetr: createServiceStatus('rtdetr', 'unhealthy'),
-        nemotron: null,
+      const services: Partial<Record<ServiceName, ServiceStatus>> = {
+        yolo26: createServiceStatus('yolo26', 'unhealthy'),
       };
 
       (useServiceStatus as Mock).mockReturnValue({
@@ -321,14 +316,16 @@ describe('Layout', () => {
 
       expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(screen.getByText('Service Unhealthy')).toBeInTheDocument();
-      expect(screen.getByText('RT-DETRv2')).toBeInTheDocument();
+      expect(screen.getByText('YOLO26')).toBeInTheDocument();
     });
 
     it('shows alert when a service is restarting', () => {
-      const services: Record<ServiceName, ServiceStatus | null> = {
-        redis: null,
-        rtdetr: null,
-        nemotron: createServiceStatus('nemotron', 'restarting', 'Attempting restart'),
+      const services: Partial<Record<ServiceName, ServiceStatus>> = {
+        'worker:detection-0': createServiceStatus(
+          'worker:detection-0',
+          'restarting',
+          'Attempting restart'
+        ),
       };
 
       (useServiceStatus as Mock).mockReturnValue({
@@ -349,10 +346,8 @@ describe('Layout', () => {
     });
 
     it('shows alert when a service has failed', () => {
-      const services: Record<ServiceName, ServiceStatus | null> = {
+      const services: Partial<Record<ServiceName, ServiceStatus>> = {
         redis: createServiceStatus('redis', 'failed'),
-        rtdetr: null,
-        nemotron: null,
       };
 
       (useServiceStatus as Mock).mockReturnValue({
@@ -373,10 +368,8 @@ describe('Layout', () => {
     });
 
     it('dismisses alert when dismiss button is clicked', () => {
-      const services: Record<ServiceName, ServiceStatus | null> = {
-        redis: null,
-        rtdetr: createServiceStatus('rtdetr', 'unhealthy'),
-        nemotron: null,
+      const services: Partial<Record<ServiceName, ServiceStatus>> = {
+        yolo26: createServiceStatus('yolo26', 'unhealthy'),
       };
 
       (useServiceStatus as Mock).mockReturnValue({
@@ -403,10 +396,8 @@ describe('Layout', () => {
     });
 
     it('renders alert before children content', () => {
-      const services: Record<ServiceName, ServiceStatus | null> = {
-        redis: null,
-        rtdetr: createServiceStatus('rtdetr', 'unhealthy'),
-        nemotron: null,
+      const services: Partial<Record<ServiceName, ServiceStatus>> = {
+        yolo26: createServiceStatus('yolo26', 'unhealthy'),
       };
 
       (useServiceStatus as Mock).mockReturnValue({
@@ -437,10 +428,10 @@ describe('Layout', () => {
     });
 
     it('shows worst status when multiple services are unhealthy', () => {
-      const services: Record<ServiceName, ServiceStatus | null> = {
+      const services: Partial<Record<ServiceName, ServiceStatus>> = {
         redis: createServiceStatus('redis', 'unhealthy'),
-        rtdetr: createServiceStatus('rtdetr', 'failed'),
-        nemotron: createServiceStatus('nemotron', 'restarting'),
+        yolo26: createServiceStatus('yolo26', 'failed'),
+        postgres: createServiceStatus('postgres', 'restarting'),
       };
 
       (useServiceStatus as Mock).mockReturnValue({
