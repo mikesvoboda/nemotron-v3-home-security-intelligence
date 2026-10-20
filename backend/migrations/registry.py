@@ -126,6 +126,11 @@ UPGRADES: tuple[Upgrade, ...] = (
         filename="2026-10-19-retire-user-calibration-table.sql",
         source="B3.1 R2a row 11 (retire F-131 user_calibration table)",
     ),
+    Upgrade(
+        id="0007-retire-action-events-table",
+        filename="2026-10-20-retire-action-events-table.sql",
+        source="B3.1 R2a row 32 (retire F-068 action_events table)",
+    ),
 )
 
 

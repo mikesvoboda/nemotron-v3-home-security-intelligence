@@ -11,7 +11,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from .enums import CameraStatus, IngestionMode
 
 if TYPE_CHECKING:
-    from .action_event import ActionEvent
+    # R2a row 32 (F-068) retired
     from .analytics_zone import LineZone, PolygonZone
     from .area import Area
     from .baseline import ActivityBaseline, ClassBaseline
@@ -222,9 +222,9 @@ class Camera(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-    action_events: Mapped[list[ActionEvent]] = relationship(
-        "ActionEvent", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
-    )
+    # R2a row 32 (F-068) retired
+    #
+    #
     plate_reads: Mapped[list[PlateRead]] = relationship(
         "PlateRead", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )

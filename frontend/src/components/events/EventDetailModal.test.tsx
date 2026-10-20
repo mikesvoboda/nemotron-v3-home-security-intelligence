@@ -2685,7 +2685,7 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(
         <EventDetailModal
           {...mockFaceEnrollmentProps}
-          event={{ ...mockFaceEnrollmentProps.event, camera_id: 'front_door' }}
+          event={{ ...mockFaceEnrollmentProps.event!, camera_id: 'front_door' }}
         />
       );
 

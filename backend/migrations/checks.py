@@ -197,6 +197,7 @@ CHECKS: dict[str, Check] = {
         [column_present(table, column) for table, column in _UNRECORDED_MODEL_COLUMNS]
     ),
     "0006-retire-user-calibration-table": table_absent("user_calibration"),
+    "0007-retire-action-events-table": table_absent("action_events"),
 }
 
 

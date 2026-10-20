@@ -156,3 +156,14 @@ INSERT INTO detections (camera_id, detected_at, object_type, confidence) VALUES
 INSERT INTO user_calibration (user_id) VALUES ('owner'), ('guest');
 
 INSERT INTO event_feedback (event_id, feedback_type, notes) VALUES (1, 'confirmed', 'looked right');
+
+-- ---------------------------------------------------------------------------------------
+-- action_events: present before 0007-retire-action-events-table (B3.1 R2a row 32 F-068)
+-- ---------------------------------------------------------------------------------------
+CREATE TABLE action_events (
+    id        SERIAL PRIMARY KEY,
+    camera_id TEXT,
+    action    TEXT
+);
+
+INSERT INTO action_events (camera_id, action) VALUES ('cam-front', 'walking normally');
