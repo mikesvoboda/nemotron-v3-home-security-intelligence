@@ -51,14 +51,20 @@ class TestFieldSelection:
     def test_endpoint_advertisement_names_verification(self):
         """The fields Query description is the API's contract text: the
         selectable list there must match the allowlist (drift = the pin
-        fails)."""
-        import inspect
+        fails).
 
-        from backend.api.routes import events as events_module
+        Since [r277a] the description is DERIVED from
+        VALID_EVENT_LIST_FIELDS (fields_query_description, sorted), so the
+        advertisement is the allowlist by construction; this pin now reads
+        the generated text and asserts verification is advertised — and
+        that no retired field name (detection_ids, removed with the events
+        table's detections column in NEM-1592) is advertised alongside.
+        """
+        from backend.api.routes.events import fields_query_description
 
-        src = inspect.getsource(events_module)
-        # the description lists the selectable fields verbatim
-        assert "thumbnail_url, verification" in src
+        description = fields_query_description()
+        assert "verification" in description
+        assert "detection_ids" not in description
 
 
 class TestVerificationPayloadPresence:
