@@ -943,23 +943,36 @@ for each rule.
 ### [r184] The launcher prints the heavy sessions' pi start line
 
 **Flags:** none. **Assigned:** ops-a. **Depends on:** none.
-**PR:** #7295. (rulings 184 and 201, records 6177514438 and 6198825479)
+**PR:** #7295. (rulings 184 and 201, records 6177514438 and 6198825479; the owner's answer,
+comment 6282692806, 2026-10-20T03:32Z)
 
 Ruling 184's commit renamed the heavy rows in `scripts/uplevel/sandboxes.toml`. The owner starts
-both with `agent-dgx <name> pi --split`, but `launch.py` still builds
-`agent-dgx run <name> --agent claude --split` for them (`[models] strongest`).
+both under the pi harness; asked for the exact line (ruling 201 item 1), the owner confirmed
+`agent-dgx <name> pi --split` word for word on the PR. The form is not `agent-dgx run`-shaped
+(session name before the harness, no `--agent` flag), so the launcher refuses the rows and names
+the hand-start line - the refusal is the settled state, not a waiting one.
 
-- [ ] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
+- [x] The launcher's line for `uplevel-heavy-a` and `uplevel-heavy-b` is the owner's pi start line.
       Take its exact form from `agent-dgx help` output the owner posts from maui, or from a line
       the owner pastes on the PR; the launcher never invents a flag (`history/packages-done.md`
-      §O0.1).
-- [ ] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
-      rows, naming the hand-start line, and prints no wrong line.
-- [ ] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
-      refusal, and no other row's line changes.
+      §O0.1). - the owner answered (`agent-dgx <name> pi --split`, word for word, comment
+      6282692806): the form is the hand-start line each row now carries; the launcher names it in
+      the refusal and never prints a run line for the rows, per the box below (ops-a's call, PR
+      comment 6282901290).
+- [x] If that form cannot be written as `agent-dgx run` arguments, the launcher refuses the two
+      rows, naming the hand-start line, and prints no wrong line. - it cannot (the session name
+      precedes the harness, no `--agent` flag); `hand_start` on each row, `run_args_for` raises
+      naming `agent-dgx <name> pi --split`, and `up` refuses the phase before any change while
+      such a row is MISSING (commit `efeaf55ff`).
+- [x] `backend/tests/unit/scripts/test_uplevel_launch.py`: the heavy rows give the pi line or the
+      refusal, and no other row's line changes. -
+      `test_the_rosters_heavy_rows_refuse_naming_the_hand_start_line`,
+      `test_a_hand_start_row_refuses_before_any_change`,
+      `test_no_other_rows_line_changes_for_hand_start` (108 passed).
 
 **Done when:** the launcher test passes in CI at a ready head, and `sandboxes.toml`'s comment no
-longer says the launcher does not print the form.
+longer says the launcher does not print the form. - the comment now says why the launcher does
+not print the form (the form is not `run`-shaped), and the CI half needs the PR marked ready.
 
 ### [r264] The golden Playwright suite runs in shards, each on its own stack
 
