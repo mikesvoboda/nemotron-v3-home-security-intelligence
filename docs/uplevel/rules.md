@@ -79,7 +79,14 @@ Read this section before you take, claim, assign, park or release a package.
   queue has nothing it can claim, an agent claims the next such package from another queue whose
   files all lie in its own lane's area (in practice, ops-a and ops-b from each other's queues); the
   cell whose files it edits reviews it. Any other move between queues is the coordinator's or a
-  ruling's (UR-59). (owner design session 2026-10-12; lane kickoff prompts; rulings 82, 120; record 6083435595)
+  ruling's (UR-59). An agent whose open PR is waiting its merge turn may claim its next package the
+  same way, holding at most two open packages; a PR waits its turn when its approving review names
+  its head or a UR-106 carry of it (and, in the owner tier, the owner's approval is in force), its
+  `CI Gate` passed there or its last run was cancelled, it is not a draft, and nothing on it is the
+  author's to do. Anything on the waiting PR that becomes the author's to do comes before more work
+  on the new package; the coordinator assigns a heavy agent's next package on the same terms, and a
+  ruling's one-off exception counts toward the two. (owner design session 2026-10-12; lane kickoff
+  prompts; rulings 82, 120, 269; record 6083435595)
 - **UR-53** Claim a package before writing any work: an empty commit on branch
   `uplevel/<package>-<slug>` from `main`, pushed, and a draft PR titled `[<package>] <name>` opened
   with the `uplevel.md` template and `lane:<lane>`. The open draft PR is the claim. (ruling 39 item
