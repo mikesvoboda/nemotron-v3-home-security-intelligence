@@ -311,4 +311,3 @@ def test_0010_retire_scheduled_reports_table_registered():
     """R2a row 43 (F-252/F-253/F-255) registers 0010-retire-scheduled-reports-table with a table_absent check."""
     assert "0010-retire-scheduled-reports-table" in registry.ids()
     assert "0010-retire-scheduled-reports-table" in checks.CHECKS
-

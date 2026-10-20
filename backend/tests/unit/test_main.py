@@ -714,4 +714,3 @@ class TestSecureCookieLoginLoopWarning:
         mounted_paths = {getattr(r, "path", "") for r in main_mod.app.routes}
         assert not any(p.startswith(retired_prefix) for p in mounted_paths)
         assert not hasattr(models_mod, "Scheduled" + "Report")
-
