@@ -330,9 +330,7 @@ class BackupService:
         # (census over BACKUP_TABLES + Event at the PR base, d5c470715). The
         # resolved name doubles as the JSON key, so backups carry
         # "alert_metadata": {...} instead of "metadata": "MetaData()".
-        attr_names = {
-            col.key: attr.key for attr in mapper.column_attrs for col in attr.columns
-        }
+        attr_names = {col.key: attr.key for attr in mapper.column_attrs for col in attr.columns}
 
         # Undefer every deferred column on this model before the walk below.
         # The loop reads each column with plain getattr (synchronous lazy load),

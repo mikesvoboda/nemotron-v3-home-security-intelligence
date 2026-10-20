@@ -15,6 +15,7 @@ import uuid
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, ClassVar
 
 import pytest
 
@@ -442,7 +443,10 @@ class TestAlertMetadataSurvivesBackupAndRestore:
     """
 
     # Sentinel payload the round trip must preserve.
-    PAYLOAD = {"reason": "R271B-SENTINEL", "channels_tried": ["email", "webhook"]}
+    PAYLOAD: ClassVar[dict[str, Any]] = {
+        "reason": "R271B-SENTINEL",
+        "channels_tried": ["email", "webhook"],
+    }
 
     @pytest.fixture
     async def seeded_alert(self, test_db) -> dict:
@@ -535,9 +539,7 @@ class TestAlertMetadataSurvivesBackupAndRestore:
 
         async with test_db() as session:
             restored = (
-                await session.execute(
-                    select(Alert).where(Alert.id == seeded_alert["alert_id"])
-                )
+                await session.execute(select(Alert).where(Alert.id == seeded_alert["alert_id"]))
             ).scalar_one()
             assert restored.alert_metadata == self.PAYLOAD, (
                 f"[r271b] restored alert {seeded_alert['alert_id']} came back "
@@ -695,4 +697,3 @@ class TestAlertMetadataSurvivesBackupAndRestore:
                 )
             ).scalar_one()
             assert restored.alert_metadata is None
-
