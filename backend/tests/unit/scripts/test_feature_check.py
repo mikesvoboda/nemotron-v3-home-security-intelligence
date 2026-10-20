@@ -4567,6 +4567,42 @@ def test_a_failed_up_with_the_vlm_also_unreachable_names_both_reasons(
     assert "buildx_buildkit_default" in message, f"compose's reason was swallowed: {message[:400]}"
 
 
+def test_up_boots_with_no_build_and_never_rebuilds_at_up(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Ruling 274 (record 6282871050): the harness boots with `up --no-build`, so `up`
+    never builds in the sandbox venue. `docker-compose.fake-ai.yml:34` sets
+    `pull_policy: build`, which makes a plain `up` rebuild `hsi-fake-ai` through
+    BuildKit even when the prebuild has just built it — and that rebuild's RUN step
+    needs the cgroup delegation this venue's rootless engine cannot grant (attempt
+    4, operator report 6280195057). The prebuild builds everything with
+    DOCKER_BUILDKIT=0 precisely so `up` builds nothing; the flag makes that true."""
+
+    capture: list[tuple[str, ...]] = []
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        capture.append(args)
+        if args[:2] == ("up", "-d"):
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:2] == ("port", "backend"):
+            return subprocess.CompletedProcess(args, 0, "127.0.0.1:18000\n", "")
+        if args[:2] == ("port", "frontend"):
+            return subprocess.CompletedProcess(args, 0, "127.0.0.1:18080\n", "")
+        raise AssertionError(f"unexpected deployment call: {args}")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "check_vlm_reach", lambda *_: None)
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode="real")
+    run.up(vlm=_StubVlm())
+    assert run.summary["urls"] == {"api": "http://127.0.0.1:18000", "ui": "http://127.0.0.1:18080"}
+    # The pin itself: the boot argv carries --no-build (ruling 274 item 1). Position is
+    # free - it is a flag, not an operand - so this is a membership assert, not a shape.
+    up_calls = [c for c in capture if c[0] == "up"]
+    assert up_calls, f"no `up` call captured: {capture}"
+    for argv in up_calls:
+        assert "--no-build" in argv, f"the boot argv lacks --no-build: {argv}"
+
+
 # ---------------------------------------------------------------------------
 # O2.5 / UR-140 slice 2a — the names `up` builds under.
 #
