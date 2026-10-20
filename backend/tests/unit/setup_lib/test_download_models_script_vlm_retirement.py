@@ -61,8 +61,6 @@ RETIRED_MODEL_NAMES = (
 # test_rule_selection, never hardcoded from the script's own claims).
 EXPECTED_HF_ROWS = {
     "threat-detection-yolov8n",
-    "yolo11-face",
-    "yolo11-license-plate",
 }
 EXPECTED_CUSTOM_FETCHES = {"yolo26", "osnet-ain-x1-0"}
 
@@ -190,11 +188,11 @@ class TestKeepSetMatchesRule:
             if dm != "skip" and ((hf and hf != "''") or dm):
                 size = field(body, "size_mb")
                 selected.append(int(size) if size.isdigit() else 0)
-        assert len(selected) == 5, (
+        assert len(selected) == 3, (
             "models.yml rule-selection changed — update this tier AND the script"
         )
         total_mb = sum(selected)
-        assert total_mb == 763
+        assert total_mb == 102
         # Header = everything before the first executable line (`set -e`).
         text = script_text()
         match = re.search(r"^set -e$", text, re.M)
