@@ -20,6 +20,16 @@ address is accepted by ``create_webhook`` — there is no SSRF or private-host
 guard on that path — and ``httpx`` fails it in milliseconds, so the only wait
 left is for the background task to commit.
 
+The poll tolerates a transient disconnect: CI run 39345706766 lost the leg to
+``httpx.RemoteProtocolError: Server disconnected without sending a response.``
+on the fixture's first history GET — the sibling legs in this module passed on
+the same stack, and the backend container's log shows ``redis`` timeouts
+spanning the whole run, so the server's edge dropped one connection mid-response
+rather than the delivery machinery being wrong. A poll loop that treats one
+dropped connection as the delivery's fate measures the transport, not the row;
+the loop instead retries the read within the same 90-second deadline and fails
+only when the row itself never reaches a terminal state.
+
 One delivery row per *acknowledgment*, not per alert: ``deliver_webhook``
 unconditionally ``db.add``\\ s a new ``WebhookDelivery``
 (``backend/services/webhook_service.py:359``), and ``retry_delivery`` then
@@ -82,10 +92,21 @@ def _terminal_delivery(client: httpx.Client, webhook_id: str, alert_id: str) -> 
     """
     deadline = time.monotonic() + POLL_DEADLINE_S
     seen: list[dict[str, Any]] = []
+    last_transport_error: Exception | None = None
     while time.monotonic() < deadline:
-        response = client.get(
-            f"/api/outbound-webhooks/{webhook_id}/deliveries", params={"limit": 50}
-        )
+        try:
+            response = client.get(
+                f"/api/outbound-webhooks/{webhook_id}/deliveries", params={"limit": 50}
+            )
+        except httpx.TransportError as exc:
+            # CI run 39345706766 lost this leg to a server-side disconnect on
+            # the first GET while every sibling leg on the same stack passed.
+            # A dropped connection says nothing about the row, so keep polling:
+            # the deadline below still bounds the wait, and a stack that never
+            # answers at all still fails here with the rows it did return.
+            last_transport_error = exc
+            time.sleep(POLL_INTERVAL_S)
+            continue
         assert response.status_code == 200, response.text[:500]
         mine = [d for d in response.json()["deliveries"] if d.get("event_id") == alert_id]
         if mine:
@@ -95,7 +116,8 @@ def _terminal_delivery(client: httpx.Client, webhook_id: str, alert_id: str) -> 
         time.sleep(POLL_INTERVAL_S)
     pytest.fail(
         f"no terminal delivery for alert {alert_id} within {POLL_DEADLINE_S:.0f}s; "
-        f"rows seen for it: {seen!r} (webhook {webhook_id})"
+        f"rows seen for it: {seen!r} (webhook {webhook_id}); "
+        f"last transport error: {last_transport_error!r}"
     )
 
 

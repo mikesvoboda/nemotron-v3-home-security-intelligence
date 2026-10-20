@@ -108,7 +108,7 @@ HOST_JUSTIFIED: dict[str, str] = {
     # The golden webhook spec needs a real events.id (Alert.event_id is a
     # non-nullable FK); an empty events table is the stack's data state, the
     # same data-chain shape as test_risk_score_validation.py:199 above.
-    "backend/tests/golden/external/test_webhook_deliveries.py:132": "no events rows on the live stack — DB data chain, not repo content",
+    "backend/tests/golden/external/test_webhook_deliveries.py:154": "no events rows on the live stack — DB data chain, not repo content",
     # Compose binary availability, resolved inside a helper the probe can't see.
     "backend/tests/unit/core/test_compose_render_lists_ai_vlm.py:67": "argv is None when no compose binary (podman/docker) resolves via shutil.which — host-executable guard, not repo content",
     # O1.11's prometheus boot pin: same docker-availability shape, resolved two
