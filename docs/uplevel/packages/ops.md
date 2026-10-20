@@ -253,17 +253,17 @@ tool's tests pass, and the golden paths stay green.
 ### O3.3 `models.yml` and env truth
 
 **Flags:** none. **Depends on:** `R2`; #7244 (`B3.3`) merged (ruling 260).
-**Assigned:** heavy-b, after `O3.1`, once #7244 (`B3.3`) has merged (ruling 260). **PR:** none yet.
+**Assigned:** heavy-b, after `O3.1`, once #7244 (`B3.3`) has merged (ruling 260). **PR:** #7281
 (rulings 241 and 260)
 
-- [ ] `models.yml`: delete the dead rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`,
+- [x] `models.yml`: delete the dead rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`,
       `yolo26-general`), correct the `yolo26` row, and add the shipped Qwen3-VL GGUF and mmproj.
       **DECIDE** the one place that names the VLM's identity; today it is spread across compose,
       `.env.example` and `config.py`.
-- [ ] `.env.example`: delete the variables read by neither `config.py`, compose nor `setup.py`
+- [x] `.env.example`: delete the variables read by neither `config.py`, compose nor `setup.py`
       (34 at `d6ba78d5`), with `B3.3` covering the settings side. `test_a5500_precheck.py` reads the
       `GPU_*` names; update it in the same PR.
-- [ ] Add a ratchet test: every `.env.example` variable is read by `config.py`, compose or
+- [x] Add a ratchet test: every `.env.example` variable is read by `config.py`, compose or
       `setup.py`.
 
 **Done when:** the ratchet test passes and every `models.yml` row names something that loads.
