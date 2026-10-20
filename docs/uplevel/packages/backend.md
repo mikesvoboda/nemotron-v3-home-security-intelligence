@@ -711,7 +711,7 @@ before the fix.
 ### [r271b] Backups keep alert metadata
 
 **Flags:** none. **Assigned:** backend, after `[r271a]` (ruling 271).
-**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644; audit items Q-040 to Q-042
+**Depends on:** none. **PR:** #7302 (draft). (ruling 271, record 6277412644; audit items Q-040 to Q-042
 of `[r262]`, #7031)
 
 Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. The export in
