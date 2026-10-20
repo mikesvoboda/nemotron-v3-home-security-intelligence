@@ -1356,7 +1356,13 @@ async def test_system_broadcaster_check_redis_health_unhealthy_dict_is_false():
 
 @pytest.mark.asyncio
 async def test_system_broadcaster_check_redis_health_failure():
-    """Test _check_redis_health returns False when Redis health check fails."""
+    """Test _check_redis_health returns False when Redis health check fails.
+
+    The seam is synthetic (Q-056): production wiring cannot deliver a raised exception
+    to this helper, because the wrapper client's ``health_check()`` absorbs every
+    ``Exception`` into a returned dict. This test pins the arm's behaviour for a
+    non-wrapper client that does raise.
+    """
     mock_redis = AsyncMock()
     mock_redis.health_check.side_effect = ConnectionError("Redis not available")
 
@@ -1379,9 +1385,12 @@ async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeou
 
     This corrected probe runs the REAL broadcast methods: ``publish`` raises
     ``redis.exceptions.TimeoutError`` on every call, and each tick must still deliver both
-    ``system_status`` and ``performance_update`` to the local WebSocket client. The seam is
-    real, not synthetic: a wedged redis raises exactly this class from ``publish`` under
-    load (the F2.3 golden-spec red, 1433 in the failing log).
+    ``system_status`` and ``performance_update`` to the local WebSocket client. The
+    ``publish`` seam is real, not synthetic: a wedged redis raises exactly this class from
+    ``publish`` under load (the F2.3 golden-spec red, 1433 in the failing log). The
+    ``health_check`` seam in the same stub is synthetic (Q-056): the production wrapper
+    absorbs every ``Exception`` into a returned dict, so the helper's real unhealthy
+    signal is the dict, covered by the unhealthy-dict test below.
     """
     from redis.exceptions import TimeoutError as RedisTimeoutError
 
@@ -1469,11 +1478,16 @@ async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeou
 async def test_system_broadcaster_check_redis_health_timeout_is_unhealthy():
     """A redis timeout during the health check reports unhealthy, it does not propagate.
 
-    Mirrors ``test_system_broadcaster_check_redis_health_failure``, which uses the builtin
-    ``ConnectionError`` - but the failure redis actually raises under load is
-    ``redis.exceptions.TimeoutError``, which is not a builtin subclass and so escaped the
-    handler. Like ``_get_queue_stats`` this is awaited outside ``_get_system_status``'s
-    guarded try, so an escape there costs the whole broadcast tick.
+    The seam is synthetic (Q-056): production wiring cannot deliver a raised
+    ``redis.exceptions.TimeoutError`` here, because the only client type production
+    constructs is ``RedisClient``, whose ``health_check()`` absorbs every ``Exception``
+    into a returned dict. This test drives the helper's RedisError arm through an
+    ``AsyncMock`` side effect, pinning the defence-in-depth path a non-wrapper client
+    (or a future wrapper that lets exceptions through) would take. The real production
+    failure signal is the unhealthy dict, which
+    ``test_system_broadcaster_check_redis_health_unhealthy_dict_is_false`` covers.
+    Like ``_get_queue_stats`` this helper is awaited outside ``_get_system_status``'s
+    guarded try, so an escape costs the whole broadcast tick.
     """
     from redis.exceptions import TimeoutError as RedisTimeoutError
 
