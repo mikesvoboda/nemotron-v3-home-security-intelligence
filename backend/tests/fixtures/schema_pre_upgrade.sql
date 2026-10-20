@@ -27,14 +27,21 @@ CREATE TABLE alerts (
 );
 
 CREATE TABLE alert_rules (
-    id           SERIAL PRIMARY KEY,
-    name         TEXT,
-    object_types JSON,
-    camera_ids   JSON,
-    zone_ids     JSON,
-    schedule     JSON,
-    conditions   JSON,
-    channels     JSON
+    id                              SERIAL PRIMARY KEY,
+    name                            TEXT,
+    object_types                    JSON,
+    camera_ids                      JSON,
+    zone_ids                        JSON,
+    schedule                        JSON,
+    conditions                      JSON,
+    channels                        JSON,
+    pose_types                      TEXT,
+    pose_confidence_threshold       NUMERIC,
+    action_types                    TEXT,
+    action_confidence_threshold     NUMERIC,
+    smoke_fire_detection_enabled    BOOLEAN DEFAULT FALSE,
+    smoke_fire_consecutive_required INTEGER DEFAULT 2,
+    smoke_fire_confidence_threshold NUMERIC
 );
 
 INSERT INTO alerts (camera_id, channels, metadata) VALUES
