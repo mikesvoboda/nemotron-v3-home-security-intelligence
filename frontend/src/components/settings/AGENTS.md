@@ -58,11 +58,9 @@ suites (`CamerasSettings.motionSensitivity.test.tsx`,
 | `ModelCard.tsx`                          | One Model Zoo model card                                           |
 | `VRAMUsageCard.tsx`                      | GPU VRAM usage visualization                                       |
 | `FeatureTogglesPanel.tsx`                | AI processing feature toggles (test lives in `__tests__/`)         |
-| `GpuAssignmentTable.tsx`                 | GPU assignment table per AI service                                |
 | `GpuDeviceCard.tsx`                      | Single GPU device card                                             |
 | `GpuStrategySelector.tsx`                | GPU assignment strategy radio group                                |
 | `GpuBatchActions.tsx`                    | Batch GPU assignment actions                                       |
-| `GpuApplyButton.tsx`                     | Save/apply GPU configuration                                       |
 | `GpuVersionHistory.tsx`                  | Config version history + diff view (no co-located test)            |
 | `RawSettingsPanel.tsx`                   | Admin raw-settings editor (NEM-4951)                               |
 | `LoggingSettings.tsx`                    | Logging configuration UI                                           |

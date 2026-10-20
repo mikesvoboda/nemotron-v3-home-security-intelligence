@@ -174,3 +174,14 @@ CREATE TABLE action_events (
 );
 
 INSERT INTO action_events (camera_id, action) VALUES ('cam-front', 'walking normally');
+
+-- ---------------------------------------------------------------------------------------
+-- gpu_devices: present before 0009-retire-gpu-devices-table (B3.1 R2a row 36 F-177)
+-- ---------------------------------------------------------------------------------------
+CREATE TABLE gpu_devices (
+    id        SERIAL PRIMARY KEY,
+    gpu_index INTEGER,
+    name      TEXT
+);
+
+INSERT INTO gpu_devices (gpu_index, name) VALUES (0, 'RTX A5500');

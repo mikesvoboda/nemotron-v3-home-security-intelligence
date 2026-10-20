@@ -12,11 +12,7 @@ import GpuSettingsPage from './GpuSettingsPage';
 import * as gpuConfigApi from '../services/gpuConfigApi';
 import { renderWithProviders } from '../test-utils/renderWithProviders';
 
-import type {
-  GpuListResponse,
-  GpuConfig,
-  StrategyPreviewResponse,
-} from '../services/gpuConfigApi';
+import type { GpuListResponse, GpuConfig, StrategyPreviewResponse } from '../services/gpuConfigApi';
 
 vi.mock('../services/gpuConfigApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/gpuConfigApi')>();
@@ -92,8 +88,8 @@ describe('GpuSettingsPage', () => {
       });
 
       expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /apply/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('save-config-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('apply-config-button')).not.toBeInTheDocument();
     });
 
     it('should show loading state initially', () => {

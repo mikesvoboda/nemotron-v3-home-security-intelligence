@@ -40,7 +40,6 @@ from .face_identity import (
 from .gpu_config import (
     GpuAssignmentStrategy,
     GpuConfiguration,
-    GpuDevice,
     SystemSetting,
 )
 from .gpu_stats import GPUStats
@@ -139,7 +138,6 @@ __all__ = [
     "GPUStats",
     "GpuAssignmentStrategy",
     "GpuConfiguration",
-    "GpuDevice",
     "HeatmapData",
     "HeatmapResolution",
     "Household",

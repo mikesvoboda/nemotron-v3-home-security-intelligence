@@ -1,64 +1,36 @@
 /**
- * GpuVersionHistory - Configuration version history panel with diff view and export/import
+ * GpuVersionHistory - Configuration version history panel with diff view and export (F-182).
  *
- * Provides a panel for viewing and managing GPU configuration versions:
- * - List of configuration versions with timestamps
- * - Diff view between versions
- * - Rollback to previous configurations
- * - Export/Import functionality
- *
- * @see NEM-4945 - GPU Configuration Version History
+ * R2a row 36 retired F-183 (Import and Rollback).
  */
 
 import { Card, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
 import {
   ArrowDownToLine,
-  ArrowUpFromLine,
   ChevronDown,
   ChevronUp,
   Clock,
   Download,
   GitCompare,
   History,
-  RotateCcw,
-  Upload,
   User,
 } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
-import {
-  useConfigVersions,
-  useConfigVersionDiff,
-  useExportConfig,
-  useImportConfig,
-  useRollbackConfig,
-} from '../../hooks/useGpuConfig';
+import { useConfigVersions, useConfigVersionDiff, useExportConfig } from '../../hooks/useGpuConfig';
 import Button from '../common/Button';
 
 import type {
   GpuConfigVersionSummary,
   GpuConfigAssignmentChange,
-  GpuConfigExportData,
 } from '../../services/gpuConfigApi';
 
-/**
- * Props for GpuVersionHistory component
- */
 export interface GpuVersionHistoryProps {
-  /** Whether the component is in a loading/disabled state */
   disabled?: boolean;
-  /** Callback after successful rollback */
-  onRollback?: () => void;
-  /** Callback after successful import */
-  onImport?: () => void;
-  /** Additional CSS classes */
   className?: string;
 }
 
-/**
- * Format date for display
- */
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString(undefined, {
@@ -70,9 +42,6 @@ function formatDate(dateString: string): string {
   });
 }
 
-/**
- * Version list item component
- */
 function VersionItem({
   version,
   isSelected,
@@ -176,9 +145,6 @@ function VersionItem({
   );
 }
 
-/**
- * Diff view component
- */
 function DiffView({
   fromVersion,
   toVersion,
@@ -281,172 +247,11 @@ function DiffView({
   );
 }
 
-/**
- * Import dialog component
- */
-function ImportDialog({
-  isOpen,
-  onClose,
-  onImport,
-  isLoading,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onImport: (data: GpuConfigExportData, applyImmediately: boolean) => void;
-  isLoading: boolean;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importData, setImportData] = useState<GpuConfigExportData | null>(null);
-  const [applyImmediately, setApplyImmediately] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string;
-        const data = JSON.parse(text) as GpuConfigExportData;
-
-        // Basic validation
-        if (!data.strategy || !data.assignments) {
-          setError('Invalid configuration file format');
-          return;
-        }
-
-        setImportData(data);
-        setError(null);
-      } catch {
-        setError('Failed to parse configuration file');
-      }
-    };
-    reader.readAsText(file);
-  }, []);
-
-  const handleImport = useCallback(() => {
-    if (importData) {
-      onImport(importData, applyImmediately);
-    }
-  }, [importData, applyImmediately, onImport]);
-
-  const handleClose = useCallback(() => {
-    setImportData(null);
-    setError(null);
-    setApplyImmediately(false);
-    onClose();
-  }, [onClose]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-      data-testid="import-dialog"
-    >
-      <div className="mx-4 max-w-lg rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#76B900]/20">
-            <Upload className="h-5 w-5 text-[#76B900]" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-white">Import Configuration</h3>
-            <Text className="text-sm text-gray-400">Load a previously exported configuration</Text>
-          </div>
-        </div>
-
-        {!importData ? (
-          <div className="mb-6">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,.yaml,.yml"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className={clsx(
-                'flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors',
-                'border-gray-600 bg-gray-800/50 hover:border-[#76B900] hover:bg-gray-800'
-              )}
-            >
-              <ArrowUpFromLine className="mb-2 h-8 w-8 text-gray-400" />
-              <span className="text-sm text-gray-300">Click to select a file</span>
-              <span className="mt-1 text-xs text-gray-500">JSON or YAML format</span>
-            </button>
-            {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
-          </div>
-        ) : (
-          <div className="mb-6 space-y-4">
-            <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-              <h4 className="mb-2 text-sm font-medium text-white">Configuration Preview</h4>
-              <div className="space-y-1 text-sm text-gray-400">
-                <p>
-                  Strategy: <span className="text-white">{importData.strategy}</span>
-                </p>
-                <p>
-                  Assignments: <span className="text-white">{importData.assignments.length}</span>
-                </p>
-                {importData.source_version && (
-                  <p>
-                    Source Version: <span className="text-white">v{importData.source_version}</span>
-                  </p>
-                )}
-                {importData.description && (
-                  <p>
-                    Description: <span className="text-white">{importData.description}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={applyImmediately}
-                onChange={(e) => setApplyImmediately(e.target.checked)}
-                className="rounded border-gray-600 bg-gray-800 text-[#76B900] focus:ring-[#76B900]"
-              />
-              <span className="text-sm text-gray-300">Apply immediately (restart services)</span>
-            </label>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3">
-          <Button variant="ghost" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            leftIcon={<Upload className="h-4 w-4" />}
-            onClick={handleImport}
-            disabled={!importData}
-            isLoading={isLoading}
-          >
-            Import
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * GpuVersionHistory component
- */
-export default function GpuVersionHistory({
-  disabled = false,
-  onRollback,
-  onImport,
-  className,
-}: GpuVersionHistoryProps) {
+export default function GpuVersionHistory({ disabled = false, className }: GpuVersionHistoryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<GpuConfigVersionSummary | null>(null);
   const [compareFrom, setCompareFrom] = useState<number | null>(null);
   const [compareTo, setCompareTo] = useState<number | null>(null);
-  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const {
     versions,
@@ -460,8 +265,6 @@ export default function GpuVersionHistory({
   const { data: diff, isLoading: isLoadingDiff } = useConfigVersionDiff(compareFrom, compareTo);
 
   const { downloadConfig, isLoading: isExporting } = useExportConfig();
-  const { importConfig, isLoading: isImporting } = useImportConfig();
-  const { rollback, isLoading: isRollingBack } = useRollbackConfig();
 
   const handleVersionSelect = useCallback((version: GpuConfigVersionSummary) => {
     setSelectedVersion(version);
@@ -485,36 +288,11 @@ export default function GpuVersionHistory({
     [downloadConfig, selectedVersion]
   );
 
-  const handleImport = useCallback(
-    async (data: GpuConfigExportData, applyImmediately: boolean) => {
-      await importConfig({
-        config: data,
-        apply_immediately: applyImmediately,
-      });
-      setShowImportDialog(false);
-      onImport?.();
-    },
-    [importConfig, onImport]
-  );
-
-  const handleRollback = useCallback(async () => {
-    if (!selectedVersion) return;
-
-    await rollback({
-      version_id: selectedVersion.id,
-      apply_immediately: true,
-      description: `Rollback to version ${selectedVersion.version_number}`,
-    });
-    setSelectedVersion(null);
-    onRollback?.();
-  }, [rollback, selectedVersion, onRollback]);
-
   return (
     <Card
       className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
       data-testid="gpu-version-history"
     >
-      {/* Header */}
       <button
         className="flex w-full items-center justify-between"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -535,10 +313,8 @@ export default function GpuVersionHistory({
         )}
       </button>
 
-      {/* Expanded Content */}
       {isExpanded && (
         <div className="mt-4 space-y-4">
-          {/* Action Buttons */}
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -559,30 +335,8 @@ export default function GpuVersionHistory({
             >
               Export YAML
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Upload className="h-4 w-4" />}
-              onClick={() => setShowImportDialog(true)}
-              disabled={disabled}
-            >
-              Import
-            </Button>
-            {selectedVersion && (
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<RotateCcw className="h-4 w-4" />}
-                onClick={() => void handleRollback()}
-                disabled={disabled || isRollingBack}
-                isLoading={isRollingBack}
-              >
-                Rollback to v{selectedVersion.version_number}
-              </Button>
-            )}
           </div>
 
-          {/* Version List */}
           <div className="space-y-2">
             {isLoadingVersions ? (
               <div className="flex h-32 items-center justify-center">
@@ -607,7 +361,6 @@ export default function GpuVersionHistory({
             )}
           </div>
 
-          {/* Diff View */}
           <DiffView
             fromVersion={compareFrom}
             toVersion={compareTo}
@@ -616,14 +369,6 @@ export default function GpuVersionHistory({
           />
         </div>
       )}
-
-      {/* Import Dialog */}
-      <ImportDialog
-        isOpen={showImportDialog}
-        onClose={() => setShowImportDialog(false)}
-        onImport={(data, applyImmediately) => void handleImport(data, applyImmediately)}
-        isLoading={isImporting}
-      />
     </Card>
   );
 }

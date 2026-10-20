@@ -304,4 +304,3 @@ def test_0009_retire_gpu_devices_table_registered():
     """R2a row 36 (F-177) registers 0009-retire-gpu-devices-table with a table_absent check."""
     assert "0009-retire-gpu-devices-table" in registry.ids()
     assert "0009-retire-gpu-devices-table" in checks.CHECKS
-
