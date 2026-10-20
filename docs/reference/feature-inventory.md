@@ -880,7 +880,7 @@ candidates; the table below is the measured list.
 
 <!-- r2-python-dead-list:start -->
 
-Measured at tool-inputs `340dd20fcb` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
+Measured at tool-inputs `03cd0b1f47` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
 
 **97 non-shipping Python modules (38689 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
 
@@ -896,7 +896,7 @@ Measured at tool-inputs `340dd20fcb` by `scripts/r2-python-dead-list.py` — the
 | `backend/api/middleware/etag.py` | backend | 324 | `d697b216b` 2026-01-26 | non-shipping |
 | `backend/api/middleware/exception_handler.py` | backend | 100 | `f5c888457` 2026-01-08 | non-shipping |
 | `backend/api/middleware/file_validator.py` | backend | 443 | `f1d2f4cd1` 2026-01-07 | non-shipping |
-| `backend/api/schemas/discriminated_union_errors.py` | backend | 422 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/api/schemas/discriminated_union_errors.py` | backend | 422 | `664d0ebcf` 2026-10-19 | non-shipping |
 | `backend/api/schemas/errors.py` | backend | 538 | `841887955` 2026-02-05 | non-shipping |
 | `backend/api/schemas/llm.py` | backend | 506 | `fb452403d` 2026-01-13 | non-shipping |
 | `backend/api/schemas/openapi_customization.py` | backend | 284 | `75d6aa356` 2026-01-26 | non-shipping |
