@@ -7,7 +7,7 @@ Run explicitly; outside testpaths (like every scripts/test_*.py gate suite):
 
 One seam: ``queue_update.fire(run, repo, issue, token, run_url)`` takes the runner, so nothing
 here patches a module global or reaches the network. The fake answers by command shape -- ``gh
-api repos/…``, ``gh api graphql -f query=…``, ``git merge-base``/``git diff`` -- records every
+api repos/…``, ``gh api graphql -f query=…``, ``git fetch``/``git diff`` -- records every
 call, and raises on a command nobody scripted, so a new read shows up as a failing test instead
 of a live API call. Each test changes one answer of the shared green scenario, as
 ``test_coordinator_snapshot.py``'s do; the seven steps of ruling 272 item 3 each have a test,
@@ -54,6 +54,10 @@ GATE_HEAD = "e" * 40  # the head the fake answers check-runs for (entry 111's)
 NEW_HEAD = "d" * 40  # the head after the update-branch merge
 RUN_ID = 39370075787
 GQL_ID = "PR_kgL Dresden".replace(" ", "")  # the GraphQL id, a shape not a secret
+# r5's finding tags, cited in the test names' parentheticals so the suite self-documents
+# which blocking finding each pin belongs to.
+R5_B1_B3 = "r5 B1+B3: no merge-base call, sha-only fetch/diff args"
+R5_B2 = "r5 B2: a timeout's argv (the token) never reaches the rendered error"
 
 
 def diff_for(rev: str, content: str = "+line\n") -> str:
@@ -108,15 +112,25 @@ class Fake:
         return self.default(cmd)
 
     def default(self, cmd):
-        if cmd[:2] == ["git", "merge-base"]:
-            return TIP  # every rev forks from today's main (the roll's merge-base)
+        if cmd[:2] == ["git", "fetch"]:
+            # real git exits 128 on a ref arg that is not an object name; a newline riding
+            # the sha (the B1 class: unstripped stdout feeding a later argument) would land
+            # here -- the fake refuses it loudly instead of fetching what git could not.
+            revs = cmd[cmd.index("origin") + 1 :]
+            for r in revs:
+                if not re.fullmatch(r"[0-9a-f]{40}", r):
+                    raise AssertionError(f"git fetch got a non-sha ref arg: {r!r} (B1)")
+            return ""  # a depth-1 rev fetch succeeds silently
         if cmd[:2] == ["git", "diff"]:
             # the rev lives in the range arg 'base..rev'; scan past the 'git','diff' argv
             # and the '--' separator, NOT from the whole command ('git' itself matches a
             # naive "not diff, not --" filter and dispatches nothing).
             args = [a for a in cmd[2:] if a != "--" and not a.startswith("--")]
-            rev = args[0] if args else "x"
-            for r in (r for r in self.diffs if r in rev):
+            rng = args[0] if args else "x"
+            # same B1 class, at the range arg: a malformed base..rev is a git 128, not a diff
+            if not re.fullmatch(r"[0-9a-f]{40}\.\.[0-9a-f]{40}", rng):
+                raise AssertionError(f"git diff got a non-sha range arg: {rng!r} (B1)")
+            for r in (r for r in self.diffs if r in rng):
                 return self.diffs[r]
             return diff_for(HEAD)  # the shared default: a carry
         if cmd[:3] == ["gh", "api", "-X"]:
@@ -147,6 +161,26 @@ class Fake:
         m = path.split("repos/o/r/pulls/")[-1]
         if m.endswith("/files?per_page=100"):
             return json.dumps([{"filename": f} for f in self.files])
+        msha = re.search(r"/commits/([0-9a-f]+)$", path)
+        if msha:
+            # the listed sha rides the queue line as a 9-char prefix, so _hash_at expands it
+            # to a full sha before the fetch (git cannot fetch a short sha). The fake
+            # resolves any known constant's prefix, and refuses an unknown one the way the
+            # API answers an ambiguous/missing short sha -- an error, not a guess.
+            # (Anchored at $ so the gate read `commits/<head>/check-runs` does NOT land
+            # here; that read keeps its own rules-scripted answer.)
+            short = msha.group(1)
+            for full in (TIP, LISTED, HEAD, HEAD2, NEW_HEAD, GATE_HEAD):
+                if full.startswith(short):
+                    return json.dumps({"sha": full})
+            raise RuntimeError(f"gh: HTTP 422 ambiguous short sha {short}")
+        if "/compare/" in path:
+            # the own-diff hash's merge-base read (r5 B3): the server-side three-dot compare
+            # names each rev's merge-base with the root, replacing the un-runnable
+            # depth-1 `git merge-base`. The default says every rev forks from today's main
+            # (TIP), the shape every carry scenario needs; a test scripts an override via
+            # fail()/rules when it wants a different base.
+            return json.dumps({"merge_base_commit": {"sha": TIP}})
         if m.isdigit():
             pr = self.prs.get(int(m), self.prs.get("default"))
             if pr is None:
@@ -232,6 +266,7 @@ def green(**over):
 
 
 def gate_answer(fake, conclusion):
+    fake.rules["check-runs"] = json.dumps(check_runs(conclusion))
     fake.rules["check-runs"] = json.dumps(check_runs(conclusion))
 
 
@@ -369,7 +404,11 @@ def test_merged_and_closed_and_draft_entries_skip():
 
 
 def test_own_diff_changed_drops_the_entry():
-    fake = green()
+    # the queue line lists the sha the coordinator JUDGED (LISTED), the PR's head has moved
+    # on (HEAD) with a changed own diff: an author commit landed after the judgment, so
+    # step 4 drops the entry. The listed sha is queued as its 9-char prefix and expanded by
+    # the commits read, so both hashes are real revs here.
+    fake = green(queue=f"111@{LISTED[:9]}")
     fake.prs[111] = pr(111, HEAD, base="0" * 40)
     gate_answer(fake, GREEN)
     fake.diffs = {LISTED: diff_for(LISTED), HEAD: diff_for(HEAD, "+changed\n")}
@@ -379,7 +418,7 @@ def test_own_diff_changed_drops_the_entry():
 
 
 def test_own_diff_carry_updates():
-    fake = green()
+    fake = green(queue=f"111@{LISTED[:9]}")
     fake.prs[111] = pr(111, HEAD, base="0" * 40)
     gate_answer(fake, GREEN)
     fake.diffs = {LISTED: diff_for(LISTED), HEAD: diff_for(HEAD)}  # distinct index lines,
@@ -397,6 +436,91 @@ def test_a_failed_read_skips_instead_of_deciding():
     plan = qu.fire(fake, REPO, ISSUE, None)
     assert plan.action == "no-op"
     assert any("pr read" in e for e in plan.entries[0].errors)
+
+
+def test_own_diff_hash_needs_no_merge_base_call():  # r5 B1+B3
+    # r5 B1+B3, pinned at the command contract: the old _hash_at ran `git merge-base
+    # origin/main <rev>` whose stdout rides unstripped into the diff's range arg (git 128,
+    # _hash_at never produced a hash), and it could not run at all under the workflow's
+    # depth-1 checkout. The rebuilt _hash_at calls NO merge-base: it reads each rev's
+    # merge-base off the server-side three-dot compare (the _hash_own per-rev semantics,
+    # with the API replacing the local ref), expands a short listed sha through a commits
+    # read, fetches exactly the revs at depth 1, and diffs base..rev. The fake refuses a
+    # merge-base command (nothing scripts it) and refuses a non-sha fetch/diff arg, so any
+    # regression reappears as a failing test, not as a live git 128.
+    fake = green(queue=f"111@{LISTED[:9]}")
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    fake.diffs = {LISTED: diff_for(LISTED), HEAD: diff_for(HEAD)}  # a carry, as everywhere
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.action == "update"
+    git_cmds = [" ".join(c) for c in fake.calls if c[0] == "git"]
+    assert not any("merge-base" in c for c in git_cmds), git_cmds
+    fetched = sorted(
+        {m for c in git_cmds if " fetch " in f" {c} " for m in re.findall(r"[0-9a-f]{40}", c)}
+    )
+    # each fetch carries base AND rev (`git fetch origin <base> <rev>`), so the union is
+    # the two revs plus their bases; with the shared-default base (TIP) that is 3 shas.
+    assert fetched == sorted({TIP, LISTED, HEAD}), fetched
+    ranges = sorted(
+        re.search(r"\b[0-9a-f]{40}\.\.[0-9a-f]{40}\b", c).group(0)
+        for c in git_cmds
+        if " git diff " in f" {c} "
+    )
+    assert ranges == sorted({f"{TIP}..{LISTED}", f"{TIP}..{HEAD}"}), ranges  # shas, not refs
+    assert any("/compare/" in " ".join(c) for c in fake.calls)
+
+
+def test_own_diff_hash_base_comes_from_the_compare_answer():  # r5 B1+B3
+    # the merge-base the hash diffs against is the COMPARE's, not a ref: script the listed
+    # sha's compare to answer a base OLDER than main's tip and assert the range arg uses
+    # it -- a base roll that carries (the coordinator's per-rev _hash_own semantics) must
+    # not be readable as carry:no. The needle is the '...<rev>' tail: unique to the compare
+    # read (the commits/<rev> expansion read has no ellipsis before the sha).
+    fake = green(queue=f"111@{LISTED[:9]}")
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    old_main = "9" * 40  # the listed sha forks from an older main than the current tip
+    fake.diffs = {LISTED: diff_for(LISTED), HEAD: diff_for(HEAD)}
+    fake.rules["..." + LISTED[:9]] = json.dumps({"merge_base_commit": {"sha": old_main}})
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.action == "update"
+    ranges = [
+        re.search(r"\b([0-9a-f]{40})\.\.([0-9a-f]{40})\b", " ".join(c)).groups()
+        for c in fake.calls
+        if c[:2] == ["git", "diff"]
+    ]
+    assert (old_main, LISTED) in ranges, ranges  # the listed sha diffs against ITS base
+    assert (TIP, HEAD) in ranges, ranges  # the head rev still uses the fresh tip's
+
+
+def test_a_timeout_error_renders_without_the_argv_or_the_token():  # r5 B2
+    # r5 B2, pinned at the render: subprocess.TimeoutExpired's str() carries the FULL argv,
+    # so a timeout inside real_run would reach the job summary (stdout + GITHUB_STEP_SUMMARY,
+    # a public repo) with `-H "Authorization: token <QUEUE_UPDATE_TOKEN>"` in it. real_run
+    # must catch the timeout and re-raise CommandError-shaped with the argv truncated to
+    # cmd[:3], the same shape every other real_run raise carries. The stub follows the
+    # N10 test's pattern: patch subprocess.run, since real_run calls it directly.
+    class TimeoutProc:
+        def __init__(self, cmd):
+            self.cmd = cmd
+
+    def boom(cmd, **_k):
+        raise subprocess.TimeoutExpired(cmd, 120)
+
+    orig = qu.subprocess.run
+    qu.subprocess.run = boom
+    try:
+        qu.real_run(["gh", "api", "graphql", "-H", "Authorization: token sekrit", "-f", "query=x"])
+        raise AssertionError("real_run did not raise on a timeout")
+    except qu.snap.CommandError as exc:  # NOT a bare TimeoutExpired: _gh_rest/mains read it
+        text = qu.snap.error_text(exc)
+        assert "Authorization" not in text, text
+        assert "sekrit" not in text, text
+        assert "graphql" in text  # cmd[:3] still names the call: 'gh api graphql'
+        assert "query=" not in text  # the argv beyond cmd[:3] is gone
+    finally:
+        qu.subprocess.run = orig
 
 
 def test_gate_failed_entry_skips():
@@ -514,7 +638,11 @@ def test_conflict_422_falls_through_like_409():
     # n11: the re-decide must DROP the conflicted entry from the queue list, or this fire
     # re-picks #111 and PUTs it again (decide() iterates queue_entries, so the entries-list
     # filter alone cannot stop a re-pick). One PUT per entry, each PR addressed once.
-    targets = [re.search(r"pulls/(\d+)/update-branch", " ".join(c)).group(1) for c in fake.calls if "update-branch" in " ".join(c)]
+    targets = [
+        re.search(r"pulls/(\d+)/update-branch", " ".join(c)).group(1)
+        for c in fake.calls
+        if "update-branch" in " ".join(c)
+    ]
     assert targets == ["111", "222"], targets
 
 
@@ -555,14 +683,17 @@ def test_real_run_carries_stdout_through_the_raise():
     # HTTP >= 400 answer as status 0 (the reviewer's end-to-end proof).
     proc = subprocess.run(
         [sys.executable, "-c", "print('HTTP/1.1 409 Conflict'); raise SystemExit(1)"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert proc.returncode != 0 and proc.stdout.startswith("HTTP/1.1 409")
+
     # the real contract through real_run itself, with a stubbed subprocess.run that mimics
     # gh's shape: rc=1, status line on stdout, error on stderr.
     class FakeProc:
         returncode = 1
-        stdout = "HTTP/1.1 409 Conflict\r\n\r\n{\"message\": \"conflict\"}"
+        stdout = 'HTTP/1.1 409 Conflict\r\n\r\n{"message": "conflict"}'
         stderr = "gh: Not found"
 
     orig = qu.subprocess.run
@@ -593,9 +724,11 @@ def test_the_raising_contract_fires_the_fallthrough():
     assert len([c for c in fake.calls if "update-branch" in " ".join(c)]) == 2, (
         "the raise broke the same-fire fallthrough"
     )
-    assert plan.action in ("update", "no-op")  # 222's own answer decides which
-    if plan.action == "no-op":
-        assert "a second entry conflicted too" in plan.action_note
+    # the fake answers every PUT with the 409, so both entries conflict and the fire stops
+    # as a no-op (R3 note 2: the looser "update or no-op" interval could pass a fire that
+    # updated a DIFFERENT entry than the fallthrough's).
+    assert plan.action == "no-op"
+    assert "a second entry conflicted too" in plan.action_note
 
 
 def test_update_failure_stops_the_fire_and_reports():

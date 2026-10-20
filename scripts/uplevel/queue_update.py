@@ -335,19 +335,37 @@ def _own_diff_files(run: Runner, repo: str, number: int, errors: list[str]) -> l
 
 def _hash_at(
     run: Runner,
-    repo: str,  # the git runner takes no repo prefix; kept for the seam's shape
+    repo: str,
     number: int,  # named for the caller's shape; the hash is rev-keyed
     rev: str,
+    root: str,
     files: list[str],
     errors: list[str],
 ) -> str | None:
-    """The UR-106 own-diff hash of one rev, hashed against ITS OWN merge-base (the _hash_own
-    precedent: hashing both revs against today's merge-base would report carry=no for a roll
-    that carries). The paths ride as ``:(literal)`` pathspecs: a PR-controlled filename like
-    ``:(exclude)**`` would otherwise rewrite the diff's pathspec and read as an empty diff --
-    equal hashes, a false carry (n4; the coordinator's _hash_own carries the same guard)."""
+    """The UR-106 own-diff hash of one rev, hashed against ITS OWN merge-base with
+    ``root`` (``main``'s fresh tip) -- the _hash_own precedent, per-rev: hashing both revs
+    against one shared base would report carry=no for a roll that carries.
+
+    The base comes from the server-side three-dot compare (``compare/<root>...<rev>``
+    answers ``merge_base_commit``), and both revs are fetched at depth 1 before the diff:
+    the workflow's checkout is ``fetch-depth: 1``, so the old ``git merge-base`` had no
+    graph to walk (r5 B3) -- and its stdout rode UNSTRIPPED into the range arg, a trailing
+    newline making ``git diff`` exit 128 so no hash was ever produced (r5 B1). No
+    merge-base call remains: a compare read answers the base as a bare sha, and the fetch
+    and the diff both take sha arguments only. The queue line lists a 9-char prefix, which
+    git cannot fetch, so the rev is expanded through a ``commits/<rev>`` read first (an
+    ambiguous or missing prefix errors here -- not-a-carry, never a guess). The paths ride
+    as ``:(literal)`` pathspecs: a PR-controlled filename like ``:(exclude)**`` would
+    otherwise rewrite the diff's pathspec and read as an empty diff -- equal hashes, a
+    false carry (n4; the coordinator's _hash_own carries the same guard)."""
     try:
-        base = run(["git", "merge-base", "origin/main", rev], "")
+        if len(rev) < 40:
+            rev = str(json.loads(_run(run, _rest_path(repo, f"commits/{rev}")))["sha"])
+        answer = json.loads(_run(run, _rest_path(repo, f"compare/{root}...{rev}")))
+        base = str((answer.get("merge_base_commit") or {}).get("sha") or "")
+        if not base:
+            raise ValueError("the compare answered no merge base")
+        run(["git", "fetch", "--quiet", "--depth", "1", "origin", base, rev], "")
         diff = run(["git", "diff", f"{base}..{rev}", "--", *(f":(literal){f}" for f in files)], "")
     except Exception as exc:
         errors.append(f"own-diff {rev[:9]}: {snap.error_text(exc)}")
@@ -388,10 +406,12 @@ def decide(
         files = _own_diff_files(run, repo, st.entry.number, st.errors)
         if files is None:
             continue
-        listed = _hash_at(run, repo, st.entry.number, st.entry.sha, files, st.errors)
+        listed = _hash_at(
+            run, repo, st.entry.number, st.entry.sha, plan.main_tip or "", files, st.errors
+        )
         if st.head is None:
             continue  # no head, no hash: unhashable, skip (read_entry reports it)
-        head = _hash_at(run, repo, st.entry.number, st.head, files, st.errors)
+        head = _hash_at(run, repo, st.entry.number, st.head, plan.main_tip or "", files, st.errors)
         if listed is None or head is None:
             continue  # an unhashable diff is not a carry: skip, never guess
         if listed != head:
@@ -435,7 +455,9 @@ def act(
         # as the expected_head_sha-mismatch class. 409 is kept in the conflict set as
         # defense against undocumented codes -- both read as "this entry cannot update now".
         plan.action = "conflict-fallthrough"
-        plan.action_note = f"update of #{n} conflicted ({status}): falling through to the next entry"
+        plan.action_note = (
+            f"update of #{n} conflicted ({status}): falling through to the next entry"
+        )
         st.errors.append(f"update-branch conflicted ({status})")
         return plan
     if status not in (200, 202):
@@ -444,7 +466,7 @@ def act(
         return plan
     new_head = _post_update_head(run, repo, n, st)
     _arm_auto_merge(run, repo, n, st, token)
-    carried = _carry_check(run, repo, st, new_head)
+    carried = _carry_check(run, repo, st, new_head, plan.main_tip or "")
     if carried is False:
         _disarm_auto_merge(run, repo, n, st, token)
         plan.action_note = (
@@ -540,16 +562,20 @@ def _pr_id(run: Runner, repo: str, n: int) -> str:
     return str(answer.get("data", {}).get("repository", {}).get("pullRequest", {}).get("id", ""))
 
 
-def _carry_check(run: Runner, repo: str, st: EntryState, new_head: str | None) -> bool | None:
-    """Step 6's re-hash: the listed sha's hash vs the new head's, over the PR's own files. A
-    carry holds only when both hashes read and agree; None (a failed read) is not a carry."""
+def _carry_check(
+    run: Runner, repo: str, st: EntryState, new_head: str | None, main_tip: str
+) -> bool | None:
+    """Step 6's re-hash: the listed sha's hash vs the new head's, over the PR's own files.
+    A carry holds only when both hashes read and agree; None (a failed read) is not a carry.
+    Both revs hash against ``main``'s tip (the _hash_own per-rev merge-base semantics: the
+    root is the same for every rev in one fire, each rev's merge-base with it differs)."""
     if new_head is None:
         return None
     files = _own_diff_files(run, repo, st.entry.number, st.errors)
     if files is None:
         return None
-    listed = _hash_at(run, repo, st.entry.number, st.entry.sha, files, st.errors)
-    head = _hash_at(run, repo, st.entry.number, new_head, files, st.errors)
+    listed = _hash_at(run, repo, st.entry.number, st.entry.sha, main_tip, files, st.errors)
+    head = _hash_at(run, repo, st.entry.number, new_head, main_tip, files, st.errors)
     if listed is None or head is None:
         return None
     return listed == head
@@ -567,11 +593,14 @@ def _comment_update(
 ) -> None:
     """Step 7's one comment: old and new head, ``main``'s tip, the two own-diff hashes and
     the run link. Ruling 272 item 6 makes this comment the own-diff comparison UR-106's
-    condition 1 asks the coordinator to quote."""
+    condition 1 asks the coordinator to quote. Both revs hash against ``main``'s tip (the
+    _hash_own per-rev semantics)."""
     try:
         files = _own_diff_files(run, repo, n, st.errors)
-        listed = _hash_at(run, repo, n, st.entry.sha, files or [], st.errors)
-        head = _hash_at(run, repo, n, new_head or st.head or "", files or [], st.errors)
+        listed = _hash_at(run, repo, n, st.entry.sha, main_tip or "", files or [], st.errors)
+        head = _hash_at(
+            run, repo, n, new_head or st.head or "", main_tip or "", files or [], st.errors
+        )
     except Exception as exc:  # a failed hash read degrades the comment, not the update
         st.errors.append(f"comment hashes: {snap.error_text(exc)}")
         listed = head = None
@@ -693,10 +722,18 @@ def real_run(cmd: Sequence[str], stdin: str = "") -> str:
 
     On a non-zero exit the stdout rides the raise (``_gh_rest`` reads the ``--include``
     status line off it): ``gh api`` exits 1 on every HTTP >= 400 while the status line is
-    stdout, so a discard-the-stdout raise would read every conflict as status 0 (N10)."""
-    proc = subprocess.run(
-        list(cmd), input=stdin, capture_output=True, text=True, check=False, timeout=120
-    )
+    stdout, so a discard-the-stdout raise would read every conflict as status 0 (N10).
+    A timeout raises CommandError-shaped too, argv truncated to ``cmd[:3]``: a raw
+    ``TimeoutExpired``'s str() carries the FULL argv -- including
+    ``-H "Authorization: token <QUEUE_UPDATE_TOKEN>"`` on the write calls -- and
+    ``snap.error_text`` renders a non-CommandError exception verbatim, which would put the
+    write credential into the job summary on a public repo (r5 B2)."""
+    try:
+        proc = subprocess.run(
+            list(cmd), input=stdin, capture_output=True, text=True, check=False, timeout=120
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise _CarryingError(f"{' '.join(cmd[:3])} timed out after {exc.timeout}s") from None
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout).strip().splitlines()
         err = _CarryingError(
