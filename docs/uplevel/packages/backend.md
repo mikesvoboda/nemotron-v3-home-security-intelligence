@@ -749,8 +749,8 @@ Coverage Gate / AGENTS.md Validation / Docs Drift / PR Review Bot all success.)
 
 ### [r277a] The events `fields` contract and a misleading comment
 
-**Flags:** none. **Assigned:** backend, after `[r271b]` (#7302). (ruling 277, record 6291992942;
-audit items Q-068 and Q-114 of `[r262]`, #7041)
+**Flags:** none. **Assigned:** backend, after `[r271b]` (#7302). **PR:** #7306. (ruling 277,
+record 6291992942; audit items Q-068 and Q-114 of `[r262]`, #7041)
 
 - [x] `list_events`' `fields` description names exactly the fields in `VALID_EVENT_LIST_FIELDS`,
       with `detection_ids` out and `notify` in. A test fails if they drift apart, either by
