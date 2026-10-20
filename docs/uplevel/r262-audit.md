@@ -2247,7 +2247,7 @@ json.JSONDecodeError, UnicodeDecodeError:`); tick 21411ba33 2026-10-15T00:43:35Z
   re-alignment, not uniform); def anchors 317/634/788/949/1154/1300; search body ends 1274,
   export body ends ~1476 (decorator 1276-1299, def :1300); movers never touched api-reference
   (0 hits in --stat). No gate reaches docs/architecture.
-- Refuted=false (NOT-REFUTED; verdict 7070_c56.md — one refuter for both carriers, one
+- Refuted=false (NOT-REFUTED; verdict b3_7070c56.md — one refuter for both carriers, one
   defect, two renderings).
 - Fix: re-anchor all five Source cells in both files to freshly-measured pin extents
   (decorator-to-body-end convention). Size S; docs.
@@ -2262,7 +2262,7 @@ json.JSONDecodeError, UnicodeDecodeError:`); tick 21411ba33 2026-10-15T00:43:35Z
   against the BASE tree (exact at 841bb53ea, 13/14 early at its own merge); movers worsened
   the start into bulk_delete (361199a99). Coordinator override of the refuter's :2020
   (decorator). No gate reaches docs/architecture.
-- Refuted=false (NOT-REFUTED; verdict 7070_c8.md).
+- Refuted=false (NOT-REFUTED; verdict b3_7070c8.md).
 - Fix: re-anchor to :2004-2200. Size S; docs.
 - Owner: pending (write-time).
 
@@ -2280,7 +2280,7 @@ json.JSONDecodeError, UnicodeDecodeError:`); tick 21411ba33 2026-10-15T00:43:35Z
   file:line cites are outside its grammar AND its scan set; auditor-eyed. Pin truth:
   events.py :142 (r223 docstring), :177 (frozenset def), :198 (close), :546 (event_dict = {),
   :577 ("notes": event.notes,), :601 (}).
-- Refuted=false (NOT-REFUTED; verdict 7070_c9.md).
+- Refuted=false (NOT-REFUTED; verdict b3_7070c9.md).
 - Fix: repair the register row (fix attributed to the register repairer, not #7070). Size S;
   docs.
 - Owner: pending (write-time).
@@ -2746,7 +2746,7 @@ settings.batch_check_interval_seconds`).
   merge" is timestamp-only; d6344e031 is the graft artifact. B-family (first breaker #7146):
   :1952×5, :2010×2, :719, :2430/:2512, :2139, :1424, :1793, :2703/:2726×3/:2745 — folds here
   with 7070-C2 siblings and 7070-C3.
-- Refuted=false (NOT-REFUTED; verdict 7146_c1.md).
+- Refuted=false (NOT-REFUTED; verdict b3_7146c1.md).
 - Fix: re-derive the docstring + sweep the B-family. Size M; backend.
 - Owner: pending (write-time).
 
@@ -2762,7 +2762,7 @@ settings.batch_check_interval_seconds`).
   IDENTICAL; pin ci.yml :691-692 = "Verify installation"/pytest-import check, mypy backend/
   at :772 (unique hit); repo-wide ci.yml:692 = exactly ONE carrier; DISTINCT from 7135-C1's
   ci.yml cites — different region.
-- Refuted=false (NOT-REFUTED; verdict 7146_c2.md).
+- Refuted=false (NOT-REFUTED; verdict b3_7146c2.md).
 - Fix: re-point to :772. Size S; backend.
 - Owner: pending (write-time).
 
@@ -2784,7 +2784,7 @@ settings.batch_check_interval_seconds`).
   cites after the 18-line block goes (ea4f36209 precedent); the vacuous leg sits at :775 at
   the boundary, :667 at the pin; conftest.py's client fixture runs _cleanup_test_data()
   (grep hit :27) — deterministic counts supported.
-- Refuted=false (NOT-REFUTED; verdict 7146_c3.md).
+- Refuted=false (NOT-REFUTED; verdict b3_7146c3.md).
 - Fix: delete the 18-line block; re-check internal cites after. Size S; backend.
 - Owner: pending (write-time).
 
