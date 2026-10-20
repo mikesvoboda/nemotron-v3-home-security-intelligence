@@ -15,8 +15,8 @@ Coverage gates ensure code quality by requiring minimum test coverage before mer
   0.5pp noise band
 - **Per-tier floors**: unit 84 / integration 37, enforced in the CI merge
   steps only when the tier fully passed
-- **Frontend**: measured floors 79.6 (statements) / 74.5 (branches) /
-  77.3 (functions) / 80.6 (lines) — the measured values rounded DOWN to one
+- **Frontend**: measured floors 79.5 (statements) / 74.4 (branches) /
+  77.2 (functions) / 80.5 (lines) — the measured values rounded DOWN to one
   decimal place — enforced by
   `frontend/scripts/merge-shard-coverage.mjs --enforce` in CI only when all
   Vitest shards passed (R-1/WP2.3: declared floors must equal measured values;
@@ -155,12 +155,13 @@ provider `v8`), with floors set AT the measured values (WP2.3 / R-1):
 ```typescript
 thresholds: {
   // Floors are the merged-shard MEASURED values rounded down to one decimal
-  // (run 39161827871 at d78f1a7ed, re-pinned by owner ruling 261), mirrored
+  // (run 39161827871 at d78f1a7ed, re-measured at the final head 971c98731
+  // per ruling 261's own final-head mechanism), mirrored
   // by merge-shard-coverage.mjs's FLOORS.
-  statements: 79.6,
-  branches: 74.5,
-  functions: 77.3,
-  lines: 80.6,
+  statements: 79.5,
+  branches: 74.4,
+  functions: 77.2,
+  lines: 80.5,
 },
 ```
 
@@ -168,10 +169,10 @@ thresholds: {
 
 | Metric     | Threshold | Enforcement                                               |
 | ---------- | --------- | --------------------------------------------------------- |
-| Statements | 79.6      | `merge-shard-coverage.mjs --enforce` on merged shard data |
-| Branches   | 74.5      | same                                                      |
-| Functions  | 77.3      | same                                                      |
-| Lines      | 80.6      | same                                                      |
+| Statements | 79.5      | `merge-shard-coverage.mjs --enforce` on merged shard data |
+| Branches   | 74.4      | same                                                      |
+| Functions  | 77.2      | same                                                      |
+| Lines      | 80.5      | same                                                      |
 
 CI runs the merge step (`ci.yml` "Merge frontend coverage") with `--enforce`
 only when every Vitest shard passed — partial shard data is merged for the

@@ -112,7 +112,7 @@ This project follows **Test-Driven Development (TDD)** (tasks labeled `tdd`). Fu
 | ------------------- | ------------------------------------------------------ | ---------------------------------------------- |
 | Backend unit        | tier floor 84¹                                         | `uv run pytest backend/tests/unit/ -n auto`    |
 | Backend integration | tier floor 37¹                                         | `uv run pytest backend/tests/integration/ -n0` |
-| Frontend            | floors 79.6 / 74.5 / 77.3 / 80.6² (measured values)    | `cd frontend && npm test`                      |
+| Frontend            | floors 79.5 / 74.4 / 77.2 / 80.5² (measured values)    | `cd frontend && npm test`                      |
 | **Full validation** | **80% combined unit+integration** (the executed floor) | `./scripts/validate.sh`                        |
 
 Gate semantics (re-verified against the tree 2026-09-22):

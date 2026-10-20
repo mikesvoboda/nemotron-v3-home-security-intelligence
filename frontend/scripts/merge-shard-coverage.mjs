@@ -181,7 +181,17 @@ export function mergeFiles(paths) {
 // printed 79.6 at a byte-identical tree — one statement's coverage coin).
 // Makes no standing rule for other deletion PRs; a later deletion PR that
 // lowers merged coverage the same way asks the owner again.
-export const FLOORS = { statements: 79.6, branches: 74.5, functions: 77.3, lines: 80.6 };
+//
+// Re-measured at the final head 971c98731 (run 39403304795's own eight
+// frontend shards, re-merged locally with this merger and reproduced to the
+// digit: 79.5397 / 74.4334 / 77.2600 / 80.5588 over 684 files with coverage).
+// The drop from the 692-file measurement is composition, not regression:
+// main took other lanes' retirements (B3.1/F3.1 rows 11 and 45) between the
+// re-pin measurement and this merge, and their removed cohort carried both
+// covered and uncovered lines. The floors follow the final head per ruling
+// 261 item 1's own mechanism ("the merged values CI measures at its final
+// head"), floored the same way: 79.5 / 74.4 / 77.2 / 80.5.
+export const FLOORS = { statements: 79.5, branches: 74.4, functions: 77.2, lines: 80.5 };
 
 function main() {
   const argv = process.argv.slice(2);
@@ -191,12 +201,14 @@ function main() {
   const roots = argv.filter((a, i) => !a.startsWith('--') && i !== outIdx + 1);
 
   const files = roots.flatMap((r) =>
-    existsSync(r) && statSync(r).isDirectory() ? findCoverageFinalFiles(r) : [r],
+    existsSync(r) && statSync(r).isDirectory() ? findCoverageFinalFiles(r) : [r]
   );
   if (files.length === 0) {
     // Same posture as the backend merges: warn loudly, never mint a fake
     // measurement silently. Zero files must never look like 0% "measured".
-    console.error('::warning::merge-shard-coverage: no coverage-final.json found under ' + roots.join(', '));
+    console.error(
+      '::warning::merge-shard-coverage: no coverage-final.json found under ' + roots.join(', ')
+    );
     process.exit(0);
   }
   console.log(`merging ${files.length} coverage-final.json file(s)`);
@@ -210,7 +222,7 @@ function main() {
   const t = summary.total;
   console.log(
     `FRONTEND_COVERAGE statements=${t.statements.pct} branches=${t.branches.pct} ` +
-      `functions=${t.functions.pct} lines=${t.lines.pct} files=${Object.keys(merged).length}`,
+      `functions=${t.functions.pct} lines=${t.lines.pct} files=${Object.keys(merged).length}`
   );
 
   if (enforce) {
@@ -222,7 +234,7 @@ function main() {
     }
     console.log(
       `ENFORCE PASS statements=${t.statements.pct} branches=${t.branches.pct} ` +
-        `functions=${t.functions.pct} lines=${t.lines.pct} (floors ${Object.values(FLOORS).join('/')})`,
+        `functions=${t.functions.pct} lines=${t.lines.pct} (floors ${Object.values(FLOORS).join('/')})`
     );
   }
 }

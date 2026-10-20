@@ -187,7 +187,7 @@ The `vite.config.ts` configures:
 - **API Proxy**: `/api/*` -> `http://localhost:8000` (override with `VITE_DEV_BACKEND_URL`)
 - **WebSocket Proxy**: `/ws/*` -> `ws://localhost:8000`
 - **Test Environment**: jsdom with globals
-- **Coverage Thresholds**: 79.6% statements, 74.5% branches, 77.3% functions, 80.6% lines (R-1: floors set at measured values, re-pinned by owner ruling 261 to run 39161827871's merged totals rounded down to one decimal; CI enforces them on merged shard data via `merge-shard-coverage.mjs --enforce`)
+- **Coverage Thresholds**: 79.5% statements, 74.4% branches, 77.2% functions, 80.5% lines (R-1: floors set at measured values, re-pinned by owner ruling 261 — run 39161827871's totals, then re-measured at final head 971c98731 per the ruling's own final-head mechanism; CI enforces them on merged shard data via `merge-shard-coverage.mjs --enforce`)
 - **Memory Optimization**: Uses forks pool; files run sequentially per fork unless `VITEST_PARALLEL=1`
 
 > **Production Note:** In production containers (`docker-compose.prod.yml`), nginx serves the built React app (not Vite). HTTP host port `FRONTEND_HTTP_PORT` (default 8080) maps to container port 8080; HTTPS host port `FRONTEND_HTTPS_PORT` (default 8444) maps to container port 8443. SSL is enabled by default with auto-generated self-signed certificates. Inside the container nginx listens on `0.0.0.0` (it runs the unprivileged nginx image) — that is not the exposure question; the host-published socket's bind is `FRONTEND_BIND_ADDRESS`, `127.0.0.1` unless `EXPOSE_LAN=true` (`O1.6`).

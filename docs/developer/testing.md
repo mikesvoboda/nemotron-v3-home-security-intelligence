@@ -73,7 +73,7 @@ flowchart TB
 | **Contract Tests**            | `backend/tests/contracts/`   | 3 files                                                                                            | -       | -                          |
 | **Security Tests**            | `backend/tests/security/`    | 5 files                                                                                            | -       | -                          |
 | **Test Utilities**            | `backend/tests/utils/`       | -                                                                                                  | -       | -                          |
-| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -                                                                                                  | -       | floors 79.6/74.5/77.3/80.6 |
+| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -                                                                                                  | -       | floors 79.5/74.4/77.2/80.5 |
 | **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 960 tests × browser projects (44 spec files; `playwright test --list` 5,993 across all 9 projects) | 15s     | -                          |
 
 **Note:** The executed backend floor is **80% on combined unit+integration**
@@ -131,7 +131,7 @@ branch / blended to its step summary.
 | ---------------------------------------- | -------------------------------- | ------------------------------------------------------------------------ |
 | Backend unit, absolute                   | 84 (WP2.5 re-measure)            | `unit-tests-coverage-merge`, only when all unit shards passed            |
 | Backend integration, absolute            | 37                               | `integration-coverage-merge`, only when every integration shard passed   |
-| Frontend statements/branches/funcs/lines | 79.6 / 74.5 / 77.3 / 80.6        | `merge-shard-coverage.mjs --enforce`, only when all Vitest shards passed |
+| Frontend statements/branches/funcs/lines | 79.5 / 74.4 / 77.2 / 80.5        | `merge-shard-coverage.mjs --enforce`, only when all Vitest shards passed |
 | Combined (unit+integration)              | 80 (unchanged)                   | nightly-full-gate + `validate.sh` — now only runs when BOTH tiers passed |
 | PR diff vs main's baseline               | no drop past **0.5pp** (epsilon) | `check-test-coverage-gate.py` — band = post-seed-pin noise (0.03pp ×10)  |
 
@@ -153,7 +153,7 @@ expected both rises "once WP2.1's seed fix reaches measurement").
 Until the first fixed-seed run lands, **the CI figure must not be used as the
 tier's strength** and the local figure must not be called "the CI coverage".
 `scripts/test_coverage_denominator.py` pins this section's claims.
-Frontend thresholds (R-1, measured; re-pinned by owner ruling 261 to run 39161827871's merged totals, rounded down to one decimal): 79.6% statements, 74.5% branches, 77.3% functions, 80.6% lines (see `vite.config.ts` `coverage.thresholds`).
+Frontend thresholds (R-1, measured; re-pinned by owner ruling 261 to run 39161827871's merged totals, then re-measured at the final head 971c98731 per the ruling's own final-head mechanism): 79.5% statements, 74.4% branches, 77.2% functions, 80.5% lines (see `vite.config.ts` `coverage.thresholds`).
 
 ## Quick Reference
 

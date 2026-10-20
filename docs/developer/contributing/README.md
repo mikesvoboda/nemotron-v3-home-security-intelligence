@@ -330,7 +330,7 @@ pre-commit run --all-files
 
 ### Coverage Requirements
 
-The only absolute backend coverage gate that runs is **80% combined unit+integration** (`./scripts/validate.sh --fail-under=80`, mirrored in nightly-full-gate). In CI, merged unit-test coverage has a floor of 84 and the integration tier a floor of 37 (each enforced at the merge step only when all shards pass); `pyproject.toml` `fail_under = 85` is the **relative baseline** for the PR coverage-diff gate, not an absolute floor. Frontend merged coverage floors (enforced at the merge step when all shards pass; re-pinned by owner ruling 261 to run 39161827871's merged totals, rounded down to one decimal): statements 79.6, branches 74.5, functions 77.3, lines 80.6. See the [CI Checks](#ci-checks) table above and [code-quality.md](../code-quality.md).
+The only absolute backend coverage gate that runs is **80% combined unit+integration** (`./scripts/validate.sh --fail-under=80`, mirrored in nightly-full-gate). In CI, merged unit-test coverage has a floor of 84 and the integration tier a floor of 37 (each enforced at the merge step only when all shards pass); `pyproject.toml` `fail_under = 85` is the **relative baseline** for the PR coverage-diff gate, not an absolute floor. Frontend merged coverage floors (enforced at the merge step when all shards pass; re-pinned by owner ruling 261 to run 39161827871's merged totals, then re-measured at the final head 971c98731 per the ruling's own final-head mechanism): statements 79.5, branches 74.4, functions 77.2, lines 80.5. See the [CI Checks](#ci-checks) table above and [code-quality.md](../code-quality.md).
 
 ---
 

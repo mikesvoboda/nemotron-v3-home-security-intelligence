@@ -436,11 +436,15 @@ export default defineConfig(({ mode }) => {
           // (unrounded 79.6525/74.5888/77.3963/80.6666 → 79.6/74.5/77.3/80.6;
           // a half-up 79.7 sits above the measured value and flips red on
           // between-run noise — run 39192274492 printed 79.6 at a
-          // byte-identical tree).
-          statements: 79.6,
-          branches: 74.5,
-          functions: 77.3,
-          lines: 80.6,
+          // byte-identical tree). Re-measured at the final head 971c98731
+          // (run 39403304795's shards, reproduced with the repo's own
+          // merger): unrounded 79.5397/74.4334/77.2600/80.5588 → floored
+          // 79.5/74.4/77.2/80.5 (composition moved by main-side retirements,
+          // not regression; ruling 261 item 1's final-head mechanism).
+          statements: 79.5,
+          branches: 74.4,
+          functions: 77.2,
+          lines: 80.5,
         },
       },
     },
