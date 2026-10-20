@@ -943,7 +943,7 @@ for each rule.
 ### [r184] The launcher prints the heavy sessions' pi start line
 
 **Flags:** none. **Assigned:** ops-a. **Depends on:** none.
-**PR:** none yet. (rulings 184 and 201, records 6177514438 and 6198825479)
+**PR:** #7295. (rulings 184 and 201, records 6177514438 and 6198825479)
 
 Ruling 184's commit renamed the heavy rows in `scripts/uplevel/sandboxes.toml`. The owner starts
 both with `agent-dgx <name> pi --split`, but `launch.py` still builds
