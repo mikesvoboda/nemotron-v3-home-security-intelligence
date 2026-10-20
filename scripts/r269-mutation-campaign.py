@@ -27,6 +27,12 @@ predicate's review leg already refuses it -- the draft check is layered behind
 the marker guard, and the marker guard's own mutant (below) is what proves the
 layer has teeth (an existing ruling-198 test catches it first).
 
+Most mutants point the false-offer direction (a UR-52 violation committed by
+the tool itself). The four blockless-hold mutants at the end point the MIRROR
+direction -- a false hold -- and still count: a hold the lane does not have
+suppresses an offer the digest owed, so the digest lies either way, and the
+cap's arithmetic reads from the (possibly inflated) hold list.
+
 Every anchor was re-anchored at the commit that adds this file; an anchor that
 no longer matches is reported as ``ANCHOR`` and fails the run, because a
 silently-skipped mutant is how "caught N/N; escaped: none" once became a false
@@ -121,6 +127,31 @@ MUTANTS: list[tuple[str, str, str]] = [
         "the waiting gate is skipped: the offer prints beside a mid-flight hold",
         "if held and all_waiting and len(held) < 2:",
         "if held and True and len(held) < 2:",
+    ),
+    # -- the blockless hold (the 2026-10-20 live defect, fixed in held_claims) ---------------
+    # These point the MIRROR direction: a false hold, which suppresses an offer the digest owed
+    # or prints a hold the lane does not have -- still a false digest line, the same instrument.
+    (
+        "the blockless leading-token pass drops: a PR whose token has no block holds nothing again",
+        '        m = LEADING_TOKEN.match(p.get("title", ""))\n'
+        '        if not m or UR_DEFECT.fullmatch(m.group(1)):\n',
+        '        m = None\n'
+        '        if not m or UR_DEFECT.fullmatch(m.group(1)):\n',
+    ),
+    (
+        "a title's token is read anywhere in it: a mid-title mention becomes a hold",
+        'm = LEADING_TOKEN.match(p.get("title", ""))',
+        'm = re.search(r"\\[([\\w-]+)\\]", p.get("title", ""))',
+    ),
+    (
+        "the UR-48 exemption drops: a defect fix's blockless title freezes its lane's queue",
+        "if not m or UR_DEFECT.fullmatch(m.group(1)):",
+        "if not m or False:",
+    ),
+    (
+        "the dedupe drops: a doubly-read hold lists twice and the cap reads from one package",
+        "        if token not in held:\n            held.append(token)",
+        "        if True:\n            held.append(token)",
     ),
 ]
 

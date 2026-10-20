@@ -79,6 +79,16 @@ NONE_YET = re.compile(r"[^\n#]*none yet", re.I)
 PR_NUMBER = re.compile(r"#(\d+)")
 # The package header line, as it stands AFTER splitting on "### " (the marker is gone).
 BLOCK = re.compile(r"\[?([\w.]+)\]?\s")
+# A PR title's LEADING token -- the claim identity a PR carries even when no `### [pkg]` block
+# names it yet ([r269]'s block is deferred to the owner's plan PR, ruling 269 item 7; [flaky-census]
+# (#7082) titles a token ops.md has never carried). Same leading rule ``queue_entries`` reads: a
+# token MENTIONED mid-title is prose, and prose can name anything. The hyphen is load-bearing:
+# ``[\w.]+`` (BLOCK's class) cannot hold ``flaky-census``.
+LEADING_TOKEN = re.compile(r"^\s*\[([\w-]+)\]")
+# UR-48's defect-fix shape: a lane defect titles no package, occupies no queue slot and gates
+# nothing -- the exemption the blockless hold must keep, or every `[UR-nn]` fix would freeze
+# its lane's queue (the exact blanket refusal the UR-48 control test exists to forbid).
+UR_DEFECT = re.compile(r"UR-?\d+")
 # Ruling 197's machine footers: ONE HTML-comment line (invisible on GitHub) ending an owner record
 # on #6854 or an owner pointer on a PR. Before them a record reached a lane only through the map
 # filter (a MAPPED ruling vanished from the digest) and a pointer only as a `1c/0r` count -- which
@@ -467,9 +477,18 @@ def held_claims(packages: str, mine: list[dict]) -> list[str]:
     widens to file-wide holds. Cannot over-suppress across a lane's cells, because ``mine`` is
     already branch-filtered upstream.
 
-    Two independent hold readings, because either can be the only live one: the ``[<pkg>]`` **title
-    token** of an open PR (authoritative; a ``[UR-nn]`` defect fix -- UR-48, no package number --
-    titles no package and gates nothing), or the block's own ``**PR:**`` number naming a PR of mine.
+    Three readings, because any of them can be the only live one: the ``[<pkg>]`` **title token**
+    of an open PR (authoritative; a ``[UR-nn]`` defect fix -- UR-48, no package number -- titles no
+    package and gates nothing), the block's own ``**PR:**`` number naming a PR of mine, and the
+    **leading title token** of an open PR whose token has no block anywhere in the file yet -- the
+    live shape of 2026-10-20: ``[r269]`` (its block is deferred to the owner's plan PR, ruling 269
+    item 7) and ``[flaky-census]`` (#7082) held nothing, the scan came back empty beside two open
+    packages, and the fallback branch printed a bare ``next claimable:`` line mid-flight -- the
+    queue-jump invitation UR-52 forbids, printed by this tool itself. The first reading matches a
+    token ANYWHERE in a title (a block's own token must not be invisible because prose mentions it
+    second); the third reads the LEADING token only, because a token mentioned mid-title is prose
+    (the same rule ``queue_entries`` reads -- prose can name anything, and an invented hold only
+    suppresses an offer) and a hyphenated token is still a token (``[\\w-]+``: ``flaky-census``).
     A ``**PR:** none yet`` block is never a field-hold even when its prose cites a ``#`` issue:
     ``[r172]`` reads ``none yet. (ruling 172; issue #7102)`` on main, and an issue reference is not
     a claim, so ``NONE_YET`` is honoured here exactly as ``next_claimable`` honours it.
@@ -490,6 +509,22 @@ def held_claims(packages: str, mine: list[dict]) -> list[str]:
             continue
         named = PR_NUMBER.search(field.group(1)) if field else None
         if named and named.group(1) in numbers:
+            held.append(token)
+    # A THIRD reading, the live one the file-first scan cannot see: a PR's LEADING title token is
+    # its claim identity even when no block names it yet. Found 2026-10-20 02:51Z: [r269] (its
+    # block is deferred to the owner's plan PR, ruling 269 item 7) and [flaky-census] (#7082)
+    # held nothing, ``held`` came back empty, and ``build``'s fallback branch printed a bare
+    # ``next claimable:`` line beside TWO open packages -- the queue-jump invitation UR-52
+    # forbids, printed by this tool itself. Leading only (a mid-title token is prose -- the
+    # rule ``queue_entries`` reads, and the measured shape of live titles), ``[UR-nn]``
+    # exempt (UR-48: a defect fix titles no package, occupies no queue slot, gates nothing).
+    # Block-first ordering keeps the block readings' order; each token is listed once.
+    for p in mine:
+        m = LEADING_TOKEN.match(p.get("title", ""))
+        if not m or UR_DEFECT.fullmatch(m.group(1)):
+            continue
+        token = m.group(1)
+        if token not in held:
             held.append(token)
     return held
 
