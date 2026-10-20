@@ -13370,16 +13370,6 @@ export interface components {
          */
         AlertRuleCreate: {
             /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence (0.0-1.0)
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on (e.g., ['loitering', 'peering_through_window']). Actions are recognized by X-CLIP model.
-             */
-            action_types?: string[] | null;
-            /**
              * Camera Ids
              * @description Camera IDs to apply rule to (empty = all cameras)
              */
@@ -13447,16 +13437,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence (0.0-1.0)
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on (e.g., ['crouching', 'lying_down']). Valid: standing, crouching, bending_over, arms_raised, sitting, lying_down, unknown
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Alert when risk_score >= threshold
              */
@@ -13468,23 +13448,6 @@ export interface components {
              * @default medium
              */
             severity: components["schemas"]["AlertSeverity"];
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence (0.0-1.0)
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Number of consecutive smoke/fire detections required (reduces false positives)
-             * @default 2
-             */
-            smoke_fire_consecutive_required: number;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable alert on smoke/fire detection
-             * @default false
-             */
-            smoke_fire_detection_enabled: boolean;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat detection confidence (0.0-1.0)
@@ -13592,16 +13555,6 @@ export interface components {
          */
         AlertRuleResponse: {
             /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on
-             */
-            action_types?: string[] | null;
-            /**
              * Camera Ids
              * @description Camera IDs to apply to
              */
@@ -13677,16 +13630,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Risk score threshold
              */
@@ -13695,23 +13638,6 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity: components["schemas"]["AlertSeverity"];
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Consecutive detections required
-             * @default 2
-             */
-            smoke_fire_consecutive_required: number;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable smoke/fire alerts
-             * @default false
-             */
-            smoke_fire_detection_enabled: boolean;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat confidence
@@ -13806,16 +13732,6 @@ export interface components {
          */
         AlertRuleUpdate: {
             /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on
-             */
-            action_types?: string[] | null;
-            /**
              * Camera Ids
              * @description Camera IDs to apply rule to
              */
@@ -13878,16 +13794,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Alert when risk_score >= threshold
              */
@@ -13896,21 +13802,6 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity?: components["schemas"]["AlertSeverity"] | null;
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Consecutive detections required
-             */
-            smoke_fire_consecutive_required?: number | null;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable alert on smoke/fire detection
-             */
-            smoke_fire_detection_enabled?: boolean | null;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat confidence
