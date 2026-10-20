@@ -2959,3 +2959,382 @@ def test_the_enabled_header_counts_what_the_gate_actually_re_runs(
         f"a header that says zero while re-running something is the shape this "
         f"file exists to prevent; saw: {header!r}"
     )
+
+
+# ==========================================================================
+# The per-module import budget ([r172], issue #7102, UR-125's numbers).
+#
+# The gap #7102 measured: junit splits cost across two elements —
+# ``<testcase time>`` covers the test body, ``<testsuite time>`` includes
+# collection and module import — and the gate read only the first. A module
+# that stalls at import measured 0.023 s to the gate while the suite spent
+# 12.434 s, and the stall was invisible to both the corpus pass and the
+# re-run that exonerated a breach on it ("corpus 12.40s, re-ran 0.42s" —
+# the exoneration was granted on a number that excludes the cost under
+# review).
+#
+# The package's answer ([r172]): the gate computes each suite's import cost
+# as ``<testsuite time>`` minus the sum of its ``<testcase time>``s and
+# applies UR-125's numbers per module (the 4.0 s hard budget, the 1.5 s
+# warn), with UR-125's single re-run and the shared per-tier re-run cap;
+# per-test budgets and ``worst_durations()`` keep their meaning. The suite
+# element is the finest unit junit attributes collection cost to — under
+# xdist a shard's suite mixes modules, and the re-run (one module, no
+# xdist) is where a single module's cost is measured exactly. The gate
+# ships WARNING-ONLY ([r172]'s own clause): the over-threshold list is
+# posted, and the failing mode turns on only after the nightly's evidence
+# — the fail knob exists and is pinned, and CI does not set it yet.
+# ==========================================================================
+
+MODULE_SUITE_TIME = "12.434"
+MODULE_CASE_TIME = "0.023"
+
+
+def _xml_suite(
+    suite_time: str | None,
+    testcases: list[tuple[str, str, float]],
+    *,
+    suite_name: str = "pytest",
+) -> str:
+    """A junit file whose ``<testsuite>`` carries a ``time`` attribute.
+
+    The existing ``_xml`` helper emits a suite element with no ``time`` —
+    which is exactly the shape pytest writes for a session that records no
+    suite total — so the module-budget pins need their own builder. The
+    suite total INCLUDES the testcase times (junit's own invariant), which
+    is why the import cost is the DIFFERENCE and not the suite time
+    itself.
+    """
+    if suite_time is None:
+        head = f'<testsuite name="{suite_name}">'
+    else:
+        head = f'<testsuite name="{suite_name}" time="{suite_time}">'
+    lines = ['<?xml version="1.0" encoding="utf-8"?>', head]
+    for classname, name, t in testcases:
+        lines.append(f'  <testcase classname="{classname}" name="{name}" time="{t}"/>')
+    lines.append("</testsuite>")
+    return "\n".join(lines) + "\n"
+
+
+def _module_budget_env(**extra: str) -> dict[str, str]:
+    """The module-budget knobs at their defaults, named for the pin that reads them."""
+    return {
+        "SLEEP_GATE_MODULE_BUDGET": "4.0",
+        "SLEEP_GATE_MODULE_WARN": "1.5",
+        **extra,
+    }
+
+
+def test_the_module_import_cost_is_suite_time_minus_testcase_times(tmp_path: Path) -> None:
+    """#7102's measured shape, replayed: 12.434 s suite, 0.023 s testcase.
+
+    The module's import cost is the DIFFERENCE (12.411 s), and the number the
+    gate reports for the module must be that difference — not the suite time
+    (which would misattribute the body's 0.023 s to collection) and not the
+    testcase time (which is the omission the package's pin exists to kill).
+    A pin that greps for "12.4" would pass on the suite-time mutant; the
+    assertion is the exact difference to three decimals, which no mutant of
+    the two inputs produces.
+    """
+    results = _results(
+        tmp_path,
+        (
+            "module.xml",
+            _xml_suite(MODULE_SUITE_TIME, [(SLEEPER[0], SLEEPER[1], float(MODULE_CASE_TIME))]),
+        ),
+    )
+    run = _run(results, _module_budget_env())
+    out = _out(run)
+    assert run.returncode == 0, f"warning-only: a module import stall lists, never fails\n{out}"
+    assert "12.41" in out, (
+        f"the module's import cost must be reported as suite-minus-sum "
+        f"(12.434 - 0.023 = 12.411); saw:\n{out}"
+    )
+
+
+def test_a_module_import_stall_is_not_attributed_to_a_testcase(tmp_path: Path) -> None:
+    """``worst_durations()`` keeps its meaning: the testcase row stays 0.023 s.
+
+    The stall changes the module's row, not the test's — attributing a
+    suite's collection cost to one testcase would misattribute it and move
+    every existing per-test budget at once (the option #7102 rejected).
+    """
+    results = _results(
+        tmp_path,
+        (
+            "module.xml",
+            _xml_suite(MODULE_SUITE_TIME, [(SLEEPER[0], SLEEPER[1], float(MODULE_CASE_TIME))]),
+        ),
+    )
+    run = _run(results, _module_budget_env())
+    out = _out(run)
+    assert "0.02s" in out or "0.023" in out, (
+        f"the testcase's own row must still read its 0.023 s\n{out}"
+    )
+    assert "BREACH" not in run.stdout, (
+        f"the 0.023 s testcase is nowhere near any per-test budget\n{out}"
+    )
+
+
+def test_a_suite_with_no_time_attribute_is_unmeasured_not_zero(tmp_path: Path) -> None:
+    """A suite element that carries no ``time`` attribute measures nothing.
+
+    Treating the missing attribute as 0 would silently exempt the one shape
+    a truncated writer produces; the report must say the suite was not
+    measured rather than print a cost for it.
+    """
+    results = _results(tmp_path, ("module.xml", _xml_suite(None, [(SLEEPER[0], SLEEPER[1], 0.5)])))
+    run = _run(results, _module_budget_env())
+    out = _out(run)
+    assert run.returncode == 0
+    assert "module.xml" in out, (
+        f"the unmeasured suite is named so a reader can tell 'not measured' from 'cheap':\n{out}"
+    )
+    assert "not measured" in out.lower(), f"the report says which it read\n{out}"
+
+
+def test_the_module_budget_defaults_are_ur_125s_numbers(tmp_path: Path) -> None:
+    """The module budget is UR-125's pair — hard 4.0 s, warn 1.5 s — by default.
+
+    Read, never restated: the defaults are measured through ``_run_defaults``
+    (no ``SLEEP_GATE_*`` in the env), so a drift of any constant reddens a
+    pin instead of silently re-numbering the rule.
+    """
+    over = _results(
+        tmp_path,
+        ("a.xml", _xml_suite("4.500", [(SLEEPER[0], SLEEPER[1], 0.1)])),
+    )
+    run = _run_defaults(over)
+    out = _out(run)
+    assert run.returncode == 0, f"warning-only ships until the nightly's evidence\n{out}"
+    assert "4.477" in out or "4.4" in out, (
+        f"a 4.5 s suite with a 0.1 s body is 4.4 s of import — over the hard number, listed: {out}"
+    )
+    under = _results(
+        tmp_path,
+        ("b.xml", _xml_suite("1.600", [(SLEEPER[0], SLEEPER[1], 0.1)])),
+    )
+    run = _run_defaults(under)
+    out = _out(run)
+    assert "1.5" in out, (
+        f"1.6 - 0.1 = 1.5 s is over the warn line's band boundary and must be "
+        f"listed (strictly greater): {out}"
+    )
+
+
+def test_the_module_fail_mode_is_off_by_default_and_turns_red_when_set(
+    tmp_path: Path,
+) -> None:
+    """Warning-only ships; the fail knob turns the module budget red.
+
+    [r172]'s clause is explicit that the gate "ships warning-only" — the
+    failing turn happens after the nightly's list has evidence. The knob
+    exists and is pinned so the later flip is a one-line env change in the
+    nightly, not new code.
+    """
+    results = _results(
+        tmp_path,
+        (
+            "module.xml",
+            _xml_suite(MODULE_SUITE_TIME, [(SLEEPER[0], SLEEPER[1], float(MODULE_CASE_TIME))]),
+        ),
+    )
+    warn_run = _run(results, _module_budget_env())
+    assert warn_run.returncode == 0, (
+        f"unset knob = warning-only: the stall lists and the run passes\n{_out(warn_run)}"
+    )
+    fail_run = _run(results, _module_budget_env(SLEEP_GATE_MODULE_FAIL="1"))
+    out = _out(fail_run)
+    assert fail_run.returncode == 1, f"the fail mode reddens the run\n{out}"
+    assert "BREACH" in out, f"the module stall prints as a breach\n{out}"
+
+
+def test_the_module_re_run_measures_the_module_itself(tmp_path: Path) -> None:
+    """A module over budget gets UR-125's single re-run — of the MODULE.
+
+    The re-run target is the module path (no ``::test``), the child's junit
+    is read the same way (suite-minus-sum), and a stall that reproduces is
+    CONFIRMED. The stub answers for module targets, which the per-test stub
+    keys did not need.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        (
+            "module.xml",
+            _xml_suite(MODULE_SUITE_TIME, [(SLEEPER[0], SLEEPER[1], float(MODULE_CASE_TIME))]),
+        ),
+    )
+    run = _run(
+        results,
+        {
+            **_module_budget_env(SLEEP_GATE_MODULE_FAIL="1"),
+            "SLEEP_GATE_RERUN": "1",
+            "SLEEP_GATE_PYTEST": _stub_pytest_module(
+                tmp_path, {SLEEPER_TARGET.rsplit("::", 1)[0]: MODULE_SUITE_TIME}, calls_file=calls
+            ),
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    assert len(invoked) == 1, f"one re-run, once ([r172]: UR-125's single re-run)\n{out}"
+    target = next(a for a in invoked[0]["argv"] if "test_sleeper" in a)
+    assert target.endswith("test_sleeper.py"), (
+        f"the re-run names the MODULE, not a test inside it: {target}"
+    )
+    assert "::" not in target, f"no test id in the module re-run target: {target}"
+    assert fail_module_confirmed(out), (
+        f"a stall that reproduces on the module re-run is confirmed red\n{out}"
+    )
+
+
+def fail_module_confirmed(out: str) -> bool:
+    """The module re-run's confirmed verdict is on the report."""
+    return "BREACH" in out and "12.4" in out
+
+
+def test_the_module_re_run_share_the_per_tier_cap_with_tests(tmp_path: Path) -> None:
+    """The cap is SHARED: test re-runs spend the tier's allowance first.
+
+    [r172]: "with UR-125's single re-run and shared re-run cap". Five unit
+    test breaches consume the unit tier's five slots; a module breach over
+    budget in the same corpus gets NO re-run this job and stays red
+    unverified in the fail mode — the cap can only ever be strict.
+    """
+    calls = tmp_path / "calls.jsonl"
+    durations = {f"{SLEEPER[0]}::test_b{i}": "4.500" for i in range(5)}
+    results = _results(
+        tmp_path,
+        # One file carries the five test breaches (their body times are what
+        # the per-test gate reads); a second file carries the stalled suite
+        # whose import cost is the module breach. Splitting them keeps each
+        # number arithmetically clean: the stall file's suite-minus-sum is
+        # the 12.41 s stall, not a difference polluted by the breaches.
+        (
+            "breaches.xml",
+            _xml_suite(
+                "22.600",
+                [(SLEEPER[0], f"test_b{i}", 4.5) for i in range(5)]
+                + [(SLEEPER[0], SLEEPER[1], 0.1)],
+            ),
+        ),
+        (
+            "module.xml",
+            _xml_suite(
+                MODULE_SUITE_TIME,
+                [(SLEEPER[0], SLEEPER[1], float(MODULE_CASE_TIME))],
+            ),
+        ),
+    )
+    stub = _stub_pytest_module(
+        tmp_path,
+        {**durations, "backend/tests/unit/slow/test_sleeper.py": "0.100"},
+        calls_file=calls,
+    )
+    run = _run(
+        results,
+        {
+            **_module_budget_env(SLEEP_GATE_MODULE_FAIL="1"),
+            "SLEEP_GATE_RERUN": "1",
+            "SLEEP_GATE_PYTEST": stub,
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    module_runs = [
+        rec for rec in invoked if not any("::" in a for a in rec["argv"] if "test_sleeper" in a)
+    ]
+    # The five test breaches consumed the unit tier's five re-run slots; the
+    # module re-run is the sixth claim on the same allowance and is denied.
+    assert len(invoked) == 5, (
+        f"the shared cap is 5 across tests AND modules in the tier; the module "
+        f"re-run was denied: {len(invoked)} runs\n{out}"
+    )
+    assert "not measured" in out.lower() or "unverified" in out.lower(), (
+        f"the denied module re-run is reported as unverified, not passed\n{out}"
+    )
+    assert run.returncode == 1, f"the module breach stays red unverified\n{out}"
+    assert module_runs == [], f"no module-target re-run ran: {module_runs}"
+
+
+def test_the_module_budget_keeps_the_per_test_gates_meaning(tmp_path: Path) -> None:
+    """Both passes on one corpus: per-test breaches AND the module list.
+
+    The package's "per-test budgets and worst_durations() keep their
+    meaning" — the module pass is additive, not a re-definition: a 4.5 s
+    testcase still breaches its own budget and a stalled suite is listed
+    beside it.
+    """
+    results = _results(
+        tmp_path,
+        # Two files, one per pass: the per-test breach's 4.5 s body subtracts
+        # from its own suite, so a single suite cannot carry both "a 4.5 s
+        # testcase breach" and "a 12.41 s import cost" — the same suite would
+        # report 7.43 s of import. The stall file keeps the #7102 shape
+        # (12.434 suite / 0.023 body); the breach file keeps its own.
+        (
+            "stall.xml",
+            _xml_suite(
+                MODULE_SUITE_TIME,
+                [(SLEEPER[0], SLEEPER[1], float(MODULE_CASE_TIME))],
+            ),
+        ),
+        (
+            "breach.xml",
+            _xml_suite(
+                "4.500",
+                [(SLEEPER[0], "test_b0", 4.5)],
+            ),
+        ),
+    )
+    run = _run(results, _module_budget_env())
+    out = _out(run)
+    assert run.returncode == 1, f"the per-test breach still fails the run\n{out}"
+    assert "BREACH" in out and "4.50" in out, f"the per-test breach is reported\n{out}"
+    assert "12.41" in out, f"the module import cost is reported beside it\n{out}"
+
+
+def _stub_pytest_module(
+    tmp_path: Path,
+    modules: dict[str, str],
+    *,
+    calls_file: Path,
+) -> str:
+    """The re-run stub, module-target form: key = repo-relative module path.
+
+    Same recording contract as ``_stub_pytest`` (append argv + cwd to
+    ``calls_file``), but the target carries no ``::test`` — the gate re-runs
+    a MODULE for the import budget. The stub writes a junit whose suite
+    time is the canned number and whose single testcase time is 0.023 s, so
+    the gate's suite-minus-sum reader has a stall to find.
+    """
+    script = tmp_path / "stub-pytest-module.py"
+    script.write_text(
+        textwrap.dedent(
+            f"""\
+            import json, os, sys
+            argv = sys.argv[1:]
+            MOD = {modules!r}
+            target = next((a for a in argv if a.endswith(".py")), "")
+            xml = next((a.split("=", 1)[1] for a in argv if a.startswith("--junit-xml=")), "")
+            with open({str(calls_file)!r}, "a", encoding="utf-8") as h:
+                h.write(json.dumps({{"argv": argv, "cwd": os.getcwd()}}) + "\\n")
+            t = MOD.get(target)
+            if t is None:
+                print(f"ERROR: no module canned for {{target}}", file=sys.stderr)
+                sys.exit(4)
+            if xml:
+                with open(xml, "w", encoding="utf-8") as h:
+                    h.write(
+                        '<?xml version="1.0" encoding="utf-8"?>'
+                        '<testsuites name="pytest tests"><testsuite name="pytest" tests="1" '
+                        'failures="0" errors="0" skipped="0" time="' + t + '">'
+                        '<testcase classname="" name="x" time="0.023" /></testsuite>'
+                        "</testsuites>"
+                    )
+            sys.exit(0)
+            """
+        ),
+        encoding="utf-8",
+    )
+    return f"{sys.executable} {script}"

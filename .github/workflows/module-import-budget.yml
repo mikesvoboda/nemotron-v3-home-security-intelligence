@@ -1,0 +1,111 @@
+# Module import budget — the [r172] nightly (ruling 172; issue #7102).
+#
+# The gate's per-module import cost ships WARNING-ONLY: on every PR the
+# ci.yml gate lists over-threshold suites and stays green ([r172]'s own
+# clause), and this nightly is the scheduled run that POSTS the list —
+# "after one scheduled nightly the modules over each threshold are posted".
+# It is a separate file, not a ci.yml job, for the same reasons the other
+# nightlies are (bundle-size 06:49, api-contract 05:43, api-compat 05:13 —
+# owner ruling 100 staggers each off its own cron minute): a nightly's red
+# is triage-class, not merge-blocking, and the WP0.6 invariant
+# (scripts/test_ci_job_graph.py) is a ci.yml invariant.
+#
+# What this run adds over ci.yml's warning-only pass:
+#   * it runs the FULL unit corpus in one job (no shards — a module's
+#     import cost is per-suite and xdist mixes modules into one suite
+#     element, so the per-module verdict needs the re-run's exact number
+#     and the corpus list benefits from one writer), with
+#     SLEEP_GATE_MODULE_FAIL set so the verdict is REAL: a reproduced
+#     import breach reddens the nightly. The fail knob is pinned by
+#     test_the_module_fail_mode_is_off_by_default_and_turns_red_when_set;
+#     CI's gate does not set it — this file is the only place it is on.
+#   * the summary carries the over-threshold module list (both the hard
+#     breaches and the 1.5 s warn band), which is the "posted" limb of the
+#     Done-when. The gate script writes $GITHUB_STEP_SUMMARY itself
+#     (write_step_summary — the same channel ruling 93's WARN list uses),
+#     so the list survives in the run's Summary tab without a second
+#     reporting step re-reading a file. Failing is what turns the knob's
+#     later flip into "once each is fixed or in SLOW_TEST_PATTERNS" — the
+#     evidence loop.
+#
+# Fail-closed on no data, like the ci.yml gate: zero junit XML fails the
+# job rather than passing vacuously (the script's own behavior; the step
+# keeps its real exit code — no `|| true`, per the nightly-full-gate
+# honest-reporting doctrine).
+name: Module Import Budget
+
+on:
+  schedule:
+    - cron: '31 3 * * *' # UTC 03:31 — off the :00 herd, clear of the 04:17 nightly-full-gate and the 05:13/05:43/06:49 trio (owner ruling 100)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Same single-source versions as the other nightlies (api-compatibility and
+# friends carry their own env block): one place to change them, per ci.yml
+# line 18's "Update this single location" doctrine.
+env:
+  PYTHON_VERSION: '3.14'
+  UV_VERSION: '0.9.18'
+
+# Nightly evidence runs must not cancel each other.
+concurrency:
+  group: module-import-budget-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  module-import-budget:
+    name: Module import budget (nightly, failing mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        # The dev extra: the module re-run's default runner is `python -m
+        # pytest`, which only exists with the dev extra's pytest installed
+        # (the same dependency the ci.yml gate's step pin asserts).
+        run: uv sync --extra dev --frozen
+
+      - name: Run the unit corpus (single job, no xdist across jobs)
+        # One job, no shard split: the corpus list is per-suite and the
+        # re-run is per-module, so sharding buys wall-clock at the cost of
+        # splitting a module's collection cost across four writers. xdist
+        # WITHIN the job stays on (-n auto), as ci.yml's shards run it —
+        # the re-run (no xdist, `-o addopts=` clears it) is where a single
+        # module's cost is measured exactly.
+        run: |
+          uv run pytest backend/tests/unit/ \
+            -n auto --dist=worksteal \
+            --randomly-seed=${{ github.run_id }} \
+            --timeout=60 \
+            --junit-xml=test-results-unit-nightly.xml \
+            --durations=20
+
+      - name: Real-sleep budget gate (module import budget, failing mode)
+        # Same gate script, same corpus doctrine as ci.yml's step, with the
+        # module knobs set: 4.0 hard / 1.5 warn (UR-125's numbers, applied
+        # per module), re-run ON (the verdict needs a reproduced breach),
+        # and SLEEP_GATE_MODULE_FAIL=1 — the failing mode. The per-test
+        # budgets ride their own defaults here unchanged.
+        run: uv run python scripts/check-test-duration-budget.py test-results/
+        env:
+          SLEEP_GATE_UNIT_BUDGET: '4.0'
+          SLEEP_GATE_INTEGRATION_BUDGET: '10.0'
+          SLEEP_GATE_E2E_BUDGET: '10.0'
+          SLEEP_GATE_WARN_BUDGET: '1.5'
+          SLEEP_GATE_RERUN: '1'
+          SLEEP_GATE_MODULE_BUDGET: '4.0'
+          SLEEP_GATE_MODULE_WARN: '1.5'
+          SLEEP_GATE_MODULE_FAIL: '1'
