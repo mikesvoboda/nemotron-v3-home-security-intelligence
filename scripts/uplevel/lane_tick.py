@@ -79,6 +79,16 @@ NONE_YET = re.compile(r"[^\n#]*none yet", re.I)
 PR_NUMBER = re.compile(r"#(\d+)")
 # The package header line, as it stands AFTER splitting on "### " (the marker is gone).
 BLOCK = re.compile(r"\[?([\w.]+)\]?\s")
+# A PR title's LEADING token -- the claim identity a PR carries even when no `### [pkg]` block
+# names it yet ([r269]'s block is deferred to the owner's plan PR, ruling 269 item 7; [flaky-census]
+# (#7082) titles a token ops.md has never carried). Same leading rule ``queue_entries`` reads: a
+# token MENTIONED mid-title is prose, and prose can name anything. The hyphen is load-bearing:
+# ``[\w.]+`` (BLOCK's class) cannot hold ``flaky-census``.
+LEADING_TOKEN = re.compile(r"^\s*\[([\w-]+)\]")
+# UR-48's defect-fix shape: a lane defect titles no package, occupies no queue slot and gates
+# nothing -- the exemption the blockless hold must keep, or every `[UR-nn]` fix would freeze
+# its lane's queue (the exact blanket refusal the UR-48 control test exists to forbid).
+UR_DEFECT = re.compile(r"UR-?\d+")
 # Ruling 197's machine footers: ONE HTML-comment line (invisible on GitHub) ending an owner record
 # on #6854 or an owner pointer on a PR. Before them a record reached a lane only through the map
 # filter (a MAPPED ruling vanished from the digest) and a pointer only as a `1c/0r` count -- which
@@ -467,9 +477,18 @@ def held_claims(packages: str, mine: list[dict]) -> list[str]:
     widens to file-wide holds. Cannot over-suppress across a lane's cells, because ``mine`` is
     already branch-filtered upstream.
 
-    Two independent hold readings, because either can be the only live one: the ``[<pkg>]`` **title
-    token** of an open PR (authoritative; a ``[UR-nn]`` defect fix -- UR-48, no package number --
-    titles no package and gates nothing), or the block's own ``**PR:**`` number naming a PR of mine.
+    Three readings, because any of them can be the only live one: the ``[<pkg>]`` **title token**
+    of an open PR (authoritative; a ``[UR-nn]`` defect fix -- UR-48, no package number -- titles no
+    package and gates nothing), the block's own ``**PR:**`` number naming a PR of mine, and the
+    **leading title token** of an open PR whose token has no block anywhere in the file yet -- the
+    live shape of 2026-10-20: ``[r269]`` (its block is deferred to the owner's plan PR, ruling 269
+    item 7) and ``[flaky-census]`` (#7082) held nothing, the scan came back empty beside two open
+    packages, and the fallback branch printed a bare ``next claimable:`` line mid-flight -- the
+    queue-jump invitation UR-52 forbids, printed by this tool itself. The first reading matches a
+    token ANYWHERE in a title (a block's own token must not be invisible because prose mentions it
+    second); the third reads the LEADING token only, because a token mentioned mid-title is prose
+    (the same rule ``queue_entries`` reads -- prose can name anything, and an invented hold only
+    suppresses an offer) and a hyphenated token is still a token (``[\\w-]+``: ``flaky-census``).
     A ``**PR:** none yet`` block is never a field-hold even when its prose cites a ``#`` issue:
     ``[r172]`` reads ``none yet. (ruling 172; issue #7102)`` on main, and an issue reference is not
     a claim, so ``NONE_YET`` is honoured here exactly as ``next_claimable`` honours it.
@@ -490,6 +509,22 @@ def held_claims(packages: str, mine: list[dict]) -> list[str]:
             continue
         named = PR_NUMBER.search(field.group(1)) if field else None
         if named and named.group(1) in numbers:
+            held.append(token)
+    # A THIRD reading, the live one the file-first scan cannot see: a PR's LEADING title token is
+    # its claim identity even when no block names it yet. Found 2026-10-20 02:51Z: [r269] (its
+    # block is deferred to the owner's plan PR, ruling 269 item 7) and [flaky-census] (#7082)
+    # held nothing, ``held`` came back empty, and ``build``'s fallback branch printed a bare
+    # ``next claimable:`` line beside TWO open packages -- the queue-jump invitation UR-52
+    # forbids, printed by this tool itself. Leading only (a mid-title token is prose -- the
+    # rule ``queue_entries`` reads, and the measured shape of live titles), ``[UR-nn]``
+    # exempt (UR-48: a defect fix titles no package, occupies no queue slot, gates nothing).
+    # Block-first ordering keeps the block readings' order; each token is listed once.
+    for p in mine:
+        m = LEADING_TOKEN.match(p.get("title", ""))
+        if not m or UR_DEFECT.fullmatch(m.group(1)):
+            continue
+        token = m.group(1)
+        if token not in held:
             held.append(token)
     return held
 
@@ -525,6 +560,52 @@ def behind(run, repo: str, number: int) -> str:
     return run(
         ["git", "rev-list", "--count", f"refs/remotes/origin/pr/{number}..origin/main"]
     ).strip()
+
+
+def waiting_its_turn(s: snap.Snapshot, p: dict, reviews: list[dict]) -> bool:
+    """Ruling 269 item 1: is this open PR of mine "waiting its merge turn" -- the state that lets
+    the claim gate below offer a fresh package beside it?
+
+    All four of the item's conditions, judged the way the digest's own markers judge them:
+
+    - **not a draft** -- a draft's green gate sits over skipped legs (ruling 198), so its gate has
+      not "passed";
+    - **no conflict** -- DIRTY is the author's to do; BEHIND and BLOCKED are the coordinator's
+      roll, which item 4 counts as the waiting, not as author's-to-do work (UR-102);
+    - **no owner question** -- the ``owner`` label (UR-147's trigger for an entry under Questions
+      for the owner). An owner-tier PR also needs the owner's approval in force, and that approval
+      is a #6854 record, outside what a per-PR digest read can verify -- so the conservative
+      direction is no offer;
+    - **a gate that passed at this head, or whose last run here was cancelled** -- item 1(b)'s own
+      words: "A gate that failed does not qualify". CANCELLED, a coordinator roll cancelled
+      mid-run, is expressly named the other half of the pass;
+    - **an approving review of this head** -- the newest review decides (``review_marker``'s
+      reading): ``is_approval`` first, so a changes-requested reply naming the head is the open
+      finding item 1(d) calls "no open review finding" and blocks; then ``at_head`` for the
+      approval's sha or its UR-106 carry, judged exactly as the coordinator judges a merge.
+
+    A failed review read (``reviews_of`` recorded an empty list beside a ``review unread`` row)
+    answers False: no offer may rest on an unread verdict.
+    """
+    if p["draft"] or p["merge_state"] == "DIRTY" or "owner" in p["labels"]:
+        return False
+    # "A gate that passed at this head": passed means the run RAN -- the same measure
+    # ``review_marker`` applies (ruling 198: a draft run's green gate sits over skipped legs, and
+    # on a ready flip that stale rollup stays the newest gate until the post-flip fan-in lands).
+    # A SUCCESS gate whose run produced no SUCCESS leg is the draft-run shape, not a pass.
+    if p["gate"] == "SUCCESS" and not ran_for_real(
+        s.rollups.get(p["number"], []), p.get("gate_run")
+    ):
+        return False
+    if p["gate"] not in ("SUCCESS", "CANCELLED"):
+        return False
+    if not reviews:
+        return False
+    newest = reviews[-1]
+    if not snap.is_approval(snap.first_line(newest.get("body") or "")):
+        return False
+    here = at_head(s, p, newest)
+    return here is True
 
 
 # --- rendering ------------------------------------------------------------------------------
@@ -659,13 +740,15 @@ def build(
     # review -- each PR's one review is its author's UR-89 subagent, and no PR carries a
     # `review:<lane>` label -- so the digest's PR section is my own PRs and nothing else.
     mine = [p for p in items if heads.get(p["number"], {}).get("headRefName") in branches]
+    reviews_of: dict[int, list[dict]] = {}  # each PR's verdict read, for the ruling-269 gate
 
     def marker(p: dict) -> str:
         """Ruling 198's ``needs your review`` / ``arm auto-merge`` for a ready PR of mine. Its reads
         go through the runner: the snapshot's own verdict read (REVIEWS_JQ, the call ``_review``
         makes) and the UR-106 own-diff reads ``judge`` makes for a review of another rev. A failed
         read prints ``review unread`` on the row and an ERROR line, never a missing marker that
-        would read as "nothing to do"."""
+        would read as "nothing to do". The read is kept in ``reviews_of`` so the claim gate below
+        judges the same reviews this marker judged, by the same code path."""
         if p["draft"]:
             return ""  # a draft is neither reviewed nor armed (ruling 198: skipped jobs pass)
         n = p["number"]
@@ -674,7 +757,9 @@ def build(
             reviews = s.gh_paginated(path, "--jq", snap.REVIEWS_JQ)
         except Exception as exc:
             extra.append(f"  ERROR review comments #{n}: {snap.error_text(exc)}")
+            reviews_of[n] = []
             return " — review unread"
+        reviews_of[n] = reviews
         return review_marker(s, p, reviews)
 
     out.append(f"== mine ({len(mine)})")
@@ -704,7 +789,20 @@ def build(
     # reads the whole lane file, not the queue column, because a package the roster never lists is
     # still an open package ([r162] on ops-a's row is that shape). Silence would be worse than either
     # line -- it could mean "nothing claimable" or "not eligible" -- so the digest says which it read.
-    if held := held_claims(pkgs, mine):
+    # Ruling 269 (record 6275028285) lifts the gate on one shape only: every open PR the lane holds
+    # is "waiting its merge turn" (its item 1) and it holds fewer than two (its item 3). Item 6 says
+    # the digest should then offer the next claimable package -- not instead of the hold line, which
+    # stays true, but beside it, naming the ruling the way the hold line names UR-52.
+    held = held_claims(pkgs, mine)
+    all_waiting = all(
+        waiting_its_turn(s, p, reviews_of.get(p["number"], [])) for p in mine
+    )
+    if held and all_waiting and len(held) < 2:
+        names = ", ".join(f"[{t}]" for t in held)
+        out.append(f"  holding open claim: {names} (waiting its merge turn, ruling 269)")
+        if nxt := next_claimable(pkgs, ids["queue"], mine):
+            out.append(f"  next claimable: {nxt} (ruling 269: your open PR waits its merge turn)")
+    elif held:
         names = ", ".join(f"[{t}]" for t in held)
         out.append(
             f"  holding open claim: {names} (UR-52: nothing to claim while a package is open)"

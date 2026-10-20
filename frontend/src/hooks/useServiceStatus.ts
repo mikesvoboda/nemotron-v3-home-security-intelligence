@@ -1,38 +1,94 @@
 /**
  * Hook for tracking individual service health status.
  *
- * The backend's ServiceHealthMonitor (health_monitor.py) monitors RT-DETRv2 and
- * Nemotron services, broadcasting `service_status` messages via EventBroadcaster
- * when their health changes. This hook connects to `/ws/events` and listens for
- * those messages, tracking the status of each monitored service.
+ * The backend's `service_status` broadcasts all flow through one validating
+ * funnel — `EventBroadcaster.broadcast_service_status` re-serializes every
+ * payload against `WebSocketServiceStatusData` (backend/api/schemas/websocket.py),
+ * which aliases `name` → `service`, ignores extra fields and validates `status`
+ * against the `WebSocketServiceStatus` enum — so what arrives here is always the
+ * flat `{ service, status, message }` shape, regardless of the emitting service.
+ * Three live emitters feed that funnel (measured for ruling 267):
+ *
+ * - ServiceHealthMonitor (health_monitor.py): probes `yolo26` only; statuses
+ *   healthy/unhealthy/restarting/restart_failed/failed/restart_disabled.
+ * - ContainerOrchestrator (container_orchestrator.py): the 19 discovery config
+ *   keys (postgres, redis, backend, ...); statuses running/unhealthy/stopped/
+ *   disabled survive the funnel (`starting`/`not_found` are rejected by it).
+ * - WorkerSupervisor (worker_supervisor.py): `worker:<name>` for the pipeline
+ *   workers; statuses running/stopped/crashed/restarting/failed.
+ *
+ * This hook connects to `/ws/events` and tracks each service's latest status.
+ * `rtdetr` and `nemotron` are dropped: no emitter sends those names (R8 renamed
+ * the probed AI service to `yolo26` and removed nemotron from the data).
  *
  * For overall system health, use `useSystemStatus` which connects to `/ws/system`
  * and provides an aggregated health field ('healthy', 'degraded', 'unhealthy').
  * This hook is useful when you need to show detailed per-service status or react
  * to specific service failures.
- *
- * Note: Redis health is not monitored by ServiceHealthMonitor since the backend
- * handles Redis failures gracefully through other mechanisms.
  */
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions } from '../services/api';
 
-export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
+// Container service names come from ContainerDiscoveryService's config keys
+// (backend/services/container_discovery.py). Keep in sync with that dict —
+// `starting` and `not_found` never reach the client (the broadcaster's status
+// enum rejects them), so only the four surviving statuses are listed below.
+const CONTAINER_SERVICE_NAMES = [
+  'ai-gateway',
+  'alertmanager',
+  'alloy',
+  'backend',
+  'blackbox-exporter',
+  'cadvisor',
+  'dcgm-exporter',
+  'frontend',
+  'go2rtc',
+  'grafana',
+  'json-exporter',
+  'loki',
+  'node-exporter',
+  'postgres',
+  'prometheus',
+  'pyroscope',
+  'redis',
+  'redis-exporter',
+  'tempo',
+] as const;
+
+// Worker names are dynamic (worker:detection-{i} etc.), so they are matched by
+// prefix rather than enumerated; the template-literal type keeps the static
+// names closed while allowing any `worker:<name>`.
+const WORKER_SERVICE_PREFIX = 'worker:';
+
+export type ContainerServiceName = (typeof CONTAINER_SERVICE_NAMES)[number];
+
+export type ServiceName = ContainerServiceName | 'yolo26' | `worker:${string}`;
+
 // Must stay in sync with backend WebSocketServiceStatus
-// (backend/api/schemas/websocket.py) for every status ServiceHealthMonitor
-// actually broadcasts — useServiceStatus drops statuses its guard does not
-// list, and 'restart_disabled' (unhealthy service with restart_cmd=None,
-// e.g. AI_RESTART_ENABLED=false) was missing: the UI silently never saw the
-// service go down.
+// (backend/api/schemas/websocket.py) — that enum is what the broadcaster
+// validates every payload's status against before it reaches this hook.
+// History: 'restart_disabled' (unhealthy service with restart_cmd=None, e.g.
+// AI_RESTART_ENABLED=false) was once missing and the UI silently never saw the
+// service go down; the container orchestrator's ServiceInfo statuses outside
+// this list die at the broadcaster and never arrive.
 export type ServiceStatusType =
-  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'restart_disabled' | 'failed';
+  | 'healthy'
+  | 'unhealthy'
+  | 'running'
+  | 'stopped'
+  | 'crashed'
+  | 'disabled'
+  | 'restarting'
+  | 'restart_failed'
+  | 'restart_disabled'
+  | 'failed';
 
 export interface ServiceStatus {
   service: ServiceName;
   status: ServiceStatusType;
-  message?: string;
+  message?: string | null;
   timestamp: string;
 }
 
@@ -55,7 +111,7 @@ export interface UseServiceStatusOptions {
 }
 
 export interface UseServiceStatusResult {
-  services: Record<ServiceName, ServiceStatus | null>;
+  services: Partial<Record<ServiceName, ServiceStatus>>;
   hasUnhealthy: boolean;
   hasDegraded: boolean;
   isAnyRestarting: boolean;
@@ -68,7 +124,7 @@ export interface UseServiceStatusResult {
 interface BackendServiceStatusData {
   service: ServiceName;
   status: ServiceStatusType;
-  message?: string;
+  message?: string | null;
 }
 
 interface BackendServiceStatusMessage {
@@ -77,27 +133,41 @@ interface BackendServiceStatusMessage {
   timestamp: string;
 }
 
-const SERVICE_NAMES: ServiceName[] = ['redis', 'rtdetr', 'nemotron'];
-
 // 'restart_disabled': unhealthy and no automatic restart is coming — strictly
 // worse than 'unhealthy', so it counts as unhealthy for derived flags.
 const UNHEALTHY_STATUSES: ServiceStatusType[] = [
   'unhealthy',
   'failed',
+  'crashed',
   'restart_failed',
   'restart_disabled',
 ];
 
 function isServiceName(value: unknown): value is ServiceName {
-  return typeof value === 'string' && SERVICE_NAMES.includes(value as ServiceName);
+  if (typeof value !== 'string') {
+    return false;
+  }
+  if (value.startsWith(WORKER_SERVICE_PREFIX)) {
+    return value.length > WORKER_SERVICE_PREFIX.length;
+  }
+  return (CONTAINER_SERVICE_NAMES as readonly string[]).includes(value) || value === 'yolo26';
 }
 
 function isServiceStatusType(value: unknown): value is ServiceStatusType {
   return (
     typeof value === 'string' &&
-    ['healthy', 'unhealthy', 'restarting', 'restart_failed', 'restart_disabled', 'failed'].includes(
-      value
-    )
+    [
+      'healthy',
+      'unhealthy',
+      'running',
+      'stopped',
+      'crashed',
+      'disabled',
+      'restarting',
+      'restart_failed',
+      'restart_disabled',
+      'failed',
+    ].includes(value)
   );
 }
 
@@ -120,19 +190,15 @@ function isBackendServiceStatusMessage(data: unknown): data is BackendServiceSta
 
   const msgData = msg.data as Record<string, unknown>;
 
+  // The broadcaster's model_dump always includes `message` — as a string or
+  // null (pydantic does not omit None fields), never undefined.
   return (
     isServiceName(msgData.service) &&
     isServiceStatusType(msgData.status) &&
-    (msgData.message === undefined || typeof msgData.message === 'string')
+    (msgData.message === undefined ||
+      msgData.message === null ||
+      typeof msgData.message === 'string')
   );
-}
-
-function createInitialServices(): Record<ServiceName, ServiceStatus | null> {
-  return {
-    redis: null,
-    rtdetr: null,
-    nemotron: null,
-  };
 }
 
 // Degraded statuses are those that indicate reduced functionality but not complete failure
@@ -141,8 +207,9 @@ const DEGRADED_STATUSES: ServiceStatusType[] = ['restarting'];
 /**
  * Subscribe to per-service health status updates from the backend.
  *
- * Returns current status for each monitored service (rtdetr, nemotron),
- * along with derived flags for checking if any service is unhealthy or restarting.
+ * Returns current status for each monitored service (yolo26, container
+ * services, pipeline workers), along with derived flags for checking if any
+ * service is unhealthy or restarting.
  *
  * @param options - Optional configuration including status change callback
  * @returns UseServiceStatusResult with services map and utility getters
@@ -160,8 +227,7 @@ const DEGRADED_STATUSES: ServiceStatusType[] = ['restarting'];
  */
 export function useServiceStatus(options: UseServiceStatusOptions = {}): UseServiceStatusResult {
   const { onStatusChange } = options;
-  const [services, setServices] =
-    useState<Record<ServiceName, ServiceStatus | null>>(createInitialServices);
+  const [services, setServices] = useState<Partial<Record<ServiceName, ServiceStatus>>>({});
 
   // Use ref to store callback to avoid dependency in handleMessage
   const onStatusChangeRef = useRef(onStatusChange);
@@ -187,7 +253,7 @@ export function useServiceStatus(options: UseServiceStatusOptions = {}): UseServ
       };
 
       setServices((prev) => {
-        const previousStatus = prev[data.data.service];
+        const previousStatus = prev[data.data.service] ?? null;
 
         // Store pending notification for effect to process
         pendingNotificationRef.current = {
@@ -224,37 +290,35 @@ export function useServiceStatus(options: UseServiceStatusOptions = {}): UseServ
   });
 
   const hasUnhealthy = useMemo(() => {
-    return SERVICE_NAMES.some((name) => {
-      const status = services[name];
-      return status !== null && UNHEALTHY_STATUSES.includes(status.status);
-    });
+    return Object.values(services).some(
+      (status) => status !== undefined && UNHEALTHY_STATUSES.includes(status.status)
+    );
   }, [services]);
 
   const hasDegraded = useMemo(() => {
-    return SERVICE_NAMES.some((name) => {
-      const status = services[name];
-      return status !== null && DEGRADED_STATUSES.includes(status.status);
-    });
+    return Object.values(services).some(
+      (status) => status !== undefined && DEGRADED_STATUSES.includes(status.status)
+    );
   }, [services]);
 
   const isAnyRestarting = useMemo(() => {
-    return SERVICE_NAMES.some((name) => {
-      const status = services[name];
-      return status !== null && status.status === 'restarting';
-    });
+    return Object.values(services).some(
+      (status) => status !== undefined && status.status === 'restarting'
+    );
   }, [services]);
 
   const allHealthy = useMemo(() => {
-    // All services must have reported status AND be healthy
-    return SERVICE_NAMES.every((name) => {
-      const status = services[name];
-      return status !== null && status.status === 'healthy';
-    });
+    // Only reported services participate: null-reporting names are no longer
+    // pre-seeded, so "all healthy" means every service that has reported is
+    // healthy (the empty map is vacuously all-healthy — matches the old
+    // behavior only once a report arrives; useSystemStatus remains the
+    // overall-health source for the not-yet-reported case).
+    return Object.values(services).every((status) => status?.status === 'healthy');
   }, [services]);
 
   const getServiceStatus = useCallback(
     (name: ServiceName): ServiceStatus | null => {
-      return services[name];
+      return services[name] ?? null;
     },
     [services]
   );
