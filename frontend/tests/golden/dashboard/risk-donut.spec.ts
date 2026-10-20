@@ -156,22 +156,35 @@ test.describe('golden path: dashboard risk distribution donut @critical', () => 
     await quietBoot(page, h);
     await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
     await expect.poll(() => statsUrl, { timeout: 20_000 }).toBeTruthy();
-    const u = new URL(String(statsUrl));
-    const stats = await api<EventStats>(h, session, u.pathname + u.search);
-
-    // DATA-DRIVEN skip (not a behaviour skip): with the stack holding no
-    // events the donut renders its empty card and there is literally no slice
-    // to click — the row's clause is unexecutable, and pretending otherwise
-    // would assert against a mock, which the guard exists to forbid. The
-    // mirror test above still runs (honestly, in its empty branch) on such a
-    // stack. On CI this normally doesn't fire: ../dashboard-drop.spec.ts sorts
-    // first ('-' < '/') and its drop usually lands an event by now.
-    const levels = (['critical', 'high', 'medium', 'low'] as const).filter(
+    let u = new URL(String(statsUrl));
+    let stats = await api<EventStats>(h, session, u.pathname + u.search);
+    let levels = (['critical', 'high', 'medium', 'low'] as const).filter(
       (l) => stats.events_by_risk_level[l] > 0
     );
+
+    // [r279] UTC-midnight rollover guard: DashboardPage defaults to
+    // useDateRangeState({ defaultPreset: 'today' }) (start_date = today UTC
+    // 00:00:00Z). When a CI shard boots just before 00:00Z (e.g. 23:57Z in
+    // runs 39177977644 and 39344263177), smoke() and alerts.spec.ts create
+    // their events on day D while this spec runs minutes later on day D+1, so
+    // the 'today' filter excludes those events and returns 0. Widening the
+    // dashboard's own URL preset to '/?range=7d' includes the events created
+    // minutes earlier before midnight so the donut renders its slices.
+    if (levels.length === 0) {
+      statsUrl = null;
+      await quietBoot(page, h, '/?range=7d');
+      await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
+      await expect.poll(() => statsUrl, { timeout: 20_000 }).toBeTruthy();
+      u = new URL(String(statsUrl));
+      stats = await api<EventStats>(h, session, u.pathname + u.search);
+      levels = (['critical', 'high', 'medium', 'low'] as const).filter(
+        (l) => stats.events_by_risk_level[l] > 0
+      );
+    }
+
     test.skip(
       levels.length === 0,
-      'stack has zero events: the donut is empty and has no slice to click (drop seeding will give this leg its data)'
+      'stack has zero events across 7d: the donut is empty and has no slice to click'
     );
 
     // Click the highest-severity nonzero level's legend button (a DOM slice

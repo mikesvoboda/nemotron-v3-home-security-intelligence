@@ -988,6 +988,16 @@ also_copy = [
 # This eliminates ~700MB of unnecessary NVIDIA NCCL libraries that were causing
 # CI Docker builds to fail with "no space left on device" errors.
 [tool.uv]
-extra-index-url = ["https://download.pytorch.org/whl/cpu"]
-# Use best-match strategy to allow PyPI packages when not found on PyTorch CPU index
+# Use best-match strategy with PyPI listed FIRST so non-PyTorch packages
+# (markupsafe, jinja2, pillow, colorama, mpmath, networkx, sympy, typing-extensions)
+# resolve from PyPI's CDN while torch/torchvision resolve CPU-only +cpu wheels
+# from download.pytorch.org/whl/cpu.
 index-strategy = "unsafe-best-match"
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"

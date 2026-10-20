@@ -15,6 +15,7 @@ from backend.api.routes.events import (
     CSV_INJECTION_PREFIXES,
     VALID_EVENT_LIST_FIELDS,
     VALID_SEVERITY_VALUES,
+    fields_query_description,
     get_detection_ids_from_event,
     parse_detection_ids,
     parse_severity_filter,
@@ -247,6 +248,49 @@ class TestConstantsAndValidation:
             "notify",
         }
         assert frozenset(expected_fields) == VALID_EVENT_LIST_FIELDS
+
+    def test_fields_query_description_is_derived_from_the_set(self):
+        """[r277a] Q-068: the API doc cannot name a field the set rejects.
+
+        The description is DERIVED from VALID_EVENT_LIST_FIELDS in production
+        (fields_query_description), so drift needs this test to catch two
+        directions: the description naming something the set rejects (a client
+        following the docs gets a 400 -- the failure the ruling describes), and
+        the set carrying a field the description omits. Both are the same
+        assertion here because the production text is generated; the set-equality
+        check above keeps the set itself honest. detection_ids (removed with the
+        events table's detections column, NEM-1592) must not reappear; notify
+        must be present.
+        """
+        description = fields_query_description()
+        valid_names = sorted(VALID_EVENT_LIST_FIELDS)
+
+        # The derived text, verbatim (sorted list, same prefix).
+        assert description == (
+            "Comma-separated list of fields to include in response (sparse fieldsets). "
+            f"Valid fields: {', '.join(valid_names)}"
+        )
+
+        # The retired name is out; the live ISS-001 field is in.
+        assert "detection_ids" not in description
+        assert "notify" in description
+
+    def test_fields_query_description_route_uses_the_helper(self):
+        """The route's Query description is the derived text, not a hand copy.
+
+        Reading the parameter's default via inspect keeps this tied to the real
+        signature: if someone re-inlines a hand-written string in the route
+        (the shape that drifted), this fails.
+        """
+        import inspect
+
+        from backend.api.routes import events as events_module
+
+        list_events = events_module.list_events
+        fields_param = inspect.signature(list_events).parameters["fields"]
+        default = fields_param.default
+        assert hasattr(default, "description"), "fields must remain a Query parameter"
+        assert default.description == fields_query_description()
 
     def test_csv_injection_prefixes_complete(self):
         """Test that CSV_INJECTION_PREFIXES contains all dangerous characters."""
