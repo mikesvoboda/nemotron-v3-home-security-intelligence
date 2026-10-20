@@ -761,7 +761,7 @@ a row.
 ### [r267a] The service-status hook accepts what the backend broadcasts
 
 **Flags:** none. **Assigned:** frontend, first on its queue after the PR it holds (UR-52).
-**Depends on:** none. **PR:** none yet. (ruling 267, record 6266846674; audit item Q-001 of
+**Depends on:** none. **PR:** #7293. (ruling 267, record 6266846674; audit item Q-001 of
 `[r262]`)
 
 `frontend/src/hooks/useServiceStatus.ts`:80 keeps only `redis`, `rtdetr` and `nemotron`, and its
@@ -770,13 +770,13 @@ status guard keeps only its own status values. The backend's health monitor prob
 supervisor broadcasts `worker:<name>`, all through `broadcast_service_status`. So no broadcast
 passes, and `yolo26`'s health never reaches `ServiceStatusAlert` or the services panel's badge.
 
-- [ ] **MEASURE** each `service_status` emitter and the names and status values it sends, and
+- [x] **MEASURE** each `service_status` emitter and the names and status values it sends, and
       where else the frontend shows each one. The PR states, for the container and worker
       broadcasts, whether the hook takes them and why.
-- [ ] The hook accepts the health monitor's probe names and status values and every other
+- [x] The hook accepts the health monitor's probe names and status values and every other
       in-scope emitter's, and drops `rtdetr` and `nemotron`; the alert's label map follows. The
       backend's payloads do not change.
-- [ ] A test feeds each in-scope emitter's real payload shape through the hook, and an unhealthy
+- [x] A test feeds each in-scope emitter's real payload shape through the hook, and an unhealthy
       `yolo26` lights `ServiceStatusAlert`.
 
 **Done when:** the tests above pass in CI at a ready head, and the PR names each emitter's decision.
