@@ -343,7 +343,6 @@ from backend.models.prompt_version import AIModel, PromptVersion  # noqa: E402
 from backend.models.property import Property  # noqa: E402
 from backend.models.scene_change import SceneChange, SceneChangeType  # noqa: E402
 from backend.models.user import User  # noqa: E402
-from backend.models.user_calibration import UserCalibration  # noqa: E402
 
 # Phase 6 imports
 from backend.models.zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly  # noqa: E402
@@ -4196,45 +4195,6 @@ async def seed_camera_calibrations() -> int:
     return created
 
 
-async def seed_user_calibration() -> int:
-    """Create user calibration data for personalized risk thresholds.
-
-    Returns:
-        Number of user calibration records created
-    """
-    # Create calibration for default user
-    user_id = "default_user"
-
-    async with get_session() as session:
-        # Check if calibration already exists
-        result = await session.execute(
-            select(UserCalibration).where(UserCalibration.user_id == user_id)
-        )
-        existing = result.scalar_one_or_none()
-
-        if existing:
-            print("  User calibration already exists, skipping")
-            return 0
-
-        # Create with some feedback history
-        calibration = UserCalibration(
-            user_id=user_id,
-            low_threshold=30,
-            medium_threshold=60,
-            high_threshold=85,
-            decay_factor=0.1,
-            correct_count=random.randint(50, 100),  # noqa: S311
-            false_positive_count=random.randint(5, 20),  # noqa: S311
-            missed_threat_count=random.randint(0, 5),  # noqa: S311
-            severity_wrong_count=random.randint(2, 10),  # noqa: S311
-        )
-        session.add(calibration)
-        await session.commit()
-
-    print("  Created 1 user calibration record")
-    return 1
-
-
 async def seed_zone_household_configs(
     zone_ids: list[str], member_ids: list[str], vehicle_ids: list[str]
 ) -> int:
@@ -4347,9 +4307,6 @@ async def seed_zones_spatial_layer(
 
     print("\n  Step 4: Creating camera calibrations...")
     counts["camera_calibrations"] = await seed_camera_calibrations()
-
-    print("\n  Step 5: Creating user calibration...")
-    counts["user_calibration"] = await seed_user_calibration()
 
     print("\n  Step 6: Creating zone household configs...")
     counts["zone_household_configs"] = await seed_zone_household_configs(
@@ -8075,7 +8032,6 @@ This generates real data including:
         print(f"    - Areas: {total_created.get('areas', 0)}")
         print(f"    - Camera-area links: {total_created.get('camera_areas', 0)}")
         print(f"    - Camera calibrations: {total_created.get('camera_calibrations', 0)}")
-        print(f"    - User calibration: {total_created.get('user_calibration', 0)}")
         print(f"    - Zone household configs: {total_created.get('zone_household_configs', 0)}")
         print("  AI Enrichment layer (Phase 3):")
         print(f"    - Pose results: {total_created.get('pose_results', 0)}")

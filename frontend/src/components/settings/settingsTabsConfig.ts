@@ -16,7 +16,6 @@ import {
   HardDrive,
   Settings as SettingsIcon,
   Shield,
-  Sliders,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -71,13 +70,6 @@ export const settingsTabs: SettingsTabConfig[] = [
     path: '/settings/ambient',
     icon: Eye,
     description: 'Background noise and environmental settings',
-  },
-  {
-    id: 'calibration',
-    name: 'CALIBRATION',
-    path: '/settings/calibration',
-    icon: Sliders,
-    description: 'Camera calibration and zone configuration',
   },
   {
     id: 'access',

@@ -268,14 +268,12 @@ class TestModalIsSevered:
 
     def test_the_modal_keeps_rendering_everything_that_survives(self) -> None:
         """Two-sided: the deletion must not have taken the modal's remaining
-        sections with it. These are the neighbours of the deleted block --
-        `ActionEventsPanel` sits immediately after it and shares the same
-        `!isNaN(eventIdNumber) && event.camera_id` guard shape, so a careless
-        brace removal here is the likely bug."""
+        sections with it, while R2a row 32 (F-068) retires ActionEventsPanel."""
         modal = _live_ts(self.MODAL)
-        for kept in ("ActionEventsPanel", "DetectionImage", "EntityTrackingPanel"):
+        for kept in ("DetectionImage", "EntityTrackingPanel"):
             assert kept in modal, f"{kept} gone with the enrichment block"
-        assert 'data-testid="action-events-section"' in _src(self.MODAL)
+        assert "ActionEventsPanel" not in modal
+        assert 'data-testid="action-events-section"' not in _src(self.MODAL)
 
     def test_the_modal_drops_enrichment_data_and_tombstone_comment_per_od20(self) -> None:
         """OD-20 / ISS-073 (B3.1/F3.1): EventDetailModal drops the R8 S5 tombstone

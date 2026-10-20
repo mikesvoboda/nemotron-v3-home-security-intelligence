@@ -149,16 +149,8 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 
 ### Action Events
 
-| Endpoint                                | Method | Consumer(s)          | Purpose                  |
-| --------------------------------------- | ------ | -------------------- | ------------------------ |
-| `/api/action-events`                    | GET    | `actionEventsApi.ts` | List Action Events       |
-| `/api/action-events`                    | POST   | `actionEventsApi.ts` | Create Action Event      |
-| `/api/action-events/camera/{camera_id}` | GET    | `actionEventsApi.ts` | Get Camera Action Events |
-| `/api/action-events/suspicious`         | GET    | `actionEventsApi.ts` | List Suspicious Actions  |
-| `/api/action-events/{event_id}`         | DELETE | `actionEventsApi.ts` | Delete Action Event      |
-| `/api/action-events/{event_id}`         | GET    | `actionEventsApi.ts` | Get Action Event         |
-
-<!-- POST /api/action-events/analyze removed 2026-09-23 (X-CLIP full removal); openapi regen confirmed clean -->
+| Endpoint | Method | Consumer(s) | Purpose |
+| -------- | ------ | ----------- | ------- |
 
 ### Admin
 
@@ -294,16 +286,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/backup/{job_id}`          | DELETE | `backupApi.ts` | Delete backup        |
 | `/api/backup/{job_id}`          | GET    | `backupApi.ts` | Get backup status    |
 | `/api/backup/{job_id}/download` | GET    | `backupApi.ts` | Download backup file |
-
-### Calibration
-
-| Endpoint                    | Method | Consumer(s) | Purpose                  |
-| --------------------------- | ------ | ----------- | ------------------------ |
-| `/api/calibration`          | GET    | `api.ts`    | Get Calibration          |
-| `/api/calibration`          | PATCH  | `api.ts`    | Patch Calibration        |
-| `/api/calibration`          | PUT    | `api.ts`    | Update Calibration       |
-| `/api/calibration/defaults` | GET    | `api.ts`    | Get Calibration Defaults |
-| `/api/calibration/reset`    | POST   | `api.ts`    | Reset Calibration        |
 
 ### Cameras
 
@@ -479,7 +461,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | -------------------------------- | ------ | ----------- | ------------------------- |
 | `/api/feedback`                  | POST   | `api.ts`    | Submit event feedback     |
 | `/api/feedback/event/{event_id}` | GET    | `api.ts`    | Get feedback for an event |
-| `/api/feedback/stats`            | GET    | `api.ts`    | Get feedback statistics   |
 
 ### Health
 

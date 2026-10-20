@@ -239,9 +239,21 @@ export function createCameras(count: number): Camera[] {
 // Service Status Types and Factories
 // ============================================================================
 
-export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
+// Keep in sync with the hook's ServiceName (frontend/src/hooks/useServiceStatus.ts):
+// the health monitor's `yolo26`, the container orchestrator's discovery keys and
+// the worker supervisor's `worker:<name>` namespace.
+export type ServiceName = 'redis' | 'yolo26' | 'postgres' | `worker:${string}`;
 export type ServiceStatusType =
-  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+  | 'healthy'
+  | 'unhealthy'
+  | 'running'
+  | 'stopped'
+  | 'crashed'
+  | 'disabled'
+  | 'restarting'
+  | 'restart_failed'
+  | 'restart_disabled'
+  | 'failed';
 
 /**
  * Service health status.
@@ -249,7 +261,7 @@ export type ServiceStatusType =
 export interface ServiceStatus {
   service: ServiceName;
   status: ServiceStatusType;
-  message?: string;
+  message?: string | null;
   timestamp: string;
 }
 
@@ -262,13 +274,13 @@ export interface ServiceStatus {
  * @returns Service status object
  *
  * @example
- * const rtdetrStatus = createServiceStatus('rtdetr', 'healthy');
- * const failedStatus = createServiceStatus('nemotron', 'failed', 'Connection timeout');
+ * const yoloStatus = createServiceStatus('yolo26', 'healthy');
+ * const failedStatus = createServiceStatus('worker:detection-0', 'failed', 'Connection timeout');
  */
 export function createServiceStatus(
   service: ServiceName,
   status: ServiceStatusType = 'healthy',
-  message?: string
+  message?: string | null
 ): ServiceStatus {
   return {
     service,
@@ -279,21 +291,26 @@ export function createServiceStatus(
 }
 
 /**
- * Creates a complete set of service statuses (all services).
+ * Creates a set of service statuses covering one report from each emitter
+ * family (health monitor, container orchestrator, worker supervisor).
  *
  * @param overrides - Map of service names to their statuses
- * @returns Record of all service statuses
+ * @returns Record of service statuses
  *
  * @example
- * const services = createAllServiceStatuses({ nemotron: 'unhealthy' });
+ * const services = createAllServiceStatuses({ 'worker:detection-0': 'failed' });
  */
 export function createAllServiceStatuses(
   overrides: Partial<Record<ServiceName, ServiceStatusType>> = {}
-): Record<ServiceName, ServiceStatus | null> {
+): Partial<Record<ServiceName, ServiceStatus>> {
   return {
     redis: createServiceStatus('redis', overrides.redis ?? 'healthy'),
-    rtdetr: createServiceStatus('rtdetr', overrides.rtdetr ?? 'healthy'),
-    nemotron: createServiceStatus('nemotron', overrides.nemotron ?? 'healthy'),
+    yolo26: createServiceStatus('yolo26', overrides.yolo26 ?? 'healthy'),
+    postgres: createServiceStatus('postgres', overrides.postgres ?? 'running'),
+    'worker:detection-0': createServiceStatus(
+      'worker:detection-0',
+      overrides['worker:detection-0'] ?? 'running'
+    ),
   };
 }
 
@@ -459,7 +476,7 @@ export function createWsEventMessage(event: Partial<Event> = {}) {
 export function createWsServiceStatusMessage(
   service: ServiceName,
   status: ServiceStatusType,
-  message?: string
+  message?: string | null
 ) {
   return {
     type: 'service_status',

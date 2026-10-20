@@ -92,7 +92,6 @@ backend/
 - Request ID middleware for log correlation (`RequestIDMiddleware`)
 - Health check endpoints (`/`, `/health`)
 - Router registration for 60 API modules:
-  - `action_events` - Action event management
   - `admin` - Admin operations and cache management
   - `ai_audit` - AI pipeline audit and prompt management
   - `alertmanager` - Alertmanager integration
@@ -103,7 +102,6 @@ backend/
   - `audit` - Security audit logging
   - `auth` - Authentication endpoints
   - `backup` - Backup management
-  - `calibration` - Detection calibration settings
   - `cameras` - Camera CRUD and status
   - `debug` - Debug endpoints for development
   - `detections` - Detection queries with filtering
@@ -307,7 +305,6 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 54 SQ
 - **`EventDetection`** - Many-to-many relationship between events and detections
 - **`EventAudit`** - Event review and audit trail
 - **`EventFeedback`** - User feedback on event classification
-- **`ActionEvent`** - Action event records
 
 ### AI and Analysis
 
@@ -333,7 +330,6 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 54 SQ
 ### User and System
 
 - **`User`** - User accounts
-- **`UserCalibration`** - User-specific calibration settings
 - **`NotificationPreferences`** - User notification preferences
 - **`APIKey`** - API key management
 
@@ -403,7 +399,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | `prompt_management.py`  | `/api/prompts`                           | LLM prompt version management             |
 | `analytics.py`          | `/api/analytics`                         | Detection and event analytics             |
 | `analytics_zones.py`    | `/api/analytics-zones`                   | Analytics zone configuration              |
-| `calibration.py`        | `/api/calibration`                       | Detection calibration settings            |
 | `entity_recognition.py` | `/api/summaries/entities`                | Entity recognition operations             |
 | `face_recognition.py`   | `/api/known-persons`, `/api/face-events` | Face recognition management               |
 | `heatmaps.py`           | `/api/heatmaps`                          | Heatmap generation and queries            |
@@ -480,7 +475,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | `onvif.py`             | `/api/cameras/{camera_id}/onvif` | ONVIF camera discovery/control |
 | `outbound_webhooks.py` | `/api/outbound-webhooks`         | Outbound webhook configuration |
 | `webhooks.py`          | `/api/webhooks`                  | Webhook management             |
-| `action_events.py`     | `/api/action-events`             | Action event management        |
 
 ### Real-time Routes
 
@@ -531,7 +525,7 @@ The schema layer contains 86 Pydantic schema modules for request/response valida
 - **Background jobs:** `jobs.py`, `export.py`
 - **Feedback:** `feedback.py`
 - **Documentation:** `openapi_docs.py`
-- **Utilities:** `bulk.py`, `hateoas.py`, `search.py`, `baseline.py`, `calibration.py`, `pagination.py`
+- **Utilities:** `bulk.py`, `hateoas.py`, `search.py`, `baseline.py`, `pagination.py`
 
 ## Repositories (`repositories/`)
 
@@ -727,12 +721,6 @@ on 2026-09-29; the SSIM detector keeps its baselines in process memory.
 | `audit.py`                          | Audit service             |
 | `audit_logger.py`                   | Audit logging             |
 | `pipeline_quality_audit_service.py` | Pipeline quality auditing |
-
-### Calibration
-
-| Service          | Purpose               |
-| ---------------- | --------------------- |
-| `calibration.py` | Detection calibration |
 
 ### Database Management
 

@@ -281,6 +281,9 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 266    | one-off: `[r240]` retired, superseded by `[r264]` (record 6266823796)                                       |
 | 267    | packages `[r267a]`, `[r267b]`: audit batch 1's Q-001 and Q-004; lows later (record 6266846674)              |
 | 268    | UR-102: `strict: true` stays; the coordinator updates one PR at a time (record 6270622374)                  |
+| 269    | UR-52 and package `[r269]`: a waiting PR's author may claim the next, at most two (record 6275028285)       |
+| 270    | package `[r270]`: the snapshot's merge legs read for strict mode, ops-b (record 6276943371)                 |
+| 271    | packages `[r271a]`, `[r271b]`, `[r271c]`: audit batch 2's fixes; lows later (record 6277412644)             |
 
 ## Owner records
 

@@ -24,14 +24,24 @@ const mockItems: TestItem[] = Array.from({ length: 100 }, (_, i) => ({
 // Mock window dimensions for virtualization
 const originalOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
 const originalOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
 
 beforeEach(() => {
-  // Mock element dimensions
+  // Mock element dimensions (@tanstack/virtual-core >= 3.19.5 reads clientHeight/clientWidth)
   Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
     configurable: true,
     value: 600,
   });
   Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+    configurable: true,
+    value: 800,
+  });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    value: 600,
+  });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
     configurable: true,
     value: 800,
   });
@@ -55,6 +65,12 @@ afterEach(() => {
   }
   if (originalOffsetWidth) {
     Object.defineProperty(HTMLElement.prototype, 'offsetWidth', originalOffsetWidth);
+  }
+  if (originalClientHeight) {
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight);
+  }
+  if (originalClientWidth) {
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
   }
   vi.restoreAllMocks();
 });
