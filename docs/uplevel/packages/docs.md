@@ -481,7 +481,8 @@ approves. The owner's next ruling turns the `fix` items into packages for the ow
 **Depends on:** none. **PR:** #7292. (ruling 271, record 6277412644; audit items Q-024, Q-025,
 Q-026 and Q-032 of `[r262]`)
 
-A one-off exception to UR-52: docs holds #7265 and this package's PR at once and works it between
+Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. A one-off exception to
+UR-52: docs holds #7265 and this package's PR at once and works it between
 audit batches; the exception ends when this package merges. Until it merges, no deletion package
 acts on the register's `WebSocketEmitterService` entry: that path is live.
 

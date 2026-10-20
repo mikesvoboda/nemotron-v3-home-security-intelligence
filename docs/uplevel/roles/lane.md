@@ -187,9 +187,10 @@ Read rules.md §Claiming and assigning work first.
    still write the PR's number into the block's `**PR:**` field as step 4 says (UR-183).
 2. **Choose** the next package in your roster queue as UR-52 and UR-65 say, or, when your queue has
    nothing you can claim, from another queue in your lane's area as UR-52 says; a Phase 3 package
-   only as UR-66 allows. While your open PR waits its merge turn, UR-52 lets you claim the next one
-   too, up to two open packages (ruling 269); if `lane_tick.py` offers nothing then, read your
-   roster queue yourself and name the ruling in the claim. Claim your
+   only as UR-66 allows. While your open PR waits its merge turn, UR-52 lets you claim the next
+   package in your own queue too, up to two open packages (ruling 269). Until `[r269]` lands,
+   `lane_tick.py` offers nothing while you hold an open PR: read your roster queue yourself, check
+   UR-52's conditions yourself, and name the ruling in the claim. Claim your
    next package on the tick its dependency lands (UR-54).
 3. **Check** that nobody holds it: `gh pr list --state open --search "[<package>] in:title"`.
 4. **Claim** it before writing any code (UR-53, UR-54): branch `uplevel/<package>-<slug>` from

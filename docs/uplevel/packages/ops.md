@@ -1032,10 +1032,11 @@ UR-52 lets an agent whose open PR is waiting its merge turn claim its next packa
 packages (ruling 269). `scripts/uplevel/lane_tick.py` still prints no claimable package while the
 lane holds any open PR, so agents read their queues by hand.
 
-- [ ] `lane_tick.py` offers the next claimable package when every open PR the lane holds waits its
-      turn by UR-52's test (approving review at the head or a UR-106 carry, owner approval for an
-      owner-tier PR, `CI Gate` passed or last run cancelled, not a draft, nothing the author's to
-      do) and the lane holds fewer than two; otherwise it prints why not.
+- [ ] `lane_tick.py` offers the next claimable package in the lane's own queue when every open PR
+      the lane holds waits its turn by UR-52's test and the lane holds fewer than two. The test:
+      approving review at the head or a UR-106 carry, owner approval for an owner-tier PR,
+      `CI Gate` passed or last run cancelled, not a draft, and nothing the author's to do (no open
+      review finding, no conflict, no unanswered owner question).
 - [ ] Tests pin each condition and the two-package cap.
 
 **Done when:** the tests pass in CI at a ready head.

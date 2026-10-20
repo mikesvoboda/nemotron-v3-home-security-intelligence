@@ -653,18 +653,20 @@ leaves the test green.
 ### [r271a] The system broadcaster survives a Redis timeout and reads Redis's health result
 
 **Flags:** none. **Assigned:** backend, first on its queue after the packages it holds (UR-52).
-**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644; audit items Q-052 to Q-057
-of `[r262]`, #7041)
+**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644, corrected by 6281398804;
+audit items Q-052, Q-053, Q-055 to Q-057 and the re-issued Q-054 of `[r262]`, #7041)
 
 Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. In
-`backend/services/system_broadcaster.py` the three Redis connections build
-`Retry(NoBackoff(), 0)` (`:564`, `:631`, `:693`), so the shipped `retries=10` never applies and one
-timeout drops the tick, swallowed by the loop's `except Exception` (`:1235`).
-`_check_redis_health` (`:1008-1014`) returns True whatever `health_check()` returns, and the storm
-probe (`backend/tests/unit/services/test_system_broadcaster.py:1345`) stubs the layer that loses
-messages, so it passes against the loss.
+`backend/services/system_broadcaster.py` the publish handlers (`:314`, `:364`) and the pub/sub
+listener's handlers (`:564`, `:631`, `:693`) catch only builtin exceptions, so
+`redis.exceptions.TimeoutError` (a `RedisError`) escapes them and the loop's `except Exception`
+(`:1235`) costs the tick. `_check_redis_health` (`:1005-1015`) returns True whatever the dict
+`health_check()` returns says, and the storm probe
+(`backend/tests/unit/services/test_system_broadcaster.py:1345`) stubs `broadcast_status` and
+`broadcast_performance`, so it passes against the loss.
 
-- [ ] The three connections use the configured `retries`.
+- [ ] The publish handlers (`:314`, `:364`) and the listener handlers (`:564`, `:631`, `:693`)
+      also catch `redis.exceptions.RedisError` (ruling 271's correction).
 - [ ] `_check_redis_health` reads the result `health_check()` returns: healthy returns True,
       anything else returns False and logs the payload; the `RedisError` arm stays; the callers
       (`:807`, `:1093`) keep their boolean contract; the twin test's stub (`:1321`) returns a
@@ -684,16 +686,19 @@ before the fix.
 **Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644; audit items Q-040 to Q-042
 of `[r262]`, #7031)
 
-Cites are at the audit's pin `41bc0fce7`. The export walk in `backend/services/backup_service.py`
-(`:361-362`) reads `getattr(model, col.key)`, and for `Alert` the key `metadata` is SQLAlchemy's
-`MetaData` (`backend/models/alert.py:120-121`), not the payload column `alert_metadata`: backups
-carry `"metadata": "MetaData()"` and restore (`restore_service.py`) drops the key, so the payload is
-lost both ways. `Alert` is the only walked model with this collision.
+Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. The export in
+`backend/services/backup_service.py` builds `column_names` from the mapper's column keys and reads
+`getattr(record, col_name, None)` (`:361-362`). For `Alert` the column key `metadata` returns
+SQLAlchemy's `MetaData`, not the payload attribute `alert_metadata`
+(`backend/models/alert.py:120-121`): backups carry `"metadata": "MetaData()"` and restore
+(`restore_service.py`) drops the key, so the payload is lost both ways. Do not generalize:
+`Alert` is the only walked model with this collision.
 
 - [ ] The export writes each alert's `alert_metadata` payload, and restore writes it back.
 - [ ] A round-trip test: a seeded alert's payload survives backup then restore, a null payload stays
       null, and a backup made before the fix restores with `alert_metadata` null and no error; the
       test fails on the old export.
-- [ ] The module and class docstrings' cites point at the export loop (Q-041, Q-042).
+- [ ] The module and class docstrings' cites point at the export loop and the undefer loop
+      (`:346-349`) (Q-041, Q-042).
 
 **Done when:** the tests pass in CI at a ready head.
