@@ -941,6 +941,164 @@ def test_a_vlm_url_outside_the_runners_pool_refuses(output: str) -> None:
         fc.agent_gpu_url(output)
 
 
+# ---------------------------------------------------------------------------
+# [r195] box 1: the address the HARNESS dials vs the address its CONTAINERS dial
+#
+# The owner's maui run (record 6193951294) printed `port 8098 ->
+# http://host.docker.internal:18100` from a plain host login, where that name
+# does not resolve (`curl: (6) Could not resolve host`), while
+# `http://127.0.0.1:18100/health` answered `{"status":"ok"}` at the same pool
+# port. The run sat out its whole 900 s readiness and died at `/health ... (0)`.
+# Inside the operator sandbox the same name DOES resolve - this sandbox's own
+# `getaddrinfo("host.docker.internal")` answers 169.254.1.1, the proxy that
+# forwards to the host - which is why today's behavior works there.
+#
+# So the printed URL is one address for two vantage points, and they differ:
+# `AI_VLM_URL` and `check_vlm_reach` are read from INSIDE the backend
+# container (loopback there is that container's own), while `wait_ready` dials
+# from the harness process, which ran `agent-gpu run` itself and so sits on the
+# machine that published the port. The split keeps both: the alias stays
+# byte-identical for the containers, and only the harness may use loopback.
+# ---------------------------------------------------------------------------
+
+DIAL_URL = "http://host.docker.internal:18123"
+
+
+@pytest.mark.parametrize(
+    ("alias_resolves", "want"),
+    [
+        # Inside a sandbox: the name resolves to the proxy that forwards to the
+        # host, so today's behavior must not change by one byte.
+        (True, "http://host.docker.internal:18123"),
+        # A host login: no entry for the name, and the publisher's loopback is
+        # where the runner published (measured by the owner on maui).
+        (False, "http://127.0.0.1:18123"),
+    ],
+    ids=["sandbox", "host-login"],
+)
+def test_the_harness_dials_the_form_this_machine_can_reach(alias_resolves: bool, want: str) -> None:
+    got = fc.vlm_dial_url(DIAL_URL, 18123, alias_resolves=lambda _name: alias_resolves)
+    assert got == want
+
+
+@pytest.mark.parametrize(
+    ("url", "port", "needle"),
+    [
+        ("http://host.docker.internal:8000", 8000, "8000"),
+        ("http://192.168.1.20:18123", 18123, "192.168.1.20"),
+        ("https://host.docker.internal:18123", 18123, "https"),
+    ],
+    ids=["off-pool-port", "foreign-host", "wrong-scheme"],
+)
+def test_the_loopback_form_refuses_what_the_printed_url_refuses(
+    url: str, port: int, needle: str
+) -> None:
+    """Box 1's second clause: reaching the VLM on loopback must not widen what a
+    run may reach. Both machines refuse - the loopback path is a different
+    ADDRESS for the same pool port, never a different port or host."""
+    for probe in (lambda _name: True, lambda _name: False):
+        with pytest.raises(fc.HarnessError, match=re.escape(needle)):
+            fc.vlm_dial_url(url, port, alias_resolves=probe)
+
+
+def _nodename(*_args: Any, **_kwargs: Any) -> Any:
+    raise socket.gaierror(socket.EAI_NONAME, "Name or service not known")
+
+
+def test_the_alias_probe_is_dns_and_nothing_else(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The signal is resolution, not a container marker: `/.dockerenv` is absent
+    under rootless Podman (maui's route, box 2) and `$SANDBOX_NAME` is a runtime
+    convention, while the alias exists precisely to name the machine you are NOT
+    on - so it resolves exactly when dialing it can work."""
+    monkeypatch.setattr(fc.socket, "getaddrinfo", _nodename)
+    assert fc.host_alias_resolves("host.docker.internal") is False
+    monkeypatch.setattr(
+        fc.socket,
+        "getaddrinfo",
+        lambda *_a, **_k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.1.1", 0))],
+    )
+    assert fc.host_alias_resolves("host.docker.internal") is True
+
+
+def test_the_run_keeps_the_alias_for_its_containers_and_takes_loopback_itself(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The two forms on one started VLM, at the source that feeds both."""
+    monkeypatch.setattr(fc, "host_alias_resolves", lambda _name: False)
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.vlm_image = "ai-vlm:abc1234"
+    vlm.start()
+    # AI_VLM_URL (feature_check.py:496) and check_vlm_reach run inside the
+    # backend container, where 127.0.0.1 is that container's own loopback.
+    assert vlm.url == VLM_URL
+    # wait_ready dials from this process, on the machine that published the port.
+    assert vlm.dial_url == "http://127.0.0.1:18123"
+    assert vlm.run.summary["vlm_dial_url"] == "http://127.0.0.1:18123"
+
+
+def test_the_sandbox_run_dials_the_alias_it_always_dialed(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The no-change pin for the machine every run has used so far: when the
+    alias resolves, the harness form IS the printed URL."""
+    monkeypatch.setattr(fc, "host_alias_resolves", lambda _name: True)
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.vlm_image = "ai-vlm:abc1234"
+    vlm.start()
+    assert (vlm.url, vlm.dial_url) == (VLM_URL, VLM_URL)
+
+
+def _dial_probe_sees(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Any]]:
+    """Record what `wait_ready` dials. Each probe answers 0 (nothing answered),
+    which is how the owner's maui run ended, so the readiness loop stops on its
+    own and the test reads the run's own refusal."""
+
+    seen: list[tuple[str, Any]] = []
+
+    def fake_http(_method: str, url: str, *_args: Any, **_kwargs: Any) -> tuple[int, Any]:
+        seen.append((url, _kwargs.get("origin")))
+        return 0, None
+
+    monkeypatch.setattr(fc, "_http", fake_http)
+    return seen
+
+
+def test_readiness_dials_the_harness_form_not_the_container_form(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`wait_ready` is the harness's own dial; a run that took the alias from
+    the printed line is the run the owner watched time out on maui."""
+    seen = _dial_probe_sees(monkeypatch)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.url = VLM_URL
+    vlm.host_port = 18123
+    vlm.dial_url = "http://127.0.0.1:18123"
+    with pytest.raises(fc.HarnessError, match=r"127\.0\.0\.1:18123 did not answer"):
+        vlm.wait_ready(timeout=0)
+    # origin=None sends it through _http's proxy-free 127.0.0.1 opener. The
+    # alias needs the proxy (a sandbox reaches the host through it); a host
+    # login with HTTP_PROXY set for internet access must NOT have its own
+    # VLM probe forwarded through that proxy.
+    assert seen == [("http://127.0.0.1:18123/health", None)]
+
+
+def test_the_alias_readiness_dial_keeps_its_proxy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other arm of that origin choice, so the loopback rule above is not
+    simply "never pass an origin"."""
+    seen = _dial_probe_sees(monkeypatch)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.url = VLM_URL
+    vlm.host_port = 18123
+    vlm.dial_url = VLM_URL
+    with pytest.raises(fc.HarnessError, match=r"host\.docker\.internal:18123 did not answer"):
+        vlm.wait_ready(timeout=0)
+    assert seen == [(f"{VLM_URL}/health", VLM_URL)]
+
+
 def test_the_weight_pins_are_operator_mds() -> None:
     runbook = (REPO_ROOT / "docs" / "uplevel" / "roles" / "operator.md").read_text(encoding="utf-8")
     assert set(fc.VLM_WEIGHTS) == {fc.VLM_MODEL, fc.VLM_MMPROJ}
@@ -1114,7 +1272,17 @@ def _serve(handler: Any) -> Any:
 
 
 def _started_vlm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
-    """A VLM the stand-in agent-gpu has started (and so lists on ps)."""
+    """A VLM the stand-in agent-gpu has started (and so lists on ps).
+
+    The alias is pinned RESOLVING, because every caller of this helper is the
+    sandbox arm: they route the probe through a stand-in proxy that answers for
+    the VLM, which is how a sandbox reaches host.docker.internal. Left unpinned,
+    the helper would ask this machine's DNS - true in the operator sandbox
+    (169.254.1.1) and false on a CI runner, where the probe would go to a loopback
+    nothing serves and those tests would red for the machine's reason, not the
+    code's.
+    """
+    monkeypatch.setattr(fc, "host_alias_resolves", lambda _name: True)
     monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
     vlm = fc.AgentGpu(_run(tmp_path))
     vlm.vlm_image = "ai-vlm:abc1234"
@@ -3348,12 +3516,6 @@ def test_prod_shape_reaches_run_check_with_the_shape(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(fc, "run_check", fake_run_check)
     assert fc.main(["--real", "--prod-shape"]) == 0
     assert seen == [("real", True)]
-    # bare --prod-shape (no --fake/--real) is refused the same way, before any run
-    monkeypatch.setattr(fc, "run_check", lambda *_a, **_k: seen.append(("LEAK", False)) or 0)
-    with pytest.raises(SystemExit) as caught:
-        fc.main(["--prod-shape"])
-    assert caught.value.code == 2
-    assert all(s[0] != "LEAK" for s in seen)
 
 
 def test_prod_shape_without_real_is_a_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -3371,6 +3533,24 @@ def test_prod_shape_without_real_is_a_usage_error(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(fc, "run_check", lambda args, **_kw: seen.append(args.prod_shape) or 0)
     assert fc.main(["--fake"]) == 0
     assert seen == [False]
+
+
+def test_prod_shape_without_real_now_reaches_run_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Ruling 256 item 2: the maui run is `feature_check.py --prod-shape` with the fake
+    # VLM, from a host login -- no --real, because nothing on maui's path runs agent-gpu
+    # for it. The old gate ("--prod-shape needs --real -- it is the real tier's
+    # production shape") was written when the prod shape had exactly one caller; the
+    # venue split gives it a second, and the flag refusal is now the thing in the
+    # maui command's way. --fake --prod-shape stays refused (the CI stack has no prod
+    # shape), and --seeded --prod-shape keeps its own refusal (production never runs
+    # DEBUG=true). The mode handed to run_check is "fake" -- the fake VLM serves the
+    # engine wire the CI tier's fake serves, and the run's tier strings name it.
+    seen: list[tuple[str, bool]] = []
+    monkeypatch.setattr(
+        fc, "run_check", lambda args, *, mode: seen.append((mode, args.prod_shape)) or 0
+    )
+    assert fc.main(["--prod-shape"]) == 0
+    assert seen == [("fake", True)]
 
 
 def test_run_check_builds_the_run_with_the_shape(
@@ -3497,9 +3677,76 @@ def test_the_prod_render_swaps_in_the_generated_env_file(
     assert env["PROD_SHAPE_RUN_ROOT"] == str(run.dir)
     assert env["IMAGE_TAG"] == "test"
     assert env["PODMAN_SOCKET"] == _ENGINE_SOCKET
-    # the two files are prod + the authored override -- NOT the CI stack, and the
-    # override is the UR-133/134 transform the static oracle pins
-    assert calls == [([fc.PROD_STACK, fc.PROD_SHAPE_OVERRIDE], ("config", "--format", "json"))]
+    # the files are prod + the authored override (the UR-133/134 transform the static
+    # oracle pins) -- and, since ruling 256's venue split, the CI+fake render whose two
+    # fake bodies the transforms swap in. On the maui shape (no VLM passed) the runner
+    # still renders CI+fake: the fake VLM body comes from there. Two named calls, ordered.
+    assert [list(files) for files, _ in calls] == [
+        [fc.PROD_STACK, fc.PROD_SHAPE_OVERRIDE],
+        [fc.CI_STACK, fc.FAKE_OVERLAY],
+    ]
+
+
+def test_the_prod_shape_render_lifts_the_device_changes_into_the_run_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Ruling 256's record duty, end to end: every transform test above reads
+    # `as_prod_shape_deployment(...)._device_changes` — the payload key the transform
+    # returns — but no test drove a render through `Run.render_prod_shape`, so the lift
+    # that actually publishes it (`rendered.pop("_device_changes")` ->
+    # `summary["results"]["device_changes"]`) had no witness: a rename of the payload
+    # key or the summary key passed all 291 tests while the summary carried nothing.
+    # Driven with a device-carrying prod render through BOTH venues, with the
+    # transforms' real inputs (the CI+fake render answers the second compose call).
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    # the fake bodies must survive the run's own deepcopy in fake_service_bodies()
+    ci_render = json.dumps({"services": {"ai-vlm": _fake_vlm_body()}})
+
+    def compose_dispatch(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        prod = _prod_rendered(**_ruling256_doc()["services"])
+        body = ci_render if fc.CI_STACK in files else json.dumps(prod)
+        return subprocess.CompletedProcess(["fake"], 0, stdout=body, stderr="")
+
+    run.compose = compose_dispatch  # type: ignore[method-assign] # both renders, by file set
+    run.render(fc.Snapshot.from_engine([], []), vlm=None)  # vlm=None -> the maui venue
+
+    recorded = run.summary["results"]["device_changes"]
+    assert "ai-vlm" in json.dumps(recorded) and "nvidia.com/gpu=0" in json.dumps(recorded), (
+        f"the maui venue's one device change must reach the summary's results: {recorded}"
+    )
+    assert "ai-gateway" not in json.dumps(recorded), "the maui venue strips nothing else"
+    # and the artifact is still the post-splice, post-limits render the run boots
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert "devices" not in landed["services"]["ai-vlm"]
+
+
+def test_the_prod_shape_render_lifts_the_sandbox_device_changes_into_the_run_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The other venue: with a VLM (any --real run), the sandbox transform strips the
+    # gateway's CDI + deploy reservation, drops dcgm-exporter and strips the backend's
+    # reservation — and the record must name all of them, not just the VLM swap.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    ci_render = json.dumps(
+        {"services": {"ai-vlm": _fake_vlm_body(), "ai-gateway": _fake_gateway_body()}}
+    )
+
+    def compose_dispatch(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        prod = _prod_rendered(**_ruling256_doc()["services"])
+        body = ci_render if fc.CI_STACK in files else json.dumps(prod)
+        return subprocess.CompletedProcess(["fake"], 0, stdout=body, stderr="")
+
+    run.compose = compose_dispatch  # type: ignore[method-assign] # both renders, by file set
+    # a started AgentGpu carries its URL; a bare AgentGpu(run) has url=None and the venue
+    # guard refuses fake_gateway without vlm_url -- so this uses the started-shape stub.
+    run.render(fc.Snapshot.from_engine([], []), vlm=_StubVlm())
+
+    recorded = json.dumps(run.summary["results"]["device_changes"])
+    for name in ("ai-gateway", "nvidia.com/gpu=all", "backend", "dcgm-exporter"):
+        assert name in recorded, f"the sandbox record must name {name}: {recorded}"
+    assert "ai-vlm" in recorded, "the in-stack VLM pop is named too"
 
 
 def test_the_prod_render_refuses_before_the_engine_without_the_socket(
@@ -3541,6 +3788,37 @@ def test_the_prod_render_records_and_applies_the_limits_decision(
     assert run2.summary["limits"] == fc.LIMITS_STRIPPED
     landed2 = json.loads((run2.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
     assert "limits" not in landed2["services"]["postgres"]["deploy"]["resources"]
+
+
+def test_the_prod_render_limits_decision_reaches_the_spliced_fake_bodies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The splice happens in the same render, and the fake bodies carry the CI tier's
+    # deploy.resources.limits (0.5 CPU / 512M). If the limits decision runs BEFORE the
+    # transform, a machine with no cgroup delegation strips the prod render's limits and
+    # then the splice re-introduces ones the strip exists to remove -- a rootless
+    # container refusing a limit is what the strip's docstring records. The decision must
+    # see the render the run BOOTS, i.e. run after the transform.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    spliced = _prod_rendered(postgres=_PG_LIMITS, **{"ai-vlm": _fake_vlm_body()})
+    _fake_compose(run, copy.deepcopy(spliced))
+    run.render(fc.Snapshot.from_engine([], []))
+    assert run.summary["limits"] == fc.LIMITS_STRIPPED
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert "limits" not in (
+        landed["services"]["ai-vlm"].get("deploy", {}).get("resources") or {}
+    ), "the spliced fake's CI-tier limits must be inside the strip's reach, not outside it"
+    # the other direction stays green: where the machine delegates, the spliced limits stay
+    run2 = _prod_run(tmp_path / "b", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "cpuset cpu io memory pids\n")
+    _fake_compose(run2, copy.deepcopy(spliced))
+    run2.render(fc.Snapshot.from_engine([], []))
+    landed2 = json.loads((run2.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    assert landed2["services"]["ai-vlm"]["deploy"]["resources"]["limits"] == {
+        "cpus": 0.5,
+        "memory": "536870912",
+    }
 
 
 def test_the_prod_render_refuses_a_render_that_still_mounts_the_socket(
@@ -3832,6 +4110,351 @@ def test_the_prod_shape_transform_drops_only_the_dependency_it_omits() -> None:
     doc2["services"]["backend"]["depends_on"]["tempo"] = {"condition": "service_started"}
     with pytest.raises(fc.HarnessError, match="tempo"):
         fc.as_prod_shape_deployment(doc2, vlm_url="http://10.0.0.5:8123")
+
+
+# --------------------------------------------------- ruling 256: the sandbox run keeps no GPU
+# consumer except the VLM (record 6250363327, 2026-10-18). Attempt 2 (6195692210) died at
+# `unresolvable CDI devices nvidia.com/gpu=all` from ai-gateway alone; the ruling splits O2.5 by
+# venue instead of routing around it. The tests below name the three transforms and the record's
+# duty: every removed or stripped device is NAMED in the run record, not silently absent.
+
+
+def _ruling256_doc() -> dict[str, Any]:
+    """The prod render's GPU-bearing half, as compose produces it (measured 2026-10-18 at
+    9aa06a1f0): backend carries a deploy GPU reservation AND depends on ai-gateway healthy;
+    ai-gateway carries CDI nvidia.com/gpu=all plus its own deploy reservation and the prod
+    gateway env; ai-vlm carries CDI nvidia.com/gpu=0. Every service joins security-net
+    (measured at the same head) — the key the splice must restore."""
+    return {
+        "name": "hsi-check-x",
+        "services": {
+            "backend": {
+                "image": "backend:test",
+                "networks": {"security-net": None},
+                "environment": {
+                    "AI_VLM_URL": "http://ai-vlm:8098",
+                    "AI_GATEWAY_URL": "http://ai-gateway:8090",
+                    "YOLO26_URL": "http://ai-gateway:8090/yolo26",
+                    "ENRICHMENT_LIGHT_URL": "http://ai-gateway:8090/enrich-lt",
+                    "USE_AI_GATEWAY": "true",
+                },
+                "depends_on": {"ai-gateway": {"condition": "service_healthy"}},
+                "deploy": {
+                    "resources": {
+                        "limits": {"cpus": 2, "memory": "10737418240"},
+                        "reservations": {
+                            "memory": "1073741824",
+                            "devices": [{"capabilities": ["gpu"], "driver": "nvidia", "count": 1}],
+                        },
+                    }
+                },
+            },
+            "ai-gateway": {
+                "image": "gw:test",
+                "devices": [{"source": "nvidia.com/gpu=all", "target": "nvidia.com/gpu=all"}],
+                "environment": {
+                    "SERVICE_NAME": "ai-gateway",
+                    "GATEWAY_PORT": "8090",
+                    "CUDA_VISIBLE_DEVICES": "1",
+                },
+                "deploy": {
+                    "resources": {
+                        "limits": {"cpus": 8, "memory": "21474836480"},
+                        "reservations": {
+                            "memory": "10737418240",
+                            "devices": [
+                                {"capabilities": ["gpu"], "driver": "nvidia", "device_ids": ["1"]}
+                            ],
+                        },
+                    }
+                },
+                "networks": {"security-net": None},
+            },
+            "ai-vlm": {
+                "image": "vlm:test",
+                "devices": [{"source": "nvidia.com/gpu=0", "target": "nvidia.com/gpu=0"}],
+                "networks": {"security-net": None},
+            },
+            "dcgm-exporter": {
+                "image": "dcgm:test",
+                "devices": [{"source": "nvidia.com/gpu=all", "target": "nvidia.com/gpu=all"}],
+                "networks": {"security-net": None},
+            },
+        },
+    }
+
+
+def _fake_gateway_body() -> dict[str, Any]:
+    """The fake ai-gateway as the CI+fake render produces it (measured): uvicorn command,
+    fake env, httpx healthcheck, hsi-fake-ai image, 0.5 CPU / 512M deploy, the CI tier's
+    ci-net membership and the CI band's host publishes — and NOTHING device-shaped. The
+    transform takes this body from the CI-tier render the same run makes. The shape of
+    networks/ports/deploy here is load-bearing: these are the three keys the spliced body
+    must NOT keep (the first two are the prod render's, the third belongs to
+    decide_resource_limits), and an abbreviated fixture hides exactly the bug that
+    omission caused."""
+    return {
+        "image": "hsi-fake-ai:latest",
+        "command": [
+            "uvicorn",
+            "--factory",
+            "backend.ai_contract.fake.app:create_served_app",
+            # the fake body as the CI+fake render spells it (in-container bind)
+            "--host",
+            "0.0.0.0",  # noqa: S104
+            "--port",
+            "8090",
+            "--no-server-header",
+        ],
+        "environment": {"FAKE_VLM_BUILD_INFO": "b7972-fake-ai"},
+        "healthcheck": {
+            "test": [
+                "CMD",
+                "python",
+                "-c",
+                "import httpx; r = httpx.get('http://localhost:8090/health'); "
+                "exit(0 if r.status_code == 200 else 1)",
+            ],
+            "interval": "5s",
+            "timeout": "5s",
+            "retries": 20,
+            "start_period": "10s",
+        },
+        "deploy": {"resources": {"limits": {"cpus": 0.5, "memory": "536870912"}}},
+        "networks": {"ci-net": None},
+        "ports": [
+            {
+                "mode": "ingress",
+                "host_ip": "127.0.0.1",
+                "target": 8090,
+                "published": "8090",
+                "protocol": "tcp",
+            }
+        ],
+    }
+
+
+def test_the_sandbox_run_swaps_the_real_gateway_for_the_fake_and_names_the_devices() -> None:
+    # Ruling 256 item 1: on the sandbox venue the stack keeps no GPU consumer except the VLM,
+    # and `ai-gateway` is the fake "as in --real's CI tier (ruling 207)". The prod gateway's
+    # CDI stanza is the one this venue can NEVER resolve (attempt 2's death), so a run record
+    # that stayed silent about swapping it would describe a deployment the venue never booted.
+    out = fc.as_prod_shape_deployment(
+        _ruling256_doc(), vlm_url="http://10.0.0.5:8123", fake_gateway=_fake_gateway_body()
+    )
+    gw = out["services"]["ai-gateway"]
+    # the fake body, except the prod render's own networks and publishes: the swap takes the
+    # fake's command/env/healthcheck/image and restores the replaced body's network
+    # membership and host publishes (the splice's own repair -- a body carrying ci-net or
+    # the CI band would be refused at boot, or bind-fatal beside production). This doc
+    # fixture's gateway declares no ports, so the restored body drops the key outright --
+    # the same absent-means-absent rule the transform implements.
+    expect = copy.deepcopy(_fake_gateway_body())
+    replaced = _ruling256_doc()["services"]["ai-gateway"]
+    expect["networks"] = copy.deepcopy(replaced["networks"])
+    if "ports" in replaced:
+        expect["ports"] = copy.deepcopy(replaced["ports"])
+    else:
+        expect.pop("ports", None)
+    assert gw == expect, "the prod gateway body must be replaced wholesale"
+    assert "devices" not in gw, "the fake carries no CDI device"
+    assert "nvidia" not in json.dumps(gw), "no deploy GPU reservation survives the swap"
+    backend = out["services"]["backend"]
+    assert backend["environment"]["AI_GATEWAY_URL"] == "http://ai-gateway:8090"
+    assert backend["environment"]["YOLO26_URL"] == "http://ai-gateway:8090/yolo26"
+    assert backend["environment"]["ENRICHMENT_LIGHT_URL"] == "http://ai-gateway:8090/enrich-lt"
+    # the fake's own healthcheck answers `service_healthy`, so the backend's dependency holds
+    assert backend["depends_on"] == {"ai-gateway": {"condition": "service_healthy"}}
+    # the record names what was removed or stripped — a silent swap is the failure mode
+    names = json.dumps(out["_device_changes"])
+    assert "ai-gateway" in names and "nvidia.com/gpu=all" in names
+    assert "deploy" in names, "the gateway's deploy GPU reservation is stripped too, named"
+
+
+def test_the_sandbox_run_strips_the_backend_gpu_reservation_and_names_it() -> None:
+    # Ruling 256 item 1, third clause. The backend's GPU detection (NVML in its own container,
+    # backend/services/gpu_detection_service.py) is exactly what the maui run witnesses — on
+    # the sandbox venue the reservation asks the engine for a GPU the venue never has, and a
+    # boot that died there would be indistinguishable from a harness bug.
+    out = fc.as_prod_shape_deployment(
+        _ruling256_doc(), vlm_url="http://10.0.0.5:8123", fake_gateway=_fake_gateway_body()
+    )
+    resources = out["services"]["backend"]["deploy"]["resources"]
+    assert "reservations" not in resources or "devices" not in (resources.get("reservations") or {})
+    assert "backend" in json.dumps(out["_device_changes"]), "the strip is named in the record"
+    assert "nvidia" in json.dumps(out["_device_changes"])
+
+
+def test_the_sandbox_run_drops_dcgm_exporter_and_names_it() -> None:
+    # Ruling 256 item 1, second clause. In the profile-less render dcgm-exporter is already
+    # absent (the gpu-rootful profile hides it), so the ordinary path never sees it — the drop
+    # is belt for a render that somehow carries it, and the naming is the ruling's own clause.
+    out = fc.as_prod_shape_deployment(
+        _ruling256_doc(), vlm_url="http://10.0.0.5:8123", fake_gateway=_fake_gateway_body()
+    )
+    assert "dcgm-exporter" not in out["services"]
+    assert "dcgm-exporter" in json.dumps(out["_device_changes"])
+
+
+def test_the_sandbox_run_leaves_no_gpu_consumer_but_the_vlm_untouched_services() -> None:
+    # The whole clause in one node: the only GPU consumer the boot keeps is the one the ruling
+    # keeps (ai-vlm, served by agent-gpu OUTSIDE this render — it is popped when vlm_url is
+    # set), and every non-GPU service passes through untouched. A transform that "helpfully"
+    # rebuilt unrelated services would widen what the run boots beyond the ruling's words.
+    doc = _ruling256_doc()
+    doc["services"]["postgres"] = {"image": "pg:1"}
+    out = fc.as_prod_shape_deployment(
+        doc, vlm_url="http://10.0.0.5:8123", fake_gateway=_fake_gateway_body()
+    )
+    assert "ai-vlm" not in out["services"]  # agent-gpu serves it; the pop is unchanged
+    assert out["services"]["postgres"] == {"image": "pg:1"}
+    gpu_consumers = [
+        name
+        for name, svc in out["services"].items()
+        if "nvidia" in json.dumps(svc)
+        or "gpu"
+        in json.dumps(
+            (svc.get("deploy") or {}).get("resources", {}).get("reservations", {})
+        ).lower()
+    ]
+    assert gpu_consumers == [], "no GPU consumer may survive the sandbox transform"
+
+
+def test_the_maui_run_keeps_production_cdi_and_refuses_the_fake_gateway() -> None:
+    # Ruling 256 item 2: the maui run keeps production's CDI for ai-gateway, dcgm-exporter and
+    # backend, and witnesses that the stack boots with every device resolved. So the sandbox
+    # transform must NOT run there — and a caller that passed the fake gateway anyway is asking
+    # for the venue's transform on the wrong venue, refused rather than silently applied.
+    with pytest.raises(fc.HarnessError, match="fake_gateway"):
+        fc.as_prod_shape_deployment(
+            _ruling256_doc(), vlm_url=None, fake_gateway=_fake_gateway_body()
+        )
+    # without vlm_url the in-stack ai-vlm stays (the maui run boots the fake VLM in its place
+    # — spliced by the runner, not this function's concern); CDI stanzas all survive here.
+    doc = _ruling256_doc()
+    out = fc.as_prod_shape_deployment(doc, vlm_url=None)
+    assert out["services"]["ai-gateway"]["devices"] == doc["services"]["ai-gateway"]["devices"]
+    assert (
+        out["services"]["backend"]["deploy"]["resources"]["reservations"]
+        == (doc["services"]["backend"]["deploy"]["resources"]["reservations"])
+    )
+    assert "dcgm-exporter" in out["services"]
+    assert out["_device_changes"] == [], "the maui shape strips nothing"
+
+
+def test_the_maui_run_drops_the_in_stack_vlm_cdi_line_and_names_it() -> None:
+    # Ruling 256 item 2, last line: "ai-vlm's own CDI line is the one GPU line neither run
+    # boots." The maui run boots the FAKE VLM in ai-vlm's place (item 2's command), so the
+    # in-stack ai-vlm's CDI device must go with the service the swap removes — named.
+    # The fake VLM REPLACES the in-stack one under the same service name: the backend's
+    # prod AI_VLM_URL (http://ai-vlm:8098) keeps working, the CDI device line is gone with
+    # the prod body it lived on, and the healthcheck that gates the backend's dependency is
+    # the fake's. (Ruling 256 item 2: "ai-vlm's own CDI line is the one GPU line neither
+    # run boots" -- booted never, but the service name stays, exactly as the CI tier does.)
+    out = fc.as_prod_shape_deployment(_ruling256_doc(), vlm_url=None, fake_vlm=_fake_vlm_body())
+    vlm = out["services"]["ai-vlm"]
+    assert vlm["image"] == _fake_vlm_body()["image"], "the fake VLM replaces the prod body"
+    assert "devices" not in vlm and "nvidia" not in json.dumps(vlm)
+    assert "ai-vlm" in json.dumps(out["_device_changes"])
+    assert "nvidia.com/gpu=0" in json.dumps(out["_device_changes"])
+    gw = out["services"]["ai-gateway"]
+    assert gw["devices"], "the maui run keeps production's gateway CDI"
+    assert out["services"]["backend"]["deploy"]["resources"]["reservations"]  # and the backend's
+    assert "dcgm-exporter" in out["services"]
+
+
+def test_the_maui_run_points_the_backend_at_the_fake_vlm() -> None:
+    # The maui command runs --prod-shape WITHOUT --real, so there is no agent-gpu URL to set —
+    # the backend must call the FAKE VLM the way the CI tier does: by service name on the
+    # prod network (fake-ai's own AI_VLM_URL is http://ai-vlm:8098).
+    out = fc.as_prod_shape_deployment(_ruling256_doc(), vlm_url=None, fake_vlm=_fake_vlm_body())
+    assert out["services"]["backend"]["environment"]["AI_VLM_URL"] == "http://ai-vlm:8098"
+
+
+def _ci_net_leftovers(out: dict[str, Any]) -> list[str]:
+    """Every service whose body still carries the CI tier's network or host band, measured
+    after a transform. The fake bodies arrive with `ci-net` and the CI-band publishes because
+    they are the CI+fake render's bodies verbatim; the wholesale swap replaces the prod body
+    INCLUDING its security-net membership and 23xxx publishes, so the boot document would
+    name a network the prod render never defines (compose refuses it: the measured solo-render
+    failure `refers to undefined network ci-net`) and re-publish prod's OWN host ports beside
+    production on maui (the live stack holds 127.0.0.1:8090/8098)."""
+    return [
+        name
+        for name, svc in out["services"].items()
+        if "ci-net" in (svc.get("networks") or {})
+        or any(str(p.get("published")) in ("8090", "8098") for p in (svc.get("ports") or []))
+    ]
+
+
+def test_the_sandbox_run_leaves_no_ci_net_or_ci_band_in_the_boot_document() -> None:
+    # The compose oracle caught what the abbreviated fixtures hid: a wholesale body swap
+    # replaces the prod body's security-net membership and 23xxx publishes with the fake
+    # body's ci-net and CI-band publishes. `docker compose config` on that boot document is
+    # refused ("refers to undefined network ci-net" — the same measured failure the solo
+    # fake render dies at), and on maui the 8090/8098 binds are the LIVE stack's own.
+    # The docstring's own sentence is the contract: "The prod render's network membership
+    # stays the prod render's (security-net): the transform keeps it."
+    out = fc.as_prod_shape_deployment(
+        _ruling256_doc(), vlm_url="http://10.0.0.5:8123", fake_gateway=_fake_gateway_body()
+    )
+    assert _ci_net_leftovers(out) == []
+    for name in ("ai-gateway", "backend"):
+        assert out["services"][name]["networks"] == {"security-net": None}, name
+
+
+def test_the_maui_run_leaves_no_ci_net_or_ci_band_in_the_boot_document() -> None:
+    # Same contract on the maui venue: the swapped-in fake VLM must join the prod network
+    # the replaced service had, and publish nothing on the CI band (the live ai-vlm holds
+    # 127.0.0.1:8098 beside production — a bind attempt on it dies before any VLM read).
+    out = fc.as_prod_shape_deployment(_ruling256_doc(), vlm_url=None, fake_vlm=_fake_vlm_body())
+    assert _ci_net_leftovers(out) == []
+    assert out["services"]["ai-vlm"]["networks"] == {"security-net": None}
+
+
+def _fake_vlm_body() -> dict[str, Any]:
+    """The fake ai-vlm as the CI+fake render produces it (measured): same image as the fake
+    gateway, port 8098, fake env, httpx healthcheck, ci-net membership and the CI band's
+    host publish — the same three keys the gateway fixture carries, for the same reason."""
+    return {
+        "image": "hsi-fake-ai:latest",
+        "command": [
+            "uvicorn",
+            "--factory",
+            "backend.ai_contract.fake.app:create_served_app",
+            # the fake body as the CI+fake render spells it (in-container bind)
+            "--host",
+            "0.0.0.0",  # noqa: S104
+            "--port",
+            "8098",
+            "--no-server-header",
+        ],
+        "environment": {"FAKE_VLM_BUILD_INFO": "b7972-fake-ai"},
+        "healthcheck": {
+            "test": [
+                "CMD",
+                "python",
+                "-c",
+                "import httpx; r = httpx.get('http://localhost:8098/health'); "
+                "exit(0 if r.status_code == 200 else 1)",
+            ],
+            "interval": "5s",
+            "timeout": "5s",
+            "retries": 20,
+            "start_period": "10s",
+        },
+        "deploy": {"resources": {"limits": {"cpus": 0.5, "memory": "536870912"}}},
+        "networks": {"ci-net": None},
+        "ports": [
+            {
+                "mode": "ingress",
+                "host_ip": "127.0.0.1",
+                "target": 8098,
+                "published": "8098",
+                "protocol": "tcp",
+            }
+        ],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -5368,6 +5991,33 @@ def test_seeded_with_prod_shape_is_refused_under_real(monkeypatch: Any) -> None:
     assert booted == []
 
 
+def test_a_bare_invocation_is_refused(monkeypatch: Any, capsys: Any) -> None:
+    """The generic mode refusal lives again, narrowed to the shape ruling 256 kept open.
+
+    The ruling-256 venue split deleted the old `choose --fake or --real` guard so the maui
+    run's bare `--prod-shape` could fall through to the fake tier, and a bare invocation fell
+    through with it — silently booting the CI fake tier (ruling 262's audit found the defect
+    on this file). The restored guard refuses a call with no mode and no shape, names all
+    three forms, and `--prod-shape` alone still boots the fake tier (the maui run's form,
+    pinned by the next test).
+    """
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main([])
+    booted_refused = booted == []
+    err = capsys.readouterr().err
+    assert booted_refused, "a bare invocation must not reach run_check"
+    assert "choose --fake or --real" in err, err
+    assert "--prod-shape" in err, err
+
+
+def test_a_bare_prod_shape_boots_the_fake_tier(monkeypatch: Any) -> None:
+    """The maui run's form (`--prod-shape`, no mode flag) is the one fall-through that stays."""
+    booted = _fake_boot(monkeypatch)
+    assert fc.main(["--prod-shape"]) == 0
+    assert booted == [("fake", False, True)]
+
+
 # [r264] The golden leg's shard flag. Refusals first (a shard on the wrong tier
 # is a silent coverage hole, ruling 114's shape), then the argv pin (the inner
 # command carries Playwright's own `--shard=i/N`, and the unsharded run's argv
@@ -5435,8 +6085,8 @@ def test_the_seeded_refusals_are_distinguishable(monkeypatch: Any, capsys: Any) 
     not about choosing a mode.
 
     The bare-`--seeded` pin is deliberately TWO-SIDED. Its substring `--fake or --real` is also a
-    substring of the unrelated generic fallback `choose --fake or --real`, which is what the
-    `if not args.fake` guard prints several lines later. So deleting the seeded guard entirely
+    substring of the restored generic refusal `choose --fake or --real`, which the bare-run guard
+    prints. So deleting the seeded guard entirely
     still satisfies the positive half — the run falls through to the generic refusal and the
     substring is present. The negative half is what makes this a pin: the operator has to be told
     that the SHAPE needs a mode, not that they forgot to pick a tier.
