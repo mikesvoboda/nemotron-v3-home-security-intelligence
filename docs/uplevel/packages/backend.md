@@ -743,6 +743,6 @@ SQLAlchemy's `MetaData`, not the payload attribute `alert_metadata`
       numbers were re-measured and each cite read back with `sed -n` before being written.)
 
 **Done when:** the tests pass in CI at a ready head.
-      (Ticked: ready run 39417871877 at `f1b029af1` — the first non-draft run; 50 non-skipped
-      jobs all success, `CI Gate (Required Checks)` completed/success at that head, companions
-      Coverage Gate / AGENTS.md Validation / Docs Drift / PR Review Bot all success.)
+(Ticked: ready run 39417871877 at `f1b029af1` — the first non-draft run; 50 non-skipped
+jobs all success, `CI Gate (Required Checks)` completed/success at that head, companions
+Coverage Gate / AGENTS.md Validation / Docs Drift / PR Review Bot all success.)
