@@ -746,3 +746,19 @@ SQLAlchemy's `MetaData`, not the payload attribute `alert_metadata`
 (Ticked: ready run 39417871877 at `f1b029af1` — the first non-draft run; 50 non-skipped
 jobs all success, `CI Gate (Required Checks)` completed/success at that head, companions
 Coverage Gate / AGENTS.md Validation / Docs Drift / PR Review Bot all success.)
+
+### [r277a] The events `fields` contract and a misleading comment
+
+**Flags:** none. **Assigned:** backend, after `[r271b]` (#7302). (ruling 277, record 6291992942;
+audit items Q-068 and Q-114 of `[r262]`, #7041)
+
+- [ ] `list_events`' `fields` description names exactly the fields in `VALID_EVENT_LIST_FIELDS`,
+      with `detection_ids` out and `notify` in. A test fails if they drift apart, either by
+      deriving the description from the set or by asserting that every documented field is
+      accepted. Regenerate `docs/openapi.json` if it changes.
+- [ ] The comment at `backend/api/routes/system.py:4132-4135` says that only `last_activity` goes
+      through the set wrapper (`batch_aggregator.py:641`) and is JSON-quoted, that `started_at` is
+      written raw (`:427`), and that `_coerce_scalar` handles both.
+
+**Done when:** the description drift test passes in CI at a ready head and the comment matches the
+writers it describes.
