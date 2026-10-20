@@ -185,7 +185,7 @@ describe('closestSpecPath', () => {
     '/api/cameras/{camera_id}/baseline/anomalies',
     '/api/cameras/{camera_id}',
     '/api/cameras/onvif/discover',
-    '/api/action-events/{event_id}',
+    '/api/events/{event_id}',
   ];
 
   it('prefers a route one segment longer over one of the same length', () => {

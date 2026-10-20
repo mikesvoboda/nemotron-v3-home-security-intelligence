@@ -262,19 +262,6 @@ class TestTrackRelationships:
         )
         assert hasattr(track, "camera")
 
-    def test_track_has_action_events_relationship(self):
-        """Test track has action_events relationship defined."""
-        now = datetime.now(UTC)
-        track = Track(
-            track_id=1,
-            camera_id="test_cam",
-            object_class="person",
-            first_seen=now,
-            last_seen=now,
-            trajectory=[],
-        )
-        assert hasattr(track, "action_events")
-
 
 # =============================================================================
 # Track Table Args Tests
