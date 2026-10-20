@@ -328,9 +328,9 @@ class TestListModelsIntegration:
 
         # A backend-process row (no triton_name): answered from ModelManager,
         # which has loaded nothing in this environment.
-        ocr = by_name["paddleocr"]
-        assert ocr["runtime"]["loaded"] is False
-        assert ocr["service"] == "ai-gateway"
+        alpr = by_name["fast-alpr"]
+        assert alpr["runtime"]["loaded"] is False
+        assert alpr["service"] == "ai-gateway"
 
         # Both rows the aggregation actually measured report unreachable. Exact
         # equality, so a third fabricated row cannot slip through.
@@ -392,7 +392,7 @@ class TestListModelsIntegration:
         # A backend-process row is ModelManager state, never a router's; the
         # mock above records no per-model probe because the route does not
         # issue one (the union below is fetched once for the whole list).
-        assert by_name["paddleocr"]["runtime"]["loaded"] is False
+        assert by_name["fast-alpr"]["runtime"]["loaded"] is False
 
         probed = probed_urls(mock_http)
         assert sorted(probed) == sorted([HEALTH_ROOT, HEALTH_LIGHT]), (
@@ -587,8 +587,8 @@ class TestModelStatusEndpoint:
         """
         from backend.services.model_zoo import get_model_manager
 
-        assert get_model_manager().is_loaded("paddleocr") is False, (
-            "ModelManager holds paddleocr; the loaded-is-False arm below would be "
+        assert get_model_manager().is_loaded("fast-alpr") is False, (
+            "ModelManager holds fast-alpr; the loaded-is-False arm below would be "
             "answering a different question than this test asks"
         )
 
@@ -596,7 +596,7 @@ class TestModelStatusEndpoint:
         mock_http.get = AsyncMock(side_effect=AssertionError("gateway probed for backend model"))
 
         with override_http_client(mock_http):
-            response = await client.get("/api/system/models/paddleocr/status")
+            response = await client.get("/api/system/models/fast-alpr/status")
 
         assert response.status_code == 200
         data = response.json()
@@ -824,7 +824,7 @@ class TestLifecycleUnsupported:
         """Backend-process models load lazily via ModelManager on first use --
         the HTTP surface still refuses with 501 (no eager-load path)."""
         with override_http_client(tripwire_http_client):
-            response = await client.post("/api/system/models/paddleocr/load")
+            response = await client.post("/api/system/models/fast-alpr/load")
 
         assert response.status_code == 501
         assert no_egress_recorded(tripwire_http_client)
@@ -888,9 +888,13 @@ class TestDisabledModelErrors:
     async def test_load_disabled_model_returns_error(
         self,
         client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """The model 'yolo26-general' is disabled in the registry."""
-        response = await client.post("/api/system/models/yolo26-general/load")
+        """A disabled model in the registry returns 400 before 501."""
+        from backend.services.model_zoo import get_model_config
+
+        monkeypatch.setattr(get_model_config("fast-alpr"), "enabled", False)
+        response = await client.post("/api/system/models/fast-alpr/load")
 
         assert response.status_code == 400
         data = response.json()
@@ -901,8 +905,12 @@ class TestDisabledModelErrors:
     async def test_reload_disabled_model_returns_error(
         self,
         client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        response = await client.post("/api/system/models/yolo26-general/reload")
+        from backend.services.model_zoo import get_model_config
+
+        monkeypatch.setattr(get_model_config("fast-alpr"), "enabled", False)
+        response = await client.post("/api/system/models/fast-alpr/reload")
 
         assert response.status_code == 400
         data = response.json()
@@ -1088,7 +1096,7 @@ class TestRetiredHeavyLane:
         # The mirror arm: live names do NOT 404, so the loop above is a
         # retirement signal and not a route outage.
         assert (await client.get("/api/system/models/osnet-ain-x1-0/status")).status_code == 200
-        assert (await client.get("/api/system/models/paddleocr/status")).status_code == 200
+        assert (await client.get("/api/system/models/fast-alpr/status")).status_code == 200
 
     def test_live_catalogue_has_no_rows_for_the_pruned_models(self) -> None:
         """models.yml carries no row for the pruned models -- the three S3
@@ -1120,6 +1128,10 @@ class TestRetiredHeavyLane:
             "yolov8n-pose",
             "fashion-clip",
             "weather-classification",
+            "yolo11-face",
+            "yolo11-license-plate",
+            "paddleocr",
+            "yolo26-general",
         ):
             assert gone not in names, f"{gone} is back in models.yml"
 

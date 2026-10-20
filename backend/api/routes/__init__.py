@@ -8,7 +8,6 @@ from .analytics_zones import router as analytics_zones_router
 from .audit import router as audit_router
 from .auth import router as auth_router
 from .backup import router as backup_router
-from .calibration import router as calibration_router
 from .entities import router as entities_router
 from .entity_recognition import router as entity_recognition_router
 from .exports import router as exports_router
@@ -51,7 +50,6 @@ __all__ = [
     "audit_router",
     "auth_router",
     "backup_router",
-    "calibration_router",
     "entities_router",
     "entity_recognition_router",
     "exports_router",

@@ -92,19 +92,21 @@ class TestModelZoo:
         """Test that get_model_zoo initializes the registry."""
         zoo = get_model_zoo()
 
-        assert "yolo11-license-plate" in zoo
-        assert "yolo11-face" in zoo
-        assert "paddleocr" in zoo
-        assert "yolo26-general" in zoo
+        assert "osnet-ain-x1-0" in zoo
+        assert "face-detector-scrfd" in zoo
+        assert "face-recognizer" in zoo
+        assert "fast-alpr" in zoo
+        for dead in ("yolo11-license-plate", "yolo11-face", "paddleocr", "yolo26-general"):
+            assert dead not in zoo
 
     def test_get_model_config_found(self) -> None:
         """Test getting a model config that exists."""
-        config = get_model_config("yolo11-license-plate")
+        config = get_model_config("osnet-ain-x1-0")
 
         assert config is not None
-        assert config.name == "yolo11-license-plate"
-        assert config.category == "detection"
-        assert config.vram_mb == 300
+        assert config.name == "osnet-ain-x1-0"
+        assert config.category == "embedding"
+        assert config.vram_mb == 100
 
     def test_get_model_config_not_found(self) -> None:
         """Test getting a model config that doesn't exist."""
@@ -115,25 +117,25 @@ class TestModelZoo:
         """Test getting list of enabled models."""
         enabled = get_enabled_models()
 
-        # yolo26-general is disabled by default
         enabled_names = [m.name for m in enabled]
-        assert "yolo11-license-plate" in enabled_names
-        assert "yolo11-face" in enabled_names
-        assert "paddleocr" in enabled_names
+        assert "osnet-ain-x1-0" in enabled_names
+        assert "face-detector-scrfd" in enabled_names
+        assert "face-recognizer" in enabled_names
+        assert "fast-alpr" in enabled_names
         assert "yolo26-general" not in enabled_names
 
     def test_get_total_vram_if_loaded(self) -> None:
         """Test VRAM calculation for specified models."""
-        total = get_total_vram_if_loaded(["yolo11-license-plate", "yolo11-face"])
+        total = get_total_vram_if_loaded(["osnet-ain-x1-0", "fast-alpr"])
 
-        # 300 + 200 = 500
-        assert total == 500
+        # 100 + 28 = 128
+        assert total == 128
 
     def test_get_total_vram_with_unknown_model(self) -> None:
         """Test VRAM calculation ignores unknown models."""
-        total = get_total_vram_if_loaded(["yolo11-license-plate", "unknown"])
+        total = get_total_vram_if_loaded(["osnet-ain-x1-0", "unknown"])
 
-        assert total == 300  # Only license plate counted
+        assert total == 100  # Only osnet counted
 
     def test_get_available_models_initially_empty(self) -> None:
         """Test that no models are available initially."""
@@ -147,12 +149,12 @@ class TestModelZoo:
         zoo = get_model_zoo()
 
         # Mark a model as available
-        zoo["yolo11-license-plate"].available = True
+        zoo["osnet-ain-x1-0"].available = True
 
         available = get_available_models()
         available_names = [m.name for m in available]
 
-        assert "yolo11-license-plate" in available_names
+        assert "osnet-ain-x1-0" in available_names
         assert len(available) == 1
 
 
@@ -180,8 +182,8 @@ class TestModelManager:
         """Test that no models are loaded initially."""
         manager = ModelManager()
 
-        assert manager.is_loaded("yolo11-license-plate") is False
-        assert manager.is_loaded("yolo11-face") is False
+        assert manager.is_loaded("osnet-ain-x1-0") is False
+        assert manager.is_loaded("fast-alpr") is False
 
     @pytest.mark.asyncio
     async def test_load_context_manager_success(self) -> None:
@@ -195,16 +197,16 @@ class TestModelManager:
 
         # Patch the model config's load_fn
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
-            async with manager.load("yolo11-license-plate") as model:
+            async with manager.load("osnet-ain-x1-0") as model:
                 assert model is mock_model
-                assert manager.is_loaded("yolo11-license-plate")
+                assert manager.is_loaded("osnet-ain-x1-0")
 
             # After context exits, model should be unloaded
-            assert not manager.is_loaded("yolo11-license-plate")
+            assert not manager.is_loaded("osnet-ain-x1-0")
 
     @pytest.mark.asyncio
     async def test_load_unknown_model_raises(self) -> None:
@@ -220,8 +222,11 @@ class TestModelManager:
         """Test that loading disabled model raises RuntimeError."""
         manager = ModelManager()
 
-        with pytest.raises(RuntimeError, match="disabled"):
-            async with manager.load("yolo26-general"):
+        with (
+            patch.object(get_model_config("fast-alpr"), "enabled", False),
+            pytest.raises(RuntimeError, match="disabled"),
+        ):
+            async with manager.load("fast-alpr"):
                 pass
 
     @pytest.mark.asyncio
@@ -237,20 +242,20 @@ class TestModelManager:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
-            async with manager.load("yolo11-license-plate") as model1:
-                async with manager.load("yolo11-license-plate") as model2:
+            async with manager.load("osnet-ain-x1-0") as model1:
+                async with manager.load("osnet-ain-x1-0") as model2:
                     assert model1 is model2
-                    assert manager.is_loaded("yolo11-license-plate")
+                    assert manager.is_loaded("osnet-ain-x1-0")
 
                 # Still loaded due to outer context
-                assert manager.is_loaded("yolo11-license-plate")
+                assert manager.is_loaded("osnet-ain-x1-0")
 
             # Now unloaded
-            assert not manager.is_loaded("yolo11-license-plate")
+            assert not manager.is_loaded("osnet-ain-x1-0")
 
         # Should only have loaded once
         assert load_count == 1
@@ -265,15 +270,15 @@ class TestModelManager:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-face"),
+            get_model_config("fast-alpr"),
             "load_fn",
             mock_load,
         ):
-            await manager.preload("yolo11-face")
-            assert manager.is_loaded("yolo11-face")
+            await manager.preload("fast-alpr")
+            assert manager.is_loaded("fast-alpr")
 
-            await manager.unload("yolo11-face")
-            assert not manager.is_loaded("yolo11-face")
+            await manager.unload("fast-alpr")
+            assert not manager.is_loaded("fast-alpr")
 
     @pytest.mark.asyncio
     async def test_unload_all(self) -> None:
@@ -286,18 +291,18 @@ class TestModelManager:
 
         with (
             patch.object(
-                get_model_config("yolo11-face"),
+                get_model_config("fast-alpr"),
                 "load_fn",
                 mock_load,
             ),
             patch.object(
-                get_model_config("yolo11-license-plate"),
+                get_model_config("osnet-ain-x1-0"),
                 "load_fn",
                 mock_load,
             ),
         ):
-            await manager.preload("yolo11-face")
-            await manager.preload("yolo11-license-plate")
+            await manager.preload("fast-alpr")
+            await manager.preload("osnet-ain-x1-0")
 
             assert len(manager.loaded_models) == 2
 
@@ -342,13 +347,13 @@ class TestModelManager:
 
         with (
             patch.object(
-                get_model_config("yolo11-license-plate"),
+                get_model_config("osnet-ain-x1-0"),
                 "load_fn",
                 mock_load,
             ),
             patch.dict("sys.modules", {"torch": mock_torch}),
         ):
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 pass  # Model is loaded here
 
             # CUDA cache should be cleared after unload
@@ -368,13 +373,13 @@ class TestModelManager:
 
         with (
             patch.object(
-                get_model_config("yolo11-license-plate"),
+                get_model_config("osnet-ain-x1-0"),
                 "load_fn",
                 mock_load,
             ),
             patch.dict("sys.modules", {"torch": mock_torch}),
         ):
-            await manager.preload("yolo11-license-plate")
+            await manager.preload("osnet-ain-x1-0")
             await manager.unload_all()
 
             # CUDA cache should be cleared after unload_all
@@ -394,13 +399,13 @@ class TestModelManager:
 
         with (
             patch.object(
-                get_model_config("yolo11-license-plate"),
+                get_model_config("osnet-ain-x1-0"),
                 "load_fn",
                 mock_load,
             ),
             patch.dict("sys.modules", {"torch": mock_torch}),
         ):
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 pass
 
             # Should not call empty_cache when CUDA not available
@@ -416,7 +421,7 @@ class TestModelManager:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
@@ -430,7 +435,7 @@ class TestModelManager:
 
             with patch("builtins.__import__", side_effect=mock_import, autospec=True):
                 # This should not raise even when torch is not installed
-                async with manager.load("yolo11-license-plate"):
+                async with manager.load("osnet-ain-x1-0"):
                     pass
 
     @pytest.mark.asyncio
@@ -442,16 +447,16 @@ class TestModelManager:
             raise ValueError("Model loading failed!")
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             failing_load,
         ):
             with pytest.raises(ValueError, match="Model loading failed!"):
-                async with manager.load("yolo11-license-plate"):
+                async with manager.load("osnet-ain-x1-0"):
                     pass
 
             # Model should not be in loaded list after failure
-            assert not manager.is_loaded("yolo11-license-plate")
+            assert not manager.is_loaded("osnet-ain-x1-0")
 
     @pytest.mark.asyncio
     async def test_available_flag_set_after_successful_load(self) -> None:
@@ -462,12 +467,12 @@ class TestModelManager:
         async def mock_load(path: str) -> Any:
             return mock_model
 
-        config = get_model_config("yolo11-license-plate")
+        config = get_model_config("osnet-ain-x1-0")
         assert config is not None
         assert config.available is False
 
         with patch.object(config, "load_fn", mock_load):
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 # Available flag should be set during load
                 assert config.available is True
 
@@ -482,26 +487,26 @@ class TestModelManager:
 
         with (
             patch.object(
-                get_model_config("yolo11-license-plate"),
+                get_model_config("osnet-ain-x1-0"),
                 "load_fn",
                 mock_load,
             ),
             patch.object(
-                get_model_config("yolo11-face"),
+                get_model_config("fast-alpr"),
                 "load_fn",
                 mock_load,
             ),
         ):
-            await manager.preload("yolo11-license-plate")
-            assert manager.total_loaded_vram == 300
+            await manager.preload("osnet-ain-x1-0")
+            assert manager.total_loaded_vram == 100
 
-            await manager.preload("yolo11-face")
-            assert manager.total_loaded_vram == 500  # 300 + 200
+            await manager.preload("fast-alpr")
+            assert manager.total_loaded_vram == 128  # 100 + 28
 
-            await manager.unload("yolo11-license-plate")
-            assert manager.total_loaded_vram == 200
+            await manager.unload("osnet-ain-x1-0")
+            assert manager.total_loaded_vram == 28
 
-            await manager.unload("yolo11-face")
+            await manager.unload("fast-alpr")
             assert manager.total_loaded_vram == 0
 
     @pytest.mark.asyncio
@@ -523,17 +528,17 @@ class TestModelManager:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
-            await manager.preload("yolo11-license-plate")
+            await manager.preload("osnet-ain-x1-0")
 
             status = manager.get_status()
 
-            assert "yolo11-license-plate" in status["loaded_models"]
-            assert status["total_loaded_vram_mb"] == 300
-            assert status["load_counts"]["yolo11-license-plate"] == 1
+            assert "osnet-ain-x1-0" in status["loaded_models"]
+            assert status["total_loaded_vram_mb"] == 100
+            assert status["load_counts"]["osnet-ain-x1-0"] == 1
 
     @pytest.mark.asyncio
     async def test_preload_already_loaded_no_duplicate(self) -> None:
@@ -548,12 +553,12 @@ class TestModelManager:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
-            await manager.preload("yolo11-license-plate")
-            await manager.preload("yolo11-license-plate")
+            await manager.preload("osnet-ain-x1-0")
+            await manager.preload("osnet-ain-x1-0")
 
             # Should only load once
             assert load_count == 1
@@ -587,15 +592,15 @@ class TestModelManagerMetrics:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 pass
 
         # Verify load duration was recorded (should be at least 10ms)
-        value = MODEL_LOAD_DURATION.labels(model="yolo11-license-plate")._value.get()
+        value = MODEL_LOAD_DURATION.labels(model="osnet-ain-x1-0")._value.get()
         assert value >= 0.01
 
     @pytest.mark.asyncio
@@ -610,20 +615,18 @@ class TestModelManagerMetrics:
             return mock_model
 
         # Get initial restart count
-        initial_count = MODEL_RESTARTS_TOTAL.labels(
-            model="yolo11-face", reason="manual"
-        )._value.get()
+        initial_count = MODEL_RESTARTS_TOTAL.labels(model="fast-alpr", reason="manual")._value.get()
 
         with patch.object(
-            get_model_config("yolo11-face"),
+            get_model_config("fast-alpr"),
             "load_fn",
             mock_load,
         ):
-            async with manager.load("yolo11-face"):
+            async with manager.load("fast-alpr"):
                 pass
 
         # Restart count should not have changed
-        final_count = MODEL_RESTARTS_TOTAL.labels(model="yolo11-face", reason="manual")._value.get()
+        final_count = MODEL_RESTARTS_TOTAL.labels(model="fast-alpr", reason="manual")._value.get()
         assert final_count == initial_count
 
     @pytest.mark.asyncio
@@ -638,26 +641,26 @@ class TestModelManagerMetrics:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
             # First load
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 pass
 
             # Get restart count after first load
             initial_count = MODEL_RESTARTS_TOTAL.labels(
-                model="yolo11-license-plate", reason="manual"
+                model="osnet-ain-x1-0", reason="manual"
             )._value.get()
 
             # Second load (reload) - model was previously loaded
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 pass
 
         # Restart count should have incremented
         final_count = MODEL_RESTARTS_TOTAL.labels(
-            model="yolo11-license-plate", reason="manual"
+            model="osnet-ain-x1-0", reason="manual"
         )._value.get()
         assert final_count == initial_count + 1
 
@@ -673,37 +676,35 @@ class TestModelManagerMetrics:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-face"),
+            get_model_config("fast-alpr"),
             "load_fn",
             mock_load,
         ):
             # First load
-            await manager.preload("yolo11-face")
+            await manager.preload("fast-alpr")
 
             # Get initial counts for different reasons
-            initial_oom = MODEL_RESTARTS_TOTAL.labels(
-                model="yolo11-face", reason="oom"
-            )._value.get()
+            initial_oom = MODEL_RESTARTS_TOTAL.labels(model="fast-alpr", reason="oom")._value.get()
             initial_crash = MODEL_RESTARTS_TOTAL.labels(
-                model="yolo11-face", reason="crash"
+                model="fast-alpr", reason="crash"
             )._value.get()
 
             # Reload with OOM reason
-            await manager.reload("yolo11-face", "oom")
+            await manager.reload("fast-alpr", "oom")
 
             # OOM count should have incremented
             assert (
-                MODEL_RESTARTS_TOTAL.labels(model="yolo11-face", reason="oom")._value.get()
+                MODEL_RESTARTS_TOTAL.labels(model="fast-alpr", reason="oom")._value.get()
                 == initial_oom + 1
             )
 
             # Crash count should not have changed
             assert (
-                MODEL_RESTARTS_TOTAL.labels(model="yolo11-face", reason="crash")._value.get()
+                MODEL_RESTARTS_TOTAL.labels(model="fast-alpr", reason="crash")._value.get()
                 == initial_crash
             )
 
-            await manager.unload("yolo11-face")
+            await manager.unload("fast-alpr")
 
     @pytest.mark.asyncio
     async def test_reload_with_invalid_reason_raises(self) -> None:
@@ -715,16 +716,16 @@ class TestModelManagerMetrics:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
-            await manager.preload("yolo11-license-plate")
+            await manager.preload("osnet-ain-x1-0")
 
             with pytest.raises(ValueError, match="Invalid restart reason"):
-                await manager.reload("yolo11-license-plate", "invalid_reason")
+                await manager.reload("osnet-ain-x1-0", "invalid_reason")
 
-            await manager.unload("yolo11-license-plate")
+            await manager.unload("osnet-ain-x1-0")
 
     @pytest.mark.asyncio
     async def test_reload_all_valid_reasons(self) -> None:
@@ -738,19 +739,19 @@ class TestModelManagerMetrics:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
             # First load
-            await manager.preload("yolo11-license-plate")
+            await manager.preload("osnet-ain-x1-0")
 
             # Test all valid reasons
             for reason in MODEL_RESTART_REASONS:
-                model = await manager.reload("yolo11-license-plate", reason)
+                model = await manager.reload("osnet-ain-x1-0", reason)
                 assert model is mock_model
 
-            await manager.unload("yolo11-license-plate")
+            await manager.unload("osnet-ain-x1-0")
 
     @pytest.mark.asyncio
     async def test_previously_loaded_tracking(self) -> None:
@@ -765,18 +766,18 @@ class TestModelManagerMetrics:
         assert len(manager._previously_loaded) == 0
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 pass
 
         # Should be tracked after load
-        assert "yolo11-license-plate" in manager._previously_loaded
+        assert "osnet-ain-x1-0" in manager._previously_loaded
 
         # Should still be tracked even after unload
-        assert "yolo11-license-plate" in manager._previously_loaded
+        assert "osnet-ain-x1-0" in manager._previously_loaded
 
     @pytest.mark.asyncio
     async def test_load_duration_updates_on_reload(self) -> None:
@@ -794,18 +795,18 @@ class TestModelManagerMetrics:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-face"),
+            get_model_config("fast-alpr"),
             "load_fn",
             mock_load,
         ):
             # First load
-            async with manager.load("yolo11-face"):
-                first_duration = MODEL_LOAD_DURATION.labels(model="yolo11-face")._value.get()
+            async with manager.load("fast-alpr"):
+                first_duration = MODEL_LOAD_DURATION.labels(model="fast-alpr")._value.get()
                 assert first_duration >= 0.05
 
             # Second load
-            async with manager.load("yolo11-face"):
-                second_duration = MODEL_LOAD_DURATION.labels(model="yolo11-face")._value.get()
+            async with manager.load("fast-alpr"):
+                second_duration = MODEL_LOAD_DURATION.labels(model="fast-alpr")._value.get()
                 # Should be updated to the new (shorter) load time
                 assert second_duration >= 0.03
 
@@ -947,10 +948,13 @@ class TestOptionalDependencyHandling:
     @pytest.mark.asyncio
     async def test_load_paddleocr_logs_info_when_not_installed(self) -> None:
         """Test that loading paddleocr when not installed logs at INFO level, not ERROR."""
+        from backend.services.model_zoo import load_paddle_ocr
+
         manager = ModelManager()
 
         # Mock paddleocr as unavailable
         with (
+            patch.object(get_model_config("fast-alpr"), "load_fn", load_paddle_ocr),
             patch(
                 "backend.services.model_zoo._is_paddleocr_available",
                 return_value=False,
@@ -958,10 +962,10 @@ class TestOptionalDependencyHandling:
             ),
             pytest.raises(RuntimeError, match="paddleocr package not installed"),
         ):
-            await manager.preload("paddleocr")
+            await manager.preload("fast-alpr")
 
         # Model should not be loaded
-        assert not manager.is_loaded("paddleocr")
+        assert not manager.is_loaded("fast-alpr")
 
 
 class TestConcurrentModelLoading:
@@ -991,13 +995,13 @@ class TestConcurrentModelLoading:
             return mock_model
 
         with patch.object(
-            get_model_config("yolo11-license-plate"),
+            get_model_config("osnet-ain-x1-0"),
             "load_fn",
             mock_load,
         ):
             # Start two concurrent loads
             async def load_task() -> Any:
-                async with manager.load("yolo11-license-plate") as model:
+                async with manager.load("osnet-ain-x1-0") as model:
                     await asyncio.sleep(0.05)
                     return model
 
@@ -1026,27 +1030,27 @@ class TestConcurrentModelLoading:
 
         with (
             patch.object(
-                get_model_config("yolo11-license-plate"),
+                get_model_config("osnet-ain-x1-0"),
                 "load_fn",
                 mock_load_plate,
             ),
             patch.object(
-                get_model_config("yolo11-face"),
+                get_model_config("fast-alpr"),
                 "load_fn",
                 mock_load_face,
             ),
         ):
-            async with manager.load("yolo11-license-plate") as plate_model:
+            async with manager.load("osnet-ain-x1-0") as plate_model:
                 assert plate_model is mock_models["plate"]
-                assert manager.is_loaded("yolo11-license-plate")
+                assert manager.is_loaded("osnet-ain-x1-0")
 
-            async with manager.load("yolo11-face") as face_model:
+            async with manager.load("fast-alpr") as face_model:
                 assert face_model is mock_models["face"]
-                assert manager.is_loaded("yolo11-face")
+                assert manager.is_loaded("fast-alpr")
 
             # Both should be unloaded now
-            assert not manager.is_loaded("yolo11-license-plate")
-            assert not manager.is_loaded("yolo11-face")
+            assert not manager.is_loaded("osnet-ain-x1-0")
+            assert not manager.is_loaded("fast-alpr")
 
 
 # =============================================================================
@@ -1090,11 +1094,11 @@ class TestOptionalDependencyLogRouting:
 
         mock_logger = MagicMock()
         with (
-            patch.object(get_model_config("yolo11-license-plate"), "load_fn", missing_dep_load),
+            patch.object(get_model_config("osnet-ain-x1-0"), "load_fn", missing_dep_load),
             patch("backend.services.model_zoo.logger", mock_logger),
             pytest.raises(RuntimeError, match=dep_message),
         ):
-            await manager.preload("yolo11-license-plate")
+            await manager.preload("osnet-ain-x1-0")
 
         info_msgs = [str(c.args[0]) for c in mock_logger.info.call_args_list if c.args]
         err_msgs = [str(c.args[0]) for c in mock_logger.error.call_args_list if c.args]
@@ -1291,9 +1295,9 @@ class TestModelLoadTimeoutAndDuration:
 
         with (
             patch.object(mz.asyncio, "wait_for", spy_wait_for),
-            patch.object(get_model_config("yolo11-license-plate"), "load_fn", dummy_load),
+            patch.object(get_model_config("osnet-ain-x1-0"), "load_fn", dummy_load),
         ):
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 pass
 
         assert captured and all(t == 20.0 for t in captured)
@@ -1311,11 +1315,11 @@ class TestModelLoadTimeoutAndDuration:
             await asyncio.sleep(0.01)
             return MagicMock()
 
-        with patch.object(get_model_config("yolo11-face"), "load_fn", slowish_load):
-            async with manager.load("yolo11-face"):
+        with patch.object(get_model_config("fast-alpr"), "load_fn", slowish_load):
+            async with manager.load("fast-alpr"):
                 pass
 
-        value = MODEL_LOAD_DURATION.labels(model="yolo11-face")._value.get()
+        value = MODEL_LOAD_DURATION.labels(model="fast-alpr")._value.get()
         assert 0.005 <= value < 10.0
 
 
@@ -1384,14 +1388,14 @@ class TestReloadContracts:
         async def mock_load(path: str) -> Any:
             return mock_model
 
-        with patch.object(get_model_config("yolo11-license-plate"), "load_fn", mock_load):
-            await manager.preload("yolo11-license-plate")
-            await manager.reload("yolo11-license-plate", "oom")
-            assert manager.get_status()["load_counts"] == {"yolo11-license-plate": 1}
+        with patch.object(get_model_config("osnet-ain-x1-0"), "load_fn", mock_load):
+            await manager.preload("osnet-ain-x1-0")
+            await manager.reload("osnet-ain-x1-0", "oom")
+            assert manager.get_status()["load_counts"] == {"osnet-ain-x1-0": 1}
 
-            await manager.unload("yolo11-license-plate")
+            await manager.unload("osnet-ain-x1-0")
             assert manager.get_status()["load_counts"] == {}
-            assert not manager.is_loaded("yolo11-license-plate")
+            assert not manager.is_loaded("osnet-ain-x1-0")
 
     @pytest.mark.asyncio
     async def test_reload_unloads_stale_model_and_clears_cuda_cache(self) -> None:
@@ -1407,15 +1411,15 @@ class TestReloadContracts:
         mock_torch.cuda.is_available.return_value = True
 
         with (
-            patch.object(get_model_config("yolo11-face"), "load_fn", mock_load),
+            patch.object(get_model_config("fast-alpr"), "load_fn", mock_load),
             patch.dict("sys.modules", {"torch": mock_torch}),
         ):
-            await manager.preload("yolo11-face")
+            await manager.preload("fast-alpr")
             mock_torch.cuda.empty_cache.assert_not_called()
 
-            await manager.reload("yolo11-face", "crash")
+            await manager.reload("fast-alpr", "crash")
             mock_torch.cuda.empty_cache.assert_called_once()
-            assert manager.is_loaded("yolo11-face")
+            assert manager.is_loaded("fast-alpr")
 
     @pytest.mark.asyncio
     async def test_unload_removes_load_count_entry(self) -> None:
@@ -1427,9 +1431,9 @@ class TestReloadContracts:
         async def mock_load(path: str) -> Any:
             return mock_model
 
-        with patch.object(get_model_config("yolo11-face"), "load_fn", mock_load):
-            await manager.preload("yolo11-face")
-            await manager.unload("yolo11-face")
+        with patch.object(get_model_config("fast-alpr"), "load_fn", mock_load):
+            await manager.preload("fast-alpr")
+            await manager.unload("fast-alpr")
 
         assert manager.get_status()["load_counts"] == {}
 
@@ -1455,10 +1459,10 @@ class TestLoadFnPathArgument:
             seen_paths.append(path)
             return mock_model
 
-        config = get_model_config("yolo11-license-plate")
+        config = get_model_config("osnet-ain-x1-0")
         assert config is not None
         with patch.object(config, "load_fn", capture_load):
-            async with manager.load("yolo11-license-plate"):
+            async with manager.load("osnet-ain-x1-0"):
                 pass
 
         assert seen_paths == [config.path]

@@ -145,6 +145,12 @@ def test_the_route_table_is_enumerated() -> None:
     assert ("GET", "/api/summaries/1/export") not in MOUNTED
     assert ("GET", "/api/analytics/costs") not in MOUNTED
     assert ("GET", "/api/analytics/costs/trends") not in MOUNTED
+    assert ("GET", "/api/calibration") not in MOUNTED
+    assert ("PUT", "/api/calibration") not in MOUNTED
+    assert ("PATCH", "/api/calibration") not in MOUNTED
+    assert ("POST", "/api/calibration/reset") not in MOUNTED
+    assert ("GET", "/api/calibration/defaults") not in MOUNTED
+    assert ("GET", "/api/feedback/stats") not in MOUNTED
     assert len(MOUNTED) > 400
 
 

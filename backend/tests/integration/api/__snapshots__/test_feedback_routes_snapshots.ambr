@@ -89,24 +89,3 @@
     'what_was_wrong': 'NoneType',
   })
 # ---
-# name: test_get_feedback_stats_empty_schema_snapshot
-  dict({
-    'by_camera': dict({
-    }),
-    'by_type': dict({
-    }),
-    'total_feedback': 'int',
-  })
-# ---
-# name: test_get_feedback_stats_response_schema_snapshot
-  dict({
-    'by_camera': dict({
-      '<camera_id>': 'int',
-    }),
-    'by_type': dict({
-      'false_positive': 'int',
-      'missed_threat': 'int',
-    }),
-    'total_feedback': 'int',
-  })
-# ---

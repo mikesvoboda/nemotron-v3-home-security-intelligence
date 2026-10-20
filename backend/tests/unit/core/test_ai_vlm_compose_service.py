@@ -548,6 +548,26 @@ class TestShippedServingIdentity:
             "alias on an 8B server is the F11 provenance lie"
         )
 
+    def test_models_yml_is_the_canonical_vlm_identity_source(self, vlm_env: dict) -> None:
+        """O3.3: models.yml declares the shipped Qwen3-VL GGUF and mmproj rows,
+        and config.py / .env.example / docker-compose.prod.yml agree with them."""
+        from backend.core.config import Settings
+
+        rows = yaml.safe_load((REPO_ROOT / "models.yml").read_text(encoding="utf-8"))["models"]
+        vlm_rows = {
+            r["runtime_file"]: r
+            for r in rows
+            if r.get("service") == "ai-vlm" and r.get("runtime_file")
+        }
+        assert len(vlm_rows) == 2
+        main_file = f"{self.SHIPPED}.gguf"
+        mmproj_file = Path(self._env_value("VLM_MMPROJ_PATH")).name
+        assert set(vlm_rows) == {main_file, mmproj_file}
+        assert Path(main_file).stem == Settings.model_fields["vlm_model_id"].default
+        assert f"/models/{mmproj_file}" == self._compose_default(
+            vlm_env["MMPROJ_PATH"], "VLM_MMPROJ_PATH"
+        )
+
 
 class TestDockerfileFlagWiring:
     """§2 flags that are llama-server args (--sleep-idle-seconds, --alias)

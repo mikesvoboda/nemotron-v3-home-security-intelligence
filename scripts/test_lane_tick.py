@@ -1345,6 +1345,9 @@ def test_the_next_claimable_package_follows_MY_roster_queue_not_the_files_order(
     # ops.md carries ops-a's [r164a] with `**PR:** none yet` physically BEFORE my [r181], so a scan
     # in file order offers another cell's package -- and offering it is a claim on someone else's
     # queue. The roster queue is the order.
+    # The title MENTIONS [r151] mid-title on purpose: a mid-title token is prose (the leading rule),
+    # so it holds nothing -- and the `search` mutant over LEADING_TOKEN, which would hold it, is
+    # what this title kills (the hold line would suppress the offer this test asserts).
     out = text(
         prs=[
             pr(7164, labels=["lane:ops", "cell:b"], head=MY_HEAD, title="an [r151] follow-up"),
@@ -1371,6 +1374,8 @@ def test_a_ur_nn_defect_fix_gates_nothing_and_the_queue_is_still_offered():
     # A `[UR-nn]` fix has no package number (UR-48: a lane defect needs no package), so it occupies
     # no queue slot -- it is NOT an open package and must not freeze the queue. That is this very
     # sandbox's shape for hours: uplevel/lane-panel-recommendation-leg, titled `[UR-48] fix: ...`.
+    # (The blockless-title hold keeps the same exemption: a defect fix's `[UR-nn]` token is not a
+    # package token, so a blockless defect fix still gates nothing here -- see the hold test.)
     defect = pr(7151, labels=["lane:ops"], head=MY_HEAD, title="[UR-48] fix: re-anchor a panel leg")
     out = text(
         prs=[defect],
@@ -1423,6 +1428,34 @@ def test_held_claims_reads_a_hold_from_the_title_and_from_the_pr_field():
     assert tick.held_claims(PKG, [{"number": 7151, "title": "[UR-48] fix: a leg"}]) == []
 
 
+def test_a_blockless_title_token_is_still_a_hold_and_a_mention_is_not():
+    # The live defect found 2026-10-20 02:51Z: held_claims enumerates holds ONLY from ops.md's
+    # `### [pkg]` blocks, so an open PR whose title token has NO block anywhere -- [r269] (its
+    # block is deferred to the owner's plan PR, ruling 269 item 7) and [flaky-census] (#7082) --
+    # was invisible: held=[] and build()'s fallback printed a bare `next claimable: r172` beside
+    # two open packages, the queue-jump invitation UR-52 forbids. The fixture carried the block
+    # the live world lacks, so every test passed over the defect (scaffolding-absence family).
+    # The cure: a PR's LEADING title token is its claim identity -- a hold even with no block --
+    # while a token MENTIONED mid-title is prose (the same leading rule queue_entries reads).
+    # The [UR-nn] defect-fix shape stays exempt (UR-48: no package number, gates nothing).
+    leading = [{"number": 7290, "title": "[r269] offer the next claimable package on the digest"}]
+    assert tick.held_claims(PKG, leading) == ["r269"]
+    # hyphenated tokens are real tokens ([flaky-census] is live, #7082) even with no block
+    hyphen = [{"number": 7082, "title": "[flaky-census] claim: golden's flaky census (UR-48 lane work)"}]
+    assert tick.held_claims(PKG, hyphen) == ["flaky-census"]  # fmt: skip
+    # a mid-title mention is prose, not a claim -- measured on the live 7158 title's shape
+    mention = [{"number": 7158, "title": "an [r151] follow-up"}]
+    assert tick.held_claims(PKG, mention) == []
+    # the leading token and a block's field can name the SAME hold: listed once, in block order
+    same = PKG.replace("none yet. (ruling 172", "#7290. (ruling 172")
+    one_pr = [{"number": 7290, "title": "[r172] the import budget"}]
+    assert tick.held_claims(same, one_pr) == ["r172"]  # the field reading, not duplicated
+    # two DISTINCT holds (field names one, leading token names another) both list, block first
+    field_first = PKG.replace("none yet. (ruling 172", "#7290. (ruling 172")
+    both = [{"number": 7290, "title": "[r269] the offer"}]
+    assert tick.held_claims(field_first, both) == ["r172", "r269"]
+
+
 def test_a_hold_the_roster_queue_never_names_still_closes_the_claim_leg():
     # ops-a's shape on live `main`, and the reason the scan walks the FILE and not the queue:
     # `ops.md`'s own `### [r162]` field reads `**PR:** #7114 (open)` and the open PR titles
@@ -1468,6 +1501,220 @@ def test_a_hold_and_a_claimable_are_never_both_printed():
     assert tick.next_claimable(PKG, ["r181", "r172"], mine) == "r172"  # the offer EXISTS...
     out = text()
     assert "next claimable" not in out  # ...and is the line the gate suppresses.
+
+
+# --- ruling 269: the offer returns while every open PR waits its merge turn ------------------
+
+
+def waiting(rollup=None, labels=("lane:ops", "cell:b"), armed=False, draft=False, merge="BLOCKED"):
+    """#7164 -- mine, on MY_BRANCH, titled [r181], whose block IS in the package file -- alone, in
+    the shape ruling 269 item 1 calls waiting its merge turn: an approving review naming the head,
+    a green gate from a run that really ran, not a draft, and BLOCKED only on the coordinator's
+    roll (the roll is not the author's to do, UR-102 -- it is the live shape this package exists
+    for). ready()'s #7158 titles [r151], which has no package block, so it holds nothing; the
+    offer needs a hold to lift."""
+    rollup = rollup if rollup is not None else [gate(), job()]
+    p = pr(7164, labels=list(labels), head=MY_HEAD, draft=draft, merge=merge, rollup=rollup, title=MINE1, armed=armed)  # fmt: skip
+    return {"prs": [p], "heads": [head_row(7164, MY_BRANCH, MINE1)]}
+
+
+def held_review(cid, body=None, minutes=-10):
+    """The default approval, on #7164, naming MY_HEAD -- the waiting PR's approving review."""
+    return comment(cid, 7164, body or APPROVE.replace(MINE2_HEAD[:9], MY_HEAD[:9]),
+                   t(timedelta(minutes=minutes)), pr=True)  # fmt: skip
+
+
+def test_a_pr_waiting_its_merge_turn_offers_the_next_claimable_package():
+    # Ruling 269 item 1: a PR is waiting its turn when ALL of (a) an approving review names its
+    # head or a UR-106 carry of it, (b) `CI Gate` passed at that head (or the last run there was
+    # cancelled), (c) it is not a draft, and (d) nothing on it is the author's to do. Item 6: when
+    # every open PR the lane holds is waiting its turn and the lane holds fewer than two, the
+    # digest offers the next claimable package -- beside the hold line, which is still true.
+    out = text(**waiting(), pr_comments={7164: [held_review(70)]})
+    assert "holding open claim: [r181]" in out
+    assert "next claimable: r172" in out  # the offer EXISTS here, as the never-both test measured
+
+
+def test_a_gate_that_failed_does_not_qualify_and_still_offers_nothing():
+    # Item 1(b)'s own words: "A gate that failed does not qualify." Nothing else changed.
+    out = text(**waiting(rollup=[gate("FAILURE"), job()]), pr_comments={7164: [held_review(71)]})
+    assert "next claimable" not in out
+
+
+def test_a_cancelled_last_run_at_the_head_is_still_waiting_its_turn():
+    # Item 1(b): "`CI Gate` passed at that head, or its last run there was cancelled" -- a
+    # cancelled run is not a failed gate, so the offer must still come.
+    out = text(**waiting(rollup=[gate("CANCELLED"), job()]), pr_comments={7164: [held_review(72)]})
+    assert "next claimable: r172" in out
+
+
+def test_an_approval_not_of_the_head_nor_a_carry_of_it_is_not_waiting():
+    # Item 1(a): the approving review must name the head "or a UR-106 carry of it". An approval of
+    # a rev whose own diff was changed since carries nowhere, so the review leg fails.
+    fake, out = run_tick(
+        **waiting(),
+        pr_comments={7164: [held_review(73, approve_of(OLD_HEAD), minutes=-1)]},
+        diffs={OLD_HEAD[:9]: SAME_DIFF.replace("+b", "+c")},  # an author change: no carry
+    )
+    assert "next claimable" not in out
+    assert fake.asked("git diff")  # the carry was actually read, the judge's way
+
+
+def test_a_draft_is_not_waiting_its_turn():
+    # Item 1(c): "It is not a draft". A draft's green gate sits over skipped legs (ruling 198), so
+    # it is not a gate that passed either.
+    out = text(**waiting(draft=True), pr_comments={7164: [held_review(74)]})
+    assert "next claimable" not in out
+
+
+def test_a_conflict_still_offers_no_package():
+    # Item 1(d): "no conflict". DIRTY is the observable; BEHIND and BLOCKED are the roll, not the
+    # author's to do, and the positive test pins that they do not block.
+    out = text(**waiting(merge="DIRTY"), pr_comments={7164: [held_review(75)]})
+    assert "next claimable" not in out
+
+
+def test_an_unanswered_owner_question_still_offers_no_package():
+    # Item 1(d): "no unanswered owner question". An owner-tier PR also needs the owner's approval
+    # in force (item 1's owner clause), and that approval is recorded on #6854 -- outside what the
+    # digest can read per PR -- so the `owner` label (UR-147's trigger) blocks the offer.
+    out = text(**waiting(labels=("lane:ops", "cell:b", "owner")), pr_comments={7164: [held_review(76)]})
+    assert "next claimable" not in out
+
+
+def test_a_success_gate_over_all_skipped_legs_is_not_waiting_its_turn():
+    # Item 1(b) counts a gate as "passed" only when its run really ran -- the same measure
+    # review_marker applies (ruling 198: a draft run's green gate sits over skipped legs, and on a
+    # ready flip the draft run's gate stays the newest gate check until the post-flip fan-in
+    # lands). The stale rollup: SUCCESS over a SKIPPED leg of the SAME run. Without the real-run
+    # leg here, waiting_its_turn and review_marker disagree about one rollup: the offer prints
+    # while the PR's own row refuses to carry a marker -- a false offer, "the UR-52 violation a
+    # missed offer never is" (the mid-flight test's words). The legs of a CANCELLED run are not
+    # SUCCESS, so the cancelled arm needs no real-run leg (the cancelled test above pins that).
+    out = text(**waiting(rollup=[gate(), job("SKIPPED")]), pr_comments={7164: [held_review(85)]})
+    assert "next claimable" not in out
+
+
+def test_an_open_review_finding_still_offers_no_package():
+    # Item 1(d): "no open review finding". A changes-requested reply AFTER the approval is the
+    # open finding; the newest review is what answers, as review_marker reads it.
+    body = f"Review: changes requested `{MY_HEAD[:9]}`\nPlan text: none\n"
+    out = text(
+        **waiting(),
+        pr_comments={7164: [held_review(77, minutes=-20), held_review(78, body, minutes=-5)]},
+    )
+    assert "next claimable" not in out
+
+
+def test_an_approval_naming_no_sha_is_not_waiting_its_turn():
+    # Item 1(a) needs a head the approval names: with no sha on it, nothing can judge the review
+    # ("no head" in at_head's words), so the offer must not rest on it. The author posts it again
+    # with the head's sha, the same repair review_marker's marker asks for.
+    no_sha = APPROVE.replace(MINE2_HEAD[:9], MY_HEAD[:9]).replace(f" `{MY_HEAD[:9]}`", "")
+    out = text(**waiting(), pr_comments={7164: [held_review(83, no_sha)]})
+    assert "next claimable" not in out
+
+
+def test_a_waiting_pr_titling_a_blockless_token_is_a_hold_not_a_plain_offer():
+    # The stale-file race, corrected 2026-10-20: an open package PR whose block is missing from
+    # the lane's package file HELD NOTHING by the old file-only reading -- so a waiting PR there
+    # took the plain UR-52 offer, and the mutant this shape kills (a digest printing a bare
+    # offer beside an open package) was the live defect this fixture now pins. The live shape:
+    # [r269]'s block is deferred to the owner's plan PR (ruling 269 item 7), so this PR (#7290)
+    # itself titled a token with no block on main. The cure: the leading title token IS the
+    # claim identity, so the PR holds -- and since it waits its merge turn (an approval naming
+    # its head, a green gate, not a draft), the ruling-269 offer still prints beside the hold.
+    ready151 = dict(
+        prs=[pr(7158, labels=["lane:ops", "cell:b"], head=MINE2_HEAD, draft=False, title=MINE2,
+                merge="BLOCKED", rollup=[gate(), job()])],  # fmt: skip
+        heads=[head_row(7158, OTHER_BRANCH, MINE2)],
+    )
+    out = text(**ready151, pr_comments={7158: [review(84)]})
+    assert "holding open claim: [r151]" in out
+    assert "next claimable: r181" in out
+    assert "(ruling 269" in has(out, "next claimable")[0]
+
+
+def test_a_waiting_ur48_fix_takes_the_plain_offer_with_no_hold_line():
+    # The mutant "the held gate opens without holds" (`held and` -> `True and`) needs held=[] AND
+    # every open PR waiting: the only shape that satisfies both is a WAITING [UR-48] defect fix
+    # (UR-48: no package number, so no hold -- but it IS waiting). The clean code takes the
+    # fallback's plain offer; the mutant would enter the ruling-269 branch and print a hold line
+    # with EMPTY names and a ruling-tagged offer -- a digest line no lane can act on. This also
+    # pins the UR-48 exemption in its waiting shape: a defect fix neither freezes the queue
+    # (the hold test) nor needs ruling 269's exception (there is no hold to lift).
+    defect = dict(
+        prs=[pr(7151, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False,
+                title="[UR-48] fix: re-anchor a panel leg", merge="BLOCKED",
+                rollup=[gate(), job()])],  # fmt: skip
+        heads=[head_row(7151, MY_BRANCH, "[UR-48] fix: re-anchor a panel leg")],
+    )
+    out = text(**defect, pr_comments={7151: [comment(86, 7151, approve_of(MY_HEAD),
+                                                      t(timedelta(minutes=-10)), pr=True)]})
+    assert "holding open claim" not in out
+    assert "next claimable: r181" in out
+    assert "(ruling 269" not in has(out, "next claimable")[0]
+
+
+def test_two_open_packages_leave_no_offer():
+    # Item 3: "At most two open packages per agent" -- the offer needs "fewer than two" (item 6).
+    # The offer must EXIST here, or the test would pass on an empty queue rather than on the cap:
+    # [r178] sits claimable behind [r172], and the one-package control below proves it.
+    pkg = PKG + (
+        "\n### [r178] A stub package\n\n**Flags:** none. **Assigned:** `uplevel-ops-b`, after "
+        "`[r172]`. **PR:** none yet. (ruling 178)\n\n- [ ] box\n"
+    )
+    roster = ROSTER.replace("`[r172]`, `O3.4`", "`[r172]`, `[r178]`, `O3.4`")
+    both = dict(
+        packages=pkg,
+        roster=roster,
+        prs=[
+            pr(7164, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False, title=MINE1,
+               merge="BLOCKED", rollup=[gate(), job()]),  # fmt: skip
+            pr(7158, labels=["lane:ops", "cell:b"], head=MINE2_HEAD, draft=False,
+               title="[r172] wrapped and import budget", merge="BLOCKED",
+               rollup=[gate(), job()]),  # fmt: skip
+        ],
+        heads=[head_row(7164, MY_BRANCH, MINE1),
+               head_row(7158, OTHER_BRANCH, "[r172] wrapped and import budget")],  # fmt: skip
+        pr_comments={
+            7164: [held_review(79)],
+            7158: [comment(80, 7158, approve_of(MINE2_HEAD), t(timedelta(minutes=-10)), pr=True)],
+        },
+    )
+    # Exactly two hold tokens -- the cap counts PACKAGES, and a stray third token (the old title's
+    # blockless leading [r151]) made the <3 mutant indistinguishable from the cap. The cap mutant
+    # <2 -> <3 opens the offer here and only here: len(held) must be exactly 2.
+    assert "holding open claim: [r181], [r172]" in text(**both)
+    assert "next claimable" not in text(**both)
+    one = {**both, "prs": both["prs"][:1], "heads": both["heads"][:1]}
+    assert "next claimable: r172" in text(**one)  # the cap, not the queue, was the blocker
+
+
+def test_a_second_open_pr_mid_flight_blocks_the_offer_until_it_waits():
+    # Item 6's own words: "every open PR the lane holds is waiting its turn" -- not only the held
+    # package's PR. A [UR-48] defect fix mid-flight is an open PR of mine that is not waiting, so
+    # the offer waits with it. The conservative direction: a false offer is the UR-52 violation a
+    # missed offer never is, and the queue stays readable by hand (item 5).
+    out = text(
+        prs=[
+            pr(7164, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False, title=MINE1,
+               merge="BLOCKED", rollup=[gate(), job()]),  # fmt: skip
+            pr(7151, labels=["lane:ops"], head=MINE2_HEAD, title="[UR-48] fix: re-anchor a panel leg"),
+        ],
+        heads=[head_row(7164, MY_BRANCH, MINE1),
+               head_row(7151, OTHER_BRANCH, "[UR-48] fix: re-anchor a panel leg")],  # fmt: skip
+        pr_comments={7164: [held_review(81)]},
+    )
+    assert "holding open claim: [r181]" in out
+    assert "next claimable" not in out
+
+
+def test_the_offer_names_ruling_269():
+    # The offer is an exception to UR-52's gate, so the line must name what lifted it -- the way
+    # the hold line names UR-52 -- or a lane acting on it cites nothing.
+    out = text(**waiting(), pr_comments={7164: [held_review(82)]})
+    assert "ruling 269" in has(out, "next claimable")[0]
 
 
 # --- the error shape the package names ------------------------------------------------------

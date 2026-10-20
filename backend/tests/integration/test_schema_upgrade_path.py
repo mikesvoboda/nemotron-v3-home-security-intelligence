@@ -115,6 +115,10 @@ async def _missing_0005_columns(conn: AsyncConnection) -> list[str]:
     CHECK is built from, which is deliberate: a test that re-typed the 12 names could pass while
     the CHECK it is meant to be checking watched a different list.
     """
+    tables_result = await conn.exec_driver_sql(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()"
+    )
+    existing_tables = {row[0] for row in tables_result.all()}
     result = await conn.exec_driver_sql(
         "SELECT table_name || '.' || column_name FROM information_schema.columns "
         "WHERE table_schema = current_schema()"
@@ -123,7 +127,7 @@ async def _missing_0005_columns(conn: AsyncConnection) -> list[str]:
     return sorted(
         f"{table}.{column}"
         for table, column in _UNRECORDED_MODEL_COLUMNS
-        if f"{table}.{column}" not in present
+        if table in existing_tables and f"{table}.{column}" not in present
     )
 
 
@@ -226,7 +230,9 @@ async def test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date(pr
                     )
                 ).all()
             }
-            assert not {"reid_embeddings", "demographics_results"} & still_present
+            assert (
+                not {"reid_embeddings", "demographics_results", "user_calibration"} & still_present
+            )
 
             # ---- and the recorded history says what happened ----
             # The `_tx` variant: this connection's transaction is already open (our own SELECTs
