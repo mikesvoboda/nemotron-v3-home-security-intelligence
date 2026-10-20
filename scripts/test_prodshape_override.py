@@ -73,6 +73,16 @@ ALL_PROFILES = (GPU_PROFILE,)
 # measured: collides with no prod port, stays under the 32768 Linux ephemeral band
 # (max prod 14318 -> 29318)
 PORT_OFFSET = 15000
+# The one service the uniform offset cannot place. The runner (`agent-gpu`) publishes the VLM on
+# the host's loopback from a FIXED pool (scripts/feature_check.py `AGENT_GPU_PORTS`, 18100-18199;
+# docs/uplevel/roles/operator.md says the run reads its port from that band), and loki's prod port
+# 3100 + 15000 lands on 18100 — the pool's first address — so a `--real --prod-shape` run would
+# start loki on the address the VLM expects. The pool is the runner's to hold, so the override
+# moves loki instead: 18201 is the first port above the pool that nothing else here publishes
+# (tempo already took 18200 = 3200 + 15000). [r195] box 3; test_no_published_port_lands_in_the_
+# runners_vlm_pool pins the table against the renders in BOTH directions, so this stays the only
+# exception and stays necessary.
+PORT_POOL_EXCEPTIONS: dict[str, int] = {"loki": 18201}
 # fixed literals for BOTH renders; none is a real credential
 ENV = {
     # sentinel: alloy interpolates it into src AND tgt
@@ -477,8 +487,8 @@ def test_a_pinned_name_carries_the_run_token_and_the_render_refuses_without_it()
 
 # ---------------------------------------------------------------- UR-133 ports -----------------
 def test_ports_are_offset_and_collide_with_nothing(prod_services, merged_services):
-    """Targets unchanged, every published port shifted by PORT_OFFSET, and the resulting host
-    ports collide with neither prod's set nor each other."""
+    """Targets unchanged, every published port shifted by PORT_OFFSET (except the table's named
+    services), and the resulting host ports collide with neither prod's set nor each other."""
     prod_pub = {str(p["published"]) for s in prod_services.values() for p in s.get("ports", [])}
     seen: dict[tuple, str] = {}
     for n, svc in merged_services.items():
@@ -486,16 +496,94 @@ def test_ports_are_offset_and_collide_with_nothing(prod_services, merged_service
         for p in svc.get("ports", []):
             tgt = str(p["target"])
             assert tgt in prod_by_target, f"{n}: override publishes target {tgt} that prod does not"
-            assert str(p["published"]) == str(
-                int(prod_by_target[tgt]["published"]) + PORT_OFFSET
-            ), f"{n}:{tgt} published {p['published']} != prod + {PORT_OFFSET}"
-            assert str(p.get("host_ip")) == str(prod_by_target[tgt].get("host_ip")), (
-                f"{n}:{tgt} host_ip changed"
-            )
+            want = PORT_POOL_EXCEPTIONS.get(n, int(prod_by_target[tgt]["published"]) + PORT_OFFSET)
+            assert str(p["published"]) == str(want), (
+                f"{n}:{tgt} published {p['published']} != "
+                + (f"the declared exception {want}" if n in PORT_POOL_EXCEPTIONS
+                   else f"prod + {PORT_OFFSET}"))
+            assert str(p.get("host_ip")) == str(prod_by_target[tgt].get("host_ip")), f"{n}:{tgt} host_ip changed"
             key = (str(p.get("host_ip")), str(p["published"]))
             assert key not in seen, f"{n} collides with {seen[key]} on {key}"
             seen[key] = n
             assert str(p["published"]) not in prod_pub, f"{n} reuses prod's port {p['published']}"
+
+
+def test_no_published_port_lands_in_the_runners_vlm_pool(
+    prod_services, merged_services, gpu_merged_services
+):
+    """The pool belongs to `agent-gpu run`, which only `--real` starts — and a `--real`
+    run publishes the VLM on 127.0.0.1 somewhere in AGENT_GPU_PORTS. The two prod-shape
+    venues differ (ruling 256): the maui run is plain `--prod-shape` (no agent-gpu, no VLM
+    pool in use), and the sandbox `--real` venue serves its VLM through agent-gpu — so a
+    stack service published inside that band either squats the address the VLM expects
+    (loki's 3100 + 15000 = 18100 was exactly the pool's floor — [r195] box 3) or loses the
+    VLM's port to a bind conflict, and neither failure names itself as a port collision at
+    boot.
+
+    Two-sided: the assertion must catch a squat AND must not fire on the ports that sit beside the
+    pool today (tempo's 18200 is the pool's first address +1, 18002/18200 are both legal). The
+    must-catch side re-runs the same scan over a synthetic squat; a scan that matched everything
+    or nothing would pass this node either way.
+    """
+    fc = _feature_check()
+    pool = frozenset(fc.AGENT_GPU_PORTS)
+    assert len(pool) == 100, f"the pool the guard reads is not the runner's: {sorted(pool)[:3]}…"
+
+    def squats(services: dict) -> list[str]:
+        return [
+            f"{n} publishes {p.get('host_ip')}:{p['published']} (target {p['target']})"
+            for n, svc in services.items()
+            for p in svc.get("ports", [])
+            if int(p["published"]) in pool
+        ]
+
+    for label, services in (("merged", merged_services), ("gpu-merged", gpu_merged_services)):
+        found = squats(services)
+        assert not found, f"{label} render publishes in the runner's VLM pool {min(pool)}-{max(pool)}: {found}"
+    # must-catch: the shape the guard exists for, and the one prod's own offset produced.
+    synthetic = {"loki": {"ports": [{"host_ip": "127.0.0.1", "published": min(pool), "target": "3100"}]}}
+    assert len(squats(synthetic)) == 1, "the pool scan cannot see a squat it is meant to catch"
+    # must-ignore: neighbours of the pool stay legal, so the scan is not "everything in 18xxx".
+    neighbours = {
+        s: {"ports": [{"host_ip": "127.0.0.1", "published": p, "target": "1"}]}
+        for s, p in (("a", min(pool) - 1), ("b", max(pool) + 1))
+    }
+    assert squats(neighbours) == [], "the pool scan rejects addresses outside the pool"
+
+
+def test_the_pool_exception_table_is_the_minimal_set(
+    prod_services, merged_services, gpu_merged_services
+):
+    """A declared exception must be (a) actually needed — the uniform offset really lands that
+    service inside the pool — and (b) sufficient — its port is outside the pool, unique, and not
+    prod's own. Without this, PORT_POOL_EXCEPTIONS could quietly grow into "whatever the file
+    happens to say", and the uniform-offset test above would stop guarding anything."""
+    fc = _feature_check()
+    pool = frozenset(fc.AGENT_GPU_PORTS)
+    for services in (merged_services, gpu_merged_services):
+        published: dict[int, str] = {}
+        for n, svc in services.items():
+            for p in svc.get("ports", []):
+                published.setdefault(int(p["published"]), n)
+        for n, port in PORT_POOL_EXCEPTIONS.items():
+            prod = prod_services.get(n)
+            assert prod is not None, (
+                f"{n}: the table names a service absent from the profile-less render; this node "
+                f"derives 'is the exception earned' from prod_services only")
+            prod_ports = {int(p["published"]) for p in prod.get("ports", [])}
+            assert prod_ports, f"{n}: prod publishes no ports for the table to offset"
+            assert any(pp + PORT_OFFSET in pool for pp in prod_ports), (
+                f"{n}: the table exempts it but prod + {PORT_OFFSET} "
+                f"{sorted(prod_ports)} never enters the pool — the exception is unearned")
+            assert port not in pool, f"{n}: the declared port {port} is still inside the pool"
+            assert published.get(port) == n, (
+                f"{n}: nothing in the render publishes {port} "
+                f"(it belongs to {published.get(port, 'nobody')})")
+            assert port not in {pp + PORT_OFFSET for pp in prod_ports}, (
+                f"{n}: {port} equals its own offset port, so the table hides a double bind")
+        # "nothing squats by being left OFF the table" is the other node's job
+        # (test_no_published_port_lands_in_the_runners_vlm_pool scans every service); this one only
+        # proves the entries that ARE on the table are earned and sufficient.
 
 
 # ---------------------------------------------------------------- B5 / UR-133 host paths ------
@@ -729,6 +817,75 @@ def test_the_generated_boot_file_rebinds_its_objects_to_the_live_project(tmp_pat
     assert reblessed == full, (
         "boot_render changed what would be deployed, not just who owns the objects"
     )
+
+
+
+# ------------------------------------------------ ruling 256: the spliced boot document renders --
+def _splice_venue(fc, venue: str) -> tuple[dict, dict]:
+    """The boot document one prod-shape run would write, via the real compose oracle.
+
+    Renders prod+override (the run's base) and CI+fake (where the fake bodies come from),
+    then applies `as_prod_shape_deployment` exactly as `render_prod_shape` does -- the
+    WHOLE document, not abbreviated fixtures, because abbreviated fixtures are how the
+    ci-net/ports divergence shipped: a dict-level test that omits the keys under test
+    cannot see them. Returns (the boot document, the pre-fix control)."""
+    full = _render_full([PROD, OVERRIDE], "prodshape-audit")
+    bodies = _render_full([REPO / "docker-compose.ci.yml", REPO / "docker-compose.fake-ai.yml"],
+                          "ci-fake")
+    fakes = {n: b for n, b in bodies["services"].items() if n in ("ai-vlm", "ai-gateway")}
+    if venue == "sandbox":
+        swapped, kwargs = "ai-gateway", {"vlm_url": "http://127.0.0.1:18100",
+                                         "fake_gateway": fakes["ai-gateway"]}
+    elif venue == "maui":
+        swapped, kwargs = "ai-vlm", {"vlm_url": None, "fake_vlm": fakes["ai-vlm"]}
+    else:
+        raise AssertionError(venue)
+    boot = fc.as_prod_shape_deployment(copy.deepcopy(full), **kwargs)
+    boot.pop("_device_changes", None)
+    # must-catch control: the PRE-FIX splice, reconstructed by restoring the raw fake
+    # body's networks/ports over the repaired output. (The transform repairs
+    # unconditionally, so a "raw body in" control would exercise the same fixed code and
+    # prove nothing.) That pre-fix shape is what first shipped: the fake body's ci-net and
+    # CI-band publishes left in the prod document, which compose refuses. The refusal must
+    # reproduce on this compose, or the repair guards a phantom.
+    control = copy.deepcopy(boot)
+    for key in ("networks", "ports"):
+        if key in fakes[swapped]:
+            control["services"][swapped][key] = copy.deepcopy(fakes[swapped][key])
+        else:
+            control["services"][swapped].pop(key, None)
+    return boot, control
+
+
+@pytest.mark.parametrize("venue", ["sandbox", "maui"])
+def test_the_spliced_boot_document_renders_and_keeps_prod_network_and_ports(venue, tmp_path):
+    """Ruling 256's transforms meet the compose oracle end to end: `docker compose config`
+    on the document the run would boot must RENDER (the ci-net divergence made it refuse),
+    the spliced service must sit on the prod render's security-net, and it must publish on
+    the prod-shape band the override set -- not the CI band, whose 8090/8098 binds are the
+    LIVE stack's own beside production on maui. Two-sided: the pre-fix control (the fake
+    body's ci-net/ports left in) must still be REFUSED naming ci-net, so this leg cannot
+    pass by matching everything."""
+    fc = _feature_check()
+    boot, control = _splice_venue(fc, venue)
+
+    boot_file = tmp_path / f"boot-{venue}.json"
+    boot_file.write_text(json.dumps(fc.boot_render(boot), indent=2) + "\n", encoding="utf-8")
+    rendered = _render_full([boot_file], "hsi-splice-probe")
+    spliced = rendered["services"]["ai-gateway" if venue == "sandbox" else "ai-vlm"]
+    assert set(spliced.get("networks") or {}) == {"security-net"}, spliced.get("networks")
+    ci_band = {"8090", "8098"}
+    assert not ci_band & {str(p.get("published")) for p in spliced.get("ports") or []}, (
+        f"the spliced body publishes on the CI band beside production: {spliced.get('ports')}")
+
+    control_file = tmp_path / f"control-{venue}.json"
+    control_file.write_text(json.dumps(fc.boot_render(control), indent=2) + "\n", encoding="utf-8")
+    p = subprocess.run(
+        ["docker", "compose", "-p", "hsi-splice-control", "--project-directory", str(REPO),
+         "-f", str(control_file), "config", "--format", "json"],
+        cwd=REPO, env=_clean_env(), capture_output=True, text=True, check=False)
+    assert p.returncode != 0, "the pre-fix control renders -- the refusal this test guards is gone"
+    assert "ci-net" in p.stderr, p.stderr[-400:]
 
 
 # ------------------------------------------------ the anti-rot ceiling this file rides ----------
