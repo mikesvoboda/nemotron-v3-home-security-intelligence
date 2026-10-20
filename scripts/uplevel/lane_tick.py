@@ -554,6 +554,14 @@ def waiting_its_turn(s: snap.Snapshot, p: dict, reviews: list[dict]) -> bool:
     """
     if p["draft"] or p["merge_state"] == "DIRTY" or "owner" in p["labels"]:
         return False
+    # "A gate that passed at this head": passed means the run RAN -- the same measure
+    # ``review_marker`` applies (ruling 198: a draft run's green gate sits over skipped legs, and
+    # on a ready flip that stale rollup stays the newest gate until the post-flip fan-in lands).
+    # A SUCCESS gate whose run produced no SUCCESS leg is the draft-run shape, not a pass.
+    if p["gate"] == "SUCCESS" and not ran_for_real(
+        s.rollups.get(p["number"], []), p.get("gate_run")
+    ):
+        return False
     if p["gate"] not in ("SUCCESS", "CANCELLED"):
         return False
     if not reviews:

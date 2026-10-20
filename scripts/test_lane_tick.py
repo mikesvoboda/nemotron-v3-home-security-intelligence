@@ -1517,6 +1517,19 @@ def test_an_unanswered_owner_question_still_offers_no_package():
     assert "next claimable" not in out
 
 
+def test_a_success_gate_over_all_skipped_legs_is_not_waiting_its_turn():
+    # Item 1(b) counts a gate as "passed" only when its run really ran -- the same measure
+    # review_marker applies (ruling 198: a draft run's green gate sits over skipped legs, and on a
+    # ready flip the draft run's gate stays the newest gate check until the post-flip fan-in
+    # lands). The stale rollup: SUCCESS over a SKIPPED leg of the SAME run. Without the real-run
+    # leg here, waiting_its_turn and review_marker disagree about one rollup: the offer prints
+    # while the PR's own row refuses to carry a marker -- a false offer, "the UR-52 violation a
+    # missed offer never is" (the mid-flight test's words). The legs of a CANCELLED run are not
+    # SUCCESS, so the cancelled arm needs no real-run leg (the cancelled test above pins that).
+    out = text(**waiting(rollup=[gate(), job("SKIPPED")]), pr_comments={7164: [held_review(85)]})
+    assert "next claimable" not in out
+
+
 def test_an_open_review_finding_still_offers_no_package():
     # Item 1(d): "no open review finding". A changes-requested reply AFTER the approval is the
     # open finding; the newest review is what answers, as review_marker reads it.

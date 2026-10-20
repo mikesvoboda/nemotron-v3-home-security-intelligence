@@ -64,6 +64,11 @@ MUTANTS: list[tuple[str, str, str]] = [
         'if p["gate"] not in ("SUCCESS", "CANCELLED"):',
         "if False:",
     ),
+    (
+        "the real-run leg drops: a draft run's SUCCESS-over-skipped rollup counts as a pass",
+        'if p["gate"] == "SUCCESS" and not ran_for_real(',
+        'if False and p["gate"] == "SUCCESS" and not ran_for_real(',
+    ),
     # -- item 1(d): the author's-to-do legs ----------------------------------
     (
         "a merge conflict stops blocking: DIRTY reads as the roll, not the author's to do",
