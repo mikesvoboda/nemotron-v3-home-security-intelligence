@@ -1318,7 +1318,9 @@ async def test_system_broadcaster_get_system_status_handles_db_error():
 async def test_system_broadcaster_check_redis_health_success():
     """Test _check_redis_health returns True when Redis is healthy."""
     mock_redis = AsyncMock()
-    mock_redis.health_check.return_value = True
+    # The real RedisClient.health_check() returns a dict, not a bool (Q-053): the
+    # healthy arm of the wrapper's contract.
+    mock_redis.health_check.return_value = {"status": "healthy", "connected": True}
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
@@ -1326,6 +1328,30 @@ async def test_system_broadcaster_check_redis_health_success():
 
     assert result is True
     mock_redis.health_check.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_redis_health_unhealthy_dict_is_false():
+    """The wrapper's unhealthy dict reads as False, not as healthy.
+
+    The production client's ``health_check()`` never raises (it absorbs every
+    ``Exception`` into a returned dict, Q-056), so the only unhealthy signal this
+    helper can act on is the dict itself: ``{"status": "unhealthy", ...}`` must come
+    back False. The seam here is the same synthetic one as the sibling timeout test -
+    production delivers the state as a dict, not as a raised exception (Q-056).
+    """
+    mock_redis = AsyncMock()
+    mock_redis.health_check.return_value = {
+        "status": "unhealthy",
+        "connected": False,
+        "error": "OOM command not allowed when used memory > 'maxmemory'",
+    }
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    result = await broadcaster._check_redis_health()
+
+    assert result is False
 
 
 @pytest.mark.asyncio
@@ -1343,22 +1369,26 @@ async def test_system_broadcaster_check_redis_health_failure():
 
 @pytest.mark.asyncio
 async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeout_storm():
-    """The loop keeps delivering status + performance while redis keeps timing out.
+    """The loop keeps delivering every message type locally while redis publish times out.
 
-    This is the F2.3 golden-spec red as an observable. The three red specs assert on DOM that
-    only a ``performance_update`` can fill, and the run's page received exactly one message -
-    the accept-time ``system_status`` from ``connect()`` - for 31s on a 5s cadence. Redis was
-    timing out repeatedly the whole run (1433 in the failing log). So the contract under test
-    is not "the task survives" (the loop-level catch gives that, but would still lose every
-    tick, because _get_system_status raises before broadcast_status is reached) - it is that a
-    tick COMPLETES while redis is unhealthy, degrading queue counts to zeros instead of
-    dropping the broadcast.
+    The pre-#7041 probe (Q-055) stubbed ``broadcast_status``/``broadcast_performance`` - the
+    exact losing layer - and counted stub invocations, so it passed against a starvation:
+    with redis publish timing out, the real handlers' builtin-only except tuples let
+    ``redis.exceptions.TimeoutError`` escape ``broadcast_status`` (the ``:314`` clause), the
+    loop's ``except Exception`` swallowed it, and every tick lost its broadcasts.
+
+    This corrected probe runs the REAL broadcast methods: ``publish`` raises
+    ``redis.exceptions.TimeoutError`` on every call, and each tick must still deliver both
+    ``system_status`` and ``performance_update`` to the local WebSocket client. The seam is
+    real, not synthetic: a wedged redis raises exactly this class from ``publish`` under
+    load (the F2.3 golden-spec red, 1433 in the failing log).
     """
     from redis.exceptions import TimeoutError as RedisTimeoutError
 
     redis = AsyncMock()
     redis.get_queue_length.side_effect = RedisTimeoutError("Timeout reading from redis:6379")
     redis.health_check.side_effect = RedisTimeoutError("Timeout reading from redis:6379")
+    redis.publish.side_effect = RedisTimeoutError("Timeout reading from redis:6379")
     broadcaster = SystemBroadcaster(redis_client=redis)
     broadcaster._running = True
 
@@ -1375,28 +1405,15 @@ async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeou
     async def mock_get_session():
         yield mock_session
 
-    status_ticks = 0
-    perf_ticks = 0
-
-    async def count_status(status_data):
-        nonlocal status_ticks
-        status_ticks += 1
-        if status_ticks >= 3:
-            broadcaster._running = False
-
-    async def count_performance():
-        nonlocal perf_ticks
-        perf_ticks += 1
-
-    # Hard bound: if a regression stops the broadcasts, count_status never flips
-    # _running and the loop would spin forever. Same guard the calls_performance test uses.
+    # Hard bound: if a regression stops the broadcasts, the counters never flip _running
+    # and the loop would spin forever. Same guard the stub-counting probe used.
     original_sleep = asyncio.sleep
     sleeps = 0
 
     async def bounded_sleep(delay):
         nonlocal sleeps
         sleeps += 1
-        if sleeps >= 20:
+        if sleeps >= 40:
             broadcaster._running = False
         await original_sleep(0)
 
@@ -1414,17 +1431,25 @@ async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeou
             },
             autospec=True,
         ),
-        patch.object(broadcaster, "broadcast_status", side_effect=count_status, autospec=True),
-        patch.object(
-            broadcaster, "broadcast_performance", side_effect=count_performance, autospec=True
-        ),
     ):
         await broadcaster._broadcast_loop(interval=0.01)
 
-    assert status_ticks >= 3, f"status broadcast stopped after {status_ticks} ticks"
-    # The message type the golden specs wait on: reached on every tick, redis or not.
-    assert perf_ticks >= 3, (
-        f"performance broadcast ran on {perf_ticks} of {status_ticks} ticks while redis timed out"
+    # Every local send goes through _send_to_local_clients -> send_text, so counting the
+    # decoded sends counts the deliveries the frontend actually sees.
+    system_sends = perf_sends = 0
+    for call in mock_ws.send_text.call_args_list:
+        payload = json.loads(call.args[0])
+        if payload.get("type") == "system_status":
+            system_sends += 1
+        elif payload.get("type") == "performance_update":
+            perf_sends += 1
+
+    assert system_sends >= 3, (
+        f"system_status delivered locally on {system_sends} ticks while redis publish timed out"
+    )
+    assert perf_sends >= 3, (
+        f"performance_update delivered locally on {perf_sends} ticks while redis publish "
+        "timed out"
     )
 
 
@@ -2202,6 +2227,38 @@ async def test_system_broadcaster_reset_pubsub_handles_close_error():
     # Should not raise, should continue to create new subscription
     await broadcaster._reset_pubsub_connection()
 
+    assert broadcaster._pubsub is mock_pubsub_new
+    mock_redis.subscribe_dedicated.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_reset_survives_rediserror_and_resubscribes():
+    """A RedisError from unsubscribe/close during reset does not stop the re-subscribe.
+
+    The reset path's cleanup arms catch only builtins, and ``redis.exceptions.RedisError``
+    (e.g. a ``TimeoutError`` raised while dropping a wedged pub/sub connection) is not a
+    builtin subclass - so on the pre-fix code it escapes ``_reset_pubsub_connection``
+    before the re-subscribe below it runs, and from ``_attempt_listener_recovery`` it
+    kills the recovery task: the listener stays dead through exactly the redis outage
+    the reset exists to survive. Both cleanup arms must absorb RedisError and let the
+    fresh ``subscribe_dedicated`` happen.
+    """
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+
+    mock_redis = AsyncMock()
+    mock_pubsub_new = AsyncMock()
+    mock_redis.subscribe_dedicated.return_value = mock_pubsub_new
+
+    old_pubsub = AsyncMock()
+    old_pubsub.unsubscribe.side_effect = RedisTimeoutError("Timeout during unsubscribe")
+    old_pubsub.close.side_effect = RedisTimeoutError("Timeout during close")
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub = old_pubsub
+
+    await broadcaster._reset_pubsub_connection()
+
+    # The re-subscribe still happened and won.
     assert broadcaster._pubsub is mock_pubsub_new
     mock_redis.subscribe_dedicated.assert_called_once()
 
