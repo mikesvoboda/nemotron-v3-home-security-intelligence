@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
-import ActionEventsPanel from './ActionEventsPanel';
+// R2a row 32 (F-068) retired
 import ConfidenceIndicators from './ConfidenceIndicators';
 import DetectionQualityBadge from './DetectionQualityBadge';
 import EntityTrackingPanel from './EntityTrackingPanel';
@@ -1017,17 +1017,17 @@ export default function EventDetailModal({
                         </div>
                       )}
 
-                      {/* Action Recognition Events (ST-GCN++) - NEM-5024 Phase 7 */}
-                      {!isNaN(eventIdNumber) && event.camera_id && (
-                        <div className="mb-6" data-testid="action-events-section">
-                          <ActionEventsPanel
-                            eventId={eventIdNumber}
-                            cameraId={event.camera_id}
-                            startTime={event.started_at || event.timestamp}
-                            endTime={event.ended_at}
-                          />
-                        </div>
-                      )}
+                      {/* R2a row 32 (F-068) retired
+                       *
+                       *
+                       *
+                       *
+                       *
+                       *
+                       *
+                       *
+                       *
+                       */}
 
                       {/* Re-Identification Matches */}
                       {selectedDetectionId && (

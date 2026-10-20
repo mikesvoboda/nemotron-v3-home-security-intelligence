@@ -689,3 +689,18 @@ class TestSecureCookieLoginLoopWarning:
         )
         vid_titles = {p.get("title") for p in vid_dash.get("panels", [])}
         assert "Action Recognition" not in vid_titles
+
+    def test_retired_f068_action_events_absent(self) -> None:
+        """R2a row 32 (F-068): /api/action-events routes and ActionEvent model are retired."""
+        from pathlib import Path
+
+        import backend.main as main_mod
+        import backend.models as models_mod
+
+        mounted_paths = {getattr(r, "path", "") for r in main_mod.app.routes}
+        assert "/api/action-events" not in mounted_paths
+        assert "/api/action-events/suspicious" not in mounted_paths
+        assert not hasattr(models_mod, "ActionEvent")
+        assert not Path("backend/api/routes/action_events.py").exists()
+        assert not Path("backend/api/schemas/action_event.py").exists()
+        assert not Path("backend/models/action_event.py").exists()
