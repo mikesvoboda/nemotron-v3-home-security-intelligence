@@ -283,7 +283,7 @@ run.
 ### O3.5 Weekly mutation scorer and history (`01` M2)
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`, `B2.1`.
-**PR:** none yet. (ruling 241)
+**PR:** #7317. (rulings 241, 289)
 
 Specified in [`01-mutation-policy.md`](../01-mutation-policy.md) §M2. Needs `O2.3` and `B2.1`.
 
