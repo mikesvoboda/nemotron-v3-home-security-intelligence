@@ -171,6 +171,28 @@ if ! git diff --cached --quiet 2>/dev/null; then
     echo -e "${YELLOW}or unstage them for an honest local verdict.${NC}"
 fi
 
+# (r272-fix, 2026-10-20): git exports GIT_DIR=<main>/.git/worktrees/<name> to the
+# pre-push hook when the push runs from a linked worktree, and language:script
+# hooks pass their whole environment to the children (pre-commit sanitizes only
+# its own subprocesses via no_git_env, git.py:27-43). Every git-shelling test
+# fixture then resolves the WRONG repo: GIT_DIR beats both -C and the cwd, so
+# `git init -q -b main <tmp fixture>` re-initializes the pushed repo IN PLACE —
+# observed live twice (2026-10-20 ~04:09 and ~04:47): core.bare was flipped to
+# true in the common config, breaking every worktree with "fatal: this operation
+# must be run in a work tree" while the fixture dir stayed empty and its git
+# calls failed rc 128 (8 failures + 8 errors, CANNOT-RUN on test_vss_next_id.py).
+# Unset AFTER base resolution (the script's own git calls above still want the
+# hook's git-dir) and BEFORE the jobs fork: everything below discovers the repo
+# from cwd, exactly as it does in CI and in a standalone run. GIT_PREFIX dies
+# with the same reasoning (it changes the meaning of pathspecs like ":/").
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR \
+    GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_PREFIX
+if ! git diff --cached --quiet 2>/dev/null; then
+    echo -e "${YELLOW}NOTICE: staged-but-uncommitted changes exist — the fast tier tested the${NC}"
+    echo -e "${YELLOW}working tree, which is NOT exactly the tree this push ships (HEAD). Commit${NC}"
+    echo -e "${YELLOW}or unstage them for an honest local verdict.${NC}"
+fi
+
 # Job 2: SELECTED backend tier. fast_select answers for the real base, the
 # tier filter keeps integration OUT (it has its own -n0 gate; tier identity,
 # printed OUT-OF-TIER-EXCLUDED count — this is tier definition, never
