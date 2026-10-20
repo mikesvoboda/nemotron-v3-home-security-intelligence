@@ -350,16 +350,18 @@ def run_args_for(data: Mapping[str, Any], manifest_path: Path, session: Session)
 
     A session carrying `hand_start` is not the launcher's to create: it refuses, naming the
     hand-start line, and prints no run line (ruling 201 on [r184] - the heavy sessions run
-    under the pi harness, and until the owner posts a pi form writable as `agent-dgx run`
-    arguments there is no correct line to print).
+    under the pi harness, and the owner's answered form is not `agent-dgx run`-shaped: the
+    session name comes before the harness and there is no --agent flag, so no correct run
+    line exists to print).
     """
     if session.hand_start is not None:
         raise Refused(
             f"{session.name} is started by hand, not by this launcher: "
-            f"`{session.hand_start}` (ruling 201 on [r184]). When the owner posts a pi "
-            "start line that can be written as `agent-dgx run` arguments, replace "
-            f"`hand_start` with `model` in {manifest_path}; until then no run line is "
-            "printed for it."
+            f"`{session.hand_start}` (ruling 201 on [r184]; the owner confirmed this form "
+            "on the PR, and it is not `agent-dgx run`-shaped, so no run line exists for it). "
+            f"To make it the launcher's, change the harness so the form becomes "
+            f"`agent-dgx run` arguments, then replace `hand_start` with `model` in "
+            f"{manifest_path}."
         )
     models = {str(k): str(v) for k, v in data.get("models", {}).items()}
     arguments = dict(DEFAULT_MODELS)

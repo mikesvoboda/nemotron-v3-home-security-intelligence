@@ -821,10 +821,11 @@ def test_up_refuses_the_whole_phase_when_a_model_is_unresolvable(tmp_path: Path)
 
 def test_the_rosters_heavy_rows_refuse_naming_the_hand_start_line() -> None:
     """Ruling 201 (record 6198825479) on [r184]: the heavy sessions run under the pi harness,
-    so `--agent claude` was the wrong line for them. Until the owner posts a pi form that can
-    be written as `agent-dgx run` arguments, the launcher refuses those rows and names the
-    hand-start line the manifest carries; it never invents a flag (history/packages-done.md
-    §O0.1)."""
+    so `--agent claude` was the wrong line for them. The owner's confirmed form (`agent-dgx
+    <name> pi --split`, word for word on the PR, 2026-10-20T03:32Z) is not `agent-dgx
+    run`-shaped - the session name comes before the harness, no --agent flag - so the
+    launcher refuses those rows and names the hand-start line the manifest carries; it never
+    invents a flag (history/packages-done.md §O0.1)."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     data = launch._load_toml(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     for name in (HEAVY, HEAVY_2):

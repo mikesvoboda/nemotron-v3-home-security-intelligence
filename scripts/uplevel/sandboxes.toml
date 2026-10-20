@@ -44,11 +44,13 @@ You are cell B of the ops lane."""
 
 # Phase 1: the rest of the roster (roles/lane.md, "Who takes what"). The owner opened
 # the second heavy sandbox on 2026-10-09; its row follows the first's. Ruling 184 renamed
-# them `uplevel-heavy-a` and `uplevel-heavy-b`; the owner starts both under the pi harness
-# with `agent-dgx <name> pi --split` (2026-10-14). That form is not the launcher's to
-# invent: each row carries `hand_start`, so the launcher refuses the rows and names the
-# hand-start line instead of printing a wrong one (ruling 201 on `[r184]`), until the
-# owner posts a pi form writable as `agent-dgx run` arguments on the PR.
+# them `uplevel-heavy-a` and `uplevel-heavy-b`. The owner starts both under the pi harness;
+# asked for the exact line (ruling 201 item 1), the owner confirmed it word for word on the
+# PR (2026-10-20T03:32Z): `agent-dgx <name> pi --split`. That form is not `agent-dgx
+# run`-shaped - the session name comes before the harness and there is no --agent flag - so
+# it is not the launcher's to print: each row carries `hand_start`, and the launcher refuses
+# the rows and names the hand-start line instead of printing a wrong one (ruling 201 on
+# `[r184]`).
 [[phase]]
 number = 1
 
