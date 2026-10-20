@@ -4129,10 +4129,14 @@ async def _get_batch_aggregator_status(
                     continue
 
                 detections = _parse_detections(metadata_results[i * 4 + 1])
-                # _coerce_scalar, not _decode_redis_value: add_detection rewrites
-                # these through the set wrapper (batch_aggregator.py:641), which
-                # JSON-quotes them, so a bare float() raises and the per-batch
-                # handler below silently drops the batch.
+                # _coerce_scalar, not _decode_redis_value: only last_activity is
+                # written through the set wrapper (add_detection's
+                # self._redis.set, batch_aggregator.py:641 -- RedisClient.set
+                # JSON-serializes, redis.py:1213, so a bare float() would raise
+                # and the per-batch handler below silently drops the batch).
+                # started_at is written raw by the creation pipeline
+                # (batch_aggregator.py:427), so it is a bare float string;
+                # _coerce_scalar handles both shapes.
                 started_at_str = _coerce_scalar(metadata_results[i * 4 + 2])
                 last_activity_str = _coerce_scalar(metadata_results[i * 4 + 3])
 
