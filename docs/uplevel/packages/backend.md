@@ -752,13 +752,19 @@ Coverage Gate / AGENTS.md Validation / Docs Drift / PR Review Bot all success.)
 **Flags:** none. **Assigned:** backend, after `[r271b]` (#7302). (ruling 277, record 6291992942;
 audit items Q-068 and Q-114 of `[r262]`, #7041)
 
-- [ ] `list_events`' `fields` description names exactly the fields in `VALID_EVENT_LIST_FIELDS`,
+- [x] `list_events`' `fields` description names exactly the fields in `VALID_EVENT_LIST_FIELDS`,
       with `detection_ids` out and `notify` in. A test fails if they drift apart, either by
       deriving the description from the set or by asserting that every documented field is
       accepted. Regenerate `docs/openapi.json` if it changes.
-- [ ] The comment at `backend/api/routes/system.py:4132-4135` says that only `last_activity` goes
+      (Derived: `fields_query_description()`, commit `03d4daecf`; drift tests in
+      `test_events.py` + the re-pointed pin `test_events_verification_field.py` `173b7cfad`;
+      `openapi.json` regenerated.)
+- [x] The comment at `backend/api/routes/system.py:4132-4135` says that only `last_activity` goes
       through the set wrapper (`batch_aggregator.py:641`) and is JSON-quoted, that `started_at` is
       written raw (`:427`), and that `_coerce_scalar` handles both.
+      (Commit `03d4daecf`.)
 
 **Done when:** the description drift test passes in CI at a ready head and the comment matches the
 writers it describes.
+(ticked: run `39435442971` at `173b7cfad` — 66/66 non-skipped jobs success, CI Gate success;
+PR #7306)
