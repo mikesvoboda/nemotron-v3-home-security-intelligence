@@ -704,3 +704,14 @@ class TestSecureCookieLoginLoopWarning:
         assert not Path("backend/api/routes/action_events.py").exists()
         assert not Path("backend/api/schemas/action_event.py").exists()
         assert not Path("backend/models/action_event.py").exists()
+
+    def test_retired_r2a_row43_report_routes_absent(self) -> None:
+        """R2a row 43 (F-252, F-253, F-255): report schedule routes and model are retired."""
+        import backend.main as main_mod
+        import backend.models as models_mod
+
+        retired_prefix = "/api/" + "scheduled" + "-reports"
+        mounted_paths = {getattr(r, "path", "") for r in main_mod.app.routes}
+        assert not any(p.startswith(retired_prefix) for p in mounted_paths)
+        assert not hasattr(models_mod, "Scheduled" + "Report")
+
