@@ -213,22 +213,22 @@ describe('endpoint contract (D2)', () => {
       audit.scan.opaqueMethod.map((o) => `${o.path}  ${o.file}:${o.line}  ${o.reason}`).join('\n'),
       `${audit.scan.opaqueMethod.length} claim(s) send a verb the scan cannot read`
     ).toMatchInlineSnapshot(`
-      "/api/cameras  src/services/api.ts:1385  options passed by name: options
-      /api/system/health  src/services/api.ts:1955  options passed by name: options
-      /api/system/health/full  src/services/api.ts:2030  options passed by name: options
-      /api/system/gpu  src/services/api.ts:2040  options passed by name: options
-      /api/system/health/websocket  src/services/api.ts:2116  options passed by name: options
-      /api/system/health/live  src/services/api.ts:2139  options passed by name: options
-      /api/events  src/services/api.ts:2245  options passed by name: options
-      /api/events/stats  src/services/api.ts:2280  options passed by name: options
-      /api/events/clusters  src/services/api.ts:2327  options passed by name: options
-      /api/events/deleted  src/services/api.ts:2508  options passed by name: options
-      /api/events/search  src/services/api.ts:3716  options passed by name: options
-      /api/audit  src/services/api.ts:4376  options passed by name: options
-      /api/entities  src/services/api.ts:5597  options passed by name: options
-      /api/entities/matches/{}  src/services/api.ts:5693  options passed by name: options
-      /api/logs  src/services/api.ts:8848  options passed by name: options
-      /api/reid/similar/{}  src/services/api.ts:8961  options passed by name: options"
+      "/api/cameras  src/services/api.ts:1366  options passed by name: options
+      /api/system/health  src/services/api.ts:1936  options passed by name: options
+      /api/system/health/full  src/services/api.ts:2011  options passed by name: options
+      /api/system/gpu  src/services/api.ts:2021  options passed by name: options
+      /api/system/health/websocket  src/services/api.ts:2097  options passed by name: options
+      /api/system/health/live  src/services/api.ts:2120  options passed by name: options
+      /api/events  src/services/api.ts:2226  options passed by name: options
+      /api/events/stats  src/services/api.ts:2261  options passed by name: options
+      /api/events/clusters  src/services/api.ts:2308  options passed by name: options
+      /api/events/deleted  src/services/api.ts:2489  options passed by name: options
+      /api/events/search  src/services/api.ts:3697  options passed by name: options
+      /api/audit  src/services/api.ts:4357  options passed by name: options
+      /api/entities  src/services/api.ts:5578  options passed by name: options
+      /api/entities/matches/{}  src/services/api.ts:5674  options passed by name: options
+      /api/logs  src/services/api.ts:8713  options passed by name: options
+      /api/reid/similar/{}  src/services/api.ts:8826  options passed by name: options"
     `);
   });
 
@@ -256,9 +256,9 @@ describe('endpoint contract (D2)', () => {
       "src/hooks/useZoneHouseholdConfig.ts:231  built at runtime: url.toString()
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
-      src/services/api.ts:1508  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:1580  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3242  built at runtime: isVideo
+      src/services/api.ts:1489  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:1561  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:3223  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/errorReporting.ts:113  built at runtime: config.endpoint

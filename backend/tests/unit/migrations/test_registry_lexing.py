@@ -147,6 +147,7 @@ def test_unterminated_quoted_identifier_raises():
         # that one through a regex -- and a lexer that swallowed a statement would otherwise
         # show up only as a missing column at boot.
         ("0005-add-unrecorded-model-columns", 12),
+        ("0006-retire-user-calibration-table", 1),
     ],
 )
 def test_shipped_files_lex_to_the_expected_statement_count(upgrade_id, expected_statements):

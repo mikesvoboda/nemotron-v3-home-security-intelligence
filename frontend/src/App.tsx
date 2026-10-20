@@ -125,7 +125,6 @@ const AlertRulesSettings = lazy(() => import('./components/settings/AlertRulesSe
 const ProcessingSettings = lazy(() => import('./components/settings/ProcessingSettings'));
 const NotificationSettings = lazy(() => import('./components/settings/NotificationSettings'));
 const AmbientStatusSettings = lazy(() => import('./components/settings/AmbientStatusSettings'));
-const CalibrationPanel = lazy(() => import('./components/settings/CalibrationPanel'));
 const AccessControlSettings = lazy(() => import('./components/settings/AccessControlSettings'));
 const PromptManagementPage = lazy(() =>
   import('./components/settings/prompts').then((m) => ({ default: m.PromptManagementPage }))
@@ -313,7 +312,6 @@ export default function App() {
                                           element={<NotificationSettings />}
                                         />
                                         <Route path="ambient" element={<AmbientStatusSettings />} />
-                                        <Route path="calibration" element={<CalibrationPanel />} />
                                         <Route path="access" element={<AccessControlSettings />} />
                                         <Route path="prompts" element={<PromptManagementPage />} />
                                         <Route path="storage" element={<FileOperationsPanel />} />

@@ -88,7 +88,6 @@ from .smoke_fire_result import SmokeFireResult, SmokeFireType
 from .summary import Summary, SummaryType
 from .track import Track
 from .user import User
-from .user_calibration import UserCalibration
 from .zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly
 from .zone_baseline import ZoneActivityBaseline
 from .zone_household_config import ZoneHouseholdConfig
@@ -198,7 +197,6 @@ __all__ = [
     "TrustLevel",
     "TrustStatus",
     "User",
-    "UserCalibration",
     "VehicleType",
     "WebhookDelivery",
     "WebhookDeliveryStatus",

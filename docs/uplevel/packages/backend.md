@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -649,3 +649,63 @@ leaves the test green.
 
 **Done when:** the test passes in CI at a ready head, and the PR shows that deleting the
 `try/except` turns it red.
+
+### [r271a] The system broadcaster survives a Redis timeout and reads Redis's health result
+
+**Flags:** none. **Assigned:** backend, first on its queue after the packages it holds (UR-52).
+**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644, corrected by 6281398804
+and 6281511059; audit items Q-052, Q-053, Q-055 to Q-057 and the re-issued Q-054 of `[r262]`,
+#7041)
+
+Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. In
+`backend/services/system_broadcaster.py` nine of the handlers that guard Redis calls catch only
+builtin exceptions, so `redis.exceptions.TimeoutError` (a `RedisError`) escapes them. On publish
+(`:314`, `:364`) the loop's `except Exception` (`:1235`) costs the tick. On start (`:564`) the
+escape leaves `start_broadcasting()` before its loop task exists, and the lifespan's unguarded call
+(`backend/main.py:1018`) fails startup; on stop (`:583`, `:589`) it ends the lifespan's shutdown at
+`backend/main.py:1335`, skipping the steps after it; on reset (`:612`, `:617`, `:631`) and in the
+listener (`:693`) it kills the listener task. `_check_redis_health` (`:1005-1015`) returns True
+whatever the dict `health_check()` returns says, and the storm probe
+(`backend/tests/unit/services/test_system_broadcaster.py:1345`) stubs `broadcast_status` and
+`broadcast_performance`, so it passes against the loss.
+
+- [ ] Every `except` clause in `system_broadcaster.py` that guards a Redis call also catches
+      `redis.exceptions.RedisError`: at the pin `:314`, `:364`, `:564`, `:583`, `:589`, `:612`,
+      `:617`, `:631` and `:693`. The PR lists the clauses it changed (ruling 271's corrections).
+- [ ] A test shows a `RedisError` from `unsubscribe` or `close` during reset does not stop the
+      re-subscribe or kill the listener.
+- [ ] `_check_redis_health` reads the result `health_check()` returns: healthy returns True,
+      anything else returns False and logs the payload; the `RedisError` arm stays; the callers
+      (`:807`, `:1093`) keep their boolean contract; the twin test's stub (`:1321`) returns a
+      result dict in the same edit.
+- [ ] The storm probe runs the real broadcast methods with publish raising
+      `redis.exceptions.TimeoutError` and asserts every message type is still delivered locally
+      each tick; the PR shows it red on the pre-fix code.
+- [ ] The timeout test's docstrings say its seam is synthetic (Q-056), and the `RedisError`
+      comment states the real reason (Q-057).
+
+**Done when:** the tests pass in CI at a ready head, and the PR shows the corrected probe red
+before the fix.
+
+### [r271b] Backups keep alert metadata
+
+**Flags:** none. **Assigned:** backend, after `[r271a]` (ruling 271).
+**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644; audit items Q-040 to Q-042
+of `[r262]`, #7031)
+
+Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. The export in
+`backend/services/backup_service.py` builds `column_names` from the mapper's column keys and reads
+`getattr(record, col_name, None)` (`:361-362`). For `Alert` the column key `metadata` returns
+SQLAlchemy's `MetaData`, not the payload attribute `alert_metadata`
+(`backend/models/alert.py:120-121`): backups carry `"metadata": "MetaData()"` and restore
+(`restore_service.py`) drops the key, so the payload is lost both ways. Do not generalize:
+`Alert` is the only walked model with this collision.
+
+- [ ] The export writes each alert's `alert_metadata` payload, and restore writes it back.
+- [ ] A round-trip test: a seeded alert's payload survives backup then restore, a null payload stays
+      null, and a backup made before the fix restores with `alert_metadata` null and no error; the
+      test fails on the old export.
+- [ ] The module and class docstrings' cites point at the export loop and the undefer loop
+      (`:346-349`) (Q-041, Q-042).
+
+**Done when:** the tests pass in CI at a ready head.

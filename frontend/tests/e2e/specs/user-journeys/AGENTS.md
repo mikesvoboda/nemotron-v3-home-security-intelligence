@@ -201,7 +201,7 @@ Tests use shared fixtures and page objects:
 ```typescript
 import { test, expect } from '../../fixtures';
 import { TimelinePage } from '../../pages';
-import { mockEvents, mockUserCalibration } from '../../fixtures/test-data';
+import { mockEvents } from '../../fixtures/test-data';
 import { waitForAnimation } from '../../utils/wait-helpers';
 import { waitForElementStable } from '../../utils/test-helpers';
 ```
@@ -244,14 +244,14 @@ Several tests are marked as `test.skip` due to specific issues:
 Tests use route interception for API mocking. Mock state can be modified during tests:
 
 ```typescript
-let currentCalibration = { ...mockUserCalibration.default };
+let currentEvents = [...mockEvents];
 
-await page.route('**/api/calibration', async (route) => {
+await page.route('**/api/events*', async (route) => {
   if (route.request().method() === 'GET') {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(currentCalibration),
+      body: JSON.stringify(currentEvents),
     });
   }
 });

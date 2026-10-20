@@ -18,7 +18,7 @@ import { test, expect } from '../fixtures';
 // Skip entire file in CI - timing issues cause flaky failures
 test.skip(() => !!process.env.CI, 'E2E tests flaky in CI - run locally');
 import { TimelinePage } from '../pages';
-import { mockEvents, mockEventFeedback, mockUserCalibration } from '../fixtures/test-data';
+import { mockEvents, mockEventFeedback } from '../fixtures/test-data';
 import type { Page } from '@playwright/test';
 
 test.describe('Event Feedback - False Positive Submission @critical', () => {
@@ -364,39 +364,6 @@ test.describe('Event Feedback - Missed Detection Submission @critical', () => {
 });
 
 test.describe('Event Feedback - Verification and Stats', () => {
-  test('should display feedback stats on settings or dashboard', async ({ page }) => {
-    // Navigate to settings page where feedback stats are displayed in the Calibration panel
-    await page.goto('/settings');
-    await page.waitForLoadState('networkidle');
-
-    // Click on CALIBRATION tab where feedback stats are shown
-    const calibrationTab = page.locator('button:has-text("CALIBRATION")');
-    if ((await calibrationTab.count()) === 0) {
-      console.log('Calibration tab not found - skipping test');
-      return;
-    }
-    await calibrationTab.click();
-    await page.waitForTimeout(500);
-
-    // Look for feedback statistics in the RiskSensitivitySettings component
-    // The stats show "False positives marked" and "Missed detections marked"
-    const calibrationSection = page.locator('[data-testid="risk-sensitivity-settings"]');
-    if ((await calibrationSection.count()) === 0) {
-      console.log('Calibration section not found - skipping test');
-      return;
-    }
-
-    // Look for "Feedback Stats" section
-    const feedbackStatsSection = calibrationSection.getByText('Feedback Stats');
-    const statsExists = (await feedbackStatsSection.count()) > 0;
-    if (!statsExists) {
-      console.log('Feedback stats not found - feature may not be implemented yet');
-      return;
-    }
-
-    await expect(feedbackStatsSection).toBeVisible();
-  });
-
   test('should prevent duplicate feedback submission', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();

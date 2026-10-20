@@ -345,7 +345,6 @@ Settings page components:
 - `AlertRulesSettings.tsx` - Alert rules configuration
 - `AmbientStatusSettings.tsx` - Ambient status settings
 - `AreaCameraLinking.tsx` - Area to camera linking
-- `CalibrationPanel.tsx` - Camera calibration panel
 - `CleanupPreviewPanel.tsx` - Cleanup preview panel
 - `GpuApplyButton.tsx` - GPU settings apply button
 - `GpuAssignmentTable.tsx` - GPU assignment table
@@ -355,7 +354,6 @@ Settings page components:
 - `ModelManagementPanel.tsx` - Model management panel
 - `PromptManagementPanel.tsx` - Prompt management panel
 - `PropertyManagement.tsx` - Property management
-- `RiskSensitivitySettings.tsx` - Risk sensitivity settings
 - `SeverityThresholds.tsx` - Severity thresholds configuration
 - `VRAMUsageCard.tsx` - VRAM usage card
 - `README.md` - Documentation
