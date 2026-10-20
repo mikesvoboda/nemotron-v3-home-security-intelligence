@@ -711,7 +711,7 @@ before the fix.
 ### [r271b] Backups keep alert metadata
 
 **Flags:** none. **Assigned:** backend, after `[r271a]` (ruling 271).
-**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644; audit items Q-040 to Q-042
+**Depends on:** none. **PR:** #7302. (ruling 271, record 6277412644; audit items Q-040 to Q-042
 of `[r262]`, #7031)
 
 Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. The export in
@@ -722,11 +722,27 @@ SQLAlchemy's `MetaData`, not the payload attribute `alert_metadata`
 (`restore_service.py`) drops the key, so the payload is lost both ways. Do not generalize:
 `Alert` is the only walked model with this collision.
 
-- [ ] The export writes each alert's `alert_metadata` payload, and restore writes it back.
-- [ ] A round-trip test: a seeded alert's payload survives backup then restore, a null payload stays
+- [x] The export writes each alert's `alert_metadata` payload, and restore writes it back.
+      (23e4bf719 resolves each mapper column to its class-bound attribute via `mapper.column_attrs`
+      — identity on the column object — and writes the payload under the attribute's key, so the
+      backup carries `"alert_metadata": {...}` instead of `"metadata": "MetaData()"`; the other 8
+      walked models have attribute key == column key, so their rows are byte-identical. Restore
+      needed no change: it inserts by the JSON key, which is now the attribute name — probe E2 /
+      the prefix-restore test already showed fixed-shape rows restore.)
+- [x] A round-trip test: a seeded alert's payload survives backup then restore, a null payload stays
       null, and a backup made before the fix restores with `alert_metadata` null and no error; the
       test fails on the old export.
-- [ ] The module and class docstrings' cites point at the export loop and the undefer loop
-      (`:346-349`) (Q-041, Q-042).
+      (Red pin 87d1b0e83: unit `KeyError: 'alert_metadata'`; integration export
+      `alert_metadata=None, metadata='MetaData()'`; round-trip `came back with alert_metadata=None`
+      — all three failed on the pre-fix code, quoted verbatim in the commit body. Null-stays-null
+      and pre-fix-backup-restores-with-null-and-no-error pins were green before the fix and stay
+      green after. All 4 green at 23e4bf719: unit file 22 passed, integration class 4 passed.)
+- [x] The module and class docstrings' cites point at the export loop and the undefer loop
+      (`:346-349`) (Q-041, Q-042). (f651b6f77 re-anchors them at the post-fix head: walk
+      `:324`, `:378`; undefer `:357-360` — the fix commit shifted the walk's getattr read, so the
+      numbers were re-measured and each cite read back with `sed -n` before being written.)
 
 **Done when:** the tests pass in CI at a ready head.
+(Ticked: ready run 39417871877 at `f1b029af1` — the first non-draft run; 50 non-skipped
+jobs all success, `CI Gate (Required Checks)` completed/success at that head, companions
+Coverage Gate / AGENTS.md Validation / Docs Drift / PR Review Bot all success.)
