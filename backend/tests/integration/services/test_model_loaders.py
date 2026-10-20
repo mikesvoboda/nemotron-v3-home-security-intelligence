@@ -88,7 +88,7 @@ class TestModelZooIntegration:
 
         assert isinstance(zoo, dict)
         assert "osnet-ain-x1-0" in zoo
-        assert "yolo11-license-plate" in zoo
+        assert "osnet-ain-x1-0" in zoo
         assert "face-recognizer" in zoo
 
     def test_registry_is_a_subset_of_the_loader_map(self):
@@ -167,13 +167,13 @@ class TestModelManagerIntegration:
         manager = get_model_manager()
         sentinel = {"model": MagicMock(), "processor": MagicMock()}
 
-        with _stub_load("yolo11-license-plate", sentinel):
-            async with manager.load("yolo11-license-plate") as model:
+        with _stub_load("osnet-ain-x1-0", sentinel):
+            async with manager.load("osnet-ain-x1-0") as model:
                 assert model is sentinel
 
             # Model should be unloaded after context exit
             status = manager.get_status()
-            assert "yolo11-license-plate" not in status["loaded_models"]
+            assert "osnet-ain-x1-0" not in status["loaded_models"]
 
     @pytest.mark.asyncio
     async def test_model_manager_reference_counting(self):
@@ -183,27 +183,27 @@ class TestModelManagerIntegration:
         manager = get_model_manager()
         sentinel = MagicMock()
 
-        with _stub_load("yolo11-license-plate", sentinel):
+        with _stub_load("osnet-ain-x1-0", sentinel):
             # Load model twice (simulating concurrent use)
-            async with manager.load("yolo11-license-plate") as model1:
+            async with manager.load("osnet-ain-x1-0") as model1:
                 assert model1 is sentinel
 
-                async with manager.load("yolo11-license-plate") as model2:
+                async with manager.load("osnet-ain-x1-0") as model2:
                     # Should return same model instance
                     assert model2 is model1
 
                     status = manager.get_status()
-                    assert "yolo11-license-plate" in status["loaded_models"]
+                    assert "osnet-ain-x1-0" in status["loaded_models"]
                     # Reference count should be 2
-                    assert status["load_counts"]["yolo11-license-plate"] == 2
+                    assert status["load_counts"]["osnet-ain-x1-0"] == 2
 
                 # After first release, ref count should be 1
                 status = manager.get_status()
-                assert status["load_counts"]["yolo11-license-plate"] == 1
+                assert status["load_counts"]["osnet-ain-x1-0"] == 1
 
             # After all releases, model should be unloaded
             status = manager.get_status()
-            assert "yolo11-license-plate" not in status["loaded_models"]
+            assert "osnet-ain-x1-0" not in status["loaded_models"]
 
     @pytest.mark.asyncio
     async def test_model_manager_vram_tracking(self):
@@ -211,10 +211,10 @@ class TestModelManagerIntegration:
         from backend.services.model_zoo import get_model_manager
 
         manager = get_model_manager()
-        plate_vram = get_model_zoo()["yolo11-license-plate"].vram_mb
+        plate_vram = get_model_zoo()["osnet-ain-x1-0"].vram_mb
 
-        with _stub_load("yolo11-license-plate", MagicMock()):
-            async with manager.load("yolo11-license-plate"):
+        with _stub_load("osnet-ain-x1-0", MagicMock()):
+            async with manager.load("osnet-ain-x1-0"):
                 status = manager.get_status()
                 assert status["total_loaded_vram_mb"] == plate_vram  # the row's own budget
 
@@ -227,22 +227,22 @@ class TestModelManagerIntegration:
         manager = get_model_manager()
 
         with (
-            _stub_load("yolo11-license-plate", MagicMock()),
-            _stub_load("yolo11-face", MagicMock()),
+            _stub_load("osnet-ain-x1-0", MagicMock()),
+            _stub_load("fast-alpr", MagicMock()),
         ):
-            async with manager.load("yolo11-license-plate") as plate_model:
+            async with manager.load("osnet-ain-x1-0") as plate_model:
                 assert plate_model is not None
 
-                async with manager.load("yolo11-face") as face_model:
+                async with manager.load("fast-alpr") as face_model:
                     assert face_model is not None
 
                     status = manager.get_status()
                     # Both models should be loaded
-                    assert "yolo11-license-plate" in status["loaded_models"]
-                    assert "yolo11-face" in status["loaded_models"]
+                    assert "osnet-ain-x1-0" in status["loaded_models"]
+                    assert "fast-alpr" in status["loaded_models"]
                     # Total VRAM should be sum of both
                     assert status["total_loaded_vram_mb"] == (
-                        zoo["yolo11-license-plate"].vram_mb + zoo["yolo11-face"].vram_mb
+                        zoo["osnet-ain-x1-0"].vram_mb + zoo["fast-alpr"].vram_mb
                     )
 
     @pytest.mark.asyncio
@@ -253,14 +253,14 @@ class TestModelManagerIntegration:
         manager = get_model_manager()
 
         failing = MagicMock(side_effect=RuntimeError("Simulated loader failure"))
-        with patch.object(get_model_zoo()["yolo11-license-plate"], "load_fn", failing):
+        with patch.object(get_model_zoo()["osnet-ain-x1-0"], "load_fn", failing):
             with pytest.raises(RuntimeError, match="Simulated loader failure"):
-                async with manager.load("yolo11-license-plate"):
+                async with manager.load("osnet-ain-x1-0"):
                     pass
 
         # Manager should remain in consistent state
         status = manager.get_status()
-        assert "yolo11-license-plate" not in status["loaded_models"]
+        assert "osnet-ain-x1-0" not in status["loaded_models"]
 
     @pytest.mark.asyncio
     async def test_model_manager_status_returns_correct_structure(self):
@@ -269,8 +269,8 @@ class TestModelManagerIntegration:
 
         manager = get_model_manager()
 
-        with _stub_load("yolo11-license-plate", MagicMock()):
-            async with manager.load("yolo11-license-plate"):
+        with _stub_load("osnet-ain-x1-0", MagicMock()):
+            async with manager.load("osnet-ain-x1-0"):
                 status = manager.get_status()
 
                 assert "loaded_models" in status

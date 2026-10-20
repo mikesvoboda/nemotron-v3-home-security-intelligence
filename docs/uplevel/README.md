@@ -199,7 +199,7 @@ UR-147.
 | F3.3    | frontend                | 3          | Quarantined tests                              |               | not started |     |
 | O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | done        | #7256 |
 | O3.2    | ops                     | 3          | Compose base and overlays                      |               | not started |     |
-| O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | not started |     |
+| O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | done        | #7281 |
 | O3.4    | ops                     | 3          | Reachability gates in CI                       |               | not started |     |
 | O3.5    | ops                     | 3          | Weekly mutation scorer and history (`01` M2)   |               | not started |     |
 | O3.6    | ops                     | 3          | PR mutation evidence tool (`01` M4)            | heavy         | done        | #7251 |

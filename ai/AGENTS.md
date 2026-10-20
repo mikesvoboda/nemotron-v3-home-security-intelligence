@@ -63,23 +63,16 @@ that zoo re-perceived what the shipped VLM already sees from the same key
 frames, so what is left is lookups against stores the pixels cannot reach —
 plates, faces, registered-person embeddings.
 
-### Available Models (8 registry entries, 7 enabled)
+### Available Models (4 backend registry entries, 4 enabled; 8 total `models.yml` rows)
 
-| Model                  | VRAM   | Priority | Category  | Notes                      |
-| ---------------------- | ------ | -------- | --------- | -------------------------- |
-| `osnet-ain-x1-0`       | 100 MB | medium   | embedding | `preload: true`            |
-| `face-detector-scrfd`  | 0 MB   | low      | detection | `preload: true`            |
-| `face-recognizer`      | 0 MB   | low      | embedding | `preload: true`            |
-| `yolo11-face`          | 200 MB | medium   | detection | on person crops            |
-| `yolo11-license-plate` | 300 MB | medium   | detection | on vehicle crops           |
-| `fast-alpr`            | 28 MB  | medium   | alpr      | plate detect + OCR         |
-| `paddleocr`            | 100 MB | medium   | ocr       | superseded by `fast-alpr`  |
-| `yolo26-general`       | 400 MB | medium   | detection | `enabled: false` (TBD row) |
+| Model                 | VRAM   | Priority | Category  | Notes              |
+| --------------------- | ------ | -------- | --------- | ------------------ |
+| `osnet-ain-x1-0`      | 100 MB | medium   | embedding | `preload: true`    |
+| `face-detector-scrfd` | 0 MB   | low      | detection | `preload: true`    |
+| `face-recognizer`     | 0 MB   | low      | embedding | `preload: true`    |
+| `fast-alpr`           | 28 MB  | medium   | alpr      | plate detect + OCR |
 
-Two `models.yml` rows are NOT zoo entries: `yolo26` (no `_LOADER_MAP` entry —
-it is Triton `yolo26` behind the gateway `/yolo26` router) and
-`threat-detection-yolov8n` (no `_LOADER_MAP` entry — Triton `threat`, reached
-over `/enrich-lt/threat-detect` when `GATEWAY_ENABLE_THREAT=true`).
+Four `models.yml` rows are NOT backend in-process zoo entries: `yolo26` (`service: ai-gateway` — Triton `yolo26` behind the gateway `/yolo26` router), `threat-detection-yolov8n` (`service: ai-gateway` — Triton `threat`, reached over `/enrich-lt/threat-detect` when `GATEWAY_ENABLE_THREAT=true`), and the shipped VLM pair `qwen3-vl-8b-instruct` + `qwen3-vl-8b-instruct-mmproj` (`service: ai-vlm`). O3.3 deleted the four dead backend rows (`yolo11-face`, `yolo11-license-plate`, `paddleocr`, `yolo26-general`).
 
 The X-CLIP `action_recognizer` slot was retired with the NEM-5563 move to Triton
 `stgcn_action`, and the whole action chain went next: there is no
@@ -225,8 +218,8 @@ env:
 
 Residency: see `.env.example` / the bring-up record — no measured 24 GB-class
 figure exists yet. `LLM_MODEL_PATH` no longer appears in `docker-compose.prod.yml`
-at all (the `ai-llm` service was deleted in R8 S2; `.env.example` still declares
-`LLM_PORT=8091`, which nothing in compose reads now). `.env.example` also still
+at all (the `ai-llm` service was deleted in R8 S2, and `LLM_PORT` was removed
+from `.env.example` in O3.3). `.env.example` also still
 carries `CTX_SIZE=262144` / `PARALLEL=8`; those feed only `config.py`'s
 `nemotron_context_window` slot-derivation (the shipped engine's own budget is
 `vlm_context_window` from `VLM_CTX_SIZE // VLM_PARALLEL`), not a running server.
@@ -402,14 +395,13 @@ Two scripts exist: `download_models.sh` and `start_detector.sh`.
 The script fetches the **models.yml download set** — the rows
 `setup_lib/models_config.py::get_downloadable_models` selects
 (`download_method != skip AND (hf_repo OR download_method)`) — which on the
-current 10-row `models.yml` is **5 entries / 763 MB by `size_mb`**: `yolo26`,
-`osnet-ain-x1-0`, `threat-detection-yolov8n`, `yolo11-face`,
-`yolo11-license-plate`. The 5 `download_method: skip` rows
-(`face-detector-scrfd`, `face-recognizer`, `fast-alpr`, `paddleocr`,
-`yolo26-general`) are fetched by their libraries at runtime. The "25 of 30
-entries / 32.79 GiB" figures this file used to quote described the pre-R8
-catalogue: those rows left `models.yml` in R8 S2/S3 (2026-09-29) and the fetch
-list went with them. The pair is pinned by
+current 8-row `models.yml` is **3 entries / 102 MB by `size_mb`**: `yolo26`,
+`osnet-ain-x1-0`, and `threat-detection-yolov8n`. The 5 `download_method: skip`
+rows (`qwen3-vl-8b-instruct`, `qwen3-vl-8b-instruct-mmproj`,
+`face-detector-scrfd`, `face-recognizer`, `fast-alpr`) are operator-mounted or
+fetched by their libraries at runtime. O3.3 deleted `yolo11-face`,
+`yolo11-license-plate`, `paddleocr`, and `yolo26-general` from `models.yml`.
+The pair is pinned by
 `backend/tests/unit/setup_lib/test_download_models_script_vlm_retirement.py`,
 which re-derives the rule and asserts the script's fetch list against it.
 
@@ -417,13 +409,6 @@ The shipped VLM weights are deliberately NOT provisioned here (`grep -c -i qwen`
 → 0): identity is operator config (ledger D5), so `VLM_MODEL_PATH` /
 `VLM_MMPROJ_PATH` are read from `${AI_MODELS_PATH}/vlm`, which compose mounts
 read-only into ai-vlm at `/models`.
-
-`enabled` in models.yml governs backend model_zoo VRAM slots, NOT disk
-provisioning. The two `enabled: false` rows today are `yolo26` (n/s/m `.pt` from
-ultralytics/assets — `ai/gateway/export/` `export_yolo26.py` +
-`scripts/prebuild-tensorrt-engines.sh` need `model-zoo/yolo26/yolo26m.pt` on
-disk) and `yolo26-general` (a `_LOADER_MAP` row, so it is a zoo entry, but
-disabled and `download_method: skip`).
 
 ### `start_detector.sh`
 

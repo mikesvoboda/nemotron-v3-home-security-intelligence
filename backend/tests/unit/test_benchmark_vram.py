@@ -240,14 +240,15 @@ class TestModelZooIntegration:
         zoo = get_model_zoo()
 
         assert "osnet-ain-x1-0" in zoo
-        assert "yolo11-license-plate" in zoo
-        assert "paddleocr" in zoo
+        assert "face-detector-scrfd" in zoo
+        assert "face-recognizer" in zoo
         assert "fast-alpr" in zoo
         # The registry is built from models.yml rows that ALSO have an entry in
         # _LOADER_MAP, so the yolo26 primary detector — HTTP-called rather than
-        # loaded in-process, with no loader entry — is absent from the zoo even
-        # though it is a service: backend row.
+        # loaded in-process, with no loader entry — is absent from the zoo.
         assert "yolo26" not in zoo
+        for dead in ("yolo11-face", "yolo11-license-plate", "paddleocr", "yolo26-general"):
+            assert dead not in zoo
         # The retired ids are gone from the registry, not merely disabled.
         assert "siglip2-base-patch16-224" not in zoo
         assert "florence-2-large" not in zoo
@@ -259,15 +260,16 @@ class TestModelZooIntegration:
         enabled = get_enabled_models()
         enabled_names = {m.name for m in enabled}
 
-        # These should be enabled by default
+        # All four surviving backend zoo rows are enabled by default
         assert "osnet-ain-x1-0" in enabled_names
-        assert "paddleocr" in enabled_names
-        assert "yolo11-license-plate" in enabled_names
+        assert "face-detector-scrfd" in enabled_names
+        assert "face-recognizer" in enabled_names
+        assert "fast-alpr" in enabled_names
         # siglip2-base-patch16-224 was enabled here before R8 S2b deleted its
         # loader and its models.yml row along with the enrichment tier.
         assert "siglip2-base-patch16-224" not in enabled_names
-        # A row can be present and still opted out — enabled != present.
-        assert "yolo26-general" in get_model_zoo()
+        # O3.3 deleted the disabled yolo26-general placeholder row from models.yml.
+        assert "yolo26-general" not in get_model_zoo()
         assert "yolo26-general" not in enabled_names
 
     def test_model_vram_estimates(self):
@@ -292,38 +294,22 @@ class TestModelZooIntegration:
 
         zoo = get_model_zoo()
 
-        # Test with known models: yolo11-face (200) + yolo11-license-plate (300).
-        # yolov8n-pose was in this exemplar pair; R8 S3 deleted its models.yml
-        # row because the `pose` Triton model is pruned and no boot can serve it,
-        # and MODEL_ZOO is built from models.yml rows that also have a _LOADER_MAP
-        # entry — so the name is now absent from the registry, not disabled in it.
-        pair = ["yolo11-face", "yolo11-license-plate"]
+        # Test with known models: osnet-ain-x1-0 (100) + fast-alpr (28).
+        pair = ["osnet-ain-x1-0", "fast-alpr"]
         assert all(n in zoo for n in pair), sorted(zoo)
-        assert get_total_vram_if_loaded(pair) == 500
+        assert get_total_vram_if_loaded(pair) == 128
         assert "yolov8n-pose" not in zoo, "its models.yml row is deleted (R8 S3)"
 
         # Aggregation over every enabled row, pinned as an arithmetic total:
-        # 100 osnet + 0 scrfd + 0 recognizer + 200 yolo11-face + 300 plate
-        # + 28 fast-alpr + 100 paddleocr = 728. (Was 928 while the 200 MB pose
-        # row existed; the total moving is this pin doing its job.)
+        # 100 osnet + 0 scrfd + 0 recognizer + 28 fast-alpr = 128.
         enabled = get_enabled_models()
         assert enabled, "no enabled zoo rows — the census below would be vacuous"
-        assert get_total_vram_if_loaded([m.name for m in enabled]) == 728
+        assert get_total_vram_if_loaded([m.name for m in enabled]) == 128
         # Recomputed from the rows themselves, so a helper that started counting
         # disabled or unknown names cannot satisfy both lines.
         assert get_total_vram_if_loaded([m.name for m in enabled]) == sum(
             zoo[m.name].vram_mb for m in enabled
         )
-
-        # The sum-of-enabled is what excludes the disabled yolo26-general row:
-        # the helper itself sums whatever it is handed (400 when named directly),
-        # so filtering by enabled is the caller's job.
-        assert get_model_zoo()["yolo26-general"].enabled is False
-        assert get_model_zoo()["yolo26-general"].vram_mb == 400
-        assert get_total_vram_if_loaded(["yolo26-general"]) == 400
-        assert get_total_vram_if_loaded([m.name for m in enabled]) != get_total_vram_if_loaded(
-            list(zoo)
-        ), "enabled sum equals the whole-registry sum: the disabled row leaked in"
 
     def test_total_vram_empty_list(self):
         """Test total VRAM calculation with empty list."""
@@ -344,7 +330,7 @@ class TestModelZooIntegration:
         from backend.services.model_zoo import get_model_zoo, get_total_vram_if_loaded
 
         zoo = get_model_zoo()
-        known = "yolo11-face"
+        known = "osnet-ain-x1-0"
         assert known in zoo, sorted(zoo)
         vram = zoo[known].vram_mb
         assert vram > 0, "a 0 MB row cannot distinguish 'ignored' from 'matched'"
