@@ -10,9 +10,7 @@ import type { ReactNode } from 'react';
 vi.mock('../../hooks/useServiceStatus', () => ({
   useServiceStatus: vi.fn(() => ({
     services: {
-      redis: null,
-      rtdetr: { service: 'rtdetr', status: 'healthy', timestamp: '2025-01-01T12:00:00Z' },
-      nemotron: { service: 'nemotron', status: 'healthy', timestamp: '2025-01-01T12:00:00Z' },
+      yolo26: { service: 'yolo26', status: 'healthy', timestamp: '2025-01-01T12:00:00Z' },
     },
     hasUnhealthy: false,
     isAnyRestarting: false,
@@ -797,8 +795,9 @@ describe('ServicesPanel', () => {
         expect(screen.getByTestId('service-status-badge-rtdetr')).toBeInTheDocument();
       });
 
-      // RT-DETR should show as Healthy because it gets status from WebSocket mock
-      expect(screen.getByTestId('service-status-badge-rtdetr')).toHaveTextContent('Healthy');
+      // RT-DETR has no WebSocket report (the hook mock carries no rtdetr — no
+      // emitter sends that name) and no REST row, so it shows as unknown.
+      expect(screen.getByTestId('service-status-badge-rtdetr')).toHaveTextContent('Unknown');
     });
   });
 });

@@ -177,30 +177,31 @@ describe('Test Utilities', () => {
 
   describe('Service Status Factories', () => {
     it('createServiceStatus returns status with defaults', () => {
-      const status = createServiceStatus('rtdetr');
-      expect(status.service).toBe('rtdetr');
+      const status = createServiceStatus('yolo26');
+      expect(status.service).toBe('yolo26');
       expect(status.status).toBe('healthy');
       expect(status.timestamp).toBeDefined();
     });
 
     it('createServiceStatus allows custom status', () => {
-      const status = createServiceStatus('nemotron', 'unhealthy', 'Connection failed');
-      expect(status.service).toBe('nemotron');
+      const status = createServiceStatus('worker:detection-0', 'unhealthy', 'Connection failed');
+      expect(status.service).toBe('worker:detection-0');
       expect(status.status).toBe('unhealthy');
       expect(status.message).toBe('Connection failed');
     });
 
-    it('createAllServiceStatuses returns all services', () => {
+    it('createAllServiceStatuses returns one report per emitter family', () => {
       const services = createAllServiceStatuses();
       expect(services.redis).toBeDefined();
-      expect(services.rtdetr).toBeDefined();
-      expect(services.nemotron).toBeDefined();
+      expect(services.yolo26).toBeDefined();
+      expect(services.postgres).toBeDefined();
+      expect(services['worker:detection-0']).toBeDefined();
     });
 
     it('createAllServiceStatuses allows overrides', () => {
-      const services = createAllServiceStatuses({ nemotron: 'unhealthy' });
-      expect(services.nemotron?.status).toBe('unhealthy');
-      expect(services.rtdetr?.status).toBe('healthy');
+      const services = createAllServiceStatuses({ 'worker:detection-0': 'failed' });
+      expect(services['worker:detection-0']?.status).toBe('failed');
+      expect(services.yolo26?.status).toBe('healthy');
     });
   });
 
@@ -266,9 +267,9 @@ describe('Test Utilities', () => {
     });
 
     it('createWsServiceStatusMessage returns valid message', () => {
-      const message = createWsServiceStatusMessage('rtdetr', 'healthy');
+      const message = createWsServiceStatusMessage('yolo26', 'healthy');
       expect(message.type).toBe('service_status');
-      expect(message.data.service).toBe('rtdetr');
+      expect(message.data.service).toBe('yolo26');
       expect(message.data.status).toBe('healthy');
     });
 
