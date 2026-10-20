@@ -1392,6 +1392,18 @@ async def test_system_broadcaster_broadcast_loop_broadcasts_through_redis_timeou
     broadcaster = SystemBroadcaster(redis_client=redis)
     broadcaster._running = True
 
+    # The probe drives the real broadcast_performance, which needs a collector.
+    # Same stub shape the sibling broadcast_performance tests use.
+    mock_performance_update = MagicMock()
+    mock_performance_update.model_dump.return_value = {
+        "timestamp": "2025-12-31T10:00:00Z",
+        "gpu": {"name": "Test GPU", "utilization": 50.0},
+        "alerts": [],
+    }
+    mock_collector = AsyncMock()
+    mock_collector.collect_all.return_value = mock_performance_update
+    broadcaster.set_performance_collector(mock_collector)
+
     mock_ws = AsyncMock()
     broadcaster.connections.add(mock_ws)
 
