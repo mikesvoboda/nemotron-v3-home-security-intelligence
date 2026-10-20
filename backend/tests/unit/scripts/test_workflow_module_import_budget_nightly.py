@@ -18,6 +18,8 @@ a ``ci.yml`` invariant — a job that only runs on schedule would fail its
 
 from __future__ import annotations
 
+import re
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -180,3 +182,102 @@ def test_the_nightly_summary_carries_the_posted_list() -> None:
         assert "GITHUB_STEP_SUMMARY" not in env, (
             f"{step.get('name')} must not redirect the summary the gate writes to"
         )
+
+
+def test_the_gate_reads_the_corpus_the_nightly_writes() -> None:
+    """Path agreement between the corpus step and the gate step.
+
+    The gate takes a results DIRECTORY and globs ``**/*.xml`` under it
+    (``is_dir`` fails closed on a file path), so the nightly's pytest step
+    must write its junit INTO the directory the gate step passes. The
+    first cut wrote ``--junit-xml=test-results-unit-nightly.xml`` at the
+    repo root and passed the gate ``test-results/`` — nothing populated
+    that directory, so the gate failed closed ("results directory not
+    found") every night from its first run, on wiring rather than on any
+    module breach. No pin asserted the two paths agree, which is why the
+    hole survived review. This pin is the agreement: the same directory
+    literal appears on both sides, and the corpus step creates it.
+    """
+    steps = _job()["steps"]
+    pytest_step = next(
+        s
+        for s in steps
+        if "--junit-xml" in str(s.get("run", "")) and "pytest" in str(s.get("run", ""))
+    )
+    gate_step = next(s for s in steps if "check-test-duration-budget.py" in str(s.get("run", "")))
+    m = re.search(r"--junit-xml=(\S+)", str(pytest_step["run"]))
+    assert m, f"the corpus step writes no junit: {pytest_step['run']}"
+    junit_path = m.group(1)
+    gate_arg = str(gate_step["run"]).split()[-1].strip().rstrip("/")
+    junit_dir = str(Path(junit_path).parent)
+    assert junit_dir and gate_arg == junit_dir, (
+        f"the gate must read the directory the corpus writes into: "
+        f"junit {junit_path} vs gate arg {gate_arg!r}"
+    )
+    assert junit_path.endswith(".xml"), f"a junit file, not a directory: {junit_path}"
+    assert f"mkdir -p {junit_dir}" in str(pytest_step["run"]), (
+        f"the corpus step must create {junit_dir} before pytest writes into it"
+    )
+
+
+def test_an_xdist_mixed_corpus_row_is_named_not_posted_as_a_cost() -> None:
+    """The nightly's corpus is xdist (-n auto), so its suite rows are mixed.
+
+    pytest junit writes ONE <testsuite> for the whole xdist session: the
+    suite ``time`` is wall-clock across workers, the testcase times are
+    per-worker CPU-seconds, and ``suite - bodies`` across that pair is
+    scheduler arithmetic, not an import cost (a real slice measured 14.14 s
+    of bodies inside an 11.06 s suite — printed as -3.08 s before this
+    check, and a garbage row posted nightly trains readers to ignore the
+    list; a silently-dropped row trains them the same way). The corpus-side
+    detector is the physical impossibility: CPU-seconds over wall-clock
+    cannot happen in one process. This pin feeds that exact shape to
+    ``suite_import_costs`` and asserts the suite lands on the unmeasured
+    list with the reason named — never as a cost row, and never absent.
+    """
+    import importlib.util
+    import xml.etree.ElementTree as ET
+
+    script = REPO_ROOT / "scripts" / "check-test-duration-budget.py"
+    spec = importlib.util.spec_from_file_location("_r172_gate_for_xdist", script)
+    assert spec is not None and spec.loader is not None
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    suite_import_costs = gate.suite_import_costs
+
+    with tempfile.TemporaryDirectory() as d:
+        results = Path(d) / "results"
+        results.mkdir()
+        root = ET.Element("testsuites", name="pytest tests")
+        suite = ET.SubElement(
+            root,
+            "testsuite",
+            name="pytest",
+            errors="0",
+            failures="0",
+            skipped="0",
+            tests="2",
+            time="11.060",
+        )
+        ET.SubElement(
+            suite,
+            "testcase",
+            classname="backend.tests.unit.a.test_one",
+            name="test_a",
+            time="0.353",
+        )
+        ET.SubElement(
+            suite,
+            "testcase",
+            classname="backend.tests.unit.b.test_two",
+            name="test_b",
+            time="13.787",
+        )
+        ET.ElementTree(root).write(results / "nightly-unit.xml")
+        costs, unmeasured = suite_import_costs(results)
+    assert not costs, f"the mixed suite must not read as a cost row: {costs}"
+    assert len(unmeasured) == 1, f"the row must be named exactly once: {unmeasured}"
+    (row,) = unmeasured
+    assert "nightly-unit.xml / pytest" in row, f"named by its file and suite: {row}"
+    assert "exceed" in row, f"the reason carries the physical-impossibility wording: {row}"
+    assert "14.14" in row and "11.06" in row, f"both sides of the arithmetic in the row: {row}"

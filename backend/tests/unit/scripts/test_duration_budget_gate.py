@@ -3052,6 +3052,79 @@ def test_the_module_import_cost_is_suite_time_minus_testcase_times(tmp_path: Pat
     )
 
 
+def test_a_module_re_run_that_skips_everything_is_not_a_clearance(tmp_path: Path) -> None:
+    """A skip is a non-witness: the module reader refuses an all-skipped run.
+
+    The per-test re-run reader (``_rerun_duration``) already refuses a
+    skipped re-run — "ran nothing" would otherwise read as fast and clear
+    the breach on teardown-scale suite time. The module reader lacked the
+    doctrine: an all-skipped child run has a teardown-scale suite time and
+    a near-zero testcase sum, so suite-minus-sum lands small and the module
+    prints "cleared", exit 0, on a run that measured nothing. The reader
+    now returns ``skipped`` (SKIPPED_RERUN_EXIT, 90) the same way, and the
+    caller records it as unverified.
+    """
+    calls = tmp_path / "calls.jsonl"
+    results = _results(
+        tmp_path,
+        (
+            "module.xml",
+            _xml_suite(
+                MODULE_SUITE_TIME,
+                [(SLEEPER[0], SLEEPER[1], float(MODULE_CASE_TIME))],
+            ),
+        ),
+    )
+    # A stub whose re-run junit is ALL-SKIPPED: suite time is teardown-scale
+    # (0.5 s), the single testcase carries the skipped marker. Suite-minus-
+    # sum on this shape is ~0.48 s — under the 4.0 s budget, so the first
+    # cut would have printed "cleared" and exited 0.
+    stub = tmp_path / "stub-pytest-skipped.py"
+    stub.write_text(
+        textwrap.dedent(
+            f"""\
+            import json, os, sys
+            argv = sys.argv[1:]
+            target = next((a for a in argv if a.endswith(".py")), "")
+            xml = next((a.split("=", 1)[1] for a in argv if a.startswith("--junit-xml=")), "")
+            with open({str(calls)!r}, "a", encoding="utf-8") as h:
+                h.write(json.dumps({{"argv": argv, "cwd": os.getcwd()}}) + "\\n")
+            if xml:
+                with open(xml, "w", encoding="utf-8") as h:
+                    h.write(
+                        '<?xml version="1.0" encoding="utf-8"?>'
+                        '<testsuites name="pytest tests"><testsuite name="pytest" tests="1" '
+                        'failures="0" errors="0" skipped="1" time="0.500">'
+                        '<testcase classname="" name="x" time="0.023"><skipped '
+                        'type="pytest.skip" message="env" /></testcase></testsuite>'
+                        "</testsuites>"
+                    )
+            sys.exit(0)
+            """
+        ),
+        encoding="utf-8",
+    )
+    run = _run(
+        results,
+        {
+            **_module_budget_env(SLEEP_GATE_MODULE_FAIL="1"),
+            "SLEEP_GATE_RERUN": "1",
+            "SLEEP_GATE_PYTEST": f"{sys.executable} {stub}",
+        },
+    )
+    out = _out(run)
+    assert run.returncode == 1, (
+        f"an all-skipped module re-run is not a clearance — the breach stays "
+        f"red unverified (got rc={run.returncode}):\n{out}"
+    )
+    assert "not verified" in out.lower() or "unverified" in out.lower(), (
+        f"the report must not call the module cleared:\n{out}"
+    )
+    assert "cleared" not in out.lower().replace("not cleared", ""), (
+        f"no clearance on a non-witness run:\n{out}"
+    )
+
+
 def test_a_module_import_stall_is_not_attributed_to_a_testcase(tmp_path: Path) -> None:
     """``worst_durations()`` keeps its meaning: the testcase row stays 0.023 s.
 
@@ -3116,9 +3189,23 @@ def test_the_module_budget_defaults_are_ur_125s_numbers(tmp_path: Path) -> None:
     )
     run = _run_defaults(under)
     out = _out(run)
-    assert "1.5" in out, (
-        f"1.6 - 0.1 = 1.5 s is over the warn line's band boundary and must be "
-        f"listed (strictly greater): {out}"
+    # The boundary is STRICTLY greater (module_warn < cost): 1.600 - 0.1 is
+    # exactly 1.5, so it sits ON the line and must NOT be listed — asserted
+    # on the row, never the banner, because the banner carries "1.5s warn"
+    # regardless and an assertion on it passes on any corpus (that was the
+    # first cut's vacuous shape: "1.5" in out passed on the banner text).
+    assert "MODULE WARN" not in out, (
+        f"1.6 - 0.1 = 1.5 s sits ON the warn line and strictly-greater means not listed: {out}"
+    )
+    in_band = _results(
+        tmp_path,
+        ("c.xml", _xml_suite("1.700", [(SLEEPER[0], SLEEPER[1], 0.1)])),
+    )
+    run = _run_defaults(in_band)
+    out = _out(run)
+    assert "MODULE WARN" in out, (
+        f"1.7 - 0.1 = 1.6 s is strictly past the 1.5 s warn line and must be "
+        f"listed in the warn band: {out}"
     )
 
 
@@ -3255,6 +3342,51 @@ def test_the_module_re_run_share_the_per_tier_cap_with_tests(tmp_path: Path) -> 
     )
     assert run.returncode == 1, f"the module breach stays red unverified\n{out}"
     assert module_runs == [], f"no module-target re-run ran: {module_runs}"
+
+
+def test_module_re_runs_themselves_spend_the_shared_cap(tmp_path: Path) -> None:
+    """Six module breaches, zero test breaches: exactly five module re-runs.
+
+    The reviewer's hole (UR-89 on #7305): the first cut computed
+    ``slots_left`` from TEST breaches only and never decremented it in the
+    module branch, so N over-budget modules spawned N uncapped child pytest
+    runs while the report still claimed "cap 5". The cap is shared — the
+    six module breach spends nothing and the fifth spends the last slot;
+    the sixth is denied as unverified (red, not passed).
+    """
+    calls = tmp_path / "calls.jsonl"
+    breaches = [
+        (
+            "stall.xml" if i == 0 else f"stall{i}.xml",
+            _xml_suite(
+                MODULE_SUITE_TIME,
+                [(SLEEPER[0], SLEEPER[1], float(MODULE_CASE_TIME))],
+            ),
+        )
+        for i in range(6)
+    ]
+    results = _results(tmp_path, *breaches)
+    stub = _stub_pytest_module(
+        tmp_path,
+        {"backend/tests/unit/slow/test_sleeper.py": "12.500"},
+        calls_file=calls,
+    )
+    run = _run(
+        results,
+        {
+            **_module_budget_env(SLEEP_GATE_MODULE_FAIL="1"),
+            "SLEEP_GATE_RERUN": "1",
+            "SLEEP_GATE_PYTEST": stub,
+        },
+    )
+    out = _out(run)
+    invoked = _calls(calls)
+    assert len(invoked) == 5, (
+        f"five module re-runs spend the tier's five slots; the sixth is denied "
+        f"(got {len(invoked)} runs):\n{out}"
+    )
+    assert out.count("re-run cap") >= 1, f"the denial names the cap:\n{out}"
+    assert run.returncode == 1, f"over-cap modules stay red unverified\n{out}"
 
 
 def test_the_module_budget_keeps_the_per_test_gates_meaning(tmp_path: Path) -> None:

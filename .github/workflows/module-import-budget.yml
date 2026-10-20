@@ -86,11 +86,12 @@ jobs:
         # the re-run (no xdist, `-o addopts=` clears it) is where a single
         # module's cost is measured exactly.
         run: |
+          mkdir -p test-results
           uv run pytest backend/tests/unit/ \
             -n auto --dist=worksteal \
             --randomly-seed=${{ github.run_id }} \
             --timeout=60 \
-            --junit-xml=test-results-unit-nightly.xml \
+            --junit-xml=test-results/nightly-unit.xml \
             --durations=20
 
       - name: Real-sleep budget gate (module import budget, failing mode)

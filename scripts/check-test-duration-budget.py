@@ -606,6 +606,16 @@ def suite_import_costs(
     its ``<testcase time>``s — the difference is what #7102 measured a
     module-level sleep hiding inside (12.434 s suite, 0.023 s testcase).
 
+    A suite whose testcase times ADD UP PAST its own time is xdist-mixed:
+    the sum is CPU-seconds across workers while the suite ``time`` is
+    wall-clock, and CPU-seconds exceeding wall-clock is impossible in one
+    process, so the difference is scheduler arithmetic, not an import cost
+    (a real corpus shape measured 14.14 s of bodies in an 11.06 s suite —
+    printed as -3.08 s before this check). Such a row is not suppressed but
+    NAMED on the unmeasured list with the reason: a garbage number posted
+    nightly trains readers to ignore the list, and a silently-dropped row
+    trains them the same way.
+
     Both sides of the subtraction are returned because both belong on the
     report line, the same way a WARN row carries corpus and re-run together:
     the import cost alone invites "trust me", while the pair lets a reader
@@ -634,7 +644,8 @@ def suite_import_costs(
     Returns ``(costs sorted longest-first, unmeasured)``. A suite element
     with no usable ``time`` attribute goes on the ``unmeasured`` list —
     reading it as 0 would silently exempt the one shape a truncated writer
-    produces; the report names it instead.
+    produces; the report names it instead. An xdist-mixed suite (bodies
+    over wall) joins it with its own named reason, same doctrine.
     """
     costs: list[tuple[float, float, float, str, list[str]]] = []
     unmeasured: list[str] = []
@@ -682,6 +693,17 @@ def suite_import_costs(
                     module = ".".join(parts[:cut]) if cut else classname
                     if module and module not in modules:
                         modules.append(module)
+            # The xdist signature, checked on both sides of the ledger: the
+            # bodies sum is per-worker CPU-seconds, the suite time is one
+            # wall clock, and CPU-seconds over wall-clock is impossible in a
+            # serial process. The benchmark add-back rides on the same
+            # (unmeasurable) side as the bodies it belongs with.
+            if case_sum + benchmark_sum > suite_time:
+                unmeasured.append(
+                    f"{label} — testcases {case_sum + benchmark_sum:.2f}s exceed the suite's "
+                    f"{suite_time:.2f}s (xdist or clock mix; the difference is not an import cost)"
+                )
+                continue
             costs.append(
                 (suite_time + benchmark_sum - case_sum, suite_time, case_sum, label, modules)
             )
@@ -755,11 +777,23 @@ def rerun_module_cost(target: str) -> tuple[float | None, int]:
             except ValueError:
                 continue
             case_sum = 0.0
+            witnessed = False
             for case in suite.findall("testcase"):
+                # A skip ran nothing, so it is a non-witness — the same
+                # doctrine _rerun_duration applies per test. An all-skipped
+                # module re-run measures teardown-scale suite time, and
+                # suite-minus-sum on that shape reads as "cleared" when
+                # nothing about the run says the module imports fast. Read
+                # the marker before the arithmetic.
+                if case.find("skipped") is not None:
+                    return None, SKIPPED_RERUN_EXIT
                 try:
                     case_sum += float(case.get("time", "0"))
                 except ValueError:
                     pass
+                witnessed = True
+            if not witnessed:
+                continue
             return suite_time - case_sum, proc.returncode
         return None, proc.returncode
 
@@ -1086,16 +1120,25 @@ def main(argv: list[str] | None = None) -> int:
                 f"{len(module_warns)} in the warn band) — [r172]; the run stays green"
             )
         for label in module_unmeasured:
-            print(f"  MODULE {label}: suite carries no time attribute — not measured")
+            if "exceed the suite's" in label:
+                # The xdist-mixed rows carry their own reason inline (written
+                # by suite_import_costs); printing the no-time-attribute
+                # wording over them would misstate what was read.
+                print(f"  MODULE {label}")
+            else:
+                print(f"  MODULE {label}: suite carries no time attribute — not measured")
+        # The shared cap, computed ONCE before the loop: recomputing it per
+        # breach would reset the allowance every iteration and let N modules
+        # spawn N uncapped re-runs while the report still said "cap 5".
+        unit_taken = min(sum(1 for b in breaches if b[2] == "unit"), MAX_RERUNS)
+        slots_left = MAX_RERUNS - unit_taken
         for cost, suite_time, body_sum, label, modules in module_breaches:
             if module_fail_mode():
-                # The shared cap: module re-runs draw on the unit tier's
-                # allowance after the per-test re-runs have taken theirs.
-                # reproduce() ran min(len(unit breaches), MAX_RERUNS) re-runs;
-                # the slots left are what modules get. An over-cap module
-                # stays RED unverified — "could not check" is not "passed".
-                unit_taken = min(sum(1 for b in breaches if b[2] == "unit"), MAX_RERUNS)
-                slots_left = MAX_RERUNS - unit_taken
+                # Module re-runs draw on the unit tier's allowance after the
+                # per-test re-runs have taken theirs, and each one spends a
+                # slot (the decrement sits next to rerun_module_cost). An
+                # over-cap module stays RED unverified — "could not check"
+                # is not "passed".
                 if slots_left <= 0:
                     # Named for what it is, not just what happened: the tier's
                     # allowance was spent on test re-runs, so this module's
@@ -1110,6 +1153,7 @@ def main(argv: list[str] | None = None) -> int:
                 elif rerun_enabled():
                     target = module_test_path(modules, label.split(" / ")[0])
                     cost2, code = rerun_module_cost(target)
+                    slots_left -= 1
                     if cost2 is None:
                         module_re_runs[label] = ("unverified", None, code)
                     elif cost2 > module_budget and code == 0:
@@ -1222,7 +1266,12 @@ def main(argv: list[str] | None = None) -> int:
             "",
         ]
         for label in module_unmeasured:
-            module_rows.append(f"- `{label}` — suite carries no time attribute; not measured")
+            if "exceed the suite's" in label:
+                module_rows.append(
+                    f"- `{label}` — not measured (the corpus row is not an import cost)"
+                )
+            else:
+                module_rows.append(f"- `{label}` — suite carries no time attribute; not measured")
         for cost, suite_time, body_sum, label, _modules in module_breaches:
             again = module_re_runs.get(label)
             if module_fail_mode() and again and again[0] == "confirmed":
