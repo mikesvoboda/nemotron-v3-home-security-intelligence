@@ -1,12 +1,15 @@
 /**
  * ServiceStatusAlert component displays a dismissible banner for service status notifications.
  *
- * The backend's ServiceHealthMonitor monitors RT-DETRv2 and Nemotron services,
- * broadcasting `service_status` messages when health changes. Use this component
- * with the `useServiceStatus` hook to show detailed per-service status alerts.
+ * The backend's `service_status` broadcasts reach this component through the
+ * `useServiceStatus` hook. Three emitters feed that channel (see the hook for
+ * the full measurement): the ServiceHealthMonitor probes `yolo26`, the
+ * container orchestrator broadcasts the discovery config keys (postgres,
+ * redis, ...), and the worker supervisor broadcasts `worker:<name>` — all
+ * flattened by the broadcaster to `{ service, status, message }`.
  *
  * Features:
- * - Hidden when all services are healthy or null
+ * - Hidden when all services are healthy or unreported
  * - Yellow/Warning banner when any service is "restarting"
  * - Red/Error banner when any service is "unhealthy", "restart_failed", or "failed"
  * - Shows worst status when multiple services are unhealthy
@@ -15,16 +18,19 @@
 import { clsx } from 'clsx';
 import { AlertTriangle, RefreshCw, X, XCircle } from 'lucide-react';
 
+import type { ServiceName, ServiceStatusType } from '../../hooks/useServiceStatus';
+
 /**
  * Service name type - identifies which service
+ * (shared with the hook: yolo26, the container discovery names, worker:<name>)
  */
-export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
+export type { ServiceName };
 
 /**
  * Service status values matching backend WebSocket events
+ * (shared with the hook's type — the broadcaster's WebSocketServiceStatus enum)
  */
-export type ServiceStatusValue =
-  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'restart_disabled' | 'failed';
+export type ServiceStatusValue = ServiceStatusType;
 
 /**
  * Service status data from WebSocket
@@ -32,26 +38,31 @@ export type ServiceStatusValue =
 export interface ServiceStatus {
   service: ServiceName;
   status: ServiceStatusValue;
-  message?: string;
+  message?: string | null;
   timestamp: string;
 }
 
 export interface ServiceStatusAlertProps {
-  services: Record<ServiceName, ServiceStatus | null>;
+  services: Partial<Record<ServiceName, ServiceStatus>>;
   onDismiss?: () => void;
 }
 
 /**
  * Severity levels for determining which status takes priority
  */
-const STATUS_SEVERITY: Record<ServiceStatusValue, number> = {
+const STATUS_SEVERITY: Partial<Record<ServiceStatusValue, number>> = {
   healthy: 0,
   restarting: 1,
+  running: 0,
   unhealthy: 2,
   restart_failed: 3,
   // Unhealthy with no restart coming — at least as severe as unhealthy.
   restart_disabled: 3,
+  stopped: 2,
+  // A crashed worker is down — at least as severe as unhealthy.
+  crashed: 3,
   failed: 4,
+  disabled: 2,
 };
 
 /**
@@ -65,7 +76,9 @@ interface StatusConfig {
   title: string;
 }
 
-const STATUS_CONFIG: Record<Exclude<ServiceStatusValue, 'healthy'>, StatusConfig> = {
+// Total over every status getWorstStatus can return (it excludes healthy and
+// running before returning), so indexing needs no assertion.
+const STATUS_CONFIG: Record<Exclude<ServiceStatusValue, 'healthy' | 'running'>, StatusConfig> = {
   restarting: {
     bgColor: 'bg-yellow-100',
     textColor: 'text-yellow-800',
@@ -94,6 +107,27 @@ const STATUS_CONFIG: Record<Exclude<ServiceStatusValue, 'healthy'>, StatusConfig
     iconClassName: 'h-5 w-5',
     title: 'Service Down (Auto-Restart Disabled)',
   },
+  stopped: {
+    bgColor: 'bg-red-100',
+    textColor: 'text-red-800',
+    icon: XCircle,
+    iconClassName: 'h-5 w-5',
+    title: 'Service Stopped',
+  },
+  crashed: {
+    bgColor: 'bg-red-100',
+    textColor: 'text-red-800',
+    icon: XCircle,
+    iconClassName: 'h-5 w-5',
+    title: 'Service Crashed',
+  },
+  disabled: {
+    bgColor: 'bg-yellow-100',
+    textColor: 'text-yellow-800',
+    icon: XCircle,
+    iconClassName: 'h-5 w-5',
+    title: 'Service Disabled',
+  },
   failed: {
     bgColor: 'bg-red-200',
     textColor: 'text-red-900',
@@ -104,34 +138,44 @@ const STATUS_CONFIG: Record<Exclude<ServiceStatusValue, 'healthy'>, StatusConfig
 };
 
 /**
- * Formats service name for display
+ * Formats service name for display. Known names get readable labels; the
+ * container discovery names and `worker:<name>` fall back to the raw name
+ * with dashes as spaces.
  */
 function formatServiceName(name: ServiceName): string {
-  const nameMap: Record<ServiceName, string> = {
+  const nameMap: Partial<Record<ServiceName, string>> = {
     redis: 'Redis',
-    rtdetr: 'RT-DETRv2',
-    nemotron: 'Nemotron',
+    yolo26: 'YOLO26',
+    'ai-gateway': 'AI Gateway',
+    postgres: 'PostgreSQL',
+    backend: 'Backend API',
+    frontend: 'Frontend',
   };
-  return nameMap[name];
+  return nameMap[name] ?? name.replace(/-/g, ' ');
 }
 
 /**
  * Gets the worst status from all services (highest severity)
  */
-function getWorstStatus(
-  services: Record<ServiceName, ServiceStatus | null>
-): { status: Exclude<ServiceStatusValue, 'healthy'>; affectedServices: ServiceStatus[] } | null {
+function getWorstStatus(services: Partial<Record<ServiceName, ServiceStatus>>): {
+  status: Exclude<ServiceStatusValue, 'healthy' | 'running'>;
+  affectedServices: ServiceStatus[];
+} | null {
   const affectedServices: ServiceStatus[] = [];
-  let worstStatus: Exclude<ServiceStatusValue, 'healthy'> | null = null;
+  let worstStatus: Exclude<ServiceStatusValue, 'healthy' | 'running'> | null = null;
   let worstSeverity = 0;
 
   for (const serviceStatus of Object.values(services)) {
-    if (!serviceStatus || serviceStatus.status === 'healthy') {
+    if (
+      !serviceStatus ||
+      serviceStatus.status === 'healthy' ||
+      serviceStatus.status === 'running'
+    ) {
       continue;
     }
 
     affectedServices.push(serviceStatus);
-    const severity = STATUS_SEVERITY[serviceStatus.status];
+    const severity = STATUS_SEVERITY[serviceStatus.status] ?? 0;
 
     if (severity > worstSeverity) {
       worstSeverity = severity;

@@ -92,7 +92,6 @@ backend/
 - Request ID middleware for log correlation (`RequestIDMiddleware`)
 - Health check endpoints (`/`, `/health`)
 - Router registration for 60 API modules:
-  - `action_events` - Action event management
   - `admin` - Admin operations and cache management
   - `ai_audit` - AI pipeline audit and prompt management
   - `alertmanager` - Alertmanager integration
@@ -306,7 +305,6 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 54 SQ
 - **`EventDetection`** - Many-to-many relationship between events and detections
 - **`EventAudit`** - Event review and audit trail
 - **`EventFeedback`** - User feedback on event classification
-- **`ActionEvent`** - Action event records
 
 ### AI and Analysis
 
@@ -477,7 +475,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | `onvif.py`             | `/api/cameras/{camera_id}/onvif` | ONVIF camera discovery/control |
 | `outbound_webhooks.py` | `/api/outbound-webhooks`         | Outbound webhook configuration |
 | `webhooks.py`          | `/api/webhooks`                  | Webhook management             |
-| `action_events.py`     | `/api/action-events`             | Action event management        |
 
 ### Real-time Routes
 

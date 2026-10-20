@@ -144,17 +144,29 @@ const CATEGORY_CONFIG: Record<ServiceCategory, { label: string; icon: typeof Ser
 };
 
 /**
- * Map status string to normalized status type
+ * Map status string to normalized status type. Covers the statuses that reach
+ * this panel through useServiceStatus: the health monitor's set plus the
+ * container orchestrator's funnel-surviving values (running/stopped/disabled —
+ * starting/not_found die at the broadcaster) and the worker supervisor's
+ * (stopped/crashed/...).
  */
 function normalizeStatus(
   status: string | undefined
 ): 'healthy' | 'unhealthy' | 'degraded' | 'unknown' {
   if (!status) return 'unknown';
   const normalized = status.toLowerCase();
-  if (normalized === 'healthy') return 'healthy';
-  if (normalized === 'unhealthy' || normalized === 'failed' || normalized === 'restart_failed')
+  if (normalized === 'healthy' || normalized === 'running') return 'healthy';
+  if (
+    normalized === 'unhealthy' ||
+    normalized === 'failed' ||
+    normalized === 'restart_failed' ||
+    normalized === 'restart_disabled' ||
+    normalized === 'stopped' ||
+    normalized === 'crashed'
+  )
     return 'unhealthy';
-  if (normalized === 'degraded' || normalized === 'restarting') return 'degraded';
+  if (normalized === 'degraded' || normalized === 'restarting' || normalized === 'disabled')
+    return 'degraded';
   return 'unknown';
 }
 
@@ -433,7 +445,7 @@ export default function ServicesPanel({
 
       if (wsStatus) {
         status = normalizeStatus(wsStatus.status);
-        message = wsStatus.message;
+        message = wsStatus.message ?? undefined;
       } else if (healthStatus) {
         status = normalizeStatus(healthStatus.status);
         message = healthStatus.message ?? undefined;

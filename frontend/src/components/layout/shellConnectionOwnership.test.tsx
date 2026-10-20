@@ -39,7 +39,7 @@ vi.mock('../common/CommandPalette', () => ({ default: () => null }));
 vi.mock('../common/ShortcutsHelpModal', () => ({ default: () => null }));
 
 vi.mock('../../hooks/useServiceStatus', () => ({
-  useServiceStatus: () => ({ services: { redis: null, rtdetr: null, nemotron: null } }),
+  useServiceStatus: () => ({ services: { redis: null, yolo26: null } }),
 }));
 vi.mock('../../hooks/useVerdictEngineStatus', () => ({
   useVerdictEngineStatus: () => ({ state: 'unknown', isDown: false }),

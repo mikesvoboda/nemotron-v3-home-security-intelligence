@@ -236,8 +236,8 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 - `ScheduleSelector.test.tsx` - Test suite for ScheduleSelector
 - `TruncatedText.tsx` - Text truncation with expand/collapse functionality
 - `TruncatedText.test.tsx` - Test suite for TruncatedText
-- `ServiceStatusAlert.tsx` - Service health notification banner (deprecated)
-- `ServiceStatusAlert.test.tsx` - Test suite for ServiceStatusAlert (deprecated)
+- `ServiceStatusAlert.tsx` - Service health banner fed by `useServiceStatus`'s WS `service_status` stream (unhealthy/restart_failed/restart_disabled/failed light it)
+- `ServiceStatusAlert.test.tsx` - Test suite for ServiceStatusAlert (unhealthy `yolo26` lights it)
 - `index.ts` - Barrel exports
 - `.gitkeep` - Placeholder file
 - `AGENTS.md` - Directory documentation

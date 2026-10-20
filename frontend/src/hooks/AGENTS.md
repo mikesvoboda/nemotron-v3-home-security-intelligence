@@ -153,16 +153,16 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 ### Utility Hooks
 
-| Hook                      | Purpose                                 | Parameters                                              | Return Value                                                                      |
-| ------------------------- | --------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `usePolling`              | Generic REST endpoint polling           | `{ fetcher, interval, enabled?, onSuccess?, onError? }` | `{ data, loading, error, refetch }`                                               |
-| `useThrottledValue`       | Throttle value updates                  | `value: T, { interval? }`                               | `T` (throttled)                                                                   |
-| `useRetry`                | Retry with exponential backoff          | `{ maxAttempts?, baseDelay? }`                          | `{ retry, isRetrying, retryCount, reset }`                                        |
-| `useCursorPaginatedQuery` | Generic cursor pagination               | `{ queryKey, fetcher, limit? }`                         | `{ data, items, hasNextPage, fetchNextPage, hasPreviousPage, fetchPreviousPage }` |
-| `useFormWithApiErrors`    | Map API validation errors to forms      | `form: UseFormReturn`                                   | `{ applyApiValidationErrors, useApiMutation }`                                    |
-| `useServiceStatus`        | Per-service status tracking             | `{ onStatusChange? }`                                   | `{ services, getStatus }`                                                         |
-| `useDebounce`             | Debounce value updates                  | `value: T, delay: number`                               | `T` (debounced)                                                                   |
-| `typedEventEmitter`       | Type-safe WebSocket event emitter class | N/A (class)                                             | `TypedWebSocketEmitter`                                                           |
+| Hook                      | Purpose                                 | Parameters                                              | Return Value                                                                             |
+| ------------------------- | --------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `usePolling`              | Generic REST endpoint polling           | `{ fetcher, interval, enabled?, onSuccess?, onError? }` | `{ data, loading, error, refetch }`                                                      |
+| `useThrottledValue`       | Throttle value updates                  | `value: T, { interval? }`                               | `T` (throttled)                                                                          |
+| `useRetry`                | Retry with exponential backoff          | `{ maxAttempts?, baseDelay? }`                          | `{ retry, isRetrying, retryCount, reset }`                                               |
+| `useCursorPaginatedQuery` | Generic cursor pagination               | `{ queryKey, fetcher, limit? }`                         | `{ data, items, hasNextPage, fetchNextPage, hasPreviousPage, fetchPreviousPage }`        |
+| `useFormWithApiErrors`    | Map API validation errors to forms      | `form: UseFormReturn`                                   | `{ applyApiValidationErrors, useApiMutation }`                                           |
+| `useServiceStatus`        | Per-service status tracking             | `{ onStatusChange? }`                                   | `{ services, hasUnhealthy, hasDegraded, isAnyRestarting, allHealthy, getServiceStatus }` |
+| `useDebounce`             | Debounce value updates                  | `value: T, delay: number`                               | `T` (debounced)                                                                          |
+| `typedEventEmitter`       | Type-safe WebSocket event emitter class | N/A (class)                                             | `TypedWebSocketEmitter`                                                                  |
 
 ## Key Files
 
@@ -1935,7 +1935,7 @@ function CameraGrid() {
 
 The following hooks are NOT exported from `index.ts` and are used internally or directly imported:
 
-**`useServiceStatus.ts`** - Per-service status tracking. The backend's `ServiceHealthMonitor` (health_monitor.py) monitors services and broadcasts `service_status` messages. Use `useSystemStatus` for overall system health or `usePerformanceMetrics` for detailed metrics.
+**`useServiceStatus.ts`** - Per-service status tracking over the WS `service_status` channel. Every backend broadcast passes the broadcaster funnel (`EventBroadcaster.broadcast_service_status`, `backend/services/event_broadcaster.py`), which validates each payload against `WebSocketServiceStatusData` (`backend/api/schemas/websocket.py`) and re-serializes it flat — so the hook sees only the funnel's 10-value status enum and the names the emitters send: the health monitor's `yolo26`, the container orchestrator's 19 discovery keys, and the worker supervisor's `worker:<name>` set. `rtdetr`/`nemotron` are dropped (no emitter sends them). Use `useSystemStatus` for overall system health or `usePerformanceMetrics` for detailed metrics.
 
 **`useStorageStats.ts`** - Storage disk usage polling with cleanup preview. Import directly when needed. Consider using `useStorageStatsQuery` for TanStack Query benefits.
 
