@@ -653,20 +653,25 @@ leaves the test green.
 ### [r271a] The system broadcaster survives a Redis timeout and reads Redis's health result
 
 **Flags:** none. **Assigned:** backend, first on its queue after the packages it holds (UR-52).
-**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644, corrected by 6281398804;
-audit items Q-052, Q-053, Q-055 to Q-057 and the re-issued Q-054 of `[r262]`, #7041)
+**Depends on:** none. **PR:** none yet. (ruling 271, record 6277412644, corrected by 6281398804
+and 6281511059; audit items Q-052, Q-053, Q-055 to Q-057 and the re-issued Q-054 of `[r262]`,
+#7041)
 
 Cites are at the audit's pin `41bc0fce7`; re-read them on the PR's base. In
-`backend/services/system_broadcaster.py` the publish handlers (`:314`, `:364`) and the pub/sub
-listener's handlers (`:564`, `:631`, `:693`) catch only builtin exceptions, so
-`redis.exceptions.TimeoutError` (a `RedisError`) escapes them and the loop's `except Exception`
-(`:1235`) costs the tick. `_check_redis_health` (`:1005-1015`) returns True whatever the dict
+`backend/services/system_broadcaster.py` the handlers that guard Redis calls catch only builtin
+exceptions, so `redis.exceptions.TimeoutError` (a `RedisError`) escapes them. On publish (`:314`,
+`:364`) the loop's `except Exception` (`:1235`) costs the tick; on the listener's start, stop and
+reset (`:564`, `:583`, `:589`, `:612`, `:617`, `:631`, `:693`) it ends the listener's start or
+reset, or the listener task itself. `_check_redis_health` (`:1005-1015`) returns True whatever the dict
 `health_check()` returns says, and the storm probe
 (`backend/tests/unit/services/test_system_broadcaster.py:1345`) stubs `broadcast_status` and
 `broadcast_performance`, so it passes against the loss.
 
-- [ ] The publish handlers (`:314`, `:364`) and the listener handlers (`:564`, `:631`, `:693`)
-      also catch `redis.exceptions.RedisError` (ruling 271's correction).
+- [ ] Every `except` clause in `system_broadcaster.py` that guards a Redis call also catches
+      `redis.exceptions.RedisError`: at the pin `:314`, `:364`, `:564`, `:583`, `:589`, `:612`,
+      `:617`, `:631` and `:693`. The PR lists the clauses it changed (ruling 271's corrections).
+- [ ] A test shows a `RedisError` from `unsubscribe` or `close` during reset does not stop the
+      re-subscribe or kill the listener.
 - [ ] `_check_redis_health` reads the result `health_check()` returns: healthy returns True,
       anything else returns False and logs the payload; the `RedisError` arm stays; the callers
       (`:807`, `:1093`) keep their boolean contract; the twin test's stub (`:1321`) returns a
