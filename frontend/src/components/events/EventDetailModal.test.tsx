@@ -2680,5 +2680,19 @@ describe('EventDetailModal', () => {
         expect(screen.getByTestId('enroll-face-button')).toBeInTheDocument();
       });
     });
+
+    it('does not render the retired F-068 action-events-section when camera_id is present', async () => {
+      renderWithQueryClient(
+        <EventDetailModal
+          {...mockFaceEnrollmentProps}
+          event={{ ...mockFaceEnrollmentProps.event!, camera_id: 'front_door' }}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('action-events-section')).not.toBeInTheDocument();
+    });
   });
 });

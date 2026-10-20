@@ -1,6 +1,5 @@
 """SQLAlchemy models for home security intelligence system."""
 
-from .action_event import ActionEvent
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from .analytics_zone import LineZone, PolygonZone
 from .api_key import APIKey
@@ -94,7 +93,6 @@ from .zone_household_config import ZoneHouseholdConfig
 
 __all__ = [
     "APIKey",
-    "ActionEvent",
     "ActionResult",
     "ActivityBaseline",
     "Alert",
