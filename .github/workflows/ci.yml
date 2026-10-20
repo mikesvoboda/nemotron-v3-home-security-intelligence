@@ -347,6 +347,7 @@ jobs:
           scripts/test_lane_tick.py
           scripts/test_plan_lint.py
           scripts/test_post_record.py
+          scripts/test_queue_update.py
           scripts/test_prodshape_override.py
           scripts/test_orchestrator_engine_socket.py
           scripts/test_pr_watch.py

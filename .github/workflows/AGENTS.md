@@ -51,6 +51,8 @@ workflows/
   # Integrations
   linear-ci-status.yml        # Linear issue status sync from CI/CD events
   linear-github-sync.yml      # Linear to GitHub issue sync
+  # Uplevel automation (ruling 272)
+  queue-update.yml            # Updates the next queued PR when main moves
 ```
 
 ## Workflow Files
@@ -550,6 +552,32 @@ Backend Changes
 - Reports older than 90 days automatically deleted
 - Keeps storage costs manageable
 - Latest 12 weeks of reports always available
+
+### queue-update.yml - Queue Update (ruling 272)
+
+**Trigger:** push to main, workflow_run (CI completed on main), schedule every 15 min,
+manual dispatch
+
+**Purpose:** When `main` moves, update the next queued PR — the coordinator's roll
+(update-branch) automated. The queue line lives in the coordinator's status comment on the
+uplevel ruling issue (`<!-- queue: !N@sha ... -->`, ruling 268's one-roll-at-a-time list).
+One fire reads the queue, main's tip and the newest completed CI run on main, then acts on at
+most ONE entry: `PUT /pulls/<n>/update-branch` with `expected_head_sha` (conflict → the next
+entry, same fire; a second conflict stops), arms auto-merge (UR-23 merge style), re-hashes the
+PR's own diff across the update (UR-106; a carry that changed disarms auto-merge and leaves the
+PR to the coordinator), and posts one comment naming old/new head, main's tip, both hashes and
+the run link. A job summary is written every fire, even when it does nothing. The script is
+`scripts/uplevel/queue_update.py` (tests: `scripts/test_queue_update.py`, in ci.yml's
+anti-rot list).
+
+**Credentials:** the job's `GITHUB_TOKEN` is read-only (`permissions: contents: read`). Writes
+ride the `QUEUE_UPDATE_TOKEN` repository secret, which the script uses for exactly two call
+kinds — update-branch and the auto-merge arm/disable mutation. No PR code runs in this
+workflow (the checkout is the ref that fired, never a PR's head), so the secret is never in
+scope while unreviewed code executes.
+
+**Concurrency:** group `queue-update`, `cancel-in-progress: false` — one fire at a time,
+queued, so two fires never both read "behind" and double-update.
 
 ## Common Patterns
 
