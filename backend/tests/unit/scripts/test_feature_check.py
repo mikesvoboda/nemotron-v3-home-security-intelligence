@@ -7327,6 +7327,8 @@ def test_the_prod_shape_run_wires_its_socket_into_the_in_run_check(
     ci.api = "http://127.0.0.1:1"
     ci.check_isolation()
     assert seen["prod_shape_socket"] is None, seen
+
+
 # [r282] The manifest-selected golden shard: the harness reads the checked-in
 # manifest and hands the shard's files to the leg as env, instead of letting
 # Playwright's count-based --shard split the suite by file count (measured
