@@ -461,6 +461,15 @@ reason; it is not a stop.
       PR stays draft until every item has an answer; the lane then marks it ready and runs its
       UR-89 review.
 
+**The bar from batch 7 on** (ruling 296, record 6307432184). The audit still reads every remaining
+census PR: the 79 test PRs, then the 6 tooling PRs. A row goes only to a bug of any severity, or to
+any finding the auditor rates medium or higher, and each row still goes through the refutation pass.
+A low stale `path:line` cite or a low claim gets no row and no refutation pass; each batch comment
+gives instead one count of them per PR, with the PR numbers. Batches 1–6 stay as written, and their
+rows still take the owner's `fix`, `skip` or `later`. The stale-cite class goes to a checker package
+whose scope the owner rules on; until then, no lane fixes low stale cites one by one. This package's
+PR does not touch `history/ruling-map.md`.
+
 Each item in the sheet takes this form:
 
 ```text

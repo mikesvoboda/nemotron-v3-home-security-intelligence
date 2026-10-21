@@ -1091,7 +1091,7 @@ lane holds any open PR, so agents read their queues by hand.
 ### [r270] `coordinator_snapshot.py`'s merge legs read for strict mode
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r269]` (ruling 270).
-**Depends on:** #7268 (`[r239]`) merged. **PR:** none yet. (ruling 270, record 6276943371)
+**Depends on:** #7268 (`[r239]`) merged. **PR:** #7323. (ruling 270, record 6276943371)
 
 `main` keeps `strict: true` and the coordinator updates one PR at a time (UR-102, ruling 268), and
 "Merging a PR" reads "behind" from §3's `base=`. `scripts/uplevel/coordinator_snapshot.py`'s §4
@@ -1296,10 +1296,15 @@ test counts, not durations, and shard 1 also runs the backend golden leg.
 - [ ] `[r279]` changed tests in the same suite. `[r282]` changes how tests are assigned to shards,
       not the tests themselves, and where the two PRs' files meet, this PR says so.
 
-**Done when:** `CI Gate` is green at a ready head; the median of at least three full runs at the
-PR's head has a critical path of 15 min or less, with the slowest shard no more than 2 min longer
-than the fastest; the regeneration script runs in CI or the docs say when to rerun it; and the
-UR-89 review approves.
+**Done when:** `CI Gate` is green at a ready head; the regeneration script runs in CI or the docs
+say when to rerun it; and the UR-89 review approves. Ruling 297 (record 6315692389) amended the two
+measurement clauses, which asked the median of at least three full runs at the PR's head for a
+critical path of 15 min or less and a spread of 2 min or less between the slowest and fastest shard.
+They close on #7310's measured gain (`6312968792`, at `a4cb3784a`), and the 15-minute target moved
+to `[r297]`:
+
+- [x] The median critical path fell from 18.92 to 17.63 min (ruling 297).
+- [x] The shard spread fell from about 6.0 to 2.78 min (ruling 297).
 
 ### [r291] The gate's dependency audit fails a change only on a finding it adds
 
@@ -1341,19 +1346,94 @@ without freezing the queue.
 gate reads only the gate mode (`ci-gate`'s needs and `check_job` lines). The owner partner approves
 it under ruling 281 once its UR-89 review, with a security pass, approves and its gate is green.
 
-Notes for the lane, from the plan PR's round-4 review (#7316):
+Notes for the lane, from the plan PR's round-4 and round-5 reviews (#7316):
 
 - **The full-lockfile run is `dependency-audit.yml`'s own run,** on its own `push` trigger for
-  `main`, not a job in `CI`. A red job in `CI` fails the whole `CI` run, which `queue_update.py`
-  reads as red `main`: the queue freeze UR-185 rules out. Update the workflow's header comment that
-  says it has no standalone push trigger.
-- **The skip still runs both audits** when the change edits `dependency-audit.yml` or either
-  checker, so this package's own PR, and later edits to the audit, are audited.
+  `main`, not a job in `CI`. A red job in `CI` fails the whole `CI` run, which
+  `coordinator_snapshot.py` and, since #7312, `queue_update.py` read as red `main`: the queue freeze
+  UR-185 rules out. Update the workflow's header comment that says it has no standalone push
+  trigger.
+- **The skip still runs both audits** when the change edits `dependency-audit.yml`, `ci.yml` or
+  either checker, so this package's own PR, and later edits to the audit, are audited.
 - **The gate mode's base** is the tested merge tree's first parent; `pull_request.base.sha` can lag
   it.
-- **The npm checker runs `npm audit` itself,** so its tests need a way to feed it recorded JSON.
+- **The npm checker runs `npm audit` itself,** so its tests feed it recorded JSON through a fake
+  `npm` on `PATH`, as today's tests already do (`scripts/test_check_npm_audit_exemptions.py:79-81`,
+  `:100-101`).
 - **The doc-only proof would take the skip,** so run the gate-mode checker directly on both trees
   for it.
+
+### [r294] Trivy's vulnerability scans fail a change only on a finding it adds
+
+**Flags:** `owner` (it changes what `CI Gate (Required Checks)` runs, UR-119, and a security check,
+UR-98). **Assigned:** `uplevel-ops-a`, after `[r291]` (ruling 294). **Depends on:** none.
+**PR:** none yet. (ruling 294, record 6307203645)
+
+`main` went red at 01:36Z on 2026-10-21 on `Security - Trivy / Scan Backend Image`: `certifi`
+2026.6.17 with GHSA-6q48-6c7w-9gw2 (CRITICAL), in pip's own bundle in the base image (raise
+`6306177116`; rulings 293 and 295). The same scan passed at `ffeb90f36` (00:35Z), so the advisory
+data changed, not the code: `[r291]`'s failure class. `trivy.yml` runs inside
+`CI Gate (Required Checks)` (`ci.yml`'s `security-trivy` job) with two vulnerability scans that fail
+on any CRITICAL or HIGH finding not in `.trivyignore`: `Filesystem Vulnerability Scan`, over the
+repository's lockfiles and manifests, and `Scan Backend Image`, over the image CI builds. This
+package gives them `[r291]`'s design, and follows it where the two meet: the coordinator's read and
+the routing (UR-185). Until it merges, Trivy stays in the gate as it is, and a Trivy finding turns
+`main` red.
+
+- [ ] **The gate mode** for both vulnerability scans in `trivy.yml`, with `ci.yml`'s
+      `security-trivy` call job selecting it (UR-122: ruling 294 orders the edit). The head and the
+      base are scanned in the same job, against the same Trivy database; for the image, the base
+      side is the base commit's backend image (built in the job, or taken from where `main`
+      publishes it) or its SBOM. A finding is keyed by its vulnerability id and package.
+      `.trivyignore` stays the one allowlist: an entry a change adds or edits must pass today's
+      rules (`scripts/check-trivyignore-expiry.sh`), and removing an entry whose finding remains
+      counts as adding that finding. A scan error on either side fails closed. The filesystem scan
+      may skip when `[r291]`'s skip applies and the change does not touch `.trivyignore`; the image
+      scan always runs.
+- [ ] **The full scans:** today's two scans run unchanged, with `check-trivyignore-expiry.sh`'s
+      dates, as `trivy.yml`'s own run on every push to `main`, daily (the Monday cron becomes daily)
+      and on `workflow_dispatch`. They are not a job in `CI`, because a red job in `CI` reads as red
+      `main` (`[r291]`'s notes), and `CI Gate (Required Checks)` does not read them (UR-119).
+      `Config/IaC Security Scan` is unchanged: it checks the repository's own configuration.
+- [ ] **Tests, red first (UR-69),** on recorded Trivy JSON: a finding in both base and head passes
+      the gate (one case built from run `39528289094`'s `certifi` finding); a head-only finding
+      fails; removing a `.trivyignore` entry whose finding remains fails; an added entry with a past
+      or missing review date fails; a scan error on either side fails; and the full mode gives
+      today's results.
+- [ ] **Proof in the PR body:** one CI run of the gate mode on this PR and one `workflow_dispatch`
+      run of the full scans on its branch, both green, with the run links.
+
+**Done when:** the tests pass in CI at a ready head, the PR body shows the proof, and the gate reads
+only the gate mode (`ci-gate`'s needs and `check_job` lines). The owner partner approves it under
+ruling 281 once its UR-89 review, with a security pass, approves and its gate is green.
+
+A note for the lane: as `[r291]`'s skip still audits edits to the audit itself, a change that edits
+`trivy.yml` should still run the filesystem scan, so this package's own PR is scanned.
+
+### [r297] The per-shard fixed cost cut toward a 15-minute CI
+
+**Flags:** none: it changes how fast the Feature check runs, not what `CI Gate` runs (UR-119).
+**Assigned:** `uplevel-ops-a`, after `[r294]` (ruling 297). **Depends on:** #7310 (`[r282]`) merged:
+it builds on its manifest. **PR:** none yet. (ruling 297, record 6315692389)
+
+At `a4cb3784a`, #7310's three full green runs gave a median critical path of 17.63 min (18.92 before
+`[r282]`) and a shard spread of 2.78 min (about 6 on the count split). Per-shard Playwright time
+agrees within 0.20 s, so the pack is balanced; about 626 s of a ~1,027 s shard wall is each shard's
+fixed cost, mainly booting its own stack. Rebalancing cannot reduce that, and a 5th shard adds about
+400 s of fixed cost to save about 124 s of tests. Ruling 297 closed `[r282]` on that gain and moved
+the 15-minute target here.
+
+- [ ] **Measure:** for at least three recent green runs, split each shard's fixed cost into image
+      pull or build, stack boot and health waits, seed, and teardown. Tabulate the shares in the PR
+      body.
+- [ ] **Cut:** take the largest shares down. For example, build or pull the images once for all
+      shards, boot services in parallel, shorten health-check waits that only idle, or share what
+      one shard's start already paid for. No test is dropped, skipped or deduplicated, and each
+      shard keeps its own isolated stack unless the PR shows a shared one keeps isolation (UR-134).
+      Edits stay inside the Feature check jobs and the harness (UR-121).
+
+**Done when:** the median critical path of at least three full green runs at the ready head is 15
+min or less, the table shows each share before and after, and the UR-89 review approves.
 
 ### [r287b] The whole golden suite passes in the production-shaped run
 
