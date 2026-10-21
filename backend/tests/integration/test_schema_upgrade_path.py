@@ -164,6 +164,18 @@ async def test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date(pr
                     "SELECT count(*) FROM information_schema.columns WHERE column_name = 'model_id'"
                 )
             ).scalar() == 0
+            # 0011's subject matter, measured: the column is the native enum and all five
+            # models have rows -- if the fixture ever loses the table or the enum, 0011
+            # degrades to a "verified" record instead of executing, and this fails first.
+            assert (
+                await conn.exec_driver_sql(
+                    "SELECT data_type FROM information_schema.columns "
+                    "WHERE table_name = 'prompt_versions' AND column_name = 'model'"
+                )
+            ).scalar() == "USER-DEFINED"
+            assert (
+                await conn.exec_driver_sql("SELECT count(DISTINCT model) FROM prompt_versions")
+            ).scalar() == 5
             # 0005's subject matter, measured: a pre-upgrade database has NONE of the twelve
             # January-2026 model columns. If the fixture ever grows one, this fails here rather
             # than letting 0005 report "applied" for a no-op.
@@ -218,6 +230,32 @@ async def test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date(pr
             assert (
                 await conn.exec_driver_sql("SELECT count(*) FROM person_embeddings")
             ).scalar() == 3
+
+            # ---- 0011 (B3.3 box 4): the four retired models' prompt rows are gone, and
+            # nemotron's survive -- the pre-0011 prompt_versions table this fixture carries
+            # is the enum-typed shape, so the run actually EXECUTED 0011 here rather than
+            # recording it from a shape-detect.
+            assert (
+                await conn.exec_driver_sql(
+                    "SELECT count(*) FROM prompt_versions "
+                    "WHERE model IN ('florence2', 'yolo_world', 'xclip', 'fashion_clip')"
+                )
+            ).scalar() == 0
+            assert (
+                await conn.exec_driver_sql("SELECT count(*) FROM prompt_versions")
+            ).scalar() == 2
+            assert (
+                await conn.exec_driver_sql(
+                    "SELECT data_type FROM information_schema.columns "
+                    "WHERE table_name = 'prompt_versions' AND column_name = 'model'"
+                )
+            ).scalar() == "character varying"
+            assert (
+                await conn.exec_driver_sql(
+                    "SELECT character_maximum_length FROM information_schema.columns "
+                    "WHERE table_name = 'prompt_versions' AND column_name = 'model'"
+                )
+            ).scalar() == 32  # the model's String(32) -- the full shape create_all builds
 
             # ---- 0005: the twelve unrecorded columns are now present ----
             assert await _missing_0005_columns(conn) == []

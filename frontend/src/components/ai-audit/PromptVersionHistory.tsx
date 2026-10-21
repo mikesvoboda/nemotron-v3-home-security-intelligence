@@ -58,21 +58,15 @@ export interface PromptVersionHistoryProps {
 // Constants
 // ============================================================================
 
+// B3.3 box 4 (R2a row 27): the filter and labels shrink with the enum --
+// nemotron is the only model with a history to show.
 const MODEL_OPTIONS = [
   { value: '', label: 'All Models' },
   { value: 'nemotron', label: 'Nemotron' },
-  { value: 'florence2', label: 'Florence-2' },
-  { value: 'yolo_world', label: 'YOLO-World' },
-  { value: 'xclip', label: 'X-CLIP' },
-  { value: 'fashion_clip', label: 'Fashion-CLIP' },
 ] as const;
 
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
   nemotron: 'Nemotron',
-  florence2: 'Florence-2',
-  yolo_world: 'YOLO-World',
-  xclip: 'X-CLIP',
-  fashion_clip: 'Fashion-CLIP',
 };
 
 // ============================================================================

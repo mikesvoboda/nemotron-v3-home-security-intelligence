@@ -355,7 +355,6 @@ selects the card `ai-vlm` runs on and `GPU_AI_SERVICES` (default `1`) the one
 
 ## Related Documentation
 
-- [docs/ai/AGENTS.md](AGENTS.md) — navigation for this directory
 - [ai/AGENTS.md](../../ai/AGENTS.md) — AI service implementation
 - [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md) — the gateway itself
 - [ai/vlm/](../../ai/vlm/) — the shipped LLM engine

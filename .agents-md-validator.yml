@@ -125,8 +125,8 @@ exclude_reference_patterns:
 retired_name_baseline:
   florence: 93 # retired ai/florence path (W1.3 drained its dead-reference citations
   # without adding florence mentions — the count is unchanged by design)
-  nemotron: 143 # the retired model family (the repo's own name string)
-  enrichment: 153 # retired ai/enrichment component (W1.3 drained six dead-citing mentions)
+  nemotron: 135 # the retired model family (W3.1 PR 1 removed 8 mentions in docs/**/AGENTS.md: 143 -> 135)
+  enrichment: 144 # retired ai/enrichment component (W1.3 drained 6: 159 -> 153; W3.1 PR 1 removed 9: 153 -> 144)
   xclip: 10 # retired clip pipeline
   demographics: 2
 

@@ -133,7 +133,7 @@ def get_gpu_memory_mb() -> float:
     """
     if torch.cuda.is_available():
         # Use PyTorch's memory tracking for better accuracy
-        return torch.cuda.memory_allocated(0) / (1024 * 1024)
+        return float(torch.cuda.memory_allocated(0) / (1024 * 1024))
 
     # Fallback to nvidia-smi
     try:

@@ -40,6 +40,7 @@ import json
 import re
 import subprocess
 import sys
+from collections import Counter
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -390,6 +391,74 @@ def ur106_diff_hash(diff: str) -> str:
     """
     kept = [ln for ln in diff.encode().splitlines(keepends=True) if not ln.startswith(b"index ")]
     return hashlib.sha256(HUNK_HEADER.sub(b"@@", b"".join(kept))).hexdigest()
+
+
+def ur106_own_lines(diff: str) -> Counter[tuple[str, str, str]]:
+    """A diff's added and removed lines as a multiset keyed ``(file, sign, content)``.
+
+    UR-106's subset rule (ruling 278) defines _A_ and _N_ as "the added and removed lines
+    (each with its file and sign)" -- context lines are not in the multisets, and neither
+    are the ``index``/``---``/``+++`` metadata rows (a ``+index ...`` line IS an added
+    line: the sign character decides, as the hash's adversarial pins already have it).
+    The file is the ``diff --git`` line's b-side (the post-image path, what ``+++ b/``
+    names too), so a new file's rows key on the real path rather than ``/dev/null``.
+    """
+    lines: Counter[tuple[str, str, str]] = Counter()
+    file = ""
+    for ln in diff.splitlines():
+        if ln.startswith("diff --git "):
+            m = re.match(r"diff --git a/(.*) b/(.*)$", ln)
+            file = m.group(2) if m else ""
+        elif ln.startswith(("---", "+++")):
+            continue
+        elif ln.startswith("+"):
+            lines[(file, "+", ln[1:])] += 1
+        elif ln.startswith("-"):
+            lines[(file, "-", ln[1:])] += 1
+    return lines
+
+
+def ur106_subset_carry(
+    approved_diff: str,
+    head_diff: str,
+    chain: list[list[str]],
+    main_change: Callable[[], str | None],
+    on_main: Callable[[str], bool | None],
+) -> tuple[bool | None, int, str]:
+    """UR-106's subset carry (ruling 278), decided: ``(yes|no|unknown, dropped lines, why)``.
+
+    The rule: the new head carries when (1) every commit after the approved head is an
+    ``update-branch`` merge of ``main``, (2) _N_, the new diff's added and removed lines,
+    is contained in _A_, the approved diff's, as a multiset, and (3) every line in _A_ but
+    not in _N_ appears, with the same file and sign, in ``main``'s own change between the
+    two merge-bases. ``chain`` is the first-parent commits after the approved head, newest
+    first, each as a parent list; ``main_change`` is read lazily -- only when lines are
+    actually dropped -- and ``None`` means the read failed; ``on_main`` answers whether a
+    merge's second parent sits on ``main``. Every ambiguity returns ``unknown``: a failed
+    read is never a fact -- not yes, and not no (UR-106, UR-154).
+    """
+    if not chain:
+        return None, 0, "no commits after the approved head -- the heads are unrelated"
+    for parents in chain:
+        if len(parents) < 2:
+            return False, 0, "an author commit sits between the heads"
+        on = on_main(parents[1])
+        if on is None:
+            return None, 0, "a merge parent's place on main is unread"
+        if not on:
+            return False, 0, "a merge between the heads is not of main"
+    approved_lines, head_lines = ur106_own_lines(approved_diff), ur106_own_lines(head_diff)
+    if head_lines - approved_lines:
+        return False, 0, "the new diff holds a line the approved one does not"
+    dropped = approved_lines - head_lines
+    if not dropped:
+        return True, 0, ""  # hunk noise only: the multisets already agree
+    main_diff = main_change()
+    if main_diff is None:
+        return None, 0, "main's own change between the merge-bases is unread"
+    if not dropped <= ur106_own_lines(main_diff):
+        return False, 0, "main's own change does not hold a dropped line"
+    return True, sum(dropped.values()), ""
 
 
 def approval_sha(body: str) -> str | None:
@@ -839,7 +908,82 @@ class Snapshot:
             own["error"] = own.get("error") or "a rev needed for the carry is unhashed"
             item["verdict_reason"] = own["error"]
             return
-        own["carry"] = own["head"] == own["approved"]
+        if own["head"] == own["approved"]:
+            own["carry"] = True
+            return
+        own.update(self._subset_carry(item, approved, files, own))
+
+    def _subset_carry(
+        self,
+        item: dict[str, Any],
+        approved: str,
+        files: list[str],
+        own: dict[str, Any],
+    ) -> dict[str, Any]:
+        """The two extra reads the subset path (ruling 278) adds, decided once.
+
+        The hash path already proved the two own diffs differ, so the question is the
+        subset rule: only update-branch merges between the heads (condition 1), N ⊆ A as
+        a multiset (condition 2), and main's own change between the two merge-bases
+        holding every dropped line (condition 3). The approved head's own diff is already
+        hashed at its own base; the head's diff is re-derived here from the hash path's
+        base -- the same ``base..head`` range the hash read, so no extra git read pays
+        for the text this path needs but hashing threw away.
+
+        Every ambiguous read is ``unknown``: the coordinator hand-judges, the watch never
+        disables, and a failed read is never a yes (UR-106, UR-154).
+        """
+        head = item["head"]
+        approved_base, head_base = own.get("approved_base") or "", own.get("head_base") or ""
+        reads: dict[str, Any] = {"carry": None, "subset_lines": 0}
+        try:
+            out = self.git(
+                "log", "--first-parent", "--format=%P", f"{approved}..{head}"
+            )
+            chain = [line.split() for line in out.splitlines() if line.strip()]
+        except Exception as exc:
+            reads["error"] = f"subset chain: {error_text(exc)}"
+            item["errors"].append(f"subset chain: {error_text(exc)}")
+            return reads
+
+        def main_change() -> str | None:
+            # main's OWN change between the two merge-bases: from the approved head's
+            # merge-base to the head's, over the PR's files -- the third diff condition 3
+            # reads dropped lines against. Both bases came from the hash path's per-rev
+            # merge-base reads, so this costs no extra base lookup.
+            try:
+                return self.run(
+                    [
+                        "git", "diff", f"{approved_base}..{head_base}", "--",
+                        *(f":(literal){f}" for f in files),
+                    ]
+                )
+            except Exception as exc:
+                item["errors"].append(f"main between bases: {error_text(exc)}")
+                return None
+
+        def on_main(parent: str) -> bool | None:
+            return self._on_main(parent, item)
+
+        verdict, lines, why = ur106_subset_carry(own["approved_diff"], own["head_diff"], chain, main_change, on_main)
+        if verdict is True:
+            reads["carry"], reads["subset_lines"] = True, lines
+        elif verdict is False:
+            reads["carry"], reads["error"] = False, why
+        else:
+            reads["error"] = why or "a subset read failed"
+        return reads
+
+    def _on_main(self, parent: str, item: dict[str, Any]) -> bool | None:
+        """Whether ``parent`` sits on ``main``: it holds no commit main's tip lacks, i.e.
+        ``rev-list --count parent --not origin/main`` is 0 (an ancestor of, or is, the
+        tip). A read failure returns ``None`` -- unknown, never a fact (UR-154)."""
+        try:
+            count = int(self.git("rev-list", "--count", parent, "--not", "origin/main"))
+            return count == 0
+        except Exception as exc:
+            item["errors"].append(f"on-main {parent[:9]}: {error_text(exc)}")
+            return None
 
     def _hash_own(
         self,
@@ -863,6 +1007,8 @@ class Snapshot:
             own["reads"] += 1
             return None
         own["reads"] += 1
+        own["head_base" if rev == item["head"] else "approved_base"] = base
+        own[f"{'head' if rev == item['head'] else 'approved'}_diff"] = diff
         return ur106_diff_hash(diff)
 
     def _pr_files(self, number: int, errors: list[str]) -> list[str] | None:
@@ -1323,9 +1469,14 @@ def render_text(data: dict[str, Any]) -> str:
             head_h, appr_h = own.get("head"), own.get("approved")
             carry = own.get("carry")
             txt = {True: "yes", False: "no", None: "?"}[carry]
+            subset = (
+                f" (subset: {own['subset_lines']} lines main holds)"
+                if carry is True and own.get("subset_lines")
+                else ""
+            )
             out.append(
                 f"      own-diff head={_hash_txt(head_h)} approved={_hash_txt(appr_h)}"
-                f" carry={txt}" + (f" ({own['error']})" if own.get("error") else "")
+                f" carry={txt}{subset}" + (f" ({own['error']})" if own.get("error") else "")
             )
         out += [f"      ERROR prs: {e}" for e in p["errors"]]
     out += _errors("prs", prs)

@@ -222,8 +222,8 @@ repos:
       - id: ruff-format
         types_or: [python, pyi]
         files: ^(backend|synthbench|scripts)/
-        # Ruling 298 item 2: defer formatting on files edited by open PR #7327 ([r278])
-        exclude: (^mutants/|^scripts/test_lane_tick\.py$|^scripts/uplevel/lane_tick\.py$)
+        # Ruling 298 item 2: defer formatting on files edited by open PR #7330 ([r290])
+        exclude: (^mutants/|^scripts/test_coordinator_snapshot\.py$|^scripts/test_lane_tick\.py$|^scripts/uplevel/coordinator_snapshot\.py$|^scripts/uplevel/lane_tick\.py$)
 
   # Python - Type checking with mypy
   # rev + additional_dependencies track uv.lock so the hook and CI's

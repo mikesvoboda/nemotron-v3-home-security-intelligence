@@ -241,7 +241,7 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 ├── config/               # Runtime YAML configs (tracker configs, quality baselines)
 ├── data/                 # Runtime data home (runtime subdirs gitignored — logs/, certs/, calibration/, profiles/; eval/benchmark/synthetic content tracked)
 ├── docker/               # Shared container base images (base.Dockerfile)
-├── docs/                 # Documentation (full index: docs/AGENTS.md)
+├── docs/                 # Documentation (full index: docs/README.md)
 │   ├── ai/               # AI model-zoo and pipeline documentation
 │   ├── api/              # API documentation and deprecation policy
 │   ├── architecture/     # Technical architecture documentation
@@ -367,7 +367,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 1. **Read this file (AGENTS.md)** — the single root instruction file; `CLAUDE.md` was deliberately retired (owner ruling 2026-09), don't look for it
 2. **Check available work:** Visit [Linear Active](https://linear.app/nemotron-v3-home-security/team/NEM/active) or filter by phase label
 3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1-8 are operational**)
-4. **Read the AGENTS.md of any directory before exploring it** — every code directory has one documenting purpose, key files, and patterns (`ai/AGENTS.md`, `backend/AGENTS.md`, `frontend/AGENTS.md`, `docs/AGENTS.md`, …)
+4. **Read the AGENTS.md of any boundary directory before exploring it** — boundary code directories have one documenting purpose, entry points, invariants, and traps (`ai/AGENTS.md`, `backend/AGENTS.md`, `frontend/AGENTS.md`, `scripts/AGENTS.md`, …; see `.agents-md-validator.yml` `boundary_list`)
 
 ### Understanding the Codebase
 
@@ -495,7 +495,14 @@ Infrastructure work additionally requires the **Infrastructure Verification** ch
 ## Resources
 
 - **Issue Tracker:** [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team: NEM)
-- **Documentation:** `docs/` directory (index: `docs/AGENTS.md`)
+- **Documentation:** `docs/` directory (index: `docs/README.md`)
 - **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative reference for backend settings vars)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`
 - **Feature Guides:** [Multi-GPU](docs/developer/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)
+
+### Documentation Invariants & Traps
+
+- **Synthbench docs contract:** `docs/synthbench/command-reference.md` must list each command's options verbatim (checked against `argparse` by `backend/tests/unit/synthbench/test_command_reference.py`), and `docs/synthbench/agent-handoff.md` names only the eight agent commands (checked by the same test) and never describes GPU windows or host units (design G11; those belong in `docs/synthbench/operator-runbook.md`).
+- **VSS register & state-page gate:** `scripts/check-vss-docs-currency.py` guards `docs/vss-integration/17-action-plan.md` and `docs/vss-integration/README.md` (`python scripts/vss-next-id.py iss|e` allocates `ISS-nnn` and `E-nnn` IDs across branches and worktrees); `docs/plans/` is frozen history while future plans live in `docs/superpowers/` (UR-87).
+- **Model Zoo & VLM readiness traps:** `BACKEND_MODEL_PRELOAD` defaults to `false` (`setup.py` sets `true` at ≥ 24 GB VRAM); `ModelManager` (`backend/services/model_zoo.py`) has no eviction pass (`never_evict` and `priority` in `models.yml` are unconsulted, and `POST /api/system/models/{name}/load|unload` return 501 by design in `backend/api/routes/model_management.py`), and `ai-vlm`'s `/health` returns 200 even in text-only mode without `VLM_MMPROJ_PATH` (check `/props`).
+- **Benchmarks & load tests:** `.github/workflows/benchmarks.yml` and `.github/workflows/load-tests.yml` are nightly/manual report-only workflows (owner ruling 100); `docs/benchmarks/synthbench/p1-bakeoff.md` carries hand-written owner decisions at the top that must be preserved if regenerated.

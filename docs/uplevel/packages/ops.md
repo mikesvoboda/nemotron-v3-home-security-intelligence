@@ -1202,7 +1202,7 @@ audit `6291719540`)
 ### [r278] One subset-carry decision for the snapshot and the queue workflow
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r270]` (ruling 278).
-**Depends on:** none. **PR:** none yet. (ruling 278, record 6293203635)
+**Depends on:** none. **PR:** #7327. (ruling 278, record 6293203635)
 
 UR-106's carry also holds when an update only drops lines that `main` now holds identically (a
 subset carry, ruling 278). The snapshot and `queue_update.py` still compare hashes, so a shared

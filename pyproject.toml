@@ -339,7 +339,6 @@ exclude = ["vulture_whitelist.py", "mutants/"]
 "ai/gateway/**/*.py" = "py312"
 "ai/triton/**/*.py" = "py312"
 "scripts/**/*.py" = "py312"
-"scripts/seed-events.py" = "py314"
 # The fake VLM, ruled 3.13-parseable by ruling 96 item 11 so the reachability
 # toolchain is not coupled to 3.14 (scripts/reachability.py ast.parses the whole
 # candidate tree with the HOST interpreter and catches no SyntaxError). It ships
@@ -546,17 +545,11 @@ ignore = [
 "scripts/test_inventory_witness.py" = [
     "RUF001",
 ]
-# Ruling 298 item 2 (O3.7): leave alone files under scripts/ edited by open PRs
-# (#7327 [r278] and #7322 [B3.3 box 4]) and fix them after those PRs merge.
+# Ruling 298 item 2 (O3.7): leave alone files under scripts/ edited by open PR
+# #7330 ([r290]) and fix them after that PR merges.
 "scripts/test_lane_tick.py" = [
     "C408",
     "RUF028",
-]
-"scripts/seed-events.py" = [
-    "ASYNC221",
-    "F821",
-    "S110",
-    "S112",
 ]
 
 [tool.ruff.format]
@@ -580,15 +573,13 @@ module = "backend.tests.*"
 ignore_errors = true
 
 # Ruling 298 item 2 (O3.7): leave alone files under scripts/ edited by open PRs
-# (#7322 [B3.3 box 4], #7327 [r278], #7328 [r291]) until those PRs merge.
+# (#7328 [r291], #7330 [r290]) until those PRs merge.
 [[tool.mypy.overrides]]
 module = [
     "scripts.check-npm-audit-exemptions",
     "scripts.check-pip-audit-exemptions",
     "scripts.uplevel.coordinator_snapshot",
     "scripts.uplevel.lane_tick",
-    "scripts.uplevel.queue_update",
-    "scripts.seed-events",
 ]
 ignore_errors = true
 

@@ -632,26 +632,27 @@ def test_import_partitions_valid_and_unknown_models() -> None:
                 {
                     "nemotron": {"system_prompt": "s"},
                     "bogbot": {"system_prompt": "x"},
-                    "xclip": {"classes": ["c"]},
+                    "another_bogbot": {"system_prompt": "x"},
                 },
             )
         )
     finally:
         PromptService.update_prompt_for_model = prev  # type: ignore[method-assign]
         _m.logger = old
-    assert out["imported_models"] == ["nemotron", "xclip"]
-    assert out["skipped_models"] == ["bogbot"]
-    assert out["new_versions"] == {"nemotron": 7, "xclip": 7}
-    assert out["message"] == "Imported 2 model configurations"
+    # B3.3 box 4 (R2a row 27): nemotron is the only valid model name, so the
+    # partition here is one import and two unknown-model skips.
+    assert out["imported_models"] == ["nemotron"]
+    assert out["skipped_models"] == ["bogbot", "another_bogbot"]
+    assert out["new_versions"] == {"nemotron": 7}
+    assert out["message"] == "Imported 1 model configurations"
     assert set(out) == {"imported_models", "skipped_models", "new_versions", "message"}
     assert cap_calls.calls[0][1]["model"] == "nemotron"
     assert cap_calls.calls[0][1]["config"] == {"system_prompt": "s"}
     assert cap_calls.calls[0][1]["change_description"] == "Imported from JSON"
-    assert cap_calls.calls[1][1]["model"] == "xclip"
-    assert cap_calls.calls[1][1]["config"] == {"classes": ["c"]}
     warn = [r for r in cap.records if r.levelno == logging.WARNING]
-    assert len(warn) == 1
+    assert len(warn) == 2
     assert warn[0].msg == "Skipping unknown model: bogbot"
+    assert warn[1].msg == "Skipping unknown model: another_bogbot"
 
 
 def test_import_swallows_update_failure_and_skips_model() -> None:

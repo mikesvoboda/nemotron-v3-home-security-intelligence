@@ -618,54 +618,13 @@ class PromptEvaluator:
             return None
 
 
-# Default configurations for each model
+# Default configurations for each model. B3.3 box 4 (R2a row 27): the four vision
+# models retired with the R8 S2/S3 sweep -- their defaults (and their upgrade-0011
+# rows) left with them; nemotron is the only model a deployment boots.
 DEFAULT_CONFIGS: dict[str, dict[str, Any]] = {
     AIModelEnum.NEMOTRON.value: {
         "system_prompt": MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
         "version": 1,
-    },
-    AIModelEnum.FLORENCE2.value: {
-        "queries": [
-            "What is the person doing?",
-            "What objects are they carrying?",
-            "Describe the environment",
-            "Is there anything unusual in this scene?",
-        ],
-    },
-    AIModelEnum.YOLO_WORLD.value: {
-        "classes": [
-            "knife",
-            "gun",
-            "package",
-            "crowbar",
-            "spray paint",
-            "Amazon box",
-            "FedEx package",
-            "suspicious bag",
-        ],
-        "confidence_threshold": 0.35,
-    },
-    AIModelEnum.XCLIP.value: {
-        "action_classes": [
-            "loitering",
-            "running away",
-            "fighting",
-            "breaking in",
-            "climbing fence",
-            "hiding",
-            "normal walking",
-        ],
-    },
-    AIModelEnum.FASHION_CLIP.value: {
-        "clothing_categories": [
-            "dark hoodie",
-            "face mask",
-            "gloves",
-            "all black",
-            "delivery uniform",
-            "high-vis vest",
-            "business attire",
-        ],
     },
 }
 
@@ -711,7 +670,7 @@ class PromptService:
 
         Args:
             session: Database session
-            model: Model name (e.g., 'nemotron', 'florence2')
+            model: Model name (e.g., 'nemotron')
 
         Returns:
             Configuration dict for the model

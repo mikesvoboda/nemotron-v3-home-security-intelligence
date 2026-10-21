@@ -2265,19 +2265,14 @@ class OsnetLoader(ModelLoaderBase[dict]):  # illustrative shape, not a shipped c
 - Factory functions for template creation
 
 **The module is self-contained: no shipped module imports it.** Its parameter
-registry still names the retired attribute zoo (`florence2`, `yolo_world`,
-`xclip`, `fashion_clip`) alongside the LLM-era `nemotron` key — the key is a
-lookup string, not a claim that a Nemotron service exists.
+registry carries the one surviving model (`nemotron`) — B3.3 box 4 (R2a row 27)
+retired the four vision models' parameter types with their enum values.
 
 **Parameter Types:**
 
-| Type                      | Purpose                        | Required Fields                                  |
-| ------------------------- | ------------------------------ | ------------------------------------------------ |
-| `NemotronPromptParams`    | Nemotron risk analysis         | camera_name, timestamp, day_of_week, time_of_day |
-| `Florence2PromptParams`   | Florence-2 VQA                 | queries                                          |
-| `YoloWorldPromptParams`   | YOLO-World detection           | classes, confidence_threshold                    |
-| `XClipPromptParams`       | X-CLIP action recognition      | action_classes                                   |
-| `FashionClipPromptParams` | Fashion-CLIP clothing analysis | clothing_categories, suspicious_indicators       |
+| Type                   | Purpose                | Required Fields                                  |
+| ---------------------- | ---------------------- | ------------------------------------------------ |
+| `NemotronPromptParams` | Nemotron risk analysis | camera_name, timestamp, day_of_week, time_of_day |
 
 **Public API:**
 

@@ -146,10 +146,6 @@ class TestGetAllPromptsEndpoint:
         """Test successful retrieval of all prompts."""
         mock_prompt_service.get_all_prompts.return_value = {
             "nemotron": {"system_prompt": "test prompt", "version": 1},
-            "florence2": {"queries": ["test query"]},
-            "yolo_world": {"classes": ["knife"], "confidence_threshold": 0.35},
-            "xclip": {"action_classes": ["running"]},
-            "fashion_clip": {"clothing_categories": ["hoodie"]},
         }
 
         response = client.get("/api/prompts")
@@ -192,7 +188,6 @@ class TestExportPromptsEndpoint:
             "exported_at": datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC).isoformat(),
             "prompts": {
                 "nemotron": {"system_prompt": "test prompt"},
-                "florence2": {"queries": ["test query"]},
             },
         }
 
@@ -254,17 +249,17 @@ class TestGetPromptHistoryEndpoint:
         mock_prompt_service: MagicMock,
     ) -> None:
         """Test history filtered by model."""
-        mock_versions = [create_mock_prompt_version(model="florence2")]
+        mock_versions = [create_mock_prompt_version(model="nemotron")]
         mock_prompt_service.get_version_history.return_value = (mock_versions, 1)
 
-        response = client.get("/api/prompts/history?model=florence2")
+        response = client.get("/api/prompts/history?model=nemotron")
 
         assert response.status_code == 200
         data = response.json()
         assert data["total_count"] == 1
         # Verify the filter was passed
         call_args = mock_prompt_service.get_version_history.call_args
-        assert call_args.kwargs.get("model") == "florence2"
+        assert call_args.kwargs.get("model") == "nemotron"
 
     def test_get_history_with_pagination(
         self,
@@ -461,23 +456,23 @@ class TestGetPromptHistoryEndpoint:
         """Test that filtering by model preserves descending version order."""
         # Create versions for a specific model
         mock_versions = [
-            create_mock_prompt_version(version_id=6, version=6, model="florence2", is_active=True),
-            create_mock_prompt_version(version_id=4, version=4, model="florence2", is_active=False),
-            create_mock_prompt_version(version_id=2, version=2, model="florence2", is_active=False),
+            create_mock_prompt_version(version_id=6, version=6, model="nemotron", is_active=True),
+            create_mock_prompt_version(version_id=4, version=4, model="nemotron", is_active=False),
+            create_mock_prompt_version(version_id=2, version=2, model="nemotron", is_active=False),
         ]
         for i, mock_v in enumerate(mock_versions):
             mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(days=i)
 
         mock_prompt_service.get_version_history.return_value = (mock_versions, 3)
 
-        response = client.get("/api/prompts/history?model=florence2")
+        response = client.get("/api/prompts/history?model=nemotron")
 
         assert response.status_code == 200
         data = response.json()
         versions = data["versions"]
 
-        # All returned versions should be for florence2
-        assert all(v["model"] == "florence2" for v in versions)
+        # All returned versions should be for nemotron
+        assert all(v["model"] == "nemotron" for v in versions)
 
         # Verify ordering is preserved
         assert versions[0]["version"] == 6
@@ -510,42 +505,16 @@ class TestGetPromptForModelEndpoint:
         assert data["version"] == 3
         assert data["config"]["system_prompt"] == "test prompt"
 
-    def test_get_prompt_florence2(
-        self,
-        client: TestClient,
-        mock_prompt_service: MagicMock,
-    ) -> None:
-        """Test retrieval of florence2 prompt."""
-        mock_prompt_service.get_prompt_for_model.return_value = {
-            "queries": ["What is happening?", "Who is there?"],
-            "version": 1,
-        }
+    def test_get_prompt_retired_model_is_refused(self, client: TestClient) -> None:
+        """Test the API refuses a retired model's name.
 
-        response = client.get("/api/prompts/florence2")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["model"] == "florence2"
-        assert "queries" in data["config"]
-
-    def test_get_prompt_yolo_world(
-        self,
-        client: TestClient,
-        mock_prompt_service: MagicMock,
-    ) -> None:
-        """Test retrieval of yolo_world prompt."""
-        mock_prompt_service.get_prompt_for_model.return_value = {
-            "classes": ["knife", "gun"],
-            "confidence_threshold": 0.4,
-            "version": 2,
-        }
-
-        response = client.get("/api/prompts/yolo_world")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["model"] == "yolo_world"
-        assert data["config"]["confidence_threshold"] == 0.4
+        B3.3 box 4 (R2a row 27): florence2/yolo_world/xclip/fashion_clip left the enum,
+        so the path parameter can no longer validate -- FastAPI answers 422 before any
+        service call, and nothing can fetch a prompt for a model no deployment boots.
+        """
+        for retired in ("florence2", "yolo_world", "xclip", "fashion_clip"):
+            response = client.get(f"/api/prompts/{retired}")
+            assert response.status_code == 422, retired
 
     def test_get_prompt_not_found(
         self,
@@ -1007,10 +976,10 @@ class TestImportPromptsEndpoint:
     ) -> None:
         """Test successful import of prompts."""
         mock_prompt_service.import_prompts.return_value = {
-            "imported_models": ["nemotron", "florence2"],
+            "imported_models": ["nemotron"],
             "skipped_models": [],
-            "new_versions": {"nemotron": 2, "florence2": 1},
-            "message": "Imported 2 model configurations",
+            "new_versions": {"nemotron": 2},
+            "message": "Imported 1 model configurations",
         }
 
         response = client.post(
@@ -1019,14 +988,13 @@ class TestImportPromptsEndpoint:
                 "version": "1.0",
                 "prompts": {
                     "nemotron": {"system_prompt": "imported prompt"},
-                    "florence2": {"queries": ["query"]},
                 },
             },
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["imported_models"]) == 2
+        assert len(data["imported_models"]) == 1
         assert "nemotron" in data["imported_models"]
         assert data["new_versions"]["nemotron"] == 2
 
@@ -1144,7 +1112,7 @@ class TestImportPreviewEndpoint:
             json={
                 "version": "1.0",
                 "prompts": {
-                    "florence2": {"queries": ["new query"]},
+                    "nemotron": {"system_prompt": "new prompt"},
                 },
             },
         )
@@ -1424,11 +1392,9 @@ class TestGetRecommendedAction:
 
     def test_ai_model_enum_values(self) -> None:
         """Test AIModelEnum has all expected values."""
+        # B3.3 box 4 (R2a row 27): the four vision models retired; nemotron only.
         assert AIModelEnum.NEMOTRON.value == "nemotron"
-        assert AIModelEnum.FLORENCE2.value == "florence2"
-        assert AIModelEnum.YOLO_WORLD.value == "yolo_world"
-        assert AIModelEnum.XCLIP.value == "xclip"
-        assert AIModelEnum.FASHION_CLIP.value == "fashion_clip"
+        assert [e.value for e in AIModelEnum] == ["nemotron"]
 
     def test_model_prompt_config_creation(self) -> None:
         """Test ModelPromptConfig creation."""
@@ -1486,11 +1452,11 @@ class TestGetRecommendedAction:
         """Test PromptVersionInfo creation."""
         info = PromptVersionInfo(
             id=1,
-            model=AIModelEnum.FLORENCE2,
+            model=AIModelEnum.NEMOTRON,
             version=2,
             created_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
             created_by=None,
-            change_description="Updated queries",
+            change_description="Updated system prompt",
             is_active=True,
         )
         assert info.id == 1

@@ -12,10 +12,10 @@ Auxiliary test suites that run outside the backend/frontend trees: K6 load tests
 
 ## Directory Contents
 
-| Suite    | Purpose                                                     | How to run                          |
-| -------- | ----------------------------------------------------------- | ----------------------------------- |
-| `load/`  | K6 load-test scripts (cameras, events, WebSocket, Redis)    | `k6 run tests/load/<script>.js`     |
-| `smoke/` | Post-deployment smoke tests (health, monitoring, WebSocket) | `uv run pytest tests/smoke/ -v`     |
+| Suite    | Purpose                                                     | How to run                      |
+| -------- | ----------------------------------------------------------- | ------------------------------- |
+| `load/`  | K6 load-test scripts (cameras, events, WebSocket, Redis)    | `k6 run tests/load/<script>.js` |
+| `smoke/` | Post-deployment smoke tests (health, monitoring, WebSocket) | `uv run pytest tests/smoke/ -v` |
 
 Each suite has its own `README.md`; `load/` has its own `AGENTS.md` with details.
 

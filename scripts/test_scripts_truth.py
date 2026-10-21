@@ -33,12 +33,14 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Ruling 298 item 2: files under scripts/ edited by open PRs at claim time
-# (#7327 [r278], #7328 [r291], #7322 [B3.3 box 4]) are left byte-untouched by
-# O3.7 so they do not conflict; the two lane_tick files that need formatting
-# are deferred in ruff-format's exclude until #7327 merges.
+# Ruling 298 item 2: files under scripts/ edited by open PRs (#7328 [r291],
+# #7330 [r290]) are left byte-untouched by O3.7 so they do not conflict; the
+# four #7330 files that need formatting are deferred in ruff-format's exclude
+# until #7330 merges.
 R298_DEFERRED_FORMAT_FILES = {
+    "scripts/test_coordinator_snapshot.py",
     "scripts/test_lane_tick.py",
+    "scripts/uplevel/coordinator_snapshot.py",
     "scripts/uplevel/lane_tick.py",
 }
 

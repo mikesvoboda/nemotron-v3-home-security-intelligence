@@ -1181,19 +1181,18 @@ Pydantic schemas for prompt management API - configuration, versioning, testing,
 
 **Enums:**
 
-| Enum          | Purpose                                                                    |
-| ------------- | -------------------------------------------------------------------------- |
-| `AIModelEnum` | Supported AI models (nemotron, florence2, yolo_world, xclip, fashion_clip) |
+| Enum          | Purpose                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------ |
+| `AIModelEnum` | Supported AI models (nemotron -- B3.3 box 4 / R2a row 27 retired florence2, yolo_world, xclip, fashion_clip) |
 
 **Model-specific Config Schemas:**
 
-| Schema              | Purpose                                   |
-| ------------------- | ----------------------------------------- |
-| `NemotronConfig`    | Nemotron risk analysis configuration      |
-| `Florence2Config`   | Florence-2 scene analysis configuration   |
-| `YoloWorldConfig`   | YOLO-World custom object detection config |
-| `XClipConfig`       | X-CLIP action recognition configuration   |
-| `FashionClipConfig` | Fashion-CLIP clothing analysis config     |
+| Schema           | Purpose                              |
+| ---------------- | ------------------------------------ |
+| `NemotronConfig` | Nemotron risk analysis configuration |
+
+(B3.3 box 4 / R2a row 27 retired the Florence2/YoloWorld/XClip/FashionClip configs with their
+enum values.)
 
 **Request/Response Schemas:**
 

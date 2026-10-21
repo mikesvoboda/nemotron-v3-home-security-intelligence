@@ -311,8 +311,9 @@ def at_head(s: snap.Snapshot, p: dict, review: dict) -> bool | str:
 
     The newest approval is ``Snapshot.judge``'s own verdict on ``p`` (its ``own_diff`` carry). Any
     other review goes through the same three arms ``judge`` has: the sha it names is the head
-    (identity), names no sha, or names another rev, whose UR-106 own-diff hash either carries to
-    the head or not (``Snapshot._own_diff``, the same reads).
+    (identity), names no sha, or names another rev, whose UR-106 own-diff carry -- hash equality
+    or the ruling-278 subset rule (``Snapshot._own_diff``, the same reads) -- carries to the head
+    or not.
     """
     approval = p.get("approval") or {}
     if review.get("id") == approval.get("id"):

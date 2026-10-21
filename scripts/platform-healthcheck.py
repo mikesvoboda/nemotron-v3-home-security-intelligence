@@ -67,8 +67,13 @@ def _sub(msg: str) -> str:
 # ---------------------------------------------------------------------------
 def _run(cmd: str, timeout: int = 15) -> tuple[int, str]:
     try:
-        r = subprocess.run(  # noqa: S602
-            cmd, shell=True, check=False, capture_output=True, text=True, timeout=timeout
+        r = subprocess.run(  # noqa: S602  # nosemgrep: shell-injection, python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+            cmd,  # nosemgrep: shell-injection, python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+            shell=True,  # nosemgrep: shell-injection, python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         return r.returncode, (r.stdout + r.stderr).strip()
     except subprocess.TimeoutExpired:
@@ -455,13 +460,13 @@ def analyze_validation_report(report_path: str) -> list[str]:
     lines = []
     lines.append(_header("VALIDATION REPORT ANALYSIS"))
 
-    path = Path(report_path)
+    path = Path(report_path).resolve()
     if not path.exists():
         lines.append(f"  {_DIM}Report not yet available: {report_path}{_RESET}")
         lines.append(f"  {_DIM}(will appear after seed --validate completes){_RESET}")
         return lines
 
-    with open(path) as f:
+    with path.open() as f:  # nosemgrep: path-traversal-open
         report = json.load(f)
 
     generated = report.get("generated_at", "?")

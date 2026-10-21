@@ -189,6 +189,12 @@ class FakeRunner:
         # `gh pr view --json files` answers; keyed by PR number.
         self.pr_files_by_number: dict[int, list[str]] = {7001: ["docs/b.md"], 7002: ["docs/c.md"]}
         self.pr_bodies: dict[int, str] = {}
+        # ruling 278's subset carry: the branch's first-parent commits after an approved head,
+        # one line per commit in `%P` shape ("p1" for an author commit, "p1 p2" for a merge),
+        # keyed by the "<approved>..<head>" range; and merge-parent ancestry, keyed
+        # (parent, root) -> "0" (ancestor) or a positive count.
+        self.branch_commits: dict[str, str] = {}
+        self.ancestry: dict[tuple[str, str], str] = {}
 
     def fail(self, needle: str, message: str = "HTTP 504") -> None:
         self.rules[needle] = snap.CommandError(message)
@@ -276,7 +282,19 @@ class FakeRunner:
             # <head> *is* the head, so the own diff is empty and every carry check passes for free.
             raise AssertionError(f"undeclared merge-base root {root} for {rev[:9]}")
         if cmd[:2] == ["git", "rev-list"]:
+            if "--count" in cmd and "--not" in cmd:
+                # ruling 278's ancestry read: `rev-list --count rev --not root` answers how
+                # many commits `rev` holds that `root` does not -- 0 means rev is an
+                # ancestor of (or is) root. The last two non-flag args are rev and root.
+                args = [a for a in cmd[2:] if a not in ("--count", "--not")]
+                return self.ancestry.get((args[-2], args[-1]), "1") + "\n"
             return self.merges_behind[cmd[-1].split("..")[0]] + "\n"
+        if cmd[:2] == ["git", "log"] and "--first-parent" in cmd:
+            # ruling 278's condition 1: the branch's own commits, read as the head's
+            # first-parent chain from the approved head. The fixture is the parents line
+            # per commit, in the order `git log` prints (newest first).
+            rng = next(a for a in cmd if ".." in a)
+            return self.branch_commits.get(rng, "") + "\n"
         if cmd[:2] == ["git", "log"]:  # ruling 181: commits on a PR head since that agent's beat
             number = int(cmd[-1].rsplit("/", 1)[-1])
             since = next(a.split("=", 1)[1] for a in cmd if a.startswith("--since="))
@@ -1223,6 +1241,24 @@ APPROVED_BASE = "d" * 40  # the approved head's own merge-base -- older than the
 MERGE_MAIN = "1" * 40  # the merge commit's first parent: main as it stood at the merge
 MERGE_PARENT = "a" * 40  # the merged PR's head, second parent of the merge commit
 LANDED_OTHER = "c" * 40  # a merged head that is not the approved head
+# ruling 278's subset carry: the update-branch roll DROPS a line the approved diff added
+# (a stale task-list checkbox main already fixed). The new head's own diff holds every line
+# of APPROVED_DIFF except `+added line`.
+SUBSET_DIFF = APPROVED_DIFF.replace("+added line\n", "")
+# main's own change between the two merge-bases: main's own change ALSO adds the same line
+# (a task-list fix), so after the roll the new head's diff holds it as context and the PR
+# diff loses it -- the "same file and sign" of condition 3. `-added line` would be the
+# wrong sign: the dropped line was an ADDED line, so main's change must add it too.
+MAIN_HOLDING_DIFF = (
+    "diff --git a/docs/b.md b/docs/b.md\n"
+    "index def5678..7777777 100644\n"
+    "--- a/docs/b.md\n"
+    "+++ b/docs/b.md\n"
+    "@@ -1,3 +1,3 @@\n"
+    " context line\n"
+    "+added line\n"
+)
+MAIN_OTHER_DIFF = MAIN_HOLDING_DIFF.replace("+added line\n", "+other line\n")
 
 
 def shell_ur106_hash(diff: str) -> str:
@@ -1334,6 +1370,9 @@ def test_own_diff_carry_yes_on_a_base_roll():
 
 def test_own_diff_carry_no_on_an_author_commit():
     fake = _approved_not_head(_recorded_reads(FakeRunner(), COMMIT_DIFF))
+    # the diff changed because an author commit sits between the approved head and the
+    # head under judgment -- the chain read (condition 1) names it, a single-parent commit.
+    fake.branch_commits[f"{APPROVED_HEAD[:7]}..{HEAD}"] = "authorparent1\n"
     data = build(fake)
     p = pr(data)
     assert p["own_diff"]["carry"] is False
@@ -1378,12 +1417,104 @@ def test_a_failed_own_diff_read_reports_carry_unknown():
     assert any("own-diff" in e for e in p["errors"])
 
 
+def _subset_reads(fake: FakeRunner, head_diff: str, main_diff: str, chain: str) -> FakeRunner:
+    """The UR-106 subset reads for #7001: hashes as `_recorded_reads` wires them, plus the
+    two reads the subset rule adds -- the branch's first-parent chain after the approved
+    head (condition 1) and main's own change between the two merge-bases (condition 3).
+
+    The head's own base stays BASE (the fake's open-PR default), so the between-bases read
+    is `APPROVED_BASE..BASE` over the PR's files.
+    """
+    fake = _recorded_reads(fake, head_diff)
+    fake.merge_bases["origin/main::" + BASE] = APPROVED_BASE  # the between-bases anchor
+    fake.own_diffs[f"{APPROVED_BASE}..{BASE}"] = main_diff
+    fake.branch_commits[f"{APPROVED_HEAD[:7]}..{HEAD}"] = chain
+    # every two-parent commit in the chain is a main merge by construction: the fake
+    # answers its second parent's ancestry with 0 (an ancestor of main's tip). A test
+    # that wants the ancestry read to FAIL scripts fake.fail on the rev-list needle.
+    for parents in (ln for ln in chain.splitlines() if ln.strip()):
+        parts = parents.split()
+        if len(parts) >= 2:
+            fake.ancestry[(parts[1], "origin/main")] = "0"
+    return fake
+
+
+MERGE_COMMIT_CHAIN = "e" * 39 + "1" + " " + APPROVED_HEAD[:7] + "c0ffee"  # a merge + the approved head
+
+
+def test_a_subset_carry_where_main_holds_the_dropped_line_carries():
+    """UR-106's subset rule: N ⊆ A and every dropped line is one main's own change also
+    removes, with only update-branch merges between the heads."""
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    p = pr(build(fake))
+    assert p["own_diff"]["carry"] is True
+    assert p["own_diff"]["subset_lines"] == 1
+    assert any("carry=yes (subset: 1 lines main holds)" in row for row in rendered_pr_block(build(fake)))
+
+
+def test_a_dropped_line_main_does_not_hold_reads_no_carry():
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_OTHER_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    p = pr(build(fake))
+    assert p["own_diff"]["carry"] is False
+    assert any("carry=no" in row for row in rendered_pr_block(build(fake)))
+
+
+def test_a_new_line_in_the_head_diff_is_no_carry():
+    """A line in N that A does not hold breaks the multiset containment (condition 2)."""
+    new_line_diff = CARRY_DIFF + "+brand new line\n"
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), new_line_diff, MAIN_HOLDING_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    assert pr(build(fake))["own_diff"]["carry"] is False
+
+
+def test_an_author_commit_between_the_heads_is_no_carry():
+    """Condition 1: only update-branch merges may sit between the approved head and the
+    head under judgment. A single-parent commit in the chain is an author commit."""
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, "authorparent1\nauthorparent2\n")
+    )
+    assert pr(build(fake))["own_diff"]["carry"] is False
+
+
+def test_a_subset_carry_is_ok_for_the_watch_and_the_inflight_sign():
+    """The §7 disable list and §4's in-flight sign must read a subset carry as a carry."""
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    fake.prs[0]["autoMergeRequest"] = _armed()
+    data = build(fake)
+    assert data["auto_merge_watch"]["ok"] == [7001]
+    assert pr(data)["in_flight"]["carry"] is True
+
+
+def test_a_failed_subset_read_reports_unknown_never_yes():
+    """A failed condition read is unknown: the coordinator hand-judges, the armed PR never
+    lands in the disable list, and the never-yes rule (UR-106, UR-154) holds."""
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    fake.fail(f"{APPROVED_BASE}..{BASE}", "fatal: bad object")  # main's between-bases diff
+    fake.prs[0]["autoMergeRequest"] = _armed()
+    data = build(fake)
+    p = pr(data)
+    assert p["own_diff"]["carry"] is None
+    assert data["auto_merge_watch"]["unknown"] == [7001]
+    assert data["auto_merge_watch"]["disable"] == []
+
+
 def _armed():
     return {"enabledAt": t(-timedelta(hours=1)), "mergeMethod": "MERGE"}
 
 
 def test_disable_list_flags_an_armed_uncarried_head():
     fake = _approved_not_head(_recorded_reads(FakeRunner(), COMMIT_DIFF))
+    # same author-commit scenario as the diff shape stages: the chain read names it.
+    fake.branch_commits[f"{APPROVED_HEAD[:7]}..{HEAD}"] = "authorparent1\n"
     fake.prs[0]["autoMergeRequest"] = _armed()
     data = build(fake)
     watch = data["auto_merge_watch"]
@@ -1515,7 +1646,9 @@ def test_a_merged_head_that_is_neither_approved_nor_a_carry_is_bared():
     fake = FakeRunner()
     fake.merged_prs = [merged(7108, 18)]
     review_on(fake, 7108, LANDED_OTHER)
-    merge_of(fake, 7108, APPROVED_DIFF, COMMIT_DIFF, approved=LANDED_OTHER)
+    landed = merge_of(fake, 7108, APPROVED_DIFF, COMMIT_DIFF, approved=LANDED_OTHER)
+    # the diff changed because an author commit raced the merge: the chain read names it.
+    fake.branch_commits[f"{LANDED_OTHER[:7]}..{landed}"] = "authorparent1\n"
     data = build(fake)
     audit = {i["number"]: i for i in data["merged_audit"]["items"]}
     assert audit[7108]["verdict"].startswith("NOT APPROVED at the landed head")
