@@ -61,6 +61,7 @@ entries = [
   "scripts/ratchet-check.py",
   "scripts/suppression-census.py",
   "scripts/suppression-registry-gen.py",
+  "scripts/uplevel/queue_update.py",
   "scripts/weekly-test-report.py",
   # --- scripts named by .pre-commit-config.yaml ---
   "scripts/check-mock-spec.py",
