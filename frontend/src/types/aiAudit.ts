@@ -13,15 +13,18 @@
 /**
  * Supported AI models for prompt configuration.
  * Uses underscore naming to match backend conventions.
+ *
+ * B3.3 box 4 (R2a row 27): florence2, yolo_world, xclip and fashion_clip retired with
+ * the R8 S2/S3 serving sweep; nemotron is the only model a deployment boots.
  */
-export type AiModelName = 'nemotron' | 'florence2' | 'yolo_world' | 'xclip' | 'fashion_clip';
+export type AiModelName = 'nemotron';
 
 /**
  * Supported AI models for database-backed prompt config.
  * Uses hyphen naming as specified in the API spec.
  * @deprecated Use AiModelName instead (NEM-3255). DbModelName was for the deprecated /api/ai-audit/prompt-config endpoints.
  */
-export type DbModelName = 'nemotron' | 'florence-2' | 'yolo-world' | 'x-clip' | 'fashion-clip';
+export type DbModelName = 'nemotron';
 
 /**
  * Priority level for recommendations.
@@ -307,7 +310,7 @@ export interface PromptUpdateResponse {
  * Request to test a modified prompt configuration against an event.
  */
 export interface PromptTestRequest {
-  /** Model name to test (nemotron, florence2, etc.) */
+  /** Model name to test */
   model: AiModelName;
   /** Modified configuration to test */
   config: Record<string, unknown>;

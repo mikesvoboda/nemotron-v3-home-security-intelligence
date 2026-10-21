@@ -40,7 +40,6 @@ from backend.core.exceptions import (
     EnrichmentUnavailableError,
     EventNotFoundError,
     ExternalServiceError,
-    FlorenceUnavailableError,
     InternalError,
     InvalidBoundingBoxError,
     InvalidEmbeddingError,
@@ -390,19 +389,6 @@ class TestURLValidationErrors:
 class TestAdditionalAIServiceErrors:
     """Test additional AI service errors (NEM-1441)."""
 
-    def test_florence_unavailable_error(self) -> None:
-        exc = FlorenceUnavailableError()
-        assert exc.status_code == 503
-        assert exc.error_code == "FLORENCE_UNAVAILABLE"
-        assert exc.service_name == "florence"
-        assert isinstance(exc, AIServiceError)
-
-    def test_florence_unavailable_error_with_original(self) -> None:
-        original = TimeoutError("Connection timed out")
-        exc = FlorenceUnavailableError("Florence service down", original_error=original)
-        assert exc.original_error is original
-        assert exc.message == "Florence service down"
-
     def test_clip_unavailable_error(self) -> None:
         exc = CLIPUnavailableError()
         assert exc.status_code == 503
@@ -550,7 +536,6 @@ class TestConsolidatedExceptionsHierarchy:
             BoundingBoxOutOfBoundsError(),
             URLValidationError(),
             SSRFValidationError(),
-            FlorenceUnavailableError(),
             CLIPUnavailableError(),
             TLSError(),
             TLSConfigurationError(),
@@ -571,11 +556,8 @@ class TestConsolidatedExceptionsHierarchy:
             )
 
     def test_ai_service_errors_hierarchy(self) -> None:
-        """Florence and CLIP errors are part of AI service hierarchy."""
-        florence = FlorenceUnavailableError()
+        """CLIP errors are part of AI service hierarchy."""
         clip = CLIPUnavailableError()
-        assert isinstance(florence, AIServiceError)
-        assert isinstance(florence, ExternalServiceError)
         assert isinstance(clip, AIServiceError)
         assert isinstance(clip, ExternalServiceError)
 

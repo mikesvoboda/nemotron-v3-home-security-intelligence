@@ -3,7 +3,7 @@
  *
  * Features:
  * - Slide-out panel from right (80% viewport width)
- * - Model-specific editors (Nemotron, Florence-2, YOLO-World, X-CLIP, Fashion-CLIP)
+ * - Model-specific editor (Nemotron; the four vision models retired with B3.3 box 4)
  * - Test functionality with before/after comparison
  * - Save, Export, and Import capabilities
  * - Keyboard shortcuts (Escape to close)
@@ -93,32 +93,14 @@ interface ModelConfig {
 // Constants
 // ============================================================================
 
+// B3.3 box 4 (R2a row 27): florence2, yolo_world, xclip and fashion_clip retired
+// with the R8 S2/S3 serving sweep; nemotron is the only model a deployment boots.
 const MODEL_CONFIGS: ModelConfig[] = [
   {
     name: 'nemotron',
     displayName: 'Nemotron',
     description: 'Primary LLM for risk analysis and reasoning',
     variables: ['{detections}', '{cross_camera_data}', '{weather}', '{time_context}'],
-  },
-  {
-    name: 'florence2',
-    displayName: 'Florence-2',
-    description: 'Visual question-answering model',
-  },
-  {
-    name: 'yolo_world',
-    displayName: 'YOLO-World',
-    description: 'Open-vocabulary object detection',
-  },
-  {
-    name: 'xclip',
-    displayName: 'X-CLIP',
-    description: 'Action recognition model',
-  },
-  {
-    name: 'fashion_clip',
-    displayName: 'Fashion-CLIP',
-    description: 'Clothing and appearance analysis',
   },
 ];
 
@@ -953,180 +935,6 @@ export default function PromptPlayground({
                 }
                 className="w-full rounded-lg border border-gray-700 bg-black/30 px-3 py-2 text-white focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
                 data-testid={`${modelName}-max-tokens`}
-              />
-            </div>
-          </div>
-        );
-
-      case 'florence2':
-        return (
-          <div className="space-y-4">
-            <label
-              htmlFor={`${modelName}-vqa-queries-input`}
-              className="mb-2 block text-sm font-medium text-gray-300"
-            >
-              VQA Queries
-            </label>
-            <p className="text-xs text-gray-500">
-              Enter one query per line. These are the visual questions asked about each image.
-            </p>
-            <textarea
-              id={`${modelName}-vqa-queries-input`}
-              value={Array.isArray(config.vqa_queries) ? config.vqa_queries.join('\n') : ''}
-              onChange={(e) =>
-                updateConfigValue(
-                  modelName,
-                  'vqa_queries',
-                  e.target.value.split('\n').filter((q) => q.trim())
-                )
-              }
-              className="h-48 w-full resize-y rounded-lg border border-gray-700 bg-black/30 p-3 font-mono text-sm text-white placeholder-gray-500 focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
-              placeholder="What is happening in this image?&#10;Are there any people present?&#10;Describe any vehicles visible."
-              data-testid={`${modelName}-vqa-queries`}
-            />
-          </div>
-        );
-
-      case 'yolo_world':
-        return (
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor={`${modelName}-object-classes-input`}
-                className="mb-2 block text-sm font-medium text-gray-300"
-              >
-                Object Classes
-              </label>
-              <p className="text-xs text-gray-500">
-                Enter one class per line. These are the objects to detect.
-              </p>
-              <textarea
-                id={`${modelName}-object-classes-input`}
-                value={Array.isArray(config.object_classes) ? config.object_classes.join('\n') : ''}
-                onChange={(e) =>
-                  updateConfigValue(
-                    modelName,
-                    'object_classes',
-                    e.target.value.split('\n').filter((c) => c.trim())
-                  )
-                }
-                className="h-32 w-full resize-y rounded-lg border border-gray-700 bg-black/30 p-3 font-mono text-sm text-white placeholder-gray-500 focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
-                placeholder="person&#10;vehicle&#10;package&#10;animal"
-                data-testid={`${modelName}-object-classes`}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor={`${modelName}-confidence-input`}
-                className="mb-2 block text-sm font-medium text-gray-300"
-              >
-                Confidence Threshold: {Number(config.confidence_threshold || 0.5).toFixed(2)}
-              </label>
-              <input
-                id={`${modelName}-confidence-input`}
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={Number(config.confidence_threshold || 0.5)}
-                onChange={(e) =>
-                  updateConfigValue(modelName, 'confidence_threshold', parseFloat(e.target.value))
-                }
-                className="w-full accent-[#76B900]"
-                data-testid={`${modelName}-confidence`}
-              />
-            </div>
-          </div>
-        );
-
-      case 'xclip':
-        return (
-          <div className="space-y-4">
-            <label
-              htmlFor={`${modelName}-action-classes-input`}
-              className="mb-2 block text-sm font-medium text-gray-300"
-            >
-              Action Classes
-            </label>
-            <p className="text-xs text-gray-500">
-              Enter one action per line. These are the actions to recognize in video clips.
-            </p>
-            <textarea
-              id={`${modelName}-action-classes-input`}
-              value={Array.isArray(config.action_classes) ? config.action_classes.join('\n') : ''}
-              onChange={(e) =>
-                updateConfigValue(
-                  modelName,
-                  'action_classes',
-                  e.target.value.split('\n').filter((a) => a.trim())
-                )
-              }
-              className="h-48 w-full resize-y rounded-lg border border-gray-700 bg-black/30 p-3 font-mono text-sm text-white placeholder-gray-500 focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
-              placeholder="walking&#10;running&#10;fighting&#10;loitering"
-              data-testid={`${modelName}-action-classes`}
-            />
-          </div>
-        );
-
-      case 'fashion_clip':
-        return (
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor={`${modelName}-clothing-categories-input`}
-                className="mb-2 block text-sm font-medium text-gray-300"
-              >
-                Clothing Categories
-              </label>
-              <p className="text-xs text-gray-500">Enter one category per line.</p>
-              <textarea
-                id={`${modelName}-clothing-categories-input`}
-                value={
-                  Array.isArray(config.clothing_categories)
-                    ? config.clothing_categories.join('\n')
-                    : ''
-                }
-                onChange={(e) =>
-                  updateConfigValue(
-                    modelName,
-                    'clothing_categories',
-                    e.target.value.split('\n').filter((c) => c.trim())
-                  )
-                }
-                className="h-32 w-full resize-y rounded-lg border border-gray-700 bg-black/30 p-3 font-mono text-sm text-white placeholder-gray-500 focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
-                placeholder="casual&#10;formal&#10;athletic&#10;uniform"
-                data-testid={`${modelName}-clothing-categories`}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor={`${modelName}-suspicious-indicators-input`}
-                className="mb-2 block text-sm font-medium text-gray-300"
-              >
-                Suspicious Indicators
-              </label>
-              <p className="text-xs text-gray-500">
-                Enter one indicator per line. Clothing patterns that indicate suspicious activity.
-              </p>
-              <textarea
-                id={`${modelName}-suspicious-indicators-input`}
-                value={
-                  Array.isArray(config.suspicious_indicators)
-                    ? config.suspicious_indicators.join('\n')
-                    : ''
-                }
-                onChange={(e) =>
-                  updateConfigValue(
-                    modelName,
-                    'suspicious_indicators',
-                    e.target.value.split('\n').filter((s) => s.trim())
-                  )
-                }
-                className="h-32 w-full resize-y rounded-lg border border-gray-700 bg-black/30 p-3 font-mono text-sm text-white placeholder-gray-500 focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
-                placeholder="all black&#10;face mask&#10;hoodie up&#10;gloves at night"
-                data-testid={`${modelName}-suspicious-indicators`}
               />
             </div>
           </div>

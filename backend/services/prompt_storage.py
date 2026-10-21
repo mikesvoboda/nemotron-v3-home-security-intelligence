@@ -12,11 +12,6 @@ Storage Structure:
                 v1.json        - Version 1
                 v2.json        - Version 2
                 ...
-        florence2/
-            current.json
-            history/
-                v1.json
-                ...
         ...
 """
 
@@ -63,8 +58,9 @@ def safe_parse_datetime(value: str | None, fallback: datetime | None = None) -> 
 # Default storage path relative to backend directory
 DEFAULT_PROMPT_STORAGE_PATH = Path(__file__).parent.parent / "data" / "prompts"
 
-# Supported model names
-SUPPORTED_MODELS = frozenset({"nemotron", "florence2", "yolo_world", "xclip", "fashion_clip"})
+# Supported model names. B3.3 box 4 (R2a row 27): the four vision models retired with
+# the R8 S2/S3 sweep; nemotron is the only model a deployment boots.
+SUPPORTED_MODELS = frozenset({"nemotron"})
 
 # Default configurations for each model
 DEFAULT_CONFIGS: dict[str, dict[str, Any]] = {
@@ -72,81 +68,6 @@ DEFAULT_CONFIGS: dict[str, dict[str, Any]] = {
         "system_prompt": MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
         "temperature": 0.7,
         "max_tokens": 2048,
-    },
-    "florence2": {
-        "vqa_queries": [
-            "What is this person wearing?",
-            "What is this person carrying?",
-            "What is this person doing?",
-            "Is this person a service worker or delivery person?",
-            "What color is this vehicle?",
-            "What type of vehicle is this?",
-            "Is this a commercial or personal vehicle?",
-            "Are there any visible company logos or text on this vehicle?",
-        ],
-    },
-    "yolo_world": {
-        "object_classes": [
-            "person",
-            "car",
-            "truck",
-            "motorcycle",
-            "bicycle",
-            "dog",
-            "cat",
-            "backpack",
-            "handbag",
-            "suitcase",
-            "knife",
-            "baseball bat",
-            "skateboard",
-            "umbrella",
-        ],
-        "confidence_threshold": 0.5,
-    },
-    "xclip": {
-        "action_classes": [
-            "walking",
-            "running",
-            "standing",
-            "sitting",
-            "crouching",
-            "crawling",
-            "loitering",
-            "pacing",
-            "looking around",
-            "photographing",
-            "checking car doors",
-            "breaking in",
-            "climbing",
-            "hiding",
-            "fighting",
-            "throwing",
-        ],
-    },
-    "fashion_clip": {
-        "clothing_categories": [
-            "casual wear",
-            "formal wear",
-            "athletic wear",
-            "work uniform",
-            "delivery uniform",
-            "all black clothing",
-            "hoodie",
-            "face mask",
-            "sunglasses",
-            "hat or cap",
-            "gloves",
-            "high visibility vest",
-        ],
-        "suspicious_indicators": [
-            "all black",
-            "face mask",
-            "hoodie up",
-            "gloves at night",
-            "balaclava",
-            "face covering",
-        ],
     },
 }
 
@@ -246,7 +167,7 @@ class PromptStorageService:
         """Get the current configuration for a model.
 
         Args:
-            model_name: Name of the model (nemotron, florence2, etc.)
+            model_name: Name of the model (nemotron)
 
         Returns:
             Current configuration dict, or default if none exists
@@ -612,26 +533,13 @@ class PromptStorageService:
 
         errors: list[str] = []
 
-        # Dispatch to model-specific validators
-        validators: dict[str, tuple[str, str] | None] = {
-            "nemotron": None,  # Special handling
-            "florence2": ("vqa_queries", "query"),
-            "yolo_world": None,  # Special handling (has threshold)
-            "xclip": ("action_classes", "class"),
-            "fashion_clip": ("clothing_categories", "category"),
-        }
-
+        # B3.3 box 4 (R2a row 27): nemotron is the only model with prompts to validate;
+        # the four vision models retired with the R8 S2/S3 sweep.
         if model_name == "nemotron":
             self._validate_required_string(config, "system_prompt", errors)
             self._validate_number_range(config, "temperature", 0, 2, errors)
-        elif model_name == "yolo_world":
-            self._validate_required_list(config, "object_classes", "class", errors)
-            self._validate_number_range(config, "confidence_threshold", 0, 1, errors)
-        elif model_name in validators:
-            validator_config = validators[model_name]
-            if validator_config is not None:
-                field, item_name = validator_config
-                self._validate_required_list(config, field, item_name, errors)
+        else:
+            errors.append(f"Unsupported model: {model_name}")
 
         return errors
 

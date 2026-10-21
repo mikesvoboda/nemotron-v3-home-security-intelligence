@@ -11,23 +11,11 @@ import { Dialog, DialogPanel, Title, Button, TextInput } from '@tremor/react';
 import { X, FlaskConical } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 
-import {
-  NemotronConfigForm,
-  Florence2ConfigForm,
-  YoloWorldConfigForm,
-  XClipConfigForm,
-  FashionClipConfigForm,
-} from './model-forms';
+import { NemotronConfigForm } from './model-forms';
 import PromptTestModal from './PromptTestModal';
 import { AIModelEnum } from '../../../types/promptManagement';
 
-import type {
-  NemotronConfig,
-  Florence2Config,
-  YoloWorldConfig,
-  XClipConfig,
-  FashionClipConfig,
-} from '../../../types/promptManagement';
+import type { NemotronConfig } from '../../../types/promptManagement';
 
 // ============================================================================
 // Types
@@ -49,12 +37,9 @@ export interface PromptConfigEditorProps {
 }
 
 // Model display names
+// B3.3 box 4 (R2a row 27): nemotron is the only model a deployment boots.
 const MODEL_NAMES: Record<AIModelEnum, string> = {
   [AIModelEnum.NEMOTRON]: 'Nemotron',
-  [AIModelEnum.FLORENCE2]: 'Florence-2',
-  [AIModelEnum.YOLO_WORLD]: 'YOLO-World',
-  [AIModelEnum.XCLIP]: 'X-CLIP',
-  [AIModelEnum.FASHION_CLIP]: 'Fashion-CLIP',
 };
 
 // ============================================================================
@@ -121,44 +106,14 @@ export default function PromptConfigEditor({
   );
 
   // Render the appropriate form based on model type
+  // B3.3 box 4 (R2a row 27): nemotron is the only case left -- the enum refuses
+  // every retired model name, so no editor exists for them.
   const renderForm = () => {
     switch (model) {
       case AIModelEnum.NEMOTRON:
         return (
           <NemotronConfigForm
             config={config as unknown as NemotronConfig}
-            onChange={handleConfigChange}
-            disabled={isSaving}
-          />
-        );
-      case AIModelEnum.FLORENCE2:
-        return (
-          <Florence2ConfigForm
-            config={config as unknown as Florence2Config}
-            onChange={handleConfigChange}
-            disabled={isSaving}
-          />
-        );
-      case AIModelEnum.YOLO_WORLD:
-        return (
-          <YoloWorldConfigForm
-            config={config as unknown as YoloWorldConfig}
-            onChange={handleConfigChange}
-            disabled={isSaving}
-          />
-        );
-      case AIModelEnum.XCLIP:
-        return (
-          <XClipConfigForm
-            config={config as unknown as XClipConfig}
-            onChange={handleConfigChange}
-            disabled={isSaving}
-          />
-        );
-      case AIModelEnum.FASHION_CLIP:
-        return (
-          <FashionClipConfigForm
-            config={config as unknown as FashionClipConfig}
             onChange={handleConfigChange}
             disabled={isSaving}
           />

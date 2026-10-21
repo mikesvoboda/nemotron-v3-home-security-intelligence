@@ -64,10 +64,6 @@ import {
 
 const MODEL_DISPLAY_NAMES: Record<AIModelEnum, string> = {
   [AIModelEnum.NEMOTRON]: 'Nemotron (Risk Analysis)',
-  [AIModelEnum.FLORENCE2]: 'Florence-2 (Scene Analysis)',
-  [AIModelEnum.YOLO_WORLD]: 'YOLO-World (Object Detection)',
-  [AIModelEnum.XCLIP]: 'X-CLIP (Action Recognition)',
-  [AIModelEnum.FASHION_CLIP]: 'Fashion-CLIP (Clothing Analysis)',
 };
 
 const ITEMS_PER_PAGE = 20;

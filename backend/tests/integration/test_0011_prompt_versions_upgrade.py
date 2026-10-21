@@ -66,8 +66,10 @@ def _fixture_rows() -> list[tuple[str, int, str]]:
     text = PRE_0011_SQL.read_text(encoding="utf-8")
     rows: list[tuple[str, int, str]] = []
     for match in re.finditer(r"\('(\w+)',\s*(\d+),\s*'((?:[^']|'')*)'", text):
-        model, version, config = match.group(1), int(match.group(2)), match.group(3).replace(
-            "''", "'"
+        model, version, config = (
+            match.group(1),
+            int(match.group(2)),
+            match.group(3).replace("''", "'"),
         )
         rows.append((model, version, config))
     return rows
@@ -115,7 +117,13 @@ async def test_0011_deletes_exactly_the_four_models_rows(pre_0011_url):
         "the fixture must plant all five models or the census is vacuous"
     )
 
-    engine = create_async_engine(pre_0011_url)
+    # statement_cache_size=0: the before-census prepares `SELECT ... FROM prompt_versions`
+    # against the enum-typed column; after 0011's ALTER COLUMN ... TYPE varchar that cached
+    # plan is invalid and asyncpg raises InvalidCachedStatementError when the after-census
+    # re-runs the same SQL on a pooled connection. The schema change is the test's own
+    # subject, so the cache has to be off (SQLAlchemy notices the error but only AFTER
+    # failing the statement -- and the after-census must succeed to do the measuring).
+    engine = create_async_engine(pre_0011_url, connect_args={"statement_cache_size": 0})
     try:
         async with engine.connect() as conn:
             # ---- the "before" state, measured, so fixture drift cannot pass this test ----
@@ -127,9 +135,20 @@ async def test_0011_deletes_exactly_the_four_models_rows(pre_0011_url):
 
         results = await upgrade_database(engine)
         assert [r.id for r in results] == list(registry.ids())
-        assert all(r.state == "applied" and r.executed for r in results), [
-            r.describe() for r in results
-        ]
+        # Measured on this fixture database (probe against the live catalog): 0011 is the
+        # only upgrade that RUNS -- its check is the only one that must answer False here.
+        # The earlier upgrades' checks all see their effect "already present" on a database
+        # whose sole real table is prompt_versions (the checkers are shape-detects, so an
+        # absent table means nothing left to do), so they record WITHOUT running -- exactly
+        # what a real pre-0011 deployment would experience for upgrades whose tables the
+        # fixture does not recreate. Pinning the split keeps a check that starts answering
+        # False (and therefore runs against rows it must not touch) visible.
+        assert all(
+            (r.state == "applied" and r.executed)
+            if r.id == UPGRADE_ID
+            else (r.state == "verified" and not r.executed)
+            for r in results
+        ), [r.describe() for r in results]
 
         async with engine.connect() as conn:
             after = await _row_census(conn)
@@ -187,9 +206,9 @@ async def test_0011_is_verified_on_a_create_all_database(postgres_container):
         assert states[UPGRADE_ID] == "verified", [
             r.describe() for r in results if r.id == UPGRADE_ID
         ]
-        assert not any(
-            r.id == UPGRADE_ID and r.executed for r in results
-        ), "a verified upgrade must run zero statements"
+        assert not any(r.id == UPGRADE_ID and r.executed for r in results), (
+            "a verified upgrade must run zero statements"
+        )
     finally:
         await engine.dispose()
         _drop_worker_database(base_url, db_name)

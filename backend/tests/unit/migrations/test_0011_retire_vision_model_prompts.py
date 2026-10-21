@@ -29,6 +29,7 @@ need no Postgres.
 
 from __future__ import annotations
 
+import inspect
 import re
 from pathlib import Path
 
@@ -79,9 +80,8 @@ def test_ai_audit_model_name_keeps_only_nemotron():
 def test_retired_config_classes_are_gone():
     """Each retired model's config class is gone from BOTH schema modules and the typed
     params registry -- a class that describes a payload nothing can serve is residue."""
-    import backend.api.schemas.ai_audit as ai_audit
-    import backend.api.schemas.prompt_management as prompt_management
     import backend.services.typed_prompt_config as typed
+    from backend.api.schemas import ai_audit, prompt_management
 
     for module, class_names in (
         (
@@ -177,16 +177,27 @@ def test_0011_converts_the_column_and_drops_the_type():
     type behind would make `create_all` and migrated databases disagree on the column's
     type (the schema-twins property the upgrade-path test pins)."""
     sql = next(u for u in registry.UPGRADES if u.id == UPGRADE_ID).read_sql()
-    assert re.search(r"ALTER\s+TABLE\s+prompt_versions\s+ALTER\s+COLUMN\s+model\s+TYPE\s+varchar", sql, re.IGNORECASE)
+    assert re.search(
+        r"ALTER\s+TABLE\s+prompt_versions\s+ALTER\s+COLUMN\s+model\s+TYPE\s+varchar",  # pragma: allowlist secret (regex literal, not a credential)
+        sql,
+        re.IGNORECASE,
+    )
     assert re.search(r"USING\s+model::varchar", sql, re.IGNORECASE)
     assert re.search(r"DROP\s+TYPE\s+IF\s+EXISTS\s+aimodel", sql, re.IGNORECASE)
 
 
 def test_0011_check_reports_verified_only_after_both_effects():
     """The check needs the column type moved AND the rows gone -- either alone would record
-    an upgrade whose other half never ran."""
+    an upgrade whose other half never ran. The predicate is ours (the closure inside
+    `_prompt_versions_model_migrated`), not a stock helper."""
+    from backend.migrations import checks as checks_module
+
     check = checks.CHECKS[UPGRADE_ID]
-    assert "varchar" in repr(type(check)), check  # the predicate exists and is ours
+    assert check.__qualname__.startswith("_prompt_versions_model_migrated"), check
+    # The registered predicate reads BOTH the column type and the retired rows.
+    check_src = inspect.getsource(checks_module._prompt_versions_model_migrated)
+    assert "character varying" in check_src
+    assert "florence2" in check_src and "fashion_clip" in check_src
 
 
 # --------------------------------------------------------------------------------------
@@ -209,7 +220,7 @@ def test_sibling_unavailable_errors_stay():
     ANALYZER_UNAVAILABLE member -- so it is pinned where it actually is."""
     src = (REPO_ROOT / "backend/core/exceptions.py").read_text(encoding="utf-8")
     assert "AnalyzerUnavailableError" in src
-    assert 'ANALYZER_UNAVAILABLE' in src
+    assert "ANALYZER_UNAVAILABLE" in src
     assert "EnrichmentUnavailableError" in src
     errs = (REPO_ROOT / "backend/api/schemas/errors.py").read_text(encoding="utf-8")
     assert "ENRICHMENT_SERVICE_UNAVAILABLE" in errs
@@ -220,7 +231,7 @@ def test_prompt_column_in_the_model_is_no_longer_a_native_enum():
     shape the upgrade leaves behind (schema twins)."""
     src = (REPO_ROOT / "backend/models/prompt_version.py").read_text(encoding="utf-8")
     assert "SQLEnum" not in src, "the native enum column must leave the model"
-    assert re.search(r'String\(', src), "model column should be a varchar String"
+    assert re.search(r"String\(", src), "model column should be a varchar String"
 
 
 def test_prompt_service_default_configs_are_nemotron_only():

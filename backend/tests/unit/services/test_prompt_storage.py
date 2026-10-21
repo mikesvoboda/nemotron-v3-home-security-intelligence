@@ -91,9 +91,9 @@ class TestModuleConstants:
         assert isinstance(SUPPORTED_MODELS, frozenset)
 
     def test_supported_models_contains_expected_models(self):
-        """Test SUPPORTED_MODELS contains all expected model names."""
-        expected = {"nemotron", "florence2", "yolo_world", "xclip", "fashion_clip"}
-        assert expected == SUPPORTED_MODELS
+        """Test SUPPORTED_MODELS contains the supported model names (the four vision
+        models retired with the R8 S2/S3 sweep, B3.3 box 4)."""
+        assert {"nemotron"} == SUPPORTED_MODELS
 
     def test_default_configs_has_all_models(self):
         """Test DEFAULT_CONFIGS has configuration for all supported models."""
@@ -137,48 +137,6 @@ class TestDefaultConfigs:
         assert "max_tokens" in config
         assert isinstance(config["max_tokens"], int)
         assert config["max_tokens"] > 0
-
-    def test_florence2_default_has_vqa_queries(self):
-        """Test Florence-2 default config has vqa_queries list."""
-        config = DEFAULT_CONFIGS["florence2"]
-        assert "vqa_queries" in config
-        assert isinstance(config["vqa_queries"], list)
-        assert len(config["vqa_queries"]) >= 4
-
-    def test_yolo_world_default_has_object_classes(self):
-        """Test YOLO-World default config has object_classes list."""
-        config = DEFAULT_CONFIGS["yolo_world"]
-        assert "object_classes" in config
-        assert isinstance(config["object_classes"], list)
-        assert "person" in config["object_classes"]
-
-    def test_yolo_world_default_has_confidence_threshold(self):
-        """Test YOLO-World default config has confidence_threshold."""
-        config = DEFAULT_CONFIGS["yolo_world"]
-        assert "confidence_threshold" in config
-        assert 0 < config["confidence_threshold"] < 1
-
-    def test_xclip_default_has_action_classes(self):
-        """Test X-CLIP default config has action_classes list."""
-        config = DEFAULT_CONFIGS["xclip"]
-        assert "action_classes" in config
-        assert isinstance(config["action_classes"], list)
-        assert len(config["action_classes"]) > 0
-        assert "walking" in config["action_classes"]
-
-    def test_fashion_clip_default_has_clothing_categories(self):
-        """Test Fashion-CLIP default config has clothing_categories list."""
-        config = DEFAULT_CONFIGS["fashion_clip"]
-        assert "clothing_categories" in config
-        assert isinstance(config["clothing_categories"], list)
-        assert len(config["clothing_categories"]) > 0
-
-    def test_fashion_clip_default_has_suspicious_indicators(self):
-        """Test Fashion-CLIP default config has suspicious_indicators list."""
-        config = DEFAULT_CONFIGS["fashion_clip"]
-        assert "suspicious_indicators" in config
-        assert isinstance(config["suspicious_indicators"], list)
-        assert len(config["suspicious_indicators"]) > 0
 
 
 # =============================================================================
@@ -339,12 +297,12 @@ class TestGetConfigWithMetadata:
     ):
         """Test get_config_with_metadata creates default if none exists."""
         # Ensure no current.json exists
-        current_path = temp_storage_dir / "florence2" / "current.json"
+        current_path = temp_storage_dir / "nemotron" / "current.json"
         if current_path.exists():
             current_path.unlink()
 
-        result = storage_service.get_config_with_metadata("florence2")
-        assert result["model_name"] == "florence2"
+        result = storage_service.get_config_with_metadata("nemotron")
+        assert result["model_name"] == "nemotron"
         assert "config" in result
 
     def test_get_config_with_metadata_unsupported_model(
@@ -767,13 +725,11 @@ class TestImportConfigs:
         """Test import_configs imports valid model configurations."""
         configs = {
             "nemotron": {"system_prompt": "Imported prompt"},
-            "florence2": {"vqa_queries": ["Test query"]},
         }
 
         result = storage_service.import_configs(configs, created_by="import_test")
 
         assert "nemotron" in result["imported"]
-        assert "florence2" in result["imported"]
 
     def test_import_configs_skips_existing_without_overwrite(
         self, storage_service: PromptStorageService
@@ -885,77 +841,8 @@ class TestValidateConfig:
         errors = storage_service.validate_config("nemotron", config)
         assert errors == []
 
-    # Florence2 validation tests
-    def test_validate_florence2_valid_config(self, storage_service: PromptStorageService):
-        """Test validate_config passes for valid Florence-2 config."""
-        config = {"vqa_queries": ["What is this?", "Describe the scene."]}
-        errors = storage_service.validate_config("florence2", config)
-        assert errors == []
 
-    def test_validate_florence2_missing_queries(self, storage_service: PromptStorageService):
-        """Test validate_config catches missing vqa_queries for Florence-2."""
-        errors = storage_service.validate_config("florence2", {})
-        assert any("vqa_queries" in e for e in errors)
-
-    def test_validate_florence2_empty_queries(self, storage_service: PromptStorageService):
-        """Test validate_config catches empty vqa_queries list."""
-        config = {"vqa_queries": []}
-        errors = storage_service.validate_config("florence2", config)
-        assert any("at least one" in e for e in errors)
-
-    def test_validate_florence2_queries_not_list(self, storage_service: PromptStorageService):
-        """Test validate_config catches non-list vqa_queries."""
-        config = {"vqa_queries": "not a list"}
-        errors = storage_service.validate_config("florence2", config)
-        assert any("must be a list" in e for e in errors)
-
-    # YOLO-World validation tests
-    def test_validate_yolo_world_valid_config(self, storage_service: PromptStorageService):
-        """Test validate_config passes for valid YOLO-World config."""
-        config = {
-            "object_classes": ["person", "car"],
-            "confidence_threshold": 0.5,
-        }
-        errors = storage_service.validate_config("yolo_world", config)
-        assert errors == []
-
-    def test_validate_yolo_world_missing_classes(self, storage_service: PromptStorageService):
-        """Test validate_config catches missing object_classes for YOLO-World."""
-        config = {"confidence_threshold": 0.5}
-        errors = storage_service.validate_config("yolo_world", config)
-        assert any("object_classes" in e for e in errors)
-
-    def test_validate_yolo_world_threshold_out_of_range(
-        self, storage_service: PromptStorageService
-    ):
-        """Test validate_config catches confidence_threshold out of range."""
-        config = {"object_classes": ["person"], "confidence_threshold": 1.5}
-        errors = storage_service.validate_config("yolo_world", config)
-        assert any("confidence_threshold" in e for e in errors)
-
-    # X-CLIP validation tests
-    def test_validate_xclip_valid_config(self, storage_service: PromptStorageService):
-        """Test validate_config passes for valid X-CLIP config."""
-        config = {"action_classes": ["walking", "running"]}
-        errors = storage_service.validate_config("xclip", config)
-        assert errors == []
-
-    def test_validate_xclip_missing_action_classes(self, storage_service: PromptStorageService):
-        """Test validate_config catches missing action_classes for X-CLIP."""
-        errors = storage_service.validate_config("xclip", {})
-        assert any("action_classes" in e for e in errors)
-
-    # Fashion-CLIP validation tests
-    def test_validate_fashion_clip_valid_config(self, storage_service: PromptStorageService):
-        """Test validate_config passes for valid Fashion-CLIP config."""
-        config = {"clothing_categories": ["casual", "formal"]}
-        errors = storage_service.validate_config("fashion_clip", config)
-        assert errors == []
-
-    def test_validate_fashion_clip_missing_categories(self, storage_service: PromptStorageService):
-        """Test validate_config catches missing clothing_categories."""
-        errors = storage_service.validate_config("fashion_clip", {})
-        assert any("clothing_categories" in e for e in errors)
+# (the four vision models' validate_config tests retired with them, B3.3 box 4)
 
 
 # =============================================================================
@@ -1468,10 +1355,10 @@ class TestInitializeDefaultConfig:
         self, storage_service: PromptStorageService, temp_storage_dir: Path
     ):
         """Test _initialize_default_config creates history entry."""
-        storage_service._initialize_default_config("florence2")
+        storage_service._initialize_default_config("nemotron")
 
         # Should have created history entry
-        history_dir = temp_storage_dir / "florence2" / "history"
+        history_dir = temp_storage_dir / "nemotron" / "history"
         history_files = list(history_dir.glob("v*.json"))
         assert len(history_files) == 1
 
@@ -1608,13 +1495,13 @@ class TestImportConfigsExceptionHandling:
         service = PromptStorageService(storage_path=temp_storage_dir)
 
         configs = {
-            "florence2": {"vqa_queries": ["Test"]},  # This should work
+            "nemotron": {"system_prompt": "Test"},  # This should work
             "invalid_model": {"data": "test"},  # This will be reported as unsupported
         }
 
         result = service.import_configs(configs, overwrite=True)
 
-        # Florence2 should be imported
-        assert "florence2" in result["imported"]
+        # Nemotron should be imported
+        assert "nemotron" in result["imported"]
         # Invalid model should be in errors
         assert "invalid_model" in result["errors"]

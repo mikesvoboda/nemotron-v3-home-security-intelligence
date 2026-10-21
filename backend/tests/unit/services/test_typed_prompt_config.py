@@ -63,10 +63,12 @@ class TestTypedPromptTemplate:
         assert validated.camera_name == "Front Door"
 
     def test_validate_params_rejects_invalid_type(self) -> None:
-        """Test that invalid parameter types are rejected."""
+        """Test that invalid parameter types are rejected. Nemotron is the only registry
+        entry now (the four vision models retired, B3.3 box 4), so the wrong-type object is
+        a bare PromptParamBase -- every non-Nemotron params object must refuse."""
         from backend.services.typed_prompt_config import (
-            Florence2PromptParams,
             NemotronPromptParams,
+            PromptParamBase,
             TypedPromptTemplate,
         )
 
@@ -76,8 +78,8 @@ class TestTypedPromptTemplate:
             param_type=NemotronPromptParams,
         )
 
-        # Wrong param type
-        wrong_params = Florence2PromptParams(queries=["What is this?"])
+        # Wrong param type: a PromptParamBase that is not NemotronPromptParams
+        wrong_params = PromptParamBase.model_construct()
 
         with pytest.raises(TypeError) as exc_info:
             template.validate_params(wrong_params)  # type: ignore[arg-type]
@@ -239,65 +241,6 @@ class TestNemotronPromptParams:
             )
 
 
-class TestFlorence2PromptParams:
-    """Tests for Florence2PromptParams Pydantic model."""
-
-    def test_valid_florence2_params(self) -> None:
-        """Test creating valid Florence-2 prompt parameters."""
-        from backend.services.typed_prompt_config import Florence2PromptParams
-
-        params = Florence2PromptParams(
-            queries=["What is the person doing?", "What are they carrying?"],
-        )
-
-        assert len(params.queries) == 2
-        assert "What is the person doing?" in params.queries
-
-    def test_florence2_params_empty_queries_rejected(self) -> None:
-        """Test that empty queries list is rejected."""
-        from backend.services.typed_prompt_config import Florence2PromptParams
-
-        with pytest.raises(ValidationError):
-            Florence2PromptParams(queries=[])
-
-    def test_florence2_params_whitespace_query_rejected(self) -> None:
-        """Test that whitespace-only queries are rejected."""
-        from backend.services.typed_prompt_config import Florence2PromptParams
-
-        with pytest.raises(ValidationError):
-            Florence2PromptParams(queries=["Valid query", "   "])
-
-
-class TestYoloWorldPromptParams:
-    """Tests for YoloWorldPromptParams Pydantic model."""
-
-    def test_valid_yolo_world_params(self) -> None:
-        """Test creating valid YOLO-World prompt parameters."""
-        from backend.services.typed_prompt_config import YoloWorldPromptParams
-
-        params = YoloWorldPromptParams(
-            classes=["knife", "gun", "crowbar"],
-            confidence_threshold=0.4,
-        )
-
-        assert len(params.classes) == 3
-        assert params.confidence_threshold == 0.4
-
-    def test_yolo_world_params_default_threshold(self) -> None:
-        """Test YOLO-World uses default confidence threshold."""
-        from backend.services.typed_prompt_config import YoloWorldPromptParams
-
-        params = YoloWorldPromptParams(classes=["person", "car"])
-        assert params.confidence_threshold == 0.35
-
-    def test_yolo_world_params_invalid_threshold(self) -> None:
-        """Test invalid confidence threshold is rejected."""
-        from backend.services.typed_prompt_config import YoloWorldPromptParams
-
-        with pytest.raises(ValidationError):
-            YoloWorldPromptParams(classes=["person"], confidence_threshold=1.5)
-
-
 class TestModelConfigRegistry:
     """Tests for the ModelConfigRegistry type mapping."""
 
@@ -310,46 +253,6 @@ class TestModelConfigRegistry:
 
         param_type = get_param_type_for_model("nemotron")
         assert param_type == NemotronPromptParams
-
-    def test_get_config_type_for_florence2(self) -> None:
-        """Test getting config type for Florence-2 model."""
-        from backend.services.typed_prompt_config import (
-            Florence2PromptParams,
-            get_param_type_for_model,
-        )
-
-        param_type = get_param_type_for_model("florence2")
-        assert param_type == Florence2PromptParams
-
-    def test_get_config_type_for_yolo_world(self) -> None:
-        """Test getting config type for YOLO-World model."""
-        from backend.services.typed_prompt_config import (
-            YoloWorldPromptParams,
-            get_param_type_for_model,
-        )
-
-        param_type = get_param_type_for_model("yolo_world")
-        assert param_type == YoloWorldPromptParams
-
-    def test_get_config_type_for_xclip(self) -> None:
-        """Test getting config type for X-CLIP model."""
-        from backend.services.typed_prompt_config import (
-            XClipPromptParams,
-            get_param_type_for_model,
-        )
-
-        param_type = get_param_type_for_model("xclip")
-        assert param_type == XClipPromptParams
-
-    def test_get_config_type_for_fashion_clip(self) -> None:
-        """Test getting config type for Fashion-CLIP model."""
-        from backend.services.typed_prompt_config import (
-            FashionClipPromptParams,
-            get_param_type_for_model,
-        )
-
-        param_type = get_param_type_for_model("fashion_clip")
-        assert param_type == FashionClipPromptParams
 
     def test_get_config_type_for_unknown_model_raises_error(self) -> None:
         """Test that unknown model name raises KeyError."""
@@ -378,21 +281,6 @@ class TestCreateTypedTemplate:
 
         assert template.model_name == "nemotron"
         assert template.param_type == NemotronPromptParams
-
-    def test_create_florence2_template(self) -> None:
-        """Test creating a Florence-2 template via factory."""
-        from backend.services.typed_prompt_config import (
-            Florence2PromptParams,
-            create_typed_template,
-        )
-
-        template = create_typed_template(
-            model_name="florence2",
-            template_string="VQA Query: {queries}",
-        )
-
-        assert template.model_name == "florence2"
-        assert template.param_type == Florence2PromptParams
 
 
 class TestTypeSafeConfigGet:
@@ -430,19 +318,6 @@ class TestTypeSafeConfigGet:
         with pytest.raises(ValidationError):
             get_typed_params("nemotron", invalid_data)
 
-    def test_get_typed_config_for_florence2(self) -> None:
-        """Test getting typed config for Florence-2."""
-        from backend.services.typed_prompt_config import (
-            Florence2PromptParams,
-            get_typed_params,
-        )
-
-        raw_data = {"queries": ["What is happening?", "Describe the scene."]}
-
-        params = get_typed_params("florence2", raw_data)
-        assert isinstance(params, Florence2PromptParams)
-        assert len(params.queries) == 2
-
 
 class TestGenericConstraintEnforcement:
     """Tests for generic constraint enforcement."""
@@ -451,8 +326,8 @@ class TestGenericConstraintEnforcement:
         """Test that template enforces parameter type at runtime."""
         from backend.services.typed_prompt_config import (
             NemotronPromptParams,
+            PromptParamBase,
             TypedPromptTemplate,
-            YoloWorldPromptParams,
         )
 
         nemotron_template = TypedPromptTemplate[NemotronPromptParams](
@@ -470,8 +345,9 @@ class TestGenericConstraintEnforcement:
         )
         nemotron_template.validate_params(valid_params)
 
-        # Wrong params type - should fail
-        wrong_params = YoloWorldPromptParams(classes=["person"])
+        # Wrong params type - should fail (a bare base, since Nemotron is the only
+        # registry entry after the four vision models retired, B3.3 box 4)
+        wrong_params = PromptParamBase.model_construct()
         with pytest.raises(TypeError):
             nemotron_template.validate_params(wrong_params)  # type: ignore[arg-type]
 
@@ -481,26 +357,12 @@ class TestGenericConstraintEnforcement:
         This test exists to document expected type-checking behavior.
         The actual mypy check happens at development time, not runtime.
         """
-        # This comment block shows what mypy would catch:
-        #
-        # from backend.services.typed_prompt_config import (
-        #     TypedPromptTemplate,
-        #     NemotronPromptParams,
-        #     Florence2PromptParams,
-        # )
-        #
-        # template = TypedPromptTemplate[NemotronPromptParams](...)
-        #
-        # # This would cause mypy error:
-        # # error: Argument 1 to "validate_params" of "TypedPromptTemplate"
-        # #        has incompatible type "Florence2PromptParams";
-        # #        expected "NemotronPromptParams"
-        # template.validate_params(Florence2PromptParams(queries=["test"]))
+        # (mypy example removed with the retired vision-model params, B3.3 box 4)
 
         # For runtime test, we just verify the type mismatch raises TypeError
         from backend.services.typed_prompt_config import (
-            Florence2PromptParams,
             NemotronPromptParams,
+            PromptParamBase,
             TypedPromptTemplate,
         )
 
@@ -511,7 +373,7 @@ class TestGenericConstraintEnforcement:
         )
 
         with pytest.raises(TypeError):
-            template.validate_params(Florence2PromptParams(queries=["test"]))  # type: ignore[arg-type]
+            template.validate_params(PromptParamBase.model_construct())  # type: ignore[arg-type]
 
 
 class TestPromptParamBaseModel:
@@ -529,78 +391,15 @@ class TestPromptParamBaseModel:
     def test_all_param_types_inherit_from_base(self) -> None:
         """Test that all param types inherit from PromptParamBase."""
         from backend.services.typed_prompt_config import (
-            FashionClipPromptParams,
-            Florence2PromptParams,
             NemotronPromptParams,
             PromptParamBase,
-            XClipPromptParams,
-            YoloWorldPromptParams,
         )
 
         param_types = [
             NemotronPromptParams,
-            Florence2PromptParams,
-            YoloWorldPromptParams,
-            XClipPromptParams,
-            FashionClipPromptParams,
         ]
 
         for param_type in param_types:
             assert issubclass(param_type, PromptParamBase), (
                 f"{param_type.__name__} should inherit from PromptParamBase"
             )
-
-
-class TestXClipPromptParams:
-    """Tests for XClipPromptParams Pydantic model."""
-
-    def test_valid_xclip_params(self) -> None:
-        """Test creating valid X-CLIP prompt parameters."""
-        from backend.services.typed_prompt_config import XClipPromptParams
-
-        params = XClipPromptParams(
-            action_classes=["loitering", "running away", "fighting"],
-        )
-
-        assert len(params.action_classes) == 3
-        assert "loitering" in params.action_classes
-
-    def test_xclip_params_empty_action_classes_rejected(self) -> None:
-        """Test that empty action_classes list is rejected."""
-        from backend.services.typed_prompt_config import XClipPromptParams
-
-        with pytest.raises(ValidationError):
-            XClipPromptParams(action_classes=[])
-
-
-class TestFashionClipPromptParams:
-    """Tests for FashionClipPromptParams Pydantic model."""
-
-    def test_valid_fashion_clip_params(self) -> None:
-        """Test creating valid Fashion-CLIP prompt parameters."""
-        from backend.services.typed_prompt_config import FashionClipPromptParams
-
-        params = FashionClipPromptParams(
-            clothing_categories=["dark hoodie", "high-vis vest", "business attire"],
-            suspicious_indicators=["all black", "face mask", "gloves"],
-        )
-
-        assert len(params.clothing_categories) == 3
-        assert len(params.suspicious_indicators) == 3
-
-    def test_fashion_clip_params_default_suspicious_indicators(self) -> None:
-        """Test Fashion-CLIP uses empty default for suspicious_indicators."""
-        from backend.services.typed_prompt_config import FashionClipPromptParams
-
-        params = FashionClipPromptParams(
-            clothing_categories=["casual", "formal"],
-        )
-
-        assert params.suspicious_indicators == []
-
-    def test_fashion_clip_params_empty_categories_rejected(self) -> None:
-        """Test that empty clothing_categories list is rejected."""
-        from backend.services.typed_prompt_config import FashionClipPromptParams
-
-        with pytest.raises(ValidationError):
-            FashionClipPromptParams(clothing_categories=[])

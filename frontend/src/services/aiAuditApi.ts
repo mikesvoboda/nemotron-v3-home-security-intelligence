@@ -369,8 +369,8 @@ export async function triggerBatchAudit(request?: BatchAuditRequest): Promise<Ba
 /**
  * Get current prompt configurations for all AI models.
  *
- * Returns configurations for nemotron, florence2, yolo_world, xclip,
- * and fashion_clip models with their current versions.
+ * Returns configurations for nemotron (the only model a deployment boots after
+ * B3.3 box 4 / R2a row 27 retired the four vision models) with its current version.
  *
  * @returns AllPromptsResponse containing all model configurations
  * @throws AiAuditApiError on server errors
@@ -456,8 +456,7 @@ export async function getPromptsHistory(limit?: number): Promise<AllPromptsHisto
  * ```typescript
  * const result = await importPrompts({
  *   prompts: {
- *     nemotron: { system_prompt: '...', temperature: 0.7 },
- *     florence2: { vqa_queries: ['What is this?'] }
+ *     nemotron: { system_prompt: '...', temperature: 0.7 }
  *   },
  *   overwrite: true
  * });
@@ -494,7 +493,7 @@ export async function exportPrompts(): Promise<PromptExportResponse> {
 /**
  * Get current prompt configuration for a specific AI model.
  *
- * @param model - Model name (nemotron, florence2, yolo_world, xclip, fashion_clip)
+ * @param model - Model name (nemotron)
  * @returns ModelPromptResponse with current configuration
  * @throws AiAuditApiError if model not found (404)
  *

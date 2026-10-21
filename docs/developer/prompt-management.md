@@ -112,7 +112,7 @@ class PromptVersion(Base):
     __tablename__ = "prompt_versions"
 
     id: Mapped[int]                    # Primary key
-    model: Mapped[str]                 # Enum: nemotron, florence2, yolo_world, xclip, fashion_clip
+    model: Mapped[str]                 # Enum: nemotron (B3.3 box 4 / R2a row 27: florence2, yolo_world, xclip, fashion_clip retired)
     version: Mapped[int]               # Version number (auto-incremented per model)
     created_at: Mapped[datetime]       # When this version was created
     created_by: Mapped[str | None]     # Optional user identifier
@@ -131,40 +131,6 @@ class PromptVersion(Base):
   "system_prompt": "You are a security analysis AI...",
   "temperature": 0.7,
   "max_tokens": 2048
-}
-```
-
-**Florence-2:**
-
-```json
-{
-  "vqa_queries": ["What is the person doing?", "What objects are they carrying?"]
-}
-```
-
-**YOLO-World:**
-
-```json
-{
-  "object_classes": ["knife", "gun", "package"],
-  "confidence_threshold": 0.35
-}
-```
-
-**X-CLIP:**
-
-```json
-{
-  "action_classes": ["loitering", "running away", "fighting"]
-}
-```
-
-**Fashion-CLIP:**
-
-```json
-{
-  "clothing_categories": ["dark hoodie", "face mask"],
-  "suspicious_indicators": ["all black", "gloves at night"]
 }
 ```
 

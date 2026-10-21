@@ -92,7 +92,7 @@ class NemotronPromptParams(PromptParamBase):
     cross_camera_summary: str | None = Field(None, description="Cross-camera correlation summary")
     detections_list: str | None = Field(None, description="Formatted list of detections")
     reid_context: str | None = Field(None, description="Person re-identification context")
-    scene_analysis: str | None = Field(None, description="Scene analysis from Florence-2")
+    scene_analysis: str | None = Field(None, description="Scene analysis from the vision pass")
 
     @field_validator("camera_name")
     @classmethod
@@ -100,104 +100,6 @@ class NemotronPromptParams(PromptParamBase):
         """Ensure camera_name is not just whitespace."""
         if not v.strip():
             raise ValueError("camera_name cannot be empty or whitespace only")
-        return v
-
-
-class Florence2PromptParams(PromptParamBase):
-    """Parameters for Florence-2 VQA prompts.
-
-    These parameters configure the visual question answering queries
-    for the Florence-2 scene analysis model.
-    """
-
-    queries: list[str] = Field(
-        ...,
-        min_length=1,
-        description="List of VQA queries for scene analysis",
-    )
-
-    @field_validator("queries")
-    @classmethod
-    def validate_queries_not_empty_strings(cls, v: list[str]) -> list[str]:
-        """Ensure queries list doesn't contain empty strings."""
-        if any(not q.strip() for q in v):
-            raise ValueError("queries cannot contain empty or whitespace-only strings")
-        return v
-
-
-class YoloWorldPromptParams(PromptParamBase):
-    """Parameters for YOLO-World object detection prompts.
-
-    These parameters configure the custom object classes and thresholds
-    for the YOLO-World detector.
-    """
-
-    classes: list[str] = Field(
-        ...,
-        min_length=1,
-        description="Custom object classes to detect",
-    )
-    confidence_threshold: float = Field(
-        0.35,
-        ge=0.0,
-        le=1.0,
-        description="Minimum confidence threshold for detections",
-    )
-
-    @field_validator("classes")
-    @classmethod
-    def validate_classes_not_empty_strings(cls, v: list[str]) -> list[str]:
-        """Ensure classes list doesn't contain empty strings."""
-        if any(not c.strip() for c in v):
-            raise ValueError("classes cannot contain empty or whitespace-only strings")
-        return v
-
-
-class XClipPromptParams(PromptParamBase):
-    """Parameters for X-CLIP action recognition prompts.
-
-    These parameters configure the action classes for temporal
-    activity recognition.
-    """
-
-    action_classes: list[str] = Field(
-        ...,
-        min_length=1,
-        description="Action classes to recognize",
-    )
-
-    @field_validator("action_classes")
-    @classmethod
-    def validate_action_classes_not_empty_strings(cls, v: list[str]) -> list[str]:
-        """Ensure action_classes list doesn't contain empty strings."""
-        if any(not a.strip() for a in v):
-            raise ValueError("action_classes cannot contain empty or whitespace-only strings")
-        return v
-
-
-class FashionClipPromptParams(PromptParamBase):
-    """Parameters for Fashion-CLIP clothing analysis prompts.
-
-    These parameters configure clothing categories and suspicious
-    indicators for attire analysis.
-    """
-
-    clothing_categories: list[str] = Field(
-        ...,
-        min_length=1,
-        description="Clothing categories to classify",
-    )
-    suspicious_indicators: list[str] = Field(
-        default_factory=list,
-        description="Suspicious clothing indicators to look for",
-    )
-
-    @field_validator("clothing_categories")
-    @classmethod
-    def validate_categories_not_empty_strings(cls, v: list[str]) -> list[str]:
-        """Ensure clothing_categories list doesn't contain empty strings."""
-        if any(not c.strip() for c in v):
-            raise ValueError("clothing_categories cannot contain empty or whitespace-only strings")
         return v
 
 
@@ -296,10 +198,6 @@ class TypedPromptTemplate[T: PromptParamBase]:
 # Maps model names to their parameter types
 _MODEL_PARAM_REGISTRY: dict[str, type[PromptParamBase]] = {
     "nemotron": NemotronPromptParams,
-    "florence2": Florence2PromptParams,
-    "yolo_world": YoloWorldPromptParams,
-    "xclip": XClipPromptParams,
-    "fashion_clip": FashionClipPromptParams,
 }
 
 
@@ -377,10 +275,6 @@ def get_typed_params(
 
 # These type aliases can be used in function signatures for clarity
 NemotronTemplate = TypedPromptTemplate[NemotronPromptParams]
-Florence2Template = TypedPromptTemplate[Florence2PromptParams]
-YoloWorldTemplate = TypedPromptTemplate[YoloWorldPromptParams]
-XClipTemplate = TypedPromptTemplate[XClipPromptParams]
-FashionClipTemplate = TypedPromptTemplate[FashionClipPromptParams]
 
 
 # =============================================================================
@@ -388,18 +282,10 @@ FashionClipTemplate = TypedPromptTemplate[FashionClipPromptParams]
 # =============================================================================
 
 __all__ = [
-    "FashionClipPromptParams",
-    "FashionClipTemplate",
-    "Florence2PromptParams",
-    "Florence2Template",
     "NemotronPromptParams",
     "NemotronTemplate",
     "PromptParamBase",
     "TypedPromptTemplate",
-    "XClipPromptParams",
-    "XClipTemplate",
-    "YoloWorldPromptParams",
-    "YoloWorldTemplate",
     "create_typed_template",
     "get_param_type_for_model",
     "get_typed_params",

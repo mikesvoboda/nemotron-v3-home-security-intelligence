@@ -155,12 +155,6 @@ const mockAllPromptsResponse: AllPromptsResponse = {
       version: 3,
       updated_at: '2026-01-03T10:30:00Z',
     },
-    florence2: {
-      model_name: 'florence2',
-      config: { vqa_queries: ['What is this?'] },
-      version: 1,
-      updated_at: '2026-01-01T08:00:00Z',
-    },
   },
 };
 
@@ -214,7 +208,6 @@ const mockPromptExportResponse: PromptExportResponse = {
   version: '1.0',
   prompts: {
     nemotron: { system_prompt: '...', temperature: 0.7 },
-    florence2: { vqa_queries: ['What is this?'] },
   },
 };
 
