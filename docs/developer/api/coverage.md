@@ -653,17 +653,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | ---------- | ------ | ----------- | ------------------ |
 | `/api/rum` | POST   | `rum.ts`    | Ingest RUM metrics |
 
-### Scheduled Reports
-
-| Endpoint                                 | Method | Consumer(s)              | Purpose                    |
-| ---------------------------------------- | ------ | ------------------------ | -------------------------- |
-| `/api/scheduled-reports`                 | GET    | `scheduledReportsApi.ts` | List all scheduled reports |
-| `/api/scheduled-reports`                 | POST   | `scheduledReportsApi.ts` | Create a scheduled report  |
-| `/api/scheduled-reports/{report_id}`     | DELETE | `scheduledReportsApi.ts` | Delete a scheduled report  |
-| `/api/scheduled-reports/{report_id}`     | GET    | `scheduledReportsApi.ts` | Get a scheduled report     |
-| `/api/scheduled-reports/{report_id}`     | PUT    | `scheduledReportsApi.ts` | Update a scheduled report  |
-| `/api/scheduled-reports/{report_id}/run` | POST   | —                        | Manually trigger a report  |
-
 ### Summaries
 
 | Endpoint                             | Method | Consumer(s)            | Purpose                      |
@@ -807,7 +796,6 @@ backend-only surface:
 | `/api/plate-reads/camera/{camera_id}`                          | GET                 | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
 | `/api/plate-reads/recognize`                                   | POST                | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
 | `/api/plate-reads/statistics`                                  | GET                 | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
-| `/api/scheduled-reports/{report_id}/run`                       | POST                | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/summaries/daily`                                         | GET                 | Summary detail endpoints — daily summary list consumed by `api.ts`                                                                                                           |
 | `/api/summaries/hourly`                                        | GET                 | Summary detail endpoints — daily summary list consumed by `api.ts`                                                                                                           |
 | `/api/system/models/{model_name}/status`                       | GET                 | Model lifecycle surface — load/unload/reload answer 501 by design                                                                                                            |
