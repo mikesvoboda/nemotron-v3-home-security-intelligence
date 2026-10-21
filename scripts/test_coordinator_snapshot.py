@@ -2004,6 +2004,271 @@ def has_line(text: str, needle: str) -> str:
     return next(ln for ln in text.splitlines() if needle in ln)
 
 
+# --- the review round: one test per defect the UR-89 review found --------------------------
+
+BEATS_BALANCE = {
+    "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+    "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+    "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+    "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+}
+# A backend donor for the cross-lane probes: two none-yet blocks whose deps read met, in a file
+# the ops roster's queues must not be proposed across.
+BACKEND_PKG_DONOR = """\
+### B1 backend package one
+
+**Flags:** none. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+
+### B2 backend package two
+
+**Flags:** none. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+# Two extra ops donor blocks (met-dep, none-yet) appended to OPS_PKG by the cross-lane probes,
+# so ops-a holds a two-met claimable list beside an idle agent.
+DONOR_OPS_EXTRA = """\
+
+### D1 ops donor one
+
+**Flags:** none. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+
+### D2 ops donor two
+
+**Flags:** none. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+# A docs lane file whose queue-named blocks all carry unread dependencies (the self-contradiction
+# probe): the docs agent is idle and holds claimables whose deps cannot resolve.
+DOCS_PKG_UNREAD = """\
+### U1 docs package one
+
+**Flags:** none. **Depends on:** `R2`. **PR:** none yet.
+
+- [ ] box
+
+### U2 docs package two
+
+**Flags:** none. **Depends on:** `R2`. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+
+
+def test_the_candidate_move_stays_in_the_package_s_lane():
+    # Review defect 1: the flag proposed a backend package to an idle ops agent with the false
+    # why "same lane, the cells' file areas hold". lane.md's cells' file areas are per-lane (ops
+    # A runs `ai/`, ops B runs `scripts/`; backend splits VLM path vs API), so a move keeps them
+    # by staying in the package's own lane -- or by naming a heavy agent, ruling 289's shape.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            **BEATS_BALANCE,
+            "agent-uplevel-backend": "backend · 18:00Z · working",
+        },
+    )
+    fake.docs["backend.md"] = BACKEND_PKG_DONOR
+    # The donor must be a roster agent with a beat (a beatless agent's scans did not run --
+    # review defect 4's own rule): a backend row (one-cell lane) whose queue names B1, B2,
+    # replacing ops-a's queue so the backend agent is the ONLY donor and the probe isolates the
+    # lane rule (the donor list takes the first, in roster order).
+    fake.docs["lane.md"] = ROSTER.replace(
+        "| `uplevel-ops-a`       | fast      | `O2.4`, `[r295]`, `O3.7`                 | none         |",
+        "| `uplevel-backend`     | fast      | `B1`, `B2`                               | none         |",
+    )
+    data = build(fake)
+    move = bal(data)["flag"]["move"]
+    # B1 is a backend package: its receiver must be a backend agent or a heavy agent -- never
+    # ops-c, the idle ops agent.
+    assert move["package"] == "B1"
+    assert "backend" in move["to"] or "heavy" in move["to"]
+    assert "ops-c" not in move["to"]
+
+
+def test_the_move_s_names_truthfully_names_the_lane_or_the_heavy_agent():
+    # Review defect 1's second half: the printed why must be TRUE. A same-lane move says so; a
+    # heavy-package move to a strongest agent names UR-24; and no move may carry the old
+    # "same lane ..." why for a package that would cross lanes.
+    fake = FakeRunner()
+    set_beats(fake, **BEATS_BALANCE)
+    # Same-lane donor: an idle ops agent beside an ops donor holding two met-dep none-yet
+    # blocks -- the receiver is the idle ops agent, the why names the lane.
+    fake.docs["ops.md"] = OPS_PKG + DONOR_OPS_EXTRA
+    data = build(fake)
+    move = bal(data)["flag"]["move"]
+    assert move["to"] == "uplevel-ops-c"
+    assert "ops" in move["why"].lower()
+    # Heavy donor: the why names UR-24 and the receiver is a heavy agent (covered shape kept).
+    fake2 = FakeRunner()
+    set_beats(fake2, **BEATS_BALANCE)
+    fake2.docs["ops.md"] = OPS_PKG.replace(
+        "### [r295] pip leaves the production image\n\n**Flags:** none.",
+        "### [r295] pip leaves the production image\n\n**Flags:** `heavy`.",
+    )
+    move2 = bal(build(fake2))["flag"]["move"]
+    assert "UR-24" in move2["why"]
+    assert "heavy" in move2["to"]
+
+
+def test_an_idle_agent_with_claimables_is_not_a_flag_s_idle_side():
+    # Review defect 2: the box reads "an idle agent has nothing claimable"; the code flagged an
+    # idle agent holding two unread-dep claimables -- and then the render printed those very
+    # claimables on the flagged agent's own row. Nothing claimable means the list is empty.
+    fake = FakeRunner()
+    set_beats(fake, **{**BEATS_BALANCE, "agent-uplevel-docs": "docs · 18:00Z · idle"})
+    # The docs agent joins the world: its queue names two blocks whose deps cannot resolve
+    # (`R2` names no README row), so it is idle WITH claimables -- not the flag's idle side.
+    # Isolate the idle-side rule: ops-a's queue is stripped (no donor, so no flag can fire for
+    # ANY idle agent) and ops-b's claim PR is the only PR (the default fixture's lane:docs PR
+    # would make the docs agent not-idle by ownership).
+    fake.docs["lane.md"] = (
+        ROSTER.replace(
+            "| `uplevel-ops-a`       | fast      | `O2.4`, `[r295]`, `O3.7`                 | none         |",
+            "| `uplevel-ops-a`       | fast      | none                                     | none         |",
+        )
+        + "| `uplevel-docs`       | fast      | `U1`, `U2`                               | none         |\n"
+    )
+    fake.docs["docs.md"] = DOCS_PKG_UNREAD
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    data = build(fake)
+    ids = {i["agent"]: i for i in bal(data)["items"]}
+    docs_item = ids["uplevel-docs"]
+    assert docs_item["claimable"], "the docs agent holds unread-dep claimables"
+    assert all(e["deps"] == "unread" for e in docs_item["claimable"])
+    assert docs_item["idle"] is True
+    # The old code flagged it (idle with no MET claimable); the box's words do not.
+    assert bal(data)["flag"] is None
+
+
+def test_not_heavy_prose_never_classifies_a_package_heavy():
+    # Review defect 3: the classifier substringed "heavy" over the whole block body, so ops.md's
+    # house prose "**Flags:** none: not heavy..." classified as heavy and the flag cited UR-24 to
+    # misroute non-heavy work. Heavy is read from the Flags field's backticked token, the same
+    # inline shape the real corpus carries (`**Flags:** `heavy``).
+    fake = FakeRunner()
+    set_beats(fake, **BEATS_BALANCE)
+    fake.docs["ops.md"] = OPS_PKG.replace(
+        "### [r295] pip leaves the production image\n\n**Flags:** none.",
+        "### [r295] pip leaves the production image\n\n**Flags:** none: not heavy; not owner-tier.",
+    )
+    data = build(fake)
+    move = bal(data)["flag"]["move"]
+    # r295 is NOT heavy: the move keeps the cells' file areas -- ops package to the idle ops
+    # agent -- and cites no UR-24.
+    assert move["to"] == "uplevel-ops-c"
+    assert "UR-24" not in move["why"]
+
+
+def test_a_beatless_agent_s_row_reads_not_read_not_nothing():
+    # Review defect 4: an agent with no beat row printed "not idle · claimable: none" -- facts
+    # the scans (which sit inside the beat guard) never read. UR-154: a failed/unmade read is
+    # never a yes and never a no. The row says so.
+    fake = FakeRunner()
+    # No beats at all: every agent is beatless; ops-b's roster queue holds [r290] with PR #7330
+    # stamped, so the scan WOULD have found something to say.
+    set_beats(fake)  # no arguments: zero heartbeats
+    fake.prs = []
+    text = snap.render_text(build(fake))
+    row = has_line(text, "uplevel-ops-b (fast)")
+    assert "claimable: not read" in row
+    assert "not idle" not in row
+    assert "open package PRs: not read" in row
+    # A paused agent reads the same way: its scans did not run either.
+    fake2 = FakeRunner()
+    set_beats(fake2, **{"agent-uplevel-ops-b": "ops-b · 18:00Z · paused · owner hold"})
+    fake2.prs = []
+    row2 = has_line(snap.render_text(build(fake2)), "uplevel-ops-b (fast)")
+    assert "claimable: not read" in row2
+    # And a beatless/paused agent is never the flag's idle side: "idle" is a read verdict.
+    assert bal(build(fake))["flag"] is None
+    assert bal(build(fake2))["flag"] is None
+
+
+def test_a_heavy_agent_s_claimables_read_the_owning_lanes_files():
+    # Review defect 5: heavy-b's roster queue holds O3.2 (ops.md) and B2.3 (backend.md), but the
+    # scan looked blocks up only in `lanes.get("heavy", {})` -- always empty, so heavy-b printed
+    # "claimable: none" while both blocks are `none yet` (the live section's own false row).
+    # Heavy packages live in the OWNING lane's file (UR-59; there is no heavy.md on main), so
+    # the scan must resolve the tokens there -- plan_lint's documented UNPACKAGED cross-file
+    # lookup, queue order preserved.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            **BEATS_BALANCE,
+            "agent-uplevel-heavy-b": "heavy-b · 18:00Z · working",
+        },
+    )
+    fake.docs["backend.md"] = """\
+### B2.3 Re-ID model bake-off
+**Flags:** `heavy`. **Depends on:** `O2.4`. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+    # [r273] is heavy-b's own package, packaged in the lane whose work it is (O3.2's shape): an
+    # ops block assigned to heavy-b.
+    fake.docs["ops.md"] = OPS_PKG + """\
+
+### [r273] heavy-b's assigned ops package
+
+**Flags:** `heavy`. **Assigned:** heavy-b. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+    # heavy-b's roster queue is `[r273]`, `B2.3`: [r273] lives in ops.md, B2.3 in backend.md.
+    data = build(fake)
+    ids = {i["agent"]: i for i in bal(data)["items"]}
+    hb = ids["uplevel-heavy-b"]
+    assert [e["token"] for e in hb["claimable"]] == ["r273", "B2.3"]
+    # B2.3 depends on O2.4, a README row: with O2.4 `in progress`, the verdict is unmet
+    # (dependency_verdict reads met only off `done`); r273's deps are none, so met.
+    assert hb["claimable"][0]["deps"] == "met"
+    assert hb["claimable"][1]["deps"] == "unmet"
+    # The wider read does not manufacture a heavy-side flag on its own: heavy-b (working beat,
+    # no open PR) is not idle, so it is never the flag's idle side; the world's own imbalance
+    # (ops-c idle, ops-a backlogged) is the first review's same-lane shape and fires as before.
+    flag = bal(data)["flag"]
+    assert flag is None or flag["move"]["to"] != "uplevel-heavy-b" or flag["package"] in ("r273", "B2.3")
+
+
+def test_the_claimable_scan_suppresses_only_the_agent_s_own_titles():
+    # Review defect 6: the scan suppressed a token on `[{token}] in titles` over ALL open PR
+    # titles repo-wide, while `next_claimable` (the box's own definition) checks only the
+    # ticking agent's own titles -- and only as a LEADING token (a mid-title mention is prose).
+    fake = FakeRunner()
+    set_beats(fake, **BEATS_BALANCE)
+    # Another agent's PR mentioning [r295] mid-title must NOT empty ops-a's claimable list.
+    fake.prs = [
+        pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt"),
+        pr_item(7999, ["lane:docs"], "side quest mentions [r295] in passing"),
+    ]
+    ids = {i["agent"]: i for i in bal(build(fake))["items"]}
+    assert [e["token"] for e in ids["uplevel-ops-a"]["claimable"]] == ["r295", "O3.7"]
+    # And a LEADING title by ANOTHER agent also does not suppress ops-a's claimable: O2.4's
+    # title-claim suppression applies only to the agent whose queue holds the block and whose
+    # own PR titles it -- per-agent mine lists, `next_claimable`'s semantics.
+    fake2 = FakeRunner()
+    set_beats(fake2, **BEATS_BALANCE)
+    fake2.prs = [
+        pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt"),
+        pr_item(7999, ["lane:ops", "cell:a"], "[O2.4] claim: another cell's PR"),
+    ]
+    ids2 = {i["agent"]: i for i in bal(build(fake2))["items"]}
+    assert [e["token"] for e in ids2["uplevel-ops-a"]["claimable"]] == ["r295", "O3.7"]
+    # But my OWN leading title still suppresses (the unchanged half of the semantics).
+    fake3 = FakeRunner()
+    set_beats(fake3, **BEATS_BALANCE)
+    fake3.prs = [pr_item(7100, ["lane:ops", "cell:a"], "[r295] claim: pip leaves the image")]
+    ids3 = {i["agent"]: i for i in bal(build(fake3))["items"]}
+    assert [e["token"] for e in ids3["uplevel-ops-a"]["claimable"]] == ["O3.7"]
+
+
 # --- 8. ruling 164: the status comment drafted from the snapshot ---------------------------
 
 DRAFT_SCRIPT = REPO_ROOT / "scripts" / "uplevel" / "status_draft.py"
