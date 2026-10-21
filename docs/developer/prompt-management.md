@@ -112,7 +112,7 @@ class PromptVersion(Base):
     __tablename__ = "prompt_versions"
 
     id: Mapped[int]                    # Primary key
-    model: Mapped[str]                 # Enum: nemotron (B3.3 box 4 / R2a row 27: florence2, yolo_world, xclip, fashion_clip retired)
+    model: Mapped[str]                 # varchar(32): nemotron only (B3.3 box 4 / R2a row 27: florence2, yolo_world, xclip, fashion_clip retired — upgrade 0011 dropped the aimodel enum type, one-way, no downgrade)
     version: Mapped[int]               # Version number (auto-incremented per model)
     created_at: Mapped[datetime]       # When this version was created
     created_by: Mapped[str | None]     # Optional user identifier

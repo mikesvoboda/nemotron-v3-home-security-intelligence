@@ -755,7 +755,7 @@ The specialist gather in `backend/services/vlm_specialists.py` (`SPECIALIST_KEYS
 The `AIModel` enum values are a fixed schema surface:
 
 ```python
-# backend/models/prompt_version.py:18
+# backend/models/prompt_version.py:17
 class AIModel(str, Enum):
     """Supported AI models that have configurable prompts."""
 
@@ -763,11 +763,11 @@ class AIModel(str, Enum):
 ```
 
 > **Note:** B3.3 box 4 (R2a row 27) retired `florence2`, `yolo_world`, `xclip` and
-> `fashion_clip` -- the enum and the stored column now hold `nemotron` only (upgrade 0011
-> dropped the `aimodel` enum type for `varchar`). These enum spellings predate the current
-> stack - the live verifier is `ai-vlm`. The enum values are part of the stored-data contract
-> (renaming them rewrites stored enum rows), so treat them as a wire/schema surface, not as a
-> list of services that exist.
+> `fashion_clip` -- the stored column is now plain `varchar(32)` holding `nemotron` only
+> (upgrade 0011 deleted the four models' rows and dropped the `aimodel` enum type; one-way,
+> like 0009/0010 -- no downgrade). The column's declared type is part of the stored-data
+> contract (`backend/models/prompt_version.py`, `String(32)`), so treat the `model` value
+> space as a wire/schema surface, not as a list of services that exist.
 
 **Constraints:** unique `(model, version)` (`backend/models/prompt_version.py:76`); indexes `idx_prompt_versions_model`, `idx_prompt_versions_model_version`, `idx_prompt_versions_model_active` (`:71-73`).
 
