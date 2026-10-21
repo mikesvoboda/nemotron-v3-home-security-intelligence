@@ -58,8 +58,8 @@ def _route_models() -> dict[str, Any]:
     """Map GET path -> response_model across every route module, env-free.
 
     Walks `backend.api.routes.*` router attributes directly rather than importing
-    `backend.main` (which requires `DATABASE_URL` at import time). All 61 route
-    modules expose a `router`; a module that fails to import is a hard error here,
+    `backend.main` (which requires `DATABASE_URL` at import time). Every route
+    module exposes a `router`; a module that fails to import is a hard error here,
     not a skip -- a skipped module would make its paths read as "no route" and hide
     real breakage, which is the exact silent failure this file exists to catch.
     """

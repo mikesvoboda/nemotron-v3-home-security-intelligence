@@ -337,8 +337,7 @@ computed from the audit rows in the window):
 GET /api/prompts/nemotron
 ```
 
-Valid `{model}` values: `nemotron`, `florence2`, `yolo_world`, `xclip`,
-`fashion_clip`.
+Valid `{model}` values: `nemotron` (B3.3 box 4 / R2a row 27: the other four values retired).
 
 **Response:**
 
@@ -403,9 +402,6 @@ GET /api/prompts
       "system_prompt": "You are a home security AI assistant...",
       "temperature": 0.7,
       "max_tokens": 2048
-    },
-    "florence2": {
-      "vqa_queries": ["What is this person wearing?", "Is this person carrying anything?"]
     }
   }
 }
@@ -534,7 +530,7 @@ Content-Type: application/json
 ```json
 {
   "imported_models": ["nemotron"],
-  "skipped_models": ["yolo_world"],
+  "skipped_models": ["retired_model"],
   "new_versions": {
     "nemotron": 4
   },

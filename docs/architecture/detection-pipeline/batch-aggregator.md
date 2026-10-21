@@ -27,14 +27,15 @@ class BatchAggregator:  # Line 172
 | `redis_client` | `RedisClient` | None    | Redis client for batch storage                                                          |
 | `analyzer`     | `Any`         | None    | Analysis entry point for the fast path; the factory supplies `VlmAnalyzer` when omitted |
 
-### Configured Values (Lines 196-201)
+### Configured Values (Lines 195-202)
 
 ```python
 settings = get_settings()
 self._batch_window = settings.batch_window_seconds        # 90s
 self._idle_timeout = settings.batch_idle_timeout_seconds  # 30s
 self._analysis_queue = ANALYSIS_QUEUE
-self._fast_path_threshold = settings.fast_path_confidence_threshold  # 2.0
+self._fast_path_enabled = settings.fast_path_enabled      # False
+self._fast_path_threshold = settings.fast_path_confidence_threshold  # 0.9
 self._fast_path_types = settings.fast_path_object_types              # []
 self._batch_max_detections = settings.batch_max_detections           # 500
 ```

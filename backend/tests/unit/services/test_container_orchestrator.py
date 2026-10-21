@@ -28,7 +28,7 @@ from backend.services.container_orchestrator import (
     ContainerOrchestrator,
     create_service_status_event,
 )
-from backend.services.service_registry import ManagedService
+from backend.services.orchestrator import ManagedService
 
 # =============================================================================
 # Test Configuration and Fixtures

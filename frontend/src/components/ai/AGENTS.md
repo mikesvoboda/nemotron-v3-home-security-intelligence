@@ -189,10 +189,8 @@ Slide-out panel (80% viewport width) for editing, testing, and refining AI model
 
 - Model-specific editors:
   - Nemotron: Full text editor for risk analysis system prompt
-  - Florence-2: Query list editor for scene analysis
-  - YOLO-World: Tag input for custom object classes + confidence threshold
-  - X-CLIP: Tag input for action recognition classes
-  - Fashion-CLIP: Tag input for clothing categories
+  - (B3.3 box 4 / R2a row 27 retired the Florence-2/YOLO-World/X-CLIP/Fashion-CLIP editors with
+    their enum values — nemotron is the only editable model left.)
 - Test functionality with before/after comparison
 - Save, Export, and Import capabilities
 - Keyboard shortcuts (Escape to close)

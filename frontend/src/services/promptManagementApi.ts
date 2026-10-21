@@ -126,10 +126,7 @@ async function fetchPromptApi<T>(endpoint: string, options?: RequestInit): Promi
  *
  * Returns the active prompt/configuration for each supported model:
  * - nemotron: System prompt for risk analysis
- * - florence2: Scene analysis queries
- * - yolo_world: Custom object classes and confidence threshold
- * - xclip: Action recognition classes
- * - fashion_clip: Clothing categories
+ * (B3.3 box 4 / R2a row 27: the four vision models retired with the R8 S2/S3 sweep.)
  *
  * @returns AllPromptsResponse containing all current prompts
  * @throws PromptApiError on failure

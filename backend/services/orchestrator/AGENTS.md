@@ -82,7 +82,6 @@ After refactoring, these files should import from this package:
 - `backend/services/container_discovery.py`
 - `backend/services/lifecycle_manager.py`
 - `backend/services/health_monitor_orchestrator.py`
-- `backend/services/service_registry.py`
 - `backend/services/container_orchestrator.py`
 
 ## Key Design Decisions

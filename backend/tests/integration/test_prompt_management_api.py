@@ -127,22 +127,9 @@ async def multiple_prompt_versions(
             db.add(version)
             versions.append(version)
 
-        # Create Florence2 versions
-        for i in range(2):
-            config_data = {
-                "vqa_queries": [f"Query {i + 1}?", "What do you see?"],
-            }
-
-            version = PromptVersion(
-                model="florence2",
-                version=i + 1,
-                created_by="test_user",
-                change_description=f"Florence update {i + 1}",
-                is_active=(i == 1),
-            )
-            version.set_config(config_data)
-            db.add(version)
-            versions.append(version)
+        # B3.3 box 4 (R2a row 27): nemotron is the only model with versions -- the
+        # retired models' rows were deleted by upgrade 0011 and the enum no longer
+        # accepts their values, so a fixture cannot plant them.
 
         await db.commit()
 
@@ -421,8 +408,8 @@ class TestGetPromptHistory:
         assert response.status_code == 200
 
         data = response.json()
-        assert data["total_count"] == 5  # 3 nemotron + 2 florence2
-        assert len(data["versions"]) == 5
+        assert data["total_count"] == 3  # nemotron only (B3.3 box 4 / R2a row 27)
+        assert len(data["versions"]) == 3
 
         # Check version structure
         version = data["versions"][0]
@@ -459,11 +446,11 @@ class TestGetPromptHistory:
         data = response.json()
         assert len(data["versions"]) == 2
 
-        # Get next 2 with offset
+        # Get the remaining one with offset
         response = await client.get("/api/prompts/history?limit=2&offset=2")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["versions"]) == 2
+        assert len(data["versions"]) == 1
 
     async def test_get_history_validation(
         self,
@@ -535,9 +522,6 @@ class TestImportPrompts:
                     "temperature": 0.75,
                     "max_tokens": 2500,
                 },
-                "florence2": {
-                    "vqa_queries": ["What is in the image?", "Describe the scene"],
-                },
             },
         }
 
@@ -545,18 +529,16 @@ class TestImportPrompts:
         assert response.status_code == 200
 
         data = response.json()
-        assert len(data["imported_models"]) == 2
+        assert len(data["imported_models"]) == 1
         assert "nemotron" in data["imported_models"]
-        assert "florence2" in data["imported_models"]
         assert data["new_versions"]["nemotron"] == 1
-        assert data["new_versions"]["florence2"] == 1
 
     async def test_import_prompts_partial_success(
         self,
         client: AsyncClient,
         sample_nemotron_config: dict[str, object],
     ):
-        """Test import with some valid and some invalid configs."""
+        """Test import with one valid and one unknown model name."""
         import_data = {
             "version": "1.0",
             "prompts": {
@@ -565,8 +547,10 @@ class TestImportPrompts:
                     "temperature": 0.8,
                     "max_tokens": 3000,
                 },
+                # B3.3 box 4 (R2a row 27): a retired value reads as unknown --
+                # the enum no longer accepts it, so the service skips it.
                 "florence2": {
-                    "vqa_queries": [],  # Invalid: empty list
+                    "vqa_queries": [],
                 },
             },
         }
@@ -575,11 +559,9 @@ class TestImportPrompts:
         assert response.status_code == 200
 
         data = response.json()
-        # Nemotron should import successfully
+        # Nemotron imports successfully; the retired name lands in skipped_models
         assert "nemotron" in data["imported_models"]
-        # Florence2 might be skipped or in skipped_models
-        if "florence2" not in data["imported_models"]:
-            assert "florence2" in data["skipped_models"]
+        assert "florence2" in data["skipped_models"]
 
     async def test_import_prompts_empty_data(
         self,
@@ -900,82 +882,23 @@ class TestPromptTest:
 class TestPromptManagementEdgeCases:
     """Tests for edge cases and error handling."""
 
-    async def test_update_florence2_config(
+    async def test_update_retired_model_config_is_refused(
         self,
         client: AsyncClient,
         _clean_prompt_tables: None,
     ):
-        """Test updating Florence2 configuration with proper structure."""
-        config = {
-            "vqa_queries": ["What objects are present?", "Describe the scene"],
-        }
+        """B3.3 box 4 (R2a row 27): the four retired values no longer name a model.
 
-        response = await client.put(
-            "/api/prompts/florence2",
-            json={"config": config},
-        )
-        # Should succeed even without existing config
-        assert response.status_code == 200
-        data = response.json()
-        assert data["model"] == "florence2"
-        assert data["config"]["vqa_queries"] == config["vqa_queries"]
-
-    async def test_update_yolo_world_config(
-        self,
-        client: AsyncClient,
-        _clean_prompt_tables: None,
-    ):
-        """Test updating YOLO World configuration."""
-        config = {
-            "object_classes": ["person", "vehicle", "animal"],
-            "confidence_threshold": 0.45,
-        }
-
-        response = await client.put(
-            "/api/prompts/yolo_world",
-            json={"config": config},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["model"] == "yolo_world"
-        assert data["config"]["object_classes"] == config["object_classes"]
-
-    async def test_update_xclip_config(
-        self,
-        client: AsyncClient,
-        _clean_prompt_tables: None,
-    ):
-        """Test updating X-CLIP configuration."""
-        config = {
-            "action_classes": ["walking", "running", "standing"],
-        }
-
-        response = await client.put(
-            "/api/prompts/xclip",
-            json={"config": config},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["model"] == "xclip"
-
-    async def test_update_fashion_clip_config(
-        self,
-        client: AsyncClient,
-        _clean_prompt_tables: None,
-    ):
-        """Test updating Fashion-CLIP configuration."""
-        config = {
-            "clothing_categories": ["shirt", "pants", "shoes"],
-            "suspicious_indicators": ["mask", "hood"],
-        }
-
-        response = await client.put(
-            "/api/prompts/fashion_clip",
-            json={"config": config},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["model"] == "fashion_clip"
+        The path is typed `AIModelEnum`, so a retired value fails enum validation
+        (422) before any handler code runs -- the API cannot create prompt versions
+        for models that no longer exist.
+        """
+        for model in ("florence2", "yolo_world", "xclip", "fashion_clip"):
+            response = await client.put(
+                f"/api/prompts/{model}",
+                json={"config": {"system_prompt": "anything"}},
+            )
+            assert response.status_code == 422, model
 
     async def test_concurrent_updates_optimistic_locking(
         self,
@@ -1091,8 +1014,9 @@ class TestPromptManagementEdgeCases:
         client: AsyncClient,
         _clean_prompt_tables: None,
     ):
-        """Test that empty list fields are rejected where required."""
-        # Florence2 with empty vqa_queries
+        """B3.3 box 4 (R2a row 27): an unknown model name is rejected before config
+        validation -- the retired florence2 value reads as a 422 enum error, not a
+        schema error about its (now gone) empty-list rule."""
         config = {
             "vqa_queries": [],
         }

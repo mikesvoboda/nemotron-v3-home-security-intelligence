@@ -118,21 +118,21 @@ nothing in `backend/` outside its upgrade step.
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7319. (ruling 241)
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
+- [x] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
       module under `backend/` the reachability check reports non-shipping at this PR's head,
       outside `keep.toml`: `R2`'s §3 is approved as that rule, not as the measured snapshot
       (ruling 210, record 6200282082). The scene-change vertical stays: R2a row 24 ruled it
       complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
       183).
-- [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
+- [x] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"
       (ruling 89).
-- [ ] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
+- [x] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
       code imports.
-- [ ] Delete each module's tests, batteries included. These PRs change production code, so the
+- [x] Delete each module's tests, batteries included. These PRs change production code, so the
       kill-loss rule does not apply; each PR discloses the scored-set change instead (`01`).
 
 **Done when:** the reachability check (`O2.3`) reports no non-shipping module under `backend/`
@@ -141,7 +141,7 @@ outside `keep.toml`, and the suite is green.
 ### B3.3 Settings and residue truth
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** #7244. (ruling 241)
+**PR:** #7244; fourth box on #7322. (ruling 241)
 
 - [x] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
       and delete them with their `.env.example` and compose lines.
@@ -155,7 +155,15 @@ outside `keep.toml`, and the suite is green.
       registry, and the audit's "11" not reproducible under any stated definition (the census
       records why the rest is not residue, and the FLORENCE_UNAVAILABLE consumers make it an owner
       contract call that rides the fourth box's PR); the repo-wide ratchet test pins the census.)
-- [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
+- [x] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
+      (Fourth box: #7322 carries it — the four values leave `AIModelEnum`/`AIModel` with their
+      config schemas; upgrade `0011-retire-vision-model-prompts` deletes the four models'
+      `prompt_versions` rows, converts the column to varchar and drops the native `aimodel`
+      enum; its test checks every other row survives and the changed rows are exactly the four
+      models' rows (`test_0011_prompt_versions_upgrade.py`, census diff on (model, version));
+      the four frontend editors and the Version History filter ride as cross-lane parts;
+      `FlorenceUnavailableError`/`FLORENCE_UNAVAILABLE` retire with Florence, and
+      `AnalyzerUnavailableError`/`EnrichmentUnavailableError` stay.)
 - [x] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
       `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
       `docs/api/migrations/` is applied by hand. One ordered, checked upgrade command records which
@@ -803,7 +811,9 @@ PR #7306)
 **PR:** #7318. (ruling 285, record 6300916398; amendments 6301639831 and 6302995876)
 
 The owner's maui discovery for `O2.5` item 2 ran production's compose shape on real hardware and
-found four product bugs CI cannot see. Its handoff carries reference diffs and red-and-green
+found four product bugs CI cannot see. The PR auto-merged with UR-89 approval at 82179a652 — the
+second approval, after the bookkeeping commit 827eb5dba reset the first per UR-106 (comments
+6307756549 and 6308312236). Its handoff carries reference diffs and red-and-green
 evidence for three of them; this package writes each fix fresh on `main`, each with its own
 failing-first test (UR-69), and ops-a's `O2.5` venue fixes leave them out (ruling 287 item 4).
 

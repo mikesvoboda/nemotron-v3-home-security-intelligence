@@ -863,7 +863,7 @@ Low-level WebSocket connection manager with automatic reconnection logic.
 
 **Features:**
 
-- Automatic reconnection with configurable attempts and intervals (default: 5 attempts, 3s interval)
+- Automatic reconnection with configurable attempts and intervals (default: 15 attempts, 1s base interval, 30s cap)
 - Message serialization (JSON) and deserialization with fallback to raw data
 - Connection state tracking (`isConnected`)
 - Manual connect/disconnect controls
@@ -885,8 +885,8 @@ interface WebSocketOptions {
   onMaxRetriesExhausted?: () => void;
   onHeartbeat?: () => void; // Called when server heartbeat received
   reconnect?: boolean; // default: true
-  reconnectInterval?: number; // default: 1000ms (base for exponential backoff)
-  reconnectAttempts?: number; // default: 5
+  reconnectInterval?: number; // default: 1000ms (base for exponential backoff, 30000ms cap)
+  reconnectAttempts?: number; // default: 15
   connectionTimeout?: number; // default: 10000ms
   autoRespondToHeartbeat?: boolean; // default: true - auto-send pong response
 }

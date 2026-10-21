@@ -45,8 +45,8 @@ from sqlalchemy.orm import undefer
 from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from backend.services.job_progress_reporter import JobProgressReporter
     from backend.services.job_tracker import JobTracker
+    # B3.2 retired job_progress_reporter; keep line count stable for inventory cites.
 
 logger = get_logger(__name__)
 
@@ -933,7 +933,7 @@ class ExportService:
 
     async def export_events_with_websocket(
         self,
-        progress_reporter: JobProgressReporter,
+        progress_reporter: Any,
         export_format: str,
         camera_id: str | None = None,
         risk_level: str | None = None,

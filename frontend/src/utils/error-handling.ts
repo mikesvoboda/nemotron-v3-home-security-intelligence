@@ -124,7 +124,6 @@ export const ErrorCode = {
   DETECTOR_UNAVAILABLE: 'DETECTOR_UNAVAILABLE',
   RTDETR_UNAVAILABLE: 'RTDETR_UNAVAILABLE',
   NEMOTRON_UNAVAILABLE: 'NEMOTRON_UNAVAILABLE',
-  FLORENCE_UNAVAILABLE: 'FLORENCE_UNAVAILABLE',
   ENRICHMENT_SERVICE_UNAVAILABLE: 'ENRICHMENT_SERVICE_UNAVAILABLE',
   AI_SERVICE_TIMEOUT: 'AI_SERVICE_TIMEOUT',
   MODEL_LOAD_FAILED: 'MODEL_LOAD_FAILED',
@@ -407,11 +406,6 @@ const ERROR_CONFIG_MAP: Record<string, ErrorConfig> = {
     variant: 'warning',
     retryable: true,
   },
-  [ErrorCode.FLORENCE_UNAVAILABLE]: {
-    message: 'Florence service unavailable',
-    variant: 'warning',
-    retryable: true,
-  },
   [ErrorCode.ENRICHMENT_SERVICE_UNAVAILABLE]: {
     message: 'Enrichment service unavailable',
     variant: 'warning',
@@ -562,7 +556,6 @@ const RETRYABLE_ERROR_CODES = new Set<string>([
   ErrorCode.DETECTOR_UNAVAILABLE,
   ErrorCode.RTDETR_UNAVAILABLE,
   ErrorCode.NEMOTRON_UNAVAILABLE,
-  ErrorCode.FLORENCE_UNAVAILABLE,
   ErrorCode.ENRICHMENT_SERVICE_UNAVAILABLE,
   ErrorCode.AI_SERVICE_TIMEOUT,
   ErrorCode.MODEL_LOAD_FAILED,

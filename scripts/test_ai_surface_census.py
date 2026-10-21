@@ -170,10 +170,11 @@ class TestRealTree:
         # 212 at the WP5.5 measurement; R8 S2 (2026-09-29) deleted the nemotron
         # analyzer, the enrichment tier and 19 loaders, taking it to 182; R8 S3
         # swept the Florence/CLIP/enrichment surface and scene_ocr_service on
-        # top of that, taking it to 177. The floor is a scope canary, not a
-        # count to defend - it moves WITH an authorized retirement, never under
-        # an unexplained one.
-        assert len(mods) >= 170, f"only {len(mods)} modules — census scope too narrow"
+        # top of that, taking it to 177; B3.2 (2026-10-21) deleted 49
+        # non-shipping backend/services/ modules, taking it to 124. The floor is
+        # a scope canary, not a count to defend - it moves WITH an authorized
+        # retirement, never under an unexplained one.
+        assert len(mods) >= 120, f"only {len(mods)} modules — census scope too narrow"
         for name, m in mods.items():
             assert m["bucket"] in {"HTTP-AI", "INPROC-AI", "DOMAIN", "DEAD"}, name
 
