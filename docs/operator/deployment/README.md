@@ -161,9 +161,14 @@ The default assignment puts the reasoning engine on one GPU and detection on ano
 | GPU 0 | `ai-vlm` (llama.cpp + mmproj, default set)        | `GPU_LLM` (0)         | Single CDI device                                          |
 | GPU 1 | `ai-gateway` (Triton: `yolo26`, `reid`, `threat`) | `GPU_AI_SERVICES` (1) | All GPUs passed, then restricted by `CUDA_VISIBLE_DEVICES` |
 
-The backend's own lookup weights (osnet, face recognizer, ALPR) load on the GPU the
-backend container holds, and only when `BACKEND_MODEL_PRELOAD=true` — which `setup.py`
-writes at >= 24 GB VRAM.
+The backend's own lookup weights run on the CPU inside the backend container: the backend
+installs CPU-only PyTorch wheels (`pyproject.toml:995`), the face leg (SCRFD, ArcFace) is
+pinned to `CPUExecutionProvider` (`backend/services/face_recognizer_loader.py:18-19`), and
+fast-alpr is not installed in the backend image (`backend/Dockerfile:150` syncs only the
+`face` extra). The weights load into process memory at boot only when
+`BACKEND_MODEL_PRELOAD=true` (`backend/main.py:1198`) — which `setup.py` writes at >= 24 GB
+VRAM. Rulings 306 and 307 move these legs to Triton; a later PR updates this page when each
+lands (UR-81).
 
 Per-model residency inside the gateway is set in `models.yml` (the live manifest), which
 `ai/gateway/patch_triton_configs.py` applies to each Triton `config.pbtxt` at startup —
