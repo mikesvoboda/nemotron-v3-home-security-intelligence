@@ -773,23 +773,6 @@ class SSRFValidationError(URLValidationError):
 
 
 # Additional AI Service Errors
-class FlorenceUnavailableError(AIServiceError):
-    """Raised when the Florence scene analysis service is unavailable."""
-
-    default_message = "Florence scene analysis service temporarily unavailable"
-    default_error_code = "FLORENCE_UNAVAILABLE"
-
-    def __init__(
-        self,
-        message: str | None = None,
-        *,
-        original_error: Exception | None = None,
-        **kwargs: Any,
-    ) -> None:
-        self.original_error = original_error
-        super().__init__(message, service_name="florence", **kwargs)
-
-
 class CLIPUnavailableError(AIServiceError):
     """Raised when the CLIP embedding service is unavailable."""
 

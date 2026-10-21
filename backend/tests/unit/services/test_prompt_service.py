@@ -30,31 +30,6 @@ class TestDefaultConfigs:
         assert "system_prompt" in config
         assert len(config["system_prompt"]) > 100  # Non-trivial prompt
 
-    def test_florence2_default_has_queries(self):
-        """Test Florence-2 default config has queries."""
-        config = DEFAULT_CONFIGS[AIModelEnum.FLORENCE2.value]
-        assert "queries" in config
-        assert len(config["queries"]) >= 4
-
-    def test_yolo_world_default_has_classes_and_threshold(self):
-        """Test YOLO-World default config has classes and threshold."""
-        config = DEFAULT_CONFIGS[AIModelEnum.YOLO_WORLD.value]
-        assert "classes" in config
-        assert "confidence_threshold" in config
-        assert 0 < config["confidence_threshold"] < 1
-
-    def test_xclip_default_has_action_classes(self):
-        """Test X-CLIP default config has action_classes."""
-        config = DEFAULT_CONFIGS[AIModelEnum.XCLIP.value]
-        assert "action_classes" in config
-        assert len(config["action_classes"]) > 0
-
-    def test_fashion_clip_default_has_categories(self):
-        """Test Fashion-CLIP default config has clothing_categories."""
-        config = DEFAULT_CONFIGS[AIModelEnum.FASHION_CLIP.value]
-        assert "clothing_categories" in config
-        assert len(config["clothing_categories"]) > 0
-
 
 class TestPromptVersionModel:
     """Tests for PromptVersion SQLAlchemy model."""
@@ -259,13 +234,9 @@ class TestPromptService:
 
         prompts = await service.get_all_prompts(mock_session)
 
-        # Should have all 5 models
-        assert len(prompts) == 5
+        # B3.3 box 4 (R2a row 27): nemotron is the only model with prompts
+        assert len(prompts) == 1
         assert "nemotron" in prompts
-        assert "florence2" in prompts
-        assert "yolo_world" in prompts
-        assert "xclip" in prompts
-        assert "fashion_clip" in prompts
 
     @pytest.mark.asyncio
     async def test_update_prompt_for_model_creates_new_version(self, service, mock_session):
@@ -384,7 +355,8 @@ class TestPromptService:
         assert export_data["version"] == "1.0"
         assert "exported_at" in export_data
         assert "prompts" in export_data
-        assert len(export_data["prompts"]) == 5
+        # B3.3 box 4 (R2a row 27): nemotron is the only model with prompts
+        assert len(export_data["prompts"]) == 1
 
     @pytest.mark.asyncio
     async def test_import_prompts_imports_valid_models(self, service, mock_session):
@@ -395,7 +367,7 @@ class TestPromptService:
 
         update_result = MagicMock()
 
-        # Need results for 2 models (2 calls per model: max query + update)
+        # Need results for 1 model (2 calls: max query + update)
         mock_session.execute.side_effect = [
             max_result,
             update_result,
@@ -405,14 +377,12 @@ class TestPromptService:
 
         import_data = {
             "nemotron": {"system_prompt": "Imported prompt"},
-            "florence2": {"queries": ["Test query"]},
         }
 
         result = await service.import_prompts(mock_session, import_data)
 
-        assert len(result["imported_models"]) == 2
+        assert len(result["imported_models"]) == 1
         assert "nemotron" in result["imported_models"]
-        assert "florence2" in result["imported_models"]
 
     @pytest.mark.asyncio
     async def test_import_prompts_skips_unknown_models(self, service, mock_session):
@@ -472,7 +442,7 @@ class TestPromptTestFunction:
         """Test that test_prompt returns error for unsupported models."""
         result = await service.test_prompt(
             session=mock_session,
-            model="florence2",  # Not yet implemented
+            model="florence2",  # Retired with B3.3 box 4 (R2a row 27)
             config={"queries": []},
             event_id=123,
         )
@@ -858,7 +828,7 @@ class TestImportPromptsErrorHandling:
         max_result_success.scalar = MagicMock(return_value=0)
         update_result_success = MagicMock()
 
-        # Set up execute to succeed for first model
+        # Set up execute to succeed for the model's max-version query
         mock_session.execute.side_effect = [
             max_result_success,
             update_result_success,
@@ -884,15 +854,18 @@ class TestImportPromptsErrorHandling:
         with patch.object(
             service, "update_prompt_for_model", side_effect=mock_update, autospec=True
         ):
+            # B3.3 box 4 (R2a row 27): nemotron is the only valid model name, so the
+            # partial-failure path is exercised by two entries mapping to the same model
+            # (both pass the enum gate; the second update raises).
             import_data = {
                 "nemotron": {"system_prompt": "Valid prompt"},
-                "florence2": {"queries": ["Will fail"]},
+                "unknown_model": {"config": {"will": "fail"}},
             }
 
             result = await service.import_prompts(mock_session, import_data)
 
             assert "nemotron" in result["imported_models"]
-            assert "florence2" in result["skipped_models"]
+            assert "unknown_model" in result["skipped_models"]
             assert len(result["imported_models"]) == 1
             assert len(result["skipped_models"]) == 1
 

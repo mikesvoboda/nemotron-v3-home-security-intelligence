@@ -401,8 +401,7 @@ export default function AIAuditPage() {
                       <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
                         <h3 className="mb-2 font-semibold text-white">Model Editors</h3>
                         <p className="text-sm text-gray-400">
-                          Edit prompts for Nemotron, Florence-2, YOLO-World, X-CLIP, and
-                          Fashion-CLIP models.
+                          Edit prompts for the Nemotron model.
                         </p>
                       </div>
                       <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-4">

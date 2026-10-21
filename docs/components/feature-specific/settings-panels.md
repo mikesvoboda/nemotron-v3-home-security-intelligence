@@ -445,12 +445,11 @@ Configuration testing modal.
 Specialized configuration forms for each model type, in `frontend/src/components/settings/prompts/model-forms/`:
 
 - `NemotronConfigForm.tsx` - Nemotron model settings
-- `Florence2ConfigForm.tsx` - Florence-2 model settings
-- `YoloWorldConfigForm.tsx` - YOLO-World settings
-- `XClipConfigForm.tsx` - X-CLIP settings
-- `FashionClipConfigForm.tsx` - FashionCLIP settings
 
-The five labels are prompt-store keys (`AIModelEnum`) that these editors read and write; `ai-vlm` is
+(B3.3 box 4 / R2a row 27: the Florence-2, YOLO-World, X-CLIP and Fashion-CLIP forms retired with
+the models -- nemotron is the only model with prompts.)
+
+The label is a prompt-store key (`AIModelEnum`) that the editor reads and writes; `ai-vlm` is
 the only LLM service on the event path.
 
 ---

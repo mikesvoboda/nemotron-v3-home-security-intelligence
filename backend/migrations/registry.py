@@ -146,6 +146,11 @@ UPGRADES: tuple[Upgrade, ...] = (
         filename="2026-10-20-retire-scheduled-reports-table.sql",
         source="B3.1 R2a row 43 (retire F-252/F-253/F-255 scheduled_reports table)",
     ),
+    Upgrade(
+        id="0011-retire-vision-model-prompts",
+        filename="2026-10-21-retire-vision-model-prompts.sql",
+        source="B3.3 R2a row 27 (retire the four vision models' prompt_versions rows and the native aimodel enum)",
+    ),
 )
 
 

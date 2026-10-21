@@ -5239,8 +5239,11 @@ export async function fetchModelZooLatencyHistory(
 
 /**
  * Supported AI model names for prompt management
+ *
+ * B3.3 box 4 (R2a row 27): florence2, yolo_world, xclip and fashion_clip retired with
+ * the R8 S2/S3 serving sweep; nemotron is the only model a deployment boots.
  */
-export type PromptModelName = 'nemotron' | 'florence2' | 'yolo_world' | 'xclip' | 'fashion_clip';
+export type PromptModelName = 'nemotron';
 
 /**
  * Response for a single model's prompt configuration
@@ -5358,7 +5361,7 @@ export async function fetchAllPrompts(): Promise<AllPromptsResponse> {
 /**
  * Fetch current prompt configuration for a specific AI model.
  *
- * @param model - Model name (nemotron, florence2, yolo_world, xclip, fashion_clip)
+ * @param model - Model name (nemotron)
  * @returns ModelPromptResponse with current configuration
  */
 export async function fetchModelPrompt(model: PromptModelName): Promise<ModelPromptResponse> {

@@ -152,6 +152,10 @@ def test_unterminated_quoted_identifier_raises():
         ("0008-retire-alert-rule-pose-action-smoke-columns", 1),
         ("0009-retire-gpu-devices-table", 1),
         ("0010-retire-scheduled-reports-table", 1),
+        # 0011 is DELETE (the four retired models' rows) + ALTER COLUMN ... TYPE + DROP TYPE:
+        # three statements. The DELETE runs before the ALTER so the IN-list is still
+        # validated against the native aimodel enum labels.
+        ("0011-retire-vision-model-prompts", 3),
     ],
 )
 def test_shipped_files_lex_to_the_expected_statement_count(upgrade_id, expected_statements):
@@ -311,3 +315,10 @@ def test_0010_retire_scheduled_reports_table_registered():
     """R2a row 43 (F-252/F-253/F-255) registers 0010-retire-scheduled-reports-table with a table_absent check."""
     assert "0010-retire-scheduled-reports-table" in registry.ids()
     assert "0010-retire-scheduled-reports-table" in checks.CHECKS
+
+
+def test_0011_retire_vision_model_prompts_registered():
+    """B3.3 box 4 (R2a row 27) registers 0011-retire-vision-model-prompts with a CHECK --
+    mandatory, not stylistic: the file's ALTER COLUMN trips the risky-statement gate above."""
+    assert "0011-retire-vision-model-prompts" in registry.ids()
+    assert "0011-retire-vision-model-prompts" in checks.CHECKS
