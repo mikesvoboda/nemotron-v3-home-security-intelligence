@@ -40,6 +40,269 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 | 2     | 6927, 6930, 6931, 6936, 6943, 6950, 6959, 7002, 7015, 7019, 7031, 7038, 7039, 7041, 7044 | 45 (41 auditor candidates − 1 dedup (6927_c1 = Q-012's same defect) + 5 probe items from the two empty verdicts re-looked per ruling 232) + 1 supplementary outside the diff (7015 probe, DashboardPage.test.tsx:1091 — scope call for the coordinator, not in the count)                                                                                                                                                                                                                                                                                                                          | 1 (7002_c2, provenance mover-leg only — re-issued as Q-037 with corrected provenance; staleness and fix stand)                                                           | batch-2 comment on #7265; lows in the compact table per owner continue (6266204180); the seven mediums + re-issued Q-037 keep full templates                                                                            |
 | 3     | 7052, 7070, 7074, 7077, 7086, 7088, 7103, 7114, 7125, 7135, 7139, 7145, 7146, 7156, 7157 | 62 rows from 69 auditor candidates + 5 deferred items Q-062..Q-066 (− 1 refuted genre-kill 7135_c4, − 1 dedup merge 7086-C1+C2, − 2 dedup twins 7157-C1/C5 resolved onto 7135-C1's verdict, − 1 batch-4 certification 7070-C2, − 2 record-only 7070-C7/C10, − 2 record-only 7114-C2/C3, − 1 re-assigned to #7222 7114-C4; Q-075 stays as a pointer row onto Q-093's fix; the phantom q067 was REFUTED and dies unnumbered — it was never a candidate row) + ~20 rows' dead coordinate cites across feature-inventory.md consolidate into the #7135-family and #7146-family items; enumerated there | 2 (phantom coordinate q067 — a `prod.yml:160` cite that exists nowhere at the pin, dies unnumbered; 7135_c4 genre-kill — ticked Done-when boxes are task specifications) | batch-3 comment on #7265; lows in the compact table per owner continue (6266204180); the two mediums (Q-093, Q-114) keep full templates; ruled 277 (record 6291992942): 62 rows, Q-094 dropped, targets/paths corrected |
 | 4     | 7158, 7159, 7168, 7174, 7183, 7187, 7201, 7210, 7215, 7222, 7230, 7234                   | 41 rows from 42 intake items (− 1 refuted 7210 item 3 on its provenance leg only — finding stands with corrected provenance, dies unnumbered; − 1 dedup merge 7187 items 0+1 into Q-134, whose pointer half is 7210 item 8's :421 predicate leg — rides the row, no count effect; + 1 ruled row 7114-C4 re-assigned to #7222, numbered Q-164 with the ruled wording) + 2 record-only cross-refs (7070-C7/C10 ride #7201; 7114-C2/C3 ride #7222)                                                                                                                                                    | 1 (7210 item 3, provenance leg only)                                                                                                                                     | batch-4 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
+| 5     | 6855, 6863, 6864, 6867, 6870, 6875, 6888, 6890, 6891, 6892, 6901, 6912, 6914, 6920, 6921 | 10 rows from 10 intake items (test class begins; 8 drift + 2 claim — no dedups, no re-assignments)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 0 (10/10 survived)                                                                                                                                                       | batch-5 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
+
+## Batch 5 — per-PR verdicts
+
+Batch 5. Test class begins (the 109 test PRs in number order; batch 5 = the first 15). Every
+item was verified at the pinned SHA before entering the sheet, and the refutation pass (ruling 232) is complete: **10 of 10 NOT-REFUTED, 0 refuted** — no dedups, no re-assignments → **10
+rows, Q-165..Q-174**, all severity low (8 drift, 2 claim). Verdict files on disk: 3 refuter
+passes (b5a_1 for 6867_c1; b5b_1 for 6890_c1/c2 + 6901_c1 + 6912_c1/c2; b5b_2 for 6912_c3/c4 +
+6920_c1/c2) in /tmp/r262_b5_refutations/, each self-verified at the pin with the coordinator's
+own git commands before entering the sheet. Per the owner's continue (comment 6266204180): the
+low items rule from the compact table with their evidence in the collapsed block under it.
+Owner column carries write-time wording only — no ruling had landed when assembled.
+
+Provenance mechanisms seen in batch 5, named: authored-true-then-moved (Q-165's mover chain is
+#7236's [r173] census commits 16ea1bbc8 :464→:622 and 3465fb056 →:647, carrier 63f25b8a8 —
+NOT #7205 as the intake first attributed; Q-166/Q-167's movers sit below the shallow graft —
+authored-true at 3b73b9b6b, already stale at their own merge tree 2d2cf7b7c, main-side drift
+pre-merge; Q-168 authored-true at 6d3695146 and merge fe6850431, drifted by the pin; Q-169/Q-170
+true at 51d908d68 and merge c77ee16e7, system.py +29 by the pin; Q-171 true at 3bf7d972 and
+c77ee16e7 :134-138, moved −15 by af7690bfd and −1 by 8c3c8a7f6 (the F-114 branch line folds out
+through a30a502df, net 0); Q-172's :459 true at c77ee16e7, moved by the d6344e031 region +15
+then 51a2738f0 +7); born-stale-in-its-own-commit (Q-172's :638 — READINESS at :640 at its own
+merge; the number is 3bf7d972's sha-scoped truth borrowed into an unscoped cite); claim drift
+on measured values (Q-173: jobs/AGENTS.md shrank 510→413→308 by 395576010 then 6b691302d, so
+the test docstring's "smallest distance 18" is now 8; Q-174: root 505 was true at a1eaf1987 and
+at the comment-writing commit ad9a3bc90, moved by the PR's own in-branch 7311ad794 (−1) folded
+in after the comment was written — both merge parents already 504, so the "this head" scoping
+is false in its own PR frame).
+
+| PR    | Class | Verdict                                                                                                                                                                                                                                                                                                                    |
+| ----- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #6855 | test  | no items — launch-test roster, preflight strings, lane.md kickoff sentences, cross-cites all re-derived at pin; deep-verified with an empirical pin-tree run (1167 passed / 1 skipped / 0 failed across the batch's kept suites)                                                                                           |
+| #6863 | test  | no items — banner span assertions verified against pin content; docstring cite :508 correct                                                                                                                                                                                                                                |
+| #6864 | test  | no items — same file as #6855/#6867, read fully across both halves                                                                                                                                                                                                                                                         |
+| #6867 | test  | 1 item (Q-165); refuter b5a_1 — NOT-REFUTED; mover corrected: #7236's [r173] commits (16ea1bbc8, 3465fb056) via 63f25b8a8, NOT #7205 (at d6344e031 the marker was still :464; #7205 touched neither file)                                                                                                                  |
+| #6870 | test  | no items — validator exit-code contract, RETIRED_NAMES counting rule, config baselines verified in source; 38 tests passed on the extracted pin tree, validator rc 0 with counts {93,143,152,9,2} ≤ baseline                                                                                                               |
+| #6875 | test  | no items — the seven deploy/rollback/smoke tests' contracts verified at pin (short-sha literal, publish-latest chain, digest-qualified cosign, absent-state greps empty, /health/full contract consumed live by ci-smoke-test.sh)                                                                                          |
+| #6888 | test  | no items — dual-annotation line :312, semgrep pattern shape, mask_ip parity with logging.py:1012, HMAC parametrized cases, auth.py:298 patch shape all verified                                                                                                                                                            |
+| #6890 | test  | 2 items (Q-166, Q-167); refuter b5b_1 — both NOT-REFUTED; authored-true at 3b73b9b6b, ALREADY STALE at the PR's own merge 2d2cf7b7c (pre-merge main-side drift); def-name/argv-line corrections folded                                                                                                                     |
+| #6891 | test  | no items — intake's spot-verifications held at pin                                                                                                                                                                                                                                                                         |
+| #6892 | test  | no items — intake's spot-verifications held at pin                                                                                                                                                                                                                                                                         |
+| #6901 | test  | 1 item (Q-168); refuter b5b_1 — NOT-REFUTED; `delegat` appears nowhere in the pin census file; def at :793; authored-true at 6d3695146 and merge fe6850431 (def :528)                                                                                                                                                      |
+| #6912 | test  | 4 items (Q-169..Q-172); refuters b5b_1 + b5b_2 — all 4 NOT-REFUTED; system.py +29 post-merge; b14 header scopes only prod.yml refs (config.py cite unscoped); :638 born stale (READINESS at :640 at own merge); intake's merge-tree :638 quote corrected to the pin's go2rtc comment, ORCHESTRATOR_DOCKER_HOST at pin :682 |
+| #6914 | test  | no items — all three docblock renumbers true at pin; the config.py:977-978→979-980 drift belongs to #7205, out of slice                                                                                                                                                                                                    |
+| #6920 | test  | 2 items (Q-173, Q-174); refuter b5b_2 — both NOT-REFUTED; Q-173's minimum re-measured at 8 (jobs 308 vs 300), ±5 claim holds (over-set 29 both shifts); Q-174's 505 true at a1eaf1987 AND ad9a3bc90, mover is the PR's own 7311ad794; fix-advice key corrected to ratchet.line_caps.over                                   |
+| #6921 | test  | no items — accepted_survivors.toml zero entries honest; test_accepted_survivors.py battery verified; SetupGuardMiddleware TTL 60.0 at setup_guard.py:42 true at pin                                                                                                                                                        |
+
+Compact table. Owner decisions are pending; the owner column carries write-time wording only.
+
+| id    | class | path:line                                                         | PR    | wrong (one line)                                                                                                                                                                                                                                                                                                                                                                  | fix (size, lane)                                                                                                                    | owner                                                                                                                                                                                                                                                                                                                          |
+| ----- | ----- | ----------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Q-165 | drift | backend/tests/unit/scripts/test_uplevel_launch.py:427             | #6867 | timeout comment cites its precedent at `scripts/test_suppression_census.py:464`; pin :464 is `def test_golden_refuses_to_silently_undercount(...)` — the cited `@pytest.mark.timeout(180)` marker lives at :647; mover chain is #7236's [r173] census commits 16ea1bbc8 (:464→:622) and 3465fb056 (→:647) via merge 63f25b8a8, NOT #7205 (at d6344e031 the marker was still :464) | re-point the cite to scripts/test_suppression_census.py:647 (or cite the marker without a line number). Size S; docs                | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+| Q-166 | drift | backend/tests/unit/test_r8_s3_florence_provider_retirement.py:162 | #6890 | noqa comment cites `setup.py:1155` as the repo's own git-on-PATH convention; pin :1155 is `# Try firewall-cmd (Fedora/RHEL/CentOS)` — the git argv site (with its own S607 noqa) is :1479-1480; authored-true at 3b73b9b6b, already stale at the PR's own merge 2d2cf7b7c (pre-merge main-side drift)                                                                             | re-point to setup.py:1479-1480 (or name the site without a line). Size S; backend                                                   | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+| Q-167 | drift | backend/tests/unit/test_r8_s3_florence_provider_retirement.py:802 | #6890 | docstring cites `ci.yml:2651` for the 4.0s unit-test threshold; pin :2651 is an E2E `if:` guard — `UNIT_TEST_THRESHOLD: '4.0'` sits at :3168 (sole occurrence); authored-true at 3b73b9b6b, already stale at the PR's own merge (threshold at :2681 there)                                                                                                                        | re-point to ci.yml:3168. Size S; backend                                                                                            | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+| Q-168 | drift | .github/workflows/ci.yml:488                                      | #6901 | census-gate comment cites `suppression-census.py:530-540` as where the census delegates measurement; pin :530-540 is the Playwright-skip/measured-population prose (`delegat` appears nowhere in the file) — the measurer `_unspecced_patch_locations` is at :793; authored-true at 6d3695146 and merge fe6850431 (def :528)                                                      | re-point to suppression-census.py:793 (or name the function without a line number). Size S; ops                                     | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+| Q-169 | drift | scripts/uplevel-real-tier/vlm-proxy.mjs:10 (+2 cites)             | #6912 | three system.py coordinates stale at pin: refused string :934→:963, `_check_ai_vlm_health` handler ladder :933-941→:962-968, `_bounded_health_check` :1034→:1038 (pin :1034 is the blank line after record_failure :1033, inside the circuit-breaker function); true at 51d908d68 and merge c77ee16e7, system.py +29 by the pin                                                   | re-point to system.py:963 / :962-968 / :1038 (or drop line numbers, keep function names). Size S; ops                               | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+| Q-170 | drift | scripts/uplevel-real-tier/vlm-mock.mjs:5                          | #6912 | comment cites `system.py:912-941` for `_check_ai_vlm_health`; at pin the function is :941-970 (final return :970) and the cited span contains the whole `_check_yolo26_health` (:915-938); true at 51d908d68 and merge c77ee16e7 (def :912, last return :941)                                                                                                                     | re-point to system.py:941-970 (or name the function only). Size S; ops                                                              | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+| Q-171 | drift | scripts/uplevel-real-tier/docker-compose.b14-real.yml:43          | #6912 | unscoped `config.py:134-138` cite for the orchestrator default-on; the header (:8) sha-scopes only the prod.yml refs to 3bf7d972; pin :134-138 is the service-discovery `compose_file` field — `enabled: bool = Field(True, ...)` is :118-122; true at 3bf7d972 and c77ee16e7, moved −16 by af7690bfd (−15) + 8c3c8a7f6 (−1)                                                      | re-point to config.py:118-122, or sha-scope it like the header's other refs. Size S; ops                                            | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+| Q-172 | drift | scripts/uplevel-real-tier/render-test-compose.sh:148 (+1)         | #6912 | two die/warn cites stale: gate-4 says the mount sits "at prod :459" (pin :481; true at c77ee16e7, moved by the d6344e031 region +15 then 51a2738f0 +7), and gate-5's warn cites `prod.yml:638` (born stale — READINESS at :640 at its own merge; the number is 3bf7d972's sha-scoped truth borrowed unscoped; pin :684, go2rtc comment at :638, ORCHESTRATOR_DOCKER_HOST at :682) | re-point :148 to prod :481 and :158 to prod :684 (or drop the numbers; the b14 header's sha-scoped refs are the model). Size S; ops | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+| Q-173 | claim | scripts/test_agents_md_validator.py:661-663                       | #6920 | test prose claims "the smallest                                                                                                                                                                                                                                                                                                                                                   | lines − cap                                                                                                                         | anywhere on the real tree is 18 (developer-tools, 318 vs 300)"; pin minimum is 8 — frontend/src/components/jobs/AGENTS.md 308 vs the 300 cap (true at the merge tree 396df715c where jobs = 510); jobs shrank 510→413→308 by 395576010 then 6b691302d; the ±5 plateau claim re-measured and holds (over-set 29 at both shifts) | update the sentence to the pin's true minimum (jobs, 308 vs 300, distance 8) or name the files without a single minimum. Size S; ops | pending ruling (batch 5) |
+| Q-174 | claim | .agents-md-validator.yml:240                                      | #6920 | line_caps rationale says "Measured at adoption (PR #6920, this head): root 505"; the merge tree measures 504 (both parents) and the pin 503 — 505 was true at a1eaf1987 AND at the comment-writing ad9a3bc90, moved by the PR's own in-branch 7311ad794 (−1) folded in after the comment was written, so the "this head" scoping is false in its own PR frame                     | correct to 504 (the merge-tree truth) or drop the snapshot figure and point at `ratchet.line_caps.over` in the report. Size S; ops  | pending ruling (batch 5)                                                                                                                                                                                                                                                                                                       |
+
+<details>
+<summary>Batch 5 evidence — low items (collapsed)</summary>
+
+### Q-165 · drift · backend/tests/unit/scripts/test_uplevel_launch.py:427 · #6867
+
+- Wrong: the timeout comment's precedent cite names `scripts/test_suppression_census.py:464`;
+  the pin's :464 is `def test_golden_refuses_to_silently_undercount(tmp_path, src, label):` —
+  the cited `@pytest.mark.timeout(180)` marker sits at :647.
+- Evidence: pin test_uplevel_launch.py :425-427 (the comment, quoted in the verdict); pin
+  test_suppression_census.py :464 (unrelated def) vs :647 (the marker; only `timeout(180)` in
+  the file; the only other marker is timeout(300) at :602, the only other `180` an unrelated
+  ratchet assert at :623). Born-true at 66c8ed10b (a PR-side commit of #6867): :464 WAS the
+  marker there. Mover chain: #7236's [r173] census commits — 16ea1bbc8 (2026-10-17 12:09:28,
+  introduces `test_golden_refuses_to_silently_undercount` + ~108 lines, :464→:622), then
+  3465fb056 (12:40:30, body grows, →:647); carried by merge 63f25b8a8 (2026-10-17 15:09:29).
+  NOT #7205: at d6344e031 (#7205's merge, the shallow boundary) the marker is still :464, and
+  #7205's changed-file list does not include the census file. Four pin-history commits touched
+  the census file (16ea1bbc8, 3465fb056, 4944897c6, 3133470fb — all #7236-side); the launch
+  test file was touched by NO pin-history commit (the whole file shifted 23 lines outside pin
+  history, before the boundary). Verdict b5a_1.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: re-point to `scripts/test_suppression_census.py:647` (or cite the marker without a line
+  number). Size S; docs.
+- Owner: pending ruling (batch 5).
+
+### Q-166 · drift · backend/tests/unit/test_r8_s3_florence_provider_retirement.py:162 · #6890
+
+- Wrong: the `_git` helper's noqa cites `setup.py:1155` as "the repo's own convention" for
+  running git from PATH; the pin's :1155 is `# Try firewall-cmd (Fedora/RHEL/CentOS)` — the
+  git argv site is :1479-1480 (`subprocess.run(  # noqa: S603` at :1479, the
+  `["git", "-C", str(project_root), "branch", "--show-current"],  # noqa: S607` line at :1480,
+  inside `run_deploy_with_logging` (def :1476)).
+- Evidence: pin test :162 and setup.py :1155/:1476-1480 quoted in the verdict. Only one
+  setup.py exists at the pin; the only git-on-PATH S607 sites in it are :1480 and :1486 (the
+  others are firewall-cmd/ufw at :1160/:1165/:1178 and pre-commit at :1641/:1649); no
+  `convention` marker anywhere in the file. Authored-true at 3b73b9b6b (2026-09-30, the
+  PR-side commit that wrote the file): setup.py:1155 = the `subprocess.run(` line there, argv
+  at :1156. Already stale at the PR's own merge tree 2d2cf7b7c (git site at :1146-1147 there)
+  — main-side setup.py restructuring between 09-30 and 10-08 drifted it pre-merge. Refuter
+  corrections folded: the enclosing def is `run_deploy_with_logging` :1476 (intake said
+  "`_run_deploy` :1477"); the argv line is :1480 (:1479 is the `subprocess.run(` line). Verdict
+  b5b_1.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: re-point to setup.py:1479-1480 (or name the site without a line number). Size S;
+  backend.
+- Owner: pending ruling (batch 5).
+
+### Q-167 · drift · backend/tests/unit/test_r8_s3_florence_provider_retirement.py:802 · #6890
+
+- Wrong: the module docstring cites `ci.yml:2651` for the 4.0s unit-test duration limit; the
+  pin's :2651 is an E2E `if:` guard — `UNIT_TEST_THRESHOLD: '4.0'` sits at :3168.
+- Evidence: pin test :802 and ci.yml :2651/:3168 quoted in the verdict. `UNIT_TEST_THRESHOLD`
+  has exactly one occurrence in the pin ci.yml (:3168); the only other `'4.0'` is
+  `SLEEP_GATE_UNIT_BUDGET: '4.0'` at :3193, a different key. Authored-true at 3b73b9b6b
+  (:2651 = the threshold there); already stale at the merge tree 2d2cf7b7c (threshold at
+  :2681). Same pre-merge main-side drift as Q-166. Verdict b5b_1.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: re-point to ci.yml:3168. Size S; backend.
+- Owner: pending ruling (batch 5).
+
+### Q-168 · drift · .github/workflows/ci.yml:488 · #6901
+
+- Wrong: the census-gate comment cites `suppression-census.py:530-540` as where the census
+  "delegates measurement"; the pin's :530-540 is the Playwright-skip/measured-population prose
+  block — `delegat` appears nowhere in the pin census file, and the measurer
+  `_unspecced_patch_locations` is defined at :793.
+- Evidence: pin ci.yml :486-489 and suppression-census.py :530-540/:793 quoted in the verdict;
+  `grep -in delegat` over the whole pin census blob → zero hits. Authored-true at 6d3695146
+  (2026-10-08, inside #6901's first-parent range) and at the merge fe6850431 — the def sat at
+  :528 with the delegation docstring at :530-531, so :530-540 was mid-function and covered the
+  delegation prose at write time; drifted by later insertions above the def. Verdict b5b_1.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: re-point to suppression-census.py:793 (or name the function without a line number).
+  Size S; ops.
+- Owner: pending ruling (batch 5).
+
+### Q-169 · drift · scripts/uplevel-real-tier/vlm-proxy.mjs:10 (+2 cites) · #6912
+
+- Wrong: three system.py coordinates in the proxy's comments are stale at the pin: the
+  "connection refused" reason string cited at :934 (pin :963), the `_check_ai_vlm_health`
+  handler ladder at :933-941 (pin :962-968), and `_bounded_health_check` at :1034 (pin def
+  :1038; pin :1034 is the blank line after `record_failure` :1033, inside
+  `_check_ai_vlm_health_with_circuit_breaker`).
+- Evidence: pin vlm-proxy.mjs :10/:109-110 and system.py :934/:962-963/:968/:1034/:1038 quoted
+  in the verdict; pin :933-934 land in the YOLO26 ladder (`except httpx.HTTPStatusError`), the
+  wrong function. Authored-true at the feat commit 51d908d68 (2026-10-08) and at the merge
+  c77ee16e7 (refused at :934, ladder :933-941 with the final return at :941, def :1009 with
+  `except TimeoutError:` at :1034 inside it); drifted by post-merge main-side insertions
+  (system.py +29 by the pin). Refuter nit folded: pin :1034 is the blank line after
+  record_failure, not the record line itself. Verdict b5b_1.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: re-point to system.py:963 / :962-968 / :1038 (or drop line numbers, keep function
+  names). Size S; ops.
+- Owner: pending ruling (batch 5).
+
+### Q-170 · drift · scripts/uplevel-real-tier/vlm-mock.mjs:5 · #6912
+
+- Wrong: the mock's comment cites `system.py:912-941` for `_check_ai_vlm_health`; at the pin
+  that function is :941-970 (def :941, final `return False, f"ai-vlm service error: {e!s}"` at
+  :970) and the cited span contains the whole `_check_yolo26_health` (:915-938) — no part of
+  the named function.
+- Evidence: pin vlm-mock.mjs :5 and system.py :915/:941/:970 quoted in the verdict.
+  Authored-true at 51d908d68 and the merge c77ee16e7 (def :912, last return :941). Same +29
+  post-merge drift as Q-169. Refuter corrections folded: the final return is :970 (intake said
+  :968-969); the stale span is not "blank lines plus tail" — it contains the whole
+  `_check_yolo26_health` function. Verdict b5b_1.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: re-point to system.py:941-970 (or name the function only). Size S; ops.
+- Owner: pending ruling (batch 5).
+
+### Q-171 · drift · scripts/uplevel-real-tier/docker-compose.b14-real.yml:43 · #6912
+
+- Wrong: the comment justifying the injected `ORCHESTRATOR_ENABLED=false` cites
+  `config.py:134-138` unscoped for the orchestrator default-on; the file's header (:8)
+  sha-scopes only its prod.yml refs to 3bf7d972, not this cite. At the pin :134-138 is the
+  service-discovery `compose_file` field ("docker-compose.prod.yml" at :134); the
+  `enabled: bool = Field(True, ...)` default is :118-122 (Feature-flag comment :117).
+- Evidence: pin b14-real.yml :43 and config.py :118-122/:134-135 quoted in the verdict; the
+  pin file has exactly one `config.py` mention (:43), and no other config.py in the pin tree
+  carries an ORCHESTRATOR_ section — no scoping text rescues the cite. True at 3bf7d972 (the
+  header's scope sha) and at the PR's own merge c77ee16e7 (:134-138 both). Movers:
+  af7690bfd ("[B3.3] delete 43 unread settings fields", config.py −289, anchor :133→:118, −15)
+  then 8c3c8a7f6 ("[B3.3] box 5: the upgrade path runs at startup", −12, :118→:117, −1); the
+  F-114 branch line 9fcb5f453 folds out through merge a30a502df (net 0). Net merge→pin −16.
+  Verdict b5b_2.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: re-point to config.py:118-122, or sha-scope it like the header's other refs. Size S;
+  ops.
+- Owner: pending ruling (batch 5).
+
+### Q-172 · drift · scripts/uplevel-real-tier/render-test-compose.sh:148 (+1) · #6912
+
+- Wrong: two die/warn messages carry stale prod.yml coordinates: the gate-4 die says
+  operator.md's mount sits "at prod :459" (pin :481), and the gate-5 warn cites
+  `docker-compose.prod.yml:638` for READINESS_REQUIRE_PIPELINE_WORKERS's false default (pin
+  :684).
+- Evidence: pin script :148/:158 and prod.yml :459/:481/:638/:684 quoted in the verdict;
+  READINESS is the sole occurrence in the file (:684). :459 — authored-true-then-moved: at
+  c77ee16e7 (and at 3bf7d972) the mount is :459; moved 459→474 by the d6344e031 region (+15,
+  attribution not walk-provable behind the graft), then 474→481 by 51a2738f0 ("[r243] render
+  the engine-socket gate", prod.yml +30/−17). :638 — born-stale-in-its-own-commit: at
+  c77ee16e7 (both merge parents included) :638 = ORCHESTRATOR_DOCKER_HOST and READINESS sat at
+  :640; the number is 3bf7d972's sha-scoped truth (where :638 IS the READINESS line) borrowed
+  into an unscoped cite. Refuter correction folded: at the pin :638 is the go2rtc comment and
+  ORCHESTRATOR_DOCKER_HOST is :682 — the intake's proof quote carried the merge-tree text.
+  Verdict b5b_2.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: re-point :148 to prod :481 and :158 to prod :684 (or drop the numbers; the b14
+  header's sha-scoped refs are the model). Size S; ops.
+- Owner: pending ruling (batch 5).
+
+### Q-173 · claim · scripts/test_agents_md_validator.py:661-663 · #6920
+
+- Wrong: the test's prose claims "the smallest |lines − cap| anywhere on the real tree is 18
+  (frontend/src/components/developer-tools, 318 against the 300 cap)"; at the pin
+  frontend/src/components/jobs/AGENTS.md is 308 lines — distance 8 — so the claimed minimum is
+  false, and the plateau argument's margin weakens from 18 to 8 (a `>`→`>=` slip still reports
+  nothing at the pin, because no boundary file sits exactly at a cap, but the margin is 8).
+- Evidence: pin test :661-663 quoted in the verdict; caps apply to the validator's own
+  boundary_list (42 paths, all present — the population the sentence can mean); full 42-entry
+  sweep at the pin: jobs = 308 (distance 8), developer-tools = 318 (18), face-recognition =
+  280 (20) — true minimum 8. At the merge tree 396df715c: jobs = 510 (210), developer-tools
+  318 (18) — 18 was the true minimum there, so the sentence was true as written at its own
+  PR's merge. Shrink chain: 395576010 ("feat(jobs): retire F-091 jobs live log viewer",
+  2026-10-17 22:21, 510→413) then 6b691302d ("feat(jobs): retire R2a row 17 F-092 to F-096",
+  2026-10-18 01:30, 413→308) — chronological order corrected from the intake's. Secondary
+  claims re-derived, not carried: the ±5 cap-shift recount at the pin gives over-set 29 at
+  both −5 and +5 (band sweep empty — no boundary file within ±5 of any cap); the 29/42
+  over-count holds at both trees. Refuter nit folded: styles/AGENTS.md (303) is NOT in the
+  boundary list and cannot enter the population. Verdict b5b_2.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: update the sentence to the pin's true minimum (jobs, 308 vs 300, distance 8) or name
+  the files without a single minimum; the ±5 figure survives re-measurement. Size S; ops.
+- Owner: pending ruling (batch 5).
+
+### Q-174 · claim · .agents-md-validator.yml:240 · #6920
+
+- Wrong: the line_caps rationale comment says "Measured at adoption (PR #6920, this head):
+  root 505 — inside its cap"; the PR's own merge tree measures 504 (both merge parents) and
+  the pin 503, so the shipped artifact disagrees with its own "this head" scoping under any
+  reading.
+- Evidence: pin yml :239-241 quoted in the verdict; measurements: a1eaf1987 (config-writing
+  commit) 505, ad9a3bc90 (the commit that wrote the ", this head" phrasing) 505, 396df715c and
+  both parents 504, pin 503. Provenance corrected from the intake: 505 was NOT true "only" at
+  a1eaf1987 — it was also true at ad9a3bc90; the mover is the PR's own in-branch
+  7311ad794 ("fix(ops): retire the ghcr install path", root AGENTS.md −1, the
+  docker-compose.ghcr.yml table row), which lived on a parallel in-PR line and folded in
+  through the intra-PR merges 3f50bfd05/50a6338d8/31dcde100/fea5d1e47/738eb71a8 after the
+  comment was written — authored-true-then-moved within the PR itself. Neighbouring counts
+  verified: lane roots ai 649, backend 1061, frontend 673, scripts 1334 at the merge (4 of 7
+  over 500); 29 of 42 boundary files over at both trees (recounted from the yml's own
+  boundary_list — a naive whole-tree sweep gives 54/244, the wrong population). Refuter
+  fix-advice correction: the validator's report has no `ratchet.line_counts` key — the live
+  counts live in `ratchet.line_caps.over[].measured` (:845-883, :999-1007), which the comment
+  at :242 already names. Verdict b5b_2.md.
+- Refuted=false (NOT-REFUTED).
+- Fix: correct to 504 (the merge-tree truth) or drop the snapshot figure and point at
+  `ratchet.line_caps.over` in the report. Size S; ops.
+- Owner: pending ruling (batch 5).
+
+</details>
 
 ## Batch 1 — per-PR verdicts
 
@@ -3602,3 +3865,44 @@ stale coordinates (pre-existing, stale since before the merge) and are logged, n
   ~40 minutes).
 - Shallow-graft hazard governed the whole batch, as in batch 3: full hashes and pairwise blob
   diffs throughout, never merge-base walks past d6344e031.
+
+## Batch 5 — process notes
+
+- Refutation-pass note (owner P2 item 2, continuing): every refuter verdict was self-verified
+  at the pin with the coordinator's own git commands before entering the sheet — all 10
+  items' pin coordinates re-read directly (three `git show` batches over test_uplevel_launch.py,
+  test_r8_s3_florence_provider_retirement.py, setup.py, ci.yml, suppression-census.py,
+  system.py, vlm-proxy.mjs, vlm-mock.mjs, docker-compose.b14-real.yml, render-test-compose.sh,
+  test_agents_md_validator.py, .agents-md-validator.yml) before any row was written.
+- Provenance self-correction inside the batch: the intake attributed Q-165's mover to #7205
+  because d6344e031 (the shallow boundary) is #7205's merge — the refuter proved #7205 touched
+  neither file (its changed-file list excludes the census file; the marker was still at :464 at
+  the boundary) and walked the real chain (#7236's [r173] commits 16ea1bbc8 → 3465fb056 via
+  carrier merge 63f25b8a8, all inside pin history). Boundary-proximity is not attribution.
+- Two intakes carried corrections the refuters folded into the rows: Q-166/Q-167's write-time
+  truth extends past the authoring commit to the merge tree (both cites were ALREADY STALE at
+  the PR's own merge 2d2cf7b7c — pre-merge main-side drift, a mechanism batch 4 named but
+  batch 5 is the first to ride); Q-172's intake proof quote carried merge-tree text (":638 =
+  ORCHESTRATOR_DOCKER_HOST at the merge") where the pin's :638 is the go2rtc comment and
+  :682 is ORCHESTRATOR_DOCKER_HOST — the row records the pin-side correction.
+- Two claims (Q-173, Q-174) carry re-derived secondary numbers, not carried ones: Q-173's
+  ±5-cap-shift recount (over-set 29 at both shifts, band empty) and Q-174's boundary-file
+  recount (29/42 over at both trees; a naive whole-tree sweep gives 54/244 — the wrong
+  population, since the validator's caps bind only its own boundary_list). Both recomputes
+  were run by the refuter at the pin and merge trees and self-verified by the coordinator.
+- Q-174's fix-advice correction: the intake pointed at a `ratchet.line_counts` report key that
+  does not exist — the validator's live counts live in `ratchet.line_caps.over[].measured`
+  (yml :845-883, :999-1007), which the neighbouring comment at :242 already names. The row's
+  fix names the real key.
+- Class tallies: 8 drift + 2 claim, all severity low. First batch with zero refutations across
+  all five legs; every item survives with corrected provenance or corrected secondary numbers.
+- Concurrency: the cap held (two refuters at peak, sequential otherwise; both batch-6 intake
+  auditors were already running under the cap while batch-5 assembly finished).
+- Shallow-graft hazard governed the batch as before: full hashes and blob reads throughout,
+  pickaxe only inside d6344e031..41bc0fce71; the b5b refuter's `-S` hits on d6344e031 itself
+  were identified as the known graft artifact and authoring was resolved by direct blob reads
+  at the PR's own commits instead.
+- The batch-5 intake file for #6890-#6921 carries a transposed pin sha in its header
+  (`41bc0fce7f85...` — does not resolve); both b5b refuter prompts carried the warning and
+  every measurement used the full pin. Recorded here so a future reader of the intake files
+  does not inherit the typo.
