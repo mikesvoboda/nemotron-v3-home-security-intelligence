@@ -115,7 +115,7 @@ POINTER_FLOOR = timedelta(hours=2)  # the pointer read starts this far before my
 
 class LaneSnap(snap.Snapshot):
     """The snapshot minus the coordinator's own reads. ``_main`` shrinks to the ``git fetch`` the
-    later sections assume (UR-38's lane CI read is the gate inside ``_prs``); ``_legs`` and the
+    later sections assume (UR-38's lane CI read is the gate inside ``_prs``); ``_merge_state`` and the
     ``_merged_audit`` are the coordinator's update-branch and merge verdicts, never a lane's, and so
     is ``_review`` over EVERY open PR -- ``build`` runs the same read and the same ``judge`` for my
     own ready PRs only, which is all ruling 198's markers need. ``_rollup`` is kept, and each PR's
@@ -141,8 +141,8 @@ class LaneSnap(snap.Snapshot):
         except Exception as exc:  # reported, not fatal
             self.data["main"]["errors"].append(f"fetch origin: {snap.error_text(exc)}")
 
-    def _legs(self, item: dict) -> None:
-        """UR-102's no-update legs are the coordinator's merge decision, not the lane's tick."""
+    def _merge_state(self, item: dict) -> None:
+        """The merge state (ruling 270) is the coordinator's merge decision, not the lane's tick."""
 
     def _merged_audit(self) -> None:
         self.data["merged"] = {"items": [], "errors": []}
