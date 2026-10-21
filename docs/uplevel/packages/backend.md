@@ -768,3 +768,51 @@ record 6291992942; audit items Q-068 and Q-114 of `[r262]`, #7041)
 writers it describes.
 (ticked: run `39435442971` at `173b7cfad` — 66/66 non-skipped jobs success, CI Gate success;
 PR #7306)
+
+### [r285] Four backend bugs the maui production-shape run found
+
+**Flags:** none. **Assigned:** backend, first on its queue (ruling 285). **Depends on:** none.
+**PR:** none yet. (ruling 285, record 6300916398; amendments 6301639831 and 6302995876)
+
+The owner's maui discovery for `O2.5` item 2 ran production's compose shape on real hardware and
+found four product bugs CI cannot see. Its handoff carries reference diffs and red-and-green
+evidence for three of them; this package writes each fix fresh on `main`, each with its own
+failing-first test (UR-69), and ops-a's `O2.5` venue fixes leave them out (ruling 287 item 4).
+
+- [ ] **F-182's Compare.** `GET /api/system/gpu-config/history/diff` is registered after
+      `GET /api/system/gpu-config/history/{version_id}` in `backend/api/routes/gpu_config.py`, so
+      `diff` is matched as a version id. Register `diff` first; handler bodies and the API contract
+      are unchanged, and `docs/openapi.json` changes only if route order shows in it. The test calls
+      `/api/system/gpu-config/history/diff?from_version=…&to_version=…` through the mounted router.
+      F-182's row in `docs/reference/feature-inventory.md` replaces its Compare break note with the
+      fix, and its ruling cell reads "ruling 285: as ruling 182 for F-176 and F-178"
+      (`feature-inventory-cite-drift.mjs` reports `DRIFT: 0`).
+- [ ] **PCIe Gen 6** (amendment 6301639831). `GPUStatsResponse.pcie_link_gen` and
+      `GPUStatsSample.pcie_link_gen` (`backend/api/schemas/system.py`) are bounded `ge=1, le=5`,
+      so a Gen 6 link fails the GPU stats schema. Drop the upper bound and keep `ge=1`, as
+      `pcie_link_width` has; correct the "(1-4)" descriptions and comments
+      (`backend/services/gpu_monitor.py`, `backend/models/gpu_stats.py`); regenerate
+      `docs/openapi.json` and `frontend/src/types/generated/api.ts`. The test has both schemas
+      accept `pcie_link_gen=6` (or `GET /api/system/gpu` returns a Gen 6 sample).
+- [ ] **The webhook retry commits before it answers** (amendment 6302995876). `retry_delivery`
+      (`backend/api/routes/outbound_webhooks.py`) takes `Depends(get_db)`, and `get_db` commits
+      after its `yield`, which under FastAPI 0.143's default dependency scope ran after the 200 was
+      sent: an immediate history read saw the old count. Fix the route (for example
+      `Depends(get_db, scope="function")`, or an explicit commit before returning), with red-first
+      tests for the stale read and for a success sent before a failed commit.
+- [ ] **The other routes that answer before they commit are counted, not fixed.** The PR body lists
+      every route handler that leaves its commit to `get_db`'s teardown, read route by route with
+      the services it calls, says for each whether a client can observe the gap, and ends with a
+      recommendation for a fix across that surface, which waits for the owner's ruling.
+- [ ] **A degraded batch's message is delivered** (amendment 6302995876).
+      `WebSocketBatchAnalysisCompletedData.risk_score` (`backend/api/schemas/websocket.py`) is
+      `int`, while the event payload accepts `int | None`; a degraded VLM batch publishes `None`,
+      so `broadcast_batch_analysis_completed` (`backend/services/event_broadcaster.py`) fails
+      validation and never sends it. The message validates and is sent with a null risk score,
+      matching the event payload, or the PR says why another shape is right. The PR names what the
+      frontend's `batch_analysis_completed` consumer does with a null score; if it cannot handle
+      one, the smallest frontend fix rides along and frontend reviews that part. A red-first test
+      shows a degraded batch's message is sent.
+
+**Done when:** each fix's test was committed red ahead of it, `CI Gate` is green at a ready head,
+and the UR-89 review approves. `[r285]` is one PR.
