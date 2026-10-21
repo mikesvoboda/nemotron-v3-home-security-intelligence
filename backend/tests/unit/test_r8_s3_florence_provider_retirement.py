@@ -765,10 +765,9 @@ class TestDeadWithItsProvider:
         )
 
     def test_trajectory_analyzer_is_NOT_collaterally_deleted(self) -> None:
-        """Negative space, pinned. ``trajectory_analyzer`` is kept-and-DEAD too,
-        but no ruling retires it in S3: collateral deletion of a module nobody
-        ruled on is scope creep wearing a tidiness costume."""
-        assert (REPO_ROOT / "backend/services/trajectory_analyzer.py").exists()
+        """OD-28 / B3.2 deleted ``trajectory_analyzer.py`` as the first pair of
+        non-shipping backend modules."""
+        assert not (REPO_ROOT / "backend/services/trajectory_analyzer.py").exists()
 
 
 class TestGatewaySuiteTracksTheNarrowSet:

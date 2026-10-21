@@ -246,24 +246,18 @@ class TestAIServicesImports:
     """Tests for AI service module exports."""
 
     def test_services_importable_from_package(self) -> None:
-        """AI services should be importable from backend.services."""
-        from backend.services import (
-            FaceDetectorService,
-            OCRService,
-            PlateDetectorService,
-        )
+        """AI services are imported from their own modules after B3.2 pruned services/__init__.py."""
+        from backend.services.face_detector import FaceDetectorService
+        from backend.services.ocr_service import OCRService
+        from backend.services.plate_detector import PlateDetectorService
 
         assert FaceDetectorService is not None
         assert PlateDetectorService is not None
         assert OCRService is not None
 
     def test_services_in_all(self) -> None:
-        """AI services should be in __all__, and the retired wrapper must not be."""
+        """B3.2 cut backend.services.__all__ down to what shipping code imports directly."""
         from backend.services import __all__
 
-        assert "FaceDetectorService" in __all__
-        assert "PlateDetectorService" in __all__
-        assert "OCRService" in __all__
-        # R8 S2: the package must not re-export the deleted service
-        # (test_r8_s2b_nemotron_deletion.py pins the same rule repo-wide).
+        assert __all__ == []
         assert "YOLOWorldService" not in __all__
