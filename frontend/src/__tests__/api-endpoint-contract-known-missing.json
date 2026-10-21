@@ -75,13 +75,6 @@
       "next": "one-word client fix; docs/reference/feature-inventory.md F-269 decides whether F1.1's successor applies it"
     },
     {
-      "path": "/api/scheduled-reports/{id}/trigger",
-      "calledFrom": "src/services/scheduledReportsApi.ts:258",
-      "cited": "found by F1.1's scan; not in D2's list",
-      "backend": "scheduled_reports.py:378 serves /{report_id}/run (summary: \"Manually trigger a report\")",
-      "next": "one-word client fix; docs/reference/feature-inventory.md F-255 decides whether F1.1's successor applies it"
-    },
-    {
       "method": "GET",
       "path": "/api/prompts/history/{model}",
       "calledFrom": "src/services/api.ts:5597 (fetchModelHistory)",
