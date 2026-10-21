@@ -79,10 +79,14 @@ test.describe('golden path: GPU settings F-176 F-178 and provisional F-182 @regr
       await page.getByTestId('assign-all-gpu-select').selectOption(String(listed.gpus[0].index));
       await page.getByTestId('assign-all-confirm-button').click();
       await expect(page.getByTestId('assign-all-dialog')).toHaveCount(0);
+      // Matches GpuBatchActions' isAlreadyDefault: every assignment on GPU 0
+      // with no override — that is what arms the disabled Reset to Defaults.
       const alreadyDefault =
-        listed.gpus[0].index === 0 &&
+        initial.assignments.length > 0 &&
         initial.assignments.every(
-          (a) => a.vram_budget_override === null || a.vram_budget_override === undefined
+          (a) =>
+            a.gpu_index === 0 &&
+            (a.vram_budget_override === null || a.vram_budget_override === undefined)
         );
       if (alreadyDefault) {
         await expect(page.getByTestId('reset-defaults-button')).toBeDisabled();
