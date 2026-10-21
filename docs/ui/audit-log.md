@@ -297,4 +297,4 @@ The `audit_logs` table includes:
 
 - [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md) - AI analysis pipeline that generates audit-logged events
 - [Architecture Overview](../architecture/overview.md) - System architecture and design decisions
-- [Developer Patterns](../developer/patterns/AGENTS.md) - Testing patterns and developer guidelines
+- [Developer Patterns](../developer/patterns-and-conventions.md) - Testing patterns and developer guidelines

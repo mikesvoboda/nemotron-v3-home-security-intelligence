@@ -102,7 +102,6 @@ When creating new benchmark files:
 
 ## Related Documentation
 
-- [AGENTS.md](AGENTS.md) - Agent guide for this directory
 - [AI Pipeline Current State](../architecture/ai-pipeline-current-state.md) - What the shipped pipeline runs
 - [AI Performance Tuning](../operator/ai-performance.md) - Operator guide for AI optimization
 
