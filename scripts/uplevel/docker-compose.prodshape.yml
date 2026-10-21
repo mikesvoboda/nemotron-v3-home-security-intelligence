@@ -69,7 +69,7 @@ services:
     volumes: !override # 6 prod mounts: socket dropped, 2 writable binds
       - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/backend-data:/app/data:z #   redirected under the run,
       - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/cameras:/cameras:z #   2 read-only binds + the
-      - /export/ai_models/model-zoo:/models/model-zoo:ro,z #   compose file kept as prod
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z # venue path, prod's default (ruling 287 item 2)
       - /home/ubuntu/.cache/huggingface:/models/huggingface-cache:ro
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
       # REMOVED (UR-134): ${PODMAN_SOCKET}:/var/run/podman/podman.sock
@@ -131,9 +131,9 @@ services:
 
   ai-gateway:
     volumes: !override # 6 prod mounts: 2 writable host binds redirected,
-      - /export/ai_models/model-zoo:/models/zoo:ro #   2 read-only binds and the
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro #   2 read-only binds and the (venue path, prod's default, ruling 287 item 2)
       - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/triton-cache:/models/cache #   2 named volumes kept
-      - /export/ai_models/quantized:/models/quantized:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
       - triton-kernel-cache:/root/.nv
       - triton-tmp-cache:/tmp
       - ${PROD_SHAPE_RUN_ROOT:?PROD_SHAPE_RUN_ROOT must be the run directory (UR-133)}/hf-cache:/root/.cache/huggingface
