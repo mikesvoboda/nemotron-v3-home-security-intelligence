@@ -92,8 +92,9 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    (ruling 243). On the first tick after the 02:00Z flaky
    run, route each flaky test in its summary (UR-116). Raise the urgent path for a time-boxed
    quarantine mark still on `main` at its expiry (UR-114). Once `[r291]` merges, also read the
-   newest full-lockfile audit result on `main`, and on a red one follow "Advisory on `main`" below
-   (UR-185).
+   newest full-lockfile audit run on `main`
+   (`gh run list --workflow dependency-audit.yml --branch main --limit 1`), and on a red one follow
+   "Advisory on `main`" below (UR-185).
 7. **Assign.** Assign any `heavy` package whose dependencies have merged, and any package on no
    roster queue (UR-59; "Assigning a package" below).
 8. **Ready but unclaimed.** Note each package ready and unclaimed for two ticks for the status
@@ -195,10 +196,11 @@ green again (UR-102), and route the fix (UR-111). The fix PR merges next,
 within UR-112's limits.
 
 **Advisory on `main`** (ruling 291, once `[r291]` merges). A red full-lockfile audit on `main` is
-not red `main`, because the gate stays green. Raise the urgent path with the findings you read and
-route the fix (UR-111). The fix PR is a red-`main` fix, written first in the queue line with `!`
-(UR-112), and a Dependabot security PR for that package may be the fix. Leave auto-merge on and keep
-every entry in the queue line (UR-185).
+not red `main`, because the gate stays green, so ruling 288's `!`-only rule does not apply. On the
+first red run that no open raise or package already owns, raise the urgent path with the findings
+you read and route the fix (UR-111). The fix PR is a red-`main` fix, written first in the queue line
+with `!` (UR-112), and a Dependabot security PR for that package may be the fix (ruling 284). Leave
+auto-merge on and keep every entry in the queue line (UR-185).
 
 ## The status comment
 

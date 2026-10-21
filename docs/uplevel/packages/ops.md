@@ -1320,11 +1320,12 @@ without freezing the queue.
       (`.pip-audit-exemptions.json`, `frontend/.npm-audit-exemptions.json`) stay the one allowlist;
       an entry the change adds or edits must pass today's registry rules; removing an exemption
       whose finding remains counts as adding that finding; an audit error on either side fails
-      closed. A change that touches no manifest, lockfile or registry may skip both audits.
+      closed. A change that touches none of `pyproject.toml`, `uv.lock`, `frontend/package.json`,
+      `frontend/package-lock.json` and the two registries may skip both audits.
 - [ ] **The full-lockfile mode** runs today's checks unchanged on every push to `main`, daily (the
       Monday cron becomes daily) and on `workflow_dispatch`, as a check `CI Gate (Required Checks)`
-      does not read (UR-119). Both modes live in `dependency-audit.yml` (OB.2), and `ci.yml`'s call
-      job selects the gate mode (UR-122).
+      does not read (UR-119). Both modes live in `dependency-audit.yml` and the two checkers
+      (OB.2), and `ci.yml`'s call job selects the gate mode (UR-122).
 - [ ] **Tests, red first (UR-69),** on recorded audit JSON for each checker: a finding shared by
       base and head passes the gate; a head that adds a vulnerable package fails; a head that
       removes an exemption whose finding remains fails; a head that adds an exemption with a past or
@@ -1338,7 +1339,21 @@ without freezing the queue.
 
 **Done when:** the tests pass in CI at a ready head, the PR body shows the three proofs, and the
 gate reads only the gate mode (`ci-gate`'s needs and `check_job` lines). The owner partner approves
-it under ruling 281 once its UR-89 review, with a security pass, approves.
+it under ruling 281 once its UR-89 review, with a security pass, approves and its gate is green.
+
+Notes for the lane, from the plan PR's round-4 review (#7316):
+
+- **The full-lockfile run is `dependency-audit.yml`'s own run,** on its own `push` trigger for
+  `main`, not a job in `CI`. A red job in `CI` fails the whole `CI` run, which `queue_update.py`
+  reads as red `main`: the queue freeze UR-185 rules out. Update the workflow's header comment that
+  says it has no standalone push trigger.
+- **The skip still runs both audits** when the change edits `dependency-audit.yml` or either
+  checker, so this package's own PR, and later edits to the audit, are audited.
+- **The gate mode's base** is the tested merge tree's first parent; `pull_request.base.sha` can lag
+  it.
+- **The npm checker runs `npm audit` itself,** so its tests need a way to feed it recorded JSON.
+- **The doc-only proof would take the skip,** so run the gate-mode checker directly on both trees
+  for it.
 
 ### [r287b] The whole golden suite passes in the production-shaped run
 
