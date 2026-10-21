@@ -466,9 +466,9 @@ census PR: the 79 test PRs, then the 6 tooling PRs. A row goes only to a bug of 
 any finding the auditor rates medium or higher, and each row still goes through the refutation pass.
 A low stale `path:line` cite or a low claim gets no row and no refutation pass; each batch comment
 gives instead one count of them per PR, with the PR numbers. Batches 1–6 stay as written, and the 68
-rows of batches 4–6 still await the owner's `fix`, `skip` or `later` (ruling 262). The stale-cite class goes to a checker package
-whose scope the owner rules on; until then, no lane fixes low stale cites one by one. This package's
-PR does not touch `history/ruling-map.md`.
+rows of batches 4–6 still await the owner's `fix`, `skip` or `later` (ruling 262). The stale-cite
+class goes to a checker package whose scope the owner rules on; until then, no lane fixes low stale
+cites one by one. This package's PR does not touch `history/ruling-map.md`.
 
 Each item in the sheet takes this form:
 
