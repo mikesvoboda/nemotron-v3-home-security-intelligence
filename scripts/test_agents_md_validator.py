@@ -879,15 +879,16 @@ def test_committed_boundary_list_covers_the_rule():
       6-18 and removed them from the list entirely; their AGENTS.md files left
       with the dirs' last loads, re-derived below like everything else).
       setup_lib is also, measured, the ONLY entry the size rule keeps with no
-      proper kept ancestor: the other 22 have one. So "20" is "the largest
+      proper kept ancestor: the other 21 have one. So "20" is "the largest
       threshold that still covers the one orphan package".
     - Its bottom edge: every entry a looser cut adds is a parent-split —
-      >= 17 and >= 16 add exactly one dir, components/settings/prompts (17 code
-      files, under the listed components/settings); >= 15 adds audit,
-      common/skeletons and src/components/entities (18 code files post-#7246,
-      folded into frontend/src by the cut's own satellite doctrine — the same
-      dir the pre-cut tree listed and the cut delisted), all under frontend/src.
-      The standard's
+      >= 18 adds exactly one dir, entities (18 code files, under the listed
+      frontend/src); >= 17 adds components/settings/prompts (17, under the
+      listed components/settings); >= 16 adds backend/api/middleware (16,
+      under the listed backend/api); >= 15 adds frontend audit and
+      common/skeletons (B3.3 box 4 retired the vision-model forms, dropping
+      model-forms out of the kept set and moving every marginal dir's
+      threshold down one). The standard's
       doctrine is that a satellite folds into its nearest kept ancestor, so no
       threshold below the plateau can be defended on the rule's own terms. (A
       previous draft of this paragraph claimed the marginal additions were "all
@@ -999,8 +1000,12 @@ def test_committed_boundary_list_covers_the_rule():
     # package gaining files. F3.2's cut moved the loose edge from threshold 10
     # (52 entries, outside) to 9 (53 entries, still outside) — derive(10) is 49
     # now, inside the band; the pin follows the tree per the docstring's
-    # re-derivation clause.
-    assert len(derive(5)) > 50 and len(derive(9)) > 50, "a looser threshold now fits the band"
+    # re-derivation clause. B3.3 box 4 (#7322) retired the four vision-model
+    # forms, dropping model-forms from 11 to 3 code files and out of the kept
+    # set: the whole curve moved down ~2 entries — derive(9) is 50 now, at the
+    # band's top edge and INSIDE, so the loose edge moves to 8 (54, outside),
+    # and derive(10) is 47.
+    assert len(derive(5)) > 50 and len(derive(8)) > 50, "a looser threshold now fits the band"
 
     def proper_ancestors(candidate: str, base: set[str]) -> list[str]:
         """Kept directories that STRICTLY contain `candidate`. `.` is out — it is
