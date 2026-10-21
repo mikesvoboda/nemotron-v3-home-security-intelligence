@@ -23,6 +23,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "uplevel" / "queue_update.py"
 SNAP = REPO_ROOT / "scripts" / "uplevel" / "coordinator_snapshot.py"
@@ -85,6 +87,10 @@ class Fake:
         self.prs = over.get("prs", {})
         self.gate_conclusion = over.get("gate_conclusion", GREEN)
         self.main_ci = over.get("main_ci", GREEN)
+        # r288 red-first: the conclusion a DIFFERENT workflow's runs list answers with.
+        # The bug shipped this green answer into the red-main decision; the fix reads the
+        # CI workflow's own runs instead. Tests drive it to stage the misread.
+        self.other_runs_conclusion = over.get("other_runs_conclusion")
         self.files = over.get("files", ["backend/x.py"])
         self.diffs = over.get("diffs", {})  # rev -> diff text; default below = one carry
         self.update_status = over.get("update_status", 200)
@@ -154,10 +160,26 @@ class Fake:
             return json.dumps(self.comments[:cut]) + json.dumps(self.comments[cut:])
         if path.endswith("commits/main"):
             return json.dumps({"sha": TIP})
-        if "actions/runs?" in path:
+        if "actions/workflows/ci.yml/runs?" in path:
+            # r288: the CI workflow's OWN runs — the path _main_ci_conclusion reads. The
+            # fake answers one run, its conclusion from main_ci, so a red main (and the
+            # !-filter) stay testable through the real path shape.
             if self.main_ci is None:
                 return json.dumps({"workflow_runs": []})
             return json.dumps({"workflow_runs": [{"conclusion": self.main_ci}]})
+        if "actions/runs?" in path:
+            # Any OTHER runs path is a different workflow's runs list (Linear CI Status
+            # Sync etc.). r288's bug read this endpoint with `workflow=CI` -- REST ignores
+            # that filter, so the query returned the newest run of ANY workflow and the
+            # red-main guard never fired. The fake now models that harm: it answers a
+            # GREEN run (the misleading shape the bug saw) unless a test scripts a
+            # different answer via rules, so the red-first test can pin "the green answer
+            # arrives and is IGNORED".
+            if self.main_ci is None:
+                return json.dumps({"workflow_runs": []})
+            return json.dumps(
+                {"workflow_runs": [{"conclusion": self.other_runs_conclusion or "success"}]}
+            )
         m = path.split("repos/o/r/pulls/")[-1]
         if m.endswith("/files?per_page=100"):
             return json.dumps([{"filename": f} for f in self.files])
@@ -267,7 +289,16 @@ def green(**over):
 
 def gate_answer(fake, conclusion):
     fake.rules["check-runs"] = json.dumps(check_runs(conclusion))
-    fake.rules["check-runs"] = json.dumps(check_runs(conclusion))
+
+
+@pytest.fixture
+def r288_red_main():
+    """The live r288 failure, staged: main's CI workflow reports failure while the
+    any-workflow runs endpoint (the buggy query's real answer) reports a green plumbing
+    run. Every assertion about which read decides follows from this one stage."""
+    fake = green(main_ci="failure")
+    fake.other_runs_conclusion = "success"
+    return fake
 
 
 # -- step 1: reads ----------------------------------------------------------
@@ -279,7 +310,13 @@ def test_reads_the_queue_line_main_tip_and_ci():
     assert plan.queue_entries == [qu.Entry(urgent=False, number=111, sha=HEAD[:9])]
     assert plan.main_tip == TIP
     assert plan.main_ci_conclusion == GREEN
-    reads = ["issues/6854/comments", "commits/main", "actions/runs?branch=main"]
+    reads = [
+        "issues/6854/comments",
+        "commits/main",
+        # r288: the CI workflow's own runs, not the unscoped listing (REST has no
+        # workflow filter there -- the unscoped query returned ANY workflow's newest run).
+        "actions/workflows/ci.yml/runs?branch=main",
+    ]
     for needle in reads:
         assert any(needle in " ".join(c) for c in fake.calls), needle
     assert plan.action == "no-op"  # green + not behind: the in-flight shape
@@ -377,6 +414,33 @@ def test_red_main_skips_a_plain_entry():
     plan = qu.fire(fake, REPO, ISSUE, None)
     assert plan.action == "no-op"
     assert "red main" in plan.action_note
+    assert not any("PUT" in " ".join(c) for c in fake.calls)
+
+
+def test_red_main_reads_the_ci_workflows_own_runs_not_any_workflows_newest(r288_red_main):
+    # r288 red-first: `actions/runs?branch=main&workflow=CI` has NO workflow filter in
+    # REST -- the query returned the newest completed run of ANY workflow, so on a red
+    # main whose newest run is a green plumbing job (Linear CI Status Sync), the plan read
+    # "success" and the !-filter never engaged. The fake stages exactly that live shape:
+    # the CI workflow's OWN runs say failure (main_ci), while the any-workflow endpoint
+    # answers a green run. The fix reads the workflow-scoped path ONLY -- the green
+    # answer is never consulted, which is why the unscoped path shows up in NO recorded
+    # call (a call-list pin, not a served-but-ignored claim).
+    fake = r288_red_main
+    assert fake.main_ci == "failure"  # the CI workflow's own runs: red
+    assert fake.other_runs_conclusion == "success"  # a plumbing workflow: green
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.main_ci_conclusion == "failure"  # the red, not the plumbing green
+    # the decision read the workflow-scoped path...
+    ci_read = [c for c in fake.calls if any("workflows/ci.yml/runs" in x for x in c)]
+    assert ci_read, "the CI workflow's own runs were never read"
+    # ...and NEVER the unscoped listing whose answer here is green: if it had, the red
+    # decision could not be trusted to have been read from the right place.
+    unscoped = [c for c in fake.calls if "actions/runs?" in " ".join(c)]
+    assert not unscoped, f"the unscoped runs listing was read: {unscoped}"
+    assert "red main" in plan.action_note
+    # and the decision: a plain (non-!) entry behind with a green gate freezes anyway
+    assert plan.action == "no-op"
     assert not any("PUT" in " ".join(c) for c in fake.calls)
 
 
@@ -864,7 +928,9 @@ def test_summary_caps_itself():
 
 def test_summary_reports_read_errors():
     fake = green()
-    fake.fail("actions/runs?", "gh: HTTP 502")
+    # r288: the main-CI read's path is the CI workflow's own runs; the needle must name
+    # the path production reads or it never fires and this test certifies nothing.
+    fake.fail("actions/workflows/ci.yml/runs?", "gh: HTTP 502")
     plan = qu.fire(fake, REPO, ISSUE, None)
     out = qu.render_summary(plan)
     assert "read errors" in out
