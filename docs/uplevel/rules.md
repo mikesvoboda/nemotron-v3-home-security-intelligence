@@ -449,7 +449,8 @@ and the re-read and merge comment are UR-29.
 ## Red main and the nightly
 
 Read this section when `CI` or `Deploy` fails on `main`, the Nightly Full Gate is red, the
-full-lockfile audit is red on `main` (once `[r291]` merges, UR-185), or you are fixing any of them.
+full-lockfile audit (once `[r291]` merges) or the full Trivy scans (once `[r294]` merges) are red on
+`main` (UR-185), or you are fixing any of them.
 
 - **UR-111** On the first red `CI Gate` run on `main`, unless an open package already owns that
   failure, the coordinator raises the urgent path with the failing job and the log lines it read.
@@ -474,13 +475,14 @@ full-lockfile audit is red on `main` (once `[r291]` merges, UR-185), or you are 
   test the same way, to the lane that owns its file. `Nightly Analysis` (`nightly.yml`) is
   report-only and outside this rule. (rulings 109, 149)
 - **UR-185** Once `[r291]` merges, an advisory published against unchanged code no longer makes
-  `main` red. The gate's dependency audit then fails a change only on what it adds over its base
-  (an unexempted finding, or a bad exemption entry it adds or edits) or on an audit error, and the
-  full-lockfile audit runs outside the gate on each push to `main` and daily. A red full-lockfile
-  audit is raised and routed like red `main` (UR-111), and its fix merges next as a red-`main` fix
-  (UR-112), but it does not freeze the merge queue: auto-merge stays on and the queue line keeps
-  every entry. Until `[r291]` merges, an advisory turns `main` red as UR-111 and ruling 288 say.
-  (ruling 291)
+  `main` red through the dependency audit, and once `[r294]` merges, no longer through Trivy's two
+  vulnerability scans. Each of those gate checks then fails a change only on what it adds over its
+  base (an unexempted finding, or a bad exemption entry it adds or edits) or on an audit or scan
+  error, and its full run (the full-lockfile audit, the full Trivy scans) runs outside the gate on
+  each push to `main` and daily. A red full run is raised and routed like red `main` (UR-111), and
+  its fix merges next as a red-`main` fix (UR-112), but it does not freeze the merge queue:
+  auto-merge stays on and the queue line keeps every entry. Until a check's package merges, an
+  advisory it finds turns `main` red as UR-111 and ruling 288 say. (rulings 291 and 294)
 
 ## CI and shared jobs
 
