@@ -73,7 +73,7 @@ listed with who or what made it.
 ## Shape
 
 - **The module behind the seam:** `backend/services/arming.py`. Domain terms, added to
-  `docs/reference/glossary.md`: **mode**, **armed camera**, **raised while unarmed**.
+  `docs/reference/glossary.md`: **arming mode**, **armed camera**, **raised while unarmed**.
 - **Its interface:**
   - `mode_at(t) -> Mode` and `is_armed(camera_id, at) -> bool`, from the change log. It records
     every change of the mode and of a mode's cameras, each row carrying every mode's exclusions
@@ -115,11 +115,13 @@ listed with who or what made it.
     `^[A-Za-z0-9_-]{1,64}$`): `system/mode`, `system/arm`, `system/disarm`; `alerts/{id}/ack` (the
     alerting Acknowledge); `cameras/{id}/ptz` (move, stop, preset, through the ONVIF service);
     `zones/+/…` answers "zones are not supported yet". Every command gets a result on
-    `<prefix>/commands/results/{id}`, not retained, which never echoes the token or the payload.
+    `<prefix>/results/{id}`, outside the commands prefix, not retained, which never echoes the
+    token or the payload.
     The token is generated in Settings, shown once and stored as a SHA-256 digest.
   - **MQTT's trust** (A1, owner): the token stops only publishers that have never seen a command,
     since any client that can read `<prefix>/commands/#` reads it. The operator README gives a
-    Mosquitto ACL that lets only the backend's user read that prefix. Enabling is refused without
+    Mosquitto ACL that lets only the backend's user read that prefix, and lets command senders
+    read `<prefix>/results/#`. Enabling is refused without
     broker credentials, or when a test connection without them is accepted; with TLS off Settings
     shows a warning. With TLS on, the certificate and host name are checked against the CA path in
     the stored config. MQTT does not say who published a message, so the rate limit is global and
@@ -150,19 +152,24 @@ listed with who or what made it.
 - **backend (`B4.7`):** `arming.py`; the policy and pipeline hook; the resolver's `external` source
   and the sweep's external clause; the app routes; `inbound_webhooks.py` on the new vocabulary,
   with `/alert`'s external event; the scheduler; the schemas and generated API types (regenerated,
-  UR-83).
+  UR-83). Each mode's exclusions and the schedule join the backup list with whichever of `B4.6`
+  and `B4.7` lands second; the `alert_rules` restore adapter gives an older archive's rules the
+  sources `camera` and keeps the seeded "External alerts" rule, with whichever of `B4.5` and
+  `B4.7` lands second.
 - **backend (`B4.8`):** `mqtt_command_handler.py` (topics, token, id check, global rate limit,
-  de-duplication, results, the id fix, acknowledge, PTZ; sensitivity removed); `mqtt_client.py`
+  de-duplication, results, the id fix at `:378` and the same read at `:383`, `:393`, `:398`,
+  acknowledge, PTZ; sensitivity removed); `mqtt_client.py`
   and `mqtt_config.py` merged onto one stored config with a CA path; the credential check on
   enable; startup in `main.py`'s lifespan when enabled; the `keep.toml` entries removed once the
   modules have a production importer.
-- **frontend (`F4.5`):** the header mode chip; Settings › Arming (cameras per mode, schedule, change
-  history); the rules dialog's override gains "In chosen modes" (whichever of `F4.2` and `F4.5`
-  lands second carries it); the Alerts page marks "raised while unarmed" on the alert rows `F4.1`
-  brings. Settings › Arming's MQTT section (enable, status, the TLS warning, the token shown once)
-  goes with whichever of `B4.8` and `F4.5` lands second (A6).
-- **ops:** an MQTT broker (Mosquitto, with a password file, the README's ACL and a TLS listener) in
-  the CI harness for `B4.8`'s golden path, beside `[r308a]`'s sinks.
+- **frontend (`F4.5`):** the header arming chip; Settings › Arming (cameras per mode, schedule,
+  change history); the rules dialog's override gains "In chosen modes" (whichever of `F4.2` and
+  `F4.5` lands second carries it); the Alerts page marks "raised while unarmed" on the alert rows
+  `F4.1` brings. Settings › Arming's MQTT section (enable, status, the TLS warning, the token shown
+  once) goes with whichever of `B4.8` and `F4.5` lands second (A6).
+- **ops:** an MQTT broker (Mosquitto, with a password file, the README's ACL, a TLS listener and a
+  second listener that accepts anonymous logins) in the CI harness for `B4.8`'s golden path,
+  beside `[r308a]`'s sinks.
 - **docs:** the operator README gains the MQTT section and its Mosquitto ACL; it and
   `docs/ROADMAP.md` stop describing the deleted MQTT publisher and
   Home Assistant discovery; `frontend/src/components/settings/AGENTS.md` drops the deleted MQTT
@@ -207,10 +214,10 @@ listed with who or what made it.
     two API keys gives two events;
   - MQTT: the token, the global rate limit, duplicate ids, malformed ids (`a/b`, `+`, `#`, 65
     characters) refused with nothing published outside `results/<valid id>`, no token bytes in a
-    result, the topic id (a regression test for `:378`), acknowledge, PTZ against an ONVIF fake;
-    against the CI broker: an anonymous broker refused on enable; under the README's ACL a second
-    user subscribed to `<prefix>/commands/#` receives nothing; TLS with no CA path or a host-name
-    mismatch fails, and the right CA connects.
+    result, the topic id (regression tests for `:378`, `:393`, `:398`), acknowledge, PTZ against an
+    ONVIF fake; against the CI broker: an anonymous broker refused on enable; under the README's ACL
+    a second user subscribed to `<prefix>/commands/#` receives nothing; TLS with no CA path or a
+    host-name mismatch fails, and the right CA connects.
 
 ## Golden path
 
@@ -249,16 +256,16 @@ upgrades stay, as `4n-alerting.md`'s do.
 
 ## Packages
 
-| package | lane     | depends on                                    | contents                                                                                                                                                           | its own golden path    |
-| ------- | -------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
-| `B4.7`  | backend  | `B4.1` merged                                 | The arming module and tables, the policy hook, the external source and rule, the app routes, the webhooks with `/alert`, the scheduler, the audit.                 | Backend pytest, above. |
-| `B4.8`  | backend  | `B4.7`; `B4.1` for acknowledge; the CI broker | The MQTT adapter: one config, the credential check, startup, token, topics, results, PTZ, acknowledge; sensitivity removed; the MQTT section if `F4.5` has landed. | MQTT pytest, above.    |
-| `F4.5`  | frontend | `B4.7`; `F4.1` for the alert rows             | The header chip, Settings › Arming, the override's modes, "raised while unarmed" on the Alerts page; the MQTT section if `B4.8` has landed.                        | Playwright, above.     |
+| package | lane                  | depends on                                    | contents                                                                                                                                                           | its own golden path    |
+| ------- | --------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| `B4.7`  | heavy-a (ruling 311)  | `B4.1` merged                                 | The arming module and tables, the policy hook, the external source and rule, the app routes, the webhooks with `/alert`, the scheduler, the audit.                 | Backend pytest, above. |
+| `B4.8`  | backend (ruling 311)  | `B4.7`; `B4.1` for acknowledge; the CI broker | The MQTT adapter: one config, the credential check, startup, token, topics, results, PTZ, acknowledge; sensitivity removed; the MQTT section if `F4.5` has landed. | MQTT pytest, above.    |
+| `F4.5`  | frontend (ruling 311) | `B4.7`; `F4.1` for the alert rows             | The header chip, Settings › Arming, the override's modes, "raised while unarmed" on the Alerts page; the MQTT section if `B4.8` has landed.                        | Playwright, above.     |
 
 ## Review
 
-An adversarial review (2026-10-21) and a fresh-context check of it found six issues; every cite in
-"Where it starts" held at `origin/main` `23030f252`. Two claims were wrong: TLS does not hide the
+An adversarial review (2026-10-21) and three fresh-context checks of it found six issues; every cite
+in "Where it starts" held at `origin/main` `23030f252`. Two claims were wrong: TLS does not hide the
 token from a subscriber, and signed commands do not fit Home Assistant. The owner ruled on two:
 
 | #   | finding                                                                   | amendment                                                                                                                                                |
@@ -269,6 +276,10 @@ token from a subscriber, and signed commands do not fit Home Assistant. The owne
 | A4  | External events match no rule, and the default rule drops medium          | An `external` verdict source; rules gain `sources`; a seeded "External alerts" rule (owner); face suppression needs a person                             |
 | A5  | External events escape the sweep, and a repeated key skips the pipeline   | The sweep selects external events; a namespaced `batch_id`; every request reruns the pipeline                                                            |
 | A6  | `F4.5` declares MQTT and the badge with only `B4.7`                       | `F4.5` after `F4.1`; the MQTT section with whichever of `B4.8` and `F4.5` lands second                                                                   |
+
+The plan PR's review (#7338) added two items: results move to `<prefix>/results/{id}`, so the ACL
+can let senders read them without reading the commands; and arming configuration joins the backup,
+with the new rule column handled by `B4.5`'s restore adapter.
 
 ## Done when
 

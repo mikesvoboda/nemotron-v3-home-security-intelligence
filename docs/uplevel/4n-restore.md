@@ -162,13 +162,13 @@ safety backup.
 An adversarial review (2026-10-21) and a fresh-context check of it found five issues and corrected
 six claims in "Where it starts". The owner ruled on four:
 
-| #   | finding                                                           | amendment                                                                                                    |
-| --- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| R4  | Progress commits defeat the all-or-nothing transaction            | Three sessions: safety backup, one-commit restore, progress                                                  |
-| R5  | Merging by id can overwrite another installation's rows           | Per-table keys; `installation_id`; foreign members inserted new (owner); `setval`                            |
-| R6  | Backed-up rows point at parents that are not backed up            | Households, properties and areas backed up and restored first; known persons left out, links cleared (owner) |
-| R7  | Every archive holds events; strict rebuild breaks on old archives | Events skipped by design (owner); format `1.1` with adapters; `B4.5` ships the `alert_rules` adapter         |
-| R10 | Restoring the safety backup cannot undo a merge                   | The promise narrowed; added rows listed by name (owner); backups moved to the data volume                    |
+| #   | finding                                                           | amendment                                                                                                                 |
+| --- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| R4  | Progress commits defeat the all-or-nothing transaction            | Three sessions: safety backup, one-commit restore, progress                                                               |
+| R5  | Merging by id can overwrite another installation's rows           | Per-table keys; `installation_id`; foreign members inserted new (owner); `setval`                                         |
+| R6  | Backed-up rows point at parents that are not backed up            | Households, properties and areas backed up and restored first; known persons left out, links cleared (owner)              |
+| R7  | Every archive holds events; strict rebuild breaks on old archives | Events skipped by design (owner); format `1.1` with adapters; `B4.5` ships the `alert_rules` adapter if `B4.6` has landed |
+| R10 | Restoring the safety backup cannot undo a merge                   | The promise narrowed; added rows listed by name (owner); backups moved to the data volume                                 |
 
 ## Done when
 

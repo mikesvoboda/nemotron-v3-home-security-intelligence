@@ -399,7 +399,8 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
       originals, then drops the old columns, the `delivered` value and
       `camera_notification_settings` (`threat_*` stays); the camera routes, `PATCH
 /api/notification/config` and the rest of `alert_engine` go; the `alert_rules` restore
-      adapter ships if `B4.6` has landed.
+      adapter ships if `B4.6` has landed; if `B4.7` landed first, the adapter gives an older
+      archive's rules the sources `camera` and keeps the seeded "External alerts" rule.
 - [ ] Golden path: an upgrade-path test on a populated database with non-default rows, with
       `F4.2`'s golden path still green.
 
@@ -417,7 +418,8 @@ F-101.
 - [ ] The test-only PR (step 2).
 - [ ] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
       its adapters, three sessions, the safety backup on the data volume, the narrowed undo; if
-      `B4.2` landed first, recipients and channels join the backup without their secrets.
+      `B4.2` landed first, recipients and channels join the backup without their secrets; if
+      `B4.7` landed first, each mode's exclusions and the schedule join it.
 - [ ] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
       Playwright, as the design gives them.
 
@@ -443,28 +445,34 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-29
       `alert_rules.sources` and the seeded "External alerts" rule; the sweep's external clause; the
       app routes; the inbound webhooks on the four modes, with `/alert`'s namespaced `batch_id`
       and a pipeline run on every request; the scheduler; an additive recorded upgrade; the
-      schemas and generated API types.
+      schemas and generated API types. If `B4.6` landed first, each mode's exclusions and the
+      schedule join the backup list; if `B4.5` landed first, its `alert_rules` restore adapter
+      gives an older archive's rules the sources `camera` and keeps the seeded "External alerts"
+      rule.
 - [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
 
 **Done when:** steps 4–6 hold for F-290.
 
 ### B4.8 The MQTT adapter
 
-**Flags:** none. **Assigned:** backend, after `B4.3` (ruling 311). **Depends on:** `B4.7` merged
-and `B4.1` (acknowledge) for the build PR, whose golden path uses `[r311a]`'s broker; the
-test-only PR may open first. **PR:** none yet. (ruling 311, record 6328311780)
+**Flags:** none. **Assigned:** backend, after `B4.3` (ruling 311). **Depends on:** `B4.7`, `B4.1`
+(acknowledge) and `[r311a]` merged for the build PR; the test-only PR may open first.
+**PR:** none yet. (ruling 311, record 6328311780)
 
 Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.8`. Covers F-291.
 
 - [ ] The test-only PR (step 2): `mqtt_command_handler.py`, `mqtt_client.py`, `mqtt_config.py`.
 - [ ] The build PR: the topics (mode, arm, disarm, acknowledge, PTZ; a zone command answers "zones
-      are not supported yet"; sensitivity removed); the command token, the id check, the global
-      rate limit, de-duplication and results that are not retained and never carry the token; the
-      topic-id fix (`:378`); one stored config with a CA path, seeded from `MQTT_*`; enabling
-      refused without broker credentials or against a broker that accepts an anonymous login,
-      with a warning when TLS is off; startup in `main.py`'s lifespan when enabled; the `keep.toml`
-      entries removed; the operator README's MQTT section and Mosquitto ACL. If `F4.5` landed
-      first, the MQTT section of Settings › Arming and its Playwright step.
+      are not supported yet"; sensitivity removed); the command token, the id check, the global rate
+      limit, de-duplication and results that are not retained and never carry the token; the
+      topic-id fix (`:378`, and the same read at `:383`, `:393`, `:398`); one stored config with a
+      CA path, seeded from `MQTT_*`; enabling refused without broker credentials or against a broker
+      that accepts an anonymous login, with a warning when TLS is off; startup in `main.py`'s
+      lifespan when enabled; the `keep.toml` entries removed; the operator README's MQTT section and
+      Mosquitto ACL; the operator README, `docs/ROADMAP.md` and
+      `frontend/src/components/settings/AGENTS.md` stop describing the deleted MQTT publisher, Home
+      Assistant discovery and MQTT settings UI (UR-81). If `F4.5` landed first, the MQTT section of
+      Settings › Arming and its Playwright step.
 - [ ] Golden path (pytest) against `[r311a]`'s broker, as the design gives it.
 
 **Done when:** steps 4–6 hold. F-291 reads **works** once the MQTT section of Settings has landed

@@ -332,7 +332,8 @@ and each has its own golden path.
 - F-284's stranger toasts, which stay a live feed on the Face recognition page and notify no
   recipient; an unknown face reaches alerts only as a `PolicyContext` input a rule can match;
 - F-246's outbound webhooks: recipient webhooks do not reuse them. Its missing URL check and its
-  retries that never run (`backend/services/webhook_service.py:454`) are a separate bug.
+  retries that never run (`backend/services/webhook_service.py:454`) are a separate bug; ruling
+  310 fixes them inside `B4.2` (#7336).
 
 ## Review
 

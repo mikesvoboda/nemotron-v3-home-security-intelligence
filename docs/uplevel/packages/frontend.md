@@ -293,7 +293,7 @@ F-232, F-235, F-236.
 Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `F4.5`. Covers F-290 with `B4.7`.
 
 - [ ] The test-only PR (step 2).
-- [ ] The build PR: the header mode chip; Settings › Arming (cameras per mode, schedule, change
+- [ ] The build PR: the header arming chip; Settings › Arming (cameras per mode, schedule, change
       history); "raised while unarmed" on the Alerts page's rows; if `F4.2` landed first, the
       override's "In chosen modes"; if `B4.8` landed first, the MQTT section (enable, status, the
       TLS warning, the token shown once) and its Playwright step.

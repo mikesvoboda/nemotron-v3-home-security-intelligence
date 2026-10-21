@@ -1546,10 +1546,12 @@ it never needs the frames in a sandbox's git tree.
 ([`../4n-arming.md`](../4n-arming.md), "What changes", ops).
 
 - [ ] The CI harness starts a Mosquitto broker with a password file, an ACL that lets only the
-      backend's user read `<prefix>/commands/#` (the one the operator README gives with `B4.8`),
-      and a TLS listener with a test CA. A golden test can connect as the backend, as a command
-      sender and as an unprivileged user.
+      backend's user read `<prefix>/commands/#` and lets the sender read `<prefix>/results/#` (the
+      one the operator README gives with `B4.8`), and a TLS listener with a test CA. A golden test
+      can connect as the backend, as a command sender and as an unprivileged user. A second
+      listener accepts anonymous logins, for `B4.8`'s refusal step.
 
-**Done when:** a smoke test in CI publishes a command as the sender, receives it as the backend,
-sees nothing as the unprivileged user, and connects over TLS with the test CA; and the UR-89
-review approves.
+**Done when:** `B4.8`'s golden path can run against it (ruling 311): a smoke test in CI publishes a
+command as the sender, receives it as the backend, sees nothing as the unprivileged user, connects
+over TLS with the test CA, and connects anonymously to the second listener; and the UR-89 review
+approves.
