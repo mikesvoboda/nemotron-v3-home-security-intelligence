@@ -171,16 +171,14 @@ deleted in R8 S2/S3 (2026-09-29).
 
 AI clients live in `backend/services/`:
 
-| Backend Service                       | Talks to                                       | Purpose                                               |
-| ------------------------------------- | ---------------------------------------------- | ----------------------------------------------------- |
-| `backend/services/detector_client.py` | YOLO26 API (gateway `/yolo26` or :8095)        | Send images, get detections                           |
-| `backend/services/vlm_client.py`      | ai-vlm directly (`settings.ai_vlm_url`, :8098) | Analyze batches, get the verdict                      |
-| `backend/services/reid_matcher.py`    | nothing over HTTP                              | Matches re-ID embeddings already stored on detections |
+| Backend Service                       | Talks to                                       | Purpose                          |
+| ------------------------------------- | ---------------------------------------------- | -------------------------------- |
+| `backend/services/detector_client.py` | YOLO26 API (gateway `/yolo26` or :8095)        | Send images, get detections      |
+| `backend/services/vlm_client.py`      | ai-vlm directly (`settings.ai_vlm_url`, :8098) | Analyze batches, get the verdict |
 
 The gateway swap is `use_ai_gateway` + `ai_gateway_url` in
 `backend/core/config.py` (env `USE_AI_GATEWAY`, `AI_GATEWAY_URL`), and
-`detector_client.py` is the only client that applies it; `reid_matcher.py` is
-DB-side matching, not an AI service client. The four clients this table used to
+`detector_client.py` is the only client that applies it. The four clients this table used to
 list alongside them — `nemotron_analyzer.py`, `enrichment_client.py`,
 `florence_client.py`, `clip_client.py` — were deleted with the tiers they
 talked to (R8 S2/S3, 2026-09-29).

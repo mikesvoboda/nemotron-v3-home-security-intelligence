@@ -48,10 +48,7 @@ SLOW_TEST_PATTERNS = [
     # (ledger WP1.3); any future entrant needs a measured breach in the
     # corpus AND a `tpa_slow_list` census entry. Category name kept as
     # "slow" for the 60s cap + KNOWN SLOW TESTS report section.
-    r"test_job_progress_reporter.*test_complete_calculates_duration",  # ~15.3s measured
-    r"test_error_handler.*test_timestamp_auto_generated",  # ~16.5s
     r"test_rtsp_test_service.*test_connection_timeout",  # ~6.0s real socket timeout
-    r"TestDurationTracking::test_duration_after_start",  # persistent spike x10/17 runs, 18s peak (WP1.3)
     r"test_fast_path_high_priority_detection",  # persistent x8/17, 18.5s peak (WP1.3)
     r"TestHandleUnhealthy::test_handle_unhealthy_stamps",  # persistent x7/17, 18.2s peak (WP1.3)
     r"test_r8_s2b_nemotron_deletion.*test_no_test_module_imports_a_name_that_no_longer_exists",  # 4.40s PR head (run 37560500061) + 4.116s main junit 37541671553, 5.28s solo — full-tree import sweep, grows with the suite (2026-10-06)

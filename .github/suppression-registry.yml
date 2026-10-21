@@ -652,24 +652,6 @@ pytest_skip:
     tracking: UNTRACKED:DWELL-THRESHOLD-SUPERSEDED
     expires: '2026-12-31'
     reason: Dwell time now uses zone-based thresholds - see test_alert_engine.py
-  - id: backend/tests/unit/services/test_zone_baseline_service.py::TestFutureExpansion::test_compute_baseline_not_implemented
-    kind: todo
-    owner: mikesvoboda
-    tracking: NEM-3197
-    expires: '2026-12-31'
-    reason: 'NEM-3197: Not yet implemented'
-  - id: backend/tests/unit/services/test_zone_baseline_service.py::TestFutureExpansion::test_delete_baseline_not_implemented
-    kind: todo
-    owner: mikesvoboda
-    tracking: NEM-3197
-    expires: '2026-12-31'
-    reason: 'NEM-3197: Not yet implemented'
-  - id: backend/tests/unit/services/test_zone_baseline_service.py::TestFutureExpansion::test_update_baseline_not_implemented
-    kind: todo
-    owner: mikesvoboda
-    tracking: NEM-3197
-    expires: '2026-12-31'
-    reason: 'NEM-3197: Not yet implemented'
 pytest_skip_imperative:
   - id: backend/tests/e2e/test_gpu_pipeline.py:519
     kind: environment
@@ -1256,12 +1238,6 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: cryptography not installed
-  - id: backend/tests/unit/test_benchmark_vram.py:208
-    kind: environment
-    owner: mikesvoboda
-    tracking: null
-    expires: null
-    reason: null
 pytest_skipif:
   - id: backend/tests/benchmarks/test_bigo.py::TestBatchAggregatorComplexity
     kind: environment
@@ -1611,12 +1587,6 @@ pytest_skipif:
     tracking: null
     expires: null
     reason: cryptography library not installed
-  - id: backend/tests/unit/test_benchmark_vram.py::TestBenchmarkHelpers::test_get_gpu_memory_returns_tuple
-    kind: environment
-    owner: mikesvoboda
-    tracking: null
-    expires: null
-    reason: GPU-dependent test - run manually on GPU system
 pytest_xfail:
   - id: backend/tests/integration/test_websocket_auth_flow.py::TestWebSocketSessionInvalidation::test_websocket_disconnects_on_session_invalidation
     kind: todo
@@ -1643,12 +1613,6 @@ pytest_xfail:
     expires: '2026-12-31'
     reason: Tests mock get_db but middleware uses get_session() - mocking mismatch causes fallback behavior
 tpa_slow_list:
-  - id: TestDurationTracking::test_duration_after_start
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: persistent spike x10/17 runs, 18s peak (WP1.3)
   - id: TestHandleUnhealthy::test_handle_unhealthy_stamps
     kind: todo
     owner: mikesvoboda
@@ -1663,24 +1627,12 @@ tpa_slow_list:
     reason:
       6.05s run 38177621922 + 5.56s run 38179109729 CI (two heads of PR 7003), 6.92s local — boots a real child
       pytest session; the ~6s interpreter+plugin boot IS the test (parent slow-marked, 20s child wall) (2026-10-11)
-  - id: test_error_handler.*test_timestamp_auto_generated
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: ~16.5s
   - id: test_fast_path_high_priority_detection
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: persistent x8/17, 18.5s peak (WP1.3)
-  - id: test_job_progress_reporter.*test_complete_calculates_duration
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: ~15.3s measured
   - id: test_r8_s2b_nemotron_deletion.*test_no_test_module_imports_a_name_that_no_longer_exists
     kind: todo
     owner: mikesvoboda
@@ -1907,54 +1859,6 @@ unspecced_patch:
     expires: '2026-12-31'
     reason: null
   - id: backend/tests/integration/test_http_error_codes.py::TestSystemEndpointAuth.test_system_config_patch_requires_api_key::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_monitoring_stack_integration.py::test_monitoring_health_endpoint_reports_prometheus_unreachable::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_monitoring_stack_integration.py::test_monitoring_health_endpoint_returns_valid_response::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: Mock Prometheus as unavailable to avoid external network calls
-  - id: backend/tests/integration/test_monitoring_stack_integration.py::test_validator_check_alerting_rules::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_monitoring_stack_integration.py::test_validator_check_grafana::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_monitoring_stack_integration.py::test_validator_check_prometheus_with_healthy_targets::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_monitoring_stack_integration.py::test_validator_check_prometheus_with_unhealthy_targets::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_monitoring_stack_integration.py::test_validator_combined_health_check::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_monitoring_stack_integration.py::test_validator_health_check_with_warnings::k1
     kind: todo
     owner: mikesvoboda
     tracking: R-WP4.1-SWEEP-RESIDUAL

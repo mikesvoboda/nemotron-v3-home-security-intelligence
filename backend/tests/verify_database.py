@@ -11,7 +11,8 @@ from sqlalchemy import Column, Integer, String, select
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.core import Base, close_db, get_session, init_db
+from backend.core import close_db, get_session, init_db
+from backend.core.database import Base
 
 
 # Test model
@@ -38,7 +39,7 @@ async def main():
 
         # Create test table
         print("2. Creating test table...")
-        from backend.core import get_engine
+        from backend.core.database import get_engine
 
         engine = get_engine()
         async with engine.begin() as conn:

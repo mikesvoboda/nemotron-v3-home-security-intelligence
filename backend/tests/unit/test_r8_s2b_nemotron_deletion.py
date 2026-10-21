@@ -91,12 +91,11 @@ DEAD_SUPPORT = [
     "backend.services.florence_extractor",
 ]
 
-# The three loaders spec §2 names as survivors, and the base class they share.
+# The three loaders spec §2 names as survivors (model_loader_base deleted in B3.2).
 ALIVE_LOADERS = [
     "backend.services.face_recognizer_loader",
     "backend.services.osnet_loader",
     "backend.services.fast_alpr_loader",
-    "backend.services.model_loader_base",
 ]
 
 DEAD_MODULES = DEAD_MODULES + DEAD_LOADERS + DEAD_SUPPORT
@@ -154,8 +153,8 @@ def _shipped_modules() -> list[Path]:
     ]
     # The floor is a live scan assertion, not a coverage claim: if the walk
     # finds almost nothing the path moved and every pin below is vacuous.
-    # 551 shipped files today; S2b deletes ~30 modules + the legacy loaders.
-    assert len(files) > 480, f"scanner found only {len(files)} files under {BACKEND}"
+    # ~408 shipped files after B3.2 deleted 94 non-shipping backend modules.
+    assert len(files) > 390, f"scanner found only {len(files)} files under {BACKEND}"
     return files
 
 

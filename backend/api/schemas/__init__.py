@@ -90,15 +90,6 @@ from .detections import (
     PetEnrichmentData,
     VehicleEnrichmentData,
 )
-
-# Discriminated union error handling (NEM-3777)
-from .discriminated_union_errors import (
-    DiscriminatedUnionError,
-    DiscriminatedUnionErrorHandler,
-    extract_discriminator_error,
-    format_discriminated_union_error,
-    get_valid_discriminator_values,
-)
 from .dwell_time import (
     ActiveDwellerResponse,
     ActiveDwellersListResponse,
@@ -141,18 +132,6 @@ from .entities import (
     EntityTypeEnum,
     EntityTypeFilter,
     EntityUpdate,
-)
-from .errors import (
-    COMMON_ERROR_RESPONSES,
-    ErrorCode,
-    ErrorDetail,
-    ErrorResponse,
-    FlatErrorResponse,
-    RateLimitErrorResponse,
-    ServiceUnavailableResponse,
-    ValidationErrorDetail,
-    ValidationErrorResponse,
-    raise_http_error,
 )
 from .event_cluster import (
     ClusterEventSummary,
@@ -246,14 +225,6 @@ from .onvif import (
     PTZCommand,
     PTZPreset,
 )
-
-# OpenAPI customization utilities (NEM-3780)
-from .openapi_customization import (
-    OpenAPISchemaConfig,
-    create_openapi_model,
-    with_openapi_example,
-    with_openapi_examples,
-)
 from .pagination import (
     PaginatedResponse,
     create_paginated_response,
@@ -272,20 +243,6 @@ from .problem_details import (
     HTTP_STATUS_PHRASES,
     ProblemDetail,
     get_status_phrase,
-)
-
-# Query parameter models (NEM-3345)
-from .query_params import (
-    CommonQueryParams,
-    DateRangeParams,
-    FieldSelectionParams,
-    FilterParams,
-    PaginationParams,
-    SortOrder,
-    SortParams,
-)
-from .query_params import (
-    RiskLevel as FilterRiskLevel,
 )
 from .scene_change import (
     SceneChangeAcknowledgeResponse,
@@ -309,11 +266,6 @@ from .track import (
     TrackListResponse,
     TrackResponse,
     TrajectoryPoint,
-)
-from .trusted import (
-    from_db_record,
-    from_db_records,
-    from_dict,
 )
 from .websocket import (
     EVENT_REGISTRY,
@@ -364,7 +316,6 @@ from .zone_household import (
 
 __all__ = [  # noqa: RUF022
     # Constants (sorted separately)
-    "COMMON_ERROR_RESPONSES",
     "EVENT_REGISTRY",
     "HTTP_STATUS_PHRASES",
     # AI Services Health schemas (NEM-3143)
@@ -422,8 +373,6 @@ __all__ = [  # noqa: RUF022
     "CategorySummary",
     "CheckResult",
     "ClassBaselineEntry",
-    # Query parameter models (NEM-3345)
-    "CommonQueryParams",
     "ClassBaselineResponse",
     "ClipGenerateRequest",
     "ClipGenerateResponse",
@@ -433,7 +382,6 @@ __all__ = [  # noqa: RUF022
     "ContainerServiceStatus",
     "CurrentDeviation",
     "DailyPattern",
-    "DateRangeParams",
     "DedupCheckRequest",
     "DedupCheckResponse",
     "DeliveryResultResponse",
@@ -476,9 +424,6 @@ __all__ = [  # noqa: RUF022
     "EntityTypeEnum",
     "EntityTypeFilter",
     "EntityUpdate",
-    "ErrorCode",
-    "ErrorDetail",
-    "ErrorResponse",
     "EventBulkCreateItem",
     "EventBulkCreateRequest",
     "EventBulkCreateResponse",
@@ -516,10 +461,6 @@ __all__ = [  # noqa: RUF022
     "FaceMatchRequest",
     "FaceMatchResponse",
     "FeedbackType",
-    "FieldSelectionParams",
-    "FilterParams",
-    "FilterRiskLevel",
-    "FlatErrorResponse",
     # GPU configuration schemas (NEM-3294)
     "GpuAssignment",
     "GpuAssignmentStrategy",
@@ -555,7 +496,6 @@ __all__ = [  # noqa: RUF022
     "PTZPreset",
     # Pagination schemas (NEM-3431)
     "PaginatedResponse",
-    "PaginationParams",
     "PersonEnrichmentData",
     "PetEnrichment",
     "PetEnrichmentData",
@@ -571,7 +511,6 @@ __all__ = [  # noqa: RUF022
     "PoseEnrichment",
     "ProblemDetail",
     "QueueDepthInfo",
-    "RateLimitErrorResponse",
     "RiskLevel",
     "SceneChangeAcknowledgeResponse",
     "SceneChangeListResponse",
@@ -585,11 +524,8 @@ __all__ = [  # noqa: RUF022
     "ServiceCategory",
     "ServiceInfo",
     "ServiceStatusEvent",
-    "ServiceUnavailableResponse",
     "ServicesResponse",
     "SimpleReadinessResponse",
-    "SortOrder",
-    "SortParams",
     "TestNotificationRequest",
     "TestNotificationResponse",
     # Track schemas (object tracking)
@@ -602,8 +538,6 @@ __all__ = [  # noqa: RUF022
     "TrustLevelResult",
     "UnknownStrangerAlert",
     "UnknownStrangerListResponse",
-    "ValidationErrorDetail",
-    "ValidationErrorResponse",
     "VehicleEnrichment",
     "VehicleEnrichmentData",
     "ViolenceEnrichment",
@@ -644,17 +578,6 @@ __all__ = [  # noqa: RUF022
     "ZoneListResponse",
     "ZoneResponse",
     "ZoneUpdate",
-    # OpenAPI customization (NEM-3780)
-    "OpenAPISchemaConfig",
-    "create_openapi_model",
-    "with_openapi_example",
-    "with_openapi_examples",
-    # Discriminated union errors (NEM-3777)
-    "DiscriminatedUnionError",
-    "DiscriminatedUnionErrorHandler",
-    "extract_discriminator_error",
-    "format_discriminated_union_error",
-    "get_valid_discriminator_values",
     # Functions and utilities
     "build_camera_links",
     "build_detection_links",
@@ -662,10 +585,6 @@ __all__ = [  # noqa: RUF022
     "build_event_links",
     "build_link",
     "create_paginated_response",
-    "from_db_record",
-    "from_db_records",
-    "from_dict",
     "get_event_registry_response",
     "get_status_phrase",
-    "raise_http_error",
 ]

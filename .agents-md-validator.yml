@@ -183,11 +183,9 @@ boundary_list:
   - path: .github/codeql/custom-queries
     reason: "the custom CodeQL queries the security-scan gate runs \u2014 CI-blocking by construction"
   - path: ai/gateway/export
-    reason: "model export scripts; the Triton model cache they write is GENERATED \u2014 the source-vs-cache trap"
-  - path: backend/api/middleware
-    reason: "cross-cutting HTTP middleware (auth, preflight, content-type) \u2014 registration order is load-bearing"
+    reason: 'model export scripts; the Triton model cache they write is GENERATED — the source-vs-cache trap'
   - path: backend/api/routes
-    reason: "HTTP endpoint handlers \u2014 one of the two largest backend packages"
+    reason: 'HTTP endpoint handlers — one of the two largest backend packages'
   - path: backend/api/schemas
     reason: 'Pydantic request/response models; feeds docs/openapi.json regeneration (hot file)'
   - path: frontend/src/hooks
