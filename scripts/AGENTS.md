@@ -1332,10 +1332,14 @@ reference fails directly. The only committed baseline left is the per-name
 `retired_name_baseline` in `.agents-md-validator.yml`, and it admits no new
 mentions. The loader REJECTS the presence of a `dead_reference_allowlist` key
 (exit 2): re-adding an excuse list is treated as a gate-disable attempt, not a
-config edit. `missing_agents_md` stays reporting-only until W3.1 wires the
-boundary rule. W2.1 added the other two required keys: `boundary_list` (the
+config edit. Since W3.1 PR 1 (ruling 300), `missing_agents_md` enforces
+`boundary_list` directly (failing with exit 1 when any listed boundary has no
+scanned `AGENTS.md`, and no longer requiring an `AGENTS.md` in every directory
+with two code files), while `ratchet.outside_boundaries` reports every scanned
+`AGENTS.md` outside `boundary_list` without failing until the last lane's W3.1
+PR switches `failing` to `True`. W2.1 added the other two required keys: `boundary_list` (the
 directories that keep an `AGENTS.md` when W3.1 prunes the rest, one `reason`
-per entry - 42 today) and `line_caps` (per-tier ceilings - `root`,
+per entry - 37 today) and `line_caps` (per-tier ceilings - `root`,
 `lane_root`, `package`). Both are loader-mandatory on the baseline doctrine:
 deleting either key exits 2 rather than meaning "none". Line caps are
 **reporting-only until W3.2** - an over-cap boundary file lands in
@@ -1345,7 +1349,8 @@ work list. The standard itself has its single home at
 `docs/developer/agents-md-standard.md`.
 
 **Exit codes:** `0` clean under the baselines; `1` a content violation (any dead
-reference, any dead link, a retired-name count above its ceiling, an unbalanced
+reference, any dead link, a missing `boundary_list` `AGENTS.md`, a retired-name
+count above its ceiling, an unbalanced
 code fence, or an inline suppression comment without a tracking ref); `2` the
 gate could not run (config absent, unparseable, missing any baseline key, or
 carrying the removed allowlist key - the report is then NOT written, so a broken

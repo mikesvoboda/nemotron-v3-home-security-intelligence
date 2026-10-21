@@ -3,7 +3,7 @@
 
 Validates AGENTS.md files across the codebase for:
 1. Stale file references (files mentioned but don't exist)
-2. Missing AGENTS.md (directories with code files but no AGENTS.md)
+2. Missing AGENTS.md (boundary_list directories with no scanned AGENTS.md)
 3. Dead internal markdown links
 
 The ratchet: W1.1 made dead references a draining baseline
@@ -25,12 +25,14 @@ Usage:
 Exit codes:
     0 - the tree is clean under the baselines (zero dead references — zero
         tolerance since W1.3 removed the allowlist; retired-name counts are at
-        or below baseline; missing_agents_md
-        is reporting-only until W3.1 wires the boundary rule)
+        or below baseline; every boundary_list directory has an AGENTS.md;
+        outside_boundaries is reporting-only until the last W3.1 PR switches
+        it to failing)
     1 - a CONTENT violation: any dead reference (zero tolerance since W1.3), a dead
-        link (zero tolerance), a retired-name count above its baseline, an
-        unbalanced code fence (it would mask the rest of the file from the
-        gate), or an inline ignore-reference comment without a tracking ref
+        link (zero tolerance), a missing boundary_list AGENTS.md (since W3.1),
+        a retired-name count above its baseline, an unbalanced code fence (it
+        would mask the rest of the file from the gate), or an inline
+        ignore-reference comment without a tracking ref
     2 - the gate COULD NOT RUN: the config is absent/unparseable/incomplete
         (any missing required key: the five baseline names, boundary_list, or
         a line_caps tier), a pattern does not compile, or an AGENTS.md is
@@ -684,42 +686,21 @@ def check_missing_agents_md(
     config: ValidatorConfig,
     existing_agents_md: set[Path],
 ) -> list[ValidationIssue]:
-    """Check for directories with code files but no AGENTS.md.
+    """Check that every boundary_list directory has a scanned AGENTS.md.
 
-    Reporting-only in W1.1: missing_agents_md is not one of the package's
-    failure conditions — wiring the boundary rule is W3.1's Phase-3 job.
+    W3.1 (ruling 300 item 2): the validator requires an AGENTS.md at each
+    boundary_list directory, failing when one is missing, and no longer
+    requires one in every directory with >= min_code_files code files.
     """
-    issues = []
+    issues: list[ValidationIssue] = []
 
-    code_dirs = find_directories_with_code(project_root, config)
-
-    # sorted(): rglob yields filesystem-walk order, which varies between
-    # machines — the missing_agents_md block's order must be deterministic
-    # or "report identical on two trees" claims rest on a lucky walk.
-    for dir_path, code_files in sorted(code_dirs.items(), key=lambda kv: str(kv[0])):
+    for entry in sorted(config.boundary_list, key=lambda e: e["path"]):
+        rel_dir = entry["path"]
+        dir_path = project_root if rel_dir == "." else project_root / rel_dir
         if dir_path in existing_agents_md:
             continue
 
-        if len(code_files) < config.min_code_files:
-            continue
-
-        relative_dir = str(dir_path.relative_to(project_root))
-        skip = False
-
-        for allowed in config.no_agents_md_required:
-            allowed_normalized = allowed.rstrip("/")
-            relative_normalized = relative_dir.rstrip("/")
-
-            if relative_normalized == allowed_normalized:
-                skip = True
-                break
-            if relative_dir.startswith(allowed_normalized + "/"):
-                skip = True
-                break
-
-        if skip:
-            continue
-
+        directory_label = "./" if rel_dir == "." else f"{rel_dir.rstrip('/')}/"
         issues.append(
             ValidationIssue(
                 type="missing_agents_md",
@@ -727,9 +708,9 @@ def check_missing_agents_md(
                 line=None,
                 reference=None,
                 resolved_path=None,
-                reason="directory_has_code_files",
-                directory=relative_dir + "/",
-                code_files=sorted(code_files)[:10],
+                reason="boundary_missing_agents_md",
+                directory=directory_label,
+                code_files=[],
             )
         )
 
@@ -883,6 +864,24 @@ def evaluate_line_caps(scan: Scan, config: ValidatorConfig) -> dict[str, Any]:
     }
 
 
+def evaluate_outside_boundaries(scan: Scan, config: ValidatorConfig) -> dict[str, Any]:
+    """W3.1 (ruling 300 item 2): AGENTS.md files outside boundary_list.
+
+    Reports every scanned AGENTS.md outside boundary_list without failing; the
+    last lane's W3.1 PR switches `failing` to True (ruling 300 item 4).
+    """
+    boundary_files = {
+        "AGENTS.md" if entry["path"] == "." else f"{entry['path']}/AGENTS.md"
+        for entry in config.boundary_list
+    }
+    outside = sorted(path for path in scan.line_counts if path not in boundary_files)
+    return {
+        "count": len(outside),
+        "files": outside,
+        "failing": False,  # W3.1 last PR flips this to True (ruling 300 item 4)
+    }
+
+
 def evaluate_ratchet(scan: Scan, config: ValidatorConfig) -> list[str]:
     """THE single gate decision point (ratchet-check.py's check() idiom).
 
@@ -909,9 +908,12 @@ def evaluate_ratchet(scan: Scan, config: ValidatorConfig) -> list[str]:
                 f"<!-- agents-md-validator: ignore-reference {issue.reference} "
                 "# <W1.3/ledger-ref> -->"
             )
-        # missing_agents_md: reporting-only until W3.1 (scope pin: a
-        # boundary-list gate here would fail today's tree, which the
-        # package's Done-when requires green).
+        elif issue.type == "missing_agents_md":
+            violations.append(
+                f"missing boundary AGENTS.md: {issue.directory} is listed in "
+                "boundary_list (.agents-md-validator.yml) but has no scanned "
+                "AGENTS.md."
+            )
 
     for name in RETIRED_NAMES:
         measured = scan.retired_counts[name]
@@ -1004,6 +1006,9 @@ def generate_report(
             # W2.1, additive like every ratchet key before it:
             # agents_md_linear_sync.py reads issues[]/summary{} only.
             "line_caps": evaluate_line_caps(scan, config),
+            # W3.1 (ruling 300 item 2): reporting-only until the last lane's
+            # W3.1 PR switches failing to True.
+            "outside_boundaries": evaluate_outside_boundaries(scan, config),
         },
     }
 
@@ -1040,12 +1045,20 @@ def print_summary(report: dict[str, Any]) -> None:
                     file=sys.stderr,
                 )
             elif issue_type == "missing_agents_md":
-                files_preview = ", ".join(issue["code_files"][:3])
-                print(
-                    f"  [{issue_type}] {issue['directory']} "
-                    f"- {len(issue['code_files'])} code files ({files_preview}...)",
-                    file=sys.stderr,
-                )
+                code_files = issue.get("code_files") or []
+                if code_files:
+                    files_preview = ", ".join(code_files[:3])
+                    print(
+                        f"  [{issue_type}] {issue['directory']} "
+                        f"- {len(code_files)} code files ({files_preview}...)",
+                        file=sys.stderr,
+                    )
+                else:
+                    print(
+                        f"  [{issue_type}] {issue['directory']} "
+                        f"({issue.get('reason', 'boundary_missing_agents_md')})",
+                        file=sys.stderr,
+                    )
             elif issue_type == "dead_link":
                 print(
                     f"  [{issue_type}] {issue['agents_md']}:{issue['line']} "
@@ -1073,6 +1086,16 @@ def print_summary(report: dict[str, Any]) -> None:
                 f"  [over-cap] {entry['path']} ({entry['tier']}): {entry['reason']}",
                 file=sys.stderr,
             )
+
+    outside_block = report.get("ratchet", {}).get("outside_boundaries")
+    if outside_block is not None:
+        print(
+            f"\nOutside boundaries (W3.1, reporting until last lane PR): "
+            f"{outside_block['count']} AGENTS.md file(s) outside boundary_list",
+            file=sys.stderr,
+        )
+        for path in outside_block["files"]:
+            print(f"  [outside-boundary] {path}", file=sys.stderr)
 
     print("", file=sys.stderr)
 

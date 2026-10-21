@@ -81,5 +81,5 @@ cp docs/architecture/templates/document-template.md docs/architecture/{hub}/new-
 
 - [STANDARDS.md](./STANDARDS.md) - Documentation standards and formatting rules
 - [Templates](templates/README.md) - Document templates for new content
-- [AGENTS.md](./AGENTS.md) - Codebase navigation guide
+- [AGENTS.md](../../AGENTS.md) - Root codebase navigation guide
 - [docs/ROADMAP.md](../ROADMAP.md) - Project roadmap
