@@ -317,6 +317,21 @@ async def retry_delivery(
             detail=f"Delivery with id {delivery_id} not found",
         )
 
+    # Commit HERE, before the response is sent. The session's commit otherwise belongs to
+    # get_db's teardown, which FastAPI runs after the response under the default
+    # request-scoped dependency scope — the caller could re-read the pre-retry row (stale
+    # read) and a failed commit would be reported as success. Ruling 285 amendment
+    # 6302995876; get_db's teardown commit is idempotent (committing an already-committed
+    # session is a no-op), so the remaining handlers keep their existing semantics.
+    try:
+        await db.commit()
+    except Exception as e:
+        logger.exception("Failed to commit webhook delivery retry")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to persist delivery retry: {e}",
+        ) from e
+
     return _delivery_to_response(delivery)
 
 

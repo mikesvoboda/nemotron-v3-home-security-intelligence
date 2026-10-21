@@ -19,23 +19,9 @@
   "readme": "none",
   "plugin": ["typedoc-plugin-markdown"],
   "categorizeByGroup": true,
-  "categoryOrder": [
-    "Components",
-    "Hooks",
-    "Services",
-    "Types",
-    "Utilities",
-    "*"
-  ],
+  "categoryOrder": ["Components", "Hooks", "Services", "Types", "Utilities", "*"],
   "sort": ["source-order", "alphabetical"],
-  "kindSortOrder": [
-    "Function",
-    "Class",
-    "Interface",
-    "TypeAlias",
-    "Variable",
-    "Enum"
-  ],
+  "kindSortOrder": ["Function", "Class", "Interface", "TypeAlias", "Variable", "Enum"],
   "visibilityFilters": {
     "protected": false,
     "private": false,

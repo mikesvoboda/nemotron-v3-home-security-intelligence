@@ -31,7 +31,7 @@ class GPUStats(Base):
     Medium-value metrics (for hardware monitoring):
     - memory_clock: Current memory clock in MHz
     - memory_clock_max: Max memory clock in MHz
-    - pcie_link_gen: PCIe link generation (1-4)
+    - pcie_link_gen: PCIe link generation (1+; Gen 6 devices report 6)
     - pcie_link_width: PCIe link width (x1-x16)
     - pcie_tx_throughput: PCIe TX throughput in KB/s
     - pcie_rx_throughput: PCIe RX throughput in KB/s
