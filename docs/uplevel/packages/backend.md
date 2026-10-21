@@ -118,7 +118,7 @@ nothing in `backend/` outside its upgrade step.
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7319. (ruling 241)
 
 - [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
       module under `backend/` the reachability check reports non-shipping at this PR's head,
