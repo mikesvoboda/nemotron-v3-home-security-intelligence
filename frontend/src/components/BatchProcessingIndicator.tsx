@@ -166,17 +166,20 @@ function BatchStatusItem({ status, showCamera = true }: BatchStatusItemProps) {
         <span className="text-gray-500">({status.detectionCount})</span>
       )}
 
-      {/* Risk score for completed batches */}
-      {status.state === 'completed' && status.riskScore !== undefined && (
-        <span
-          className={clsx(
-            'ml-1 rounded px-1.5 py-0.5 text-xs font-medium',
-            getRiskLevelColor(status.riskLevel)
-          )}
-        >
-          {status.riskScore}
-        </span>
-      )}
+      {/* Risk score for completed batches — hidden on null (degraded batch: no score exists,
+          so an empty chip would read as a scored 0; the P0.25 rule) */}
+      {status.state === 'completed' &&
+        status.riskScore !== undefined &&
+        status.riskScore !== null && (
+          <span
+            className={clsx(
+              'ml-1 rounded px-1.5 py-0.5 text-xs font-medium',
+              getRiskLevelColor(status.riskLevel)
+            )}
+          >
+            {status.riskScore}
+          </span>
+        )}
 
       {/* Error indicator for failed batches */}
       {status.state === 'failed' && (

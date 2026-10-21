@@ -73,7 +73,7 @@ class GPUStatsDict(TypedDict):
     # Medium-value metrics for hardware monitoring
     memory_clock: int | None  # Current memory clock in MHz
     memory_clock_max: int | None  # Max memory clock in MHz
-    pcie_link_gen: int | None  # PCIe link generation (1-4)
+    pcie_link_gen: int | None  # PCIe link generation (1+; Gen 6 devices report 6)
     pcie_link_width: int | None  # PCIe link width (x1-x16)
     pcie_tx_throughput: int | None  # PCIe TX throughput in KB/s
     pcie_rx_throughput: int | None  # PCIe RX throughput in KB/s

@@ -569,61 +569,10 @@ async def list_config_versions(
         ) from e
 
 
-@router.get(
-    "/gpu-config/history/{version_id}",
-    response_model=GpuConfigVersionDetail,
-    summary="Get configuration version details",
-    description="Returns full details of a specific configuration version.",
-    responses={
-        404: {"description": "Version not found"},
-        500: {"description": "Failed to load version"},
-    },
-)
-async def get_config_version(
-    version_id: str,
-    db: AsyncSession = Depends(get_db),
-) -> GpuConfigVersionDetail:
-    """Get details of a specific configuration version."""
-    try:
-        result = await db.execute(
-            select(GpuConfigurationVersion).where(GpuConfigurationVersion.id == version_id)
-        )
-        version = result.scalar_one_or_none()
-
-        if version is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Configuration version {version_id} not found",
-            )
-
-        assignments = [
-            GpuAssignment(
-                service=a["service"],
-                gpu_index=a.get("gpu_index"),
-                vram_budget_override=a.get("vram_budget_override"),
-            )
-            for a in (version.assignments or [])
-        ]
-
-        return GpuConfigVersionDetail(
-            id=version.id,
-            version_number=version.version_number,
-            strategy=version.strategy,
-            description=version.description,
-            created_at=version.created_at,
-            created_by=version.created_by,
-            assignment_count=len(assignments),
-            assignments=assignments,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Failed to load version")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to load version: {e}",
-        ) from e
+# The diff route is registered BEFORE /gpu-config/history/{version_id} on purpose
+# (ruling 285, F-182): a literal path segment only matches when it is declared ahead
+# of the parameterized sibling — registered after, "diff" was matched as a version id
+# and the id-equality query sent the uncastable literal to asyncpg (500).
 
 
 @router.get(
@@ -686,6 +635,63 @@ async def diff_config_versions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to compute diff: {e}",
+        ) from e
+
+
+@router.get(
+    "/gpu-config/history/{version_id}",
+    response_model=GpuConfigVersionDetail,
+    summary="Get configuration version details",
+    description="Returns full details of a specific configuration version.",
+    responses={
+        404: {"description": "Version not found"},
+        500: {"description": "Failed to load version"},
+    },
+)
+async def get_config_version(
+    version_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> GpuConfigVersionDetail:
+    """Get details of a specific configuration version."""
+    try:
+        result = await db.execute(
+            select(GpuConfigurationVersion).where(GpuConfigurationVersion.id == version_id)
+        )
+        version = result.scalar_one_or_none()
+
+        if version is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Configuration version {version_id} not found",
+            )
+
+        assignments = [
+            GpuAssignment(
+                service=a["service"],
+                gpu_index=a.get("gpu_index"),
+                vram_budget_override=a.get("vram_budget_override"),
+            )
+            for a in (version.assignments or [])
+        ]
+
+        return GpuConfigVersionDetail(
+            id=version.id,
+            version_number=version.version_number,
+            strategy=version.strategy,
+            description=version.description,
+            created_at=version.created_at,
+            created_by=version.created_by,
+            assignment_count=len(assignments),
+            assignments=assignments,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to load version")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load version: {e}",
         ) from e
 
 
