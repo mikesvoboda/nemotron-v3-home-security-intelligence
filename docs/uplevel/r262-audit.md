@@ -41,6 +41,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 | 3     | 7052, 7070, 7074, 7077, 7086, 7088, 7103, 7114, 7125, 7135, 7139, 7145, 7146, 7156, 7157 | 62 rows from 69 auditor candidates + 5 deferred items Q-062..Q-066 (− 1 refuted genre-kill 7135_c4, − 1 dedup merge 7086-C1+C2, − 2 dedup twins 7157-C1/C5 resolved onto 7135-C1's verdict, − 1 batch-4 certification 7070-C2, − 2 record-only 7070-C7/C10, − 2 record-only 7114-C2/C3, − 1 re-assigned to #7222 7114-C4; Q-075 stays as a pointer row onto Q-093's fix; the phantom q067 was REFUTED and dies unnumbered — it was never a candidate row) + ~20 rows' dead coordinate cites across feature-inventory.md consolidate into the #7135-family and #7146-family items; enumerated there | 2 (phantom coordinate q067 — a `prod.yml:160` cite that exists nowhere at the pin, dies unnumbered; 7135_c4 genre-kill — ticked Done-when boxes are task specifications) | batch-3 comment on #7265; lows in the compact table per owner continue (6266204180); the two mediums (Q-093, Q-114) keep full templates; ruled 277 (record 6291992942): 62 rows, Q-094 dropped, targets/paths corrected |
 | 4     | 7158, 7159, 7168, 7174, 7183, 7187, 7201, 7210, 7215, 7222, 7230, 7234                   | 41 rows from 42 intake items (− 1 refuted 7210 item 3 on its provenance leg only — finding stands with corrected provenance, dies unnumbered; − 1 dedup merge 7187 items 0+1 into Q-134, whose pointer half is 7210 item 8's :421 predicate leg — rides the row, no count effect; + 1 ruled row 7114-C4 re-assigned to #7222, numbered Q-164 with the ruled wording) + 2 record-only cross-refs (7070-C7/C10 ride #7201; 7114-C2/C3 ride #7222)                                                                                                                                                    | 1 (7210 item 3, provenance leg only)                                                                                                                                     | batch-4 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
 | 5     | 6855, 6863, 6864, 6867, 6870, 6875, 6888, 6890, 6891, 6892, 6901, 6912, 6914, 6920, 6921 | 10 rows from 10 intake items (test class begins; 8 drift + 2 claim — no dedups, no re-assignments)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 0 (10/10 survived)                                                                                                                                                       | batch-5 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
+| 6     | 6926, 6932, 6934, 6938, 6945, 6947, 6954, 6956, 6960, 6962, 6963, 6966, 6971, 6972, 6973 | 17 rows from 19 intake items (− 2 cross-intake dedups: 6954_c1 = 6973_c1 filed as Q-180; 6926_c2 = 6963_c2 filed as Q-176 per the b8022b94b authorship ruling — 13 drift + 3 claim + 1 bug)                                                                                                                                                                                                                                                                                                                                                                                                        | 0 (19/19 survived — first refutation-clean batch pair; three refuter lines overridden by coordinator checks, recorded in the rows)                                       | batch-6 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
 
 ## Batch 5 — per-PR verdicts
 
@@ -3906,3 +3907,505 @@ stale coordinates (pre-existing, stale since before the merge) and are logged, n
   (`41bc0fce7f85...` — does not resolve); both b5b refuter prompts carried the warning and
   every measurement used the full pin. Recorded here so a future reader of the intake files
   does not inherit the typo.
+
+## Batch 6 — per-PR verdicts
+
+Batch 6. Test class continues (PRs 6926..6973 — the batch's 15 census PRs audited by two intake
+auditors under the concurrency cap, b6-a over 6926-6956 and b6-b over 6960-6973). Every item was
+verified at the pinned SHA before entering the sheet, and both refutation passes (ruling 232) are
+complete: **19 of 19 NOT-REFUTED, 0 refuted** — the first refutation-clean batch pair of the
+audit — with two cross-intake dedups folded → **17 rows, Q-175..Q-191**, 13 drift + 1 bug + 3
+claim, all severity low (the one bug, Q-179, was corrected medium→low by the refuter's exposure
+re-census, which the coordinator reproduced independently). Verdict files on disk: b6a_1.md and
+b6b_1.md in /tmp/r262_b6_refutations/, each self-verified at the pin with the coordinator's own
+git commands before entering the sheet. The b6b intake header carried a transposed pin sha
+(`41bc0fce7f85...` — does not resolve); both refuter prompts carried the warning and every
+measurement used the full pin, recorded here as with batch 5. Per the owner's continue (comment
+6266204180): the low items rule from the compact table with their evidence in the collapsed block
+under it. Owner column carries write-time wording only — no ruling had landed when assembled.
+
+Provenance mechanisms seen in batch 6, named: authored-true-then-moved (Q-175's ci.yml cite +27
+across the Oct 9→11 window, +32 by the r162 merge dcba3bd13, +2 by 1029bc3af → :196; Q-177's
+guard cite +256 across six named movers e47a9de81 → 9861c5789 → fd39ab3ab → dcba3bd13 →
+d6344e031 → 1029bc3af → :2434; Q-178's mirror span −1 by d6344e031's deletion of the
+npm-audit-results.json MISSING_OK entry; Q-182's mover chain fully window-namable — d6344e031
++3, then the retirements 834d51097, 6b691302d, e2d65dda3, 516cffc98 → :5597/:6231; Q-189's
+pyproject pair +22 below the boundary's edge then +5 by 8c3c8a7f6 → :572/:573);
+authored-true-then-moved-in-own-PR (Q-185/Q-186 by #6971's own d7ea252a4 gate edit — `import
+signal` +1 and the ~60-line COLLECT_TIMEOUT block; Q-190's fixture widened by 1b1c867c5 with the
+message unchanged); pre-merge main-side drift (Q-180: authored-true at bfc19db3b, moved by
+ce26904d0 then 56b55ad6e — ancestors of both merges but not of the authoring commit, so already
+stale at its own merge, the batch-4/5 mechanism riding again; Q-176's yml mover ce9b1dac6
+(Oct 10) rides a side branch into main's first-parent chain at bf82aa0ca (Oct 16) — in-window
+by the ancestry rule despite its pre-boundary date, the same shape as 331341c3d in Q-184, and
+the growth is authored AT ce9b1dac6 by the parent-blob check; Q-187's authoring-to-own-merge
+drift entered below the shallow boundary (authoring 659a83f68, Sep 19);
+authored-1-off-at-authoring (Q-187's first number named the `uv run pytest` continuation line one
+above the first flag site; :797 was exact — the cite was never fully exact, then drifted);
+blind-re-point-smaller-than-drift (Q-181: a −29 re-point against −169 of true retirement drift,
+landing every cite 100-140 lines short); never-true quote beside a rotted count (Q-183 — the
+quoted payload text never existed at any readable tree while the 11-of-15 count was
+write-time-true and rotted: mixed mechanism); authored-true-against-main-then-rotted-on-main
+(Q-191: 11 entries / four dated entrants at ef49d6df9 and at the own merge e6839d5a7, rotted by
+68affa14c and de50e8772, re-grown by 3133470fb with different composition — the intake's
+born-stale-in-its-own-commit bound e97f84610's branch tree, but the sentence describes main, per
+that commit's own message).
+
+| PR    | Class | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #6926 | test  | 3 items (Q-175, Q-176, Q-177); refuter b6a_1 — all NOT-REFUTED; c1/c3 authored-true-then-moved (+27/+32/+2 → :196; +256 across six named movers → :2434); c2's five weekly-test-report.yml coordinates moved by ce9b1dac6 (yml 326→347, authored at that commit — coordinator parent-blob check overturning b6a's d6344e031 combined-diff read) — dedup'd with #6963's intake find, filed here per the b8022b94b authorship ruling                                                             |
+| #6932 | test  | no items — recovery_timeout 0.1→3600.0 bump with its ruling-39-L-i comment, the `_MonotonicStub` module-binding patch target, the slow-CI-between-trip-and-loss test, and the DLQ/had_backpressure contracts verified at pin; retry_handler.py and circuit_breaker.py blobs identical merge↔pin                                                                                                                                                                                                |
+| #6934 | test  | no items — all five scanner suites exist at pin with matching keys/summaries/exit codes; retired_names' packages-done.md §O1.7 backtick names verified; 23 passed on the pin tree                                                                                                                                                                                                                                                                                                              |
+| #6938 | test  | 1 item (Q-178); refuter b6a_1 — NOT-REFUTED; mirror cite :884-893 → :883-892 (authored true at b2bdf5f81, −1 by d6344e031's one-line deletion above); the docstring's mint figures are a dated "2026-10-09 mint" reference, not an item; gate empirically passes 14/14 with a 0-miss mangle round-trip                                                                                                                                                                                         |
+| #6945 | test  | 1 item (Q-179, bug); refuter b6a_1 — NOT-REFUTED with corrections folded: exposure population swapped (15 fixture-protected incl. all ten user-journeys/*, 53 raw), CI exposure ≈ zero (38 of 39 raw specs/ self-skip under CI; build-validation runs its own config), golden-immunity mechanism corrected (golden runs at :8080 — the committed state file is inert everywhere, widening the defect), severity medium→low; coordinator re-census reproduced 15/53 and the 38+1 CI-guard split |
+| #6947 | test  | no items — checker exists at pin; committed registry `exceptions: []`; dependency-audit.yml routes the python-audit leg through the checker; 17/17 contract behaviors pass                                                                                                                                                                                                                                                                                                                     |
+| #6954 | test  | 1 item (Q-180 — dedup'd with #6973's intake find, same defect); refuters b6a_1 + b6b_1 — NOT-REFUTED; pre-merge main-side drift: authored-true at bfc19db3b (:48-49), moved by ce26904d0 (→:66-67) then 56b55ad6e (→:68-69), both ancestors of the merges but not of the authoring commit — already stale at own merge 591d91eec; 19/19 passed on the pin tree                                                                                                                                 |
+| #6956 | test  | 1 item (Q-181); refuter b6a_1 — NOT-REFUTED; blind −29 re-point verified in 516cffc98's own diff; attribution nuance corrected: 834d51097's own api.ts deletion is −60 (numstat), not −57 — that figure was the site's net movement (+3 intermezzo); net merge→pin −169 = −143 − 29 + 3; gate unaffected (matches by path)                                                                                                                                                                     |
+| #6960 | test  | no items — checker/registry/workflow paths resolve at pin (check-pip-audit-exemptions.py, .pip-audit-exemptions.json `exceptions: []`, dependency-audit.yml leg); fail-closed shapes and the audit-wiring test match the pin's actual files; suite passes against the pin tree                                                                                                                                                                                                                 |
+| #6962 | test  | 2 items (Q-182, Q-183); refuter b6b_1 — both NOT-REFUTED; c1 authored-true at own merge 28770b3d8 (the PR's own edit re-pointed 5773→5766/6407→6400), moved by four post-merge retirements to :5597/:6231; c2's quoted payload text never existed at any readable tree while the 11-of-15 count was write-time-true and rotted (mixed mechanism); 39/39 pass on the pin tree                                                                                                                   |
+| #6963 | test  | 1 item kept here (Q-184); refuter b6b_1 — NOT-REFUTED; :121→:122 (the assert moved by 331341c3d's `import shlex` +1 — a side-branch commit inside the walkable window despite its pre-boundary date, placed by ancestry not date); c2 dedup'd onto Q-176 (filed to #6926 per the b8022b94b authorship ruling)                                                                                                                                                                                  |
+| #6966 | test  | no items — npm twin architecture verified at pin (checker, frontend/.npm-audit-exemptions.json with the braces GHSA reviewBy 2027-04-03, dependency-audit.yml :134 leg, entry_points.toml :37); the docstring's ci.yml prose is historical narrative, not a pinned coordinate                                                                                                                                                                                                                  |
+| #6971 | test  | 4 items (Q-185..Q-188); refuter b6b_1 — all 4 NOT-REFUTED; c1/c2 moved by the PR's own d7ea252a4 gate edit (authored-true-then-moved-in-own-PR); c3 authored-1-off at the first number (at 659a83f68 the flags sit :676/:797/:910), stale at own merge d7ea252a4 (:1116/:1244/:1365), :1287/:1432/:1556 at pin; c4 moved by e2d65dda3 (`flagged: false,` removal −1); 13 tests pass on the pin tree                                                                                            |
+| #6972 | test  | 3 items (Q-189..Q-191) — NONE authored in #6972 (its merge tree 0e90e9bb0 holds an earlier file revision; the defects entered via r147/r151 commits and reached this file copy at the pin); refuter b6b_1 — all NOT-REFUTED; c1 authored-true at 8279eb10d; c2 authored-true-then-moved-in-own-PR at 1b1c867c5; c3 provenance corrected to authored-true-against-main/rotted-on-main (NOT born-stale — see the row); 69 tests pass on the pin tree                                             |
+| #6973 | test  | dedup — its one item is the same defect as #6954's (test_reachability.py:453), filed as Q-180; the b6b refuter's two-mover mechanism (ce26904d0, then 56b55ad6e) is the fuller account; r2-python-dead-list --check fresh run rc=0 against the pin tree                                                                                                                                                                                                                                        |
+
+Compact table. Owner decisions are pending; the owner column carries write-time wording only.
+
+| id    | class | path:line                                                                                        | PR    | wrong (one line)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | fix (size, lane)                                                                                                                                                           | owner                    |
+| ----- | ----- | ------------------------------------------------------------------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Q-175 | drift | scripts/test_workflow_paths.py:18                                                                | #6926 | module docstring cites `ci.yml:135` for the ai-parity wrapped-line-fragment example; pin :135 is the compose-CLI comment, the ai-parity comment sits at :196; authored-true at the merge c551da30a, moved +27 (Oct 9→11) +32 (r162 merge dcba3bd13) +2 (1029bc3af)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | re-point to ci.yml:196 or drop the line number. Size S; ops                                                                                                                | pending ruling (batch 6) |
+| Q-176 | drift | scripts/test_workflow_paths.py:249-257                                                           | #6926 | MISSING_OK comment block cites five weekly-test-report.yml coordinates all stale at pin — guards :243/:247→:256/:260, --json-report-file= :85/:95→:89/:100, upload step :118-127→:128-137 (name at :131), download :170-173→:180-183, and the ":236 blank" that ended the classifier block is gone (:236 = `steps:`); authored-true at b8022b94b (#6926's branch — the block-opening line is absent from parent dfd3b77be), drift below the shallow boundary (mover ce9b1dac6, which grew the yml 326→347 — authored at that in-window side-branch commit; blob byte-stable from ce9b1dac6 through the pin); same defect raised by #6963's intake — one row, upload span ruled :128-137                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | re-point the five coordinates (:256/:260, :89/:100, :128-137, :180-183) and reword the :236 sentence to the pin's structure. Size S; ops                                   | pending ruling (batch 6) |
+| Q-177 | drift | scripts/test_workflow_paths.py:380                                                               | #6926 | command-first rationale cites `ci.yml:2178` for the coverage-merged guard ("under the shipped head", unscoped); pin :2178 is a blank between Checkout and Set-up-Node — the guard is :2434; authored-true at c551da30a, mover chain e47a9de81 :2308 → 9861c5789 :2311 → fd39ab3ab :2324 → dcba3bd13 :2384 → d6344e031 :2417 → 1029bc3af :2434 (+256)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | re-point to ci.yml:2434, drop the number, or sha-scope the historical cite. Size S; ops                                                                                    | pending ruling (batch 6) |
+| Q-178 | drift | scripts/test_shard_durations.py:255                                                              | #6938 | self-pin docstring says it "mirrors scripts/test_workflow_paths.py:884-893"; the pin span is :883-:892 (def at :883, closing assert :892) — the cited span starts one line into the docstring and ends one past the assert; authored-true at b2bdf5f81, mover d6344e031 deleted one line above (the npm-audit-results.json MISSING_OK entry then at :265)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | re-point to scripts/test_workflow_paths.py:883-892. Size S; ops                                                                                                            | pending ruling (batch 6) |
+| Q-179 | bug   | frontend/tests/e2e/global-setup.ts:28                                                            | #6945 | globalSetup writes the shared storage-state file with the tour-suppression keys under origin `https://localhost:8444` but every E2E page runs `http://localhost:8444` — Playwright applies localStorage per origin, the keys never land, shouldShowTour() stays true, the Joyride overlay auto-opens (the pointer-blocking failure fixtures/index.ts:53-54 documents); re-proven empirically at the pinned Playwright 1.64.0 (https-stored/http-visited → keys absent; http control → present); born-stale (https origin already at a05684e85^1:25); exposure corrected: 15 fixture-protected specs (incl. all ten user-journeys/*) vs 53 raw (39 in specs/ of which 38 self-skip under CI, build-validation on its own config, 13 visual, 1 root) — real blast radius is local raw-spec runs plus the non-blocking nightly visual project (13 raw, 3 pointer-bearing; its standing 97/108 red is an element-not-found/screenshot signature with zero pointer-intercept strings, not tour-attributable); golden runs at FEATURE_CHECK_UI_URL :8080 so the committed state file is inert everywhere (golden's suppression is tests/golden/guard.ts:104-113); severity corrected medium→low | write the storage state under the origin the specs run (derive from E2E_BASE_URL) or set both origins; optionally stop committing the inert artifact. Size M; frontend     | pending ruling (batch 6) |
+| Q-180 | drift | scripts/test_reachability.py:453                                                                 | #6954 | keep-edges docstring cites `fake/app.py:48-49` for the operations/provider imports; pin :48-49 are `import hashlib`/`import json`, the imports sit at :68-69; authored-true at bfc19db3b but pre-merge main-side drift — ce26904d0 moved the pair to :66-67 and 56b55ad6e to :68-69, ancestors of the merges but not of the authoring commit, so already stale at its own merge (both #6954's 591d91eec and #6973's 01fc58984); same defect raised by #6973's intake — one row with the two-mover mechanism                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | re-point to fake/app.py:68-69. Size S; ops                                                                                                                                 | pending ruling (batch 6) |
+| Q-181 | drift | frontend/src/**tests**/api-endpoint-contract-known-missing.json:23 (+:30+:37+:87+:95 +:90 prose) | #6956 | five calledFrom pointers + two prose siblings re-pointed by one blind −29 (516cffc98's own api.ts deletion count) while true retirement drift ran −169, each landing 100-140 past its target: entity-matches :5859 (true :5719), debug/profile/download :7633 (true :7504), bare /api/debug/profile :7569 (true :7440), prompts/history/{model} :5597 (true :5457), DELETE /api/debug/recordings :7384 (true :7244); prose fetchAllPromptsHistory :5571 (true :5431), restorePromptVersion :5608 (true :5468); true at own merge 4f5d7d06c; retirements −143 (−60/−81/−2) + 3 intermezzo, net −169; gate unaffected (matches by path)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | re-point the seven coordinates to :5719/:7504/:7440/:5457/:5431/:5468/:7244 or drop the line numbers. Size M; frontend                                                     | pending ruling (batch 6) |
+| Q-182 | drift | frontend/src/**tests**/api-contract-lib.test.ts:464-465                                          | #6962 | opaque-verb-collision comment cites fetchEntities at `api.ts:5766` and fetchTrackedEntities at `:6400`; pin :5766 is a docstring line inside EnrichedSuggestion, :6400 a closing `*/` — the pass-through call sites sit at :5597 (def :5578) and :6231 (def :6207); authored-true at own merge 28770b3d8 (the PR's own edit re-pointed 5773→5766/6407→6400), moved by d6344e031 +3 then the four retirements (834d51097, 6b691302d, e2d65dda3, 516cffc98), every mover window-namable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | re-point to api.ts:5597 and :6231 (or name the functions without line numbers). Size S; frontend                                                                           | pending ruling (batch 6) |
+| Q-183 | claim | frontend/src/**tests**/api-contract-lib.test.ts:720-721                                          | #6962 | gapIsClosed motivation claims "11 of the 15 live entries say `next: the backend should add this route`" — the quoted payload text never existed at any readable tree (zero hits for "add this route" from the JSON's birth 51d3bd685 through the pin; birth-tree `next` values read "F2.2 inventory row for …", the pin's read F-pointer/owner/one-word-client-fix forms — never the quoted text), and the 15-entry state rotted: pin holds 11 entries with 7 route-absence gaps (retirements 3d8418fec F-244, 6b691302d F-095); count half authored-true-then-moved, quote half never true — mixed mechanism                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | drop the quote and re-derive the sentence ("7 of the 11 live entries describe an absent route") or name gap shapes without counts. Size S; frontend                        | pending ruling (batch 6) |
+| Q-184 | drift | scripts/test_workflow_draft_guards.py:48                                                         | #6963 | EXEMPT comment cites test_check_gate_reachability.py:121 for the `assert … == "always()"`; pin :121 is the preceding prose comment, the assert is :122; authored-true at merge 7b70d0a06; mover 331341c3d added `import shlex` at :25 (+1) — a side-branch commit inside the walkable window despite its pre-boundary date                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | re-point to :122. Size S; ops                                                                                                                                              | pending ruling (batch 6) |
+| Q-185 | drift | scripts/test_check_coverage_diff.py:67                                                           | #6971 | synthetic_root docstring cites check-test-coverage-gate.py:164 for find_test_file()'s `Path(__file__).parent.parent`; pin :164 is the docstring's closing `"""`, the derivation :165; authored-true at 86131c638/3e9423640/591d91eec; mover is the PR's own d7ea252a4 (`import signal` at the gate's :17, +1) — authored-true-then-moved-in-own-PR                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | re-point to :165. Size S; ops                                                                                                                                              | pending ruling (batch 6) |
+| Q-186 | drift | scripts/test_check_coverage_diff.py:517                                                          | #6971 | inline-path comment cites check-test-coverage-gate.py:475 for the gate's own-`__file__` derivation; pin :475 is `base_branch: str = "origin/main",`, the derivation :536, the read site :629; authored-true at 3e9423640; same mover d7ea252a4 (the ~60-line COLLECT_TIMEOUT block)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | re-point to :536 (and/or :629 for the read site). Size S; ops                                                                                                              | pending ruling (batch 6) |
+| Q-187 | drift | backend/tests/unit/scripts/test_check_test_coverage_gate.py:8 (+:81)                             | #6971 | module docstring and assert message cite `ci.yml:675,797` for the shard jobs' --reruns flags; pin :675 is `- name: Set up uv`, :797 `    services:` — the three rerun sites are :1287/:1432/:1556; provenance corrected: at authoring 659a83f68 the flags sat at :676/:797/:910 — :675 named the `uv run pytest` continuation line one above the first flag site (authored-1-off-at-first-number; :797 exact), stale at own merge d7ea252a4 (:1116/:1244/:1365), :1287/:1432/:1556 at pin                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | re-point both cites to the three rerun sites, or drop numbers ("the shard jobs' rerun flags" is unambiguous). Size S; backend                                              | pending ruling (batch 6) |
+| Q-188 | drift | backend/tests/unit/scripts/test_check_test_coverage_gate.py:452                                  | #6971 | docstring cites "a JSX `<QueryClientProvider>` wrapper at :47" in frontend/src/hooks/useTopEventsQuery.test.tsx; pin :46 is the return, :47 the wrapper's closing `};`; authored-true at merge d7ea252a4 and 0e90e9bb0; mover e2d65dda3 removed `flagged: false,` at :29 (−1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | re-point to :46. Size S; backend                                                                                                                                           | pending ruling (batch 6) |
+| Q-189 | drift | backend/tests/unit/scripts/test_duration_budget_gate.py:1563,:1567,:1601                         | #6972 | addopts/timeout docstring cites `pyproject.toml:545`/`:546` (the assert f-string at :1601 repeats :546); pin :545/:546 are ruff's indent-style/skip-magic-trailing-comma — addopts sits :572, timeout :573; authored-true at 8279eb10d (r147), +22 below the boundary's edge (:567/:568 at d6344e031), +5 by 8c3c8a7f6 (B3.3) → :572/:573; not #6972's own content (its merge tree 0e90e9bb0 holds an earlier file revision)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | re-point the three cites to :572/:573 (or cite the keys without line numbers). Size S; backend                                                                             | pending ruling (batch 6) |
+| Q-190 | claim | backend/tests/unit/scripts/test_duration_budget_gate.py:2531                                     | #6972 | cap-per-tier failure message asserts "u5 is the longest unit breach (4.9 s)"; the pin's own fixture is `range(MAX_RERUNS + 2)` = u0..u6 with `4.4 + 0.1*i` — u6 = 5.0 s is longest; the assertion still passes (u5 is re-run), the stated reason is false; authored-true-then-moved-in-own-PR: 900237632 fixture u0..u5 (u5 4.9 longest) → 1b1c867c5 widened to +2 with the message unchanged; not #6972's own content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | update the message to name u6 (5.0 s), or compute the longest from the fixture so the reason survives the next widening. Size S; backend                                   | pending ruling (batch 6) |
+| Q-191 | claim | backend/tests/unit/scripts/test_duration_budget_gate.py:2882-2884                                | #6972 | slow-tier docstring claims "the list now holds 11 entries, not 7 … four later entrants (dated 2026-09-23 through 2026-10-13)"; the pin holds 9 entries (census mirror test_suppression_census.py:861 = 9) with three dated later entrants 10-06/10-11/10-18; provenance corrected: authored-true-against-main — 11/four at ef49d6df9 (main tip when written) and at the own merge e6839d5a7, rotted on main 2h09m later (68affa14c 11→9, de50e8772 9→8), re-grown by 3133470fb (8→9, settings row in, compose/enrichment rows out) — NOT born-stale-in-its-own-commit (the e97f84610 branch-tree count of 10/3 bound the wrong population; that commit's own message says "the count came back 11 on main and at that head"); not #6972's own content                                                                                                                                                                                                                                                                                                                                                                                                                                     | re-derive the sentence against the current list (9 entries, three later entrants 10-06/10-11/10-18), or point at the census mirror the file already keeps. Size S; backend | pending ruling (batch 6) |
+
+<details>
+<summary>Batch 6 evidence — low items (collapsed)</summary>
+
+### Q-175 · drift · scripts/test_workflow_paths.py:18 · #6926
+
+- Wrong: the module docstring cites `ci.yml:135` as where the wrapped-line-fragment example
+  (`.github/ai-parity-`) lives; pin ci.yml:135 is the compose-CLI comment and the ai-parity
+  comment sits at :196.
+- Evidence: pin test_workflow_paths.py:18 = `fragments (``.github/ai-parity-`` at ci.yml:135) and
+``${{ ... }}``-built`; pin ci.yml:135 = `        # "Docker Compose 2.38.2"), whose import-time
+check rejects the merge`; :196 = `      # WP9.1: cross-provider AI parity. The golden list
+(.github/ai-parity-`. Authored-true-then-moved: exact at the merge c551da30a; by e47a9de81's
+  Oct 11 tree :162; r162 merge dcba3bd13 →:194; 1029bc3af →:196 (+27/+32/+2). Verdict b6a_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point to ci.yml:196 or drop the line number. Size S; ops.
+- Owner: pending ruling (batch 6).
+
+### Q-176 · drift · scripts/test_workflow_paths.py:249-257 · #6926
+
+- Wrong: the MISSING_OK comment block cites five weekly-test-report.yml coordinates that all
+  moved: the shell guards `if [ -f reports/… ]` cited at :243/:247 (pin :256/:260), the
+  --json-report-file= steps cited at :85/:95 (pin :89/:100), the test-reports upload step cited
+  at :118-127 (pin :128-137, name at :131), download-artifact's `path: reports` cited at
+  :170-173 (pin :180-183), and the "blank at :236" that ended the classifier block (pin :236 is
+  `    steps:`).
+- Evidence: pin test :249-257 = `# Same generated-report family, named in weekly-test-report.yml's
+shell` / `# guards (``if [ -f reports/… ]`` at :243/:247). Invisible to the shipped` / … `#
+workflow's --json-report-file= steps (:85/:95) and uploaded as artifact` / `# test-reports
+(:118-127); the reports/-prefixed path the guards test is` / `# actions/download-artifact's
+``path: reports`` (:170-173). Exists only` / `# on the runner — git ls-files reports/ → 0
+entries.`. Pin yml: :256/:260 = the two guards; :89/:100 = the two --json-report-file= lines;
+  :127-137 = the upload step (`- name: Upload artifacts` at :127, `if: always()` at :128, `name:
+test-reports` at :131, `coverage/` at :137); :180-183 = the download step (uses :180, `name:
+test-reports` :182, `path: reports` :183); :236 = `    steps:`. Authored-true at b8022b94b
+  (guards :243/:247, flags :85/:95, upload :118-127 — name :117, `if: always()` :118, `coverage/`
+  :127 — download :170-173, :236 blank; verified in that blob; the block-opening line is absent
+  from parent dfd3b77be, present in b8022b94b). Ownership ruling (b6b_1.md): b8022b94b is a
+  merge-base ancestor of both merges (7b70d0a06 and c551da30a), sits in NEITHER first-parent
+  chain, and authors the block — it rides #6926's branch ("fix(ops): O1.4 review fixes"),
+  merged by c551da30a; the item files to #6926. Mover correction (coordinator parent-blob
+  check, overturning both refuters' mover lines): the growth is AUTHORED at ce9b1dac6
+  (#6963's own OB.2 branch commit, 2026-10-10 13:53) — its single parent 01dd1c27e carries
+  the old 326-line yml blob (04a7ee8c…) while ce9b1dac6's own tree carries the new
+  347-line blob (a85d813e…), so the commit itself performs the 326→347 change; by the
+  ancestry rule ce9b1dac6 is INSIDE the walkable window (ancestor of the pin, not of the
+  boundary commit — the 331341c3d side-branch pattern), and d6344e031 changed nothing in
+  the file (both its parents bf82aa0ca/1ee8d9ac5 already carry a85d813e…), so b6a's "mover:
+  d6344e031, the only commit touching the file" read the merge's combined diff (inherited
+  state), not authored change. ce9b1dac6 reached main's first-parent chain via a later
+  merge (bf82aa0ca, 2026-10-16). Blob md5 a85d813e… byte-stable from ce9b1dac6 through the
+  pin; 326-line blob 04a7ee8c… at b8022b94b/c551da30a. Upload-span ruling (b6b_1.md): the
+  authoring cite :118-127 spans `if: always()` through
+  `coverage/`, deliberately excluding the name line; the uniform +10 shift preserves both
+  endpoints' semantics at :128-137 (name at :131) — the sibling intake's :127-136 broke both
+  endpoints (started at the excluded name line, ended at `.coverage`, dropping `coverage/`).
+  Same defect independently raised by #6963's intake — one row. Verdicts b6a_1.md + b6b_1.md.
+- Refuted=false (NOT-REFUTED both passes; the span and ownership rulings carry).
+- Fix: re-point the five coordinates (:256/:260, :89/:100, :128-137, :180-183) and reword the :236 sentence to the pin's structure. Size S; ops.
+- Owner: pending ruling (batch 6).
+
+### Q-177 · drift · scripts/test_workflow_paths.py:380 · #6926
+
+- Wrong: the command-first rationale cites `ci.yml:2178` as where the `if [ -f coverage-merged/…
+]` guard sat when it hid from the gate; the sentence's "under the shipped head" makes it
+  historical but anchors no sha, so a pin reader greps :2178 and finds a blank line — the guard
+  is at :2434.
+- Evidence: pin test :380 = `                # (ci.yml:2178) hid from the gate under the shipped
+head —`; pin ci.yml:2178 = blank (between :2177 `uses: actions/checkout@…` and :2179
+  `- name: Set up Node.js`); :2434 = `          if [ -f coverage-merged/coverage-summary.json ];
+then`. Authored-true at the merge c551da30a (:2178 exact). Mover chain verified with the
+  guard's position at each step: e47a9de81 :2308 → 9861c5789 :2311 → fd39ab3ab :2324 → dcba3bd13
+  :2384 → d6344e031 :2417 → 1029bc3af :2434 — cumulative +256. Verdict b6a_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point to ci.yml:2434, drop the number, or sha-scope the historical cite. Size S; ops.
+- Owner: pending ruling (batch 6).
+
+### Q-178 · drift · scripts/test_shard_durations.py:255 · #6938
+
+- Wrong: the self-pin docstring says it "mirrors scripts/test_workflow_paths.py:884-893"; at the
+  pin that def+assert span sits at :883-:892 — the cited span starts one line into the docstring
+  and ends one line past the assert.
+- Evidence: pin test_shard_durations.py:255 = `    """5. Self-pin (mirrors
+scripts/test_workflow_paths.py:884-893): a gate that`; pin test_workflow_paths.py:883 =
+  `def test_gate_is_wired_into_ci() -> None:`, :892 = `    assert selfpin, "this gate must ride
+ci.yml's anti-rot list (exact-line pin)"`. Authored true at b2bdf5f81 (def :884, assert :893
+  there). Mover: d6344e031 deleted exactly one line above the span (the
+  `frontend/npm-audit-results.json` MISSING_OK entry then at :265 — visible as `265d264` in that
+  commit's diff), shifting the whole span −1. The docstring's mint figures are a dated
+  "2026-10-09 mint" reference (write-time-truth by design, correctly not an item). Verdict
+  b6a_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point to scripts/test_workflow_paths.py:883-892. Size S; ops.
+- Owner: pending ruling (batch 6).
+
+### Q-179 · bug · frontend/tests/e2e/global-setup.ts:28 · #6945
+
+- Wrong: globalSetup writes the shared storage-state file with its tour-suppression localStorage
+  keys under `origin: 'https://localhost:8444'`, but every E2E page runs at
+  `http://localhost:8444`. Playwright applies storageState localStorage per origin, so the keys
+  never reach a page: `shouldShowTour()` stays true on first navigation, ProductTour mounts
+  unconditionally and the Joyride overlay auto-opens — the exact pointer-blocking failure the
+  fixture comment documents.
+- Evidence: pin global-setup.ts:28 = `        origin: 'https://localhost:8444',`; :69 = `const
+E2E_BASE_URL = 'http://localhost:8444';`; :118 = the goto; vite.config.e2e.ts:28 = `    https:
+false,`; playwright.config.ts:144/:163 = `    baseURL: 'http://localhost:8444',` / the
+  storageState path; :119 = `globalSetup: goldenMode ? undefined :
+'./tests/e2e/global-setup.ts',`; tourSteps.ts:15/:20 the two key constants, :91-93
+  shouldShowTour(); App.tsx:361 `<ProductTour />` unconditional; ProductTour.tsx:230 = `
+run={shouldRun}` (:219-220 is the shouldRun definition feeding it — the intake's proof line
+  cited :220 for the attribute, micro-corrected); fixtures/index.ts:53-56 the overlay comment +
+  addInitScript seeding both keys; committed .auth/storage-state.json origin
+  `http://localhost:8444`. Empirically re-proven at the pinned Playwright 1.64.0
+  (package.json :88 `^1.64.0`): a storageState seeded under https://localhost:8444 delivers NO
+  localStorage keys to a page at http://localhost:8444, while the http→http control arm
+  delivers them; the repo's own unit test asserts first-time auto-open (ProductTour.test.tsx
+  :177-181). Born-stale: at a05684e85^1 the file was 53 lines with the https origin already at
+  :25, and the pre-PR playwright.config.ts already had the http baseURL and storageState path —
+  the PR added the http E2E_BASE_URL 41 lines below the contradiction it never reconciled.
+  Corrections folded (b6a_1.md): (A) exposure population swapped — the coordinator's
+  independent census over all 68 spec files (import-by-import, after the same -m1 classifier
+  trap the refuter warned about: verdict-engine-banner.spec.ts imports `test` from '../fixtures'
+  at :29 after an earlier `@playwright/test` import): 15 fixture-protected (alerts-workflow,
+  analytics-advanced, calibration, feedback, verdict-engine-banner, all ten user-journeys/*) and
+  53 raw (39 in specs/, 13 in visual/, 1 at the e2e root). (B) CI exposure ≈ zero — 38 of the
+  39 raw specs/ files carry `process.env.CI` self-skips (coordinator recount: 38 CIGUARD +
+  build-validation NOCIG); build-validation runs under playwright.config.build-validation.ts
+  (no globalSetup/storageState, no pointer interactions); the root spec matches no project
+  regex. Real exposure: local raw-spec runs + the nightly visual-chromium project (13 raw, 3
+  pointer-bearing — ai-audit :169 click, timeline :77 fill, responsive 1 match), which is
+  continue-on-error non-blocking and standing 97/108 failed with an element-not-found/screenshot
+  signature and zero "intercepts pointer events" strings — not tour-attributable from the log.
+  (C) golden-immunity mechanism wrong in a way that widens the defect: golden pages run at
+  FEATURE_CHECK_UI_URL (port 8080 — feature_check.py:2040 `self.ui = self._address("frontend",
+8080)`; config :57/:295/:307), so the committed http://localhost:8444 state would not apply
+  there either; golden's actual suppression is tests/golden/guard.ts:104-113 addInitScript —
+  the committed file is inert everywhere (globalSetup overwrites it on every e2e run). (D)
+  Severity medium→low on that blast radius. Fix prescription unchanged. Verdict b6a_1.md.
+- Refuted=false (NOT-REFUTED with corrections A-D; severity low).
+- Fix: write the storage state under the origin the specs run (derive from E2E_BASE_URL) or set both origins; optionally stop committing the inert artifact. Size M; frontend.
+- Owner: pending ruling (batch 6).
+
+### Q-180 · drift · scripts/test_reachability.py:453 · #6954
+
+- Wrong: the keep-edges test's docstring cites `fake/app.py:48-49` as where the keep'd fake app
+  imports operations and provider; at the pin those lines are `import hashlib` / `import json`
+  and the imports sit at :68-69.
+- Evidence: pin test :453 = `    backend/ai_contract/fake. fake/app.py:48-49 imports operations
+and`; pin fake/app.py:48 = `import hashlib`, :49 = `import json`; :68 = `from
+backend.ai_contract.operations import OPERATIONS`, :69 = `from
+backend.ai_contract.provider import operations_for_slot`. Authored true at bfc19db3b (the
+  commit that added the test — imports at :48-49 there). Pre-merge main-side drift with TWO
+  movers (the b6b refuter's fuller account, both verified in their blobs): ce26904d0 (2026-10-09,
+  O2.1 fake-engine work) moved the pair to :66-67, then 56b55ad6e (2026-10-09) to :68-69 —
+  ce26904d0 is an ancestor of the PR's merge 591d91eec (and of #6973's 01fc58984) but NOT an
+  ancestor of the authoring commit bfc19db3b, so the cite was already stale at its own merge,
+  before any post-merge drift. Same defect independently raised by #6973's intake — one row.
+  Verdicts b6a_1.md + b6b_1.md.
+- Refuted=false (NOT-REFUTED both passes).
+- Fix: re-point to fake/app.py:68-69. Size S; ops.
+- Owner: pending ruling (batch 6).
+
+### Q-181 · drift · frontend/src/**tests**/api-endpoint-contract-known-missing.json:23 (+:30+:37+:87+:95 +:90 prose) · #6956
+
+- Wrong: five of the eleven entries carry calledFrom pointers into src/services/api.ts that no
+  longer name the call site, and the prompts entry's `next` prose repeats two more as sibling
+  references — every one re-pointed by the same blind −29 while the true drift ran −169, so
+  each lands 100-140 lines past its target on unrelated code.
+- Evidence: pin json :23 = `      "calledFrom": "src/services/api.ts:5859",` (+ :30/:37/:87/:95
+  the other four). Pin api.ts truth: :5859 = `      sceneChangeId: number` (true entity-matches
+  call at :5719), :7633 = `  /**` (true profile/download at :7504), :7569 = the pipeline-errors
+  fetch (true bare /api/debug/profile at :7440), :5597 = `  return
+fetchApi<EntityListResponse>(endpoint, options);` (true fetchModelHistory call at :5457),
+  :7384 = `    started_at: string | null;` (true clearAllRecordings DELETE at :7244); prose
+  siblings :5571 (true fetchAllPromptsHistory def :5431) and :5608 (true restorePromptVersion
+  def :5468). True at the PR's own merge 4f5d7d06c (entity-matches :5888, profile/download
+  :7662, bare profile :7598, fetchModelHistory :5626, fetchAllPromptsHistory :5600,
+  restorePromptVersion :5637, clearAllRecordings :7413 — verified in the merge blob). Then
+  three retirements deleted lines above the sites without re-pointing — numstat re-read by the
+  coordinator: 834d51097 −60, 6b691302d −81, e2d65dda3 −2 (total −143) — and 516cffc98
+  re-pointed every cite by exactly its own api.ts deletion (−29: 5888→5859, 7662→7633,
+  7598→7569, 5626→5597, 5600→5571, 5637→5608, 7413→7384), leaving each 100-140 short in its own
+  tree. Attribution nuance (b6a_1.md): 834d51097's OWN deletion is −60, not the intake's −57 —
+  the site's net movement merge→834d51097 was −57 because +3 lines were added above it in
+  between; net merge→pin −169 = −143 − 29 + 3. api.ts blob identical 516cffc98→pin. Gate
+  unaffected (entryIsLive matches by path, lib :1019-1026). Verdict b6a_1.md.
+- Refuted=false (NOT-REFUTED with the attribution nuance).
+- Fix: re-point the seven coordinates to :5719/:7504/:7440/:5457/:5431/:5468/:7244 or drop the line numbers. Size M; frontend.
+- Owner: pending ruling (batch 6).
+
+### Q-182 · drift · frontend/src/**tests**/api-contract-lib.test.ts:464-465 · #6962
+
+- Wrong: the opaque-verb-collision test's comment cites `fetchEntities` at `api.ts:5766` and
+  `fetchTrackedEntities` at `:6400`; at the pin api.ts:5766 is a docstring line inside
+  `EnrichedSuggestion` and :6400 is the closing `*/` of `fetchCalibrationDefaults`'s docstring.
+  The pass-through call sites the comment means sit at api.ts:5597 (def :5578) and :6231 (def
+  :6207).
+- Evidence: pin test :464-465 = `// silence: measured on the real tree, `fetchEntities`
+(api.ts:5766) was` / `// hidden exactly this way by `fetchTrackedEntities` (:6400). Unknown
+verbs`. Pin api.ts:5766 = `   * - missing_context: Context that should be added to the
+prompt`; :6400 = ` */`; :5597 = `  return fetchApi<EntityListResponse>(endpoint, options);`;
+  :6231 = `  return fetchApi<EntityListResponse>(endpoint);`. Authored-true at the PR's own
+  merge 28770b3d8 (:5766/:6400 = the two pass-through returns there — #6962's own edit
+  re-pointed them 5773→5766/6407→6400). Mover chain fully window-namable (b6b_1.md): 28770b3d8
+  :5766/:6400 → d6344e031 :5769/:6403 → 834d51097 :5709/:6343 → 6b691302d :5628/:6262 →
+  e2d65dda3 :5626/:6260 → 516cffc98 :5597/:6231 → pin :5597/:6231. Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point to api.ts:5597 and :6231 (or name the functions without line numbers). Size S; frontend.
+- Owner: pending ruling (batch 6).
+
+### Q-183 · claim · frontend/src/**tests**/api-contract-lib.test.ts:720-721 · #6962
+
+- Wrong: the gapIsClosed motivation comment claims "11 of the 15 live entries say `next: the
+backend should add this route`". Two defects: (a) the quoted payload text NEVER existed —
+  `next` values are never the quoted form at any readable tree (the birth-tree values read
+  "F2.2 inventory row for …"; the pin's read a feature-inventory F-pointer, an `owner: …`
+  assignment, or a `one-word client fix …` prescription, matching the JSON's own $comment);
+  (b) at the pin there
+  are no longer 15 live entries — the list holds 11, of which 7 describe an absent route.
+- Evidence: pin test :720-721 = `// The direction this whole check was missing: 11 of the 15
+live entries say` / `// "next: the backend should add this route". When that lands, the call
+site is`. Pin JSON = 11 entries (coordinator: `grep -c '"path"'` = 11); route-absence subgroup
+  = 7 (entity-matches, profile/download, profile, household detections + {detectionId},
+  trust-violations + acknowledge); `grep -c 'add this route'` = 0 at the pin and (coordinator
+  grep) at the JSON's birth 51d3bd685 (15 entries), beb8be131 (15), and the merge tree
+  28770b3d8 (15) — the refuter's "every next reads F2.2 inventory row" paraphrase is
+  birth-tree-true but pin-false (the pin's `next` forms are F-pointer/owner/client-fix); the
+  load-bearing fact at every tree is that the quoted text never existed. The 15-entry/11-route-absence split was write-time-true and rotted by
+  retirement (3d8418fec retired the three detector entries per F-244, 6b691302d retired
+  /api/jobs/{id}/retry per F-095). Mechanism: mixed — count authored-true-then-moved; quote
+  fabricated-at-authoring (never existed). Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: drop the quote and re-derive the sentence ("7 of the 11 live entries describe an absent route") or name gap shapes without counts. Size S; frontend.
+- Owner: pending ruling (batch 6).
+
+### Q-184 · drift · scripts/test_workflow_draft_guards.py:48 · #6963
+
+- Wrong: the EXEMPT comment cites `test_check_gate_reachability.py:121` for the `assert … ==
+"always()"`; at the pin that assert sits at :122 (:121 is the preceding prose comment line).
+- Evidence: pin test :48 = `   # Pinned to`always()` by test_check_gate_reachability.py:121,
+and it must`; pin test_check_gate_reachability.py:121 = `        # would skip and the required
+context would report nothing at all.`, :122 = `        assert self.jobs["ci-gate"].get("if")
+== "always()"`. Authored-true at the merge 7b70d0a06 (assert at :121 there). Mover 331341c3d
+  added `import shlex` at :25 (+1) — boundary classification by ancestry, not date: 331341c3d
+  (Oct 12) is an ancestor of the pin but NOT of the boundary commit, so it is inside the
+  walkable window despite its pre-boundary date. Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point to :122. Size S; ops.
+- Owner: pending ruling (batch 6).
+
+### Q-185 · drift · scripts/test_check_coverage_diff.py:67 · #6971
+
+- Wrong: the synthetic_root docstring cites `check-test-coverage-gate.py:164` for
+  `find_test_file()`'s `Path(__file__).parent.parent` derivation; at the pin :164 is the
+  docstring's closing `"""` and the derivation sits at :165.
+- Evidence: pin test :67 = `    (check-test-coverage-gate.py:164), so pointing the LOADED
+module's`; pin gate :164 = `    """`, :165 = `    project_root = Path(__file__).parent.parent`.
+  Authored-true at 86131c638, 3e9423640, and 591d91eec (gate :164 = the derivation at all
+  three). Mover: the PR's own merge d7ea252a4 inserted `import signal` at the gate's :17 (+1) —
+  authored-true-then-moved-in-own-PR. Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point to :165. Size S; ops.
+- Owner: pending ruling (batch 6).
+
+### Q-186 · drift · scripts/test_check_coverage_diff.py:517 · #6971
+
+- Wrong: the same file's inline-path comment cites `check-test-coverage-gate.py:475` for the
+  gate's own-`__file__` coverage-report derivation; at the pin :475 is `base_branch: str =
+"origin/main",` and the derivation sits at :536 with the `_read_percent(project_root /
+"coverage.json")` use at :629.
+- Evidence: pin test :517 = `   derives from its own`**file**` (check-test-coverage-gate.py:475
+->`; pin gate :475 = `    base_branch: str = "origin/main",`, :536 = `            project_root
+= Path(__file__).resolve().parent.parent`, :629 = `            current_percent =
+_read_percent(project_root / "coverage.json")`. Authored-true at 3e9423640 (:475 = the
+  derivation). Mover: the PR's own d7ea252a4 inserted the ~60-line COLLECT_TIMEOUT block (same
+  commit as Q-185's mover). Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point to :536 (and/or :629 for the read site). Size S; ops.
+- Owner: pending ruling (batch 6).
+
+### Q-187 · drift · backend/tests/unit/scripts/test_check_test_coverage_gate.py:8 (+:81) · #6971
+
+- Wrong: the module docstring and the assert message both cite `ci.yml:675,797` for the shard
+  jobs' `--reruns 2 --reruns-delay 5` convention; at the pin ci.yml:675 is `      - name: Set up
+uv` and :797 is `    services:`. The rerun flags sit at ci.yml:1287, :1432, :1556.
+- Evidence: pin test :8 = `jobs which carry --reruns 2 --reruns-delay 5, ci.yml:675,797).`; :81 =
+  `"inline collection must carry --reruns like the shard jobs "` / `"(ci.yml:675,797): three gate
+reds on #6560 were pytest-timeout "`. Pin ci.yml:675/:797 as quoted; :1287/:1432/:1556 = `
+--reruns 2 --reruns-delay 5 || true` (coordinator re-read: all three). Provenance
+  corrected (b6b_1.md, coordinator-verified): at the authoring commit 659a83f68 (2026-09-19) the
+  three flag sites sit at :676/:797/:910 — :675 is the `uv run pytest backend/tests/integration/
+-k "$RERUNS" -n0 --timeout=30 \` continuation line immediately above the first flag site, so
+  the cite's FIRST number was already 1-off at authoring (pointing at the same command, one line
+  high) while :797 was exact. Mechanism: authored-1-off-at-first-number, then drifted — already
+  stale at the PR's own merge d7ea252a4 (flags at :1116/:1244/:1365 there, verified), further
+  drift below/at the boundary, :1287/:1432/:1556 at pin. Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED with the provenance correction).
+- Fix: re-point both cites to the three rerun sites, or drop numbers ("the shard jobs' rerun flags" is unambiguous). Size S; backend.
+- Owner: pending ruling (batch 6).
+
+### Q-188 · drift · backend/tests/unit/scripts/test_check_test_coverage_gate.py:452 · #6971
+
+- Wrong: the docstring cites "a JSX `<QueryClientProvider>` wrapper at :47" in
+  frontend/src/hooks/useTopEventsQuery.test.tsx; at the pin the `return <QueryClientProvider …>`
+  line is :46 and :47 is the wrapper's closing `};`.
+- Evidence: pin test :452 = `   wrapper at :47 makes`.ts` genuinely invalid, so the extension
+is not a`; pin useTopEventsQuery.test.tsx :46 = `    return <QueryClientProvider
+client={queryClient}>{children}</QueryClientProvider>;`, :47 = `  };`. Authored-true at both
+  the PR's merge d7ea252a4 and 0e90e9bb0 (:47 = the return at both). Mover e2d65dda3
+  (2026-10-18) removed `flagged: false,` at :29 (−1), shifting the return to :46 — e2d65dda3
+  verified ancestor of the pin, not of the boundary commit. Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point to :46. Size S; backend.
+- Owner: pending ruling (batch 6).
+
+### Q-189 · drift · backend/tests/unit/scripts/test_duration_budget_gate.py:1563,:1567,:1601 · #6972
+
+- Wrong: the addopts/timeout docstring cites `pyproject.toml:545` for the addopts line and
+  `pyproject.toml:546` for `timeout = 5` (docstring at :1563/:1567, repeated in an assert
+  f-string at :1601); at the pin those settings sit at :572/:573 — :545/:546 are ruff's
+  `indent-style = "space"` / `skip-magic-trailing-comma = false`.
+- Evidence: pin test :1563 = `    (``pyproject.toml:545``) carries ``-n 8 --dist=worksteal``;
+inheriting that`, :1567 = `    (``pyproject.toml:546``, not inside ``addopts``); inherited,
+pytest-timeout`, :1601 = `        f"(pyproject.toml:546), not part of addopts: {argv}"`. Pin
+  pyproject.toml :545/:546 as quoted; :572 = `addopts = "-n 8 --dist=worksteal -v
+--strict-markers --tb=short -p randomly -m 'not gpu'"`, :573 = `timeout = 5`. Authored-true at
+  8279eb10d (r147, 2026-10-12: addopts :545, timeout :546); :567/:568 at the boundary
+  d6344e031 (+22 below/at the boundary window's edge); 8c3c8a7f6 (2026-10-18, B3.3) added +5 at
+  :514, landing the pair at :572/:573. Not #6972's own content — its merge tree's file revision
+  predates the docstring. Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: re-point the three cites to :572/:573 (or cite the keys without line numbers). Size S; backend.
+- Owner: pending ruling (batch 6).
+
+### Q-190 · claim · backend/tests/unit/scripts/test_duration_budget_gate.py:2531 · #6972
+
+- Wrong: the cap-per-tier test's failure message asserts "u5 is the longest unit breach (4.9 s)
+  and must be re-run first"; in the pin's own fixture the unit corpus is `range(MAX_RERUNS + 2)`
+  = u0..u6 with durations `4.4 + 0.1*i`, so u6 = 5.0 s is the longest — u5 (4.9 s) is not. The
+  assertion itself still passes (u5 is re-run); its stated reason is false.
+- Evidence: pin test :2476-2477 = `        (f"backend.tests.unit.tiershard.test_u{i}",
+f"test_u{i}_slow", 4.4 + 0.1 * i)` / `        for i in range(MAX_RERUNS + 2)`; :2530-2531 =
+  `    assert "test_u5_slow" in unit_names, (` / `        f"u5 is the longest unit breach (4.9
+s) and must be re-run first; saw {unit_names}"`; MAX_RERUNS = 5 in
+  scripts/check-test-duration-budget.py:223 (coordinator re-read). Authored-true at 900237632
+  (r151's first commit, 2026-10-13 16:14: fixture `range(MAX_RERUNS + 1)` = u0..u5, u5 = 4.9 =
+  longest); first false at 1b1c867c5 (r151's later commit, 2026-10-13 23:51: widened to +2,
+  message unchanged) — authored-true-then-moved-in-own-PR, born stale at the widening commit,
+  which is how the pin carries it. Not #6972's own content. Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED; no corrections).
+- Fix: update the message to name u6 (5.0 s), or compute the longest from the fixture so the reason survives the next widening. Size S; backend.
+- Owner: pending ruling (batch 6).
+
+### Q-191 · claim · backend/tests/unit/scripts/test_duration_budget_gate.py:2882-2884 · #6972
+
+- Wrong: the slow-tier docstring claims "the list now holds 11 entries, not 7 … the four later
+  entrants (dated 2026-09-23 through 2026-10-13) each bring a single-run measured breach". At
+  the pin SLOW_TEST_PATTERNS holds 9 entries (matching the census mirror
+  `test_suppression_census.py:861` = 9) and the dated later entrants are three, dated
+  2026-10-06 / 2026-10-11 / 2026-10-18.
+- Evidence: pin test :2882-2884 = `    quoting the comment: the list now holds 11 entries, not
+7, and the 18-dataset` / `    WP1.3 cohort is only its first seven — the four later entrants
+(dated` / `    2026-09-23 through 2026-10-13) each bring a single-run measured breach`. The
+  list lives at scripts/audit-test-durations.py:42 (coordinator located it there after the
+  tuple-shaped grep came up empty — the entries are raw-string literals); entry counts re-counted
+  by the coordinator at each chain tree: ef49d6df9 = 11, e6839d5a7 = 11, 68affa14c = 9,
+  de50e8772 = 8, 3133470fb = 9, pin = 9 (r-string lines inside the list span); pin's dated
+  entrant comments: 2026-09-20 (founding cohort), 10-06, 10-11, 10-18. Provenance corrected
+  (b6b_1.md, coordinator-confirmed): the intake's born-stale-in-its-own-commit bound
+  e97f84610's BRANCH tree (10 entries / three dated there), but the docstring sentence describes
+  MAIN — e97f84610's own commit message says "the count came back 11 on main and at that head".
+  On main: authored-true at ef49d6df9 (the #7093 merge, main tip when the docstring was written,
+  2026-10-13 21:55) with 11 entries / four dated entrants 09-23/10-06/10-11/10-13, and still
+  true at its own merge to main e6839d5a7 (#7084, 2026-10-14 04:19); rotted 2h09m later —
+  68affa14c (2026-10-14 06:28) dropped two dead rows 11→9 (the 09-23 dated row among them),
+  de50e8772 (2026-10-14 08:26, r174) removed the retracted compose-render row 9→8 — then
+  re-grown by 3133470fb (2026-10-18, B3.3) 8→9 with different composition (settings row in;
+  compose and enrichment rows out), the census mirror raised 8→9 in c97591f3d. Mechanism:
+  authored-true-against-main / rotted-on-main / re-grown-with-different-composition — NOT
+  born-stale-in-its-own-commit. Not #6972's own content. Verdict b6b_1.md.
+- Refuted=false (NOT-REFUTED with the provenance correction).
+- Fix: re-derive the sentence against the current list (9 entries, three later entrants 10-06/10-11/10-18), or point at the census mirror the file already keeps. Size S; backend.
+- Owner: pending ruling (batch 6).
+
+</details>
+
+## Batch 6 — process notes
+
+- Refutation-pass note (owner P2 item 2, continuing): every refuter verdict was self-verified
+  at the pin with the coordinator's own git commands before entering the sheet — all 19 items'
+  pin coordinates re-read directly before any row was written. Three coordinator checks
+  OVERRODE refuter lines, each recorded in its row: the weekly-test-report.yml mover is
+  ce9b1dac6, not d6344e031 (parent-blob check: ce9b1dac6's single parent carries the old
+  326-line blob while its own tree carries the 347-line blob; both d6344e031 parents already
+  carry the new one — b6a read the merge's combined diff, which shows inherited state; b6b's
+  "below the shallow boundary" label is also off, ce9b1dac6 is in-window by the ancestry
+  rule); Q-183's `next`-value paraphrase ("every next reads F2.2 inventory row") is
+  birth-tree-true but pin-false (pin forms are F-pointer/owner/one-word-client-fix); the b6b
+  tally line's "8 drift + 4 claim" miscounts its own item headers (9 drift + 3 claim —
+  headers govern, giving the batch total 13 drift + 3 claim + 1 bug after dedups).
+- Refuter-per-PR corrections folded, unchanged from the verdict files: 6945's four (exposure
+  census 15/53, CI ≈ zero, golden-immunity mechanism, medium→low); 6926_c2's insertion-count
+  nuance (21 overall / 13 above the guards); 6956's attribution nuance (834d51097's own
+  deletion −60, −57 is the site's net movement, net merge→pin −169); 6971_c3's
+  authored-1-off-at-first-number correction; 6972_c3's authored-true-against-main correction
+  (the sheet must not carry born-stale-in-its-own-commit for it).
+- The b6b intake header carried a transposed pin sha (`41bc0fce7f85...` — does not resolve;
+  the b6a header was clean). Both refuter prompts carried the warning; every measurement used
+  the full pin. Recorded here so a future reader of the intake files does not inherit the
+  typo (same note as batch 5's b5b intake).
+- Concurrency: the cap held throughout batch 6 (two intake auditors at peak under the cap
+  while batch-5 assembly finished; two refuters at peak, sequential otherwise).
+- Shallow-graft hazard governed the batch as before: full hashes and blob reads throughout,
+  pickaxe confined to d6344e031..41bc0fce71. The ce9b1dac6 finding is the boundary rule
+  working as designed: ancestry, not date, decides window membership, and a merge's combined
+  diff is not evidence of what the merge authored.
+- Class tallies: 13 drift + 3 claim + 1 bug, all severity low (Q-179's bug was corrected
+  medium→low by the refuter's exposure re-census). Both intakes' per-item class headers
+  agree with the verdicts' L5 confirmations; only the b6b summary tally line miscounts.
