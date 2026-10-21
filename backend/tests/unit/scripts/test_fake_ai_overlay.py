@@ -21,7 +21,10 @@ commands and output on the PR; the in-process halves are pinned in
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -129,7 +132,7 @@ class TestOneImageTwoServices:
 
         for name in FAKES:
             assert depends[name] == {"condition": "service_healthy"}
-            assert overlay["services"][name]["healthcheck"]["test"][0] == "CMD"
+            assert overlay["services"][name]["healthcheck"]["test"][0] == "CMD-SHELL"
 
     def test_the_fakes_keep_the_ci_stacks_hardening(self, overlay: dict) -> None:
         for name in FAKES:
@@ -181,3 +184,62 @@ class TestTheImage:
         assert re.search(
             r"^COPY .*backend/ /app/backend/$", DOCKERFILE.read_text(encoding="utf-8"), re.MULTILINE
         )
+
+    def test_it_carries_this_checkouts_model_manifest(self) -> None:
+        """The fake imports THIS checkout's backend code, so it must also serve
+        THIS checkout's models.yml.
+
+        The base image (BACKEND_IMAGE) ships /app/models.yml from whichever
+        checkout built it; the fake replaces /app/backend wholesale but never
+        replaced the manifest beside it. backend.core.config reads the manifest
+        at import time (``Path(__file__).parents[2] / "models.yml"``), so a
+        checkout whose backend code moved a row the base image's manifest does
+        not carry answers its own import with the base's stale model identity --
+        the fake the run witnesses is not the fake under review.
+        """
+        text = DOCKERFILE.read_text(encoding="utf-8")
+
+        assert re.search(
+            r"^COPY --chown=appuser:appuser models\.yml /app/models\.yml$",
+            text,
+            re.MULTILINE,
+        ), "the fake image must copy the checkout's models.yml over the base image's"
+
+
+@pytest.mark.parametrize("service", FAKES)
+@pytest.mark.parametrize("status,expected_exit", [(200, 0), (503, 1)])
+def test_shell_healthcheck_preserves_python_argument_and_http_assertion(
+    overlay: dict, tmp_path: Path, service: str, status: int, expected_exit: int
+) -> None:
+    """The healthcheck must survive a shell word-split, and keep its assertion.
+
+    A CMD exec-form healthcheck passes every argv element to the process
+    verbatim, but a rootless-engine runner (the maui venue's) may join or
+    re-split the program differently. The shell form is the form every engine
+    agrees on -- but a shell word-splits the program text, so the test must
+    exercise the actual command: a word-split Python program fails even for
+    HTTP 200, and a weakened assertion would pass HTTP 503. Both are pinned
+    here by running the overlay's own test string under /bin/sh.
+    """
+    (tmp_path / "httpx.py").write_text(
+        "import os\n"
+        "from types import SimpleNamespace\n"
+        "def get(url):\n"
+        f"    assert url == 'http://localhost:{_port(overlay['services'][service])}/health'\n"
+        "    return SimpleNamespace(status_code=int(os.environ['PROBE_STATUS']))\n"
+    )
+    env = {
+        **os.environ,
+        "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ.get("PATH", ""),
+        "PYTHONPATH": str(tmp_path),
+        "PROBE_STATUS": str(status),
+    }
+    result = subprocess.run(  # noqa: S603 # real - the word-split under a real shell IS the test
+        ["/bin/sh", "-c", overlay["services"][service]["healthcheck"]["test"][1]],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == expected_exit, result.stderr

@@ -2408,7 +2408,8 @@ jobs:
       # trusted — no npm ci needed for either.
       #
       # WP2.3 (R-1 + R-7): the four floors are now the MEASURED values
-      # (80 / 74.6 / 78.4 / 80.9, run 35486259345) and this step ENFORCES
+      # (run 35486259345's merged totals, re-pinned to run 39161827871's by
+      # owner ruling 261 — one-off) and this step ENFORCES
       # them — R-FEFLOOR's "reported only" posture is retired now that the
       # baseline is the measurement instead of an aspirational 83/77/81/84
       # that never held. The guard is the same defect class WP2.3 fixes in
@@ -2435,7 +2436,7 @@ jobs:
           if [ -f coverage-merged/coverage-summary.json ]; then
             node -e '
               const s = require("./coverage-merged/coverage-summary.json").total;
-              const line = `Frontend merged coverage — statements ${s.statements.pct}% (floor 80), branches ${s.branches.pct}% (floor 74.6), functions ${s.functions.pct}% (floor 78.4), lines ${s.lines.pct}% (floor 80.9). Enforced by the merge step when all shards pass (WP2.3).`;
+              const line = `Frontend merged coverage — statements ${s.statements.pct}% (floor 79.5), branches ${s.branches.pct}% (floor 74.3), functions ${s.functions.pct}% (floor 77.2), lines ${s.lines.pct}% (floor 80.5). Enforced by the merge step when all shards pass (WP2.3, ruling 261 — floors are the measured values rounded down).`;
               console.log(line);
               require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, line + "\n");
             '

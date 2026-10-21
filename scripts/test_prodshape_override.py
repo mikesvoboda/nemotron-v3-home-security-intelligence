@@ -134,14 +134,14 @@ SOCKET_SENTINEL = ENV["PODMAN_SOCKET"]
 # The complement form (not under RUN_ROOT) cannot miss a path nobody thought to list.
 
 
-def _compose(files: list[Path], profiles: tuple[str, ...] = ()) -> dict:
+def _compose(files: list[Path], profiles: tuple[str, ...] = (), *, env: dict | None = None) -> dict:
     cmd = ["docker", "compose", "-p", "prodshape-audit", "--project-directory", str(REPO)]
     for pf in profiles:
         cmd += ["--profile", pf]
     for f in files:
         cmd += ["-f", str(f)]
     cmd += ["config", "--format", "json"]
-    p = subprocess.run(cmd, cwd=REPO, env=_clean_env(), capture_output=True, text=True)
+    p = subprocess.run(cmd, cwd=REPO, env=env if env is not None else _clean_env(), capture_output=True, text=True)
     if p.returncode != 0:
         # Loud, never a silent green: this leg is only worth anything if the oracle ran.
         pytest.fail(
@@ -1112,3 +1112,69 @@ def test_an_uncovered_new_writable_bind_is_caught(prod_services, merged_services
         "the key-level guard now DISAGREES with itself on the tampered pair, so it is no longer "
         "blind here -- re-check whether this companion test is still needed"
     )
+
+
+def test_the_venue_model_binds_follow_ai_models_path_with_prods_default(
+    prod_services, merged_services
+):
+    """O2.5 venue fix (ruling 287 item 2, from the maui handoff): the override's
+    read-only model-zoo/quantized binds must keep prod's ${AI_MODELS_PATH:-...}
+    interpolation, not hard-code /export/ai_models.
+
+    prod interpolates that variable on the same four mounts (backend's
+    model-zoo, ai-gateway's zoo/quantized and, with the profile leg, dcgm's);
+    the maui venue's model tree lives elsewhere, and its only levers are the
+    env file keys prod_shape_env admits (AI_MODELS_PATH among them). An
+    override that hard-codes prod's path leaves the venue no way to point the
+    read-only binds at its own tree without editing the file -- and editing a
+    frozen, hand-authored artifact is what ruling 162 item 3 forbids.
+
+    Two-sided: the env the fixtures render with is scrubbed of AI_MODELS_PATH
+    (_clean_env), so these renders carry only the interpolation DEFAULT --
+    asserting the default survives proves the fix changed nothing for a venue
+    that sets nothing. The override value then proves the lever actually moves
+    the bind. The scrub test above already pins that a HOST AI_MODELS_PATH can
+    never leak into these renders.
+    """
+    # Default leg: with AI_MODELS_PATH scrubbed, the merged bind source must equal
+    # prod's rendered source, for every model mount prod carries.
+    model_targets = {"ai-gateway": ("/models/zoo", "/models/quantized"), "backend": ("/models/model-zoo",)}
+    for n, targets in model_targets.items():
+        prod_src = {
+            str(v["target"]): str(v["source"])
+            for v in prod_services[n].get("volumes", [])
+            if str(v["target"]) in targets
+        }
+        merged_src = {
+            str(v["target"]): str(v["source"])
+            for v in merged_services[n].get("volumes", [])
+            if str(v["target"]) in targets
+        }
+        assert set(prod_src) == set(targets), f"{n}: prod lost a model mount: {sorted(prod_src)}"
+        assert prod_src == merged_src, (
+            f"{n}: the override's model binds diverge from prod's rendered source "
+            f"(default must be identical): {prod_src} != {merged_src}"
+        )
+    # Override leg: the venue's lever moves every one of those binds, and nothing
+    # else on the service. Rendered with the variable set, `${AI_MODELS_PATH:-...}`
+    # resolves to the venue value on BOTH files -- so what this leg actually pins is
+    # that the OVERRIDE no longer hard-codes the path it restates.
+    env = _clean_env(AI_MODELS_PATH="/venue/models")
+    venue_merged = _compose([PROD, OVERRIDE], env=env)
+    venue_prod = _compose([PROD], env=env)
+    for n, targets in model_targets.items():
+        for v in venue_merged[n].get("volumes", []):
+            if str(v.get("type")) == "bind" and str(v["target"]) in targets:
+                assert str(v["source"]).startswith("/venue/models/"), (
+                    f"{n}: {v['target']} still hard-codes the model path: {v['source']}"
+                )
+        # and the venue render stays prod-shaped: same targets, same read-only flag
+        for target in targets:
+            prod_v = next(
+                v for v in venue_prod[n]["volumes"] if str(v.get("target")) == target
+            )
+            merged_v = next(
+                v for v in venue_merged[n]["volumes"] if str(v.get("target")) == target
+            )
+            assert merged_v["read_only"] == prod_v["read_only"], target
+            assert merged_v["target"] == prod_v["target"], target

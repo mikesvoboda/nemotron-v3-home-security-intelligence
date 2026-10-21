@@ -88,10 +88,10 @@ See [Coverage Requirements](coverage-requirements.md) for the full model.
 | Backend PR diff gate     | 85 (relative baseline, ruling A7.1) | Diff gate on merged shard data, 0.5pp noise band         |
 | Backend Unit tier        | 84                                  | CI merge step, only when the tier fully passed           |
 | Backend Integration tier | 37                                  | CI merge step, only when the tier fully passed           |
-| Frontend Statements      | 80                                  | `merge-shard-coverage.mjs --enforce` (all shards passed) |
-| Frontend Branches        | 74.6                                | same                                                     |
-| Frontend Functions       | 78.4                                | same                                                     |
-| Frontend Lines           | 80.9                                | same                                                     |
+| Frontend Statements      | 79.5                                | `merge-shard-coverage.mjs --enforce` (all shards passed) |
+| Frontend Branches        | 74.3                                | same                                                     |
+| Frontend Functions       | 77.2                                | same                                                     |
+| Frontend Lines           | 80.5                                | same                                                     |
 
 ### Key Configuration Files
 

@@ -273,17 +273,15 @@ export default defineConfig(({ mode }) => {
       sourcemap: 'hidden',
       // Chunk size warning limit (in KB)
       chunkSizeWarningLimit: 500,
-      // Module preloading configuration (NEM-3387)
-      // Polyfill ensures modulepreload works in older browsers
-      // resolveDependencies enables selective preloading of critical chunks
+      // Module preloading configuration (NEM-3387; filter removed by F3.2).
+      // The `resolveDependencies` filter here kept only chunks whose name
+      // contains 'vendor-react' or 'vendor-ui'. NEM-3384 disabled manual chunk
+      // splitting (`manualChunks` below is commented out), so no chunk carries
+      // those names: the filter matched nothing and suppressed every preload
+      // hint. With the filter gone Vite uses its default (preload the current
+      // chunk's dependencies), which is what the polyfill is there to serve.
       modulePreload: {
         polyfill: true,
-        resolveDependencies: (filename, deps) => {
-          // Preload critical vendor chunks when main bundle loads
-          // This improves perceived performance by loading dependencies early
-          const criticalChunks = ['vendor-react', 'vendor-ui'];
-          return deps.filter((dep) => criticalChunks.some((chunk) => dep.includes(chunk)));
-        },
       },
       // CSS Minification (NEM-3388): Using esbuild (default) for Tailwind compatibility
       // Note: lightningcss is incompatible with Tailwind's @apply/@tailwind directives
@@ -357,6 +355,10 @@ export default defineConfig(({ mode }) => {
       // found" reproduced alone at 07:16 idle-box). Zero tests exist to run —
       // quarantine-as-config is the honest placeholder; writing the missing
       // suites is M2 test-repair work.
+      // F3.2 (2026-10-18, quarantine 16->13): ReidHistoryPanel, SystemHealthIndicator
+      // and ZoneTimelineScrubber are gone — their components were unreachable, so
+      // the entry named a file no longer on disk. The 13 left are the original R-T7
+      // set; F3.3 owns emptying this list.
       exclude: [
         ...configDefaults.exclude,
         'tests/e2e/**',
@@ -366,7 +368,6 @@ export default defineConfig(({ mode }) => {
         'src/components/events/EventTimeline.test.tsx',
         'src/components/alerts/AlertsPage.test.tsx',
         'src/components/events/EventCard.test.tsx',
-        'src/components/entities/ReidHistoryPanel.test.tsx',
         'src/components/system/WorkerManagementPanel.test.tsx',
         'src/__tests__/auth-flow.test.tsx',
         'src/components/pyroscope/PyroscopePage.test.tsx',
@@ -376,8 +377,6 @@ export default defineConfig(({ mode }) => {
         'src/hooks/__tests__/useHouseholdApi.test.ts',
         'src/hooks/__tests__/useSettingsApi.test.tsx',
         'src/components/events/TimeGroupedEvents.simple.test.tsx',
-        'src/components/system/SystemHealthIndicator.test.tsx',
-        'src/components/zones/ZoneTimelineScrubber.test.tsx',
       ],
       // Fork-based parallelization for better memory isolation (each fork is separate process)
       // Threads share memory which can cause accumulation issues during cleanup
@@ -424,16 +423,32 @@ export default defineConfig(({ mode }) => {
         ],
         thresholds: {
           // WP2.3 (R-1): floors AT the measured values, not the declared
-          // wish-values. 83/77/81/84 sat above every observed run (merged
-          // 80.0/74.6/78.4/80.9, run 35486259345, 2026-09-20), so they were
-          // unenforceable by construction — the CI step said "R-FEFLOOR: not
-          // enforced". A floor that has never held is not a floor. These
-          // numbers are mirrored by merge-shard-coverage.mjs's FLOORS, which
-          // CI enforces on the merged shard data (node test pins the two).
-          statements: 80,
-          branches: 74.6,
-          functions: 78.4,
-          lines: 80.9,
+          // wish-values. 83/77/81/84 sat above every observed run, so they
+          // were unenforceable by construction — the CI step said
+          // "R-FEFLOOR: not enforced". A floor that has never held is not a
+          // floor. These numbers are mirrored by merge-shard-coverage.mjs's
+          // FLOORS, which CI enforces on the merged shard data (node test
+          // pins the two).
+          //
+          // Owner ruling 261 (record 6256508661, 2026-10-18): re-pinned with
+          // FLOORS, the one-off post-cut measured values of run 39161827871
+          // at d78f1a7ed, rounded DOWN to one decimal per the ruling's wording
+          // (unrounded 79.6525/74.5888/77.3963/80.6666 → 79.6/74.5/77.3/80.6;
+          // a half-up 79.7 sits above the measured value and flips red on
+          // between-run noise — run 39192274492 printed 79.6 at a
+          // byte-identical tree). Re-measured at the final head 971c98731
+          // (run 39403304795's shards, reproduced with the repo's own
+          // merger): unrounded 79.5397/74.4334/77.2600/80.5588 → floored
+          // 79.5/74.4/77.2/80.5 (composition moved by main-side retirements,
+          // not regression; ruling 261 item 1's final-head mechanism).
+          // Re-measured again at the merged head feb591332 (tree ee300b0b,
+          // 681 files; run 39427450180 printed 79.5/74.3/77.2/80.5 — main's
+          // row-32/r267a retirements carried covered branches away): floored
+          // 79.5/74.3/77.2/80.5, same mechanism.
+          statements: 79.5,
+          branches: 74.3,
+          functions: 77.2,
+          lines: 80.5,
         },
       },
     },
