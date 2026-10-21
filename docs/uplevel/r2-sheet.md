@@ -628,7 +628,10 @@ that package unapproved, so this recommendation asks for both.
   per-request latency, VRAM and image size for both servers with the same ONNX files, and the
   slim service replaces Triton only if it matches on latency and VRAM.
 
-**Ruling:**
+**Ruling:** Triton stays the one model server (ruling 89, UR-86). Ruling 302 (record 6323705569)
+keeps it for now and drafts no measure-first package: GPU memory and latency are recorded under
+Triton inside each model's own test (`B2.3`, `[r303]`). Ruling 307 (record 6323846997) serves every
+small model the product runs on the GPU through Triton.
 
 ## 2b. Docs-lane rulings (`W2.2`)
 
