@@ -8,13 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AIModelEnum(str, Enum):
-    """Supported AI models for prompt configuration."""
+    """AI models for prompt configuration.
+
+    B3.3 box 4 (R2a row 27): florence2, yolo_world, xclip and fashion_clip retired with
+    the R8 S2/S3 serving sweep; nemotron is the only model a deployment boots.
+    """
 
     NEMOTRON = "nemotron"
-    FLORENCE2 = "florence2"
-    YOLO_WORLD = "yolo_world"
-    XCLIP = "xclip"
-    FASHION_CLIP = "fashion_clip"
 
 
 class NemotronConfig(BaseModel):
@@ -55,138 +55,6 @@ class NemotronConfig(BaseModel):
         return v
 
 
-class Florence2Config(BaseModel):
-    """Configuration for Florence-2 scene analysis model."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "vqa_queries": [
-                    "What is this person wearing?",
-                    "Is this person carrying anything?",
-                    "What color is the vehicle?",
-                ]
-            }
-        }
-    )
-
-    vqa_queries: list[str] = Field(
-        ...,
-        min_length=1,
-        description="List of VQA queries for scene analysis",
-    )
-
-    @field_validator("vqa_queries")
-    @classmethod
-    def validate_queries_not_empty_strings(cls, v: list[str]) -> list[str]:
-        """Ensure queries list doesn't contain empty strings."""
-        if any(not q.strip() for q in v):
-            raise ValueError("vqa_queries cannot contain empty or whitespace-only strings")
-        return v
-
-
-class YoloWorldConfig(BaseModel):
-    """Configuration for YOLO-World custom object detection."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "object_classes": ["person", "car", "truck", "bicycle", "dog", "cat"],
-                "confidence_threshold": 0.35,
-            }
-        }
-    )
-
-    object_classes: list[str] = Field(
-        ...,
-        min_length=1,
-        description="Custom object classes to detect",
-    )
-    confidence_threshold: float = Field(
-        0.35,
-        ge=0.0,
-        le=1.0,
-        description="Minimum confidence threshold for detections",
-    )
-
-    @field_validator("object_classes")
-    @classmethod
-    def validate_classes_not_empty_strings(cls, v: list[str]) -> list[str]:
-        """Ensure classes list doesn't contain empty strings."""
-        if any(not c.strip() for c in v):
-            raise ValueError("object_classes cannot contain empty or whitespace-only strings")
-        return v
-
-
-class XClipConfig(BaseModel):
-    """Configuration for X-CLIP action recognition model."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "action_classes": [
-                    "walking",
-                    "running",
-                    "standing",
-                    "sitting",
-                    "driving",
-                    "entering",
-                ]
-            }
-        }
-    )
-
-    action_classes: list[str] = Field(
-        ...,
-        min_length=1,
-        description="Action classes to recognize",
-    )
-
-    @field_validator("action_classes")
-    @classmethod
-    def validate_action_classes_not_empty_strings(cls, v: list[str]) -> list[str]:
-        """Ensure action_classes list doesn't contain empty strings."""
-        if any(not a.strip() for a in v):
-            raise ValueError("action_classes cannot contain empty or whitespace-only strings")
-        return v
-
-
-class FashionClipConfig(BaseModel):
-    """Configuration for Fashion-CLIP clothing analysis model."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "clothing_categories": ["jacket", "shirt", "pants", "shorts", "dress", "hat"],
-                "suspicious_indicators": [
-                    "all black",
-                    "face mask",
-                    "hoodie up",
-                    "gloves at night",
-                ],
-            }
-        }
-    )
-
-    clothing_categories: list[str] = Field(
-        ...,
-        min_length=1,
-        description="Clothing categories to classify",
-    )
-    suspicious_indicators: list[str] = Field(
-        default_factory=list,
-        description="Suspicious clothing indicators to look for",
-    )
-
-    @field_validator("clothing_categories")
-    @classmethod
-    def validate_categories_not_empty_strings(cls, v: list[str]) -> list[str]:
-        """Ensure clothing_categories list doesn't contain empty strings."""
-        if any(not c.strip() for c in v):
-            raise ValueError("clothing_categories cannot contain empty or whitespace-only strings")
-        return v
-
-
 def validate_config_for_model(model: AIModelEnum, config: dict[str, Any]) -> list[str]:
     """Validate configuration dictionary for a specific model.
 
@@ -202,13 +70,6 @@ def validate_config_for_model(model: AIModelEnum, config: dict[str, Any]) -> lis
     # Map models to their config schemas and required fields
     validators: dict[AIModelEnum, tuple[type[BaseModel], dict[str, str]]] = {
         AIModelEnum.NEMOTRON: (NemotronConfig, {"system_prompt": "system_prompt"}),
-        AIModelEnum.FLORENCE2: (Florence2Config, {"vqa_queries": "vqa_queries"}),
-        AIModelEnum.YOLO_WORLD: (YoloWorldConfig, {"object_classes": "object_classes"}),
-        AIModelEnum.XCLIP: (XClipConfig, {"action_classes": "action_classes"}),
-        AIModelEnum.FASHION_CLIP: (
-            FashionClipConfig,
-            {"clothing_categories": "clothing_categories"},
-        ),
     }
 
     if model not in validators:
@@ -288,12 +149,6 @@ class AllPromptsResponse(BaseModel):
                         "system_prompt": "You are a home security AI assistant...",
                         "temperature": 0.7,
                         "max_tokens": 2048,
-                    },
-                    "florence2": {
-                        "vqa_queries": [
-                            "What is this person wearing?",
-                            "Is this person carrying anything?",
-                        ],
                     },
                 },
             }
@@ -538,13 +393,6 @@ class PromptsExportResponse(BaseModel):
                         "temperature": 0.7,
                         "max_tokens": 2048,
                     },
-                    "florence2": {
-                        "vqa_queries": ["What is this person wearing?"],
-                    },
-                    "yolo_world": {
-                        "object_classes": ["person", "car", "truck"],
-                        "confidence_threshold": 0.35,
-                    },
                 },
             }
         }
@@ -567,9 +415,6 @@ class PromptsImportRequest(BaseModel):
                         "system_prompt": "You are a home security AI assistant...",
                         "temperature": 0.7,
                         "max_tokens": 2048,
-                    },
-                    "florence2": {
-                        "vqa_queries": ["What is this person wearing?"],
                     },
                 },
             }
@@ -594,13 +439,12 @@ class PromptsImportResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "imported_models": ["nemotron", "florence2"],
-                "skipped_models": ["yolo_world"],
+                "imported_models": ["nemotron"],
+                "skipped_models": [],
                 "new_versions": {
                     "nemotron": 4,
-                    "florence2": 2,
                 },
-                "message": "Successfully imported 2 prompt configurations, skipped 1",
+                "message": "Successfully imported 1 prompt configuration",
             }
         }
     )

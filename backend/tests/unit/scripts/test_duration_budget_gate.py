@@ -2525,14 +2525,24 @@ def test_the_rerun_cap_applies_to_each_tier_separately(tmp_path: Path) -> None:
         f"decides to re-run\n{out}"
     )
     # The cap has to stay the STRICT end in each tier: what it drops is the
-    # SHORTEST breach of that tier, and the longest one must never be the loser.
+    # SHORTEST breaches of that tier, and the longest one (u6 at 5.0 s, Q-190)
+    # must be re-run first and never be the loser.
     unit_names = [t.rsplit("::", 1)[-1] for t in re_run_unit]
-    assert "test_u5_slow" in unit_names, (
-        f"u5 is the longest unit breach (4.9 s) and must be re-run first; saw {unit_names}"
+    sorted_unit_by_dur = sorted(unit_cases, key=lambda c: c[2], reverse=True)
+    longest_unit_name, longest_unit_dur = sorted_unit_by_dur[0][1], sorted_unit_by_dur[0][2]
+    expected_unit_names = [name for _cls, name, _dur in sorted_unit_by_dur[:MAX_RERUNS]]
+    dropped_unit_names = {name for _cls, name, _dur in sorted_unit_by_dur[MAX_RERUNS:]}
+    assert unit_names[0] == longest_unit_name == "test_u6_slow", (
+        f"{longest_unit_name} is the longest unit breach ({longest_unit_dur:.1f} s) and must be "
+        f"re-run first; saw {unit_names}"
     )
-    assert "test_u0_slow" not in unit_names, (
-        f"u0 is the SHORTEST unit breach (4.4 s); dropping anything else would "
-        f"make the cap lenient instead of strict; saw {unit_names}"
+    assert unit_names == expected_unit_names, (
+        f"the {MAX_RERUNS} longest unit breaches must be re-run in descending duration order; "
+        f"expected {expected_unit_names}, saw {unit_names}"
+    )
+    assert dropped_unit_names.isdisjoint(unit_names), (
+        f"the shortest unit breaches ({sorted(dropped_unit_names)}) must be dropped; "
+        f"saw {unit_names}"
     )
     # Review finding 6: which ids got re-run was pinned; the report's own PROSE
     # about the cap was free to be deleted. A 6/6 corpus is over the cap in BOTH
@@ -2877,13 +2887,15 @@ def test_tiers_outside_the_clause_are_still_never_re_run(tmp_path: Path) -> None
     green could cover the other's red.
 
     (An earlier draft of this docstring said "the seven ``SLOW_TEST_PATTERNS``
-    entries … each carry a recorded breach across 18 main junit datasets". That
-    was false in two ways and was caught by COUNTING the list rather than
-    quoting the comment: the list now holds 11 entries, not 7, and the 18-dataset
-    WP1.3 cohort is only its first seven — the four later entrants (dated
-    2026-09-23 through 2026-10-13) each bring a single-run measured breach
-    instead. The fixture below is a member of the original cohort, which is the
-    claim this pin actually rests on.)
+    entries … each carry a recorded breach across 18 main junit datasets". The
+    live count is pinned in ``.github/suppression-baseline.json`` under
+    ``tpa_slow_list`` and mirrored in ``scripts/test_suppression_census.py``:
+    after ``[r262]`` pin ``41bc0fce7`` (9 entries) and ``B3.2`` (#7319, which
+    deleted three retired entries), the list holds 6 entries — the 3 remaining
+    members of the 18-dataset WP1.3 cohort plus the 3 dated later entrants
+    (2026-10-06, 2026-10-11, and 2026-10-18) that each bring a single-run
+    measured breach instead. The fixture below is a member of the original
+    WP1.3 cohort, which is the claim this pin actually rests on.)
     """
     calls = tmp_path / "calls.jsonl"
     # A census member by name: this id is a SLOW_TEST_PATTERNS member, so the

@@ -50,13 +50,6 @@ const mockAllPromptsResponse: AllPromptsResponse = {
       system_prompt: 'You are an AI security analyst...',
       version: 5,
     },
-    florence2: {
-      queries: ['What objects are in this scene?', 'Describe the environment'],
-    },
-    yolo_world: {
-      classes: ['person', 'car', 'dog', 'cat'],
-      confidence_threshold: 0.35,
-    },
   },
 };
 
@@ -125,9 +118,6 @@ const mockExportResponse: PromptsExportResponse = {
       system_prompt: 'You are an AI security analyst...',
       version: 5,
     },
-    florence2: {
-      queries: ['What objects are in this scene?'],
-    },
   },
 };
 
@@ -154,13 +144,12 @@ const mockImportPreviewResponse: PromptsImportPreviewResponse = {
 };
 
 const mockImportResponse: PromptsImportResponse = {
-  imported_models: ['nemotron', 'florence2'],
+  imported_models: ['nemotron'],
   skipped_models: [],
   new_versions: {
     nemotron: 6,
-    florence2: 3,
   },
-  message: 'Successfully imported 2 model configurations',
+  message: 'Successfully imported 1 model configurations',
 };
 
 // ============================================================================
@@ -555,9 +544,6 @@ describe('importPrompts', () => {
         nemotron: {
           system_prompt: 'Imported prompt...',
         },
-        florence2: {
-          queries: ['New query'],
-        },
       },
     };
 
@@ -566,7 +552,7 @@ describe('importPrompts', () => {
     const result = await importPrompts(importRequest);
 
     expect(result).toEqual(mockImportResponse);
-    expect(result.imported_models).toHaveLength(2);
+    expect(result.imported_models).toHaveLength(1);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
       '/api/prompts/import',
       expect.objectContaining({

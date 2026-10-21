@@ -32,14 +32,6 @@ const mockPreviewWithChanges: PromptsImportPreviewResponse = {
       imported_config: { temperature: 0.8 },
       changes: ['temperature: 0.7 -> 0.8'],
     },
-    {
-      model: 'florence2',
-      has_changes: false,
-      current_version: 3,
-      current_config: { queries: ['test'] },
-      imported_config: { queries: ['test'] },
-      changes: [],
-    },
   ],
   total_changes: 1,
   unknown_models: [],
@@ -136,7 +128,7 @@ describe('ImportPreviewModal', () => {
     it('displays models affected count', () => {
       render(<ImportPreviewModal {...defaultProps} />);
 
-      expect(screen.getByText('Models affected: 1 of 2')).toBeInTheDocument();
+      expect(screen.getByText('Models affected: 1 of 1')).toBeInTheDocument();
     });
 
     it('displays Cancel and Apply Import buttons', () => {
@@ -152,7 +144,6 @@ describe('ImportPreviewModal', () => {
       render(<ImportPreviewModal {...defaultProps} />);
 
       expect(screen.getByTestId('config-diff-nemotron')).toBeInTheDocument();
-      expect(screen.getByTestId('config-diff-florence2')).toBeInTheDocument();
     });
   });
 

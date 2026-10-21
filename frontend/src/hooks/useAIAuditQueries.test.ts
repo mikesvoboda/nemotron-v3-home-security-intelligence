@@ -160,7 +160,6 @@ const mockAllPrompts: AllPromptsResponse = {
   exported_at: '2025-01-11T10:00:00Z',
   prompts: {
     nemotron: { system_prompt: 'Analyze security...', version: 5 },
-    florence2: { queries: ['describe scene'] },
   },
 };
 
@@ -211,9 +210,9 @@ const mockBatchResponse: BatchAuditResponse = {
 };
 
 const mockImportResponse: PromptsImportResponse = {
-  imported_models: ['nemotron', 'florence2'],
+  imported_models: ['nemotron'],
   skipped_models: [],
-  new_versions: { nemotron: 6, florence2: 3 },
+  new_versions: { nemotron: 6 },
   message: 'Import successful',
 };
 

@@ -751,13 +751,12 @@ The original incremental migration (`add_event_detections_junction_table.py`, wh
 
 **Enum:** `AIModel`
 
-| Value          | Description                        |
-| -------------- | ---------------------------------- |
-| `nemotron`     | Nemotron LLM risk analysis model   |
-| `florence2`    | Florence-2 scene analysis model    |
-| `yolo_world`   | YOLO-World custom object detection |
-| `xclip`        | X-CLIP action recognition model    |
-| `fashion_clip` | Fashion-CLIP clothing analysis     |
+| Value      | Description                      |
+| ---------- | -------------------------------- |
+| `nemotron` | Nemotron LLM risk analysis model |
+
+(B3.3 box 4 / R2a row 27: florence2, yolo_world, xclip and fashion_clip retired -- the enum and
+`prompt_versions.model` now hold nemotron only.)
 
 **Fields:**
 
@@ -775,10 +774,9 @@ The original incremental migration (`add_event_detections_junction_table.py`, wh
 **Configuration Formats by Model:**
 
 - **Nemotron:** `{"system_prompt": "..."}`
-- **Florence2:** `{"queries": ["..."]}`
-- **YOLO-World:** `{"classes": ["..."], "confidence_threshold": 0.35}`
-- **X-CLIP:** `{"action_classes": ["..."]}`
-- **Fashion-CLIP:** `{"clothing_categories": ["..."]}`
+
+(B3.3 box 4 / R2a row 27 retired the Florence2/YOLO-World/X-CLIP/Fashion-CLIP formats with their
+enum values; the surviving column is the one that names the model below.)
 
 **Indexes:**
 

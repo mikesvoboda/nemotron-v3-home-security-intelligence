@@ -140,5 +140,5 @@ The CI/CD pipeline orchestrates test execution across multiple stages with paral
 
 - [TDD Workflow Guide](../../developer/testing-workflow.md)
 - [Testing Guide](../../developer/testing.md)
-- [Testing Patterns](../../developer/patterns/AGENTS.md)
+- [Testing Patterns](../../developer/patterns-and-conventions.md)
 - [Backend Tests AGENTS.md](../../../backend/tests/AGENTS.md)

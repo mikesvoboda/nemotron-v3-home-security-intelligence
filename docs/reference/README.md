@@ -349,4 +349,4 @@ Symptom-based problem-solving guides.
 
 ---
 
-[Back to Documentation](../AGENTS.md) | [Operator Hub](../operator/README.md) | [Developer Hub](../developer/README.md)
+[Back to Documentation](../README.md) | [Operator Hub](../operator/README.md) | [Developer Hub](../developer/README.md)

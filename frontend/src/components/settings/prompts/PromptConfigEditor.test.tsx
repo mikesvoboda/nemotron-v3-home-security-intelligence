@@ -42,24 +42,6 @@ const nemotronConfig = {
   max_tokens: 4096,
 };
 
-const florence2Config = {
-  queries: ['What objects are in this scene?'],
-};
-
-const yoloWorldConfig = {
-  classes: ['person', 'car'],
-  confidence_threshold: 0.5,
-};
-
-const xclipConfig = {
-  action_classes: ['walking', 'running'],
-};
-
-const fashionClipConfig = {
-  clothing_categories: ['hoodie', 'mask'],
-  suspicious_indicators: ['face covering'],
-};
-
 // ============================================================================
 // Tests
 // ============================================================================
@@ -141,61 +123,8 @@ describe('PromptConfigEditor', () => {
       expect(screen.getByTestId('nemotron-config-form')).toBeInTheDocument();
     });
 
-    it('renders Florence2ConfigForm for Florence2 model', () => {
-      renderWithProviders(
-        <PromptConfigEditor
-          isOpen={true}
-          onClose={vi.fn()}
-          model={AIModelEnum.FLORENCE2}
-          initialConfig={florence2Config}
-          onSave={vi.fn()}
-        />
-      );
-
-      expect(screen.getByTestId('florence2-config-form')).toBeInTheDocument();
-    });
-
-    it('renders YoloWorldConfigForm for YOLO-World model', () => {
-      renderWithProviders(
-        <PromptConfigEditor
-          isOpen={true}
-          onClose={vi.fn()}
-          model={AIModelEnum.YOLO_WORLD}
-          initialConfig={yoloWorldConfig}
-          onSave={vi.fn()}
-        />
-      );
-
-      expect(screen.getByTestId('yoloworld-config-form')).toBeInTheDocument();
-    });
-
-    it('renders XClipConfigForm for X-CLIP model', () => {
-      renderWithProviders(
-        <PromptConfigEditor
-          isOpen={true}
-          onClose={vi.fn()}
-          model={AIModelEnum.XCLIP}
-          initialConfig={xclipConfig}
-          onSave={vi.fn()}
-        />
-      );
-
-      expect(screen.getByTestId('xclip-config-form')).toBeInTheDocument();
-    });
-
-    it('renders FashionClipConfigForm for Fashion-CLIP model', () => {
-      renderWithProviders(
-        <PromptConfigEditor
-          isOpen={true}
-          onClose={vi.fn()}
-          model={AIModelEnum.FASHION_CLIP}
-          initialConfig={fashionClipConfig}
-          onSave={vi.fn()}
-        />
-      );
-
-      expect(screen.getByTestId('fashionclip-config-form')).toBeInTheDocument();
-    });
+    // B3.3 box 4 (R2a row 27): the Florence-2/YOLO-World/X-CLIP/Fashion-CLIP form tests
+    // retired with the forms -- nemotron is the only editor.
   });
 
   describe('interactions', () => {
