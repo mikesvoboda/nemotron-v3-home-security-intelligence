@@ -192,7 +192,7 @@ UR-147.
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy         | done        | #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309, #7311 |
-| B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
+| B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | done        | #7319                                                                                                                                                                     |
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | in progress | #7244 |
 | F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | done        | #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309, #7311 |
 | F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | done        | #7246 |

@@ -143,7 +143,6 @@ EXPECTED_BOUNDARY_PATHS = {
     "backend",
     "backend/ai_contract",
     "backend/api",
-    "backend/api/middleware",
     "backend/api/routes",
     "backend/api/schemas",
     "backend/core",
@@ -969,7 +968,9 @@ def test_committed_boundary_list_covers_the_rule():
     # The named/contract arm is not vacuous either: none of it would survive
     # the >= 20 rule on its own.
     assert EXPECTED_RULE_EXCEPTIONS - rule_kept - roots == EXPECTED_RULE_EXCEPTIONS
-    assert len(big) >= 40 and committed - big, "the rule is doing nothing"
+    # B3.2 (2026-10-21) deleted 94 backend modules and 116 test files, taking
+    # the >=20-file directory count (`big`) to 38.
+    assert len(big) >= 35 and committed - big, "the rule is doing nothing"
     # setup_lib's softer exception, spelled out because it is the only entry
     # the two lists disagree about: no_agents_md_required says the file is not
     # REQUIRED, boundary_list says it is KEPT (its config reason says so).
@@ -1102,8 +1103,8 @@ def test_committed_boundary_list_and_caps_are_pinned():
     census = collections.Counter(v.boundary_tier(p) for p in committed)
     assert census["root"] == 1, census
     assert census["lane_root"] == len(EXPECTED_LANE_ROOTS) == 7, census
-    assert census["package"] == len(EXPECTED_BOUNDARY_PATHS) - 1 - 7 == 30, census
-    assert sum(census.values()) == len(EXPECTED_BOUNDARY_PATHS) == 38, (
+    assert census["package"] == len(EXPECTED_BOUNDARY_PATHS) - 1 - 7 == 29, census
+    assert sum(census.values()) == len(EXPECTED_BOUNDARY_PATHS) == 37, (
         f"boundary_tier() returned a tier outside the three capped ones: {census}"
     )
 
@@ -1216,7 +1217,7 @@ def test_real_tree_caps_arm_denominator(real_run):
     rc, report, stderr = real_run
     assert rc == 0, stderr
     caps = report["ratchet"]["line_caps"]
-    assert caps["boundaries"] == len(EXPECTED_BOUNDARY_PATHS) == 38, caps["boundaries"]
+    assert caps["boundaries"] == len(EXPECTED_BOUNDARY_PATHS) == 37, caps["boundaries"]
     assert caps["measured"] == caps["boundaries"], (
         f"a listed boundary resolved to no scanned AGENTS.md: measured "
         f"{caps['measured']} of {caps['boundaries']} — the denominator is a hole, "

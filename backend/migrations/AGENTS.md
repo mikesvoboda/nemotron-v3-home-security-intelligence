@@ -102,16 +102,10 @@ jsonb` rewrites the column and takes `ACCESS EXCLUSIVE` on `alerts`/`alert_rules
   as savepoints (`nested=True`). That is what makes a restart upgrade a database, and it is why
   `plan`/`apply_all` take a `nested` flag: on an already-open transaction `conn.begin()` raises
   ("This connection has already initialized a SQLAlchemy Transaction()").
-- `backend/scripts/init_schema.py` drops `schema_migrations` explicitly before rebuilding. It has
-  to: the record table is deliberately outside `Base.metadata` (see the rule above), so
-  `drop_all` cannot reach it, and a rebuild that left the history behind would tell the next boot
-  that a database it just emptied had already been upgraded.
 
 ## Related
 
 - `docs/api/migrations/README.md` — the directory's own index (prose guides + SQL).
-- `backend/scripts/init_schema.py` — the destructive path (`drop_all` + `create_all`); never a
-  substitute for an upgrade, and it refuses to run in production without `--force`.
 - `backend/tests/integration/test_schema_upgrade_path.py` — box 6: a pre-upgrade schema **with
   rows**, upgraded, rows checked.
 - `backend/tests/unit/migrations/test_registry_lexing.py` — the failure modes that no database can

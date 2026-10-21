@@ -76,15 +76,15 @@ run_audit "$ROOT/d"; expect_nonzero "int-over"
 echo "[4] WP0.5-tracked slow test at 16s PASSES on the 60s slow cap"
 rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
 mk_xml "$ROOT/d/a.xml" \
-  "backend.tests.unit.api.middleware.test_error_handler.TestErrorResponse" \
-  "test_timestamp_auto_generated" 16.0
+  "backend.tests.unit.services.test_rtsp_test_service.TestRTSPTestService" \
+  "test_connection_timeout" 16.0
 run_audit "$ROOT/d"; expect_zero "tracked-slow"
 expect_line "tracked-slow" "KNOWN SLOW TESTS"
 
 echo "[5] a tracked-slow test at 61s blows the slow cap and BITES"
 mk_xml "$ROOT/d/a.xml" \
-  "backend.tests.unit.api.middleware.test_error_handler.TestErrorResponse" \
-  "test_timestamp_auto_generated" 61.0
+  "backend.tests.unit.services.test_rtsp_test_service.TestRTSPTestService" \
+  "test_connection_timeout" 61.0
 run_audit "$ROOT/d"; expect_nonzero "tracked-over-slow-cap"
 
 echo "[6] EMPTY results dir must FAIL the job, not 'pass' vacuously"

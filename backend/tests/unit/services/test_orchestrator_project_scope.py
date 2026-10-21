@@ -33,7 +33,7 @@ from backend.services.container_discovery import (
 )
 from backend.services.container_orchestrator import ContainerOrchestrator
 from backend.services.lifecycle_manager import LifecycleManager
-from backend.services.service_registry import ManagedService
+from backend.services.orchestrator import ManagedService
 
 OWN = "hsi"
 OTHER = "someone-elses-stack"

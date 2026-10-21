@@ -33,7 +33,7 @@ from backend.services.health_monitor_orchestrator import (
     ManagedService as HealthMonitorService,
 )
 from backend.services.lifecycle_manager import ManagedService as LifecycleService
-from backend.services.service_registry import ManagedService
+from backend.services.orchestrator import ManagedService
 
 # =============================================================================
 # Test Fixtures
