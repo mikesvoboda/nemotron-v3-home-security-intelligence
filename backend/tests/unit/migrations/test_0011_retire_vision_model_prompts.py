@@ -78,21 +78,13 @@ def test_ai_audit_model_name_keeps_only_nemotron():
 
 
 def test_retired_config_classes_are_gone():
-    """Each retired model's config class is gone from BOTH schema modules and the typed
-    params registry -- a class that describes a payload nothing can serve is residue."""
-    import backend.services.typed_prompt_config as typed
+    """Each retired model's config class is gone from both surviving schema modules, and
+    the typed params registry left with the B3.2 module deletions (its whole surface was
+    the per-model classes). A class that describes a payload nothing can serve is
+    residue."""
     from backend.api.schemas import ai_audit, prompt_management
 
     for module, class_names in (
-        (
-            typed,
-            (
-                "Florence2PromptParams",
-                "YoloWorldPromptParams",
-                "XClipPromptParams",
-                "FashionClipPromptParams",
-            ),
-        ),
         (
             prompt_management,
             ("Florence2Config", "YoloWorldConfig", "XClipConfig", "FashionClipConfig"),
@@ -107,21 +99,21 @@ def test_retired_config_classes_are_gone():
 
 
 def test_typed_registry_and_config_maps_are_nemotron_only():
-    """The three lookup tables keyed by model name carry exactly nemotron."""
+    """The lookup tables keyed by model name carry exactly nemotron. B3.2 deleted
+    `typed_prompt_config` (the typed-params registry retired with the modules); the
+    surviving validator map and the ai_audit union still pin nemotron-only."""
     from backend.api.schemas.ai_audit import PromptConfigUnion
     from backend.api.schemas.prompt_management import validate_config_for_model
-    from backend.services.typed_prompt_config import get_param_type_for_model
 
-    assert get_param_type_for_model("nemotron").__name__ == "NemotronPromptParams"
-    with pytest.raises(KeyError):
-        get_param_type_for_model("florence2")
+    with pytest.raises(ImportError, match="typed_prompt_config"):
+        import backend.services.typed_prompt_config  # noqa: F401
 
-    # prompt_management's validator map: nemotron accepts a system_prompt-shaped config,
-    # every retired name refuses (KeyError from the map lookup, not a silent pass).
+    # prompt_management's validator map is function-local (a dict literal inside
+    # validate_config_for_model), so the pin is behavioral: nemotron validates clean,
+    # every retired name returns the map-miss error -- a refusal, not a silent pass.
     assert validate_config_for_model("nemotron", {"system_prompt": "x"}) == []
-    from backend.api.schemas import prompt_management as pm
-
-    assert set(pm.validators) == {"nemotron"} if hasattr(pm, "validators") else True
+    for retired in RETIRED_MODELS:
+        assert validate_config_for_model(retired, {}) == [f"Unknown model: {retired}"], retired
 
     # ai_audit's union carries no retired field.
     assert set(PromptConfigUnion.model_fields) == {"nemotron"}
@@ -207,23 +199,24 @@ def test_0011_check_reports_verified_only_after_both_effects():
 
 def test_florence_error_pair_is_gone_from_the_code_that_defines_it():
     """`FlorenceUnavailableError` and `FLORENCE_UNAVAILABLE` retire with Florence (the box
-    names them); the raiser census found zero raisers, so this is dead code retiring."""
+    names them); the raiser census found zero raisers, so this is dead code retiring.
+    B3.2 deleted `backend/api/schemas/errors.py` (the ErrorCode members retired with it),
+    so the schema-side pin is the module's absence."""
     src = (REPO_ROOT / "backend/core/exceptions.py").read_text(encoding="utf-8")
     assert "FlorenceUnavailableError" not in src
-    errs = (REPO_ROOT / "backend/api/schemas/errors.py").read_text(encoding="utf-8")
-    assert "FLORENCE_UNAVAILABLE" not in errs
+    with pytest.raises(ImportError, match=r"backend\.api\.schemas\.errors"):
+        import backend.api.schemas.errors  # noqa: F401
 
 
 def test_sibling_unavailable_errors_stay():
     """The box's boundary: Analyzer and Enrichment keep their errors and codes. The
-    analyzer's code lives only as the exception's `default_error_code` -- errors.py has no
-    ANALYZER_UNAVAILABLE member -- so it is pinned where it actually is."""
+    schema-side members retired with `errors.py` (B3.2); the codes are pinned where they
+    actually live -- each exception's `default_error_code`."""
     src = (REPO_ROOT / "backend/core/exceptions.py").read_text(encoding="utf-8")
     assert "AnalyzerUnavailableError" in src
     assert "ANALYZER_UNAVAILABLE" in src
     assert "EnrichmentUnavailableError" in src
-    errs = (REPO_ROOT / "backend/api/schemas/errors.py").read_text(encoding="utf-8")
-    assert "ENRICHMENT_SERVICE_UNAVAILABLE" in errs
+    assert "ENRICHMENT_UNAVAILABLE" in src
 
 
 def test_prompt_column_in_the_model_is_no_longer_a_native_enum():
@@ -243,7 +236,7 @@ def test_prompt_service_default_configs_are_nemotron_only():
 
 
 def test_prompt_storage_supported_models_are_nemotron_only():
-    """The file-based store's SUPPORTED_MODELS frozenset is nemotron-only."""
-    from backend.services.prompt_storage import SUPPORTED_MODELS
-
-    assert set(SUPPORTED_MODELS) == {"nemotron"}
+    """The file-based store retired with the B3.2 module deletions (its SUPPORTED_MODELS
+    frozenset was the four-model gate); the module's absence is the pin."""
+    with pytest.raises(ImportError, match="prompt_storage"):
+        import backend.services.prompt_storage  # noqa: F401

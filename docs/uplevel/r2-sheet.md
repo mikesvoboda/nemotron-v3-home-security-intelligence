@@ -940,7 +940,7 @@ only them.
 
 <!-- r2-python-dead-list:start -->
 
-Measured at tool-inputs `03cd0b1f47` from the fixed tool (`scripts/reachability.py` after the O2.3b ancestor fix, ruling 73): 97 non-shipping Python modules (38482 lines), listed with lines and last meaningful commit in [`feature-inventory.md` §4](../reference/feature-inventory.md#4-modules-serving-no-feature), Python. The 5 modules a row claims are named as exceptions there — `backend/services/camera_status_service.py` (F-029); `backend/services/mqtt_client.py` (F-291); `backend/services/mqtt_command_handler.py` (F-291); `backend/services/scene_change_detector.py` (F-208/F-287); `backend/services/unified_embedding_service.py` (F-272). The ancestor-rule note for the ruling: parent packages of shipping modules ship (import runs them), so the list cannot be the pre-O2.3b count; regenerating it is `scripts/r2-python-dead-list.py`.
+Measured at tool-inputs `d5c1f1952f` from the fixed tool (`scripts/reachability.py` after the O2.3b ancestor fix, ruling 73): 0 non-shipping Python modules (0 lines), listed with lines and last meaningful commit in [`feature-inventory.md` §4](../reference/feature-inventory.md#4-modules-serving-no-feature), Python. The 0 modules a row claims are named as exceptions there — . The ancestor-rule note for the ruling: parent packages of shipping modules ship (import runs them), so the list cannot be the pre-O2.3b count; regenerating it is `scripts/r2-python-dead-list.py`.
 
 <!-- r2-python-dead-list:end -->
 

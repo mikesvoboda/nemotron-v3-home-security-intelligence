@@ -10,3 +10,10 @@ package-lock.json
 # generate-ws-types.py) coherent.
 src/types/generated/api.ts
 src/types/generated/websocket.ts
+
+# [r282] Machine-written byte-pinned data: scripts/golden_shard_manifest.py
+# writes it with json.dumps(indent=2, sort_keys=True) and a repo pin
+# byte-compares the regen output against the checked-in file. Prettier
+# collapsing the arrays would break that pin on every commit (the regen writes
+# 2-space-indented arrays it does not collapse; the two styles can never match).
+golden-shards.json

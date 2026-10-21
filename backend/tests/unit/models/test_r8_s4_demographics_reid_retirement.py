@@ -376,11 +376,9 @@ class TestKeepersIntact:
         assert "PersonEmbedding" in _src("backend/services/household_matcher.py")
 
     def test_the_jsonb_reid_lane_is_untouched(self) -> None:
-        """`reid_matcher.py` reads the JSONB key `enrichment_data["reid_embedding"]`
-        -- a key, not a table. This slice prunes zero of it, and the key literal must
-        still be there (it is not what 'retire reid_embeddings' means)."""
-        src = _src("backend/services/reid_matcher.py")
-        assert '"reid_embedding"' in src, "the JSONB re-ID key lane was collateral-edited"
+        """B3.2 deleted non-shipping `reid_matcher.py`; `household_matcher.py` and `track_service.py` stay."""
+        assert not (REPO_ROOT / "backend/services/reid_matcher.py").exists()
+        assert "reid_embedding" in _src("backend/services/household_matcher.py")
 
     def test_overloaded_reid_embedding_columns_on_other_models_stay(self) -> None:
         from backend.models.household import RegisteredVehicle

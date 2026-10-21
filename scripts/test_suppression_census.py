@@ -798,8 +798,8 @@ def test_real_tree_matches_spec_baselines():
         # initialization timing" skips in test_system_models.py expired on 10-15 and
         # were removed with their `#2` registry rows; each test stays skipped by its
         # "Moved to test_model_management.py" decorator (`retired`, BB.1 deletes them).
-        "pytest_skip": 25,
-        "pytest_skipif": 59,
+        "pytest_skip": 22,
+        "pytest_skipif": 58,
         "pytest_xfail": 4,
         # 89→93 (2026-10-11, BE-1 / ruling 87, PR #6979): the four harness-contract
         # skips of the first backend golden tree — conftest.py:61/70 (the
@@ -830,7 +830,9 @@ def test_real_tree_matches_spec_baselines():
         # environment via HOST_JUSTIFIED (b904d853f added the key; the gen then
         # mints kind: environment, expires: null, justification carried).
         # Increase path, sixth precedent.
-        "pytest_skip_imperative": 94,
+        # 94→93 (2026-10-21, B3.2 #7319): test_benchmark_vram.py deleted with
+        # backend/scripts/benchmark_vram.py (-1 imperative skip at :208).
+        "pytest_skip_imperative": 93,
         # 51→49 (2026-10-21, roll 10 of #7246) then main's r285 +3 sites landed
         # inside files the F3.2 cut had already deleted (useMonitoringTargets,
         # ReidHistoryPanel tests): the merged tree MEASURES 49, so main's 52
@@ -891,7 +893,7 @@ def test_real_tree_matches_spec_baselines():
         # committed count — so it cannot be fake-clocked away, and the pattern
         # is one regex covering both ids, so the CENSUS (+1) and the tests it
         # exempts (+2) differ deliberately.
-        "tpa_slow_list": 9,
+        "tpa_slow_list": 6,
         # [r173] ruling 173 — the new arm, measured (see the docstring's
         # 0→2 entry). Asserted here as well as in the baseline file so a golden
         # test.fixme added later trips this mirror AND the ratchet.

@@ -4,7 +4,6 @@ __all__ = [
     # Classes
     "OrchestratorSettings",
     "Settings",
-    "TranscodeCacheSettings",
     # Functions
     "get_settings",
 ]
@@ -37,63 +36,6 @@ def _get_default_inference_limit() -> int:
     if hasattr(sys, "_is_gil_enabled") and not sys._is_gil_enabled():
         return 20  # Higher limit with true parallelism
     return 4  # Conservative limit with GIL
-
-
-class TranscodeCacheSettings(BaseSettings):
-    """Transcoding cache configuration for disk-based video transcode caching.
-
-    This settings model configures the transcode cache service that provides
-    LRU-based caching of transcoded videos to avoid repeated transcoding.
-
-    Environment variables use the TRANSCODE_CACHE_ prefix (e.g., TRANSCODE_CACHE_DIR).
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="TRANSCODE_CACHE_",
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
-
-    # Cache location
-    cache_dir: str = Field(
-        default="data/transcode_cache",
-        description="Directory for storing transcoded video cache files. "
-        "Relative paths are resolved from the application root.",
-    )
-
-    # Size limits
-    max_cache_size_gb: float = Field(
-        default=10.0,
-        ge=0.1,
-        le=1000.0,
-        description="Maximum cache size in gigabytes. When exceeded, LRU eviction "
-        "removes least recently accessed files until below cleanup_target_percent.",
-    )
-
-    # Cleanup thresholds
-    cleanup_threshold_percent: float = Field(
-        default=0.9,
-        ge=0.5,
-        le=0.99,
-        description="Trigger cleanup when cache reaches this percentage of max_cache_size_gb. "
-        "Default: 0.9 (90%). Cleanup removes files until below cleanup_target_percent.",
-    )
-    cleanup_target_percent: float = Field(
-        default=0.8,
-        ge=0.3,
-        le=0.95,
-        description="Target percentage of max_cache_size_gb after cleanup. "
-        "Default: 0.8 (80%). Must be less than cleanup_threshold_percent.",
-    )
-
-    # Feature flag
-    enabled: bool = Field(
-        default=True,
-        description="Enable transcoding cache. When disabled, all transcode operations "
-        "bypass the cache and transcode on every request.",
-    )
 
 
 class OrchestratorSettings(BaseSettings):
@@ -516,15 +458,6 @@ class Settings(BaseSettings):
         default="security_events",
         description="Redis pub/sub channel for security events",
     )
-    redis_pubsub_shard_count: int = Field(
-        default=16,
-        ge=1,
-        le=256,
-        description="Number of shards for Redis pub/sub channel distribution (NEM-3415). "
-        "Events are distributed across shards using consistent hashing on camera_id. "
-        "More shards reduce per-channel load but increase subscription complexity. "
-        "Default: 16 shards. Recommended: 8-32 for most deployments.",
-    )
     redis_key_prefix: str = Field(
         default="hsi",
         description="Global prefix for all Redis keys. Enables key isolation for "
@@ -630,64 +563,6 @@ class Settings(BaseSettings):
         "Should be True for production. Set to False only for testing with self-signed certs.",
     )
 
-    # Redis memory optimization settings (NEM-3416)
-    redis_memory_limit_mb: int = Field(
-        default=0,
-        ge=0,
-        le=131072,
-        description="Redis maximum memory limit in megabytes. "
-        "Set to 0 to disable memory limit (use Redis server defaults). "
-        "Development: 256MB recommended. Production: 1024-4096MB depending on workload. "
-        "When limit is reached, eviction policy determines behavior.",
-    )
-    redis_memory_policy: str = Field(
-        default="volatile-lru",
-        description="Redis eviction policy when memory limit is reached. Options: "
-        "'volatile-lru' (evict keys with TTL using LRU, default, protects persistent data), "
-        "'allkeys-lru' (evict any key using LRU), "
-        "'volatile-ttl' (evict keys with shortest TTL), "
-        "'volatile-random' (random eviction of keys with TTL), "
-        "'allkeys-random' (random eviction of any key), "
-        "'noeviction' (return errors when memory full). "
-        "Recommended: 'volatile-lru' for cache-heavy workloads with TTL-based expiration.",
-    )
-    redis_memory_apply_on_startup: bool = Field(
-        default=False,
-        description="Apply memory settings to Redis server on application startup. "
-        "When True, sends CONFIG SET commands to configure maxmemory and maxmemory-policy. "
-        "Requires Redis ACL permissions for CONFIG command. "
-        "Set to False if Redis is configured externally (e.g., via redis.conf).",
-    )
-
-    # Redis Cluster settings for horizontal scalability (NEM-3761)
-    redis_cluster_enabled: bool = Field(
-        default=False,
-        description="Enable Redis Cluster mode for horizontal scalability. "
-        "When True, connects to a Redis Cluster instead of a single instance. "
-        "Requires redis_cluster_nodes to be configured with cluster node addresses.",
-    )
-    redis_cluster_nodes: str = Field(
-        default="redis-node1:6379,redis-node2:6379,redis-node3:6379",
-        description="Comma-separated list of Redis Cluster node host:port pairs. "
-        "Example: 'redis-node1:6379,redis-node2:6379,redis-node3:6379'. "
-        "At least 3 master nodes recommended for high availability.",
-    )
-
-    # HyperLogLog settings for unique entity counting (NEM-3414)
-    hll_ttl_seconds: int = Field(
-        default=86400,
-        ge=3600,
-        le=604800,
-        description="TTL in seconds for HyperLogLog keys used for unique counting. "
-        "Default: 86400 (24 hours). Max: 604800 (7 days). "
-        "Longer TTL provides better historical analysis but uses more memory (~12KB per HLL).",
-    )
-    hll_key_prefix: str = Field(
-        default="hll",
-        description="Prefix for HyperLogLog keys. Keys are formatted as {prefix}:{metric}:{time_window}. "
-        "Example: hll:unique_cameras:2024-01-15 for daily unique camera counts.",
-    )
-
     # Cache TTL settings (NEM-2519)
     cache_default_ttl: int = Field(
         default=300,
@@ -729,28 +604,6 @@ class Settings(BaseSettings):
         description="TTL in seconds for cached camera snapshots extracted from videos. Default: 1 hour.",
     )
 
-    # Cache warming settings (NEM-3762)
-    cache_warming_enabled: bool = Field(
-        default=True,
-        description="Enable cache warming on application startup. "
-        "Pre-populates frequently accessed cache keys to reduce cold-start latency.",
-    )
-    cache_warming_strategy: str = Field(
-        default="parallel",
-        description="Cache warming strategy: "
-        "'parallel' (warm all caches concurrently, faster startup), "
-        "'sequential' (warm one cache at a time, lower resource usage), "
-        "'eager' (alias for parallel), "
-        "'lazy' (disable warming, caches populated on first access).",
-    )
-    cache_warming_timeout: float = Field(
-        default=30.0,
-        ge=5.0,
-        le=120.0,
-        description="Maximum time in seconds to wait for cache warming to complete. "
-        "Warming failures don't block startup but are logged.",
-    )
-
     # Internal service timeout settings (NEM-2519)
     degradation_health_check_timeout: float = Field(
         default=10.0,
@@ -774,13 +627,6 @@ class Settings(BaseSettings):
         le=86400,
         description="TTL in seconds for completed/failed jobs in Redis. "
         "Default: 3600 (1 hour). Jobs are cleaned up after this period.",
-    )
-    default_job_timeout: int = Field(
-        default=600,
-        ge=60,
-        le=86400,
-        description="Default timeout (seconds) for background jobs without specific timeout. "
-        "Default: 600 (10 minutes).",
     )
 
     # Pagination settings (NEM-2591)
@@ -2026,12 +1872,6 @@ class Settings(BaseSettings):
         "Queries exceeding this threshold will have EXPLAIN ANALYZE logged. "
         "Set via SLOW_QUERY_THRESHOLD_MS environment variable.",
     )
-    slow_query_explain_enabled: bool = Field(
-        default=True,
-        description="Enable EXPLAIN ANALYZE logging for slow queries. "
-        "Set to False in production to disable performance overhead. "
-        "Set via SLOW_QUERY_EXPLAIN_ENABLED environment variable.",
-    )
 
     # DLQ settings
     max_requeue_iterations: int = Field(
@@ -2255,30 +2095,6 @@ class Settings(BaseSettings):
         description="Compression level for deflate algorithm (1-9). "
         "1 = fastest (least compression), 9 = slowest (best compression). "
         "Default: 6 (good balance between speed and compression ratio).",
-    )
-
-    # WebSocket message batching settings (NEM-3738)
-    websocket_batch_interval_ms: int = Field(
-        default=100,
-        ge=10,
-        le=5000,
-        description="Interval in milliseconds for batching high-frequency WebSocket messages. "
-        "Messages on batch channels are collected over this interval and sent as a single batch. "
-        "Lower values reduce latency, higher values improve batching efficiency. Default: 100ms.",
-    )
-    websocket_batch_max_size: int = Field(
-        default=50,
-        ge=1,
-        le=500,
-        description="Maximum number of messages per batch before immediate flush. "
-        "When a channel accumulates this many messages, the batch is sent immediately "
-        "without waiting for the interval timer. Default: 50 messages.",
-    )
-    websocket_batch_channels: list[str] = Field(
-        default=["detections", "alerts"],
-        description="List of WebSocket channels to apply batching to. "
-        "Messages on these channels are batched; other channels send immediately. "
-        "Default: ['detections', 'alerts'] for high-frequency detection events.",
     )
 
     # Severity threshold settings (risk score 0-100)
@@ -2536,13 +2352,6 @@ class Settings(BaseSettings):
     orchestrator: OrchestratorSettings = Field(
         default_factory=OrchestratorSettings,
         description="Container orchestrator configuration for health monitoring and self-healing",
-    )
-
-    # Transcode cache settings (for disk-based video transcode caching)
-    # Environment variables use TRANSCODE_CACHE_ prefix (e.g., TRANSCODE_CACHE_DIR)
-    transcode_cache: TranscodeCacheSettings = Field(
-        default_factory=TranscodeCacheSettings,
-        description="Transcode cache configuration for LRU-based video transcode caching",
     )
 
     # Model preloading - eagerly load all models into GPU VRAM at startup
@@ -2857,36 +2666,6 @@ class Settings(BaseSettings):
                 f"redis_ssl_cert_reqs must be one of: {', '.join(valid_modes)}. Got: '{v}'"
             )
         return v_lower
-
-    @field_validator("redis_memory_policy")
-    @classmethod
-    def validate_redis_memory_policy(cls, v: str) -> str:
-        """Validate Redis memory eviction policy (NEM-3416)."""
-        valid_policies = {
-            "volatile-lru",
-            "allkeys-lru",
-            "volatile-ttl",
-            "volatile-random",
-            "allkeys-random",
-            "noeviction",
-            # Also support shorter aliases without volatile-/allkeys- prefix
-            "lru",
-            "ttl",
-            "random",
-        }
-        v_lower = v.lower()
-        if v_lower not in valid_policies:
-            raise ValueError(
-                f"redis_memory_policy must be one of: volatile-lru, allkeys-lru, "
-                f"volatile-ttl, volatile-random, allkeys-random, noeviction. Got: '{v}'"
-            )
-        # Map short aliases to full names (default to volatile- prefix for safety)
-        alias_map = {
-            "lru": "volatile-lru",
-            "ttl": "volatile-ttl",
-            "random": "volatile-random",
-        }
-        return alias_map.get(v_lower, v_lower)
 
     @field_validator("redis_ssl_certfile", "redis_ssl_keyfile", "redis_ssl_ca_certs")
     @classmethod

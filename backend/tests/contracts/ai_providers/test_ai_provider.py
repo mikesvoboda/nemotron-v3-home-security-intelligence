@@ -172,11 +172,9 @@ class TestAIServiceProtocolDecide:
     """
 
     def test_protocol_removed_from_core(self) -> None:
-        from backend.core import protocols
+        from pathlib import Path
 
-        assert not hasattr(protocols, "AIServiceProtocol")
-        assert not hasattr(protocols, "AIServiceWithLifecycle")
-        assert "AIServiceProtocol" not in protocols.__all__
+        assert not (Path(__file__).resolve().parents[4] / "backend/core/protocols.py").exists()
 
     def test_no_lingering_imports_in_python(self) -> None:
         """Nothing may still BIND the removed names - the explanatory DECIDE

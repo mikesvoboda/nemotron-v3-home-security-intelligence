@@ -118,21 +118,21 @@ nothing in `backend/` outside its upgrade step.
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7319. (ruling 241)
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
+- [x] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
       module under `backend/` the reachability check reports non-shipping at this PR's head,
       outside `keep.toml`: `R2`'s §3 is approved as that rule, not as the measured snapshot
       (ruling 210, record 6200282082). The scene-change vertical stays: R2a row 24 ruled it
       complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
       183).
-- [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
+- [x] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"
       (ruling 89).
-- [ ] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
+- [x] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
       code imports.
-- [ ] Delete each module's tests, batteries included. These PRs change production code, so the
+- [x] Delete each module's tests, batteries included. These PRs change production code, so the
       kill-loss rule does not apply; each PR discloses the scored-set change instead (`01`).
 
 **Done when:** the reachability check (`O2.3`) reports no non-shipping module under `backend/`
@@ -193,6 +193,34 @@ History filter and labels change, so no editor sends a value the API refuses; an
 frontend copy and the docs row. `AnalyzerUnavailableError` and `EnrichmentUnavailableError` stay,
 with their codes. The PR that carries this is owner tier (UR-98), and backend chooses which `B3.3`
 PR it is. The row's design note stays with Phase 4's prompt-management package.
+
+### [r295] pip leaves the production image
+
+**Flags:** `owner` (production safety: it changes what ships, UR-98). **Assigned:** backend, after
+`B3.3`'s fourth box (ruling 295). **Depends on:** #7321 (ruling 295's red-`main` exemption) merged.
+**PR:** none yet. (ruling 295, record 6307239846)
+
+On 2026-10-21 `Scan Backend Image` failed on `certifi` 2026.6.17 (GHSA-6q48-6c7w-9gw2) in pip's own
+`_vendor` bundle in the `python:3.14-slim-bookworm` base image, which Trivy reports under the bare
+`Python (python-pkg)` target; the app's venv carried the fixed 2026.10.19 (run `39528289094`). Only
+an upstream pip release can update that bundle, so `.trivyignore:302-354` exempts five findings of
+that class (msgpack, setuptools, urllib3 twice, and `certifi` from #7321), each with REVIEW BY
+2026-12-20. Nothing in the production container runs pip: `backend/entrypoint.sh` and the `prod`
+stage never call it, and backend code names it only in "Install with: pip install …" messages.
+Dropping pip from the image removes this class of finding for good.
+
+- [ ] **The `prod` stage of `backend/Dockerfile` drops pip** and its `_vendor` bundle from the
+      system site-packages, after the last step that needs it. `uv` and the venv stay.
+- [ ] **The five pip-bundle entries leave `.trivyignore`** in the same PR (msgpack, setuptools,
+      urllib3 twice, `certifi`), and the PR's image scan is green without them.
+- [ ] **A test pins it, red first (UR-69):** the built `prod` image cannot import pip (for example,
+      `docker run --rm <image> python -c "import pip"` exits non-zero in CI), or another check the
+      lane names.
+
+**Done when:** `CI Gate` is green at a ready head, including the image scan and the feature checks
+(the stack boots without pip). The PR body shows the scan with no bare `Python (python-pkg)` target,
+and the UR-89 review approves. The owner partner approves it under ruling 281 once its UR-89 review
+approves and its gate is green.
 
 ### [r236] Two documented endpoints become External rows
 
