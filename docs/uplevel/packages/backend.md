@@ -155,7 +155,15 @@ outside `keep.toml`, and the suite is green.
       registry, and the audit's "11" not reproducible under any stated definition (the census
       records why the rest is not residue, and the FLORENCE_UNAVAILABLE consumers make it an owner
       contract call that rides the fourth box's PR); the repo-wide ratchet test pins the census.)
-- [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
+- [x] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
+      (Fourth box: #7322 carries it — the four values leave `AIModelEnum`/`AIModel` with their
+      config schemas; upgrade `0011-retire-vision-model-prompts` deletes the four models'
+      `prompt_versions` rows, converts the column to varchar and drops the native `aimodel`
+      enum; its test checks every other row survives and the changed rows are exactly the four
+      models' rows (`test_0011_prompt_versions_upgrade.py`, census diff on (model, version));
+      the four frontend editors and the Version History filter ride as cross-lane parts;
+      `FlorenceUnavailableError`/`FLORENCE_UNAVAILABLE` retire with Florence, and
+      `AnalyzerUnavailableError`/`EnrichmentUnavailableError` stay.)
 - [x] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
       `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
       `docs/api/migrations/` is applied by hand. One ordered, checked upgrade command records which
