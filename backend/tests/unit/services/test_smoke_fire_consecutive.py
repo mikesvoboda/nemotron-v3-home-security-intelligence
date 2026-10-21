@@ -4,7 +4,7 @@ Tests cover:
 - First detection: consecutive_count = 1, no alert
 - Second detection within 5s: consecutive_count = 2, alert triggered
 - Detection after 5s gap: consecutive_count resets to 1
-- smoke_fire_consecutive_required configuration (default 2)
+- Consecutive required configuration (default 2)
 - Alert cooldown (60-120s) for duplicate alerts
 - Multiple cameras tracking separate consecutive counts
 

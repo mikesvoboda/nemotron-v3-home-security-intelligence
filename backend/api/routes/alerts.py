@@ -229,17 +229,10 @@ async def create_rule(
         dwell_time_enabled=rule_data.dwell_time_enabled,
         dwell_threshold_seconds=rule_data.dwell_threshold_seconds,
         exclude_household_members=rule_data.exclude_household_members,
-        pose_types=rule_data.pose_types,
-        pose_confidence_threshold=rule_data.pose_confidence_threshold,
-        action_types=rule_data.action_types,
-        action_confidence_threshold=rule_data.action_confidence_threshold,
         threat_detection_enabled=rule_data.threat_detection_enabled,
         threat_types=rule_data.threat_types,
         threat_min_severity=rule_data.threat_min_severity,
         threat_confidence_threshold=rule_data.threat_confidence_threshold,
-        smoke_fire_detection_enabled=rule_data.smoke_fire_detection_enabled,
-        smoke_fire_consecutive_required=rule_data.smoke_fire_consecutive_required,
-        smoke_fire_confidence_threshold=rule_data.smoke_fire_confidence_threshold,
     )
 
     db.add(rule)
@@ -305,17 +298,10 @@ def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict
         "dwell_time_enabled",
         "dwell_threshold_seconds",
         "exclude_household_members",
-        "pose_types",
-        "pose_confidence_threshold",
-        "action_types",
-        "action_confidence_threshold",
         "threat_detection_enabled",
         "threat_types",
         "threat_min_severity",
         "threat_confidence_threshold",
-        "smoke_fire_detection_enabled",
-        "smoke_fire_consecutive_required",
-        "smoke_fire_confidence_threshold",
     ]
     for field in simple_fields:
         if field in update_dict:

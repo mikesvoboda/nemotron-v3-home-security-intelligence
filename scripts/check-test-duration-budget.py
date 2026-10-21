@@ -147,6 +147,62 @@ def get_warn_budget() -> float:
     return float(os.environ.get("SLEEP_GATE_WARN_BUDGET", str(DEFAULT_WARN_BUDGET)))
 
 
+# ---------------------------------------------------------------------------
+# The per-module import budget ([r172], issue #7102).
+#
+# #7102 measured the gap: junit splits cost across two elements —
+# ``<testcase time>`` covers the test body, ``<testsuite time>`` includes
+# collection and module import — and every read in this file used the first.
+# A module that stalls at import measured 0.023 s to the gate while its suite
+# spent 12.434 s, and the stall was invisible to both the corpus pass and the
+# re-run that exonerated a breach on it ("corpus 12.40s, re-ran 0.42s" — the
+# exoneration was granted on a number that excludes the cost under review).
+#
+# [r172]'s package text is the spec: "computes each module's import cost as
+# <testsuite time> minus the sum of its <testcase time>s and applies UR-125's
+# numbers per module, with UR-125's single re-run and shared re-run cap;
+# per-test budgets and worst_durations() keep their meaning."
+#
+# The suite element is the finest unit junit attributes collection cost to:
+# under xdist a shard's suite mixes modules, so the corpus-side number is
+# per-suite (named by its file and the module span of its cases), and the
+# re-run — one module, no xdist, the same argv shape the per-test re-run
+# uses — is where a single module's cost is measured exactly. That is why the
+# re-run, not the corpus pass, is the verdict path for the per-module budget.
+#
+# It ships WARNING-ONLY ([r172]'s own clause): the over-threshold list is
+# posted and the run stays green; the failing turn comes after a scheduled
+# nightly has posted the list and each over-threshold module is either fixed
+# or entered in the audit's SLOW_TEST_PATTERNS with a measured note. The fail
+# knob below exists and is pinned so that later turn is a one-line env change,
+# not new code.
+# ---------------------------------------------------------------------------
+
+DEFAULT_MODULE_BUDGET = 4.0  # UR-125's unit hard number, applied per module
+DEFAULT_MODULE_WARN = 1.5  # UR-125's warn number, applied per module
+
+
+def get_module_budget() -> float:
+    """The per-module hard budget ([r172]: UR-125's numbers per module)."""
+    return float(os.environ.get("SLEEP_GATE_MODULE_BUDGET", str(DEFAULT_MODULE_BUDGET)))
+
+
+def get_module_warn() -> float:
+    """The per-module WARN threshold (UR-125's warn number, per module)."""
+    return float(os.environ.get("SLEEP_GATE_MODULE_WARN", str(DEFAULT_MODULE_WARN)))
+
+
+def module_fail_mode() -> bool:
+    """Is the module budget failing, or warning-only? Warning-only ships.
+
+    Off is the default and the shipped mode; the nightly's evidence is what
+    turns it on, per [r172]. The knob names no module and reads no history,
+    so it is not the exemption channel ruling 93 deleted — it is the
+    scheduled verdict flip the package text describes.
+    """
+    return os.environ.get("SLEEP_GATE_MODULE_FAIL", "").strip() not in ("", "0", "false", "no")
+
+
 def budget_for(category: str, budgets: dict[str, float]) -> float:
     """The budget that applies to one tier.
 
@@ -539,6 +595,227 @@ def worst_durations(
     return worst, xml_count, timed_cases
 
 
+def suite_import_costs(
+    results_dir: Path,
+) -> tuple[list[tuple[float, float, float, str, list[str]]], list[str]]:
+    """Per-suite collection cost: ``(cost, suite_time, body_sum, label, span)``.
+
+    [r172]'s per-module import budget, corpus side. junit attributes
+    collection and module import to the ``<testsuite>`` element, not to any
+    testcase, so the import cost is the suite's ``time`` minus the sum of
+    its ``<testcase time>``s — the difference is what #7102 measured a
+    module-level sleep hiding inside (12.434 s suite, 0.023 s testcase).
+
+    A suite whose testcase times ADD UP PAST its own time is xdist-mixed:
+    the sum is CPU-seconds across workers while the suite ``time`` is
+    wall-clock, and CPU-seconds exceeding wall-clock is impossible in one
+    process, so the difference is scheduler arithmetic, not an import cost
+    (a real corpus shape measured 14.14 s of bodies in an 11.06 s suite —
+    printed as -3.08 s before this check). Such a row is not suppressed but
+    NAMED on the unmeasured list with the reason: a garbage number posted
+    nightly trains readers to ignore the list, and a silently-dropped row
+    trains them the same way.
+
+    Both sides of the subtraction are returned because both belong on the
+    report line, the same way a WARN row carries corpus and re-run together:
+    the import cost alone invites "trust me", while the pair lets a reader
+    recompute the difference and see that the testcase's own number kept its
+    meaning (0.023 s stays 0.023 s — the stall went to the suite's row, not
+    the test's).
+
+    The suite is the finest unit junit attributes collection cost to. Under
+    xdist one suite mixes many modules, so the corpus-side number is
+    per-suite: it is named by its XML file and the suite element's ``name``
+    attribute, with the module span of its cases listed so a reader can see
+    what it covers. The RE-RUN is where a single module's cost is measured
+    exactly — one module, no xdist, its own suite element — which is why
+    the re-run, not this corpus pass, decides the per-module verdict.
+
+    All testcase times count toward the sum, failed and skipped included:
+    junit records what ran, and the collection cost is what is left over.
+    Benchmark testcases are the one exception, and on the OTHER side of the
+    ledger: the per-test pass drops the benchmark tier as intentionally slow,
+    so a benchmark's body time is not body-time the import cost may claim as
+    credit — it is added back into the suite time before the real testcases
+    are subtracted. Dropping it from both sides (the first version) let a
+    benchmark's own duration shrink the module's reported import cost, which
+    is the same misattribution #7102 is about, pointed the other way.
+
+    Returns ``(costs sorted longest-first, unmeasured)``. A suite element
+    with no usable ``time`` attribute goes on the ``unmeasured`` list —
+    reading it as 0 would silently exempt the one shape a truncated writer
+    produces; the report names it instead. An xdist-mixed suite (bodies
+    over wall) joins it with its own named reason, same doctrine.
+    """
+    costs: list[tuple[float, float, float, str, list[str]]] = []
+    unmeasured: list[str] = []
+    for xml_file in sorted(results_dir.glob("**/*.xml")):
+        try:
+            root = ET.parse(xml_file).getroot()
+        except ET.ParseError:
+            continue  # worst_durations already warns on this file
+        suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
+        for suite in suites:
+            label = f"{xml_file.name} / {suite.get('name', '?')}"
+            raw = suite.get("time")
+            if raw is None:
+                unmeasured.append(label)
+                continue
+            try:
+                suite_time = float(raw)
+            except ValueError:
+                unmeasured.append(label)
+                continue
+            case_sum = 0.0
+            benchmark_sum = 0.0
+            modules: list[str] = []
+            for case in suite.findall("testcase"):
+                classname = case.get("classname", "")
+                case_name = case.get("name", "")
+                raw_case = case.get("time")
+                try:
+                    case_time = float(raw_case) if raw_case is not None else 0.0
+                except ValueError:
+                    case_time = 0.0
+                if categorize_test(classname, case_name) == "benchmark":
+                    # See the docstring: a benchmark's body time is not
+                    # credit against the collection cost. Back into the
+                    # suite time, not out of both sides.
+                    benchmark_sum += case_time
+                    continue
+                case_sum += case_time
+                if classname:
+                    # The module span: the same module cut pytest_target_for
+                    # makes — the leading lowercase segments. One module per
+                    # classname prefix; keep first-seen order, dedup cheaply.
+                    parts = [p for p in classname.split(".") if p]
+                    cut = next((i for i, p in enumerate(parts) if p[:1].isupper()), len(parts))
+                    module = ".".join(parts[:cut]) if cut else classname
+                    if module and module not in modules:
+                        modules.append(module)
+            # The xdist signature, checked on both sides of the ledger: the
+            # bodies sum is per-worker CPU-seconds, the suite time is one
+            # wall clock, and CPU-seconds over wall-clock is impossible in a
+            # serial process. The benchmark add-back rides on the same
+            # (unmeasurable) side as the bodies it belongs with.
+            if case_sum + benchmark_sum > suite_time:
+                unmeasured.append(
+                    f"{label} — testcases {case_sum + benchmark_sum:.2f}s exceed the suite's "
+                    f"{suite_time:.2f}s (xdist or clock mix; the difference is not an import cost)"
+                )
+                continue
+            costs.append(
+                (suite_time + benchmark_sum - case_sum, suite_time, case_sum, label, modules)
+            )
+    costs.sort(key=lambda c: -c[0])
+    return costs, unmeasured
+
+
+def rerun_module_cost(target: str) -> tuple[float | None, int]:
+    """Re-run one MODULE once; return ``(import cost or None, pytest exit code)``.
+
+    The child is the same argv shape the per-test re-run uses (``-o addopts=``
+    clears the ini's xdist/starvation, ``-p no:randomly`` fixes the shuffle,
+    ``--timeout`` keeps the per-test ceiling) and runs the module, not a test
+    inside it — so the child's own suite element carries exactly one module's
+    collection cost, and suite-minus-sum on the child's junit is the number
+    the corpus could only approximate. The same parent bound (``--timeout``
+    plus grace) applies, for the same reason: a collection stall is before
+    any per-test timer.
+
+    ``None`` means no usable number — no junit, unparseable, or a suite with
+    no ``time`` attribute — and keeps the breach RED (unverified is not
+    passed), the same doctrine ``_rerun_duration`` applies.
+    """
+    argv = [
+        *rerun_command(),
+        "-o",
+        "addopts=",
+        "-p",
+        "no:randomly",
+        f"--timeout={_repro_timeout():g}",
+        "--junit-xml=@TEMP@",
+        target,
+    ]
+    with tempfile.TemporaryDirectory(prefix="sleep-gate-module-repro-") as tmpdir:
+        xml_path = Path(tmpdir) / "module-repro.xml"
+        argv[argv.index("--junit-xml=@TEMP@")] = f"--junit-xml={xml_path}"
+        try:
+            proc = subprocess.run(
+                argv,
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=REPO_ROOT,
+                timeout=_repro_timeout() + _repro_grace(),
+            )
+        except subprocess.TimeoutExpired:
+            # A collection stall is exactly the shape the parent bound exists
+            # for (no per-test timer is ever armed); killed, and that is NOT
+            # a pass.
+            print(
+                "  (module re-run timed out and was killed; no cost measured)",
+                file=sys.stderr,
+            )
+            return None, TIMED_OUT_RERUN_EXIT
+        except OSError as exc:
+            print(f"  (module re-run could not start: {exc})", file=sys.stderr)
+            return None, 127
+        if not xml_path.is_file():
+            return None, proc.returncode
+        try:
+            root = ET.parse(xml_path).getroot()
+        except ET.ParseError:
+            return None, proc.returncode
+        suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
+        for suite in suites:
+            raw = suite.get("time")
+            if raw is None:
+                continue
+            try:
+                suite_time = float(raw)
+            except ValueError:
+                continue
+            case_sum = 0.0
+            witnessed = False
+            for case in suite.findall("testcase"):
+                # A skip ran nothing, so it is a non-witness — the same
+                # doctrine _rerun_duration applies per test. An all-skipped
+                # module re-run measures teardown-scale suite time, and
+                # suite-minus-sum on that shape reads as "cleared" when
+                # nothing about the run says the module imports fast. Read
+                # the marker before the arithmetic.
+                if case.find("skipped") is not None:
+                    return None, SKIPPED_RERUN_EXIT
+                try:
+                    case_sum += float(case.get("time", "0"))
+                except ValueError:
+                    pass
+                witnessed = True
+            if not witnessed:
+                continue
+            return suite_time - case_sum, proc.returncode
+        return None, proc.returncode
+
+
+def module_test_path(suite_modules: list[str], xml_name: str) -> str:
+    """The repo-relative module path a module re-run targets.
+
+    Taken from the suite's case classnames (the same cut
+    ``pytest_target_for`` makes) so the re-run measures the module the
+    corpus saw. A suite mixing modules under xdist names its first module —
+    the honest target, and the report says the cost it measured was the
+    suite's. ``xml_name`` is the fallback label when no classname carried a
+    usable module shape.
+    """
+    for module in suite_modules:
+        parts = [p for p in module.split(".") if p]
+        cut = next((i for i, p in enumerate(parts) if p[:1].isupper()), len(parts))
+        if cut:
+            return "/".join(parts[:cut]) + ".py"
+    return xml_name
+
+
 def cleared_rows_outside_warns(
     breaches: list[tuple[float, str, str, float]],
     warns: list[tuple[float, str]],
@@ -568,6 +845,7 @@ def write_step_summary(
     breaches: list[tuple[float, str]],
     cleared: dict[str, tuple[str, float | None, int]] | None = None,
     extra_cleared: list[tuple[float, str]] | None = None,
+    module_rows: list[str] | None = None,
 ) -> None:
     """Append the WARN section to ``$GITHUB_STEP_SUMMARY``; never fail on it.
 
@@ -586,9 +864,14 @@ def write_step_summary(
     breaches WARNS cannot hold, i.e. non-unit tiers since ruling 151; they get
     the same two-timing row, in their own section, so the summary never depends
     on the WARN list's tier scope to mention them.
+
+    ``module_rows`` is [r172]'s section, pre-rendered markdown by the caller:
+    the over-threshold modules (and the unmeasured suites) are the nightly's
+    posted list, and the caller renders it because only it knows whether the
+    run was in the warning-only or the failing mode.
     """
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "").strip()
-    if not summary_path or not (warns or breaches or extra_cleared):
+    if not summary_path or not (warns or breaches or extra_cleared or module_rows):
         return
     cleared = cleared or {}
     extra_cleared = extra_cleared or []
@@ -625,6 +908,8 @@ def write_step_summary(
     if breaches:
         lines += ["", "Hard-budget breaches (this run is RED):", ""]
         lines += [f"- `{test_id}` — {duration:.2f}s" for duration, test_id in breaches]
+    if module_rows:
+        lines += module_rows
     lines.append("")
     try:
         # GITHUB_STEP_SUMMARY is set by the Actions runner, never derived from
@@ -704,6 +989,24 @@ def main(argv: list[str] | None = None) -> int:
         ),
         key=lambda w: -w[0],
     )
+
+    # [r172]: the per-module import budget, corpus side. Computed regardless
+    # of mode so the report always says what it read (including the
+    # unmeasured suites); the verdict use of it is gated on the module knobs
+    # below, and warning-only ships.
+    module_costs, module_unmeasured = suite_import_costs(results_dir)
+    module_budget = get_module_budget()
+    module_warn = get_module_warn()
+    module_breaches = [
+        (cost, suite_time, body_sum, label, modules)
+        for cost, suite_time, body_sum, label, modules in module_costs
+        if cost > module_budget
+    ]
+    module_warns = [
+        (cost, suite_time, body_sum, label, modules)
+        for cost, suite_time, body_sum, label, modules in module_costs
+        if module_warn < cost <= module_budget
+    ]
 
     print("=" * 70)
     print("REAL-SLEEP DURATION BUDGET GATE (rulings 74 + 93, UR-125 as amended)")
@@ -792,6 +1095,142 @@ def main(argv: list[str] | None = None) -> int:
     # A breach that cleared is no longer a breach; it is the warning above.
     red = [b for b in breaches if b[1] not in cleared]
 
+    # ---- [r172]: the per-module import budget --------------------------------
+    #
+    # Warning-only ships: the over-threshold list is posted, the run stays
+    # green. With SLEEP_GATE_MODULE_FAIL set, a module import cost over the
+    # hard budget is a breach and the re-run decides it, exactly as UR-125
+    # does for a test: one re-run of the module, and only a reproduced cost
+    # reddens the run. The cap is SHARED with the per-test re-runs ([r172]:
+    # "shared re-run cap") — the module re-runs draw on the unit tier's
+    # allowance after the test breaches have taken theirs, and a module that
+    # gets no slot stays RED unverified in the fail mode (never passed).
+    module_re_runs: dict[str, tuple[str, float | None, int]] = {}
+    module_failed = False
+    if module_breaches or module_warns or module_unmeasured:
+        if module_fail_mode():
+            print(
+                f"Module import budget: FAILING at {module_budget}s "
+                f"({len(module_breaches)} over budget) — [r172], post-nightly mode"
+            )
+        else:
+            print(
+                f"Module import budget: WARNING-ONLY at {module_budget}s hard / "
+                f"{module_warn}s warn ({len(module_breaches)} over the hard line, "
+                f"{len(module_warns)} in the warn band) — [r172]; the run stays green"
+            )
+        for label in module_unmeasured:
+            if "exceed the suite's" in label:
+                # The xdist-mixed rows carry their own reason inline (written
+                # by suite_import_costs); printing the no-time-attribute
+                # wording over them would misstate what was read.
+                print(f"  MODULE {label}")
+            else:
+                print(f"  MODULE {label}: suite carries no time attribute — not measured")
+        # The shared cap, computed ONCE before the loop: recomputing it per
+        # breach would reset the allowance every iteration and let N modules
+        # spawn N uncapped re-runs while the report still said "cap 5".
+        unit_taken = min(sum(1 for b in breaches if b[2] == "unit"), MAX_RERUNS)
+        slots_left = MAX_RERUNS - unit_taken
+        for cost, suite_time, body_sum, label, modules in module_breaches:
+            if module_fail_mode():
+                # Module re-runs draw on the unit tier's allowance after the
+                # per-test re-runs have taken theirs, and each one spends a
+                # slot (the decrement sits next to rerun_module_cost). An
+                # over-cap module stays RED unverified — "could not check"
+                # is not "passed".
+                if slots_left <= 0:
+                    # Named for what it is, not just what happened: the tier's
+                    # allowance was spent on test re-runs, so this module's
+                    # cost stays unverified this job. The report word is
+                    # load-bearing — a denied re-run is never a pass, and the
+                    # reader needs to see the cap, not infer it.
+                    # The reason travels WITH the record: the detail chain below
+                    # re-tests slots_left, but a fifth module whose re-run RAN
+                    # and then hit an unreadable junit leaves slots_left at 0
+                    # too — same number, different reason. A misattributed
+                    # reason on the unverified list trains the reader like a
+                    # garbage row does.
+                    module_re_runs[label] = ("unverified-cap-denied", None, -1)
+                    print(
+                        f"  note: the unit tier's re-run cap ({MAX_RERUNS}) is spent on "
+                        f"test re-runs; the module re-run is denied this job"
+                    )
+                elif rerun_enabled():
+                    target = module_test_path(modules, label.split(" / ")[0])
+                    cost2, code = rerun_module_cost(target)
+                    slots_left -= 1
+                    if cost2 is None:
+                        module_re_runs[label] = ("unverified", None, code)
+                    elif cost2 > module_budget and code == 0:
+                        module_re_runs[label] = ("confirmed", cost2, code)
+                    elif code == 0:
+                        module_re_runs[label] = ("cleared", cost2, code)
+                    else:
+                        module_re_runs[label] = ("unverified", cost2, code)
+                else:
+                    module_re_runs[label] = ("unverified-rerun-off", None, -1)
+                state, replay, code = module_re_runs[label]
+                if state == "confirmed":
+                    module_failed = True
+                    print(
+                        f"  BREACH {cost:.2f}s import cost (budget: {module_budget}s) "
+                        f"[module] — re-ran {replay:.2f}s and BREACHED AGAIN"
+                    )
+                    print(
+                        f"    {label} — suite {suite_time:.2f}s, testcases "
+                        f"{body_sum:.2f}s (the difference is the import cost)"
+                    )
+                    print(f"    module span: {', '.join(modules) if modules else 'unknown'}")
+                elif state == "cleared":
+                    print(
+                        f"  MODULE {label} — {cost:.2f}s import cost "
+                        f"(suite {suite_time:.2f}s, testcases {body_sum:.2f}s), re-ran "
+                        f"{replay:.2f}s (did not reproduce; listed, not failed)"
+                    )
+                else:
+                    if state == "unverified-cap-denied":
+                        # The sentinel from the denial branch, not a re-tested
+                        # slots_left: by the time this line prints, a fifth
+                        # module's spent cap and a fifth module's unreadable
+                        # child junit both leave slots_left at 0, and only the
+                        # assignment site knows which one happened.
+                        detail = (
+                            "the tier's re-run cap was spent on test re-runs, "
+                            "so the module cost stays unverified"
+                        )
+                    elif code > 0:
+                        detail = f"pytest exit {code}"
+                    elif state == "unverified-rerun-off":
+                        detail = "re-run not enabled"
+                    else:
+                        detail = "no junit or no usable suite time"
+                    print(
+                        f"  BREACH {cost:.2f}s import cost (budget: {module_budget}s) "
+                        f"[module] — re-run not verified ({detail}; not a pass)"
+                    )
+                    print(
+                        f"    {label} — suite {suite_time:.2f}s, testcases "
+                        f"{body_sum:.2f}s (the difference is the import cost)"
+                    )
+                    print(f"    module span: {', '.join(modules) if modules else 'unknown'}")
+                    module_failed = True
+            else:
+                print(
+                    f"  MODULE {label} — {cost:.2f}s import cost "
+                    f"(suite {suite_time:.2f}s, testcases {body_sum:.2f}s; over the "
+                    f"{module_budget}s line, warning-only)"
+                )
+                print(f"    module span: {', '.join(modules) if modules else 'unknown'}")
+        for cost, suite_time, body_sum, label, modules in module_warns:
+            print(
+                f"  MODULE WARN {cost:.2f}s import cost "
+                f"(suite {suite_time:.2f}s - bodies {body_sum:.2f}s, warn: {module_warn}s)"
+            )
+            print(f"    {label} (module span: {', '.join(modules) if modules else 'unknown'})")
+        if module_breaches or module_warns:
+            print()
+
     # ...unless the warning above is unit-tier and this breach is not. A cleared
     # integration breach appears in neither the WARN section (unit-only by ruling
     # 93) nor the red list, so without its own section it would be a green run
@@ -812,7 +1251,59 @@ def main(argv: list[str] | None = None) -> int:
 
     # Written on RED runs too — the summary's value peaks exactly when the
     # gate has just refused a merge.
-    write_step_summary(warns, [(d, t) for d, t, _, _ in red], cleared, listed_elsewhere)
+    #
+    # [r172]'s module rows are rendered HERE, not in write_step_summary,
+    # because the mode is the caller's knowledge: warning-only ships (the
+    # run stays green and the list is the nightly's posted evidence), the
+    # fail mode reddens. Either way the list carries both sides of the
+    # arithmetic per row so a reader can recompute the difference — the
+    # same doctrine as the WARN rows above. The unmeasured suites are in
+    # the list too: reading a truncated suite's time as 0 would silently
+    # exempt the exact shape a truncated writer produces.
+    module_rows: list[str] = []
+    if module_breaches or module_warns or module_unmeasured:
+        mode = (
+            "failing — a reproduced import breach reddens this run"
+            if module_fail_mode()
+            else "warning-only — the run stays green"
+        )
+        module_rows += [
+            "",
+            "## Module import budget ([r172], UR-125's numbers per module)",
+            "",
+            f"Per-suite import cost = suite time minus testcase body times "
+            f"(benchmarks added back); budget {module_budget}s hard / "
+            f"{module_warn}s warn. Mode: {mode}.",
+            "",
+        ]
+        for label in module_unmeasured:
+            if "exceed the suite's" in label:
+                module_rows.append(
+                    f"- `{label}` — not measured (the corpus row is not an import cost)"
+                )
+            else:
+                module_rows.append(f"- `{label}` — suite carries no time attribute; not measured")
+        for cost, suite_time, body_sum, label, _modules in module_breaches:
+            again = module_re_runs.get(label)
+            if module_fail_mode() and again and again[0] == "confirmed":
+                tail = f"re-ran {again[1]:.2f}s and breached again"
+            elif module_fail_mode() and again:
+                tail = "re-run not verified (not a pass)"
+            else:
+                tail = "warning-only"
+            module_rows.append(
+                f"- `{label}` — {cost:.2f}s import cost over the {module_budget}s "
+                f"budget ({tail}); suite {suite_time:.2f}s, testcases {body_sum:.2f}s"
+            )
+        for cost, suite_time, body_sum, label, _modules in module_warns:
+            module_rows.append(
+                f"- `{label}` — {cost:.2f}s import cost (warn band, "
+                f"{module_warn}s to {module_budget}s); suite {suite_time:.2f}s, "
+                f"testcases {body_sum:.2f}s"
+            )
+    write_step_summary(
+        warns, [(d, t) for d, t, _, _ in red], cleared, listed_elsewhere, module_rows
+    )
 
     if red:
         print(f"BREACHES (over the hard budget): {len(red)}")
@@ -846,6 +1337,28 @@ def main(argv: list[str] | None = None) -> int:
             f"{notes} A seconds-scale test in a re-run tier is a real sleep: "
             "give it a fake/injected clock "
             "or make it genuinely faster. There is no file to add it to."
+        )
+        return 1
+
+    if module_failed:
+        # [r172]'s failing mode: a module import cost that reproduced on its
+        # re-run (or a denied one — unverified is never a pass). This arm
+        # only runs when the per-test verdict was green, so the RESULT line
+        # says exactly what failed: the modules, not the tests.
+        print("=" * 70)
+        confirmed_modules = sum(1 for s, _, _ in module_re_runs.values() if s == "confirmed")
+        unverified_modules = sum(1 for s, _, _ in module_re_runs.values() if s == "unverified")
+        print(
+            f"RESULT: FAIL - {len(module_breaches)} module(s) over their import budget."
+            + (
+                f" {confirmed_modules} confirmed on the module re-run; "
+                f"{unverified_modules} unverified (NOT a pass — UR-125 exonerates "
+                "only what a re-run exonerates)."
+                if unverified_modules
+                else " All confirmed on the module re-run."
+            )
+            + " Trim the module's import-time work (defer heavy imports, split the "
+            "module) — SLOW_TEST_PATTERNS is per-test and does not take a module."
         )
         return 1
 

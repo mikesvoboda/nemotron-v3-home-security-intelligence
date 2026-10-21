@@ -92,18 +92,11 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/system/config`                                   | PATCH  | `ProcessingSettings.tsx`, `api.ts`, `useSystemConfigQuery.ts`                                                            | Patch Config                       |
 | `/api/system/gpu`                                      | GET    | `api.ts`, `useGpuHistory.ts`, `useGpuStatsQuery.ts`                                                                      | Get Gpu Stats                      |
 | `/api/system/gpu-config`                               | GET    | `gpuConfigApi.ts`                                                                                                        | Get GPU configuration              |
-| `/api/system/gpu-config`                               | PUT    | `gpuConfigApi.ts`                                                                                                        | Update GPU configuration           |
-| `/api/system/gpu-config/apply`                         | POST   | `gpuConfigApi.ts`                                                                                                        | Apply GPU configuration            |
-| `/api/system/gpu-config/detect`                        | POST   | `gpuConfigApi.ts`                                                                                                        | Re-detect GPUs                     |
 | `/api/system/gpu-config/export`                        | GET    | `gpuConfigApi.ts`                                                                                                        | Export current GPU configuration   |
 | `/api/system/gpu-config/history`                       | GET    | `gpuConfigApi.ts`                                                                                                        | List configuration version history |
 | `/api/system/gpu-config/history/diff`                  | GET    | `gpuConfigApi.ts`                                                                                                        | Compare two configuration versions |
 | `/api/system/gpu-config/history/{version_id}`          | GET    | `gpuConfigApi.ts`                                                                                                        | Get configuration version details  |
-| `/api/system/gpu-config/import`                        | POST   | `gpuConfigApi.ts`                                                                                                        | Import GPU configuration           |
 | `/api/system/gpu-config/preview`                       | GET    | `gpuConfigApi.ts`                                                                                                        | Preview auto-assignment            |
-| `/api/system/gpu-config/rollback`                      | POST   | `gpuConfigApi.ts`                                                                                                        | Rollback to previous configuration |
-| `/api/system/gpu-config/services`                      | GET    | `gpuConfigApi.ts`                                                                                                        | Get AI service health status       |
-| `/api/system/gpu-config/status`                        | GET    | `gpuConfigApi.ts`                                                                                                        | Get apply operation status         |
 | `/api/system/gpu/history`                              | GET    | `api.ts`, `gpuHistoryApi.ts`, `useGpuStatsQuery.ts`                                                                      | Get Gpu Stats History              |
 | `/api/system/gpus`                                     | GET    | `gpuConfigApi.ts`                                                                                                        | List detected GPUs                 |
 | `/api/system/health`                                   | GET    | `api.ts`, `useAIMetrics.ts`, `useHealthStatus.ts`, `useHealthStatusQuery.ts`                                             | Get Health                         |
@@ -660,17 +653,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | ---------- | ------ | ----------- | ------------------ |
 | `/api/rum` | POST   | `rum.ts`    | Ingest RUM metrics |
 
-### Scheduled Reports
-
-| Endpoint                                 | Method | Consumer(s)              | Purpose                    |
-| ---------------------------------------- | ------ | ------------------------ | -------------------------- |
-| `/api/scheduled-reports`                 | GET    | `scheduledReportsApi.ts` | List all scheduled reports |
-| `/api/scheduled-reports`                 | POST   | `scheduledReportsApi.ts` | Create a scheduled report  |
-| `/api/scheduled-reports/{report_id}`     | DELETE | `scheduledReportsApi.ts` | Delete a scheduled report  |
-| `/api/scheduled-reports/{report_id}`     | GET    | `scheduledReportsApi.ts` | Get a scheduled report     |
-| `/api/scheduled-reports/{report_id}`     | PUT    | `scheduledReportsApi.ts` | Update a scheduled report  |
-| `/api/scheduled-reports/{report_id}/run` | POST   | —                        | Manually trigger a report  |
-
 ### Summaries
 
 | Endpoint                             | Method | Consumer(s)            | Purpose                      |
@@ -814,7 +796,6 @@ backend-only surface:
 | `/api/plate-reads/camera/{camera_id}`                          | GET                 | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
 | `/api/plate-reads/recognize`                                   | POST                | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
 | `/api/plate-reads/statistics`                                  | GET                 | Plate lookup detail — list/search UIs use the base path via `api.ts`                                                                                                         |
-| `/api/scheduled-reports/{report_id}/run`                       | POST                | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/summaries/daily`                                         | GET                 | Summary detail endpoints — daily summary list consumed by `api.ts`                                                                                                           |
 | `/api/summaries/hourly`                                        | GET                 | Summary detail endpoints — daily summary list consumed by `api.ts`                                                                                                           |
 | `/api/system/models/{model_name}/status`                       | GET                 | Model lifecycle surface — load/unload/reload answer 501 by design                                                                                                            |

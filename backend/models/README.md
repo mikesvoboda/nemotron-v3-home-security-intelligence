@@ -127,7 +127,7 @@ Tracks GPU performance metrics for AI inference monitoring.
 
 - `idx_gpu_stats_recorded_at`: For time-series queries
 
-The models directory contains 52+ model files. Key models not detailed above include: `camera_zone.py`, `analytics_zone.py`, `face_identity.py`, `household.py`, `plate_read.py`, `track.py`, `user.py`, `api_key.py`, `gpu_config.py`, `outbound_webhook.py`, `scheduled_report.py`, `llm_interaction.py`, `zone_anomaly.py`, `zone_baseline.py`, and others.
+The models directory contains 52+ model files. Key models not detailed above include: `camera_zone.py`, `analytics_zone.py`, `face_identity.py`, `household.py`, `plate_read.py`, `track.py`, `user.py`, `api_key.py`, `gpu_config.py`, `outbound_webhook.py`, `llm_interaction.py`, `zone_anomaly.py`, `zone_baseline.py`, and others.
 
 ## Usage
 

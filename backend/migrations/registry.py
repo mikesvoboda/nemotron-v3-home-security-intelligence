@@ -131,6 +131,21 @@ UPGRADES: tuple[Upgrade, ...] = (
         filename="2026-10-20-retire-action-events-table.sql",
         source="B3.1 R2a row 32 (retire F-068 action_events table)",
     ),
+    Upgrade(
+        id="0008-retire-alert-rule-pose-action-smoke-columns",
+        filename="2026-10-20-retire-alert-rule-pose-action-smoke-columns.sql",
+        source="B3.1 R2a row 32 (retire F-220 alert_rules pose, action, and smoke/fire columns)",
+    ),
+    Upgrade(
+        id="0009-retire-gpu-devices-table",
+        filename="2026-10-20-retire-gpu-devices-table.sql",
+        source="B3.1 R2a row 36 (retire F-177 gpu_devices table)",
+    ),
+    Upgrade(
+        id="0010-retire-scheduled-reports-table",
+        filename="2026-10-20-retire-scheduled-reports-table.sql",
+        source="B3.1 R2a row 43 (retire F-252/F-253/F-255 scheduled_reports table)",
+    ),
 )
 
 

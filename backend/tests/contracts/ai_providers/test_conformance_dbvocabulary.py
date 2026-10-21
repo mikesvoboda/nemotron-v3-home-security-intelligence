@@ -68,8 +68,8 @@ Consequences here, none of them a silent shrink:
     pruned by the same slice, so both non-vacuities are retargeted, not deleted.
   * ``DB_POSE`` / ``DB_THREAT`` / ``DB_SEVERITY`` are untouched: ``pose_results``,
     ``threat_detections`` and ``action_results`` all survive S4 (the owner kept
-    them with the ``pose_types``/``action_types``/``threat_detection_enabled``
-    rule fields their alert_engine reader feeds).
+    them with ``threat_detection_enabled``; R2a row 32 F-220 retired the pose,
+    action, and smoke/fire rule condition fields).
 
 ===========================================================================
 CITE-CORRECTION NOTES (plan line numbers drifted; corrected cites verified
@@ -78,11 +78,10 @@ against THIS tree):
   1. The plan cites the DB CHECKs as `api/schemas/enrichment.py` — the file
      is actually backend/models/enrichment.py (pose :79-80, threat :139-142,
      gender :193-199, age :197-200). backend/api/schemas/alerts.py carries a
-     PARITY COPY of three of the sets (VALID_POSE_CLASSES :75-77,
-     VALID_THREAT_TYPES :81, VALID_THREAT_SEVERITIES :85) and those copies are
-     the LIVE enforcement point — they are the validators on AlertRuleCreate /
-     AlertRuleUpdate, reached from backend/api/routes/alerts.py — so
-     TestSchemaParity pins all three against the ORM.
+     PARITY COPY of the threat sets (VALID_THREAT_TYPES, VALID_THREAT_SEVERITIES)
+     and those copies are the LIVE enforcement point — they are the validators on
+     AlertRuleCreate / AlertRuleUpdate, reached from backend/api/routes/alerts.py
+     — so TestSchemaParity pins them against the ORM.
   2. The plan's "12 threat values" was the STRING-keyed THREAT_CLASSES_BY_NAME
      map in the deleted server; the int-keyed THREAT_CLASSES beside it was a
      DIFFERENT 6-value set. Both retired in S3 (section 3 records both deltas
@@ -664,16 +663,13 @@ class TestCharacterization:
 
     def test_alert_side_vocabularies_match_the_checks(self) -> None:
         """backend/api/schemas/alerts.py carries hand-maintained PARITY COPIES
-        of three DB sets, and they are the LIVE enforcement point — the
-        AlertRuleCreate / AlertRuleUpdate validators at :405-440 reject a rule
-        naming anything else, which means the API refuses a threat type the DB
-        would accept and vice versa. Pin all three against the ORM: the second
-        enforcement point must not drift. (The retired copies covered two sets;
-        the severity copy is pinned too because S3 left it as the only threat
-        vocabulary with a live validator behind it.)"""
+        of the threat DB sets, and they are the LIVE enforcement point — the
+        AlertRuleCreate / AlertRuleUpdate validators reject a rule naming
+        anything else, which means the API refuses a threat type the DB would
+        accept and vice versa. Pin both against the ORM: the second enforcement
+        point must not drift."""
         from backend.api.schemas import alerts
 
-        assert alerts.VALID_POSE_CLASSES == DB_POSE
         assert alerts.VALID_THREAT_TYPES == DB_THREAT
         assert alerts.VALID_THREAT_SEVERITIES == DB_SEVERITY
         # Non-vacuity: these are not decorative constants — the alert engine
