@@ -901,9 +901,11 @@ consequences:
 
 `alloy`'s socket mount is NOT affected by this change — alloy uses the socket for
 container discovery, log scraping and profiling targets, not orchestration, and stays
-unconditional per owner ruling 186. Because alloy precedes `backend` in the prod file,
-an unset `PODMAN_SOCKET` fails the render naming `services.alloy.volumes` in BOTH
-states; the message does not tell you the orchestrator flag is what you were testing.
+unconditional per owner ruling 186. Compose reports every service whose interpolation
+fails, in alphabetical service order, so an unset `PODMAN_SOCKET` fails the render
+naming `services.alloy.volumes` and `services.backend.volumes` in BOTH states
+regardless of file order — `alloy` heads the list only because the names sort that
+way; the message does not tell you the orchestrator flag is what you were testing.
 
 **CLI versions this was verified on**: `docker compose v5.5.1` and
 `podman-compose 1.6.0`, plus `docker compose v2.38.2` (the `ubuntu-24.04` runner's

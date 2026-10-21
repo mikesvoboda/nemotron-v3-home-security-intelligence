@@ -227,7 +227,7 @@ boundary_list:
 # outside the list are W3.1 deletions, and capping a file scheduled to disappear is
 # noise, not a ratchet. The standard that sets these numbers has its single home at
 # docs/developer/agents-md-standard.md (packages/docs.md points there). Measured at
-# adoption (PR #6920, this head): root 505 — inside its cap; lane roots 41..1334,
+# PR #6920's merge (396df715c): root 504 — inside its cap; lane roots 41..1334,
 # 4 of the 7 over; boundary packages up to 3164; 29 of the 42 boundary files over
 # cap. The live set is the report's ratchet.line_caps.over (or the run's console
 # summary), not this comment — the comment is the reason the caps exist, the
