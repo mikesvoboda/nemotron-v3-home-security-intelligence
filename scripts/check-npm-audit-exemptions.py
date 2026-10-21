@@ -281,6 +281,7 @@ def adjudicate_front(
     errors: list[str] = []
     warns: list[str] = []
     covered: set[str] = set()
+    covered_pairs: set[tuple[str, str]] = set()
     unexempted: set[tuple[str, str]] = set()
     violated_entries: set[str] = set()
 
@@ -331,13 +332,27 @@ def adjudicate_front(
                 f"{gid}: registered but NO current audit finding matches - stale, remove it",
             )
             continue
+        a = found[hit]
         # Strict coverage (r291 security pass): the entry covers its finding
         # only when the entry itself passed every rule above. An expired or
         # premise-broken entry leaves the finding unexempted, so the gate
         # delta cannot be green-lit by a dead entry's nominal match.
         if not strict_coverage or len(errors) == errors_before:
             covered.add(hit)
-        a = found[hit]
+            # r291 security re-pass, residual A: coverage is per (gid,
+            # package) in gate mode. npm attributes chain advisories to every
+            # dependent package (the braces advisory is a via on chokidar,
+            # fast-glob, knip ...), so one entry naming `braces` must not
+            # cover the advisory on a NEW package a PR adds - the delta key
+            # is (gid, package) exactly so that addition is visible. A bare
+            # entry naming no package stays a whole-advisory carve-out.
+            if strict_coverage:
+                named = e.get("package")
+                matched = (
+                    set(a["packages"]) if named is None else {named} if named in a["packages"] else set()
+                )
+                for p in matched:
+                    covered_pairs.add((hit, p))
         if a["in_range_fix"]:
             entry_error(
                 gid,
@@ -361,6 +376,17 @@ def adjudicate_front(
                 # against. Package attribution is how the base/head compare
                 # distinguishes "the advisory moved to another package" from
                 # "the advisory was here all along".
+                unexempted.add((gid, pkg))
+        elif strict_coverage:
+            # r291 security re-pass, residual A: the advisory is covered, but
+            # in gate mode coverage is per (gid, package) - a package the
+            # entry never named is still an unexempted finding on that
+            # package, so it lands in the delta set with the same message.
+            for pkg in sorted(set(a["packages"]) - {q for (g, q) in covered_pairs if g == hit}):
+                sev = ",".join(sorted(a["severities"]))
+                errors.append(
+                    f"{gid}: audit finding ({sev}) on ['{pkg}'] is UNEXEMPTED"
+                )
                 unexempted.add((gid, pkg))
 
     if full_report:

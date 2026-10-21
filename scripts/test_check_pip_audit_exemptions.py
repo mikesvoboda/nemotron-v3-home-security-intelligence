@@ -542,3 +542,26 @@ def test_gate_shared_warn_keeps_delta_green_with_warning_note(tmp_path: Path) ->
     )
     assert r.returncode == 0, r.stdout + r.stderr
     assert "shared expiry warning(s)" in r.stdout
+
+
+def test_gate_new_package_hit_by_already_exempted_advisory_fails(tmp_path: Path) -> None:
+    """r291 security re-pass, residual A: the base reports the advisory on
+    the package a valid entry names; the head reports the SAME advisory on
+    a NEW package too. Coverage was advisory-granular - one entry covered
+    the advisory on every package it touches, including ones the entry
+    never named - so a PR adding a vulnerable dependency green-lit without
+    touching the registry. The delta key is (advisory, package), so the
+    head's (CVE, new-pkg) is an addition and the delta is red."""
+    other = "newpkg"
+    base = [{"id": FIXTURE_ID, "pkg": FIXTURE_PKG}]
+    head = [
+        {"id": FIXTURE_ID, "pkg": FIXTURE_PKG},
+        {"id": FIXTURE_ID, "pkg": other},
+    ]
+    reg = {"exceptions": [entry(FIXTURE_ID, pkg=FIXTURE_PKG)]}
+    h = Harness(tmp_path)
+    r = run_delta(h, audit_doc(base), audit_doc(head), reg, reg)
+    assert r.returncode == 1
+    assert other in r.stderr
+    assert FIXTURE_ID in r.stderr
+    assert "UNEXEMPTED" in r.stderr

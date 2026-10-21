@@ -704,3 +704,22 @@ def test_gate_shared_warn_keeps_delta_green_with_warning_note(tmp_path: Path) ->
     )
     assert r.returncode == 0, r.stdout + r.stderr
     assert "shared expiry warning(s)" in r.stdout
+
+def test_gate_new_package_hit_by_already_exempted_advisory_fails(tmp_path: Path) -> None:
+    """r291 security re-pass, residual A: the base reports the advisory on
+    the package the valid entry names; the head reports the SAME advisory
+    on a NEW package too (npm attributes chain advisories to every
+    dependent - the braces advisory shows up on chokidar/fast-glob/knip).
+    Coverage was per-gid, so one entry covered the advisory on every
+    package it touched and a PR adding a vulnerable dependency green-lit
+    without touching the registry. The delta key is (gid, package): the
+    head's (gid, new-pkg) is an addition and the delta is red."""
+    head = BRACES + [{"pkg": "fast-glob", "gid": G1, "sev": "high",
+                      "fix": {"name": "tailwindcss", "version": "4.3.3", "isSemVerMajor": True}}]
+    reg = {"exceptions": [entry(G1, "braces")]}
+    d = DeltaHarness(tmp_path)
+    r = d.run(audit_doc(BRACES), audit_doc(head), reg, reg)
+    assert r.returncode == 1
+    assert "fast-glob" in r.stderr
+    assert G1 in r.stderr
+    assert "UNEXEMPTED" in r.stderr

@@ -328,6 +328,7 @@ def adjudicate(
     errors: list[str] = []
     warns: list[str] = []
     covered: set[str] = set()
+    covered_pairs: set[tuple[str, str]] = set()
     unexempted: set[tuple[str, str]] = set()
     violated_entries: set[str] = set()
 
@@ -376,14 +377,37 @@ def adjudicate(
                 "stale (the advisory is fixed or no longer reachable); remove it",
             )
             continue
+        a = found[hit]
         # Strict coverage (r291 security pass): the entry covers its finding
         # only when the entry itself passed every rule above. An expired or
         # premise-broken entry leaves the finding unexempted, so the gate
         # delta cannot be green-lit by a dead entry's nominal match.
         if not strict_coverage or len(errors) == errors_before:
             covered.add(hit)
+            # r291 security re-pass, residual A: coverage is per (advisory,
+            # package) in gate mode, not per advisory. An entry whose package
+            # attribution names `pkg` covers the advisory on `pkg` - and on
+            # every other package pip-audit reports the advisory against
+            # ONLY when the entry names no package at all (a bare-id entry
+            # is a whole-advisory carve-out by its own shape). Without the
+            # pair discipline, a PR adding a NEW vulnerable dependency that
+            # reports an already-exempted advisory green-lit: the entry
+            # covered the advisory on packages it never named, so the
+            # head's unexempted set gained nothing and the delta - keyed
+            # (advisory, package) exactly so a package move is visible -
+            # read 'shared'. The base side computes the same pairs, so the
+            # pre-existing shape stays green (package case 5).
+            if strict_coverage:
+                named = e.get("package")
+                matched = (
+                    {p.split("==", 1)[0].lower() for p in a["packages"]}
+                    if named is None
+                    else {p.split("==", 1)[0].lower() for p in a["packages"]
+                          if p.split("==", 1)[0].lower() == named.lower()}
+                )
+                for p in matched:
+                    covered_pairs.add((hit, p))
 
-        a = found[hit]
         if a["fix_versions"]:
             entry_error(
                 eid,
@@ -410,6 +434,18 @@ def adjudicate(
                 # distinguishes "the advisory moved to another package" from
                 # "the advisory was here all along".
                 unexempted.add((vid, p.split("==", 1)[0].lower()))
+        elif strict_coverage:
+            # r291 security re-pass, residual A: the advisory is covered, but
+            # in gate mode coverage is per (advisory, package) - a package the
+            # entry never named is still an unexempted finding on that
+            # package, so it lands in the delta set with the same message.
+            bare_pkgs = {p.split("==", 1)[0].lower() for p in a["packages"]}
+            for p in sorted(bare_pkgs - {q for (v, q) in covered_pairs if v == hit}):
+                errors.append(
+                    f"{vid}: pip-audit finding on [{p!r}] is UNEXEMPTED "
+                    f"(fix_versions={a['fix_versions'] or 'none reported'})"
+                )
+                unexempted.add((vid, p))
 
     if full_report:
         for w in warns:
