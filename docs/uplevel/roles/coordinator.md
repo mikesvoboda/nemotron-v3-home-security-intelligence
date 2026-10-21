@@ -91,7 +91,9 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    `6216622756` are `[r243]`'s, not backend's: close that raise when `[r243]`'s nightly run is green
    (ruling 243). On the first tick after the 02:00Z flaky
    run, route each flaky test in its summary (UR-116). Raise the urgent path for a time-boxed
-   quarantine mark still on `main` at its expiry (UR-114).
+   quarantine mark still on `main` at its expiry (UR-114). Once `[r291]` merges, also read the
+   newest full-lockfile audit result on `main`, and on a red one follow "Advisory on `main`" below
+   (UR-185).
 7. **Assign.** Assign any `heavy` package whose dependencies have merged, and any package on no
    roster queue (UR-59; "Assigning a package" below).
 8. **Ready but unclaimed.** Note each package ready and unclaimed for two ticks for the status
@@ -191,6 +193,12 @@ in the last 24 hours: the PR, the feature or OD retired, files deleted and lines
 job and the log lines you read that tick, disable auto-merge on every queued lane PR until `main` is
 green again (UR-102), and route the fix (UR-111). The fix PR merges next,
 within UR-112's limits.
+
+**Advisory on `main`** (ruling 291, once `[r291]` merges). A red full-lockfile audit on `main` is
+not red `main`, because the gate stays green. Raise the urgent path with the findings you read and
+route the fix (UR-111). The fix PR is a red-`main` fix, written first in the queue line with `!`
+(UR-112), and a Dependabot security PR for that package may be the fix. Leave auto-merge on and keep
+every entry in the queue line (UR-185).
 
 ## The status comment
 

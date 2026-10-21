@@ -1301,6 +1301,45 @@ PR's head has a critical path of 15 min or less, with the slowest shard no more 
 than the fastest; the regeneration script runs in CI or the docs say when to rerun it; and the
 UR-89 review approves.
 
+### [r291] The gate's dependency audit fails a change only on a finding it adds
+
+**Flags:** `owner` (it changes what `CI Gate (Required Checks)` runs, UR-119, and a security check,
+UR-98). **Assigned:** `uplevel-ops-a`, after `[r282]`, behind `O2.5`'s venue fixes (rulings 287 and
+291). **Depends on:** none. **PR:** none yet. (ruling 291, record 6304527940)
+
+On 2026-10-20 three advisories published against unchanged code (certifi, Pillow, markdown-it) kept
+`main` red from 19:47Z until #7314 merged at 23:54Z. Each fix was a plain lockfile bump, yet the
+fixes blocked each other, because one audit job covers both ecosystems, and 11 `CI` runs failed on
+the audit alone. UR-185 treats such an advisory as UR-116 treats a red nightly: raised and routed,
+without freezing the queue.
+
+- [ ] **The gate mode.** On a PR, the gate's audit leg audits both the tree CI tests and the PR's
+      base commit in the same job, and fails only on an unexempted finding at the head that is not
+      an unexempted finding at the base, keyed by advisory id (with aliases) and package. On a push
+      to `main` the base is the previous `main` commit. The two registries
+      (`.pip-audit-exemptions.json`, `frontend/.npm-audit-exemptions.json`) stay the one allowlist;
+      an entry the change adds or edits must pass today's registry rules; removing an exemption
+      whose finding remains counts as adding that finding; an audit error on either side fails
+      closed. A change that touches no manifest, lockfile or registry may skip both audits.
+- [ ] **The full-lockfile mode** runs today's checks unchanged on every push to `main`, daily (the
+      Monday cron becomes daily) and on `workflow_dispatch`, as a check `CI Gate (Required Checks)`
+      does not read (UR-119). Both modes live in `dependency-audit.yml` (OB.2), and `ci.yml`'s call
+      job selects the gate mode (UR-122).
+- [ ] **Tests, red first (UR-69),** on recorded audit JSON for each checker: a finding shared by
+      base and head passes the gate; a head that adds a vulnerable package fails; a head that
+      removes an exemption whose finding remains fails; a head that adds an exemption with a past or
+      missing REVIEW BY fails; a base exemption past its REVIEW BY that the change does not touch
+      passes the gate and fails the full-lockfile mode; an audit error on either side fails; and the
+      full-lockfile mode gives today's results (today's checker tests pass unchanged).
+- [ ] **Proof in the PR body,** with commands and output against live advisory data: the gate mode
+      with base `fadeb1992` (red on markdown-it before #7314) and a head of `fadeb1992` plus a
+      doc-only commit passes; the full-lockfile mode at `fadeb1992` fails on markdown-it; and a
+      `workflow_dispatch` run of the full-lockfile mode on the PR branch is green.
+
+**Done when:** the tests pass in CI at a ready head, the PR body shows the three proofs, and the
+gate reads only the gate mode (`ci-gate`'s needs and `check_job` lines). The owner partner approves
+it under ruling 281 once its UR-89 review, with a security pass, approves.
+
 ### [r287b] The whole golden suite passes in the production-shaped run
 
 **Flags:** none. **Assigned:** none; the owner assigns it when Phase 3's queue allows, and the

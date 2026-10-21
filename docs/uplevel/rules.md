@@ -473,6 +473,12 @@ fixing either.
   (`flaky-test-detection.yml`) it reads the flaky list in that run's summary and routes each flaky
   test the same way, to the lane that owns its file. `Nightly Analysis` (`nightly.yml`) is
   report-only and outside this rule. (rulings 109, 149)
+- **UR-185** An advisory published against unchanged code does not make `main` red. Once `[r291]`
+  merges, the gate's dependency audit fails a change only on an unexempted finding it adds over its
+  base, and the full-lockfile audit runs outside the gate on each push to `main` and daily. A red
+  full-lockfile audit is raised and routed like red `main` (UR-111), and its fix merges next as a
+  red-`main` fix (UR-112), but it does not freeze the merge queue: auto-merge stays on and the queue
+  line keeps every entry. Until then, an advisory turns `main` red as UR-111 says. (ruling 291)
 
 ## CI and shared jobs
 

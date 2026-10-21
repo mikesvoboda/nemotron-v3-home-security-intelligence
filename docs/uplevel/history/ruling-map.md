@@ -303,6 +303,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 288    | one-off, delegated: `[r272]`'s red-`main` read, #7314, #7311's F-254 (record 6303093964)                    |
 | 289    | one-off, delegated: Phase 3 rebalance; O3.4, O3.5 to heavy-b; B3.3's box 4 (record 6303414416)              |
 | 290    | UR-47 (283 amended) and package `[r290]`: the coordinator proposes balance moves (record 6303479997)        |
+| 291    | UR-185 and package `[r291]`: the gate audits only what a change adds (record 6304527940)                    |
 
 ## Owner records
 
