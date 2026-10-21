@@ -102,8 +102,8 @@ jobs:
       - name: Resolve the audit mode
         id: mode
         run: |
-          # r291 security pass, LOW: `${{ }}`-interpolating the input into the
-          # script makes it bash-source text. A case allowlist keeps the mode a
+          # r291 security pass, LOW: expression-interpolating the input into
+          # the script makes it bash-source text. A case allowlist keeps the mode a
           # selector, not an injection surface - anything but the two known
           # names fails closed to full-lockfile.
           case "${{ inputs.audit-mode || 'full-lockfile' }}" in
