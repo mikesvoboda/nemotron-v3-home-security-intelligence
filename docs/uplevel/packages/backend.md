@@ -84,7 +84,7 @@ with its calibrated threshold, and stored person vectors go to "unavailable (re-
 (ruling 249). **Depends on:** `R2` (rules.md §Claiming and assigning work); lands in
 one PR with `F3.1`.
 **Assigned:** heavy-a, after `[r238]`, ahead of `B2.3`; its remaining retirements resume after
-`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309.
+`B2.3` (ruling 241). **PR:** #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309, #7311.
 
 **Files:** whatever each retired feature's inventory row lists under "modules".
 
@@ -100,17 +100,17 @@ retirements continue without waiting for `B2.3`, which is heavy-b's.
 
 - [x] First, OD-20's already-ruled retirement of the enrichment surface (hook, route, types and
       tombstone in one commit; ISS-073).
-- [ ] For each feature ruled **retire**: delete its routes, schemas, services, settings, alert
+- [x] For each feature ruled **retire**: delete its routes, schemas, services, settings, alert
       conditions and tests (batteries included). The frontend part (`F3.1`) lands in the same PR,
       so the client never calls a route that is gone.
-- [ ] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
+- [x] Tables leave as upgrade steps of `B3.3`'s upgrade command, which lands first (ruling 203,
       record 6198942052), not as a hand-run DROP runbook. Until it lands, take the retirements
       that drop no table; one that drops a table waits for it (ruling 241).
 - [x] `POST /api/reid/search` retires (`backend/api/routes/reid.py:78-79`, handler
       `search_similar_entities`): route, handler, tests and both its `docs/developer/api/coverage.md`
       lines (`:692`, `:856`). It has no client and no guide; Phase 4's design sessions may bring
       re-ID search back (ruling 236).
-- [ ] Regenerate `docs/openapi.json`.
+- [x] Regenerate `docs/openapi.json`.
 
 **Done when:** for every retired feature, a grep for the identifiers its inventory row lists finds
 nothing in `backend/` outside its upgrade step.
@@ -768,3 +768,60 @@ record 6291992942; audit items Q-068 and Q-114 of `[r262]`, #7041)
 writers it describes.
 (ticked: run `39435442971` at `173b7cfad` — 66/66 non-skipped jobs success, CI Gate success;
 PR #7306)
+
+### [r285] Four backend bugs the maui production-shape run found
+
+**Flags:** none. **Assigned:** backend, first on its queue (ruling 285). **Depends on:** none.
+**PR:** #7318. (ruling 285, record 6300916398; amendments 6301639831 and 6302995876)
+
+The owner's maui discovery for `O2.5` item 2 ran production's compose shape on real hardware and
+found four product bugs CI cannot see. Its handoff carries reference diffs and red-and-green
+evidence for three of them; this package writes each fix fresh on `main`, each with its own
+failing-first test (UR-69), and ops-a's `O2.5` venue fixes leave them out (ruling 287 item 4).
+
+- [x] **F-182's Compare.** `GET /api/system/gpu-config/history/diff` is registered after
+      `GET /api/system/gpu-config/history/{version_id}` in `backend/api/routes/gpu_config.py`, so
+      `diff` is matched as a version id. Register `diff` first; handler bodies and the API contract
+      are unchanged, and `docs/openapi.json` changes only if route order shows in it. The test calls
+      `/api/system/gpu-config/history/diff?from_version=…&to_version=…` through the mounted router.
+      F-182's row in `docs/reference/feature-inventory.md` replaces its Compare break note with the
+      fix, and its ruling cell reads "ruling 285: as ruling 182 for F-176 and F-178"
+      (`feature-inventory-cite-drift.mjs` reports `DRIFT: 0`). — green at b6d61c5c0, run
+      39538063327; UR-89 approved (comment 6307756549).
+- [x] **PCIe Gen 6** (amendment 6301639831). `GPUStatsResponse.pcie_link_gen` and
+      `GPUStatsSample.pcie_link_gen` (`backend/api/schemas/system.py`) are bounded `ge=1, le=5`,
+      so a Gen 6 link fails the GPU stats schema. Drop the upper bound and keep `ge=1`, as
+      `pcie_link_width` has; correct the "(1-4)" descriptions and comments
+      (`backend/services/gpu_monitor.py`, `backend/models/gpu_stats.py`); regenerate
+      `docs/openapi.json` and `frontend/src/types/generated/api.ts`. The test has both schemas
+      accept `pcie_link_gen=6` (or `GET /api/system/gpu` returns a Gen 6 sample). — green at
+      b6d61c5c0, run 39538063327; UR-89 approved (comment 6307756549).
+- [x] **The webhook retry commits before it answers** (amendment 6302995876). `retry_delivery`
+      (`backend/api/routes/outbound_webhooks.py`) takes `Depends(get_db)`, and `get_db` commits
+      after its `yield`, which under FastAPI 0.143's default dependency scope ran after the 200 was
+      sent: an immediate history read saw the old count. Fix the route (for example
+      `Depends(get_db, scope="function")`, or an explicit commit before returning), with red-first
+      tests for the stale read and for a success sent before a failed commit. — green at
+      b6d61c5c0, run 39538063327; UR-89 approved (comment 6307756549).
+- [x] **The other routes that answer before they commit are counted, not fixed.** The PR body lists
+      every route handler that leaves its commit to `get_db`'s teardown, read route by route with
+      the services it calls, says for each whether a client can observe the gap, and ends with a
+      recommendation for a fix across that surface, which waits for the owner's ruling. — the
+      census and no-gap classifications were verified by the UR-89 reviewer on every surface
+      spot-checked (flush-only services confirmed); two narrative attributions corrected in the
+      follow-up notes (heatmap commit lives in `heatmap_service.py:514`, mqtt's
+      `_save_mqtt_config` at `backend/api/routes/mqtt_config.py:154`).
+- [x] **A degraded batch's message is delivered** (amendment 6302995876).
+      `WebSocketBatchAnalysisCompletedData.risk_score` (`backend/api/schemas/websocket.py`) is
+      `int`, while the event payload accepts `int | None`; a degraded VLM batch publishes `None`,
+      so `broadcast_batch_analysis_completed` (`backend/services/event_broadcaster.py`) fails
+      validation and never sends it. The message validates and is sent with a null risk score,
+      matching the event payload, or the PR says why another shape is right. The PR names what the
+      frontend's `batch_analysis_completed` consumer does with a null score; if it cannot handle
+      one, the smallest frontend fix rides along and frontend reviews that part. A red-first test
+      shows a degraded batch's message is sent. — green at b6d61c5c0, run 39538063327; UR-89
+      approved (comment 6307756549); frontend ride-along reviewed by the reviewer (chip guard
+      distinguishes absent from scored-0, `BatchProcessingIndicator.tsx:170-180`).
+
+**Done when:** each fix's test was committed red ahead of it, `CI Gate` is green at a ready head,
+and the UR-89 review approves. `[r285]` is one PR.

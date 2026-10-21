@@ -701,8 +701,8 @@ export interface BatchAnalysisCompletedPayload {
   camera_id: string;
   /** ID of the created Event record */
   event_id: number;
-  /** Risk score assigned by LLM (0-100) */
-  risk_score: number;
+  /** Risk score assigned by LLM (0-100); null for a degraded batch — branch on null, it is not a low score */
+  risk_score: number | null;
   /** Risk level (low, medium, high, critical) */
   risk_level: 'low' | 'medium' | 'high' | 'critical';
   /** Analysis duration in milliseconds */

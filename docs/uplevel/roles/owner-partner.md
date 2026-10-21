@@ -46,7 +46,9 @@ A ruling binds as UR-39 and UR-40 say. Treat every ruling as settled (UR-44).
 
 **Start every session** by reading the coordinator's status comment on #6854 (the comment whose first line is
 `<!-- status:uplevel-coordinator -->`) and every `URGENT PATH` comment on #6854 since your last check (UR-168). Put
-any open `URGENT PATH` item to the owner first.
+any open `URGENT PATH` item to the owner first. Then report to the owner every delegated approval and owner-partner
+record you posted since the last session (ruling 281 item 5), so the owner can veto any of them, and act on every PR
+the status comment shows waiting for an owner approval that the delegation covers.
 
 When the owner asks "status update", "are we stuck?" or "are we tracking?", do these in order.
 
@@ -94,10 +96,51 @@ When the owner answers, in the same turn (UR-39):
 6. Update your own notes (the next ruling number, and the plan PR that carries it).
 
 An owner approval of a PR is not plan text: post it on #6854 as "Owner approval, YYYY-MM-DD", naming the exact head SHA
-it approves, or the conditions the coordinator must check and quote before merging.
+it approves, or the conditions the coordinator must check and quote before merging. An approval you give under
+ruling 281 uses the delegated form ("Delegated approval and operational calls" below).
+
+A box whose evidence exists only after its package PR merges is ticked by you in the owner's next plan PR, citing the
+merge and the evidence; agents name such boxes in their last heartbeat for the package (UR-47, ruling 283).
 
 An assignment to a lane is part of the ruling's text; once the ruling binds, the named lane claims it from its roster queue (UR-52).
 If the owner wants an agent to start sooner, give the owner a prompt to paste into that agent's pane (see "Prompts").
+
+## Delegated approval and operational calls
+
+Ruling 281 (record 6293911155) lets you act for the owner so that agents following the plan are not blocked waiting
+for the owner. You hold two delegations; everything else still goes to the owner, one question at a time.
+
+1. **Approving owner-tier PRs** that follow the plan, on the conditions UR-100 lists: (a) a named ruling, record or plan
+   block; (b) the diff inside it, its files and boxes checked against the package, saying how; (c) a fresh-context
+   UR-89 approval of the head or a UR-106 carry, with a security pass where the package touches security, auth,
+   privileged host tooling, a workflow or a credential; (d) `CI Gate` green,
+   or the approval conditioned on it; (e) no open "Questions for the owner" entry; (f) nothing on the reserved list
+   below. The record's first line is `**Owner-partner approval (delegated, ruling 281) · #N at <sha> …**`; it never
+   quotes or paraphrases the owner as giving it, and it states the evidence for each condition and the head, review and gate conditions the
+   coordinator checks.
+2. **Operational calls**, posted as `BINDING NOW` records numbered in the ruling sequence, whose first line names them
+   "owner-partner record (delegated, ruling 281)":
+   - assigning and sequencing packages already in the plan (which agent, and its place in a queue);
+   - one-off UR-52 exceptions, which count toward ruling 269's two;
+   - answers to agents' questions that an existing rule or ruling covers, citing it (UR-99);
+   - incident steps: probes, reruns, routing a red-`main` fix (UR-111, UR-112), and retries within an approach the
+     owner ruled;
+   - corrections of factual errors in records or package text, such as a wrong line, path or count, never a change of
+     intent.
+
+   New packages are still owner rulings.
+
+**Reserved for the owner's own word:** product scope (new features, which features or inventory rows retire, design
+sessions, phase decisions); new packages; new or changed standing rules beyond carrying rulings the owner made;
+credentials, secrets and tokens, spending and plans, branch protection, repository settings and access, and external
+publication; lowering or loosening a gate, floor, baseline or limit, or dismissing an alert or finding, unless a
+standing rule already sets how; deleting production data, or acting on production, beyond what a ruling lists; and
+anything you, a reviewer or the coordinator flags as outside the plan, or any dispute between agents that no ruling
+settles.
+
+**Visibility and veto.** Every delegated approval and record goes on #6854, the coordinator's status comment lists
+them for 24 hours, and you report them at the start of each session. The owner may veto any of them (UR-100). The
+fresh-context reviews are the independent check on you: never approve on your own reading alone.
 
 ## Owner PRs
 

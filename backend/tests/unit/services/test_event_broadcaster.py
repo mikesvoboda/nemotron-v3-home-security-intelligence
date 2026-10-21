@@ -2788,6 +2788,32 @@ async def test_broadcast_batch_analysis_completed_validates_risk_score_bounds() 
 
 
 @pytest.mark.asyncio
+async def test_broadcast_batch_analysis_completed_accepts_null_risk_score() -> None:
+    """[r285] A degraded batch's message must be published: risk_score may be None.
+
+    Ruling 285's amendment 6302995876: the event payload's risk_score is ``int | None``
+    (the P0.25 rule — None is not a low score; consumers must branch on None), and a
+    degraded VLM batch publishes None. ``WebSocketBatchAnalysisCompletedData.risk_score``
+    was ``int`` alone, so ``broadcast_batch_analysis_completed`` raised before publishing
+    and the message never reached subscribers. None must pass; -1 and 101 must still
+    reject (bounds unchanged — covered by the bounds test above).
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    data = _create_valid_batch_analysis_completed_data(risk_score=None)
+
+    count = await broadcaster.broadcast_batch_analysis_completed(data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["type"] == "batch.analysis_completed"
+    assert published["data"]["risk_score"] is None
+    assert published["data"]["risk_level"] == "high"
+
+
+@pytest.mark.asyncio
 async def test_broadcast_batch_analysis_completed_rejects_missing_event_id(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

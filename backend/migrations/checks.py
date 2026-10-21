@@ -234,6 +234,7 @@ CHECKS: dict[str, Check] = {
         [column_absent("alert_rules", col) for col in _RETIRED_ALERT_RULE_COLUMNS]
     ),
     "0009-retire-gpu-devices-table": table_absent("gpu_devices"),
+    "0010-retire-scheduled-reports-table": table_absent("scheduled_reports"),
 }
 
 

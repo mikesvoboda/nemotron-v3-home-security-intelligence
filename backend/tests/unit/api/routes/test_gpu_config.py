@@ -23,7 +23,7 @@ from backend.api.schemas.gpu_config import (
     GpuDevicesResponse,
 )
 from backend.core.database import get_db
-from backend.models.gpu_config import GpuConfiguration, SystemSetting
+from backend.models.gpu_config import GpuConfiguration, GpuConfigurationVersion, SystemSetting
 from backend.services.gpu_detection_service import GpuDevice as GpuDeviceDataclass
 
 
@@ -482,4 +482,97 @@ class TestGpuConfigSchemas:
         assert GpuAssignmentStrategy.VRAM_BASED.value == "vram_based"
         assert GpuAssignmentStrategy.LATENCY_OPTIMIZED.value == "latency_optimized"
         assert GpuAssignmentStrategy.ISOLATION_FIRST.value == "isolation_first"
+
+
+class TestDiffRouteNotShadowed:
+    """[r285] F-182's Compare: history/diff must reach the diff handler, not {version_id}.
+
+    Ruling 285: the diff route is registered after
+    ``GET /gpu-config/history/{version_id}``, so Starlette matches the literal ``diff``
+    as a version id and the handler queries ``WHERE id == 'diff'`` — asyncpg rejects the
+    literal and the request answers 500. The fix registers ``diff`` first. Both tests call
+    the diff route through the MOUNTED router, as the package block requires.
+    """
+
+    def _two_versions(self) -> list[MagicMock]:
+        """Two configuration versions, 1 and 2, differing in strategy and assignments."""
+        v1 = MagicMock(spec=GpuConfigurationVersion)
+        v1.id = "version-1-uuid"
+        v1.version_number = 1
+        v1.strategy = "vram_based"
+        v1.description = "initial"
+        v1.created_at = datetime(2026, 10, 20, 12, 0, 0, tzinfo=UTC)
+        v1.created_by = "test"
+        v1.assignments = [
+            {"service": "ai-llm", "gpu_index": 0, "vram_budget_override": None},
+        ]
+        v2 = MagicMock(spec=GpuConfigurationVersion)
+        v2.id = "version-2-uuid"
+        v2.version_number = 2
+        v2.strategy = "manual"
+        v2.description = "rebalance"
+        v2.created_at = datetime(2026, 10, 20, 13, 0, 0, tzinfo=UTC)
+        v2.created_by = "test"
+        v2.assignments = [
+            {"service": "ai-llm", "gpu_index": 1, "vram_budget_override": 2.5},
+        ]
+        return [v1, v2]
+
+    def test_diff_route_reaches_the_diff_handler_through_the_mounted_router(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """GET history/diff?from_version=1&to_version=2 must answer the diff, not 500.
+
+        Red at the ready head: the request is matched by the ``{version_id}`` route, so
+        ``get_config_version`` runs its id-equality query and the mock session's scalar
+        is not the diff payload the handler returns.
+        """
+        versions = self._two_versions()
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = versions
+        # The shadowed route (get_config_version) calls scalar_one_or_none(); None makes
+        # it answer its own 404 "Configuration version diff not found" — the readable red.
+        result.scalar_one_or_none.return_value = None
+        mock_db_session.execute.return_value = result
+
+        response = client.get("/api/system/gpu-config/history/diff?from_version=1&to_version=2")
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["from_version"] == 1
+        assert data["to_version"] == 2
+        assert data["strategy_changed"] is True
+        assert data["old_strategy"] == "vram_based"
+        assert data["new_strategy"] == "manual"
+        assert data["assignment_changes"] == [
+            {
+                "service": "ai-llm",
+                "change_type": "modified",
+                "old_gpu_index": 0,
+                "new_gpu_index": 1,
+                "old_vram_override": None,
+                "new_vram_override": 2.5,
+            }
+        ]
+
+    def test_diff_route_filters_by_version_number_not_the_string_diff(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """The first statement the route executes filters version_number, never id == 'diff'.
+
+        Pins the handler identity from the SQL side: with the shadowing order the mounted
+        request reaches ``get_config_version``, whose statement filters
+        ``GpuConfigurationVersion.id == 'diff'`` — the literal asyncpg rejects.
+        """
+        versions = self._two_versions()
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = versions
+        mock_db_session.execute.return_value = result
+
+        client.get("/api/system/gpu-config/history/diff?from_version=1&to_version=2")
+
+        statement = mock_db_session.execute.await_args_list[0].args[0]
+        compiled = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "version_number IN" in compiled, compiled
+        assert "'diff'" not in compiled, compiled
         assert GpuAssignmentStrategy.BALANCED.value == "balanced"

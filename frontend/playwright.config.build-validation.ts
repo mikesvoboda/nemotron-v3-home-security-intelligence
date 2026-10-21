@@ -32,10 +32,7 @@ export default defineConfig({
 
   // Reporter
   reporter: process.env.CI
-    ? [
-        ['github'],
-        ['html', { outputFolder: 'playwright-report-build' }],
-      ]
+    ? [['github'], ['html', { outputFolder: 'playwright-report-build' }]]
     : [['list'], ['html', { outputFolder: 'playwright-report-build', open: 'never' }]],
 
   // Output directory

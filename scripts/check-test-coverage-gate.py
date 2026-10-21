@@ -188,6 +188,15 @@ def find_test_file(source_file: str) -> str | None:
         flat_unit = project_root / f"backend/tests/unit/test_{stem}.py"
         flat_integration = project_root / f"backend/tests/integration/test_{stem}.py"
 
+        # The `_api`-suffix form: 24 of the repo's 56 route files are tested by
+        # `test_<route>_api.py` (backend/tests/integration/test_outbound_webhooks_api.py
+        # is the live #7318 instance — the gate red on an obeyed convention, the
+        # #6681 shape). Same additive discipline as the flat form above: the
+        # earlier candidates stay first, so no existing verdict can flip, only a
+        # false "None found" can become a found.
+        flat_unit_api = project_root / f"backend/tests/unit/test_{stem}_api.py"
+        flat_integration_api = project_root / f"backend/tests/integration/test_{stem}_api.py"
+
         candidates = [
             test_unit,
             test_unit_alt,
@@ -195,6 +204,8 @@ def find_test_file(source_file: str) -> str | None:
             test_integration_alt,
             flat_unit,
             flat_integration,
+            flat_unit_api,
+            flat_integration_api,
         ]
 
     elif source_file.startswith("frontend/src/"):

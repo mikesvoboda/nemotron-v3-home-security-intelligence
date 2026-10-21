@@ -136,7 +136,6 @@ backend/
   - `queues` - Queue status and management
   - `reid` - Person re-identification
   - `rum` - Real User Monitoring data collection
-  - `scheduled_reports` - Scheduled report management
   - `services` - Service management and control
   - `settings_api` - Application settings API
   - `summaries` - Event summaries
@@ -353,7 +352,6 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 54 SQ
 - **`JobTransition`** - Job state transition history
 - **`ExportJob`** - Data export job tracking
 - **`BackupJob`** - Backup job tracking
-- **`ScheduledReport`** - Scheduled report definitions
 
 ### Household and Tracking
 
@@ -445,7 +443,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | `alerts.py`                   | `/api/alerts`                   | Alert instance queries (`alerts_instance_router`) |
 | `notification.py`             | `/api/notification`             | Notification channel management                   |
 | `notification_preferences.py` | `/api/notification-preferences` | User notification preferences                     |
-| `scheduled_reports.py`        | `/api/scheduled-reports`        | Scheduled report management                       |
 
 ### Security and Compliance Routes
 
