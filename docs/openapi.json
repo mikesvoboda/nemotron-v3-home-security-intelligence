@@ -17708,7 +17708,6 @@
           "pcie_link_gen": {
             "anyOf": [
               {
-                "maximum": 5.0,
                 "minimum": 1.0,
                 "type": "integer"
               },
@@ -17716,7 +17715,7 @@
                 "type": "null"
               }
             ],
-            "description": "PCIe link generation (1-4)",
+            "description": "PCIe link generation (1+; Gen 6 devices report 6)",
             "title": "Pcie Link Gen"
           },
           "pcie_link_width": {
@@ -18057,7 +18056,6 @@
           "pcie_link_gen": {
             "anyOf": [
               {
-                "maximum": 5.0,
                 "minimum": 1.0,
                 "type": "integer"
               },
@@ -18065,7 +18063,7 @@
                 "type": "null"
               }
             ],
-            "description": "PCIe link generation",
+            "description": "PCIe link generation (1+)",
             "title": "Pcie Link Gen"
           },
           "pcie_link_width": {

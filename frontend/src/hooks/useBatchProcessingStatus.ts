@@ -50,8 +50,8 @@ export interface BatchStatus {
   updatedAt: string;
   /** Event ID if analysis completed successfully */
   eventId?: number;
-  /** Risk score if analysis completed successfully */
-  riskScore?: number;
+  /** Risk score if analysis completed successfully; null for a degraded batch (not a low score — the chip hides on null) */
+  riskScore?: number | null;
   /** Risk level if analysis completed successfully */
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
   /** Analysis duration in milliseconds if completed */
