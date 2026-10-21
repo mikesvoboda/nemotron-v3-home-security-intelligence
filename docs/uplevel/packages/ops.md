@@ -1358,7 +1358,7 @@ Notes for the lane, from the plan PR's round-4 and round-5 reviews (#7316):
 - **The gate mode's base** is the tested merge tree's first parent; `pull_request.base.sha` can lag
   it.
 - **The npm checker runs `npm audit` itself,** so its tests feed it recorded JSON through a fake
-  `npm` on `PATH`, as today's tests already do (`scripts/test_check_npm_audit_exemptions.py:79-81`,
+  `npm` on `PATH`, as today's tests already do (`scripts/test_check_npm_audit_exemptions.py:79-83`,
   `:100-101`).
 - **The doc-only proof would take the skip,** so run the gate-mode checker directly on both trees
   for it.
@@ -1407,8 +1407,15 @@ the routing (UR-185). Until it merges, Trivy stays in the gate as it is, and a T
 only the gate mode (`ci-gate`'s needs and `check_job` lines). The owner partner approves it under
 ruling 281 once its UR-89 review, with a security pass, approves and its gate is green.
 
-A note for the lane: as `[r291]`'s skip still audits edits to the audit itself, a change that edits
-`trivy.yml` should still run the filesystem scan, so this package's own PR is scanned.
+Notes for the lane:
+
+- **The full scans bring back a standalone `trivy.yml` run.** Its header (`trivy.yml:23-34`) says
+  the standalone triggers were deleted, and it bans a root `concurrency:` block, because the called
+  run would take the caller's group. Update that header, and keep the called path free of a root
+  `concurrency:` block.
+- **The skip still scans edits to the scan itself:** a change that edits `trivy.yml` or the
+  gate-mode script still runs the filesystem scan, as `[r291]`'s skip still audits edits to the
+  audit, so this package's own PR is scanned.
 
 ### [r297] The per-shard fixed cost cut toward a 15-minute CI
 

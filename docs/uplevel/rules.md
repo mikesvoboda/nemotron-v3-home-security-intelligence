@@ -449,8 +449,8 @@ and the re-read and merge comment are UR-29.
 ## Red main and the nightly
 
 Read this section when `CI` or `Deploy` fails on `main`, the Nightly Full Gate is red, the
-full-lockfile audit or the full Trivy scans are red on `main` (once `[r291]` or `[r294]` merges,
-UR-185), or you are fixing any of them.
+full-lockfile audit (once `[r291]` merges) or the full Trivy scans (once `[r294]` merges) are red on
+`main` (UR-185), or you are fixing any of them.
 
 - **UR-111** On the first red `CI Gate` run on `main`, unless an open package already owns that
   failure, the coordinator raises the urgent path with the failing job and the log lines it read.

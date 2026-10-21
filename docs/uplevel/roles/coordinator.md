@@ -196,9 +196,9 @@ job and the log lines you read that tick, disable auto-merge on every queued lan
 green again (UR-102), and route the fix (UR-111). The fix PR merges next,
 within UR-112's limits.
 
-**Advisory on `main`** (rulings 291 and 294, once `[r291]` or `[r294]` merges). A red full-lockfile
-audit or full Trivy run on `main` is not red `main`, because the gate stays green, so ruling 288's
-`!`-only rule does not apply. On the first red run whose findings no open raise or package already
+**Advisory on `main`** (rulings 291 and 294). A red full-lockfile audit on `main` once `[r291]`
+merges, or a red full Trivy run once `[r294]` merges, is not red `main`, because the gate stays
+green, so ruling 288's `!`-only rule does not apply. On the first red run whose findings no open raise or package already
 owns, raise the urgent path with the findings you read and route the fix (UR-111). The fix PR is a
 red-`main` fix, written first in the queue line with `!` (UR-112), and a Dependabot security PR for
 that package may be the fix (ruling 284). A fix that clears a finding also removes any exemption
