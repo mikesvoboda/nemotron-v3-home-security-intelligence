@@ -1310,7 +1310,7 @@ to `[r297]`:
 
 **Flags:** `owner` (it changes what `CI Gate (Required Checks)` runs, UR-119, and a security check,
 UR-98). **Assigned:** `uplevel-ops-a`, after `[r282]`, behind `O2.5`'s venue fixes (rulings 287 and
-291). **Depends on:** none. **PR:** none yet. (ruling 291, record 6304527940)
+291). **Depends on:** none. **PR:** #7328. (ruling 291, record 6304527940)
 
 On 2026-10-20 three advisories published against unchanged code (certifi, Pillow, markdown-it) kept
 `main` red from 19:47Z until #7314 merged at 23:54Z. Each fix was a plain lockfile bump, yet the
