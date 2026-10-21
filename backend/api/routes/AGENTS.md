@@ -781,11 +781,7 @@ AI pipeline audit management for model performance, quality scoring, recommendat
 
 **Supported Prompt Models:**
 
-- `nemotron` - System prompt for risk analysis
-- `florence2` - Scene analysis queries
-- `yolo_world` - Custom object classes and confidence threshold
-- `xclip` - Action recognition classes
-- `fashion_clip` - Clothing categories
+- `nemotron` - System prompt for risk analysis (B3.3 box 4 / R2a row 27: florence2, yolo_world, xclip and fashion_clip retired)
 
 **Key Features:**
 
@@ -1204,11 +1200,7 @@ Prompt configuration management for AI models with versioning, testing, and impo
 
 **Supported Models:**
 
-- `nemotron` - System prompt for risk analysis
-- `florence2` - Scene analysis queries
-- `yolo_world` - Custom object classes and confidence threshold
-- `xclip` - Action recognition classes
-- `fashion_clip` - Clothing categories
+- `nemotron` - System prompt for risk analysis (B3.3 box 4 / R2a row 27: florence2, yolo_world, xclip and fashion_clip retired)
 
 **Key Features:**
 

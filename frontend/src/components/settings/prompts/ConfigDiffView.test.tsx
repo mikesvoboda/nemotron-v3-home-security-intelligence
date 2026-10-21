@@ -37,25 +37,25 @@ const mockDiffWithChanges: PromptDiffEntry = {
 };
 
 const mockDiffNoChanges: PromptDiffEntry = {
-  model: 'florence2',
+  model: 'nemotron',
   has_changes: false,
   current_version: 3,
   current_config: {
-    queries: ['What is in this image?'],
+    system_prompt: 'What is in this image?',
   },
   imported_config: {
-    queries: ['What is in this image?'],
+    system_prompt: 'What is in this image?',
   },
   changes: [],
 };
 
 const mockDiffNewConfig: PromptDiffEntry = {
-  model: 'xclip',
+  model: 'nemotron',
   has_changes: true,
   current_version: undefined,
   current_config: undefined,
   imported_config: {
-    action_classes: ['walking', 'running'],
+    system_prompt: 'New system prompt',
   },
   changes: ['New configuration (no existing version)'],
 };
@@ -72,10 +72,10 @@ describe('ConfigDiffView', () => {
       expect(screen.getByText('Nemotron')).toBeInTheDocument();
     });
 
-    it('renders Florence-2 model name correctly', () => {
+    it('renders the no-changes diff for the second nemotron fixture', () => {
       render(<ConfigDiffView diff={mockDiffNoChanges} />);
 
-      expect(screen.getByText('Florence-2')).toBeInTheDocument();
+      expect(screen.getByText('Nemotron')).toBeInTheDocument();
     });
 
     it('renders current version number', () => {
@@ -155,7 +155,7 @@ describe('ConfigDiffView', () => {
     it('handles missing current config gracefully', () => {
       render(<ConfigDiffView diff={mockDiffNewConfig} />);
 
-      expect(screen.getByText('X-CLIP')).toBeInTheDocument();
+      expect(screen.getByText('Nemotron')).toBeInTheDocument();
       expect(screen.getByText('WILL CHANGE')).toBeInTheDocument();
     });
   });
@@ -163,21 +163,21 @@ describe('ConfigDiffView', () => {
   describe('value formatting', () => {
     it('handles array values in diff', () => {
       const diffWithArrays: PromptDiffEntry = {
-        model: 'yolo_world',
+        model: 'nemotron',
         has_changes: true,
         current_version: 2,
         current_config: {
-          classes: ['person', 'car'],
+          system_prompt: 'Original',
         },
         imported_config: {
-          classes: ['person', 'car', 'truck'],
+          system_prompt: 'Updated',
         },
-        changes: ['classes: Added truck'],
+        changes: ['system_prompt changed'],
       };
 
       render(<ConfigDiffView diff={diffWithArrays} />);
 
-      expect(screen.getByText('YOLO-World')).toBeInTheDocument();
+      expect(screen.getByText('Nemotron')).toBeInTheDocument();
     });
 
     it('truncates long string values', () => {

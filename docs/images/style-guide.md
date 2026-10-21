@@ -810,7 +810,6 @@ For critical distinctions, pair colors with patterns or shapes:
 
 ## Related Documentation
 
-- [AGENTS.md](./AGENTS.md) - Image directory navigation
 - [SCREENSHOT_GUIDE.md](./SCREENSHOT_GUIDE.md) - Screenshot capture instructions
 - [Architecture Overview](../architecture/overview.md) - System architecture docs
 - [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md) - AI pipeline documentation

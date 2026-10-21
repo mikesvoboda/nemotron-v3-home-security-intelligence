@@ -162,7 +162,6 @@ Standards-compliant format for HTTP APIs.
 | `DETECTOR_UNAVAILABLE`           | Detection service unavailable  |
 | `YOLO26_UNAVAILABLE`             | YOLO26 service unavailable     |
 | `NEMOTRON_UNAVAILABLE`           | Nemotron LLM unavailable       |
-| `FLORENCE_UNAVAILABLE`           | Florence model unavailable     |
 | `ENRICHMENT_SERVICE_UNAVAILABLE` | Enrichment service unavailable |
 | `AI_SERVICE_TIMEOUT`             | AI service request timed out   |
 | `MODEL_LOAD_FAILED`              | AI model failed to load        |

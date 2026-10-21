@@ -52,40 +52,6 @@ vi.mock('../../../services/api', () => ({
           version: 1,
           updated_at: '2024-01-01T00:00:00Z',
         },
-        florence2: {
-          model_name: 'florence2',
-          config: {
-            vqa_queries: ['What is happening?', 'Are there people?'],
-          },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        yolo_world: {
-          model_name: 'yolo_world',
-          config: {
-            object_classes: ['person', 'vehicle'],
-            confidence_threshold: 0.5,
-          },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        xclip: {
-          model_name: 'xclip',
-          config: {
-            action_classes: ['walking', 'running'],
-          },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        fashion_clip: {
-          model_name: 'fashion_clip',
-          config: {
-            clothing_categories: ['casual', 'formal'],
-            suspicious_indicators: ['all black', 'face mask'],
-          },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
-        },
       },
     })
   ),
@@ -172,10 +138,6 @@ describe('PromptPlayground - Basic Rendering', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('nemotron-accordion')).toBeInTheDocument();
-      expect(screen.getByTestId('florence2-accordion')).toBeInTheDocument();
-      expect(screen.getByTestId('yolo_world-accordion')).toBeInTheDocument();
-      expect(screen.getByTestId('xclip-accordion')).toBeInTheDocument();
-      expect(screen.getByTestId('fashion_clip-accordion')).toBeInTheDocument();
     });
   });
 

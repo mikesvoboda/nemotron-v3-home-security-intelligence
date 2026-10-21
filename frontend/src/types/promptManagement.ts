@@ -12,13 +12,12 @@
 
 /**
  * Supported AI models for prompt configuration.
+ *
+ * B3.3 box 4 (R2a row 27): florence2, yolo_world, xclip and fashion_clip retired with
+ * the R8 S2/S3 serving sweep; nemotron is the only model a deployment boots.
  */
 export enum AIModelEnum {
   NEMOTRON = 'nemotron',
-  FLORENCE2 = 'florence2',
-  YOLO_WORLD = 'yolo_world',
-  XCLIP = 'xclip',
-  FASHION_CLIP = 'fashion_clip',
 }
 
 // ============================================================================
@@ -34,39 +33,9 @@ export interface NemotronConfig {
 }
 
 /**
- * Configuration for Florence-2 scene analysis model.
- */
-export interface Florence2Config {
-  queries: string[];
-}
-
-/**
- * Configuration for YOLO-World custom object detection.
- */
-export interface YoloWorldConfig {
-  classes: string[];
-  confidence_threshold: number;
-}
-
-/**
- * Configuration for X-CLIP action recognition model.
- */
-export interface XClipConfig {
-  action_classes: string[];
-}
-
-/**
- * Configuration for Fashion-CLIP clothing analysis model.
- */
-export interface FashionClipConfig {
-  clothing_categories: string[];
-}
-
-/**
  * Union type for all model configurations.
  */
-export type ModelConfig =
-  NemotronConfig | Florence2Config | YoloWorldConfig | XClipConfig | FashionClipConfig;
+export type ModelConfig = NemotronConfig;
 
 // ============================================================================
 // Request/Response Types

@@ -101,7 +101,7 @@ const mockGpu1Model2: ModelStatus = {
 };
 
 const mockDisabledModel: ModelStatus = {
-  name: 'xclip-base',
+  name: 'scene-classifier-base',
   category: 'classification',
   estimated_vram_mb: 2000,
   enabled: false,
@@ -457,7 +457,7 @@ describe('ModelZooPanel', () => {
       await user.click(expandButton);
 
       // Now the model name should be visible
-      expect(within(disabledSection).getByText('xclip-base')).toBeInTheDocument();
+      expect(within(disabledSection).getByText('scene-classifier-base')).toBeInTheDocument();
     });
 
     it('shows disabled models count', () => {

@@ -6,7 +6,6 @@ from enum import Enum
 from typing import Any
 
 from sqlalchemy import DateTime, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.json_utils import safe_json_loads
@@ -16,13 +15,15 @@ from .camera import Base
 
 
 class AIModel(str, Enum):
-    """Supported AI models that have configurable prompts."""
+    """AI models that have configurable prompts.
+
+    B3.3 box 4 (R2a row 27): the four vision models retired with the R8 S2/S3 sweep;
+    their ``prompt_versions`` rows are deleted and the column left the native enum by
+    upgrade ``0011-retire-vision-model-prompts``. The stored column is now a plain
+    varchar holding ``nemotron`` -- the only model a deployment boots.
+    """
 
     NEMOTRON = "nemotron"
-    FLORENCE2 = "florence2"
-    YOLO_WORLD = "yolo_world"
-    XCLIP = "xclip"
-    FASHION_CLIP = "fashion_clip"
 
 
 class PromptVersion(Base):
@@ -38,10 +39,9 @@ class PromptVersion(Base):
     __tablename__ = "prompt_versions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    model: Mapped[str] = mapped_column(
-        SQLEnum(AIModel, values_callable=lambda x: [e.value for e in x]),
-        nullable=False,
-    )
+    # Plain varchar, not a native enum: 0011 converted the historical `aimodel` enum column
+    # to varchar, and create_all must build the same shape (schema twins).
+    model: Mapped[str] = mapped_column(String(32), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
@@ -50,10 +50,6 @@ class PromptVersion(Base):
 
     # Configuration content (JSON for structured data, text for prompts)
     # For Nemotron: system_prompt text
-    # For Florence2: {"queries": ["..."]}
-    # For YOLO-World: {"classes": ["..."], "confidence_threshold": 0.35}
-    # For X-CLIP: {"action_classes": ["..."]}
-    # For Fashion-CLIP: {"clothing_categories": ["..."]}
     config_json: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Optional description of what changed

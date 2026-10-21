@@ -331,8 +331,16 @@ consolidation depends on it.
 
 ### O3.7 `scripts/` truth
 
-**Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**Flags:** none. **Depends on:** `R2`. **Assigned:** heavy-b, ahead of `O3.2` and `B2.3`; it moved
+from ops-b's queue (ruling 298, record 6321095724).
+**PR:** #7329. (rulings 241, 298)
+
+Where it meets open PRs (ruling 298 item 2): box 2's ruff and mypy fixes leave alone any file an
+open PR edits under `scripts/` and fix it after that PR merges; box 1's deletions do not touch such
+a file; and the PR body names each file it defers, so the Done when is met at the ready head.
+Box 1's **DECIDE** for `scripts/ai-quality-analysis.py` is answered: keep it, a documented operator
+tool (`docs/reference/backend-entry-points.md:1471`) whose import #7319's `keep.toml` entry keeps
+(ruling 298 item 3).
 
 - [ ] Delete the scripts nothing references (~14 at `d6ba78d5`, `00 §7`) and the one-off
       investigation scripts. Scripts referenced only by `scripts/AGENTS.md`: **DECIDE** keep (a
@@ -859,7 +867,10 @@ history; rewritten into primitives, it matches the original under ONNX Runtime o
 
 - [ ] 188.18 as `6235312093` proposes: plans rebuilt from the `InstanceNormalization`-decomposed
       ONNX through `[r157]`'s runner, run once by the operator (UR-15), and the stage table posted
-      verbatim on the PR.
+      verbatim on the PR. Ruling 306 (record 6323748868) has the operator run it now on its
+      agent-gpu venue, as run 188.17 did, at `main`'s head (which carries #7238), on the same 36
+      crops; it posts the table and then the parity mode's `RESULT:` line on #7238, and links both
+      from #7002.
 - [ ] If a plan stage still reads under 0.999, post the measured table and its reading on the PR;
       the next step goes to the owner through the coordinator's status comment before any further
       spend.
@@ -867,8 +878,8 @@ history; rewritten into primitives, it matches the original under ONNX Runtime o
 
 **Done when:** `[r157]`'s Done when, read at this package's head: O2.4's command (#6970's) prints
 `RESULT: PASS`, posted on the PR, and the CPU-only test above is green in CI. The 0.999 gate stays
-(ruling 68), `REID_BACKEND` stays `local`, and serving re-ID through ONNX Runtime instead of
-TensorRT plans is not authorised.
+(ruling 68), `REID_BACKEND` stays `local` in this package (`[r306a]` flips it on `RESULT: PASS`,
+ruling 306), and serving re-ID through ONNX Runtime instead of TensorRT plans is not authorised.
 
 ### [r164a] The coordinator's paperwork moves into scripts
 
@@ -1277,23 +1288,23 @@ approved `a1cbf6986`; audit `6297441697`)
 ### [r282] The golden-test shards balanced by measured duration
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, after `O2.5`'s venue fixes (rulings 282 and 287).
-**Depends on:** none. **PR:** none yet. (ruling 282, record 6294042743)
+**Depends on:** none. **PR:** #7310. (ruling 282, record 6294042743)
 
 In median run 39419991445 (19.4 min), `Feature check (fake AI) (4-of-4)` ran 18.1 min while
 shards 1 and 3 took 13.9 and 14.8: `[r264]` splits with Playwright's `--shard=i/N`, which balances
 test counts, not durations, and shard 1 also runs the backend golden leg.
 
-- [ ] **Measure:** per-test durations from the golden junit files of at least five recent green
+- [x] **Measure:** per-test durations from the golden junit files of at least five recent green
       runs, plus each shard's fixed cost (stack boot and teardown) and shard 1's backend leg,
       tabulated in the PR body with each shard's time and the long pole.
-- [ ] **Rebalance:** assign tests to shards by measured duration (for example, per-shard lists
+- [x] **Rebalance:** assign tests to shards by measured duration (for example, per-shard lists
       generated from the junit data and checked in with the script that regenerates them),
       counting shard 1's backend leg, or change the shard count if the measured fixed cost shows a
       5th or 6th shard lowers the slowest one. No test is dropped, skipped or deduplicated across
       shards, and a test pins that the shards' union is exactly the suite. Edits stay inside the
       Feature check job and the harness (UR-121), and `[r264]`'s backend-on-shard-1 rule stays
       unless the measurements argue otherwise, which the PR then says.
-- [ ] `[r279]` changed tests in the same suite. `[r282]` changes how tests are assigned to shards,
+- [x] `[r279]` changed tests in the same suite. `[r282]` changes how tests are assigned to shards,
       not the tests themselves, and where the two PRs' files meet, this PR says so.
 
 **Done when:** `CI Gate` is green at a ready head; the regeneration script runs in CI or the docs
@@ -1310,7 +1321,7 @@ to `[r297]`:
 
 **Flags:** `owner` (it changes what `CI Gate (Required Checks)` runs, UR-119, and a security check,
 UR-98). **Assigned:** `uplevel-ops-a`, after `[r282]`, behind `O2.5`'s venue fixes (rulings 287 and
-291). **Depends on:** none. **PR:** none yet. (ruling 291, record 6304527940)
+291). **Depends on:** none. **PR:** #7328. (ruling 291, record 6304527940)
 
 On 2026-10-20 three advisories published against unchanged code (certifi, Pillow, markdown-it) kept
 `main` red from 19:47Z until #7314 merged at 23:54Z. Each fix was a plain lockfile bump, yet the
@@ -1318,7 +1329,7 @@ fixes blocked each other, because one audit job covers both ecosystems, and 11 `
 the audit alone. UR-185 treats such an advisory as UR-116 treats a red nightly: raised and routed,
 without freezing the queue.
 
-- [ ] **The gate mode.** On a PR, the gate's audit leg audits both the tree CI tests and the PR's
+- [x] **The gate mode.** On a PR, the gate's audit leg audits both the tree CI tests and the PR's
       base commit in the same job, and fails only on an unexempted finding at the head that is not
       an unexempted finding at the base, keyed by advisory id (with aliases) and package. On a push
       to `main` the base is the previous `main` commit. The two registries
@@ -1327,17 +1338,17 @@ without freezing the queue.
       whose finding remains counts as adding that finding; an audit error on either side fails
       closed. A change that touches none of `pyproject.toml`, `uv.lock`, `frontend/package.json`,
       `frontend/package-lock.json` and the two registries may skip both audits.
-- [ ] **The full-lockfile mode** runs today's checks unchanged on every push to `main`, daily (the
+- [x] **The full-lockfile mode** runs today's checks unchanged on every push to `main`, daily (the
       Monday cron becomes daily) and on `workflow_dispatch`, as a check `CI Gate (Required Checks)`
       does not read (UR-119). Both modes live in `dependency-audit.yml` and the two checkers
       (OB.2), and `ci.yml`'s call job selects the gate mode (UR-122).
-- [ ] **Tests, red first (UR-69),** on recorded audit JSON for each checker: a finding shared by
+- [x] **Tests, red first (UR-69),** on recorded audit JSON for each checker: a finding shared by
       base and head passes the gate; a head that adds a vulnerable package fails; a head that
       removes an exemption whose finding remains fails; a head that adds an exemption with a past or
       missing REVIEW BY fails; a base exemption past its REVIEW BY that the change does not touch
       passes the gate and fails the full-lockfile mode; an audit error on either side fails; and the
       full-lockfile mode gives today's results (today's checker tests pass unchanged).
-- [ ] **Proof in the PR body,** with commands and output against live advisory data: the gate mode
+- [x] **Proof in the PR body,** with commands and output against live advisory data: the gate mode
       with base `fadeb1992` (red on markdown-it before #7314) and a head of `fadeb1992` plus a
       doc-only commit passes; the full-lockfile mode at `fadeb1992` fails on markdown-it; and a
       `workflow_dispatch` run of the full-lockfile mode on the PR branch is green.
@@ -1409,13 +1420,15 @@ ruling 281 once its UR-89 review, with a security pass, approves and its gate is
 
 Notes for the lane:
 
-- **The full scans bring back a standalone `trivy.yml` run.** Its header (`trivy.yml:23-34`) says
-  the standalone triggers were deleted, and it bans a root `concurrency:` block, because the called
-  run would take the caller's group. Update that header, and keep the called path free of a root
-  `concurrency:` block.
-- **The skip still scans edits to the scan itself:** a change that edits `trivy.yml` or the
-  gate-mode script still runs the filesystem scan, as `[r291]`'s skip still audits edits to the
-  audit, so this package's own PR is scanned.
+- **The full scans bring back a standalone `trivy.yml` run.** Its header (`trivy.yml:3-34`) says
+  the push and PR triggers were replaced by the call from `ci.yml`, that the weekly Monday scan
+  catches drift, that the standalone triggers were deleted, and it bans a root `concurrency:` block,
+  because the called run would take the caller's group. Schedule and dispatch already run
+  standalone, so what comes back is the `push` trigger. Update the whole header, and keep the called
+  path free of a root `concurrency:` block.
+- **The skip still scans edits to the scan itself:** a change that edits `trivy.yml`, or the
+  gate-mode script if the gate mode lives in one, still runs the filesystem scan, as `[r291]`'s skip
+  still audits edits to the audit, so this package's own PR is scanned.
 
 ### [r297] The per-shard fixed cost cut toward a 15-minute CI
 
@@ -1458,3 +1471,43 @@ The owner's maui discovery for `O2.5` item 2 (attempt 8, `hsi-check-202610202055
       directories cause, such as a thumbnail that cannot be written.
 
 **Done when:** a `--prod-shape` run on maui at a merged pin has every golden leg passed.
+
+### [r307a] Face models in Triton
+
+**Flags:** `heavy`; label `cell:heavy-b`. **Assigned:** heavy-b, after `O3.7`, ahead of `B2.3` and
+`O3.2` (ruling 307). Where it edits `ai/gateway/`, UR-9 applies. **Depends on:** `[r252]`'s
+`RESULT: PASS` (ruling 306 item 1), which proves the TensorRT parity path.
+**PR:** none yet. (ruling 307, record 6323846997)
+
+Every small model the product runs on the GPU is served by Triton (UR-86). The face leg runs on the
+CPU today by an earlier choice (`backend/services/face_recognizer_loader.py:19`, `:152`); `[r307b]`
+moves the backend to the routes this package adds.
+
+- [ ] Serve SCRFD (`det_10g.onnx`) and ArcFace (`w600k_r50.onnx`), the same pinned files, in Triton
+      as TensorRT plans built for the serving GPU, behind gateway routes as `reid` is.
+- [ ] Parity against the CPU ONNX path on a fixed face set, stage by stage as `[r157]`'s runner
+      does: ArcFace cosine at least 0.999 (ruling 68's gate); SCRFD boxes and the five landmarks
+      within a tolerance the PR states and justifies. A CPU-only CI test pins whatever graph change
+      the plans need, as `[r252]`'s does.
+- [ ] The operator runs it (UR-15) and posts the stage table and `RESULT:` line; the PR records GPU
+      memory added and latency per face.
+
+**Done when:** `RESULT: PASS` is posted at the head and the UR-89 review approves. Nothing in
+production switches yet.
+
+### [r308a] CI sinks for the alerting golden paths
+
+**Flags:** none. **Assigned:** ops-b, after `[r290]` (ruling 308). **Depends on:** none.
+**PR:** none yet. (ruling 308, record 6326364266)
+
+The alerting packages' golden paths deliver to a mail server, a webhook receiver and a push
+service; the CI harness admits only `FAKE_SERVICES` today (`scripts/feature_check.py:96`, `:463`).
+Split out of `B4.2` so it is ready before `B4.2`'s build PR
+([`../4n-alerting.md`](../4n-alerting.md), "What changes", ops).
+
+- [ ] The CI harness admits a mail sink, a webhook sink and a Web Push service fake beside
+      `FAKE_SERVICES`, each started by the fake stack and readable by a golden test; the CI
+      webhook sink is marked "on this network".
+
+**Done when:** a smoke test sends one message to each sink and reads it back in CI, and the UR-89
+review approves.

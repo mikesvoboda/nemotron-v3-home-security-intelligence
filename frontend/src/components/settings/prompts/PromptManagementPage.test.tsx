@@ -234,10 +234,9 @@ describe('PromptManagementPage', () => {
         expect(promptApi.fetchPromptForModel).toHaveBeenCalledWith(AIModelEnum.NEMOTRON);
       });
 
-      // Verify all model options are available (Tremor Select may have duplicates)
+      // Verify the model options are available (Tremor Select may have duplicates)
+      // B3.3 box 4 (R2a row 27): nemotron is the only selectable model.
       expect(screen.getAllByText('Nemotron (Risk Analysis)').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Florence-2 (Scene Analysis)').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('YOLO-World (Object Detection)').length).toBeGreaterThan(0);
     });
   });
 

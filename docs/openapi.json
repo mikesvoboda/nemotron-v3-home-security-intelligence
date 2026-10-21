@@ -2,13 +2,9 @@
   "components": {
     "schemas": {
       "AIModelEnum": {
-        "description": "Supported AI models for prompt configuration.",
+        "description": "AI models for prompt configuration.\n\nB3.3 box 4 (R2a row 27): florence2, yolo_world, xclip and fashion_clip retired with\nthe R8 S2/S3 serving sweep; nemotron is the only model a deployment boots.",
         "enum": [
-          "nemotron",
-          "florence2",
-          "yolo_world",
-          "xclip",
-          "fashion_clip"
+          "nemotron"
         ],
         "title": "AIModelEnum",
         "type": "string"
@@ -3050,12 +3046,6 @@
         "example": {
           "exported_at": "2026-01-03T10:30:00Z",
           "prompts": {
-            "florence2": {
-              "vqa_queries": [
-                "What is this person wearing?",
-                "Is this person carrying anything?"
-              ]
-            },
             "nemotron": {
               "max_tokens": 2048,
               "system_prompt": "You are a home security AI assistant...",
@@ -29832,23 +29822,10 @@
         "example": {
           "exported_at": "2026-01-03T10:30:00Z",
           "prompts": {
-            "florence2": {
-              "vqa_queries": [
-                "What is this person wearing?"
-              ]
-            },
             "nemotron": {
               "max_tokens": 2048,
               "system_prompt": "You are a home security AI assistant...",
               "temperature": 0.7
-            },
-            "yolo_world": {
-              "confidence_threshold": 0.35,
-              "object_classes": [
-                "person",
-                "car",
-                "truck"
-              ]
             }
           },
           "version": "1.0"
@@ -29997,11 +29974,6 @@
         "description": "Request to import prompt configurations.",
         "example": {
           "prompts": {
-            "florence2": {
-              "vqa_queries": [
-                "What is this person wearing?"
-              ]
-            },
             "nemotron": {
               "max_tokens": 2048,
               "system_prompt": "You are a home security AI assistant...",
@@ -30037,17 +30009,13 @@
         "description": "Response after importing prompt configurations.",
         "example": {
           "imported_models": [
-            "nemotron",
-            "florence2"
+            "nemotron"
           ],
-          "message": "Successfully imported 2 prompt configurations, skipped 1",
+          "message": "Successfully imported 1 prompt configuration",
           "new_versions": {
-            "florence2": 2,
             "nemotron": 4
           },
-          "skipped_models": [
-            "yolo_world"
-          ]
+          "skipped_models": []
         },
         "properties": {
           "imported_models": {
@@ -57124,7 +57092,7 @@
     },
     "/api/prompts": {
       "get": {
-        "description": "Fetch current prompt configurations for all AI models.\n\nReturns the active prompt/configuration for each supported model:\n- nemotron: System prompt for risk analysis\n- florence2: Scene analysis queries\n- yolo_world: Custom object classes and confidence threshold\n- xclip: Action recognition classes\n- fashion_clip: Clothing categories",
+        "description": "Fetch current prompt configurations for all AI models.\n\nReturns the active prompt/configuration for each supported model:\n- nemotron: System prompt for risk analysis",
         "operationId": "prompts_get_all_prompts",
         "responses": {
           "200": {

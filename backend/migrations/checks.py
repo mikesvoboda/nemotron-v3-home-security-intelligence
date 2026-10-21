@@ -204,6 +204,42 @@ _RETIRED_ALERT_RULE_COLUMNS: tuple[str, ...] = _drop_columns_for_table(
     "0008-retire-alert-rule-pose-action-smoke-columns", "alert_rules"
 )
 
+
+def _prompt_versions_model_migrated() -> Check:
+    """True when `prompt_versions.model` is no longer the native `aimodel` enum AND the four
+    retired models' rows are gone.
+
+    Both halves matter, and neither alone would record a half-applied upgrade: the column
+    conversion without the DELETE would leave rows for models the code no longer knows, and
+    the DELETE without the conversion would leave a native enum whose labels still accept
+    those models. On a fresh `create_all` database both are true at once (the model side
+    ships a plain String column and seeds no retired rows), which is what makes 0011 record
+    as ``verified`` on new installs -- the same schema-twins property the upgrade-path test
+    pins for the other retirements.
+    """
+
+    async def check(conn: AsyncConnection) -> bool:
+        type_query = """
+            SELECT data_type FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'prompt_versions' AND column_name = 'model'
+        """
+        result = await conn.execute(text(type_query))
+        data_type = result.scalar()
+        if data_type is None:
+            # No such column/table at all: nothing to migrate, the effect is in place.
+            return True
+        if data_type != "character varying":
+            return False
+        rows_query = """
+            SELECT count(*) FROM prompt_versions
+            WHERE model IN ('florence2', 'yolo_world', 'xclip', 'fashion_clip')
+        """
+        return await _count(conn, rows_query) == 0
+
+    return check
+
+
 #: upgrade id -> its predicate. Keys are checked against the registry at import (see
 #: `_assert_keys_are_registered`) so a rename in `sql.py` reddens here rather than silently
 #: turning a checked upgrade into an unchecked one.
@@ -235,6 +271,7 @@ CHECKS: dict[str, Check] = {
     ),
     "0009-retire-gpu-devices-table": table_absent("gpu_devices"),
     "0010-retire-scheduled-reports-table": table_absent("scheduled_reports"),
+    "0011-retire-vision-model-prompts": _prompt_versions_model_migrated(),
 }
 
 

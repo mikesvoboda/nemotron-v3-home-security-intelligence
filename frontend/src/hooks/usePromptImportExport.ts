@@ -188,9 +188,8 @@ export function useImportPreview(): UseImportPreviewReturn {
       const prompts = (data.prompts as Record<string, Record<string, unknown>>) || data;
 
       // If prompts is empty but we have other keys that look like model configs, use the whole object
-      const hasModelKeys = Object.keys(data).some((k) =>
-        ['nemotron', 'florence2', 'yolo_world', 'xclip', 'fashion_clip'].includes(k)
-      );
+      // B3.3 box 4 (R2a row 27): nemotron is the only model name the API accepts.
+      const hasModelKeys = Object.keys(data).some((k) => k === 'nemotron');
 
       const request: PromptsImportPreviewRequest = {
         version,

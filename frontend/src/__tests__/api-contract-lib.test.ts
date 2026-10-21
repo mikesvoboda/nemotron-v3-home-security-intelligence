@@ -717,8 +717,8 @@ describe('audit: allowances retire when the backend closes the gap', () => {
   });
 
   it('retires the allowance the moment the route is served', () => {
-    // The direction this whole check was missing: 11 of the 15 live entries say
-    // "next: the backend should add this route". When that lands, the call site is
+    // The direction this whole check was missing: 7 of the 11 live entries
+    // describe an absent route. When that route lands, the call site is
     // still there, so `entryIsLive` alone keeps the allowance looking live forever —
     // and a known-missing list that can never shrink is the rot the gate is meant
     // to prevent. Without `gapIsClosed` this assertion fails with stale = [].

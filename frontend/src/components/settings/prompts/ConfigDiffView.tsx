@@ -18,10 +18,6 @@ import type { PromptDiffEntry } from '../../../types/promptManagement';
 /** Model display names for user-friendly labels */
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
   nemotron: 'Nemotron',
-  florence2: 'Florence-2',
-  yolo_world: 'YOLO-World',
-  xclip: 'X-CLIP',
-  fashion_clip: 'Fashion-CLIP',
 };
 
 // ============================================================================
