@@ -20,6 +20,7 @@ import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -99,6 +100,65 @@ def run(conclusion, status="completed", head=TIP, minutes=10):
         "createdAt": t(-timedelta(minutes=minutes)),
         "event": "push",
         "url": "u",
+    }
+
+
+# --- ruling 290's balance fixtures ---------------------------------------------------------
+# The roster carries the three shapes the section must tell apart: a fast two-cell lane (ops-a
+# backlogged, ops-b idle), a one-cell fast lane, and the strongest tier that alone may take a
+# `heavy` package. Rows read | `agent` | model | queue | label |, the live column names.
+ROSTER = """\
+| sandbox               | model     | queue                                    | review label |
+| --------------------- | --------- | ---------------------------------------- | ------------ |
+| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)         | none         |
+| `uplevel-ops-a`       | fast      | `O2.4`, `[r295]`, `O3.7`                 | none         |
+| `uplevel-ops-b`       | fast      | `[r290]`                                 | none         |
+| `uplevel-ops-c`       | fast      | none                                     | none         |
+| `uplevel-heavy-b`     | strongest | `[r273]`, `B2.3`                         | none         |
+"""  # fmt: skip
+README = """\
+<!-- prettier-ignore -->
+| package | lane                    | phase      | name                                           | flags         | status      | PR  |
+| ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
+| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | in progress | #7002 |
+| B2.3    | backend                 | 2          | Re-ID model bake-off                           | heavy         | not started |       |
+| O3.7    | ops                     | 3          | `scripts/` truth                               |               | not started |     |
+| R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
+| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
+"""  # fmt: skip
+# One lane file with every dependency shape the six pins name: `O2.4` depends on `R2` -- free
+# text the README cannot resolve (no row is named `R2`), so it reads unread, never met; `[r295]`
+# depends on nothing; `O3.7` depends on nothing and is `heavy` (UR-24's move constraint).
+OPS_PKG = """\
+### O2.4 Re-ID on the GB300 GPU via TensorRT
+
+**Flags:** none. **Depends on:** `R2`. **PR:** #7002. (ruling 84)
+
+- [ ] box
+
+### [r295] pip leaves the production image
+
+**Flags:** none. **Assigned:** backend. **Depends on:** none. **PR:** none yet. (ruling 295)
+
+- [ ] box
+
+### O3.7 `scripts/` truth
+
+**Flags:** `heavy`. **Assigned:** heavy-b (ruling 298). **Depends on:** none. **PR:** none yet.
+(ruling 298)
+
+- [ ] box
+"""  # fmt: skip
+
+
+def beat_row(agent: str, prose: str, minutes: int = 5, cid: int | None = None) -> dict:
+    """A heartbeat in the live shape; the status field rides the second line."""
+    return {
+        "id": cid if cid is not None else abs(hash(agent)),
+        "user": {"login": "mikesvoboda"},
+        "created_at": t(-timedelta(days=2)),
+        "updated_at": t(-timedelta(minutes=minutes)),
+        "body": f"<!-- heartbeat:{agent} -->\n{prose}",
     }
 
 
@@ -195,6 +255,22 @@ class FakeRunner:
         # (parent, root) -> "0" (ancestor) or a positive count.
         self.branch_commits: dict[str, str] = {}
         self.ancestry: dict[tuple[str, str], str] = {}
+        # ruling 290's balance section: the roster and the tree docs it reads from origin/main,
+        # keyed by the basename `git show` ends with ("lane.md" -> roster; a lane's packages file;
+        # "README.md"). An unscripted doc still raises -- a new read shows up as a failing test.
+        self.docs: dict[str, str] = {
+            "lane.md": ROSTER,
+            "README.md": README,
+            "ops.md": OPS_PKG,
+            # the other packaged lanes read as empty files: no claimable shapes there, so a test
+            # that needs one scripts it into `self.docs` (the KeyError-style assert catches a read
+            # the balance never asked for).
+            "backend.md": "",
+            "frontend.md": "",
+            "docs.md": "",
+        }
+        self.roster = self.docs["lane.md"]
+        self.readme = self.docs["README.md"]
 
     def fail(self, needle: str, message: str = "HTTP 504") -> None:
         self.rules[needle] = snap.CommandError(message)
@@ -254,6 +330,11 @@ class FakeRunner:
             return json.dumps({"statusCheckRollup": rollup})
         if cmd[:2] == ["git", "fetch"]:
             return ""
+        if cmd[:2] == ["git", "show"]:  # ruling 290's balance read: roster, packages, README
+            doc = cmd[-1].rsplit("/", 1)[-1]
+            if doc in self.docs:
+                return self.docs[doc]
+            raise AssertionError(f"unscripted git show: {cmd[-1]}")
         if cmd[:2] == ["git", "rev-parse"]:
             arg = cmd[-1]
             if arg.endswith("^1"):  # main as it stood at the merge = the merged PR's base root
@@ -1206,7 +1287,7 @@ def test_text_report_has_the_six_sections_in_order():
     text = snap.render_text(build(FakeRunner()))
     heads = [line for line in text.splitlines() if line.startswith("== ")]
     assert [h.split(".")[0] for h in heads] == [
-        "== 1", "== 2", "== 3", "== 4", "== 5", "== 6", "== 7", "== 8",
+        "== 1", "== 2", "== 3", "== 4", "== 5", "== 6", "== 7", "== 8", "== 9",
     ]  # fmt: skip
     assert "merge state (ruling 270)" in text
     assert "behind main: yes (10 merges behind)" in text
@@ -1756,6 +1837,171 @@ def test_an_unmarked_mention_of_the_pr_on_6854_does_not_bar_it():
     data = build(fake)
     audit = {i["number"]: i for i in data["merged_audit"]["items"]}
     assert audit[7106]["verdict"] == "ok"
+
+
+# --- 7b. package balance (ruling 290) -------------------------------------------------------
+
+
+def bal(data: dict) -> dict:
+    return data["balance"]
+
+
+def set_beats(fake: FakeRunner, **agents: str) -> None:
+    """Replace the default fixture's heartbeats with one row per named agent.
+
+    ``prose`` is the beat's status line verbatim (``ops-b · 18:00Z · idle``); the whole default
+    fixture carries prose this section must not read, so a balance test builds its own world.
+    """
+    fake.heartbeats = [beat_row(a, prose) for a, prose in agents.items()]
+
+
+def pr_item(
+    number: int, labels: list[str], title: str, draft: bool = False
+) -> dict[str, Any]:
+    """A PR in the list shape `_prs` feeds `_pr_item` -- the only fields balance reads."""
+    return {
+        "number": number,
+        "title": title,
+        "isDraft": draft,
+        "labels": [{"name": v} for v in labels],
+        "headRefOid": TIP,
+        "mergeStateStatus": "BEHIND",
+        "statusCheckRollup": [],
+    }
+
+
+def test_an_idle_agent_with_nothing_claimable_beside_a_backlogged_agent_flags():
+    # The imbalance the section exists to find: ops-c beats idle and its queue reads none, while
+    # ops-a holds two met-dep claimables ([r295], O3.7). ops-b holds the open O2.4 PR, so the
+    # draft-as-claim rule keeps it out of the flag on both sides. The flag names both ends and
+    # one candidate move.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+            "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    data = build(fake)
+    b = bal(data)
+    ids = {i["agent"]: i for i in b["items"]}
+    # ops-a: no open package PR, two met-dep claimables ([r295], O3.7 -- both deps read met/none)
+    assert ids["uplevel-ops-a"]["open_prs"] == []
+    assert [e["token"] for e in ids["uplevel-ops-a"]["claimable"]] == ["r295", "O3.7"]
+    assert all(e["deps"] == "met" for e in ids["uplevel-ops-a"]["claimable"])
+    # ops-b: its O2.4 PR is open (a draft IS the claim), so idle reads no
+    assert ids["uplevel-ops-b"]["open_prs"] == [7002]
+    assert ids["uplevel-ops-b"]["idle"] is False
+    # ops-c: idle beat, no open PR, queue none -- idle with nothing claimable
+    assert ids["uplevel-ops-c"]["idle"] is True
+    assert ids["uplevel-ops-c"]["claimable"] == []
+    text = snap.render_text(data)
+    assert "IMBALANCE" in text
+    assert "ops-c" in has_line(text, "IMBALANCE") and "ops-a" in has_line(text, "IMBALANCE")
+
+
+def test_two_busy_agents_flag_nothing():
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    data = build(fake)
+    assert bal(data)["flag"] is None
+    assert "IMBALANCE" not in snap.render_text(data)
+
+
+def test_a_free_text_dependency_reads_unread_and_never_met():
+    # `[r295]`'s `**Depends on:** `R2`` names no README row (R2a/R2b are the real rows), so the
+    # verdict is unread -- never met -- and the entry must not count toward the imbalance's
+    # met-dep side. ops-a's queue here carries ONLY that unread entry: no met-dep donor exists,
+    # so no flag fires even with ops-c idle.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+            "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    # The only queued entry gains the free-text dependency: `R2` names no README row (R2a/R2b
+    # are the real rows), so the verdict reads unread -- never met. O3.7 stays met-dep, but one
+    # met entry is below the >=2 donor threshold, so no flag fires.
+    fake.docs["ops.md"] = OPS_PKG.replace(
+        "**Flags:** none. **Assigned:** backend. **Depends on:** none.",
+        "**Flags:** none. **Assigned:** backend. **Depends on:** `R2`.",
+    )
+    data = build(fake)
+    ids = {i["agent"]: i for i in bal(data)["items"]}
+    # O2.4 is title-claimed (the open PR), so the queue yields [r295] and O3.7: the unread entry
+    # and one met entry -- below the >=2 donor threshold, so no flag fires.
+    assert [e["token"] for e in ids["uplevel-ops-a"]["claimable"]] == ["r295", "O3.7"]
+    assert ids["uplevel-ops-a"]["claimable"][0]["deps"] == "unread"
+    assert ids["uplevel-ops-a"]["claimable"][1]["deps"] == "met"
+    assert bal(data)["flag"] is None
+
+
+def test_a_heavy_package_is_never_proposed_to_a_fast_agent():
+    # A heavy claimable on the donor's queue: `[r295]` becomes a heavy package, ops-c (fast,
+    # idle) is the only idle agent, so UR-24 forbids proposing it to ops-c -- the move must name
+    # heavy-b (strongest) as the receiver instead.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+            "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    fake.docs["ops.md"] = OPS_PKG.replace(
+        "### [r295] pip leaves the production image\n\n**Flags:** none.",
+        "### [r295] pip leaves the production image\n\n**Flags:** `heavy`.",
+    )
+    data = build(fake)
+    move = bal(data)["flag"]["move"]
+    assert "heavy-b" in move["to"]
+    assert move["package"] == "r295"
+
+def test_the_render_prints_the_section_with_per_agent_rows():
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+            "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    text = snap.render_text(build(fake))
+    assert "== 9. package balance (ruling 290)" in text
+    rows = has_line(text, "uplevel-ops-a (fast)")
+    assert "claimable" in rows
+    assert "not idle" in rows
+    # The idle row reads its beat's status field, and the header names the package (ruling 290).
+    idle_row = has_line(text, "uplevel-ops-c (fast)")
+    assert "idle ·" in idle_row
+    assert "claimable: none" in idle_row
+
+
+def has_line(text: str, needle: str) -> str:
+    return next(ln for ln in text.splitlines() if needle in ln)
 
 
 # --- 8. ruling 164: the status comment drafted from the snapshot ---------------------------

@@ -112,6 +112,119 @@ BODY_HOLD = re.compile(
 )
 OWNER_PR_REF = re.compile(r"#([0-9]{3,6})\b")
 
+# --- package blocks (the shapes `rules.md` defines and ruling 290's balance section reads) ---
+# Shared with ``lane_tick.py`` (which imports this module), so the digest's claim offers and the
+# snapshot's balance section cannot drift on what a queue entry, a claim field or an open box is.
+
+# A roster row is | agent | tier | queue | review label |, and the label column reads `none` for a
+# cell with no review queue (coordinator, heavy-a, heavy-b, operator) -- a fact, not a missing read.
+ROSTER_ROW = re.compile(r"\|\s*`([\w.-]+)`\s*\|[^|]*\|(.*)\|\s*`?(review:[\w-]+|none)`?\s*\|")
+# A queue entry's token: the BACKTICKED NAME AT THE START of the entry (see ``queue_entries`` -- a
+# backtick anywhere else in the cell is prose referring to some other package, not a slot).
+QUEUE_TOKEN = re.compile(r"\s*`\[?([\w.]+)\]?`")
+# The header wraps: `[r96i11]`'s and a frontend package's `**PR:**` value sits on the NEXT line.
+# Bounded by the blank line after the header, so the value is the field's own continuation.
+PKG_FIELD = re.compile(r"\*\*PR:\*\*([\s\S]*?)(?:\n\s*\n|\Z)", re.I)
+NONE_YET = re.compile(r"[^\n#]*none yet", re.I)
+# The number a package block's `**PR:**` field names. `NONE_YET`'s `[^#]` class is the proof the
+# field's value carries a literal `#`, so the number is read from the same captured text.
+PR_NUMBER = re.compile(r"#(\d+)")
+# The package header line, as it stands AFTER splitting on "### " (the marker is gone).
+BLOCK = re.compile(r"\[?([\w.]+)\]?\s")
+# A PR title's LEADING token -- the claim identity a PR carries even when no `### [pkg]` block
+# names it yet. Same leading rule ``queue_entries`` reads: a token MENTIONED mid-title is prose,
+# and prose can name anything. The hyphen is load-bearing: ``[\w.]+`` (BLOCK's class) cannot hold
+# ``flaky-census``.
+LEADING_TOKEN = re.compile(r"^\s*\[([\w-]+)\]")
+# An unticked box in a package block: the live shape is `- [ ]` at any indent (a continuation line
+# under a wrapped box keeps the text but not the hyphen, so the literal is the discriminator).
+OPEN_BOX = re.compile(r"^\s*-\s\[\s\]", re.M)
+# A README status row: | package | lane | phase | name | flags | status | PR | -- the status field
+# is the sixth column; UR-144's statuses are words, `done` being the only one the balance reads.
+STATUS_ROW = re.compile(r"^\|\s*`?([\w.]+)`?\s*\|[^|]*\|[^|]*\|[^|]*\|[^|]*\|\s*`?([\w ]+?)`?\s*\|", re.M)
+
+
+def queue_entries(column: str) -> list[str]:
+    """The queue tokens of a roster cell, read as ENTRIES -- not as every backticked word.
+
+    The column is a comma/semicolon-separated list where each entry is a token plus prose, and prose
+    legitimately backticks other packages: ops-b's `F2.3` row says "after `[r157]`'s runner is ready
+    for the owner" (measured on the live digest, which then reported [r157] held twice), and
+    heavy-b's row says "`B2.3` once `O2.4` passes". A ``findall`` over the whole cell turns both of
+    those references into queue slots -- and a reference that becomes a queue entry is a package the
+    digest will OFFER TO CLAIM, including one that belongs to another lane. So: split on top-level
+    separators only (a comma inside `(OP-3, after ...)` separates prose, not entries), then take the
+    FIRST token of each entry, because the prose that follows it can name anything.
+    """
+    entries, depth, cur = [], 0, ""
+    for ch in column:
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth = max(0, depth - 1)
+        if ch in ",;" and depth == 0:
+            entries.append(cur)
+            cur = ""
+            continue
+        cur += ch
+    entries.append(cur)
+    out = []
+    for entry in entries:
+        # LEADING token only (measured: every real entry in main's roster starts with its token). An
+        # entry whose backtick appears mid-prose is routing prose -- "`B2.3` once `O2.4` passes" and
+        # "then assigned `heavy` PRs" -- and skipping it can only OMIT a slot, never INVENT one.
+        # That asymmetry is the point: an invented slot gets OFFERED for claim, another lane's work.
+        if m := QUEUE_TOKEN.match(entry):
+            out.append(m.group(1))
+    return out
+
+
+def package_blocks(packages: str) -> dict[str, str]:
+    """A lane file's `### [pkg]` blocks keyed by their header token, in no guaranteed order."""
+    return {m.group(1): b for b in packages.split("### ")[1:] if (m := BLOCK.match(b))}
+
+
+def unticked_box(block: str) -> str | None:
+    """The first unticked box's text in a package block, or ``None`` when every box is ticked.
+
+    The box's text rides the same and any continuation lines (the live blocks wrap at ~100
+    columns), so the digest can name the work, not just count it.
+    """
+    for m in OPEN_BOX.finditer(block):
+        line = block[m.start() :].splitlines()[0]
+        return line.split("]", 1)[1].strip() if "]" in line else ""
+    return None
+
+
+def readme_rows(readme: str) -> dict[str, str]:
+    """The README status table's ``package -> status`` rows (UR-144's words, lowercased)."""
+    return {m.group(1): m.group(2).strip().lower() for m in STATUS_ROW.finditer(readme)}
+
+
+def dep_names(block: str) -> list[str]:
+    """The package tokens a block's ``**Depends on:**`` field names, ``[]`` when it names none."""
+    m = re.search(r"\*\*Depends on:\*\*([^\n]*)", block, re.I)
+    if not m:
+        return []
+    return re.findall(r"`?([\w.]+)`?", re.sub(r"none\b.*", "", m.group(1)))
+
+
+def dependency_verdict(names: list[str], rows: dict[str, str]) -> str:
+    """``met`` / ``unmet`` / ``unread`` for a block's named dependencies against README rows.
+
+    A free-text dependency the table cannot resolve (``R2``, where the rows are ``R2a``/``R2b``)
+    reads ``unread`` and never ``met``: the balance must not count a package claimable on a
+    dependency it cannot see resolved.
+    """
+    if not names:
+        return "met"
+    verdicts = [rows.get(n) for n in names]
+    if any(v is None for v in verdicts):
+        return "unread"
+    if all(v == "done" for v in verdicts):
+        return "met"
+    return "unmet"
+
 
 # The verdict-shape filter, shared by §3's review read and §8's so the two cannot drift on what
 # counts as a verdict thread.
@@ -513,6 +626,7 @@ class Snapshot:
         self._prs()
         self._heartbeats(heartbeat_comments)
         self._merged_audit()
+        self._balance()
         return self.data
 
     # 1. cursor -------------------------------------------------------------------------------
@@ -1352,6 +1466,154 @@ class Snapshot:
             h["uncellated_prs"] = sorted(unnamed.get(h["lane"], []))
 
 
+    # 9. package balance (ruling 290) -----------------------------------------------------------
+
+    BALANCE_DOCS = (  # bounded: six git shows, whatever the roster's agent count is
+        "docs/uplevel/roles/lane.md",
+        "docs/uplevel/packages/backend.md",
+        "docs/uplevel/packages/frontend.md",
+        "docs/uplevel/packages/ops.md",
+        "docs/uplevel/packages/docs.md",
+        "docs/uplevel/README.md",
+    )
+
+    def _balance(self) -> None:
+        """Ruling 290's balance section: who is idle with nothing claimable beside a backlogged agent.
+
+        Read from origin/main's tree, not the working tree: the roster and the package files the
+        roster's queues name are merge-state artifacts -- a working tree can carry a half-merged
+        claim edit the coordinator's read would then count. Six bounded ``git show`` reads, the
+        roster and one file per packaged lane (backend/docs/frontend/ops, the four ``main`` carries)
+        plus the README status table; a failed read drops that lane's entries and prints an ERROR,
+        never a guess (UR-154's direction: a failed read is never a yes and never a no).
+        """
+        section: dict[str, Any] = {"items": [], "flag": None, "errors": []}
+        self.data["balance"] = section
+        docs: dict[str, str] = {}
+        for path in self.BALANCE_DOCS:
+            try:
+                docs[path] = self.git("show", f"origin/main:{path}")
+            except Exception as exc:
+                section["errors"].append(f"read {path}: {error_text(exc)}")
+        if "docs/uplevel/roles/lane.md" not in docs:
+            return  # without the roster no agent is keyable; the ERROR above says so
+        roster = docs["docs/uplevel/roles/lane.md"]
+        rows = readme_rows(docs.get("docs/uplevel/README.md", ""))
+        # Repo-wide unclaimed check: a token ANY open PR titles is claimed, whatever its labels
+        # say -- the same leading rule `held_claims` reads (a mid-title mention is prose).
+        titles = " ".join(p["title"] for p in self.data["prs"]["items"])
+        claimed_tokens = {
+            m.group(1) for p in self.data["prs"]["items"] if (m := LEADING_TOKEN.match(p["title"]))
+        }
+        lanes = {
+            lane: package_blocks(docs[f"docs/uplevel/packages/{lane}.md"])
+            for lane in ("backend", "frontend", "ops", "docs")
+            if f"docs/uplevel/packages/{lane}.md" in docs
+        }
+        heavy = set()
+        for blocks in lanes.values():
+            heavy |= {t for t, b in blocks.items() if "heavy" in b.lower()}
+        for line in roster.splitlines():
+            m = ROSTER_ROW.search(line)
+            if not m:
+                continue
+            name = m.group(1)
+            lane, cell = agent_key(name)
+            tier = "strongest" if "strongest" in line else "fast"
+            beat = next(
+                (
+                    h
+                    for h in self.data["heartbeats"]["items"]
+                    # Both live marker spellings (`agent-uplevel-ops-a`, `uplevel-ops-a`) and the
+                    # roster's name collapse to one identity through `agent_key` -- the same
+                    # normalization `lane_tick` keys its beat lookup on.
+                    if agent_key(h["agent"]) == (lane, cell)
+                ),
+                None,
+            )
+            item: dict[str, Any] = {
+                "agent": name,
+                "lane": lane,
+                "cell": cell,
+                "tier": tier,
+                "open_prs": [],
+                "claimable": [],
+                "idle": False,
+            }
+            if beat is not None and not beat["paused"]:
+                # An agent with no beat row is not idle by construction: the section cannot call
+                # an unseen heartbeat "idle", that is the flag inventing an idle agent.
+                status_fields = [
+                    f.strip().strip(FIELD_DECORATION).strip().lower()
+                    for f in (beat["head"] or "").split(HEARTBEAT_FIELD_SEP)
+                ]
+                has_open = False
+                for p in self.data["prs"]["items"]:
+                    own = owner_of_pr(p["labels"])
+                    if own is None:
+                        continue
+                    own_lane, own_cell, named = own
+                    if own_lane == lane and (own_cell == cell or not named):
+                        item["open_prs"].append(p["number"])
+                        has_open = True
+                item["idle"] = not has_open and any(f == "idle" for f in status_fields)
+                # The claimable scan: the roster queue's tokens whose blocks carry no PR yet and
+                # that no open PR titles, plus the multi-PR in-progress shape (rules.md's contract
+                # rule + UR-144) -- a merged block whose README row reads `in progress` with an
+                # unticked box is open work for the agent whose queue holds it.
+                for token in queue_entries(m.group(2)):
+                    block = lanes.get(lane, {}).get(token)
+                    if block is None:
+                        continue  # a queue entry that is not a package block (a batch, a trigger)
+                    if token in claimed_tokens or f"[{token}]" in titles:
+                        continue
+                    field = PKG_FIELD.search(block)
+                    numbers = PR_NUMBER.findall(field.group(1)) if field else []
+                    box = unticked_box(block)
+                    if field and NONE_YET.match(field.group(1).lstrip()):
+                        entry = {"token": token, "deps": dependency_verdict(dep_names(block), rows)}
+                        item["claimable"].append(entry)
+                    elif numbers and box and rows.get(token) == "in progress":
+                        entry = {
+                            "token": token,
+                            "deps": dependency_verdict(dep_names(block), rows),
+                            "box": truncate(box, 70),
+                        }
+                        item["claimable"].append(entry)
+            section["items"].append(item)
+        self._balance_flag(section, heavy)
+
+    def _balance_flag(self, section: dict[str, Any], heavy_all: set[str]) -> None:
+        """The imbalance flag and one candidate move (ruling 290, UR-24 and the cells' file areas).
+
+        An idle agent holds no met-dep claimable while another agent holds two or more; the move
+        keeps UR-24 (a `heavy` package goes only to a strongest-tier agent -- the receiver is then
+        named as a heavy agent) and the cells' file areas (a package moves within its own lane, or
+        to a heavy agent, never across fast lanes). Nothing here acts: the section proposes, the
+        coordinator's step 7 decides.
+        """
+        met = lambda it: [e for e in it["claimable"] if e["deps"] == "met"]  # noqa: E731
+        idle = [it for it in section["items"] if it["idle"] and not met(it)]
+        donors = [it for it in section["items"] if len(met(it)) >= 2]
+        if not idle or not donors:
+            return
+        take, give = idle[0], donors[0]
+        pkg = met(give)[0]
+        if pkg["token"] in heavy_all and take["tier"] != "strongest":
+            receiver = next(
+                (it["agent"] for it in section["items"] if it["tier"] == "strongest"),
+                take["agent"],
+            )
+            why = "heavy package: only a strongest-tier agent may take it (UR-24)"
+        else:
+            receiver = take["agent"]
+            why = "same lane, the cells' file areas hold"
+        section["flag"] = {
+            "idle": take["agent"],
+            "backlogged": give["agent"],
+            "package": pkg["token"],
+            "move": {"from": give["agent"], "to": receiver, "package": pkg["token"], "why": why},
+        }
 def _run_summary(run: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": run.get("databaseId"),
@@ -1591,6 +1853,29 @@ def render_text(data: dict[str, Any]) -> str:
         )
         out += [f"      ERROR merged: {e}" for e in it["errors"]]
     out += _errors("merged", au)
+
+    bal = data.get("balance") or {"items": [], "flag": None, "errors": []}
+    out.append("== 9. package balance (ruling 290)")
+    for it in bal["items"]:
+        open_prs = ", ".join(f"#{n}" for n in it["open_prs"]) or "none"
+        state = "idle" if it["idle"] else "not idle"
+        claims = (
+            ", ".join(
+                f"{e['token']} (deps {e['deps']})" + (f" -- open box: {e['box']}" if e.get("box") else "")
+                for e in it["claimable"]
+            )
+            or "none"
+        )
+        out.append(f"  {it['agent']} ({it['tier']}) · open package PRs: {open_prs} · {state} · claimable: {claims}")
+    if bal["flag"]:
+        f = bal["flag"]
+        m = f["move"]
+        out.append(
+            f"  IMBALANCE: {f['idle']} idle with nothing claimable; {f['backlogged']} holds "
+            f"`{f['package']}` -- candidate move: `{f['package']}` from {m['from']} to {m['to']} "
+            f"({m['why']}). Propose only."
+        )
+    out += _errors("balance", bal)
     return "\n".join(out) + "\n"
 
 
