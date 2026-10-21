@@ -123,22 +123,22 @@ shipping, and its test suite passes in CI.
 **Files:** modify `scripts/mutation-score.py`, `.github/workflows/mutation-testing.yml`,
 `.github/mutation-history.json`.
 
-- [ ] Score per module over the scored set (M1's output) from the banked verdicts, with and without
+- [x] Score per module over the scored set (M1's output) from the banked verdicts, with and without
       accepted survivors (M3's file). Compare only modules whose mutants were all re-checked since
       the previous entry: the weekly job is incremental (a 240-minute budget that resumes), so a
       partially re-checked module has no comparable score.
-- [ ] **MEASURE** the noise band: from the existing 57 history runs, the week-to-week score change
+- [x] **MEASURE** the noise band: from the existing 57 history runs, the week-to-week score change
       of modules whose source did not change between runs. Record the band and its derivation in
       the PR.
-- [ ] On a drop beyond the band, open or update one issue per module (title
+- [x] On a drop beyond the band, open or update one issue per module (title
       `mutation floor: <module>`), listing the newly surviving mutants. Raise the same issue when a
       module's mutant count falls while its production bytes are unchanged since the previous
       entry: that is lost coverage, which a covered-lines-only score reports as a gain. The job's conclusion
       reports the job's health, never the drop.
-- [ ] Write one history entry per weekly run: per-module scores plus the informational global
+- [x] Write one history entry per weekly run: per-module scores plus the informational global
       score. Compact the existing 57 runs to one summary line each (date, killed-or-timeout, total,
       score) — **DECIDE** the exact shape.
-- [ ] Remove every other writer of `mutation-history.json` (`--history` use outside the workflow).
+- [x] Remove every other writer of `mutation-history.json` (`--history` use outside the workflow).
 
 **Done when:** a dry run against a fixture history opens exactly one issue for a module with an
 injected score drop and exactly one for a module whose mutant count fell with unchanged source, and
