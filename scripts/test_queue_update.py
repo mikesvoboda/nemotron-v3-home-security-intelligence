@@ -93,6 +93,13 @@ class Fake:
         self.other_runs_conclusion = over.get("other_runs_conclusion")
         self.files = over.get("files", ["backend/x.py"])
         self.diffs = over.get("diffs", {})  # rev -> diff text; default below = one carry
+        # ruling 278: the subset carry reads three-dot compares beyond the hash path's
+        # merge-base read -- the chain (``compare/<listed>...<head>`` answers commits[]) and
+        # each merge parent's place on main (``compare/<p2>...<tip>`` answers status).
+        # Scripted per (left, right) sha pair; anything unscripted answers the hash path's
+        # default merge-base shape, which reads as an unknown on-main and no chain -- the
+        # conservative answer a failed read must produce.
+        self.compares = over.get("compares", {})
         self.update_status = over.get("update_status", 200)
         self.update_answer = over.get("update_answer", {"message": "Merged"})
         self.post_update_head = over.get("post_update_head", NEW_HEAD)
@@ -202,6 +209,9 @@ class Fake:
             # depth-1 `git merge-base`. The default says every rev forks from today's main
             # (TIP), the shape every carry scenario needs; a test scripts an override via
             # fail()/rules when it wants a different base.
+            m = re.search(r"/compare/([0-9a-f]+)\.\.\.([0-9a-f]+)$", path)
+            if m and (m.group(1), m.group(2)) in self.compares:
+                return json.dumps(self.compares[(m.group(1), m.group(2))])
             return json.dumps({"merge_base_commit": {"sha": TIP}})
         if m.isdigit():
             pr = self.prs.get(int(m), self.prs.get("default"))
@@ -457,6 +467,33 @@ def test_red_main_acts_on_an_urgent_entry():
 # -- step 4: skips merged/closed/draft and hash-changed ---------------------
 
 
+def _r278_chain(author=0, tip=TIP, head=HEAD, left=LISTED):
+    """The compare answer's ``commits[]`` for the first-parent path HEAD..LISTED, newest
+    first, with the parents REST reports. HEAD itself is the update-branch MERGE (two
+    parents: the previous first-parent and main's ``tip``); below it, ``author``
+    single-parent author commits; the oldest link's first parent is LISTED. The on-main
+    read each merge's second parent triggers is answered by ``_on_main_compare`` (p2 =
+    tip, whose merge base with the tip is itself)."""
+    chain = []
+    child = left
+    for i in range(author + 1):
+        sha = head if i == author else f"a{i}" + "7" * 39
+        chain.append((sha, [child] + ([tip] if i == author else [])))
+        child = sha
+    return {
+        "commits": [{"sha": s, "parents": [{"sha": p} for p in ps]} for s, ps in reversed(chain)],
+        "status": "diverged",
+        "ahead_by": len(chain),
+        "behind_by": 0,
+    }
+
+
+def _on_main_compare():
+    # the on-main read this fixture arms is compare/<TIP>...<tip>: p2 IS the tip, so the
+    # merge base of p2 and tip is p2 itself ('identical') -- on main.
+    return {"merge_base_commit": {"sha": TIP}, "status": "identical", "ahead_by": 0, "behind_by": 0}
+
+
 def test_merged_and_closed_and_draft_entries_skip():
     for state, draft in (("merged", False), ("closed", False), ("open", True)):
         fake = green()
@@ -476,6 +513,7 @@ def test_own_diff_changed_drops_the_entry():
     fake.prs[111] = pr(111, HEAD, base="0" * 40)
     gate_answer(fake, GREEN)
     fake.diffs = {LISTED: diff_for(LISTED), HEAD: diff_for(HEAD, "+changed\n")}
+    fake.compares[(LISTED, HEAD)] = _r278_chain(author=1)
     plan = qu.fire(fake, REPO, ISSUE, None)
     assert plan.action == "no-op"  # the author commit dropped the entry
     assert not any("PUT" in " ".join(c) for c in fake.calls)
@@ -489,8 +527,10 @@ def test_own_diff_carry_updates():
     # but ur106_diff_hash drops index lines and blanks hunk headers, so both hash equal:
     # this asserts the FILTER, not the sha coincidence.
     assert qu.snap.ur106_diff_hash(diff_for(LISTED)) == qu.snap.ur106_diff_hash(diff_for(HEAD))
+    # a carried head skips the subset read entirely: hash equal, no chain compare fired.
     plan = qu.fire(fake, REPO, ISSUE, None)
     assert plan.action == "update"
+    assert not any(f"/compare/{LISTED}...{HEAD}" in " ".join(c) for c in fake.calls)
 
 
 def test_a_failed_read_skips_instead_of_deciding():
@@ -558,6 +598,127 @@ def test_own_diff_hash_base_comes_from_the_compare_answer():  # r5 B1+B3
     assert (TIP, HEAD) in ranges, ranges  # the head rev still uses the fresh tip's
 
 
+# -- ruling 278: the subset carry, in the queue's REST shapes ----------------
+
+
+def _r278_stage(fake, head_extra=""):
+    """The shared r278 stage: LISTED's own diff adds two lines; HEAD's keeps only the
+    ``kept`` one and adds ``head_extra``; the chain LISTED..HEAD is one update-branch
+    merge of main. Content lines differ per rev, so the HASHES are unequal (the subset
+    path runs only after the hash path says no). The merge-bases model the roll's real
+    shape: LISTED forks from an OLDER main (``base``), and HEAD -- one update-branch
+    merge later -- sits on main's tip, so its merge-base with main is the tip (the
+    fake's default compare answer). Main's own change between the two merge-bases is
+    then the real range ``base..tip``, what the roll brought in. Returns that base."""
+    base = "9" * 40
+    fake.rules[f"compare/{TIP}..." + LISTED[:9]] = json.dumps(
+        {"merge_base_commit": {"sha": base}}
+    )
+    fake.compares[(LISTED, HEAD)] = _r278_chain()
+    fake.compares[(TIP, TIP)] = _on_main_compare()
+    fake.diffs = {
+        LISTED: diff_for(LISTED, "+added line\n+kept line\n"),
+        HEAD: diff_for(HEAD, "+kept line\n" + head_extra),
+        f"{base}..{TIP}": diff_for("mainbetween", "+added line\n"),
+    }
+    return base
+
+
+def test_a_subset_carry_where_main_holds_the_dropped_pair_updates():
+    # the package's case 2: an update-branch merge of main sits between the heads, HEAD's
+    # own diff lost one added line the PR had made, and main's own change between the two
+    # merge-bases ADDED that very line (same file and sign) -- the roll carried it. Step 4
+    # must NOT drop the entry: the update proceeds (ruling 278 box 2).
+    fake = green(queue=f"111@{LISTED[:9]}")
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    _r278_stage(fake)
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.action == "update", plan.action_note
+    assert not any("update-branch" in " ".join(c) for c in fake.calls)  # dry fire (no token)
+
+
+def test_a_dropped_line_main_does_not_hold_still_drops():
+    # the package's case 3: HEAD's diff lost a line main never made -- an author
+    # deletion. The subset verdict is no-carry and step 4 keeps dropping the entry.
+    fake = green(queue=f"111@{LISTED[:9]}")
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    base = _r278_stage(fake)
+    fake.diffs[f"{base}..{TIP}"] = diff_for("mainbetween", "+unrelated\n")
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.action == "no-op"
+    assert not any("update-branch" in " ".join(c) for c in fake.calls)
+
+
+def test_a_line_in_the_new_diff_not_in_the_approved_one_drops():
+    # the package's case 4: HEAD's diff holds a line LISTED's never had -- author work.
+    fake = green(queue=f"111@{LISTED[:9]}")
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    _r278_stage(fake, head_extra="+brand new line\n")
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.action == "no-op"
+    assert not any("update-branch" in " ".join(c) for c in fake.calls)
+
+
+def test_an_author_commit_between_the_heads_drops_in_the_queue_too():
+    # the package's case 5: the chain holds a single-parent (author) commit -- no-carry
+    # from condition 1 alone, before any line multiset is read.
+    fake = green(queue=f"111@{LISTED[:9]}")
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    _r278_stage(fake)
+    fake.compares[(LISTED, HEAD)] = _r278_chain(author=1)
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.action == "no-op"
+    assert not any("update-branch" in " ".join(c) for c in fake.calls)
+
+
+def test_a_failed_subset_read_skips_instead_of_deciding():
+    # the package's case 6: a failed on-main read is unknown -- never yes, and never no.
+    # Step 4 skips (not-a-decision) rather than dropping on a guess.
+    fake = green(queue=f"111@{LISTED[:9]}")
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    _r278_stage(fake)
+    fake.fail(f"/compare/{TIP}...{TIP}", "gh: HTTP 502")  # the on-main read dies
+    plan = qu.fire(fake, REPO, ISSUE, None)
+    assert plan.action == "no-op"
+    assert not any("update-branch" in " ".join(c) for c in fake.calls)
+    assert any("subset" in e for e in plan.entries[0].errors), plan.entries[0].errors
+
+
+def test_step6_subset_carry_does_not_disarm_auto_merge():
+    # box 2's second half: step 6's re-check uses the same subset decision -- an update
+    # merge whose own diff carried keeps auto-merge armed, where the old hash equality
+    # would have disarmed (the hashes differ by construction: distinct index lines).
+    fake = green()
+    fake.prs[111] = pr(111, HEAD, base="0" * 40)
+    gate_answer(fake, GREEN)
+    # across the update: the re-check compares the listed sha (HEAD) against NEW_HEAD --
+    # NEW_HEAD's diff lost one added line, the chain HEAD..NEW_HEAD is the update-branch
+    # merge itself (NEW_HEAD's parents are HEAD and main's tip), and main's change
+    # between the merge-bases (LISTED-era base -> tip) holds it. HEAD forks from the
+    # older main; NEW_HEAD sits ON the tip, so only HEAD's base is pinned.
+    base = "9" * 40
+    fake.rules[f"compare/{TIP}..." + HEAD[:9]] = json.dumps(
+        {"merge_base_commit": {"sha": base}}
+    )
+    fake.compares[(HEAD, NEW_HEAD)] = _r278_chain(head=NEW_HEAD, left=HEAD)
+    fake.compares[(TIP, TIP)] = _on_main_compare()
+    fake.diffs = {
+        HEAD: diff_for(HEAD, "+added line\n+kept line\n"),
+        NEW_HEAD: diff_for(NEW_HEAD, "+kept line\n"),
+        f"{base}..{TIP}": diff_for("mainbetween", "+added line\n"),
+    }
+    plan = qu.fire(fake, REPO, ISSUE, "tok-1")
+    assert plan.action == "update"
+    assert "carry: yes" in plan.action_note, plan.action_note
+    assert not getattr(fake, "disarmed", None), "subset carry disarmed auto-merge"
+    assert "carry: yes" in fake.comment_body
+
+
 def test_a_timeout_error_renders_without_the_argv_or_the_token():  # r5 B2
     # r5 B2, pinned at the render: subprocess.TimeoutExpired's str() carries the FULL argv,
     # so a timeout inside real_run would reach the job summary (stdout + GITHUB_STEP_SUMMARY,
@@ -565,10 +726,6 @@ def test_a_timeout_error_renders_without_the_argv_or_the_token():  # r5 B2
     # must catch the timeout and re-raise CommandError-shaped with the argv truncated to
     # cmd[:3], the same shape every other real_run raise carries. The stub follows the
     # N10 test's pattern: patch subprocess.run, since real_run calls it directly.
-    class TimeoutProc:
-        def __init__(self, cmd):
-            self.cmd = cmd
-
     def boom(cmd, **_k):
         raise subprocess.TimeoutExpired(cmd, 120)
 
@@ -602,9 +759,6 @@ def test_gate_in_flight_is_not_a_failure():
     gate_answer(fake, None)  # no gate check present: not a failure
     plan = qu.fire(fake, REPO, ISSUE, None)
     assert plan.action == "update"
-
-
-# -- step 5: the update + arm + conflict ------------------------------------
 
 
 def test_update_calls_update_branch_with_expected_head_and_arms():
@@ -855,6 +1009,9 @@ def test_disarm_mutation_also_rides_the_write_header():
         NEW_HEAD: diff_for(NEW_HEAD, "+author\n"),
         LISTED: diff_for(LISTED),
     }
+    fake.compares[(HEAD, NEW_HEAD)] = _r278_chain(
+        author=1, head=NEW_HEAD, left=HEAD
+    )  # the author commit between the heads: condition 1 fails, no carry
     gate_answer(fake, GREEN)
     plan = qu.fire(fake, REPO, ISSUE, "tok-1")
     assert plan.action == "update" and "carry: no" in plan.action_note
@@ -877,6 +1034,9 @@ def test_carry_no_disarms_auto_merge_and_comments():
         NEW_HEAD: diff_for(NEW_HEAD, "+author\n"),
         LISTED: diff_for(LISTED),
     }
+    fake.compares[(HEAD, NEW_HEAD)] = _r278_chain(
+        author=1, head=NEW_HEAD, left=HEAD
+    )  # the author commit between the heads: condition 1 fails, no carry
     plan = qu.fire(fake, REPO, ISSUE, "tok-1")
     assert getattr(fake, "disarmed", None), "auto-merge stayed armed on carry: no"
     assert "disablePullRequestAutoMerge" in fake.disarmed
@@ -900,6 +1060,8 @@ def test_carry_yes_comments_with_both_hashes():
     assert TIP[:9] in body
     assert "carry: yes" in body
     assert "https://example/run" in body
+
+
 
 
 # -- step 7's other half: the summary every fire -----------------------------

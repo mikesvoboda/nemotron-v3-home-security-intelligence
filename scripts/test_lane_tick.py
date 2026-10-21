@@ -243,6 +243,9 @@ class Fake:
         self.roster = over.get("roster", ROSTER)
         self.behind = over.get("behind", "3")
         self.commits = over.get("commits", "")
+        # the subset chain's per-commit parents lines (ruling 278): one author commit between
+        # the heads reads "<sha>", one update-branch merge reads "<parent1> <parent2>"
+        self.parents = over.get("parents", "")
         self.jobs = over.get("jobs", [])
         self.rollup_reread = over.get("rollup_reread", {})
 
@@ -285,6 +288,11 @@ class Fake:
             return BASE + "\n"
         if cmd[:2] == ["git", "fetch"]:
             return ""
+        if cmd[:2] == ["git", "log"] and "--first-parent" in cmd:
+            # ruling 278's subset chain read: `git log --first-parent --format=%P approved..head`,
+            # one line per first-parent commit between the heads, parents newest-first. Default
+            # "" (no commits between the heads) keeps every existing fixture's carry verdict.
+            return self.parents
         if cmd[:2] == ["git", "log"]:
             return self.commits
         if cmd[:2] == ["git", "diff"]:
@@ -1063,6 +1071,9 @@ def test_an_approve_of_an_old_head_the_author_changed_is_not_for_this_head():
         **ready(),
         pr_comments={7158: [review(46, approve_of(OLD_HEAD), minutes=-1)]},
         diffs={OLD_HEAD[:9]: SAME_DIFF.replace("+b", "+c")},
+        parents="\n".join([  # one author commit between the heads: the subset rule says no
+            "a" * 40,
+        ]),
     )
     line = row(out, 7158)
     assert "arm auto-merge" not in line and "— needs your review" in line
@@ -1555,6 +1566,7 @@ def test_an_approval_not_of_the_head_nor_a_carry_of_it_is_not_waiting():
         **waiting(),
         pr_comments={7164: [held_review(73, approve_of(OLD_HEAD), minutes=-1)]},
         diffs={OLD_HEAD[:9]: SAME_DIFF.replace("+b", "+c")},  # an author change: no carry
+        parents="a" * 40,  # the author commit the carry must answer no to
     )
     assert "next claimable" not in out
     assert fake.asked("git diff")  # the carry was actually read, the judge's way
