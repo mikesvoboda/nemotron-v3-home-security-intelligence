@@ -319,8 +319,12 @@ AVD-DS-0002
 # private copy, not an installed dependency. The backend prod stage now deletes
 # exactly that file set (ruling 295: "the prod stage drops pip and its _vendor
 # bundle from the system site-packages; uv and the venv stay"), so the scanner
-# has no vendored copy to report and the entries suppressed nothing. If the
-# prod image ever carries pip again — a base-image change, a new install step —
+# has no vendored copy to report and the entries suppressed nothing — the
+# first scan of the changed image reads 0 findings on every row and NO bare
+# python-pkg target at all (dispatch run 39670772110, job 119467893894, head
+# f0de9d447, 2026-10-21: the debian target, 166 app/.venv python-pkg rows and
+# the uv rustbinary, all zero). If the prod image ever carries pip again — a
+# base-image change, a new install step —
 # re-adding any of these five needs the measured evidence that class was held
 # to: a scan that reports the finding, a listing of the built image, and a
 # dated entry. Guard: TestPipBundleEntriesLeaveTheRegister /
