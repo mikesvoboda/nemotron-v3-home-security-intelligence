@@ -52,6 +52,3 @@ python-json-logger>=2.0.7
 
 # TLS/Cryptography
 cryptography>=44.0.0
-# certifi ships the CA bundle httpx/requests resolve against; pinned >=2026.10.19
-# so the base layer carries the GHSA-6q48-6c7w-9gw2 fix (certifi 2026.6.17, CRITICAL).
-certifi>=2026.10.19
