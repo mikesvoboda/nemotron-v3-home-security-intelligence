@@ -289,69 +289,43 @@ AVD-DS-0002
 # 2026-10-03 and stay as-is except where noted. THEN the misconfig re-audit same
 # day: AVD-DS-0001 DELETED (zero findings underneath, premise gone) and
 # AVD-DS-0002's rationale rewritten to name the five files it really suppresses
-# with per-file reasons — see REMOVED. 16 CVE + 1 GHSA + 1 AVD-DS entries remain,
+# with per-file reasons — see REMOVED. 15 CVE + 2 GHSA + 1 AVD-DS entries remain
+# (the 2026-10-04 sweep's "16 CVE + 1 GHSA" had drifted: B1.5's python-jose
+# removal took the CVE count to 15 unrecorded, and the 2026-10-21 certifi entry
+# took GHSA to 2 — recount here on r295's measurement; then r295 removes the
+# five pip-bundle entries below, leaving 12 CVE + 0 GHSA + 1 AVD-DS),
 # every one tracker/OSV-open or a dated accepted misconfig whose rationale names
 # its actual targets.)
-# Next review: 2026-12-20 (the earliest active REVIEW BY date — the four
-# pip-vendored entries; when the base image ships a newer pip, re-check those
-# and re-run the Debian/Alpine sweep in full). AVD-DS-0002 is due 2027-07-05, but
+# Next review: 2027-01-03 (the earliest active REVIEW BY date — CVE-2026-93687,
+# the braces entry; the pip-bundle entries' 2026-12-20 reviews left the register
+# with r295: pip itself is removed from the prod image, so those findings have
+# nothing to attach to). AVD-DS-0002 is due 2027-07-05, but
 # the ai/gateway deferral should be revisited the next time that image is
 # deployed from — its fix recipe is in the entry and needs the GPU box.
 
 # =============================================================================
-# pip's VENDORED bundle (backend image scan, added 2026-09-20)
+# pip's VENDORED bundle — REMOVED 2026-10-21 (r295)
 # =============================================================================
-# These two are not installed packages and are not importable by the app. They
-# are private copies inside pip's own _vendor/ tree in the base image
-# (python:3.14-slim-bookworm ships pip 26.2.1). Trivy reads their versions from
-# pip/_vendor/vendor.txt and pip's shipped bom.cdx.json, which is why they have
-# no .dist-info and report under a bare "Python" target with no path.
-#
-# Verified 2026-09-20 by listing the built image (run 35550126923, backend image
-# scan diagnostic). The ONLY python dist-info present are:
-#     /app/.venv/.../msgpack-1.2.2.dist-info      (clean)
-#     /app/.venv/.../setuptools-84.0.0.dist-info  (clean)
-# uv.lock pins msgpack 1.2.2 and setuptools 84.0.0, so our dependency graph is
-# already past both fixes. Only upstream pip can revendor its bundle; there is
-# no action available to this repo short of removing pip from the image.
-#
-# ignore-unfixed does NOT filter these: a fix exists upstream (1.2.1 / 78.1.1),
-# it is simply not ours to apply. Re-check when the base image ships a newer pip.
-#
-# GHSA-6v7p-g79w-8964 - msgpack 1.1.2 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
-GHSA-6v7p-g79w-8964
-# CVE-2025-47273 - setuptools 70.3.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
-CVE-2025-47273
-
-# 2026-10-01 addendum, same class (ledger row 66, branch
-# chore/main-green-trivy-allowlist): the f9778503 scan
-# added two HIGH urllib3 findings installed "2.7.0" fixed "2.8.0" under the
-# bare "Python" target. NOT the app's urllib3 — the venv scanned
-# urllib3-2.8.0.dist-info with ZERO findings (uv.lock pins 2.8.0; the build
-# log line "+ urllib3==2.8.0" confirms what uv sync installed). The 2.7.0
-# pair is pip's vendored copy again: pip/_vendor/vendor.txt in the pip
-# 26.2.1 wheel reads "urllib3==2.7.0" (verified 2026-10-01 by downloading
-# pip==26.2.1 --no-deps and unzipping the wheel). Only upstream pip can
-# revendor; re-check when the base image ships a newer pip.
-#
-# CVE-2026-97687 - urllib3 2.7.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
-CVE-2026-97687
-# CVE-2026-97689 - urllib3 2.7.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
-CVE-2026-97689
-
-# 2026-10-21 addendum, same class (red-main raise 6306177116, ruling 295): the
-# f39528289094 Scan Backend Image run added one CRITICAL certifi finding
-# installed "2026.6.17" fixed "2026.10.19" under the bare "Python (python-pkg)"
-# target with no path. NOT the app's certifi — the venv scanned
-# certifi-2026.10.19.dist-info with ZERO findings (uv.lock pins 2026.10.19;
-# the build log line "+ certifi==2026.10.19" confirms what uv sync --frozen
-# installed). The 2026.6.17 copy is pip's vendored bundle again:
-# pip/_vendor/vendor.txt in the pip 26.2.1 wheel in the python:3.14-slim-bookworm
-# base image. Only an upstream pip release can revendor; re-check when the
-# base image ships a newer pip.
-#
-# GHSA-6q48-6c7w-9gw2 - certifi 2026.6.17 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
-GHSA-6q48-6c7w-9gw2
+# Five entries left this register on 2026-10-21 (ruling 295, PR #7333):
+#   GHSA-6v7p-g79w-8964  (msgpack 1.1.2 vendored in pip/_vendor, added 2026-09-20)
+#   CVE-2025-47273       (setuptools 70.3.0 vendored in pip/_vendor, added 2026-09-20)
+#   CVE-2026-97687       (urllib3 2.7.0 vendored in pip/_vendor, added 2026-10-01)
+#   CVE-2026-97689       (urllib3 2.7.0 vendored in pip/_vendor, added 2026-10-01)
+#   GHSA-6q48-6c7w-9gw2  (certifi 2026.6.17 vendored in pip/_vendor, added 2026-10-21)
+# The class left with its cause: pip 26.2.1 ships IN the python:3.14-slim-
+# bookworm base image (measured 2026-10-21: the package tree with its _vendor
+# bundle at /usr/local/lib/python3.14/site-packages/pip, its dist-info, and the
+# pip/pip3/pip3.14 entry scripts), and every one of these findings was pip's
+# private copy, not an installed dependency. The backend prod stage now deletes
+# exactly that file set (ruling 295: "the prod stage drops pip and its _vendor
+# bundle from the system site-packages; uv and the venv stay"), so the scanner
+# has no vendored copy to report and the entries suppressed nothing. If the
+# prod image ever carries pip again — a base-image change, a new install step —
+# re-adding any of these five needs the measured evidence that class was held
+# to: a scan that reports the finding, a listing of the built image, and a
+# dated entry. Guard: TestPipBundleEntriesLeaveTheRegister /
+# TestPipLeavesTheProdImage
+# (backend/tests/unit/scripts/test_backend_image_trivy_clean.py).
 
 # =============================================================================
 # Frontend npm dependencies (filesystem scan of frontend/package-lock.json and bun.lock)
