@@ -3853,13 +3853,25 @@ jobs:
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
           SHARD_PAIR: ${{ matrix.pair }}
+          # [r282] Opt into the manifest split: the harness reads the
+          # checked-in frontend/golden-shards.json, hands this shard its own
+          # file list to the leg as FEATURE_CHECK_GOLDEN_FILES, and the
+          # golden project's testIgnore ignores every spec outside it. The
+          # manifest's shard_count must equal this matrix's N or the run
+          # fails closed at the leg (matrix/manifest drift is caught at the
+          # leg, named in the error). Without this opt-in [r264]'s
+          # count-based --shard applies unchanged.
+          FEATURE_CHECK_SHARD_MANIFEST: '1'
         run: |
           # split "i-of-N" into --shard I/N; Actions has no arithmetic, so the
           # pair arrives as one slash-free string from the matrix (artifact
           # names reject the slash the flag form carries). Each shard runs its
           # OWN stack (compose up, seed, backend golden pytest on shard 1
           # only — feature_check.py records "skipped on shard i/N" on the
-          # others — and the sharded golden Playwright run).
+          # others — and the sharded golden Playwright run). [r282] The
+          # manifest selects the shard's files; --shard still names the cell
+          # for the record and the artifact label, and the backend leg stays
+          # on shard 1 ([r264]'s rule, the manifest is packed around it).
           I="${SHARD_PAIR%%-of-*}"
           N="${SHARD_PAIR##*-of-}"
           scripts/feature-check.sh --fake --shard "$I/$N" --image-tag "$TAG"
