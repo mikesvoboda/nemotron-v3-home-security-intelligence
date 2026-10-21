@@ -64,21 +64,15 @@ GATE_DONE = frozenset(
     {"SUCCESS", "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "NEUTRAL", "SKIPPED",
      "STARTUP_FAILURE", "STALE", "ERROR"}
 )  # fmt: skip
-# A roster row is | agent | tier | queue | review label |, and the label column reads `none` for a
-# cell with no review queue (coordinator, heavy-a, heavy-b, operator) -- a fact, not a missing read.
-ROW = re.compile(r"\|\s*`([\w.-]+)`\s*\|[^|]*\|(.*)\|\s*`?(review:[\w-]+|none)`?\s*\|")
-# A queue entry's token: the BACKTICKED NAME AT THE START of the entry (see ``queue_entries`` -- a
-# backtick anywhere else in the cell is prose referring to some other package, not a slot).
-QUEUE_TOKEN = re.compile(r"\s*`\[?([\w.]+)\]?`")
-# The header wraps: `[r96i11]`'s and a frontend package's `**PR:**` value sits on the NEXT line.
-# Bounded by the blank line after the header, so the value is the field's own continuation.
-PKG_FIELD = re.compile(r"\*\*PR:\*\*([\s\S]*?)(?:\n\s*\n|\Z)", re.I)
-NONE_YET = re.compile(r"[^\n#]*none yet", re.I)
-# The number a package block's `**PR:**` field names. `NONE_YET`'s `[^#]` class is the proof the
-# field's value carries a literal `#`, so the number is read from the same captured text.
-PR_NUMBER = re.compile(r"#(\d+)")
-# The package header line, as it stands AFTER splitting on "### " (the marker is gone).
-BLOCK = re.compile(r"\[?([\w.]+)\]?\s")
+# A roster row is | agent | tier | queue | review label | -- read by `snap.ROSTER_ROW`, shared with
+# the snapshot's balance section so the two cannot drift. The label column reads `none` for a cell
+# with no review queue (coordinator, heavy-a, heavy-b, operator) -- a fact, not a missing read.
+ROW = snap.ROSTER_ROW
+QUEUE_TOKEN = snap.QUEUE_TOKEN
+PKG_FIELD = snap.PKG_FIELD
+NONE_YET = snap.NONE_YET
+PR_NUMBER = snap.PR_NUMBER
+BLOCK = snap.BLOCK
 # A PR title's LEADING token -- the claim identity a PR carries even when no `### [pkg]` block
 # names it yet ([r269]'s block is deferred to the owner's plan PR, ruling 269 item 7; [flaky-census]
 # (#7082) titles a token ops.md has never carried). Same leading rule ``queue_entries`` reads: a
@@ -428,39 +422,9 @@ def disk(df: str | None, mounts: Sequence[str] = MOUNTS) -> list[str]:
     return out  # fmt: skip
 
 
-def queue_entries(column: str) -> list[str]:
-    """The queue tokens of a roster cell, read as ENTRIES -- not as every backticked word.
-
-    The column is a comma/semicolon-separated list where each entry is a token plus prose, and prose
-    legitimately backticks other packages: ops-b's `F2.3` row says "after `[r157]`'s runner is ready
-    for the owner" (measured on the live digest, which then reported [r157] held twice), and
-    heavy-b's row says "`B2.3` once `O2.4` passes". A ``findall`` over the whole cell turns both of
-    those references into queue slots -- and a reference that becomes a queue entry is a package the
-    digest will OFFER TO CLAIM, including one that belongs to another lane. So: split on top-level
-    separators only (a comma inside `(OP-3, after ...)` separates prose, not entries), then take the
-    FIRST token of each entry, because the prose that follows it can name anything.
-    """
-    entries, depth, cur = [], 0, ""
-    for ch in column:
-        if ch in "([":
-            depth += 1
-        elif ch in ")]":
-            depth = max(0, depth - 1)
-        if ch in ",;" and depth == 0:
-            entries.append(cur)
-            cur = ""
-            continue
-        cur += ch
-    entries.append(cur)
-    out = []
-    for entry in entries:
-        # LEADING token only (measured: every real entry in main's roster starts with its token). An
-        # entry whose backtick appears mid-prose is routing prose -- "`B2.3` once `O2.4` passes" and
-        # "then assigned `heavy` PRs" -- and skipping it can only OMIT a slot, never INVENT one.
-        # That asymmetry is the point: an invented slot gets OFFERED for claim, another lane's work.
-        if m := QUEUE_TOKEN.match(entry):
-            out.append(m.group(1))
-    return out
+# `queue_entries` lives on the snapshot now (ruling 290's balance section reads the same roster
+# rows); the alias keeps this module's name -- and the tests' `tick.queue_entries` -- working.
+queue_entries = snap.queue_entries
 
 
 def held_claims(packages: str, mine: list[dict]) -> list[str]:
@@ -530,7 +494,9 @@ def held_claims(packages: str, mine: list[dict]) -> list[str]:
     return held
 
 
-def next_claimable(packages: str, queue: list[str], mine: list[dict]) -> str | None:
+def next_claimable(
+    packages: str, queue: list[str], mine: list[dict], readme: str = ""
+) -> tuple[str, str | None] | str | None:
     """First package on MY roster queue that carries no PR and that no open PR of mine titles.
 
     Three readings the file's shapes force. (1) The queue, not the file: ``ops.md`` carries ops-a's
@@ -539,9 +505,22 @@ def next_claimable(packages: str, queue: list[str], mine: list[dict]) -> str | N
     claim, so the package would be offered to me while I am mid-flight on it. (3) Only on a tick
     with no open package, which ``held_claims`` enforces in ``build`` -- a claimable line printed
     beside an open package is an invitation to queue-jump, which UR-52 forbids.
+
+    ``readme`` (ruling 290) is the README status table's text, or ``""`` when it was not or could
+    not be read. On ``""`` the multi-PR offer cannot fire: a package whose row reads ``in progress``
+    stays open work only for the agent whose queue holds it when the read says so -- a missing read
+    is never a decision (UR-154's direction). The return stays ``str`` for the none-yet shape; an
+    in-progress offer comes back ``("token", box_text)`` so the digest can NAME the open box.
     """
     titles = " ".join(p.get("title", "") for p in mine)
-    blocks = {m.group(1): b for b in packages.split("### ")[1:] if (m := BLOCK.match(b))}
+    blocks = snap.package_blocks(packages)
+    # Ruling 290: with a README read in hand, a block whose `**PR:**` names a merged PR but whose
+    # README row reads `in progress` is a multi-PR package still carrying open work (rules.md's
+    # contract rule + UR-144). It is offered ONLY when it carries an unticked box (an unticked
+    # post-merge box on a single-PR block -- r172's shape, ruling 283 -- is the owner partner's
+    # tick, not open work), the row actually reads `in progress`, and no open PR of mine titles
+    # the package.
+    rows = snap.readme_rows(readme) if readme else {}
     for token in queue:
         block = blocks.get(token)
         if block is None:
@@ -549,6 +528,11 @@ def next_claimable(packages: str, queue: list[str], mine: list[dict]) -> str | N
         field = PKG_FIELD.search(block)
         if field and NONE_YET.match(field.group(1).lstrip()) and token not in titles:
             return token
+        if rows:
+            numbers = PR_NUMBER.findall(field.group(1)) if field else []
+            if numbers and rows.get(token) == "in progress" and token not in titles:
+                if box := snap.unticked_box(block):
+                    return (token, box)
     return None
 
 
@@ -659,6 +643,15 @@ def build(
             extra.append(f"  ERROR packages: {snap.error_text(exc)}")
             return ""
 
+    def readme() -> str:
+        """The README status table, or ``""`` when the read fails (ruling 290's box 2).
+
+        A failed read is not a decision: with ``""``, `next_claimable`'s multi-PR offer cannot
+        fire, so the digest never offers work it did not see resolved. The read is one ``git show``
+        beside the roster's -- the file is small and the failures arrive the same way.
+        """
+        return show("origin/main:docs/uplevel/README.md", "readme")
+
     try:
         # Read directly, not through call(): this is the one failure that ends the report, and a
         # call() that already logged it would put one cause in the report twice under two names.
@@ -707,6 +700,9 @@ def build(
         out.append(f"  coordinator age {coord['age_min']}m{rested}{flag}")
     out += disk(call(["df", "-h", *MOUNTS], "disk"))
     pkgs, maptext = packages(ids["lane"]), show(MAP, "ruling map")
+    # Ruling 290: the README status table feeds the multi-PR offer (an `in progress` row whose
+    # block names a merged PR and carries an unticked box is open work on my queue).
+    read_me = readme()
     out += uncarried(data["binding_now"].get("items", []), maptext)
 
     cmd = ["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", "300", "--json", HEADJ]  # fmt: skip
@@ -801,15 +797,21 @@ def build(
     if held and all_waiting and len(held) < 2:
         names = ", ".join(f"[{t}]" for t in held)
         out.append(f"  holding open claim: {names} (waiting its merge turn, ruling 269)")
-        if nxt := next_claimable(pkgs, ids["queue"], mine):
-            out.append(f"  next claimable: {nxt} (ruling 269: your open PR waits its merge turn)")
+        if nxt := next_claimable(pkgs, ids["queue"], mine, readme=read_me):
+            token, box = nxt if isinstance(nxt, tuple) else (nxt, None)
+            tail = " (ruling 269: your open PR waits its merge turn)"
+            out.append(
+                f"  next claimable: {token}{tail}"
+                + (f" -- open box: {box}" if box else "")
+            )
     elif held:
         names = ", ".join(f"[{t}]" for t in held)
         out.append(
             f"  holding open claim: {names} (UR-52: nothing to claim while a package is open)"
         )
-    elif nxt := next_claimable(pkgs, ids["queue"], mine):
-        out.append(f"  next claimable: {nxt}")
+    elif nxt := next_claimable(pkgs, ids["queue"], mine, readme=read_me):
+        token, box = nxt if isinstance(nxt, tuple) else (nxt, None)
+        out.append(f"  next claimable: {token}" + (f" -- open box: {box}" if box else ""))
     for name in ("cursor", "comments", "binding_now", "main", "heartbeats", "prs"):
         out += [f"  ERROR {name}: {e}" for e in data.get(name, {}).get("errors", [])]
     out += extra
