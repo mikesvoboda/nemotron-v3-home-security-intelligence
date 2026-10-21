@@ -384,10 +384,6 @@
       "median": 3.865,
       "n": 5
     },
-    "tests/golden/webhooks/scheduled-reports-delete.spec.ts": {
-      "median": 2.203,
-      "n": 5
-    },
     "tests/golden/webhooks/test-modal.spec.ts": {
       "median": 2.972,
       "n": 5

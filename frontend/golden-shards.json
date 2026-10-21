@@ -1,10 +1,10 @@
 {
   "backend_leg_shard": 1,
   "loads_seconds": [
-    408.14,
-    408.298,
-    408.307,
-    408.335
+    408.106,
+    406.695,
+    408.01,
+    408.066
   ],
   "shard_count": 4,
   "shards": [
@@ -30,9 +30,9 @@
       "tests/golden/operations/batch-statistics.spec.ts",
       "tests/golden/operations/log-level.spec.ts",
       "tests/golden/gpu-storage-admin/admin-logging.spec.ts",
-      "tests/golden/operations/pipeline-flow.spec.ts",
-      "tests/golden/operations/prometheus-panel.spec.ts",
-      "tests/golden/operations/debug-mode-toggle.spec.ts"
+      "tests/golden/guard-contract.spec.ts",
+      "tests/golden/operations/operations-page.spec.ts",
+      "tests/golden/operations/kubernetes-probes.spec.ts"
     ],
     [
       "tests/golden/timeline/event-feedback.spec.ts",
@@ -56,10 +56,9 @@
       "tests/golden/data-ui/jobs-page.spec.ts",
       "tests/golden/webhooks/delete.spec.ts",
       "tests/golden/operations/circuit-breakers.spec.ts",
-      "tests/golden/webhooks/scheduled-reports-delete.spec.ts",
-      "tests/golden/gpu-storage-admin/storage-cleanup-preview.spec.ts",
-      "tests/golden/gpu-storage-admin/admin-cache-clear.spec.ts",
-      "tests/golden/gpu-storage-admin/admin-settings-page.spec.ts"
+      "tests/golden/operations/config-inspector.spec.ts",
+      "tests/golden/operations/prometheus-panel.spec.ts",
+      "tests/golden/gpu-storage-admin/admin-cache-clear.spec.ts"
     ],
     [
       "tests/golden/timeline/timeline-search.spec.ts",
@@ -84,9 +83,9 @@
       "tests/golden/operations/cleanup-preview.spec.ts",
       "tests/golden/operations/recording-replay.spec.ts",
       "tests/golden/settings/ai-models-panel.spec.ts",
-      "tests/golden/guard-contract.spec.ts",
-      "tests/golden/gpu-storage-admin/gpu-page-no-hardware.spec.ts",
-      "tests/golden/operations/operations-page.spec.ts"
+      "tests/golden/gpu-storage-admin/storage-cleanup-preview.spec.ts",
+      "tests/golden/operations/websocket-health.spec.ts",
+      "tests/golden/operations/debug-mode-toggle.spec.ts"
     ],
     [
       "tests/golden/timeline/live-socket-arrival.spec.ts",
@@ -110,10 +109,10 @@
       "tests/golden/webhooks/test-modal.spec.ts",
       "tests/golden/operations/circuit-breaker-reset.spec.ts",
       "tests/golden/operations/gpu-history.spec.ts",
-      "tests/golden/operations/config-inspector.spec.ts",
+      "tests/golden/operations/pipeline-flow.spec.ts",
       "tests/golden/operations/performance-history.spec.ts",
-      "tests/golden/operations/websocket-health.spec.ts",
-      "tests/golden/operations/kubernetes-probes.spec.ts"
+      "tests/golden/gpu-storage-admin/gpu-page-no-hardware.spec.ts",
+      "tests/golden/gpu-storage-admin/admin-settings-page.spec.ts"
     ]
   ]
 }
