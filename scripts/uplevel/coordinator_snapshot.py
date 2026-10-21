@@ -14,9 +14,9 @@ It reads GitHub through ``gh`` and the tree through ``git``, and prints one comp
 3. prs        - each open PR: head, merge-base, mergeStateStatus, ``CI Gate`` at the head, the
                 newest ``Review: approve`` comment's sha against the head (UR-106), and the
                 UR-106 own-diff hash at the head and at the approved head with ``carry:``;
-4. legs       - UR-102's three no-update-branch legs for each non-draft PR with a green gate,
-                measured from the `main` its gate's run merged the head into (read from that
-                run's checkout log), else from the merge-base, labelled as a fallback;
+4. merge state  - per non-draft PR: whether it is behind `main` (its `base=` is not main's tip),
+                and whether it shows the in-flight sign of `roles/coordinator.md` "Merging a PR"
+                step 1 (base at the tip, the gate not finished, and the approval carries),
 5. main       - tip, CI (UR-111), Deploy, Nightly Full Gate and Flaky Test Detection (UR-116);
 6. heartbeats - every ``<!-- heartbeat:`` comment on #6958, its age and ``paused`` (UR-38, UR-160),
                 flagged when older than 20 minutes (UR-162);
@@ -73,7 +73,6 @@ COORDINATOR_STALE_HEARTBEAT_MIN = 90
 LANE_LOOP_MIN = 30
 HEAVY_LOOP_MIN = 15
 STALL_MULTIPLIER = 3
-MAX_MERGES_BEHIND = 3
 FIRST_LINE_MAX = 160
 RED_CONCLUSIONS = frozenset({"failure", "timed_out", "startup_failure"})
 
@@ -94,10 +93,6 @@ FIELD_DECORATION = "*_ >#`\t "
 # approval at all, which is worse than noise — it reports a live key as STALE and invites a void.
 REVIEW_HEADLINE = re.compile(r"^Review:\s*[*>_ `\t]*(approve|approved)\b", re.IGNORECASE)
 RUN_ID = re.compile(r"/actions/runs/([0-9]+)(?:/|$)")
-# actions/checkout in a pull_request run prints the merge it tested; the second sha is the
-# `main` the run ran against. The run API's pull_requests[0].base.sha is the PR's stored base,
-# which a later push does not move, so it is not that sha.
-CHECKOUT_MERGE = re.compile(r"HEAD is now at [0-9a-f]+ Merge ([0-9a-f]{40}) into ([0-9a-f]{40})")
 # The sed in UR-106's pipeline: `s/^@@ .* @@/@@/`. Byte-level, because sed and sha256sum are.
 HUNK_HEADER = re.compile(rb"^@@ .* @@", re.MULTILINE)
 # An owner hold in the owner's own voice: UR-45 reserves "RULING" for the owner and UR-40
@@ -121,11 +116,6 @@ OWNER_PR_REF = re.compile(r"#([0-9]{3,6})\b")
 # counts as a verdict thread.
 REVIEWS_JQ = (
     '[.[] | select(.body | startswith("Review:")) | {id, created_at, user: .user.login, body}]'
-)
-
-CHECKOUT_JOBS_JQ = (
-    '[.jobs[] | select(.conclusion == "success" and any(.steps[]?; .name | test("checkout"; "i")))'
-    " | {id, steps: (.steps | length)}]"
 )
 
 Runner = Callable[[Sequence[str]], str]
@@ -593,7 +583,7 @@ class Snapshot:
             records["newest"] = newest["created_at"]
             records["newest_id"] = newest["id"]
 
-    # 5. main (read before the PRs: UR-102's third leg needs it) -----------------------------
+    # 5. main (read before the PRs: §4's behind read needs main's tip) -----------------------
 
     def _runs(self, workflow: str, limit: int, *extra: str) -> list[dict[str, Any]]:
         out = self.run(
@@ -658,7 +648,7 @@ class Snapshot:
             return None
         return last["conclusion"] in RED_CONCLUSIONS
 
-    # 3-4. PRs and merge legs ---------------------------------------------------------------
+    # 3-4. PRs and merge state ---------------------------------------------------------------
 
     def _prs(self) -> None:
         section: dict[str, Any] = {"items": [], "errors": []}
@@ -758,8 +748,8 @@ class Snapshot:
         if item["draft"]:
             return item
         self._review(item)
-        if item["gate"] == "SUCCESS" and item["merge_base"]:
-            self._legs(item)
+        if item["merge_base"]:  # every non-draft PR: behind needs no gate; the sign's
+            self._merge_state(item)  # gate-unfinished factor counts absent as unfinished
         return item
 
     def _review(self, item: dict[str, Any]) -> None:
@@ -1051,60 +1041,45 @@ class Snapshot:
         ]
         return "\n".join(lines)
 
-    def run_base(self, run_id: int | None, head: str) -> str:
-        """The `main` sha the gate's run merged the head into, read from a checkout job's log."""
-        if run_id is None:
-            raise ValueError("no run id in the gate's detailsUrl")
-        jobs = self.gh_paginated(
-            f"repos/{self.repo}/actions/runs/{run_id}/jobs?per_page=100", "--jq", CHECKOUT_JOBS_JQ
-        )
-        if not jobs:
-            raise ValueError(f"run {run_id} has no successful checkout job")
-        job = min(jobs, key=lambda j: j["steps"])  # the shortest job has the shortest log
-        log = self.run(["gh", "api", f"repos/{self.repo}/actions/jobs/{job['id']}/logs"])
-        match = CHECKOUT_MERGE.search(log)
-        if not match:
-            raise ValueError(f"job {job['id']} log names no checkout merge")
-        if match.group(1) != head:
-            raise ValueError(f"run {run_id} tested {match.group(1)[:9]}, not the head")
-        return match.group(2)
-
-    def _legs(self, item: dict[str, Any]) -> None:
-        head = item["head"]
-        legs: dict[str, Any] = {}
-        item["legs"] = legs
-        basis: dict[str, Any] = {"run_id": item.get("gate_run"), "merge_base": item["merge_base"]}
-        item["leg_base"] = basis
-        try:
-            basis["run_base"] = self.run_base(item.get("gate_run"), head)
-            basis["used"] = "run"
-        except Exception as exc:  # fall back to the merge-base, and say so
-            basis["run_base"] = None
-            basis["used"] = "merge-base fallback"
-            basis["error"] = error_text(exc)
-        base = basis["run_base"] or item["merge_base"]
-        try:
-            behind = int(self.git("rev-list", "--count", "--first-parent", f"{base}..origin/main"))
-            legs["behind"] = {"merges": behind, "pass": behind <= MAX_MERGES_BEHIND}
-        except Exception as exc:  # reported, not fatal
-            legs["behind"] = {"error": error_text(exc), "pass": False}
-        try:
-            main_files = set(self.git("diff", "--name-only", base, "origin/main").splitlines())
-            # The PR's own files come from its merge-base: a run base newer than the merge-base
-            # is not an ancestor of the head, and a diff from it would add main's changes.
-            own = item["merge_base"]
-            pr_files = set(self.git("diff", "--name-only", own, head).splitlines())
-            shared = sorted(main_files & pr_files)
-            legs["overlap"] = {"paths": shared, "pass": not shared}
-        except Exception as exc:  # reported, not fatal
-            legs["overlap"] = {"error": error_text(exc), "pass": False}
-        red = self.main_red()
-        last = self.data["main"].get("ci_last_completed")
-        legs["main_ci"] = {
-            "conclusion": last["conclusion"] if last else None,
-            "pass": red is False,
+    def _merge_state(self, item: dict[str, Any]) -> None:
+        """§4's two reads per non-draft PR (ruling 270): behind main, and the in-flight sign
+        that `roles/coordinator.md` "Merging a PR" step 1 names — the state an update-branch
+        leaves while the PR's CI runs at the new head."""
+        # Both reads measure §3's `base=` — the merge-base — because that is the line the
+        # coordinator reads: ruling 270 item 2 says "its `base=` is not `main`'s tip" / "its
+        # `base=` is at the tip", and with `strict: true` only §3's `base=` says whether a PR
+        # is behind `main` ("Merging a PR" step 2, via the coordinator's header). The gate
+        # run's merged base was the old legs' basis; step 1/2 decide from the printed base=.
+        base = item["merge_base"]
+        tip = self.data["main"].get("tip")
+        if not tip:
+            item["behind"] = {"error": "main tip unread"}
+        elif not base:
+            item["behind"] = {"error": "no base to compare"}
+        else:
+            try:
+                behind = int(
+                    self.git("rev-list", "--count", "--first-parent", f"{base}..origin/main")
+                )
+                item["behind"] = {"merges": behind, "at_tip": behind == 0}
+            except Exception as exc:  # reported, not fatal
+                item["behind"] = {"error": error_text(exc)}
+        # The in-flight sign: base at the tip, the gate not finished, and the approval carries.
+        # The package's gate list names step 1's three ("absent" until the gate job is queued, then
+        # QUEUED or IN_PROGRESS); PENDING is the StatusContext spelling of in-flight, which a
+        # combined-context rollup can carry for the gate.
+        gate_status = (item.get("gate") or "").upper()  # "absent" is the one lowercase verdict
+        gate_unfinished = gate_status in ("ABSENT", "QUEUED", "IN_PROGRESS", "PENDING")
+        item["in_flight"] = {
+            "base_at_tip": item.get("behind", {}).get("at_tip"),
+            "gate_unfinished": gate_unfinished,
+            "carry": item.get("own_diff", {}).get("carry"),
+            "yes": (
+                item.get("behind", {}).get("at_tip") is True
+                and gate_unfinished
+                and item.get("own_diff", {}).get("carry") is True
+            ),
         }
-        item["merge_without_update"] = all(leg["pass"] for leg in legs.values())
 
     # 6. heartbeats ---------------------------------------------------------------------------
 
@@ -1355,29 +1330,34 @@ def render_text(data: dict[str, Any]) -> str:
         out += [f"      ERROR prs: {e}" for e in p["errors"]]
     out += _errors("prs", prs)
 
-    out.append("== 4. merge legs (UR-102), non-draft PRs with a green gate")
-    any_legs = False
+    out.append("== 4. merge state (ruling 270), non-draft PRs")
+    any_state = False
     for p in prs["items"]:
-        legs = p.get("legs")
-        if not legs:
+        behind, inflight = p.get("behind"), p.get("in_flight")
+        if behind is None and inflight is None:
             continue
-        any_legs = True
-        b, o, m = legs["behind"], legs["overlap"], legs["main_ci"]
-        b_txt = b.get("error") or f"{b['merges']} merges"
-        basis = p["leg_base"]
-        if basis["used"] == "run":
-            base_txt = f"base: run {basis['run_base'][:9]} (run {basis['run_id']})"
+        any_state = True
+        base = (p.get("merge_base") or "?")[:9]
+        out.append(f"  #{p['number']} base: merge-base {base}")
+        if isinstance(behind, dict) and "error" in behind:
+            b_txt = behind["error"]
         else:
-            base_txt = f"(base: merge-base fallback) run base unread: {basis['error']}"
-        out.append(f"  #{p['number']} {base_txt} · merge-base {(basis['merge_base'] or '?')[:9]}")
-        o_txt = o.get("error") or (", ".join(o["paths"][:5]) or "none")
+            b_txt = f"{behind['merges']} merges behind" + (
+                " (at tip)" if behind.get("at_tip") else ""
+            )
         out.append(
-            f"      behind {'PASS' if b['pass'] else 'FAIL'} ({b_txt}) · "
-            f"overlap {'PASS' if o['pass'] else 'FAIL'} ({o_txt}) · "
-            f"main CI {'PASS' if m['pass'] else 'FAIL'} ({m['conclusion']}) → "
-            f"merge without update-branch: {'yes' if p['merge_without_update'] else 'no'}"
+            f"      behind main: {b_txt}"
+            if "error" in behind
+            else f"      behind main: {'yes' if not behind['at_tip'] else 'no'} ({b_txt})"
         )
-    if not any_legs:
+        if inflight:
+            out.append(
+                f"      in-flight sign: {'yes' if inflight['yes'] else 'no'} "
+                f"(base at tip {'yes' if inflight['base_at_tip'] else 'no'} · "
+                f"gate {p['gate']} · carry "
+                f"{ {True: 'yes', False: 'no', None: '?'}[inflight['carry']] })"
+            )
+    if not any_state:
         out.append("  none")
 
     main = data["main"]
