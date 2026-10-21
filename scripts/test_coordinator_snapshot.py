@@ -500,11 +500,12 @@ def test_changes_requested_and_negated_verdicts_are_not_approvals():
     assert p["latest_review"].startswith("Review: **not approved**")
 
 
-def test_drafts_get_no_review_read_and_no_legs():
+def test_drafts_get_no_review_read_and_no_merge_state():
     fake = FakeRunner()
     p = pr(build(fake), 7002)
     assert "approval" not in p
-    assert "legs" not in p
+    assert "behind" not in p
+    assert "in_flight" not in p
     assert not any("/issues/7002/comments" in " ".join(c) for c in fake.calls)
 
 
@@ -542,13 +543,14 @@ def test_a_short_rollup_without_a_gate_is_not_reread():
     assert not [c for c in fake.calls if c[:3] == ["gh", "pr", "view"]]
 
 
-# --- 4. UR-102 legs ----------------------------------------------------------------------
+# --- 4. merge state (ruling 270) ---------------------------------------------------------
 
 
-def test_legs_measure_from_the_run_base_not_the_merge_base():
-    """The run base is 3 merges behind (pass) while the merge-base is 10 behind; the main file
-    the merge-base diff would share with the PR landed before the run, so it is no overlap."""
+def test_the_state_reads_behind_from_the_run_base():
+    """The run base is 3 merges behind the tip (behind: yes); the in-flight sign needs base at
+    the tip, so it reads no here even though the gate is unfinished."""
     fake = FakeRunner()
+    fake.ci_runs = [run("", status="in_progress", minutes=1), run("success", minutes=30)]
     p = pr(build(fake))
     assert p["gate_run"] == GATE_RUN
     assert p["leg_base"] == {
@@ -557,10 +559,9 @@ def test_legs_measure_from_the_run_base_not_the_merge_base():
         "run_base": RUN_BASE,
         "used": "run",
     }
-    assert p["legs"]["behind"] == {"merges": 3, "pass": True}
-    assert p["legs"]["overlap"] == {"paths": [], "pass": True}
-    assert p["legs"]["main_ci"] == {"conclusion": "success", "pass": True}
-    assert p["merge_without_update"] is True
+    assert p["behind"] == {"merges": 3, "at_tip": False}
+    assert p["in_flight"]["base_at_tip"] is False
+    assert p["in_flight"]["yes"] is False
     assert [
         "git",
         "rev-list",
@@ -568,20 +569,41 @@ def test_legs_measure_from_the_run_base_not_the_merge_base():
         "--first-parent",
         f"{RUN_BASE}..origin/main",
     ] in fake.calls
-    assert ["git", "diff", "--name-only", RUN_BASE, "origin/main"] in fake.calls
-    assert ["git", "diff", "--name-only", BASE, HEAD] in fake.calls  # the PR's own files
     logs = [c for c in fake.calls if c[:2] == ["gh", "api"] and c[2].endswith("/logs")]
     assert logs == [["gh", "api", f"repos/{REPO}/actions/jobs/{CHECKOUT_JOB}/logs"]]
     text = snap.render_text(build(FakeRunner()))
     assert f"base: run {RUN_BASE[:9]} (run {GATE_RUN}) · merge-base {BASE[:9]}" in text
 
 
-def test_four_merges_behind_the_run_base_fails_the_first_leg():
+def test_the_in_flight_sign_holds_when_the_base_is_at_the_tip():
+    """Merging a PR step 1's sign: base= at main's tip, the gate not finished (absent here),
+    and the approval carries. The fake's approval names HEAD and the carry read passes."""
     fake = FakeRunner()
-    fake.merges_behind[RUN_BASE] = "4"
+    # No gate run at all: gate reads absent (the update-branch window before the gate queues),
+    # the run base is unread, so the comparison falls back to the merge-base... which must
+    # itself be at the tip for the sign to hold. Declare merge-base(origin/main, head) = TIP.
+    fake.prs[0]["statusCheckRollup"] = []
+    fake.merge_bases[f"origin/main::{HEAD}"] = TIP
+    fake.own_diffs[f"{TIP}..{HEAD}"] = "docs/b.md\n"
+    fake.merges_behind[TIP] = "0"
     p = pr(build(fake))
-    assert p["legs"]["behind"] == {"merges": 4, "pass": False}
-    assert p["merge_without_update"] is False
+    assert p["gate"] == "absent"
+    assert p["leg_base"]["used"] == "merge-base fallback"
+    assert p["behind"] == {"merges": 0, "at_tip": True}
+    assert p["in_flight"]["base_at_tip"] is True
+    assert p["in_flight"]["gate_unfinished"] is True
+    assert p["in_flight"]["carry"] is True
+    assert p["in_flight"]["yes"] is True
+    text = snap.render_text(build(fake))
+    assert f"#{p['number']}" in text
+    assert "in-flight sign: yes" in text
+
+
+def test_a_green_gate_and_a_behind_base_fail_the_sign():
+    fake = FakeRunner()
+    p = pr(build(fake))
+    assert p["behind"] == {"merges": 3, "at_tip": False}
+    assert p["in_flight"]["yes"] is False
 
 
 @pytest.mark.parametrize(
@@ -610,31 +632,26 @@ def test_an_unreadable_run_base_falls_back_to_the_merge_base(change, reason):
     p = pr(data)
     assert p["leg_base"]["used"] == "merge-base fallback"
     assert reason in p["leg_base"]["error"]
-    assert p["legs"]["behind"] == {"merges": 10, "pass": False}
-    assert p["legs"]["overlap"] == {"paths": ["docs/b.md"], "pass": False}
+    # The behind read still runs, off the merge-base (10 merges behind the tip).
+    assert p["behind"] == {"merges": 10, "at_tip": False}
     assert "(base: merge-base fallback" in snap.render_text(data)
 
 
-def test_a_shared_path_fails_the_overlap_leg():
+def test_a_main_tip_that_cannot_be_read_reports_an_error():
     fake = FakeRunner()
-    fake.pr_files = "docs/a.md\ndocs/b.md\n"
+    fake.fail("rev-parse", "HTTP 500")
     p = pr(build(fake))
-    assert p["legs"]["overlap"] == {"paths": ["docs/a.md"], "pass": False}
-    assert p["merge_without_update"] is False
+    assert p["behind"] == {"error": "main tip unread"}
+    assert "behind main: main tip unread" in snap.render_text(build(fake))
 
 
-def test_red_main_fails_the_third_leg():
+def test_a_draft_gets_no_merge_state_row_in_the_report():
     fake = FakeRunner()
-    fake.ci_runs = [run("failure", minutes=5), run("success", minutes=30)]
-    p = pr(build(fake))
-    assert p["legs"]["main_ci"] == {"conclusion": "failure", "pass": False}
-    assert p["merge_without_update"] is False
-
-
-def test_no_legs_without_a_green_gate():
-    fake = FakeRunner()
-    fake.prs[0]["statusCheckRollup"] = [gate(conclusion="FAILURE")]
-    assert "legs" not in pr(build(fake))
+    text = snap.render_text(build(fake))
+    assert (
+        "#7002"
+        not in text.split("== 4. merge state (ruling 270), non-draft PRs")[1].split("== 5.")[0]
+    )
 
 
 # --- 5. main -----------------------------------------------------------------------------
@@ -646,7 +663,6 @@ def test_cancelled_main_run_is_not_red():
     data = build(fake)
     assert data["main"]["ci_latest"]["conclusion"] == "cancelled"
     assert data["main"]["ci_last_completed"]["conclusion"] == "success"
-    assert pr(data)["legs"]["main_ci"]["pass"] is True
 
 
 def test_main_section_reads_each_workflow():
@@ -1215,7 +1231,9 @@ def test_text_report_has_the_six_sections_in_order():
     assert [h.split(".")[0] for h in heads] == [
         "== 1", "== 2", "== 3", "== 4", "== 5", "== 6", "== 7", "== 8",
     ]  # fmt: skip
-    assert "merge without update-branch: yes" in text
+    assert "merge state (ruling 270)" in text
+    assert "behind main: yes (3 merges behind)" in text
+    assert "in-flight sign: no" in text
 
 
 # --- 7. ruling 164: UR-106 hashes, the disable list, the merged audit ----------------------
