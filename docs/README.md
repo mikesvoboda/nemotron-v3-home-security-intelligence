@@ -114,14 +114,11 @@ docs/
 └── images/             # Diagrams and screenshots
 ```
 
-For the complete directory list (including research, discoveries, templates,
-superpowers and support directories) see [AGENTS.md](AGENTS.md).
-
 ---
 
 ## AI Assistant Navigation
 
-Every directory contains an `AGENTS.md` file for AI assistant navigation. Start there when exploring a new area.
+Boundary code directories contain an `AGENTS.md` file for AI assistant navigation (see `.agents-md-validator.yml`). Start at the root [AGENTS.md](../AGENTS.md) when exploring a new area.
 
 ---
 
@@ -142,9 +139,9 @@ Every directory contains an `AGENTS.md` file for AI assistant navigation. Start 
 The Synthbench harness replays a generated corpus against a served VLM and grades the verdict
 against ground truth.
 
-| Resource       | Location                                     | Description                             |
-| -------------- | -------------------------------------------- | --------------------------------------- |
-| **Synthbench** | [synthbench/AGENTS.md](synthbench/AGENTS.md) | export / replay / score command surface |
+| Resource       | Location                                                           | Description                             |
+| -------------- | ------------------------------------------------------------------ | --------------------------------------- |
+| **Synthbench** | [synthbench/command-reference.md](synthbench/command-reference.md) | export / replay / score command surface |
 
 **Key benefits:**
 

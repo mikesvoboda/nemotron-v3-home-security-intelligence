@@ -28,7 +28,7 @@ Each package here starts on a lane's directories as UR-68 allows.
 ### W3.1 Boundaries only
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
-**PR:** none yet. (ruling 241)
+**PR:** #7331. (ruling 241)
 
 - [ ] Delete every `AGENTS.md` outside the boundary list (`UR-21`), moving any non-discoverable
       knowledge it holds into the nearest boundary file.
