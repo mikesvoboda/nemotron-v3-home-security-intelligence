@@ -118,21 +118,21 @@ nothing in `backend/` outside its upgrade step.
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7319. (ruling 241)
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
+- [x] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
       module under `backend/` the reachability check reports non-shipping at this PR's head,
       outside `keep.toml`: `R2`'s §3 is approved as that rule, not as the measured snapshot
       (ruling 210, record 6200282082). The scene-change vertical stays: R2a row 24 ruled it
       complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
       183).
-- [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
+- [x] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"
       (ruling 89).
-- [ ] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
+- [x] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
       code imports.
-- [ ] Delete each module's tests, batteries included. These PRs change production code, so the
+- [x] Delete each module's tests, batteries included. These PRs change production code, so the
       kill-loss rule does not apply; each PR discloses the scored-set change instead (`01`).
 
 **Done when:** the reachability check (`O2.3`) reports no non-shipping module under `backend/`

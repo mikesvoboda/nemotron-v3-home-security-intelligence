@@ -434,16 +434,12 @@ def _matches(shipping_paths: set[str], fragment: str) -> list[str]:
 
 
 @pytest.mark.timeout(120)  # shares the real_out walk
-def test_done_when_not_shipping_modules_are_reported_dead(real_out):
-    mods_dead = {m["module"] for m in real_out["not_shipping"]}
-    for name in (
-        "redis_json",
-        "scenario_classifier",
-        "managed_service",
-        "orphan_cleanup_service",
-    ):
-        hits = _matches(mods_dead, name)
-        assert hits, f"{name} must be reported NOT shipping (found in neither list)"
+def test_b32_no_non_shipping_backend_modules(real_out):
+    """B3.2 Done-when (ruling 210): O2.3 reports no non-shipping module under
+    backend/ outside keep.toml."""
+    be_dead = [m["module"] for m in real_out["not_shipping"] if m["module"].startswith("backend/")]
+    assert be_dead == [], f"non-shipping modules remain under backend/: {be_dead}"
+
 
 
 @pytest.mark.timeout(120)  # shares the real_out walk
@@ -466,13 +462,10 @@ def test_keep_edges_ship_in_the_real_tree(real_out):
     for rel in (
         "backend/ai_contract/operations.py",
         "backend/ai_contract/provider.py",
+        "backend/repositories/camera_repository.py",
     ):
-        assert rel in shipping, f"{rel} is imported by keep'd fake/app.py"
+        assert rel in shipping, f"{rel} is imported by a keep'd module"
         assert rel not in dead
-    # name-level selectivity still holds on the real tree: providers.py is
-    # reached only through ai_contract/__init__, which fake/app.py's edges
-    # ask for no names from.
-    assert "backend/ai_contract/providers.py" in dead
 
 
 @pytest.mark.timeout(120)  # shares the real_out walk

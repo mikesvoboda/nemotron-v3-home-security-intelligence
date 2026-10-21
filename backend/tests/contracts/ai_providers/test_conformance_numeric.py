@@ -113,7 +113,6 @@ from backend.ai_contract.provider import (
     register_provider,
     registered_providers,
 )
-from backend.api.schemas.llm import LLMRiskResponse as RivalRiskResponse
 from backend.api.schemas.llm_response import (
     RISK_ANALYSIS_JSON_SCHEMA,
 )
@@ -1095,20 +1094,8 @@ class TestN4RiskScoreLayersDisagree:
     def test_N4_out_of_range_rejected_by_strict_clamped_by_rival(self) -> None:
         with pytest.raises(ValidationError):
             StrictRiskResponse(risk_score=150, risk_level="low", summary="s", reasoning="r")
-        rival = RivalRiskResponse(risk_score=150, risk_level="low", summary="s", reasoning="r")
-        assert rival.risk_score == 100, (
-            "the rival CLAMPS (backend/api/schemas/llm.py:326 "
-            "max(0, min(100, score))) where llm_response.py:393-397 REJECTS — "
-            "two LLMRiskResponse schemas in one codebase DISAGREE on "
-            "out-of-range; whichever parses the provider output decides "
-            "whether a 150 is an error or a quiet 100."
-        )
-        rival2 = RivalRiskResponse(risk_score=0.75, risk_level="high", summary="s", reasoning="r")
-        assert rival2.risk_score == 0, "int(float(0.75)) truncates in the rival too (llm.py:321)"
-        assert str(rival2.risk_level).lower().endswith("low"), (
-            f"risk_level 'high' rewritten from the coerced score -> "
-            f"{rival2.risk_level!r} (llm.py model-validator :371-415) — "
-            "truncation cascades into the label"
+        assert not (REPO_ROOT / "backend/api/schemas/llm.py").exists(), (
+            "B3.2 deleted the non-shipping rival clamping schema backend/api/schemas/llm.py"
         )
 
     def test_N4_guided_schema_is_the_integer_layer(self) -> None:
@@ -1195,48 +1182,13 @@ class TestN5DimConfusion:
         )
 
     def test_N5b_reid_matcher_dim_mismatch_is_silent_zero(self) -> None:
-        from backend.services.reid_matcher import ReIDMatcher
-
-        assert ReIDMatcher._cosine_similarity([0.1] * 512, [0.1] * 768) == 0.0, (
-            "reid_matcher.py:255-256 returns 0.0 for unequal lengths — the "
-            "plan's 'defaults 512' mode is FALSE (the module-level "
-            "DEFAULT_EMBEDDING_DIMENSION is asserted dead below by AST); a "
-            "dim mistake in the reid lane reads as 'no match', never an "
-            "error — the WORST of the three failure modes for swap readiness."
+        assert not (REPO_ROOT / "backend/services/reid_matcher.py").exists(), (
+            "B3.2 deleted non-shipping backend/services/reid_matcher.py"
         )
 
     def test_N5b_the_default_dimension_constant_is_still_dead(self) -> None:
-        """The dossier's N5b claim — the 512 default is a DEAD constant — is a
-        grep-shaped claim, so it is graded from the AST: the name is defined at
-        module level and has ZERO other mentions in its own module. Wiring it
-        up later turns 'defaults 512' from FALSE into TRUE, which is a FOURTH
-        failure mode (silent defaulting) and has to restate this."""
-        src = (REPO_ROOT / "backend/services/reid_matcher.py").read_text(encoding="utf-8")
-        tree = ast.parse(src)
-        defined = any(
-            isinstance(n, (ast.Assign, ast.AnnAssign))
-            and any(
-                t.id == "DEFAULT_EMBEDDING_DIMENSION"
-                for t in (n.targets if isinstance(n, ast.Assign) else [n.target])
-                if isinstance(t, ast.Name)
-            )
-            for n in tree.body
-        )
-        uses = sum(
-            1
-            for n in ast.walk(tree)
-            if isinstance(n, ast.Name) and n.id == "DEFAULT_EMBEDDING_DIMENSION"
-        )
-        assert defined, (
-            "the constant this property calls dead is not defined at module "
-            "level any more — re-cite which module carries the reid default "
-            "dimension"
-        )
-        assert uses == 1, (
-            f"DEFAULT_EMBEDDING_DIMENSION appears {uses}x (1 == definition "
-            "only): it gained a consumer, so 'no code defaults to 512' is "
-            "stale and the N5 failure-mode table gains a DEFAULTING column"
-        )
+        """B3.2 deleted non-shipping backend/services/reid_matcher.py."""
+        assert not (REPO_ROOT / "backend/services/reid_matcher.py").exists()
 
     async def test_N5a_wrong_dim_raises_in_the_backend_and_passes_the_adapter(
         self, gateway_app

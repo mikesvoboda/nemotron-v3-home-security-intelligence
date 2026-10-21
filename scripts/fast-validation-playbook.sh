@@ -187,14 +187,14 @@ run_case "x1-intm(event_broadcaster)" backend/services/event_broadcaster.py "$BA
 # ("transitive (depth 2): backend.api.routes imports backend.services.alert_service").
 run_case "x1b-pkghub(alert_service)"  backend/services/alert_service.py "$BACKEND_CMD" \
     "backend/tests/unit/api/routes/test_alerts.py" || OVERALL=1
-# x2: package RE-EXPORT — test_alert_repository.py references bare
-# backend.models + the repository module ONLY; it reaches models.alert solely
+# x2: package RE-EXPORT — test_camera_repository.py references bare
+# backend.models + the repository module ONLY; it reaches models.camera solely
 # through models/__init__.py's re-export ("transitive (depth 1): backend.models
-# imports backend.models.alert"). REQUIRED file is INTEGRATION tier: asserted on
+# imports backend.models.camera"). REQUIRED file is INTEGRATION tier: asserted on
 # the raw selection, EXCLUDED from the in-tier run by the f4 filter by design —
 # do not "fix" this into the tier; that is WP2.4's contract, not a bug here.
-run_case "x2-reexport(models/alert)"  backend/models/alert.py "$BACKEND_CMD" \
-    "backend/tests/integration/repositories/test_alert_repository.py" || OVERALL=1
+run_case "x2-reexport(models/camera)" backend/models/camera.py "$BACKEND_CMD" \
+    "backend/tests/integration/repositories/test_camera_repository.py" || OVERALL=1
 # x3: changed-TEST self-selection — probing a test file must select EXACTLY
 # that file, one, via "changed test file" (bake-off 18984662 class). TOTAL=1
 # is the assertion; a closure that fans out from a test edit is a defect.
@@ -220,7 +220,7 @@ run_case "x5-fixtureind(main.py)"     backend/main.py "$BACKEND_CMD" \
 # neither seed nor test). Probing unit/conftest.py must select the UNIT tree
 # and NOTHING from contracts/ or integration/ (674 files, verified 0/0).
 run_case "x6-conftest-tree"           backend/tests/unit/conftest.py "$BACKEND_CMD" \
-    "backend/tests/unit/api/middleware/test_accept_header.py" \
+    "backend/tests/unit/api/middleware/test_auth.py" \
     "backend/tests/contracts/ backend/tests/integration/" || OVERALL=1
 
 echo "--- playbook summary ---"; cat "$RESULTS"

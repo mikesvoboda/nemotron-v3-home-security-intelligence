@@ -58,12 +58,11 @@ developer/architecture/
 
 ### Implementation References
 
-| Location                                | Purpose                          |
-| --------------------------------------- | -------------------------------- |
-| `backend/services/model_loader_base.py` | Model loader abstract base class |
-| `backend/services/model_zoo.py`         | Model Zoo registry               |
-| `ai/AGENTS.md`                          | AI services implementation       |
-| `backend/AGENTS.md`                     | Backend implementation details   |
+| Location                        | Purpose                        |
+| ------------------------------- | ------------------------------ |
+| `backend/services/model_zoo.py` | Model Zoo registry             |
+| `ai/AGENTS.md`                  | AI services implementation     |
+| `backend/AGENTS.md`             | Backend implementation details |
 
 ## Entry Points for Agents
 

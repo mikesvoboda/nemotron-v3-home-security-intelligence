@@ -460,26 +460,3 @@ class TestSlowQueryThresholdConfig:
                 database_url="postgresql+asyncpg://user:pass@localhost/db",  # pragma: allowlist secret
                 slow_query_threshold_ms=15000.0,  # Above maximum of 10000
             )
-
-
-class TestSlowQueryExplainConfig:
-    """Tests for slow_query_explain_enabled configuration setting."""
-
-    def test_default_explain_enabled(self) -> None:
-        """Test that EXPLAIN logging is enabled by default."""
-        from backend.core.config import Settings
-
-        settings = Settings(
-            database_url="postgresql+asyncpg://user:pass@localhost/db",  # pragma: allowlist secret
-        )
-        assert settings.slow_query_explain_enabled is True
-
-    def test_explain_can_be_disabled(self) -> None:
-        """Test that EXPLAIN logging can be disabled."""
-        from backend.core.config import Settings
-
-        settings = Settings(
-            database_url="postgresql+asyncpg://user:pass@localhost/db",  # pragma: allowlist secret
-            slow_query_explain_enabled=False,
-        )
-        assert settings.slow_query_explain_enabled is False
