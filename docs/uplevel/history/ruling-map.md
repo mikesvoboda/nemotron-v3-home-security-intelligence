@@ -310,6 +310,17 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 295    | one-off: pip's bundled `certifi` exempted; package `[r295]`: pip leaves the image (record 6307239846)       |
 | 296    | package `[r262]`: rows only for bugs and medium+ from batch 7; a cite checker scoped (record 6307432184)    |
 | 297    | package `[r282]` closed on its measured gain; package `[r297]`: the shard fixed cost (record 6315692389)    |
+| 298    | one-off: heavy-b claims `O3.7` from ops-b's queue, ahead of `O3.2` and `B2.3` (record 6321095724)           |
+| 299    | package `[r299]`: the E2E setup's tour keys; `[r262]` batches 4–6 ruled (record 6321779954)                 |
+| 300    | package `W3.1`: to heavy-a, one PR per lane as each lane's Phase 3 is done (record 6322983128)              |
+| 301    | package Monitoring (`F4.*`): the zone panels drop; F-117 stays complete (record 6323705324)                 |
+| 302    | UR-86 (OD-39): Triton stays; no measure-first package (record 6323705569)                                   |
+| 303    | package `[r303]`: RF-DETR tested against YOLO26-M (record 6323705837)                                       |
+| 304    | UR-186: a scope canary moves down only with an authorized retirement (record 6323706092)                    |
+| 305    | package `[r305]`: three weak tests and 15 prose rows of `[r262]` batches 4–6 (record 6323706301)            |
+| 306    | UR-85; packages `[r306a]`, `[r306b]`; `[r252]`'s proving run now (record 6323748868)                        |
+| 307    | UR-86; packages `[r307a]`–`[r307d]`: small models in Triton, fast-alpr out (record 6323846997)              |
+| 308    | P1 packages `B4.1`–`B4.6`, `F4.1`–`F4.4`, `[r308a]`, `[r308b]`, spread (record 6326364266)                  |
 
 ## Owner records
 

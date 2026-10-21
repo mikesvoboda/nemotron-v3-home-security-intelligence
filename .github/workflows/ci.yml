@@ -3692,6 +3692,12 @@ jobs:
       contents: read
     secrets: inherit # pragma: allowlist secret
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    # [r291] UR-122: the call SELECTS the gate mode. A called workflow
+    # inherits the caller's event, so the mode must travel as an input -
+    # this call arrives there as event_name=push on PR merges, identical
+    # to dependency-audit.yml's own main-only full-lockfile push leg.
+    with:
+      audit-mode: gate
     uses: ./.github/workflows/dependency-audit.yml
 
   # Ruling 105: the fake-stack feature check joins the graph as a job here and
