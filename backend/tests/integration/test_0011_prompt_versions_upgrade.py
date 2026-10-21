@@ -109,6 +109,17 @@ async def _model_column_type(conn: AsyncConnection) -> str | None:
     return result.scalar()
 
 
+async def _model_column_length(conn: AsyncConnection) -> int | None:
+    """`character_maximum_length` -- the upgrade converts to varchar(32), the length the
+    model's `String(32)` declares, so the schema-twins claim is pinned on the column's full
+    shape (both `varchar` and `varchar(32)` read `character varying`)."""
+    result = await conn.exec_driver_sql(
+        "SELECT character_maximum_length FROM information_schema.columns "
+        "WHERE table_name = 'prompt_versions' AND column_name = 'model'"
+    )
+    return result.scalar()
+
+
 @pytest.mark.timeout(120)
 async def test_0011_deletes_exactly_the_four_models_rows(pre_0011_url):
     """The rows the four retired models own are removed; every nemotron row survives."""
@@ -172,6 +183,10 @@ async def test_0011_deletes_exactly_the_four_models_rows(pre_0011_url):
 
             # ---- the column is a varchar now, not the enum ----
             assert await _model_column_type(conn) == "character varying"
+            assert await _model_column_length(conn) == 32, (
+                "the upgrade converts to varchar(32) -- the length the model's String(32) "
+                "declares -- so create_all and migrated databases agree on the full shape"
+            )
 
             # ---- the record says what happened, with the shipped checksum ----
             records = await read_records_tx(conn)

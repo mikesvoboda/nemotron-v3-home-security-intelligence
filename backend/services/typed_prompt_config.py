@@ -122,8 +122,8 @@ class TypedPromptTemplate[T: PromptParamBase]:
             param_type=NemotronPromptParams,
         )
 
-        # mypy will catch type errors:
-        # template.validate_params(Florence2PromptParams(...))  # Error!
+        # mypy will catch type errors (any value that is not this template's T):
+        # template.validate_params(object())  # Error!
     """
 
     def __init__(

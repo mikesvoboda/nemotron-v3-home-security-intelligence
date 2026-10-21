@@ -780,12 +780,12 @@ PR #7306)
 ### [r285] Four backend bugs the maui production-shape run found
 
 **Flags:** none. **Assigned:** backend, first on its queue (ruling 285). **Depends on:** none.
-**PR:** #7318, **merged a0b1bb148 2026-10-21T04:54Z** (auto-merge; UR-89 approved at 82179a652,
-comments 6307756549 and 6308312236 — the second after the bookkeeping commit 827eb5dba reset the
-first per UR-106). (ruling 285, record 6300916398; amendments 6301639831 and 6302995876)
+**PR:** #7318. (ruling 285, record 6300916398; amendments 6301639831 and 6302995876)
 
 The owner's maui discovery for `O2.5` item 2 ran production's compose shape on real hardware and
-found four product bugs CI cannot see. Its handoff carries reference diffs and red-and-green
+found four product bugs CI cannot see. The PR auto-merged with UR-89 approval at 82179a652 — the
+second approval, after the bookkeeping commit 827eb5dba reset the first per UR-106 (comments
+6307756549 and 6308312236). Its handoff carries reference diffs and red-and-green
 evidence for three of them; this package writes each fix fresh on `main`, each with its own
 failing-first test (UR-69), and ops-a's `O2.5` venue fixes leave them out (ruling 287 item 4).
 

@@ -250,6 +250,12 @@ async def test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date(pr
                     "WHERE table_name = 'prompt_versions' AND column_name = 'model'"
                 )
             ).scalar() == "character varying"
+            assert (
+                await conn.exec_driver_sql(
+                    "SELECT character_maximum_length FROM information_schema.columns "
+                    "WHERE table_name = 'prompt_versions' AND column_name = 'model'"
+                )
+            ).scalar() == 32  # the model's String(32) -- the full shape create_all builds
 
             # ---- 0005: the twelve unrecorded columns are now present ----
             assert await _missing_0005_columns(conn) == []

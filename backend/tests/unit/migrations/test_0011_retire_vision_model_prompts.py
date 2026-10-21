@@ -178,7 +178,7 @@ def test_0011_converts_the_column_and_drops_the_type():
     type (the schema-twins property the upgrade-path test pins)."""
     sql = next(u for u in registry.UPGRADES if u.id == UPGRADE_ID).read_sql()
     assert re.search(
-        r"ALTER\s+TABLE\s+prompt_versions\s+ALTER\s+COLUMN\s+model\s+TYPE\s+varchar",  # pragma: allowlist secret (regex literal, not a credential)
+        r"ALTER\s+TABLE\s+prompt_versions\s+ALTER\s+COLUMN\s+model\s+TYPE\s+varchar\(32\)",  # pragma: allowlist secret (regex literal, not a credential)
         sql,
         re.IGNORECASE,
     )

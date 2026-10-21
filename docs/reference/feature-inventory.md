@@ -885,7 +885,7 @@ Measured at tool-inputs `03cd0b1f47` by `scripts/r2-python-dead-list.py` — the
 | `backend/api/middleware/exception_handler.py` | backend | 100 | `f5c888457` 2026-01-08 | non-shipping |
 | `backend/api/middleware/file_validator.py` | backend | 443 | `f1d2f4cd1` 2026-01-07 | non-shipping |
 | `backend/api/schemas/discriminated_union_errors.py` | backend | 422 | `664d0ebcf` 2026-10-19 | non-shipping |
-| `backend/api/schemas/errors.py` | backend | 537 | `458e84c68` 2026-10-21 | non-shipping |
+| `backend/api/schemas/errors.py` | backend | 537 | `c00a88402` 2026-10-21 | non-shipping |
 | `backend/api/schemas/llm.py` | backend | 506 | `fb452403d` 2026-01-13 | non-shipping |
 | `backend/api/schemas/openapi_customization.py` | backend | 284 | `75d6aa356` 2026-01-26 | non-shipping |
 | `backend/api/schemas/openapi_docs.py` | backend | 541 | `fe5a676fb` 2026-01-15 | non-shipping |
@@ -951,7 +951,7 @@ Measured at tool-inputs `03cd0b1f47` by `scripts/r2-python-dead-list.py` — the
 | `backend/services/pg_notify_listener.py` | backend | 541 | `4bd98d9da` 2026-01-23 | non-shipping |
 | `backend/services/privacy_masking_service.py` | backend | 375 | `0dc46569c` 2026-01-28 | non-shipping |
 | `backend/services/prompt_parser.py` | backend | 197 | `f2f6e946a` 2026-01-05 | non-shipping |
-| `backend/services/prompt_storage.py` | backend | 632 | `458e84c68` 2026-10-21 | non-shipping |
+| `backend/services/prompt_storage.py` | backend | 632 | `c00a88402` 2026-10-21 | non-shipping |
 | `backend/services/prompt_version_service.py` | backend | 405 | `69703c800` 2026-01-04 | non-shipping |
 | `backend/services/quantization.py` | backend | 595 | `3710a98c7` 2026-02-08 | non-shipping |
 | `backend/services/read_through_cache.py` | backend | 446 | `d697b216b` 2026-01-26 | non-shipping |
@@ -967,7 +967,7 @@ Measured at tool-inputs `03cd0b1f47` by `scripts/r2-python-dead-list.py` — the
 | `backend/services/trajectory_analyzer.py` | backend | 543 | - | non-shipping |
 | `backend/services/transcode_cache.py` | backend | 462 | - | non-shipping |
 | `backend/services/transcoding.py` | backend | 549 | - | non-shipping |
-| `backend/services/typed_prompt_config.py` | backend | 292 | `458e84c68` 2026-10-21 | non-shipping |
+| `backend/services/typed_prompt_config.py` | backend | 292 | `52a132e01` 2026-10-21 | non-shipping |
 | `backend/services/unique_counter_service.py` | backend | 442 | `a743cd643` 2026-02-13 | non-shipping |
 | `backend/services/websocket_service.py` | backend | 576 | - | non-shipping |
 | `backend/services/zone_baseline_service.py` | backend | 74 | `d54f28ed6` 2026-01-21 | non-shipping |
