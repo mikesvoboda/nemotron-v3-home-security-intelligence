@@ -80,7 +80,7 @@ exports[`TrustClassificationControls > Snapshots > renders confirmation dialog c
       class="text-sm text-gray-300"
     >
       Change status to
-
+       
       <span
         class="font-semibold text-green-400"
       >
@@ -265,7 +265,7 @@ exports[`TrustClassificationControls > Snapshots > renders error state correctly
       class="text-sm text-gray-300"
     >
       Change status to
-
+       
       <span
         class="font-semibold text-green-400"
       >
