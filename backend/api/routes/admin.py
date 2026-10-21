@@ -69,9 +69,10 @@ async def _invalidate_devtool_caches_background(
                                  sweep also carries ``summaries:entities`` (FaceDetectionEvent cascade)
     - ``system:*``             — stats totals count all three tables
 
-    Fail-soft per namespace, not for the whole batch: the two-call legacy
-    helpers (``cameras.py:132``, ``events.py:119``) wrap all their awaits in one
-    try, so a Redis error on the first leaves the second cached. With seven
+    Fail-soft per namespace, not for the whole batch (like the four-namespace
+    loop in ``events.py:119``, whereas ``cameras.py:131`` is a single-call try
+    and the pre-[r223] two-call inline blocks wrapped both awaits in one try,
+    where a Redis error on the first left the second cached). With seven
     namespaces that gap is too wide to ship — a failure on ``events`` would
     strand ``timeline_summary``/``trends``/``summaries`` for their full TTL. Each
     namespace is isolated, so a partial Redis outage degrades only the
