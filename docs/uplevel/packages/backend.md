@@ -399,8 +399,7 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
       originals, then drops the old columns, the `delivered` value and
       `camera_notification_settings` (`threat_*` stays); the camera routes, `PATCH
 /api/notification/config` and the rest of `alert_engine` go; the `alert_rules` restore
-      adapter ships if `B4.6` has landed; if `B4.7` landed first, the adapter gives an older
-      archive's rules the sources `camera` and keeps the seeded "External alerts" rule.
+      adapter ships if `B4.6` has landed.
 - [ ] Golden path: an upgrade-path test on a populated database with non-default rows, with
       `F4.2`'s golden path still green.
 
@@ -418,8 +417,7 @@ F-101.
 - [ ] The test-only PR (step 2).
 - [ ] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
       its adapters, three sessions, the safety backup on the data volume, the narrowed undo; if
-      `B4.2` landed first, recipients and channels join the backup without their secrets; if
-      `B4.7` landed first, each mode's exclusions and the schedule join it.
+      `B4.2` landed first, recipients and channels join the backup without their secrets.
 - [ ] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
       Playwright, as the design gives them.
 
@@ -443,12 +441,9 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-29
       carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped
       override, fail-armed, the notify decision naming arming); the resolver's `external` source,
       `alert_rules.sources` and the seeded "External alerts" rule; the sweep's external clause; the
-      app routes; the inbound webhooks on the four modes, with `/alert`'s namespaced `batch_id`
-      and a pipeline run on every request; the scheduler; an additive recorded upgrade; the
-      schemas and generated API types. If `B4.6` landed first, each mode's exclusions and the
-      schedule join the backup list; if `B4.5` landed first, its `alert_rules` restore adapter
-      gives an older archive's rules the sources `camera` and keeps the seeded "External alerts"
-      rule.
+      app routes; the inbound webhooks on the four modes, with `/alert`'s namespaced `batch_id` and
+      a pipeline run on every request; the scheduler; an additive recorded upgrade; the schemas and
+      generated API types. Arming configuration stays out of backups (`../4n-arming.md`).
 - [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
 
 **Done when:** steps 4–6 hold for F-290.

@@ -152,10 +152,11 @@ listed with who or what made it.
 - **backend (`B4.7`):** `arming.py`; the policy and pipeline hook; the resolver's `external` source
   and the sweep's external clause; the app routes; `inbound_webhooks.py` on the new vocabulary,
   with `/alert`'s external event; the scheduler; the schemas and generated API types (regenerated,
-  UR-83). Each mode's exclusions and the schedule join the backup list with whichever of `B4.6`
-  and `B4.7` lands second; the `alert_rules` restore adapter gives an older archive's rules the
-  sources `camera` and keeps the seeded "External alerts" rule, with whichever of `B4.5` and
-  `B4.7` lands second.
+  UR-83). Arming configuration (each mode's exclusions, the schedule) stays out of backups: a
+  restored install arms every camera in Home, Away and Night, the safe direction, and the household
+  re-enters its choices. `alert_rules.sources` defaults to `camera`, so an older archive's rules
+  restore as camera rules and the seeded "External alerts" rule, absent from the archive, is kept
+  (`4n-restore.md`, "Versions"); no restore adapter changes.
 - **backend (`B4.8`):** `mqtt_command_handler.py` (topics, token, id check, global rate limit,
   de-duplication, results, the id fix at `:378` and the same read at `:383`, `:393`, `:398`,
   acknowledge, PTZ; sensitivity removed); `mqtt_client.py`
@@ -214,10 +215,10 @@ listed with who or what made it.
     two API keys gives two events;
   - MQTT: the token, the global rate limit, duplicate ids, malformed ids (`a/b`, `+`, `#`, 65
     characters) refused with nothing published outside `results/<valid id>`, no token bytes in a
-    result, the topic id (regression tests for `:378`, `:393`, `:398`), acknowledge, PTZ against an
-    ONVIF fake; against the CI broker: an anonymous broker refused on enable; under the README's ACL
-    a second user subscribed to `<prefix>/commands/#` receives nothing; TLS with no CA path or a
-    host-name mismatch fails, and the right CA connects.
+    result, the topic id (regression tests for `:378`, `:383`, `:393`, `:398`), acknowledge, PTZ
+    against an ONVIF fake; against the CI broker: an anonymous broker refused on enable; under the
+    README's ACL a second user subscribed to `<prefix>/commands/#` receives nothing; TLS with no CA
+    path or a host-name mismatch fails, and the right CA connects.
 
 ## Golden path
 
@@ -278,8 +279,9 @@ token from a subscriber, and signed commands do not fit Home Assistant. The owne
 | A6  | `F4.5` declares MQTT and the badge with only `B4.7`                       | `F4.5` after `F4.1`; the MQTT section with whichever of `B4.8` and `F4.5` lands second                                                                   |
 
 The plan PR's review (#7338) added two items: results move to `<prefix>/results/{id}`, so the ACL
-can let senders read them without reading the commands; and arming configuration joins the backup,
-with the new rule column handled by `B4.5`'s restore adapter.
+can let senders read them without reading the commands; and arming configuration stays out of
+backups, since a restored install that arms every camera fails safe and `sources` defaults to
+`camera` for older archives' rules.
 
 ## Done when
 
