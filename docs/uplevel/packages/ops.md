@@ -305,9 +305,9 @@ tool's tests pass, and the golden paths stay green.
 ### O3.4 Reachability gates in CI
 
 **Flags:** none. **Depends on:** `R2`, `O2.3`, `F3.2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7324. (rulings 241, 289)
 
-- [ ] A CI job fails when a new non-shipping Python module appears without a `keep.toml` entry
+- [x] A CI job fails when a new non-shipping Python module appears without a `keep.toml` entry
       (`O2.3`), and when `knip --production` finds a new unused frontend file or export (`F3.2`'s
       config). New means not in the baseline `F3.2`'s PR records at its merge (ruling 257).
 
