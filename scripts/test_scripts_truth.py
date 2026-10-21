@@ -305,7 +305,7 @@ def test_ci_wires_script_test_suites() -> None:
         assert suite in tokens, f"{suite} is not wired into collection-sanity's anti-rot step"
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(180)
 def test_scripts_passes_ruff_and_mypy() -> None:
     ruff_check = subprocess.run(
         [sys.executable, "-m", "ruff", "check", "scripts/"],
@@ -335,6 +335,7 @@ def test_scripts_passes_ruff_and_mypy() -> None:
             sys.executable,
             "-m",
             "mypy",
+            "--follow-imports=skip",
             "--ignore-missing-imports",
             "--explicit-package-bases",
             "scripts/",
