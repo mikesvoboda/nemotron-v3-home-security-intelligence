@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
@@ -491,3 +492,53 @@ def test_gate_missing_head_registry_is_red(tmp_path: Path) -> None:
     r = run_gate_without_head_registry(Harness(tmp_path))
     assert r.returncode == 1
     assert "MISSING" in r.stderr
+
+
+def test_gate_resurrected_advisory_behind_dead_entry_fails(tmp_path: Path) -> None:
+    """r291 security pass: the base's audit does NOT report the advisory, the
+    head's does, and both registries carry an entry for it whose REVIEW BY
+    has passed. The PR touches no registry file - the finding resurrects the
+    dead entry by making its advisory live again. Strict coverage: a
+    violating entry does not cover the head's finding, so the delta is red,
+    not '0 finding(s) shared ... none added'."""
+    h = Harness(tmp_path)
+    dead = {"exceptions": [entry(FIXTURE_ID, review="2020-01-01")]}
+    r = run_delta(h, audit_doc([]), audit_doc(FIXTURE_FINDING), dead, dead)
+    assert r.returncode == 1
+    assert FIXTURE_ID in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_sibling_advisory_sharing_an_id_is_red(tmp_path: Path) -> None:
+    """r291 security pass, key collapse: one CVE id carrying two advisories
+    (each its own GHSA with the shared CVE in aliases). The head reports
+    BOTH, the base one - min() gives both the same canonical key, so a bare
+    set-difference read them as 'shared'. The key counts advisories per
+    canonical key: head count 2 > base count 1 is an addition."""
+    base = [{"id": "CVE-2026-0001", "pkg": FIXTURE_PKG}]
+    head = [
+        {"id": "CVE-2026-0001", "pkg": FIXTURE_PKG},
+        {"id": "GHSA-zzzz-zzzz-zzzz", "pkg": FIXTURE_PKG, "aliases": ["CVE-2026-0001"]},
+    ]
+    h = Harness(tmp_path)
+    r = run_delta(h, audit_doc(base), audit_doc(head), {"exceptions": []}, {"exceptions": []})
+    assert r.returncode == 1
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_shared_warn_keeps_delta_green_with_warning_note(tmp_path: Path) -> None:
+    """r291 security pass, verdict hygiene: a pre-existing entry expiring
+    within warn-days on BOTH trees (finding shared too) must not fail the
+    delta - and the OK line carries the warning count, so the log never
+    reads 'delta OK' beside a nonzero exit code."""
+    soon = (date.today() + timedelta(days=5)).isoformat()
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        audit_doc(FIXTURE_FINDING),
+        audit_doc(FIXTURE_FINDING),
+        {"exceptions": [entry(FIXTURE_ID, review=soon)]},
+        {"exceptions": [entry(FIXTURE_ID, review=soon)]},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "shared expiry warning(s)" in r.stdout

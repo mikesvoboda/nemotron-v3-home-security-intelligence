@@ -120,14 +120,38 @@ def main() -> int:
     # mode that is the ONLY side, so it always reports; in gate mode the head
     # side stays quiet (its shared-violation chatter is not allowed to fail
     # the delta) and the base side reports only when it fails closed.
+    if not args.base_audit_json:
+        head = adjudicate(
+            Path(args.audit_json),
+            Path(args.registry),
+            args.warn_days,
+            full_report=True,
+        )
+        return head.rc
+
+    # Gate mode. STRICT COVERAGE on both sides (r291 security pass): a
+    # finding whose ONLY covering entry itself violates today's rules
+    # (expired REVIEW BY, premise broken, mis-attributed) does NOT count as
+    # covered - it lands in `unexempted` like any other finding. Without
+    # this, a PR adding a vulnerable dependency green-lights whenever a
+    # pre-existing dead entry nominally matches its advisory: the delta
+    # compares the two TREES' violation strings, so a PR that never touches
+    # the registry resurrects the entry by making its advisory live again,
+    # and the head side's unexempted set shrinks instead of growing. With
+    # strict coverage on BOTH sides, a pre-existing expired entry plus its
+    # pre-existing finding stays green (the base side carries the same
+    # strict-unexempted key, so the delta sees no addition - package case 5),
+    # while the resurrection shape - no base finding, head finding behind a
+    # dead entry - goes red. The base side's VIOLATIONS still stay green:
+    # entry-level violations are text-diffed separately below and the
+    # pre-existing ones never redden the delta.
     head = adjudicate(
         Path(args.audit_json),
         Path(args.registry),
         args.warn_days,
-        full_report=args.base_audit_json is None,
+        full_report=False,
+        strict_coverage=True,
     )
-    if not args.base_audit_json:
-        return head.rc
 
     # The base side adjudicates with today's rules too, but its violations are
     # NOT the change's fault: a pre-existing expired REVIEW BY or a pre-existing
@@ -138,7 +162,11 @@ def main() -> int:
     # reads as clean (package case 6, "an audit error on either side fails
     # closed").
     base = adjudicate(
-        Path(args.base_audit_json), Path(args.base_registry), args.warn_days, full_report=False
+        Path(args.base_audit_json),
+        Path(args.base_registry),
+        args.warn_days,
+        full_report=False,
+        strict_coverage=True,
     )
     if base.unadjudicable:
         print(
@@ -170,13 +198,15 @@ def main() -> int:
             print(f"  - {v}", file=sys.stderr)
         return 1
 
-    # Package cases 1/2/3: findings keyed (canonical advisory id, package).
-    # canonical_keys() resolves a report id through its aliases to the same
-    # key on both trees, so id drift (PYSEC vs CVE vs GHSA of one advisory)
-    # does not invent a delta where the advisory was already there.
+    # Package cases 1/2/3: findings keyed (canonical advisory id, package),
+    # as counts per key. canonical_keys() resolves a report id through its
+    # aliases to the same key on both trees, so id drift (PYSEC vs CVE vs
+    # GHSA of one advisory) does not invent a delta where the advisory was
+    # already there; the count makes a second advisory collapsing onto the
+    # same key an addition instead of a silent share.
     canonical_base = canonical_keys(Path(args.base_audit_json), base)
     canonical_head = canonical_keys(Path(args.audit_json), head)
-    added = canonical_head - canonical_base
+    added = {k for k, n in canonical_head.items() if n > canonical_base.get(k, 0)}
     if added:
         print(
             f"{len(added)} pip-audit finding(s) this change ADDS "
@@ -186,12 +216,19 @@ def main() -> int:
         for vid, pkg in sorted(added):
             print(f"  - {vid} on {pkg} is UNEXEMPTED", file=sys.stderr)
         return 1
+    # r291 security pass, verdict hygiene: the delta's verdict is about what
+    # the change ADDS. Shared pre-existing warnings (an entry expiring soon
+    # on both trees) do not fail the delta - but they are printed in the OK
+    # line, so the log never says "OK" beside a red exit code, and the exit
+    # code is 0 whenever nothing was added (head.rc's full-lockfile semantics
+    # - 2 on warns-only - leaked through here and contradicted this line).
+    warn_note = f", {head.warnings} shared expiry warning(s)" if head.warnings else ""
     print(
-        f"pip-audit delta OK: {len(canonical_head)} finding(s) shared with the "
-        f"base, none added by the change (full-lockfile mode still audits the "
-        f"lock on main on its own trigger)"
+        f"pip-audit delta OK: {sum(canonical_head.values())} finding(s) shared with the "
+        f"base, none added by the change{warn_note} (full-lockfile mode still "
+        f"audits the lock on main on its own trigger)"
     )
-    return head.rc if head.warnings else 0
+    return 0
 
 
 @dataclass
@@ -213,17 +250,28 @@ class Verdict:
     warnings: int
 
 
-def canonical_keys(audit_path: Path, v: Verdict) -> set[tuple[str, str]]:
-    """Collapse `unexempted` to one key per REAL advisory: each reported id
-    becomes (its canonical id-set's representative, package). Two trees
-    reporting the same advisory under different ids (PYSEC at base, GHSA at
-    head) must compare equal, so the representative is the sorted-min of the
-    id + its aliases - the same advisory produces the same min on both sides
-    whatever id pip-audit chose to lead with."""
-    out: set[tuple[str, str]] = set()
+def canonical_keys(audit_path: Path, v: Verdict) -> dict[tuple[str, str], int]:
+    """Collapse `unexempted` to one key per REAL advisory, as a COUNT per
+    key: each reported id becomes (its canonical id-set's representative,
+    package), and two advisories collapsing onto the same representative
+    accumulate. Two trees reporting the same advisory under different ids
+    (PYSEC at base, GHSA at head) must compare equal, so the representative
+    is the sorted-min of the id + its aliases - the same advisory produces
+    the same min on both sides whatever id pip-audit chose to lead with.
+
+    The count is the r291 security pass's key-collapse fix: when one CVE
+    id carries several GHSAs, pip-audit reports each as its own advisory
+    sharing the CVE in aliases - min() alone gives them ONE key, and a head
+    side carrying two of them behind a base side's one would read "shared".
+    Counting per key makes the extra advisory an addition (head count 2 >
+    base count 1) while the id-drift shape (one advisory per side, min
+    equal on both trees) still compares equal.
+    """
+    out: dict[tuple[str, str], int] = {}
     for vid, pkg in v.unexempted:
         group = {vid, *advisory_aliases(audit_path).get(vid, set())}
-        out.add((min(sorted(group)), pkg))
+        key = (min(sorted(group)), pkg)
+        out[key] = out.get(key, 0) + 1
     return out
 
 
@@ -245,12 +293,19 @@ def advisory_aliases(audit_path: Path) -> dict[str, set[str]]:
     return out
 
 
-def adjudicate(audit_path: Path, reg_path: Path, warn_days: int, full_report: bool) -> Verdict:
+def adjudicate(
+    audit_path: Path, reg_path: Path, warn_days: int, full_report: bool, strict_coverage: bool = False
+) -> Verdict:
     """Run today's registry rules against one audit report.
 
     `full_report` prints today's per-violation diagnostics (the full-lockfile
     mode is always full_report; the delta's head side stays quiet - its
     shared-violation chatter is not allowed to fail the delta).
+
+    `strict_coverage` (r291 security pass, gate mode only): an entry that
+    violates today's rules does not count as covering its finding - the
+    finding lands in `unexempted`. Full-lockfile mode stays lenient: there
+    the violated entry already reds the run on its own.
     """
     if not reg_path.is_file():
         print(
@@ -297,6 +352,7 @@ def adjudicate(audit_path: Path, reg_path: Path, warn_days: int, full_report: bo
         except ValueError:
             entry_error(eid, f"{eid}: malformed reviewBy {rb!r} (want YYYY-MM-DD)")
             continue
+        errors_before = len(errors)
         if review < today:
             entry_error(eid, f"{eid}: REVIEW BY {rb} has PASSED - re-review, fix, or remove")
         elif review <= today + timedelta(days=warn_days):
@@ -320,7 +376,12 @@ def adjudicate(audit_path: Path, reg_path: Path, warn_days: int, full_report: bo
                 "stale (the advisory is fixed or no longer reachable); remove it",
             )
             continue
-        covered.add(hit)
+        # Strict coverage (r291 security pass): the entry covers its finding
+        # only when the entry itself passed every rule above. An expired or
+        # premise-broken entry leaves the finding unexempted, so the gate
+        # delta cannot be green-lit by a dead entry's nominal match.
+        if not strict_coverage or len(errors) == errors_before:
+            covered.add(hit)
 
         a = found[hit]
         if a["fix_versions"]:

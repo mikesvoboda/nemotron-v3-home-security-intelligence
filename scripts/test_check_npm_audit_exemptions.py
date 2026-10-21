@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -641,3 +642,65 @@ def test_gate_finding_moving_to_another_package_is_red(tmp_path: Path) -> None:
         {"exceptions": [entry(G1, "braces")]},
     )
     assert r.returncode == 1
+
+
+def test_gate_resurrected_advisory_behind_dead_entry_fails(tmp_path: Path) -> None:
+    """r291 security pass: the base's audit does NOT report the advisory, the
+    head's does, and both registries carry an entry for it whose REVIEW BY
+    has passed. The PR touches no registry file - the finding resurrects the
+    dead entry by making its advisory live again. Strict coverage: a
+    violating entry does not cover the head's finding, so the delta is red,
+    not '0 finding(s) shared ... none added'."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc([]),
+        audit_doc(BRACES),
+        {"exceptions": [entry(G1, "braces", "2020-01-01")]},
+        {"exceptions": [entry(G1, "braces", "2020-01-01")]},
+    )
+    assert r.returncode == 1
+    assert G1 in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_premise_broken_entry_does_not_cover_new_finding(tmp_path: Path) -> None:
+    """The other strict-coverage shape: the head's audit reports an in-range
+    fix, so the pre-existing entry (present, unexpired, on both trees) is
+    premise-BROKEN at the head and stale at the base - the violation texts
+    differ, so the entry branch reds the delta even before strict coverage
+    gets a word in. Pinned red because a PR that resurrects a dead entry
+    must not read 'delta OK' through either branch."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc([]),
+        audit_doc(
+            [
+                {
+                    "pkg": "braces",
+                    "gid": G1,
+                    "sev": "high",
+                    "fix": {"name": "braces", "version": "1.8.9", "isSemVerMajor": False},
+                }
+            ]
+        ),
+        {"exceptions": [entry(G1, "braces")]},
+        {"exceptions": [entry(G1, "braces")]},
+    )
+    assert r.returncode == 1
+
+
+def test_gate_shared_warn_keeps_delta_green_with_warning_note(tmp_path: Path) -> None:
+    """r291 security pass, verdict hygiene: a pre-existing entry expiring
+    within warn-days on BOTH trees (finding shared too) must not fail the
+    delta - and the OK line carries the warning count, so the log never
+    reads 'delta OK' beside a nonzero exit code."""
+    soon = (date.today() + timedelta(days=5)).isoformat()
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc(BRACES),
+        audit_doc(BRACES),
+        {"exceptions": [entry(G1, "braces", soon)]},
+        {"exceptions": [entry(G1, "braces", soon)]},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "shared expiry warning(s)" in r.stdout

@@ -129,14 +129,34 @@ def main() -> int:
     # side stays quiet (its shared-violation chatter is not allowed to fail
     # the delta) and the base side stays quiet too (its violations are not
     # the change's fault; only its UNADJUDICABLE state fails the delta).
+    if not args.base_frontend:
+        head = adjudicate_front(
+            Path(args.frontend),
+            args.registry,
+            args.warn_days,
+            full_report=True,
+        )
+        return head.rc
+
+    # Gate mode. STRICT COVERAGE on both sides (r291 security pass): a
+    # finding whose ONLY covering entry itself violates today's rules does
+    # NOT count as covered - it lands in `unexempted`. Without this, a PR
+    # adding a vulnerable dependency green-lights whenever a pre-existing
+    # dead entry (expired REVIEW BY, premise broken) nominally matches its
+    # advisory: the PR never touches the registry, yet the head side's
+    # unexempted set shrinks instead of growing. With strict coverage on
+    # BOTH sides, the same dead entry plus its pre-existing finding on the
+    # base keeps case 5 green (the base carries the same strict-unexempted
+    # key), while the resurrection shape - no base finding, head finding
+    # behind a dead entry - goes red. The base side's VIOLATIONS still stay
+    # green: entry-level violations are text-diffed separately below.
     head = adjudicate_front(
         Path(args.frontend),
         args.registry,
         args.warn_days,
-        full_report=args.base_frontend is None,
+        full_report=False,
+        strict_coverage=True,
     )
-    if not args.base_frontend:
-        return head.rc
 
     # The base side's violations are NOT the change's fault: a pre-existing
     # expired REVIEW BY or pre-existing unexempted finding prints and passes
@@ -145,7 +165,11 @@ def main() -> int:
     # registry makes the delta's "was it already there?" question unanswerable
     # (package case 6, "an audit error on either side fails closed").
     base = adjudicate_front(
-        Path(args.base_frontend), args.base_registry, args.warn_days, full_report=False
+        Path(args.base_frontend),
+        args.base_registry,
+        args.warn_days,
+        full_report=False,
+        strict_coverage=True,
     )
     if base.unadjudicable:
         print(
@@ -188,12 +212,18 @@ def main() -> int:
         for gid, pkg in sorted(added):
             print(f"  - {gid} on {pkg} is UNEXEMPTED", file=sys.stderr)
         return 1
+    # r291 security pass, verdict hygiene: the delta's verdict is about what
+    # the change ADDS. Shared pre-existing warnings do not fail the delta,
+    # but they print in the OK line so the log never says "OK" beside a red
+    # exit code (head.rc's full-lockfile semantics - 2 on warns-only - used
+    # to leak through here).
+    warn_note = f", {head.warnings} shared expiry warning(s)" if head.warnings else ""
     print(
         f"npm-audit delta OK: {len(head.unexempted)} finding(s) shared with the "
-        f"base, none added by the change (full-lockfile mode still audits the "
-        f"lock on main on its own trigger)"
+        f"base, none added by the change{warn_note} (full-lockfile mode still "
+        f"audits the lock on main on its own trigger)"
     )
-    return head.rc if head.warnings else 0
+    return 0
 
 
 @dataclass
@@ -218,11 +248,17 @@ class Verdict:
 
 
 def adjudicate_front(
-    frontend: Path, registry: str | None, warn_days: int, full_report: bool
+    frontend: Path, registry: str | None, warn_days: int, full_report: bool, strict_coverage: bool = False
 ) -> Verdict:
     """Adjudicate ONE tree: run npm audit there, read its registry, apply
     today's rules. `registry` None means the frontend's own
-    .npm-audit-exemptions.json, exactly as before this package."""
+    .npm-audit-exemptions.json, exactly as before this package.
+
+    `strict_coverage` (r291 security pass, gate mode only): an entry that
+    violates today's rules does not count as covering its finding - the
+    finding lands in `unexempted`. Full-lockfile mode stays lenient: there
+    the violated entry already reds the run on its own.
+    """
     reg_path = Path(registry) if registry else frontend / ".npm-audit-exemptions.json"
     if not reg_path.is_file():
         print(
@@ -266,6 +302,7 @@ def adjudicate_front(
         except ValueError:
             entry_error(gid, f"{gid}: malformed reviewBy {rb!r} (want YYYY-MM-DD)")
             continue
+        errors_before = len(errors)
         if review < today:
             entry_error(gid, f"{gid}: REVIEW BY {rb} has PASSED - re-review, fix, or remove")
         elif review <= today + timedelta(days=warn_days):
@@ -294,7 +331,12 @@ def adjudicate_front(
                 f"{gid}: registered but NO current audit finding matches - stale, remove it",
             )
             continue
-        covered.add(hit)
+        # Strict coverage (r291 security pass): the entry covers its finding
+        # only when the entry itself passed every rule above. An expired or
+        # premise-broken entry leaves the finding unexempted, so the gate
+        # delta cannot be green-lit by a dead entry's nominal match.
+        if not strict_coverage or len(errors) == errors_before:
+            covered.add(hit)
         a = found[hit]
         if a["in_range_fix"]:
             entry_error(
