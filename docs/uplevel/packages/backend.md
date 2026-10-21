@@ -331,7 +331,7 @@ from "Snooze an event or alert"). Covers F-050, F-079, F-216, F-217.
 
 **Flags:** none. **Assigned:** backend, after `[r295]` (ruling 308). **Depends on:** `B4.1` for the
 build PR; the test-only PR may open first. Its golden path uses `[r308a]`'s sinks.
-**PR:** none yet. (ruling 308, record 6326364266)
+**PR:** #7339. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236, F-232.
 
