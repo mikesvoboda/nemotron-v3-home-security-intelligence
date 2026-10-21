@@ -2237,6 +2237,45 @@ def test_a_heavy_agent_s_claimables_read_the_owning_lanes_files():
     assert flag is None or flag["move"]["to"] != "uplevel-heavy-b" or flag["package"] in ("r273", "B2.3")
 
 
+def test_a_dependency_name_is_the_backticked_package_token_not_the_prose_around_it():
+    # The re-review's blocking defect: B2.3's LIVE field is
+    # "**Depends on:** `O2.4` (its `RESULT: PASS` posted)." -- the words after the
+    # backticked token are prose about the dependency's state, but the same-line capture
+    # read them as more names ('its', 'RESULT', 'PASS', 'posted'), which match no README
+    # row, so the verdict printed "unread" where O2.4's row (`in progress`) gives "unmet".
+    # The same live shapes: "(ruling 260)", "(#7188)", backticked prose (`done`, `main`,
+    # `RESULT: PASS`), and file/sha mentions (`pipeline_workers.py`, `5d5c4bcc5`).
+    from scripts.uplevel.coordinator_snapshot import dep_names, dependency_verdict
+
+    def v(field, rows):
+        return dependency_verdict(dep_names("**Depends on:** " + field), rows)
+
+    rows = {"O2.4": "in progress", "B1.4": "done", "F2.1": "done", "O2.5": "awaiting real tier",
+            "O2.2": "done", "R2a": "done", "R2b": "done"}
+    # B2.3's verbatim live field: the prose suffix is state, not a name.
+    assert v("`O2.4` (its `RESULT: PASS` posted).", rows) == "unmet"
+    # Ruling-cite and PR-cite parentheticals are prose, not names.
+    assert v("`F2.1`. Its status is", rows) == "met"
+    assert dep_names("**Depends on:** `R2`; #7244 (`B3.3`) merged (ruling 260).") == ["R2", "B3.3"]
+    assert dep_names("**Depends on:** `B1.5`, `O1.6`.") == ["B1.5", "O1.6"]
+    assert dep_names("**Depends on:** `R2` (rules.md §Claiming and assigning work); lands in") == ["R2"]
+    # Backticked PROSE is not a package token: state words, a branch name, a file, a sha.
+    assert dep_names("**Depends on:** `R2`; the target lane's Phase 3 `done`.") == ["R2"]
+    assert dep_names("**Depends on:** #7321 (ruling 295's red-`main` exemption) merged.") == []
+    assert dep_names("**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`).") == ["[r199]"]
+    assert dep_names("**Depends on:** `[r231]` merged (#7235, `5d5c4bcc5`).") == ["[r231]"]
+    assert dep_names("**Depends on:** #7268 (`[r239]`) merged.") == ["[r239]"]
+    assert dep_names("**Depends on:** `R2`; both `O2.5` runs posted (ruling 260).") == ["R2", "O2.5"]
+    # A `none`-prefixed field declares no names even when prose later backticks a token.
+    assert dep_names("**Depends on:** none; it runs in parallel with backend's `[r130b]`.") == []
+    assert dep_names("**Depends on:** none named; it builds on `O2.2`'s") == []
+    # A field whose only text is prose names nothing (met, not unread).
+    assert v("its trigger.", {}) == "met"
+    # And the free-text name that no row carries still reads unread, never met (UR-154's
+    # direction is unchanged): `R2` names no row (the rows are `R2a`/`R2b`).
+    assert v("`R2`.", rows) == "unread"
+
+
 def test_the_claimable_scan_suppresses_only_the_agent_s_own_titles():
     # Review defect 6: the scan suppressed a token on `[{token}] in titles` over ALL open PR
     # titles repo-wide, while `next_claimable` (the box's own definition) checks only the

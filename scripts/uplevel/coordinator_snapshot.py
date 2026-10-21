@@ -131,6 +131,11 @@ NONE_YET = re.compile(r"[^\n#]*none yet", re.I)
 PR_NUMBER = re.compile(r"#(\d+)")
 # The package header line, as it stands AFTER splitting on "### " (the marker is gone).
 BLOCK = re.compile(r"\[?([\w.]+)\]?\s")
+# A dependency NAME's morphology, as `dep_names` reads it: a phase-package token
+# (``O2.4``, ``B2.3``, ``W3.1``) or an r-token, with or without its ``[...]`` wrapper
+# (``r239``/``[r239]``). Backticked prose (``done``, ``main``, ``RESULT: PASS``, a sha)
+# and unbackticked words never name a dependency.
+PACKAGE_TOKEN = re.compile(r"^(?:\[?r\d+[a-z]*\]?|[A-Z]{1,3}\d[\w.]*)$")
 # A PR title's LEADING token -- the claim identity a PR carries even when no `### [pkg]` block
 # names it yet. Same leading rule ``queue_entries`` reads: a token MENTIONED mid-title is prose,
 # and prose can name anything. The hyphen is load-bearing: ``[\w.]+`` (BLOCK's class) cannot hold
@@ -204,21 +209,27 @@ def readme_rows(readme: str) -> dict[str, str]:
 def dep_names(block: str) -> list[str]:
     """The package tokens a block's ``**Depends on:**`` field names, ``[]`` when it names none.
 
-    The value ends at the header's next field marker, not at the line's end: the one-line
-    header shape (``**Flags:** ... **Depends on:** `X`. **PR:** #7`) shares its line with
-    ``**PR:**``, and reading past it turned the marker's own `PR` into a dependency name -- a
-    name no README row carries, which forced every same-line block's verdict to ``unread``
-    even when its real dependency's row read ``done``.
+    A dependency name is a backticked token of package-token morphology (``O2.4``,
+    ``B2.3``, ``R2``, ``[r239]``) -- the shape every README row and roster queue token
+    carries. Everything else in the field is prose about the dependency's state or the
+    ruling that set it, and prose never becomes a name: the live field
+    ``**Depends on:** ``O2.4` (its `RESULT: PASS` posted).`` names exactly one
+    dependency, and reading its suffix (``its``, ``RESULT``, ``PASS``, ``posted``) as
+    more names made them match no README row, so a block whose dependency's row read
+    ``in progress`` printed ``unread`` where the box's semantics give ``unmet``. A field
+    that starts ``none`` declares no names even when its prose later backticks a token
+    ("none named; it builds on `O2.2`'s" -- the declaration governs). The value also ends
+    at the header's next field marker, not at the line's end: the one-line header shape
+    (``**Flags:** ... **Depends on:** `X`. **PR:** #7`) shares its line with ``**PR:**``,
+    and reading past it turned the marker's own `PR` into a dependency name.
     """
     m = re.search(r"\*\*Depends on:\*\*([^*\n]*)", block, re.I)
     if not m:
         return []
-    names = re.findall(r"`?([\w.]+)`?", re.sub(r"none\b.*", "", m.group(1)))
-    # A bare sentence period after the token (``**Depends on:** `X`. **PR:**`` -- the capture
-    # stops at the next field marker, leaving the period) is prose, not a dependency name: a
-    # token of only dots names no package and no README row, and counting it forced the verdict
-    # to `unread` for every same-line block.
-    return [n for n in names if n.strip(".")]
+    field = m.group(1)
+    if re.match(r"\s*none\b", field):
+        return []
+    return [t for t in re.findall(r"`([^`]+)`", field) if PACKAGE_TOKEN.match(t)]
 
 
 def dependency_verdict(names: list[str], rows: dict[str, str]) -> str:
