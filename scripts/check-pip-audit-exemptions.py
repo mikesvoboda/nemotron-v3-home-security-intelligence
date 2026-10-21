@@ -234,7 +234,7 @@ def advisory_aliases(audit_path: Path) -> dict[str, set[str]]:
     try:
         raw = audit_path.read_text()
         doc = json.loads(raw)
-    except OSError, json.JSONDecodeError:
+    except (OSError, json.JSONDecodeError):
         return {}
     out: dict[str, set[str]] = {}
     for dep in doc.get("dependencies") or []:
