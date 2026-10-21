@@ -10,7 +10,7 @@ Component source code is located at:
 frontend/src/components/
 ```
 
-For detailed component navigation, patterns, and architecture, see [AGENTS.md](./AGENTS.md).
+For detailed frontend navigation, patterns, and architecture, see [frontend/AGENTS.md](../../frontend/AGENTS.md).
 
 ## Directory Structure
 
@@ -51,5 +51,5 @@ For detailed component navigation, patterns, and architecture, see [AGENTS.md](.
 ## Related Documentation
 
 - [Frontend Architecture](../architecture/frontend/README.md)
-- [Testing Patterns](../developer/patterns/AGENTS.md)
+- [Testing Patterns](../developer/patterns-and-conventions.md)
 - [API Client Documentation](../api/DEPRECATION_POLICY.md)

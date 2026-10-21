@@ -96,5 +96,8 @@ content violation, **2** the gate could not run (bad config, missing key) — so
 blames a docs PR.
 
 `W3.1` switches the required rule from "an `AGENTS.md` in every directory with two code files" to
-"required at each boundary, forbidden elsewhere", which is when this page's _where they live_
+"required at each boundary, forbidden elsewhere" (ruling 300: `W3.1` PR 1 enforces that every
+`boundary_list` directory has an `AGENTS.md` and reports every `AGENTS.md` outside the list in
+`ratchet.outside_boundaries`; the last lane's `W3.1` PR flips `outside_boundaries.failing` to
+`True`), which is when this page's _where they live_
 section becomes enforced rather than advisory.

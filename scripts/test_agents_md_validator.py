@@ -473,16 +473,64 @@ def test_sibling_readme_is_not_scanned(tmp_path):
     assert r.returncode == 0, r.stderr
 
 
-def test_missing_agents_md_stays_reporting_only(tmp_path):
-    """Scope pin: missing_agents_md is NOT one of the package's three failure
-    conditions — wiring it is W3.1's Phase-3 job. The issue must still be
-    REPORTED (linear_sync keeps filing its tickets) while the gate stays
-    green."""
+def test_non_boundary_code_dir_does_not_require_agents_md(tmp_path):
+    """W3.1 (ruling 300 item 2): the validator no longer requires an AGENTS.md
+    in every directory with >= 2 code files; only boundary_list directories
+    require one."""
     root = build(tmp_path, files={"src/a.py": "", "src/b.py": "", "src/c.py": ""})
     r = run_validator(root)
     assert r.returncode == 0, r.stderr
     types = [i["type"] for i in report_of(root)["issues"]]
-    assert "missing_agents_md" in types
+    assert "missing_agents_md" not in types
+
+
+def test_missing_boundary_agents_md_fails(tmp_path):
+    """W3.1 (ruling 300 item 2): the validator requires an AGENTS.md at each
+    boundary_list directory, failing when one is missing."""
+    root = build(
+        tmp_path,
+        boundary=[
+            {"path": ".", "reason": "root"},
+            {"path": "backend", "reason": "lane root"},
+        ],
+    )
+    r = run_validator(root)
+    assert r.returncode == 1
+    report = report_of(root)
+    missing = [i for i in report["issues"] if i["type"] == "missing_agents_md"]
+    assert len(missing) == 1
+    assert missing[0]["directory"] == "backend/"
+    assert any("backend/" in v for v in report["ratchet"]["violations"])
+    assert "backend/" in r.stderr
+
+
+def test_outside_boundary_agents_md_is_reported_without_failing(tmp_path):
+    """W3.1 (ruling 300 item 2): the validator reports, without failing, every
+    AGENTS.md outside boundary_list until the last lane's W3.1 PR switches it
+    to failing."""
+    root = build(
+        tmp_path,
+        files={"docs/sub/AGENTS.md": "# Sub\n", "backend/sub/AGENTS.md": "# Sub2\n"},
+        boundary=[{"path": ".", "reason": "root"}],
+    )
+    r = run_validator(root)
+    assert r.returncode == 0, r.stderr
+    report = report_of(root)
+    outside = report["ratchet"]["outside_boundaries"]
+    assert outside["failing"] is False
+    assert outside["count"] == 2
+    assert outside["files"] == ["backend/sub/AGENTS.md", "docs/sub/AGENTS.md"]
+    assert report["ratchet"]["violations"] == []
+
+    r_loud = subprocess.run(
+        [sys.executable, str(VALIDATOR), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r_loud.returncode == 0
+    assert "[outside-boundary] docs/sub/AGENTS.md" in r_loud.stderr
+    assert "[outside-boundary] backend/sub/AGENTS.md" in r_loud.stderr
 
 
 # --------------------------------------------------------------------------
@@ -634,7 +682,9 @@ def test_report_shape_is_pinned(tmp_path):
         "violations",
         "unbalanced_fences",
         "line_caps",
+        "outside_boundaries",
     }
+    assert ratchet["outside_boundaries"] == {"count": 0, "files": [], "failing": False}
 
 
 def test_line_caps_report_every_tier_and_never_fail(tmp_path):
@@ -664,7 +714,6 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
         {"path": "backend", "reason": "lane root"},
         {"path": "ai/gateway", "reason": "package"},
         {"path": "scripts", "reason": "lane root, under cap"},
-        {"path": "synthbench/contract", "reason": "boundary with no AGENTS.md"},
         {"path": "backend/models", "reason": "package, exactly at cap"},
     ]
     long_enough = "# Fixture\n\n" + "body\n" * 20
@@ -687,8 +736,8 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
     report = report_of(root)
     block = report["ratchet"]["line_caps"]
     assert block["failing"] is False
-    assert block["boundaries"] == 6
-    assert block["measured"] == 5  # the sixth has no AGENTS.md to measure
+    assert block["boundaries"] == 5
+    assert block["measured"] == 5
     over = {e["path"]: e for e in block["over"]}
     assert over["AGENTS.md"]["tier"] == "root"
     assert over["backend/AGENTS.md"]["tier"] == "lane_root"
@@ -702,14 +751,27 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
         "a file whose line count equals its cap was reported over — the "
         "comparison is `> cap` (a maximum), not `>= cap` (a trigger)"
     )
-    # The missing-file arm is REPORTED, not skipped: a boundary the scan never
-    # saw is a hole in the prune map, and skipping it would shrink the map
-    # silently (the vacuous-comparison failure mode).
-    hole = over["synthbench/contract/AGENTS.md"]
-    assert hole["measured"] is None
-    assert hole["tier"] == "package"
     # Reporting-only in the strongest sense: the gate's own verdict field.
     assert report["ratchet"]["violations"] == []
+
+    # A boundary with no AGENTS.md is recorded in line_caps["over"] with
+    # measured=None AND fails the run under W3.1's boundary requirement.
+    write_config(
+        root,
+        boundary=[
+            *boundary,
+            {"path": "synthbench/contract", "reason": "boundary with no AGENTS.md"},
+        ],
+        caps={"root": 3, "lane_root": 10, "package": 10},
+    )
+    r_hole = run_validator(root)
+    assert r_hole.returncode == 1
+    hole_block = report_of(root)["ratchet"]["line_caps"]
+    assert hole_block["boundaries"] == 6
+    assert hole_block["measured"] == 5
+    hole = {e["path"]: e for e in hole_block["over"]}["synthbench/contract/AGENTS.md"]
+    assert hole["measured"] is None
+    assert hole["tier"] == "package"
 
 
 def test_caps_apply_to_boundary_files_only(tmp_path):
@@ -1161,20 +1223,19 @@ def test_real_tree_scanned_count_floor(real_run):
     143 -> 83 and florence 93 -> 70 with no baseline edit). The dead-reference
     arm at least reacts under anchored resolution — the same edit reports 138
     stale references — but a shrunk denominator is invisible without this
-    floor. A FLOOR, not equality: W3.1 may legitimately add AGENTS.md files;
-    if the set SHRINKS, someone widened an exclusion — update the floor and
-    say why in the same PR.
+    floor.
 
-    245 -> 243 (O1.5, UR-19, 2026-10-09): `git rm -r archive docs/archive`
-    removed 2 AGENTS.md files.
-    243 -> 236 (O3.1, ruling 210, 2026-10-18): pruning non-shipping ai/ and
-    synthbench/spikes/ directories removed the 8 AGENTS.md files inside
-    ai/common/, ai/common/tests/, ai/shared/, ai/triton/tests/,
-    ai/yolo26/tests/, synthbench/spikes/, synthbench/spikes/p1_bakeoff/ and
-    backend/tests/unit/synthbench/spikes/ (244 - 8 = 236)."""
+    W3.1 (ruling 300 item 2): the floor is now the boundary_list count (37),
+    and every scanned file is accounted for as either a boundary file or a
+    reported outside-boundary file, so no later W3.1 deletion of non-boundary
+    AGENTS.md files can fail this gate."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 236
+    outside = report["ratchet"]["outside_boundaries"]
+    assert outside["failing"] is False
+    assert report["total_agents_md_files"] >= len(EXPECTED_BOUNDARY_PATHS) == 37
+    assert report["total_agents_md_files"] == len(EXPECTED_BOUNDARY_PATHS) + outside["count"]
+    assert report["summary"]["missing_agents_md"] == 0
 
 
 @pytest.mark.timeout(180)
