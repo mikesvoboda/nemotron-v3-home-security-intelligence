@@ -86,7 +86,7 @@ def _clean_env(**extra: str | None) -> dict[str, str]:
     """Host env minus everything prod interpolates, plus the fixed render values. `None` in `extra`
     means 'ensure this one is also absent' (for the PODMAN_SOCKET-unset case)."""
     env = {k: v for k, v in os.environ.items() if k not in INTERPOLATED}
-    env["POSTGRES_PASSWORD"] = "render-only"  # pragma: allowlist secret
+    env["POSTGRES_PASSWORD"] = "render-only"  # noqa: S105  # pragma: allowlist secret
     for key, value in extra.items():
         if value is None:
             env.pop(key, None)
@@ -106,7 +106,9 @@ def _cli_version() -> str:
     imported resource``, reproduced at #7114's run 38670581001). A render failure without the
     version is undiagnosable, so every failure names its CLI.
     """
-    probe = subprocess.run(["docker", "compose", "version"], capture_output=True, text=True)
+    probe = subprocess.run(
+        ["docker", "compose", "version"], check=False, capture_output=True, text=True
+    )
     return (probe.stdout or probe.stderr).strip() or "<version unreadable>"
 
 
@@ -114,12 +116,22 @@ def _render(*extra_files: str, **extra: str | None) -> tuple[int, str, dict]:
     """One `docker compose config` render. `extra_files` are literal `-f` args AFTER prod.yml —
     the OFF overlay the deploy tooling selects ([r243]); passing them here is the test mirroring
     what `setup_lib/deploy.py` puts in the argv, not the test deciding the mechanism."""
-    cmd = ["docker", "compose", "-p", "r162-audit", "--project-directory", str(REPO),
-           "-f", str(PROD)]
+    cmd = [
+        "docker",
+        "compose",
+        "-p",
+        "r162-audit",
+        "--project-directory",
+        str(REPO),
+        "-f",
+        str(PROD),
+    ]
     for f in extra_files:
         cmd += ["-f", str(REPO / f)]
     cmd += ["config", "--format", "json"]
-    p = subprocess.run(cmd, cwd=REPO, env=_clean_env(**extra), capture_output=True, text=True)
+    p = subprocess.run(
+        cmd, check=False, cwd=REPO, env=_clean_env(**extra), capture_output=True, text=True
+    )
     if p.returncode != 0:
         return p.returncode, f"{p.stderr.strip()} [CLI: {_cli_version()}]", {}
     # A 0 rc that is not JSON raises here — a loud failure, never a silent green.
@@ -133,8 +145,11 @@ def _is_socket(v: dict) -> bool:
 
 def _socket_mounts(services: dict) -> dict[str, list[str]]:
     return {
-        n: [f"{v.get('source')}->{v.get('target')}"
-            for v in (services.get(n, {}).get("volumes") or []) if _is_socket(v)]
+        n: [
+            f"{v.get('source')}->{v.get('target')}"
+            for v in (services.get(n, {}).get("volumes") or [])
+            if _is_socket(v)
+        ]
         for n in NAMED
     }
 
@@ -142,10 +157,14 @@ def _socket_mounts(services: dict) -> dict[str, list[str]]:
 # Every render leg needs the moby docker-compose CLI. A missing binary FAILS — a skipped socket
 # guard reads as a green package (test_prodshape_override.py:123-132 doctrine).
 def _require_cli() -> None:
-    probe = subprocess.run(["docker", "compose", "version"], capture_output=True, text=True)
+    probe = subprocess.run(
+        ["docker", "compose", "version"], check=False, capture_output=True, text=True
+    )
     if probe.returncode != 0:
-        pytest.fail("`docker compose` is unavailable; this socket guard REQUIRES the moby CLI "
-                    "(it is the oracle ruling 162 named). A missing binary must fail, not skip.")
+        pytest.fail(
+            "`docker compose` is unavailable; this socket guard REQUIRES the moby CLI "
+            "(it is the oracle ruling 162 named). A missing binary must fail, not skip."
+        )
 
 
 # ------------------------------------------------------------------ Done-when clause 1 ----------
@@ -176,7 +195,9 @@ def test_orchestrator_off_mounts_no_engine_socket():
     assert rc == 0, f"orchestrator-off render failed rc={rc}: {err[:400]}"
     hits = _socket_mounts(services)
     assert not hits["backend"], f"backend keeps the engine socket with the orchestrator OFF: {hits}"
-    assert hits["alloy"], f"alloy LOST its monitoring socket (ruling 186 keeps it unconditional): {hits}"
+    assert hits["alloy"], (
+        f"alloy LOST its monitoring socket (ruling 186 keeps it unconditional): {hits}"
+    )
 
 
 def test_the_off_overlay_drops_only_the_socket():
@@ -198,7 +219,10 @@ def test_the_off_overlay_drops_only_the_socket():
         f"the ON render's backend socket target is not the one mount this package gates: "
         f"{sorted(socket_targets)}"
     )
-    lost, gained = on_targets - socket_targets - off_targets, off_targets - (on_targets - socket_targets)
+    lost, gained = (
+        on_targets - socket_targets - off_targets,
+        off_targets - (on_targets - socket_targets),
+    )
     assert not lost and not gained, (
         f"the OFF overlay changed more than the socket: lost={sorted(lost)} gained={sorted(gained)} "
         f"(a `!override` re-list must carry EVERY surviving mount verbatim)"
@@ -243,14 +267,32 @@ def test_the_unset_flag_keeps_the_socket():
 # first, so rc!=0 here cannot be an unrelated failure — and the assertion pins WHICH fragment the
 # renderer looked for, which a generic breakage cannot satisfy.
 NON_CANONICAL_BOOL_SPELLINGS = (
-    "1", "0",                                   # digits
-    "t", "T", "f", "F", "y", "Y", "n", "N",     # single letters
-    "yes", "Yes", "YES",                        # yes-family
-    "no", "No", "NO",                           # no-family
-    "on", "On", "ON",                           # on-family
-    "off", "Off", "OFF",                        # off-family
-    "True", "TRUE",                             # true-family, non-canonical case
-    "False", "FALSE",                           # false-family, non-canonical case
+    "1",
+    "0",  # digits
+    "t",
+    "T",
+    "f",
+    "F",
+    "y",
+    "Y",
+    "n",
+    "N",  # single letters
+    "yes",
+    "Yes",
+    "YES",  # yes-family
+    "no",
+    "No",
+    "NO",  # no-family
+    "on",
+    "On",
+    "ON",  # on-family
+    "off",
+    "Off",
+    "OFF",  # off-family
+    "True",
+    "TRUE",  # true-family, non-canonical case
+    "False",
+    "FALSE",  # false-family, non-canonical case
 )
 
 
@@ -288,8 +330,9 @@ def test_the_off_overlay_does_not_bypass_the_marker_guard(spelling: str):
     marker. This pins that load order against a compose upgrade that defers interpolation past
     the merge — if it ever does, the loud-failure design needs a rethink, not a relaxed test."""
     _require_cli()
-    rc, err, _services = _render(OFF_OVERLAY, PODMAN_SOCKET=SOCKET_SENTINEL,
-                                 ORCHESTRATOR_ENABLED=spelling)
+    rc, err, _services = _render(
+        OFF_OVERLAY, PODMAN_SOCKET=SOCKET_SENTINEL, ORCHESTRATOR_ENABLED=spelling
+    )
     assert rc != 0, (
         f"ORCHESTRATOR_ENABLED={spelling!r} rendered rc=0 THROUGH the OFF overlay: the overlay "
         f"merged a document whose marker was never resolved — compose's load order changed and "

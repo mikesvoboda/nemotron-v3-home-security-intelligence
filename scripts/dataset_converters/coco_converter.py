@@ -297,7 +297,7 @@ class COCOConverter(DatasetConverter):
                 continue
 
             # Get category info
-            cat_info = categories.get(cat_id, {})
+            cat_info = categories.get(int(cat_id), {}) if cat_id is not None else {}
             cat_name = cat_info.get("name", "unknown")
 
             # Get security mapping

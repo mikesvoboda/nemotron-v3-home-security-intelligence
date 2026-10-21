@@ -35,6 +35,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 AUDIT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = AUDIT_DIR.parents[1]
@@ -50,7 +51,7 @@ GUARD_PATH = REPO_ROOT / "scripts" / "parametrize-guard.py"
 SKIP_DIRNAMES = {".git", "__pycache__", "node_modules", ".venv", ".pytest_cache", ".mypy_cache"}
 
 
-def _load_guard():
+def _load_guard() -> Any:
     spec = importlib.util.spec_from_file_location("parametrize_guard", GUARD_PATH)
     assert spec and spec.loader, f"cannot load {GUARD_PATH}"
     mod = importlib.util.module_from_spec(spec)
@@ -58,11 +59,11 @@ def _load_guard():
     return mod
 
 
-def groups_in_file(path: Path, guard, min_size: int) -> list[dict]:
+def groups_in_file(path: Path, guard: Any, min_size: int) -> list[dict]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     buckets: dict[tuple[str, str, tuple[str, ...]], list] = collections.defaultdict(list)
 
-    def add(fn, cls_name):
+    def add(fn: ast.FunctionDef | ast.AsyncFunctionDef, cls_name: str) -> None:
         if not fn.name.startswith("test_"):
             return
         buckets[(cls_name, guard._masked(fn), guard.raises_matches(fn))].append(fn)
@@ -83,7 +84,9 @@ def groups_in_file(path: Path, guard, min_size: int) -> list[dict]:
         if len(members) >= min_size:
             out.append(
                 {
-                    "file": path.relative_to(REPO_ROOT).as_posix() if path.is_relative_to(REPO_ROOT) else str(path),
+                    "file": path.relative_to(REPO_ROOT).as_posix()
+                    if path.is_relative_to(REPO_ROOT)
+                    else str(path),
                     "class": cls,
                     "size": len(members),
                     "members": sorted(m.name for m in members),

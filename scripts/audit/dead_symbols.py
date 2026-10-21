@@ -86,8 +86,8 @@ STRING_ACCESSORS = {"getattr", "setattr", "hasattr", "delattr", "import_module"}
 
 @dataclass
 class Declaration:
-    kind: str             # "exception" | "metric"
-    name: str             # the python-bound name
+    kind: str  # "exception" | "metric"
+    name: str  # the python-bound name
     path: str
     lineno: int
     registered: str = ""  # metrics: the prometheus name string
@@ -103,11 +103,11 @@ class FileIndex:
     """One pass over one file: every way it can mention a symbol, keyed by name."""
 
     rel: str
-    names: dict[str, list[str]] = field(default_factory=dict)      # Name nodes (real reads)
-    attrs: dict[str, list[str]] = field(default_factory=dict)      # Attribute tails (.name)
-    handlers: dict[str, list[str]] = field(default_factory=dict)   # except-clause mentions
-    reexport: dict[str, list[str]] = field(default_factory=dict)   # import aliases, __all__
-    dynamic: dict[str, list[str]] = field(default_factory=dict)    # string-keyed access
+    names: dict[str, list[str]] = field(default_factory=dict)  # Name nodes (real reads)
+    attrs: dict[str, list[str]] = field(default_factory=dict)  # Attribute tails (.name)
+    handlers: dict[str, list[str]] = field(default_factory=dict)  # except-clause mentions
+    reexport: dict[str, list[str]] = field(default_factory=dict)  # import aliases, __all__
+    dynamic: dict[str, list[str]] = field(default_factory=dict)  # string-keyed access
     is_test: bool = False
 
 
@@ -144,7 +144,11 @@ def _docstring_ids(tree: ast.Module) -> set[int]:
         if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
             if ast.get_docstring(node):  # type: ignore[arg-type]
                 body = getattr(node, "body", [])
-                if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+                if (
+                    body
+                    and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant)
+                ):
                     ids.add(id(body[0].value))
     return ids
 
@@ -194,13 +198,21 @@ def index_file(rel: str, tree: ast.Module) -> FileIndex:
                     add(idx.reexport, const.value, const)
         elif isinstance(node, ast.Dict):
             for key in node.keys:
-                if isinstance(key, ast.Constant) and isinstance(key.value, str) and id(key) not in docs:
+                if (
+                    isinstance(key, ast.Constant)
+                    and isinstance(key.value, str)
+                    and id(key) not in docs
+                ):
                     add(idx.dynamic, key.value, node)
         elif isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
             if isinstance(node.slice.value, str) and id(node.slice) not in docs:
                 add(idx.dynamic, node.slice.value, node)
         elif isinstance(node, ast.Call):
-            fname = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+            fname = (
+                node.func.attr
+                if isinstance(node.func, ast.Attribute)
+                else getattr(node.func, "id", "")
+            )
             if fname in STRING_ACCESSORS or fname in {"get", "pop", "setdefault"}:
                 for arg in node.args[1:] if fname in STRING_ACCESSORS else node.args[1:2]:
                     if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
@@ -230,7 +242,9 @@ def exception_declarations(trees: dict[str, ast.Module]) -> list[Declaration]:
     for tree in trees.values():
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
-                parents.setdefault(node.name, set()).update(base_name(b) for b in node.bases if base_name(b))
+                parents.setdefault(node.name, set()).update(
+                    base_name(b) for b in node.bases if base_name(b)
+                )
 
     memo: dict[str, bool] = {}
 
@@ -281,7 +295,10 @@ def prometheus_factory_names(tree: ast.Module) -> set[str]:
     """
     names: set[str] = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "prometheus_client":
+        if (
+            isinstance(node, ast.ImportFrom)
+            and (node.module or "").split(".")[0] == "prometheus_client"
+        ):
             for alias in node.names:
                 if alias.name in METRIC_FACTORIES:
                     names.add(alias.asname or alias.name)
@@ -328,7 +345,9 @@ def metric_declarations(trees: dict[str, ast.Module]) -> list[Declaration]:
                 registered = str(call.args[0].value)
             else:
                 for kw in call.keywords:
-                    if kw.arg in {"name", "namespace", "subsystem"} and isinstance(kw.value, ast.Constant):
+                    if kw.arg in {"name", "namespace", "subsystem"} and isinstance(
+                        kw.value, ast.Constant
+                    ):
                         registered = str(kw.value.value)
                         break
             decls.append(
@@ -404,13 +423,13 @@ def verdict(decl: Declaration, refs: dict[str, list[str]], queries: list[str]) -
     same_file = [r for r in refs["live"] if r.startswith(decl.path + ":")]
     other_tests = [r for r in refs["test"] if not r.startswith(decl.path + ":")]
     if queries:
-        return "queried"      # a dashboard/rule reads it: live without a caller
+        return "queried"  # a dashboard/rule reads it: live without a caller
     if refs["dynamic"] or other_live or same_file:
-        return "live"         # dynamic reach is treated as live: the safe direction
+        return "live"  # dynamic reach is treated as live: the safe direction
     if other_tests:
-        return "prod_dead"    # only tests name it -- deleting means editing those too
+        return "prod_dead"  # only tests name it -- deleting means editing those too
     if refs["reexport"]:
-        return "reexported"   # alive only in a barrel: §4.1's own hiding mechanism
+        return "reexported"  # alive only in a barrel: §4.1's own hiding mechanism
     return "unused"
 
 
@@ -421,7 +440,9 @@ def scan(root: Path) -> dict:
         if not rel.endswith(PY_SUFFIXES):
             continue
         try:
-            trees[rel] = ast.parse((root / rel).read_text(encoding="utf-8", errors="replace"), rel, "exec")
+            trees[rel] = ast.parse(
+                (root / rel).read_text(encoding="utf-8", errors="replace"), rel, "exec"
+            )
         except (SyntaxError, UnicodeDecodeError, OSError, ValueError) as exc:
             print(f"[WARN] unparseable {rel}: {exc}", file=sys.stderr)
     indexes = {rel: index_file(rel, tree) for rel, tree in trees.items()}
@@ -448,7 +469,9 @@ def scan(root: Path) -> dict:
                 "query_files": queries,
             }
         )
-    rows.sort(key=lambda r: (r["verdict"] != "unused", r["verdict"] != "prod_dead", r["kind"], r["name"]))
+    rows.sort(
+        key=lambda r: (r["verdict"] != "unused", r["verdict"] != "prod_dead", r["kind"], r["name"])
+    )
     counts: dict[str, dict[str, int]] = {}
     for row in rows:
         counts.setdefault(row["kind"], {}).setdefault(row["verdict"], 0)
@@ -476,12 +499,15 @@ def main(argv: list[str] | None = None) -> int:
         result["symbols"] = [
             r
             for r in result["symbols"]
-            if (not args.kind or r["kind"] == args.kind) and (not args.tier or r["verdict"] == args.tier)
+            if (not args.kind or r["kind"] == args.kind)
+            and (not args.tier or r["verdict"] == args.tier)
         ]
     json.dump(result, sys.stdout, indent=2, sort_keys=True)
     print(file=sys.stdout)
     for kind, tally in sorted(result["totals"].items()):
-        print(f"{kind}: " + ", ".join(f"{n} {v}" for n, v in sorted(tally.items())), file=sys.stderr)
+        print(
+            f"{kind}: " + ", ".join(f"{n} {v}" for n, v in sorted(tally.items())), file=sys.stderr
+        )
     return 0
 
 

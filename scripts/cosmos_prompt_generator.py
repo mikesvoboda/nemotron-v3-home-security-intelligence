@@ -24,6 +24,7 @@ import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -70,7 +71,8 @@ def load_yaml(path: Path, allowed_base: Path | None = None) -> dict:
     if allowed_base is not None:
         path = validate_path_within_directory(path, allowed_base)
     with path.open() as f:
-        return yaml.safe_load(f)
+        data: dict[str, Any] = yaml.safe_load(f)
+        return data
 
 
 def load_manifest() -> dict:
@@ -96,7 +98,7 @@ def render_prompt(video_spec: dict, template_env: Environment) -> str:
     """Render a prompt from a video specification."""
     # Check for direct prompt override (training videos often have these)
     if "prompt_override" in video_spec:
-        return video_spec["prompt_override"]
+        return str(video_spec["prompt_override"])
 
     # Load template
     template = template_env.get_template("base_prompt.jinja2")
@@ -136,7 +138,8 @@ def get_video_spec(manifest: dict, video_id: str) -> dict | None:
             if video["id"] == video_id:
                 video["category"] = "presentation"
                 video["scenario"] = scenario_name
-                return video
+                res_pres: dict[str, Any] = video
+                return res_pres
 
     # Search training videos
     for category_name, videos in manifest.get("training", {}).items():
@@ -144,7 +147,8 @@ def get_video_spec(manifest: dict, video_id: str) -> dict | None:
             if video["id"] == video_id:
                 video["category"] = "training"
                 video["scenario"] = category_name
-                return video
+                res_train: dict[str, Any] = video
+                return res_train
 
     return None
 
@@ -222,7 +226,7 @@ def generate_batch_jsonl(specs: list[dict], prompts: list[str], output_path: Pat
             f.write(json.dumps(entry) + "\n")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Generate Cosmos video prompts")
     parser.add_argument("--id", help="Video ID to generate (e.g., P01, T15)")
     parser.add_argument("--all", action="store_true", help="Generate all prompts")

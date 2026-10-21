@@ -80,18 +80,18 @@ def load_unit(durations_path: Path) -> tuple[dict[str, float], dict[str, list[st
     return unit, modules
 
 
-def order_for(seed: int, modules: "dict[str, list[str]] | list[str]") -> list[str]:
+def order_for(seed: int, modules: dict[str, list[str]]) -> list[str]:
     """Module-block permutation for one seed (see MODEL in the docstring).
 
     Accepts the module->items mapping or a bare list of module names (for
     callers holding an ordered module list of their own).
     """
     mods = list(modules.keys() if isinstance(modules, dict) else modules)
-    random.Random(seed).shuffle(mods)
+    random.Random(seed).shuffle(mods)  # noqa: S311
     items: list[str] = []
     for m in mods:
         block = list(modules[m])
-        random.Random(seed * 31 + len(block)).shuffle(block)
+        random.Random(seed * 31 + len(block)).shuffle(block)  # noqa: S311
         items += block
     return items
 
@@ -108,7 +108,7 @@ def assign(items: list[str], durations: dict[str, float], algo: str) -> dict[str
         per_group = sum(weights) / SPLITS
         groups: dict[str, int] = {}
         gi, acc = 0, 0.0
-        for item, w in zip(items, weights):
+        for item, w in zip(items, weights, strict=False):
             if gi < SPLITS - 1 and acc >= per_group:
                 gi += 1
                 acc = 0.0
@@ -118,7 +118,10 @@ def assign(items: list[str], durations: dict[str, float], algo: str) -> dict[str
     # LeastDurationAlgorithm: pre-sort by str(item) (tie-break), then by
     # duration descending, then greedy least-loaded-heap.
     name = {i: f"<Function {i.rsplit('::', 1)[-1]}>" for i in items}
-    pairs = sorted(zip(items, (durations.get(i, avg) for i in items)), key=lambda t: name[t[0]])
+    pairs = sorted(
+        zip(items, (durations.get(i, avg) for i in items), strict=False),
+        key=lambda t: name[t[0]],
+    )
     pairs = sorted(pairs, key=lambda t: t[1], reverse=True)
     heap = [(0.0, g) for g in range(SPLITS)]
     heapq.heapify(heap)
@@ -152,19 +155,25 @@ def main() -> None:
     args = ap.parse_args()
 
     unit, modules = load_unit(args.durations)
-    print(f"corpus: {args.durations.name}: {len(unit)} unit nodeids in "
-          f"{len(modules)} modules, {sum(unit.values()):.1f}s\n")
+    print(
+        f"corpus: {args.durations.name}: {len(unit)} unit nodeids in "
+        f"{len(modules)} modules, {sum(unit.values()):.1f}s\n"
+    )
 
     def d_for(kind: str) -> dict[str, float]:
         return {} if kind == "no" else unit
 
     print("A. per-run spread (max/min shard seconds), one seed per run:")
     for label, kind, algo in CONFIGS:
-        sp = [spread(assign(order_for(s, modules), d_for(kind), algo), unit)
-              for s in range(3001, 3001 + args.runs)]
+        sp = [
+            spread(assign(order_for(s, modules), d_for(kind), algo), unit)
+            for s in range(3001, 3001 + args.runs)
+        ]
         print(f"   {label:26s} mean {statistics.mean(sp):5.2f}x  max {max(sp):5.2f}x")
-    print("   (real: 2.207x on run 37940703535, 1.207x on 37933347572 — "
-          "junit per-testcase sums, not model output)")
+    print(
+        "   (real: 2.207x on run 37940703535, 1.207x on 37933347572 — "
+        "junit per-testcase sums, not model output)"
+    )
 
     print("\nB. insert a 20-test module; existing tests that change shard:")
     newmod = "backend/tests/unit/services/test_brand_new_10.py"
@@ -175,7 +184,7 @@ def main() -> None:
             base = order_for(s, modules)
             # the new module's block lands at a seed-chosen position among
             # module blocks (that is where pytest-randomly puts it)
-            pos = random.Random(s * 7 + 13).randrange(len(modules))
+            pos = random.Random(s * 7 + 13).randrange(len(modules))  # noqa: S311
             cut = sum(len(modules[m]) for m in list(modules)[:pos])
             withn = base[:cut] + new + base[cut:]
             m0 = assign(base, d_for(kind), algo)

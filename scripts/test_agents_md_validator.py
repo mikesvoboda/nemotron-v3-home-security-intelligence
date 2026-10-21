@@ -1171,10 +1171,13 @@ def test_real_tree_scanned_count_floor(real_run):
     synthbench/spikes/ directories removed the 8 AGENTS.md files inside
     ai/common/, ai/common/tests/, ai/shared/, ai/triton/tests/,
     ai/yolo26/tests/, synthbench/spikes/, synthbench/spikes/p1_bakeoff/ and
-    backend/tests/unit/synthbench/spikes/ (244 - 8 = 236)."""
+    backend/tests/unit/synthbench/spikes/ (244 - 8 = 236).
+    236 -> 234 (O3.7, ruling 298, 2026-10-21): deleting the unreferenced
+    scripts/benchmark/ and tests/benchmark/ trees removed their 2 AGENTS.md
+    files."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 236
+    assert report["total_agents_md_files"] >= 234
 
 
 @pytest.mark.timeout(180)

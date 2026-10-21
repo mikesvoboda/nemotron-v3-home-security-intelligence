@@ -44,7 +44,15 @@ from pathlib import Path
 CONFIG_REL = "backend/core/config.py"
 ENV_CONSUMERS_REL = ("setup.py",)
 ENV_CONSUMER_GLOBS = ("docker-compose*.yml", "config/*.yml")
-SKIP_DIRNAMES = {".git", "__pycache__", "node_modules", ".venv", ".pytest_cache", ".mypy_cache", "mutants"}
+SKIP_DIRNAMES = {
+    ".git",
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    ".pytest_cache",
+    ".mypy_cache",
+    "mutants",
+}
 BASE = "basesettings"
 WORD_RE = re.compile(r"\w+")
 

@@ -72,9 +72,7 @@ def main() -> int:
         return 1
 
     job = jobs[JOB]
-    script = "\n".join(
-        s.get("run", "") for s in job.get("steps", []) if s.get("run")
-    )
+    script = "\n".join(s.get("run", "") for s in job.get("steps", []) if s.get("run"))
 
     # 2. It runs the committed config over the changed-file range — as a real
     #    command line, with the range flags ON that same line.
@@ -98,9 +96,7 @@ def main() -> int:
     gate_needs = gate_needs if isinstance(gate_needs, list) else [gate_needs]
     if JOB not in gate_needs:
         failures.append(f"ci-gate does not need {JOB!r}")
-    gate_script = "\n".join(
-        s.get("run", "") for s in gate.get("steps", []) if s.get("run")
-    )
+    gate_script = "\n".join(s.get("run", "") for s in gate.get("steps", []) if s.get("run"))
     if f"needs.{JOB}.result" not in gate_script:
         failures.append(f"ci-gate carries no check_job line for needs.{JOB}.result")
 
@@ -110,7 +106,7 @@ def main() -> int:
     #    itself. (Substring on the word "self-test" was the decoy hole.)
     if "webhook-secret" not in script:
         failures.append(
-            f"job {JOB!r} writes no #6888-class fixture (secret = \"webhook-secret\") "
+            f'job {JOB!r} writes no #6888-class fixture (secret = "webhook-secret") '  # pragma: allowlist secret
             "— the self-test must trip on the class that motivated the package"
         )
     if not any("--files" in ln for ln in invocations):
@@ -125,7 +121,9 @@ def main() -> int:
             print(f"FAIL: {f}", file=sys.stderr)
         return 1
 
-    print(f"OK: pre-commit hooks job exists, ranges over changed files, gates, and self-tests ({JOB})")
+    print(
+        f"OK: pre-commit hooks job exists, ranges over changed files, gates, and self-tests ({JOB})"
+    )
     return 0
 
 
