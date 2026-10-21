@@ -217,7 +217,11 @@ paths; the inventory row reads **works** once the operator records the real-tier
   on the real stack: Grafana's embedding setting and the frame policy, behind the app's login
   (`O1.11`, UR-33). The golden path drives the picker on the test deployment. The design session
   settles the picker's list, deep links and old-route redirects. Until it is built, Grafana stays
-  reachable directly behind `O1.11`'s login (rulings 128, 135).
+  reachable directly behind `O1.11`'s login (rulings 128, 135). The package removes the zone panels
+  from `monitoring/grafana/dashboards/video-analytics.json`, and F-117's inventory row says why:
+  nothing in the product writes `hsi_zone*` since #7319 deleted `zone_crossing_service.py`, so the
+  panels have never shown data. F-117 stays complete. A future zone feature adds the panels back
+  with a writer, and until then no PR adds a writer for `hsi_zone*` (ruling 301).
 
 ### FB.\* Background track
 
@@ -780,3 +784,28 @@ passes, and `yolo26`'s health never reaches `ServiceStatusAlert` or the services
       `yolo26` lights `ServiceStatusAlert`.
 
 **Done when:** the tests above pass in CI at a ready head, and the PR names each emitter's decision.
+
+### [r299] The E2E global setup writes the tour keys under the origin the specs run
+
+**Flags:** none. **Assigned:** frontend, after `F3.3` (ruling 299). **Depends on:** none.
+**PR:** none yet. (ruling 299, record 6321779954; audit item Q-179 of `[r262]`)
+
+`frontend/tests/e2e/global-setup.ts:30` writes the tour-suppression keys under the origin
+`https://localhost:8444`, but the specs run at `http://localhost:8444` (`global-setup.ts:71`,
+`playwright.config.ts:194`). Playwright applies `localStorage` per origin, so the keys never land,
+and the tour overlay opens and blocks clicks. The committed `tests/e2e/.auth/storage-state.json`
+(`playwright.config.ts:213`) carries the right origin, but the setup overwrites it on every
+non-golden run. The specs that don't use the shared fixtures' init script
+(`fixtures/index.ts:53-57`) are exposed: local runs and the nightly visual specs, since the rest
+skip themselves under CI.
+
+- [ ] `frontend/tests/e2e/global-setup.ts` writes the storage state under the origin the specs run,
+      derived from the configured base URL (`E2E_BASE_URL` or the Playwright config's `baseURL`),
+      not a literal.
+- [ ] **A test pins it, red first (UR-69).** For example, the written state's origin equals the
+      configured base URL, or a spec that opens the app without the fixtures' init script finds no
+      tour overlay.
+- [ ] **The PR decides whether `tests/e2e/.auth/storage-state.json` stays committed,** and says why.
+      A file the setup rewrites on every run may leave the tree (ignored instead).
+
+**Done when:** the test passes in CI at a ready head and the UR-89 review approves.

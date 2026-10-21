@@ -28,15 +28,37 @@ Each package here starts on a lane's directories as UR-68 allows.
 ### W3.1 Boundaries only
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
-**PR:** #7331. (ruling 241)
+**Assigned:** heavy-a, one PR per lane; it moved from docs' queue (ruling 300, record 6322983128).
+**PR:** #7331 (PR 1, merged). (rulings 241, 300)
+
+heavy-a opens each draft PR itself, labelled `heavy` with no lane label (UR-59). Each PR names in
+its body the part of the boxes it completes and reports the files and lines it removed; the last PR
+ticks both boxes. A PR leaves alone any file an open PR edits, names it in the body, and takes it in
+a later `W3.1` PR. Between PRs heavy-a is waiting, not stalled, and its beat names the lane it waits
+on (UR-38).
 
 - [ ] Delete every `AGENTS.md` outside the boundary list (`UR-21`), moving any non-discoverable
       knowledge it holds into the nearest boundary file.
 - [ ] Switch the validator from "required in every directory with two code files" to "required at
       each boundary, forbidden elsewhere".
 
-**Done when:** the validator passes in boundary mode, and the PR reports the files and lines
-removed.
+The PRs (ruling 300 items 2-4):
+
+1. **PR 1, #7331 (merged).** The validator requires an `AGENTS.md` at each `boundary_list`
+   directory and reports, without failing, every one outside the list. The `AGENTS.md` files under
+   `docs/` are deleted, except one an open PR edits, which its body names. `docs/` is the docs
+   lane's own tree, so UR-68 does not gate it.
+2. **One PR per lane,** each opened once that lane's Phase 3 rows read `done` in the README status
+   table: backend (`backend/`); frontend (`frontend/`); ops (`ai/`, `scripts/`, `.github/`,
+   `tests/`, `monitoring/`, `docker/`, `data/`, `setup_lib/`).
+3. **The last lane's PR** switches "forbidden elsewhere" from reporting to failing.
+
+`synthbench/`'s eight `AGENTS.md` files outside the list belong to the synthbench workstream
+(UR-82). #7331's body answers ruling 300 item 5: `W3.1` does not touch `synthbench/`, and the last
+PR exempts those eight files in the validator, unless the owner rules otherwise.
+
+**Done when:** the last lane's PR merges and the validator passes in boundary mode, and each PR has
+reported the files and lines it removed.
 
 ### W3.2 Rewrite the boundary files to the standard
 
@@ -522,3 +544,44 @@ record 6291992942; audit items Q-093 and Q-075 of `[r262]`)
       `frontend/tests/golden/shell/rate-limit.spec.ts`; it goes to frontend's later cleanup, not this PR.
 
 **Done when:** merged at a ready head, each citation quoting its line at the PR's base.
+
+### [r305] The three weak tests and the 15 prose rows of `[r262]` batches 4–6
+
+**Flags:** none. **Assigned:** heavy-a, between `W3.1`'s PRs; `W3.1`'s next PR goes first whenever
+its lane is `done` (ruling 305). **Depends on:** none. **PR:** #7332. (ruling 305, record
+6323706301; amends ruling 299 item 3)
+
+heavy-a opens its draft PR itself, labelled `heavy` with no lane label (UR-59), and follows each
+owning lane's file ownership. Ruling 269's two open packages are `W3.1` and this one. The 45 stale
+citations of the same batches go to the cite-checker package ruling 296 item 3 scopes, not here.
+
+- [ ] **Q-127** (`ai/gateway/tests/test_dockerfile_agent_gpu_buildable.py:270-282` matches long
+      flag names only), **Q-142** (`backend/tests/unit/api/routes/test_admin_cache_invalidation.py`
+      `:303` counts only the census invalidators) and **Q-190**
+      (`backend/tests/unit/scripts/test_duration_budget_gate.py:2530-2531` names u5 the longest
+      breach; u6, at 5.0 s, is). Each test is made to fail first on what it claims, then pass
+      (UR-69).
+- [ ] **The 15 prose rows** ruling 299 names, as `r262-audit.md`'s owner column lists them at #7265
+      (docs' `9970a8073`). A row in an `AGENTS.md` that `W3.1` deletes closes with that deletion; a
+      row in a file an open PR edits waits for that PR.
+
+**Done when:** the three tests fail on a mutant of what they claim and pass at the head, each prose
+row is corrected or named as closed, and the UR-89 review approves.
+
+### [r307d] The deployment page says where the backend's models run
+
+**Flags:** none. **Assigned:** docs, first on its queue (ruling 307). **Depends on:** none.
+**PR:** none yet. (ruling 307, record 6323846997)
+
+`docs/operator/deployment/README.md:164-166` says the backend's OSNet, face and ALPR weights "load
+on the GPU the backend container holds". The backend's torch is CPU-only (`pyproject.toml:984-994`),
+the face leg forces `CPUExecutionProvider` (`backend/services/face_recognizer_loader.py:152`), and
+the backend image installs only the `face` extra (`backend/Dockerfile:150`), so fast-alpr is not
+installed.
+
+- [ ] The page states today's truth: OSNet and the face leg run on the CPU inside the backend
+      (CPU-only torch wheels, `CPUExecutionProvider`), loaded at boot only when
+      `BACKEND_MODEL_PRELOAD=true`; fast-alpr is not installed; and rulings 306 and 307 move them to
+      Triton. Later PRs that move a model update the page (UR-81).
+
+**Done when:** merged at a ready head, each sentence citing the line it rests on at the PR's base.

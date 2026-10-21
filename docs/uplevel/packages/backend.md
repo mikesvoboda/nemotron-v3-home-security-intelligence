@@ -198,7 +198,7 @@ PR it is. The row's design note stays with Phase 4's prompt-management package.
 
 **Flags:** `owner` (production safety: it changes what ships, UR-98). **Assigned:** backend, after
 `B3.3`'s fourth box (ruling 295). **Depends on:** #7321 (ruling 295's red-`main` exemption) merged.
-**PR:** none yet. (ruling 295, record 6307239846)
+**PR:** #7333. (ruling 295, record 6307239846)
 
 On 2026-10-21 `Scan Backend Image` failed on `certifi` 2026.6.17 (GHSA-6q48-6c7w-9gw2) in pip's own
 `_vendor` bundle in the `python:3.14-slim-bookworm` base image, which Trivy reports under the bare
@@ -863,3 +863,105 @@ failing-first test (UR-69), and ops-a's `O2.5` venue fixes leave them out (rulin
 
 **Done when:** each fix's test was committed red ahead of it, `CI Gate` is green at a ready head,
 and the UR-89 review approves. `[r285]` is one PR.
+
+### [r303] Detector bake-off
+
+**Flags:** `heavy`. **Assigned:** none; the owner assigns it (ruling 303), and the coordinator
+does not. **Depends on:** none. **PR:** none yet. (ruling 303, record 6323705837)
+
+Phase 4. Nothing about the detector changes before this test. `yolo26m` came in through #4403 and
+#4431 (2026-01), replacing RT-DETRv2, and was never compared. RF-DETR leads on COCO at the same
+speed (its README: T4, TensorRT FP16, batch 1): RF-DETR-M 54.7 AP at 4.4 ms and RF-DETR-L 56.5 AP
+at 6.8 ms (704 px input), against YOLO26-M at 52.5 AP and 4.4 ms on the same table (Ultralytics'
+own: 53.1 AP and 4.7 ms). The licences differ: YOLO26's code and weights are AGPL-3.0 or a paid
+Ultralytics Enterprise licence, and this repo is Apache-2.0; RF-DETR's N, S, M and L are Apache-2.0
+(its XL, 2XL and smallest sizes are PML 1.0). The R2 sheet records the same open question for the
+`threat` model (`r2-sheet.md:269`). COCO is not home-camera footage: night IR and small, distant
+people decide this, and no published number measures them.
+
+- [ ] **First question to the owner:** the labelled frame set (source, who labels, size), as `B2.3`
+      settles its crops.
+- [ ] Export YOLO26-M, RF-DETR-M and RF-DETR-L to TensorRT and serve each under Triton (UR-86), on a
+      desktop RTX card with the VLM resident.
+- [ ] Measure per model: AP on the product's classes (people and vehicles first), split by day,
+      night/IR and distant subjects; latency per frame; GPU memory; and the licence of code and
+      weights.
+
+**Done when:** the PR posts a recommendation with these numbers for an owner ruling. Nothing in
+production changes: no `models.yml` swap, no switch flip.
+
+### [r306a] Re-ID's default becomes the gateway
+
+**Flags:** `owner` (it changes production's model path). **Assigned:** backend, next on its queue
+(ruling 306). **Depends on:** `[r252]`'s proving run posting `RESULT: PASS` (ruling 306 item 1).
+**PR:** none yet. (ruling 306, record 6323748868)
+
+`REID_BACKEND` (`backend/core/config.py:1445`) picks between the backend's resident OSNet copy
+(`local`, CPU-only torch wheels, `pyproject.toml:984-994`) and the gateway's GPU `reid`
+(`gateway`), "the same network and weights" (`config.py:1449`), under one model ID
+(`osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`, #7002 `6154659954`). Stored person vectors
+stay valid across the flip once parity holds. On `RESULT: PASS`, `O2.4` goes to `done` and `B2.3` is
+unblocked (ruling 107).
+
+- [ ] `REID_BACKEND`'s default becomes `gateway` in `backend/core/config.py` and in every compose
+      or env file that sets it.
+- [ ] A test pins the default, red first (UR-69).
+- [ ] The PR cites the PASS run.
+
+**Done when:** `CI Gate` is green at a ready head and the UR-89 review approves.
+
+### [r306b] The backend's CPU copy of OSNet leaves
+
+**Flags:** none. **Assigned:** backend, after `[r306a]` merges (ruling 306). **Depends on:**
+`[r306a]` merged. **PR:** none yet. (ruling 306, record 6323748868)
+
+UR-85 lets a proven GPU path stand without a CPU fallback.
+
+- [ ] Remove the `local` path: `backend/services/osnet_loader.py` and its callers' CPU branch,
+      `torchreid`, and `torch` from the backend only if no other kept import needs it. The PR
+      reports the import trace.
+
+**Done when:** `CI Gate` is green at a ready head, the import trace is in the PR body, and the UR-89
+review approves.
+
+### [r307c] fast-alpr leaves the tree
+
+**Flags:** `owner` (a deletion). **Assigned:** backend, after `B3.3` (ruling 307). **Depends on:**
+none. **PR:** none yet. (ruling 307, record 6323846997)
+
+fast-alpr never runs in production. The backend image installs only the `face` extra
+(`backend/Dockerfile:150`), so `collect_plate_text` (`backend/services/vlm_specialists.py:553-589`)
+always returns its "unavailable" line. F-268's ruled reader decision compares PaddleOCR with a
+YOLO11 plate detector against the VLM reading crops; fast-alpr is not a candidate. At `bc89bf68a` a
+grep also finds `scripts/download-model-zoo.py:88` and a docstring in
+`backend/services/alpr_service.py:541`; the Done when covers them.
+
+- [ ] Delete `backend/services/fast_alpr_loader.py` and its tests, the `alpr` extra and its lock
+      entries, the `fast-alpr` row in `models.yml` and `model_zoo`'s loader entry
+      (`backend/services/model_zoo.py:51`, `:355`), the suppression-registry entry, and the mentions
+      in `README.md`, `ai/AGENTS.md`, `ai/download_models.sh` and the backend `AGENTS.md` files
+      (UR-81).
+- [ ] `collect_plate_text` keeps returning its "unavailable" line, now without importing a reader,
+      so production's prompt does not change. The plate-reads tables and routes stay (F-268 is
+      complete); F-268's reader decision is unchanged, and its candidates run on Triton (UR-86).
+
+**Done when:** nothing in the tree imports or installs fast-alpr, the kept-feature check finds no
+lost writer, and the UR-89 review approves.
+
+### [r307b] The face leg calls the gateway
+
+**Flags:** `owner` (production's face path changes). **Assigned:** backend, after `[r307a]` passes
+(ruling 307). **Depends on:** `[r307a]`'s `RESULT: PASS`.
+**PR:** none yet. (ruling 307, record 6323846997)
+
+The face leg is CPU-only by an earlier choice, not a limit:
+`backend/services/face_recognizer_loader.py:19` and `:152` force `CPUExecutionProvider` to keep it
+out of the VRAM budget.
+
+- [ ] The face leg calls the gateway's SCRFD and ArcFace routes (`[r307a]`). Stored face embeddings
+      keep their model IDs.
+- [ ] A test pins the gateway path, red first (UR-69).
+- [ ] The CPU path (`face_recognizer_loader.py`'s ONNX sessions, the `face` extra, and
+      `onnxruntime` if no other kept import needs it) is removed in this PR or a follow-up it names.
+
+**Done when:** `CI Gate` is green at a ready head and the UR-89 review approves.
