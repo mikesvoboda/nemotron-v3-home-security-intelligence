@@ -304,6 +304,12 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 289    | one-off, delegated: Phase 3 rebalance; O3.4, O3.5 to heavy-b; B3.3's box 4 (record 6303414416)              |
 | 290    | UR-47 (283 amended) and package `[r290]`: the coordinator proposes balance moves (record 6303479997)        |
 | 291    | UR-185 and package `[r291]`: the gate audits only what a change adds (record 6304527940)                    |
+| 292    | one-off: ops-a claims `O2.5`'s venue fixes while #7310 is open, a UR-52 exception (record 6304623987)       |
+| 293    | one-off, delegated: the `certifi` red-`main` route and its correction (records 6307149057, 6307222499)      |
+| 294    | UR-185 and package `[r294]`: Trivy's scans fail a change only on what it adds (record 6307203645)           |
+| 295    | one-off: pip's bundled `certifi` exempted; package `[r295]`: pip leaves the image (record 6307239846)       |
+| 296    | package `[r262]`: rows only for bugs and medium+ from batch 7; a cite checker scoped (record 6307432184)    |
+| 297    | package `[r282]` closed on its measured gain; package `[r297]`: the shard fixed cost (record 6315692389)    |
 
 ## Owner records
 

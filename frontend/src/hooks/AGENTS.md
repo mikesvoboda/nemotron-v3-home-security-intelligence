@@ -166,46 +166,43 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 ## Key Files
 
-| File                           | Purpose                                                           | Exported |
-| ------------------------------ | ----------------------------------------------------------------- | -------- |
-| `index.ts`                     | Central export point for hooks and types                          | N/A      |
-| `typedEventEmitter.ts`         | Type-safe WebSocket event emitter with compile-time checking      | Yes      |
-| `usePolling.ts`                | Generic polling hook for REST endpoints with interval fetching    | Yes      |
-| `useWebSocket.ts`              | Low-level WebSocket connection manager                            | Yes      |
-| `ConnectionStatusProvider.tsx` | The one Events/System subscription the shell mounts               | Yes      |
-| `useConnectionStatus.ts`       | Read the shared connection status for all WS channels             | Yes      |
-| `useVerdictEngineStatus.ts`    | Verdict-engine (ai-vlm) availability for the F1.2 banner          | Yes      |
-| `useEventStream.ts`            | Security events via `/ws/events` WebSocket                        | Yes      |
-| `useSystemStatus.ts`           | System health via `/ws/system` WebSocket                          | Yes      |
-| `useGpuHistory.ts`             | GPU metrics polling with history buffer                           | Yes      |
-| `useHealthStatus.ts`           | REST-based health status polling (legacy)                         | Yes      |
-| `useHealthStatusQuery.ts`      | TanStack Query-based health status fetching                       | Yes      |
-| `useFullHealthQuery.ts`        | TanStack Query for comprehensive health with circuit breakers     | Yes      |
-| `useCamerasQuery.ts`           | TanStack Query hooks for camera CRUD operations                   | Yes      |
-| `useGpuStatsQuery.ts`          | TanStack Query for GPU stats and history                          | Yes      |
-| `useModelZooStatusQuery.ts`    | TanStack Query for Model Zoo status with VRAM stats               | Yes      |
-| `useStorageStatsQuery.ts`      | TanStack Query for storage stats with cleanup mutation            | Yes      |
-| `usePerformanceMetrics.ts`     | System performance metrics via WebSocket                          | Yes      |
-| `useAIMetrics.ts`              | Fetches AI performance metrics from multiple endpoints            | Yes      |
-| `useAIServiceStatus.ts`        | AI service degradation and circuit breaker status via WebSocket   | Yes      |
-| `useDetectionEnrichment.ts`    | Fetches enrichment data for a specific detection                  | Yes      |
-| `useModelZooStatus.ts`         | Fetches and polls Model Zoo status with VRAM stats (legacy)       | Yes      |
-| `useSavedSearches.ts`          | Manages saved searches in localStorage                            | Yes      |
-| `useLocalStorage.ts`           | Generic localStorage persistence hook                             | Yes      |
-| `useThrottledValue.ts`         | Throttles value updates to reduce re-renders                      | Yes      |
-| `useToast.ts`                  | Toast notifications using sonner                                  | Yes      |
-| `useKeyboardShortcuts.ts`      | Global keyboard navigation shortcuts (g+d, ?, Cmd+K)              | Yes      |
-| `useListNavigation.ts`         | j/k style list navigation with Enter selection                    | Yes      |
-| `useIsMobile.ts`               | Mobile viewport detection via MediaQueryList                      | Yes      |
-| `useSwipeGesture.ts`           | Touch swipe gesture detection                                     | Yes      |
-| `useNetworkStatus.ts`          | Browser network connectivity tracking for PWA                     | Yes      |
-| `useCachedEvents.ts`           | Offline event caching using IndexedDB                             | Yes      |
-| `usePushNotifications.ts`      | Browser push notification permissions and display                 | Yes      |
-| `useStorageStats.ts`           | Storage disk usage polling with cleanup preview (uses usePolling) | No       |
-| `useServiceStatus.ts`          | Per-service status tracking                                       | No       |
-| `useSidebarContext.ts`         | Context hook for mobile sidebar state                             | No       |
-| `useSystemPageSections.ts`     | System page collapsible section state management                  | No       |
-| `webSocketManager.ts`          | Singleton WebSocket connection manager with deduplication         | No       |
+| File                           | Purpose                                                         | Exported |
+| ------------------------------ | --------------------------------------------------------------- | -------- |
+| `index.ts`                     | Central export point for hooks and types                        | N/A      |
+| `typedEventEmitter.ts`         | Type-safe WebSocket event emitter with compile-time checking    | Yes      |
+| `usePolling.ts`                | Generic polling hook for REST endpoints with interval fetching  | Yes      |
+| `useWebSocket.ts`              | Low-level WebSocket connection manager                          | Yes      |
+| `ConnectionStatusProvider.tsx` | The one Events/System subscription the shell mounts             | Yes      |
+| `useConnectionStatus.ts`       | Read the shared connection status for all WS channels           | Yes      |
+| `useVerdictEngineStatus.ts`    | Verdict-engine (ai-vlm) availability for the F1.2 banner        | Yes      |
+| `useEventStream.ts`            | Security events via `/ws/events` WebSocket                      | Yes      |
+| `useSystemStatus.ts`           | System health via `/ws/system` WebSocket                        | Yes      |
+| `useGpuHistory.ts`             | GPU metrics polling with history buffer                         | Yes      |
+| `useHealthStatusQuery.ts`      | TanStack Query-based health status fetching                     | Yes      |
+| `useFullHealthQuery.ts`        | TanStack Query for comprehensive health with circuit breakers   | Yes      |
+| `useCamerasQuery.ts`           | TanStack Query hooks for camera CRUD operations                 | Yes      |
+| `useGpuStatsQuery.ts`          | TanStack Query for GPU stats and history                        | Yes      |
+| `useModelZooStatusQuery.ts`    | TanStack Query for Model Zoo status with VRAM stats             | Yes      |
+| `useStorageStatsQuery.ts`      | TanStack Query for storage stats with cleanup mutation          | Yes      |
+| `usePerformanceMetrics.ts`     | System performance metrics via WebSocket                        | Yes      |
+| `useAIMetrics.ts`              | Fetches AI performance metrics from multiple endpoints          | Yes      |
+| `useAIServiceStatus.ts`        | AI service degradation and circuit breaker status via WebSocket | Yes      |
+| `useDetectionEnrichment.ts`    | Fetches enrichment data for a specific detection                | Yes      |
+| `useSavedSearches.ts`          | Manages saved searches in localStorage                          | Yes      |
+| `useLocalStorage.ts`           | Generic localStorage persistence hook                           | Yes      |
+| `useThrottledValue.ts`         | Throttles value updates to reduce re-renders                    | Yes      |
+| `useToast.ts`                  | Toast notifications using sonner                                | Yes      |
+| `useKeyboardShortcuts.ts`      | Global keyboard navigation shortcuts (g+d, ?, Cmd+K)            | Yes      |
+| `useListNavigation.ts`         | j/k style list navigation with Enter selection                  | Yes      |
+| `useIsMobile.ts`               | Mobile viewport detection via MediaQueryList                    | Yes      |
+| `useSwipeGesture.ts`           | Touch swipe gesture detection                                   | Yes      |
+| `useNetworkStatus.ts`          | Browser network connectivity tracking for PWA                   | Yes      |
+| `useCachedEvents.ts`           | Offline event caching using IndexedDB                           | Yes      |
+| `usePushNotifications.ts`      | Browser push notification permissions and display               | Yes      |
+| `useServiceStatus.ts`          | Per-service status tracking                                     | No       |
+| `useSidebarContext.ts`         | Context hook for mobile sidebar state                           | No       |
+| `useSystemPageSections.ts`     | System page collapsible section state management                | No       |
+| `webSocketManager.ts`          | Singleton WebSocket connection manager with deduplication       | No       |
 
 ### Test Files
 
@@ -221,22 +218,16 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useEventStream.test.ts`           | Event buffering, envelope parsing, non-event filtering    |
 | `useSystemStatus.test.ts`          | Backend message transformation, type guards               |
 | `useGpuHistory.test.ts`            | Polling, history buffer, start/stop controls              |
-| `useHealthStatus.test.tsx`         | REST polling, error handling, refresh                     |
-| `useHealthStatus.msw.test.tsx`     | MSW-based integration tests                               |
 | `useHealthStatusQuery.test.ts`     | TanStack Query health status, caching, refetch            |
 | `useCamerasQuery.test.ts`          | TanStack Query cameras CRUD, cache invalidation           |
 | `useGpuStatsQuery.test.ts`         | TanStack Query GPU stats and history                      |
 | `useModelZooStatusQuery.test.ts`   | TanStack Query Model Zoo polling, VRAM calculation        |
 | `useStorageStatsQuery.test.ts`     | TanStack Query storage stats and cleanup preview          |
-| `useStorageStats.test.ts`          | Storage polling, cleanup preview                          |
-| `useStorageStats.msw.test.ts`      | MSW-based integration tests                               |
 | `useServiceStatus.test.ts`         | Service status parsing                                    |
 | `usePerformanceMetrics.test.ts`    | WebSocket performance metrics, alerts, history buffer     |
 | `useAIMetrics.test.ts`             | Multi-endpoint fetching, state combination, polling       |
 | `useAIServiceStatus.test.ts`       | AI degradation mode, service status, feature availability |
 | `useDetectionEnrichment.test.ts`   | Detection enrichment fetching, loading/error states       |
-| `useModelZooStatus.test.ts`        | Model Zoo polling, VRAM calculation, refresh              |
-| `useModelZooStatus.msw.test.ts`    | MSW-based integration tests                               |
 | `useSavedSearches.test.ts`         | LocalStorage persistence, CRUD operations, cross-tab sync |
 | `useLocalStorage.test.ts`          | LocalStorage read/write, SSR safety                       |
 | `useThrottledValue.test.ts`        | Value throttling, interval batching                       |

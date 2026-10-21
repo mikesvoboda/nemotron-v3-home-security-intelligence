@@ -782,9 +782,18 @@ def test_real_tree_matches_spec_baselines():
     """
     got = run_census(REPO_ROOT)
     expected = {
-        "collection_allowlist": 4,
+        # 4→2 (2026-10-21, F3.2 #7246): the deletion cut removed the two retired
+        # collection ids with their files (SystemHealthIndicator,
+        # ZoneTimelineScrubber); the same drop is in this commit's
+        # .github/suppression-baseline.json. The allowlist keeps
+        # test_helpers.py + TimeGroupedEvents.simple.
+        "collection_allowlist": 2,
         "flake_allowlist": 0,
-        "frontend_quarantine": 16,
+        # 16→13 (2026-10-21, roll 10 of #7246): the F3.2 cut removed three
+        # quarantine ids with their files; measured on the merged tree by
+        # suppression-census.py. The 16→13 movement happened on this PR's side
+        # (main never had the cut), so main's mirror kept the stale 16.
+        "frontend_quarantine": 13,
         # 32→25 (2026-10-16, ruling 220): the seven redundant "Flaky … app
         # initialization timing" skips in test_system_models.py expired on 10-15 and
         # were removed with their `#2` registry rows; each test stays skipped by its
@@ -822,7 +831,11 @@ def test_real_tree_matches_spec_baselines():
         # mints kind: environment, expires: null, justification carried).
         # Increase path, sixth precedent.
         "pytest_skip_imperative": 94,
-        "frontend_skip": 52,
+        # 51→49 (2026-10-21, roll 10 of #7246) then main's r285 +3 sites landed
+        # inside files the F3.2 cut had already deleted (useMonitoringTargets,
+        # ReidHistoryPanel tests): the merged tree MEASURES 49, so main's 52
+        # does not survive this merge — the three skip sites rode deleted files.
+        "frontend_skip": 49,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
         # WP1.3: 150 uncounted patterns (P's figure, reproduced exactly) pruned

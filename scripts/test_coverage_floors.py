@@ -20,7 +20,16 @@ Two defects pinned here (plan P WP2.3):
    saying exactly which tier's absence it is.
 
 2. FLOOR HYGIENE (R-1). Backend integration floor 37 and frontend floors
-   80/74.6/78.4/80.9 are the MEASURED values (runs fetched 2026-09-20; the
+   79.5/74.3/77.2/80.5 are the MEASURED values rounded DOWN to one decimal
+   (backend fetched 2026-09-20;
+   frontend re-pinned by owner ruling 261, one-off 2026-10-18: run
+   39161827871's merged totals at d78f1a7ed, then re-measured at the final
+   head 971c98731 (run 39403304795) per ruling 261 item 1's own
+   final-head mechanism — the composition drop came from main-side
+   retirements, not kept-file regression; then re-measured again at the
+   merged head feb591332 (run 39427450180, tree ee300b0b) after main's
+   row-32/r267a retirements —
+   the
    frontend declared 83/77/81/84 sat above every observed run — a floor that
    never held). The merge step enforces the frontend floors only when all
    shards passed, so a red shard can't launder a false coverage FAIL either.
@@ -212,11 +221,29 @@ def test_frontend_floor_numbers_are_the_measured_ones():
     block = re.search(r"thresholds:\s*\{([^}]*)\}", vite)
     assert block, "vite.config.ts coverage thresholds block must exist"
     vals = dict(re.findall(r"(statements|branches|functions|lines):\s*([0-9.]+)", block.group(1)))
-    measured = {"statements": "80", "branches": "74.6", "functions": "78.4", "lines": "80.9"}
+    # R-1 floors are the measured values; re-pinned to run 39161827871's merged
+    # totals at d78f1a7ed by owner ruling 261 (one-off, 2026-10-18) — a record
+    # of the measurement, not a declared wish (UR-69 stands for every other PR).
+    # "Rounded DOWN to one decimal place" per the ruling's wording: the unrounded
+    # values are 79.6525/74.5888/77.3963/80.6666, so 79.6/74.5/77.3/80.6. A
+    # half-up 79.7 sits ABOVE the measured value and flips red on between-run
+    # noise (run 39192274492 printed 79.6 at a byte-identical tree).
+    # Re-measured at the final head 971c98731 (run 39403304795's eight shards,
+    # reproduced with the repo's own merger): unrounded
+    # 79.5397/74.4334/77.2600/80.5588 over 684 files → floored
+    # 79.5/74.4/77.2/80.5. Composition moved by main-side retirements
+    # (B3.1/F3.1 rows 11 and 45) between the re-pin and this merge — not a
+    # kept-file regression; the floors follow the final head per ruling 261
+    # item 1's own mechanism.
+    # Re-measured again at the merged head feb591332 (tree ee300b0b, 681
+    # files; run 39427450180 printed 79.5/74.3/77.2/80.5): main's row-32
+    # (#7300) and r267a (#7299) retirements carried covered branches away —
+    # floored 79.5/74.3/77.2/80.5, same mechanism.
+    measured = {"statements": "79.5", "branches": "74.3", "functions": "77.2", "lines": "80.5"}
     for k, v in measured.items():
         assert float(vals[k]) == float(v), (
-            f"frontend floor {k} must be the measured {v} (run 35486259345); the "
-            "declared 83/77/81/84 above every observed run is not a floor (R-1)"
+            f"frontend floor {k} must be the measured value rounded down (final head feb591332, run 39427450180, ruling 261); "
+            "a floor not the measured value is a declared wish (R-1)"
         )
 
 
