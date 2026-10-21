@@ -151,7 +151,7 @@ then. It does not flip `REID_BACKEND`; production stays `local`.
 
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
 `feature_check.py --real` and ruling 143's Playwright container. It is on ops-a's roster queue
-(UR-52); the operator runs its sandbox run and the owner its maui run (ruling 256).
+(UR-52); the owner runs both runs from the maui login (rulings 256, 280).
 It gates only ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222), not
 Phase 2's exit (UR-10, contract rule 5).
 
@@ -170,20 +170,42 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       built.**
 - [ ] **Step 2, if yes: two runs, split by venue (ruling 256).** `feature_check.py --prod-shape`
       brings up that stack and runs the golden suite against it, using the Playwright container
-      from ruling 143, on a test deployment (UR-133). The operator runs the sandbox run from the
-      command ops-a posts (UR-140); ops-a posts the maui command on #7037 once `[r195]` carries it,
-      and the operator reads that run's output (ruling 185 item 3).
-  - **The sandbox run, first (operator).** `--real --prod-shape` in the operator's sandbox, with no
+      from ruling 143, on a test deployment (UR-133). Since ruling 280 the owner runs both from the
+      maui login, item 2 first and then item 1, from the commands ops-a posts on #7037 (UR-140);
+      the operator reads their output (ruling 185 item 3).
+  - **Item 1, the `--real` run (the owner's on maui, after item 2; ruling 280).** `--real --prod-shape`, with no
     GPU consumer in the stack but the VLM: `ai-vlm` served by `agent-gpu`, the fake `ai-gateway`, no
     `dcgm-exporter`, and `backend`'s GPU reservation stripped. These are runtime transforms in
     `as_prod_shape_deployment`, not edits to the authored override (ruling 162 item 3), and the run
     record names each removed or stripped device. It witnesses F-102, F-115, F-117, F-164 to F-167,
     F-169, F-174, F-295 and F-296.
-  - **The maui run, after it (owner).** `--prod-shape` with the fake VLM, from a host login on maui,
+  - **Item 2, the fake-VLM run (owner, first; ruling 280).** `--prod-shape` with the fake VLM, from a host login on maui,
     keeping production's CDI devices for `ai-gateway`, `dcgm-exporter` and `backend`. It witnesses
     F-176, F-178 and F-182 and the CDI wiring (the stack boots with every device resolved), and its
     stop-test states the GPU memory the run takes beside production. `ai-vlm`'s own CDI line is the
     one GPU line neither run boots.
+  - **Venue (ruling 280).** Both runs go from the owner's maui login, where a systemd user session
+    delegates cgroups and runs Podman's health-check timers. The sandbox venue is closed for `O2.5`:
+    rootless Podman there could not create a container cgroup through the Docker API, and with
+    `cgroups = "disabled"` it refused runc. The owner runs item 2, then item 1 from ops-a's
+    host-login command on #7037, which states how the VLM is served from the host (the `agent-gpu`
+    lease and its `AGENT_GPU_TOKEN_FILE`), which of item 1's device strips still apply there, and
+    the stop-test GPU reads.
+  - **Item 2's pass (ruling 287).** One owner run on maui at a merged `main` pin that carries the
+    venue fixes below, whose run record shows: smoke and `in_run` (isolation) `ok`; the
+    F-176/F-178/F-182 browser test passed; `device_changes` naming only `ai-vlm`; `postflight` and
+    `teardown` `ok` with `images_leaked: []`; and GPU memory before, at peak and after. Other golden
+    legs may run, and their results are reported but do not gate item 2 (`[r287b]` makes them
+    pass). The run records the venue requirements: minimal model assets (YOLO26m and OSNet-AIN
+    weights, by sha256) in place of production's model zoo; the Triton 26.09 arm64 base by digest,
+    because 26.01's CUDA code fails on the GB300; FP32 re-ID, because TensorRT 11 has no `--fp16`;
+    the user-level `crun` and NVIDIA CDI runtime; `keep-id` for `foscam-init`; and the busybox HTTP
+    health checks for the two exporters. `dcgm-exporter` runs rootful outside this stack in
+    production (the `gpu-rootful` profile), so a rootless run cannot witness its device line.
+  - **F-182's rows (ruling 285).** No API path writes a GPU config version since #7309, so item 2's
+    F-182 step seeds two rows in `gpu_configuration_versions` directly in the run's database,
+    exercises list, compare and the JSON and YAML export, and restores the table. The F-176 and
+    F-178 steps are read-only, and no step calls a write endpoint.
 - [ ] **Ruling 162's three answers.** Resource limits stay where cgroup controllers are delegated
       and are stripped otherwise, with `limits: not applied (no cgroup delegation)` in the run
       record. The engine socket, the 7 pinned `container_name`s and the host ports and paths are
@@ -192,15 +214,27 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       listed.
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
+- [ ] **The venue fixes (ruling 287 item 3), ops-a's, ahead of `[r282]`.** From the owner's maui
+      handoff (`scratch-patch.diff`, its text `code-review.diff`, cut against `91bf685eb`), only
+      what item 2's pass needs: the harness and venue settings, opt-in under `--prod-shape` (the
+      handoff's items 1-7, 11, 12, 15, and whichever of 8 or 14 smoke needs); the GPU spec (item
+      10); and a harness option that limits the Playwright leg to named specs under
+      `--prod-shape`. Defaults, `docker-compose.prod.yml` and CI's behaviour stay unchanged, and a
+      test shows the non-prod-shape commands are unchanged. The review includes a security pass
+      over item 12 (the isolation check under `--prod-shape`) and item 15 (`ADMIN_ENABLED` in the
+      venue's allow-list). If item 8 changes CI's fake-tier inputs, the PR says how the
+      **Unchanged** box above still holds, or keeps the photographs to prod-shape only. Not in
+      it: items 9 and 13 and item 19 and the null `risk_score` (`[r285]`, backend), and items
+      16-18 (`[r287b]`). Two or three PRs if the diff calls for it, one at a time (UR-52).
 - [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
       F-182), F-295 (ruling 219) and F-296 (ruling 222) get their witness from `O2.5`'s two runs. If
       the spike says no, they fall back to ruling 127's original route: ops adds what they need to
       the test deployment's compose.
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
-on yes, both Step 2 runs have posted: the operator's sandbox run witnesses its 11 rows and the
-owner's maui run its 3 rows and the CDI wiring, together ruling 127's 12 rows, F-295 and F-296
-(rulings 185, 188, 219, 222, 256); on no, the owner has ruled on the
+on yes, both Step 2 runs have posted: item 1 witnesses its 11 rows and item 2 its 3 rows and the
+CDI wiring, as item 2's pass above sets it, together ruling 127's 12 rows, F-295 and F-296
+(rulings 185, 188, 219, 222, 256, 280, 287); on no, the owner has ruled on the
 blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
 (#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto the
 sandbox run's deployment, in a comment on each PR (rulings 154 and 256).
@@ -1073,3 +1107,267 @@ path strict mode does not have (#7285's round-1 review, note 6).
 
 **Done when:** the tests pass in CI at a ready head, and a live snapshot run posted on the PR shows
 the behind and in-flight reads for the open PRs then.
+
+### [r272] The queue-update workflow updates the next queued PR when `main` moves
+
+**Flags:** `owner`. **Assigned:** `uplevel-ops-b`, after `[r269]` (ruling 272).
+**Depends on:** none. **PR:** #7301. (ruling 272, record 6282551725; items 3 and 5 amended by the
+owner's approval 6290019383; ruling 288 item 1, record 6303093964)
+
+Under ruling 268 each merge waited for the coordinator's 30-minute tick to update the next PR. A
+workflow updates the head of the coordinator's queue line within minutes of `main` moving. It uses
+the owner's token, because an update made with the built-in `GITHUB_TOKEN` starts no CI on the PR
+(UR-104: GitHub's merge queue is unavailable on this repository).
+
+- [x] `.github/workflows/queue-update.yml`, `scripts/uplevel/queue_update.py` and its tests.
+      Triggers: a push to `main`, `workflow_run` for `CI` (completed), every 15 minutes, and
+      `workflow_dispatch`; a concurrency group runs one fire at a time. One fire, in ruling 272 item
+      3's steps: (1) reads the queue line, `main`'s tip and the newest completed `CI` run on
+      `main`; (2) does nothing while a listed PR is open, not behind `main` and its `CI Gate` has not
+      failed; (3) acts only on a `!` entry while that `CI` run failed; (4) skips an entry that is
+      merged, closed or a draft, or whose UR-106 own-diff hash moved; (5) updates the first
+      remaining entry that is behind `main`, and only that one, with `expected_head_sha`, then arms
+      auto-merge; (6) disarms auto-merge if the own-diff hash changed across its update; (7)
+      comments once on the PR it updated with both heads, `main`'s tip, both hashes and the run
+      link. Every fire writes a job summary.
+- [x] Credentials, as approval 6290019383 amended item 3: the job's `GITHUB_TOKEN` has
+      `contents: read` and `issues: write`, the write for the PR comment only. `QUEUE_UPDATE_TOKEN`
+      (a fine-grained token for this repository, Contents and Pull requests read and write, set by
+      the owner) is used only for `update-branch` and arming and disarming auto-merge, which uses
+      `MERGE` (UR-23). No PR code is checked out or run while the token is in scope.
+- [ ] The red-`main` read works: the fire reads the `CI` workflow's own runs
+      (`actions/workflows/ci.yml/runs`), not `actions/runs?workflow=CI`, which the API does not
+      filter, so it read another workflow's run and the filter above never fired. A red-first test
+      makes another workflow's run the newest on `main` (ruling 288 item 1; #7312 carries it).
+- [ ] Switch-over (item 5 as amended): the merge's own push fired the workflow live. The owner
+      partner posts the switch-over pointer once a fire has made a correct update, and not before
+      #7312 merges (ruling 288 item 1). From that pointer, UR-102's update clause and
+      `roles/coordinator.md` "Merging a PR" step 2 apply.
+
+**Done when:** tests over recorded API payloads cover each step, an empty or missing queue line and
+a conflict; `actionlint` is clean; a dry run against the live repo, reading the real queue line, is
+quoted in the PR; and the UR-89 review includes a security pass over the workflow (where the token
+is exposed, the triggers, and that no PR code runs while the secret is in scope).
+(ticked under ruling 283: #7301 merged 2026-10-20T19:47:02Z as `91bf685eb`; review `6296041784`
+approved `1dd233b5a`, its item 4 the security pass; audit `6301271763`)
+
+### [r273] One PR for every open Dependabot PR
+
+**Flags:** none. **Assigned:** `uplevel-heavy-b`, first on its queue (ruling 273).
+**Depends on:** none. **PR:** #7297. (ruling 273, record 6282749517)
+
+Five grouped Dependabot PRs would have cost five merge cycles under ruling 268, and the three npm
+groups rewrite the same lockfile. Ruling 284 repeats the method every Monday
+(`roles/coordinator.md`, "Assigning a package").
+
+- [x] One branch and one PR carrying every Dependabot PR open at the start. npm: apply the
+      `frontend/package.json` changes and regenerate `frontend/package-lock.json` once. Python:
+      take `requirements-base.txt` and `uv.lock`, re-locking at the same versions if `main` moved.
+      Actions: take the pin bumps as they are and compare `actionlint` with `main`'s; a Dependabot
+      pin bump in `ci.yml`'s shared jobs is outside UR-121.
+- [x] Majors that `.github/dependabot.yml` ignores stay held (ruling 160). Only what a bump strictly
+      needs is fixed, named per group; anything bigger drops that group, and a group that breaks CI
+      is dropped with its failing job and log lines on its own PR, which stays open.
+- [x] When the combined `CI Gate` first passes, each folded PR is closed with "Superseded by #N,
+      which carries this group's updates (ruling 273)", and no `@dependabot` command.
+
+**Done when:** `CI Gate` is green at a ready head, `build-base-image.yml` is green on the PR, the
+body lists each folded PR and each dropped group with the reason, and the UR-89 review approves.
+(ticked under ruling 283: #7297 merged 2026-10-20T04:40:01Z as `25f556ae4`; review `6283266920`
+approved `9c0e35136`; "Build and Publish Base Image" and `CI` passed at that head; #7274, #7275,
+#7276, #7278 and #7284 closed at 04:39:56Z)
+
+### [r274] The harness boots with `up --no-build` after a prebuild
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, beside #7295, a one-off UR-52 exception counted
+toward ruling 269's two (ruling 274). **Depends on:** none. **PR:** #7298. (ruling 274, record
+6282871050; item 1 amended by record 6290084892)
+
+`docker-compose.fake-ai.yml:34` sets `pull_policy: build`, so `up` rebuilt the fake gateway after
+`prebuild_images` had built it, through compose's BuildKit path, which the rootless sandbox engine
+cannot run.
+
+- [x] `Run.up` passes `--no-build` exactly when `prebuild_images` ran in this run (the prod-shape
+      modes); fake mode's `up` is unchanged. A test in
+      `backend/tests/unit/scripts/test_feature_check.py` pins each branch (amendment 6290084892).
+- [x] `prebuild_images`' docstring says why: `pull_policy: build` would otherwise rebuild at `up`.
+      `docker-compose.fake-ai.yml` is unchanged.
+- [x] The PR says whether CI's fake-AI feature-check legs go through `Run.up`, and whether they
+      rebuilt `hsi-fake-ai` at `up` before this change, quoting a job log line.
+
+**Done when:** `CI Gate` is green at a ready head and the UR-89 review approves.
+(ticked under ruling 283: #7298 merged 2026-10-20T13:03:38Z as `3f85774e1`; review `6290671826`;
+audit `6291719540`)
+
+### [r278] One subset-carry decision for the snapshot and the queue workflow
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r270]` (ruling 278).
+**Depends on:** none. **PR:** none yet. (ruling 278, record 6293203635)
+
+UR-106's carry also holds when an update only drops lines that `main` now holds identically (a
+subset carry, ruling 278). The snapshot and `queue_update.py` still compare hashes, so a shared
+table row that `main` absorbs resets an approval (#7301 lost one this way, `6290679665`).
+
+- [ ] `coordinator_snapshot.py` has one function that decides a carry by UR-106's subset rule and
+      returns yes, no or unknown. §3's `carry=` and the §7 and §8 verdicts use it, and §3 prints
+      `carry=yes (subset: <n> lines main holds)` in the subset case.
+- [ ] `queue_update.py`'s skip and disarm steps use the same function instead of hash equality.
+- [ ] Tests cover an exact carry; a subset carry where `main` holds the dropped pair; a dropped
+      line `main` does not hold (no carry); a line in the new diff that is not in the approved one
+      (no carry); an author commit (no carry); and a failed read (unknown, never yes).
+
+**Done when:** the tests pass in CI at a ready head and the UR-89 review approves.
+
+### [r290] The snapshot reads package balance, and `lane_tick` offers a multi-PR package's open box
+
+**Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r278]` (both edit
+`coordinator_snapshot.py`), ahead of `O3.7` (ruling 290). **Depends on:** none. **PR:** none yet.
+(ruling 290, record 6303479997)
+
+On 2026-10-20 three agents sat idle while ops-b held three Phase 3 packages with dependencies met,
+until the owner asked for ruling 289's rebalance. One idle queue was a parser gap: `next_claimable`
+offers only a `none yet` block, so B3.3's open fourth box (ruling 254) was never offered because
+its block names the merged #7244. The coordinator detects and proposes; it never moves a package
+(`roles/coordinator.md`, "The status comment").
+
+- [ ] **The balance section.** `coordinator_snapshot.py` gains a section. For each roster agent
+      that is not paused, it prints the agent's open package PRs; its claimable queue entries (the
+      blocks `next_claimable` would offer in queue order, plus the open multi-PR packages below),
+      each with its **Depends on:** read as met, unmet or unread, where a free-text dependency it
+      cannot resolve reads unread, never met; and whether it is idle (no open package PR, and a
+      heartbeat state of idle). It flags an imbalance when an idle agent has nothing claimable and
+      another holds two or more claimable entries whose dependencies read met, and prints one
+      candidate move that keeps UR-24 (no `heavy` package to a fast agent) and the cells' file areas
+      (`roles/lane.md`), or names a heavy agent as the receiver.
+- [ ] **The multi-PR offer.** `lane_tick.py`'s `next_claimable` also offers a package on my queue
+      whose README status row reads `in progress` (UR-144), whose block has an unticked box, and
+      which no open PR of mine titles; the digest names the box (UR-47, ruling 290).
+- [ ] **Tests:** an idle agent with nothing claimable beside a backlogged one (flags); two busy
+      agents (no flag); an unread dependency (never met); a `heavy` package never proposed to a fast
+      agent; B3.3's shape (merged PR, `in progress`, an open box) is offered; a merged single-PR block
+      with an unticked post-merge box is not (ruling 283).
+
+**Done when:** the tests pass in CI at a ready head, and a live snapshot run posted on the PR shows
+the balance section for the agents then.
+
+### [r279] Three flaky CI checks made deterministic
+
+**Flags:** none. **Assigned:** `uplevel-heavy-b`, first on its queue (ruling 279).
+**Depends on:** none. **PR:** #7308. (ruling 279, record 6293490330)
+
+Under ruling 268 a flaky failure at the head of the queue costs a whole merge cycle. Test
+Performance Audit, Merge Integration Coverage and Feature check (fake AI) are the three ruling 279
+named; two of them cost #7281 about 75 minutes on 10-19.
+
+- [x] Every failure of the three checks since 2026-10-18 14:00Z is classified in the PR body as
+      flaky (the same head, or the same bytes of every file the job reads, passed elsewhere) or real,
+      with its run, job and verdict, and for each flaky one the test or step that varied.
+- [x] The flaky causes are fixed at the root. Nothing is deleted, skipped, `xfail`ed, retried to
+      green or loosened by raising a threshold or baseline (UR-112);
+      `scripts/check-test-duration-budget.py` was not edited while `[r172]` (#7305) was open; edits
+      to `ci.yml`'s shared jobs stay within UR-121.
+- [x] Any other job found flaky is reported, not fixed, for a later ruling.
+
+**Done when:** `CI Gate` is green at a ready head; each fixed flake shows evidence that it no longer
+varies (the test repeated at least 20 times with counts, or a before-and-after comparison on the
+same tree); and the UR-89 review approves.
+(ticked under ruling 283: #7308 merged 2026-10-20T17:07:38Z as `3dff11402`; review `6295908274`
+approved `a1cbf6986`; audit `6297441697`)
+
+### [r282] The golden-test shards balanced by measured duration
+
+**Flags:** none. **Assigned:** `uplevel-ops-a`, after `O2.5`'s venue fixes (rulings 282 and 287).
+**Depends on:** none. **PR:** none yet. (ruling 282, record 6294042743)
+
+In median run 39419991445 (19.4 min), `Feature check (fake AI) (4-of-4)` ran 18.1 min while
+shards 1 and 3 took 13.9 and 14.8: `[r264]` splits with Playwright's `--shard=i/N`, which balances
+test counts, not durations, and shard 1 also runs the backend golden leg.
+
+- [ ] **Measure:** per-test durations from the golden junit files of at least five recent green
+      runs, plus each shard's fixed cost (stack boot and teardown) and shard 1's backend leg,
+      tabulated in the PR body with each shard's time and the long pole.
+- [ ] **Rebalance:** assign tests to shards by measured duration (for example, per-shard lists
+      generated from the junit data and checked in with the script that regenerates them),
+      counting shard 1's backend leg, or change the shard count if the measured fixed cost shows a
+      5th or 6th shard lowers the slowest one. No test is dropped, skipped or deduplicated across
+      shards, and a test pins that the shards' union is exactly the suite. Edits stay inside the
+      Feature check job and the harness (UR-121), and `[r264]`'s backend-on-shard-1 rule stays
+      unless the measurements argue otherwise, which the PR then says.
+- [ ] `[r279]` changed tests in the same suite. `[r282]` changes how tests are assigned to shards,
+      not the tests themselves, and where the two PRs' files meet, this PR says so.
+
+**Done when:** `CI Gate` is green at a ready head; the median of at least three full runs at the
+PR's head has a critical path of 15 min or less, with the slowest shard no more than 2 min longer
+than the fastest; the regeneration script runs in CI or the docs say when to rerun it; and the
+UR-89 review approves.
+
+### [r291] The gate's dependency audit fails a change only on a finding it adds
+
+**Flags:** `owner` (it changes what `CI Gate (Required Checks)` runs, UR-119, and a security check,
+UR-98). **Assigned:** `uplevel-ops-a`, after `[r282]`, behind `O2.5`'s venue fixes (rulings 287 and
+291). **Depends on:** none. **PR:** none yet. (ruling 291, record 6304527940)
+
+On 2026-10-20 three advisories published against unchanged code (certifi, Pillow, markdown-it) kept
+`main` red from 19:47Z until #7314 merged at 23:54Z. Each fix was a plain lockfile bump, yet the
+fixes blocked each other, because one audit job covers both ecosystems, and 11 `CI` runs failed on
+the audit alone. UR-185 treats such an advisory as UR-116 treats a red nightly: raised and routed,
+without freezing the queue.
+
+- [ ] **The gate mode.** On a PR, the gate's audit leg audits both the tree CI tests and the PR's
+      base commit in the same job, and fails only on an unexempted finding at the head that is not
+      an unexempted finding at the base, keyed by advisory id (with aliases) and package. On a push
+      to `main` the base is the previous `main` commit. The two registries
+      (`.pip-audit-exemptions.json`, `frontend/.npm-audit-exemptions.json`) stay the one allowlist;
+      an entry the change adds or edits must pass today's registry rules; removing an exemption
+      whose finding remains counts as adding that finding; an audit error on either side fails
+      closed. A change that touches none of `pyproject.toml`, `uv.lock`, `frontend/package.json`,
+      `frontend/package-lock.json` and the two registries may skip both audits.
+- [ ] **The full-lockfile mode** runs today's checks unchanged on every push to `main`, daily (the
+      Monday cron becomes daily) and on `workflow_dispatch`, as a check `CI Gate (Required Checks)`
+      does not read (UR-119). Both modes live in `dependency-audit.yml` and the two checkers
+      (OB.2), and `ci.yml`'s call job selects the gate mode (UR-122).
+- [ ] **Tests, red first (UR-69),** on recorded audit JSON for each checker: a finding shared by
+      base and head passes the gate; a head that adds a vulnerable package fails; a head that
+      removes an exemption whose finding remains fails; a head that adds an exemption with a past or
+      missing REVIEW BY fails; a base exemption past its REVIEW BY that the change does not touch
+      passes the gate and fails the full-lockfile mode; an audit error on either side fails; and the
+      full-lockfile mode gives today's results (today's checker tests pass unchanged).
+- [ ] **Proof in the PR body,** with commands and output against live advisory data: the gate mode
+      with base `fadeb1992` (red on markdown-it before #7314) and a head of `fadeb1992` plus a
+      doc-only commit passes; the full-lockfile mode at `fadeb1992` fails on markdown-it; and a
+      `workflow_dispatch` run of the full-lockfile mode on the PR branch is green.
+
+**Done when:** the tests pass in CI at a ready head, the PR body shows the three proofs, and the
+gate reads only the gate mode (`ci-gate`'s needs and `check_job` lines). The owner partner approves
+it under ruling 281 once its UR-89 review, with a security pass, approves and its gate is green.
+
+Notes for the lane, from the plan PR's round-4 review (#7316):
+
+- **The full-lockfile run is `dependency-audit.yml`'s own run,** on its own `push` trigger for
+  `main`, not a job in `CI`. A red job in `CI` fails the whole `CI` run, which `queue_update.py`
+  reads as red `main`: the queue freeze UR-185 rules out. Update the workflow's header comment that
+  says it has no standalone push trigger.
+- **The skip still runs both audits** when the change edits `dependency-audit.yml` or either
+  checker, so this package's own PR, and later edits to the audit, are audited.
+- **The gate mode's base** is the tested merge tree's first parent; `pull_request.base.sha` can lag
+  it.
+- **The npm checker runs `npm audit` itself,** so its tests need a way to feed it recorded JSON.
+- **The doc-only proof would take the skip,** so run the gate-mode checker directly on both trees
+  for it.
+
+### [r287b] The whole golden suite passes in the production-shaped run
+
+**Flags:** none. **Assigned:** none; the owner assigns it when Phase 3's queue allows, and the
+coordinator does not (ruling 287). **Depends on:** none named. **PR:** none yet. (ruling 287, record 6302941592)
+
+The owner's maui discovery for `O2.5` item 2 (attempt 8, `hsi-check-20261020205509-0c0734`, on
+`main` `91bf685eb` plus local fixes) passed the backend golden leg 27 of 27, and Playwright passed
+210, failed 19 and skipped 16 in production's compose shape. Item 2 passes on its own three rows
+(ruling 287); the rest of the suite is this package.
+
+- [ ] The whole golden suite passes in a `--prod-shape` run on maui. It starts from attempts 8 and 9
+      of that discovery (the handoff's `ATTEMPT9-PARTIAL-FAILURES.md` and `report-changes.md` items
+      16-18), and from its finding that some CI golden specs pin behaviour that only CI's read-only
+      directories cause, such as a thumbnail that cannot be written.
+
+**Done when:** a `--prod-shape` run on maui at a merged pin has every golden leg passed.

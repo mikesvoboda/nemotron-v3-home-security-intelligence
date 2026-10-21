@@ -207,7 +207,7 @@ The "More" menu displays all routes from `sidebarNav.ts` that are not in the pri
 - **MONITORING**: Entities
 - **ANALYTICS**: Analytics, Video Analytics, AI Audit, AI Performance, AI Services, Profiling, Plate Reads, Face Recognition
 - **OPERATIONS**: Jobs, Pipeline, Dashboard, GPU Metrics, Request Profiling, Tracing, Logs
-- **ADMIN**: Audit Log, Data Management, Scheduled Reports, Webhooks, Trash, GPU Settings, Settings
+- **ADMIN**: Audit Log, Data Management, Webhooks, Trash, GPU Settings, Settings
 
 **Props Interface:**
 
