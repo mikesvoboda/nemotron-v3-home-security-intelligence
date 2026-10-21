@@ -41,10 +41,8 @@ NOW = datetime(2026, 10, 13, 15, 0, 0, tzinfo=UTC)
 REPO = "o/r"
 HEAD = "a1b2c3d" + "e" * 33  # a full sha whose 7-char prefix the reviews below name
 BASE = "b" * 40  # the PR's merge-base with origin/main
-RUN_BASE = "d" * 40  # the main the gate's run merged the head into
 TIP = "f" * 40
 GATE_RUN = 900
-CHECKOUT_JOB = 77
 
 
 def t(delta: timedelta) -> str:
@@ -90,13 +88,6 @@ def filler_check(name="Backend Unit Tests"):
         "startedAt": t(-timedelta(hours=1)),
         "detailsUrl": f"https://github.com/{REPO}/actions/runs/901/job/1",
     }
-
-
-def checkout_log(head=HEAD, base=RUN_BASE):
-    return (
-        "2026-10-13T15:13:40Z ##[group]Checking out the ref\n"
-        f"2026-10-13T15:13:41Z HEAD is now at 0a1b2c3 Merge {head} into {base}\n"
-    )
 
 
 def run(conclusion, status="completed", head=TIP, minutes=10):
@@ -180,14 +171,11 @@ class FakeRunner:
             {"id": 30, "created_at": t(-timedelta(hours=2)), "user": "ops-b", "body": "Review: approve\nHead: `a1b2c3d`"}
         ]  # fmt: skip
         self.ci_runs = [run("", status="in_progress", minutes=1), run("success", minutes=30)]
-        # The run base is 3 merges behind the tip; the older merge-base is 10 behind.
-        self.merges_behind = {RUN_BASE: "3", BASE: "10"}
-        self.main_files = {RUN_BASE: "docs/a.md\n", BASE: "docs/a.md\ndocs/b.md\n"}
+        # The merge-base is 10 merges behind the tip.
+        self.merges_behind = {BASE: "10"}
         self.pr_files = "docs/b.md\n"
         # Per-PR rollups that differ from the batched list's (the list caps each PR at 100 entries).
         self.pr_rollups: dict[int, list] = {}
-        self.checkout_jobs = [{"id": 99, "steps": 40}, {"id": CHECKOUT_JOB, "steps": 5}]
-        self.log = checkout_log()
         # ruling 164: the UR-106 own-diff reads, the merged list, per-PR comments and doc fields.
         self.own_diffs: dict[str, str] = {}  # keyed by the "<base>..<rev>" range argument
         self.merge_bases: dict[str, str] = {}  # "<root>::<rev>" -> base; see merge-base below
@@ -244,10 +232,6 @@ class FakeRunner:
                 if number == 7001:  # §3's review read keeps its own fixture
                     return json.dumps(self.reviews)
                 return json.dumps(self.pr_issue_comments.get(number, []))
-            if path.startswith(f"repos/{REPO}/actions/runs/{GATE_RUN}/jobs"):
-                return json.dumps(self.checkout_jobs)
-            if path == f"repos/{REPO}/actions/jobs/{CHECKOUT_JOB}/logs":
-                return self.log
         if cmd[:3] == ["gh", "run", "list"]:
             if "ci.yml" in joined:
                 return json.dumps(self.ci_runs)
@@ -307,8 +291,6 @@ class FakeRunner:
                 if int(snap.parse_time(st).timestamp()) >= epoch
             )
         if cmd[:2] == ["git", "diff"]:
-            if cmd[-1] == "origin/main":
-                return self.main_files[cmd[-2]]
             if "--" in cmd:  # the UR-106 own diff: keyed by its exact <base>..<rev> range
                 key = cmd[2]
                 if key in self.own_diffs:
@@ -324,8 +306,6 @@ class FakeRunner:
                 if len(cands) == 1:
                     return self.own_diffs[cands[0]]
                 raise AssertionError(f"undeclared own diff {key}")
-            # From the run base (not an ancestor of the head) the diff would carry main's file too.
-            return self.pr_files if cmd[-2] == BASE else "docs/a.md\n" + self.pr_files
         raise AssertionError(f"unexpected command {cmd}")
 
 
@@ -546,20 +526,15 @@ def test_a_short_rollup_without_a_gate_is_not_reread():
 # --- 4. merge state (ruling 270) ---------------------------------------------------------
 
 
-def test_the_state_reads_behind_from_the_run_base():
-    """The run base is 3 merges behind the tip (behind: yes); the in-flight sign needs base at
-    the tip, so it reads no here even though the gate is unfinished."""
+def test_the_state_reads_behind_from_the_merge_base():
+    """§3's `base=` — the merge-base — is the measured referent (ruling 270 item 2, "its
+    `base=` is not `main`'s tip"): the fake's merge-base is 10 merges behind the tip, so
+    behind reads yes and the sign needs base at the tip, so it reads no."""
     fake = FakeRunner()
     fake.ci_runs = [run("", status="in_progress", minutes=1), run("success", minutes=30)]
     p = pr(build(fake))
     assert p["gate_run"] == GATE_RUN
-    assert p["leg_base"] == {
-        "run_id": GATE_RUN,
-        "merge_base": BASE,
-        "run_base": RUN_BASE,
-        "used": "run",
-    }
-    assert p["behind"] == {"merges": 3, "at_tip": False}
+    assert p["behind"] == {"merges": 10, "at_tip": False}
     assert p["in_flight"]["base_at_tip"] is False
     assert p["in_flight"]["yes"] is False
     assert [
@@ -567,28 +542,28 @@ def test_the_state_reads_behind_from_the_run_base():
         "rev-list",
         "--count",
         "--first-parent",
-        f"{RUN_BASE}..origin/main",
+        f"{BASE}..origin/main",
     ] in fake.calls
-    logs = [c for c in fake.calls if c[:2] == ["gh", "api"] and c[2].endswith("/logs")]
-    assert logs == [["gh", "api", f"repos/{REPO}/actions/jobs/{CHECKOUT_JOB}/logs"]]
+    # No checkout-log read: §3's base= is the merge-base, which needs no API call. The run's
+    # merged base was the old legs' basis, not the sign's observable.
+    assert not [c for c in fake.calls if c[:2] == ["gh", "api"] and c[2].endswith("/logs")]
     text = snap.render_text(build(FakeRunner()))
-    assert f"base: run {RUN_BASE[:9]} (run {GATE_RUN}) · merge-base {BASE[:9]}" in text
+    assert f"merge-base {BASE[:9]}" in text
 
 
 def test_the_in_flight_sign_holds_when_the_base_is_at_the_tip():
     """Merging a PR step 1's sign: base= at main's tip, the gate not finished (absent here),
     and the approval carries. The fake's approval names HEAD and the carry read passes."""
     fake = FakeRunner()
-    # No gate run at all: gate reads absent (the update-branch window before the gate queues),
-    # the run base is unread, so the comparison falls back to the merge-base... which must
-    # itself be at the tip for the sign to hold. Declare merge-base(origin/main, head) = TIP.
+    # No gate run at all: gate reads absent (the update-branch window before the gate queues).
+    # The merge-base itself must be at the tip for the sign to hold: declare
+    # merge-base(origin/main, head) = TIP.
     fake.prs[0]["statusCheckRollup"] = []
     fake.merge_bases[f"origin/main::{HEAD}"] = TIP
     fake.own_diffs[f"{TIP}..{HEAD}"] = "docs/b.md\n"
     fake.merges_behind[TIP] = "0"
     p = pr(build(fake))
     assert p["gate"] == "absent"
-    assert p["leg_base"]["used"] == "merge-base fallback"
     assert p["behind"] == {"merges": 0, "at_tip": True}
     assert p["in_flight"]["base_at_tip"] is True
     assert p["in_flight"]["gate_unfinished"] is True
@@ -602,39 +577,23 @@ def test_the_in_flight_sign_holds_when_the_base_is_at_the_tip():
 def test_a_green_gate_and_a_behind_base_fail_the_sign():
     fake = FakeRunner()
     p = pr(build(fake))
-    assert p["behind"] == {"merges": 3, "at_tip": False}
+    assert p["behind"] == {"merges": 10, "at_tip": False}
     assert p["in_flight"]["yes"] is False
 
 
-@pytest.mark.parametrize(
-    ("change", "reason"),
-    [
-        ("no_run_id", "no run id"),
-        ("no_checkout_job", "no successful checkout job"),
-        ("no_merge_line", "names no checkout merge"),
-        ("other_head", "not the head"),
-        ("log_fails", "HTTP 404"),
-    ],
-)
-def test_an_unreadable_run_base_falls_back_to_the_merge_base(change, reason):
+def test_a_failing_behind_read_is_reported_not_fatal():
+    """The rev-list call is guarded like every other read (module contract, lines 43-45):
+    a failure becomes a behind error and the report goes on."""
     fake = FakeRunner()
-    if change == "no_run_id":
-        fake.prs[0]["statusCheckRollup"][0].pop("detailsUrl")
-    elif change == "no_checkout_job":
-        fake.checkout_jobs = []
-    elif change == "no_merge_line":
-        fake.log = "no checkout here\n"
-    elif change == "other_head":
-        fake.log = checkout_log(head="9" * 40)
-    else:
-        fake.fail("/logs", "HTTP 404")
+    fake.fail("rev-list", "HTTP 500")
     data = build(fake)
     p = pr(data)
-    assert p["leg_base"]["used"] == "merge-base fallback"
-    assert reason in p["leg_base"]["error"]
-    # The behind read still runs, off the merge-base (10 merges behind the tip).
-    assert p["behind"] == {"merges": 10, "at_tip": False}
-    assert "(base: merge-base fallback" in snap.render_text(data)
+    assert p["behind"] == {"error": "HTTP 500"}
+    assert p["in_flight"]["base_at_tip"] is None
+    assert p["in_flight"]["yes"] is False
+    text = snap.render_text(data)
+    assert "behind main: HTTP 500" in text
+    assert "in-flight sign: no" in text
 
 
 def test_a_main_tip_that_cannot_be_read_reports_an_error():
@@ -1232,7 +1191,7 @@ def test_text_report_has_the_six_sections_in_order():
         "== 1", "== 2", "== 3", "== 4", "== 5", "== 6", "== 7", "== 8",
     ]  # fmt: skip
     assert "merge state (ruling 270)" in text
-    assert "behind main: yes (3 merges behind)" in text
+    assert "behind main: yes (10 merges behind)" in text
     assert "in-flight sign: no" in text
 
 

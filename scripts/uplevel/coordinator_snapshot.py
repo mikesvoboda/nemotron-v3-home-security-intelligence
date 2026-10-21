@@ -14,7 +14,7 @@ It reads GitHub through ``gh`` and the tree through ``git``, and prints one comp
 3. prs        - each open PR: head, merge-base, mergeStateStatus, ``CI Gate`` at the head, the
                 newest ``Review: approve`` comment's sha against the head (UR-106), and the
                 UR-106 own-diff hash at the head and at the approved head with ``carry:``;
-4. merge state  - per non-draft PR: whether it is behind `main` (its base is not main's tip),
+4. merge state  - per non-draft PR: whether it is behind `main` (its `base=` is not main's tip),
                 and whether it shows the in-flight sign of `roles/coordinator.md` "Merging a PR"
                 step 1 (base at the tip, the gate not finished, and the approval carries),
 5. main       - tip, CI (UR-111), Deploy, Nightly Full Gate and Flaky Test Detection (UR-116);
@@ -93,10 +93,6 @@ FIELD_DECORATION = "*_ >#`\t "
 # approval at all, which is worse than noise — it reports a live key as STALE and invites a void.
 REVIEW_HEADLINE = re.compile(r"^Review:\s*[*>_ `\t]*(approve|approved)\b", re.IGNORECASE)
 RUN_ID = re.compile(r"/actions/runs/([0-9]+)(?:/|$)")
-# actions/checkout in a pull_request run prints the merge it tested; the second sha is the
-# `main` the run ran against. The run API's pull_requests[0].base.sha is the PR's stored base,
-# which a later push does not move, so it is not that sha.
-CHECKOUT_MERGE = re.compile(r"HEAD is now at [0-9a-f]+ Merge ([0-9a-f]{40}) into ([0-9a-f]{40})")
 # The sed in UR-106's pipeline: `s/^@@ .* @@/@@/`. Byte-level, because sed and sha256sum are.
 HUNK_HEADER = re.compile(rb"^@@ .* @@", re.MULTILINE)
 # An owner hold in the owner's own voice: UR-45 reserves "RULING" for the owner and UR-40
@@ -120,11 +116,6 @@ OWNER_PR_REF = re.compile(r"#([0-9]{3,6})\b")
 # counts as a verdict thread.
 REVIEWS_JQ = (
     '[.[] | select(.body | startswith("Review:")) | {id, created_at, user: .user.login, body}]'
-)
-
-CHECKOUT_JOBS_JQ = (
-    '[.jobs[] | select(.conclusion == "success" and any(.steps[]?; .name | test("checkout"; "i")))'
-    " | {id, steps: (.steps | length)}]"
 )
 
 Runner = Callable[[Sequence[str]], str]
@@ -1050,49 +1041,29 @@ class Snapshot:
         ]
         return "\n".join(lines)
 
-    def run_base(self, run_id: int | None, head: str) -> str:
-        """The `main` sha the gate's run merged the head into, read from a checkout job's log."""
-        if run_id is None:
-            raise ValueError("no run id in the gate's detailsUrl")
-        jobs = self.gh_paginated(
-            f"repos/{self.repo}/actions/runs/{run_id}/jobs?per_page=100", "--jq", CHECKOUT_JOBS_JQ
-        )
-        if not jobs:
-            raise ValueError(f"run {run_id} has no successful checkout job")
-        job = min(jobs, key=lambda j: j["steps"])  # the shortest job has the shortest log
-        log = self.run(["gh", "api", f"repos/{self.repo}/actions/jobs/{job['id']}/logs"])
-        match = CHECKOUT_MERGE.search(log)
-        if not match:
-            raise ValueError(f"job {job['id']} log names no checkout merge")
-        if match.group(1) != head:
-            raise ValueError(f"run {run_id} tested {match.group(1)[:9]}, not the head")
-        return match.group(2)
-
     def _merge_state(self, item: dict[str, Any]) -> None:
         """§4's two reads per non-draft PR (ruling 270): behind main, and the in-flight sign
         that `roles/coordinator.md` "Merging a PR" step 1 names — the state an update-branch
         leaves while the PR's CI runs at the new head."""
-        head = item["head"]
-        # "behind" compares the §3 base (the gate run's merged base, else the merge-base,
-        # labelled) with main's tip: base == tip means not behind.
-        basis: dict[str, Any] = {"run_id": item.get("gate_run"), "merge_base": item["merge_base"]}
-        item["leg_base"] = basis
-        try:
-            basis["run_base"] = self.run_base(item.get("gate_run"), head)
-            basis["used"] = "run"
-        except Exception as exc:  # fall back to the merge-base, and say so
-            basis["run_base"] = None
-            basis["used"] = "merge-base fallback"
-            basis["error"] = error_text(exc)
-        base = basis["run_base"] or item["merge_base"]
+        # Both reads measure §3's `base=` — the merge-base — because that is the line the
+        # coordinator reads: ruling 270 item 2 says "its `base=` is not `main`'s tip" / "its
+        # `base=` is at the tip", and with `strict: true` only §3's `base=` says whether a PR
+        # is behind `main` ("Merging a PR" step 2, via the coordinator's header). The gate
+        # run's merged base was the old legs' basis; step 1/2 decide from the printed base=.
+        base = item["merge_base"]
         tip = self.data["main"].get("tip")
         if not tip:
             item["behind"] = {"error": "main tip unread"}
         elif not base:
             item["behind"] = {"error": "no base to compare"}
         else:
-            behind = int(self.git("rev-list", "--count", "--first-parent", f"{base}..origin/main"))
-            item["behind"] = {"merges": behind, "at_tip": behind == 0}
+            try:
+                behind = int(
+                    self.git("rev-list", "--count", "--first-parent", f"{base}..origin/main")
+                )
+                item["behind"] = {"merges": behind, "at_tip": behind == 0}
+            except Exception as exc:  # reported, not fatal
+                item["behind"] = {"error": error_text(exc)}
         # The in-flight sign: base at the tip, the gate not finished, and the approval carries.
         # The package's gate list names step 1's three ("absent" until the gate job is queued, then
         # QUEUED or IN_PROGRESS); PENDING is the StatusContext spelling of in-flight, which a
@@ -1366,12 +1337,8 @@ def render_text(data: dict[str, Any]) -> str:
         if behind is None and inflight is None:
             continue
         any_state = True
-        basis = p["leg_base"]
-        if basis["used"] == "run":
-            base_txt = f"base: run {basis['run_base'][:9]} (run {basis['run_id']})"
-        else:
-            base_txt = f"(base: merge-base fallback) run base unread: {basis['error']}"
-        out.append(f"  #{p['number']} {base_txt} · merge-base {(basis['merge_base'] or '?')[:9]}")
+        base = (p.get("merge_base") or "?")[:9]
+        out.append(f"  #{p['number']} base: merge-base {base}")
         if isinstance(behind, dict) and "error" in behind:
             b_txt = behind["error"]
         else:
