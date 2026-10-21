@@ -20,15 +20,43 @@ name: Dependency Audit
 # the split finds the first occurrence, and a comment that comes first
 # becomes the "leg" (measured: this package's own header did exactly that).
 #
-# on: keeps schedule + workflow_call. The weekly scan is what catches NEW
-# advisories against UNCHANGED code — a PR-time-only audit goes blind to the
-# advisory published Wednesday against last week's lock. On a PR the audit
-# runs only through ci.yml's call job (no standalone push/PR trigger: that
-# would race the parent inside the shared concurrency group — see below).
+# on: schedule (DAILY since [r291]) + workflow_call + a push leg of its own
+# on main. The scheduled scan is what catches NEW advisories against UNCHANGED
+# code — a PR-time-only audit goes blind to the advisory published Wednesday
+# against last week's lock. On a PR the audit runs only through ci.yml's call
+# job (no standalone push/PR trigger: that would race the parent inside the
+# shared concurrency group — see below); the push trigger below is MAIN-ONLY
+# and carries the full-lockfile mode, deliberately OUTSIDE ci.yml (UR-119:
+# CI Gate does not read it; a red is raised and routed, never queued against).
+# MODES ([r291]): full-lockfile = today's checks unchanged on the checked-out
+# tree. gate = the PR-time delta: audit head AND base in the same job, fail
+# only on a finding the change ADDS. ci.yml's call selects gate via
+# workflow_call input (a called workflow inherits the caller's event, so
+# event_name cannot discriminate); push/schedule/dispatch run full-lockfile.
 on:
   workflow_call:
+    # [r291]: ci.yml's security-dependency-audit call job passes audit-mode:
+    # gate. A called workflow inherits the CALLER's event, so event_name
+    # cannot discriminate the modes (a call from ci.yml on a push to main
+    # arrives here as event_name=push, same as this file's own push leg) -
+    # the mode must travel as an explicit input (UR-122: ci.yml's call
+    # SELECTS the gate mode). Everything not called with `gate` runs
+    # full-lockfile: today's checks unchanged.
+    inputs:
+      audit-mode:
+        description: 'gate = delta vs the base tree (ci.yml calls); full-lockfile = audit this tree alone'
+        required: false
+        default: 'full-lockfile'
+        type: string
+  push:
+    branches: [main]
+    # [r291]: the full-lockfile run on main is THIS workflow's own push leg
+    # (a red job in CI would fail the whole CI run, which queue_update.py
+    # reads as red main - the queue freeze UR-185 rules out). It is NOT a
+    # ci-gate need and NOT read by CI Gate (UR-119); a red is raised and
+    # routed, not queued against.
   schedule:
-    - cron: '0 6 * * 1' # Weekly on Monday at 6 AM UTC (kept: new-advisory discovery on unchanged code)
+    - cron: '17 6 * * *' # [r291] DAILY at 06:17 UTC (was Monday-only '0 6 * * 1'): full-lockfile on unchanged code still catches new advisories daily
   workflow_dispatch:
 
 # WP1.2 fix (probe3, run 35492418369): root `concurrency:` is BANNED in a
@@ -50,10 +78,64 @@ jobs:
   python-audit:
     name: Python Dependency Audit
     runs-on: ubuntu-latest
+    outputs:
+      audit-ran: ${{ steps.mode.outputs.skip_audits != 'true' }}
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # [r291] gate mode: the base is the tested merge tree's FIRST PARENT
+          # (github.event.pull_request.base.sha can lag it), which needs the
+          # parent commits local. Full-lockfile mode ignores the extra fetch.
+          fetch-depth: 0
+
+      - name: Resolve the audit mode
+        id: mode
+        run: |
+          echo "mode=${{ inputs.audit-mode || 'full-lockfile' }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ inputs.audit-mode || 'full-lockfile' }}" = "gate" ]; then
+            # The tested merge tree's first parent IS the PR's base commit as
+            # CI tests it; pull_request.base.sha can lag (a branch pushed
+            # after main moved). On non-PR callers of gate mode (none today)
+            # the first parent is the previous main commit, which is the
+            # package's stated push-to-main base.
+            base_sha="$(git rev-parse HEAD^1)"
+            echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+            echo "gate base = $base_sha" >&2
+            # [r291] skip: a change touching none of the dependency files may
+            # skip both audits - a docs- or code-only change cannot move what
+            # pip-audit or npm audit see. The skip is GATE-MODE-ONLY
+            # (full-lockfile audits its tree unconditionally on its own
+            # triggers), and the audit machinery itself is deliberately NOT
+            # skippable: a change editing dependency-audit.yml, ci.yml or
+            # either checker must still run both audits, so this package's
+            # own PR - and later edits to the gate - are audited.
+            # --no-renames: a RENAMED dependency file must read as touched -
+            # rename detection prints only the destination path, which no
+            # pathspec here matches, and the skip would fire on a change that
+            # moved a lockfile. Delete+add rendering keeps the old path visible.
+            deps_touched="$(git diff --no-renames --name-only "$base_sha"..HEAD -- \
+              pyproject.toml uv.lock \
+              frontend/package.json frontend/package-lock.json \
+              .pip-audit-exemptions.json frontend/.npm-audit-exemptions.json)"
+            machinery_touched="$(git diff --no-renames --name-only "$base_sha"..HEAD -- \
+              .github/workflows/dependency-audit.yml .github/workflows/ci.yml \
+              scripts/check-pip-audit-exemptions.py scripts/check-npm-audit-exemptions.py)"
+            if [ -z "$deps_touched" ] && [ -z "$machinery_touched" ]; then
+              echo "skip_audits=true" >> "$GITHUB_OUTPUT"
+              echo "no dependency or audit-machinery file changed - both audits skip (gate mode)" >&2
+            fi
+          fi
+
+      # [r291] gate mode only: check the base tree out beside the head tree.
+      # checkout@v7 refuses a second checkout in one job, so this is a plain
+      # git worktree add of the resolved base SHA - read-only evidence for
+      # the base side's audit, never the tree CI tests.
+      - name: Check out the base tree (gate mode)
+        if: steps.mode.outputs.mode == 'gate' && steps.mode.outputs.skip_audits != 'true'
+        run: |
+          git worktree add "$RUNNER_TEMP/base-tree" "${{ steps.mode.outputs.base_sha }}"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -68,8 +150,27 @@ jobs:
         run: uv tool install pip-audit
 
       - name: Run pip-audit on dependencies
+        if: steps.mode.outputs.mode != 'gate' || steps.mode.outputs.skip_audits != 'true'
         run: |
           # Export dependencies to requirements format for pip-audit
+          # [r291] gate mode audits the BASE tree first (its own uv export +
+          # pip-audit run inside the worktree), then the head tree: the two
+          # recorded JSONs are the delta's inputs. Full-lockfile mode runs
+          # only the head-tree half, byte-identical to before this package.
+          if [ "${{ steps.mode.outputs.mode }}" = "gate" ]; then
+            cd "$RUNNER_TEMP/base-tree"
+            uv export --no-hashes > requirements-audit.txt
+            grep -v '+cpu' requirements-audit.txt > requirements-audit-filtered.txt || true
+            rc=0
+            pip-audit -r requirements-audit-filtered.txt --desc -f json > pip-audit.json || rc=$?
+            if [ "$rc" -gt 1 ]; then
+              echo "pip-audit itself failed on the BASE tree (rc=$rc) - the gate fails closed" >&2
+              exit "$rc"
+            fi
+            cp pip-audit.json "$GITHUB_WORKSPACE/pip-audit-base.json"
+            cp .pip-audit-exemptions.json "$GITHUB_WORKSPACE/pip-audit-base-registry.json"
+            cd "$GITHUB_WORKSPACE"
+          fi
           uv export --no-hashes > requirements-audit.txt
           # Remove torch packages with +cpu suffix (from PyTorch custom index, not on PyPI)
           # These packages are audited separately via their official security advisories
@@ -100,12 +201,31 @@ jobs:
         # Same doctrine as the npm leg below: the registry is the allowlist,
         # findings without an entry (reason + owner + REVIEW BY) are red,
         # dead entries are red, and a released fix invalidates the exemption.
+        # [r291] gate mode passes the base side's recorded audit + registry
+        # snapshot and reds only a finding/violation the change ADDS.
+        if: steps.mode.outputs.mode != 'gate'
         run: python3 scripts/check-pip-audit-exemptions.py --audit-json pip-audit.json --registry .pip-audit-exemptions.json --warn-days 14
+        continue-on-error: false
+
+      - name: Audit check (gate delta)
+        if: steps.mode.outputs.mode == 'gate' && steps.mode.outputs.skip_audits != 'true'
+        run: |
+          # The base tree's registry snapshot rides out of the worktree with
+          # its audit; both sides fail closed (unparsable audit, missing or
+          # malformed registry) and only the DELTA can go red-or-green on.
+          python3 scripts/check-pip-audit-exemptions.py \
+            --audit-json pip-audit.json \
+            --registry .pip-audit-exemptions.json \
+            --base-audit-json pip-audit-base.json \
+            --base-registry pip-audit-base-registry.json \
+            --warn-days 14
         continue-on-error: false
 
   npm-audit:
     name: NPM Dependency Audit
     runs-on: ubuntu-latest
+    outputs:
+      audit-ran: ${{ steps.mode.outputs.skip_audits != 'true' }}
     defaults:
       run:
         working-directory: frontend
@@ -113,6 +233,48 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # [r291] gate mode resolves the merge tree's first parent
+
+      - name: Resolve the audit mode
+        id: mode
+        working-directory: .
+        run: |
+          echo "mode=${{ inputs.audit-mode || 'full-lockfile' }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ inputs.audit-mode || 'full-lockfile' }}" = "gate" ]; then
+            base_sha="$(git rev-parse HEAD^1)"
+            echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+            echo "gate base = $base_sha" >&2
+            # [r291] skip: a change touching none of the dependency files may
+            # skip both audits - a docs- or code-only change cannot move what
+            # pip-audit or npm audit see. The skip is GATE-MODE-ONLY
+            # (full-lockfile audits its tree unconditionally on its own
+            # triggers), and the audit machinery itself is deliberately NOT
+            # skippable: a change editing dependency-audit.yml, ci.yml or
+            # either checker must still run both audits, so this package's
+            # own PR - and later edits to the gate - are audited.
+            # --no-renames: a RENAMED dependency file must read as touched -
+            # rename detection prints only the destination path, which no
+            # pathspec here matches, and the skip would fire on a change that
+            # moved a lockfile. Delete+add rendering keeps the old path visible.
+            deps_touched="$(git diff --no-renames --name-only "$base_sha"..HEAD -- \
+              pyproject.toml uv.lock \
+              frontend/package.json frontend/package-lock.json \
+              .pip-audit-exemptions.json frontend/.npm-audit-exemptions.json)"
+            machinery_touched="$(git diff --no-renames --name-only "$base_sha"..HEAD -- \
+              .github/workflows/dependency-audit.yml .github/workflows/ci.yml \
+              scripts/check-pip-audit-exemptions.py scripts/check-npm-audit-exemptions.py)"
+            if [ -z "$deps_touched" ] && [ -z "$machinery_touched" ]; then
+              echo "skip_audits=true" >> "$GITHUB_OUTPUT"
+              echo "no dependency or audit-machinery file changed - both audits skip (gate mode)" >&2
+            fi
+          fi
+
+      - name: Check out the base tree (gate mode)
+        if: steps.mode.outputs.mode == 'gate' && steps.mode.outputs.skip_audits != 'true'
+        working-directory: .
+        run: |
+          git worktree add "$RUNNER_TEMP/base-tree" "${{ steps.mode.outputs.base_sha }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -122,6 +284,20 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: steps.mode.outputs.mode != 'gate' || steps.mode.outputs.skip_audits != 'true'
+        run: npm ci
+
+      # [r291] gate mode: the base tree gets the same npm ci treatment as the
+      # head (a fresh lockfile-faithful tree), but NO npm audit here - unlike
+      # pip-audit, the npm CHECKER runs `npm audit` itself on both trees (the
+      # recorded-JSON handoff this step once did would audit the base twice).
+      # npm ci in a worktree is a second full install; the delta is worth it
+      # exactly when the change touches the frontend lockfiles, which is the
+      # only way gate mode reaches this job (ci.yml's detect-changes gates
+      # the call).
+      - name: npm ci on the base tree (gate mode)
+        if: steps.mode.outputs.mode == 'gate' && steps.mode.outputs.skip_audits != 'true'
+        working-directory: ${{ runner.temp }}/base-tree/frontend
         run: npm ci
 
       # Same gate as ci.yml's `npm Audit (Frontend)` leg this job absorbs:
@@ -131,7 +307,22 @@ jobs:
       # stdlib-only. working-directory is frontend/, hence ../scripts and
       # --frontend . here.
       - name: Audit check (exemption registry)
+        if: steps.mode.outputs.mode != 'gate'
         run: python3 ../scripts/check-npm-audit-exemptions.py --frontend . --warn-days 14
+        continue-on-error: false
+
+      - name: Audit check (gate delta)
+        if: steps.mode.outputs.mode == 'gate' && steps.mode.outputs.skip_audits != 'true'
+        run: |
+          # The checker runs `npm audit` ITSELF on both trees (head: frontend/,
+          # base: the worktree) - no recorded-JSON handoff exists on this leg.
+          # Each side's registry is read from its own tree, so the delta
+          # adjudicates exactly the files CI would test on each side.
+          python3 ../scripts/check-npm-audit-exemptions.py \
+            --frontend . \
+            --base-frontend "$RUNNER_TEMP/base-tree/frontend" \
+            --base-registry "$RUNNER_TEMP/base-tree/frontend/.npm-audit-exemptions.json" \
+            --warn-days 14
         continue-on-error: false
 
   audit-summary:
@@ -147,8 +338,8 @@ jobs:
           echo "### Results" >> $GITHUB_STEP_SUMMARY
           echo "| Scan | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Python Audit | ${{ needs.python-audit.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| NPM Audit | ${{ needs.npm-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Audit | ${{ needs.python-audit.outputs.audit-ran == 'true' && needs.python-audit.result || 'skipped (gate: no dependency change)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| NPM Audit | ${{ needs.npm-audit.outputs.audit-ran == 'true' && needs.npm-audit.result || 'skipped (gate: no dependency change)' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if ${{ needs.python-audit.result != 'success' || needs.npm-audit.result != 'success' }}; then
             echo "### Action Required" >> $GITHUB_STEP_SUMMARY
