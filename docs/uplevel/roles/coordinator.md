@@ -93,8 +93,9 @@ record 6148551105). Run these steps in order. Read CI once per tick and end the 
    run, route each flaky test in its summary (UR-116). Raise the urgent path for a time-boxed
    quarantine mark still on `main` at its expiry (UR-114). Once `[r291]` merges, also read the
    newest full-lockfile audit run on `main`
-   (`gh run list --workflow dependency-audit.yml --branch main --limit 1`), and on a red one follow
-   "Advisory on `main`" below (UR-185).
+   (`gh run list --workflow dependency-audit.yml --branch main --limit 1`), and once `[r294]`
+   merges, the newest full Trivy run (`gh run list --workflow trivy.yml --branch main --limit 1`);
+   on a red one follow "Advisory on `main`" below (UR-185).
 7. **Assign.** Assign any `heavy` package whose dependencies have merged, and any package on no
    roster queue (UR-59; "Assigning a package" below).
 8. **Ready but unclaimed.** Note each package ready and unclaimed for two ticks for the status
@@ -195,12 +196,14 @@ job and the log lines you read that tick, disable auto-merge on every queued lan
 green again (UR-102), and route the fix (UR-111). The fix PR merges next,
 within UR-112's limits.
 
-**Advisory on `main`** (ruling 291, once `[r291]` merges). A red full-lockfile audit on `main` is
-not red `main`, because the gate stays green, so ruling 288's `!`-only rule does not apply. On the
-first red run that no open raise or package already owns, raise the urgent path with the findings
-you read and route the fix (UR-111). The fix PR is a red-`main` fix, written first in the queue line
-with `!` (UR-112), and a Dependabot security PR for that package may be the fix (ruling 284). Leave
-auto-merge on and keep every entry in the queue line (UR-185).
+**Advisory on `main`** (rulings 291 and 294). A red full-lockfile audit on `main` once `[r291]`
+merges, or a red full Trivy run once `[r294]` merges, is not red `main`, because the gate stays
+green, so ruling 288's `!`-only rule does not apply. On the first red run whose findings no open
+raise or package already owns, raise the urgent path with the findings you read and route the fix
+(UR-111). The fix PR is a red-`main` fix, written first in the queue line with `!` (UR-112), and a
+Dependabot security PR for that package may be the fix (ruling 284). A fix that clears a finding
+also removes any exemption entry for it, or the entry goes stale once it merges. Leave auto-merge on
+and keep every entry in the queue line (UR-185).
 
 ## The status comment
 
