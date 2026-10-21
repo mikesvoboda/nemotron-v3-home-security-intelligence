@@ -40,10 +40,11 @@ CENSUS_INVALIDATORS = (
 
 
 def _census_cache() -> AsyncMock:
-    """A CacheService double whose seven census invalidators are individually mockable."""
+    """A CacheService double whose invalidators are all individually mockable."""
     cache = AsyncMock(spec=CacheService)
-    for name in CENSUS_INVALIDATORS:
-        setattr(cache, name, AsyncMock(return_value=1))
+    for name in dir(CacheService):
+        if name.startswith("invalidate_"):
+            setattr(cache, name, AsyncMock(return_value=1))
     return cache
 
 
@@ -280,28 +281,44 @@ class TestSummariesNamespaceIsInTheCensus:
 
         cache.invalidate_summaries.assert_awaited_once()
 
+    @staticmethod
+    def _awaited_invalidator_counts(cache: AsyncMock) -> dict[str, int]:
+        return {
+            name: getattr(cache, name).await_count
+            for name in dir(cache)
+            if name.startswith("invalidate_")
+            and isinstance(getattr(cache, name), AsyncMock)
+            and getattr(cache, name).await_count
+        }
+
     @pytest.mark.asyncio
     async def test_helper_calls_exactly_the_census_invalidators_once(self) -> None:
-        """One call per namespace: no gap, no double-delete.
+        """One call per namespace: no gap, no double-delete, no non-census call.
 
-        Set equality is the whole claim *about the call set*. It says nothing
-        about what each name scans, and round 2 measured that silence: narrowing
-        `invalidate_summaries` to `summaries:entities` left this file green. The
-        sweep's reach is pinned separately, at
-        `test_cache_service.py::test_invalidate_summaries_scans_the_whole_summaries_namespace`.
-        Within the call set: `invalidate_summaries` scans `summaries:*`, which
-        contains `summaries:entities`, so a separate entities call next to the
-        sweep would delete the same key twice and double-count it in
-        `keys_cleared`; a missing name would leave a stale namespace. Both show
-        up here.
+        Set/count equality over every ``invalidate_*`` method on ``CacheService``
+        is the whole claim *about the call set* (Q-142, ruling 305). It says
+        nothing about what each name scans, and round 2 measured that silence:
+        narrowing ``invalidate_summaries`` to ``summaries:entities`` left this
+        file green. The sweep's reach is pinned separately, at
+        ``test_cache_service.py::test_invalidate_summaries_scans_the_whole_summaries_namespace``.
+        Within the call set: ``invalidate_summaries`` scans ``summaries:*``, which
+        contains ``summaries:entities``, so a separate entities or non-census
+        call next to the sweep would delete keys outside the census or twice;
+        a missing name would leave a stale namespace. Both show up here.
         """
         from backend.api.routes.admin import _invalidate_devtool_caches_background
 
         cache = _census_cache()
         await _invalidate_devtool_caches_background(cache)
 
-        called = {name for name in CENSUS_INVALIDATORS if getattr(cache, name).await_count == 1}
-        assert called == set(CENSUS_INVALIDATORS), set(CENSUS_INVALIDATORS) - called
+        expected = dict.fromkeys(CENSUS_INVALIDATORS, 1)
+        assert self._awaited_invalidator_counts(cache) == expected
+
+        # Positive mutant witness (Q-142): an extra call to a real non-census
+        # invalidator on CacheService (or a second call to a census one) must
+        # break the equality above.
+        await cache.invalidate_alerts()
+        assert self._awaited_invalidator_counts(cache) != expected
 
     def test_no_orphan_entities_invalidator_on_the_service(self) -> None:
         """`invalidate_entities` is gone, not merely uncalled.
