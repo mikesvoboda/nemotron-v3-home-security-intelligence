@@ -324,9 +324,10 @@ through one injectable runner. Tests: `scripts/test_post_record.py`.
 
 The plan fields `lane_tick.py` acts on, checked where they are written (ruling 197). `uv run python
 scripts/uplevel/plan_lint.py [--root DIR]` reads the working tree's roster
-(`docs/uplevel/roles/lane.md`), package files and ruling map with `lane_tick.py`'s own parsers
-(imported, never copied: `ROW`, `queue_entries`, `BLOCK`, `PKG_FIELD`, `NONE_YET`, `PR_NUMBER`,
-`next_claimable`, `held_claims`). It fails when a roster queue token has no `### ` block in its
+(`docs/uplevel/roles/lane.md`), package files and ruling map with `coordinator_snapshot.py`'s parsers
+([r290] moved them there -- `ROW`, `queue_entries`, `BLOCK`, `PKG_FIELD`, `NONE_YET`, `PR_NUMBER`,
+`unticked_box`, `readme_rows`, `dep_names`, `dependency_verdict` -- imported by `lane_tick.py`
+through module-level aliases, so both files name the same parsers), It fails when a roster queue token has no `### ` block in its
 lane's package file (the lanes with no file of their own, `UNPACKAGED` -- coordinator, heavy,
 operator -- have their tokens looked up across every package file), when a `**PR:**` field is
 neither `none yet` on one line nor a leading `#N` (a `none` / `yet.` wrapped across two lines is
