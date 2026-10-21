@@ -279,9 +279,10 @@ sensitivity/PTZ (F-291 ruled complete, all of it; ruling 89). Its design session
 - whether the MQTT handler starts with the app, and how it authenticates.
 
 **Alert rules** (F-216, F-217; P1) is another (ruling 89: call the rules engine after each
-verdict). Its schedule includes its end minute in full: a window matches when
-`start <= now < end + 1 minute`, and an overnight window (end before start) wraps across midnight
-with the same one-minute inclusion. Its tests pin the boundary with a fixed clock: 23:59:30
+verdict), designed with notification history in [`../4n-alerting.md`](../4n-alerting.md). Its
+schedule includes its end minute in full: a window matches when `start <= now < end + 1 minute`,
+and an overnight window (end before start) wraps across midnight with the same one-minute
+inclusion. Its tests pin the boundary with a fixed clock: 23:59:30
 matches, 00:00:00 the next day matches for an all-day rule, and the instant after the end minute
 does not (ruling 139).
 
@@ -297,6 +298,111 @@ and its outcome in the log; settle it with Arming's "notification delivery" ques
 version relates to replay measurement; the package is flagged `owner` and the owner reviews that
 note. OD-36 (debug tooling) and OD-37 ("Clear All Test Data") packages are flagged `owner`
 (ruling 89).
+
+**The P1 packages** (ruling 308, record 6326364266). Each runs the six steps above, and its design
+is step 1. Ruling 308 put the four with concurrency, erasure or data-migration risk on the heavy
+agents and the rest on the fast lanes.
+
+### B4.1 Alert pipeline core
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r305]`; `W3.1`'s per-lane PRs still slot in
+between (rulings 300, 308). It moves from backend, which closes #7287. **Depends on:** none.
+**PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 1, with `alert_events` (re-scoped
+from "Snooze an event or alert"). Covers F-050, F-079, F-216, F-217.
+
+- [ ] The test-only PR consolidates the tests of every module the package touches (step 2).
+- [ ] The build PR: `verdict`, `policy` and `pipeline` with an empty planner hook; the
+      idempotency-path, recovery and sweep calls; the default rule; activity snoozes; the new
+      alert columns, `alert_events` and the `open` status; an additive recorded upgrade.
+- [ ] Golden path (pytest): confirmed gives an alert row and an `alert_created` frame; repeats
+      fold; snooze holds; VLM failure gives unverified; a trusted face covering everyone gives no
+      alert; rejected gives no alert.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.2 Recipients and delivery
+
+**Flags:** none. **Assigned:** backend, after `[r295]` (ruling 308). **Depends on:** `B4.1` for the
+build PR; the test-only PR may open first. Its golden path uses `[r308a]`'s sinks.
+**PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236, F-232.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: recipients, channels, the outbox, `planner`, the worker, email and webhook, the
+      local-network flag, name redaction, history, browser rows; recipients and channels join the
+      backup list without their secrets if `B4.6` has landed; an additive recorded upgrade.
+- [ ] Golden path (pytest): the webhook sink gets the payload and idempotency key and History reads
+      `sent`; a retry ends `failed`; quiet hours give `suppressed`; critical breaks through.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.3 The Web Push channel
+
+**Flags:** none. **Assigned:** backend, after `B4.2` (ruling 308). **Depends on:** `B4.2`.
+**PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 3.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: VAPID, the push adapter, the subscription API, expired subscriptions.
+- [ ] Golden path (pytest) against `[r308a]`'s push-service fake.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.4 Trash purger
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `B4.1` (ruling 308). **Depends on:** none; the
+alert steps go with whichever of `B4.1` and `B4.4` lands second, the deliveries' with whichever of
+`B4.2` and `B4.4`. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-trash.md`](../4n-trash.md), the `B4.4` parts. Covers F-087, F-088 with `F4.3`.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: `EventPurger` and its four adapters; soft delete stops scheduling file
+      deletion; the trash purge at the earlier deadline, before general retention;
+      `trash_retention_days`.
+- [ ] Golden path (pytest, `backend/tests/golden/external/test_trash_purge.py`) as the design
+      gives it.
+
+**Done when:** its golden path is green on the fake stack and the real-tier check is posted;
+`F4.3` flips the rows.
+
+### B4.5 Contract
+
+**Flags:** `heavy`. **Assigned:** heavy-b, last on its queue (ruling 308). **Depends on:** `F4.2`
+merged. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: the contract upgrade translates camera settings into rules and archives the
+      originals, then drops the old columns, the `delivered` value and
+      `camera_notification_settings` (`threat_*` stays); the camera routes, `PATCH
+/api/notification/config` and the rest of `alert_engine` go; the `alert_rules` restore
+      adapter ships if `B4.6` has landed.
+- [ ] Golden path: an upgrade-path test on a populated database with non-default rows, with
+      `F4.2`'s golden path still green.
+
+**Done when:** steps 4–6 hold for the cluster, as the design's "Done when" says.
+
+### B4.6 Restore from backup
+
+**Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` (ruling 308). **Depends on:** none.
+**PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
+F-101.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
+      its adapters, three sessions, the safety backup on the data volume, the narrowed undo.
+- [ ] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
+      Playwright, as the design gives them.
+
+**Done when:** steps 4–6 hold for F-101.
 
 ### BB.\* Background track
 

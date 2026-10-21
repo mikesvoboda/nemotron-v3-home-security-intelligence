@@ -320,6 +320,7 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 305    | package `[r305]`: three weak tests and 15 prose rows of `[r262]` batches 4–6 (record 6323706301)            |
 | 306    | UR-85; packages `[r306a]`, `[r306b]`; `[r252]`'s proving run now (record 6323748868)                        |
 | 307    | UR-86; packages `[r307a]`–`[r307d]`: small models in Triton, fast-alpr out (record 6323846997)              |
+| 308    | P1 packages `B4.1`–`B4.6`, `F4.1`–`F4.4`, `[r308a]`, `[r308b]`, spread (record 6326364266)                  |
 
 ## Owner records
 

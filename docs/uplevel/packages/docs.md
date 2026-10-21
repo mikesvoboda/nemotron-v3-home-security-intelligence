@@ -585,3 +585,15 @@ installed.
       Triton. Later PRs that move a model update the page (UR-81).
 
 **Done when:** merged at a ready head, each sentence citing the line it rests on at the PR's base.
+
+### [r308b] User guides for the P1 features
+
+**Flags:** none. **Assigned:** docs, after `[r277b]` (ruling 308). **Depends on:** each page on its
+feature's last build PR. **PR:** none yet. (ruling 308, record 6326364266)
+
+- [ ] One page per feature in `docs/guides/`: alerts and notifications (`B4.1`–`B4.5`, `F4.1`,
+      `F4.2`), Trash (`B4.4`, `F4.3`), timeline filters (`F4.4`), and backup and restore (`B4.6`).
+      Each is written after that feature's last build PR merges and cites the code at that merge
+      (UR-81).
+
+**Done when:** all four pages are merged, each sentence citing the line it rests on.

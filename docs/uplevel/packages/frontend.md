@@ -202,12 +202,8 @@ The frontend parts of each feature package in the backend lane's feature track
 ([`backend.md`](backend.md), `B4.*`), running the same six steps. This lane writes the UI golden
 paths; the inventory row reads **works** once the operator records the real-tier check. Features rulings have already shaped:
 
-- **Trash** (F-087 with R2a's F-088; P1; one package): a Delete action in the event detail modal and
-  a bulk Delete on the timeline, both calling the existing soft-delete routes
-  (`DELETE /api/events/{id}`, `routes/events.py:2726`, and the bulk delete, `:1793`), so deleted
-  events land in `/trash`; no backend change is expected. Golden path: delete an event from the UI,
-  find it in `/trash`, restore it, then delete it permanently; it replaces the spec's API-side
-  seeding (rulings 131, 135).
+- **Trash** (F-087 with R2a's F-088; P1): designed in [`../4n-trash.md`](../4n-trash.md) as two
+  packages, `B4.4` then `F4.3`, each with its own golden path (rulings 131, 135, 308).
 - **Monitoring** (F-102, F-115, F-117, F-164–F-167, F-169, F-174; P3): one Monitoring page with a
   dashboard picker over the provisioned dashboards, built on one shared embed component, replaces
   the eight wrapper pages and their routes (`AIServicesPage`, `PyroscopePage`,
@@ -222,6 +218,72 @@ paths; the inventory row reads **works** once the operator records the real-tier
   nothing in the product writes `hsi_zone*` since #7319 deleted `zone_crossing_service.py`, so the
   panels have never shown data. F-117 stays complete. A future zone feature adds the panels back
   with a writer, and until then no PR adds a writer for `hsi_zone*` (ruling 301).
+
+**The P1 packages' frontend parts** (ruling 308, record 6326364266), each with its design as step 1.
+
+### F4.4 Timeline filters and detections
+
+**Flags:** none. **Assigned:** frontend, after `[r299]` (ruling 308). **Depends on:** none; its
+small backend part (`min_confidence`) rides in the same PR (UR-9).
+**PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-timeline.md`](../4n-timeline.md). Covers F-044, F-055.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: `min_confidence` as a correlated `EXISTS`; the Verification select; the
+      modal's detections from its own fetch; boxes on still images through `BoundingBoxOverlay`;
+      `ThreatBoundingBox` retired.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.1 The Alerts page
+
+**Flags:** none. **Assigned:** frontend, after `F4.4` (ruling 308). **Depends on:** `B4.1`
+merged; it runs beside `B4.2`. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2, beside `B4.2`. Covers F-078,
+F-079.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: alert rows; Acknowledge, Dismiss, Snooze; the timeline's Snooze moves to
+      activity snoozes; `alerts.spec.ts` and the snooze steps of `event-detail-modal.spec.ts`
+      rewritten.
+- [ ] Golden path (Playwright): the alert appears live, then acknowledge, dismiss, snooze.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.3 The Trash UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.1` (ruling 308). **Depends on:** `B4.4`
+merged. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-trash.md`](../4n-trash.md), the `F4.3` parts. Covers F-087, F-088 with `B4.4`.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: Delete in `EventDetailModal`, bulk Delete on the timeline, the Undo toast;
+      `permanentlyDeleteEvent` sends `?permanent=true`; Trash shows the deleted and purge dates;
+      the setting under Settings › Data.
+- [ ] Golden path (Playwright) as the design gives it; it replaces the spec's API-side seeding
+      (ruling 135).
+
+**Done when:** steps 4–6 hold for F-087 and F-088.
+
+### F4.2 The rules dialog and Settings › Notifications
+
+**Flags:** none. **Assigned:** frontend, after `F4.3` (ruling 308). **Depends on:** `B4.3`
+merged. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 4. Covers F-216, F-217, F-231,
+F-232, F-235, F-236.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: as designed, the push subscription included; the channel checks of
+      `alert-rules.spec.ts` and the UI steps of `notify.spec.ts` and `quiet-hours.spec.ts`
+      rewritten.
+- [ ] Golden path (Playwright): the cluster's golden path.
+
+**Done when:** steps 4–6 hold for its rows.
 
 ### FB.\* Background track
 

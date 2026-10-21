@@ -1494,3 +1494,20 @@ moves the backend to the routes this package adds.
 
 **Done when:** `RESULT: PASS` is posted at the head and the UR-89 review approves. Nothing in
 production switches yet.
+
+### [r308a] CI sinks for the alerting golden paths
+
+**Flags:** none. **Assigned:** ops-b, after `[r290]` (ruling 308). **Depends on:** none.
+**PR:** none yet. (ruling 308, record 6326364266)
+
+The alerting packages' golden paths deliver to a mail server, a webhook receiver and a push
+service; the CI harness admits only `FAKE_SERVICES` today (`scripts/feature_check.py:96`, `:463`).
+Split out of `B4.2` so it is ready before `B4.2`'s build PR
+([`../4n-alerting.md`](../4n-alerting.md), "What changes", ops).
+
+- [ ] The CI harness admits a mail sink, a webhook sink and a Web Push service fake beside
+      `FAKE_SERVICES`, each started by the fake stack and readable by a golden test; the CI
+      webhook sink is marked "on this network".
+
+**Done when:** a smoke test sends one message to each sink and reads it back in CI, and the UR-89
+review approves.
