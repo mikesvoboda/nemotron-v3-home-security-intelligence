@@ -62,6 +62,56 @@ const goldenRequested =
     ['golden', 'golden-seeded'].includes(process.argv[process.argv.indexOf('--project') + 1]));
 const goldenMode = Boolean(GOLDEN_UI) || goldenRequested;
 
+/**
+ * [r282] The manifest shard's selection, forwarded by the harness as
+ * FEATURE_CHECK_GOLDEN_FILES (a space-separated list of frontend-relative spec
+ * paths; the harness reads frontend/golden-shards.json and picks the run's
+ * shard). The golden project's testIgnore must ignore every spec NOT in the
+ * selection, and Playwright's testIgnore accepts only strings and RegExps
+ * (lib/runner/index.js validates the prop and throws on anything else; the
+ * matcher then tests the ABSOLUTE file path against the pattern), so the
+ * negated selection is compiled into one RegExp here:
+ *
+ * - The seeded exclusion always applies (those specs belong to golden-seeded).
+ * - With a selection: ^(?!.*(?:a|b|c)$).*\.spec\.ts$ ignores every spec whose
+ *   ABSOLUTE path does not END IN one of the selected frontend-relative
+ *   names (the .* inside the lookahead lets the test run at the absolute
+ *   path's start while each alternative anchors at the string's end -- a
+ *   bare ^(?!a$|b$) would only match when the path STARTS with the
+ *   selected relative name). Anchoring on the absolute path's tail with the
+ *   selected relative path is sound here because testDir is
+ *   ./tests/golden and the manifest rows are tests/golden/... -- a basename
+ *   collision across directories would double-select, and the manifest pack
+ *   never produces one (the rows are the corpus's own unique paths; the
+ *   union pin in backend/tests/unit/scripts/test_golden_shard_manifest.py
+ *   guards the set they come from).
+ * - Unset or empty -> the RegExp is the seeded exclusion alone -> the
+ *   count-based --shard split (or a whole-suite run) applies byte for byte.
+ */
+function escapeRegExp(s: string): string {
+  // Only two characters in a manifest row can carry regex meaning -- the
+  // dots in the .spec.ts extension and (never today) a directory name -- but
+  // the list is DATA, so every regex metacharacter is escaped, not just the
+  // ones this corpus happens to contain.
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+const GOLDEN_SHARD_SELECTION = (process.env.FEATURE_CHECK_GOLDEN_FILES ?? '')
+  .split(/\s+/)
+  .filter(Boolean);
+const GOLDEN_SHARD_IGNORE = new RegExp(
+  ['.*\\.seeded\\.spec\\.ts$']
+    .concat(
+      GOLDEN_SHARD_SELECTION.length
+        ? [
+            '^(?!.*(?:' +
+              GOLDEN_SHARD_SELECTION.map((f) => escapeRegExp(f)).join('|') +
+              ')$).*\\.spec\\.ts$',
+          ]
+        : []
+    )
+    .join('|')
+);
+
 export default defineConfig({
   // Test directory - includes both specs and visual test directories
   // Visual tests are matched by the visual-chromium project using testMatch
@@ -282,7 +332,16 @@ export default defineConfig({
           {
             name: 'golden',
             testDir: './tests/golden',
-            testIgnore: /.*\.seeded\.spec\.ts$/,
+            // [r282] When the harness selected this shard's files, ignore
+            // every spec NOT in the list (space-separated, frontend-relative
+            // paths, forwarded as FEATURE_CHECK_GOLDEN_FILES); the list is
+            // the manifest's own shard row, so a selection must never drop a
+            // selected file and never admit an unselected one. Unset or
+            // empty means no selection: the count-based --shard split (or a
+            // whole-suite run) applies, exactly as before. The seeded
+            // exclusion composes -- a selected shard still never runs the
+            // seeded specs (they belong to golden-seeded).
+            testIgnore: GOLDEN_SHARD_IGNORE,
             // One worker, serial: the dashboard path drops a fixture and waits
             // on the backend's content-hash dedupe window, so its wait must not
             // interleave with another spec competing for the same camera.
