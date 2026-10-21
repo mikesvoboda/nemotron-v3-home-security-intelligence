@@ -1,6 +1,6 @@
 # 4n — Timeline Filters and Detections Design
 
-> Step 1 of the Timeline feature package (`packages/backend.md`, "B4.\* Feature track"), copied
+> Step 1 of the Timeline feature package (`packages/frontend.md`, "F4.\* Feature track"), copied
 > from [`templates/feature-design.md`](templates/feature-design.md).
 
 **Package:** `F4.4` (frontend leads; a small backend part in the same PR, UR-9) · **Inventory

@@ -39,7 +39,8 @@ Facts read at `main` `bc89bf68a`.
 - **What derived data exists, and how it links.** Every child table of `events` cascades (alerts,
   verifications, notify decisions, feedback, audit). Re-ID `entities` keep the detection that
   created them (`primary_detection_id`, no foreign key, `backend/models/entity.py:7-9`), and their
-  Redis copies carry a detection id and expire within 48 h (`backend/services/reid_service.py:71`).
+  Redis copies carry a detection id and expire 24 h after their day's key was last written
+  (`backend/services/reid_service.py:71`, `:696`), so within 48 h.
   Legacy `face_detection_events` hold a face vector with camera and time but no event or detection
   link (`backend/models/face_identity.py:210`). None of these stores has a live writer on `main`.
   Household reference embeddings lose only their source event (`backend/models/household.py:203`,

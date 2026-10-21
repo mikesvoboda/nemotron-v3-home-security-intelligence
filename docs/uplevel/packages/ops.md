@@ -1288,7 +1288,7 @@ approved `a1cbf6986`; audit `6297441697`)
 ### [r282] The golden-test shards balanced by measured duration
 
 **Flags:** none. **Assigned:** `uplevel-ops-a`, after `O2.5`'s venue fixes (rulings 282 and 287).
-**Depends on:** none. **PR:** #7310 (merged). (ruling 282, record 6294042743)
+**Depends on:** none. **PR:** #7310. (ruling 282, record 6294042743)
 
 In median run 39419991445 (19.4 min), `Feature check (fake AI) (4-of-4)` ran 18.1 min while
 shards 1 and 3 took 13.9 and 14.8: `[r264]` splits with Playwright's `--shard=i/N`, which balances

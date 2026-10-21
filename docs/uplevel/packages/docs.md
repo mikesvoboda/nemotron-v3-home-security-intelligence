@@ -29,7 +29,7 @@ Each package here starts on a lane's directories as UR-68 allows.
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
 **Assigned:** heavy-a, one PR per lane; it moved from docs' queue (ruling 300, record 6322983128).
-**PR:** #7331 (PR 1, merged). (rulings 241, 300)
+**PR:** #7331 (PR 1). (rulings 241, 300)
 
 heavy-a opens each draft PR itself, labelled `heavy` with no lane label (UR-59). Each PR names in
 its body the part of the boxes it completes and reports the files and lines it removed; the last PR
@@ -555,13 +555,13 @@ heavy-a opens its draft PR itself, labelled `heavy` with no lane label (UR-59), 
 owning lane's file ownership. Ruling 269's two open packages are `W3.1` and this one. The 45 stale
 citations of the same batches go to the cite-checker package ruling 296 item 3 scopes, not here.
 
-- [ ] **Q-127** (`ai/gateway/tests/test_dockerfile_agent_gpu_buildable.py:270-282` matches long
+- [x] **Q-127** (`ai/gateway/tests/test_dockerfile_agent_gpu_buildable.py:270-282` matches long
       flag names only), **Q-142** (`backend/tests/unit/api/routes/test_admin_cache_invalidation.py`
       `:303` counts only the census invalidators) and **Q-190**
       (`backend/tests/unit/scripts/test_duration_budget_gate.py:2530-2531` names u5 the longest
       breach; u6, at 5.0 s, is). Each test is made to fail first on what it claims, then pass
       (UR-69).
-- [ ] **The 15 prose rows** ruling 299 names, as `r262-audit.md`'s owner column lists them at #7265
+- [x] **The 15 prose rows** ruling 299 names, as `r262-audit.md`'s owner column lists them at #7265
       (docs' `9970a8073`). A row in an `AGENTS.md` that `W3.1` deletes closes with that deletion; a
       row in a file an open PR edits waits for that PR.
 
