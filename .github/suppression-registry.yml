@@ -54,22 +54,6 @@ collection_allowlist:
     reason:
       R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation
       = FCL frontend-repair task (Task 3)
-  - id: frontend/src/components/system/SystemHealthIndicator.test.tsx
-    kind: retired
-    owner: mikesvoboda
-    tracking: R-FCL-T1-TRIO
-    expires: '2026-12-31'
-    reason:
-      R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation
-      = FCL frontend-repair task (Task 3)
-  - id: frontend/src/components/zones/ZoneTimelineScrubber.test.tsx
-    kind: retired
-    owner: mikesvoboda
-    tracking: R-FCL-T1-TRIO
-    expires: '2026-12-31'
-    reason:
-      R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation
-      = M1 frontend-repair task (Task 3)
 coverage_omit:
   - id: backend/api/routes/alerts.py
     kind: todo
