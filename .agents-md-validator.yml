@@ -190,24 +190,18 @@ boundary_list:
     reason: "HTTP endpoint handlers \u2014 one of the two largest backend packages"
   - path: backend/api/schemas
     reason: 'Pydantic request/response models; feeds docs/openapi.json regeneration (hot file)'
-  - path: frontend/src/contexts
-    reason: 'React context providers (global state outside the stores)'
   - path: frontend/src/hooks
     reason: "WebSocket/event/polling hooks \u2014 the realtime data plane (the tree's largest package)"
   - path: frontend/src/pages
     reason: 'top-level route-destination page components'
   - path: frontend/src/services
     reason: "the typed REST client + logging \u2014 the frontend's only path to the backend"
-  - path: frontend/src/stores
-    reason: "Zustand stores \u2014 app state that lives outside the React tree"
   - path: frontend/src/types
     reason: 'frontend type definitions; types/generated nests under it (regenerate, never hand-merge)'
   - path: frontend/src/utils
     reason: 'shared risk/confidence/time formatting utilities'
   - path: frontend/src/components/ai
     reason: 'AI Performance and AI Audit pages: model health, pipeline health, prompt quality'
-  - path: frontend/src/components/alerts
-    reason: 'high/critical alert views and alert-rule configuration'
   - path: frontend/src/components/analytics
     reason: 'analytics page: baselines, anomalies, pipeline latency, scene change'
   - path: frontend/src/components/common
@@ -216,8 +210,6 @@ boundary_list:
     reason: 'main dashboard: risk visualization, camera status, GPU and pipeline status'
   - path: frontend/src/components/developer-tools
     reason: 'dev tools page: config inspector, profiler, request recorder, log levels'
-  - path: frontend/src/components/entities
-    reason: 'cross-camera entity tracking UI (ReID embeddings at a pinned cosine threshold)'
   - path: frontend/src/components/events
     reason: 'event list/detail UI: AI summaries, detection overlays, export'
   - path: frontend/src/components/face-recognition

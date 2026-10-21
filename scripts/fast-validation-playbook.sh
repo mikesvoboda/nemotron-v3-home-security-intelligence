@@ -159,7 +159,7 @@ export BASE LOGDIR
 # so each sees a one-file diff against BASE.
 run_case "route(alerts)"              backend/api/routes/alerts.py               "$BACKEND_CMD"   || OVERALL=1
 run_case "service(alert_service)"     backend/services/alert_service.py          "$BACKEND_CMD"   || OVERALL=1
-run_case "component(ActionableInsig)" frontend/src/components/dashboard/ActionableInsights.tsx "$FRONTEND_CMD" || OVERALL=1
+run_case "component(ActivityFeed)"    frontend/src/components/dashboard/ActivityFeed.tsx "$FRONTEND_CMD" || OVERALL=1
 run_case "hook(useAlertsQuery)"       frontend/src/hooks/useAlertsQuery.ts       "$FRONTEND_CMD"  || OVERALL=1
 # config case EXPECTS the guard notice (positional config trips
 # forceRerunTriggers -> runner reports the full-suite guard, spec Tier-0

@@ -305,9 +305,8 @@ class GPUStatsResponse(BaseModel):
     )
     pcie_link_gen: int | None = Field(
         None,
-        description="PCIe link generation (1-4)",
+        description="PCIe link generation (1+; Gen 6 devices report 6)",
         ge=1,
-        le=5,
     )
     pcie_link_width: int | None = Field(
         None,
@@ -409,7 +408,7 @@ class GPUStatsSample(BaseModel):
     # Medium-value metrics
     memory_clock: int | None = Field(None, description="Memory clock in MHz", ge=0)
     memory_clock_max: int | None = Field(None, description="Max memory clock in MHz", ge=0)
-    pcie_link_gen: int | None = Field(None, description="PCIe link generation", ge=1, le=5)
+    pcie_link_gen: int | None = Field(None, description="PCIe link generation (1+)", ge=1)
     pcie_link_width: int | None = Field(None, description="PCIe link width", ge=1)
     pcie_tx_throughput: int | None = Field(None, description="PCIe TX throughput KB/s", ge=0)
     pcie_rx_throughput: int | None = Field(None, description="PCIe RX throughput KB/s", ge=0)

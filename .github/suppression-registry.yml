@@ -54,22 +54,6 @@ collection_allowlist:
     reason:
       R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation
       = FCL frontend-repair task (Task 3)
-  - id: frontend/src/components/system/SystemHealthIndicator.test.tsx
-    kind: retired
-    owner: mikesvoboda
-    tracking: R-FCL-T1-TRIO
-    expires: '2026-12-31'
-    reason:
-      R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation
-      = FCL frontend-repair task (Task 3)
-  - id: frontend/src/components/zones/ZoneTimelineScrubber.test.tsx
-    kind: retired
-    owner: mikesvoboda
-    tracking: R-FCL-T1-TRIO
-    expires: '2026-12-31'
-    reason:
-      R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation
-      = M1 frontend-repair task (Task 3)
 coverage_omit:
   - id: backend/api/routes/alerts.py
     kind: todo
@@ -145,12 +129,6 @@ frontend_quarantine:
     tracking: R-T7-VITEST
     expires: '2026-12-31'
     reason: null
-  - id: src/components/entities/ReidHistoryPanel.test.tsx
-    kind: quarantine
-    owner: mikesvoboda
-    tracking: R-T7-VITEST
-    expires: '2026-12-31'
-    reason: null
   - id: src/components/entities/TrustClassificationControls.test.tsx
     kind: quarantine
     owner: mikesvoboda
@@ -187,19 +165,7 @@ frontend_quarantine:
     tracking: R-T7-VITEST
     expires: '2026-12-31'
     reason: null
-  - id: src/components/system/SystemHealthIndicator.test.tsx
-    kind: quarantine
-    owner: mikesvoboda
-    tracking: R-T7-VITEST
-    expires: '2026-12-31'
-    reason: null
   - id: src/components/system/WorkerManagementPanel.test.tsx
-    kind: quarantine
-    owner: mikesvoboda
-    tracking: R-T7-VITEST
-    expires: '2026-12-31'
-    reason: null
-  - id: src/components/zones/ZoneTimelineScrubber.test.tsx
     kind: quarantine
     owner: mikesvoboda
     tracking: R-T7-VITEST
@@ -251,14 +217,6 @@ frontend_skip:
   - id:
       frontend/src/components/developer-tools/DeveloperToolsPage.test.tsx::should show error state when config fetch
       fails
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: null
-  - id:
-      frontend/src/components/entities/ReidHistoryPanel.test.tsx::clears selection when "Clear" button is clicked
-      in comparison view
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
@@ -527,18 +485,6 @@ frontend_skip:
     expires: '2026-12-31'
     reason: null
   - id: frontend/src/hooks/useMonitoringHealth.test.ts::should support polling interval
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: null
-  - id: frontend/src/hooks/useMonitoringTargets.test.ts::should handle data updates during polling
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: null
-  - id: frontend/src/hooks/useMonitoringTargets.test.ts::should support polling interval
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
@@ -1070,6 +1016,15 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: Symlinks not supported on this filesystem
+  - id: backend/tests/unit/api/routes/test_outbound_webhook_retry_commit.py:41
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: no Postgres URL available for webhook retry commit tests
+    host_justification:
+      url is os.environ.get('TEST_DATABASE_URL')/('DATABASE_URL') — env-var guard behind a local
+      alias
   - id: backend/tests/unit/core/test_ai_service_resource_limits.py:44
     kind: todo
     owner: mikesvoboda

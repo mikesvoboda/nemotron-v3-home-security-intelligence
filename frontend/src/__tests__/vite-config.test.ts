@@ -74,18 +74,30 @@ describe('Vite Configuration', () => {
       expect(viteConfigContent).toContain('polyfill: true');
     });
 
-    it('has resolveDependencies function for selective preloading', () => {
-      expect(viteConfigContent).toContain('resolveDependencies:');
+    // F3.2 removed the `resolveDependencies` filter, so two assertions here no
+    // longer described the config they read and were replaced rather than dropped.
+    // The filter's premises were `vendor-react` / `vendor-ui` chunk names, and
+    // NEM-3384 disabled manual chunk splitting, so no chunk carries them. The
+    // invariant worth pinning is that the two cannot come back together — a filter
+    // keyed on chunks nothing produces silently suppresses every preload hint,
+    // which is what happened — plus the polyfill Vite needs in its place.
+    it('keeps the preload polyfill', () => {
+      expect(viteConfigContent).toContain('modulePreload:');
+      expect(viteConfigContent).toMatch(/modulePreload:\s*{[^}]*polyfill:\s*true/);
     });
 
-    it('preloads critical vendor chunks (vendor-react, vendor-ui)', () => {
-      expect(viteConfigContent).toContain('vendor-react');
-      expect(viteConfigContent).toContain('vendor-ui');
+    it('carries no resolveDependencies filter while manual chunk splitting is disabled', () => {
+      const filterPresent = /resolveDependencies\s*:/.test(viteConfigContent);
+      const manualChunksEnabled = /^\s*manualChunks\s*:/m.test(viteConfigContent);
+      // Either the filter is gone, or it exists only alongside chunk names that
+      // can actually be produced. Today: gone, and manualChunks is commented out.
+      expect(filterPresent && !manualChunksEnabled).toBe(false);
     });
 
-    it('filters dependencies to only preload critical chunks', () => {
-      expect(viteConfigContent).toContain('criticalChunks');
-      expect(viteConfigContent).toContain('.filter');
+    it('does not name vendor chunk splits nothing produces', () => {
+      const manualChunksEnabled = /^\s*manualChunks\s*:/m.test(viteConfigContent);
+      if (manualChunksEnabled) return; // the names would be real; nothing to assert here
+      expect(/criticalChunks\s*=/.test(viteConfigContent)).toBe(false);
     });
   });
 

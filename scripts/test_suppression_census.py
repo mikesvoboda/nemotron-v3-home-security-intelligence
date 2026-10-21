@@ -771,12 +771,29 @@ def test_real_tree_matches_spec_baselines():
     are falsifiable claims about a feature rather than host state.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
+    pytest_skip_imperative 93→94 (2026-10-21, [r285] PR #7318): the
+    outbound-webhook retry-commit tests, test_outbound_webhook_retry_commit.
+    py:41 — the tests run the shipped get_db against real Postgres and skip
+    where TEST_DATABASE_URL/DATABASE_URL are unset (the test_db_isolation.
+    py:66 env-behind-local-alias shape). Adjudicated environment via
+    HOST_JUSTIFIED (b904d853f) — registry + baseline raised inside the PR,
+    the mirror raised THIS commit after the PR's first-round local gates
+    missed it; Collection Sanity caught the drift exactly as designed.
     """
     got = run_census(REPO_ROOT)
     expected = {
-        "collection_allowlist": 4,
+        # 4→2 (2026-10-21, F3.2 #7246): the deletion cut removed the two retired
+        # collection ids with their files (SystemHealthIndicator,
+        # ZoneTimelineScrubber); the same drop is in this commit's
+        # .github/suppression-baseline.json. The allowlist keeps
+        # test_helpers.py + TimeGroupedEvents.simple.
+        "collection_allowlist": 2,
         "flake_allowlist": 0,
-        "frontend_quarantine": 16,
+        # 16→13 (2026-10-21, roll 10 of #7246): the F3.2 cut removed three
+        # quarantine ids with their files; measured on the merged tree by
+        # suppression-census.py. The 16→13 movement happened on this PR's side
+        # (main never had the cut), so main's mirror kept the stale 16.
+        "frontend_quarantine": 13,
         # 32→25 (2026-10-16, ruling 220): the seven redundant "Flaky … app
         # initialization timing" skips in test_system_models.py expired on 10-15 and
         # were removed with their `#2` registry rows; each test stays skipped by its
@@ -801,8 +818,26 @@ def test_real_tree_matches_spec_baselines():
         # skips that exist because collection must never crash without a live
         # stack — a contract that can never be "fixed", so their deadline must be
         # null. Increase path, fifth precedent.
-        "pytest_skip_imperative": 92,
-        "frontend_skip": 52,
+        # 93→94 (2026-10-21, [r285] / PR #7318): test_outbound_webhook_retry_
+        # commit.py:41 — the retry-commit tests run the shipped get_db against
+        # real Postgres and skip where TEST_DATABASE_URL/DATABASE_URL are unset
+        # (the test_db_isolation.py:66 env-behind-local-alias shape). The
+        # baseline file was raised in f7cadeed9 but THIS mirror was missed there
+        # and the miss surfaced only here, at this round's Collection Sanity
+        # (run 39531798246 job 119015088702: census=94 spec=93) — the mirror is
+        # a third gate beyond the ratchet and the gen --check, and the first
+        # round's local gate runs didn't include the spec suite. Adjudicated
+        # environment via HOST_JUSTIFIED (b904d853f added the key; the gen then
+        # mints kind: environment, expires: null, justification carried).
+        # Increase path, sixth precedent.
+        # 94→93 (2026-10-21, B3.2 #7319): test_benchmark_vram.py deleted with
+        # backend/scripts/benchmark_vram.py (-1 imperative skip at :208).
+        "pytest_skip_imperative": 93,
+        # 51→49 (2026-10-21, roll 10 of #7246) then main's r285 +3 sites landed
+        # inside files the F3.2 cut had already deleted (useMonitoringTargets,
+        # ReidHistoryPanel tests): the merged tree MEASURES 49, so main's 52
+        # does not survive this merge — the three skip sites rode deleted files.
+        "frontend_skip": 49,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
         # WP1.3: 150 uncounted patterns (P's figure, reproduced exactly) pruned

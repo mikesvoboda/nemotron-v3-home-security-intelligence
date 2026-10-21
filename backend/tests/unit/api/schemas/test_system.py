@@ -2,8 +2,13 @@
 
 from datetime import UTC, datetime
 
+import pytest
+from pydantic import ValidationError
+
 from backend.api.schemas.system import (
     ConfigResponse,
+    GPUStatsResponse,
+    GPUStatsSample,
     HealthCheckServiceStatus,
     HealthResponse,
     ProcessMemoryResponse,
@@ -218,3 +223,42 @@ def test_health_response_memory_optional():
     data = response.model_dump()
     assert "memory" in data
     assert data["memory"] is None
+
+
+def test_gpu_stats_response_accepts_pcie_link_gen_6():
+    """[r285] GPUStatsResponse.pcie_link_gen accepts PCIe Gen 6.
+
+    Ruling 285's amendment 6301639831: the ``le=5`` ceiling rejects Gen 6 links that
+    released above the old 1-5 span. The fix drops ``le=5`` and keeps ``ge=1`` — the
+    same shape as ``pcie_link_width``. The floor stays: 0 is not a PCIe generation.
+    """
+    stats = GPUStatsResponse(
+        gpu_name="NVIDIA RTX PRO 6000",
+        utilization=10.0,
+        pcie_link_gen=6,
+    )
+    assert stats.pcie_link_gen == 6
+
+
+def test_gpu_stats_sample_accepts_pcie_link_gen_6():
+    """[r285] GPUStatsSample.pcie_link_gen accepts PCIe Gen 6 too."""
+    sample = GPUStatsSample(
+        recorded_at=datetime(2026, 10, 21, 12, 0, 0, tzinfo=UTC),
+        gpu_name="NVIDIA RTX PRO 6000",
+        pcie_link_gen=6,
+    )
+    assert sample.pcie_link_gen == 6
+
+
+def test_gpu_stats_sample_rejects_zero_and_negative_link_gen():
+    """[r285] The ge=1 floor survives the ceiling removal: 0 and negatives stay invalid."""
+    with pytest.raises(ValidationError):
+        GPUStatsSample(
+            recorded_at=datetime(2026, 10, 21, 12, 0, 0, tzinfo=UTC),
+            pcie_link_gen=0,
+        )
+    with pytest.raises(ValidationError):
+        GPUStatsSample(
+            recorded_at=datetime(2026, 10, 21, 12, 0, 0, tzinfo=UTC),
+            pcie_link_gen=-1,
+        )

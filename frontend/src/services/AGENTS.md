@@ -8,10 +8,6 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 
 | File                             | Purpose                                                       |
 | -------------------------------- | ------------------------------------------------------------- |
-| `abTestService.ts`               | A/B testing service for prompt playground                     |
-| `abTestService.test.ts`          | Tests for A/B testing service                                 |
-| `aiAuditApi.ts`                  | AI audit trail API client (decision logs, audit data)         |
-| `aiAuditApi.test.ts`             | Tests for AI audit API client                                 |
 | `api.ts`                         | Complete API client with typed methods for all REST endpoints |
 | `api.test.ts`                    | Comprehensive test coverage for API client                    |
 | `api.abort.test.ts`              | Tests for request cancellation and AbortController usage      |
@@ -29,8 +25,6 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 | `logger.test.ts`                 | Tests for logger functionality                                |
 | `metricsParser.ts`               | Prometheus text format parser for AI performance metrics      |
 | `metricsParser.test.ts`          | Tests for Prometheus metrics parsing                          |
-| `performanceTracker.ts`          | Client-side performance tracking and metrics collection       |
-| `performanceTracker.test.ts`     | Tests for performance tracker                                 |
 | `promptManagementApi.ts`         | Prompt management API client (CRUD, history, import/export)   |
 | `promptManagementApi.test.ts`    | Tests for prompt management API                               |
 | `queryClient.ts`                 | TanStack Query configuration and query key factories          |

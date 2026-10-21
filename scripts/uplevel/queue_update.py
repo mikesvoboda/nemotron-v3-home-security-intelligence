@@ -247,13 +247,20 @@ def _main_tip(run: Runner, repo: str, errors: list[str]) -> str:
 
 def _main_ci_conclusion(run: Runner, repo: str, errors: list[str]) -> str | None:
     """The newest completed ``CI`` run on ``main``: its conclusion, or None while none is
-    completed (in-flight main counts as neither red nor green)."""
+    completed (in-flight main counts as neither red nor green).
+
+    The read is the CI workflow's OWN runs (``actions/workflows/ci.yml/runs``), not the
+    runs listing: REST's ``actions/runs`` endpoint has no ``workflow`` filter, so a
+    ``workflow=CI`` query there returns the newest completed run of ANY workflow (r288:
+    on a red main whose newest run was a green plumbing job, the plan read "success" and
+    the ``!`` filter never fired)."""
     try:
         runs = json.loads(
             _run(
                 run,
                 _rest_path(
-                    repo, "actions/runs?branch=main&workflow=CI&status=completed&per_page=1"
+                    repo,
+                    "actions/workflows/ci.yml/runs?branch=main&status=completed&per_page=1",
                 ),
             )
         )

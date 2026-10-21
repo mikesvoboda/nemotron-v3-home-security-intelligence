@@ -279,7 +279,7 @@ slice 1.6's "not analyzed in VLM mode" empty state a deletion too, so
 `Detection` interface no longer carries `enrichment_data`, the R8 S5 tombstone
 comment is removed, and `useEventEnrichmentsQuery` / `fetchEventEnrichments` /
 `GET /api/events/{event_id}/enrichments` are retired. Still shipping outside
-OD-20's slice: `frontend/src/types/enrichment.ts`, `EnrichmentProgressBadge.tsx`,
+OD-20's slice: `EnrichmentProgressBadge.tsx`,
 and the remaining enrichment hooks (`useDetectionEnrichment`,
 `useEnrichmentProgress`, `useEventEnrichmentWebSocket`).
 

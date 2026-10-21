@@ -124,6 +124,14 @@ HOST_JUSTIFIED: dict[str, str] = {
     # is FileNotFoundError on an off-repo artifact — a data-chain skip, not a
     # repo-file guard. Line numbers move when the battery is re-pinned;
     # the census re-mints the id, this map carries the adjudication forward.
+    # [r285] (PR #7318): the retry-commit tests read TEST_DATABASE_URL /
+    # DATABASE_URL through _base_postgres_url()'s local os.environ.get chain —
+    # the env-var-guard shape test_db_isolation.py:66 above has, which the
+    # guard-text probe can't see through. The tests run the shipped get_db
+    # against real Postgres, so where the env vars are exported (b13 sandbox,
+    # and any runner carrying the compose services) the suite runs; where they
+    # are not, the skip fires and is host state, not repo shape.
+    "backend/tests/unit/api/routes/test_outbound_webhook_retry_commit.py:41": "url is os.environ.get('TEST_DATABASE_URL')/('DATABASE_URL') — env-var guard behind a local alias",
 }
 
 
