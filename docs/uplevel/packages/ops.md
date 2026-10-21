@@ -1221,7 +1221,7 @@ table row that `main` absorbs resets an approval (#7301 lost one this way, `6290
 ### [r290] The snapshot reads package balance, and `lane_tick` offers a multi-PR package's open box
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r278]` (both edit
-`coordinator_snapshot.py`), ahead of `O3.7` (ruling 290). **Depends on:** none. **PR:** none yet.
+`coordinator_snapshot.py`), ahead of `O3.7` (ruling 290). **Depends on:** none. **PR:** #7330.
 (ruling 290, record 6303479997)
 
 On 2026-10-20 three agents sat idle while ops-b held three Phase 3 packages with dependencies met,
