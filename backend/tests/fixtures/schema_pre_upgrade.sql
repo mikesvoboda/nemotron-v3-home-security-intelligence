@@ -196,3 +196,41 @@ CREATE TABLE scheduled_reports (
 );
 
 INSERT INTO scheduled_reports (name, frequency) VALUES ('Daily Summary', 'daily');
+
+-- ---------------------------------------------------------------------------------------
+-- 0011 target: prompt_versions in the PRE-0011 shape (B3.3 box 4, R2a row 27) -- the model
+-- column is the NATIVE enum `aimodel` carrying all five labels, and rows exist for all five
+-- models. Without it the upgrade-path run would record 0011 as "verified" (the table's
+-- absence reads as "nothing left to migrate"), leaving the enum→varchar conversion and the
+-- four-models DELETE unexecuted in these theses. Same shape transcription as the sibling
+-- fixture prompt_versions_pre_0011.sql, which is loaded into a DIFFERENT database by
+-- backend/tests/integration/test_0011_prompt_versions_upgrade.py -- the two files must not
+-- share a database or the CREATE TYPE collides.
+-- ---------------------------------------------------------------------------------------
+CREATE TYPE aimodel AS ENUM ('nemotron', 'florence2', 'yolo_world', 'xclip', 'fashion_clip');
+
+CREATE TABLE prompt_versions (
+    id                 SERIAL PRIMARY KEY,
+    model              aimodel         NOT NULL,
+    version            INTEGER         NOT NULL,
+    created_at         TIMESTAMPTZ     NOT NULL DEFAULT timezone('utc', now()),
+    created_by         VARCHAR(255),
+    config_json        TEXT            NOT NULL,
+    change_description TEXT,
+    is_active          BOOLEAN         NOT NULL DEFAULT FALSE,
+    row_version        INTEGER         NOT NULL DEFAULT 1,
+    CONSTRAINT uq_prompt_version_model_version UNIQUE (model, version)
+);
+
+CREATE INDEX idx_prompt_versions_model         ON prompt_versions (model);
+CREATE INDEX idx_prompt_versions_model_version ON prompt_versions (model, version);
+CREATE INDEX idx_prompt_versions_model_active  ON prompt_versions (model, is_active);
+CREATE INDEX idx_prompt_versions_created_at    ON prompt_versions (created_at);
+
+INSERT INTO prompt_versions (model, version, config_json, is_active) VALUES
+    ('nemotron',     1, '{"system_prompt": "You are a home security AI assistant analyzing camera detections. Report risks concisely.", "temperature": 0.7, "max_tokens": 2048}', TRUE),
+    ('nemotron',     2, '{"system_prompt": "You are a home security AI assistant. v2: cite zones.", "temperature": 0.7, "max_tokens": 2048}', FALSE),
+    ('florence2',    1, '{"vqa_queries": ["What is the person doing?", "What objects are they carrying?", "Describe the environment", "Is there anything unusual in this scene?"]}', TRUE),
+    ('yolo_world',   1, '{"classes": ["knife", "gun", "package", "crowbar", "spray paint", "Amazon box", "FedEx package", "suspicious bag"], "confidence_threshold": 0.35}', TRUE),
+    ('xclip',        1, '{"action_classes": ["loitering", "running away", "fighting", "breaking in", "climbing fence", "hiding", "normal walking"]}', TRUE),
+    ('fashion_clip', 1, '{"clothing_categories": ["dark hoodie", "face mask", "gloves", "all black", "delivery uniform", "high-vis vest", "business attire"], "suspicious_indicators": ["all black", "face mask", "hoodie up", "gloves at night"]}', TRUE);

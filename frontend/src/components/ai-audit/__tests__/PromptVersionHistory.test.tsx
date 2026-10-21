@@ -156,7 +156,8 @@ describe('PromptVersionHistory', () => {
       },
       {
         id: 3,
-        model: AIModelEnum.FLORENCE2,
+        // B3.3 box 4 (R2a row 27): nemotron is the only model with versions.
+        model: AIModelEnum.NEMOTRON,
         version: 1,
         created_at: new Date(BASE_TIME - 172800000).toISOString(), // 2 days ago
         created_by: 'user@example.com',
@@ -223,8 +224,8 @@ describe('PromptVersionHistory', () => {
       const tableRows = screen.getAllByTestId(/^version-row-/);
       expect(tableRows.length).toBe(3);
 
-      // Verify Florence-2 is in the document
-      expect(screen.getAllByText('Florence-2').length).toBeGreaterThanOrEqual(1);
+      // Verify Nemotron is in the document (the only model after B3.3 box 4, R2a row 27)
+      expect(screen.getAllByText('Nemotron').length).toBeGreaterThanOrEqual(1);
     });
 
     it('displays active badge for current version', async () => {

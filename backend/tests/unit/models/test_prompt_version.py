@@ -76,30 +76,6 @@ def sample_prompt_version():
 
 
 @pytest.fixture
-def sample_florence2_version():
-    """Create a sample Florence2 prompt version for testing."""
-    return PromptVersion(
-        id=2,
-        model=AIModel.FLORENCE2,
-        version=1,
-        config_json='{"queries": ["detect person", "detect vehicle"]}',
-        is_active=False,
-    )
-
-
-@pytest.fixture
-def sample_yolo_world_version():
-    """Create a sample YOLO-World prompt version for testing."""
-    return PromptVersion(
-        id=3,
-        model=AIModel.YOLO_WORLD,
-        version=2,
-        config_json='{"classes": ["person", "car", "dog"], "confidence_threshold": 0.35}',
-        is_active=True,
-    )
-
-
-@pytest.fixture
 def minimal_prompt_version():
     """Create a prompt version with only required fields."""
     return PromptVersion(
@@ -121,25 +97,10 @@ class TestAIModelEnum:
         """Test AIModel has NEMOTRON value."""
         assert AIModel.NEMOTRON.value == "nemotron"
 
-    def test_aimodel_has_florence2(self):
-        """Test AIModel has FLORENCE2 value."""
-        assert AIModel.FLORENCE2.value == "florence2"
-
-    def test_aimodel_has_yolo_world(self):
-        """Test AIModel has YOLO_WORLD value."""
-        assert AIModel.YOLO_WORLD.value == "yolo_world"
-
-    def test_aimodel_has_xclip(self):
-        """Test AIModel has XCLIP value."""
-        assert AIModel.XCLIP.value == "xclip"
-
-    def test_aimodel_has_fashion_clip(self):
-        """Test AIModel has FASHION_CLIP value."""
-        assert AIModel.FASHION_CLIP.value == "fashion_clip"
-
     def test_aimodel_count(self):
-        """Test AIModel has expected number of values."""
-        assert len(AIModel) == 5
+        """Test AIModel has exactly one member (the four vision models retired with
+        the R8 S2/S3 sweep, B3.3 box 4)."""
+        assert len(AIModel) == 1
 
     def test_aimodel_is_string_enum(self):
         """Test AIModel inherits from str."""
@@ -149,7 +110,6 @@ class TestAIModelEnum:
     def test_aimodel_from_string(self):
         """Test creating AIModel from string value."""
         assert AIModel("nemotron") == AIModel.NEMOTRON
-        assert AIModel("florence2") == AIModel.FLORENCE2
 
     def test_aimodel_invalid_raises_error(self):
         """Test invalid AIModel value raises ValueError."""
@@ -402,7 +362,7 @@ class TestPromptVersionConfigProperty:
     def test_config_property_parses_nested_json(self):
         """Test config property parses nested JSON."""
         pv = PromptVersion(
-            model=AIModel.YOLO_WORLD,
+            model=AIModel.NEMOTRON,
             version=1,
             config_json='{"classes": ["person", "car"], "settings": {"threshold": 0.5}}',
         )
@@ -410,10 +370,15 @@ class TestPromptVersionConfigProperty:
         assert config["classes"] == ["person", "car"]
         assert config["settings"]["threshold"] == 0.5
 
-    def test_config_property_parses_array_values(self, sample_florence2_version):
+    def test_config_property_parses_array_values(self):
         """Test config property parses arrays."""
-        config = sample_florence2_version.config
-        assert config["queries"] == ["detect person", "detect vehicle"]
+        pv = PromptVersion(
+            model=AIModel.NEMOTRON,
+            version=1,
+            config_json='{"items": ["detect person", "detect vehicle"]}',
+        )
+        config = pv.config
+        assert config["items"] == ["detect person", "detect vehicle"]
 
     def test_config_property_handles_invalid_json(self):
         """Test config property returns empty dict for invalid JSON."""
@@ -579,9 +544,10 @@ class TestPromptVersionRepr:
         assert repr_str.startswith("<PromptVersion(")
         assert repr_str.endswith(")>")
 
-    def test_repr_inactive_version(self, sample_florence2_version):
+    def test_repr_inactive_version(self, minimal_prompt_version):
         """Test repr shows inactive status."""
-        repr_str = repr(sample_florence2_version)
+        minimal_prompt_version.is_active = False
+        repr_str = repr(minimal_prompt_version)
         assert "active=False" in repr_str
 
 
@@ -669,47 +635,6 @@ class TestModelSpecificConfigs:
         config = pv.config
         assert "system_prompt" in config
         assert isinstance(config["system_prompt"], str)
-
-    def test_florence2_config_structure(self):
-        """Test Florence2 config with queries array."""
-        pv = PromptVersion(
-            model=AIModel.FLORENCE2,
-            version=1,
-            config_json='{"queries": ["detect person", "count objects"]}',
-        )
-        config = pv.config
-        assert "queries" in config
-        assert isinstance(config["queries"], list)
-
-    def test_yolo_world_config_structure(self, sample_yolo_world_version):
-        """Test YOLO-World config with classes and threshold."""
-        config = sample_yolo_world_version.config
-        assert "classes" in config
-        assert "confidence_threshold" in config
-        assert isinstance(config["classes"], list)
-        assert isinstance(config["confidence_threshold"], float)
-
-    def test_xclip_config_structure(self):
-        """Test X-CLIP config with action_classes."""
-        pv = PromptVersion(
-            model=AIModel.XCLIP,
-            version=1,
-            config_json='{"action_classes": ["walking", "running", "standing"]}',
-        )
-        config = pv.config
-        assert "action_classes" in config
-        assert isinstance(config["action_classes"], list)
-
-    def test_fashion_clip_config_structure(self):
-        """Test Fashion-CLIP config with clothing_categories."""
-        pv = PromptVersion(
-            model=AIModel.FASHION_CLIP,
-            version=1,
-            config_json='{"clothing_categories": ["shirt", "pants", "jacket"]}',
-        )
-        config = pv.config
-        assert "clothing_categories" in config
-        assert isinstance(config["clothing_categories"], list)
 
 
 # =============================================================================
@@ -838,7 +763,7 @@ class TestPromptVersionEdgeCases:
     def test_config_with_numbers(self):
         """Test config with various number types."""
         pv = PromptVersion(
-            model=AIModel.YOLO_WORLD,
+            model=AIModel.NEMOTRON,
             version=1,
             config_json='{"int": 42, "float": 3.14, "negative": -1, "zero": 0}',
         )

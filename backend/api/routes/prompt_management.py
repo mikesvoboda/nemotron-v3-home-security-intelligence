@@ -58,10 +58,6 @@ async def get_all_prompts(
 
     Returns the active prompt/configuration for each supported model:
     - nemotron: System prompt for risk analysis
-    - florence2: Scene analysis queries
-    - yolo_world: Custom object classes and confidence threshold
-    - xclip: Action recognition classes
-    - fashion_clip: Clothing categories
     """
     service = get_prompt_service()
     prompts = await service.get_all_prompts(db)

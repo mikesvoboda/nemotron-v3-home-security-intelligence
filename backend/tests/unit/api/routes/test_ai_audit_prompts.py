@@ -8,7 +8,6 @@ from pydantic import ValidationError
 from backend.api.schemas.prompt_management import (
     AIModelEnum,
     AllPromptsResponse,
-    Florence2Config,
     ModelPromptConfig,
     NemotronConfig,
     PromptHistoryResponse,
@@ -20,8 +19,6 @@ from backend.api.schemas.prompt_management import (
     PromptTestResult,
     PromptUpdateRequest,
     PromptVersionInfo,
-    XClipConfig,
-    YoloWorldConfig,
 )
 
 
@@ -31,14 +28,11 @@ class TestAIModelEnum:
     def test_all_model_values_exist(self):
         """Test that all expected model values are defined."""
         assert AIModelEnum.NEMOTRON.value == "nemotron"
-        assert AIModelEnum.FLORENCE2.value == "florence2"
-        assert AIModelEnum.YOLO_WORLD.value == "yolo_world"
-        assert AIModelEnum.XCLIP.value == "xclip"
-        assert AIModelEnum.FASHION_CLIP.value == "fashion_clip"
 
     def test_enum_count(self):
-        """Test that we have exactly 5 supported models."""
-        assert len(AIModelEnum) == 5
+        """Test that we have exactly 1 supported model (the four vision models retired
+        with the R8 S2/S3 sweep, B3.3 box 4)."""
+        assert len(AIModelEnum) == 1
 
 
 class TestNemotronConfig:
@@ -64,69 +58,6 @@ class TestNemotronConfig:
         assert config.version is None
 
 
-class TestFlorence2Config:
-    """Tests for Florence2Config schema."""
-
-    def test_valid_config(self):
-        """Test Florence2Config with valid vqa_queries."""
-        config = Florence2Config(
-            vqa_queries=[
-                "What is the person doing?",
-                "Describe the scene",
-            ]
-        )
-        assert len(config.vqa_queries) == 2
-
-    def test_vqa_queries_required(self):
-        """Test that vqa_queries is required and cannot be empty."""
-        with pytest.raises(ValidationError):
-            Florence2Config()
-        with pytest.raises(ValidationError):
-            Florence2Config(vqa_queries=[])
-
-
-class TestYoloWorldConfig:
-    """Tests for YoloWorldConfig schema."""
-
-    def test_valid_config(self):
-        """Test YoloWorldConfig with valid data."""
-        config = YoloWorldConfig(
-            object_classes=["knife", "gun", "package"],
-            confidence_threshold=0.4,
-        )
-        assert len(config.object_classes) == 3
-        assert config.confidence_threshold == 0.4
-
-    def test_default_threshold(self):
-        """Test default confidence threshold."""
-        config = YoloWorldConfig(object_classes=["test"])
-        assert config.confidence_threshold == 0.35
-
-    def test_threshold_bounds(self):
-        """Test threshold must be between 0 and 1."""
-        with pytest.raises(ValidationError):
-            YoloWorldConfig(object_classes=[], confidence_threshold=1.5)
-
-        with pytest.raises(ValidationError):
-            YoloWorldConfig(object_classes=[], confidence_threshold=-0.1)
-
-
-class TestXClipConfig:
-    """Tests for XClipConfig schema."""
-
-    def test_valid_config(self):
-        """Test XClipConfig with valid actions."""
-        config = XClipConfig(action_classes=["loitering", "running", "fighting"])
-        assert len(config.action_classes) == 3
-
-    def test_action_classes_required(self):
-        """Test that action_classes is required and cannot be empty."""
-        with pytest.raises(ValidationError):
-            XClipConfig()
-        with pytest.raises(ValidationError):
-            XClipConfig(action_classes=[])
-
-
 class TestModelPromptConfig:
     """Tests for ModelPromptConfig schema."""
 
@@ -146,11 +77,11 @@ class TestModelPromptConfig:
     def test_minimal_config(self):
         """Test ModelPromptConfig with minimal required fields."""
         config = ModelPromptConfig(
-            model=AIModelEnum.FLORENCE2,
-            config={"queries": []},
+            model=AIModelEnum.NEMOTRON,
+            config={"system_prompt": "Test"},
             version=1,
         )
-        assert config.model == AIModelEnum.FLORENCE2
+        assert config.model == AIModelEnum.NEMOTRON
         assert config.created_at is None
         assert config.created_by is None
 
@@ -165,11 +96,10 @@ class TestAllPromptsResponse:
             exported_at=datetime.now(),
             prompts={
                 "nemotron": {"system_prompt": "Test"},
-                "florence2": {"queries": []},
             },
         )
         assert response.version == "1.0"
-        assert len(response.prompts) == 2
+        assert len(response.prompts) == 1
 
 
 class TestPromptUpdateRequest:
@@ -327,11 +257,10 @@ class TestPromptsExportResponse:
             exported_at=datetime.now(),
             prompts={
                 "nemotron": {"system_prompt": "Test", "version": 1},
-                "florence2": {"queries": ["What is happening?"]},
             },
         )
         assert response.version == "1.0"
-        assert len(response.prompts) == 2
+        assert len(response.prompts) == 1
 
 
 class TestPromptsImportRequest:
@@ -361,11 +290,11 @@ class TestPromptsImportResponse:
     def test_valid_import_response(self):
         """Test PromptsImportResponse with valid data."""
         response = PromptsImportResponse(
-            imported_models=["nemotron", "florence2"],
+            imported_models=["nemotron"],
             skipped_models=["unknown_model"],
-            new_versions={"nemotron": 2, "florence2": 1},
-            message="Imported 2 model configurations",
+            new_versions={"nemotron": 2},
+            message="Imported 1 model configuration",
         )
-        assert len(response.imported_models) == 2
+        assert len(response.imported_models) == 1
         assert len(response.skipped_models) == 1
         assert response.new_versions["nemotron"] == 2

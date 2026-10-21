@@ -225,10 +225,10 @@ describe('endpoint contract (D2)', () => {
       /api/events/deleted  src/services/api.ts:2489  options passed by name: options
       /api/events/search  src/services/api.ts:3697  options passed by name: options
       /api/audit  src/services/api.ts:4357  options passed by name: options
-      /api/entities  src/services/api.ts:5578  options passed by name: options
-      /api/entities/matches/{}  src/services/api.ts:5674  options passed by name: options
-      /api/logs  src/services/api.ts:8713  options passed by name: options
-      /api/reid/similar/{}  src/services/api.ts:8826  options passed by name: options"
+      /api/entities  src/services/api.ts:5581  options passed by name: options
+      /api/entities/matches/{}  src/services/api.ts:5677  options passed by name: options
+      /api/logs  src/services/api.ts:8716  options passed by name: options
+      /api/reid/similar/{}  src/services/api.ts:8829  options passed by name: options"
     `);
   });
 
@@ -268,7 +268,7 @@ describe('endpoint contract (D2)', () => {
       src/services/logger.ts:198  built at runtime: this.config.endpoint
       src/services/logger.ts:263  built at runtime: this.config.batchEndpoint || this.config.endpoint
       src/services/plateReadsApi.ts:170  suffix for fetchPlateReadsApi() at src/services/plateReadsApi.ts:102: not a literal path
-      src/services/promptManagementApi.ts:138  suffix for fetchPromptApi() at src/services/promptManagementApi.ts:110: not a literal path
+      src/services/promptManagementApi.ts:135  suffix for fetchPromptApi() at src/services/promptManagementApi.ts:110: not a literal path
       src/services/rum.ts:210  built at runtime: this.config.endpoint
       src/services/rum.ts:262  built at runtime: this.config.endpoint
       src/services/webhookApi.ts:162  suffix for fetchWebhookApi() at src/services/webhookApi.ts:130: not a literal path
