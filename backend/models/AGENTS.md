@@ -776,7 +776,7 @@ The original incremental migration (`add_event_detections_junction_table.py`, wh
 - **Nemotron:** `{"system_prompt": "..."}`
 
 (B3.3 box 4 / R2a row 27 retired the Florence2/YOLO-World/X-CLIP/Fashion-CLIP formats with their
-enum values; the surviving column is the nemotron one.)
+enum values; the surviving column is the one that names the model below.)
 
 **Indexes:**
 

@@ -13,7 +13,7 @@ Contains model-specific configuration form components for each AI model in the p
 | `index.ts`                    | Barrel exports for model form components      | Active |
 
 (B3.3 box 4 / R2a row 27 retired the Florence2/YoloWorld/XClip/FashionClip forms with their enum
-values — nemotron is the only editable model left.)
+values — the `NemotronConfigForm` above is the only editable model left.)
 
 ## Key Components
 
