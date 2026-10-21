@@ -184,7 +184,7 @@ Alerts are logged with severity based on their status and labels:
 
 ```
 [ALERT FIRING] HSIGPUMemoryHigh (warning) - component=gpu: GPU memory usage is above 90%
-[ALERT RESOLVED] HSIGPUMemoryHigh (warning) - component=gpu: resolved after firing since 2026-01-17T12:22:56Z
+[ALERT RESOLVED] HSIGPUMemoryHigh (warning) - component=gpu: resolved after firing since 2026-01-17 12:22:56+00:00
 ```
 
 ### WebSocket Broadcast
