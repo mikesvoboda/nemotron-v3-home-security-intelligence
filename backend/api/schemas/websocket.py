@@ -998,7 +998,9 @@ class WebSocketBatchAnalysisCompletedData(BaseModel):
         batch_id: Unique batch identifier
         camera_id: Normalized camera ID (e.g., "front_door")
         event_id: ID of the created Event record
-        risk_score: Risk score assigned by LLM (0-100)
+        risk_score: Risk score assigned by LLM (0-100); None for a degraded batch
+            (the event payload's P0.25 rule: None is not a low score; consumers must
+            branch on None, mirroring backend/models/event.py's nullable risk_score)
         risk_level: Risk level (low, medium, high, critical)
         duration_ms: Analysis duration in milliseconds
         completed_at: ISO 8601 timestamp when analysis completed
@@ -1007,7 +1009,12 @@ class WebSocketBatchAnalysisCompletedData(BaseModel):
     batch_id: str = Field(..., description="Unique batch identifier")
     camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
     event_id: int = Field(..., description="ID of the created Event record")
-    risk_score: int = Field(..., ge=0, le=100, description="Risk score assigned by LLM (0-100)")
+    risk_score: int | None = Field(
+        ...,
+        ge=0,
+        le=100,
+        description="Risk score assigned by LLM (0-100); None when the batch degraded",
+    )
     risk_level: str = Field(..., description="Risk level (low, medium, high, critical)")
     duration_ms: int = Field(..., ge=0, description="Analysis duration in milliseconds")
     completed_at: str = Field(..., description="ISO 8601 timestamp when analysis completed")

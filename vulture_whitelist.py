@@ -33,7 +33,12 @@ _.no_pynvml
 # SetupGuardMiddleware._check_setup_complete for the same reason.
 _.scoped_only
 _.plain_only
-_.setup_complete
+_.setup_complete# [r285] (PR #7318, dead-code CI red 2026-10-21, run 39531416654 job
+# 118998531230): the retry-commit module's app fixture requests patched_get_db
+# purely to install the patched world (shipped get_db bound to the seeded
+# store, engine/loop caches reset); the bodies assert on HTTP responses and DB
+# rows, never on the injected factory -- the WP0.4 idiom again.
+_.patched_get_db
 # [r95] (PR #7135) monitoring field-ceiling pins: (a) again — gate_armed arms
 # the scoped gate (EXPOSE_LAN + API_KEYS + settings cache clear) and the seven
 # bodies assert on HTTP responses, never on the injected value. It could not

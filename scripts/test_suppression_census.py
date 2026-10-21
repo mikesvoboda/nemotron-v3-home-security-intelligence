@@ -771,6 +771,14 @@ def test_real_tree_matches_spec_baselines():
     are falsifiable claims about a feature rather than host state.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
+    pytest_skip_imperative 93→94 (2026-10-21, [r285] PR #7318): the
+    outbound-webhook retry-commit tests, test_outbound_webhook_retry_commit.
+    py:41 — the tests run the shipped get_db against real Postgres and skip
+    where TEST_DATABASE_URL/DATABASE_URL are unset (the test_db_isolation.
+    py:66 env-behind-local-alias shape). Adjudicated environment via
+    HOST_JUSTIFIED (b904d853f) — registry + baseline raised inside the PR,
+    the mirror raised THIS commit after the PR's first-round local gates
+    missed it; Collection Sanity caught the drift exactly as designed.
     """
     got = run_census(REPO_ROOT)
     expected = {
@@ -801,7 +809,19 @@ def test_real_tree_matches_spec_baselines():
         # skips that exist because collection must never crash without a live
         # stack — a contract that can never be "fixed", so their deadline must be
         # null. Increase path, fifth precedent.
-        "pytest_skip_imperative": 93,
+        # 93→94 (2026-10-21, [r285] / PR #7318): test_outbound_webhook_retry_
+        # commit.py:41 — the retry-commit tests run the shipped get_db against
+        # real Postgres and skip where TEST_DATABASE_URL/DATABASE_URL are unset
+        # (the test_db_isolation.py:66 env-behind-local-alias shape). The
+        # baseline file was raised in f7cadeed9 but THIS mirror was missed there
+        # and the miss surfaced only here, at this round's Collection Sanity
+        # (run 39531798246 job 119015088702: census=94 spec=93) — the mirror is
+        # a third gate beyond the ratchet and the gen --check, and the first
+        # round's local gate runs didn't include the spec suite. Adjudicated
+        # environment via HOST_JUSTIFIED (b904d853f added the key; the gen then
+        # mints kind: environment, expires: null, justification carried).
+        # Increase path, sixth precedent.
+        "pytest_skip_imperative": 94,
         "frontend_skip": 52,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
