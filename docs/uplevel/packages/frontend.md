@@ -183,7 +183,7 @@ that is the baseline `O3.4` pins, so "exits 0" reads relative to it (ruling 257)
 ### F3.3 Quarantined tests
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7325. (ruling 241)
 
 `vite.config.ts` excludes 16 test files; three are empty.
 
