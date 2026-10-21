@@ -152,6 +152,12 @@ Read this section while you write a package's code, tests, docs and PR.
   hooks never bypassed (the `SKIP` UR-184 sets is not a bypass), podman, ports from `.env`, coverage
   floors never lowered. (the deleted
   README section "Read this first"; lane kickoff prompts)
+- **UR-186** A scope canary is a test asserting a minimum count of modules, files or directories, or
+  a pinned band derived from those counts. It moves down only in the PR that carries an authorized
+  retirement or deletion, and that PR's body gives the old value, the new value and the measured
+  count; the UR-89 reviewer checks all three against the tree at the head. Such a move is not a
+  lowered bar on the reserved list and needs no owner leg. Coverage floors are not scope canaries,
+  and UR-69 is unchanged. (ruling 304)
 - **UR-70** Read the `00-audit.md` sections your package cites and re-measure any **[A]** number
   before acting on it. Read `01-mutation-policy.md` whenever your package deletes, merges or writes
   tests. (the deleted README section "Read this first")
@@ -230,11 +236,19 @@ Constraints on what you build; reopening one is a ruling (UR-44).
   runtime state; GPU-less development uses the fake VLM through an explicit overlay. (UR-18)
 - **UR-84** Out of scope: rewriting git history, renaming `setup.py`, and widening frontend Stryker
   beyond its three utility files. (the deleted README section "Rulings of record")
-- **UR-85** Production re-ID stays OSNet-AIN on the CPU (`REID_BACKEND=local`) until a later ruling.
-  Re-ID may depend on the GPU only once a proven GPU path exists, and then no CPU fallback is
-  required. (ruling 107)
-- **UR-86** Triton stays the one model server: any new GPU-served model joins Triton, and its `nv_*`
-  metrics stay (OD-39). (ruling 89)
+- **UR-85** Production re-ID moves to the GPU: OSNet-AIN served by Triton through the gateway
+  (`REID_BACKEND=gateway`), once `[r252]`'s proving run posts `RESULT: PASS`. `[r306a]` then flips
+  the default and `[r306b]` removes the backend's CPU copy; until the flip it stays `local`. A
+  proven GPU path stands without a CPU fallback. The parity gate stays at 0.999 (ruling 68), and
+  re-ID on ONNX Runtime instead of a TensorRT plan stays unauthorised. (rulings 107, 306)
+- **UR-86** Triton is the one model server, and stays so for now (OD-39): no package compares it
+  with an alternative, and GPU memory and latency are recorded under Triton inside each model's own
+  test (ruling 302). Every neural-network model the product runs that can run on the GPU is served
+  by Triton, through TensorRT plans with a parity gate, and the backend keeps no CPU copy once a
+  model's GPU path passes. The VLM (llama.cpp, outside Triton) is sized to the GPU memory the small
+  models leave. Triton's `nv_*` metrics stay. The face models keep the VSS phase-1 plan's F12
+  conditions except "CPU": exactly two SHA-256-pinned ONNX files, never `insightface.FaceAnalysis`,
+  and model IDs unchanged. (rulings 89, 302, 307)
 - **UR-87** Future plans go in `docs/superpowers/<date>-<slug>/`; `docs/plans/` is frozen history,
   and a dated plan created anywhere else is a violation (OD-33). (ruling 89)
 - **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason. `agents_md_validator.py`
