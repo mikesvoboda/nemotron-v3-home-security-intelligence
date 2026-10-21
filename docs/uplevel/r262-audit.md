@@ -42,6 +42,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 | 4     | 7158, 7159, 7168, 7174, 7183, 7187, 7201, 7210, 7215, 7222, 7230, 7234                   | 41 rows from 42 intake items (− 1 refuted 7210 item 3 on its provenance leg only — finding stands with corrected provenance, dies unnumbered; − 1 dedup merge 7187 items 0+1 into Q-134, whose pointer half is 7210 item 8's :421 predicate leg — rides the row, no count effect; + 1 ruled row 7114-C4 re-assigned to #7222, numbered Q-164 with the ruled wording) + 2 record-only cross-refs (7070-C7/C10 ride #7201; 7114-C2/C3 ride #7222)                                                                                                                                                    | 1 (7210 item 3, provenance leg only)                                                                                                                                     | batch-4 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
 | 5     | 6855, 6863, 6864, 6867, 6870, 6875, 6888, 6890, 6891, 6892, 6901, 6912, 6914, 6920, 6921 | 10 rows from 10 intake items (test class begins; 8 drift + 2 claim — no dedups, no re-assignments)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 0 (10/10 survived)                                                                                                                                                       | batch-5 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
 | 6     | 6926, 6932, 6934, 6938, 6945, 6947, 6954, 6956, 6960, 6962, 6963, 6966, 6971, 6972, 6973 | 17 rows from 19 intake items (− 2 cross-intake dedups: 6954_c1 = 6973_c1 filed as Q-180; 6926_c2 = 6963_c2 filed as Q-176 per the b8022b94b authorship ruling — 13 drift + 3 claim + 1 bug)                                                                                                                                                                                                                                                                                                                                                                                                        | 0 (19/19 survived — first refutation-clean batch pair; three refuter lines overridden by coordinator checks, recorded in the rows)                                       | batch-6 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
+| 7     | 6976, 6978, 6979, 6981, 6986, 6991, 6997, 6998, 6999, 7003, 7008, 7011, 7012, 7013, 7014 | 46 intake items — no rows (ruling 296, record 6307432184: from batch 7 on, rows go only to bugs of any severity or medium-or-higher findings; all 46 rated low — 43 drift + 3 claim, zero bugs). Per-PR counts in the batch-7 comment on #7265 instead                                                                                                                                                                                                                                                                                                                                             | none run — ruling 296 orders no refutation pass for low findings (distinct from a clean pass)                                                                            | batch-7 comment on #7265; sheet carries this process-note entry instead of a per-item section; the audit still read every PR at full depth — no reading was skipped                                                     |
 
 ## Batch 5 — per-PR verdicts
 
@@ -4409,3 +4410,74 @@ s) and must be re-run first; saw {unit_names}"`; MAX_RERUNS = 5 in
 - Class tallies: 13 drift + 3 claim + 1 bug, all severity low (Q-179's bug was corrected
   medium→low by the refuter's exposure re-census). Both intakes' per-item class headers
   agree with the verdicts' L5 confirmations; only the b6b summary tally line miscounts.
+
+## Batch 7 — counts under ruling 296 (no per-item rows)
+
+Batch 7. Test class continues (PRs 6976..7014 — the batch's 15 census test-class PRs audited
+by two intake auditors, positions 30-37 and 38-44 of the test census). Ruling 296 (owner
+record, 2026-10-21T03:38Z, record 6307432184; relayed to this PR by the coordinator's
+comment 6307642280) re-barred the remaining batches while this batch was in flight: from
+batch 7 on, a row goes only to a bug of any severity or to a medium-or-higher finding, each
+still through ruling 232's refutation pass; a low stale cite or claim gets no row and no
+refutation — one count per PR in the batch comment instead. The audit still reads every
+remaining census PR at full depth; only the row bar changed. Both intake auditors had been
+dispatched under the older bar and kept running (their intake is a superset); the filter
+applied at assembly.
+
+- Intakes: b7a = 6976, 6978, 6979, 6981, 6986, 6991, 6997, 6998 (merge SHAs 5e76985a78,
+  4359bb7a94, 33735c95f9, 085bb26715, c31940a62e, fd01e2c074, cde3f11028, 2f02207f3d;
+  57 kept test files); b7b = 6999, 7003, 7008, 7011, 7012, 7013, 7014 (36aa891660,
+  b09c4b795c, 34418aa996, f38539759f, 63efc3b6dc, 1b255a568d, 1d5870b450; 28 kept files).
+- Combined tally: 46 intake items — 43 drift + 3 claim, ALL severity low; zero bug, guard,
+  test, fit classes. b7a: 18 items (6978: 9, 6986: 5, 6997: 4; 6976/6979/6981/6991/6998
+  clean). b7b: 28 items (7003: 5, 7008: 14, 7011: 5, 7013: 4; 6999/7012/7014 clean).
+  One b7a candidate was refuted during verification and dropped before intake (6978_c10,
+  palette.spec.ts "invented filename" — a line-wrap artifact; both coordinates TRUE at pin).
+- Per-PR counts (also in the batch-7 comment): 6976: 0 · 6978: 9 · 6979: 0 · 6981: 0 ·
+  6986: 5 · 6991: 0 · 6997: 4 · 6998: 0 · 6999: 0 · 7003: 5 · 7008: 14 · 7011: 5 ·
+  7012: 0 · 7013: 4 · 7014: 0.
+- No rows written: all 46 items sit below ruling 296's bar (no bugs; nothing rated medium
+  or higher). No refutation subagents dispatched for the lows — ruling 296 orders no
+  refutation pass for this class, which is not the same as a clean pass; the sheet's
+  refuted column for batch 7 records "none run" on that ground.
+- Coordinator spot-check of the bar's edge: 6986_c5 (the one name-invention claim,
+  `JobSearchService._matches_query` at jobs-page.spec.ts:14 — actual
+  `_matches_text_query` at backend/services/job_search_service.py:143, zero
+  `_matches_query` definitions at the pin) re-verified at the pin by the coordinator:
+  holds as written; low is correct (spec-comment symbol, not reachable-path behaviour,
+  not a gate).
+- 7011_c5's rating also checked (the healed-Break-A claim): the persons.spec.ts:36-44
+  prose describes a live RED that a51a3aad9 (two days before the spec's merge, an
+  ancestor of it) healed by unwrapping the KnownPersonListResponse envelope; the block
+  self-describes as provisional design notes and no gate flips on it — low holds.
+- The intake files' clean-PR sweeps named what was verified, not just what was found:
+  6976's dashboard-drop has zero file:line cites and its guard.ts constants resolve;
+  6979's external-test cites all resolve at pin; 6981's added test has no coordinate
+  cites; 6991 is self-contained fakes; 6998's path:line strings are parser-fixture
+  sample data (570 lines read).
+- Provenance mechanisms seen in batch 7, named (intake level; no rows): the
+  d6344e031/834d51097/6b691302d/e2d65dda3/516cffc98 api.ts mover chain dominates b7a's
+  shell/dashboard specs (6978_c1, 6997_c1/c2) and b7b's api.ts family (7008 c2, c6, c9,
+  c10, c11, c13, c15); pre-merge main-side drift born-stale-at-own-merge (6978_c3 via
+  a0917358e; 7008's DashboardPage +13 via 4937d7dcc is merge-tree-true, pin-stale);
+  sha-scoped-sibling-truth-borrowed-unscoped (6986_c2's feature_check ":853" born-wrong
+  at authoring, true only on the parallel main-side lineage — batch-5 precedent class);
+  authored-live-rotted (7013_c3's coarse-fixture count 29→35, re-measured per-file at
+  both trees, substance of the sweep-safety argument verified true at the pin);
+  symbol-deleted-by-later-PR (6978_c8's useWebSocketStatus.ts deleted at pin, 8 dead
+  cites, symbols relocated to ConnectionStatusProvider.tsx; 7011_c3's identity harness
+  folded into tests/golden/harness.ts by 10d00a96e with the spec imports self-healed).
+- The b7b intake's "tdsi cf.-cite" note records an item that DIED at audit: the :121
+  line-cite was healed by 7003's own PR diff before the pin (blob 678d1b543 → 925eeaf5e),
+  so nothing to file; 9c71e2763's identical +279 is a parallel-lane duplicate, recorded
+  on that attribution.
+- Fix-sizing at intake: every item's fix line is S (one-line cite rewording) or M
+  (7011_c5's prose restate). Under ruling 296's "no lane fixes low stale cites one by
+  one" these stay unfixed pending the checker package the ruling orders the owner
+  partner to scope.
+- Concurrency: two intake auditors at peak (the cap held); both refuter slots stayed
+  empty by design — the only refutations batch 7 saw were the intake's own dropped
+  candidate and the coordinator's spot-checks.
+- Shallow-graft hazard governed as before: all reads via git show/git diff at full
+  hashes; pickaxe confined to d6344e031..41bc0fce71; mover chains attributed inside the
+  window, pre-boundary facts labeled as such.
