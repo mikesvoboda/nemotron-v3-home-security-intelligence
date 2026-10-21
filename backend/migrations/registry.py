@@ -141,6 +141,11 @@ UPGRADES: tuple[Upgrade, ...] = (
         filename="2026-10-20-retire-gpu-devices-table.sql",
         source="B3.1 R2a row 36 (retire F-177 gpu_devices table)",
     ),
+    Upgrade(
+        id="0010-retire-scheduled-reports-table",
+        filename="2026-10-20-retire-scheduled-reports-table.sql",
+        source="B3.1 R2a row 43 (retire F-252/F-253/F-255 scheduled_reports table)",
+    ),
 )
 
 

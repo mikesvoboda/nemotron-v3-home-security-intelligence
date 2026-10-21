@@ -30,7 +30,6 @@ from .onvif import router as onvif_router
 from .outbound_webhooks import router as outbound_webhooks_router
 from .plate_reads import router as plate_reads_router
 from .rum import router as rum_router
-from .scheduled_reports import router as scheduled_reports_router
 from .services import router as services_router
 from .settings_api import router as settings_api_router
 from .summaries import router as summaries_router
@@ -71,7 +70,6 @@ __all__ = [
     "plate_reads_router",
     "property_router",
     "rum_router",
-    "scheduled_reports_router",
     "services_router",
     "settings_api_router",
     "summaries_router",
