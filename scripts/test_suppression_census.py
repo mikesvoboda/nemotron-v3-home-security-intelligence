@@ -774,7 +774,12 @@ def test_real_tree_matches_spec_baselines():
     """
     got = run_census(REPO_ROOT)
     expected = {
-        "collection_allowlist": 4,
+        # 4→2 (2026-10-21, F3.2 #7246): the deletion cut removed the two retired
+        # collection ids with their files (SystemHealthIndicator,
+        # ZoneTimelineScrubber); the same drop is in this commit's
+        # .github/suppression-baseline.json. The allowlist keeps
+        # test_helpers.py + TimeGroupedEvents.simple.
+        "collection_allowlist": 2,
         "flake_allowlist": 0,
         # 16→13 (2026-10-21, roll 10 of #7246): the F3.2 cut removed three
         # quarantine ids with their files; measured on the merged tree by
