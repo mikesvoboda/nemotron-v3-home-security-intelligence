@@ -34,16 +34,17 @@ Production first, then test, then tooling; within a class in PR-number order. Ba
 first ten production PRs; later batches are about fifteen PRs, one comment each. Each batch
 records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 
-| Batch | PRs                                                                                      | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Refuted                                                                                                                                                                  | Comment                                                                                                                                                                                                                 |
-| ----- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925                               | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 0 (16/16 survived incl. Q-000)                                                                                                                                           | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180); ruled by 267 (r267a/r267b now, 11 lows later)                                                                             |
-| 2     | 6927, 6930, 6931, 6936, 6943, 6950, 6959, 7002, 7015, 7019, 7031, 7038, 7039, 7041, 7044 | 45 (41 auditor candidates − 1 dedup (6927_c1 = Q-012's same defect) + 5 probe items from the two empty verdicts re-looked per ruling 232) + 1 supplementary outside the diff (7015 probe, DashboardPage.test.tsx:1091 — scope call for the coordinator, not in the count)                                                                                                                                                                                                                                                                                                                                                                      | 1 (7002_c2, provenance mover-leg only — re-issued as Q-037 with corrected provenance; staleness and fix stand)                                                           | batch-2 comment on #7265; lows in the compact table per owner continue (6266204180); the seven mediums + re-issued Q-037 keep full templates                                                                            |
-| 3     | 7052, 7070, 7074, 7077, 7086, 7088, 7103, 7114, 7125, 7135, 7139, 7145, 7146, 7156, 7157 | 62 rows from 69 auditor candidates + 5 deferred items Q-062..Q-066 (− 1 refuted genre-kill 7135_c4, − 1 dedup merge 7086-C1+C2, − 2 dedup twins 7157-C1/C5 resolved onto 7135-C1's verdict, − 1 batch-4 certification 7070-C2, − 2 record-only 7070-C7/C10, − 2 record-only 7114-C2/C3, − 1 re-assigned to #7222 7114-C4; Q-075 stays as a pointer row onto Q-093's fix; the phantom q067 was REFUTED and dies unnumbered — it was never a candidate row) + ~20 rows' dead coordinate cites across feature-inventory.md consolidate into the #7135-family and #7146-family items; enumerated there                                             | 2 (phantom coordinate q067 — a `prod.yml:160` cite that exists nowhere at the pin, dies unnumbered; 7135_c4 genre-kill — ticked Done-when boxes are task specifications) | batch-3 comment on #7265; lows in the compact table per owner continue (6266204180); the two mediums (Q-093, Q-114) keep full templates; ruled 277 (record 6291992942): 62 rows, Q-094 dropped, targets/paths corrected |
-| 4     | 7158, 7159, 7168, 7174, 7183, 7187, 7201, 7210, 7215, 7222, 7230, 7234                   | 41 rows from 42 intake items (− 1 refuted 7210 item 3 on its provenance leg only — finding stands with corrected provenance, dies unnumbered; − 1 dedup merge 7187 items 0+1 into Q-134, whose pointer half is 7210 item 8's :421 predicate leg — rides the row, no count effect; + 1 ruled row 7114-C4 re-assigned to #7222, numbered Q-164 with the ruled wording) + 2 record-only cross-refs (7070-C7/C10 ride #7201; 7114-C2/C3 ride #7222)                                                                                                                                                                                                | 1 (7210 item 3, provenance leg only)                                                                                                                                     | batch-4 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
-| 5     | 6855, 6863, 6864, 6867, 6870, 6875, 6888, 6890, 6891, 6892, 6901, 6912, 6914, 6920, 6921 | 10 rows from 10 intake items (test class begins; 8 drift + 2 claim — no dedups, no re-assignments)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 0 (10/10 survived)                                                                                                                                                       | batch-5 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
-| 6     | 6926, 6932, 6934, 6938, 6945, 6947, 6954, 6956, 6960, 6962, 6963, 6966, 6971, 6972, 6973 | 17 rows from 19 intake items (− 2 cross-intake dedups: 6954_c1 = 6973_c1 filed as Q-180; 6926_c2 = 6963_c2 filed as Q-176 per the b8022b94b authorship ruling — 13 drift + 3 claim + 1 bug)                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 0 (19/19 survived — first refutation-clean batch pair; three refuter lines overridden by coordinator checks, recorded in the rows)                                       | batch-6 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
-| 7     | 6976, 6978, 6979, 6981, 6986, 6991, 6997, 6998, 6999, 7003, 7008, 7011, 7012, 7013, 7014 | 47 intake items — no rows (ruling 296, record 6307432184: from batch 7 on, rows go only to bugs of any severity or medium-or-higher findings; all 47 rated low — 44 drift + 3 claim, zero bugs). Per-PR counts in the batch-7 comment on #7265 instead. 46 → 47 reconciled post-delivery: the delivered draft's `7008_c3` id was double-occupied (a folded camera-grid stub heading AND the config-modal item), so two substantively separate findings shared one slot in the delivered count; the intake file was corrected 2026-10-21 ~07:45 (dedup of the c3 slot, plus item-text corrections — reconciliation note in the batch-7 section) | none run — ruling 296 orders no refutation pass for low findings (distinct from a clean pass)                                                                            | batch-7 comment on #7265; sheet carries this process-note entry instead of a per-item section; the audit still read every PR at full depth — no reading was skipped                                                     |
-| 8     | 7016, 7017, 7018, 7020, 7022, 7023, 7024, 7025, 7027, 7032, 7033, 7034, 7035, 7037, 7040 | 21 intake items — no rows (ruling 296 bar continues: rows only for bugs of any severity or medium-or-higher findings; all 21 rated low — 17 drift + 4 claim, zero bugs). Per-PR counts in the batch-8 comment on #7265 instead. One disclosed reassignment: former 7034_c3 → 7037_c4 (the docstring block first appears on main at 7037's own merge 017870f8f, not at 7034's e131fef08 — sentence-presence bisection across all seven merge trees)                                                                                                                                                                                             | none run — ruling 296 orders no refutation pass for low findings (distinct from a clean pass)                                                                            | batch-8 comment on #7265; sheet carries this process-note entry instead of a per-item section; the audit still read every PR at full depth — no reading was skipped                                                     |
+| Batch | PRs                                                                                      | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Refuted                                                                                                                                                                  | Comment                                                                                                                                                                                                                 |
+| ----- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | 6862, 6868, 6869, 6880, 6886, 6907, 6909, 6913, 6922, 6925                               | 12 (+ owner-seeded Q-000, outside the census window; see its section) (3 items re-attributed by mover-owns: Q-012 → #7230 batch 4; Q-014 + Q-015 → #6936 batch 2 — see below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 0 (16/16 survived incl. Q-000)                                                                                                                                           | batch-1 comment on #7265; low items + Q-000 in compact table per owner continue (6266204180); ruled by 267 (r267a/r267b now, 11 lows later)                                                                             |
+| 2     | 6927, 6930, 6931, 6936, 6943, 6950, 6959, 7002, 7015, 7019, 7031, 7038, 7039, 7041, 7044 | 45 (41 auditor candidates − 1 dedup (6927_c1 = Q-012's same defect) + 5 probe items from the two empty verdicts re-looked per ruling 232) + 1 supplementary outside the diff (7015 probe, DashboardPage.test.tsx:1091 — scope call for the coordinator, not in the count)                                                                                                                                                                                                                                                                                                                                                                                                              | 1 (7002_c2, provenance mover-leg only — re-issued as Q-037 with corrected provenance; staleness and fix stand)                                                           | batch-2 comment on #7265; lows in the compact table per owner continue (6266204180); the seven mediums + re-issued Q-037 keep full templates                                                                            |
+| 3     | 7052, 7070, 7074, 7077, 7086, 7088, 7103, 7114, 7125, 7135, 7139, 7145, 7146, 7156, 7157 | 62 rows from 69 auditor candidates + 5 deferred items Q-062..Q-066 (− 1 refuted genre-kill 7135_c4, − 1 dedup merge 7086-C1+C2, − 2 dedup twins 7157-C1/C5 resolved onto 7135-C1's verdict, − 1 batch-4 certification 7070-C2, − 2 record-only 7070-C7/C10, − 2 record-only 7114-C2/C3, − 1 re-assigned to #7222 7114-C4; Q-075 stays as a pointer row onto Q-093's fix; the phantom q067 was REFUTED and dies unnumbered — it was never a candidate row) + ~20 rows' dead coordinate cites across feature-inventory.md consolidate into the #7135-family and #7146-family items; enumerated there                                                                                     | 2 (phantom coordinate q067 — a `prod.yml:160` cite that exists nowhere at the pin, dies unnumbered; 7135_c4 genre-kill — ticked Done-when boxes are task specifications) | batch-3 comment on #7265; lows in the compact table per owner continue (6266204180); the two mediums (Q-093, Q-114) keep full templates; ruled 277 (record 6291992942): 62 rows, Q-094 dropped, targets/paths corrected |
+| 4     | 7158, 7159, 7168, 7174, 7183, 7187, 7201, 7210, 7215, 7222, 7230, 7234                   | 41 rows from 42 intake items (− 1 refuted 7210 item 3 on its provenance leg only — finding stands with corrected provenance, dies unnumbered; − 1 dedup merge 7187 items 0+1 into Q-134, whose pointer half is 7210 item 8's :421 predicate leg — rides the row, no count effect; + 1 ruled row 7114-C4 re-assigned to #7222, numbered Q-164 with the ruled wording) + 2 record-only cross-refs (7070-C7/C10 ride #7201; 7114-C2/C3 ride #7222)                                                                                                                                                                                                                                        | 1 (7210 item 3, provenance leg only)                                                                                                                                     | batch-4 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
+| 5     | 6855, 6863, 6864, 6867, 6870, 6875, 6888, 6890, 6891, 6892, 6901, 6912, 6914, 6920, 6921 | 10 rows from 10 intake items (test class begins; 8 drift + 2 claim — no dedups, no re-assignments)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 0 (10/10 survived)                                                                                                                                                       | batch-5 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
+| 6     | 6926, 6932, 6934, 6938, 6945, 6947, 6954, 6956, 6960, 6962, 6963, 6966, 6971, 6972, 6973 | 17 rows from 19 intake items (− 2 cross-intake dedups: 6954_c1 = 6973_c1 filed as Q-180; 6926_c2 = 6963_c2 filed as Q-176 per the b8022b94b authorship ruling — 13 drift + 3 claim + 1 bug)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 0 (19/19 survived — first refutation-clean batch pair; three refuter lines overridden by coordinator checks, recorded in the rows)                                       | batch-6 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
+| 7     | 6976, 6978, 6979, 6981, 6986, 6991, 6997, 6998, 6999, 7003, 7008, 7011, 7012, 7013, 7014 | 47 intake items — no rows (ruling 296, record 6307432184: from batch 7 on, rows go only to bugs of any severity or medium-or-higher findings; all 47 rated low — 44 drift + 3 claim, zero bugs). Per-PR counts in the batch-7 comment on #7265 instead. 46 → 47 reconciled post-delivery: the delivered draft's `7008_c3` id was double-occupied (a folded camera-grid stub heading AND the config-modal item), so two substantively separate findings shared one slot in the delivered count; the intake file was corrected 2026-10-21 ~07:45 (dedup of the c3 slot, plus item-text corrections — reconciliation note in the batch-7 section)                                         | none run — ruling 296 orders no refutation pass for low findings (distinct from a clean pass)                                                                            | batch-7 comment on #7265; sheet carries this process-note entry instead of a per-item section; the audit still read every PR at full depth — no reading was skipped                                                     |
+| 8     | 7016, 7017, 7018, 7020, 7022, 7023, 7024, 7025, 7027, 7032, 7033, 7034, 7035, 7037, 7040 | 21 intake items — no rows (ruling 296 bar continues: rows only for bugs of any severity or medium-or-higher findings; all 21 rated low — 17 drift + 4 claim, zero bugs). Per-PR counts in the batch-8 comment on #7265 instead. One disclosed reassignment: former 7034_c3 → 7037_c4 (the docstring block first appears on main at 7037's own merge 017870f8f, not at 7034's e131fef08 — sentence-presence bisection across all seven merge trees)                                                                                                                                                                                                                                     | none run — ruling 296 orders no refutation pass for low findings (distinct from a clean pass)                                                                            | batch-8 comment on #7265; sheet carries this process-note entry instead of a per-item section; the audit still read every PR at full depth — no reading was skipped                                                     |
+| 9     | 7042, 7043, 7048, 7049, 7050, 7051, 7053, 7064, 7065, 7069, 7083, 7084, 7087, 7090, 7092 | 62 intake items → 58 counted — no rows (ruling 296 bar continues: rows only for bugs of any severity or medium-or-higher findings; all 58 rated low — 47 drift + 10 claim + 1 test, zero bugs). Deltas: −1 refuted (7048_c4, the sole medium — prefix-shadow census trap, dies unnumbered per 7210-item-3); −1 dedup (7042_c2 → pointer under 7084_c2, one blob 066386aa81, first main carrier is #7084's own merge e6839d5a7); −2 cross-intake dedup (7050_c1 ⊂ 7092_c2 and 7050_c2 ≡ 7092_c1, one zones.spec.ts defect family counted under #7092 — both merge trees were TRUE at their own merges, rot is entirely pin-side). Per-PR counts in the batch-9 comment on #7265 instead | 1 (7048_c4 — the sole medium, refuted on its load-bearing legs 3-4 by test_vlm_analyzer_batch38_y.py:466/:993; premise legs 1-2 TRUE)                                    | batch-9 comment on #7265; sheet carries this process-note entry instead of a per-item section; the audit still read every PR at full depth — no reading was skipped                                                     |
 
 ## Batch 5 — per-PR verdicts
 
@@ -4622,3 +4623,170 @@ read every PR at full depth; only the row bar changed.
 - Concurrency: two intake auditors at peak (the cap held); no refuter slots used — ruling
   296 orders no refutation pass for lows, and zero bugs/medium+ meant no refutation stage
   at all this batch.
+
+## Batch 9 — counts under ruling 296 (no per-item rows)
+
+Batch 9. Test class continues (PRs 7042..7092 — the batch's 15 census test-class PRs audited
+by two intake auditors, positions 60-66 and 67-74 of the test census). Ruling 296's bar
+applies at assembly, as in batches 7-8: rows only for bugs of any severity or
+medium-or-higher findings. One item reached medium and went through ruling 232's refutation
+pass — 7048_c4 — and was REFUTED (dies unnumbered, 7210-item-3 precedent); every other item
+rated low, so no further refutation pass ran. Three intake corrections were adjudicated
+before assembly (one refutation, two cross-intake dedups — both caught by comparing the two
+auditors' independent records of the same files). The audit read every PR at full depth;
+only the row bar changed.
+
+- Intakes: b9a = 7042, 7043, 7048, 7049, 7050, 7051, 7053 (merge SHAs f271c9f4c, 36f9619d8,
+  e15c83e08, 09441f85a, 0ea1f0d8e, 29bb8da31, 11bc81e30; 12 kept test files); b9b = 7064,
+  7065, 7069, 7083, 7084, 7087, 7090, 7092 (merge SHAs 5524b3ff1a, 843b167e4e, 9a05f0ba19,
+  8a49ae7ac9, e6839d5a78, 2f7effd72f, 63e15029b2, 993a83521f; 16 kept files plus the
+  SHA256SUMS fixture corpus). All fifteen are ancestors of the pin.
+- Combined tally: 62 intake items → 58 counted — 47 drift + 10 claim + 1 test, ALL severity
+  low; zero bug/guard/fit classes. The four deltas: −1 test-class REFUTATION (7048_c4),
+  −1 claim-class DEDUP (7042_c2 → pointer under 7084_c2), −2 drift-class DEDUP (7050_c1
+  ⊂ 7092_c2 and 7050_c2 ≡ 7092_c1, counted once under #7092 with pointer lines under
+  #7050).
+- Per-PR counts (also in the batch-9 comment): 7042: 2 + pointer · 7043: 0 · 7048: 4 ·
+  7049: 23 · 7050: pointer-only · 7051: 0 · 7053: 2 · 7064: 14 · 7065: 0 · 7069: 3 ·
+  7083: 0 · 7084: 2 · 7087: 1 · 7090: 0 · 7092: 7.
+- One refutation pass (the sole medium): 7048_c4 (test_vlm_analyzer.py:86, "provenance
+  tautology" — claimed the suite cannot fail on the analyzer's provenance branch because
+  every fake stamp is byte-identical to the settings fallbacks). REFUTED on its load-bearing
+  legs 3-4; premise legs 1-2 TRUE. The killing witness:
+  backend/tests/unit/services/test_vlm_analyzer_batch38_y.py stamps
+  `provenance={"engine": "llama.cpp", "model_id": "Qwen3VL-8B"}` (:466) — `"Qwen3VL-8B"`
+  is DISTINCT from the settings default `"Qwen3VL-8B-Instruct-Q4_K_M"` (config.py:1292-1297)
+  but is a PREFIX of it, so the intake's census grep (conflating the two strings) waved the
+  witness through — drives the real analyze_batch success path with no settings patching
+  anywhere in its harness, and asserts the surfaced row `assert evrow.model_id ==
+"Qwen3VL-8B"` (:993). All three named mutants die: always-fallback fails :993;
+  always-verdict-provenance raises on the degraded path; branch deletion → NameError. The
+  fallback arm is separately pinned against settings by unit test_vlm_analyzer.py:750-751
+  and batch38_y:1112-1113 — the exact two-leg structure the item's fix demanded already
+  exists. Census correction: the intake's grep, run untruncated, returns 42 hits including
+  the batch38 assertion lines; nine make_verdict definitions exist at the pin and five
+  hard-code a divergent model_id (batch38_y/ay "Qwen3VL-8B"; test_pipeline_e2e.py:528
+  "e2e-scripted-model"; test_prompt_replay.py:248, test_gpu_pipeline.py:331,
+  test_pipeline_integration.py:386). Residual truths recorded for the coordinator, neither
+  of which is the item as written: (a) the integration tier's local stamp/assertion pair is
+  tautological but redundant, not a gap — test_notify_decision_wiring.py:108 and
+  test_analysis_stream_delivery.py:53 carry the same stamp, and the unit tier distinguishes
+  the same production function; (b) the ENGINE coordinate alone is never distinguished by
+  any test, but VlmClient stamps provenance from the same settings the fallback reads
+  (test_client_conformance.py:2688-2691), making that residue near-tautological in
+  production. The item's own coordinates were all correct (analyzer branch :694-697; stamp
+  :86; conftest :2169-2170) — the failure was the census conclusion.
+- Dedup 1 (7042_c2 ≡ 7084_c2 — one defect, one blob, attribution corrected): the
+  test_duration_budget_gate.py docstring's "the list now holds 11 entries, not 7 … four
+  later entrants (dated 2026-09-23 through 2026-10-13)" vs scripts/audit-test-durations.py
+  SLOW_TEST_PATTERNS = 9 at the pin. The test file is ONE blob (066386aa81) from birth
+  (e97f84610) to the pin; only the script moved under it. Tree counts (AST-verified):
+  birth 10/claims-11 (born-stale-in-its-own-commit, with the twin-tree flavor — the
+  docstring counted concurrent main's 11-entry list after 90e5de2ab, not its own branch
+  tree's 10); #7084's OWN MERGE e6839d5a7 (10-14 04:19) has list=11 (main's script side
+  won the merge) with the branch's test blob → the docstring was TRUE at its own merge;
+  #7116's merge 75bfc0b31 (09:07) carries both fixes (68affa14c 11→9 dropping
+  pipeline_e2e+enrichment; de50e8772 retracting compose_render) → 8; 09e67114c (#7244)
+  adds settings_orphan_ratchet → 9 at pin. True stale window on main: e6839d5a7 04:19 →
+  75bfc0b31 09:07 ≈ 4h48m — b9a's "~3 hours/between e97f84610 and 68affa14c" and b9b's
+  "~3 hours" both wrong in different directions. Attribution correction to b9a: the whole
+  corrected docstring did NOT arrive via d6344e031's carried history — e6839d5a7 (#7084's
+  own merge) is the FIRST main carrier of blob 066386aa81 (main's last pre-blob was
+  a060baadd at a55dd2eb5 04:04), so the defect IS attributable to #7084, the strongest
+  form; b9b's merge-side read was right, b9a's was the merge-window illusion (d6344e031 is
+  merely the shallow-graft boundary; both its graft parents already carry the blob). ONE
+  defect counted under #7084; #7042's section gets a pointer line only (its merge tree
+  f271c9f4c predates the blob entirely — a060baadd — so #7042 carried the OLDER blob
+  without this docstring). b9b_correction.md's own AST counts (the lead's corrections to
+  7084_c2) were themselves off by one at every tree (pin 9 not 10, birth 10 not 11,
+  settings_orphan_ratchet 9 not 10) — superseded by the merge-tree resolution; the
+  correction's mechanism note (the auditor's count-blindness caught by AST-parsing) stands.
+- Dedup 2 (7050_c2 ≡ 7092_c1; 7050_c1 ⊂ 7092_c2 — zones.spec.ts stale cites, two intakes
+  converged): both auditors independently found the same defect family in
+  frontend/tests/golden/identity/zones.spec.ts — the App.tsx:312 route cite (spec :4; route
+  at :330 at pin) and the harness.ts line-range cites now resolving to the ROOT harness
+  after the #7241 fold. Blob table: #7092's merge 993a83521f (10-13 20:09) and its
+  ancestors hold blob 4d9e799c6 (1004 lines, sites at :4/:14/:27/:40/:65/:140/:263/:756);
+  #7050's merge 0ea1f0d8e (20:55, an HOUR LATER, and 993a83521f IS an ancestor of it)
+  holds a28243de3 (1012 lines, sites :4/:19/:32/:45/:70/:145/:268/:764); the pin holds
+  f471d9550 (1012 lines, the same eight sites). BOTH merge trees were TRUE at their own
+  merge (App.tsx:312 exact in both; identity/harness.ts blob c76e50cf2 present with every
+  cited range) — NOT the born-stale 7042/7084 shape; the rot is entirely pin-side:
+  App.tsx movers d6344e031 (+9 → :321) then 70c5d96ae (+9 → :330), landed via 9e71bfde8
+  (#7230 merge) — one event that b9a named by merge SHA and b9b by branch commit; the
+  harness fold is 10d00a96ee landed as ea5381fe5 (#7241 merge) — again one event, two
+  namings. b9a's 7050_c1 covered only 3 of the 6 harness cite sites (a strict subset of
+  7092_c2), and its 7050_c2 mover chain ("netting +8 by pin", endpoint :320) is wrong at
+  both the arithmetic and the endpoint — the pin read is :330. ONE defect family counted
+  ONCE under #7092 (its c1+c2 are the complete, correctly-movered record, per the
+  7042_c2→7084_c2 precedent); #7050's section gets pointer lines only. #7092 keeps all 7
+  items (c3-c7 cite cameras.py/feature_check.py/queryClient.ts/playwright.config.ts with
+  no #7050 counterpart).
+- Dropped candidates with controls: b9a — 7048_d (the FakeClient close-contract docstring:
+  verified TRUE at pin, analyzer :669 exercises per-call close on the real class);
+  7049_c16 is a verified-clean record with no slot (the id sequence skips c16 by design).
+  b9b — the "60/19/1" reflow docstring numbers (head-scoped experiment readout; era-consistent
+  gate runs at the authoring-era and merge-era trees reproduced 60/19/1 exactly and the
+  prettier reflow replicates as a byte no-op); "12 mentions ride the ARTIFACTS skip"
+  (measured 12 at the pin); "Eleven of the thirteen pins below are red on main"
+  (head-scoped with a self-declared re-measure protocol); `b[2] == "unit"` (write-time
+  truth about the pre-fix gate); the Dockerfile :30-32/:39-41 cite (self-consistent at
+  both trees, hardened at pin); the 7090 merge-copy docstring cites (ops.md range and
+  repo-root fixture path — fixed by later pin-side growth, absent at the pin); the 7092 NB
+  "all four" count (self-excluding reading exact); 7069's main.py double site (one item,
+  two occurrences); 7087's merge-test-vs-pin-script cross-check failure (synthetic
+  combination that exists in no real tree — the exact false-red the pin-side `_code`
+  helper was later introduced to fix).
+- Disclosed discarded evidence (b9b): one early `npx tsc -p tsconfig.golden.json
+--noEmit` run over the WORKING TREE returned RC=0 before the pin discipline was
+  restated; discarded entirely — no item or clean verdict relies on it.
+- Clean PRs named: 7043 (single file, no foreign cites, negative control leg, blob
+  unchanged), 7051 (empirical: the pin lib extracted and EXECUTED under node with real
+  typescript — callCovers truth table, lineCount, declarationAt incl. the NaN/'2'/null
+  rejects, rowProblems, the r167 fixture, pipe-escape, blank-line table rules all matched),
+  7065 (blob-identical 297 lines merge↔pin; SLEEP_GATE row resolves at ci.yml :3205),
+  7083 (all five new tests survive; claims resolve at coordinator_snapshot.py :86,
+  :196-207, :674-697), 7090 (EXECUTED: pin file 8/8 against a pin-content tree — with
+  `git init` + `git add -A -f .` so the committedness check's ls-files runs; merge copy
+  6/6 against merge content; the two merge-copy stale cites were fixed by later pin-side
+  growth, absent at the pin). 7064's runtime gate was RUN at the pin: selftest 17/17 arms
+  fired, corpus 17 live files, ALL ULEVEL CITES RESOLVE AND ENTAIL; 7087's runner test
+  EXECUTED 15/15 against the merge script and 20/20 (pin copy) against the pin script.
+- Provenance mechanisms seen in batch 9, named (intake level; no rows):
+  authored-true-then-moved dominates (7042_c1's pyproject :545/:546 → :572/:573 via
+  00a979c03 +8, 2f7effd72 +13, 1eb4ffe21 +2, 09e67114c +5; 7064's CLASS A cites held at
+  8ed70fd3c and moved with the gate's growth 499→539→569 lines; 7069_c1/c2 via d6344e031
+  −12/3d8418fec −1/9fcb5f453 −26; 7092's six one-mover chains — d6344e031, 70c5d96ae,
+  10d00a96ee, 516cffc98). Born-stale-in-its-own-commit: 7064's CLASS B (c6-c12 — written
+  against an intermediate state of the same commit's gate repair surviving in no reachable
+  blob); 7048_c2 ("measured: 6 passed" entered in the same commit that added the seventh
+  test); 7042_c2/7084_c2 with its twin-tree flavor (counted concurrent main, not its own
+  branch). Born-wrong: 7048_c3 (TestBreakerDegradation never existed in any tree — one-word
+  misquote of TestBreakerAndDegradation); 7042_c3 ("five values" vs four at its own tree).
+  Born-stale-at-own-merge: 7053_c2 (true only at the authoring PR's own merge, never on
+  any main tree this test has lived on); 7092_c4 (already :1520 at its own merge,
+  :1284 only at the authoring commit). Authored-true-then-moved-in-own-PR: 7084_c1 (u5/4.9s
+  vs range(MAX_RERUNS+2)=7 cases, born via 1b1c867c5's own growth).
+  Authored-true-then-rotted: 7048_c1 (sibling probe file deleted 4 days pre-merge,
+  pre-boundary). Branch-tree-truth-borrowed-unscoped: 7049_c18/c23 (sha-scoped sibling
+  truth written unscoped). Authored-wrong-in-its-own-commit: 7048_c5 (`or True` vacuous
+  assert, born with the file). New this batch: the prefix-shadow census trap (7048_c4) —
+  a needle that is a PREFIX of the value it must exclude hides the distinguishing witness;
+  and the twin-naming hazard — two intakes naming the same event by merge SHA vs branch
+  commit SHA read as two movers when cross-checked only by name.
+- Fix-sizing at intake: every item's fix line is S (one-line cite rewording) or M at most
+  (7042_c1's three-cite re-derivation; 7042_c2's recount). Under ruling 296's "no lane
+  fixes low stale cites one by one" these stay unfixed pending the checker package the
+  ruling orders the owner partner to scope.
+- Intake-level discipline notes: both auditors read the pin via
+  `git show 41bc0fce71:<path>` (never the working tree); empirical suite replays ran in
+  minimal extracted trees (7087 via /tmp/pin_tree/.venv/bin/pytest; 7090 with the
+  git-init workaround; 7051 via node with a copied real typescript). Shallow-graft hazard
+  governed as in batches 5-8: full hashes only, pre-boundary facts labeled as such
+  (7048_c1's deletion sits below the d6344e031 graft), ls-tree probing instead of log
+  walks. Two intake conflicts were adjudicated by tree reads at assembly, not by
+  authorial preference: the 7050/7092 endpoint (:320 vs :330 — the pin read settles it)
+  and the 7042/7084 attribution (first-carrier walk settles it).
+- Concurrency: two intake auditors at peak; ONE refutation slot used (7048_c4, the sole
+  medium) — the ruling-232 cap held (max two audit subagents; the refuter ran after the
+  intakes returned).
