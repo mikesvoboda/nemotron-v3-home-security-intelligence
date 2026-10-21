@@ -216,7 +216,6 @@ deleting anything AI-shaped.
 - `frontend/src/components/system/PipelineFlowVisualization.tsx` - Pipeline flow diagram
 - `frontend/src/components/system/PipelineMetricsPanel.tsx` - Detailed metrics panel
 - `frontend/src/components/system/SystemMonitoringPage.tsx` - Parent page component
-- `frontend/src/components/system/SystemHealthIndicator.tsx` - Summary indicators
 - `frontend/src/hooks/usePerformanceMetrics.ts` - Performance data hook
 - `backend/api/routes/system.py` - Telemetry API endpoint
 

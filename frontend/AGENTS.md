@@ -76,13 +76,12 @@ Node.js major version is specified by `.nvmrc` at the repository root (currently
 
 ### Documentation and Scripts
 
-| File                 | Purpose                                                                                                                                                                                                                            |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TESTING.md`         | Comprehensive testing documentation                                                                                                                                                                                                |
-| `README-TESTING.md`  | Bun vs Vitest compatibility guide                                                                                                                                                                                                  |
-| `TEST_QUICKSTART.md` | Quick reference for running tests                                                                                                                                                                                                  |
-| `package-lock.json`  | npm lockfile — **the one that matters**: every CI job installs with `npm ci`, and `scripts/validate.sh` runs the frontend checks through npm                                                                                       |
-| `bun.lock`           | Bun lockfile, kept for local Bun users only. Bun is a convenience: `bun install`/`bun run` work, but nothing in CI uses Bun. If the two lockfiles disagree, `package-lock.json` wins — refresh `bun.lock` from it, not the reverse |
+| File                 | Purpose                                                                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TESTING.md`         | Comprehensive testing documentation                                                                                                          |
+| `README-TESTING.md`  | Bun vs Vitest compatibility guide                                                                                                            |
+| `TEST_QUICKSTART.md` | Quick reference for running tests                                                                                                            |
+| `package-lock.json`  | npm lockfile — **the one that matters**: every CI job installs with `npm ci`, and `scripts/validate.sh` runs the frontend checks through npm |
 
 ## NPM Scripts
 
@@ -188,7 +187,7 @@ The `vite.config.ts` configures:
 - **API Proxy**: `/api/*` -> `http://localhost:8000` (override with `VITE_DEV_BACKEND_URL`)
 - **WebSocket Proxy**: `/ws/*` -> `ws://localhost:8000`
 - **Test Environment**: jsdom with globals
-- **Coverage Thresholds**: 80% statements, 74.6% branches, 78.4% functions, 80.9% lines (R-1: floors set at measured values; CI enforces them on merged shard data via `merge-shard-coverage.mjs --enforce`)
+- **Coverage Thresholds**: 79.5% statements, 74.3% branches, 77.2% functions, 80.5% lines (R-1: floors set at measured values, re-pinned by owner ruling 261 — run 39161827871's totals, then re-measured at final head 971c98731, and again at merged head feb591332 (run 39427450180) per the ruling's own final-head mechanism; CI enforces them on merged shard data via `merge-shard-coverage.mjs --enforce`)
 - **Memory Optimization**: Uses forks pool; files run sequentially per fork unless `VITEST_PARALLEL=1`
 
 > **Production Note:** In production containers (`docker-compose.prod.yml`), nginx serves the built React app (not Vite). HTTP host port `FRONTEND_HTTP_PORT` (default 8080) maps to container port 8080; HTTPS host port `FRONTEND_HTTPS_PORT` (default 8444) maps to container port 8443. SSL is enabled by default with auto-generated self-signed certificates. Inside the container nginx listens on `0.0.0.0` (it runs the unprivileged nginx image) — that is not the exposure question; the host-published socket's bind is `FRONTEND_BIND_ADDRESS`, `127.0.0.1` unless `EXPOSE_LAN=true` (`O1.6`).
@@ -596,18 +595,15 @@ The `Dockerfile` uses a multi-stage build:
 
 Located in `src/stores/`. All stores follow Zustand 5 patterns with Immer middleware and shallow selectors.
 
-| Store File                  | Purpose                                      | Key Exports                                        |
-| --------------------------- | -------------------------------------------- | -------------------------------------------------- |
-| `settings-store.ts`         | App settings (ambient, audio, notifications) | `useSettingsStore`, `useAudioSettings`             |
-| `dashboard-config-store.ts` | Dashboard widget layout and theme            | `useDashboardConfigStore`, `useDashboardWidgets`   |
-| `prometheus-alert-store.ts` | Prometheus alert state                       | `usePrometheusAlertStore`, `selectCriticalAlerts`  |
-| `rate-limit-store.ts`       | API rate limit tracking                      | `useRateLimitStore`, `useRateLimitStatus`          |
-| `realtime-metrics-store.ts` | GPU, pipeline, and inference metrics         | `useRealtimeMetricsStore`, `handleGPUStatsEvent`   |
-| `storage-status-store.ts`   | Storage usage and warnings                   | `useStorageStatusStore`, `useStorageWarningStatus` |
-| `worker-status-store.ts`    | Background worker health                     | `useWorkerStatusStore`, `usePipelineHealth`        |
-| `middleware.ts`             | Shared Zustand middleware utilities          | `createImmerStore`, `useShallow`, `shallow`        |
-| `dashboardConfig.ts`        | Legacy dashboard config (compatibility)      | `getDashboardConfig`, `setDashboardConfig`         |
-| `index.ts`                  | Barrel re-exports for all stores             | All store exports                                  |
+| Store File                  | Purpose                             | Key Exports                                        |
+| --------------------------- | ----------------------------------- | -------------------------------------------------- |
+| `dashboard-config-store.ts` | Dashboard widget layout and theme   | `useDashboardConfigStore`, `useDashboardWidgets`   |
+| `prometheus-alert-store.ts` | Prometheus alert state              | `usePrometheusAlertStore`, `selectCriticalAlerts`  |
+| `rate-limit-store.ts`       | API rate limit tracking             | `useRateLimitStore`, `useRateLimitStatus`          |
+| `storage-status-store.ts`   | Storage usage and warnings          | `useStorageStatusStore`, `useStorageWarningStatus` |
+| `worker-status-store.ts`    | Background worker health            | `useWorkerStatusStore`, `usePipelineHealth`        |
+| `middleware.ts`             | Shared Zustand middleware utilities | `createImmerStore`, `useShallow`, `shallow`        |
+| `index.ts`                  | Barrel re-exports for all stores    | All store exports                                  |
 
 ## Application Routes
 

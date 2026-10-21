@@ -28,7 +28,6 @@ export type { ModelZooSectionProps } from './ModelZooSection';
 
 export { default as AIAuditPage } from './AIAuditPage';
 export { default as BatchAuditModal } from './BatchAuditModal';
-export { default as ModelContributionChart } from './ModelContributionChart';
 export { default as QualityScoreTrends } from './QualityScoreTrends';
 export { default as ModelLeaderboard } from './ModelLeaderboard';
 export { default as RecommendationsPanel } from './RecommendationsPanel';
@@ -38,7 +37,6 @@ export { default as PromptABTest } from './PromptABTest';
 export { default as ABTestStats, calculateStats } from './ABTestStats';
 
 export type { BatchAuditModalProps } from './BatchAuditModal';
-export type { ModelContributionChartProps } from './ModelContributionChart';
 export type { QualityScoreTrendsProps } from './QualityScoreTrends';
 export type { ModelLeaderboardProps } from './ModelLeaderboard';
 export type { RecommendationsPanelProps } from './RecommendationsPanel';
