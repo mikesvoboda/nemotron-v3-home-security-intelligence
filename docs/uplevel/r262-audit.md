@@ -43,6 +43,7 @@ records how many items a fresh unnamed refutation subagent (ruling 232) dropped.
 | 5     | 6855, 6863, 6864, 6867, 6870, 6875, 6888, 6890, 6891, 6892, 6901, 6912, 6914, 6920, 6921 | 10 rows from 10 intake items (test class begins; 8 drift + 2 claim — no dedups, no re-assignments)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 0 (10/10 survived)                                                                                                                                                       | batch-5 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
 | 6     | 6926, 6932, 6934, 6938, 6945, 6947, 6954, 6956, 6960, 6962, 6963, 6966, 6971, 6972, 6973 | 17 rows from 19 intake items (− 2 cross-intake dedups: 6954_c1 = 6973_c1 filed as Q-180; 6926_c2 = 6963_c2 filed as Q-176 per the b8022b94b authorship ruling — 13 drift + 3 claim + 1 bug)                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 0 (19/19 survived — first refutation-clean batch pair; three refuter lines overridden by coordinator checks, recorded in the rows)                                       | batch-6 comment on #7265; lows in the compact table per owner continue (6266204180); owner column carries write-time wording only — no ruling had landed when assembled                                                 |
 | 7     | 6976, 6978, 6979, 6981, 6986, 6991, 6997, 6998, 6999, 7003, 7008, 7011, 7012, 7013, 7014 | 47 intake items — no rows (ruling 296, record 6307432184: from batch 7 on, rows go only to bugs of any severity or medium-or-higher findings; all 47 rated low — 44 drift + 3 claim, zero bugs). Per-PR counts in the batch-7 comment on #7265 instead. 46 → 47 reconciled post-delivery: the delivered draft's `7008_c3` id was double-occupied (a folded camera-grid stub heading AND the config-modal item), so two substantively separate findings shared one slot in the delivered count; the intake file was corrected 2026-10-21 ~07:45 (dedup of the c3 slot, plus item-text corrections — reconciliation note in the batch-7 section) | none run — ruling 296 orders no refutation pass for low findings (distinct from a clean pass)                                                                            | batch-7 comment on #7265; sheet carries this process-note entry instead of a per-item section; the audit still read every PR at full depth — no reading was skipped                                                     |
+| 8     | 7016, 7017, 7018, 7020, 7022, 7023, 7024, 7025, 7027, 7032, 7033, 7034, 7035, 7037, 7040 | 21 intake items — no rows (ruling 296 bar continues: rows only for bugs of any severity or medium-or-higher findings; all 21 rated low — 17 drift + 4 claim, zero bugs). Per-PR counts in the batch-8 comment on #7265 instead. One disclosed reassignment: former 7034_c3 → 7037_c4 (the docstring block first appears on main at 7037's own merge 017870f8f, not at 7034's e131fef08 — sentence-presence bisection across all seven merge trees)                                                                                                                                                                                             | none run — ruling 296 orders no refutation pass for low findings (distinct from a clean pass)                                                                            | batch-8 comment on #7265; sheet carries this process-note entry instead of a per-item section; the audit still read every PR at full depth — no reading was skipped                                                     |
 
 ## Batch 5 — per-PR verdicts
 
@@ -4521,3 +4522,103 @@ applied at assembly.
 - Shallow-graft hazard governed as before: all reads via git show/git diff at full
   hashes; pickaxe confined to d6344e031..41bc0fce71; mover chains attributed inside the
   window, pre-boundary facts labeled as such.
+
+## Batch 8 — counts under ruling 296 (no per-item rows)
+
+Batch 8. Test class continues (PRs 7016..7040 — the batch's 15 census test-class PRs audited
+by two intake auditors, positions 45-52 and 53-59 of the test census). Ruling 296's bar
+applies at assembly, as in batch 7: rows only for bugs of any severity or medium-or-higher
+findings (each still through ruling 232's refutation pass); every batch-8 item rated low, so
+no rows and no refutation pass — one count per PR in the batch comment instead. The audit
+read every PR at full depth; only the row bar changed.
+
+- Intakes: b8a = 7016, 7017, 7018, 7020, 7022, 7023, 7024, 7025 (merge SHAs 2a7d9d9b2e,
+  1f081787d4, c3679e0125, b5c8788118, 238e38bc84, 2079e4a211, 3f00bcbda3, 44fe03873c; 13
+  kept test files after dropping audit-test-durations.py (tool) and
+  docs/developer/testing.md (.md by design)); b8b = 7027, 7032, 7033, 7034, 7035, 7037,
+  7040 (merge SHAs 9310832d3, 7f322dd41, 33e0f20b5, e131fef08, 998445ec7, 017870f8f,
+  b218af3cd; 16 kept files). All fifteen are ancestors of the pin.
+- Combined tally: 21 intake items — 17 drift + 4 claim, ALL severity low; zero bug, guard,
+  test, fit classes. b8a: 7 items (7016: 0, 7017: 1, 7018: 2, 7020: 1, 7022: 1; 7023/7024
+  clean). b8b: 14 items (7034: 3, 7037: 8, 7040: 3; 7027/7032/7033/7035 clean, with suite
+  replays green at a complete pin checkout: 11/96/24 for 7027's three files, 11 for
+  test_retired_paths, 16+1 for the 7033 pair, 29 for test_check_inventory_summary_arith,
+  270 for test_feature_check, 20 for test_prodshape_override, 65 for
+  test_docker_compose_security with 2 skipped).
+- Per-PR counts (also in the batch-8 comment): 7016: 0 · 7017: 1 · 7018: 2 · 7020: 1 ·
+  7022: 1 · 7023: 0 · 7024: 0 · 7025: 2 · 7027: 0 · 7032: 0 · 7033: 0 · 7034: 3 ·
+  7035: 0 · 7037: 8 · 7040: 3.
+- One disclosed reassignment: former 7034_c3 → 7037_c4 (test_feature_check.py:3683-3684,
+  the ORCHESTRATOR-false/check_isolation comment cites :469/:2502). The docstring block is
+  ABSENT from 7034's merge tree (e131fef08) and first appears on main at 7037's merge
+  017870f8f, authored by 069cba539 on the 7037 branch; sentence-presence bisection across
+  all seven merge trees and the 7037 branch's own commits pinned it. The prior-session
+  attribution to a "pre-boundary r134→r213 chain" was wrong; born-stale-in-its-own-commit
+  stands (authoring parent d81e54df4 true at :469/:2502, the authoring commit's own +56
+  moved both at birth).
+- One coordinator coordinate correction folded in before delivery (spot-checked at the pin
+  against the intake file): b8a's 7025_c1 cites its WRONG-quote span at
+  scripts/test_negative_tooling_claims.py:596-598, but that range holds the
+  `executable_lines` helper def — the `mentions("docs-negative-claims")` probe quote sits
+  at :602-603. Substance (the ci.yml :3711 vs :3888 coordinate pair) verified true at the
+  pin and unchanged; only the spec-side span is corrected, per the batch-7 reconciliation
+  precedent of fixing coordinates before recording.
+- Dropped candidates with controls (b8a: 5, b8b: 10): the PEP 758 paren-less
+  multi-exception catch flagged as a syntax error (valid Python 3.14 in this tree);
+  7016's escape-hatch header line (provenance prose, values pinned by the `expected` dict);
+  7017's "house idiom used 11 times" (counted — exactly 11 `_check_schedule` sites at
+  base 31b3e08ea); the notify.spec docker-entrypoint.sh:139 block-specificity nit
+  (directive identical in both blocks); 7018's ws-status "Attempt n/30" arithmetic
+  (re-derived from provider+manager sources, survives [r204]); b8b's self-stamped
+  write-time counts ("294 rows", "five renders", "126 test.only") and self-stamped CI
+  evidence refs (#7122/#7123, r251-era stamps), the tfc :5162 seeded-project cite
+  (resolves), types/structs.d.ts and playwright-core dependency-internal paths, and the
+  delete.spec "grep finds 'Delete' 14×" claim (TRUE under the occurrence reading, the
+  sentence's own unit warning intact).
+- Two shallow-graft artifacts caught and corrected inside b8b's verification:
+  `git log --diff-filter=A -- scripts/test_prodshape_override.py` reporting d6344e031 and a
+  `-S"as_prod_shape_deployment:795 pops ai-vllm"` first appearance reporting d6344e031 —
+  both boundary-commit graft artifacts; corrected by ls-tree probing (the prodshape test is
+  7037's own, 12a4f6edc..017870f8f; the c4 docstring bisected to e68aecfb9). Also
+  corrected: b14-real's first appearance re-attributed from aaf293619 (#6719) to 51d908d68
+  (#6912 branch, carried by c77ee16e7).
+- Adjacent out-of-scope findings for the coordinator (not items — outside the kept-test-file
+  census): scripts/feature_check.py:1455-1456 (same stale `config :73/:79` pair as
+  7034_c1, same mover 0e6dd4401, lives in the script); scripts/check-inventory-summary-arith.py:39-40
+  (witness "reuses the table helpers and `check()`'s census" — helpers half true at
+  inventory_witness.py:170-188, `check()` half false at pin, born with r251's 20e645157);
+  .github/workflows/ci.yml:302 ("drift test states at :126-130" — the block sits at :136-140,
+  shifted by the r213 pytestmark block; authored TRUE at ac84fd7d9); and the #7234 CI-run
+  discrepancy carried forward unnumbered from batch 4.
+- Provenance mechanisms seen in batch 8, named (intake level; no rows): authored-true-then-moved
+  dominates (7018_c1's rate-limit cites via the d6344e031 +3/834d51097 −60/6b691302d −81/
+  e2d65dda3 −2/516cffc98 −29 five-mover chain; 7018_c2's useWebSocketStatus.ts deleted by
+  r204's 70c5d96ae with 8 dead cites and the narrative rewritten; 7034_c1 via 0e6dd4401's
+  +3/-1 playwright.config hunk; 7034_c2 via 10d00a96e's fold of 11 area harnesses into
+  tests/golden/harness.ts; 7037_c1 via e1663c2a2+d855e0804; 7037_c3's :283 → :305 via
+  51a2738f0; 7037_c5/c6/c7/c8; 7040_c1/c2 via the same fold — the import rewrite
+  invalidated the bare `harness.ts` cites while every prose cite survived byte-identical;
+  7040_c1's directory-deletion flavor: frontend/tests/golden/notify-access/ is gone
+  entirely). Born-stale: 7037_c2's "two hits" count (7 at pin; the sentence written in
+  1ee8d9ac5 against a count already 7), 7037_c3's "prod only, today" (went false in
+  7037's own merge when 0bdc104f3 enrolled prodshape.yml, which already carried the
+  ai-llm-vllm key), 7037_c4, 7037_c8 (written at :263 after the step had already moved to
+  :307), 7034_c3's refusal-guard half (never pointed at the guard in any tree), 7025_c1
+  (twin-branch port: the coordinate was measured on the unreachable twin bd98028f7),
+  7025_c2 (the comment describes the pre-fix doc the same commit had already rewritten),
+  7017_c1 (docstring reverses battery order id=5-before-id=6, born-stale). 7022_c1 is
+  symbol-context (anchors never true in 65 swept trees — the substance is 2 real AST
+  misses: audit_logger.py AuditService, prompt_sanitizer.py DANGEROUS_PATTERNS). Clean
+  claims named: 7023/7024 re-verified clean; 7027's three files blob-identical merge→pin.
+- Fix-sizing at intake: every item's fix line is S (one-line cite rewording) or the batch-7
+  pattern's M at most. Under ruling 296's "no lane fixes low stale cites one by one" these
+  stay unfixed pending the checker package the ruling orders the owner partner to scope.
+- Intake-level discipline notes: both auditors read the pin via `git show 41bc0fce71:<path>`
+  (never the working tree); b8b built a complete pin checkout at /tmp/b8b_pin_full via
+  read-tree + checkout-index after `git archive` dropped subtrees under the graft; suite
+  replays ran from that checkout with the worktree venv. Shallow-graft hazard governed as
+  in batches 5-7: full hashes only, pickaxe confined to d6344e031..41bc0fce71, pre-boundary
+  facts labeled as such.
+- Concurrency: two intake auditors at peak (the cap held); no refuter slots used — ruling
+  296 orders no refutation pass for lows, and zero bugs/medium+ meant no refutation stage
+  at all this batch.
