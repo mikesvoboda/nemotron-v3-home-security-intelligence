@@ -24691,7 +24691,7 @@ export interface components {
             memory_used?: number | null;
             /**
              * Pcie Link Gen
-             * @description PCIe link generation (1-4)
+             * @description PCIe link generation (1+; Gen 6 devices report 6)
              */
             pcie_link_gen?: number | null;
             /**
@@ -24827,7 +24827,7 @@ export interface components {
             memory_used?: number | null;
             /**
              * Pcie Link Gen
-             * @description PCIe link generation
+             * @description PCIe link generation (1+)
              */
             pcie_link_gen?: number | null;
             /**
