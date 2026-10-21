@@ -46,3 +46,7 @@ reason = "B3.3 schema upgrade CLI entry point (python -m backend.migrations, rul
 [[keep]]
 module = "backend/ai_contract/providers"
 reason = "AI provider contract registrations imported at module level by backend/ai_contract/__init__.py (WP8.1)"
+
+[[keep]]
+module = "backend/services/ai_quality_metrics"
+reason = "Imported by documented CLI script scripts/ai-quality-analysis.py:123 (docs/reference/backend-entry-points.md:1471)"
