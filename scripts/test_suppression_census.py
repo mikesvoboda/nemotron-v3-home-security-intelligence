@@ -776,12 +776,10 @@ def test_real_tree_matches_spec_baselines():
     expected = {
         "collection_allowlist": 4,
         "flake_allowlist": 0,
-        # 16→13 (2026-10-18, F3.2 #7246): the cut deleted ReidHistoryPanel.test.tsx,
-        # SystemHealthIndicator.test.tsx and ZoneTimelineScrubber.test.tsx — three
-        # of the 16 quarantined files — and their vite.config.ts exclude entries
-        # went with them (suppressions removed by real deletion, the direction the
-        # ratchet protects). The baseline file fell the same commit (e73c84e8e);
-        # this mirror follows in the same PR, the ea79a858 pattern.
+        # 16→13 (2026-10-21, roll 10 of #7246): the F3.2 cut removed three
+        # quarantine ids with their files; measured on the merged tree by
+        # suppression-census.py. The 16→13 movement happened on this PR's side
+        # (main never had the cut), so main's mirror kept the stale 16.
         "frontend_quarantine": 13,
         # 32→25 (2026-10-16, ruling 220): the seven redundant "Flaky … app
         # initialization timing" skips in test_system_models.py expired on 10-15 and
@@ -808,12 +806,10 @@ def test_real_tree_matches_spec_baselines():
         # stack — a contract that can never be "fixed", so their deadline must be
         # null. Increase path, fifth precedent.
         "pytest_skip_imperative": 93,
-        # 54→51 (2026-10-18, F3.2 #7246): the cut's census of all 115 deleted test
-        # files at base found exactly three .skip sites — 1 in
-        # ReidHistoryPanel.test.tsx, 2 in useMonitoringTargets.test.ts — which left
-        # with their files. Baseline fell the same commit (e73c84e8e); this mirror
-        # follows in the same PR.
-        "frontend_skip": 51,
+        # 51→49 (2026-10-21, roll 10 of #7246): merged main's #7311 (F3.1 retire
+        # R2a row 43 scheduled reports); the retirement removed two more frontend
+        # .skip sites. Measured on the merged tree by suppression-census.py.
+        "frontend_skip": 49,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
         # WP1.3: 150 uncounted patterns (P's figure, reproduced exactly) pruned

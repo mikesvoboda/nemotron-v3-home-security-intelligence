@@ -5,7 +5,7 @@
   "flake_allowlist": 0,
   "frontend_only": 0,
   "frontend_quarantine": 13,
-  "frontend_skip": 51,
+  "frontend_skip": 49,
   "frontend_todo": 0,
   "golden_fixme": 2,
   "golden_skip": 0,
@@ -14,5 +14,5 @@
   "pytest_skipif": 59,
   "pytest_xfail": 4,
   "tpa_slow_list": 9,
-  "unspecced_patch": 89
+  "unspecced_patch": 86
 }

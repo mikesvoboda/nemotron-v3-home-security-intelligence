@@ -271,8 +271,6 @@ describe('endpoint contract (D2)', () => {
       src/services/promptManagementApi.ts:138  suffix for fetchPromptApi() at src/services/promptManagementApi.ts:110: not a literal path
       src/services/rum.ts:210  built at runtime: this.config.endpoint
       src/services/rum.ts:262  built at runtime: this.config.endpoint
-      src/services/scheduledReportsApi.ts:150  suffix for fetchScheduledReportsApi() at src/services/scheduledReportsApi.ts:120: not a literal path
-      src/services/scheduledReportsApi.ts:191  suffix for fetchScheduledReportsApi() at src/services/scheduledReportsApi.ts:120: not a literal path
       src/services/webhookApi.ts:162  suffix for fetchWebhookApi() at src/services/webhookApi.ts:130: not a literal path
       src/services/webhookApi.ts:181  suffix for fetchWebhookApi() at src/services/webhookApi.ts:130: not a literal path"
     `);

@@ -518,18 +518,6 @@ frontend_skip:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: frontend/src/pages/ScheduledReportsPage.test.tsx::should allow retry on error
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: null
-  - id: frontend/src/pages/ScheduledReportsPage.test.tsx::should show error message on fetch failure
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: null
 golden_fixme:
   - id:
       frontend/tests/golden/timeline/download-media.spec.ts::F-296 the first detection's VIDEO downloads (the row's
@@ -2045,24 +2033,6 @@ unspecced_patch:
     tracking: R-WP4.1-SWEEP-RESIDUAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/unit/api/routes/test_scheduled_reports.py::TestListScheduledReports.test_list_scheduled_reports_empty::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/unit/api/routes/test_scheduled_reports.py::TestListScheduledReports.test_list_scheduled_reports_filter_enabled::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/unit/api/routes/test_scheduled_reports.py::TestListScheduledReports.test_list_scheduled_reports_success::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: inapplicable to targets that are not ordinary callables).
   - id: backend/tests/unit/api/schemas/test_computed_fields.py::TestEventResponseComputedRiskLevel.test_risk_level_follows_runtime_thresholds::k1
     kind: todo
     owner: mikesvoboda

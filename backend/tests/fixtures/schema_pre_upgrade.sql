@@ -185,3 +185,14 @@ CREATE TABLE gpu_devices (
 );
 
 INSERT INTO gpu_devices (gpu_index, name) VALUES (0, 'RTX A5500');
+
+-- ---------------------------------------------------------------------------------------
+-- 0010 target: scheduled_reports table (retired by B3.1 R2a row 43: F-252, F-253, F-255).
+-- ---------------------------------------------------------------------------------------
+CREATE TABLE scheduled_reports (
+    id        SERIAL PRIMARY KEY,
+    name      TEXT,
+    frequency TEXT
+);
+
+INSERT INTO scheduled_reports (name, frequency) VALUES ('Daily Summary', 'daily');

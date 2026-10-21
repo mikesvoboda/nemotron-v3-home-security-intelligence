@@ -39,9 +39,9 @@
  *   resolves the panel by its own heading AND the chip, then takes the deepest
  *   match: ancestors precede descendants in document order, so .last() is the
  *   panel itself, the smallest div that can hold both.
- * - No Tremor Select is automated. The repo's only selectOptions precedent
- *   (ScheduledReportForm.test.tsx:118) drives a NATIVE <select>
- *   (ScheduledReportForm.tsx:395), not Tremor's listbox, and this disk has no
+ * - No Tremor Select is automated. The repo's selectOptions precedents drive
+ *   a NATIVE <select> element rather than
+ *   Tremor's listbox, and this disk has no
  *   node_modules to read the rendered role from. Role/trust therefore travel by
  *   API and are asserted through their badges — RoleBadge/TrustBadge print
  *   Resident/Visitor and Full Trust/Partial (HouseholdSettings.tsx:170-196) —

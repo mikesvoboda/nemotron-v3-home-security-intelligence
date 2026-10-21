@@ -642,7 +642,6 @@ handles unmatched paths.
 | `/data`                 | `DataManagementPage`          | Data management                          |
 | `/zones`                | `ZonesPage`                   | Zone configuration                       |
 | `/webhooks`             | `WebhooksPage`                | Webhook management                       |
-| `/scheduled-reports`    | `ScheduledReportsPage`        | Scheduled report management              |
 | `/plate-reads`          | `PlateReadsPage`              | License plate reads                      |
 | `/household`            | `HouseholdPage`               | Household member management              |
 | `/face-recognition`     | `FaceRecognitionPage`         | Face recognition management              |
