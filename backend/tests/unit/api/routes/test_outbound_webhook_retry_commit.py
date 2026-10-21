@@ -24,7 +24,7 @@ from unittest.mock import patch as mock_patch
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import backend.api.routes.outbound_webhooks as ow
@@ -111,6 +111,13 @@ async def seeded_store(retry_commit_db_url: str):
     store = create_async_engine(retry_commit_db_url)
     factory = async_sessionmaker(store, class_=AsyncSession, expire_on_commit=False)
     async with factory() as session:
+        # The module DB outlives one test, and xdist can land both tests on the same
+        # worker: clear this module's rows first so the seed is idempotent (a second
+        # seed run would otherwise collide on the webhook's primary key).
+        await session.execute(
+            delete(WebhookDelivery).where(WebhookDelivery.webhook_id == WEBHOOK_ID)
+        )
+        await session.execute(delete(OutboundWebhook).where(OutboundWebhook.id == WEBHOOK_ID))
         session.add(_webhook(_failed_delivery()))
         await session.commit()
     yield store
