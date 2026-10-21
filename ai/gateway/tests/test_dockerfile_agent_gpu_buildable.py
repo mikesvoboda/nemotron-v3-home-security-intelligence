@@ -26,11 +26,13 @@ correct as they are.
 
 Transparency about coverage: the transcribed contract has three clauses — (1) every
 ``FROM`` names an explicit registry so builds never pull, (2) no flags on ``RUN``,
-(3) no ``ONBUILD``. This file pins (2) and (3). Clause (1) holds at this head
-(``FROM nvcr.io/nvidia/tritonserver:...`` is explicit) but is **unpinned**: a future
-``FROM tritonserver:...`` would read green here. It stays unpinned pending the digest
-follow-up, which is blocked on measurement, not effort — ``nvcr.io/v2/`` returns 401
-to anonymous requests, so the digest cannot be recorded from CI.
+(3) no ``ONBUILD``. This file pins (2) and (3), and since the O2.5 venue fixes
+(ruling 287 item 7) it pins clause (1) as ``ARG TRITON_IMAGE=`` + ``FROM
+${TRITON_IMAGE}`` — the registry ref appears exactly once, as the ARG's default,
+and ``FROM`` may not hard-code one. (The digest follow-up stays blocked on
+measurement, not effort: ``nvcr.io/v2/`` returns 401 to anonymous requests, so a
+digest pin cannot be recorded from CI; the maui venue instead overrides the base
+by digest at build time via ``--build-arg TRITON_IMAGE=...``.)
 
 The absence assertion is paired with a positive witness (a fixture that *does*
 carry ``RUN --mount=`` and ``ONBUILD`` must be detected), so an empty parse
@@ -358,6 +360,65 @@ class TestGatewayDockerfileAgentGpuBuildable:
         # detected, so the clean-file pass isn't just an empty parse.
         assert pip_resolution_flags("RUN pip install --no-deps foo\n") == ["--no-deps"]
         assert pip_resolution_flags("RUN pip install --no-cache-dir --force-reinstall foo\n") == []
+
+    def test_the_python_import_path_is_set_before_the_first_install_and_the_base_is_overridable(
+        self,
+    ) -> None:
+        # O2.5 venue fixes (ruling 287 item 7, from the maui handoff): two
+        # properties the maui venue needs from this file.
+        #
+        # (1) PYTHONPATH must be /app from the FIRST instruction onward. The
+        #     26.09 Triton base (the maui venue's, by digest) resolves some
+        #     packages differently from 26.01: bases newer than this pin's
+        #     expose DALI-only wheels whose import path is baked in at base
+        #     build time, and pip consults sys.path when it resolves
+        #     dependencies. With ENV PYTHONPATH=/app only at the file's end,
+        #     the RUN installs above run with the base's default path and a
+        #     resolution that holds on 26.01 can fail on 26.09. The fix moves
+        #     the ENV above the first RUN so both bases resolve on the path
+        #     the application actually uses.
+        # (2) The base must stay overridable by build arg. The maui venue pins
+        #     the Triton 26.09 arm64 base BY DIGEST (ruling 287 item 2's
+        #     requirements); a hard-coded FROM gives the venue no lever short
+        #     of editing the file. ARG TRITON_IMAGE + FROM ${TRITON_IMAGE}
+        #     keeps the default identical for every existing caller (plain
+        #     `docker build`, `agent-gpu build`, CI) while letting the venue
+        #     pass --build-arg TRITON_IMAGE=<digest-ref> without a fork.
+        text = GATEWAY_DOCKERFILE.read_text()
+        instructions = logical_instructions(text)
+        assert instructions[0] == "ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.01-py3", (
+            "the first instruction must default the base so every existing build "
+            "of this file is unchanged; only the maui venue overrides it, by digest"
+        )
+        assert instructions[1] == "FROM ${TRITON_IMAGE}", (
+            "FROM must read the base from TRITON_IMAGE so the maui venue can pin "
+            "the 26.09 arm64 base by digest with --build-arg, not a fork"
+        )
+        env_lines = [i for i in instructions if i == "ENV PYTHONPATH=/app"]
+        first_run = next(i for i in instructions if i.startswith("RUN"))
+        assert len(env_lines) == 1, (
+            "exactly one ENV PYTHONPATH=/app; a second one at the bottom is the "
+            "defect this pin removes"
+        )
+        assert instructions.index("ENV PYTHONPATH=/app") < instructions.index(first_run), (
+            "ENV PYTHONPATH=/app must precede the first RUN: the pip installs must "
+            "resolve dependencies on the same import path the application uses "
+            "(newer Triton bases expose DALI-only packages that vanish when "
+            "PYTHONPATH becomes /app only at the end)"
+        )
+
+    def test_the_base_default_is_the_image_the_pins_assume(self) -> None:
+        # The ARG default is load-bearing for every non-maui caller: CI, the
+        # agent-gpu venue and plain docker builds all get today's base. If the
+        # default drifts, BASE_IMAGE_MODULES and the pip set above no longer
+        # describe the image, silently. Pin the default to the base this file's
+        # module pin was measured on.
+        text = GATEWAY_DOCKERFILE.read_text()
+        assert "ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.01-py3" in text
+        assert "FROM nvcr.io/nvidia/tritonserver" not in text, (
+            "FROM must not hard-code the registry ref; the base comes from "
+            "TRITON_IMAGE so the venue can override it"
+        )
 
     def test_a_comment_mentioning_a_mount_is_not_read_as_a_live_flag(self) -> None:
         # Guards the comment-stripping in the parser: the fix's own rationale text
