@@ -4045,6 +4045,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             candidate = Path(spec)
             if candidate.is_absolute() or ".." in candidate.parts:
                 parser.error(f"--golden-spec takes a repo path under tests/golden, got {spec!r}")
+            # The option names SPECS: a file under tests/golden whose name ends
+            # .spec.ts. The prefix half is load-bearing — a name check alone
+            # would pass tests/e2e/*.spec.ts, and a suffix check alone would
+            # pass tests/golden/harness.ts (and Path.suffix is '.ts' anyway,
+            # not '.spec.ts'), and neither can be collected by the
+            # --project=golden leg, so an accepted either would write a run
+            # record naming files the leg could not run.
+            if candidate.parts[:2] != ("tests", "golden") or not candidate.name.endswith(".spec.ts"):
+                parser.error(f"--golden-spec takes a path to a spec under tests/golden, got {spec!r}")
             # The leg's own cwd is FRONTEND (golden_container_command's -w), so
             # the spelling the runner will resolve is frontend-relative, and
             # that is the spelling this check validates.

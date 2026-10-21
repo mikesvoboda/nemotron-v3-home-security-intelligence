@@ -2076,13 +2076,17 @@ def test_a_named_spec_limit_is_refused_outside_the_prod_shape(monkeypatch: Any) 
 
 
 def test_a_named_spec_limit_refuses_paths_that_are_not_specs(monkeypatch: Any) -> None:
-    """The option takes paths under the repo's golden tree that exist; anything else refuses.
+    """The option takes paths to .spec.ts files under the repo's golden tree; anything else refuses.
 
-    Three shapes, all refused at parse time: an absolute path, a path that escapes
-    the repo, and a name the golden tree does not carry. A path outside
-    `tests/golden` could never be collected by the `--project=golden` leg, so an
-    accepted misspelling would write a record naming files the leg could not run --
-    a claim the leg did not make.
+    Five shapes, all refused at parse time: an absolute path, a path that escapes
+    the repo, a name the golden tree does not carry, a file the golden tree
+    carries that is not a spec (the helpers `harness.ts`/`guard.ts` are real
+    files — the is_file check alone would accept them), and a .spec.ts path
+    outside the golden tree (the suffix check alone would accept it). A path
+    outside `tests/golden` — or a carried non-spec file — could never be
+    collected by the `--project=golden` leg, so an accepted misspelling would
+    write a record naming files the leg could not run — a claim the leg did
+    not make.
     """
     booted = _fake_boot(monkeypatch)
     with pytest.raises(SystemExit):
@@ -2091,6 +2095,10 @@ def test_a_named_spec_limit_refuses_paths_that_are_not_specs(monkeypatch: Any) -
         fc.main(["--prod-shape", "--golden-spec", "../secrets.env"])
     with pytest.raises(SystemExit):
         fc.main(["--prod-shape", "--golden-spec", "tests/golden/no-such-spec.spec.ts"])
+    with pytest.raises(SystemExit):
+        fc.main(["--prod-shape", "--golden-spec", "tests/golden/harness.ts"])
+    with pytest.raises(SystemExit):
+        fc.main(["--prod-shape", "--golden-spec", "tests/e2e/dashboard.spec.ts"])
     assert booted == []
 
 
