@@ -65,6 +65,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -767,6 +768,25 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
             "into backend and alloy, and an empty value interpolates to a blank string with "
             "only a warning, so the render would ask the engine for a mount of '/'."
         )
+    # [O2.5 venue fixes] The maui venue carries three of its own parameters in the
+    # login shell (VENUE-PROFILE.md / maui-item2.env): GPU_AI_SERVICES (the CDI
+    # runtime also accepts an explicit GPU list), AI_MODELS_PATH (the venue's model
+    # tree, prod's /export/ai_models default retained) and ADMIN_ENABLED (the admin
+    # surface the venue's run registers its first admin through). They reach the
+    # render only through THIS file, and the list is closed on purpose: the caller's
+    # shell stays untrusted the way O2.2 wrote it -- POSTGRES_PASSWORD is a host
+    # secret, DEBUG flips the boot -- so anything outside the three names is dropped,
+    # never copied. A multi-line value is refused rather than written: the file is
+    # one KEY=value per line, and a newline would smuggle the following lines in as
+    # new keys, the same silent-interpolation failure the file's own ${X:?} guards
+    # exist for.
+    venue = {
+        key: caller[key]
+        for key in ("GPU_AI_SERVICES", "AI_MODELS_PATH", "ADMIN_ENABLED")
+        if key in caller
+    }
+    if any("\n" in value or "\r" in value for value in venue.values()):
+        raise HarnessError("prod-shape venue parameters must be single-line values")
     return "".join(
         f"{key}={value}\n"
         for key, value in (
@@ -775,6 +795,7 @@ def prod_shape_env(*, run_dir: Path, image_tag: str, caller: Mapping[str, str]) 
             ("POSTGRES_PASSWORD", secrets.token_hex(16)),
             ("PROD_SHAPE_RUN_ROOT", str(run_dir)),
             ("HSI_TEST_NAME_PREFIX", f"{secrets.token_hex(4)}-"),
+            *venue.items(),
         )
     )
 
@@ -865,9 +886,112 @@ def as_prod_shape_deployment(
     backend = services.get("backend")
     if backend is None:
         raise HarnessError("the prod-shape render has no backend service")
+    # [O2.5 venue fixes] Opt-in (PROD_SHAPE_HEALTHCHECK_BUSYBOX): the maui venue's
+    # older engine API reports an empty health status for services without checks,
+    # so `up --wait` cannot hold the boot on the two exporters and the render
+    # cannot just delete "disable" -- the authored override cannot add a healthcheck
+    # (ruling 162 item 3's three kinds), so the runner gives the transform a real
+    # probe. The tool crosses the bind, so the gate is a security one: a fixed,
+    # read-only target, and the probe is wget --spider against the service's own
+    # loopback metrics port -- no host path reachable, no command text the venue's
+    # env can bend. An unusable tool is refused at render time, not discovered by
+    # a boot that never turns healthy with the cause three layers away.
+    if probe := os.environ.get("PROD_SHAPE_HEALTHCHECK_BUSYBOX"):
+        executable = Path(probe).resolve()
+        if not executable.is_file() or not os.access(executable, os.X_OK):
+            raise HarnessError(f"health-check busybox is not executable: {executable}")
+        for name, port in (("redis-exporter", 9121), ("json-exporter", 7979)):
+            service = services.get(name)
+            if service is None:
+                raise HarnessError(
+                    f"the prod-shape render has no {name}; the health-check probe "
+                    f"cannot hold the boot on a service that is not there"
+                )
+            service.setdefault("volumes", []).append(
+                {
+                    "type": "bind",
+                    "source": str(executable),
+                    "target": "/busybox",
+                    "read_only": True,
+                }
+            )
+            service["healthcheck"] = {
+                "test": [
+                    "CMD",
+                    "/busybox",
+                    "wget",
+                    "-q",
+                    "--spider",
+                    "-T",
+                    "4",
+                    f"http://localhost:{port}/metrics",
+                ],
+                "interval": "10s",
+                "timeout": "5s",
+                "retries": 3,
+                "start_period": "10s",
+            }
     device_changes: list[str] = []
     environment = backend.setdefault("environment", {})
     environment["ORCHESTRATOR_ENABLED"] = "false"
+
+    # [O2.5 venue fixes, ruling 287] The three opt-in venue knobs below share one
+    # gate and one shape: each is refused where the venue it belongs to cannot
+    # exist, and each edits the boot document this run records. The gate is the
+    # venue split itself (ruling 256): fake_gateway means the SANDBOX run -- the
+    # real gateway was spliced out -- while its absence is the maui run that
+    # keeps prod's real gateway verbatim. A knob that only touches the real
+    # gateway therefore refuses on the sandbox venue, where it would edit
+    # nothing and silently witness the wrong deployment.
+    if userns := os.environ.get("PROD_SHAPE_INIT_USERNS"):
+        # Ruling 287's venue requirement is "keep-id for foscam-init": the maui
+        # probe (f4f447) measured the default initializer's bind owned by host
+        # UID 100999 with the run's writer DENIED, and keep-id keeping the
+        # caller's UID 1000 with the write succeeding -- the initializer must
+        # chown inside ITS caller's namespace, not a subordinate one. foscam-init
+        # ONLY: the whole point is one service's ownership of one writable bind,
+        # and prod's other services run fine under the default mapping.
+        if userns != "keep-id":
+            raise HarnessError(
+                f"PROD_SHAPE_INIT_USERNS must be keep-id (the venue requirement names it), "
+                f"got {userns!r}"
+            )
+        init = services.get("foscam-init")
+        if init is None:
+            raise HarnessError(
+                "the prod-shape render has no foscam-init; PROD_SHAPE_INIT_USERNS has "
+                "nothing to apply to"
+            )
+        init["userns_mode"] = userns
+    if base := os.environ.get("PROD_SHAPE_TRITON_IMAGE"):
+        # The real gateway's base, overridden via --build-arg (ruling 287: Triton
+        # 26.09 arm64 by digest, because 26.01's CUDA code fails on the GB300).
+        # Sandbox venue refused: its gateway is the spliced fake, whose build is
+        # the fake Dockerfile -- a build-arg for a build that never runs would
+        # witness a deployment the venue never booted.
+        if fake_gateway is not None:
+            raise HarnessError(
+                "PROD_SHAPE_TRITON_IMAGE requires the real-gateway maui venue: the sandbox "
+                "run replaces the real gateway with the fake, and there is no build to "
+                "carry the argument"
+            )
+        gateway = services.get("ai-gateway")
+        if gateway is None or not isinstance(gateway.get("build"), dict):
+            raise HarnessError(
+                "the prod-shape render has no ai-gateway build; PROD_SHAPE_TRITON_IMAGE "
+                "has nothing to carry the argument"
+            )
+        gateway["build"].setdefault("args", {})["TRITON_IMAGE"] = base
+    if fake_gateway is None and (gpu := os.environ.get("GPU_AI_SERVICES")):
+        # Ruling 287 item 2's last row: Podman's compatibility API may ignore the
+        # deploy DeviceRequests prod carries, so the venue's explicit GPU choice
+        # ALSO reaches the backend as NVIDIA_VISIBLE_DEVICES -- the env the NVIDIA
+        # runtime honours on its own. The maui run's backend keeps prod's deploy
+        # reservation untouched: this pin rides beside it, it does not replace
+        # prod's wiring. The sandbox venue keeps no GPU wiring at all (its
+        # backend's reservation is stripped by the transform above), so the knob
+        # is maui-only like the two above.
+        backend.setdefault("environment", {})["NVIDIA_VISIBLE_DEVICES"] = gpu
 
     def _consume_devices(service: Mapping[str, Any]) -> list[str]:
         """Every device-shaped stanza on one service, for the record's naming duty."""
@@ -1259,6 +1383,7 @@ def in_run_check(
     *,
     orchestrator_enabled: bool | None,
     services: tuple[int, Any] | None,
+    prod_shape_socket: str | None = None,
 ) -> list[str]:
     """Every reason the running test deployment is not isolated.
 
@@ -1267,15 +1392,59 @@ def in_run_check(
     container (None if it could not be read); ``services`` is the status and
     JSON body of ``GET /api/system/services``, read after the first admin
     registered (the setup guard answers 503 before that, for every route).
+
+    ``prod_shape_socket`` switches the mount rule to the prod shape's own
+    policy (ruling 287 item 12) -- the SAME :func:`engine_socket_mounts` the
+    render's UR-134 re-check runs, given the caller's socket path, plus a
+    writable-host-root rule of its own. The default None keeps the CI tier's
+    per-mount check byte-for-byte, including its root-directory ban: prod's
+    node-exporter binds ``/:/host:ro`` (docker-compose.prod.yml:1450) and the
+    render deliberately accepts it, so a run would die in-run on the very boot
+    its render approved if the CI rule leaked in here. The policy is stricter
+    on one axis, not looser on both: a socket whose source is the caller's
+    socket is refused as before (a read-only socket bind is not a weaker
+    capability -- opening the socket is the whole attack), and a bind of ``/``
+    or ``/var`` that is WRITABLE is named, which the read-only observer's
+    acceptance never excused.
     """
     problems = []
     for raw in containers:
         container = Container.from_inspect(raw)
-        for mount in container.mounts:
-            if is_engine_socket(mount.source) or _ENGINE_SOCKET.search(mount.target):
-                problems.append(
-                    f"{container.name}: holds an engine socket ({mount.source} -> {mount.target})"
-                )
+        if prod_shape_socket is not None:
+            # One synthetic rendered doc per container: engine_socket_mounts reads
+            # (service name, mounts), and the container IS the running service.
+            sockets = engine_socket_mounts(
+                {
+                    "services": {
+                        container.name: {
+                            "volumes": [
+                                {"source": mount.source, "target": mount.target}
+                                for mount in container.mounts
+                            ]
+                        }
+                    }
+                },
+                socket_path=prod_shape_socket,
+            )
+            hits = [(source, target) for _, source, target in sockets]
+            # A read-only observer must never become a writable host-root bind:
+            # the render-time rule refuses it in the boot document, so the
+            # running deployment must not carry one either.
+            hits += [
+                (mount.source, mount.target)
+                for mount in container.mounts
+                if mount.writable and mount.source in {"/", "/var"}
+            ]
+        else:
+            hits = [
+                (mount.source, mount.target)
+                for mount in container.mounts
+                if is_engine_socket(mount.source) or _ENGINE_SOCKET.search(mount.target)
+            ]
+        problems += [
+            f"{container.name}: holds an engine socket ({source} -> {target})"
+            for source, target in hits
+        ]
     if orchestrator_enabled is None:
         problems.append("backend: the orchestrator's setting could not be read")
     elif orchestrator_enabled:
@@ -1711,6 +1880,7 @@ PLAYWRIGHT_IMAGE_REGISTRY = "mcr.microsoft.com"
 # engine reads the value from the harness's own env, so the container sees
 # exactly what the host leg saw. Locally CI is unset and both legs match.
 GOLDEN_CONTAINER_ENVIRONMENT = (
+    "FEATURE_CHECK_PROD_SHAPE",
     "FEATURE_CHECK_API_URL",
     "FEATURE_CHECK_UI_URL",
     "FEATURE_CHECK_CAMERA_ROOT",
@@ -1919,6 +2089,7 @@ class Run:
         prod_shape: bool = False,
         seeded: bool = False,
         shard: tuple[int, int] | None = None,
+        golden_specs: tuple[str, ...] | None = None,
     ) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
@@ -1930,6 +2101,11 @@ class Run:
         # unsharded run -- every existing caller and pin passes no shard, and
         # None must leave every byte of the leg's argv and record unchanged.
         self.shard = shard
+        # [r287] The named-spec limit for the prod-shape Playwright leg, as the
+        # repo paths the option validated. None is the unlimited leg -- every
+        # existing caller and pin passes no specs, and None must leave every
+        # byte of the leg's argv and record unchanged.
+        self.golden_specs = golden_specs
         # A run record that does not say WHICH compose shape was rendered cannot
         # witness ruling 127's 12 real-tier rows, which is the whole point of the
         # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
@@ -1961,6 +2137,11 @@ class Run:
             # inventory judgment (and the MEASURE table) can say what each run
             # was. Absent when unset, so today's records byte-match today's.
             self.summary["shard"] = f"{shard[0]}/{shard[1]}"
+        if golden_specs is not None:
+            # [r287] A limited run's record names the specs it witnesses, in the
+            # option's own order -- same discipline as the shard above: absent
+            # when unset, so today's records byte-match today's.
+            self.summary["golden_specs"] = list(golden_specs)
         self.started = False
 
     # -- processes -----------------------------------------------------------
@@ -2144,6 +2325,18 @@ class Run:
         since the override was authored is invisible to CI and fatal here, because
         opening that socket IS driving the host's engine.
         """
+        # [O2.5 venue fixes, ruling 287 item 4] The optional Triton cache seed is a
+        # per-run COPY into the run dir, never a host bind: the override binds
+        # ${PROD_SHAPE_RUN_ROOT}/triton-cache, so what the gateway boots from is
+        # THIS copy -- one run's plan build cannot poison the next run's cache,
+        # and the host seed is never written. Copying first (before the env file)
+        # means a mistyped seed refuses the run before the engine is asked for
+        # anything.
+        if seed := os.environ.get("PROD_SHAPE_TRITON_CACHE_SEED"):
+            source = Path(seed).resolve()
+            if not source.is_dir():
+                raise HarnessError(f"Triton cache seed is not a directory: {source}")
+            shutil.copytree(source, self.dir / "triton-cache", dirs_exist_ok=True)
         try:
             self.env_file.write_text(
                 prod_shape_env(run_dir=self.dir, image_tag=self.image_tag, caller=dict(os.environ)),
@@ -2218,6 +2411,65 @@ class Run:
             name: service.get("image") for name, service in (rendered.get("services") or {}).items()
         }
         self.prebuild_images()
+        # [O2.5 venue fixes, ruling 287 item 4] The opt-in Triton export: ONNX
+        # (yolo26, CPU; reid) then the reid TensorRT plan on the serving GPU --
+        # maui's real-gateway venue only, because the sandbox venue's gateway is
+        # the fake and there is no Triton, no exporter and no model repository in
+        # it to witness. ONNX comes FIRST in the one script because
+        # ai/gateway/export/export_reid.py's B2.2 provenance rule refuses to
+        # compile a plan from an ONNX no record vouches for -- the other order
+        # can only fail on the venue.
+        if os.environ.get("PROD_SHAPE_EXPORT_TRITON") == "1":
+            if fake_gateway is not None:
+                raise HarnessError(
+                    "PROD_SHAPE_EXPORT_TRITON requires the real-gateway maui venue: the "
+                    "sandbox run replaces the real gateway (its fake carries no Triton "
+                    "server, exporter or model repository)"
+                )
+            # This one-off creates project resources too: any failure must reach
+            # the same down -v and postflight as a failed stack boot, so `started`
+            # is armed BEFORE the first `compose run` -- the same gate `up()` sets.
+            self.started = True
+            # TensorRT 11 uses the graph's own types and dropped --fp16 (diagnostic
+            # db7dbe): fp16 stays the shipped default and fp32 is the venue's
+            # opt-in (attempt a7c96f: FP32 plan build 83.9s, native reid embedding
+            # [1,512]). Validated here, not in the script, so a bad value never
+            # reaches the venue's shell as generated text.
+            precision = os.environ.get("PROD_SHAPE_REID_PRECISION", "fp16")
+            if precision not in {"fp16", "fp32"}:
+                raise HarnessError(
+                    f"PROD_SHAPE_REID_PRECISION must be fp16 or fp32, got {precision!r}"
+                )
+            script = f"""
+set -euo pipefail
+mkdir -p /models/cache/yolo26/1 /models/cache/reid/1
+python3 /app/gateway/export/export_yolo26.py --model-path /models/zoo/yolo26/yolo26m.pt --output-path /models/cache/yolo26/1/model.onnx --device cpu
+python3 /app/gateway/export/export_reid.py --model-path /models/zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth --output-path /models/cache/reid/1/model.onnx
+python3 /app/gateway/export/export_reid.py --model-path /models/zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth --output-path /models/cache/reid/1/model.plan --precision {precision}
+"""
+            exported = self.deployment(
+                "run",
+                "--rm",
+                "--no-deps",
+                "-T",
+                "--entrypoint",
+                "/bin/bash",
+                "ai-gateway",
+                "-c",
+                script,
+                timeout=1800,
+                check=False,
+            )
+            # The export's own stream is the artifact: the venue reads what the
+            # exporter said, not just that it failed.
+            (self.artifacts / "triton-export.txt").write_text(
+                (exported.stdout or "") + "\n" + (exported.stderr or ""), encoding="utf-8"
+            )
+            if exported.returncode != 0:
+                raise HarnessError(
+                    f"Triton export failed ({exported.returncode}); see triton-export.txt"
+                )
+            _log(f"Triton export ok ({precision} reid plan); see triton-export.txt")
 
     def fake_service_bodies(self) -> dict[str, dict[str, Any]]:
         """The fake AI services the CI tier renders, by name, for the prod-shape transforms.
@@ -2235,11 +2487,29 @@ class Run:
             self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
         )
         services = rendered.get("services") or {}
-        return {
+        bodies = {
             name: copy.deepcopy(service)
             for name, service in services.items()
             if name in ("ai-vlm", "ai-gateway")
         }
+        # [O2.5 venue fixes] Never reuse or overwrite a shared fake: on the venue the
+        # fake is BUILT (docker/fake-ai/Dockerfile FROMs this run's backend), and the
+        # overlay's `hsi-fake-ai:${IMAGE_TAG:-latest}` is a host-GLOBAL name whose
+        # `latest` could carry another checkout's fake code, on top of whatever base
+        # built it. So the prod-shape run renames the fake to the tag `build_images`
+        # derives for it (``<project>-<service>:latest``, exactly what `up --no-build`
+        # looks for) and pins its base to the backend image THIS run's pre-build
+        # builds first. The CI tier keeps the shared name on purpose: one checkout,
+        # one job, one engine -- a shared tag there is not a lie.
+        if self.prod_shape:
+            for name, body in bodies.items():
+                if "build" not in body:
+                    continue
+                body["image"] = f"{self.project}-{name}:latest"
+                body["build"].setdefault("args", {})["BACKEND_IMAGE"] = (
+                    f"{self.project}-backend:latest"
+                )
+        return bodies
 
     def prebuild_images(self) -> None:
         """Build the stack's `build:` images BEFORE `up`, so `up` builds nothing.
@@ -2301,13 +2571,49 @@ class Run:
         # check=False on purpose: a stalled build comes back as a readable result
         # rather than a TimeoutExpired flying past this method, and either way the
         # message below names the services and quotes what the engine said.
-        result = self.deployment(
-            "build",
-            *to_build,
-            timeout=PREBUILD_TIMEOUT_SECONDS,
-            check=False,
-            env={**compose_environment(os.environ), "DOCKER_BUILDKIT": "0"},
+        # [O2.5 venue fixes] Under prod_shape the buildables go up in TWO passes:
+        # the fake services FROM the backend image (`docker/fake-ai/Dockerfile`'s
+        # BACKEND_IMAGE arg), so the backend and grafana must exist before the
+        # fakes build, and one builder pass per group keeps the failure message
+        # readable -- a fake FROM an absent backend image reads as a mystery, not
+        # as "the backend build died". The base pass is also `--no-cache` under
+        # prod_shape: the venue witnesses THIS checkout's build, and a cached
+        # layer from a previous checkout's backend is exactly what the fake's
+        # `COPY backend/` exists to displace -- a cache hit would boot code the
+        # run never checked. CI keeps one pass and no flag: its runs build once
+        # per job from a clean checkout, and the fake tier stays as it is.
+        fake = [
+            name
+            for name in to_build
+            if str(boot["services"].get(name, {}).get("build", {}).get("dockerfile", "")).endswith(
+                "docker/fake-ai/Dockerfile"
+            )
+        ]
+        groups = (
+            ([name for name in to_build if name not in fake], fake)
+            if self.prod_shape
+            else (to_build,)
         )
+        outputs = []
+        built: list[str] = []
+        for group in groups:
+            if not group:
+                continue
+            result = self.deployment(
+                "build",
+                *group,
+                *(["--no-cache"] if self.prod_shape else []),
+                timeout=PREBUILD_TIMEOUT_SECONDS,
+                check=False,
+                env={**compose_environment(os.environ), "DOCKER_BUILDKIT": "0"},
+            )
+            outputs.append(result)
+            if result.returncode == 0:
+                built.extend(group)
+            else:
+                break
+        result.stdout = "\n".join(item.stdout or "" for item in outputs)
+        result.stderr = "\n".join(item.stderr or "" for item in outputs)
         # The build's own stream is the artifact: it is what the operator's first
         # run did not have, and a build that later goes wrong is read from here.
         (self.artifacts / "prebuild.txt").write_text(
@@ -2323,7 +2629,9 @@ class Run:
                 f"(asked for the engine's own builder via DOCKER_BUILDKIT=0) — "
                 f"compose said: {tail}"
             )
-        self.summary["prebuild"]["built"] = to_build
+        # `built` is filled from each pass's EXIT, never from intent: a run that
+        # died in the base pass must not claim the fakes it never started.
+        self.summary["prebuild"]["built"] = built
 
     def up(self, vlm: AgentGpu | None = None) -> None:
         self.started = True
@@ -2620,6 +2928,12 @@ class Run:
             inspect,
             orchestrator_enabled=enabled,
             services=services if services[0] else None,
+            # The prod shape's mount rule is its render's (ruling 287 item 12):
+            # the same engine_socket_mounts the UR-134 re-check ran, keyed on the
+            # caller's socket. None on every other shape keeps the CI rule.
+            prod_shape_socket=os.environ.get("PODMAN_SOCKET", "") or None
+            if self.prod_shape
+            else None,
         )
         self.summary["results"]["in_run"] = problems or "ok"
         _log("in-run check: " + ("ok" if not problems else f"{len(problems)} problem(s)"))
@@ -2656,10 +2970,74 @@ class Run:
         self.summary["results"]["smoke"] = problems or "ok"
         return problems
 
+    def _gpu_history_fixture(self, ids: list[str], *, restore: bool) -> None:
+        """Temporary historical snapshots only; never write active GPU config."""
+        script = f"""
+import asyncio, json
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+from backend.core.config import get_settings
+ids = {ids!r}
+restore = {restore!r}
+async def main():
+    engine = create_async_engine(get_settings().database_url)
+    try:
+        async with engine.begin() as connection:
+            if restore:
+                for row_id in ids:
+                    await connection.execute(text("DELETE FROM gpu_configuration_versions WHERE id=CAST(:id AS uuid)"), {{"id": row_id}})
+                remaining = await connection.scalar(text("SELECT count(*) FROM gpu_configuration_versions WHERE id IN (CAST(:a AS uuid), CAST(:b AS uuid))"), {{"a": ids[0], "b": ids[1]}})
+                assert remaining == 0, remaining
+                print("F182_FIXTURE restored; remaining=0")
+            else:
+                maximum = await connection.scalar(text("SELECT coalesce(max(version_number), 0) FROM gpu_configuration_versions"))
+                for index, (strategy, gpu_index, description) in enumerate([
+                    ("vram_based", 0, "o25-f182-source-provisional"),
+                    ("balanced", None, "o25-f182-target-provisional"),
+                ]):
+                    assignments = json.dumps([{{"service": "ai-vlm", "gpu_index": gpu_index}}])
+                    await connection.execute(text("INSERT INTO gpu_configuration_versions (id, version_number, strategy, assignments, description, created_by) VALUES (CAST(:id AS uuid), :version, :strategy, CAST(:assignments AS jsonb), :description, 'feature-check-provisional')"), {{"id": ids[index], "version": maximum + index + 1, "strategy": strategy, "assignments": assignments, "description": description}})
+                print("F182_FIXTURE seeded=2; provisional=true")
+    finally:
+        await engine.dispose()
+asyncio.run(main())
+"""  # noqa: S608 - SQL values stay bound; interpolation only emits Python literals.
+        result = self.deployment(
+            "exec", "-T", "backend", "python", "-c", script, check=False, timeout=60
+        )
+        action = "restore" if restore else "seed"
+        (self.artifacts / f"gpu-history-{action}.txt").write_text(
+            (result.stdout or "") + (result.stderr or ""), encoding="utf-8"
+        )
+        self.summary["results"].setdefault("gpu_history_fixture", {"provisional": True})[action] = (
+            "ok" if result.returncode == 0 else f"exit {result.returncode}"
+        )
+        if result.returncode != 0:
+            raise HarnessError(f"GPU history fixture {action} failed; see gpu-history-{action}.txt")
+        _log(f"GPU history fixture {action}: ok (F-182 provisional)")
+
     def golden(self) -> list[str]:
+        # Item 14's native-scenario capture ([r287b]) is NOT in this correction:
+        # its knob stays inert here, so a run can never substitute the authored
+        # book until the package that owns the capture lands.
+        if os.environ.get("PROD_SHAPE_GPU_HISTORY_FIXTURE") != "1":
+            return self._golden()
+        if not self.prod_shape:
+            raise HarnessError("GPU history fixture is only for --prod-shape")
+        ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+        self._write("gpu-history-fixture.json", {"ids": ids, "provisional": True})
+        try:
+            self._gpu_history_fixture(ids, restore=False)
+            return self._golden()
+        finally:
+            # Delete exactly our UUIDs, even if seeding or a golden leg fails.
+            self._gpu_history_fixture(ids, restore=True)
+
+    def _golden(self) -> list[str]:
         env = {
             **os.environ,
             "FEATURE_CHECK_MODE": self.mode,
+            "FEATURE_CHECK_PROD_SHAPE": "1" if self.prod_shape else "0",
             "FEATURE_CHECK_RUN_DIR": str(self.dir),
             "FEATURE_CHECK_API_URL": self.api,
             "FEATURE_CHECK_UI_URL": self.ui,
@@ -2852,6 +3230,16 @@ class Run:
                 # each on its own stack, never within one.
                 i, total = self.shard
                 inner_parts.append(f"--shard={i}/{total}")
+            if self.golden_specs is not None:
+                # [r287] The named-spec limit: the specs as Playwright
+                # positionals -- the runner's own file filter -- so the leg's
+                # junit carries only them and golden_execution_problems keeps
+                # judging what actually ran. Quoted like --output, into the
+                # same shell string; spelled the way main() validated them
+                # (repo paths under frontend/tests/golden), which from the
+                # leg's `-w frontend` cwd is the same file.
+                for spec in self.golden_specs:
+                    inner_parts.append(shlex.quote(spec))
             inner = " ".join(inner_parts)
             result = self._run(
                 golden_container_command(
@@ -3386,6 +3774,7 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         prod_shape=args.prod_shape,
         seeded=seeded,
         shard=getattr(args, "shard", None),
+        golden_specs=getattr(args, "golden_spec", None),
     )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
@@ -3553,6 +3942,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         "every shard boots its own stack under its own compose project; the real tier and "
         "the maui run keep the whole suite on one stack (ruling 264 item 5).",
     )
+    parser.add_argument(
+        "--golden-spec",
+        action="append",
+        dest="golden_spec",
+        default=[],
+        help="[r287] run only these golden Playwright specs (repeatable), as paths under "
+        "frontend/tests/golden (e.g. `tests/golden/dashboard/gpu-stats.spec.ts`). "
+        "Prod-shape-only: the limit exists so the maui run can witness named specs "
+        "(F-176/F-178/F-182); on any other shape it refuses at parse time.",
+    )
     drop_parser = sub.add_parser("drop", help="drop an image into a camera folder of a run")
     drop_parser.add_argument("image", type=Path)
     drop_parser.add_argument("camera")
@@ -3625,6 +4024,45 @@ def main(argv: Sequence[str] | None = None) -> int:
             "--shard is the CI fake tier's option (--fake only): the real tier and the "
             "prod-shape run keep the whole suite on one stack (ruling 264 item 5)"
         )
+    # [r287] `--golden-spec` is the prod-shape leg's own option, the mirror of
+    # the shard clause above: the named-spec limit exists so the maui run can
+    # witness its named specs (F-176/F-178/F-182) without failing the rest of
+    # the suite it did not ask to run. On any other shape a partial golden leg
+    # is the silent-coverage-hole shape ruling 114 exists for, so it refuses at
+    # parse time, like every other shape mismatch. The values are normalized
+    # once, here: a tuple when specs were named, None when not (the list
+    # default must not reach Run -- its summary-key check is `is not None`).
+    if args.golden_spec:
+        if not args.prod_shape:
+            parser.error(
+                "--golden-spec is the prod-shape run's option (--prod-shape only): the "
+                "fake and real tiers keep the whole golden suite (ruling 287)"
+            )
+        normalized = []
+        for spec in args.golden_spec:
+            if not spec or spec != spec.strip():
+                parser.error(f"--golden-spec takes a repo path, got {spec!r}")
+            candidate = Path(spec)
+            if candidate.is_absolute() or ".." in candidate.parts:
+                parser.error(f"--golden-spec takes a repo path under tests/golden, got {spec!r}")
+            # The option names SPECS: a file under tests/golden whose name ends
+            # .spec.ts. The prefix half is load-bearing — a name check alone
+            # would pass tests/e2e/*.spec.ts, and a suffix check alone would
+            # pass tests/golden/harness.ts (and Path.suffix is '.ts' anyway,
+            # not '.spec.ts'), and neither can be collected by the
+            # --project=golden leg, so an accepted either would write a run
+            # record naming files the leg could not run.
+            if candidate.parts[:2] != ("tests", "golden") or not candidate.name.endswith(".spec.ts"):
+                parser.error(f"--golden-spec takes a path to a spec under tests/golden, got {spec!r}")
+            # The leg's own cwd is FRONTEND (golden_container_command's -w), so
+            # the spelling the runner will resolve is frontend-relative, and
+            # that is the spelling this check validates.
+            if not (FRONTEND / candidate).is_file():
+                parser.error(f"--golden-spec names a file the repo does not carry: {spec!r}")
+            normalized.append(spec)
+        args.golden_spec = tuple(normalized)
+    else:
+        args.golden_spec = None
 
     if args.real:
         unavailable = real_unavailable(os.environ)

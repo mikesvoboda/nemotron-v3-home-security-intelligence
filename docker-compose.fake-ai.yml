@@ -71,10 +71,8 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8098/health'); exit(0 if r.status_code == 200 else 1)",
+          'CMD-SHELL',
+          'python -c "import httpx; r = httpx.get(''http://localhost:8098/health''); exit(0 if r.status_code == 200 else 1)"',
         ]
       interval: 5s
       timeout: 5s
@@ -99,10 +97,8 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
+          'CMD-SHELL',
+          'python -c "import httpx; r = httpx.get(''http://localhost:8090/health''); exit(0 if r.status_code == 200 else 1)"',
         ]
       interval: 5s
       timeout: 5s
