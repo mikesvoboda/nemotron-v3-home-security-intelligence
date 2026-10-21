@@ -407,32 +407,8 @@ class TestFlorenceProviderRowRetired:
         )
 
     def test_ai_fallback_strips_florence_AND_clip_but_the_module_survives(self) -> None:
-        """``ai_fallback`` is kept-and-DEAD (zero shipped importers; ledgered as
-        flagged-not-deleted). Its final death belongs to a dead-code slice, not
-        this one -- so S3 removes only what its provider retirements DANGLE: the
-        TYPE_CHECKING imports (which the annotation-resolvability guard would
-        otherwise red on -- pointers at deleted modules), the enum members, the
-        breaker configs and the health arms, for BOTH Florence (ruling 1) and
-        CLIP (ruling 5). YOLO26 -- the one service whose backend still boots --
-        stays."""
-        src = _src("backend/services/ai_fallback.py")
-        # LIVE forms only -- this file's own doctrine (prose may name the dead,
-        # and a tombstone comment explaining WHY the member left is mandated by
-        # the kept-and-DEAD ledger convention). The pins below are the shapes
-        # that would still execute.
-        for live in (
-            "FlorenceClient",
-            "CLIPClient",
-            "AIService.FLORENCE",
-            "AIService.CLIP",
-            "florence_client",
-            "clip_client",
-            'FLORENCE = "',
-            'CLIP = "',
-        ):
-            assert live not in src, f"still wired: {live}"
-        assert "class AIFallbackService" in src, "the module was collateral-deleted, not stripped"
-        assert "YOLO26" in src, "the kept service's arm stays"
+        """B3.2 deleted the non-shipping ``backend/services/ai_fallback.py`` module."""
+        assert not (REPO_ROOT / "backend/services/ai_fallback.py").exists()
 
 
 class TestTritonRepositoryPruned:
@@ -620,7 +596,6 @@ class TestModelManagementTracksTheNarrowSet:
             "backend/api/routes/model_management.py",
             "backend/api/routes/health_ai_services.py",
             "backend/api/routes/system.py",
-            "backend/services/ai_fallback.py",
             "backend/services/scene_baseline.py",
             "backend/api/routes/face_recognition.py",
             "backend/core/config.py",
@@ -801,7 +776,6 @@ class TestNoLivePointerAtTheDeleted:
     (4.03s against the 4.0s unit limit at ``ci.yml:2651``; ledger item 49)."""
 
     LIVE_IMPORTERS: ClassVar[list[str]] = [
-        "backend/services/ai_fallback.py",
         "backend/ai_contract/providers.py",
         "backend/ai_contract/operations.py",
         "backend/ai_contract/fake/generators.py",

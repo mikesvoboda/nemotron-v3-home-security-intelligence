@@ -781,8 +781,8 @@ def test_real_tree_matches_spec_baselines():
         # initialization timing" skips in test_system_models.py expired on 10-15 and
         # were removed with their `#2` registry rows; each test stays skipped by its
         # "Moved to test_model_management.py" decorator (`retired`, BB.1 deletes them).
-        "pytest_skip": 25,
-        "pytest_skipif": 59,
+        "pytest_skip": 22,
+        "pytest_skipif": 58,
         "pytest_xfail": 4,
         # 89→93 (2026-10-11, BE-1 / ruling 87, PR #6979): the four harness-contract
         # skips of the first backend golden tree — conftest.py:61/70 (the
@@ -801,7 +801,7 @@ def test_real_tree_matches_spec_baselines():
         # skips that exist because collection must never crash without a live
         # stack — a contract that can never be "fixed", so their deadline must be
         # null. Increase path, fifth precedent.
-        "pytest_skip_imperative": 93,
+        "pytest_skip_imperative": 92,
         "frontend_skip": 52,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
@@ -858,7 +858,7 @@ def test_real_tree_matches_spec_baselines():
         # committed count — so it cannot be fake-clocked away, and the pattern
         # is one regex covering both ids, so the CENSUS (+1) and the tests it
         # exempts (+2) differ deliberately.
-        "tpa_slow_list": 9,
+        "tpa_slow_list": 6,
         # [r173] ruling 173 — the new arm, measured (see the docstring's
         # 0→2 entry). Asserted here as well as in the baseline file so a golden
         # test.fixme added later trips this mirror AND the ratchet.

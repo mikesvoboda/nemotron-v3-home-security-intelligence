@@ -225,9 +225,17 @@ class TestModuleImports:
         """All exports should be importable from backend.core.executors."""
         from backend.core.executors import (
             HAS_INTERPRETER_POOL as core_has_pool,
+        )
+        from backend.core.executors import (
             get_cpu_executor as core_get_executor,
+        )
+        from backend.core.executors import (
             get_executor_info as core_get_info,
+        )
+        from backend.core.executors import (
             get_executor_type as core_get_type,
+        )
+        from backend.core.executors import (
             is_free_threaded as core_is_free,
         )
 

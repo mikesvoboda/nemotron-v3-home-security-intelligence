@@ -246,10 +246,12 @@ class TestAIServicesImports:
     """Tests for AI service module exports."""
 
     def test_services_importable_from_package(self) -> None:
-        """AI services are imported from their own modules after B3.2 pruned services/__init__.py."""
-        from backend.services.face_detector import FaceDetectorService
-        from backend.services.ocr_service import OCRService
-        from backend.services.plate_detector import PlateDetectorService
+        """AI services are imported from backend.services.ai_services after B3.2 pruned services/__init__.py."""
+        from backend.services.ai_services import (
+            FaceDetectorService,
+            OCRService,
+            PlateDetectorService,
+        )
 
         assert FaceDetectorService is not None
         assert PlateDetectorService is not None

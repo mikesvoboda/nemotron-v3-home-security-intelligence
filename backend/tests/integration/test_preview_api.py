@@ -554,14 +554,6 @@ async def test_preview_decrypts_password_before_go2rtc(
         return_value=mock_go2rtc_client,
         autospec=True,
     ):
-        with patch(
-            "backend.services.credential_service.CredentialService", autospec=True
-        ) as mock_cred_service:
-            mock_cred_service.decrypt.return_value = "decrypted_password"
+        response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
 
-            response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
-
-            assert response.status_code == 200
-
-            # Verify credential service was used (if implemented)
-            # This test may need adjustment based on actual implementation
+        assert response.status_code == 200

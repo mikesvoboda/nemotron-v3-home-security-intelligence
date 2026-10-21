@@ -27,7 +27,7 @@ from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.core.config import OrchestratorSettings
 from backend.core.docker_client import DockerClient
 from backend.services.container_orchestrator import ContainerOrchestrator
-from backend.services.service_registry import ManagedService, ServiceRegistry
+from backend.services.orchestrator import ManagedService, ServiceRegistry
 from backend.tests.integration.test_helpers import get_error_message
 
 if TYPE_CHECKING:
