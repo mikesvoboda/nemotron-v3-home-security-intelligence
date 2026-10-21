@@ -249,7 +249,7 @@ describe('SummaryCards Integration Tests', () => {
       const initialDailyCard = screen.getByTestId('summary-card-daily');
       expect(
         initialDailyCard.querySelector('[data-testid="summary-event-count-daily"]')
-      ).toHaveTextContent('0 events');
+      ).toHaveTextContent('0 high-priority events analyzed');
 
       // Simulate WebSocket update
       rerender(
@@ -261,7 +261,7 @@ describe('SummaryCards Integration Tests', () => {
         const updatedDailyCard = screen.getByTestId('summary-card-daily');
         expect(
           updatedDailyCard.querySelector('[data-testid="summary-event-count-daily"]')
-        ).toHaveTextContent('5 events');
+        ).toHaveTextContent('5 high-priority events analyzed');
       });
     });
 
@@ -321,7 +321,7 @@ describe('SummaryCards Integration Tests', () => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
         expect(
           hourlyCard.querySelector('[data-testid="summary-event-count-hourly"]')
-        ).toHaveTextContent('2 events');
+        ).toHaveTextContent('2 high-priority events analyzed');
       });
     });
   });

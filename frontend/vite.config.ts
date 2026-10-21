@@ -336,47 +336,20 @@ export default defineConfig(({ mode }) => {
       // reason: vitest's default include catches **/*.spec.ts, and under jsdom
       // their top-level code throws (no node:child_process/fs, no harness env).
       //
-      // R-T7-VITEST quarantine (2026-09-12, ledger
-      // .superpowers/sdd/2026-09-12-arm64-gb300-milestone1/progress.md): the 13 files
-      // below carry 62 PRE-EXISTING deterministic test-drift failures (red alone on
-      // an idle box — not load flakes). CI never caught them: the frontend-tests job
-      // `exit 0`s on the first summary line (ci.yml:1305-1316 OOM workaround), so
-      // validate.sh is the repo's only strict frontend gate. Repairing all 13 is
-      // judgment-heavy test archaeology (e.g. NotificationSettings vs the #5996 UI
-      // refactor) — out of scope for the additive arm64 milestone. Explicit paths
-      // only (no broad globs); config-only — the files are untouched on disk.
-      // M2 follow-up: dedicated frontend test-repair task owns these + removes them.
-      // Failing counts: NotificationSettings 16, EventTimeline 9, AlertsPage 6,
-      // EventCard 5, ReidHistoryPanel 5, WorkerManagementPanel 5, auth-flow 4,
-      // PyroscopePage 3, SummaryCards 2, TrustClassification 2 (snapshot),
-      // race-conditions 1, useHouseholdApi 1, useSettingsApi 1.
-      // R-T7-VITEST delta (2026-09-12, quarantine 13->16): + 3 ZERO-BYTE test
-      // files on main (git cat-file -s = 0 at HEAD and main; "No test suite
-      // found" reproduced alone at 07:16 idle-box). Zero tests exist to run —
-      // quarantine-as-config is the honest placeholder; writing the missing
-      // suites is M2 test-repair work.
-      // F3.2 (2026-10-18, quarantine 16->13): ReidHistoryPanel, SystemHealthIndicator
-      // and ZoneTimelineScrubber are gone — their components were unreachable, so
-      // the entry named a file no longer on disk. The 13 left are the original R-T7
-      // set; F3.3 owns emptying this list.
+      // R-T7-VITEST quarantine history: 2026-09-12 quarantined 13 drifted test
+      // files (62 deterministic failures; ledger
+      // .superpowers/sdd/2026-09-12-arm64-gb300-milestone1/progress.md), later
+      // 16 with the zero-byte files (ci.yml:1305-1316's exit-0-on-summary OOM
+      // workaround meant CI never caught the red — validate.sh was the only
+      // strict frontend gate). F3.2 (2026-10-18, 16->13) dropped three entries
+      // whose components had become unreachable. F3.3 (2026-10-21, 13->0)
+      // repaired or deleted the remaining 13 (all now green or gone), so the
+      // quarantine list is EMPTY: the unquarantined suite is the whole suite.
       exclude: [
         ...configDefaults.exclude,
         'tests/e2e/**',
         'tests/contract/**',
         'tests/golden/**',
-        'src/components/settings/NotificationSettings.test.tsx',
-        'src/components/events/EventTimeline.test.tsx',
-        'src/components/alerts/AlertsPage.test.tsx',
-        'src/components/events/EventCard.test.tsx',
-        'src/components/system/WorkerManagementPanel.test.tsx',
-        'src/__tests__/auth-flow.test.tsx',
-        'src/components/pyroscope/PyroscopePage.test.tsx',
-        'src/components/dashboard/SummaryCards.integration.test.tsx',
-        'src/components/entities/TrustClassificationControls.test.tsx',
-        'src/hooks/__tests__/integration/race-conditions.integration.test.ts',
-        'src/hooks/__tests__/useHouseholdApi.test.ts',
-        'src/hooks/__tests__/useSettingsApi.test.tsx',
-        'src/components/events/TimeGroupedEvents.simple.test.tsx',
       ],
       // Fork-based parallelization for better memory isolation (each fork is separate process)
       // Threads share memory which can cause accumulation issues during cleanup
