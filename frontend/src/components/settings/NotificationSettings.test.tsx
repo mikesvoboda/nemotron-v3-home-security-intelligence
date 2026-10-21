@@ -221,9 +221,7 @@ describe('NotificationSettings', () => {
 
     await waitFor(() => {
       // No form fields exist: the unconfigured card explains the env vars.
-      expect(
-        screen.getByText('Email notifications are not configured.')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Email notifications are not configured.')).toBeInTheDocument();
       expect(screen.getByText(/Set SMTP_HOST/i)).toBeInTheDocument();
     });
   });
@@ -234,9 +232,7 @@ describe('NotificationSettings', () => {
     render(<NotificationSettings />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Webhook notifications are not configured.')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Webhook notifications are not configured.')).toBeInTheDocument();
       expect(screen.getByText(/Set DEFAULT_WEBHOOK_URL/i)).toBeInTheDocument();
     });
   });
@@ -661,9 +657,7 @@ describe('NotificationSettings', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Sending...')).toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /send test email/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /send test email/i })).not.toBeInTheDocument();
     });
   });
 

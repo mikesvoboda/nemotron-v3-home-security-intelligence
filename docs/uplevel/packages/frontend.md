@@ -190,15 +190,15 @@ test-drift failures quarantined 2026-09-12, later shrank to 13 when F3.2 found
 three of the 16 entries named files no longer on disk).
 
 - [x] Fix or delete each excluded file. All 12 remaining files repaired and
-  green (634 passed | 3 skipped across the 12); one file deleted
-  (`TimeGroupedEvents.simple.test.tsx`, empty scaffold with no suite left to
-  run). The repair also surfaced two production bugs: the local
-  `handleResponse` in `useHouseholdApi.ts` threw bare `Error`s, silently
-  disabling the NEM-1940 smart-retry layer for every household endpoint (now
-  throws `ApiError` so 503 retries and 500 does not), and
-  `EventTimeline.tsx` passed a `snoozedUntil` prop EventCard does not read,
-  so the NEM-3640 SnoozeBadge never rendered from the timeline page (now
-  passes `snooze_until`).
+      green (634 passed | 3 skipped across the 12); one file deleted
+      (`TimeGroupedEvents.simple.test.tsx`, empty scaffold with no suite left to
+      run). The repair also surfaced two production bugs: the local
+      `handleResponse` in `useHouseholdApi.ts` threw bare `Error`s, silently
+      disabling the NEM-1940 smart-retry layer for every household endpoint (now
+      throws `ApiError` so 503 retries and 500 does not), and
+      `EventTimeline.tsx` passed a `snoozedUntil` prop EventCard does not read,
+      so the NEM-3640 SnoozeBadge never rendered from the timeline page (now
+      passes `snooze_until`).
 
 **Done when:** the exclusion list is empty, or every remaining entry carries a reason and an
 inventory row. The exclusion list is empty; the full unquarantined suite is green.

@@ -345,12 +345,7 @@ export default defineConfig(({ mode }) => {
       // whose components had become unreachable. F3.3 (2026-10-21, 13->0)
       // repaired or deleted the remaining 13 (all now green or gone), so the
       // quarantine list is EMPTY: the unquarantined suite is the whole suite.
-      exclude: [
-        ...configDefaults.exclude,
-        'tests/e2e/**',
-        'tests/contract/**',
-        'tests/golden/**',
-      ],
+      exclude: [...configDefaults.exclude, 'tests/e2e/**', 'tests/contract/**', 'tests/golden/**'],
       // Fork-based parallelization for better memory isolation (each fork is separate process)
       // Threads share memory which can cause accumulation issues during cleanup
       pool: 'forks',
