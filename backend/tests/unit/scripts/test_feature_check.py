@@ -7327,3 +7327,277 @@ def test_the_prod_shape_run_wires_its_socket_into_the_in_run_check(
     ci.api = "http://127.0.0.1:1"
     ci.check_isolation()
     assert seen["prod_shape_socket"] is None, seen
+
+
+# [r282] The manifest-selected golden shard: the harness reads the checked-in
+# manifest and hands the shard's files to the leg as env, instead of letting
+# Playwright's count-based --shard split the suite by file count (measured
+# 337/262/494/457 s per shard — a 231 s spread no count split can close).
+# ---------------------------------------------------------------------------
+
+
+_R282_MANIFEST = {
+    "shard_count": 3,
+    "backend_leg_shard": 1,
+    "shards": [
+        ["tests/golden/dashboard-drop.spec.ts"],
+        ["tests/golden/timeline/event-list.spec.ts"],
+        ["tests/golden/analytics-alerts/alerts.spec.ts"],
+    ],
+    "loads_seconds": [0.0, 0.0, 0.0],
+}
+
+
+@pytest.fixture()
+def _r282_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A three-shard manifest the fixture writes where the harness reads it.
+
+    FRONTEND is already monkeypatched to tmp_path/frontend by _golden_only_run;
+    the manifest lives at frontend/golden-shards.json exactly as checked in.
+    The fixture also flips the opt-in the route reads: without
+    $FEATURE_CHECK_SHARD_MANIFEST the harness must keep [r264]'s count-based
+    --shard, so every manifest pin sets it and the no-opt-in pin below deletes
+    it explicitly (an environment leak would invert what the pin measures).
+    """
+    frontend = tmp_path / "frontend"
+    frontend.mkdir(parents=True, exist_ok=True)
+    manifest = frontend / "golden-shards.json"
+    manifest.write_text(json.dumps(_R282_MANIFEST), encoding="utf-8")
+    monkeypatch.setattr(fc, "GOLDEN_SHARDS_MANIFEST", manifest)
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    return manifest
+
+
+def test_a_manifest_shard_exports_the_selected_files_as_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] Shard 2's leg gets its files as FEATURE_CHECK_GOLDEN_FILES, no --shard flag.
+
+    The harness reads the manifest host-side and selects shard 2's files itself,
+    so the split the run record claims is the split the harness computed — not
+    one a JS config re-derived inside the image where no pin can see it. The
+    count-based --shard append is REPLACED, not composed: a manifest shard that
+    also carried --shard=i/N would let Playwright re-split the manifest's own
+    selection (a second, silent partition).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    inner = argv[-1]
+    assert "--shard=" not in inner, inner
+    assert kwargs["env"]["FEATURE_CHECK_GOLDEN_FILES"] == (
+        "tests/golden/timeline/event-list.spec.ts"
+    )
+    assert run.summary["results"]["golden"]["playwright_specs"], "the leg still ran"
+
+
+def test_a_manifest_shard_ignores_everything_not_selected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] The inner command itself carries the file list (testIgnore sees it as env).
+
+    The config's testIgnore function reads FEATURE_CHECK_GOLDEN_FILES; the
+    harness proves the name reaches the container by the same name-only -e
+    rule every other variable uses — the NAME rides the argv, the VALUE rides
+    the env. The value here is the full space-separated list, and the pin
+    holds the argv to it: an argv that exported the value would write the
+    file list into the step log (harmless today, but the whitelist's rule is
+    names only, and the rule's test is the shape, not the content).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(1, 3))
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    exported = [argv[i + 1] for i, token in enumerate(argv) if token == "-e"]
+    assert "FEATURE_CHECK_GOLDEN_FILES" in exported
+    assert kwargs["env"]["FEATURE_CHECK_GOLDEN_FILES"] == ("tests/golden/dashboard-drop.spec.ts")
+    assert "--shard=" not in argv[-1], argv[-1]
+
+
+def test_a_manifest_shard_record_names_the_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] The run record names the manifest and the file count it selected.
+
+    A record that said `shard: 2/3` while the leg ran a manifest selection is
+    half a claim: the fan-in merges by shard label, but an auditor asked "what
+    did shard 2 actually run?" needs the answer in the record, not in a file
+    the record does not name. The manifest path is recorded relative to
+    FRONTEND (the manifest is checked in at frontend/golden-shards.json) so the
+    record stays machine-independent.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(3, 3))
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["shard_manifest"] == "frontend/golden-shards.json", golden.get("shard_manifest")
+    assert golden["shard_files"] == ["tests/golden/analytics-alerts/alerts.spec.ts"], golden.get(
+        "shard_files"
+    )
+
+
+def test_a_missing_manifest_file_fails_the_selection_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r282] Opt-in set, shard named, no manifest: a loud red, not a fall-back.
+
+    The opt-in is CI-only like --shard, and for the same reason: a
+    silently-unsharded run inside a matrix cell that expects a partition would
+    run the WHOLE suite on shard 2 while shards 1/3/4 ran the whole suite too —
+    the fan-in's two-shards-leg check catches it downstream, but the leg that
+    lied about its shape should not run at all. So the selection refuses with
+    HarnessError, which golden() does not catch (a missing manifest is a shape
+    the caller chose, not a leg that went red).
+    """
+    # The constant points at the real repo while FRONTEND is the fixture tree,
+    # so the pin must model absence on the SAME path the run would read: a
+    # checked-in manifest that exists on this machine but not on that head.
+    monkeypatch.setattr(fc, "GOLDEN_SHARDS_MANIFEST", tmp_path / "frontend" / "golden-shards.json")
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(1, 3))
+    with pytest.raises(fc.HarnessError):
+        run.golden()
+    # The refusal is at the selection, before the leg: earlier setup steps
+    # (npm ci, the image inspect) may have run, but no container run did.
+    assert _container_calls(calls) == [], "no leg ran on a refused selection"
+
+
+def test_without_the_opt_in_a_shard_keeps_r264s_count_split(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] Env unset + shard named + manifest on disk: [r264]'s --shard, byte for byte.
+
+    The manifest route is OPT-IN: callers that have not asked for it must see
+    today's count-based behavior even though the manifest file itself is
+    checked in and present. The count-based --shard=i/N append survives here
+    (that is [r264]'s contract, its own pins pin it), and no file list rides
+    the env — the manifest's presence alone selects nothing. This is the pin
+    that makes the roll-out a no-op for every existing caller: [r264]'s four
+    shard pins pass unchanged against a tree that also carries the manifest.
+    """
+    monkeypatch.delenv("FEATURE_CHECK_SHARD_MANIFEST", raising=False)
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    inner = argv[-1]
+    assert "--shard=2/3" in inner, inner
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in argv, argv
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in kwargs["env"]
+    golden = run.summary["results"]["golden"]
+    assert "shard_manifest" not in golden and "shard_files" not in golden, golden
+
+
+def test_the_record_names_only_the_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r282] shard_files is the selection this shard RAN, not the whole manifest.
+
+    A record that claimed all three shards' files for one cell would still
+    pass a union check (the files exist) while making the run record unable
+    to witness what the leg actually executed -- the coverage hole the fan-in
+    exists to catch would be invisible in the artifacts too.
+    """
+    manifest = {**_R282_MANIFEST, "shards": [["a/x.spec.ts"], ["b/y.spec.ts"], ["c/z.spec.ts"]]}
+    frontend = tmp_path / "frontend"
+    frontend.mkdir(parents=True, exist_ok=True)
+    path = frontend / "golden-shards.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setattr(fc, "GOLDEN_SHARDS_MANIFEST", path)
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["shard_files"] == ["b/y.spec.ts"], golden.get("shard_files")
+    assert golden["shard_manifest"] == "frontend/golden-shards.json", golden.get("shard_manifest")
+
+
+def test_the_record_names_where_the_manifest_actually_was(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r282] The record tracks the manifest it read, not the canonical name.
+
+    shard_manifest is recorded from the constant, relative to the repo root --
+    so if the manifest ever moves or is overridden, the record follows and
+    names the file that was actually read. A hardcoded name would survive
+    every current pin (the constant's definition makes the relative_to a
+    constant in disguise) while quietly lying in the record the first time
+    the path is overridden.
+    """
+    frontend = tmp_path / "frontend"
+    frontend.mkdir(parents=True, exist_ok=True)
+    manifest = frontend / "golden-shards-alt.json"
+    manifest.write_text(json.dumps(_R282_MANIFEST), encoding="utf-8")
+    monkeypatch.setattr(fc, "GOLDEN_SHARDS_MANIFEST", manifest)
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["shard_manifest"] == "frontend/golden-shards-alt.json", golden.get(
+        "shard_manifest"
+    )
+
+
+def test_an_unset_manifest_selection_leaves_the_leg_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r282] No manifest option, no --shard: today's argv, byte for byte.
+
+    Every existing caller — the real tier, the maui prod-shape run, the local
+    operator — passes no shard at all, and r282 must not move a byte of their
+    leg. The unsharded leg's pins above already pin the shape; this one pins
+    it again WITH the manifest constant and the opt-in present, so the
+    option's mere existence is not the change — only a shard plus the opt-in
+    together are.
+    """
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.shard = None
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    assert "--shard=" not in argv[-1], argv[-1]
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in argv, argv
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in kwargs["env"]
+
+
+def test_a_manifest_selection_requires_a_shard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] The opt-in is the shard's file source, not a standalone filter.
+
+    A $FEATURE_CHECK_SHARD_MANIFEST on an UNSHARDED run would filter the whole
+    unsharded suite to one shard's files while the record said nothing — the
+    silent-coverage-hole shape again, this time from the other direction. So
+    the manifest is consulted only when a shard was named; opt-in without one
+    leaves the leg exactly today's.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.shard = None
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    assert "--shard=" not in argv[-1], argv[-1]
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in kwargs["env"]
+
+
+def test_a_manifest_shard_number_outside_the_manifest_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] Shard 7 of a three-shard manifest is a matrix/manifest drift, fail-closed.
+
+    The workflow's matrix and the manifest's shard_count are two files that
+    must agree; the harness is where the disagreement is caught, at the leg,
+    with both numbers named in the error.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(7, 8))
+    with pytest.raises(fc.HarnessError) as excinfo:
+        run.golden()
+    message = str(excinfo.value)
+    assert "--shard 7/8" in message and "shard_count 3" in message, message
+    assert _container_calls(calls) == [], "no leg ran on a refused selection"
