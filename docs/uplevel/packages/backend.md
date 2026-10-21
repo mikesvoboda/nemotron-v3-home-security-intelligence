@@ -198,7 +198,7 @@ PR it is. The row's design note stays with Phase 4's prompt-management package.
 
 **Flags:** `owner` (production safety: it changes what ships, UR-98). **Assigned:** backend, after
 `B3.3`'s fourth box (ruling 295). **Depends on:** #7321 (ruling 295's red-`main` exemption) merged.
-**PR:** none yet. (ruling 295, record 6307239846)
+**PR:** #7333. (ruling 295, record 6307239846)
 
 On 2026-10-21 `Scan Backend Image` failed on `certifi` 2026.6.17 (GHSA-6q48-6c7w-9gw2) in pip's own
 `_vendor` bundle in the `python:3.14-slim-bookworm` base image, which Trivy reports under the bare
