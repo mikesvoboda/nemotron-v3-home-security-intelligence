@@ -102,9 +102,10 @@ class TestNoReadClamp:
     def test_no_min_call_touches_the_threshold(self, route: str) -> None:
         """No ``min(...)`` rewrites the threshold in either route.
 
-        Paired with the leg above so a refactor that hides the clamp behind a
-        helper call (which would still be a rewrite on read) is caught by the
-        name rather than by the node type.
+        Paired with the shape leg above (which requires the ``ConfigResponse``
+        keyword argument itself to be a bare ``ast.Attribute`` read and rejects
+        any helper or expression wrapper there) so a ``min(...)`` clamp
+        extracted to a local statement in the route body is also caught by name.
         """
         func = getattr(system_routes, route)
         tree = ast.parse(inspect.getsource(func))

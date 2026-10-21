@@ -267,7 +267,7 @@ def pip_installed_packages(text: str) -> set[str]:
 # Flags that change WHICH wheels pip resolves, not just where it looks for them
 # in the layer. `--no-cache-dir` / `--force-reinstall` are deliberately absent: the
 # fix itself carries both, and neither alters the resulting dependency graph.
-RESOLUTION_ALTERING_FLAGS: frozenset[str] = frozenset(
+RESOLUTION_ALTERING_LONG_FLAGS: frozenset[str] = frozenset(
     {
         "--no-deps",
         "--no-index",
@@ -278,7 +278,13 @@ RESOLUTION_ALTERING_FLAGS: frozenset[str] = frozenset(
         "--only-binary",
         "--no-binary",
         "--require-hashes",
+        "--pre",
+        "--constraint",
     }
+)
+RESOLUTION_ALTERING_SHORT_FLAGS: frozenset[str] = frozenset({"-i", "-c", "-f"})
+RESOLUTION_ALTERING_FLAGS: frozenset[str] = (
+    RESOLUTION_ALTERING_LONG_FLAGS | RESOLUTION_ALTERING_SHORT_FLAGS
 )
 
 
@@ -288,7 +294,8 @@ def pip_resolution_flags(text: str) -> list[str]:
     The package-set pin above compares names only, so ``pip install --no-deps``
     (which drops the whole transitive closure while keeping every named package)
     leaves that set untouched. This walks the same instructions and surfaces the
-    flags the name comparison is blind to.
+    flags the name comparison is blind to, including short forms (``-i``/``-c``/
+    ``-f``), ``--pre``, ``--constraint``, and underscore-spelled long flags.
     """
     found: list[str] = []
     for ins in logical_instructions(text):
@@ -300,9 +307,13 @@ def pip_resolution_flags(text: str) -> list[str]:
                 continue
             after = part.split("pip install", 1)[1].strip()
             for tok in after.split():
-                name = tok.split("=", 1)[0]
-                if name in RESOLUTION_ALTERING_FLAGS:
-                    found.append(tok)
+                if tok.startswith("--"):
+                    name = tok.split("=", 1)[0].replace("_", "-")
+                    if name in RESOLUTION_ALTERING_LONG_FLAGS:
+                        found.append(tok)
+                elif tok.startswith("-") and len(tok) >= 2:
+                    if tok[:2] in RESOLUTION_ALTERING_SHORT_FLAGS:
+                        found.append(tok)
     return found
 
 
@@ -356,10 +367,33 @@ class TestGatewayDockerfileAgentGpuBuildable:
         )
 
     def test_the_resolution_flag_parser_detects_what_it_asserts_absent(self) -> None:
-        # Positive witness for the pin above: a fixture WITH --no-deps must be
-        # detected, so the clean-file pass isn't just an empty parse.
+        # Positive witness for the pin above: a fixture WITH --no-deps, --pre,
+        # --constraint, short forms (-i/-c/-f, spaced and attached), or
+        # underscore-spelled long forms (--no_deps, --index_url) must be
+        # detected, so the clean-file pass isn't just an narrow exact-name match
+        # (Q-127, ruling 305).
         assert pip_resolution_flags("RUN pip install --no-deps foo\n") == ["--no-deps"]
+        assert pip_resolution_flags("RUN pip install --pre --constraint=c.txt foo\n") == [
+            "--pre",
+            "--constraint=c.txt",
+        ]
+        assert pip_resolution_flags("RUN pip install --no_deps --index_url=https://x foo\n") == [
+            "--no_deps",
+            "--index_url=https://x",
+        ]
+        assert pip_resolution_flags(
+            "RUN pip install -i https://x -ihttps://y -c c.txt -cc.txt -f /w -f/w foo\n"
+        ) == ["-i", "-ihttps://y", "-c", "-cc.txt", "-f", "-f/w"]
         assert pip_resolution_flags("RUN pip install --no-cache-dir --force-reinstall foo\n") == []
+
+        dockerfile_text = GATEWAY_DOCKERFILE.read_text()
+        for injected in ("--pre", "--constraint=c.txt", "--no_deps", "-i https://x", "-f/wheels"):
+            mutated = dockerfile_text.replace(
+                "pip install --no-cache-dir",
+                f"pip install --no-cache-dir {injected}",
+                1,
+            )
+            assert pip_resolution_flags(mutated), f"missed injected flag {injected!r}"
 
     def test_the_python_import_path_is_set_before_the_first_install_and_the_base_is_overridable(
         self,
