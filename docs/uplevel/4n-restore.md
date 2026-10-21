@@ -145,7 +145,8 @@ did not contain, with a link to the safety backup. Their event history is untouc
 
 Backups already hold household members' names and settings, and camera RTSP passwords in plain text
 (`camera.py:130`); this design adds no personal data and keeps known persons and every embedding
-out. Recipient channels arrive with `B4.2` without their secrets. The safety backup is an ordinary
+out. Recipient channels arrive without their secrets, with whichever of `B4.2` and `B4.6` lands
+second. The safety backup is an ordinary
 backup, listed and deletable like the others. Under `EXPOSE_LAN` the routes keep their existing
 authentication.
 

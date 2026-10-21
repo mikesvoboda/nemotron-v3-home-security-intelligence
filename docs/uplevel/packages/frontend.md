@@ -280,8 +280,24 @@ F-232, F-235, F-236.
 - [ ] The test-only PR (step 2).
 - [ ] The build PR: as designed, the push subscription included; the channel checks of
       `alert-rules.spec.ts` and the UI steps of `notify.spec.ts` and `quiet-hours.spec.ts`
-      rewritten.
+      rewritten; if `F4.5` landed first, the override's "In chosen modes" (ruling 311).
 - [ ] Golden path (Playwright): the cluster's golden path.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.5 Arming in the UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.2` (ruling 311). **Depends on:** `B4.7` and
+`F4.1` merged. **PR:** none yet. (ruling 311, record 6328311780)
+
+Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `F4.5`. Covers F-290 with `B4.7`.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: the header mode chip; Settings › Arming (cameras per mode, schedule, change
+      history); "raised while unarmed" on the Alerts page's rows; if `F4.2` landed first, the
+      override's "In chosen modes"; if `B4.8` landed first, the MQTT section (enable, status, the
+      TLS warning, the token shown once) and its Playwright step.
+- [ ] Golden path (Playwright) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows.
 

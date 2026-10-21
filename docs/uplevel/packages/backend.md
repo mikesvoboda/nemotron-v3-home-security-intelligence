@@ -278,6 +278,13 @@ sensitivity/PTZ (F-291 ruled complete, all of it; ruling 89). Its design session
 - the persisted state and its audit trail, and the UI control (a frontend part);
 - whether the MQTT handler starts with the app, and how it authenticates.
 
+The session ran on 2026-10-21, and [`../4n-arming.md`](../4n-arming.md) answers each question
+(ruling 311, record 6328311780): arming gates alert creation, a critical alert is created in any
+mode, a mode is the set of cameras it arms, and MQTT starts only when enabled, with broker
+credentials and a command token. Ruling 311 narrows ruling 89 by one: sensitivity leaves MQTT,
+since nothing reads it. Zone arm/disarm waits until detections carry a zone, and a zone command
+answers "zones are not supported yet" until then.
+
 **Alert rules** (F-216, F-217; P1) is another (ruling 89: call the rules engine after each
 verdict), designed with notification history in [`../4n-alerting.md`](../4n-alerting.md). Its
 schedule includes its end minute in full: a window matches when `start <= now < end + 1 minute`,
@@ -337,6 +344,13 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236
       backup list without their secrets if `B4.6` has landed (else `B4.6` adds them); an
       additive recorded upgrade; if `B4.4` landed first, a purge also removes the alert's
       deliveries.
+- [ ] #7336: the outbound webhooks use this package's destination policy on create, update, Test
+      and send, with an "on this network" flag on the webhook (an additive column in the same
+      upgrade); the worker also resends outbound deliveries whose `next_retry_at` has passed, under
+      the same lease, until `max_retries`. Tests: a loopback, link-local or metadata URL is a 422;
+      a private address passes only with the flag; a failed delivery is resent after its backoff on
+      a fixed clock and stops at `max_retries`. The PR closes #7336 (ruling 310, record
+      6327324775).
 - [ ] Golden path (pytest): the webhook sink gets the payload and idempotency key and History reads
       `sent`; a retry ends `failed`; quiet hours give `suppressed`; critical breaks through.
 
@@ -408,6 +422,53 @@ F-101.
       Playwright, as the design gives them.
 
 **Done when:** steps 4–6 hold for F-101.
+
+**The arming packages** (ruling 311, record 6328311780), designed in
+[`../4n-arming.md`](../4n-arming.md). The heavy agent takes the core; the adapter and the UI go to
+the fast lanes.
+
+### B4.7 Arming core
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `B4.4` (ruling 311). **Depends on:** `B4.1`
+merged for the build PR; the test-only PR may open first.
+**PR:** none yet. (ruling 311, record 6328311780)
+
+Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-290.
+
+- [ ] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
+- [ ] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
+      `next_scheduled`); the four arming tables, with `schedule_updated_at` and a change log that
+      carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped
+      override, fail-armed, the notify decision naming arming); the resolver's `external` source,
+      `alert_rules.sources` and the seeded "External alerts" rule; the sweep's external clause; the
+      app routes; the inbound webhooks on the four modes, with `/alert`'s namespaced `batch_id`
+      and a pipeline run on every request; the scheduler; an additive recorded upgrade; the
+      schemas and generated API types.
+- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+
+**Done when:** steps 4–6 hold for F-290.
+
+### B4.8 The MQTT adapter
+
+**Flags:** none. **Assigned:** backend, after `B4.3` (ruling 311). **Depends on:** `B4.7` merged
+and `B4.1` (acknowledge) for the build PR, whose golden path uses `[r311a]`'s broker; the
+test-only PR may open first. **PR:** none yet. (ruling 311, record 6328311780)
+
+Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.8`. Covers F-291.
+
+- [ ] The test-only PR (step 2): `mqtt_command_handler.py`, `mqtt_client.py`, `mqtt_config.py`.
+- [ ] The build PR: the topics (mode, arm, disarm, acknowledge, PTZ; a zone command answers "zones
+      are not supported yet"; sensitivity removed); the command token, the id check, the global
+      rate limit, de-duplication and results that are not retained and never carry the token; the
+      topic-id fix (`:378`); one stored config with a CA path, seeded from `MQTT_*`; enabling
+      refused without broker credentials or against a broker that accepts an anonymous login,
+      with a warning when TLS is off; startup in `main.py`'s lifespan when enabled; the `keep.toml`
+      entries removed; the operator README's MQTT section and Mosquitto ACL. If `F4.5` landed
+      first, the MQTT section of Settings › Arming and its Playwright step.
+- [ ] Golden path (pytest) against `[r311a]`'s broker, as the design gives it.
+
+**Done when:** steps 4–6 hold. F-291 reads **works** once the MQTT section of Settings has landed
+too, and its row records that sensitivity left MQTT (ruling 311).
 
 ### BB.\* Background track
 
@@ -977,8 +1038,9 @@ and the UR-89 review approves. `[r285]` is one PR.
 
 ### [r303] Detector bake-off
 
-**Flags:** `heavy`. **Assigned:** none; the owner assigns it (ruling 303), and the coordinator
-does not. **Depends on:** none. **PR:** none yet. (ruling 303, record 6323705837)
+**Flags:** `heavy`. **Assigned:** heavy-b, after `B2.3` and ahead of `B4.5`; the operator runs
+its GPU measurement (ruling 309). **Depends on:** `[r309]`'s labelled file.
+**PR:** none yet. (rulings 303, 309; records 6323705837, 6327202214)
 
 Phase 4. Nothing about the detector changes before this test. `yolo26m` came in through #4403 and
 #4431 (2026-01), replacing RT-DETRv2, and was never compared. RF-DETR leads on COCO at the same
@@ -990,8 +1052,12 @@ Ultralytics Enterprise licence, and this repo is Apache-2.0; RF-DETR's N, S, M a
 `threat` model (`r2-sheet.md:269`). COCO is not home-camera footage: night IR and small, distant
 people decide this, and no published number measures them.
 
-- [ ] **First question to the owner:** the labelled frame set (source, who labels, size), as `B2.3`
-      settles its crops.
+- [x] **First question to the owner:** the labelled frame set (source, who labels, size), as `B2.3`
+      settles its crops. Ruling 309 answers it: about 400 stills from the owner's cameras,
+      stratified into day, night/IR and distant subjects (at least 100 with a person or vehicle in
+      each), pre-boxed by OWLv2 or Grounding DINO and corrected by the owner, prepared by
+      `[r309]`. The frames and labels stay on the host, and PRs post counts only. Synthbench's
+      verified stills score as a second table.
 - [ ] Export YOLO26-M, RF-DETR-M and RF-DETR-L to TensorRT and serve each under Triton (UR-86), on a
       desktop RTX card with the VLM resident.
 - [ ] Measure per model: AP on the product's classes (people and vehicles first), split by day,
