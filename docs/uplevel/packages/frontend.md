@@ -888,13 +888,13 @@ non-golden run. The specs that don't use the shared fixtures' init script
 (`fixtures/index.ts:53-57`) are exposed: local runs and the nightly visual specs, since the rest
 skip themselves under CI.
 
-- [ ] `frontend/tests/e2e/global-setup.ts` writes the storage state under the origin the specs run,
+- [x] `frontend/tests/e2e/global-setup.ts` writes the storage state under the origin the specs run,
       derived from the configured base URL (`E2E_BASE_URL` or the Playwright config's `baseURL`),
       not a literal.
-- [ ] **A test pins it, red first (UR-69).** For example, the written state's origin equals the
+- [x] **A test pins it, red first (UR-69).** For example, the written state's origin equals the
       configured base URL, or a spec that opens the app without the fixtures' init script finds no
       tour overlay.
-- [ ] **The PR decides whether `tests/e2e/.auth/storage-state.json` stays committed,** and says why.
+- [x] **The PR decides whether `tests/e2e/.auth/storage-state.json` stays committed,** and says why.
       A file the setup rewrites on every run may leave the tree (ignored instead).
 
 **Done when:** the test passes in CI at a ready head and the UR-89 review approves.
