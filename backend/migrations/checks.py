@@ -280,6 +280,7 @@ CHECKS: dict[str, Check] = {
     "0012-alert-pipeline-core": all_present(
         [column_present(table, column) for table, column in _B41_ALERT_PIPELINE_COLUMNS]
     ),
+    "0013-retire-prometheus-alerts-table": table_absent("prometheus_alerts"),
 }
 
 

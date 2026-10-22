@@ -45,7 +45,6 @@ from backend.api.routes import (
     admin,
     ai_audit,
     alert_service,
-    alertmanager,
     alerts,
     analytics,
     analytics_zones,
@@ -1560,7 +1559,6 @@ register_exception_handlers(app)
 app.include_router(admin.router)
 app.include_router(ai_audit.router)
 app.include_router(alert_service.router)
-app.include_router(alertmanager.router)
 app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)

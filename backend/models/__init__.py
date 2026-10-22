@@ -76,7 +76,6 @@ from .outbound_webhook import (
 )
 from .package_event import PackageEvent, PackageEventType
 from .plate_read import PlateRead
-from .prometheus_alert import PrometheusAlert, PrometheusAlertStatus
 from .prompt_config import PromptConfig
 from .prompt_version import PromptVersion
 from .property import Property
@@ -167,8 +166,6 @@ __all__ = [
     "PlateRead",
     "PolygonZone",
     "PoseResult",
-    "PrometheusAlert",
-    "PrometheusAlertStatus",
     "PromptConfig",
     "PromptVersion",
     "Property",

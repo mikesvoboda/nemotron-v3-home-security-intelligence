@@ -94,7 +94,6 @@ backend/
 - Router registration for 60 API modules:
   - `admin` - Admin operations and cache management
   - `ai_audit` - AI pipeline audit and prompt management
-  - `alertmanager` - Alertmanager integration
   - `alert_service` - Alert service operations
   - `alerts` - Alert rule CRUD and evaluation
   - `analytics` - Detection and event analytics
@@ -437,7 +436,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 
 | Route                         | Prefix                          | Description                                       |
 | ----------------------------- | ------------------------------- | ------------------------------------------------- |
-| `alertmanager.py`             | `/api/v1/alertmanager`          | Alertmanager integration                          |
 | `alert_service.py`            | `/api/alert-service`            | Alert service operations                          |
 | `alerts.py`                   | `/api/alerts/rules`             | Alert rule CRUD and evaluation                    |
 | `alerts.py`                   | `/api/alerts`                   | Alert instance queries (`alerts_instance_router`) |

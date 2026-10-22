@@ -1,7 +1,6 @@
 """API route handlers."""
 
 from .alert_service import router as alert_service_router
-from .alertmanager import router as alertmanager_router
 from .alerts import alerts_instance_router
 from .alerts import router as alerts_router
 from .analytics_zones import router as analytics_zones_router
@@ -41,7 +40,6 @@ from .zones import router as zones_router
 
 __all__ = [
     "alert_service_router",
-    "alertmanager_router",
     "alerts_instance_router",
     "alerts_router",
     "analytics_zones_router",

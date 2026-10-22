@@ -156,6 +156,11 @@ UPGRADES: tuple[Upgrade, ...] = (
         filename="2026-10-22-alert-pipeline-core.sql",
         source="B4.1 (alert pipeline core additive columns, open status, alert_events, activity_snoozes)",
     ),
+    Upgrade(
+        id="0013-retire-prometheus-alerts-table",
+        filename="2026-10-22-retire-prometheus-alerts-table.sql",
+        source="B4.11 R2a row 9 (retire F-293 prometheus_alerts table and status enum)",
+    ),
 )
 
 
